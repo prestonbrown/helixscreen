@@ -1,0 +1,8 @@
+# Build artifacts
+build/
+
+# LVGL library (cloned from git)
+lvgl/
+
+# macOS
+.DS_Store
