@@ -1,11 +1,58 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-10-26 Very Late Evening
-**Current Focus:** Wizard UI Polish Complete - Ready for Backend Implementation
+**Last Updated:** 2025-10-26 Very Late Night
+**Current Focus:** Step Progress Widget Complete - Ready for Wizard Integration
 
 ---
 
-## Recent Work (2025-10-26 Very Late Evening - Session 2)
+## Recent Work (2025-10-26 Very Late Night - Session 3)
+
+### Step Progress Widget Implementation ✅ COMPLETE
+
+**Created reusable step-by-step progress indicator widget for wizards and multi-step operations.**
+
+**What Was Built:**
+- Hybrid XML+C++ widget with clean API
+- Supports vertical and horizontal orientations
+- Three visual states: PENDING (gray filled), ACTIVE (red filled), COMPLETED (green filled)
+- Step numbers (1, 2, 3...) automatically toggle to checkmarks on completion
+- Seamless connector lines (1px width) between steps, colored based on completion
+
+**Files Created:**
+- `include/ui_step_progress.h` - Public API
+- `src/ui_step_progress.cpp` - Widget implementation (455 lines)
+- `ui_xml/step_progress_test.xml` - Test panel
+- `src/ui_panel_step_test.cpp` - Test panel implementation
+
+**API Usage:**
+```cpp
+// Create widget
+ui_step_t steps[] = {
+    {"Nozzle heating", UI_STEP_STATE_COMPLETED},
+    {"Prepare to retract", UI_STEP_STATE_ACTIVE},
+    {"Retracting", UI_STEP_STATE_PENDING},
+    {"Retract done", UI_STEP_STATE_PENDING}
+};
+lv_obj_t* progress = ui_step_progress_create(parent, steps, 4, false);  // false = vertical
+
+// Update current step
+ui_step_progress_set_current(progress, 2);  // Advances to step 3
+```
+
+**Key Technical Details:**
+- Connector positioning uses `lv_obj_update_layout()` + `LV_OBJ_FLAG_IGNORE_LAYOUT`
+- Border-aware positioning: 13px offset accounts for 2px border drawn inside circles
+- Separate `connector_index` tracking prevents state confusion during updates
+- Uses `LV_SYMBOL_OK` for cross-platform checkmark compatibility
+
+**Next Steps:**
+- Integrate into first-run wizard screens for progress tracking
+- Add to leveling wizard when implemented
+- Use in filament load/retract calibration workflows
+
+---
+
+## Earlier Work (2025-10-26 Very Late Evening - Session 2)
 
 ### Wizard Input Field Improvements + Design Token Cleanup ✅ COMPLETE
 

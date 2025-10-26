@@ -1,0 +1,125 @@
+<!--
+  Copyright (C) 2025 356C LLC
+  Author: Preston Brown <pbrown@brown-house.net>
+
+  This file is part of HelixScreen.
+
+  HelixScreen is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  HelixScreen is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<component>
+	<!-- Test panel for step progress widget demonstrations -->
+	<view extends="lv_obj"
+	      width="100%"
+	      height="100%"
+	      style_bg_color="#panel_bg"
+	      style_pad_all="#padding_normal"
+	      flex_flow="column"
+	      style_flex_main_place="start"
+	      style_flex_cross_place="center">
+
+		<!-- Title -->
+		<lv_label text="Step Progress Widget Test"
+		          style_text_font="montserrat_20"
+		          style_text_color="#text_primary"
+		          style_pad_bottom="20"/>
+
+		<!-- Vertical progress demo section -->
+		<lv_obj name="vertical_section"
+		        width="90%"
+		        height="380"
+		        style_bg_color="#card_bg"
+		        style_pad_all="#padding_card"
+		        style_radius="#card_radius"
+		        style_border_width="0"
+		        flex_flow="column"
+		        style_flex_main_place="start"
+		        style_flex_cross_place="start">
+
+			<lv_label text="Vertical Progress (Retract Wizard)"
+			          style_text_color="#text_secondary"
+			          style_pad_bottom="16"/>
+
+			<!-- Vertical progress widget container (created in C++) -->
+			<lv_obj name="vertical_progress_container"
+			        width="100%"
+			        height="200"
+			        style_bg_opa="0"
+			        style_border_width="0"
+			        style_pad_all="0"/>
+		</lv_obj>
+
+		<!-- Horizontal progress demo section -->
+		<lv_obj name="horizontal_section"
+		        width="100%"
+		        height="180"
+		        style_bg_color="#card_bg"
+		        style_pad_all="#padding_card"
+		        style_radius="#card_radius"
+		        style_border_width="0"
+		        style_pad_top="20"
+		        flex_flow="column"
+		        style_flex_main_place="start"
+		        style_flex_cross_place="start">
+
+			<lv_label text="Horizontal Progress (Leveling Wizard)"
+			          style_text_color="#text_secondary"
+			          style_pad_bottom="16"/>
+
+			<!-- Horizontal progress widget container (created in C++) -->
+			<lv_obj name="horizontal_progress_container"
+			        width="100%"
+			        height="120"
+			        style_bg_opa="0"
+			        style_border_width="0"
+			        style_pad_all="0"/>
+		</lv_obj>
+
+		<!-- Control buttons -->
+		<lv_obj name="button_row"
+		        width="90%"
+		        height="LV_SIZE_CONTENT"
+		        style_bg_opa="0"
+		        style_border_width="0"
+		        style_pad_top="20"
+		        style_pad_all="0"
+		        flex_flow="row"
+		        style_flex_main_place="space_evenly">
+
+			<lv_button name="btn_prev"
+			           width="140"
+			           height="#button_height_normal"
+			           style_bg_color="#button_secondary_bg"
+			           style_radius="#card_radius">
+				<lv_label text="Previous" align="center"/>
+			</lv_button>
+
+			<lv_button name="btn_next"
+			           width="140"
+			           height="#button_height_normal"
+			           style_bg_color="#primary_color"
+			           style_radius="#card_radius">
+				<lv_label text="Next" align="center"/>
+			</lv_button>
+
+			<lv_button name="btn_complete"
+			           width="140"
+			           height="#button_height_normal"
+			           style_bg_color="#success_color"
+			           style_radius="#card_radius">
+				<lv_label text="Complete" align="center"/>
+			</lv_button>
+		</lv_obj>
+	</view>
+</component>

@@ -128,6 +128,58 @@ lv_xml_component_register_from_file("A:ui_xml/icon.xml");
 **Material Icon Names:**
 All icons use `mat_` prefix: `mat_home`, `mat_print`, `mat_pause`, `mat_heater`, `mat_bed`, `mat_fan`, `mat_extruder`, `mat_cancel`, `mat_refresh`, `mat_back`, `mat_delete`, etc. See [material_icons.cpp](../src/material_icons.cpp) for complete list.
 
+### Step Progress Widget
+
+**Reusable step-by-step progress indicator for wizards and multi-step operations.**
+
+**Features:**
+- Vertical and horizontal orientations
+- Three visual states: PENDING (gray filled), ACTIVE (red filled), COMPLETED (green filled)
+- Step numbers (1, 2, 3...) automatically toggle to checkmarks on completion
+- Seamless 1px connector lines between steps, colored green from completed steps
+- Dynamic updates via `ui_step_progress_set_current()`
+
+**API Usage:**
+```cpp
+#include "ui_step_progress.h"
+
+// Define steps
+ui_step_t steps[] = {
+    {"Nozzle heating", UI_STEP_STATE_COMPLETED},
+    {"Prepare to retract", UI_STEP_STATE_ACTIVE},
+    {"Retracting", UI_STEP_STATE_PENDING},
+    {"Retract done", UI_STEP_STATE_PENDING}
+};
+
+// Create widget
+lv_obj_t* progress = ui_step_progress_create(parent, steps, 4, false);  // false = vertical
+
+// Update current step (advances to next)
+ui_step_progress_set_current(progress, 2);  // Now on step 3
+```
+
+**Visual Design:**
+- Circles: 24px diameter, 2px borders, filled for all states
+- Step numbers: montserrat_14 font, black on gray circles, white on red/green
+- Completed: Green filled circles with white checkmark (uses `LV_SYMBOL_OK`)
+- Active: Red filled circle with white number
+- Pending: Gray filled circles with black numbers
+- Labels: montserrat_20 (active) or montserrat_16 (other), bright white for active
+- Connectors: 1px width, green from completed steps, gray from all others
+
+**Implementation Notes:**
+- Hybrid XML+C++ widget (no XML component, pure C++ positioning)
+- Uses `lv_obj_update_layout()` + `LV_OBJ_FLAG_IGNORE_LAYOUT` for connector positioning
+- Border-aware positioning: 13px offset accounts for 2px border drawn inside circles
+- Separate `connector_index` tracking prevents state confusion during updates
+- Memory managed via `lv_malloc`/`lv_free`, cleanup on `LV_EVENT_DELETE`
+
+**Files:**
+- `include/ui_step_progress.h` - Public API
+- `src/ui_step_progress.cpp` - Implementation (455 lines)
+- `ui_xml/step_progress_test.xml` - Test panel
+- `src/ui_panel_step_test.cpp` - Test panel implementation
+
 ### Flex Layout (Navbar Pattern)
 
 ```xml

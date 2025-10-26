@@ -1,8 +1,76 @@
 # Project Status - LVGL 9 UI Prototype
 
-**Last Updated:** 2025-10-26 (Wizard UI Improvements: Input Visibility + Constants Consolidation)
+**Last Updated:** 2025-10-26 (Step Progress Widget Implementation)
 
-## Recent Updates (2025-10-26 Very Late Evening - Session 2)
+## Recent Updates (2025-10-26 Very Late Night - Session 3)
+
+### Step Progress Widget Implementation ✅ COMPLETE
+
+**Objective:** Create a reusable step-by-step progress indicator widget for wizards and multi-step operations
+
+**Problem:** Need a visual indicator for wizard progression and multi-step printer operations (leveling, retraction calibration, etc.) that clearly shows completed, active, and pending steps.
+
+**Implementation:**
+
+1. **Widget API** (`include/ui_step_progress.h`, `src/ui_step_progress.cpp`):
+   - Hybrid XML+C++ architecture for flexible positioning
+   - Clean API: `ui_step_progress_create()` and `ui_step_progress_set_current()`
+   - Three states: PENDING (gray filled), ACTIVE (red filled), COMPLETED (green filled)
+   - Step numbers (1, 2, 3...) toggle to checkmarks on completion
+   - Support for both vertical and horizontal orientations
+
+2. **Visual Design**:
+   - **Completed steps**: Green filled circles with white checkmarks
+   - **Active step**: Red filled circle with white number (highlighted)
+   - **Pending steps**: Gray filled circles with black numbers
+   - **Connector lines**: 1px width, green from completed steps, gray otherwise
+   - Circles: 24px diameter with 2px borders
+   - Step numbers: montserrat_14 font
+   - Labels: montserrat_20 (active) or montserrat_16 (other)
+
+3. **Connector Line Engineering**:
+   - Dynamic positioning after LVGL layout calculation (`lv_obj_update_layout()`)
+   - `LV_OBJ_FLAG_IGNORE_LAYOUT` to prevent flex from repositioning manually-placed connectors
+   - Border overlap calculations for seamless visual connections (13px offset accounts for 2px border)
+   - Vertical: Positioned between circles with 2px overlap for gap-free appearance
+   - Horizontal: Calculated from circle center positions, touching edges precisely
+
+4. **Test Panel** (`ui_xml/step_progress_test.xml`, `src/ui_panel_step_test.cpp`):
+   - Vertical example: 4-step retract wizard (380px height)
+   - Horizontal example: 4-step leveling wizard (100% width)
+   - Both demonstrate state transitions and connector coloring
+   - Interactive test harness with button controls (not yet implemented in test panel)
+
+**Technical Challenges Solved:**
+- Connector gaps eliminated through precise border-aware positioning
+- Step number/checkmark visibility toggling in `apply_step_styling()`
+- Horizontal connector color updates: separate `connector_index` tracking to avoid state confusion
+- Vertical label centering: matched indicator_column height (24px) to circle size
+- Font compatibility: used `LV_SYMBOL_OK` instead of Unicode checkmark
+
+**Files Created:**
+- `include/ui_step_progress.h` - Public API header
+- `src/ui_step_progress.cpp` - Widget implementation (455 lines)
+- `ui_xml/step_progress_test.xml` - Test panel layout
+- `src/ui_panel_step_test.cpp` - Test panel implementation
+
+**Files Modified:**
+- `Makefile` - Added ui_step_progress.cpp and ui_panel_step_test.cpp to build
+- `src/main.cpp` - Registered step_progress_test.xml component
+
+**Key Learnings:**
+- LVGL flex layouts require `lv_obj_update_layout()` before querying positions for manual placement
+- `LV_OBJ_FLAG_IGNORE_LAYOUT` essential for absolutely-positioned connectors in flex containers
+- Border widths must be accounted for in positioning calculations (2px border drawn inside = 13px visual edge from center)
+- Separate state tracking needed for child elements (step circles vs connector lines)
+
+**Future Use Cases:**
+- First-run wizard progress tracking
+- Leveling wizard step indication
+- Filament load/retract calibration workflows
+- Print preparation multi-step processes
+
+## Earlier Updates (2025-10-26 Very Late Evening - Session 2)
 
 ### Wizard Input Field Improvements + Constants Consolidation ✅ COMPLETE
 

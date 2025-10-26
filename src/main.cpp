@@ -37,6 +37,8 @@
 #include "ui_component_keypad.h"
 #include "ui_component_header_bar.h"
 #include "ui_icon.h"
+#include "ui_wizard.h"
+#include "ui_panel_step_test.h"
 #include "printer_state.h"
 #include "moonraker_client.h"
 #include "config.h"
@@ -211,6 +213,8 @@ int main(int argc, char** argv) {
     bool show_print_status = false;  // Special flag for print status screen
     bool show_file_detail = false;  // Special flag for file detail view
     bool show_keypad = false;  // Special flag for keypad testing
+    bool show_step_test = false;  // Special flag for step progress widget testing
+    bool force_wizard = false;  // Force wizard to run even if config exists
 
     // Parse arguments
     for (int i = 1; i < argc; i++) {
@@ -270,9 +274,11 @@ int main(int argc, char** argv) {
                 } else if (strcmp(panel_arg, "file-detail") == 0 || strcmp(panel_arg, "print-file-detail") == 0) {
                     initial_panel = UI_PANEL_PRINT_SELECT;
                     show_file_detail = true;
+                } else if (strcmp(panel_arg, "step-test") == 0 || strcmp(panel_arg, "step_test") == 0) {
+                    show_step_test = true;
                 } else {
                     printf("Unknown panel: %s\n", panel_arg);
-                    printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, extrusion, print-status, filament, settings, advanced, print-select\n");
+                    printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, extrusion, print-status, filament, settings, advanced, print-select, step-test\n");
                     return 1;
                 }
             } else {
@@ -281,12 +287,15 @@ int main(int argc, char** argv) {
             }
         } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keypad") == 0) {
             show_keypad = true;
+        } else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--wizard") == 0) {
+            force_wizard = true;
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             printf("Usage: %s [options]\n", argv[0]);
             printf("Options:\n");
             printf("  -s, --size <size>    Screen size: tiny, small, medium, large (default: medium)\n");
             printf("  -p, --panel <panel>  Initial panel (default: home)\n");
             printf("  -k, --keypad         Show numeric keypad for testing\n");
+            printf("  -w, --wizard         Force first-run configuration wizard\n");
             printf("  -h, --help           Show this help message\n");
             printf("\nAvailable panels:\n");
             printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
@@ -310,6 +319,8 @@ int main(int argc, char** argv) {
                     show_motion = true;
                 } else if (strcmp(panel_arg, "print-select") == 0 || strcmp(panel_arg, "print_select") == 0) {
                     initial_panel = UI_PANEL_PRINT_SELECT;
+                } else if (strcmp(panel_arg, "step-test") == 0 || strcmp(panel_arg, "step_test") == 0) {
+                    show_step_test = true;
                 } else {
                     printf("Unknown argument: %s\n", argv[i]);
                     printf("Use --help for usage information\n");
@@ -409,7 +420,16 @@ int main(int argc, char** argv) {
     lv_xml_component_register_from_file("A:ui_xml/settings_panel.xml");
     lv_xml_component_register_from_file("A:ui_xml/advanced_panel.xml");
     lv_xml_component_register_from_file("A:ui_xml/print_select_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/step_progress_test.xml");
     lv_xml_component_register_from_file("A:ui_xml/app_layout.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_container.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_connection.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_printer_identify.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_bed_select.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_hotend_select.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_fan_select.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_led_select.xml");
+    lv_xml_component_register_from_file("A:ui_xml/wizard_summary.xml");
 
     // Initialize reactive subjects BEFORE creating XML
     LV_LOG_USER("Initializing reactive subjects...");
@@ -422,6 +442,7 @@ int main(int argc, char** argv) {
     ui_panel_controls_extrusion_init_subjects();  // Extrusion sub-screen
     ui_panel_filament_init_subjects();  // Filament panel
     ui_panel_print_status_init_subjects();  // Print status screen
+    ui_wizard_init_subjects();  // Wizard subjects (for first-run config)
     printer_state.init_subjects();  // Printer state subjects (CRITICAL: must be before XML creation)
 
     // Create entire UI from XML (single component contains everything)
@@ -630,9 +651,43 @@ int main(int argc, char** argv) {
         printf("File detail view displayed\n");
     }
 
+    // Special case: Show step progress widget test panel
+    if (show_step_test) {
+        printf("Creating and showing step progress test panel...\n");
+
+        // Create step test panel (standalone, not part of app_layout)
+        lv_obj_t* step_test_panel = (lv_obj_t*)lv_xml_create(screen, "step_progress_test", nullptr);
+        if (step_test_panel) {
+            ui_panel_step_test_setup(step_test_panel);
+
+            // Hide app_layout to show only the test panel
+            lv_obj_add_flag(app_layout, LV_OBJ_FLAG_HIDDEN);
+
+            printf("Step progress test panel displayed\n");
+        } else {
+            LV_LOG_ERROR("Failed to create step progress test panel");
+        }
+    }
+
     // Initialize Moonraker connection
     LV_LOG_USER("Initializing Moonraker client...");
     MoonrakerClient moonraker_client;
+
+    // Check if first-run wizard is required (skip for special test panels)
+    if ((force_wizard || config->is_wizard_required()) && !show_step_test && !show_keypad) {
+        LV_LOG_USER("Starting first-run configuration wizard");
+
+        lv_obj_t* wizard = ui_wizard_create(screen, config, &moonraker_client, []() {
+            LV_LOG_USER("Wizard completed - configuration saved");
+            // Config will be reloaded on next connection attempt
+        });
+
+        if (wizard) {
+            LV_LOG_USER("Wizard created successfully");
+        } else {
+            LV_LOG_ERROR("Failed to create wizard");
+        }
+    }
 
     // Build WebSocket URL from config
     std::string moonraker_url = "ws://" +
