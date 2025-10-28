@@ -1,34 +1,32 @@
 # Session Handoff Document
 
 **Last Updated:** 2025-10-27
-**Current Focus:** WiFi password modal and connection flow
+**Current Focus:** UI testing infrastructure and wizard expansion
 
 ---
 
 ## 🎯 Active Work & Next Priorities
 
-### WiFi Password Modal - IN PROGRESS 🔄
+### ✅ Recently Completed
 
-**Next Implementation:**
-- Password entry modal component (popup over network list)
-- Modal trigger: Click secured network → show password input
-- Connection flow with spinner/feedback
-- Success: Show connected status, hide modal
-- Error: Show error message, keep modal open for retry
+**WiFi Wizard Step 0 (commit 8cab855):**
+- WiFi password modal with connection flow
+- Keyboard auto-scroll (smooth animations)
+- Password entry, cancel/connect buttons
+- Success/error feedback with status messages
 
-**Technical Approach:**
-- Modal: `lv_obj` with `align="center"` overlay
-- Password field: `lv_textarea` with `password_mode="true"`
-- Keyboard: Use existing `ui_keyboard` global system
-- Connection: `WiFiManager::connect(ssid, password, callback)`
-- State tracking: Show "Connecting..." spinner during async operation
+**UI Testing Infrastructure (commit ded96ef):**
+- Virtual input device for headless LVGL testing
+- Test utilities (`tests/ui_test_utils.h/cpp`)
+- WiFi wizard basic toggle test (4/5 passing)
+- Async wait helpers and state verification
 
 ### Next Priorities
 
-1. **Implement WiFi password modal** - popup with password input and connect button
-2. **WiFi connection flow** - spinner, success/error feedback, state updates
-3. Hardware detection/mapping screens (Steps 4-7)
-4. Integration tests for complete wizard flow
+1. **Expand UI test coverage** - Add tests for password modal, network scan, connection flow
+2. **Debug WiFi toggle test** - Event handler not updating WiFiManager state in tests
+3. **Hardware detection screens** - Wizard steps 4-7 (bed, hotend, fan, LED selection)
+4. **Integration tests** - Complete wizard flow end-to-end testing
 
 ---
 
@@ -161,9 +159,69 @@ spdlog::error("Failed: {}", (int)enum_val);     // Cast enums
 
 **Reference:** `docs/COPYRIGHT_HEADERS.md`
 
+### Pattern #9: UI Testing Infrastructure
+
+**Headless LVGL testing with virtual input device:**
+
+```cpp
+#include "../ui_test_utils.h"
+
+class MyUIFixture {
+    WizardWiFiUIFixture() {
+        static bool lvgl_initialized = false;
+        if (!lvgl_initialized) {
+            lv_init();
+            lvgl_initialized = true;
+        }
+
+        display = lv_display_create(800, 480);
+        lv_display_set_buffers(display, buf, nullptr, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+        lv_display_set_flush_cb(display, [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+            lv_display_flush_ready(disp);
+        });
+
+        screen = lv_obj_create(lv_screen_active());
+        UITest::init(screen);
+    }
+};
+
+TEST_CASE_METHOD(MyUIFixture, "My UI test", "[tag]") {
+    lv_obj_t* btn = UITest::find_by_name(screen, "my_button");
+    UITest::click(btn);
+    UITest::wait_ms(100);
+    REQUIRE(some_state_changed);
+}
+```
+
+**Test Utilities:**
+- `UITest::click(widget)` - Simulate touch at widget center
+- `UITest::type_text(textarea, "text")` - Direct text input
+- `UITest::wait_until(condition, timeout)` - Async condition wait
+- `UITest::is_visible(widget)` - State verification
+- `UITest::find_by_name(parent, "name")` - Widget lookup
+
+**Files:** `tests/ui_test_utils.h/cpp`, `tests/unit/test_wizard_wifi_ui.cpp`
+
+**Run tests:** `./build/bin/run_tests "[tag]"`
+
 ---
 
 ## 🔧 Known Issues & Gotchas
+
+### UI Test WiFi Toggle Event Handler 🐛 DEBUG NEEDED
+
+**Problem:** WiFi toggle test click doesn't update `WiFiManager::is_enabled()` state
+
+**Test Status:** 4/5 assertions pass, toggle widget found and clicked but state unchanged
+
+**Location:** `tests/unit/test_wizard_wifi_ui.cpp:160-181`
+
+**Likely Causes:**
+1. Virtual input device not triggering `LV_EVENT_VALUE_CHANGED` on ui_switch
+2. Event callback not registered properly in test fixture
+3. WiFiManager mock state not updating in test environment
+
+**To Debug:** Add spdlog trace in `ui_switch.cpp` event handler and `wifi_manager.cpp` enable function
 
 ### LVGL 9 XML Roller Options ⚠️ WORKAROUND
 
