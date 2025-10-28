@@ -16,6 +16,7 @@ This project uses **git history** and **focused documentation** instead of maint
 👉 **[docs/LVGL9_XML_GUIDE.md](docs/LVGL9_XML_GUIDE.md)** - Complete LVGL 9 XML reference
 👉 **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Common code patterns
 👉 **[docs/COPYRIGHT_HEADERS.md](docs/COPYRIGHT_HEADERS.md)** - GPL v3 header templates
+👉 **[docs/UI_TESTING.md](docs/UI_TESTING.md)** - UI test infrastructure & patterns
 👉 **[docs/MEMORY_ANALYSIS.md](docs/MEMORY_ANALYSIS.md)** - Memory profiling & lifecycle patterns
 
 ### Development History
