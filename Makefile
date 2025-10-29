@@ -188,7 +188,7 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all clean run test test-integration test-cards test-print-select test-size-content demo compile_commands libhv-build apply-patches generate-fonts help check-deps install-deps icon
+.PHONY: all build clean run test test-integration test-cards test-print-select test-size-content demo compile_commands libhv-build apply-patches generate-fonts help check-deps install-deps icon
 
 # Help target
 help:
