@@ -17,7 +17,7 @@
 - ✅ Reactive navigation with conditional back button visibility
 - ✅ Subject-driven text updates (Next → Finish on last step)
 - ✅ Simplified API: init_subjects → register_constants → create → navigate
-- Commits: `[pending]`
+- Commit: `b915469`
 
 **WiFi System** (Production Ready 2025-10-28)
 - Backend abstraction: macOS (CoreWLAN) + Linux (wpa_supplicant) + Mock
