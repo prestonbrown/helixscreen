@@ -65,8 +65,15 @@ HelixScreen uses LVGL 9's built-in theme system for automatic widget styling:
 <consts>
   <color name="primary_color" value="..."/>
   <color name="secondary_color" value="..."/>
-  <color name="text_primary" value="..."/>
-  <color name="text_secondary" value="..."/>
+
+  <!-- Theme-specific color variants for light/dark mode -->
+  <color name="app_bg_color_light" value="..."/>
+  <color name="app_bg_color_dark" value="..."/>
+  <color name="text_primary_light" value="..."/>
+  <color name="text_primary_dark" value="..."/>
+  <color name="header_text_light" value="..."/>
+  <color name="header_text_dark" value="..."/>
+
   <str name="font_body" value="..."/>
   <str name="font_heading" value="..."/>
   <str name="font_small" value="..."/>
@@ -76,9 +83,13 @@ HelixScreen uses LVGL 9's built-in theme system for automatic widget styling:
 ```cpp
 // src/ui_theme.cpp - Reads XML constants at runtime
 void ui_theme_init(lv_display_t* display, bool dark_mode) {
-    // Read colors from globals.xml
-    const char* primary_str = lv_xml_get_const(NULL, "primary_color");
-    lv_color_t primary_color = ui_theme_parse_color(primary_str);
+    // Read light/dark color variants from XML (NO hardcoded colors!)
+    const char* bg_light = lv_xml_get_const(NULL, "app_bg_color_light");
+    const char* bg_dark = lv_xml_get_const(NULL, "app_bg_color_dark");
+
+    // Override runtime constant based on theme preference
+    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
+    lv_xml_register_const(scope, "app_bg_color", dark_mode ? bg_dark : bg_light);
 
     // Initialize LVGL default theme
     lv_theme_default_init(display, primary_color, secondary_color, dark_mode, base_font);
