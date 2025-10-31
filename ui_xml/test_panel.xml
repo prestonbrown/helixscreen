@@ -23,7 +23,6 @@
 	<view extends="lv_obj"
 	      width="100%"
 	      height="100%"
-	      style_bg_color="#panel_bg"
 	      style_pad_all="20"
 	      style_border_width="0"
 	      flex_flow="column"
@@ -34,7 +33,6 @@
 		<!-- Test Row 1: Small Label + Switch -->
 		<lv_obj width="100%"
 		        height="#test_row_height"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -46,7 +44,7 @@
 
 			<lv_label text="Toggle Feature"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 
 			<ui_switch name="test_switch_1"
 			           width="#test_switch_width"
@@ -57,7 +55,6 @@
 		<!-- Test Row 2: Large Label + Switch -->
 		<lv_obj width="100%"
 		        height="#test_row_height_large"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -69,7 +66,7 @@
 
 			<lv_label text="Advanced Setting"
 			          style_text_font="#test_label_large_font"
-			          style_text_color="#text_primary"/>
+			         />
 
 			<ui_switch name="test_switch_2"
 			           width="#test_switch_width_large"
@@ -81,7 +78,6 @@
 		<!-- Test Row 3: Compact Row with Two Switches -->
 		<lv_obj width="100%"
 		        height="#test_row_height"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -93,7 +89,6 @@
 
 			<lv_label text="WiFi"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"
 			          style_margin_right="10"/>
 
 			<ui_switch name="test_switch_3"
@@ -104,7 +99,6 @@
 
 			<lv_label text="Bluetooth"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"
 			          style_margin_right="10"/>
 
 			<ui_switch name="test_switch_4"
@@ -117,13 +111,11 @@
 		<!-- NEW: Test semantic size parameter -->
 		<lv_label text="Semantic Size Parameter Tests"
 		          style_text_font="#test_label_large_font"
-		          style_text_color="#text_secondary"
 		          style_margin_top="10"/>
 
 		<!-- Size: tiny -->
 		<lv_obj width="100%"
 		        height="60"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -133,14 +125,13 @@
 		        style_flex_cross_place="center">
 			<lv_label text="size=&quot;tiny&quot;"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 			<ui_switch name="test_switch_tiny" size="tiny"/>
 		</lv_obj>
 
 		<!-- Size: small -->
 		<lv_obj width="100%"
 		        height="60"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -150,14 +141,13 @@
 		        style_flex_cross_place="center">
 			<lv_label text="size=&quot;small&quot;"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 			<ui_switch name="test_switch_small" size="small" checked="true"/>
 		</lv_obj>
 
 		<!-- Size: medium -->
 		<lv_obj width="100%"
 		        height="70"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -167,14 +157,13 @@
 		        style_flex_cross_place="center">
 			<lv_label text="size=&quot;medium&quot;"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 			<ui_switch name="test_switch_medium" size="medium"/>
 		</lv_obj>
 
 		<!-- Size: large -->
 		<lv_obj width="100%"
 		        height="80"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -184,14 +173,13 @@
 		        style_flex_cross_place="center">
 			<lv_label text="size=&quot;large&quot;"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 			<ui_switch name="test_switch_large" size="large" checked="true"/>
 		</lv_obj>
 
 		<!-- Size: medium with width override -->
 		<lv_obj width="100%"
 		        height="70"
-		        style_bg_color="#card_bg"
 		        style_bg_opa="255"
 		        style_border_width="0"
 		        style_radius="8"
@@ -201,7 +189,7 @@
 		        style_flex_cross_place="center">
 			<lv_label text="size=&quot;medium&quot; width=&quot;100&quot;"
 			          style_text_font="#test_label_font"
-			          style_text_color="#text_primary"/>
+			         />
 			<ui_switch name="test_switch_override" size="medium" width="100"/>
 		</lv_obj>
 	</view>

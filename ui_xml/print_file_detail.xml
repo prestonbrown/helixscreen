@@ -25,7 +25,6 @@
 	<view extends="lv_obj"
 	      x="#nav_width"
 	      height="100%"
-	      style_bg_color="#panel_bg"
 	      style_bg_opa="255"
 	      style_border_width="0"
 	      style_pad_all="0"
@@ -55,8 +54,7 @@
 			<lv_obj name="thumbnail_section"
 			        flex_grow="2"
 			        height="100%"
-			        style_bg_color="#card_bg"
-			        style_border_width="0"
+			       			        style_border_width="0"
 			        style_pad_all="0"
 			        style_radius="#card_radius"
 			        style_clip_corner="true"
@@ -84,8 +82,7 @@
 				<lv_obj name="metadata_overlay"
 				        width="100%"
 				        height="100"
-				        style_bg_color="#card_bg"
-				        style_bg_opa="204"
+				       				        style_bg_opa="204"
 				        style_border_width="0"
 				        style_radius="0"
 				        style_pad_left="#gap_normal"
@@ -103,8 +100,7 @@
 					          width="100%"
 					          height="20"
 					          long_mode="dots"
-					          style_text_color="#text_primary"
-					          style_text_font="montserrat_16"/>
+					         					          style_text_font="montserrat_16"/>
 
 					<!-- Metadata row (horizontal layout with icons) -->
 					<lv_obj width="100%"
@@ -130,8 +126,7 @@
 							<lv_label name="detail_print_time"
 							          bind_text="selected_print_time"
 							          flex_grow="1"
-							          style_text_color="#text_secondary"
-							          style_text_font="montserrat_14"/>
+							         							          style_text_font="montserrat_14"/>
 						</lv_obj>
 
 						<!-- Filament weight (icon + text) -->
@@ -149,8 +144,7 @@
 							<lv_label name="detail_filament_weight"
 							          bind_text="selected_filament_weight"
 							          flex_grow="1"
-							          style_text_color="#text_secondary"
-							          style_text_font="montserrat_14"/>
+							         							          style_text_font="montserrat_14"/>
 						</lv_obj>
 					</lv_obj>
 				</lv_obj>
@@ -172,8 +166,7 @@
 			<lv_obj name="options_card"
 			        width="100%"
 			        flex_grow="5"
-			        style_bg_color="#card_bg"
-			        style_border_width="0"
+			       			        style_border_width="0"
 			        style_radius="#card_radius"
 			        style_pad_all="16"
 			        flex_flow="column">
@@ -181,22 +174,20 @@
 				<!-- Filament type dropdown -->
 				<lv_label text="Filament Type"
 				          style_text_font="montserrat_16"
-				          style_text_color="#text_primary"
-				          width="100%"
+				         				          width="100%"
 				          height="20"/>
 				<lv_dropdown name="filament_dropdown"
 				             options="PLA&#10;PETG&#10;ABS&#10;TPU&#10;Nylon&#10;ASA&#10;PC&#10;HIPS&#10;PVA&#10;Wood Fill&#10;Carbon Fiber"
 				             width="100%"
 				             height="#button_height"
-				             style_bg_color="#card_bg_dark"
-				             style_text_color="#text_primary"/>
+				            				            />
 
 				<!-- Automatic bed leveling checkbox -->
 				<lv_checkbox name="bed_leveling_checkbox"
 				             text="Automatic Bed Leveling"
 				             width="100%"
 				             style_text_font="montserrat_16"
-				             style_text_color="#text_primary"/>
+				            />
 			</lv_obj>
 
 			<!-- Button row -->
@@ -212,26 +203,24 @@
 				<lv_button name="delete_button"
 				           flex_grow="1"
 				           height="#button_height"
-				           style_bg_color="#card_bg_dark"
-				           style_radius="4"
+				          				           style_radius="4"
 				           clickable="true">
 					<lv_label text="Delete"
 					          align="center"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"/>
+					         />
 				</lv_button>
 
 				<!-- Print button -->
 				<lv_button name="print_button"
 				           flex_grow="1"
 				           height="#button_height"
-				           style_bg_color="#primary_color"
-				           style_radius="4"
+				          				           style_radius="4"
 				           clickable="true">
 					<lv_label text="Print"
 					          align="center"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"/>
+					         />
 				</lv_button>
 			</lv_obj>
 			</lv_obj>

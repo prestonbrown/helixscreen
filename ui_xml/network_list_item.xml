@@ -39,7 +39,6 @@
 		<lv_label name="network_ssid"
 		          text="Network Name"
 		          style_text_font="montserrat_16"
-		          style_text_color="#text_primary"
 		          flex_grow="1"/>
 
 		<!-- Right: Connected indicator + Signal icon -->

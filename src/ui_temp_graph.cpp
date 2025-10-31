@@ -172,14 +172,12 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     lv_chart_set_axis_range(graph->chart, LV_CHART_AXIS_PRIMARY_Y,
                             (int32_t)graph->min_temp, (int32_t)graph->max_temp);
 
-    // Style chart background
-    lv_obj_set_style_bg_color(graph->chart, UI_COLOR_PANEL_BG, LV_PART_MAIN);
+    // Style chart background (theme handles colors)
     lv_obj_set_style_bg_opa(graph->chart, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(graph->chart, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(graph->chart, 12, LV_PART_MAIN);
 
-    // Style division lines - use LV_PART_MAIN but only for line properties
-    lv_obj_set_style_line_color(graph->chart, lv_color_hex(0x505050), LV_PART_MAIN);
+    // Style division lines (theme handles colors)
     lv_obj_set_style_line_width(graph->chart, 1, LV_PART_MAIN);
     lv_obj_set_style_line_opa(graph->chart, LV_OPA_30, LV_PART_MAIN);  // Subtle - 30% opacity
 

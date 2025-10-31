@@ -149,34 +149,28 @@ static void update_safety_state() {
     lv_subject_set_int(&filament_extrusion_allowed_subject, allowed ? 1 : 0);
     lv_subject_set_int(&filament_safety_warning_visible_subject, allowed ? 0 : 1);
 
-    // Update button states
+    // Update button states (theme handles colors)
     if (btn_load) {
         if (allowed) {
             lv_obj_remove_state(btn_load, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_load, lv_color_hex(0x4caf50), 0);  // Green
         } else {
             lv_obj_add_state(btn_load, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_load, lv_color_hex(0x3a3a3a), 0);  // Gray
         }
     }
 
     if (btn_unload) {
         if (allowed) {
             lv_obj_remove_state(btn_unload, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_unload, lv_color_hex(0xff9800), 0);  // Orange
         } else {
             lv_obj_add_state(btn_unload, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_unload, lv_color_hex(0x3a3a3a), 0);  // Gray
         }
     }
 
     if (btn_purge) {
         if (allowed) {
             lv_obj_remove_state(btn_purge, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_purge, lv_color_hex(0x2196f3), 0);  // Blue
         } else {
             lv_obj_add_state(btn_purge, LV_STATE_DISABLED);
-            lv_obj_set_style_bg_color(btn_purge, lv_color_hex(0x3a3a3a), 0);  // Gray
         }
     }
 
@@ -197,19 +191,11 @@ static void update_preset_buttons_visual() {
     for (int i = 0; i < 4; i++) {
         if (preset_buttons[i]) {
             if (i == selected_material) {
-                // Selected: red background, white text
-                lv_obj_set_style_bg_color(preset_buttons[i], lv_color_hex(0xff4444), 0);
-                lv_obj_t* label = lv_obj_get_child(preset_buttons[i], 0);
-                if (label) {
-                    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-                }
+                // Selected state - theme handles colors
+                lv_obj_add_state(preset_buttons[i], LV_STATE_CHECKED);
             } else {
-                // Unselected: dark gray background, light gray text
-                lv_obj_set_style_bg_color(preset_buttons[i], lv_color_hex(0x3a3a3a), 0);
-                lv_obj_t* label = lv_obj_get_child(preset_buttons[i], 0);
-                if (label) {
-                    lv_obj_set_style_text_color(label, lv_color_hex(0xb0b0b0), 0);
-                }
+                // Unselected state - theme handles colors
+                lv_obj_remove_state(preset_buttons[i], LV_STATE_CHECKED);
             }
         }
     }

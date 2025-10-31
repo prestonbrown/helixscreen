@@ -79,19 +79,10 @@ void ui_keyboard_init(lv_obj_t* parent)
     // Enable pop-overs (iOS/Android-style key feedback)
     lv_keyboard_set_popovers(g_keyboard, true);
 
-    // Apply dark theme styling with 20% transparency
-    lv_obj_set_style_bg_color(g_keyboard, lv_color_hex(0x202020), LV_PART_MAIN);  // card_bg
+    // Apply styling - theme handles colors, set opacity for transparency
     lv_obj_set_style_bg_opa(g_keyboard, LV_OPA_80, LV_PART_MAIN);  // 80% opacity = 20% transparent
-    lv_obj_set_style_text_color(g_keyboard, lv_color_hex(0xffffff), LV_PART_MAIN);  // text_primary
-
-    // Style keyboard buttons (keys)
-    lv_obj_set_style_bg_color(g_keyboard, lv_color_hex(0x4a4a4a), LV_PART_ITEMS);  // button_secondary_bg
     lv_obj_set_style_bg_opa(g_keyboard, LV_OPA_COVER, LV_PART_ITEMS);
-    lv_obj_set_style_text_color(g_keyboard, lv_color_hex(0xffffff), LV_PART_ITEMS);
     lv_obj_set_style_radius(g_keyboard, 8, LV_PART_ITEMS);  // Rounded key corners
-
-    // Style pressed state
-    lv_obj_set_style_bg_color(g_keyboard, lv_color_hex(0x6a6a6a), LV_PART_ITEMS | LV_STATE_PRESSED);
 
     // Position at bottom-middle (default)
     lv_obj_align(g_keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);

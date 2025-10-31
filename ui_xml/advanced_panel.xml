@@ -20,8 +20,8 @@
 
 <component>
 	<!-- Advanced Panel - Advanced tools and features -->
-	<view extends="lv_obj" width="100%" height="100%" style_bg_color="#panel_bg" style_pad_all="0" style_border_width="0" flex_flow="column" flex_align="center center center">
-		<lv_label text="Advanced Panel" style_text_color="#text_primary" style_text_font="montserrat_28"/>
-		<lv_label text="(Under Construction)" style_text_color="#text_secondary" style_text_font="montserrat_16" style_margin_top="#padding_normal"/>
+	<view extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_border_width="0" flex_flow="column" flex_align="center center center">
+		<lv_label text="Advanced Panel" style_text_font="montserrat_28"/>
+		<lv_label text="(Under Construction)" style_text_font="montserrat_16" style_margin_top="#padding_normal"/>
 	</view>
 </component>

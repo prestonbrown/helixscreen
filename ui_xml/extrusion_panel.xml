@@ -28,7 +28,6 @@
         name="extrusion_panel_backdrop"
         width="100%"
         height="100%"
-        style_bg_color="0x000000"
         style_bg_opa="180"
         style_border_width="0"
         style_pad_all="0"
@@ -37,7 +36,7 @@
         clickable="true">
 
     <!-- Extrusion panel content (docked right edge) -->
-    <lv_obj name="extrusion_panel" width="#overlay_panel_width" height="100%" align="right_mid" style_bg_color="#panel_bg" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
+    <lv_obj name="extrusion_panel" width="#overlay_panel_width" height="100%" align="right_mid" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
       <!-- Header Bar -->
       <header_bar name="extrusion_header" title="Extrude / Retract"/>
 
@@ -57,7 +56,7 @@
         <!-- Extruder Visualization -->
         <lv_obj name="viz_container" width="280" height="320"
                 style_min_height="200" style_max_height="320"
-                style_bg_color="#card_bg" style_radius="#card_radius_large" style_border_width="0"
+ style_radius="#card_radius_large" style_border_width="0"
                 scrollable="false"
                 flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
           <icon src="mat_extrude" variant="accent"/>
@@ -65,12 +64,12 @@
 
         <!-- Temperature Status Card -->
         <lv_obj name="temp_status_card" width="280" height="80"
-                style_bg_color="#card_bg" style_radius="8" style_border_width="0" style_pad_all="16"
+ style_radius="8" style_border_width="0" style_pad_all="16"
                 scrollable="false"
                 flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="4">
-          <lv_label text="Nozzle Temperature" style_text_font="montserrat_14" style_text_color="#text_secondary" align="center"/>
-          <lv_label name="temp_status_display" bind_text="extrusion_temp_status" style_text_font="#font_heading" style_text_color="#text_primary" align="center"/>
+          <lv_label text="Nozzle Temperature" style_text_font="montserrat_14" align="center"/>
+          <lv_label name="temp_status_display" bind_text="extrusion_temp_status" style_text_font="#font_heading" align="center"/>
         </lv_obj>
       </lv_obj>
 
@@ -85,8 +84,7 @@
         <lv_label text="Extrusion Amount:"
                   width="100%"
                   style_text_font="#font_body"
-                  style_text_color="#text_secondary"
-                  style_text_align="left"/>
+                                   style_text_align="left"/>
 
         <!-- Amount Radio Buttons (4 options: 5mm, 10mm, 25mm, 50mm) -->
         <lv_obj name="amount_selector" width="100%" height="48"
@@ -95,45 +93,45 @@
                 flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="8">
           <lv_button name="amount_5mm" width="80" height="40"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-            <lv_label text="5mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+ style_radius="6" style_border_width="0">
+            <lv_label text="5mm" style_text_font="montserrat_14" align="center"/>
           </lv_button>
           <lv_button name="amount_10mm" width="80" height="40"
-                  style_bg_color="#primary_color" style_radius="6" style_border_width="0">
-            <lv_label text="10mm" style_text_font="montserrat_14" style_text_color="#ffffff" align="center"/>
+   style_radius="6" style_border_width="0">
+            <lv_label text="10mm" style_text_font="montserrat_14" align="center"/>
           </lv_button>
           <lv_button name="amount_25mm" width="80" height="40"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-            <lv_label text="25mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+ style_radius="6" style_border_width="0">
+            <lv_label text="25mm" style_text_font="montserrat_14" align="center"/>
           </lv_button>
           <lv_button name="amount_50mm" width="80" height="40"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-            <lv_label text="50mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+ style_radius="6" style_border_width="0">
+            <lv_label text="50mm" style_text_font="montserrat_14" align="center"/>
           </lv_button>
         </lv_obj>
 
         <!-- Extrude Button (Green) -->
         <lv_button name="btn_extrude" width="100%" height="72"
-                style_bg_color="#success_color" style_radius="8" style_border_width="0"
+ style_radius="8" style_border_width="0"
                 flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="#gap_normal">
-          <lv_label text="↑" style_text_font="montserrat_28" style_text_color="#ffffff"/>
-          <lv_label text="Extrude" style_text_font="#font_heading" style_text_color="#ffffff"/>
+          <lv_label text="↑" style_text_font="montserrat_28"/>
+          <lv_label text="Extrude" style_text_font="#font_heading"/>
         </lv_button>
 
         <!-- Retract Button (Orange) -->
         <lv_button name="btn_retract" width="100%" height="72"
-                style_bg_color="#warning_color" style_radius="8" style_border_width="0"
+ style_radius="8" style_border_width="0"
                 flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="#gap_normal">
-          <lv_label text="↓" style_text_font="montserrat_28" style_text_color="#ffffff"/>
-          <lv_label text="Retract" style_text_font="#font_heading" style_text_color="#ffffff"/>
+          <lv_label text="↓" style_text_font="montserrat_28"/>
+          <lv_label text="Retract" style_text_font="#font_heading"/>
         </lv_button>
 
         <!-- Safety Warning Card (shown when nozzle < 170°C) -->
         <lv_obj name="safety_warning" width="100%" height="96"
-                style_bg_color="#000000" style_bg_opa="50"
-                style_border_color="#primary_color" style_border_width="2"
+ style_bg_opa="50"
+ style_border_width="2"
                 style_radius="8" style_pad_all="16"
                 scrollable="false" hidden="true"
                 flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
@@ -141,13 +139,11 @@
           <lv_label text="⚠ Nozzle must be >170°C to extrude"
                     width="100%"
                     style_text_font="montserrat_14"
-                    style_text_color="#primary_color"
-                    style_text_align="left"/>
+                                       style_text_align="left"/>
           <lv_label name="warning_temps" bind_text="extrusion_warning_temps"
                     width="100%"
                     style_text_font="montserrat_12"
-                    style_text_color="#primary_color"
-                    style_text_align="left"/>
+                                       style_text_align="left"/>
         </lv_obj>
       </lv_obj>
     </lv_obj>

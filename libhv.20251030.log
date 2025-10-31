@@ -194,3 +194,7 @@
 2025-10-30 19:56:17.690 INFO  EventLoopThread started, tid=1068095 [EventLoopThread.h:85:loop_thread]
 2025-10-30 19:56:20.699 INFO  reconnect... cnt=1, delay=200 [TcpClient.h:172:startReconnect]
 2025-10-30 19:56:20.699 INFO  EventLoopThread stopped, tid=1068095 [EventLoopThread.h:104:loop_thread]
+2025-10-30 20:50:48.990 INFO  ws://192.168.1.112:7125/websocket [WebSocketClient.cpp:40:open]
+2025-10-30 20:50:48.990 INFO  EventLoopThread started, tid=1197631 [EventLoopThread.h:85:loop_thread]
+2025-10-30 20:50:51.999 INFO  reconnect... cnt=1, delay=200 [TcpClient.h:172:startReconnect]
+2025-10-30 20:50:51.999 INFO  EventLoopThread stopped, tid=1197631 [EventLoopThread.h:104:loop_thread]

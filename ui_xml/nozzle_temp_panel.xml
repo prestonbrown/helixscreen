@@ -28,7 +28,6 @@
         name="nozzle_temp_panel_backdrop"
         width="100%"
         height="100%"
-        style_bg_color="0x000000"
         style_bg_opa="180"
         style_border_width="0"
         style_pad_all="0"
@@ -37,7 +36,7 @@
         clickable="true">
 
     <!-- Nozzle temperature panel content (docked right edge) -->
-    <lv_obj name="nozzle_temp_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_bg_color="#panel_bg" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
+    <lv_obj name="nozzle_temp_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
       <!-- Header Bar with Confirm Button -->
       <header_bar name="nozzle_temp_header"
                   title="Nozzle Temperature"
@@ -81,12 +80,12 @@
 
         <!-- Current/Target Temperature Display Card -->
         <lv_obj name="temp_display_card" width="100%" height="80"
-                style_bg_color="#card_bg" style_radius="0" style_border_width="0" style_pad_all="16"
+                style_radius="0" style_border_width="0" style_pad_all="16"
                 scrollable="false"
                 flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="4">
-          <lv_label text="Current / Target" style_text_font="montserrat_14" style_text_color="#text_secondary" align="center"/>
-          <lv_label name="nozzle_temp_display" bind_text="nozzle_temp_display" style_text_font="montserrat_28" style_text_color="#text_primary" align="center"/>
+          <lv_label text="Current / Target" style_text_font="montserrat_14" align="center"/>
+          <lv_label name="nozzle_temp_display" bind_text="nozzle_temp_display" style_text_font="montserrat_28" align="center"/>
         </lv_obj>
 
         <!-- Preset Buttons (2x2 Grid) -->
@@ -103,12 +102,12 @@
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="8">
             <lv_button name="preset_off" width="120" height="48"
-                    style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-              <lv_label text="Off (0°C)" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+   style_radius="6" style_border_width="0">
+              <lv_label text="Off (0°C)" style_text_font="montserrat_14" align="center"/>
             </lv_button>
             <lv_button name="preset_pla" width="120" height="48"
-                    style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-              <lv_label text="PLA (210°C)" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+   style_radius="6" style_border_width="0">
+              <lv_label text="PLA (210°C)" style_text_font="montserrat_14" align="center"/>
             </lv_button>
           </lv_obj>
 
@@ -119,20 +118,20 @@
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="8">
             <lv_button name="preset_petg" width="120" height="48"
-                    style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-              <lv_label text="PETG (240°C)" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+   style_radius="6" style_border_width="0">
+              <lv_label text="PETG (240°C)" style_text_font="montserrat_14" align="center"/>
             </lv_button>
             <lv_button name="preset_abs" width="120" height="48"
-                    style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-              <lv_label text="ABS (250°C)" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+   style_radius="6" style_border_width="0">
+              <lv_label text="ABS (250°C)" style_text_font="montserrat_14" align="center"/>
             </lv_button>
           </lv_obj>
         </lv_obj>
 
         <!-- Custom Button -->
         <lv_button name="btn_custom" width="100%" height="48"
-                style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-          <lv_label text="Custom..." style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+                style_radius="6" style_border_width="0">
+          <lv_label text="Custom..." style_text_font="#font_body" align="center"/>
         </lv_button>
 
         <!-- Status Message -->
@@ -140,8 +139,7 @@
                   text="Heating nozzle to target temperature..."
                   width="100%"
                   style_text_font="montserrat_14"
-                  style_text_color="#text_secondary"
-                  style_text_align="center"
+                                   style_text_align="center"
                   scrollable="false"/>
       </lv_obj>
     </lv_obj>

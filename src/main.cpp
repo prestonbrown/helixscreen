@@ -165,8 +165,7 @@ static void show_splash_screen() {
     // Get the active screen
     lv_obj_t* screen = lv_screen_active();
 
-    // Set background to panel background color
-    lv_obj_set_style_bg_color(screen, UI_COLOR_PANEL_BG, LV_PART_MAIN);
+    // Theme handles background color
 
     // Disable scrollbars on screen
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);

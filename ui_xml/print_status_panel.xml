@@ -26,7 +26,6 @@
 	      name="print_status_panel"
 	      x="#nav_width"
 	      height="100%"
-	      style_bg_color="#panel_bg"
 	      style_pad_all="0"
 	      style_border_width="0"
 	      flex_flow="column">
@@ -53,8 +52,7 @@
 			<lv_obj name="thumbnail_section"
 			        flex_grow="2"
 			        height="100%"
-			        style_bg_color="#card_bg"
-			        style_border_width="0"
+			       			        style_border_width="0"
 			        style_pad_all="0"
 			        style_radius="#card_radius"
 			        scrollable="false">
@@ -82,8 +80,7 @@
 				        width="100%"
 				        height="120"
 				        align="bottom_mid"
-				        style_bg_color="0x000000"
-				        style_bg_opa="180"
+				       				        style_bg_opa="180"
 				        style_border_width="0"
 				        style_pad_all="#padding_normal"
 				        style_pad_gap="8"
@@ -94,8 +91,7 @@
 					<lv_bar name="print_progress"
 					        width="100%"
 					        height="8"
-					        style_bg_color="0x404040"
-					        style_bg_opa="255"
+					       					        style_bg_opa="255"
 					        style_border_width="0"
 					        style_radius="4"
 					        bind_value="print_progress"/>
@@ -106,8 +102,7 @@
 					          bind_text="print_filename"
 					          width="100%"
 					          style_text_font="#font_heading"
-					          style_text_color="0xFFFFFF"
-					          style_text_align="left"/>
+					         					          style_text_align="left"/>
 
 					<!-- Status Row: Time/Progress -->
 					<lv_obj width="100%"
@@ -122,12 +117,12 @@
 						          text="01:23:45 / 03:00:00"
 						          bind_text="print_time"
 						          style_text_font="#font_body"
-						          style_text_color="0xBBBBBB"/>
+						         />
 						<lv_label name="print_percent"
 						          text="46%"
 						          bind_text="print_percent"
 						          style_text_font="#font_body"
-						          style_text_color="0xBBBBBB"/>
+						         />
 					</lv_obj>
 				</lv_obj>
 			</lv_obj>
@@ -149,8 +144,7 @@
 				<lv_obj name="nozzle_temp_card"
 				        width="100%"
 				        height="80"
-				        style_bg_color="#card_bg"
-				        style_radius="8"
+				       				        style_radius="8"
 				        style_border_width="0"
 				        style_pad_all="16"
 				        scrollable="false"
@@ -158,16 +152,15 @@
 				        style_flex_main_place="center"
 				        style_flex_cross_place="center"
 				        style_pad_gap="4">
-					<lv_label text="Nozzle" style_text_font="montserrat_14" style_text_color="#text_secondary" align="center"/>
-					<lv_label name="nozzle_temp_display" bind_text="nozzle_temp_display" style_text_font="montserrat_28" style_text_color="#text_primary" align="center"/>
+					<lv_label text="Nozzle" style_text_font="montserrat_14" align="center"/>
+					<lv_label name="nozzle_temp_display" bind_text="nozzle_temp_display" style_text_font="montserrat_28" align="center"/>
 				</lv_obj>
 
 				<!-- Bed Temperature Card -->
 				<lv_obj name="bed_temp_card"
 				        width="100%"
 				        height="80"
-				        style_bg_color="#card_bg"
-				        style_radius="8"
+				       				        style_radius="8"
 				        style_border_width="0"
 				        style_pad_all="16"
 				        scrollable="false"
@@ -175,8 +168,8 @@
 				        style_flex_main_place="center"
 				        style_flex_cross_place="center"
 				        style_pad_gap="4">
-					<lv_label text="Bed" style_text_font="montserrat_14" style_text_color="#text_secondary" align="center"/>
-					<lv_label name="bed_temp_display" bind_text="bed_temp_display" style_text_font="montserrat_28" style_text_color="#text_primary" align="center"/>
+					<lv_label text="Bed" style_text_font="montserrat_14" align="center"/>
+					<lv_label name="bed_temp_display" bind_text="bed_temp_display" style_text_font="montserrat_28" align="center"/>
 				</lv_obj>
 
 				<!-- Spacer (pushes buttons to bottom) -->
@@ -202,12 +195,12 @@
 					        flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
 					        style_pad_gap="8">
 						<lv_button name="btn_light" width="120" height="54"
-						        style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-							<lv_label text="Light" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+						        style_radius="6" style_border_width="0">
+							<lv_label text="Light" style_text_font="montserrat_14" align="center"/>
 						</lv_button>
 						<lv_button name="btn_pause" width="120" height="54"
-						        style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-							<lv_label text="Pause" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+						        style_radius="6" style_border_width="0">
+							<lv_label text="Pause" style_text_font="montserrat_14" align="center"/>
 						</lv_button>
 					</lv_obj>
 
@@ -218,11 +211,11 @@
 					        flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
 					        style_pad_gap="8">
 						<lv_button name="btn_tune" width="120" height="54"
-						        style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
-							<lv_label text="Tune" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+						        style_radius="6" style_border_width="0">
+							<lv_label text="Tune" style_text_font="montserrat_14" align="center"/>
 						</lv_button>
 						<lv_button name="btn_cancel" width="120" height="54"
-						        style_bg_color="0xE74C3C" style_radius="6" style_border_width="0">
+						        style_radius="6" style_border_width="0">
 							<lv_label text="Cancel" style_text_font="montserrat_14" style_text_color="0xFFFFFF" align="center"/>
 						</lv_button>
 					</lv_obj>

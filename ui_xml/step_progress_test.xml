@@ -23,8 +23,7 @@
 	<view extends="lv_obj"
 	      width="100%"
 	      height="100%"
-	      style_bg_color="#panel_bg"
-	      style_pad_all="#padding_normal"
+	     	      style_pad_all="#padding_normal"
 	      flex_flow="column"
 	      style_flex_main_place="start"
 	      style_flex_cross_place="center">
@@ -32,15 +31,13 @@
 		<!-- Title -->
 		<lv_label text="Step Progress Widget Test"
 		          style_text_font="montserrat_20"
-		          style_text_color="#text_primary"
-		          style_pad_bottom="20"/>
+		         		          style_pad_bottom="20"/>
 
 		<!-- Vertical progress demo section -->
 		<lv_obj name="vertical_section"
 		        width="90%"
 		        height="380"
-		        style_bg_color="#card_bg"
-		        style_pad_all="#padding_card"
+		       		        style_pad_all="#padding_card"
 		        style_radius="#card_radius"
 		        style_border_width="0"
 		        flex_flow="column"
@@ -48,8 +45,7 @@
 		        style_flex_cross_place="start">
 
 			<lv_label text="Vertical Progress (Retract Wizard)"
-			          style_text_color="#text_secondary"
-			          style_pad_bottom="16"/>
+			         			          style_pad_bottom="16"/>
 
 			<!-- Vertical progress widget container (created in C++) -->
 			<lv_obj name="vertical_progress_container"
@@ -64,8 +60,7 @@
 		<lv_obj name="horizontal_section"
 		        width="100%"
 		        height="180"
-		        style_bg_color="#card_bg"
-		        style_pad_all="#padding_card"
+		       		        style_pad_all="#padding_card"
 		        style_radius="#card_radius"
 		        style_border_width="0"
 		        style_pad_top="20"
@@ -74,8 +69,7 @@
 		        style_flex_cross_place="start">
 
 			<lv_label text="Horizontal Progress (Leveling Wizard)"
-			          style_text_color="#text_secondary"
-			          style_pad_bottom="16"/>
+			         			          style_pad_bottom="16"/>
 
 			<!-- Horizontal progress widget container (created in C++) -->
 			<lv_obj name="horizontal_progress_container"

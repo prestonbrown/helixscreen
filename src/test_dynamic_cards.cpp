@@ -87,9 +87,8 @@ int main(int, char**) {
         return 1;
     }
 
-    // Create screen with dark background
+    // Create screen (theme handles background)
     lv_obj_t* screen = lv_screen_active();
-    lv_obj_set_style_bg_color(screen, UI_COLOR_PANEL_BG, LV_PART_MAIN);
 
     // Register fonts
     LV_LOG_USER("Registering fonts...");
@@ -101,14 +100,13 @@ int main(int, char**) {
     lv_xml_register_component_from_file("A:ui_xml/globals.xml");
     lv_xml_register_component_from_file("A:ui_xml/test_card.xml");
 
-    // Create scrollable grid container
+    // Create scrollable grid container (theme handles background)
     lv_obj_t* container = lv_obj_create(screen);
     lv_obj_set_size(container, 1024, 800);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_all(container, 16, LV_PART_MAIN);
     lv_obj_set_style_pad_gap(container, 20, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(container, UI_COLOR_PANEL_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
 

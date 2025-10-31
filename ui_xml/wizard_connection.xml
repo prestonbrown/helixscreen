@@ -49,24 +49,20 @@
             <lv_label text="Enter your printer's network address"
                       width="100%"
                       style_text_font="montserrat_16"
-                      style_text_color="#text_primary"
                       style_margin_bottom="4"/>
 
             <lv_label text="Usually looks like 192.168.1.100 or printer.local"
                       width="100%"
                       style_text_font="montserrat_12"
-                      style_text_color="#text_muted"
                       style_margin_bottom="12"/>
 
             <!-- Card container for inputs and button -->
             <lv_obj width="100%"
                     height="100%"
                     style_min_height="140"
-                    style_bg_color="#card_bg"
                     style_bg_opa="255"
                     style_border_width="1"
-                    style_border_color="0x404040"
-                    style_border_opa="100"
+                                       style_border_opa="100"
                     style_radius="12"
                     style_pad_all="#padding_normal"
                     style_pad_gap="#gap_normal"
@@ -96,23 +92,19 @@
                         <lv_label text="Network Address"
                                 width="100%"
                                 style_text_font="montserrat_14"
-                                style_text_color="#text_primary"
-                                style_pad_bottom="4"/>
+                                          style_pad_bottom="4"/>
                         <lv_textarea name="ip_input"
                                     bind_text="connection_ip"
                                     placeholder_text="192.168.1.100"
                                     one_line="true"
                                     width="100%"
                                     style_min_height="#wizard_input_height"
-                                    style_bg_color="#card_bg_dark"
-                                    style_text_color="#text_primary"
-                                    style_text_font="montserrat_16"
+                                                                                     style_text_font="montserrat_16"
                                     style_radius="#card_radius"
                                     style_pad_all="#button_padding"
                                     style_border_width="#input_border_width"
-                                    style_border_color="#text_primary"
-                                    style_border_opa="50%"
-                                    style_placeholder_text_color="#text_muted"/>
+                                                                       style_border_opa="50%"
+                                   />
                     </lv_obj>
                     <!-- Right column: Port (flex_grow=1 gives ~33% width) -->
                     <lv_obj flex_grow="1"
@@ -126,23 +118,19 @@
                         <lv_label text="Port"
                                 width="100%"
                                 style_text_font="montserrat_14"
-                                style_text_color="#text_primary"
-                                style_pad_bottom="4"/>
+                                          style_pad_bottom="4"/>
                         <lv_textarea name="port_input"
                                     bind_text="connection_port"
                                     placeholder_text="7125"
                                     one_line="true"
                                     width="100%"
                                     style_min_height="#wizard_input_height"
-                                    style_bg_color="#card_bg_dark"
-                                    style_text_color="#text_primary"
-                                    style_text_font="montserrat_16"
+                                                                                     style_text_font="montserrat_16"
                                     style_radius="#card_radius"
                                     style_pad_all="#button_padding"
                                     style_border_width="#input_border_width"
-                                    style_border_color="#text_primary"
-                                    style_border_opa="50%"
-                                    style_placeholder_text_color="#text_muted"/>
+                                                                       style_border_opa="50%"
+                                   />
                     </lv_obj>
                 </lv_obj>
 
@@ -161,8 +149,7 @@
                     <lv_button name="btn_test_connection"
                             width="200"
                             style_min_height="#button_height_small"
-                            style_bg_color="#primary_color"
-                            style_text_color="#text_on_primary">
+                                                      >
                         <lv_label text="Test Connection"
                                 style_text_font="montserrat_16"
                                 align="center"/>
@@ -173,8 +160,7 @@
                             bind_text="connection_status"
                             flex_grow="1"
                             style_text_font="montserrat_14"
-                            style_text_color="#text_secondary"
-                            style_text_align="left"
+                                                       style_text_align="left"
                             style_pad_left="#gap_small"/>
                 </lv_obj>
             </lv_obj>

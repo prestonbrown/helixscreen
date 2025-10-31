@@ -28,7 +28,6 @@
         name="motion_panel_backdrop"
         width="100%"
         height="100%"
-        style_bg_color="0x000000"
         style_bg_opa="180"
         style_border_width="0"
         style_pad_all="0"
@@ -37,7 +36,7 @@
         clickable="true">
 
     <!-- Motion panel content (docked right edge) -->
-    <lv_obj name="motion_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_bg_color="#panel_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+    <lv_obj name="motion_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
       <!-- Header Bar -->
       <header_bar name="motion_header" title="Motion: XYZ"/>
 
@@ -77,14 +76,14 @@
 
         <!-- Position Display Card -->
         <lv_obj name="position_card" width="100%" height="#position_card_height"
-                style_bg_color="#card_bg" style_radius="8" style_border_width="0" style_border_opa="0" style_border_color="#card_bg" style_pad_all="16"
+ style_radius="8" style_border_width="0" style_border_opa="0" style_pad_all="16"
                 scrollable="false"
                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
                 style_pad_gap="8">
-          <lv_label text="Position:" style_text_font="montserrat_16" style_text_color="#text_secondary"/>
-          <lv_label name="pos_x" bind_text="motion_pos_x" style_text_font="montserrat_20" style_text_color="#text_primary"/>
-          <lv_label name="pos_y" bind_text="motion_pos_y" style_text_font="montserrat_20" style_text_color="#text_primary"/>
-          <lv_label name="pos_z" bind_text="motion_pos_z" style_text_font="montserrat_20" style_text_color="#text_primary"/>
+          <lv_label text="Position:" style_text_font="montserrat_16"/>
+          <lv_label name="pos_x" bind_text="motion_pos_x" style_text_font="montserrat_20"/>
+          <lv_label name="pos_y" bind_text="motion_pos_y" style_text_font="montserrat_20"/>
+          <lv_label name="pos_z" bind_text="motion_pos_z" style_text_font="montserrat_20"/>
         </lv_obj>
 
         <!-- Z-Axis Button Group -->
@@ -95,35 +94,35 @@
                 style_pad_gap="#padding_medium">
 
           <lv_button name="z_up_10" width="#z_button_width" height="#z_button_height"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+ style_radius="6" style_border_width="0"
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="4">
             <icon src="mat_arrow_up" size="xs" variant="primary"/>
-            <lv_label text="10mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+            <lv_label text="10mm" style_text_font="montserrat_16"/>
           </lv_button>
 
           <lv_button name="z_up_1" width="#z_button_width" height="#z_button_height"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+ style_radius="6" style_border_width="0"
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="4">
             <icon src="mat_arrow_up" size="xs" variant="primary"/>
-            <lv_label text="1mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+            <lv_label text="1mm" style_text_font="montserrat_16"/>
           </lv_button>
 
           <lv_button name="z_down_1" width="#z_button_width" height="#z_button_height"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+ style_radius="6" style_border_width="0"
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="4">
             <icon src="mat_arrow_down" size="xs" variant="primary"/>
-            <lv_label text="1mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+            <lv_label text="1mm" style_text_font="montserrat_16"/>
           </lv_button>
 
           <lv_button name="z_down_10" width="#z_button_width" height="#z_button_height"
-                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+ style_radius="6" style_border_width="0"
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="4">
             <icon src="mat_arrow_down" size="xs" variant="primary"/>
-            <lv_label text="10mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+            <lv_label text="10mm" style_text_font="montserrat_16"/>
           </lv_button>
         </lv_obj>
       </lv_obj>

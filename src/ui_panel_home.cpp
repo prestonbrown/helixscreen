@@ -326,13 +326,8 @@ static void network_observer_cb(lv_observer_t* observer, lv_subject_t* subject) 
         lv_label_set_text(network_text_label, label);
     }
 
-    // Update network icon color
-    const char* color_str = lv_subject_get_string(&network_color_subject);
-    if (color_str) {
-        uint32_t color = strtoul(color_str, nullptr, 16);
-        lv_obj_set_style_text_color(network_icon_label, lv_color_hex(color), 0);
-        lv_obj_set_style_text_color(network_text_label, lv_color_hex(color), 0);
-    }
+    // Network icon/label colors are now handled by theme
+    // Color changes would be managed through state changes if needed
 
     spdlog::trace("Network observer updated widgets");
 }

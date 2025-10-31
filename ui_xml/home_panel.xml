@@ -23,7 +23,6 @@
 		extends="lv_obj"
 		width="100%"
 		height="100%"
-		style_bg_color="#panel_bg"
 		style_pad_all="0"
 		style_border_width="0"
 		flex_flow="column"
@@ -86,23 +85,20 @@
 					<!-- "Tip: " prefix -->
 					<lv_label
 						text="Tip:"
-						style_text_color="#text_primary"
-						style_text_font="#font_heading"
+								style_text_font="#font_heading"
 					/>
 
 					<!-- Tip text (bound to subject) -->
 					<lv_label
 						name="status_text_label"
 						bind_text="status_text"
-						style_text_color="#text_primary"
-						style_text_font="#font_heading"
+								style_text_font="#font_heading"
 					/>
 
 					<!-- Question mark icon -->
 					<lv_label
 						text="#icon_question_circle"
-						style_text_color="#text_secondary"
-						style_text_font="fa_icons_24"
+								style_text_font="fa_icons_24"
 					/>
 				</lv_obj>
 			</lv_obj>
@@ -127,13 +123,12 @@
 				name="print_card"
 				flex_grow="1"
 				height="100%"
-				style_bg_color="#card_bg"
-				style_radius="#card_radius"
+					style_radius="#card_radius"
 				style_border_width="0"
 				style_pad_all="#padding_normal"
 				style_shadow_width="0"
 			>
-				<lv_label text="Print Files" style_text_color="#text_primary" style_text_font="#font_body" align="center" />
+				<lv_label text="Print Files" style_text_font="#font_body" align="center" />
 				<event_cb trigger="clicked" callback="print_card_clicked_cb"/>
 			</lv_button>
 
@@ -142,8 +137,7 @@
 				name="status_card"
 				flex_grow="1"
 				height="100%"
-				style_bg_color="#card_bg"
-				style_radius="#card_radius"
+					style_radius="#card_radius"
 				style_border_width="0"
 				style_pad_all="0"
 				flex_flow="row"
@@ -163,8 +157,7 @@
 					<lv_label
 						name="temp_text_label"
 						bind_text="temp_text"
-						style_text_color="#text_primary"
-						style_text_font="#font_body"
+								style_text_font="#font_body"
 						style_text_align="center"
 						width="100%"
 					/>
@@ -202,8 +195,7 @@
 					<lv_label
 						name="network_label"
 						bind_text="network_label"
-						style_text_color="#text_secondary"
-						style_text_font="#font_body"
+								style_text_font="#font_body"
 						style_text_align="center"
 						width="100%"
 					/>

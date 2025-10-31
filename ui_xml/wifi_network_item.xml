@@ -40,7 +40,7 @@
 		<lv_label name="signal_icon"
 		          text="#icon_wifi"
 		          style_text_font="fa_icons_24"
-		          style_text_color="#text_secondary"/>
+/>
 
 		<!-- SSID and security type column (center) -->
 		<lv_obj flex_grow="1"
@@ -57,7 +57,7 @@
 			<lv_label name="ssid_label"
 			          width="100%"
 			          style_text_font="#wifi_network_title_font"
-			          style_text_color="#text_primary"/>
+/>
 
 			<!-- Security type -->
 			<lv_label name="security_label"
@@ -70,6 +70,6 @@
 		<lv_label name="lock_icon"
 		          text="#icon_lock"
 		          style_text_font="fa_icons_24"
-		          style_text_color="#text_secondary"/>
+/>
 	</view>
 </component>

@@ -61,8 +61,7 @@
 	      style_min_width="#card_min_width"
 	      style_max_width="#card_max_width"
 	      height="#card_height"
-	      style_bg_color="#card_bg"
-	      style_radius="#card_radius"
+	     	      style_radius="#card_radius"
 	      style_border_width="0"
 	      style_pad_all="0"
 	      style_clip_corner="true"
@@ -90,8 +89,7 @@
 		<!-- Metadata overlay (absolute positioned at bottom with transparency) -->
 		<lv_obj width="100%"
 		        height="#metadata_overlay_min_height"
-		        style_bg_color="#card_bg"
-		        style_bg_opa="204"
+		       		        style_bg_opa="204"
 		        style_border_width="0"
 		        style_radius="0"
 		        style_pad_left="#gap_tiny"
@@ -108,8 +106,7 @@
 			          width="100%"
 			          height="#filename_label_height"
 			          long_mode="dots"
-			          style_text_color="#text_primary"
-			          style_text_font="montserrat_14"
+			         			          style_text_font="montserrat_14"
 			          name="filename_label"/>
 
 		<!-- Metadata row (horizontal layout, responsive) -->

@@ -67,16 +67,14 @@
 			<lv_label name="header_title"
 			          text="$title"
 			          style_text_font="montserrat_28"
-			          style_text_color="#text_primary"
-			          scrollable="false"/>
+			         			          scrollable="false"/>
 		</lv_obj>
 
 		<!-- Right side: Action button (hidden by default, shown via C++ when needed) -->
 		<lv_button name="right_button"
 		           width="#header_right_button_width"
 		           height="#header_right_button_height"
-		           style_bg_color="#primary_color"
-		           style_radius="#card_radius"
+		          		           style_radius="#card_radius"
 		           style_border_width="0"
 		           style_shadow_width="0"
 		           scrollable="false"

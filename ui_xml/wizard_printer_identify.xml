@@ -37,13 +37,11 @@
 		<lv_label text="Give your printer a name and confirm its type"
 				  width="100%"
 				  style_text_font="montserrat_16"
-				  style_text_color="#text_primary"
-				  style_margin_bottom="4"/>
+				 				  style_margin_bottom="4"/>
 		<lv_label text="We'll try to detect your printer automatically"
 				  width="100%"
 				  style_text_font="montserrat_12"
-				  style_text_color="#text_muted"
-				  style_margin_bottom="12"/>
+				 				  style_margin_bottom="12"/>
 
 		<!-- Main card container -->
 		<lv_obj width="100%"
@@ -65,23 +63,19 @@
 			<!-- Printer name input -->
 			<lv_label text="Printer Name"
 					  style_text_font="montserrat_16"
-					  style_text_color="#text_primary"
-					  style_pad_bottom="#gap_small"/>
+					 					  style_pad_bottom="#gap_small"/>
 			<lv_textarea name="printer_name_input"
 						 text=""
 						 placeholder_text="My Printer"
 						 one_line="true"
 						 width="100%"
 						 height="50"
-						 style_bg_color="#card_bg_dark"
-						 style_text_color="#text_primary"
-						 style_text_font="montserrat_16"
+																		 style_text_font="montserrat_16"
 						 style_radius="#card_radius"
 						 style_pad_all="12"
 						 style_border_width="2"
-						 style_border_color="#text_primary"
-						 style_border_opa="60"
-						 style_placeholder_text_color="#text_muted"/>
+												 style_border_opa="60"
+						/>
 
 			<!-- Detection status -->
 			<lv_label name="detection_status"
@@ -95,19 +89,15 @@
 			<!-- Printer type selection -->
 			<lv_label text="Printer Type"
 					  style_text_font="montserrat_16"
-					  style_text_color="#text_primary"
-					  style_pad_bottom="#gap_small"/>
+					 					  style_pad_bottom="#gap_small"/>
 			<lv_roller name="printer_type_roller"
 					   options="'Generic Klipper\nVoron V0\nVoron V1\nVoron V2 250\nVoron V2 300\nVoron V2 350\nVoron Trident\nVoron Switchwire\nVoron Legacy\nCreality Ender 3\nCreality Ender 3 V2\nCreality Ender 3 S1\nCreality Ender 5\nCreality K1\nCreality K1 Max\nCreality K1C\nCreality CR-10\nCreality CR-6 SE\nPrusa i3 MK3/MK3S\nPrusa MK4\nPrusa Mini/Mini+\nPrusa XL\nAnycubic Kobra\nAnycubic Vyper\nAnycubic Chiron\nRat Rig V-Core 3\nRat Rig V-Minion\nFLSUN QQ-S\nFLSUN Super Racer\nFLSUN V400\nFlashForge AD5M\nFlashForge AD5M Pro\nOther / Custom' normal"
 					   width="100%"
 					   height="160"
 					   visible_row_count="5"
-					   style_bg_color="#card_bg_dark"
-					   style_text_color="#text_primary"
-					   style_text_font="montserrat_14"
+					  					  					   style_text_font="montserrat_14"
 					   style_border_width="2"
-					   style_border_color="#text_primary"
-					   style_border_opa="60"
+					  					   style_border_opa="60"
 					   style_selected_bg_color="#primary_color"
 					   style_selected_text_color="#text_on_primary"/>
 		</lv_obj>

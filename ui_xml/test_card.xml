@@ -2,8 +2,7 @@
 	<!-- Test Card Component for Dynamic Instantiation -->
 	<view extends="lv_obj"
 	      width="200"
-	      style_bg_color="#card_bg"
-	      style_radius="8"
+	     	      style_radius="8"
 	      style_pad_all="#file_card_padding"
 	      flex_flow="column">
 
@@ -11,15 +10,13 @@
 		<lv_obj name="card_thumbnail"
 		        width="176"
 		        height="176"
-		        style_bg_color="#card_bg_dark"
-		        style_radius="6"/>
+		       		        style_radius="6"/>
 
 		<!-- Filename label -->
 		<lv_label name="card_filename"
 		          text="test.gcode"
 		          style_text_font="montserrat_16"
-		          style_text_color="#text_primary"
-		          style_pad_top="8"/>
+		         		          style_pad_top="8"/>
 
 		<!-- Metadata row -->
 		<lv_obj flex_flow="row" style_pad_gap="#padding_medium" style_pad_top="4">
@@ -29,13 +26,12 @@
 				          width="16"
 				          height="16"
 				          scale_x="64" scale_y="64"
-				          style_image_recolor="#primary_color"
-				          style_image_recolor_opa="100%"
+				         				          style_image_recolor_opa="100%"
 				          align="center"/>
 				<lv_label name="card_print_time"
 				          text="0m"
 				          style_text_font="montserrat_16"
-				          style_text_color="#primary_color"/>
+				         />
 			</lv_obj>
 
 			<!-- Filament weight -->
@@ -44,13 +40,12 @@
 				          width="16"
 				          height="16"
 				          scale_x="64" scale_y="64"
-				          style_image_recolor="#primary_color"
-				          style_image_recolor_opa="100%"
+				         				          style_image_recolor_opa="100%"
 				          align="center"/>
 				<lv_label name="card_filament"
 				          text="0g"
 				          style_text_font="montserrat_16"
-				          style_text_color="#primary_color"/>
+				         />
 			</lv_obj>
 		</lv_obj>
 

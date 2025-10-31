@@ -56,8 +56,7 @@
 		style_max_width="600"
 		height="100%"
 			align="right_mid"
-			style_bg_color="#keypad_bg"
-			style_pad_all="#padding_small"
+				style_pad_all="#padding_small"
 			style_border_width="0"
 			flex_flow="column"
 			style_flex_main_place="start"
@@ -98,14 +97,13 @@
 						text="Nozzle Temp"
 						width="content"
 						style_text_font="#font_heading"
-						style_text_color="#text_primary"
-						scrollable="false"/>
+							scrollable="false"/>
 				</lv_obj>
 
 				<!-- Right side: OK button -->
 				<lv_button name="btn_ok" width="content" height="content"
 					style_pad_row="8" style_pad_column="16"
-					style_bg_color="#primary_color" style_radius="#button_radius" style_border_width="0">
+					style_radius="#button_radius" style_border_width="0">
 					<lv_label text="OK" style_text_font="#font_heading" style_text_color="#text_primary" align="center"/>
 				</lv_button>
 			</lv_obj>
@@ -113,7 +111,6 @@
 			<!-- Input Display Card - Uses content sizing -->
 			<lv_obj width="100%"
 				height="content"
-				style_bg_color="#keypad_input_bg"
 				style_radius="#button_radius"
 				style_pad_all="#padding_medium"
 				style_border_width="0"
@@ -124,7 +121,6 @@
 				<lv_label name="input_display"
 					text="0"
 					style_text_font="montserrat_28"
-					style_text_color="#text_primary"
 					style_text_align="center"
 					scrollable="false"
 					style_max_width="400"
@@ -134,7 +130,6 @@
 				<lv_label name="input_unit"
 					text="$unit_label"
 					style_text_font="montserrat_28"
-					style_text_color="#text_secondary"
 					style_text_align="left"
 					scrollable="false"
 					style_max_width="60"
@@ -166,17 +161,17 @@
 					name="row_1">
 
 					<lv_button name="btn_7" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="7" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_8" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="8" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_9" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="9" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 				</lv_obj>
@@ -193,17 +188,17 @@
 					name="row_2">
 
 					<lv_button name="btn_4" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="4" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_5" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="5" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_6" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="6" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 				</lv_obj>
@@ -220,17 +215,17 @@
 					name="row_3">
 
 					<lv_button name="btn_1" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="1" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_2" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="2" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_3" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="3" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 				</lv_obj>
@@ -251,12 +246,12 @@
 						style_bg_opa="0%" style_border_width="0"/>
 
 					<lv_button name="btn_0" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="0" style_text_font="#button_font" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 
 					<lv_button name="btn_backspace" flex_grow="1" height="100%"
-						style_bg_color="#keypad_button_bg" style_radius="#button_radius" style_border_width="0">
+						style_radius="#button_radius" style_border_width="0">
 						<lv_label text="#icon_backspace" style_text_font="fa_icons_24" style_text_color="#text_primary" align="center"/>
 					</lv_button>
 				</lv_obj>

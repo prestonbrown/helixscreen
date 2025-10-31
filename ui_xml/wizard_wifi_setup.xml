@@ -51,14 +51,12 @@
 			<lv_label text="Connect to WiFi network (optional)"
 			          width="100%"
 			          style_text_font="#wifi_help_font"
-			          style_text_color="#text_primary"
-			          style_margin_bottom="4"/>
+			         			          style_margin_bottom="4"/>
 
 			<lv_label text="Configure WiFi now or skip to use Ethernet/localhost"
 			          width="100%"
 			          style_text_font="#wifi_status_font"
-			          style_text_color="#text_muted"
-			          style_margin_bottom="12"/>
+			         			          style_margin_bottom="12"/>
 
 			<!-- Two-column row: WiFi/Ethernet (left) and Network List (right) -->
 			<lv_obj width="100%"
@@ -88,8 +86,7 @@
 					<lv_obj width="100%"
 					        height="#wifi_card_height"
 							scrollable="false"
-					        style_bg_color="#card_bg"
-					        style_bg_opa="255"
+					       					        style_bg_opa="255"
 					        style_border_width="0"
 					        style_radius="12"
 					        style_pad_all="#padding_normal"
@@ -129,16 +126,14 @@
 						          bind_text="wifi_status"
 						          width="100%"
 						          style_text_font="#wifi_status_font"
-						          style_text_color="#text_secondary"
-						          style_text_align="center"
+						         						          style_text_align="center"
 						          style_pad_top="#gap_small"/>
 					</lv_obj>
 
 					<!-- Ethernet Status Card -->
 					<lv_obj width="100%"
 					        height="#wifi_ethernet_height"
-					        style_bg_color="#card_bg"
-					        style_bg_opa="255"
+					       					        style_bg_opa="255"
 					        style_border_width="0"
 					        style_radius="12"
 					        style_pad_all="#padding_normal"
@@ -148,16 +143,14 @@
 
 						<lv_label text="Ethernet"
 						          style_text_font="#wifi_title_font"
-						          style_text_color="#text_primary"
-						          style_pad_bottom="#gap_small"/>
+						         						          style_pad_bottom="#gap_small"/>
 
 						<!-- Ethernet Status label -->
 						<lv_label name="ethernet_status"
 						          bind_text="ethernet_status"
 						          width="100%"
 						          style_text_font="#wifi_status_font"
-						          style_text_color="#text_secondary"
-						          style_text_align="left"/>
+						         						          style_text_align="left"/>
 					</lv_obj>
 				</lv_obj>
 
@@ -166,8 +159,7 @@
 				<lv_obj flex_grow="7"
 				        height="100%"
 				        name="network_list_container"
-				        style_bg_color="#card_bg"
-				        style_bg_opa="255"
+				       				        style_bg_opa="255"
 				        style_border_width="0"
 				        style_radius="12"
 				        style_pad_all="#list_item_padding"
@@ -188,16 +180,14 @@
 					<lv_label text="Available Networks"
 					          width="100%"
 					          style_text_font="#wifi_network_title_font"
-					          style_text_color="#text_primary"
-					          style_pad_bottom="#gap_small"/>
+					         					          style_pad_bottom="#gap_small"/>
 
 					<!-- Scanning indicator (shown when wifi_scanning == 1) -->
 					<lv_label name="network_list_scanning"
 					          text="Scanning for networks..."
 					          width="100%"
 					          style_text_font="#wifi_status_font"
-					          style_text_color="#text_secondary"
-					          style_text_align="center"
+					         					          style_text_align="center"
 					          style_pad_top="#padding_normal">
 						<!-- Show only when scanning (hide when wifi_scanning == 0) -->
 						<lv_obj-bind_flag_if_eq subject="wifi_scanning" flag="hidden" ref_value="0"/>
@@ -208,8 +198,7 @@
 					          text="Enable WiFi to scan for networks"
 					          width="100%"
 					          style_text_font="#wifi_status_font"
-					          style_text_color="#text_muted"
-					          style_text_align="center"
+					         					          style_text_align="center"
 					          style_pad_top="#padding_normal">
 						<!-- Show placeholder only when WiFi is disabled (hidden when enabled) -->
 						<lv_obj-bind_flag_if_eq subject="wifi_enabled" flag="hidden" ref_value="1"/>

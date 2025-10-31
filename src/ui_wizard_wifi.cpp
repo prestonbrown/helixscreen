@@ -624,18 +624,9 @@ static void populate_network_list(const std::vector<WiFiNetwork>& networks) {
             lv_obj_bind_flag_if_eq(lock_icon, item_data->is_secured, LV_OBJ_FLAG_HIDDEN, 0);
         }
 
-        // Set signal icon color based on strength (not reactive - rarely changes)
-        if (signal_icon) {
-            if (network.signal_strength >= 75) {
-                lv_obj_set_style_text_color(signal_icon, lv_color_hex(0x4CAF50), 0); // Green
-            } else if (network.signal_strength >= 50) {
-                lv_obj_set_style_text_color(signal_icon, lv_color_hex(0xFFC107), 0); // Amber
-            } else if (network.signal_strength >= 25) {
-                lv_obj_set_style_text_color(signal_icon, lv_color_hex(0xFF9800), 0); // Orange
-            } else {
-                lv_obj_set_style_text_color(signal_icon, lv_color_hex(0xF44336), 0); // Red
-            }
-        }
+        // Signal icon color based on strength (theme handles colors)
+        // Could be implemented with state changes if color-coding is needed
+        (void)signal_icon;  // Suppress unused warning
 
         // Store NetworkItemData in user_data for click handler and cleanup
         lv_obj_set_user_data(item, item_data);

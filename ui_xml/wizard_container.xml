@@ -41,7 +41,6 @@
                 flex_flow="column"
                 style_flex_main_place="start"
                 style_pad_all="0"
-                style_bg_color="#panel_bg"
                 style_bg_opa="255"
                 style_border_width="0">
 
@@ -68,7 +67,7 @@
                 <lv_label name="wizard_title"
                           bind_text="wizard_title"
                           style_text_font="#wizard_title_font"
-                          style_text_color="#text_primary"/>
+                         />
             </lv_obj>
 
             <!-- ==================== CONTENT ==================== -->

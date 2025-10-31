@@ -25,7 +25,6 @@
 	      name="controls_panel"
 	      width="100%"
 	      height="100%"
-	      style_bg_color="#panel_bg"
 	      style_pad_all="#padding_normal"
 	      style_border_width="0"
 	      flex_flow="row_wrap"
@@ -40,7 +39,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0">
@@ -53,13 +51,12 @@
 					<!-- Label -->
 					<lv_label text="Movement &amp; Home"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="XYZ jog &amp; homing"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 				</lv_obj>
 
 				<!-- Card 2: Nozzle Temperature -->
@@ -69,7 +66,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0">
@@ -82,13 +78,12 @@
 					<!-- Label -->
 					<lv_label text="Nozzle Temp"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="Heat nozzle"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 				</lv_obj>
 
 				<!-- Card 3: Heatbed Temperature -->
@@ -98,7 +93,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0">
@@ -111,13 +105,12 @@
 					<!-- Label -->
 					<lv_label text="Heatbed Temp"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="Heat bed"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 				</lv_obj>
 
 				<!-- Card 4: Extrude/Retract -->
@@ -127,7 +120,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0">
@@ -140,13 +132,12 @@
 					<!-- Label -->
 					<lv_label text="Extrude/Retract"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="Filament control"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 				</lv_obj>
 
 				<!-- Card 5: Fan Control (Phase 2 - Placeholder) -->
@@ -156,7 +147,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0"
@@ -170,13 +160,12 @@
 					<!-- Label -->
 					<lv_label text="Fan Control"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_secondary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="Coming soon"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 				</lv_obj>
 
 				<!-- Card 6: Motors Disable -->
@@ -186,7 +175,6 @@
 				        flex_flow="column"
 				        flex_main_place="center"
 				        flex_cross_place="center"
-				        style_bg_color="#card_bg"
 				        style_radius="#card_radius_large"
 				        style_pad_all="#launcher_card_padding"
 				        style_border_width="0">
@@ -199,13 +187,12 @@
 					<!-- Label -->
 					<lv_label text="Motors Disable"
 					          style_text_font="montserrat_16"
-					          style_text_color="#text_primary"
 					          style_pad_bottom="#launcher_card_title_padding"/>
 
 					<!-- Subtitle -->
 					<lv_label text="Release steppers"
 					          style_text_font="montserrat_14"
-					          style_text_color="#text_secondary"/>
+					         />
 		</lv_obj>
 
 	</view>

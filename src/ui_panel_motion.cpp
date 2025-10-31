@@ -81,10 +81,13 @@ void ui_panel_motion_init_subjects() {
 static void update_distance_buttons() {
     for (int i = 0; i < 4; i++) {
         if (dist_buttons[i]) {
-            lv_color_t bg_color = (i == current_distance) ?
-                lv_color_hex(0xcc3333) :  // Active: softer red
-                lv_color_hex(0x505050);   // Inactive: lighter gray for visibility
-            lv_obj_set_style_bg_color(dist_buttons[i], bg_color, 0);
+            if (i == current_distance) {
+                // Active state - theme handles colors
+                lv_obj_add_state(dist_buttons[i], LV_STATE_CHECKED);
+            } else {
+                // Inactive state - theme handles colors
+                lv_obj_remove_state(dist_buttons[i], LV_STATE_CHECKED);
+            }
         }
     }
 }
