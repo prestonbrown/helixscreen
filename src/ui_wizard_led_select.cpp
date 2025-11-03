@@ -22,9 +22,11 @@
 #include "ui_wizard.h"
 #include "app_globals.h"
 #include "config.h"
+#include "moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include <spdlog/spdlog.h>
 #include <string>
+#include <vector>
 #include <cstring>
 
 // ============================================================================
@@ -37,8 +39,8 @@ static lv_subject_t led_strip_selected;
 // Screen instance
 static lv_obj_t* led_select_screen_root = nullptr;
 
-// Placeholder options for dropdown
-static const char* led_strip_options = "neopixel my_neopixel\ndotstar my_dotstar\nNone";
+// Dynamic options storage (for event callback mapping)
+static std::vector<std::string> led_strip_items;
 
 // ============================================================================
 // Forward Declarations
@@ -90,12 +92,9 @@ static void on_led_strip_changed(lv_event_t* e) {
 
     // Save to config
     Config* config = Config::get_instance();
-    if (config) {
-        const char* options[] = {"neopixel my_neopixel", "dotstar my_dotstar", "None"};
-        if (selected_index < sizeof(options)/sizeof(options[0])) {
-            config->set("/printer/led_strip", std::string(options[selected_index]));
-            spdlog::debug("[Wizard LED] Saved LED strip: {}", options[selected_index]);
-        }
+    if (config && selected_index < led_strip_items.size()) {
+        config->set("/printer/led_strip", led_strip_items[selected_index]);
+        spdlog::debug("[Wizard LED] Saved LED strip: {}", led_strip_items[selected_index]);
     }
 }
 
@@ -129,14 +128,39 @@ lv_obj_t* ui_wizard_led_select_create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // Get Moonraker client for hardware discovery
+    MoonrakerClient* client = get_moonraker_client();
+
+    // Build LED strip options from discovered hardware
+    led_strip_items.clear();
+    std::string led_options_str;
+
+    if (client) {
+        const auto& leds = client->get_leds();
+        // Include all discovered LEDs (no filtering needed)
+        for (const auto& led : leds) {
+            led_strip_items.push_back(led);
+            if (!led_options_str.empty()) led_options_str += "\n";
+            led_options_str += led;
+        }
+    }
+
+    // Always add "None" option
+    led_strip_items.push_back("None");
+    if (!led_options_str.empty()) led_options_str += "\n";
+    led_options_str += "None";
+
     // Find and configure LED strip dropdown
-    lv_obj_t* led_dropdown = lv_obj_find_by_name(led_select_screen_root, "led_strip_dropdown");
+    lv_obj_t* led_dropdown = lv_obj_find_by_name(led_select_screen_root, "led_main_dropdown");
     if (led_dropdown) {
-        lv_dropdown_set_options(led_dropdown, led_strip_options);
+        lv_dropdown_set_options(led_dropdown, led_options_str.c_str());
         int index = lv_subject_get_int(&led_strip_selected);
+        if (index >= static_cast<int>(led_strip_items.size())) {
+            index = 0;  // Reset to first option if out of range
+        }
         lv_dropdown_set_selected(led_dropdown, index);
         spdlog::debug("[Wizard LED] Configured LED dropdown with {} options, selected: {}",
-                     3, index);
+                     led_strip_items.size(), index);
     }
 
     spdlog::info("[Wizard LED] Screen created successfully");

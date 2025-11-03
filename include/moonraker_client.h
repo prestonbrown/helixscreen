@@ -189,6 +189,11 @@ public:
   const std::vector<std::string>& get_fans() const { return fans_; }
 
   /**
+   * @brief Get discovered LED outputs
+   */
+  const std::vector<std::string>& get_leds() const { return leds_; }
+
+  /**
    * @brief Get current connection state
    */
   ConnectionState get_connection_state() const { return connection_state_; }

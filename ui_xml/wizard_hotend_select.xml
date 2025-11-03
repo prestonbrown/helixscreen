@@ -39,7 +39,7 @@
 
 		<!-- Selection container -->
 		<ui_card width="100%"
-		         height="auto"
+		         flex_grow="1"
 		         style_bg_opa="255"
 		         style_radius="12"
 		         style_pad_all="#padding_normal"

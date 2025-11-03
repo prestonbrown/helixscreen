@@ -16,8 +16,34 @@
       "log_level": "debug",
       "monitored_sensors": [],
       "moonraker_api_key": false,
+      "moonraker_connection_timeout_ms": 10000,
       "moonraker_host": "192.168.1.112",
-      "moonraker_port": 7125
+      "moonraker_keepalive_interval_ms": 10000,
+      "moonraker_port": 7125,
+      "moonraker_reconnect_max_delay_ms": 2000,
+      "moonraker_reconnect_min_delay_ms": 200,
+      "moonraker_request_timeout_ms": 30000,
+      "moonraker_timeout_check_interval_ms": 2000
     }
+  },
+  "network": {
+    "connection_type": "None",
+    "wifi_ssid": "",
+    "eth_ip": ""
+  },
+  "moonraker": {
+    "host": "",
+    "port": 7125
+  },
+  "printer": {
+    "bed_heater": "heater_bed",
+    "bed_sensor": "temperature_sensor bed",
+    "hotend_fan": "heater_fan hotend_fan",
+    "hotend_heater": "extruder",
+    "hotend_sensor": "temperature_sensor extruder",
+    "led_strip": "None",
+    "name": "Unnamed Printer",
+    "part_fan": "fan",
+    "type": "Unknown"
   }
 }
