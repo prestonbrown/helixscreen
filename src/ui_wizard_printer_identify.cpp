@@ -132,9 +132,6 @@ void ui_wizard_printer_identify_init_subjects() {
     // Reset validation state
     printer_identify_validated = false;
 
-    // Enable Next button by default (no validation required for baseline)
-    ui_wizard_set_next_button_enabled(true);
-
     spdlog::info("[Wizard Printer] Subjects initialized");
 }
 

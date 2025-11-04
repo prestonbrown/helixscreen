@@ -85,9 +85,6 @@ void ui_wizard_fan_select_init_subjects() {
     lv_subject_init_int(&part_fan_selected, part_index);
     lv_xml_register_subject(nullptr, "part_fan_selected", &part_fan_selected);
 
-    // Always enable Next button for baseline implementation
-    ui_wizard_set_button_enabled(true, true);
-
     spdlog::info("[Wizard Fan] Subjects initialized - hotend: {}, part: {}",
                  hotend_index, part_index);
 }

@@ -83,9 +83,6 @@ void ui_wizard_hotend_select_init_subjects() {
     lv_subject_init_int(&hotend_sensor_selected, sensor_index);
     lv_xml_register_subject(nullptr, "hotend_sensor_selected", &hotend_sensor_selected);
 
-    // Always enable Next button for baseline implementation
-    ui_wizard_set_button_enabled(true, true);
-
     spdlog::info("[Wizard Hotend] Subjects initialized - heater: {}, sensor: {}",
                  heater_index, sensor_index);
 }

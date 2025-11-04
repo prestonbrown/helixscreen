@@ -71,9 +71,6 @@ void ui_wizard_led_select_init_subjects() {
     lv_subject_init_int(&led_strip_selected, led_index);
     lv_xml_register_subject(nullptr, "led_strip_selected", &led_strip_selected);
 
-    // Always enable Next button for baseline implementation
-    ui_wizard_set_button_enabled(true, true);
-
     spdlog::info("[Wizard LED] Subjects initialized - LED strip: {}", led_index);
 }
 

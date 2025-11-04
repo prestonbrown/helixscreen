@@ -85,9 +85,6 @@ void ui_wizard_bed_select_init_subjects() {
     lv_subject_init_int(&bed_sensor_selected, sensor_index);
     lv_xml_register_subject(nullptr, "bed_sensor_selected", &bed_sensor_selected);
 
-    // Always enable Next button for baseline implementation
-    ui_wizard_set_button_enabled(true, true);
-
     spdlog::info("[Wizard Bed] Subjects initialized - heater: {}, sensor: {}",
                  heater_index, sensor_index);
 }

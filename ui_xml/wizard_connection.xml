@@ -32,54 +32,36 @@
           style_flex_cross_place="start"
           name="wizard_connection_root">
 
-        <!-- Top Section: Instructions and Input Fields -->
-        <lv_obj width="100%"
-                flex_grow="1"
-				scrollable="false"
-                style_bg_opa="0"
-                style_radius="0"
-                style_border_width="0"
-                style_pad_all="0"
-                style_pad_gap="#gap_normal"
-                flex_flow="column"
-                style_flex_main_place="start"
-                style_flex_cross_place="start">
-
             <!-- Help text -->
-            <text_body text="Enter your printer's network address"
+            <lv_label text="Enter your printer's network address"
                        width="100%"
-                       style_margin_bottom="4"/>
+                       font="#header_font"/>
 
-            <text_small text="Usually looks like 192.168.1.100 or printer.local"
-                        width="100%"
-                        style_margin_bottom="12"/>
+            <text_small text="Usually looks like 127.0.0.1 or printer.local"
+                        width="100%"/>
 
             <!-- Card container for inputs and button -->
             <ui_card width="100%"
-                     height="100%"
-                     style_min_height="140"
-                     style_bg_opa="255"
-                     style_border_width="1"
-                     style_border_opa="100"
-                     style_radius="12"
-                     style_pad_all="#padding_normal"
                      style_pad_gap="#gap_normal"
+                     scrollable="false"
                      flex_flow="column"
                      style_flex_main_place="start"
                      style_flex_cross_place="start">
 
                 <!-- Horizontal input row: Network Address (left) and Port (right) -->
                 <lv_obj width="100%"
-                    style_bg_opa="0"
-                    style_border_width="0"
-                    style_pad_all="0"
-                    style_pad_gap="#gap_small"
-                    flex_flow="row"
-                    style_flex_main_place="start"
-                    style_flex_cross_place="start">
+                        height="100"
+                        scrollable="false"
+                        style_bg_opa="0"
+                        style_border_width="0"
+                        style_pad_all="0"
+                        style_pad_gap="#gap_small"
+                        flex_flow="row"
+                        style_flex_main_place="start"
+                        style_flex_cross_place="start">
 
-                    <!-- Left column: Network Address (flex_grow=2 gives ~67% width) -->
-                    <lv_obj flex_grow="2"
+                    <!-- Left column: Network Address -->
+                    <lv_obj flex_grow="3"
                             style_bg_opa="0"
                             style_border_width="0"
                             style_pad_all="0"
@@ -88,22 +70,15 @@
                             style_flex_main_place="start"
                             style_flex_cross_place="start">
                         <text_body text="Network Address"
-                                   width="100%"
-                                   style_pad_bottom="4"/>
+                                   width="100%"/>
                         <lv_textarea name="ip_input"
                                     bind_text="connection_ip"
-                                    placeholder_text="192.168.1.100"
-                                    one_line="true"
+                                    placeholder_text="127.0.0.1"
                                     width="100%"
-                                    style_min_height="#wizard_input_height"
-                                                                                     style_text_font="montserrat_16"
-                                    style_radius="#card_radius"
-                                    style_pad_all="#button_padding"
-                                    style_border_width="#input_border_width"
-                                                                       style_border_opa="50%"
+                                    height="#wizard_input_height"
                                    />
                     </lv_obj>
-                    <!-- Right column: Port (flex_grow=1 gives ~33% width) -->
+                    <!-- Right column: Port --> 
                     <lv_obj flex_grow="1"
                             style_bg_opa="0"
                             style_border_width="0"
@@ -113,25 +88,19 @@
                             style_flex_main_place="start"
                             style_flex_cross_place="start">
                         <text_body text="Port"
-                                   width="100%"
-                                   style_pad_bottom="4"/>
+                                   width="100%"/>
                         <lv_textarea name="port_input"
                                     bind_text="connection_port"
                                     placeholder_text="7125"
-                                    one_line="true"
                                     width="100%"
-                                    style_min_height="#wizard_input_height"
-                                                                                     style_text_font="montserrat_16"
-                                    style_radius="#card_radius"
-                                    style_pad_all="#button_padding"
-                                    style_border_width="#input_border_width"
-                                                                       style_border_opa="50%"
+                                    height="#wizard_input_height"
                                    />
                     </lv_obj>
                 </lv_obj>
 
                 <!-- Test connection button and status row -->
                 <lv_obj width="100%"
+                        height="48"
                         style_bg_opa="0"
                         style_border_width="0"
                         style_pad_all="0"
@@ -144,20 +113,29 @@
                     <!-- Test Connection Button -->
                     <lv_button name="btn_test_connection"
                             width="200"
-                            style_min_height="#button_height_small"
-                                                      >
+                            style_min_height="#button_height_small">
                         <text_body text="Test Connection"
                                    align="center"/>
                     </lv_button>
 
-                    <!-- Connection Status Label -->
-                    <text_body name="connection_status"
-                               bind_text="connection_status"
-                               flex_grow="1"
-                               style_text_align="left"
-                               style_pad_left="#gap_small"/>
+                    <!-- Connection Status (icon + text) -->
+                    <lv_obj flex_grow="1"
+                            style_pad_left="#gap_small"
+                            style_flex_flow="row"
+                            style_flex_main_place="start"
+                            style_flex_cross_place="center"
+                            style_pad_column="#gap_small">
+                        <!-- Status Icon (FontAwesome) -->
+                        <lv_label name="connection_status_icon"
+                                  bind_text="connection_status_icon"
+                                  style_text_font="fa_icons_16"/>
+
+                        <!-- Status Text (Montserrat) -->
+                        <text_body name="connection_status_text"
+                                   bind_text="connection_status_text"
+                                   flex_grow="1"/>
+                    </lv_obj>
                 </lv_obj>
             </ui_card>
-        </lv_obj>
     </view>
 </component>

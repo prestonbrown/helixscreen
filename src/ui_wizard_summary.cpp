@@ -161,9 +161,6 @@ void ui_wizard_summary_init_subjects() {
                           sizeof(part_fan_buffer), part_fan_buffer);
     lv_xml_register_subject(nullptr, "summary_part_fan", &summary_part_fan);
 
-    // Always enable Next button (which is "Finish" on this screen)
-    ui_wizard_set_button_enabled(true, true);
-
     spdlog::info("[Wizard Summary] Subjects initialized with config values");
 }
 

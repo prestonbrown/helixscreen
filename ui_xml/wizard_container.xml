@@ -37,6 +37,14 @@
     <!-- Wizard-specific responsive constants (LARGE screen defaults) -->
     <!-- C++ overrides ALL constants below based on screen size before component creation -->
     <!-- See ui_wizard.cpp::ui_wizard_container_register_responsive_constants() -->
+
+    <!-- Styles for wizard UI components -->
+    <styles>
+        <style name="button_disabled"
+               bg_opa="128"
+               border_opa="128"/>
+    </styles>
+
     <consts>
         <!-- Layout dimensions (RESPONSIVE: SMALL=4/MEDIUM=6/LARGE=8) -->
         <const name="list_item_padding" value="8"/>
@@ -144,7 +152,7 @@
                         style_border_width="0"
                         flex_grow="1"/>
 
-                <!-- NEXT/FINISH BUTTON (text bound to subject) -->
+                <!-- NEXT/FINISH BUTTON (text bound to subject, clickable only when connection_test_passed == 1) -->
                 <lv_button name="btn_next"
                            width="#wizard_button_width"
                            height="#button_height">
@@ -152,6 +160,10 @@
                               bind_text="wizard_next_button_text"
                               align="center"/>
                     <event_cb trigger="clicked" callback="on_next_clicked"/>
+                    <!-- Button is clickable when connection_test_passed == 1 (enabled on successful test) -->
+                    <lv_obj-bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
+                    <!-- Apply disabled button style when connection_test_passed == 0 -->
+                    <bind_style name="button_disabled" subject="connection_test_passed" ref_value="0"/>
                 </lv_button>
             </lv_obj>
 
