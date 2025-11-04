@@ -14,7 +14,7 @@ $(LIBHV_LIB):
 	$(Q)$(MAKE) libhv-build
 
 # Link binary
-$(TARGET): $(LIBHV_LIB) $(APP_OBJS) $(OBJCPP_OBJS) $(LVGL_OBJS) $(THORVG_OBJS) $(FONT_OBJS) $(MATERIAL_ICON_OBJS) $(WPA_DEPS)
+$(TARGET): $(LIBHV_LIB) $(APP_C_OBJS) $(APP_OBJS) $(OBJCPP_OBJS) $(LVGL_OBJS) $(THORVG_OBJS) $(FONT_OBJS) $(MATERIAL_ICON_OBJS) $(WPA_DEPS)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) $@"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) || { \
@@ -25,6 +25,19 @@ $(TARGET): $(LIBHV_LIB) $(APP_OBJS) $(OBJCPP_OBJS) $(LVGL_OBJS) $(THORVG_OBJS) $
 
 # Collect all header dependencies
 HEADERS := $(shell find $(INC_DIR) -name "*.h" 2>/dev/null)
+
+# Compile app C sources (depend on headers)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[CC]$(RESET) $<"
+ifeq ($(V),1)
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+endif
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
+		echo "$(YELLOW)Command:$(RESET) $(CC) $(CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		exit 1; \
+	}
 
 # Compile app C++ sources (depend on headers)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS)

@@ -1,7 +1,7 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-11-03
-**Current Focus:** Wizard connection screen (step 2) near completion, needs polish
+**Last Updated:** 2025-11-04
+**Current Focus:** Custom theme implementation complete, wizard polish continues
 
 ---
 
@@ -9,11 +9,19 @@
 
 ### Completed Phases
 
-1. **Phase 1: Hardware Discovery Trigger** - ✅ COMPLETE
+1. **Custom HelixScreen Theme** - ✅ COMPLETE
+   - Implemented custom LVGL wrapper theme (helix_theme.c) that extends default theme
+   - Input widgets (textarea, dropdown, roller, spinbox) get computed background colors automatically
+   - Dark mode: input backgrounds 22-27 RGB units lighter than cards (#35363A vs #1F1F1F)
+   - Light mode: input backgrounds 22-27 RGB units darker than cards (#DADCDE vs #F0F3F9)
+   - Removed 273 lines of fragile LVGL private API patching from ui_theme.cpp
+   - Uses LVGL's public theme API, much more maintainable across LVGL versions
+
+2. **Phase 1: Hardware Discovery Trigger** - ✅ COMPLETE
    - Wizard triggers `discover_printer()` after successful connection
    - Connection stays alive for hardware selection steps 4-7
 
-2. **Phase 2: Dynamic Dropdown Population** - ✅ COMPLETE
+3. **Phase 2: Dynamic Dropdown Population** - ✅ COMPLETE
    - All 4 wizard hardware screens use dynamic dropdowns from MoonrakerClient
    - Hardware filtering: bed (by "bed"), hotend (by "extruder"/"hotend"), fans (separated by type), LEDs (all)
    - Fixed critical layout bug: `height="LV_SIZE_CONTENT"` → `flex_grow="1"`

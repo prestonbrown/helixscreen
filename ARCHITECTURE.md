@@ -54,11 +54,11 @@ ui_panel_nozzle_update(210);  // All bound widgets update automatically
 - One update propagates to multiple UI elements
 - Clean separation between data and presentation
 
-### 3. LVGL Theme Integration
+### 3. Custom HelixScreen Theme
 
-HelixScreen uses LVGL 9's built-in theme system for automatic widget styling:
+HelixScreen uses a custom LVGL theme that wraps the default theme for enhanced styling:
 
-**Architecture:** XML → C++ → LVGL Theme
+**Architecture:** XML → C++ → Custom Theme → LVGL Default Theme
 
 ```xml
 <!-- ui_xml/globals.xml - Single source of truth for theme values -->
@@ -69,38 +69,50 @@ HelixScreen uses LVGL 9's built-in theme system for automatic widget styling:
   <!-- Theme-specific color variants for light/dark mode -->
   <color name="app_bg_color_light" value="..."/>
   <color name="app_bg_color_dark" value="..."/>
+  <color name="card_bg_light" value="..."/>
+  <color name="card_bg_dark" value="..."/>
   <color name="text_primary_light" value="..."/>
   <color name="text_primary_dark" value="..."/>
-  <color name="header_text_light" value="..."/>
-  <color name="header_text_dark" value="..."/>
 
   <str name="font_body" value="..."/>
   <str name="font_heading" value="..."/>
-  <str name="font_small" value="..."/>
 </consts>
 ```
 
 ```cpp
-// src/ui_theme.cpp - Reads XML constants at runtime
-void ui_theme_init(lv_display_t* display, bool dark_mode) {
-    // Read light/dark color variants from XML (NO hardcoded colors!)
-    const char* bg_light = lv_xml_get_const(NULL, "app_bg_color_light");
-    const char* bg_dark = lv_xml_get_const(NULL, "app_bg_color_dark");
+// src/helix_theme.c - Custom theme wrapper
+static void helix_theme_apply_cb(lv_theme_t* theme, lv_obj_t* obj) {
+    // Apply default theme first
+    lv_theme_apply(helix_theme->default_theme, obj);
 
-    // Override runtime constant based on theme preference
-    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
-    lv_xml_register_const(scope, "app_bg_color", dark_mode ? bg_dark : bg_light);
-
-    // Initialize LVGL default theme
-    lv_theme_default_init(display, primary_color, secondary_color, dark_mode, base_font);
+    // Override input widgets with computed background color
+    if(lv_obj_check_type(obj, &lv_textarea_class)) {
+        lv_obj_add_style(obj, &helix_theme->input_bg_style, 0);
+    }
+    // Similar for dropdown, roller, spinbox...
 }
 ```
 
-**Benefits:**
+```cpp
+// src/ui_theme.cpp - Initializes custom theme
+void ui_theme_init(lv_display_t* display, bool dark_mode) {
+    // Read colors from XML (NO hardcoded colors!)
+    lv_color_t card_bg = parse_color(dark_mode ? card_bg_dark : card_bg_light);
+
+    // Initialize custom HelixScreen theme (wraps default)
+    lv_theme_t* theme = helix_theme_init(display, primary, secondary,
+                                          dark_mode, font, screen_bg, card_bg, grey);
+    lv_display_set_theme(display, theme);
+}
+```
+
+**Key Features:**
 - ✅ **No recompilation needed** - Edit `globals.xml` to change theme colors
-- ✅ **Automatic styling** - Widgets inherit coordinated styles from theme
+- ✅ **Automatic styling** - Input widgets get computed backgrounds automatically
+- ✅ **Computed colors** - Input backgrounds are lighter/darker than cards based on mode
+- ✅ **Responsive** - Scales padding/sizing for different screen resolutions
+- ✅ **Maintainable** - Uses LVGL public API, no fragile private structure patching
 - ✅ **Dark/Light mode** - Runtime theme switching support
-- ✅ **Responsive padding** - Theme auto-adjusts spacing based on screen resolution
 - ✅ **State-based styling** - Automatic pressed/disabled/checked states
 
 **Theme Customization:**
