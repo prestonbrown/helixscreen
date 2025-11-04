@@ -24,12 +24,15 @@
 #include "app_globals.h"
 #include "config.h"
 #include "printer_types.h"
+#include "printer_detector.h"
+#include "moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include <spdlog/spdlog.h>
 #include <string>
 #include <cstring>
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 
 // ============================================================================
 // Static Data & Subjects
@@ -78,24 +81,85 @@ struct PrinterDetectionHint {
 };
 
 /**
- * @brief Detect printer type from hardware discovery data (placeholder)
+ * @brief Find index of printer name in PRINTER_TYPES_ROLLER
+ * @param printer_name Printer type name to search for
+ * @return Index in roller (0-32), or DEFAULT_PRINTER_TYPE_INDEX if not found
+ */
+static int find_printer_type_index(const std::string& printer_name) {
+    std::istringstream stream(PrinterTypes::PRINTER_TYPES_ROLLER);
+    std::string line;
+    int index = 0;
+
+    while (std::getline(stream, line)) {
+        if (line == printer_name) {
+            return index;
+        }
+        index++;
+    }
+
+    return PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX;  // "Unknown"
+}
+
+/**
+ * @brief Detect printer type from hardware discovery data
  *
- * TODO: Phase 3 - Integrate with MoonrakerClient to analyze:
- * - printer.info hostname (e.g., "voron", "k1", "prusa")
- * - Object signatures (quad_gantry_level, z_tilt, multi-MCU)
- * - Build volume from configfile.settings
- * - Kinematics type (CoreXY, Cartesian, Delta)
- * - MCU board patterns
+ * Integrates with PrinterDetector to analyze discovered hardware and suggest
+ * printer type based on fingerprinting heuristics (sensors, fans, hostname).
  *
  * @return Detection hint with confidence and reasoning
  */
 static PrinterDetectionHint detect_printer_type() {
-    // Placeholder: Always return "Unknown" with 0 confidence
-    // Phase 3: Replace with real heuristic analysis
+    MoonrakerClient* client = get_moonraker_client();
+    if (!client) {
+        spdlog::debug("[Wizard Printer] No MoonrakerClient available for auto-detection");
+        return {
+            PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX,
+            0,
+            "No printer connection available"
+        };
+    }
+
+    // Build hardware data from MoonrakerClient discovery
+    PrinterHardwareData hardware;
+    hardware.heaters = client->get_heaters();
+    hardware.sensors = client->get_sensors();
+    hardware.fans = client->get_fans();
+    hardware.leds = client->get_leds();
+    hardware.hostname = "";  // TODO: Add hostname getter to MoonrakerClient
+
+    // Run detection engine
+    PrinterDetectionResult result = PrinterDetector::detect(hardware);
+
+    if (result.confidence == 0) {
+        // No match found
+        return {
+            PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX,
+            0,
+            result.reason
+        };
+    }
+
+    // Map detected type_name to roller index
+    int type_index = find_printer_type_index(result.type_name);
+
+    if (type_index == PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX && result.confidence > 0) {
+        // Detected a printer but it's not in our roller list
+        spdlog::warn("[Wizard Printer] Detected '{}' ({}% confident) but not found in PRINTER_TYPES_ROLLER",
+                     result.type_name, result.confidence);
+        return {
+            PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX,
+            result.confidence,
+            "Detected: " + result.type_name + " (" + result.reason + ") - not in dropdown list"
+        };
+    }
+
+    spdlog::info("[Wizard Printer] Auto-detected: {} (confidence: {}, reason: {})",
+                 result.type_name, result.confidence, result.reason);
+
     return {
-        PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX,
-        0,
-        "Auto-detection not yet implemented"
+        type_index,
+        result.confidence,
+        result.reason
     };
 }
 
