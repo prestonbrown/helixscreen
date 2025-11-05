@@ -6,7 +6,7 @@
 	url = https://github.com/ithewei/libhv.git
 [submodule "wpa_supplicant"]
 	path = wpa_supplicant
-	url = git://w1.fi/hostap.git
+	url = https://git.w1.fi/hostap.git
 [submodule "spdlog"]
 	path = spdlog
 	url = https://github.com/gabime/spdlog.git

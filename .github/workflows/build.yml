@@ -83,7 +83,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install sdl2 node npm
+        brew install sdl2
+        # node/npm usually pre-installed on GitHub Actions macOS runners
+        # If not installed, brew install node will also provide npm
 
     - name: Install Node.js dependencies
       run: npm install
