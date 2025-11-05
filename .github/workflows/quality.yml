@@ -106,12 +106,6 @@ jobs:
         MISSING=0
 
         for file in ui_xml/*.xml; do
-          # Skip component definition files (view definitions don't need copyright)
-          if grep -q '<view name=' "$file"; then
-            echo "⏭️  Skipping component definition: $file"
-            continue
-          fi
-
           # Check for copyright comment in first 10 lines
           if ! head -n 10 "$file" | grep -qi "Copyright"; then
             echo "⚠️  Missing copyright header: $file"
@@ -126,7 +120,7 @@ jobs:
           exit 1
         fi
 
-        echo "✅ All XML files have appropriate copyright headers"
+        echo "✅ All XML files have copyright headers"
 
   dependencies:
     name: Dependencies Check
