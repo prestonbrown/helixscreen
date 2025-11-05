@@ -39,7 +39,7 @@ jobs:
       working-directory: libhv
       run: |
         ./configure --with-openssl=no
-        make -j$(nproc)
+        make -j$(nproc) libhv
         echo "✓ libhv built successfully"
 
     - name: Build wpa_supplicant client library
@@ -96,7 +96,7 @@ jobs:
       working-directory: libhv
       run: |
         ./configure --with-openssl=no
-        make -j$(sysctl -n hw.ncpu)
+        make -j$(sysctl -n hw.ncpu) libhv
         echo "✓ libhv built successfully"
 
     - name: Build HelixScreen
