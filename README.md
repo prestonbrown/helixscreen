@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/prestonbrown/guppyscreen/actions/workflows/prototype-ui9-build.yml"><img src="https://github.com/prestonbrown/guppyscreen/actions/workflows/prototype-ui9-build.yml/badge.svg?branch=ui-redesign" alt="Build"></a>
-  <a href="https://github.com/prestonbrown/guppyscreen/actions/workflows/prototype-ui9-quality.yml"><img src="https://github.com/prestonbrown/guppyscreen/actions/workflows/prototype-ui9-quality.yml/badge.svg?branch=ui-redesign" alt="Code Quality"></a>
+  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/build.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/build.yml/badge.svg?branch=main" alt="Build"></a>
+  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/quality.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/quality.yml/badge.svg?branch=main" alt="Code Quality"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
   <a href="https://lvgl.io/"><img src="https://img.shields.io/badge/LVGL-9.4.0-green.svg" alt="LVGL"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg" alt="Platform">

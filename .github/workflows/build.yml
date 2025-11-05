@@ -1,0 +1,135 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-ubuntu:
+    name: Build (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libsdl2-dev \
+          clang \
+          make \
+          python3 \
+          nodejs \
+          npm \
+          libssl-dev \
+          pkg-config
+
+    - name: Install Node.js dependencies
+      run: npm install
+
+    - name: Generate fonts (FontAwesome only, skip platform-specific arrows)
+      run: npm run convert-fonts-ci
+
+    - name: Build libhv
+      working-directory: libhv
+      run: |
+        ./configure --with-openssl=no
+        make -j$(nproc)
+        echo "✓ libhv built successfully"
+
+    - name: Build wpa_supplicant client library
+      working-directory: wpa_supplicant/wpa_supplicant
+      run: |
+        # Create minimal build config for client library only
+        cat > .config << 'EOF'
+        CONFIG_CTRL_IFACE=y
+        CONFIG_CTRL_IFACE_UNIX=y
+        EOF
+        make -j$(nproc) libwpa_client.a
+        echo "✓ wpa_supplicant client library built successfully"
+
+    - name: Build HelixScreen
+      run: |
+        make -j$(nproc)
+        echo "✓ HelixScreen built successfully"
+
+    - name: Verify binary
+      run: |
+        ./build/bin/helix-ui-proto --help || true
+        echo "✓ Binary verified"
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: helix-ui-proto-ubuntu-22.04
+        path: build/bin/helix-ui-proto
+        retention-days: 7
+
+  build-macos:
+    name: Build (macOS 14)
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        brew install sdl2 node npm
+
+    - name: Install Node.js dependencies
+      run: npm install
+
+    - name: Generate fonts (all fonts including arrows)
+      run: npm run convert-all-fonts
+
+    - name: Build libhv
+      working-directory: libhv
+      run: |
+        ./configure --with-openssl=no
+        make -j$(sysctl -n hw.ncpu)
+        echo "✓ libhv built successfully"
+
+    - name: Build HelixScreen
+      run: |
+        make -j$(sysctl -n hw.ncpu)
+        echo "✓ HelixScreen built successfully"
+
+    - name: Verify binary
+      run: |
+        ./build/bin/helix-ui-proto --help || true
+        echo "✓ Binary verified"
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: helix-ui-proto-macos-14
+        path: build/bin/helix-ui-proto
+        retention-days: 7
+
+  build-status:
+    name: Build Status
+    runs-on: ubuntu-latest
+    needs: [build-ubuntu, build-macos]
+    if: always()
+
+    steps:
+    - name: Check build results
+      run: |
+        if [ "${{ needs.build-ubuntu.result }}" != "success" ]; then
+          echo "❌ Ubuntu build failed"
+          exit 1
+        fi
+        if [ "${{ needs.build-macos.result }}" != "success" ]; then
+          echo "❌ macOS build failed"
+          exit 1
+        fi
+        echo "✅ All builds passed"

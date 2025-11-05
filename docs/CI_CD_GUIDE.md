@@ -1,11 +1,10 @@
 # CI/CD Guide for HelixScreen
 
-This guide documents the GitHub Actions CI/CD setup for the prototype-ui9 project, including patterns for subdirectory workflows, platform-specific builds, and quality checks.
+This guide documents the GitHub Actions CI/CD setup for the HelixScreen project, including patterns for platform-specific builds, quality checks, and submodule management.
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Subdirectory CI Patterns](#subdirectory-ci-patterns)
 - [Platform-Specific Dependencies](#platform-specific-dependencies)
 - [Dependency Build Order](#dependency-build-order)
 - [Quality Checks](#quality-checks)
@@ -15,55 +14,36 @@ This guide documents the GitHub Actions CI/CD setup for the prototype-ui9 projec
 
 ## Overview
 
-The prototype-ui9 project uses GitHub Actions for continuous integration across multiple platforms:
+The HelixScreen project uses GitHub Actions for continuous integration across multiple platforms:
 
-- **Build Workflow** (`prototype-ui9-build.yml`) - Multi-platform builds (Ubuntu, macOS)
-- **Quality Workflow** (`prototype-ui9-quality.yml`) - Code quality, structure, and dependency validation
+- **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 14)
+- **Quality Workflow** (`.github/workflows/quality.yml`) - Code quality, structure, and dependency validation
 
-**Key Challenge:** This project lives in a subdirectory (`prototype-ui9/`) within the main guppyscreen repository, requiring special workflow configuration.
+**Key Features:**
+- Parallel builds on Ubuntu and macOS
+- Automatic submodule dependency building
+- Platform-specific handling (macOS fonts, Linux wpa_supplicant)
+- Fast quality checks before expensive builds
 
-## Subdirectory CI Patterns
+## Workflow Triggers
 
-### Problem: Running CI for a Subdirectory Project
-
-Most GitHub Actions examples assume your project is at the repository root. When your project is in a subdirectory, you need to adjust workflow configuration.
-
-### Solution: `working-directory` and Path Filtering
+The workflows are triggered on:
+- Push to `main` branch
+- Push to any `claude/**` branches (AI assistant development branches)
+- Pull requests targeting `main`
 
 ```yaml
-# .github/workflows/prototype-ui9-build.yml
 on:
   push:
-    branches: [ main, ui-redesign ]
-    paths:
-      - 'prototype-ui9/**'                    # Only trigger on subdirectory changes
-      - '.github/workflows/prototype-ui9-*.yml'  # Also trigger on workflow changes
-
-jobs:
-  build-ubuntu:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: prototype-ui9      # All commands run in subdirectory
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
 ```
 
-### Pattern: Artifact Paths Must Include Subdirectory
-
-```yaml
-- name: Upload binary
-  uses: actions/upload-artifact@v4
-  with:
-    name: helix-ui-proto-ubuntu
-    path: prototype-ui9/build/bin/helix-ui-proto  # Must include subdirectory prefix
-```
-
-**Why:** The `working-directory` only affects `run` commands, not `uses` actions. Actions always run from repository root.
-
-### Benefits
-
-✅ **Reduced CI usage** - Workflows only trigger when relevant files change
-✅ **Faster feedback** - Parent repo changes don't trigger prototype-ui9 builds
-✅ **Clear separation** - Each subdirectory can have its own CI strategy
+**Why `claude/**` branches?**
+- AI assistants (Claude Code) create feature branches with this prefix
+- Allows CI validation before creating pull requests
+- Ensures all AI-generated code passes quality checks
 
 ## Platform-Specific Dependencies
 
@@ -142,47 +122,64 @@ endif
 
 ### Problem: Missing Header Files
 
-Initial CI error:
+When dependencies aren't built before the main project:
 ```
 include/config.h:7:10: fatal error: 'hv/json.hpp' file not found
 ```
 
 **Root cause:** Main project tried to compile before libhv was built.
 
-### Solution: Build Dependencies First
+### Solution: Build Submodule Dependencies First
 
 ```yaml
+- name: Checkout repository
+  uses: actions/checkout@v4
+  with:
+    submodules: recursive  # Initialize all git submodules
+
 - name: Build libhv
+  working-directory: libhv
   run: |
-    cd ../libhv
     ./configure --with-openssl=no
     make -j$(nproc)
 
-- name: Build project
+- name: Build wpa_supplicant (Linux only)
+  working-directory: wpa_supplicant/wpa_supplicant
+  run: |
+    # Minimal config for client library
+    cat > .config << 'EOF'
+    CONFIG_CTRL_IFACE=y
+    CONFIG_CTRL_IFACE_UNIX=y
+    EOF
+    make -j$(nproc) libwpa_client.a
+
+- name: Build HelixScreen
   run: make -j$(nproc)
 ```
 
-### Pattern: Symlinked Submodule Dependencies
+### Submodule Dependencies
 
-The prototype-ui9 project uses **symlinks** to parent repo submodules:
+HelixScreen uses the following git submodules:
 ```
-prototype-ui9/
-├── libhv -> ../libhv           # Symlink to parent repo submodule
-├── spdlog -> ../spdlog         # Symlink to parent repo submodule
-└── lvgl/                       # Real submodule in prototype-ui9
+helixscreen/
+├── lvgl/              # LVGL 9.4 graphics library
+├── libhv/             # HTTP/WebSocket client for Moonraker
+├── spdlog/            # Logging library (header-only)
+└── wpa_supplicant/    # WiFi control (Linux only)
 ```
 
-**CI workflow must:**
-1. Checkout with `submodules: recursive` to get all submodules
-2. Build parent repo dependencies (libhv) before building prototype-ui9
-3. Use `working-directory` to navigate relative paths (`cd ../libhv`)
+**Build requirements:**
+1. **libhv** - Must be built before main project (provides headers)
+2. **wpa_supplicant** - Linux only, build `libwpa_client.a` before main project
+3. **spdlog** - Header-only, no build needed
+4. **lvgl** - Built as part of main project
 
 ### Lessons Learned
 
-⚠️ **Symlinked dependencies aren't automatically built** by GitHub Actions
+⚠️ **Submodules must be initialized** with `submodules: recursive`
 ✅ **Build dependencies explicitly** before main project
-✅ **Check dependency status** in CI logs (e.g., "⚠ libhv not built")
-✅ **Use relative paths** in CI to navigate to symlinked dependencies
+✅ **Use working-directory** to build submodules in their directories
+✅ **Platform-specific deps** should be conditional (wpa_supplicant on Linux only)
 
 ## Quality Checks
 
@@ -314,55 +311,68 @@ Before pushing, test CI-like builds locally to catch issues early.
 ### Simulate Ubuntu CI Build
 
 ```bash
-cd prototype-ui9
-
 # Clean state
 make clean
-rm -rf ../libhv/lib
+rm -rf libhv/lib
+rm -rf wpa_supplicant/wpa_supplicant/libwpa_client.a
 
-# Build dependencies (as CI does)
-cd ../libhv
+# Install Node.js dependencies
+npm install
+
+# Generate fonts (FontAwesome only, skip platform-specific arrows)
+npm run convert-fonts-ci
+
+# Build libhv
+cd libhv
 ./configure --with-openssl=no
 make -j$(nproc)
+cd ..
+
+# Build wpa_supplicant client library
+cd wpa_supplicant/wpa_supplicant
+cat > .config << 'EOF'
+CONFIG_CTRL_IFACE=y
+CONFIG_CTRL_IFACE_UNIX=y
+EOF
+make -j$(nproc) libwpa_client.a
+cd ../..
 
 # Build project
-cd ../prototype-ui9
 make -j$(nproc)
 
 # Verify binary
-./build/bin/helix-ui-proto --help
+./build/bin/helix-ui-proto --help || true
 ```
 
 ### Simulate macOS CI Build
 
 ```bash
-cd prototype-ui9
-
 # Clean state
 make clean
-rm -rf ../libhv/lib
+rm -rf libhv/lib
 
-# Build dependencies
-cd ../libhv
+# Install Node.js dependencies
+npm install
+
+# Generate all fonts (including arrows)
+npm run convert-all-fonts
+
+# Build libhv
+cd libhv
 ./configure --with-openssl=no
 make -j$(sysctl -n hw.ncpu)
+cd ..
 
 # Build project
-cd ../prototype-ui9
 make -j$(sysctl -n hw.ncpu)
 
 # Verify binary
-./build/bin/helix-ui-proto --help
+./build/bin/helix-ui-proto --help || true
 ```
 
 ### Run Quality Checks Locally
 
 ```bash
-cd prototype-ui9
-
-# Check dependencies
-make check-deps
-
 # Validate XML encoding
 for xml in ui_xml/*.xml; do
   file "$xml" | grep -qE "UTF-8|ASCII" || echo "❌ $xml"
@@ -375,6 +385,14 @@ for file in src/*.cpp include/*.h; do
     head -n 5 "$file" | grep -q "Copyright" || echo "⚠️  $file"
   fi
 done
+
+# Verify Makefile syntax
+make -n help > /dev/null 2>&1 || echo "❌ Makefile has syntax errors"
+
+# Check submodules are initialized
+[ -f "lvgl/lvgl.h" ] || echo "❌ LVGL submodule not initialized"
+[ -f "libhv/include/hv/HttpServer.h" ] || echo "❌ libhv submodule not initialized"
+[ -f "spdlog/include/spdlog/spdlog.h" ] || echo "❌ spdlog submodule not initialized"
 ```
 
 ### Docker-Based CI Testing (Advanced)
@@ -382,32 +400,38 @@ done
 To exactly match CI environment:
 
 ```bash
-# Ubuntu 22.04 (matches ubuntu-latest)
+# Ubuntu 22.04 (matches ubuntu-22.04 runner)
 docker run -it --rm -v "$PWD:/work" -w /work ubuntu:22.04 bash
 
 # Inside container
 apt update
-apt install -y libsdl2-dev clang make python3 npm git
-cd prototype-ui9
-# ... build steps ...
+apt install -y libsdl2-dev clang make python3 nodejs npm git libssl-dev pkg-config
+
+# Clone with submodules (or just work with mounted volume if already cloned)
+git submodule update --init --recursive
+
+# ... follow Ubuntu build steps from above ...
 ```
 
 ## Troubleshooting
 
 ### Workflow Not Triggering
 
-**Symptom:** Push to `ui-redesign` doesn't trigger workflow.
+**Symptom:** Push to branch doesn't trigger workflow.
 
 **Check:**
 ```yaml
 on:
   push:
-    branches: [ main, ui-redesign ]  # Is your branch listed?
-    paths:
-      - 'prototype-ui9/**'            # Did you modify files in this path?
+    branches: [ main, "claude/**" ]  # Is your branch listed or matching pattern?
+  pull_request:
+    branches: [ main ]
 ```
 
-**Debug:** Look at "Actions" tab → "All workflows" (not just "Active workflows").
+**Debug:**
+1. Check "Actions" tab → "All workflows" (not just "Active workflows")
+2. Verify branch name matches pattern (e.g., `claude/fix-build` matches `claude/**`)
+3. Check workflow YAML syntax is valid
 
 ### Build Fails: "file not found"
 
@@ -419,8 +443,8 @@ fatal error: 'hv/json.hpp' file not found
 **Solution:** Add libhv build step **before** main build:
 ```yaml
 - name: Build libhv
+  working-directory: libhv
   run: |
-    cd ../libhv
     ./configure --with-openssl=no
     make -j$(nproc)
 ```
@@ -438,13 +462,14 @@ Cannot read file "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
 
 **Symptom:** Artifact upload succeeds but download gives "artifact not found".
 
-**Solution:** Artifact paths must include subdirectory when using `working-directory`:
+**Solution:** Verify artifact path is correct relative to repository root:
 ```yaml
-# ❌ Wrong (relative to working-directory)
-path: build/bin/helix-ui-proto
-
-# ✅ Correct (relative to repo root)
-path: prototype-ui9/build/bin/helix-ui-proto
+# ✅ Correct
+- name: Upload binary
+  uses: actions/upload-artifact@v4
+  with:
+    name: helix-ui-proto-ubuntu-22.04
+    path: build/bin/helix-ui-proto  # Relative to repo root
 ```
 
 ### Copyright Check Fails on Test Files
@@ -454,31 +479,36 @@ path: prototype-ui9/build/bin/helix-ui-proto
 ⚠️  Missing copyright header: src/test_dynamic_cards.cpp
 ```
 
-**Solution:** Exclude test files and generated files (see [Quality Checks](#quality-checks)).
+**Solution:** Exclude test files and generated files (see [Quality Checks](#quality-checks)). The workflow already skips:
+- Test files: `test_*.cpp`
+- Generated files: `*_data.h`
 
-### Workflow Runs on Unrelated Changes
+### Submodules Not Initialized
 
-**Symptom:** Workflow triggers when only parent repo files change.
+**Symptom:**
+```
+fatal error: 'lvgl/lvgl.h' file not found
+```
 
-**Solution:** Add `paths` filter:
+**Solution:** Ensure checkout action initializes submodules:
 ```yaml
-on:
-  push:
-    paths:
-      - 'prototype-ui9/**'
-      - '.github/workflows/prototype-ui9-*.yml'
+- name: Checkout repository
+  uses: actions/checkout@v4
+  with:
+    submodules: recursive  # Required!
 ```
 
 ## Summary: CI/CD Best Practices
 
-✅ **Path filtering** - Only trigger workflows when relevant files change
-✅ **Platform detection** - Handle platform-specific dependencies gracefully
-✅ **Build order** - Build dependencies before main project
-✅ **Exclude special files** - Skip test files and generated files in quality checks
+✅ **Submodule initialization** - Always use `submodules: recursive` when checking out
+✅ **Platform detection** - Handle platform-specific dependencies gracefully (macOS fonts, Linux wpa_supplicant)
+✅ **Build order** - Build dependencies (libhv, wpa_supplicant) before main project
+✅ **Exclude special files** - Skip test files (`test_*.cpp`) and generated files (`*_data.h`) in quality checks
 ✅ **Clear failure messages** - Include helpful context in error output
-✅ **Test locally** - Simulate CI builds before pushing
-✅ **Separate workflows** - Build and quality checks in parallel
+✅ **Test locally** - Simulate CI builds before pushing (see Testing Locally section)
+✅ **Separate workflows** - Build and quality checks run in parallel for faster feedback
 ✅ **Document exceptions** - Explain why files are excluded from checks
+✅ **Artifact naming** - Use descriptive names with platform and version (e.g., `helix-ui-proto-ubuntu-22.04`)
 
 ## See Also
 

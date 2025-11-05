@@ -1,0 +1,200 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  project-structure:
+    name: Project Structure
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check required files exist
+      run: |
+        MISSING=0
+
+        # Core documentation
+        for file in README.md CLAUDE.md ARCHITECTURE.md DEVELOPMENT.md CONTRIBUTING.md; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing: $file"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+
+        # Build system
+        for file in Makefile package.json lv_conf.h; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing: $file"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+
+        # Core directories
+        for dir in src include ui_xml assets scripts docs .claude; do
+          if [ ! -d "$dir" ]; then
+            echo "❌ Missing directory: $dir"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+
+        if [ $MISSING -gt 0 ]; then
+          echo ""
+          echo "❌ $MISSING required files/directories missing"
+          exit 1
+        fi
+
+        echo "✅ All required files and directories present"
+
+    - name: Check XML files encoding
+      run: |
+        for xml in ui_xml/*.xml; do
+          # Accept XML, SGML, UTF-8, and ASCII
+          if ! file "$xml" | grep -qE "UTF-8|ASCII|SGML|XML"; then
+            echo "❌ $xml has unexpected encoding"
+            file "$xml"
+            exit 1
+          fi
+        done
+        echo "✅ All XML files properly encoded"
+
+  copyright-headers:
+    name: Copyright Headers
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check C++ copyright headers
+      run: |
+        MISSING=0
+
+        for file in src/*.cpp include/*.h; do
+          [ -f "$file" ] || continue
+          basename=$(basename "$file")
+
+          # Skip test files and auto-generated files
+          if [[ "$basename" == test_*.cpp ]] || [[ "$basename" == *_data.h ]]; then
+            echo "⏭️  Skipping: $file"
+            continue
+          fi
+
+          # Check for copyright header in first 5 lines
+          if ! head -n 5 "$file" | grep -qi "Copyright"; then
+            echo "⚠️  Missing copyright header: $file"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+
+        if [ $MISSING -gt 0 ]; then
+          echo ""
+          echo "❌ $MISSING files missing copyright headers"
+          echo "See docs/COPYRIGHT_HEADERS.md for templates"
+          exit 1
+        fi
+
+        echo "✅ All source files have copyright headers"
+
+    - name: Check XML copyright headers
+      run: |
+        MISSING=0
+
+        for file in ui_xml/*.xml; do
+          # Skip component definition files (view definitions don't need copyright)
+          if grep -q '<view name=' "$file"; then
+            echo "⏭️  Skipping component definition: $file"
+            continue
+          fi
+
+          # Check for copyright comment in first 10 lines
+          if ! head -n 10 "$file" | grep -qi "Copyright"; then
+            echo "⚠️  Missing copyright header: $file"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+
+        if [ $MISSING -gt 0 ]; then
+          echo ""
+          echo "❌ $MISSING XML files missing copyright headers"
+          echo "See docs/COPYRIGHT_HEADERS.md for templates"
+          exit 1
+        fi
+
+        echo "✅ All XML files have appropriate copyright headers"
+
+  dependencies:
+    name: Dependencies Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Verify submodules
+      run: |
+        # Check submodules are initialized
+        if [ ! -f "lvgl/lvgl.h" ]; then
+          echo "❌ LVGL submodule not initialized"
+          exit 1
+        fi
+
+        if [ ! -f "libhv/include/hv/HttpServer.h" ]; then
+          echo "❌ libhv submodule not initialized"
+          exit 1
+        fi
+
+        if [ ! -f "spdlog/include/spdlog/spdlog.h" ]; then
+          echo "❌ spdlog submodule not initialized"
+          exit 1
+        fi
+
+        if [ ! -f "wpa_supplicant/wpa_supplicant/wpa_supplicant.c" ]; then
+          echo "❌ wpa_supplicant submodule not initialized"
+          exit 1
+        fi
+
+        echo "✅ All submodules properly initialized"
+
+    - name: Check committed font files
+      run: |
+        # Arrow fonts should be committed (macOS-specific generation)
+        for font in assets/fonts/arrows_32.c assets/fonts/arrows_48.c assets/fonts/arrows_64.c; do
+          if [ ! -f "$font" ]; then
+            echo "❌ Missing pre-generated font: $font"
+            exit 1
+          fi
+        done
+        echo "✅ Pre-generated platform-specific fonts present"
+
+  makefile-validation:
+    name: Makefile Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Validate Makefile syntax
+      run: |
+        # Check Makefile can be parsed
+        make -n help > /dev/null 2>&1 || {
+          echo "❌ Makefile has syntax errors"
+          exit 1
+        }
+        echo "✅ Makefile syntax valid"
+
+    - name: Check for platform detection
+      run: |
+        if ! grep -q "UNAME_S := " Makefile; then
+          echo "❌ Makefile missing platform detection"
+          exit 1
+        fi
+        echo "✅ Makefile has platform detection"
