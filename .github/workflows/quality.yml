@@ -134,13 +134,15 @@ jobs:
 
     - name: Verify submodules
       run: |
-        # Check submodules are initialized
+        # Check submodules are initialized by checking key files
+        # Note: Using distinctive files that exist in each submodule root/subdirs
+
         if [ ! -f "lvgl/lvgl.h" ]; then
           echo "❌ LVGL submodule not initialized"
           exit 1
         fi
 
-        if [ ! -f "libhv/include/hv/HttpServer.h" ]; then
+        if [ ! -f "libhv/hv.h" ]; then
           echo "❌ libhv submodule not initialized"
           exit 1
         fi
