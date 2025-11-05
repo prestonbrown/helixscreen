@@ -25,7 +25,6 @@ jobs:
           clang \
           make \
           python3 \
-          nodejs \
           npm \
           libssl-dev \
           pkg-config
