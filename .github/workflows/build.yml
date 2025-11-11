@@ -35,6 +35,16 @@ jobs:
     - name: Generate fonts (FontAwesome only, skip platform-specific arrows)
       run: npm run convert-fonts-ci
 
+    - name: Configure wpa_supplicant build
+      run: |
+        # Create minimal .config for wpa_supplicant client library build
+        cat > wpa_supplicant/wpa_supplicant/.config << 'EOF'
+        CONFIG_CTRL_IFACE=y
+        CONFIG_CTRL_IFACE_UNIX=y
+        CONFIG_BACKEND=file
+        EOF
+        echo "✓ wpa_supplicant config created"
+
     - name: Build HelixScreen
       run: |
         # The Makefile handles building libhv and wpa_supplicant automatically
