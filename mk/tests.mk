@@ -4,6 +4,80 @@
 # HelixScreen UI Prototype - Test Module
 # Handles all test compilation and execution targets
 
+# ============================================================================
+# Test Dependency Groups
+# ============================================================================
+# These semantic groups make it clear what each test binary requires.
+# When adding a new source file, add the corresponding .o to the appropriate group.
+#
+# Dependency Philosophy:
+# - TEST_CORE_DEPS: Always required (Catch2, test utilities, test objects)
+# - TEST_LVGL_DEPS: Required for all UI tests (includes ThorVG for SVG support)
+# - TEST_WIZARD_DEPS: Wizard validation and UI screens
+# - TEST_UI_DEPS: Common UI components (navigation, theme, modals)
+# - TEST_WIFI_DEPS: Network managers and backends
+# - TEST_MOONRAKER_DEPS: Printer communication (includes libhv WebSocket)
+# - TEST_CONFIG_DEPS: Configuration and utilities
+# - TEST_PLATFORM_DEPS: Platform-specific (wpa_supplicant on Linux)
+
+# Core test infrastructure (always required)
+TEST_CORE_DEPS := $(TEST_MAIN_OBJ) $(CATCH2_OBJ) $(UI_TEST_UTILS_OBJ) $(TEST_OBJS)
+
+# LVGL + Graphics stack (required for all UI tests)
+TEST_LVGL_DEPS := $(LVGL_OBJS) $(THORVG_OBJS)
+
+# Wizard components (validation, UI screens)
+TEST_WIZARD_DEPS := \
+    $(OBJ_DIR)/wizard_validation.o \
+    $(OBJ_DIR)/ui_wizard.o \
+    $(OBJ_DIR)/ui_wizard_wifi.o \
+    $(OBJ_DIR)/ui_wizard_connection.o \
+    $(OBJ_DIR)/ui_wizard_bed_select.o \
+    $(OBJ_DIR)/ui_wizard_hotend_select.o \
+    $(OBJ_DIR)/ui_wizard_fan_select.o \
+    $(OBJ_DIR)/ui_wizard_led_select.o \
+    $(OBJ_DIR)/ui_wizard_printer_identify.o \
+    $(OBJ_DIR)/ui_wizard_summary.o
+
+# UI components (theme, modals, navigation)
+TEST_UI_DEPS := \
+    $(OBJ_DIR)/ui_nav.o \
+    $(OBJ_DIR)/ui_temp_graph.o \
+    $(OBJ_DIR)/ui_keyboard.o \
+    $(OBJ_DIR)/ui_modal.o \
+    $(OBJ_DIR)/ui_theme.o \
+    $(OBJ_DIR)/helix_theme.o
+
+# Network/WiFi components
+TEST_WIFI_DEPS := \
+    $(OBJ_DIR)/wifi_manager.o \
+    $(OBJ_DIR)/wifi_backend.o \
+    $(OBJ_DIR)/wifi_backend_mock.o \
+    $(OBJ_DIR)/ethernet_manager.o \
+    $(OBJ_DIR)/ethernet_backend.o \
+    $(OBJ_DIR)/ethernet_backend_mock.o \
+    $(OBJCPP_OBJS)
+
+# Moonraker/printer components
+TEST_MOONRAKER_DEPS := \
+    $(OBJ_DIR)/moonraker_client.o \
+    $(OBJ_DIR)/moonraker_api.o \
+    $(OBJ_DIR)/printer_state.o \
+    $(OBJ_DIR)/printer_detector.o \
+    $(LIBHV_LIB)
+
+# Configuration and utilities
+TEST_CONFIG_DEPS := \
+    $(OBJ_DIR)/config.o \
+    $(OBJ_DIR)/tips_manager.o
+
+# Platform-specific dependencies (Linux wpa_supplicant, macOS frameworks via LDFLAGS)
+TEST_PLATFORM_DEPS := $(WPA_DEPS)
+
+# ============================================================================
+# Test Targets
+# ============================================================================
+
 # Clean test artifacts
 clean-tests:
 	$(ECHO) "$(YELLOW)Cleaning test artifacts...$(RESET)"
@@ -40,7 +114,17 @@ test-config: $(TEST_BIN)
 	}
 	$(ECHO) "$(GREEN)$(BOLD)✓ Config tests passed!$(RESET)"
 
-$(TEST_BIN): $(TEST_MAIN_OBJ) $(CATCH2_OBJ) $(UI_TEST_UTILS_OBJ) $(TEST_OBJS) $(OBJ_DIR)/wizard_validation.o $(OBJ_DIR)/config.o $(LVGL_OBJS) $(THORVG_OBJS) $(OBJ_DIR)/ui_nav.o $(OBJ_DIR)/ui_temp_graph.o $(OBJ_DIR)/wifi_manager.o $(OBJ_DIR)/wifi_backend.o $(OBJ_DIR)/wifi_backend_mock.o $(OBJ_DIR)/ethernet_manager.o $(OBJ_DIR)/ethernet_backend.o $(OBJ_DIR)/ethernet_backend_mock.o $(OBJCPP_OBJS) $(OBJ_DIR)/tips_manager.o $(OBJ_DIR)/ui_wizard.o $(OBJ_DIR)/ui_wizard_wifi.o $(OBJ_DIR)/ui_wizard_connection.o $(OBJ_DIR)/ui_wizard_bed_select.o $(OBJ_DIR)/ui_wizard_hotend_select.o $(OBJ_DIR)/ui_wizard_fan_select.o $(OBJ_DIR)/ui_wizard_led_select.o $(OBJ_DIR)/ui_wizard_printer_identify.o $(OBJ_DIR)/ui_wizard_summary.o $(OBJ_DIR)/ui_keyboard.o $(OBJ_DIR)/ui_modal.o $(OBJ_DIR)/ui_theme.o $(OBJ_DIR)/moonraker_client.o $(OBJ_DIR)/moonraker_api.o $(OBJ_DIR)/printer_state.o $(OBJ_DIR)/printer_detector.o $(LIBHV_LIB) $(WPA_DEPS)
+# Unified test binary - links all dependencies using semantic groups
+# If you get linker errors about missing symbols, check which group contains
+# the required .o file and ensure it's included in the appropriate TEST_*_DEPS above
+$(TEST_BIN): $(TEST_CORE_DEPS) \
+             $(TEST_LVGL_DEPS) \
+             $(TEST_WIZARD_DEPS) \
+             $(TEST_UI_DEPS) \
+             $(TEST_WIFI_DEPS) \
+             $(TEST_MOONRAKER_DEPS) \
+             $(TEST_CONFIG_DEPS) \
+             $(TEST_PLATFORM_DEPS)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) run_tests"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) || { \
