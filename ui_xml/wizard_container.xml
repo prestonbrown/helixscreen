@@ -152,7 +152,8 @@
                        style_bg_color="#primary_color">
                 <lv_label name="btn_next_label"
                           bind_text="wizard_next_button_text"
-                          align="center"/>
+                          align="center"
+                          style_text_color="#app_bg_color"/>
                 <event_cb trigger="clicked" callback="on_next_clicked"/>
                 <!-- Button is enabled when connection_test_passed == 1 (disabled otherwise) -->
                 <lv_obj-bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>

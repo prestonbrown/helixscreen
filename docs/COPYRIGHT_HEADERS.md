@@ -8,9 +8,21 @@ All source files in the HelixScreen project must include the appropriate GPL v3 
 - **Email:** pbrown@brown-house.net
 - **License:** GNU General Public License v3.0 or later
 
+## SPDX License Identifier
+
+All C/C++ source and header files must include an SPDX license identifier comment at the very top of the file (before the full GPL header). This is required by the quality checks script.
+
+```cpp
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+```
+
 ## For C++ Source Files (.cpp)
 
 ```cpp
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /*
  * Copyright (C) 2025 356C LLC
  * Author: Preston Brown <pbrown@brown-house.net>
@@ -35,6 +47,9 @@ All source files in the HelixScreen project must include the appropriate GPL v3 
 ## For Header Files (.h)
 
 ```cpp
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /*
  * Copyright (C) 2025 356C LLC
  * Author: Preston Brown <pbrown@brown-house.net>
@@ -100,10 +115,14 @@ python3 scripts/add_copyright_headers.py .
 To check that all project files have copyright headers:
 
 ```bash
-# Check for missing headers in C++ files
-grep -L "Copyright (C)" src/*.cpp include/*.h
+# Run the quality checks script (checks SPDX identifiers and more)
+./scripts/quality-checks.sh --staged-only  # For pre-commit
+./scripts/quality-checks.sh                # For all files
 
-# Check for missing headers in XML files
+# Manual check for missing SPDX identifiers in C++ files
+grep -L "SPDX-License-Identifier: GPL-3.0-or-later" src/*.cpp include/*.h
+
+# Manual check for missing headers in XML files
 grep -L "Copyright (C)" ui_xml/*.xml
 ```
 

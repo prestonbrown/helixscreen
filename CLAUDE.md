@@ -18,20 +18,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🤖 Agent Delegation Policy
 
-**See ~/.claude/CLAUDE.md for complete agent delegation policy and threshold rules.**
+**CRITICAL: Check this BEFORE starting ANY task. Delegate to agents rather than doing work yourself.**
 
-### Project-Specific Agents
+### Task → Agent Mapping (USE THESE)
 
-**ALWAYS use these specialized agents for their respective tasks:**
-- `widget-maker` - **ALL UI/XML work** (LVGL 9 XML, layouts, components) - **ALWAYS, NO EXCEPTIONS**
-- `ui-reviewer` - Screenshot verification, requirements validation
-- `critical-reviewer` - Security analysis, paranoid code review
-- `moonraker-api-agent` - Klipper/Moonraker WebSocket integration
-- `gcode-preview-agent` - Thumbnail extraction, file handling
-- `cross-platform-build-agent` - Build system, dependency issues
-- `test-harness-agent` - Unit testing, mocking, CI/CD
+| Task Type | Agent | When |
+|-----------|-------|------|
+| **UI/XML** | `widget-maker` | ANY XML/LVGL work - NO EXCEPTIONS |
+| **Moonraker** | `moonraker-api-agent` | WebSocket, API, mocking, connection handling |
+| **Testing** | `test-harness-agent` | Unit tests, mocking, CI/CD |
+| **Build issues** | `cross-platform-build-agent` | Dependencies, Makefile, compilation |
+| **Codebase exploration** | `Explore` (quick/medium/thorough) | "How does X work?", "Where is Y?" |
+| **Multi-file refactor** | `general-purpose` | Changes across 3+ files |
+| **Security review** | `critical-reviewer` | Paranoid code review |
 
-**Built-in agents:** `Explore` (codebase exploration), `Plan` (task planning), `general-purpose` (multi-step tasks), `code-reviewer` (code review)
+**See ~/.claude/CLAUDE.md for threshold rules. When in doubt, delegate.**
 
 ---
 

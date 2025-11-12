@@ -69,22 +69,26 @@ public:
   /**
    * @brief Connect to Moonraker WebSocket server
    *
+   * Virtual to allow mock override for testing without real network connection.
+   *
    * @param url WebSocket URL (e.g., "ws://127.0.0.1:7125/websocket")
    * @param on_connected Callback invoked when connection opens
    * @param on_disconnected Callback invoked when connection closes
    * @return 0 on success, non-zero on error
    */
-  int connect(const char* url,
-              std::function<void()> on_connected,
-              std::function<void()> on_disconnected);
+  virtual int connect(const char* url,
+                      std::function<void()> on_connected,
+                      std::function<void()> on_disconnected);
 
   /**
    * @brief Disconnect from Moonraker WebSocket server
    *
+   * Virtual to allow mock override for testing without real network connection.
+   *
    * Closes the WebSocket connection and resets internal state.
    * Safe to call multiple times (idempotent).
    */
-  void disconnect();
+  virtual void disconnect();
 
   /**
    * @brief Register callback for status update notifications
@@ -113,22 +117,28 @@ public:
   /**
    * @brief Send JSON-RPC request without parameters
    *
+   * Virtual to allow mock override for testing without real network connection.
+   *
    * @param method RPC method name (e.g., "printer.info")
    * @return 0 on success, non-zero on error
    */
-  int send_jsonrpc(const std::string& method);
+  virtual int send_jsonrpc(const std::string& method);
 
   /**
    * @brief Send JSON-RPC request with parameters
+   *
+   * Virtual to allow mock override for testing without real network connection.
    *
    * @param method RPC method name
    * @param params JSON parameters object
    * @return 0 on success, non-zero on error
    */
-  int send_jsonrpc(const std::string& method, const json& params);
+  virtual int send_jsonrpc(const std::string& method, const json& params);
 
   /**
    * @brief Send JSON-RPC request with one-time response callback
+   *
+   * Virtual to allow mock override for testing without real network connection.
    *
    * Callback is invoked once when response arrives, then removed.
    *
@@ -137,12 +147,14 @@ public:
    * @param cb Callback function receiving response JSON
    * @return 0 on success, non-zero on error
    */
-  int send_jsonrpc(const std::string& method,
-                   const json& params,
-                   std::function<void(json)> cb);
+  virtual int send_jsonrpc(const std::string& method,
+                           const json& params,
+                           std::function<void(json)> cb);
 
   /**
    * @brief Send JSON-RPC request with success and error callbacks
+   *
+   * Virtual to allow mock override for testing without real network connection.
    *
    * @param method RPC method name
    * @param params JSON parameters object
@@ -151,21 +163,23 @@ public:
    * @param timeout_ms Optional timeout override (0 = use default)
    * @return 0 on success, non-zero on error
    */
-  int send_jsonrpc(const std::string& method,
-                   const json& params,
-                   std::function<void(json)> success_cb,
-                   std::function<void(const MoonrakerError&)> error_cb,
-                   uint32_t timeout_ms = 0);
+  virtual int send_jsonrpc(const std::string& method,
+                           const json& params,
+                           std::function<void(json)> success_cb,
+                           std::function<void(const MoonrakerError&)> error_cb,
+                           uint32_t timeout_ms = 0);
 
   /**
    * @brief Send G-code script command
+   *
+   * Virtual to allow mock override for testing without real network connection.
    *
    * Convenience wrapper for printer.gcode.script method.
    *
    * @param gcode G-code string (e.g., "G28", "M104 S210")
    * @return 0 on success, non-zero on error
    */
-  int gcode_script(const std::string& gcode);
+  virtual int gcode_script(const std::string& gcode);
 
   /**
    * @brief Perform printer auto-discovery sequence

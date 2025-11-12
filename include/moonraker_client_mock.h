@@ -53,6 +53,21 @@ public:
     ~MoonrakerClientMock() = default;
 
     /**
+     * @brief Simulate WebSocket connection (no real network I/O)
+     *
+     * Overrides base class to simulate successful connection without
+     * actual WebSocket establishment. Immediately invokes on_connected callback.
+     *
+     * @param url WebSocket URL (ignored in mock)
+     * @param on_connected Callback invoked immediately
+     * @param on_disconnected Callback stored but never invoked in mock
+     * @return Always returns 0 (success)
+     */
+    int connect(const char* url,
+                std::function<void()> on_connected,
+                std::function<void()> on_disconnected) override;
+
+    /**
      * @brief Simulate printer hardware discovery
      *
      * Overrides base class method to immediately populate hardware lists
@@ -61,6 +76,76 @@ public:
      * @param on_complete Callback invoked after discovery completes
      */
     void discover_printer(std::function<void()> on_complete) override;
+
+    /**
+     * @brief Simulate WebSocket disconnection (no real network I/O)
+     *
+     * Overrides base class to simulate disconnection without actual WebSocket teardown.
+     */
+    void disconnect() override;
+
+    /**
+     * @brief Simulate JSON-RPC request without parameters
+     *
+     * Overrides base class to log and return success without network I/O.
+     *
+     * @param method RPC method name
+     * @return Always returns 0 (success)
+     */
+    int send_jsonrpc(const std::string& method) override;
+
+    /**
+     * @brief Simulate JSON-RPC request with parameters
+     *
+     * Overrides base class to log and return success without network I/O.
+     *
+     * @param method RPC method name
+     * @param params JSON parameters object (ignored in mock)
+     * @return Always returns 0 (success)
+     */
+    int send_jsonrpc(const std::string& method, const json& params) override;
+
+    /**
+     * @brief Simulate JSON-RPC request with callback
+     *
+     * Overrides base class to log and return success without network I/O.
+     *
+     * @param method RPC method name
+     * @param params JSON parameters object (ignored in mock)
+     * @param cb Callback function (not invoked in mock)
+     * @return Always returns 0 (success)
+     */
+    int send_jsonrpc(const std::string& method,
+                     const json& params,
+                     std::function<void(json)> cb) override;
+
+    /**
+     * @brief Simulate JSON-RPC request with success/error callbacks
+     *
+     * Overrides base class to log and return success without network I/O.
+     *
+     * @param method RPC method name
+     * @param params JSON parameters object (ignored in mock)
+     * @param success_cb Success callback (not invoked in mock)
+     * @param error_cb Error callback (not invoked in mock)
+     * @param timeout_ms Timeout (ignored in mock)
+     * @return Always returns 0 (success)
+     */
+    int send_jsonrpc(const std::string& method,
+                     const json& params,
+                     std::function<void(json)> success_cb,
+                     std::function<void(const MoonrakerError&)> error_cb,
+                     uint32_t timeout_ms = 0) override;
+
+    /**
+     * @brief Simulate G-code script command
+     *
+     * Overrides base class to log and return success without network I/O.
+     *
+     * @param gcode G-code string
+     * @return Always returns 0 (success)
+     */
+    int gcode_script(const std::string& gcode) override;
 
     /**
      * @brief Set printer type for mock data generation

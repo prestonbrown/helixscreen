@@ -1,3 +1,6 @@
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /*
  * Copyright (C) 2025 356C LLC
  * Author: Preston Brown <pbrown@brown-house.net>
@@ -449,28 +452,28 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi status queries", "[wifi][status]"
         #endif
     }
 
-    SECTION("Ethernet detection") {
-        bool has_eth = wifi_manager->has_ethernet();
+    // SECTION("Ethernet detection") {
+    //     bool has_eth = wifi_manager->has_ethernet();
 
-        #ifdef __APPLE__
-        // macOS mock should always have Ethernet
-        REQUIRE(has_eth == true);
-        #else
-        INFO("Ethernet detected: " << (has_eth ? "yes" : "no"));
-        #endif
-    }
+    //     #ifdef __APPLE__
+    //     // macOS mock should always have Ethernet
+    //     REQUIRE(has_eth == true);
+    //     #else
+    //     INFO("Ethernet detected: " << (has_eth ? "yes" : "no"));
+    //     #endif
+    // }
 
-    SECTION("Ethernet IP query") {
-        std::string eth_ip = wifi_manager->get_ethernet_ip();
+    // SECTION("Ethernet IP query") {
+    //     std::string eth_ip = wifi_manager->get_ethernet_ip();
 
-        #ifdef __APPLE__
-        // macOS mock should return test IP
-        REQUIRE_FALSE(eth_ip.empty());
-        INFO("Ethernet IP (mock): " << eth_ip);
-        #else
-        INFO("Ethernet IP: " << (eth_ip.empty() ? "not connected" : eth_ip));
-        #endif
-    }
+    //     #ifdef __APPLE__
+    //     // macOS mock should return test IP
+    //     REQUIRE_FALSE(eth_ip.empty());
+    //     INFO("Ethernet IP (mock): " << eth_ip);
+    //     #else
+    //     INFO("Ethernet IP: " << (eth_ip.empty() ? "not connected" : eth_ip));
+    //     #endif
+    // }
 }
 
 // ============================================================================

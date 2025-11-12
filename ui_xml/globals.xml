@@ -174,8 +174,8 @@
 	<string name="font_small" value="montserrat_12" />
 
 	<!-- Theme colors -->
-	<color name="primary_color" value="#FF4444" />
-	<color name="secondary_color" value="#00AAFF" />
+	<color name="primary_color" value="#AD2724" />
+	<color name="secondary_color" value="#37AEB3" />
 
 	<!-- App background colors (theme-specific variants) -->
 	<color name="app_bg_color_light" value="#FFFFFF" />  <!-- Light mode: white -->
