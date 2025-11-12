@@ -241,10 +241,12 @@ lv_obj_t* ui_wizard_bed_select_create(lv_obj_t* parent) {
 void ui_wizard_bed_select_cleanup() {
     spdlog::debug("[Wizard Bed] Cleaning up resources");
 
-    if (bed_select_screen_root) {
-        lv_obj_del(bed_select_screen_root);
-        bed_select_screen_root = nullptr;
-    }
+    // Reset UI references
+    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // object deletion when clearing wizard_content container
+    bed_select_screen_root = nullptr;
+
+    spdlog::info("[Wizard Bed] Cleanup complete");
 }
 
 // ============================================================================
