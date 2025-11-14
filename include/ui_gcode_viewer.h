@@ -47,20 +47,20 @@ extern "C" {
  * @brief Loading state for async file parsing
  */
 typedef enum {
-    GCODE_VIEWER_STATE_EMPTY,      ///< No file loaded
-    GCODE_VIEWER_STATE_LOADING,    ///< File is being parsed
-    GCODE_VIEWER_STATE_LOADED,     ///< File loaded and ready to render
-    GCODE_VIEWER_STATE_ERROR       ///< Error during loading
+    GCODE_VIEWER_STATE_EMPTY,   ///< No file loaded
+    GCODE_VIEWER_STATE_LOADING, ///< File is being parsed
+    GCODE_VIEWER_STATE_LOADED,  ///< File loaded and ready to render
+    GCODE_VIEWER_STATE_ERROR    ///< Error during loading
 } gcode_viewer_state_enum_t;
 
 /**
  * @brief Camera preset views
  */
 typedef enum {
-    GCODE_VIEWER_VIEW_ISOMETRIC,   ///< Default isometric view (45°, 30°)
-    GCODE_VIEWER_VIEW_TOP,         ///< Top-down view
-    GCODE_VIEWER_VIEW_FRONT,       ///< Front view
-    GCODE_VIEWER_VIEW_SIDE         ///< Side view (right)
+    GCODE_VIEWER_VIEW_ISOMETRIC, ///< Default isometric view (45°, 30°)
+    GCODE_VIEWER_VIEW_TOP,       ///< Top-down view
+    GCODE_VIEWER_VIEW_FRONT,     ///< Front view
+    GCODE_VIEWER_VIEW_SIDE       ///< Side view (right)
 } gcode_viewer_preset_view_t;
 
 /**

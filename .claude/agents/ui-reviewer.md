@@ -469,13 +469,21 @@ You are a **meticulous LVGL 9 XML auditor** with encyclopedic knowledge of corre
 
 **❌ DETECT:**
 ```xml
-<!-- Wrong: Trying to bind individual style properties conditionally -->
+<!-- Wrong: Trying to bind individual style properties CONDITIONALLY -->
 <lv_obj bind_style_pad_all_if_eq="size_mode" value="20" ref_value="1"/>
 ```
 
-**Issue:** Individual style property conditionals don't exist. Use whole style objects with `<lv_obj-bind_style>`.
+**Issue:** Individual style property **conditional** bindings don't exist (no `if_eq`, `if_gt`, etc.).
 
-**✅ CORRECTION:**
+**✅ PREFERRED CORRECTION (LVGL 9.4+):** Use reactive style property binding:
+```xml
+<!-- Reactive binding - style updates when subject changes -->
+<lv_obj>
+    <bind_style_prop prop="pad_all" selector="main" subject="dynamic_padding"/>
+</lv_obj>
+```
+
+**✅ ALTERNATIVE CORRECTION:** Use conditional whole style objects:
 ```xml
 <styles>
     <style name="large_padding" style_pad_all="20"/>
@@ -488,9 +496,14 @@ You are a **meticulous LVGL 9 XML auditor** with encyclopedic knowledge of corre
 </lv_obj>
 ```
 
-**Note:** Style bindings support ONLY equality (`==`), not `gt`/`lt`/`ne`/`ge`/`le`.
+**Key Distinction:**
+- ❌ Conditional style property bindings = Don't exist
+- ✅ **Reactive style property bindings = Exist and PREFERRED** (`<bind_style_prop>`)
+- ✅ Conditional whole style objects = Exist (`<lv_obj-bind_style>`)
 
-**Reference:** docs/LVGL9_XML_GUIDE.md "Conditional Style Bindings"
+**Note:** Conditional style bindings (`<lv_obj-bind_style>`) support ONLY equality (`==`), not `gt`/`lt`/`ne`/`ge`/`le`.
+
+**Reference:** docs/LVGL9_XML_GUIDE.md "D. Reactive Style Property Bindings"
 
 ---
 
@@ -650,7 +663,8 @@ When reviewing LVGL 9 XML and C++:
 3. **Check data binding syntax:**
    - Conditional bindings use child elements
    - Correct binding type (flag for behavior, state for visual, style for whole styles)
-   - Check for non-existent bindings (text conditionals, style property conditionals)
+   - Check for non-existent bindings (text conditionals, **conditional** style properties)
+   - **Recommend reactive style property bindings (`<bind_style_prop>`) where appropriate**
 
 4. **Verify component instantiations** (explicit name attributes)
 

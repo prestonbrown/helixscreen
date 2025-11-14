@@ -14,9 +14,10 @@
 
 #include <algorithm>
 #define GLM_ENABLE_EXPERIMENTAL
+#include <spdlog/spdlog.h>
+
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/transform.hpp>
-#include <spdlog/spdlog.h>
 
 namespace gcode {
 
@@ -40,8 +41,10 @@ void GCodeCamera::rotate(float delta_azimuth, float delta_elevation) {
     elevation_ += delta_elevation;
 
     // Wrap azimuth to [0, 360)
-    while (azimuth_ >= 360.0f) azimuth_ -= 360.0f;
-    while (azimuth_ < 0.0f) azimuth_ += 360.0f;
+    while (azimuth_ >= 360.0f)
+        azimuth_ -= 360.0f;
+    while (azimuth_ < 0.0f)
+        azimuth_ += 360.0f;
 
     // Clamp elevation to [-89, 89] to avoid gimbal lock at poles
     elevation_ = std::clamp(elevation_, -89.0f, 89.0f);
@@ -78,7 +81,7 @@ void GCodeCamera::zoom(float factor) {
     update_matrices();
 }
 
-void GCodeCamera::fit_to_bounds(const AABB &bounds) {
+void GCodeCamera::fit_to_bounds(const AABB& bounds) {
     if (bounds.is_empty()) {
         spdlog::warn("Cannot fit camera to empty bounding box");
         return;
@@ -93,18 +96,19 @@ void GCodeCamera::fit_to_bounds(const AABB &bounds) {
 
     // For orthographic projection, we adjust zoom instead of distance
     // Distance affects near/far planes, zoom affects the orthographic scale
-    distance_ = max_dimension * 2.0f;  // Far enough for near/far planes
-    zoom_level_ = 1.0f;  // Start at 1.0, will be adjusted by projection
+    distance_ = max_dimension * 2.0f; // Far enough for near/far planes
+    zoom_level_ = 1.0f;               // Start at 1.0, will be adjusted by projection
 
     update_matrices();
 
-    spdlog::debug("Fit camera to bounds: center=({:.1f},{:.1f},{:.1f}), size=({:.1f},{:.1f},{:.1f})",
-                 target_.x, target_.y, target_.z, size.x, size.y, size.z);
+    spdlog::debug(
+        "Fit camera to bounds: center=({:.1f},{:.1f},{:.1f}), size=({:.1f},{:.1f},{:.1f})",
+        target_.x, target_.y, target_.z, size.x, size.y, size.z);
 }
 
 void GCodeCamera::set_top_view() {
     azimuth_ = 0.0f;
-    elevation_ = 89.0f;  // Almost straight down (avoid gimbal lock at 90°)
+    elevation_ = 89.0f; // Almost straight down (avoid gimbal lock at 90°)
     update_matrices();
 }
 
@@ -141,10 +145,10 @@ void GCodeCamera::set_viewport_size(int width, int height) {
     update_matrices();
 }
 
-glm::vec3 GCodeCamera::screen_to_world_ray(const glm::vec2 &screen_pos) const {
+glm::vec3 GCodeCamera::screen_to_world_ray(const glm::vec2& screen_pos) const {
     // Convert screen coordinates to normalized device coordinates [-1, 1]
     float x = (2.0f * screen_pos.x) / viewport_width_ - 1.0f;
-    float y = 1.0f - (2.0f * screen_pos.y) / viewport_height_;  // Flip Y
+    float y = 1.0f - (2.0f * screen_pos.y) / viewport_height_; // Flip Y
 
     // For orthographic projection, ray direction is constant (parallel)
     // Ray direction = inverse view direction
@@ -165,10 +169,9 @@ glm::vec3 GCodeCamera::compute_camera_position() const {
     float sin_azim = std::sin(azimuth_rad);
 
     // Position relative to target
-    glm::vec3 offset(
-        distance_ * cos_elev * sin_azim,  // X
-        distance_ * cos_elev * cos_azim,  // Y
-        distance_ * sin_elev               // Z
+    glm::vec3 offset(distance_ * cos_elev * sin_azim, // X
+                     distance_ * cos_elev * cos_azim, // Y
+                     distance_ * sin_elev             // Z
     );
 
     return target_ + offset;
@@ -177,13 +180,12 @@ glm::vec3 GCodeCamera::compute_camera_position() const {
 void GCodeCamera::update_matrices() {
     // === View Matrix ===
     glm::vec3 camera_pos = compute_camera_position();
-    glm::vec3 up(0, 0, 1);  // Z-up world
+    glm::vec3 up(0, 0, 1); // Z-up world
 
     view_matrix_ = glm::lookAt(camera_pos, target_, up);
 
     // === Projection Matrix ===
-    float aspect_ratio = static_cast<float>(viewport_width_) /
-                        static_cast<float>(viewport_height_);
+    float aspect_ratio = static_cast<float>(viewport_width_) / static_cast<float>(viewport_height_);
 
     if (projection_type_ == ProjectionType::ORTHOGRAPHIC) {
         // Orthographic projection - no perspective distortion
@@ -195,18 +197,16 @@ void GCodeCamera::update_matrices() {
         float bottom = -ortho_size;
         float top = ortho_size;
 
-        projection_matrix_ = glm::ortho(left, right, bottom, top,
-                                       near_plane_, far_plane_);
+        projection_matrix_ = glm::ortho(left, right, bottom, top, near_plane_, far_plane_);
     } else {
         // Perspective projection (not used in Phase 1)
         float fov = glm::radians(60.0f / zoom_level_);
-        projection_matrix_ = glm::perspective(fov, aspect_ratio,
-                                             near_plane_, far_plane_);
+        projection_matrix_ = glm::perspective(fov, aspect_ratio, near_plane_, far_plane_);
     }
 
     spdlog::trace("Camera updated: azimuth={:.1f}°, elevation={:.1f}°, "
-                 "distance={:.1f}, zoom={:.2f}",
-                 azimuth_, elevation_, distance_, zoom_level_);
+                  "distance={:.1f}, zoom={:.2f}",
+                  azimuth_, elevation_, distance_, zoom_level_);
 }
 
 } // namespace gcode

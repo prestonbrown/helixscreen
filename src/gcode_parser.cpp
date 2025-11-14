@@ -12,10 +12,11 @@
 
 #include "gcode_parser.h"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <spdlog/spdlog.h>
 #include <sstream>
 
 namespace gcode {
@@ -79,7 +80,7 @@ void GCodeParser::reset() {
     start_new_layer(0.0f);
 }
 
-void GCodeParser::parse_line(const std::string &line) {
+void GCodeParser::parse_line(const std::string& line) {
     lines_parsed_++;
 
     std::string trimmed = trim_line(line);
@@ -109,14 +110,13 @@ void GCodeParser::parse_line(const std::string &line) {
     }
 
     // Parse movement commands (G0, G1)
-    if (trimmed[0] == 'G' &&
-        (trimmed.find("G0 ") == 0 || trimmed.find("G1 ") == 0 ||
-         trimmed == "G0" || trimmed == "G1")) {
+    if (trimmed[0] == 'G' && (trimmed.find("G0 ") == 0 || trimmed.find("G1 ") == 0 ||
+                              trimmed == "G0" || trimmed == "G1")) {
         parse_movement_command(trimmed);
     }
 }
 
-bool GCodeParser::parse_movement_command(const std::string &line) {
+bool GCodeParser::parse_movement_command(const std::string& line) {
     glm::vec3 new_position = current_position_;
     float new_e = current_e_;
     bool has_movement = false;
@@ -149,8 +149,8 @@ bool GCodeParser::parse_movement_command(const std::string &line) {
     }
 
     // Add segment if there's XY movement
-    if (has_movement && (new_position.x != current_position_.x ||
-                        new_position.y != current_position_.y)) {
+    if (has_movement &&
+        (new_position.x != current_position_.x || new_position.y != current_position_.y)) {
         // Determine if this is an extrusion move
         bool is_extruding = false;
         if (has_extrusion) {
@@ -170,7 +170,7 @@ bool GCodeParser::parse_movement_command(const std::string &line) {
     return has_movement;
 }
 
-bool GCodeParser::parse_exclude_object_command(const std::string &line) {
+bool GCodeParser::parse_exclude_object_command(const std::string& line) {
     // EXCLUDE_OBJECT_DEFINE NAME=... CENTER=... POLYGON=...
     if (line.find("EXCLUDE_OBJECT_DEFINE") == 0) {
         std::string name;
@@ -238,7 +238,7 @@ bool GCodeParser::parse_exclude_object_command(const std::string &line) {
     return false;
 }
 
-bool GCodeParser::extract_param(const std::string &line, char param, float &out_value) {
+bool GCodeParser::extract_param(const std::string& line, char param, float& out_value) {
     size_t pos = line.find(param);
     if (pos == std::string::npos) {
         return false;
@@ -258,8 +258,7 @@ bool GCodeParser::extract_param(const std::string &line, char param, float &out_
     // Find end of number (space, end of string, or another letter)
     size_t end = start;
     while (end < line.length() &&
-           (std::isdigit(line[end]) || line[end] == '.' ||
-            line[end] == '-' || line[end] == '+')) {
+           (std::isdigit(line[end]) || line[end] == '.' || line[end] == '-' || line[end] == '+')) {
         end++;
     }
 
@@ -275,9 +274,8 @@ bool GCodeParser::extract_param(const std::string &line, char param, float &out_
     }
 }
 
-bool GCodeParser::extract_string_param(const std::string &line,
-                                      const std::string &param,
-                                      std::string &out_value) {
+bool GCodeParser::extract_string_param(const std::string& line, const std::string& param,
+                                       std::string& out_value) {
     size_t pos = line.find(param + "=");
     if (pos == std::string::npos) {
         return false;
@@ -298,9 +296,7 @@ bool GCodeParser::extract_string_param(const std::string &line,
     return true;
 }
 
-void GCodeParser::add_segment(const glm::vec3 &start,
-                              const glm::vec3 &end,
-                              bool is_extrusion) {
+void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool is_extrusion) {
     if (layers_.empty()) {
         start_new_layer(start.z);
     }
@@ -313,7 +309,7 @@ void GCodeParser::add_segment(const glm::vec3 &start,
     segment.extrusion_amount = 0.0f; // TODO: Calculate from E delta
 
     // Update layer data
-    Layer &current_layer = layers_.back();
+    Layer& current_layer = layers_.back();
     current_layer.segments.push_back(segment);
     current_layer.bounding_box.expand(start);
     current_layer.bounding_box.expand(end);
@@ -348,21 +344,19 @@ void GCodeParser::start_new_layer(float z) {
     spdlog::debug("Started layer {} at Z={:.3f}", layers_.size() - 1, z);
 }
 
-std::string GCodeParser::trim_line(const std::string &line) {
+std::string GCodeParser::trim_line(const std::string& line) {
     if (line.empty()) {
         return line;
     }
 
     // Remove comments (everything after ';')
     size_t comment_pos = line.find(';');
-    std::string without_comment = (comment_pos != std::string::npos)
-                                     ? line.substr(0, comment_pos)
-                                     : line;
+    std::string without_comment =
+        (comment_pos != std::string::npos) ? line.substr(0, comment_pos) : line;
 
     // Trim leading/trailing whitespace
     size_t start = 0;
-    while (start < without_comment.length() &&
-           std::isspace(without_comment[start])) {
+    while (start < without_comment.length() && std::isspace(without_comment[start])) {
         start++;
     }
 
@@ -386,12 +380,12 @@ ParsedGCodeFile GCodeParser::finalize() {
     result.global_bounding_box = global_bounds_;
 
     // Calculate statistics
-    for (const auto &layer : result.layers) {
+    for (const auto& layer : result.layers) {
         result.total_segments += layer.segments.size();
     }
 
-    spdlog::info("Parsed G-code: {} layers, {} segments, {} objects",
-                result.layers.size(), result.total_segments, result.objects.size());
+    spdlog::info("Parsed G-code: {} layers, {} segments, {} objects", result.layers.size(),
+                 result.total_segments, result.objects.size());
 
     // Reset state for potential reuse
     reset();

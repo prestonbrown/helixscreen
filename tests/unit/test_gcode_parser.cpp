@@ -4,6 +4,7 @@
  */
 
 #include "gcode_parser.h"
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <sstream>
@@ -46,7 +47,7 @@ TEST_CASE("GCodeParser - Layer detection", "[gcode][parser]") {
     SECTION("Detect Z-axis layer changes") {
         parser.parse_line("G1 X0 Y0 Z0.2 E1");
         parser.parse_line("G1 X10 Y10 E2");
-        parser.parse_line("G1 X0 Y0 Z0.4 E3");  // New layer
+        parser.parse_line("G1 X0 Y0 Z0.4 E3"); // New layer
         parser.parse_line("G1 X20 Y20 E4");
 
         auto file = parser.finalize();
@@ -75,7 +76,7 @@ TEST_CASE("GCodeParser - Coordinate extraction", "[gcode][parser]") {
 
     SECTION("Extract X, Y, Z coordinates") {
         parser.parse_line("G1 X10.5 Y-20.3 Z0.2");
-        parser.parse_line("G1 X15.5 Y-15.3");  // Move from previous position
+        parser.parse_line("G1 X15.5 Y-15.3"); // Move from previous position
 
         auto file = parser.finalize();
 
@@ -125,7 +126,8 @@ TEST_CASE("GCodeParser - EXCLUDE_OBJECT commands", "[gcode][parser]") {
     GCodeParser parser;
 
     SECTION("Parse EXCLUDE_OBJECT_DEFINE") {
-        parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME=cube_1 CENTER=50,75 POLYGON=[[45,70],[55,70],[55,80],[45,80]]");
+        parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME=cube_1 CENTER=50,75 "
+                          "POLYGON=[[45,70],[55,70],[55,80],[45,80]]");
         auto file = parser.finalize();
 
         REQUIRE(file.objects.size() == 1);
@@ -144,7 +146,7 @@ TEST_CASE("GCodeParser - EXCLUDE_OBJECT commands", "[gcode][parser]") {
         parser.parse_line("G1 X10 Y10 Z0.2 E1");
         parser.parse_line("G1 X20 Y10 E2");
         parser.parse_line("EXCLUDE_OBJECT_END NAME=part1");
-        parser.parse_line("G1 X30 Y30 E3");  // Not in object
+        parser.parse_line("G1 X30 Y30 E3"); // Not in object
 
         auto file = parser.finalize();
 
@@ -181,9 +183,9 @@ TEST_CASE("GCodeParser - Positioning modes", "[gcode][parser]") {
     GCodeParser parser;
 
     SECTION("Absolute positioning (G90, default)") {
-        parser.parse_line("G90");  // Absolute mode
+        parser.parse_line("G90"); // Absolute mode
         parser.parse_line("G1 X10 Y10 Z0.2");
-        parser.parse_line("G1 X20 Y20");  // Absolute coordinates
+        parser.parse_line("G1 X20 Y20"); // Absolute coordinates
 
         auto file = parser.finalize();
 
@@ -192,9 +194,9 @@ TEST_CASE("GCodeParser - Positioning modes", "[gcode][parser]") {
     }
 
     SECTION("Relative positioning (G91)") {
-        parser.parse_line("G91");  // Relative mode
+        parser.parse_line("G91"); // Relative mode
         parser.parse_line("G1 X10 Y10 Z0.2");
-        parser.parse_line("G1 X5 Y5");  // Relative offset
+        parser.parse_line("G1 X5 Y5"); // Relative offset
 
         auto file = parser.finalize();
 
@@ -207,9 +209,9 @@ TEST_CASE("GCodeParser - Statistics", "[gcode][parser]") {
     GCodeParser parser;
 
     SECTION("Count segments by type") {
-        parser.parse_line("G1 X10 Y10 Z0.2 E1");  // Extrusion
-        parser.parse_line("G0 X20 Y20");          // Travel
-        parser.parse_line("G1 X30 Y30 E2");       // Extrusion
+        parser.parse_line("G1 X10 Y10 Z0.2 E1"); // Extrusion
+        parser.parse_line("G0 X20 Y20");         // Travel
+        parser.parse_line("G1 X30 Y30 E2");      // Extrusion
 
         auto file = parser.finalize();
 

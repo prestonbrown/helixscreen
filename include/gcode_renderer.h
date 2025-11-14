@@ -14,8 +14,10 @@
 
 #include "gcode_camera.h"
 #include "gcode_parser.h"
-#include <glm/glm.hpp>
+
 #include <lvgl/lvgl.h>
+
+#include <glm/glm.hpp>
 #include <optional>
 #include <string>
 
@@ -43,22 +45,22 @@ namespace gcode {
  * @brief Level-of-detail setting for rendering
  */
 enum class LODLevel {
-    FULL = 0,     ///< Render all segments (high quality)
-    HALF = 1,     ///< Render every 2nd segment (medium quality)
-    QUARTER = 2   ///< Render every 4th segment (low quality/zoomed out)
+    FULL = 0,   ///< Render all segments (high quality)
+    HALF = 1,   ///< Render every 2nd segment (medium quality)
+    QUARTER = 2 ///< Render every 4th segment (low quality/zoomed out)
 };
 
 /**
  * @brief Rendering options and filters
  */
 struct RenderOptions {
-    bool show_extrusions{true};        ///< Render extrusion moves
-    bool show_travels{true};           ///< Render travel moves
-    bool show_object_bounds{false};    ///< Render object boundary polygons
-    std::string highlighted_object;    ///< Object to highlight (empty = none)
-    LODLevel lod{LODLevel::FULL};      ///< Level of detail
-    int layer_start{0};                ///< First layer to render (inclusive)
-    int layer_end{-1};                 ///< Last layer to render (-1 = all)
+    bool show_extrusions{true};     ///< Render extrusion moves
+    bool show_travels{true};        ///< Render travel moves
+    bool show_object_bounds{false}; ///< Render object boundary polygons
+    std::string highlighted_object; ///< Object to highlight (empty = none)
+    LODLevel lod{LODLevel::FULL};   ///< Level of detail
+    int layer_start{0};             ///< First layer to render (inclusive)
+    int layer_end{-1};              ///< Last layer to render (-1 = all)
 };
 
 /**
@@ -95,9 +97,7 @@ class GCodeRenderer {
      * Main rendering function. Call from LVGL draw event callback.
      * Renders according to current RenderOptions.
      */
-    void render(lv_layer_t *layer,
-                const ParsedGCodeFile &gcode,
-                const GCodeCamera &camera);
+    void render(lv_layer_t* layer, const ParsedGCodeFile& gcode, const GCodeCamera& camera);
 
     // ==============================================
     // Configuration
@@ -114,13 +114,15 @@ class GCodeRenderer {
      * @brief Set rendering options
      * @param options Rendering configuration
      */
-    void set_options(const RenderOptions &options);
+    void set_options(const RenderOptions& options);
 
     /**
      * @brief Get current rendering options
      * @return Current options
      */
-    const RenderOptions &get_options() const { return options_; }
+    const RenderOptions& get_options() const {
+        return options_;
+    }
 
     // ==============================================
     // Convenience Setters
@@ -142,7 +144,7 @@ class GCodeRenderer {
      * @brief Set highlighted object
      * @param name Object name to highlight (empty string to clear)
      */
-    void set_highlighted_object(const std::string &name);
+    void set_highlighted_object(const std::string& name);
 
     /**
      * @brief Set level of detail
@@ -171,10 +173,9 @@ class GCodeRenderer {
      * Used for touch/click interaction. Casts ray from screen position
      * through camera and tests intersection with object polygons.
      */
-    std::optional<std::string> pick_object(
-        const glm::vec2 &screen_pos,
-        const ParsedGCodeFile &gcode,
-        const GCodeCamera &camera) const;
+    std::optional<std::string> pick_object(const glm::vec2& screen_pos,
+                                           const ParsedGCodeFile& gcode,
+                                           const GCodeCamera& camera) const;
 
     // ==============================================
     // Statistics
@@ -184,13 +185,17 @@ class GCodeRenderer {
      * @brief Get number of segments rendered in last frame
      * @return Segment count
      */
-    size_t get_segments_rendered() const { return segments_rendered_; }
+    size_t get_segments_rendered() const {
+        return segments_rendered_;
+    }
 
     /**
      * @brief Get number of segments culled in last frame
      * @return Culled segment count
      */
-    size_t get_segments_culled() const { return segments_culled_; }
+    size_t get_segments_culled() const {
+        return segments_culled_;
+    }
 
   private:
     // ==============================================
@@ -203,9 +208,7 @@ class GCodeRenderer {
      * @param gcode_layer Layer data
      * @param transform View-projection matrix
      */
-    void render_layer(lv_layer_t *layer,
-                     const Layer &gcode_layer,
-                     const glm::mat4 &transform);
+    void render_layer(lv_layer_t* layer, const Layer& gcode_layer, const glm::mat4& transform);
 
     /**
      * @brief Render single segment
@@ -213,9 +216,8 @@ class GCodeRenderer {
      * @param segment Toolpath segment
      * @param transform View-projection matrix
      */
-    void render_segment(lv_layer_t *layer,
-                       const ToolpathSegment &segment,
-                       const glm::mat4 &transform);
+    void render_segment(lv_layer_t* layer, const ToolpathSegment& segment,
+                        const glm::mat4& transform);
 
     /**
      * @brief Render object boundary polygon
@@ -223,9 +225,8 @@ class GCodeRenderer {
      * @param object Object metadata
      * @param transform View-projection matrix
      */
-    void render_object_boundary(lv_layer_t *layer,
-                               const GCodeObject &object,
-                               const glm::mat4 &transform);
+    void render_object_boundary(lv_layer_t* layer, const GCodeObject& object,
+                                const glm::mat4& transform);
 
     // ==============================================
     // Projection & Culling
@@ -237,16 +238,15 @@ class GCodeRenderer {
      * @param transform View-projection matrix
      * @return Screen coordinates (pixels), or nullopt if outside view
      */
-    std::optional<glm::vec2> project_to_screen(
-        const glm::vec3 &world_pos,
-        const glm::mat4 &transform) const;
+    std::optional<glm::vec2> project_to_screen(const glm::vec3& world_pos,
+                                               const glm::mat4& transform) const;
 
     /**
      * @brief Check if segment should be rendered (filtering + culling)
      * @param segment Segment to test
      * @return true if should render
      */
-    bool should_render_segment(const ToolpathSegment &segment) const;
+    bool should_render_segment(const ToolpathSegment& segment) const;
 
     /**
      * @brief Clip line segment to viewport bounds
@@ -254,7 +254,7 @@ class GCodeRenderer {
      * @param p2 Second point (modified in-place)
      * @return true if line is visible after clipping
      */
-    bool clip_line_to_viewport(glm::vec2 &p1, glm::vec2 &p2) const;
+    bool clip_line_to_viewport(glm::vec2& p1, glm::vec2& p2) const;
 
     // ==============================================
     // Drawing Helpers
@@ -265,7 +265,7 @@ class GCodeRenderer {
      * @param segment Toolpath segment
      * @return Line draw descriptor with style
      */
-    lv_draw_line_dsc_t get_line_style(const ToolpathSegment &segment) const;
+    lv_draw_line_dsc_t get_line_style(const ToolpathSegment& segment) const;
 
     /**
      * @brief Draw line on LVGL layer
@@ -274,10 +274,8 @@ class GCodeRenderer {
      * @param p2 End point (screen coords)
      * @param dsc Line draw descriptor
      */
-    void draw_line(lv_layer_t *layer,
-                  const glm::vec2 &p1,
-                  const glm::vec2 &p2,
-                  const lv_draw_line_dsc_t &dsc);
+    void draw_line(lv_layer_t* layer, const glm::vec2& p1, const glm::vec2& p2,
+                   const lv_draw_line_dsc_t& dsc);
 
     // Configuration
     int viewport_width_{800};

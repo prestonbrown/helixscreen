@@ -714,7 +714,132 @@ void update_temp_state(int temp) {
 }
 ```
 
-##### D. Conditional Binding Limitations
+##### D. Reactive Style Property Bindings (LVGL 9.4+)
+
+**NEW in LVGL 9.4+:** Bind individual style properties directly to subject values for dynamic, reactive styling.
+
+Unlike conditional style bindings that apply entire style objects, style property bindings allow you to bind a single style property (like opacity, color, width) to a subject's value. The widget's style automatically updates whenever the subject changes.
+
+**XML Syntax:**
+
+```xml
+<lv_slider>
+    <!-- Bind knob opacity to subject value (0-255) -->
+    <bind_style_prop prop="bg_opa" selector="knob|pressed" subject="slider_knob_opa"/>
+
+    <!-- Bind background color to subject -->
+    <bind_style_prop prop="bg_color" selector="main" subject="theme_bg_color"/>
+
+    <!-- Bind border width to subject -->
+    <bind_style_prop prop="border_width" selector="main" subject="focus_border_width"/>
+</lv_slider>
+```
+
+**C++ API (Alternative):**
+
+```cpp
+// Bind style property to subject
+lv_obj_bind_style_prop(slider, LV_STYLE_BG_OPA, LV_PART_KNOB | LV_STATE_PRESSED, &slider_knob_opa);
+lv_obj_bind_style_prop(obj, LV_STYLE_BG_COLOR, LV_PART_MAIN, &theme_bg_color);
+
+// Update subject → widget automatically updates
+lv_subject_set_int(&slider_knob_opa, 128);  // Slider becomes semi-transparent
+lv_subject_set_color(&theme_bg_color, lv_color_hex(0xFF5733));  // Background changes
+```
+
+**Attributes:**
+
+- `prop` - Style property name (e.g., `bg_opa`, `bg_color`, `border_width`) (required)
+- `selector` - Style selector (e.g., `main`, `knob|pressed`, `indicator`) (optional, defaults to `main`)
+- `subject` - Subject name (required)
+
+**Use Cases:**
+
+1. **Dynamic opacity controls** - Bind slider opacity to user preference subject
+2. **Theme switching** - Bind colors to theme subjects (dark/light mode)
+3. **Responsive sizing** - Bind widths/heights to screen size subjects
+4. **State-driven styling** - Bind border colors/widths to connection status subjects
+5. **Data visualization** - Bind colors to value ranges (e.g., temperature → color gradient)
+
+**Example: Dynamic Slider Styling**
+
+```xml
+<component name="dynamic_slider">
+    <view extends="lv_slider">
+        <!-- Opacity controlled by subject -->
+        <bind_style_prop prop="bg_opa" selector="main" subject="slider_main_opa"/>
+        <bind_style_prop prop="bg_opa" selector="indicator" subject="slider_indicator_opa"/>
+        <bind_style_prop prop="bg_opa" selector="knob" subject="slider_knob_opa"/>
+
+        <!-- Colors controlled by subjects -->
+        <bind_style_prop prop="bg_color" selector="indicator" subject="slider_active_color"/>
+    </view>
+</component>
+```
+
+```cpp
+// Initialize subjects
+static lv_subject_t slider_knob_opa;
+static lv_subject_t slider_active_color;
+
+lv_subject_init_int(&slider_knob_opa, 255);  // Start fully opaque
+lv_subject_init_color(&slider_active_color, lv_color_hex(0x00FF00));  // Green
+
+// Change dynamically based on state
+lv_subject_set_int(&slider_knob_opa, 128);  // Make semi-transparent
+lv_subject_set_color(&slider_active_color, lv_color_hex(0xFF0000));  // Change to red
+```
+
+**Example: Dark/Light Theme Toggle**
+
+```xml
+<!-- Multiple widgets bind to same theme subjects -->
+<lv_obj>
+    <bind_style_prop prop="bg_color" selector="main" subject="theme_bg"/>
+    <bind_style_prop prop="border_color" selector="main" subject="theme_border"/>
+
+    <lv_label text="Hello World">
+        <bind_style_prop prop="text_color" selector="main" subject="theme_text"/>
+    </lv_label>
+</lv_obj>
+```
+
+```cpp
+// Toggle between light and dark themes
+void set_dark_theme(bool dark) {
+    lv_color_t bg = dark ? lv_color_hex(0x1a1a1a) : lv_color_hex(0xffffff);
+    lv_color_t text = dark ? lv_color_hex(0xe0e0e0) : lv_color_hex(0x000000);
+    lv_color_t border = dark ? lv_color_hex(0x404040) : lv_color_hex(0xcccccc);
+
+    lv_subject_set_color(&theme_bg, bg);
+    lv_subject_set_color(&theme_text, text);
+    lv_subject_set_color(&theme_border, border);
+    // All bound widgets update automatically!
+}
+```
+
+**Advantages over Conditional Style Bindings:**
+
+| Feature | Style Property Binding | Conditional Style Binding |
+|---------|------------------------|---------------------------|
+| Granularity | Single property | Entire style object |
+| Subject type | Any value (int, color, etc.) | Integer equality only |
+| Conditionals | No conditions (direct binding) | Equality check (`==`) |
+| Use case | Reactive value mapping | State-based styling |
+| Multiple properties | Need multiple bindings | One binding per style |
+
+**When to use Style Property Bindings:**
+- ✅ Direct value-to-style mapping (e.g., slider value → opacity)
+- ✅ Theme color variables (e.g., primary color subject)
+- ✅ Continuous value changes (e.g., temperature → color gradient)
+- ✅ Multiple widgets sharing same style value
+
+**When to use Conditional Style Bindings:**
+- ✅ Discrete state changes (e.g., normal/warning/error states)
+- ✅ Applying predefined style presets
+- ✅ Complex multi-property changes based on single condition
+
+##### E. Conditional Binding Limitations
 
 **❌ Text Conditionals DO NOT EXIST:**
 
@@ -733,15 +858,23 @@ There is no `bind_text_if_eq` or similar. To show different text based on condit
 </lv_label>
 ```
 
-**❌ Style Property Conditionals DO NOT EXIST:**
+**❌ CONDITIONAL Style Property Bindings DO NOT EXIST:**
 
-You cannot bind individual style properties conditionally (like `bind_style_pad_all_if_eq`). Use whole style objects with `<lv_obj-bind_style>` instead:
+You cannot bind individual style properties **conditionally** (like `bind_style_pad_all_if_eq`).
+
+**However**, you CAN bind style properties **reactively** using `<bind_style_prop>` (see section D above):
 
 ```xml
-<!-- ❌ DOESN'T WORK: -->
+<!-- ❌ DOESN'T WORK - Conditional style property binding: -->
 <lv_obj bind_style_pad_all_if_eq="subject" value="20" ref_value="1"/>
 
-<!-- ✅ WORKS: Define styles and bind them -->
+<!-- ✅ WORKS - Reactive style property binding (LVGL 9.4+): -->
+<lv_obj>
+    <bind_style_prop prop="pad_all" selector="main" subject="padding_value"/>
+    <!-- Widget padding reactively updates when padding_value subject changes -->
+</lv_obj>
+
+<!-- ✅ ALSO WORKS - Conditional whole style objects: -->
 <styles>
     <style name="large_padding" style_pad_all="20"/>
     <style name="small_padding" style_pad_all="5"/>
@@ -753,13 +886,24 @@ You cannot bind individual style properties conditionally (like `bind_style_pad_
 </lv_obj>
 ```
 
+**Key Distinction:**
+- ❌ **Conditional + Style Property** = Not supported (no `if_eq`, `if_gt`, etc. on individual properties)
+- ✅ **Reactive Style Property** = Supported (direct binding with `<bind_style_prop>`)
+- ✅ **Conditional + Whole Style** = Supported (with `<lv_obj-bind_style>`)
+
 **❌ Subjects Cannot Be Used Directly in Attributes:**
 
 ```xml
 <!-- ❌ DOESN'T WORK: -->
 <lv_obj style_pad_all="subject:padding_value"/>
 
-<!-- ✅ WORKS: Use runtime constants or C++ dynamic styling -->
+<!-- ✅ WORKS - Use bind_style_prop (LVGL 9.4+): -->
+<lv_obj>
+    <bind_style_prop prop="pad_all" selector="main" subject="padding_value"/>
+</lv_obj>
+
+<!-- ✅ ALSO WORKS - Use runtime constants: -->
+<lv_obj style_pad_all="#dynamic_padding"/>
 ```
 
 ##### E. When to Use Each Binding Type

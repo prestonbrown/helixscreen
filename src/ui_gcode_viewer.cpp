@@ -18,6 +18,7 @@
 
 #include <lvgl/src/xml/lv_xml_parser.h>
 #include <spdlog/spdlog.h>
+
 #include <cstring>
 #include <fstream>
 #include <memory>
@@ -91,10 +92,12 @@ static void gcode_viewer_press_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     gcode_viewer_state_t* st = get_state(obj);
 
-    if (!st) return;
+    if (!st)
+        return;
 
     lv_indev_t* indev = lv_indev_active();
-    if (!indev) return;
+    if (!indev)
+        return;
 
     lv_point_t point;
     lv_indev_get_point(indev, &point);
@@ -113,10 +116,12 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     gcode_viewer_state_t* st = get_state(obj);
 
-    if (!st || !st->is_dragging) return;
+    if (!st || !st->is_dragging)
+        return;
 
     lv_indev_t* indev = lv_indev_active();
-    if (!indev) return;
+    if (!indev)
+        return;
 
     lv_point_t point;
     lv_indev_get_point(indev, &point);
@@ -129,7 +134,7 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
         // Convert pixel movement to rotation angles
         // Scale factor: ~0.5 degrees per pixel
         float delta_azimuth = dx * 0.5f;
-        float delta_elevation = -dy * 0.5f;  // Flip Y for intuitive control
+        float delta_elevation = -dy * 0.5f; // Flip Y for intuitive control
 
         st->camera->rotate(delta_azimuth, delta_elevation);
 
@@ -138,8 +143,8 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
 
         st->last_drag_pos = point;
 
-        spdlog::trace("GCodeViewer: Drag ({}, {}) -> rotate({:.1f}, {:.1f})",
-                     dx, dy, delta_azimuth, delta_elevation);
+        spdlog::trace("GCodeViewer: Drag ({}, {}) -> rotate({:.1f}, {:.1f})", dx, dy, delta_azimuth,
+                      delta_elevation);
     }
 }
 
@@ -150,7 +155,8 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     gcode_viewer_state_t* st = get_state(obj);
 
-    if (!st) return;
+    if (!st)
+        return;
 
     st->is_dragging = false;
 
@@ -166,7 +172,7 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
 
     if (st) {
         spdlog::debug("GCodeViewer: Widget destroyed");
-        delete st;  // C++ destructor will clean up unique_ptrs
+        delete st; // C++ destructor will clean up unique_ptrs
         lv_obj_set_user_data(obj, nullptr);
     }
 }
@@ -211,7 +217,8 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
 
 void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st || !file_path) return;
+    if (!st || !file_path)
+        return;
 
     spdlog::info("GCodeViewer: Loading file: {}", file_path);
     st->viewer_state = GCODE_VIEWER_STATE_LOADING;
@@ -254,9 +261,8 @@ void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
         st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 
         spdlog::info("GCodeViewer: Loaded {} layers, {} segments, {} objects",
-                    st->gcode_file->layers.size(),
-                    st->gcode_file->total_segments,
-                    st->gcode_file->objects.size());
+                     st->gcode_file->layers.size(), st->gcode_file->total_segments,
+                     st->gcode_file->objects.size());
 
         // Trigger redraw
         lv_obj_invalidate(obj);
@@ -270,7 +276,8 @@ void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
 
 void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st || !gcode_data) return;
+    if (!st || !gcode_data)
+        return;
 
     // Take ownership of the data (caller must use new to allocate)
     st->gcode_file.reset(static_cast<gcode::ParsedGCodeFile*>(gcode_data));
@@ -282,8 +289,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
     st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 
     spdlog::info("GCodeViewer: Set G-code data: {} layers, {} segments",
-                st->gcode_file->layers.size(),
-                st->gcode_file->total_segments);
+                 st->gcode_file->layers.size(), st->gcode_file->total_segments);
 
     // Trigger redraw
     lv_obj_invalidate(obj);
@@ -291,7 +297,8 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
 
 void ui_gcode_viewer_clear(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->gcode_file.reset();
     st->viewer_state = GCODE_VIEWER_STATE_EMPTY;
@@ -311,7 +318,8 @@ gcode_viewer_state_enum_t ui_gcode_viewer_get_state(lv_obj_t* obj) {
 
 void ui_gcode_viewer_rotate(lv_obj_t* obj, float delta_azimuth, float delta_elevation) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->camera->rotate(delta_azimuth, delta_elevation);
     lv_obj_invalidate(obj);
@@ -319,7 +327,8 @@ void ui_gcode_viewer_rotate(lv_obj_t* obj, float delta_azimuth, float delta_elev
 
 void ui_gcode_viewer_pan(lv_obj_t* obj, float delta_x, float delta_y) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->camera->pan(delta_x, delta_y);
     lv_obj_invalidate(obj);
@@ -327,7 +336,8 @@ void ui_gcode_viewer_pan(lv_obj_t* obj, float delta_x, float delta_y) {
 
 void ui_gcode_viewer_zoom(lv_obj_t* obj, float factor) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->camera->zoom(factor);
     lv_obj_invalidate(obj);
@@ -335,7 +345,8 @@ void ui_gcode_viewer_zoom(lv_obj_t* obj, float factor) {
 
 void ui_gcode_viewer_reset_camera(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->camera->reset();
 
@@ -349,7 +360,8 @@ void ui_gcode_viewer_reset_camera(lv_obj_t* obj) {
 
 void ui_gcode_viewer_set_view(lv_obj_t* obj, gcode_viewer_preset_view_t preset) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     switch (preset) {
     case GCODE_VIEWER_VIEW_ISOMETRIC:
@@ -375,7 +387,8 @@ void ui_gcode_viewer_set_view(lv_obj_t* obj, gcode_viewer_preset_view_t preset) 
 
 void ui_gcode_viewer_set_show_travels(lv_obj_t* obj, bool show) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->renderer->set_show_travels(show);
     lv_obj_invalidate(obj);
@@ -383,7 +396,8 @@ void ui_gcode_viewer_set_show_travels(lv_obj_t* obj, bool show) {
 
 void ui_gcode_viewer_set_show_extrusions(lv_obj_t* obj, bool show) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->renderer->set_show_extrusions(show);
     lv_obj_invalidate(obj);
@@ -391,7 +405,8 @@ void ui_gcode_viewer_set_show_extrusions(lv_obj_t* obj, bool show) {
 
 void ui_gcode_viewer_set_layer_range(lv_obj_t* obj, int start_layer, int end_layer) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->renderer->set_layer_range(start_layer, end_layer);
     lv_obj_invalidate(obj);
@@ -399,7 +414,8 @@ void ui_gcode_viewer_set_layer_range(lv_obj_t* obj, int start_layer, int end_lay
 
 void ui_gcode_viewer_set_highlighted_object(lv_obj_t* obj, const char* object_name) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return;
+    if (!st)
+        return;
 
     st->renderer->set_highlighted_object(object_name ? object_name : "");
     lv_obj_invalidate(obj);
@@ -411,7 +427,8 @@ void ui_gcode_viewer_set_highlighted_object(lv_obj_t* obj, const char* object_na
 
 const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st || !st->gcode_file) return nullptr;
+    if (!st || !st->gcode_file)
+        return nullptr;
 
     auto result = st->renderer->pick_object(glm::vec2(x, y), *st->gcode_file, *st->camera);
 
@@ -431,14 +448,16 @@ const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
 
 int ui_gcode_viewer_get_layer_count(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st || !st->gcode_file) return 0;
+    if (!st || !st->gcode_file)
+        return 0;
 
     return static_cast<int>(st->gcode_file->layers.size());
 }
 
 int ui_gcode_viewer_get_segments_rendered(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
-    if (!st) return 0;
+    if (!st)
+        return 0;
 
     return static_cast<int>(st->renderer->get_segments_rendered());
 }

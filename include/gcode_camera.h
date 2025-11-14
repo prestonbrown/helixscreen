@@ -12,7 +12,8 @@
 
 #pragma once
 
-#include "gcode_parser.h"  // For AABB
+#include "gcode_parser.h" // For AABB
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -38,8 +39,8 @@ namespace gcode {
  * @brief Projection type for camera
  */
 enum class ProjectionType {
-    ORTHOGRAPHIC,  ///< Parallel projection (no perspective distortion)
-    PERSPECTIVE    ///< Realistic perspective (not implemented in Phase 1)
+    ORTHOGRAPHIC, ///< Parallel projection (no perspective distortion)
+    PERSPECTIVE   ///< Realistic perspective (not implemented in Phase 1)
 };
 
 /**
@@ -104,7 +105,7 @@ class GCodeCamera {
      * Automatically adjusts zoom and pan to frame the model.
      * Preserves current azimuth and elevation angles.
      */
-    void fit_to_bounds(const AABB &bounds);
+    void fit_to_bounds(const AABB& bounds);
 
     // ==============================================
     // Preset Views
@@ -140,13 +141,17 @@ class GCodeCamera {
      * @brief Get view matrix (world-to-camera transform)
      * @return 4x4 view matrix
      */
-    glm::mat4 get_view_matrix() const { return view_matrix_; }
+    glm::mat4 get_view_matrix() const {
+        return view_matrix_;
+    }
 
     /**
      * @brief Get projection matrix (camera-to-screen transform)
      * @return 4x4 projection matrix
      */
-    glm::mat4 get_projection_matrix() const { return projection_matrix_; }
+    glm::mat4 get_projection_matrix() const {
+        return projection_matrix_;
+    }
 
     /**
      * @brief Get combined view-projection matrix
@@ -183,13 +188,17 @@ class GCodeCamera {
      * @brief Get current viewport width
      * @return Width in pixels
      */
-    int get_viewport_width() const { return viewport_width_; }
+    int get_viewport_width() const {
+        return viewport_width_;
+    }
 
     /**
      * @brief Get current viewport height
      * @return Height in pixels
      */
-    int get_viewport_height() const { return viewport_height_; }
+    int get_viewport_height() const {
+        return viewport_height_;
+    }
 
     // ==============================================
     // Ray Casting (for object picking)
@@ -203,7 +212,7 @@ class GCodeCamera {
      * Used for touch/click object picking. Cast ray from screen point
      * through camera and test intersection with objects.
      */
-    glm::vec3 screen_to_world_ray(const glm::vec2 &screen_pos) const;
+    glm::vec3 screen_to_world_ray(const glm::vec2& screen_pos) const;
 
     // ==============================================
     // State Query
@@ -213,25 +222,33 @@ class GCodeCamera {
      * @brief Get current azimuth angle
      * @return Azimuth in degrees (0-360)
      */
-    float get_azimuth() const { return azimuth_; }
+    float get_azimuth() const {
+        return azimuth_;
+    }
 
     /**
      * @brief Get current elevation angle
      * @return Elevation in degrees (-90 to 90)
      */
-    float get_elevation() const { return elevation_; }
+    float get_elevation() const {
+        return elevation_;
+    }
 
     /**
      * @brief Get current zoom level
      * @return Zoom factor (1.0 = default)
      */
-    float get_zoom_level() const { return zoom_level_; }
+    float get_zoom_level() const {
+        return zoom_level_;
+    }
 
     /**
      * @brief Get camera target point (look-at point)
      * @return Target position in world space
      */
-    glm::vec3 get_target() const { return target_; }
+    glm::vec3 get_target() const {
+        return target_;
+    }
 
   private:
     /**
@@ -248,11 +265,11 @@ class GCodeCamera {
     glm::vec3 compute_camera_position() const;
 
     // Camera parameters
-    float azimuth_{45.0f};        ///< Horizontal rotation (degrees)
-    float elevation_{30.0f};      ///< Vertical rotation (degrees)
-    glm::vec3 target_{0, 0, 0};   ///< Look-at point
-    float distance_{100.0f};      ///< Distance from target
-    float zoom_level_{1.0f};      ///< Zoom multiplier
+    float azimuth_{45.0f};      ///< Horizontal rotation (degrees)
+    float elevation_{30.0f};    ///< Vertical rotation (degrees)
+    glm::vec3 target_{0, 0, 0}; ///< Look-at point
+    float distance_{100.0f};    ///< Distance from target
+    float zoom_level_{1.0f};    ///< Zoom multiplier
 
     // Projection parameters
     ProjectionType projection_type_{ProjectionType::ORTHOGRAPHIC};

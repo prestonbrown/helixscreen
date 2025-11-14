@@ -282,7 +282,35 @@ Apply entire pre-defined style objects conditionally:
 </lv_label>
 ```
 
-**❌ Style property conditionals DON'T EXIST** - No `bind_style_pad_all_if_eq`. Use whole style objects with `<lv_obj-bind_style>`.
+**✅ PREFERRED: Reactive Style Property Bindings (LVGL 9.4+)**
+
+Bind individual style properties directly to subjects for dynamic, reactive styling:
+
+```xml
+<!-- ✅ PREFERRED: Reactive style property binding -->
+<lv_slider>
+    <bind_style_prop prop="bg_opa" selector="knob" subject="knob_opacity"/>
+    <bind_style_prop prop="bg_color" selector="indicator" subject="active_color"/>
+</lv_slider>
+
+<!-- ✅ ALTERNATIVE: Conditional whole style objects -->
+<lv_obj-bind_style name="large_padding" subject="size_mode" ref_value="1"/>
+
+<!-- ❌ DOESN'T EXIST: Conditional style property -->
+<lv_obj bind_style_pad_all_if_eq="size_mode" value="20" ref_value="1"/>
+```
+
+**When to use `<bind_style_prop>` (PREFERRED):**
+- ✅ Direct value-to-style mapping (e.g., subject value → opacity)
+- ✅ Theme variables (colors, sizes that change reactively)
+- ✅ Continuous value changes (e.g., temperature → color)
+- ✅ Multiple widgets sharing same dynamic style value
+
+**When to use `<lv_obj-bind_style>` (conditional whole styles):**
+- Discrete state changes (normal/warning/error with multiple properties)
+- Applying predefined style presets based on conditions
+
+**See docs/LVGL9_XML_GUIDE.md section "D. Reactive Style Property Bindings" for complete guide.**
 
 ---
 
@@ -690,7 +718,7 @@ Before presenting any XML, verify:
 - [ ] **Conditional bindings use child elements** (not attributes)
 - [ ] **Using correct binding type** (flag for behavior, state for visual, style for whole styles)
 - [ ] **Text conditionals avoided** (use multiple labels with flag bindings instead)
-- [ ] **Style property conditionals avoided** (use whole style objects with bind_style instead)
+- [ ] **Reactive style property bindings used where appropriate** (`<bind_style_prop>` preferred for dynamic styling)
 
 **Constants & Responsive:**
 - [ ] **Using semantic constants from globals.xml** (not hardcoded values)

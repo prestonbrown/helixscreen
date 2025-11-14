@@ -13,6 +13,7 @@
 #include "ui_panel_gcode_test.h"
 
 #include "ui_gcode_viewer.h"
+
 #include <spdlog/spdlog.h>
 
 // Panel state
@@ -34,7 +35,8 @@ static void on_view_preset_clicked(lv_event_t* e) {
     lv_obj_t* btn = lv_event_get_target_obj(e);
     const char* name = lv_obj_get_name(btn);
 
-    if (!gcode_viewer || !name) return;
+    if (!gcode_viewer || !name)
+        return;
 
     spdlog::info("[GCodeTest] View preset clicked: {}", name);
 
@@ -55,7 +57,8 @@ static void on_view_preset_clicked(lv_event_t* e) {
  * @brief Load test file button click handler
  */
 static void on_load_test_file(lv_event_t* e) {
-    if (!gcode_viewer) return;
+    if (!gcode_viewer)
+        return;
 
     spdlog::info("[GCodeTest] Loading test file: {}", TEST_GCODE_PATH);
 
@@ -84,7 +87,8 @@ static void on_load_test_file(lv_event_t* e) {
  * @brief Clear button click handler
  */
 static void on_clear(lv_event_t* e) {
-    if (!gcode_viewer) return;
+    if (!gcode_viewer)
+        return;
 
     spdlog::info("[GCodeTest] Clearing viewer");
     ui_gcode_viewer_clear(gcode_viewer);
@@ -124,13 +128,20 @@ lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
     lv_obj_t* btn_load = lv_obj_find_by_name(panel_root, "btn_load_test");
     lv_obj_t* btn_clear = lv_obj_find_by_name(panel_root, "btn_clear");
 
-    if (btn_isometric) lv_obj_add_event_cb(btn_isometric, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
-    if (btn_top) lv_obj_add_event_cb(btn_top, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
-    if (btn_front) lv_obj_add_event_cb(btn_front, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
-    if (btn_side) lv_obj_add_event_cb(btn_side, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
-    if (btn_reset) lv_obj_add_event_cb(btn_reset, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
-    if (btn_load) lv_obj_add_event_cb(btn_load, on_load_test_file, LV_EVENT_CLICKED, nullptr);
-    if (btn_clear) lv_obj_add_event_cb(btn_clear, on_clear, LV_EVENT_CLICKED, nullptr);
+    if (btn_isometric)
+        lv_obj_add_event_cb(btn_isometric, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
+    if (btn_top)
+        lv_obj_add_event_cb(btn_top, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
+    if (btn_front)
+        lv_obj_add_event_cb(btn_front, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
+    if (btn_side)
+        lv_obj_add_event_cb(btn_side, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
+    if (btn_reset)
+        lv_obj_add_event_cb(btn_reset, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
+    if (btn_load)
+        lv_obj_add_event_cb(btn_load, on_load_test_file, LV_EVENT_CLICKED, nullptr);
+    if (btn_clear)
+        lv_obj_add_event_cb(btn_clear, on_clear, LV_EVENT_CLICKED, nullptr);
 
     spdlog::info("[GCodeTest] Panel created");
     return panel_root;

@@ -49,19 +49,23 @@ struct AABB {
      * @brief Get center point of bounding box
      * @return Center coordinate
      */
-    glm::vec3 center() const { return (min + max) * 0.5f; }
+    glm::vec3 center() const {
+        return (min + max) * 0.5f;
+    }
 
     /**
      * @brief Get size (dimensions) of bounding box
      * @return Size vector (width, depth, height)
      */
-    glm::vec3 size() const { return max - min; }
+    glm::vec3 size() const {
+        return max - min;
+    }
 
     /**
      * @brief Expand bounding box to include a point
      * @param point Point to include
      */
-    void expand(const glm::vec3 &point) {
+    void expand(const glm::vec3& point) {
         min = glm::min(min, point);
         max = glm::max(max, point);
     }
@@ -70,7 +74,9 @@ struct AABB {
      * @brief Check if bounding box is empty (not initialized)
      * @return true if empty (min == max)
      */
-    bool is_empty() const { return min == max; }
+    bool is_empty() const {
+        return min == max;
+    }
 };
 
 /**
@@ -83,10 +89,10 @@ struct AABB {
 struct ToolpathSegment {
     glm::vec3 start{0.0f, 0.0f, 0.0f}; ///< Start point (X, Y, Z)
     glm::vec3 end{0.0f, 0.0f, 0.0f};   ///< End point (X, Y, Z)
-    bool is_extrusion{false}; ///< true if extruding, false if travel move
-    std::string object_name;  ///< Object name (from EXCLUDE_OBJECT_START) or
-                              ///< empty
-    float extrusion_amount{0.0f}; ///< E-axis delta (for future use)
+    bool is_extrusion{false};          ///< true if extruding, false if travel move
+    std::string object_name;           ///< Object name (from EXCLUDE_OBJECT_START) or
+                                       ///< empty
+    float extrusion_amount{0.0f};      ///< E-axis delta (for future use)
 };
 
 /**
@@ -96,11 +102,11 @@ struct ToolpathSegment {
  * sequentially from 0 (first layer) to N-1 (top layer).
  */
 struct Layer {
-    float z_height{0.0f};                        ///< Z coordinate of this layer
-    std::vector<ToolpathSegment> segments;       ///< All segments in layer
-    AABB bounding_box;                           ///< Precomputed spatial bounds
-    size_t segment_count_extrusion{0};           ///< Count of extrusion moves
-    size_t segment_count_travel{0};              ///< Count of travel moves
+    float z_height{0.0f};                  ///< Z coordinate of this layer
+    std::vector<ToolpathSegment> segments; ///< All segments in layer
+    AABB bounding_box;                     ///< Precomputed spatial bounds
+    size_t segment_count_extrusion{0};     ///< Count of extrusion moves
+    size_t segment_count_travel{0};        ///< Count of travel moves
 };
 
 /**
@@ -110,11 +116,11 @@ struct Layer {
  * Used for Klipper's exclude objects feature.
  */
 struct GCodeObject {
-    std::string name;                ///< Object identifier
-    glm::vec2 center{0.0f, 0.0f};    ///< Center point (X, Y)
-    std::vector<glm::vec2> polygon;  ///< Boundary polygon points
-    AABB bounding_box;               ///< 3D bounding box
-    bool is_excluded{false};         ///< User exclusion state (local UI state)
+    std::string name;               ///< Object identifier
+    glm::vec2 center{0.0f, 0.0f};   ///< Center point (X, Y)
+    std::vector<glm::vec2> polygon; ///< Boundary polygon points
+    AABB bounding_box;              ///< 3D bounding box
+    bool is_excluded{false};        ///< User exclusion state (local UI state)
 };
 
 /**
@@ -124,22 +130,22 @@ struct GCodeObject {
  * needed for visualization and analysis.
  */
 struct ParsedGCodeFile {
-    std::string filename;                            ///< Source filename
-    std::vector<Layer> layers;                       ///< Indexed by layer number
-    std::map<std::string, GCodeObject> objects;      ///< Object metadata (name → object)
-    AABB global_bounding_box;                        ///< Bounds of entire model
+    std::string filename;                       ///< Source filename
+    std::vector<Layer> layers;                  ///< Indexed by layer number
+    std::map<std::string, GCodeObject> objects; ///< Object metadata (name → object)
+    AABB global_bounding_box;                   ///< Bounds of entire model
 
     // Statistics
-    size_t total_segments{0};                        ///< Total segment count
-    float estimated_print_time_minutes{0.0f};        ///< From metadata (if available)
-    float total_filament_mm{0.0f};                   ///< From metadata (if available)
+    size_t total_segments{0};                 ///< Total segment count
+    float estimated_print_time_minutes{0.0f}; ///< From metadata (if available)
+    float total_filament_mm{0.0f};            ///< From metadata (if available)
 
     /**
      * @brief Get layer at specific index
      * @param index Layer index (0-based)
      * @return Pointer to layer or nullptr if out of range
      */
-    const Layer *get_layer(size_t index) const {
+    const Layer* get_layer(size_t index) const {
         return (index < layers.size()) ? &layers[index] : nullptr;
     }
 
@@ -180,7 +186,7 @@ class GCodeParser {
      * Extracts movement commands, coordinate changes, and object metadata.
      * Automatically detects layer changes (Z-axis movement).
      */
-    void parse_line(const std::string &line);
+    void parse_line(const std::string& line);
 
     /**
      * @brief Finalize parsing and return complete data structure
@@ -204,19 +210,25 @@ class GCodeParser {
      * @brief Get number of lines parsed so far
      * @return Line count
      */
-    size_t lines_parsed() const { return lines_parsed_; }
+    size_t lines_parsed() const {
+        return lines_parsed_;
+    }
 
     /**
      * @brief Get current Z coordinate
      * @return Current Z position in mm
      */
-    float current_z() const { return current_position_.z; }
+    float current_z() const {
+        return current_position_.z;
+    }
 
     /**
      * @brief Get current layer index
      * @return Layer number (0-based)
      */
-    size_t current_layer() const { return layers_.size() - 1; }
+    size_t current_layer() const {
+        return layers_.size() - 1;
+    }
 
   private:
     // Parsing helpers
@@ -226,14 +238,14 @@ class GCodeParser {
      * @param line Trimmed G-code line
      * @return true if parsed successfully
      */
-    bool parse_movement_command(const std::string &line);
+    bool parse_movement_command(const std::string& line);
 
     /**
      * @brief Parse EXCLUDE_OBJECT_* command
      * @param line Trimmed G-code line
      * @return true if parsed successfully
      */
-    bool parse_exclude_object_command(const std::string &line);
+    bool parse_exclude_object_command(const std::string& line);
 
     /**
      * @brief Extract parameter value from G-code line
@@ -242,7 +254,7 @@ class GCodeParser {
      * @param out_value Output value
      * @return true if parameter found
      */
-    bool extract_param(const std::string &line, char param, float &out_value);
+    bool extract_param(const std::string& line, char param, float& out_value);
 
     /**
      * @brief Extract string parameter value
@@ -251,9 +263,8 @@ class GCodeParser {
      * @param out_value Output string
      * @return true if parameter found
      */
-    bool extract_string_param(const std::string &line,
-                             const std::string &param,
-                             std::string &out_value);
+    bool extract_string_param(const std::string& line, const std::string& param,
+                              std::string& out_value);
 
     /**
      * @brief Add toolpath segment to current layer
@@ -261,9 +272,7 @@ class GCodeParser {
      * @param end End point
      * @param is_extrusion true if extruding
      */
-    void add_segment(const glm::vec3 &start,
-                    const glm::vec3 &end,
-                    bool is_extrusion);
+    void add_segment(const glm::vec3& start, const glm::vec3& end, bool is_extrusion);
 
     /**
      * @brief Start new layer at given Z height
@@ -276,22 +285,22 @@ class GCodeParser {
      * @param line Raw line
      * @return Trimmed line
      */
-    std::string trim_line(const std::string &line);
+    std::string trim_line(const std::string& line);
 
     // Parser state
     glm::vec3 current_position_{0.0f, 0.0f, 0.0f}; ///< Current XYZ position
-    float current_e_{0.0f};                         ///< Current E (extruder) position
-    std::string current_object_;                    ///< Current object name (from EXCLUDE_OBJECT_START)
-    bool is_absolute_positioning_{true};            ///< G90 (absolute) vs G91 (relative)
-    bool is_absolute_extrusion_{true};              ///< M82 (absolute E) vs M83 (relative E)
+    float current_e_{0.0f};                        ///< Current E (extruder) position
+    std::string current_object_;         ///< Current object name (from EXCLUDE_OBJECT_START)
+    bool is_absolute_positioning_{true}; ///< G90 (absolute) vs G91 (relative)
+    bool is_absolute_extrusion_{true};   ///< M82 (absolute E) vs M83 (relative E)
 
     // Accumulated data
-    std::vector<Layer> layers_;                     ///< All parsed layers
-    std::map<std::string, GCodeObject> objects_;    ///< Object metadata
-    AABB global_bounds_;                            ///< Global bounding box
+    std::vector<Layer> layers_;                  ///< All parsed layers
+    std::map<std::string, GCodeObject> objects_; ///< Object metadata
+    AABB global_bounds_;                         ///< Global bounding box
 
     // Progress tracking
-    size_t lines_parsed_{0};                        ///< Line counter
+    size_t lines_parsed_{0}; ///< Line counter
 };
 
 } // namespace gcode

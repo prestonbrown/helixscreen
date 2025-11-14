@@ -24,9 +24,9 @@
 #include "ui_bed_mesh.h"
 #include "ui_card.h"
 #include "ui_component_header_bar.h"
-#include "ui_gcode_viewer.h"
 #include "ui_component_keypad.h"
 #include "ui_fonts.h"
+#include "ui_gcode_viewer.h"
 #include "ui_icon.h"
 #include "ui_icon_loader.h"
 #include "ui_keyboard.h"
@@ -35,9 +35,9 @@
 #include "ui_panel_controls_extrusion.h"
 #include "ui_panel_controls_temp.h"
 #include "ui_panel_filament.h"
+#include "ui_panel_gcode_test.h"
 #include "ui_panel_home.h"
 #include "ui_panel_motion.h"
-#include "ui_panel_gcode_test.h"
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_settings.h"
@@ -131,15 +131,13 @@ static void initialize_moonraker_client(Config* config);
 
 // Parse command-line arguments
 // Returns true on success, false if help was shown or error occurred
-static bool parse_command_line_args(int argc, char** argv, int& initial_panel, bool& show_motion,
-                                    bool& show_nozzle_temp, bool& show_bed_temp,
-                                    bool& show_extrusion, bool& show_print_status,
-                                    bool& show_file_detail, bool& show_keypad, bool& show_keyboard,
-                                    bool& show_step_test, bool& show_test_panel, bool& show_gcode_test,
-                                    bool& force_wizard, int& wizard_step, bool& panel_requested,
-                                    int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled,
-                                    int& screenshot_delay_sec, int& timeout_sec, int& verbosity,
-                                    bool& dark_mode, bool& theme_requested, int& dpi) {
+static bool parse_command_line_args(
+    int argc, char** argv, int& initial_panel, bool& show_motion, bool& show_nozzle_temp,
+    bool& show_bed_temp, bool& show_extrusion, bool& show_print_status, bool& show_file_detail,
+    bool& show_keypad, bool& show_keyboard, bool& show_step_test, bool& show_test_panel,
+    bool& show_gcode_test, bool& force_wizard, int& wizard_step, bool& panel_requested,
+    int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled, int& screenshot_delay_sec,
+    int& timeout_sec, int& verbosity, bool& dark_mode, bool& theme_requested, int& dpi) {
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--size") == 0) {
@@ -908,12 +906,12 @@ int main(int argc, char** argv) {
     int dpi = -1;                 // Display DPI (-1 means use LV_DPI_DEF from lv_conf.h)
 
     // Parse command-line arguments (returns false for help/error)
-    if (!parse_command_line_args(argc, argv, initial_panel, show_motion, show_nozzle_temp,
-                                 show_bed_temp, show_extrusion, show_print_status, show_file_detail,
-                                 show_keypad, show_keyboard, show_step_test, show_test_panel,
-                                 show_gcode_test, force_wizard, wizard_step, panel_requested,
-                                 display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec,
-                                 timeout_sec, verbosity, dark_mode, theme_requested, dpi)) {
+    if (!parse_command_line_args(
+            argc, argv, initial_panel, show_motion, show_nozzle_temp, show_bed_temp, show_extrusion,
+            show_print_status, show_file_detail, show_keypad, show_keyboard, show_step_test,
+            show_test_panel, show_gcode_test, force_wizard, wizard_step, panel_requested,
+            display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec, timeout_sec,
+            verbosity, dark_mode, theme_requested, dpi)) {
         return 0; // Help shown or parse error
     }
 
