@@ -168,8 +168,8 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
                                                   "them - check user permissions (netdev group)");
     }
 
-    spdlog::info("[WifiBackend] System prerequisites check passed - accessible socket: {}",
-                 accessible_socket);
+    spdlog::debug("[WifiBackend] System prerequisites check passed - accessible socket: {}",
+                  accessible_socket);
     return WiFiErrorHelper::success();
 }
 
@@ -294,7 +294,7 @@ void WifiBackendWpaSupplicant::init_wpa() {
                 if (socket_path.find("p2p") == std::string::npos) {
                     wpa_socket = socket_path;
                     socket_found = true;
-                    spdlog::info("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
+                    spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
                     break;
                 }
             }
@@ -315,7 +315,7 @@ void WifiBackendWpaSupplicant::init_wpa() {
                     if (socket_path.find("p2p") == std::string::npos) {
                         wpa_socket = socket_path;
                         socket_found = true;
-                        spdlog::info("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
+                        spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
                         break;
                     }
                 }
@@ -353,7 +353,7 @@ void WifiBackendWpaSupplicant::init_wpa() {
         mon_conn = NULL; // Clear member to avoid double-close
         return;
     }
-    spdlog::info("[WifiBackend] Attached to wpa_supplicant event stream");
+    spdlog::debug("[WifiBackend] Attached to wpa_supplicant event stream");
 
     // Get file descriptor for monitor socket
     int monfd = wpa_ctrl_get_fd(mon_conn);
@@ -421,6 +421,8 @@ void WifiBackendWpaSupplicant::handle_wpa_events(void* data, int len) {
     }
 
     // Broadcast to ALL registered callbacks (outside of lock)
+    spdlog::debug("[WifiBackend] Dispatching event to {} registered callbacks",
+                  callbacks_copy.size());
     for (const auto& entry : callbacks_copy) {
         spdlog::trace("[WifiBackend] Dispatching event to callback '{}'", entry.first);
         try {
@@ -657,6 +659,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         send_command("REMOVE_NETWORK " + network_id);
         return WiFiErrorHelper::connection_failed("Failed to enable network configuration");
     }
+    spdlog::debug("[WifiBackend] Network {} enabled, selecting for connection", network_id);
 
     // Step 5: Select network (disconnect others)
     std::string select_cmd = "SELECT_NETWORK " + network_id;

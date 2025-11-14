@@ -97,17 +97,17 @@ void WifiBackendMock::register_event_callback(const std::string& name,
 }
 
 void WifiBackendMock::fire_event(const std::string& event_name, const std::string& data) {
-    spdlog::info("[WifiBackend] fire_event ENTRY: event_name='{}'", event_name);
+    spdlog::debug("[WifiBackend] fire_event ENTRY: event_name='{}'", event_name);
     auto it = callbacks_.find(event_name);
     if (it != callbacks_.end()) {
-        spdlog::info("[WifiBackend] fire_event: found callback for '{}', about to invoke",
-                     event_name);
+        spdlog::debug("[WifiBackend] fire_event: found callback for '{}', about to invoke",
+                      event_name);
         it->second(data);
-        spdlog::info("[WifiBackend] fire_event: callback returned");
+        spdlog::debug("[WifiBackend] fire_event: callback returned");
     } else {
-        spdlog::info("[WifiBackend] fire_event: no callback registered for '{}'", event_name);
+        spdlog::debug("[WifiBackend] fire_event: no callback registered for '{}'", event_name);
     }
-    spdlog::info("[WifiBackend] fire_event EXIT");
+    spdlog::debug("[WifiBackend] fire_event EXIT");
 }
 
 // ============================================================================
@@ -291,9 +291,8 @@ void WifiBackendMock::connect_thread_func() {
 
         // Check if password matches expected password
         if (connecting_password_ != it->password) {
-            spdlog::info("[WifiBackend] Mock: Auth failed - wrong password for '{}' (expected "
-                         "'{}', got '{}')",
-                         connecting_ssid_, it->password, connecting_password_);
+            spdlog::debug("[WifiBackend] Mock: Auth failed - wrong password for '{}'",
+                          connecting_ssid_);
             fire_event("AUTH_FAILED", "reason=wrong_password");
             return;
         }
