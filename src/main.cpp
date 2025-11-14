@@ -374,7 +374,8 @@ static bool parse_command_line_args(
             printf("    --real-files       Use real files from printer (requires --test)\n");
             printf("\nAvailable panels:\n");
             printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
-            printf("  print-status, filament, settings, advanced, print-select\n");
+            printf("  print-status, filament, settings, advanced, print-select,\n");
+            printf("  step-test, test, gcode-test\n");
             printf("\nScreen sizes:\n");
             printf("  tiny   = %dx%d\n", UI_SCREEN_TINY_W, UI_SCREEN_TINY_H);
             printf("  small  = %dx%d\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
