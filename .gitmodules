@@ -14,3 +14,6 @@
 [submodule "sdl2"]
 	path = sdl2
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "glm"]
+	path = glm
+	url = https://github.com/g-truc/glm.git

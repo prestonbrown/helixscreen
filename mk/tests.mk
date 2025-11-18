@@ -264,3 +264,23 @@ $(TEST_RESPONSIVE_THEME_OBJ): $(SRC_DIR)/test_responsive_theme.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+# G-code voxel preview test
+TEST_GCODE_VOXEL_BIN := $(BIN_DIR)/gcode_voxel_preview_test
+TEST_GCODE_VOXEL_OBJ := $(OBJ_DIR)/tests/gcode_voxel_preview_test.o
+GCODE_VOXEL_IMPL_OBJ := $(OBJ_DIR)/gcode_voxel_preview.o
+
+test-gcode-preview: $(TEST_GCODE_VOXEL_BIN)
+	$(ECHO) "$(CYAN)Running G-code voxel preview test...$(RESET)"
+	$(Q)$(TEST_GCODE_VOXEL_BIN)
+
+$(TEST_GCODE_VOXEL_BIN): $(TEST_GCODE_VOXEL_OBJ) $(GCODE_VOXEL_IMPL_OBJ)
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)[LD]$(RESET) gcode_voxel_preview_test"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	$(ECHO) "$(GREEN)✓ G-code voxel preview test binary ready$(RESET)"
+
+$(TEST_GCODE_VOXEL_OBJ): $(TEST_DIR)/gcode_voxel_preview_test.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
