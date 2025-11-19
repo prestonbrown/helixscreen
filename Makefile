@@ -132,7 +132,7 @@ APP_C_SRCS := $(wildcard $(SRC_DIR)/*.c)
 APP_C_OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(APP_C_SRCS))
 
 # Application C++ sources (exclude test binaries)
-APP_SRCS := $(filter-out $(SRC_DIR)/test_dynamic_cards.cpp $(SRC_DIR)/test_responsive_theme.cpp $(SRC_DIR)/test_tinygl_triangle.cpp $(SRC_DIR)/test_gcode_geometry.cpp $(SRC_DIR)/test_gcode_analysis.cpp,$(wildcard $(SRC_DIR)/*.cpp))
+APP_SRCS := $(filter-out $(SRC_DIR)/test_dynamic_cards.cpp $(SRC_DIR)/test_responsive_theme.cpp $(SRC_DIR)/test_tinygl_triangle.cpp $(SRC_DIR)/test_gcode_geometry.cpp $(SRC_DIR)/test_gcode_analysis.cpp $(SRC_DIR)/test_sdf_reconstruction.cpp $(SRC_DIR)/test_sparse_grid.cpp $(SRC_DIR)/test_partial_extraction.cpp $(SRC_DIR)/test_render_comparison.cpp,$(wildcard $(SRC_DIR)/*.cpp))
 APP_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(APP_SRCS))
 
 # Objective-C++ sources (macOS only - .mm files)
@@ -234,7 +234,7 @@ WPA_CLIENT_LIB := $(WPA_DIR)/wpa_supplicant/libwpa_client.a
 WPA_INC := -I$(WPA_DIR)/src/common -I$(WPA_DIR)/src/utils
 
 # Include paths
-INCLUDES := -I. -I$(INC_DIR) $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(TINYGL_INC) $(WPA_INC) $(SDL2_INC) -Iglm
+INCLUDES := -I. -I$(INC_DIR) $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(TINYGL_INC) $(WPA_INC) $(SDL2_INC) -Iglm -Iopenvdb/nanovdb
 
 # Common linker flags (used by both macOS and Linux)
 LDFLAGS_COMMON := $(SDL2_LIBS) $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) -lm -lpthread

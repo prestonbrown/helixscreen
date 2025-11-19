@@ -40,6 +40,7 @@ if [ "$STAGED_ONLY" = true ]; then
     grep -E '\.(cpp|c|h|mm)$' | \
     grep -v '^libhv/' | \
     grep -v '^lvgl/' | \
+    grep -v '^lv_conf\.h$' | \
     grep -v '^spdlog/' | \
     grep -v '^wpa_supplicant/' | \
     grep -v '^node_modules/' | \
@@ -48,7 +49,8 @@ if [ "$STAGED_ONLY" = true ]; then
 else
   # CI mode: check all files in src/ and include/
   FILES=$(find src include -name "*.cpp" -o -name "*.c" -o -name "*.h" -o -name "*.mm" 2>/dev/null | \
-    grep -v '/\.' || true)
+    grep -v '/\.' | \
+    grep -v '^lv_conf\.h$' || true)
 fi
 
 if [ -n "$FILES" ]; then

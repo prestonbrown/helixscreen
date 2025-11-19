@@ -16,9 +16,9 @@ CC=gcc
 
 
 #CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function
-CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -fopenmp -Wno-unused-function
+CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function -mmacosx-version-min=14.0
 #CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function
-CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -fopenmp -march=native -Wno-unused-function
+CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function -mmacosx-version-min=14.0
 
 
 #CFLAGS= -Wall -Ofast -std=gnu99 -DNDEBUG -mtune=native

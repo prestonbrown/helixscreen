@@ -18,7 +18,7 @@ $(LIBHV_LIB):
 ifeq ($(ENABLE_TINYGL_3D),yes)
 $(TINYGL_LIB):
 	$(ECHO) "$(CYAN)$(BOLD)Building TinyGL...$(RESET)"
-	$(Q)cd $(TINYGL_DIR) && $(MAKE) -j$(NPROC)
+	$(Q)cd $(TINYGL_DIR) && MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) $(MAKE) -j$(NPROC)
 	$(ECHO) "$(GREEN)✓ TinyGL built: $(TINYGL_LIB)$(RESET)"
 endif
 

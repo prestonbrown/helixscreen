@@ -310,6 +310,66 @@ $(TEST_GCODE_GEOMETRY_OBJ): $(SRC_DIR)/test_gcode_geometry.cpp $(TINYGL_LIB)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(TINYGL_INC) -c $< -o $@
 
+# G-Code SDF Reconstruction test (only if ENABLE_TINYGL_3D=yes)
+TEST_SDF_RECONSTRUCTION_BIN := $(BIN_DIR)/test_sdf_reconstruction
+TEST_SDF_RECONSTRUCTION_OBJ := $(OBJ_DIR)/test_sdf_reconstruction.o
+
+test-sdf-reconstruction: $(TEST_SDF_RECONSTRUCTION_BIN)
+	$(ECHO) "$(CYAN)Running SDF reconstruction test...$(RESET)"
+	$(Q)$(TEST_SDF_RECONSTRUCTION_BIN)
+	$(ECHO) ""
+
+$(TEST_SDF_RECONSTRUCTION_BIN): $(TEST_SDF_RECONSTRUCTION_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o $(TINYGL_LIB)
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_sdf_reconstruction"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(TINYGL_LIB) -lm $(LDFLAGS)
+	$(ECHO) "$(GREEN)✓ SDF reconstruction test binary ready$(RESET)"
+
+$(TEST_SDF_RECONSTRUCTION_OBJ): $(SRC_DIR)/test_sdf_reconstruction.cpp $(TINYGL_LIB)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(TINYGL_INC) -c $< -o $@
+
+# Sparse Grid test (validates NanoVDB integration)
+TEST_SPARSE_GRID_BIN := $(BIN_DIR)/test_sparse_grid
+TEST_SPARSE_GRID_OBJ := $(OBJ_DIR)/test_sparse_grid.o
+
+test-sparse-grid: $(TEST_SPARSE_GRID_BIN)
+	$(ECHO) "$(CYAN)Running sparse grid test...$(RESET)"
+	$(Q)$(TEST_SPARSE_GRID_BIN)
+	$(ECHO) ""
+
+$(TEST_SPARSE_GRID_BIN): $(TEST_SPARSE_GRID_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o $(OBJ_DIR)/gcode_sparse_grid.o
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_sparse_grid"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
+	$(ECHO) "$(GREEN)✓ Sparse grid test binary ready$(RESET)"
+
+$(TEST_SPARSE_GRID_OBJ): $(SRC_DIR)/test_sparse_grid.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Partial mesh extraction test
+TEST_PARTIAL_EXTRACTION_BIN := $(BIN_DIR)/test_partial_extraction
+TEST_PARTIAL_EXTRACTION_OBJ := $(OBJ_DIR)/test_partial_extraction.o
+
+test-partial-extraction: $(TEST_PARTIAL_EXTRACTION_BIN)
+	$(ECHO) "$(CYAN)Running partial extraction test...$(RESET)"
+	$(Q)$(TEST_PARTIAL_EXTRACTION_BIN)
+	$(ECHO) ""
+
+$(TEST_PARTIAL_EXTRACTION_BIN): $(TEST_PARTIAL_EXTRACTION_OBJ) $(OBJ_DIR)/gcode_parser.o $(OBJ_DIR)/gcode_sdf_builder.o
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_partial_extraction"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ -lm $(LDFLAGS)
+	$(ECHO) "$(GREEN)✓ Partial extraction test binary ready$(RESET)"
+
+$(TEST_PARTIAL_EXTRACTION_OBJ): $(SRC_DIR)/test_partial_extraction.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
 else
 test-tinygl-triangle:
 	$(ECHO) "$(YELLOW)⚠ TinyGL test skipped (ENABLE_TINYGL_3D=no)$(RESET)"
@@ -318,4 +378,8 @@ test-tinygl-triangle:
 test-gcode-geometry:
 	$(ECHO) "$(YELLOW)⚠ G-code geometry test skipped (ENABLE_TINYGL_3D=no)$(RESET)"
 	$(ECHO) "  Rebuild with: make ENABLE_TINYGL_3D=yes test-gcode-geometry"
+
+test-sdf-reconstruction:
+	$(ECHO) "$(YELLOW)⚠ SDF reconstruction test skipped (ENABLE_TINYGL_3D=no)$(RESET)"
+	$(ECHO) "  Rebuild with: make ENABLE_TINYGL_3D=yes test-sdf-reconstruction"
 endif
