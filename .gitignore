@@ -21,3 +21,9 @@ libhv.*.log
 
 # Session notes (developer-specific)
 SESSION_SUMMARY.md
+
+# G-Code sample files (binary, bloats repo history)
+assets/*.gcode
+
+# Render output artifacts
+*.ppm

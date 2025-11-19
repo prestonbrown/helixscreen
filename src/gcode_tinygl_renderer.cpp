@@ -119,6 +119,10 @@ void GCodeTinyGLRenderer::init_tinygl() {
     // Get framebuffer pointer from ZBuffer
     framebuffer_ = (unsigned int*)zb->pbuf;
 
+    // Verify the actual ZBuffer dimensions
+    spdlog::warn("TinyGL ZBuffer actual size: {}x{} (requested: {}x{})",
+                 zb->xsize, zb->ysize, viewport_width_, viewport_height_);
+
     glInit(zb);
 
     // Set up OpenGL state
@@ -135,11 +139,15 @@ void GCodeTinyGLRenderer::init_tinygl() {
 
     setup_lighting();
 
-    spdlog::debug("TinyGL initialized ({}x{})", viewport_width_, viewport_height_);
+    spdlog::info("TinyGL INIT: framebuffer={}x{}, aspect={:.3f}",
+                 viewport_width_, viewport_height_,
+                 (float)viewport_width_ / (float)viewport_height_);
 }
 
 void GCodeTinyGLRenderer::shutdown_tinygl() {
     if (zbuffer_) {
+        spdlog::info("TinyGL SHUTDOWN: releasing {}x{} framebuffer",
+                     viewport_width_, viewport_height_);
         glClose();
         ZB_close(static_cast<ZBuffer*>(zbuffer_));
         zbuffer_ = nullptr;
@@ -304,6 +312,9 @@ void GCodeTinyGLRenderer::draw_to_lvgl(lv_layer_t* layer) {
             spdlog::error("Failed to create LVGL draw buffer");
             return;
         }
+        spdlog::info("TinyGL DRAW: created draw_buf {}x{}, aspect={:.3f}",
+                     viewport_width_, viewport_height_,
+                     (float)viewport_width_ / (float)viewport_height_);
     }
 
     // Copy TinyGL framebuffer to LVGL draw buffer
