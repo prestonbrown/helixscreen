@@ -317,13 +317,13 @@ class GeometryBuilder {
     bool are_collinear(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3,
                        float tolerance) const;
 
-    // Tube cross-section vertex indices (8 vertices: 2 per corner for adjacent faces)
-    // Order: [bl_bottom, br_bottom, br_right, tr_right, tr_top, tl_top, tl_left, bl_left]
-    using TubeCap = std::array<uint32_t, 8>;
+    // Tube cross-section vertex indices (4 vertices: one per face)
+    // OrcaSlicer approach - Order: [up, right, down, left]
+    using TubeCap = std::array<uint32_t, 4>;
 
-    // Geometry generation with vertex sharing
-    // prev_start_cap: Optional 8 vertex indices from previous segment's end cap (for reuse)
-    // Returns: 8 vertex indices of this segment's end cap (for next segment to reuse)
+    // Geometry generation with vertex sharing (OrcaSlicer approach)
+    // prev_start_cap: Optional 4 vertex indices from previous segment's end cap (for reuse)
+    // Returns: 4 vertex indices of this segment's end cap (for next segment to reuse)
     TubeCap generate_ribbon_vertices(const ToolpathSegment& segment, RibbonGeometry& geometry,
                                      const QuantizationParams& quant,
                                      std::optional<TubeCap> prev_start_cap = std::nullopt);

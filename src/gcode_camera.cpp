@@ -76,8 +76,8 @@ void GCodeCamera::pan(float delta_x, float delta_y) {
 void GCodeCamera::zoom(float factor) {
     zoom_level_ *= factor;
 
-    // Clamp zoom to reasonable range
-    zoom_level_ = std::clamp(zoom_level_, 0.1f, 10.0f);
+    // Clamp zoom to reasonable range (increased max for close inspection)
+    zoom_level_ = std::clamp(zoom_level_, 0.1f, 100.0f);
 
     update_matrices();
 }
@@ -152,8 +152,8 @@ void GCodeCamera::set_elevation(float elevation) {
 }
 
 void GCodeCamera::set_zoom_level(float zoom) {
-    // Clamp zoom to reasonable range
-    zoom_level_ = std::clamp(zoom, 0.1f, 10.0f);
+    // Clamp zoom to reasonable range (increased max for close inspection)
+    zoom_level_ = std::clamp(zoom, 0.1f, 100.0f);
     update_matrices();
 }
 

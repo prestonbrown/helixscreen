@@ -6,6 +6,7 @@
 #ifdef ENABLE_TINYGL_3D
 
 #include <spdlog/spdlog.h>
+#include "runtime_config.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -456,8 +457,28 @@ void GCodeTinyGLRenderer::render_geometry(const GCodeCamera& camera) {
     glLoadMatrixf(glm::value_ptr(camera.get_view_matrix()));
 
     // Render triangle strips
-    static bool logged_once = false;
+    static bool logged_first_strip = false;
+    static bool logged_last_strip = false;
+    static size_t strip_count = 0;
+    size_t total_strips = geometry_->strips.size();
+    size_t current_strip_idx = 0;
+
     for (const auto& strip : geometry_->strips) {
+        bool is_first = !logged_first_strip && current_strip_idx == 0;
+        bool is_last = !logged_last_strip && current_strip_idx == (total_strips - 1);
+
+        // Log the first strip in detail (the start cap)
+        if (is_first) {
+            spdlog::info("=== RENDERER: Processing first strip (start cap) ===");
+            spdlog::info("Strip indices: [{}, {}, {}, {}]", strip[0], strip[1], strip[2], strip[3]);
+        }
+
+        // Log the last strip in detail (the end cap)
+        if (is_last) {
+            spdlog::info("=== RENDERER: Processing last strip (end cap) ===");
+            spdlog::info("Strip indices: [{}, {}, {}, {}]", strip[0], strip[1], strip[2], strip[3]);
+        }
+
         glBegin(GL_TRIANGLE_STRIP);
 
         for (int i = 0; i < 4; i++) {
@@ -473,20 +494,40 @@ void GCodeTinyGLRenderer::render_geometry(const GCodeCamera& camera) {
             uint8_t g = (color_rgb >> 8) & 0xFF;
             uint8_t b = color_rgb & 0xFF;
 
-            if (!logged_once) {
-                spdlog::debug("Rendering: color_palette[{}] = 0x{:06X} = RGB({}, {}, {})",
-                              vertex.color_index, color_rgb, r, g, b);
-                logged_once = true;
-            }
-
             glColor3f(r / 255.0f, g / 255.0f, b / 255.0f);
 
             // Dequantize position
             glm::vec3 pos = geometry_->quantization.dequantize_vec3(vertex.position);
+
+            // Log first or last strip vertices in detail
+            if (is_first || is_last) {
+                spdlog::info("  strip[{}]=vertex[{}]: pos=({:.3f},{:.3f},{:.3f}) normal=({:.3f},{:.3f},{:.3f}) color=0x{:06X}",
+                            i, strip[i], pos.x, pos.y, pos.z, normal.x, normal.y, normal.z, color_rgb);
+            }
+
             glVertex3f(pos.x, pos.y, pos.z);
         }
 
         glEnd();
+
+        if (is_first) {
+            logged_first_strip = true;
+            spdlog::info("=== RENDERER: First strip submitted to OpenGL ===");
+        }
+
+        if (is_last) {
+            logged_last_strip = true;
+            spdlog::info("=== RENDERER: Last strip submitted to OpenGL ===");
+        }
+
+        strip_count++;
+        current_strip_idx++;
+    }
+
+    static bool logged_strip_count = false;
+    if (!logged_strip_count) {
+        spdlog::info("Total strips rendered: {}", strip_count);
+        logged_strip_count = true;
     }
 }
 
@@ -562,8 +603,13 @@ void GCodeTinyGLRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode
     // Draw to LVGL
     draw_to_lvgl(layer);
 
-    // Draw camera debug info overlay (only in verbose debug mode: -vv or higher)
-    if (spdlog::get_level() <= spdlog::level::debug) {
+    // Draw camera debug info overlay (if verbose mode OR camera params set via CLI)
+    const RuntimeConfig& config = get_runtime_config();
+    bool show_debug_overlay = spdlog::get_level() <= spdlog::level::debug ||
+                              config.gcode_camera_azimuth_set ||
+                              config.gcode_camera_elevation_set ||
+                              config.gcode_camera_zoom_set;
+    if (show_debug_overlay) {
         char debug_text[128];
         snprintf(debug_text, sizeof(debug_text), "Az: %.1f° El: %.1f° Zoom: %.1fx",
                  camera.get_azimuth(), camera.get_elevation(), camera.get_zoom_level());
