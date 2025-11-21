@@ -258,6 +258,9 @@ install-deps:
 			xmllint:dnf) echo "libxml2";; \
 			pkg-config:brew|pkg-config:apt) echo "pkg-config";; \
 			pkg-config:dnf) echo "pkgconfig";; \
+			fmt:brew) echo "fmt";; \
+			fmt:apt) echo "libfmt-dev";; \
+			fmt:dnf) echo "fmt-devel";; \
 			cairo:brew) echo "cairo";; \
 			cairo:apt) echo "libcairo2-dev";; \
 			cairo:dnf) echo "cairo-devel";; \
@@ -300,6 +303,9 @@ install-deps:
 	if ! command -v pkg-config >/dev/null 2>&1; then \
 		INSTALL_NEEDED=1; TO_INSTALL="$$TO_INSTALL $$(add_pkg pkg-config)"; \
 	else \
+		if ! pkg-config --exists fmt 2>/dev/null; then \
+			INSTALL_NEEDED=1; TO_INSTALL="$$TO_INSTALL $$(add_pkg fmt)"; \
+		fi; \
 		if ! pkg-config --exists cairo 2>/dev/null; then \
 			INSTALL_NEEDED=1; TO_INSTALL="$$TO_INSTALL $$(add_pkg cairo)"; \
 		fi; \
