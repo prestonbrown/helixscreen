@@ -24,6 +24,7 @@
 #include "ui_panel_motion.h"
 
 #include "ui_component_header_bar.h"
+#include "ui_event_safety.h"
 #include "ui_jog_pad.h"
 #include "ui_nav.h"
 #include "ui_theme.h"
@@ -114,9 +115,7 @@ static void update_distance_buttons() {
 }
 
 // Event handler: Back button
-static void back_button_cb(lv_event_t* e) {
-    (void)e; // Unused parameter
-
+LVGL_SAFE_EVENT_CB(back_button_cb, {
     // Use navigation history to go back to previous panel
     if (!ui_nav_go_back()) {
         // Fallback: If navigation history is empty, manually hide and show controls launcher
@@ -131,11 +130,11 @@ static void back_button_cb(lv_event_t* e) {
             }
         }
     }
-}
+})
 
 // Event handler: Distance selector buttons
-static void distance_button_cb(lv_event_t* e) {
-    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(e);
+LVGL_SAFE_EVENT_CB_WITH_EVENT(distance_button_cb, event, {
+    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(event);
 
     // Find which button was clicked
     for (int i = 0; i < 4; i++) {
@@ -146,11 +145,11 @@ static void distance_button_cb(lv_event_t* e) {
             return;
         }
     }
-}
+})
 
 // Event handler: Z-axis buttons
-static void z_button_cb(lv_event_t* e) {
-    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(e);
+LVGL_SAFE_EVENT_CB_WITH_EVENT(z_button_cb, event, {
+    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(event);
     const char* name = lv_obj_get_name(btn);
 
     spdlog::info("[Motion] Z button callback fired! Button name: '{}'", name ? name : "(null)");
@@ -175,11 +174,11 @@ static void z_button_cb(lv_event_t* e) {
     } else {
         spdlog::error("[Motion] Unknown button name: '{}'", name);
     }
-}
+})
 
 // Event handler: Home buttons
-static void home_button_cb(lv_event_t* e) {
-    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(e);
+LVGL_SAFE_EVENT_CB_WITH_EVENT(home_button_cb, event, {
+    lv_obj_t* btn = (lv_obj_t*)lv_event_get_target(event);
     const char* name = lv_obj_get_name(btn);
 
     if (!name)
@@ -194,7 +193,7 @@ static void home_button_cb(lv_event_t* e) {
     } else if (strcmp(name, "home_z") == 0) {
         ui_panel_motion_home('Z');
     }
-}
+})
 
 // Resize callback for responsive padding
 static void on_resize() {
