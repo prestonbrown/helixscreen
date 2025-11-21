@@ -264,7 +264,7 @@ static void wire_button_events() {
     for (int i = 0; i < 10; i++) {
         lv_obj_t* btn = lv_obj_find_by_name(keypad_widget, digit_names[i]);
         if (btn) {
-            spdlog::debug("Found button: %s", digit_names[i]);
+            spdlog::debug("Found button: {}", digit_names[i]);
             // Pass digit as user_data (store as pointer value)
             lv_obj_add_event_cb(
                 btn,
