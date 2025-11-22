@@ -53,7 +53,7 @@ extern "C" {
 // Rendering configuration constants
 #define BED_MESH_SCALE 50.0            // Base spacing between mesh points (world units)
 #define BED_MESH_CAMERA_DISTANCE 450.0 // Virtual camera distance (moderate perspective: ~33% depth)
-#define BED_MESH_CAMERA_ZOOM_OUT 0.85  // Default zoom level (0.85 = 15% zoomed out from auto-fit)
+#define BED_MESH_CAMERA_ZOOM_LEVEL 1.176 // Default zoom (1.0 = neutral, <1.0 = zoomed out, >1.0 = zoomed in)
 #define BED_MESH_DEFAULT_Z_SCALE 60.0  // Default height amplification factor
 #define BED_MESH_DEFAULT_Z_TARGET_HEIGHT 80.0 // Target projected height range (world units)
 #define BED_MESH_MIN_Z_SCALE 35.0             // Min Z scale (prevents flatness)
@@ -216,23 +216,24 @@ void bed_mesh_renderer_auto_color_range(bed_mesh_renderer_t* renderer);
 /**
  * @brief Main rendering function
  *
- * Renders the 3D bed mesh to the provided LVGL canvas object.
- * Canvas must be initialized with a buffer before calling this function.
+ * Renders the 3D bed mesh to the provided LVGL layer (DRAW_POST pattern).
  *
  * Rendering pipeline:
- * 1. Clear canvas
+ * 1. Clear background
  * 2. Compute projection parameters (Z-scale, FOV-scale)
  * 3. Generate 3D quads from mesh data with colors
  * 4. Project quads to 2D screen space
  * 5. Sort quads by depth (painter's algorithm)
  * 6. Render quads (gradient or solid based on dragging state)
- * 7. Invalidate canvas for LVGL redraw
  *
  * @param renderer Renderer instance
- * @param canvas LVGL canvas object (must have buffer allocated)
+ * @param layer LVGL draw layer (from DRAW_POST event callback)
+ * @param canvas_width Viewport width in pixels
+ * @param canvas_height Viewport height in pixels
  * @return true on success, false on error (NULL pointers, no mesh data)
  */
-bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_obj_t* canvas);
+bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer,
+                              int canvas_width, int canvas_height);
 
 #ifdef __cplusplus
 }

@@ -26,9 +26,13 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 // ============================================================================
@@ -43,7 +47,7 @@ constexpr double DEFAULT_CAMERA_ANGLE_Z = 10.0;  // Horizontal rotation
 constexpr double DEFAULT_FOV_SCALE = 100.0;      // Initial field-of-view scale
 
 // Canvas rendering
-constexpr double CANVAS_PADDING_FACTOR = 0.9;                 // 10% padding on each side
+constexpr double CANVAS_PADDING_FACTOR = 1.0;                 // Fill entire canvas (no padding)
 const lv_color_t CANVAS_BG_COLOR = lv_color_make(40, 40, 40); // Dark gray background
 
 // Grid and axis colors
@@ -82,7 +86,7 @@ constexpr lv_opa_t AXIS_LINE_OPACITY = LV_OPA_80;     // 80% opacity for axis in
 // Color gradient lookup table (pre-computed for performance)
 constexpr int COLOR_GRADIENT_LUT_SIZE = 1024; // 1024 samples for smooth gradient
 lv_color_t g_color_gradient_lut[COLOR_GRADIENT_LUT_SIZE];
-bool g_color_gradient_lut_initialized = false;
+std::once_flag g_color_gradient_lut_init_flag;
 
 } // anonymous namespace
 
@@ -123,17 +127,18 @@ static bed_mesh_point_3d_t project_3d_to_2d(double x, double y, double z, int ca
                                             int canvas_height, const bed_mesh_view_state_t* view);
 static lv_color_t height_to_color(double value, double min_val, double max_val);
 static bed_mesh_rgb_t lerp_color(bed_mesh_rgb_t a, bed_mesh_rgb_t b, double t);
-static void fill_triangle_solid(lv_obj_t* canvas, int x1, int y1, int x2, int y2, int x3, int y3,
-                                lv_color_t color);
-static void fill_triangle_gradient(lv_obj_t* canvas, int x1, int y1, lv_color_t c1, int x2, int y2,
-                                   lv_color_t c2, int x3, int y3, lv_color_t c3);
+static void fill_triangle_solid(lv_layer_t* layer, int x1, int y1, int x2, int y2, int x3, int y3,
+                                int canvas_width, int canvas_height, lv_color_t color);
+static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t c1, int x2, int y2,
+                                   lv_color_t c2, int x3, int y3, lv_color_t c3,
+                                   int canvas_width, int canvas_height);
 static void generate_mesh_quads(bed_mesh_renderer_t* renderer);
 static void sort_quads_by_depth(std::vector<bed_mesh_quad_3d_t>& quads);
-static void render_quad(lv_obj_t* canvas, const bed_mesh_quad_3d_t& quad, int canvas_width,
+static void render_quad(lv_layer_t* layer, const bed_mesh_quad_3d_t& quad, int canvas_width,
                         int canvas_height, const bed_mesh_view_state_t* view, bool use_gradient);
-static void render_grid_lines(lv_obj_t* canvas, const bed_mesh_renderer_t* renderer,
+static void render_grid_lines(lv_layer_t* layer, const bed_mesh_renderer_t* renderer,
                               int canvas_width, int canvas_height);
-static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* renderer,
+static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* renderer,
                                int canvas_width, int canvas_height);
 
 // Coordinate transformation helpers
@@ -411,10 +416,11 @@ void bed_mesh_renderer_auto_color_range(bed_mesh_renderer_t* renderer) {
     spdlog::debug("Auto color range enabled");
 }
 
-bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_obj_t* canvas) {
-    if (!renderer || !canvas) {
-        spdlog::error("Invalid parameters for render: renderer={}, canvas={}", (void*)renderer,
-                      (void*)canvas);
+bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer,
+                              int canvas_width, int canvas_height) {
+    if (!renderer || !layer) {
+        spdlog::error("Invalid parameters for render: renderer={}, layer={}", (void*)renderer,
+                      (void*)layer);
         return false;
     }
 
@@ -423,24 +429,28 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_obj_t* canvas) {
         return false;
     }
 
-    // Get canvas dimensions
-    int canvas_width = lv_obj_get_width(canvas);
-    int canvas_height = lv_obj_get_height(canvas);
-
-    // Skip rendering if canvas dimensions are invalid (flex layout not yet calculated)
+    // Skip rendering if dimensions are invalid
     if (canvas_width <= 0 || canvas_height <= 0) {
-        spdlog::debug("Skipping render: invalid canvas dimensions {}x{} (layout not ready)",
-                      canvas_width, canvas_height);
+        spdlog::debug("Skipping render: invalid dimensions {}x{}", canvas_width, canvas_height);
         return false;
     }
 
-    spdlog::debug("Canvas dimensions: {}x{}", canvas_width, canvas_height);
-
-    spdlog::debug("Rendering mesh to {}x{} canvas (dragging={})", canvas_width, canvas_height,
+    spdlog::debug("Rendering mesh to {}x{} layer (dragging={})", canvas_width, canvas_height,
                   renderer->view_state.is_dragging);
 
-    // Clear canvas
-    lv_canvas_fill_bg(canvas, CANVAS_BG_COLOR, LV_OPA_COVER);
+    // Clear background using layer draw API
+    lv_draw_rect_dsc_t bg_dsc;
+    lv_draw_rect_dsc_init(&bg_dsc);
+    bg_dsc.bg_color = CANVAS_BG_COLOR;
+    bg_dsc.bg_opa = LV_OPA_COVER;
+    bg_dsc.border_width = 0;
+
+    lv_area_t bg_area;
+    bg_area.x1 = 0;
+    bg_area.y1 = 0;
+    bg_area.x2 = canvas_width - 1;
+    bg_area.y2 = canvas_height - 1;
+    lv_draw_rect(layer, &bg_dsc, &bg_area);
 
     // Compute dynamic Z scale if needed
     double z_range = renderer->mesh_max_z - renderer->mesh_min_z;
@@ -485,25 +495,22 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_obj_t* canvas) {
     // Sort quads by depth (painter's algorithm - furthest first)
     sort_quads_by_depth(renderer->quads);
 
-    spdlog::debug("Rendering {} quads with {} mode", renderer->quads.size(),
+    spdlog::trace("Rendering {} quads with {} mode", renderer->quads.size(),
                   renderer->view_state.is_dragging ? "solid" : "gradient");
 
     // Render quads
     bool use_gradient = !renderer->view_state.is_dragging;
     for (const auto& quad : renderer->quads) {
-        render_quad(canvas, quad, canvas_width, canvas_height, &renderer->view_state, use_gradient);
+        render_quad(layer, quad, canvas_width, canvas_height, &renderer->view_state, use_gradient);
     }
 
     // Render wireframe grid on top
-    render_grid_lines(canvas, renderer, canvas_width, canvas_height);
+    render_grid_lines(layer, renderer, canvas_width, canvas_height);
 
     // Render axis labels
-    render_axis_labels(canvas, renderer, canvas_width, canvas_height);
+    render_axis_labels(layer, renderer, canvas_width, canvas_height);
 
-    // Invalidate canvas for LVGL redraw
-    lv_obj_invalidate(canvas);
-
-    spdlog::debug("Mesh rendering complete");
+    spdlog::trace("Mesh rendering complete");
     return true;
 }
 
@@ -553,9 +560,10 @@ static double compute_fov_scale(int rows, int cols, int canvas_width, int canvas
     double available_diagonal =
         std::sqrt(available_width * available_width + available_height * available_height);
 
-    // Scale to fit mesh in canvas, then apply default zoom-out
+    // Scale to fit mesh in canvas, then apply default zoom level
+    // zoom_level: 1.0 = neutral, <1.0 = zoomed out (larger view), >1.0 = zoomed in (smaller view)
     double fov_scale =
-        (available_diagonal * BED_MESH_CAMERA_DISTANCE) / mesh_diagonal * BED_MESH_CAMERA_ZOOM_OUT;
+        (available_diagonal * BED_MESH_CAMERA_DISTANCE) / mesh_diagonal / BED_MESH_CAMERA_ZOOM_LEVEL;
 
     return fov_scale;
 }
@@ -652,12 +660,9 @@ static bed_mesh_point_3d_t project_3d_to_2d(double x, double y, double z, int ca
 /**
  * Initialize color gradient lookup table (called once at startup)
  * Pre-computes all gradient colors to avoid repeated calculations
+ * Thread-safe via std::call_once
  */
 static void init_color_gradient_lut() {
-    if (g_color_gradient_lut_initialized) {
-        return; // Already initialized
-    }
-
     // Pre-compute gradient for normalized values [0.0, 1.0]
     for (int i = 0; i < COLOR_GRADIENT_LUT_SIZE; i++) {
         double normalized = static_cast<double>(i) / (COLOR_GRADIENT_LUT_SIZE - 1);
@@ -708,15 +713,12 @@ static void init_color_gradient_lut() {
         g_color_gradient_lut[i] = lv_color_make(r, g, b);
     }
 
-    g_color_gradient_lut_initialized = true;
     spdlog::debug("Initialized color gradient LUT with {} samples", COLOR_GRADIENT_LUT_SIZE);
 }
 
 static lv_color_t height_to_color(double value, double min_val, double max_val) {
-    // Ensure LUT is initialized
-    if (!g_color_gradient_lut_initialized) {
-        init_color_gradient_lut();
-    }
+    // Ensure LUT is initialized (thread-safe, runs exactly once)
+    std::call_once(g_color_gradient_lut_init_flag, init_color_gradient_lut);
 
     // Apply color compression for enhanced contrast
     double data_range = max_val - min_val;
@@ -744,12 +746,8 @@ static bed_mesh_rgb_t lerp_color(bed_mesh_rgb_t a, bed_mesh_rgb_t b, double t) {
     return result;
 }
 
-static void fill_triangle_solid(lv_obj_t* canvas, int x1, int y1, int x2, int y2, int x3, int y3,
-                                lv_color_t color) {
-    // Get canvas dimensions for bounds checking
-    int canvas_width = lv_obj_get_width(canvas);
-    int canvas_height = lv_obj_get_height(canvas);
-
+static void fill_triangle_solid(lv_layer_t* layer, int x1, int y1, int x2, int y2, int x3, int y3,
+                                int canvas_width, int canvas_height, lv_color_t color) {
     // Sort vertices by Y coordinate
     sort_by_y(y1, x1, y2, x2, y3, x3);
 
@@ -762,10 +760,6 @@ static void fill_triangle_solid(lv_obj_t* canvas, int x1, int y1, int x2, int y2
         return;
     if (std::max({x1, x2, x3}) < 0 || std::min({x1, x2, x3}) >= canvas_width)
         return;
-
-    // Initialize canvas layer for batch drawing
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
 
     // Prepare draw descriptor for horizontal spans
     lv_draw_rect_dsc_t dsc;
@@ -787,19 +781,16 @@ static void fill_triangle_solid(lv_obj_t* canvas, int x1, int y1, int x2, int y2
         int x_left = std::max(x_left_raw, 0);
         int x_right = std::min(x_right_raw, canvas_width - 1);
 
-        // Draw horizontal span as single rectangle (batched operation)
+        // Draw horizontal span as single rectangle directly to layer
         if (x_left <= x_right) {
             lv_area_t rect_area;
             rect_area.x1 = x_left;
             rect_area.y1 = y;
             rect_area.x2 = x_right;
             rect_area.y2 = y;
-            lv_draw_rect(&layer, &dsc, &rect_area);
+            lv_draw_rect(layer, &dsc, &rect_area);
         }
     }
-
-    // Finalize layer and apply to canvas
-    lv_canvas_finish_layer(canvas, &layer);
 }
 
 /**
@@ -818,12 +809,9 @@ static void interpolate_edge(int y, int y0, int x0, const bed_mesh_rgb_t& c0, in
     }
 }
 
-static void fill_triangle_gradient(lv_obj_t* canvas, int x1, int y1, lv_color_t c1, int x2, int y2,
-                                   lv_color_t c2, int x3, int y3, lv_color_t c3) {
-    // Get canvas dimensions for bounds checking
-    int canvas_width = lv_obj_get_width(canvas);
-    int canvas_height = lv_obj_get_height(canvas);
-
+static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t c1, int x2, int y2,
+                                   lv_color_t c2, int x3, int y3, lv_color_t c3,
+                                   int canvas_width, int canvas_height) {
     // Sort vertices by Y coordinate, keeping colors aligned
     struct Vertex {
         int x, y;
@@ -850,10 +838,6 @@ static void fill_triangle_gradient(lv_obj_t* canvas, int x1, int y1, lv_color_t 
     if (std::max({v[0].x, v[1].x, v[2].x}) < 0 ||
         std::min({v[0].x, v[1].x, v[2].x}) >= canvas_width)
         return;
-
-    // Initialize canvas layer for batch drawing
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
 
     // Prepare draw descriptor for gradient segments
     lv_draw_rect_dsc_t dsc;
@@ -903,7 +887,7 @@ static void fill_triangle_gradient(lv_obj_t* canvas, int x1, int y1, lv_color_t 
             rect_area.y1 = y;
             rect_area.x2 = x_right;
             rect_area.y2 = y;
-            lv_draw_rect(&layer, &dsc, &rect_area);
+            lv_draw_rect(layer, &dsc, &rect_area);
         } else {
             // Gradient: divide into segments and draw each as a rectangle
             int segments = std::min(BED_MESH_GRADIENT_SEGMENTS, line_width / 4);
@@ -921,19 +905,16 @@ static void fill_triangle_gradient(lv_obj_t* canvas, int x1, int y1, lv_color_t 
                 lv_color_t color = lv_color_make(seg_color.r, seg_color.g, seg_color.b);
                 dsc.bg_color = color;
 
-                // Draw segment as rectangle instead of pixel-by-pixel
+                // Draw segment as rectangle directly to layer
                 lv_area_t rect_area;
                 rect_area.x1 = seg_x_start;
                 rect_area.y1 = y;
                 rect_area.x2 = seg_x_end;
                 rect_area.y2 = y;
-                lv_draw_rect(&layer, &dsc, &rect_area);
+                lv_draw_rect(layer, &dsc, &rect_area);
             }
         }
     }
-
-    // Finalize layer and apply to canvas
-    lv_canvas_finish_layer(canvas, &layer);
 }
 
 static void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
@@ -1028,7 +1009,7 @@ static void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
         }
     }
 
-    spdlog::debug("Generated {} quads from {}x{} mesh", renderer->quads.size(), renderer->rows,
+    spdlog::trace("Generated {} quads from {}x{} mesh", renderer->quads.size(), renderer->rows,
                   renderer->cols);
 }
 
@@ -1044,15 +1025,11 @@ static void sort_quads_by_depth(std::vector<bed_mesh_quad_3d_t>& quads) {
  * Render wireframe grid lines over the mesh surface
  * Draws horizontal and vertical lines connecting mesh vertices
  */
-static void render_grid_lines(lv_obj_t* canvas, const bed_mesh_renderer_t* renderer,
+static void render_grid_lines(lv_layer_t* layer, const bed_mesh_renderer_t* renderer,
                               int canvas_width, int canvas_height) {
     if (!renderer || !renderer->has_mesh_data) {
         return;
     }
-
-    // Initialize canvas layer for drawing
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
 
     // Configure line drawing style
     lv_draw_line_dsc_t line_dsc;
@@ -1080,7 +1057,7 @@ static void render_grid_lines(lv_obj_t* canvas, const bed_mesh_renderer_t* rende
                 line_dsc.p2.x = static_cast<lv_value_precise_t>(p2.screen_x);
                 line_dsc.p2.y = static_cast<lv_value_precise_t>(p2.screen_y);
 
-                lv_draw_line(&layer, &line_dsc);
+                lv_draw_line(layer, &line_dsc);
             }
         }
     }
@@ -1100,13 +1077,10 @@ static void render_grid_lines(lv_obj_t* canvas, const bed_mesh_renderer_t* rende
                 line_dsc.p2.x = static_cast<lv_value_precise_t>(p2.screen_x);
                 line_dsc.p2.y = static_cast<lv_value_precise_t>(p2.screen_y);
 
-                lv_draw_line(&layer, &line_dsc);
+                lv_draw_line(layer, &line_dsc);
             }
         }
     }
-
-    // Finish layer and apply to canvas
-    lv_canvas_finish_layer(canvas, &layer);
 }
 
 /**
@@ -1122,10 +1096,16 @@ static void draw_axis_line(lv_layer_t* layer, lv_draw_line_dsc_t* line_dsc, doub
     bed_mesh_point_3d_t end =
         project_3d_to_2d(end_x, end_y, end_z, canvas_width, canvas_height, view_state);
 
-    line_dsc->p1.x = static_cast<lv_value_precise_t>(start.screen_x);
-    line_dsc->p1.y = static_cast<lv_value_precise_t>(start.screen_y);
-    line_dsc->p2.x = static_cast<lv_value_precise_t>(end.screen_x);
-    line_dsc->p2.y = static_cast<lv_value_precise_t>(end.screen_y);
+    // Clamp line endpoints to canvas bounds to prevent drawing outside widget
+    int x1 = std::max(0, std::min(canvas_width - 1, start.screen_x));
+    int y1 = std::max(0, std::min(canvas_height - 1, start.screen_y));
+    int x2 = std::max(0, std::min(canvas_width - 1, end.screen_x));
+    int y2 = std::max(0, std::min(canvas_height - 1, end.screen_y));
+
+    line_dsc->p1.x = static_cast<lv_value_precise_t>(x1);
+    line_dsc->p1.y = static_cast<lv_value_precise_t>(y1);
+    line_dsc->p2.x = static_cast<lv_value_precise_t>(x2);
+    line_dsc->p2.y = static_cast<lv_value_precise_t>(y2);
     lv_draw_line(layer, line_dsc);
 }
 
@@ -1133,15 +1113,11 @@ static void draw_axis_line(lv_layer_t* layer, lv_draw_line_dsc_t* line_dsc, doub
  * Render axis labels (X, Y, Z indicators)
  * Draws labels at key positions on the mesh to indicate axis orientation
  */
-static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* renderer,
+static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* renderer,
                                int canvas_width, int canvas_height) {
     if (!renderer || !renderer->has_mesh_data) {
         return;
     }
-
-    // Initialize canvas layer for drawing
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
 
     // Center mesh Z values (matching grid/quad calculations)
     double z_center = (renderer->mesh_min_z + renderer->mesh_max_z) / 2.0;
@@ -1160,7 +1136,7 @@ static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* rend
     double x_axis_length = x_axis_base_end_x - x_axis_start_x;
     double x_axis_end_x = x_axis_base_end_x + x_axis_length * AXIS_EXTENSION_FACTOR;
     double x_axis_y = mesh_row_to_world_y(0, renderer->rows); // Front edge (row=0)
-    draw_axis_line(&layer, &axis_line_dsc, x_axis_start_x, x_axis_y, grid_z, x_axis_end_x, x_axis_y,
+    draw_axis_line(layer, &axis_line_dsc, x_axis_start_x, x_axis_y, grid_z, x_axis_end_x, x_axis_y,
                    grid_z, canvas_width, canvas_height, &renderer->view_state);
 
     // Draw Y-axis line (from front to back along left edge, extend 10% beyond mesh)
@@ -1169,7 +1145,7 @@ static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* rend
     double y_axis_length = y_axis_start_y - y_axis_base_end_y;
     double y_axis_end_y = y_axis_base_end_y - y_axis_length * AXIS_EXTENSION_FACTOR;
     double y_axis_x = mesh_col_to_world_x(0, renderer->cols); // Left edge
-    draw_axis_line(&layer, &axis_line_dsc, y_axis_x, y_axis_start_y, grid_z, y_axis_x, y_axis_end_y,
+    draw_axis_line(layer, &axis_line_dsc, y_axis_x, y_axis_start_y, grid_z, y_axis_x, y_axis_end_y,
                    grid_z, canvas_width, canvas_height, &renderer->view_state);
 
     // Draw Z-axis line (vertical from origin at front-left corner)
@@ -1179,7 +1155,7 @@ static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* rend
     double z_axis_top =
         mesh_z_to_world_z(renderer->mesh_max_z, z_center, renderer->view_state.z_scale) *
         Z_AXIS_HEIGHT_FACTOR;
-    draw_axis_line(&layer, &axis_line_dsc, z_axis_x, z_axis_y, z_axis_bottom, z_axis_x, z_axis_y,
+    draw_axis_line(layer, &axis_line_dsc, z_axis_x, z_axis_y, z_axis_bottom, z_axis_x, z_axis_y,
                    z_axis_top, canvas_width, canvas_height, &renderer->view_state);
 
     // Configure label drawing style
@@ -1198,47 +1174,63 @@ static void render_axis_labels(lv_obj_t* canvas, const bed_mesh_renderer_t* rend
     bed_mesh_point_3d_t z_pos = project_3d_to_2d(z_axis_x, z_axis_y, z_axis_top, canvas_width,
                                                  canvas_height, &renderer->view_state);
 
-    // Draw X label
-    if (x_pos.screen_x >= 10 && x_pos.screen_x < canvas_width - 10 && x_pos.screen_y >= 10 &&
-        x_pos.screen_y < canvas_height - 10) {
+    // Draw X label (with bounds checking to prevent rendering outside canvas)
+    if (x_pos.screen_x >= 0 && x_pos.screen_x < canvas_width && x_pos.screen_y >= 0 &&
+        x_pos.screen_y < canvas_height) {
         label_dsc.text = "X";
         lv_area_t x_area;
         x_area.x1 = x_pos.screen_x + 5;
         x_area.y1 = x_pos.screen_y - 7;
         x_area.x2 = x_area.x1 + 14;
         x_area.y2 = x_area.y1 + 14;
-        lv_draw_label(&layer, &label_dsc, &x_area);
+
+        // Clamp label area to canvas bounds
+        if (x_area.x1 >= 0 && x_area.x2 < canvas_width &&
+            x_area.y1 >= 0 && x_area.y2 < canvas_height) {
+            lv_draw_label(layer, &label_dsc, &x_area);
+        }
     }
 
-    // Draw Y label
-    if (y_pos.screen_x >= 10 && y_pos.screen_x < canvas_width - 10 && y_pos.screen_y >= 10 &&
-        y_pos.screen_y < canvas_height - 10) {
+    // Draw Y label (with bounds checking to prevent rendering outside canvas)
+    if (y_pos.screen_x >= 0 && y_pos.screen_x < canvas_width && y_pos.screen_y >= 0 &&
+        y_pos.screen_y < canvas_height) {
         label_dsc.text = "Y";
         lv_area_t y_area;
         y_area.x1 = y_pos.screen_x - 15;
         y_area.y1 = y_pos.screen_y - 20;
         y_area.x2 = y_area.x1 + 14;
         y_area.y2 = y_area.y1 + 14;
-        lv_draw_label(&layer, &label_dsc, &y_area);
+
+        // Clamp label area to canvas bounds
+        if (y_area.x1 >= 0 && y_area.x2 < canvas_width &&
+            y_area.y1 >= 0 && y_area.y2 < canvas_height) {
+            lv_draw_label(layer, &label_dsc, &y_area);
+        }
     }
 
-    // Draw Z label
-    if (z_pos.screen_x >= 10 && z_pos.screen_x < canvas_width - 10 && z_pos.screen_y >= 10 &&
-        z_pos.screen_y < canvas_height - 10) {
+    // Draw Z label (with bounds checking to prevent rendering outside canvas)
+    if (z_pos.screen_x >= 0 && z_pos.screen_x < canvas_width && z_pos.screen_y >= 0 &&
+        z_pos.screen_y < canvas_height) {
         label_dsc.text = "Z";
         lv_area_t z_area;
         z_area.x1 = z_pos.screen_x - 25;
         z_area.y1 = z_pos.screen_y - 7;
         z_area.x2 = z_area.x1 + 14;
         z_area.y2 = z_area.y1 + 14;
-        lv_draw_label(&layer, &label_dsc, &z_area);
-    }
 
-    // Finish layer and apply to canvas
-    lv_canvas_finish_layer(canvas, &layer);
+        // Clamp label area to canvas bounds
+        if (z_area.x1 >= 0 && z_area.x2 < canvas_width &&
+            z_area.y1 >= 0 && z_area.y2 < canvas_height) {
+            lv_draw_label(layer, &label_dsc, &z_area);
+        }
+    }
 }
 
-static void render_quad(lv_obj_t* canvas, const bed_mesh_quad_3d_t& quad, int canvas_width,
+// ============================================================================
+// Quad Rendering
+// ============================================================================
+
+static void render_quad(lv_layer_t* layer, const bed_mesh_quad_3d_t& quad, int canvas_width,
                         int canvas_height, const bed_mesh_view_state_t* view, bool use_gradient) {
     // Project all 4 vertices to screen space
     bed_mesh_point_3d_t projected[4];
@@ -1261,26 +1253,28 @@ static void render_quad(lv_obj_t* canvas, const bed_mesh_quad_3d_t& quad, int ca
      */
 
     // Triangle 1: [0]BL → [1]BR → [2]TL
+    // use_gradient = false during drag for performance (solid color fallback)
+    // use_gradient = true when static for quality (gradient interpolation)
     if (use_gradient) {
-        fill_triangle_gradient(canvas, projected[0].screen_x, projected[0].screen_y,
+        fill_triangle_gradient(layer, projected[0].screen_x, projected[0].screen_y,
                                quad.vertices[0].color, projected[1].screen_x, projected[1].screen_y,
                                quad.vertices[1].color, projected[2].screen_x, projected[2].screen_y,
-                               quad.vertices[2].color);
+                               quad.vertices[2].color, canvas_width, canvas_height);
     } else {
-        fill_triangle_solid(canvas, projected[0].screen_x, projected[0].screen_y,
+        fill_triangle_solid(layer, projected[0].screen_x, projected[0].screen_y,
                             projected[1].screen_x, projected[1].screen_y, projected[2].screen_x,
-                            projected[2].screen_y, quad.center_color);
+                            projected[2].screen_y, canvas_width, canvas_height, quad.center_color);
     }
 
     // Triangle 2: [1]BR → [3]TR → [2]TL
     if (use_gradient) {
-        fill_triangle_gradient(canvas, projected[1].screen_x, projected[1].screen_y,
+        fill_triangle_gradient(layer, projected[1].screen_x, projected[1].screen_y,
                                quad.vertices[1].color, projected[2].screen_x, projected[2].screen_y,
                                quad.vertices[2].color, projected[3].screen_x, projected[3].screen_y,
-                               quad.vertices[3].color);
+                               quad.vertices[3].color, canvas_width, canvas_height);
     } else {
-        fill_triangle_solid(canvas, projected[1].screen_x, projected[1].screen_y,
+        fill_triangle_solid(layer, projected[1].screen_x, projected[1].screen_y,
                             projected[2].screen_x, projected[2].screen_y, projected[3].screen_x,
-                            projected[3].screen_y, quad.center_color);
+                            projected[3].screen_y, canvas_width, canvas_height, quad.center_color);
     }
 }

@@ -21,10 +21,8 @@
 <component>
   <!-- Extrusion Sub-Screen -->
   <!-- Extrude/Retract controls with safety checks -->
-  <!-- Full-screen backdrop with semi-transparent overlay -->
-  <view extends="lv_obj" name="extrusion_panel_backdrop" width="100%" height="100%" style_bg_opa="180" style_border_width="0" style_pad_all="0" style_radius="0" align="center" clickable="true">
-    <!-- Extrusion panel content (docked right edge) -->
-    <lv_obj name="extrusion_panel" width="#overlay_panel_width" height="100%" align="right_mid" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
+  <!-- Uses shared backdrop from navigation system -->
+  <view extends="lv_obj" name="extrusion_panel" width="#overlay_panel_width" height="100%" align="right_mid" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="column">
       <!-- Header Bar -->
       <header_bar name="extrusion_header" title="Extrude / Retract"/>
       <!-- Content Area: Two Columns -->
@@ -77,6 +75,5 @@
           </lv_obj>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
   </view>
 </component>

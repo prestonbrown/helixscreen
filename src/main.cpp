@@ -31,6 +31,7 @@
 #include "ui_icon_loader.h"
 #include "ui_keyboard.h"
 #include "ui_nav.h"
+#include "ui_panel_bed_mesh.h"
 #include "ui_panel_controls.h"
 #include "ui_panel_controls_extrusion.h"
 #include "ui_panel_controls_temp.h"
@@ -136,9 +137,10 @@ static bool parse_command_line_args(
     int argc, char** argv, int& initial_panel, bool& show_motion, bool& show_nozzle_temp,
     bool& show_bed_temp, bool& show_extrusion, bool& show_print_status, bool& show_file_detail,
     bool& show_keypad, bool& show_keyboard, bool& show_step_test, bool& show_test_panel,
-    bool& show_gcode_test, bool& show_glyphs, bool& force_wizard, int& wizard_step, bool& panel_requested,
-    int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled, int& screenshot_delay_sec,
-    int& timeout_sec, int& verbosity, bool& dark_mode, bool& theme_requested, int& dpi) {
+    bool& show_gcode_test, bool& show_bed_mesh, bool& show_glyphs, bool& force_wizard, int& wizard_step,
+    bool& panel_requested, int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled,
+    int& screenshot_delay_sec, int& timeout_sec, int& verbosity, bool& dark_mode,
+    bool& theme_requested, int& dpi) {
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--size") == 0) {
@@ -209,11 +211,13 @@ static bool parse_command_line_args(
                 } else if (strcmp(panel_arg, "gcode-test") == 0 ||
                            strcmp(panel_arg, "gcode_test") == 0) {
                     show_gcode_test = true;
+                } else if (strcmp(panel_arg, "bed-mesh") == 0 || strcmp(panel_arg, "bed_mesh") == 0) {
+                    show_bed_mesh = true;
                 } else if (strcmp(panel_arg, "glyphs") == 0) {
                     show_glyphs = true;
                 } else {
                     printf("Unknown panel: %s\n", panel_arg);
-                    printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, "
+                    printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, bed-mesh, "
                            "extrusion, print-status, filament, settings, advanced, print-select, "
                            "step-test, test, gcode-test, glyphs\n");
                     return false;
@@ -505,9 +509,9 @@ static bool parse_command_line_args(
             printf("  --gcode-zoom <n>     Set camera zoom level (positive number)\n");
             printf("  --gcode-debug-colors Enable per-face debug coloring\n");
             printf("\nAvailable panels:\n");
-            printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
-            printf("  print-status, filament, settings, advanced, print-select,\n");
-            printf("  step-test, test, gcode-test, glyphs\n");
+            printf("  home, controls, motion, nozzle-temp, bed-temp, bed-mesh,\n");
+            printf("  extrusion, print-status, filament, settings, advanced,\n");
+            printf("  print-select, step-test, test, gcode-test, glyphs\n");
             printf("\nScreen sizes:\n");
             printf("  tiny   = %dx%d\n", UI_SCREEN_TINY_W, UI_SCREEN_TINY_H);
             printf("  small  = %dx%d\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
@@ -1028,6 +1032,7 @@ int main(int argc, char** argv) {
     bool show_step_test = false;     // Special flag for step progress widget testing
     bool show_test_panel = false;    // Special flag for test/development panel
     bool show_gcode_test = false;    // Special flag for G-code 3D viewer testing
+    bool show_bed_mesh = false;      // Special flag for bed mesh overlay panel
     bool show_glyphs = false;        // Special flag for LVGL glyphs reference panel
     bool force_wizard = false;       // Force wizard to run even if config exists
     int wizard_step = -1;            // Specific wizard step to show (-1 means normal flow)
@@ -1047,9 +1052,9 @@ int main(int argc, char** argv) {
     if (!parse_command_line_args(
             argc, argv, initial_panel, show_motion, show_nozzle_temp, show_bed_temp, show_extrusion,
             show_print_status, show_file_detail, show_keypad, show_keyboard, show_step_test,
-            show_test_panel, show_gcode_test, show_glyphs, force_wizard, wizard_step, panel_requested,
-            display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec, timeout_sec,
-            verbosity, dark_mode, theme_requested, dpi)) {
+            show_test_panel, show_gcode_test, show_bed_mesh, show_glyphs, force_wizard, wizard_step,
+            panel_requested, display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec,
+            timeout_sec, verbosity, dark_mode, theme_requested, dpi)) {
         return 0; // Help shown or parse error
     }
 
@@ -1195,6 +1200,9 @@ int main(int argc, char** argv) {
 
     // Register app_layout with navigation system (to prevent hiding it)
     ui_nav_set_app_layout(app_layout);
+
+    // Initialize shared overlay backdrop
+    ui_nav_init_overlay_backdrop(screen);
 
     // Find navbar and panel widgets
     // app_layout > navbar (child 0), content_area (child 1)
@@ -1348,6 +1356,18 @@ int main(int argc, char** argv) {
         if (show_print_status && overlay_panels.print_status) {
             spdlog::debug("Opening print status overlay as requested by command-line flag");
             ui_nav_push_overlay(overlay_panels.print_status);
+        }
+        if (show_bed_mesh) {
+            spdlog::debug("Opening bed mesh overlay as requested by command-line flag");
+            lv_obj_t* bed_mesh = (lv_obj_t*)lv_xml_create(screen, "bed_mesh_panel", nullptr);
+            if (bed_mesh) {
+                spdlog::info("Bed mesh overlay created successfully, calling setup");
+                ui_panel_bed_mesh_setup(bed_mesh, screen);
+                ui_nav_push_overlay(bed_mesh);
+                spdlog::info("Bed mesh overlay pushed to nav stack");
+            } else {
+                spdlog::error("Failed to create bed mesh overlay from XML component 'bed_mesh_panel'");
+            }
         }
         if (show_keypad) {
             spdlog::debug("Opening keypad modal as requested by command-line flag");

@@ -40,18 +40,194 @@
  * Widget instance data stored in user_data
  */
 typedef struct {
-    void* buffer;                  // Canvas buffer (for cleanup)
     bed_mesh_renderer_t* renderer; // 3D renderer instance
     int rotation_x;                // Current tilt angle (degrees)
     int rotation_z;                // Current spin angle (degrees)
+
+    // Touch drag state
+    bool is_dragging;              // Currently in drag gesture
+    lv_point_t last_drag_pos;      // Last touch position for delta calculation
 } bed_mesh_widget_data_t;
+
+/**
+ * Draw event handler - renders bed mesh using DRAW_POST pattern
+ */
+static void bed_mesh_draw_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(obj);
+
+    if (!data || !layer) {
+        return;
+    }
+
+    if (!data->renderer) {
+        spdlog::warn("[bed_mesh] draw_cb: renderer not initialized");
+        return;
+    }
+
+    // Get widget dimensions
+    int width = lv_obj_get_width(obj);
+    int height = lv_obj_get_height(obj);
+
+    if (width <= 0 || height <= 0) {
+        spdlog::debug("[bed_mesh] draw_cb: invalid dimensions {}x{}", width, height);
+        return;
+    }
+
+    // Render mesh directly to layer (matches G-code viewer pattern)
+    if (!bed_mesh_renderer_render(data->renderer, layer, width, height)) {
+        // Render failed - likely no mesh data loaded
+        // Draw "No mesh loaded" message in center of canvas
+        lv_draw_label_dsc_t label_dsc;
+        lv_draw_label_dsc_init(&label_dsc);
+        label_dsc.color = lv_color_hex(0x808080); // Gray text
+        label_dsc.text = "No mesh loaded";
+        label_dsc.font = &lv_font_montserrat_16;
+        label_dsc.align = LV_TEXT_ALIGN_CENTER;
+
+        // Calculate centered position
+        lv_point_t txt_size;
+        lv_text_get_size(&txt_size, label_dsc.text, label_dsc.font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+
+        lv_area_t label_area;
+        label_area.x1 = (width - txt_size.x) / 2;
+        label_area.y1 = (height - txt_size.y) / 2;
+        label_area.x2 = label_area.x1 + txt_size.x;
+        label_area.y2 = label_area.y1 + txt_size.y;
+
+        lv_draw_label(layer, &label_dsc, &label_area);
+        return;
+    }
+
+    spdlog::trace("[bed_mesh] Render complete");
+}
+
+/**
+ * Touch press event handler - start drag gesture
+ */
+static void bed_mesh_press_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(obj);
+
+    if (!data)
+        return;
+
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev)
+        return;
+
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    data->is_dragging = true;
+    data->last_drag_pos = point;
+
+    // Update renderer dragging state for fast solid-color rendering
+    if (data->renderer) {
+        bed_mesh_renderer_set_dragging(data->renderer, true);
+    }
+
+    spdlog::trace("[bed_mesh] Press at ({}, {}), switching to solid", point.x, point.y);
+}
+
+/**
+ * Touch pressing event handler - handle drag for rotation
+ */
+static void bed_mesh_pressing_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(obj);
+
+    if (!data || !data->is_dragging)
+        return;
+
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev)
+        return;
+
+    // Safety check: verify input device is still pressed
+    lv_indev_state_t state = lv_indev_get_state(indev);
+    if (state != LV_INDEV_STATE_PRESSED) {
+        // Input was released but we missed the event - force cleanup
+        spdlog::warn("[bed_mesh] Detected missed release event (state={}), forcing gradient mode", (int)state);
+        data->is_dragging = false;
+        if (data->renderer) {
+            bed_mesh_renderer_set_dragging(data->renderer, false);
+        }
+        lv_obj_invalidate(obj);  // Trigger redraw with gradient
+        return;
+    }
+
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    // Calculate delta from last position
+    int dx = point.x - data->last_drag_pos.x;
+    int dy = point.y - data->last_drag_pos.y;
+
+    if (dx != 0 || dy != 0) {
+        // Convert pixel movement to rotation angles
+        // Scale factor: ~0.5 degrees per pixel (matching G-code viewer)
+        // Horizontal drag (dx) = spin rotation (rotation_z)
+        // Vertical drag (dy) = tilt rotation (rotation_x), inverted for intuitive control
+        data->rotation_z += (int)(dx * 0.5f);
+        data->rotation_x -= (int)(dy * 0.5f); // Flip Y for intuitive tilt
+
+        // Clamp tilt to reasonable range (-90 to 0 degrees)
+        if (data->rotation_x < -90)
+            data->rotation_x = -90;
+        if (data->rotation_x > 0)
+            data->rotation_x = 0;
+
+        // Wrap spin around 360 degrees
+        data->rotation_z = data->rotation_z % 360;
+        if (data->rotation_z < 0)
+            data->rotation_z += 360;
+
+        // Update renderer rotation
+        if (data->renderer) {
+            bed_mesh_renderer_set_rotation(data->renderer, data->rotation_x, data->rotation_z);
+        }
+
+        // Trigger redraw
+        lv_obj_invalidate(obj);
+
+        data->last_drag_pos = point;
+
+        spdlog::trace("[bed_mesh] Drag ({}, {}) -> rotation({}, {})", dx, dy, data->rotation_x,
+                      data->rotation_z);
+    }
+}
+
+/**
+ * Touch release event handler - end drag gesture
+ */
+static void bed_mesh_release_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(obj);
+
+    if (!data)
+        return;
+
+    data->is_dragging = false;
+
+    // Update renderer dragging state for high-quality gradient rendering
+    if (data->renderer) {
+        bed_mesh_renderer_set_dragging(data->renderer, false);
+    }
+
+    // Force immediate redraw to switch back to gradient rendering
+    lv_obj_invalidate(obj);
+
+    spdlog::trace("[bed_mesh] Release - final rotation({}, {}), switching to gradient", data->rotation_x, data->rotation_z);
+}
 
 /**
  * Delete event handler - cleanup resources
  */
 static void bed_mesh_delete_cb(lv_event_t* e) {
-    lv_obj_t* canvas = (lv_obj_t*)lv_event_get_target(e);
-    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(canvas);
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(obj);
 
     if (data) {
         // Destroy renderer
@@ -61,96 +237,41 @@ static void bed_mesh_delete_cb(lv_event_t* e) {
             spdlog::debug("[bed_mesh] Destroyed renderer");
         }
 
-        // Free canvas buffer
-        if (data->buffer) {
-            free(data->buffer);
-            data->buffer = nullptr;
-            spdlog::debug("[bed_mesh] Freed buffer memory");
-        }
-
         // Free widget data struct
         free(data);
-        lv_obj_set_user_data(canvas, NULL);
+        lv_obj_set_user_data(obj, NULL);
     }
-}
-
-/**
- * Size changed event handler - reallocate buffer to match new canvas size
- */
-static void bed_mesh_size_changed_cb(lv_event_t* e) {
-    lv_obj_t* canvas = (lv_obj_t*)lv_event_get_target(e);
-    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(canvas);
-
-    if (!data) {
-        spdlog::warn("[bed_mesh] SIZE_CHANGED: no widget data");
-        return;
-    }
-
-    int new_width = lv_obj_get_width(canvas);
-    int new_height = lv_obj_get_height(canvas);
-
-    spdlog::debug("[bed_mesh] SIZE_CHANGED: {}x{}", new_width, new_height);
-
-    // Skip reallocation if dimensions are invalid (flex layout not ready)
-    if (new_width <= 0 || new_height <= 0) {
-        spdlog::debug("[bed_mesh] Skipping buffer reallocation: invalid dimensions {}x{}",
-                      new_width, new_height);
-        return;
-    }
-
-    // Reallocate buffer to match new canvas size
-    size_t new_buffer_size = LV_CANVAS_BUF_SIZE(new_width, new_height, 24, 1);
-    void* new_buffer = realloc(data->buffer, new_buffer_size);
-
-    if (!new_buffer) {
-        spdlog::error("[bed_mesh] Failed to reallocate buffer for {}x{} ({}bytes)", new_width,
-                      new_height, new_buffer_size);
-        return;
-    }
-
-    data->buffer = new_buffer;
-
-    // Update canvas buffer
-    lv_canvas_set_buffer(canvas, data->buffer, new_width, new_height, LV_COLOR_FORMAT_RGB888);
-
-    spdlog::debug("[bed_mesh] Reallocated buffer: {}x{} RGB888 ({} bytes)", new_width, new_height,
-                  new_buffer_size);
-
-    // Re-render mesh with new dimensions
-    ui_bed_mesh_redraw(canvas);
 }
 
 /**
  * XML create handler for <bed_mesh>
- * Creates canvas widget with RGB888 buffer and renderer
+ * Creates base object and uses DRAW_POST callback for rendering
+ * (Architecture matches G-code viewer for touch event handling)
  */
 static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);
 
     void* parent = lv_xml_state_get_parent(state);
-    lv_obj_t* canvas = lv_canvas_create((lv_obj_t*)parent);
 
-    if (!canvas) {
-        spdlog::error("[bed_mesh] Failed to create canvas");
+    // Create base object (NOT canvas!)
+    lv_obj_t* obj = lv_obj_create((lv_obj_t*)parent);
+    if (!obj) {
+        spdlog::error("[bed_mesh] Failed to create object");
         return NULL;
     }
+
+    // Configure appearance (transparent background, no border, no padding)
+    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(obj, 0, 0);
+    lv_obj_set_style_pad_all(obj, 0, 0);
+    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE); // Touch events work automatically!
 
     // Allocate widget data struct
     bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)malloc(sizeof(bed_mesh_widget_data_t));
     if (!data) {
         spdlog::error("[bed_mesh] Failed to allocate widget data");
-        lv_obj_delete(canvas);
-        return NULL;
-    }
-
-    // Allocate buffer (600×400 RGB888, 24 bpp, stride=1)
-    size_t buffer_size = LV_CANVAS_BUF_SIZE(BED_MESH_CANVAS_WIDTH, BED_MESH_CANVAS_HEIGHT, 24, 1);
-    data->buffer = malloc(buffer_size);
-
-    if (!data->buffer) {
-        spdlog::error("[bed_mesh] Failed to allocate buffer ({} bytes)", buffer_size);
-        free(data);
-        lv_obj_delete(canvas);
+        lv_obj_delete(obj);
         return NULL;
     }
 
@@ -158,9 +279,8 @@ static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attr
     data->renderer = bed_mesh_renderer_create();
     if (!data->renderer) {
         spdlog::error("[bed_mesh] Failed to create renderer");
-        free(data->buffer);
         free(data);
-        lv_obj_delete(canvas);
+        lv_obj_delete(obj);
         return NULL;
     }
 
@@ -169,24 +289,29 @@ static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attr
     data->rotation_z = BED_MESH_ROTATION_Z_DEFAULT;
     bed_mesh_renderer_set_rotation(data->renderer, data->rotation_x, data->rotation_z);
 
-    // Set canvas buffer
-    lv_canvas_set_buffer(canvas, data->buffer, BED_MESH_CANVAS_WIDTH, BED_MESH_CANVAS_HEIGHT,
-                         LV_COLOR_FORMAT_RGB888);
+    // Initialize touch drag state
+    data->is_dragging = false;
+    data->last_drag_pos = {0, 0};
 
     // Store widget data in user_data for cleanup and API access
-    lv_obj_set_user_data(canvas, data);
+    lv_obj_set_user_data(obj, data);
 
     // Register event handlers
-    lv_obj_add_event_cb(canvas, bed_mesh_delete_cb, LV_EVENT_DELETE, NULL);
-    lv_obj_add_event_cb(canvas, bed_mesh_size_changed_cb, LV_EVENT_SIZE_CHANGED, NULL);
+    lv_obj_add_event_cb(obj, bed_mesh_draw_cb, LV_EVENT_DRAW_POST, NULL);     // Custom drawing
+    lv_obj_add_event_cb(obj, bed_mesh_delete_cb, LV_EVENT_DELETE, NULL);      // Cleanup
+
+    // Register touch event handlers for drag rotation
+    lv_obj_add_event_cb(obj, bed_mesh_press_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(obj, bed_mesh_pressing_cb, LV_EVENT_PRESSING, NULL);
+    lv_obj_add_event_cb(obj, bed_mesh_release_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_add_event_cb(obj, bed_mesh_release_cb, LV_EVENT_PRESS_LOST, NULL);  // Handle drag outside widget
 
     // Set default size (will be overridden by XML width/height attributes)
-    lv_obj_set_size(canvas, BED_MESH_CANVAS_WIDTH, BED_MESH_CANVAS_HEIGHT);
+    lv_obj_set_size(obj, BED_MESH_CANVAS_WIDTH, BED_MESH_CANVAS_HEIGHT);
 
-    spdlog::debug("[bed_mesh] Created canvas: {}x{} RGB888 ({} bytes), renderer initialized",
-                  BED_MESH_CANVAS_WIDTH, BED_MESH_CANVAS_HEIGHT, buffer_size);
+    spdlog::debug("[bed_mesh] Created widget with DRAW_POST pattern, renderer initialized");
 
-    return (void*)canvas;
+    return (void*)obj;
 }
 
 /**
@@ -195,10 +320,10 @@ static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attr
  */
 static void bed_mesh_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
     void* item = lv_xml_state_get_item(state);
-    lv_obj_t* canvas = (lv_obj_t*)item;
+    lv_obj_t* obj = (lv_obj_t*)item;
 
-    if (!canvas) {
-        spdlog::error("[bed_mesh] NULL canvas in xml_apply");
+    if (!obj) {
+        spdlog::error("[bed_mesh] NULL object in xml_apply");
         return;
     }
 
@@ -219,13 +344,13 @@ void ui_bed_mesh_register(void) {
 /**
  * Set mesh data for rendering
  */
-bool ui_bed_mesh_set_data(lv_obj_t* canvas, const float* const* mesh, int rows, int cols) {
-    if (!canvas) {
-        spdlog::error("[bed_mesh] ui_bed_mesh_set_data: NULL canvas");
+bool ui_bed_mesh_set_data(lv_obj_t* widget, const float* const* mesh, int rows, int cols) {
+    if (!widget) {
+        spdlog::error("[bed_mesh] ui_bed_mesh_set_data: NULL widget");
         return false;
     }
 
-    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(canvas);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(widget);
     if (!data || !data->renderer) {
         spdlog::error("[bed_mesh] ui_bed_mesh_set_data: widget data or renderer not initialized");
         return false;
@@ -246,7 +371,7 @@ bool ui_bed_mesh_set_data(lv_obj_t* canvas, const float* const* mesh, int rows, 
     spdlog::info("[bed_mesh] Mesh data loaded: {}x{}", rows, cols);
 
     // Automatically redraw after setting new data
-    ui_bed_mesh_redraw(canvas);
+    ui_bed_mesh_redraw(widget);
 
     return true;
 }
@@ -254,13 +379,13 @@ bool ui_bed_mesh_set_data(lv_obj_t* canvas, const float* const* mesh, int rows, 
 /**
  * Set camera rotation angles
  */
-void ui_bed_mesh_set_rotation(lv_obj_t* canvas, int angle_x, int angle_z) {
-    if (!canvas) {
-        spdlog::error("[bed_mesh] ui_bed_mesh_set_rotation: NULL canvas");
+void ui_bed_mesh_set_rotation(lv_obj_t* widget, int angle_x, int angle_z) {
+    if (!widget) {
+        spdlog::error("[bed_mesh] ui_bed_mesh_set_rotation: NULL widget");
         return;
     }
 
-    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(canvas);
+    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(widget);
     if (!data || !data->renderer) {
         spdlog::error("[bed_mesh] ui_bed_mesh_set_rotation: widget data or renderer not "
                       "initialized");
@@ -277,35 +402,20 @@ void ui_bed_mesh_set_rotation(lv_obj_t* canvas, int angle_x, int angle_z) {
     spdlog::debug("[bed_mesh] Rotation updated: tilt={}°, spin={}°", angle_x, angle_z);
 
     // Automatically redraw after rotation change
-    ui_bed_mesh_redraw(canvas);
+    ui_bed_mesh_redraw(widget);
 }
 
 /**
  * Force redraw of mesh visualization
  */
-void ui_bed_mesh_redraw(lv_obj_t* canvas) {
-    if (!canvas) {
-        spdlog::warn("[bed_mesh] ui_bed_mesh_redraw: NULL canvas");
+void ui_bed_mesh_redraw(lv_obj_t* widget) {
+    if (!widget) {
+        spdlog::warn("[bed_mesh] ui_bed_mesh_redraw: NULL widget");
         return;
     }
 
-    bed_mesh_widget_data_t* data = (bed_mesh_widget_data_t*)lv_obj_get_user_data(canvas);
-    if (!data || !data->renderer) {
-        spdlog::warn("[bed_mesh] ui_bed_mesh_redraw: widget data or renderer not initialized");
-        return;
-    }
+    // Trigger DRAW_POST event by invalidating widget
+    lv_obj_invalidate(widget);
 
-    // Force layout update before rendering (LVGL deferred layout)
-    lv_obj_update_layout(canvas);
-
-    // Clear canvas
-    lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_COVER);
-
-    // Render mesh
-    if (!bed_mesh_renderer_render(data->renderer, canvas)) {
-        spdlog::error("[bed_mesh] Render failed");
-        return;
-    }
-
-    spdlog::debug("[bed_mesh] Render complete");
+    spdlog::debug("[bed_mesh] Redraw requested");
 }

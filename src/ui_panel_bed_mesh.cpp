@@ -43,27 +43,22 @@ using json = nlohmann::json;
 
 // Static state
 static lv_obj_t* canvas = nullptr;
-static lv_obj_t* rotation_x_label = nullptr;
-static lv_obj_t* rotation_y_label = nullptr;
-static lv_obj_t* rotation_x_slider = nullptr;
-static lv_obj_t* rotation_z_slider = nullptr;
 static lv_obj_t* bed_mesh_panel = nullptr;
 static lv_obj_t* parent_obj = nullptr;
-
-// Current rotation angles (for slider state tracking)
-static int current_rotation_x = BED_MESH_ROTATION_X_DEFAULT;
-static int current_rotation_z = BED_MESH_ROTATION_Z_DEFAULT;
+static lv_obj_t* profile_dropdown = nullptr;
 
 // Reactive subjects for bed mesh data
 static lv_subject_t bed_mesh_available;    // 0 = no mesh, 1 = mesh loaded
 static lv_subject_t bed_mesh_profile_name; // String: active profile name
 static lv_subject_t bed_mesh_dimensions;   // String: "10x10 points"
 static lv_subject_t bed_mesh_z_range;      // String: "Z: 0.05 to 0.35mm"
+static lv_subject_t bed_mesh_variance;     // String: "Range: 0.457 mm"
 
 // String buffers for subjects (LVGL requires persistent buffers)
 static char profile_name_buf[64] = "";
 static char dimensions_buf[64] = "No mesh data";
 static char z_range_buf[64] = "";
+static char variance_buf[64] = "";
 
 // Cleanup handler for panel deletion
 static void panel_delete_cb(lv_event_t* e) {
@@ -73,63 +68,9 @@ static void panel_delete_cb(lv_event_t* e) {
 
     // Widget cleanup (renderer cleanup is handled by widget delete callback)
     canvas = nullptr;
-    rotation_x_label = nullptr;
-    rotation_y_label = nullptr;
-    rotation_x_slider = nullptr;
-    rotation_z_slider = nullptr;
+    profile_dropdown = nullptr;
     bed_mesh_panel = nullptr;
     parent_obj = nullptr;
-}
-
-// Slider event handler: X rotation (tilt)
-static void rotation_x_slider_cb(lv_event_t* e) {
-    lv_obj_t* slider = (lv_obj_t*)lv_event_get_target(e);
-
-    // Read slider value (0-100)
-    int32_t slider_value = lv_slider_get_value(slider);
-
-    // Map to rotation angle range
-    current_rotation_x = BED_MESH_ROTATION_X_MIN +
-                         (slider_value * (BED_MESH_ROTATION_X_MAX - BED_MESH_ROTATION_X_MIN)) / 100;
-
-    // Update label
-    if (rotation_x_label) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Tilt: %d°", current_rotation_x);
-        lv_label_set_text(rotation_x_label, buf);
-    }
-
-    // Update widget rotation and redraw
-    if (canvas) {
-        ui_bed_mesh_set_rotation(canvas, current_rotation_x, current_rotation_z);
-    }
-
-    spdlog::debug("[BedMesh] X rotation updated: {}°", current_rotation_x);
-}
-
-// Slider event handler: Z rotation (spin)
-static void rotation_z_slider_cb(lv_event_t* e) {
-    lv_obj_t* slider = (lv_obj_t*)lv_event_get_target(e);
-
-    // Read slider value (0-100)
-    int32_t slider_value = lv_slider_get_value(slider);
-
-    // Map to rotation angle range
-    current_rotation_z = (slider_value * BED_MESH_ROTATION_Z_MAX) / 100;
-
-    // Update label
-    if (rotation_y_label) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Spin: %d°", current_rotation_z);
-        lv_label_set_text(rotation_y_label, buf);
-    }
-
-    // Update widget rotation and redraw
-    if (canvas) {
-        ui_bed_mesh_set_rotation(canvas, current_rotation_x, current_rotation_z);
-    }
-
-    spdlog::debug("[BedMesh] Z rotation updated: {}°", current_rotation_z);
 }
 
 // Back button event handler
@@ -150,6 +91,28 @@ static void back_button_cb(lv_event_t* e) {
                 lv_obj_clear_flag(settings_launcher, LV_OBJ_FLAG_HIDDEN);
             }
         }
+    }
+}
+
+// Profile dropdown event handler
+static void profile_dropdown_cb(lv_event_t* e) {
+    lv_obj_t* dropdown = (lv_obj_t*)lv_event_get_target(e);
+
+    // Get selected profile name
+    char buf[64];
+    lv_dropdown_get_selected_str(dropdown, buf, sizeof(buf));
+
+    spdlog::info("[BedMesh] Profile selected: {}", buf);
+
+    // Load the selected profile via G-code command
+    MoonrakerClient* client = get_moonraker_client();
+    if (client) {
+        std::string cmd = "BED_MESH_PROFILE LOAD=" + std::string(buf);
+        client->gcode_script(cmd);
+        spdlog::debug("[BedMesh] Sent G-code: {}", cmd);
+        // UI will update automatically via Moonraker notification callback
+    } else {
+        spdlog::warn("[BedMesh] Cannot load profile - Moonraker client is null");
     }
 }
 
@@ -178,7 +141,7 @@ static void on_bed_mesh_update(const MoonrakerClient::BedMeshProfile& mesh) {
     lv_subject_copy_string(&bed_mesh_dimensions, dimensions_buf);
     spdlog::debug("[BedMesh] Set dimensions: {}", dimensions_buf);
 
-    // Calculate Z range
+    // Calculate Z range and variance
     float min_z = std::numeric_limits<float>::max();
     float max_z = std::numeric_limits<float>::lowest();
     for (const auto& row : mesh.probed_matrix) {
@@ -188,10 +151,18 @@ static void on_bed_mesh_update(const MoonrakerClient::BedMeshProfile& mesh) {
         }
     }
 
+    // Calculate variance (range)
+    float variance = max_z - min_z;
+
     // Format and update Z range
-    snprintf(z_range_buf, sizeof(z_range_buf), "Z: %.3f to %.3f mm", min_z, max_z);
+    snprintf(z_range_buf, sizeof(z_range_buf), "Min: %.3f mm | Max: %.3f mm", min_z, max_z);
     lv_subject_copy_string(&bed_mesh_z_range, z_range_buf);
     spdlog::debug("[BedMesh] Set Z range: {}", z_range_buf);
+
+    // Format and update variance
+    snprintf(variance_buf, sizeof(variance_buf), "Range: %.3f mm", variance);
+    lv_subject_copy_string(&bed_mesh_variance, variance_buf);
+    spdlog::debug("[BedMesh] Set variance: {}", variance_buf);
 
     // Update renderer with new mesh data
     ui_panel_bed_mesh_set_data(mesh.probed_matrix);
@@ -207,12 +178,14 @@ void ui_panel_bed_mesh_init_subjects() {
     lv_subject_init_string(&bed_mesh_dimensions, dimensions_buf, nullptr, sizeof(dimensions_buf),
                            "No mesh data");
     lv_subject_init_string(&bed_mesh_z_range, z_range_buf, nullptr, sizeof(z_range_buf), "");
+    lv_subject_init_string(&bed_mesh_variance, variance_buf, nullptr, sizeof(variance_buf), "");
 
     // Register subjects for XML bindings
     lv_xml_register_subject(NULL, "bed_mesh_available", &bed_mesh_available);
     lv_xml_register_subject(NULL, "bed_mesh_profile_name", &bed_mesh_profile_name);
     lv_xml_register_subject(NULL, "bed_mesh_dimensions", &bed_mesh_dimensions);
     lv_xml_register_subject(NULL, "bed_mesh_z_range", &bed_mesh_z_range);
+    lv_xml_register_subject(NULL, "bed_mesh_variance", &bed_mesh_variance);
 
     spdlog::debug("[BedMesh] Subjects initialized and registered");
 }
@@ -229,46 +202,7 @@ void ui_panel_bed_mesh_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         spdlog::error("[BedMesh] Canvas widget not found in XML");
         return;
     }
-    spdlog::debug("[BedMesh] Found canvas widget");
-
-    // Find rotation labels (mesh info labels are now reactively bound)
-    rotation_x_label = lv_obj_find_by_name(panel, "rotation_x_label");
-    if (!rotation_x_label) {
-        spdlog::warn("[BedMesh] X rotation label not found in XML");
-    }
-
-    rotation_y_label = lv_obj_find_by_name(panel, "rotation_y_label");
-    if (!rotation_y_label) {
-        spdlog::warn("[BedMesh] Z rotation label not found in XML");
-    }
-
-    // Find rotation sliders
-    rotation_x_slider = lv_obj_find_by_name(panel, "rotation_x_slider");
-    if (rotation_x_slider) {
-        lv_slider_set_range(rotation_x_slider, 0, 100);
-        // Map default angle to slider value
-        int32_t default_x_value = ((BED_MESH_ROTATION_X_DEFAULT - BED_MESH_ROTATION_X_MIN) * 100) /
-                                  (BED_MESH_ROTATION_X_MAX - BED_MESH_ROTATION_X_MIN);
-        lv_slider_set_value(rotation_x_slider, default_x_value, LV_ANIM_OFF);
-        lv_obj_add_event_cb(rotation_x_slider, rotation_x_slider_cb, LV_EVENT_VALUE_CHANGED,
-                            nullptr);
-        spdlog::debug("[BedMesh] X rotation slider configured (default: {})", default_x_value);
-    } else {
-        spdlog::warn("[BedMesh] X rotation slider not found in XML");
-    }
-
-    rotation_z_slider = lv_obj_find_by_name(panel, "rotation_z_slider");
-    if (rotation_z_slider) {
-        lv_slider_set_range(rotation_z_slider, 0, 100);
-        // Map default angle to slider value
-        int32_t default_z_value = (BED_MESH_ROTATION_Z_DEFAULT * 100) / BED_MESH_ROTATION_Z_MAX;
-        lv_slider_set_value(rotation_z_slider, default_z_value, LV_ANIM_OFF);
-        lv_obj_add_event_cb(rotation_z_slider, rotation_z_slider_cb, LV_EVENT_VALUE_CHANGED,
-                            nullptr);
-        spdlog::debug("[BedMesh] Z rotation slider configured (default: {})", default_z_value);
-    } else {
-        spdlog::warn("[BedMesh] Z rotation slider not found in XML");
-    }
+    spdlog::debug("[BedMesh] Found canvas widget - rotation controlled by touch drag");
 
     // Find and setup back button
     lv_obj_t* back_btn = lv_obj_find_by_name(panel, "back_button");
@@ -279,21 +213,53 @@ void ui_panel_bed_mesh_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         spdlog::warn("[BedMesh] Back button not found in XML");
     }
 
+    // Find and setup profile dropdown
+    profile_dropdown = lv_obj_find_by_name(panel, "profile_dropdown");
+    if (profile_dropdown) {
+        // Get Moonraker client to fetch profile list
+        MoonrakerClient* client = get_moonraker_client();
+        if (client) {
+            const auto& profiles = client->get_bed_mesh_profiles();
+            if (!profiles.empty()) {
+                // Build options string (newline-separated)
+                std::string options;
+                for (size_t i = 0; i < profiles.size(); i++) {
+                    if (i > 0) options += "\n";
+                    options += profiles[i];
+                }
+                lv_dropdown_set_options(profile_dropdown, options.c_str());
+                spdlog::debug("[BedMesh] Profile dropdown populated with {} profiles", profiles.size());
+
+                // Set selected index to match active profile
+                const auto& active_mesh = client->get_active_bed_mesh();
+                if (!active_mesh.name.empty()) {
+                    for (size_t i = 0; i < profiles.size(); i++) {
+                        if (profiles[i] == active_mesh.name) {
+                            lv_dropdown_set_selected(profile_dropdown, i);
+                            spdlog::debug("[BedMesh] Set dropdown to active profile: {}", active_mesh.name);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                lv_dropdown_set_options(profile_dropdown, "(no profiles)");
+                spdlog::warn("[BedMesh] No bed mesh profiles available");
+            }
+
+            // Register event callback
+            lv_obj_add_event_cb(profile_dropdown, profile_dropdown_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+            spdlog::debug("[BedMesh] Profile dropdown event handler registered");
+        } else {
+            lv_dropdown_set_options(profile_dropdown, "(no connection)");
+            spdlog::warn("[BedMesh] Cannot populate dropdown - Moonraker client is null");
+        }
+    } else {
+        spdlog::warn("[BedMesh] Profile dropdown not found in XML");
+    }
+
     // Canvas buffer and renderer already created by <bed_mesh> widget
-    // Widget is initialized with default rotation angles matching our defaults
-
-    // Update rotation labels with initial values
-    if (rotation_x_label) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Tilt: %d°", current_rotation_x);
-        lv_label_set_text(rotation_x_label, buf);
-    }
-
-    if (rotation_y_label) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Spin: %d°", current_rotation_z);
-        lv_label_set_text(rotation_y_label, buf);
-    }
+    // Widget is initialized with default rotation angles
+    // Rotation is now controlled by touch drag (no sliders/labels needed)
 
     // Register Moonraker callback for bed mesh updates
     MoonrakerClient* client = get_moonraker_client();

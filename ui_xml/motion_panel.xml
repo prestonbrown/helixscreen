@@ -54,10 +54,8 @@
     <const name="jog_highlight_light" value="#000000"/>
     <const name="jog_highlight_dark" value="#FFFFFF"/>
   </consts>
-  <!-- Full-screen backdrop with semi-transparent overlay -->
-  <view extends="lv_obj" name="motion_panel_backdrop" width="100%" height="100%" style_bg_opa="180" style_border_width="0" style_pad_all="0" style_radius="0" align="center" clickable="true">
-    <!-- Motion panel content (docked right edge) -->
-    <lv_obj name="motion_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+  <!-- Uses shared backdrop from navigation system -->
+  <view extends="lv_obj" name="motion_panel" width="#overlay_panel_width_large" height="100%" align="right_mid" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
       <!-- Header Bar -->
       <header_bar name="motion_header" title="Motion: XYZ"/>
       <!-- Content Area: Two Columns -->
@@ -103,6 +101,5 @@
           </lv_obj>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
   </view>
 </component>

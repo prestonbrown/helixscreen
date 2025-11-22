@@ -58,6 +58,9 @@ static bool subjects_initialized = false;
 // This replaces the old nav_history approach and eliminates guessing
 static std::vector<lv_obj_t*> panel_stack;
 
+// Shared overlay backdrop widget - created once and reused for all overlays
+static lv_obj_t* overlay_backdrop = nullptr;
+
 // Observer callback - updates all icon colors when active panel changes
 static void active_panel_observer_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     int32_t new_active_panel = lv_subject_get_int(subject);
@@ -212,6 +215,46 @@ void ui_nav_init() {
     subjects_initialized = true;
 
     spdlog::info("Navigation subjects initialized successfully");
+}
+
+void ui_nav_init_overlay_backdrop(lv_obj_t* screen) {
+    if (!screen) {
+        spdlog::error("NULL screen provided to ui_nav_init_overlay_backdrop");
+        return;
+    }
+
+    if (overlay_backdrop) {
+        spdlog::warn("Overlay backdrop already initialized");
+        return;
+    }
+
+    // Create shared backdrop widget - full screen, semi-transparent black
+    overlay_backdrop = lv_obj_create(screen);
+    if (!overlay_backdrop) {
+        spdlog::error("Failed to create overlay backdrop widget");
+        return;
+    }
+
+    // Configure backdrop to cover entire screen
+    lv_obj_set_size(overlay_backdrop, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_align(overlay_backdrop, LV_ALIGN_CENTER);
+
+    // Style: semi-transparent black background
+    // Note: LVGL software renderer doesn't support backdrop blur
+    // Using higher opacity (80%) to create "defocus" effect
+    lv_obj_set_style_bg_color(overlay_backdrop, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(overlay_backdrop, 204, LV_PART_MAIN); // 80% opacity (204/255)
+    lv_obj_set_style_border_width(overlay_backdrop, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(overlay_backdrop, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(overlay_backdrop, 0, LV_PART_MAIN);
+
+    // Make clickable to prevent clicks from passing through to panels behind
+    lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_CLICKABLE);
+
+    // Hidden by default - shown when overlays are pushed
+    lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
+
+    spdlog::info("Overlay backdrop initialized successfully");
 }
 
 void ui_nav_set_app_layout(lv_obj_t* app_layout) {
@@ -397,6 +440,10 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
         return;
     }
 
+    // Check if this is the first overlay (stack currently has only main panels)
+    // Stack starts with 1 main panel, so size==1 means no overlays yet
+    bool is_first_overlay = (panel_stack.size() == 1);
+
     // Hide current top panel (if any)
     if (!panel_stack.empty()) {
         lv_obj_t* current_top = panel_stack.back();
@@ -408,6 +455,20 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     lv_obj_remove_flag(overlay_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(overlay_panel);
     panel_stack.push_back(overlay_panel);
+
+    // Show shared backdrop if this is the first overlay
+    // IMPORTANT: Backdrop must be AFTER app_layout but BEFORE overlay panels
+    if (is_first_overlay && overlay_backdrop) {
+        lv_obj_remove_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
+
+        // Move backdrop to front first, then move overlay panel even further front
+        // This ensures: app_layout < backdrop < overlay_panel in z-order
+        lv_obj_move_foreground(overlay_backdrop);
+        lv_obj_move_foreground(overlay_panel); // Ensure panel is on top of backdrop
+
+        spdlog::debug("Showing overlay backdrop behind panel (stack was size 1, now {})",
+                      panel_stack.size());
+    }
 
     spdlog::debug("Showing overlay panel {} (stack depth: {})", (void*)overlay_panel,
                   panel_stack.size());
@@ -428,6 +489,12 @@ bool ui_nav_go_back() {
             // Don't hide app_layout (contains navbar + panels)
             if (child == app_layout_widget) {
                 spdlog::trace("  Child {}: app_layout (skip)", i);
+                continue;
+            }
+
+            // Don't hide shared backdrop - we'll handle it below
+            if (child == overlay_backdrop) {
+                spdlog::trace("  Child {}: overlay_backdrop (skip)", i);
                 continue;
             }
 
@@ -454,6 +521,12 @@ bool ui_nav_go_back() {
     if (!panel_stack.empty()) {
         panel_stack.pop_back();
         spdlog::debug("Popped panel from stack (remaining depth: {})", panel_stack.size());
+    }
+
+    // Hide backdrop if no more overlays remain
+    if (panel_stack.empty() && overlay_backdrop) {
+        lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
+        spdlog::debug("Hiding overlay backdrop (no more overlays)");
     }
 
     // Need at least one panel in stack to show

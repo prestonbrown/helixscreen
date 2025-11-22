@@ -100,14 +100,25 @@ void ui_nav_set_panels(lv_obj_t** panels);
 void ui_nav_set_app_layout(lv_obj_t* app_layout);
 
 /**
+ * @brief Initialize overlay backdrop widget
+ *
+ * Creates a shared backdrop widget used by all overlay panels.
+ * Should be called during ui_nav_init() to create the backdrop.
+ * The backdrop is hidden by default and shown/hidden by push_overlay/go_back.
+ *
+ * @param screen Screen to add backdrop to
+ */
+void ui_nav_init_overlay_backdrop(lv_obj_t* screen);
+
+/**
  * @brief Push overlay panel onto navigation history stack
  *
  * Shows the overlay panel and pushes it onto history stack.
  * Used for modal panels (motion, temp, extrusion, etc.) that
- * appear over main navigation.
+ * appear over main navigation. Automatically shows the shared backdrop.
  *
  * When overlay's back button is pressed, ui_nav_go_back()
- * restores the previous panel.
+ * restores the previous panel and hides the backdrop if no overlays remain.
  *
  * @param overlay_panel Overlay panel widget to show
  */
