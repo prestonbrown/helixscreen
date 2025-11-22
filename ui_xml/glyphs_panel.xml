@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * HelixScreen - LVGL 9 UI Prototype
+ * Copyright (C) 2025 Preston Brown
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+-->
+
+<component>
+    <view name="glyphs_panel" extends="lv_obj" width="100%" height="100%">
+        <!-- Container with vertical flex layout -->
+        <lv_obj width="100%" height="100%"
+                flex_flow="column"
+                style_bg_color="#bg_dark"
+                style_pad_all="0">
+
+            <!-- Header -->
+            <lv_obj width="100%" height="#header_height"
+                    style_bg_color="#panel_bg"
+                    style_pad_all="#padding_normal"
+                    flex_flow="row"
+                    style_flex_main_place="space_between"
+                    style_flex_cross_place="center">
+
+                <lv_label text="LVGL Symbol Glyphs"
+                         style_text_color="#text_primary"
+                         style_text_font="montserrat_20_bold"/>
+
+                <lv_label name="glyph_count_label"
+                         style_text_color="#text_secondary"
+                         style_text_font="montserrat_16"/>
+            </lv_obj>
+
+            <!-- Scrollable content area -->
+            <lv_obj width="100%" flex_grow="1"
+                    scrollable="true" scroll_dir="VER"
+                    flex_flow="column"
+                    style_bg_color="#bg_dark"
+                    style_pad_all="#padding_normal"
+                    style_pad_row="8">
+
+                <!-- Glyph items will be added here dynamically from C++ -->
+                <!-- Each item: [Icon] LV_SYMBOL_NAME -->
+
+            </lv_obj>
+        </lv_obj>
+    </view>
+</component>

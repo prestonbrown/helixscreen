@@ -36,6 +36,7 @@
 #include "ui_panel_controls_temp.h"
 #include "ui_panel_filament.h"
 #include "ui_panel_gcode_test.h"
+#include "ui_panel_glyphs.h"
 #include "ui_panel_home.h"
 #include "ui_panel_motion.h"
 #include "ui_panel_print_select.h"
@@ -135,7 +136,7 @@ static bool parse_command_line_args(
     int argc, char** argv, int& initial_panel, bool& show_motion, bool& show_nozzle_temp,
     bool& show_bed_temp, bool& show_extrusion, bool& show_print_status, bool& show_file_detail,
     bool& show_keypad, bool& show_keyboard, bool& show_step_test, bool& show_test_panel,
-    bool& show_gcode_test, bool& force_wizard, int& wizard_step, bool& panel_requested,
+    bool& show_gcode_test, bool& show_glyphs, bool& force_wizard, int& wizard_step, bool& panel_requested,
     int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled, int& screenshot_delay_sec,
     int& timeout_sec, int& verbosity, bool& dark_mode, bool& theme_requested, int& dpi) {
     // Parse arguments
@@ -208,11 +209,13 @@ static bool parse_command_line_args(
                 } else if (strcmp(panel_arg, "gcode-test") == 0 ||
                            strcmp(panel_arg, "gcode_test") == 0) {
                     show_gcode_test = true;
+                } else if (strcmp(panel_arg, "glyphs") == 0) {
+                    show_glyphs = true;
                 } else {
                     printf("Unknown panel: %s\n", panel_arg);
                     printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, "
                            "extrusion, print-status, filament, settings, advanced, print-select, "
-                           "step-test, test, gcode-test\n");
+                           "step-test, test, gcode-test, glyphs\n");
                     return false;
                 }
             } else {
@@ -504,7 +507,7 @@ static bool parse_command_line_args(
             printf("\nAvailable panels:\n");
             printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
             printf("  print-status, filament, settings, advanced, print-select,\n");
-            printf("  step-test, test, gcode-test\n");
+            printf("  step-test, test, gcode-test, glyphs\n");
             printf("\nScreen sizes:\n");
             printf("  tiny   = %dx%d\n", UI_SCREEN_TINY_W, UI_SCREEN_TINY_H);
             printf("  small  = %dx%d\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
@@ -668,6 +671,7 @@ static void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/print_select_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/step_progress_test.xml");
     lv_xml_register_component_from_file("A:ui_xml/gcode_test_panel.xml");
+    lv_xml_register_component_from_file("A:ui_xml/glyphs_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/app_layout.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_container.xml");
     lv_xml_register_component_from_file("A:ui_xml/network_list_item.xml");
@@ -1024,6 +1028,7 @@ int main(int argc, char** argv) {
     bool show_step_test = false;     // Special flag for step progress widget testing
     bool show_test_panel = false;    // Special flag for test/development panel
     bool show_gcode_test = false;    // Special flag for G-code 3D viewer testing
+    bool show_glyphs = false;        // Special flag for LVGL glyphs reference panel
     bool force_wizard = false;       // Force wizard to run even if config exists
     int wizard_step = -1;            // Specific wizard step to show (-1 means normal flow)
     bool panel_requested = false;    // Track if user explicitly requested a panel via CLI
@@ -1042,7 +1047,7 @@ int main(int argc, char** argv) {
     if (!parse_command_line_args(
             argc, argv, initial_panel, show_motion, show_nozzle_temp, show_bed_temp, show_extrusion,
             show_print_status, show_file_detail, show_keypad, show_keyboard, show_step_test,
-            show_test_panel, show_gcode_test, force_wizard, wizard_step, panel_requested,
+            show_test_panel, show_gcode_test, show_glyphs, force_wizard, wizard_step, panel_requested,
             display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec, timeout_sec,
             verbosity, dark_mode, theme_requested, dpi)) {
         return 0; // Help shown or parse error
@@ -1391,6 +1396,17 @@ int main(int argc, char** argv) {
             spdlog::debug("G-code test panel created successfully");
         } else {
             spdlog::error("Failed to create G-code test panel");
+        }
+    }
+
+    // Create glyphs panel if requested (independent of wizard state)
+    if (show_glyphs) {
+        spdlog::info("Creating glyphs reference panel");
+        lv_obj_t* glyphs_panel = ui_panel_glyphs_create(screen);
+        if (glyphs_panel) {
+            spdlog::debug("Glyphs panel created successfully");
+        } else {
+            spdlog::error("Failed to create glyphs panel");
         }
     }
 
