@@ -38,7 +38,7 @@ The current diamond cross-section implementation uses separate vertices for each
 
 ### Configuration Location
 
-- **Template**: `data/helixconfig.json.template`
+- **Template**: `config/helixconfig.json.template`
 - **Runtime**: Config loaded from path specified at startup (typically `/tmp/helixconfig.json` in development)
 - **Code**: Setting is read in `src/gcode_tinygl_renderer.cpp` initialization
 

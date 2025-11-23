@@ -16,7 +16,7 @@ package-lock.json
 compile_commands.json
 .fonts.stamp
 
-# Local config (user-specific, use data/helixconfig.json.template)
+# Local config (user-specific, use config/helixconfig.json.template)
 helixconfig.json
 
 # auto generated libhv log

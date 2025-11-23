@@ -1143,7 +1143,7 @@ int main(int argc, char** argv) {
 
     // Initialize tips manager (uses standard C++ file I/O, not LVGL's "A:" filesystem)
     TipsManager* tips_mgr = TipsManager::get_instance();
-    if (!tips_mgr->init("data/printing_tips.json")) {
+    if (!tips_mgr->init("config/printing_tips.json")) {
         spdlog::warn("Tips manager failed to initialize - tips will not be available");
     } else {
         spdlog::info("Loaded {} tips (version: {})", tips_mgr->get_total_tips(),

@@ -54,7 +54,7 @@
 **Files Modified:**
 - `src/moonraker_api.cpp` - Added validation helpers and checks to all methods
 - `include/moonraker_api.h` - Added SafetyLimits struct and configuration methods
-- `data/helixconfig.json.template` - Added safety_limits configuration section
+- `config/helixconfig.json.template` - Added safety_limits configuration section
 - `tests/unit/test_moonraker_api_security.cpp` - Comprehensive security tests
 
 ### ✅ Issue #5: Path Traversal in File Operations - FIXED (2025-11-03)

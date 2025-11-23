@@ -156,7 +156,7 @@ make V=1  # Shows full compiler commands
 
 ```bash
 # First time setup: Copy template to create user config
-cp data/helixconfig.json.template helixconfig.json
+cp config/helixconfig.json.template helixconfig.json
 
 # Template is versioned, user config is git-ignored
 git status
@@ -165,7 +165,7 @@ git status
 
 **Why this pattern:**
 - **helixconfig.json** (top-level) - User-specific settings, git-ignored
-- **data/helixconfig.json.template** - Default values, versioned in git
+- **config/helixconfig.json.template** - Default values, versioned in git
 - Prevents accidental commits of user-specific settings (API keys, local paths, preferences)
 - Provides reference defaults for new developers/installations
 
@@ -173,7 +173,7 @@ git status
 
 When adding new configuration options:
 
-1. **Add to template** (`data/helixconfig.json.template`)
+1. **Add to template** (`config/helixconfig.json.template`)
    ```json
    {
      "config_path": "helixconfig.json",

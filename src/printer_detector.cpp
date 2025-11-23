@@ -48,9 +48,9 @@ struct PrinterDatabase {
             return true;
 
         try {
-            std::ifstream file("data/printer_database.json");
+            std::ifstream file("config/printer_database.json");
             if (!file.is_open()) {
-                spdlog::error("[PrinterDetector] Failed to open data/printer_database.json");
+                spdlog::error("[PrinterDetector] Failed to open config/printer_database.json");
                 return false;
             }
 

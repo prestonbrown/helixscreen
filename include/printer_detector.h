@@ -68,7 +68,7 @@ struct PrinterHardwareData {
  * It returns printer type names as strings, which the caller can map to their
  * own data structures (e.g., UI dropdowns, config values).
  *
- * Detection heuristics are defined in data/printer_database.json, allowing
+ * Detection heuristics are defined in config/printer_database.json, allowing
  * new printer types to be added without recompilation.
  *
  * **Contract**: Returned type_name strings should match printer names in
@@ -80,7 +80,7 @@ class PrinterDetector {
     /**
      * @brief Detect printer type from hardware data
      *
-     * Loads heuristics from data/printer_database.json and executes pattern matching
+     * Loads heuristics from config/printer_database.json and executes pattern matching
      * rules to identify printer model. Supports multiple heuristic types:
      * - sensor_match: Pattern matching on sensors array
      * - fan_match: Pattern matching on fans array
