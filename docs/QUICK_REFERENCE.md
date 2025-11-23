@@ -1,5 +1,7 @@
 # LVGL 9 XML UI Quick Reference
 
+Quick patterns and cheat sheets for daily development. For comprehensive documentation, see [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md).
+
 ## Common Patterns
 
 ### Create XML Component with Reactive Binding
@@ -68,6 +70,8 @@ lv_obj_clear_flag(controls, LV_OBJ_FLAG_HIDDEN);
 
 **Why:** Component names in `<view name="...">` definitions don't propagate to instantiation tags. Without explicit names, `lv_obj_find_by_name()` returns NULL.
 
+## Custom Components
+
 ### Icon Component
 
 **Custom Material Design icon widget with semantic properties for sizing and color variants.**
@@ -93,9 +97,6 @@ lv_obj_clear_flag(controls, LV_OBJ_FLAG_HIDDEN);
 <!-- Custom color overrides variant -->
 <icon src="mat_warning" size="lg" color="0xFFFF00"/>
 <icon src="mat_error" size="md" color="#FF0000"/>
-
-<!-- All properties specified -->
-<icon src="mat_delete" size="xl" variant="accent" align="center"/>
 ```
 
 **Available Sizes:**
@@ -111,24 +112,6 @@ lv_obj_clear_flag(controls, LV_OBJ_FLAG_HIDDEN);
 - `accent` - Recolored with `#primary_color` (100% opacity)
 - `disabled` - Recolored with `#text_secondary` (50% opacity)
 - `none` - No recoloring (0% opacity, shows original icon colors)
-- *(empty/omitted)* - No variant applied (no recoloring)
-
-**Implementation:**
-- Custom LVGL widget extending `lv_image`
-- C++ property handlers parse semantic strings (`size`, `variant`)
-- Styles defined in `globals.xml` for easy theming
-- Automatic scaling: scale = size × 4 (64px base icons)
-- Validates icon sources and logs warnings for invalid values
-
-**C++ Registration (done in main.cpp):**
-```cpp
-#include "ui_icon.h"
-
-// Register widget before XML component loading
-material_icons_register();
-ui_icon_register_widget();  // Must be before icon.xml registration
-lv_xml_component_register_from_file("A:ui_xml/icon.xml");
-```
 
 **C++ Runtime API:**
 ```cpp
@@ -158,7 +141,6 @@ All icons use `mat_` prefix: `mat_home`, `mat_print`, `mat_pause`, `mat_heater`,
 - `height` - Explicit height override (optional, overrides size preset)
 - `knob_pad` - Knob padding in pixels (optional, overrides size preset)
 - `checked` - Initial state: `true` or `false` (default: `false`)
-- `orientation` - Switch orientation: `auto`, `horizontal`, `vertical` (default: `auto`)
 
 ```xml
 <!-- Basic usage with semantic size (recommended) -->
@@ -173,9 +155,6 @@ All icons use `mat_` prefix: `mat_home`, `mat_print`, `mat_pause`, `mat_heater`,
 <!-- Progressive enhancement: size preset + selective override -->
 <ui_switch size="medium" width="100"/>  <!-- Custom width, keeps medium height and knob_pad -->
 
-<!-- Backward compatible: explicit sizing still works -->
-<ui_switch width="64" height="32" knob_pad="2"/>
-
 <!-- Combine with standard LVGL properties -->
 <ui_switch size="medium" style_bg_color="#ff0000" style_margin_right="10"/>
 ```
@@ -188,31 +167,6 @@ All icons use `mat_` prefix: `mat_home`, `mat_print`, `mat_pause`, `mat_heater`,
 | `small` | 40×20px, pad=1 | 64×32px, pad=2 | 88×44px, pad=3 |
 | `medium` | 48×24px, pad=2 | 80×40px, pad=3 | 112×56px, pad=4 |
 | `large` | 56×28px, pad=2 | 88×44px, pad=3 | 128×64px, pad=4 |
-
-**Implementation:**
-- Extends `lv_switch` widget from LVGL core
-- 3-pass XML parsing: extract → preset → override (enables progressive enhancement)
-- Size presets initialized at startup based on display resolution
-- `knob_pad` controls internal spacing (set via `style_pad_knob_all`)
-- No size parameter = LVGL's built-in defaults (unchanged behavior)
-
-**C++ Registration (done in main.cpp):**
-```cpp
-#include "ui_switch.h"
-
-// Register widget before XML component loading
-ui_switch_register();  // Must be before components that use <ui_switch>
-```
-
-**Why Use Size Presets:**
-- **Better ergonomics:** 1 parameter instead of 3 (width + height + knob_pad)
-- **Responsive by default:** Automatically adapts to screen size
-- **Consistent scaling:** `size="medium"` means appropriately sized on any device
-- **Progressive enhancement:** Use presets as defaults, override when needed
-
-**Files:**
-- `include/ui_switch.h` - Public API
-- `src/ui_switch.cpp` - Implementation with size preset system
 
 ### Step Progress Widget
 
@@ -244,27 +198,12 @@ lv_obj_t* progress = ui_step_progress_create(parent, steps, 4, false);  // false
 ui_step_progress_set_current(progress, 2);  // Now on step 3
 ```
 
-**Visual Design:**
-- Circles: 24px diameter, 2px borders, filled for all states
-- Step numbers: montserrat_14 font, black on gray circles, white on red/green
-- Completed: Green filled circles with white checkmark (uses `LV_SYMBOL_OK`)
-- Active: Red filled circle with white number
-- Pending: Gray filled circles with black numbers
-- Labels: montserrat_20 (active) or montserrat_16 (other), bright white for active
-- Connectors: 1px width, green from completed steps, gray from all others
-
-**Implementation Notes:**
-- Hybrid XML+C++ widget (no XML component, pure C++ positioning)
-- Uses `lv_obj_update_layout()` + `LV_OBJ_FLAG_IGNORE_LAYOUT` for connector positioning
-- Border-aware positioning: 13px offset accounts for 2px border drawn inside circles
-- Separate `connector_index` tracking prevents state confusion during updates
-- Memory managed via `lv_malloc`/`lv_free`, cleanup on `LV_EVENT_DELETE`
-
 **Files:**
 - `include/ui_step_progress.h` - Public API
-- `src/ui_step_progress.cpp` - Implementation (455 lines)
+- `src/ui_step_progress.cpp` - Implementation
 - `ui_xml/step_progress_test.xml` - Test panel
-- `src/ui_panel_step_test.cpp` - Test panel implementation
+
+## Layout Patterns
 
 ### Flex Layout (Navbar Pattern)
 
@@ -281,7 +220,7 @@ ui_step_progress_set_current(progress, 2);  // Now on step 3
 </view>
 ```
 
-### Constants
+### Constants in globals.xml
 
 ```xml
 <!-- globals.xml -->
@@ -310,10 +249,9 @@ ui_step_progress_set_current(progress, 2);  // Now on step 3
 <lv_label style_text_font="#font_heading" style_text_color="#text_primary"/>
 ```
 
-**Theme Constants:**
-The `primary_color`, `secondary_color`, `text_primary`, and `text_secondary` constants are read by the C++ theme initialization system (`ui_theme_init()`) to configure LVGL's default theme. Edit these values in `globals.xml` to customize the theme without recompilation.
+## Subject Types & Bindings
 
-## Subject Types
+### Subject Initialization
 
 ```cpp
 // String
@@ -341,7 +279,7 @@ static void image_color_observer(lv_observer_t* obs, lv_subject_t* subj) {
 lv_subject_add_observer_obj(&color_subj, image_color_observer, image_widget, NULL);
 ```
 
-## XML Bindings
+### XML Binding Reference
 
 | Widget | Binding | Subject Type |
 |--------|---------|--------------|
@@ -350,7 +288,7 @@ lv_subject_add_observer_obj(&color_subj, image_color_observer, image_widget, NUL
 | `lv_arc` | `bind_value="name"` | Integer |
 | `lv_dropdown` | `bind_value="name"` | Integer |
 
-## Registration Order
+## Registration Order (CRITICAL)
 
 ```cpp
 // ALWAYS follow this order:
@@ -362,14 +300,14 @@ lv_xml_register_subject(...);                 // 5. Register subjects
 lv_xml_create(...);                           // 6. Create UI
 ```
 
-## Common Style Properties
+## Style Properties Cheat Sheet
 
 ```xml
 <!-- Layout -->
 width="100" height="200" x="50" y="100"
 flex_flow="row|column|row_wrap|column_wrap"
 flex_grow="1"
-align="center|top_left|bottom_right|..."
+align="center|top_left|bottom_right|left_mid|right_mid|..."
 
 <!-- Colors & Opacity -->
 style_bg_color="#hexcolor"
@@ -392,57 +330,6 @@ style_flex_cross_place="start|end|center"
 style_flex_track_place="start|end|center|space_between|space_evenly|space_around"
 ```
 
-## Testing & Screenshots
-
-```bash
-# Build and screenshot
-./scripts/screenshot.sh [binary_name] [output_name]
-
-# Examples
-./scripts/screenshot.sh                    # helix-ui-proto, timestamp
-./scripts/screenshot.sh test_nav navbar    # test_nav, navbar.png
-./scripts/screenshot.sh test_home_panel hp # test_home_panel, hp.png
-```
-
-### Test Panel (Development Scratchpad)
-
-The test panel provides a development scratchpad for testing new features without modifying production panels.
-
-**Access:**
-```bash
-./build/bin/helix-ui-proto --panel test -s small
-# OR: ./build/bin/helix-ui-proto -p test
-```
-
-**Features:**
-- Not accessible from navigation bar
-- Standalone panel (hides app layout)
-- Skips wizard on startup
-- Currently contains icon variant tests
-
-**Location:** `ui_xml/test_panel.xml`
-
-## File Structure
-
-```
-ui_xml/
-  ├── globals.xml           # Theme constants (colors, sizes, icons)
-  ├── navigation_bar.xml    # Navbar component
-  └── home_panel.xml        # Home panel component
-
-src/
-  └── ui_panel_home_xml.cpp # C++ wrapper for home_panel.xml
-
-include/
-  └── ui_panel_home_xml.h   # Header for C++ wrapper
-
-scripts/
-  ├── screenshot.sh                    # Build, run, capture screenshot
-  ├── generate-icon-consts.py          # Generate FontAwesome icon constants
-  ├── convert-material-icons-lvgl9.sh  # Convert Material SVGs to LVGL 9
-  └── LVGLImage.py                     # Official LVGL PNG→C converter
-```
-
 ## Icon & Image Assets
 
 ### Material Design Icons (Navigation)
@@ -452,15 +339,12 @@ scripts/
 ```bash
 # List all registered Material Design icons
 make material-icons-list
-# OR: .venv/bin/python3 scripts/material_icons.py list
 
 # Add new icons from Material Design Icons (download + convert + register)
 make material-icons-add ICONS="wifi-strength-1 wifi-strength-2 lock"
-# OR: .venv/bin/python3 scripts/material_icons.py add wifi-strength-1 wifi-strength-2 lock
 
 # Convert existing SVG files to LVGL C arrays
 make material-icons-convert SVGS="icon1.svg icon2.svg"
-# OR: .venv/bin/python3 scripts/material_icons.py convert icon1.svg icon2.svg
 ```
 
 **What the automated workflow does:**
@@ -475,7 +359,6 @@ make material-icons-convert SVGS="icon1.svg icon2.svg"
 ```bash
 # 1. SVG to PNG with ImageMagick
 # CRITICAL: Use -density 300 for sharp rendering when upscaling
-# Material Design icons are 24x24 native, upscaling to 64x64 requires high DPI
 magick -density 300 -background none icon.svg \
   -resize 64x64 -colorspace gray \
   -channel RGB -evaluate set 0 +channel \
@@ -529,7 +412,7 @@ void material_icons_register() {
 - ❌ **style_img_recolor** - Parser ignores abbreviated 'img'!
 - ✅ **style_image_recolor** - Must use full word 'image'
 
-**C++ Scaling & Recoloring (if needed):**
+**C++ Scaling & Recoloring:**
 ```cpp
 // Responsive scaling
 lv_image_set_scale_x(icon, 128);  // 50% (32px)
@@ -572,77 +455,7 @@ python3 scripts/generate-icon-consts.py
 - **Material Design Images**: Navigation, primary actions, needs recoloring
 - **FontAwesome Fonts**: UI content, inline icons, text-based rendering
 
-## API Documentation
-
-### Generating Documentation Locally
-
-Generate Doxygen API documentation for local viewing:
-
-```bash
-# From project root
-doxygen Doxyfile
-
-# View output
-open build/docs/html/index.html       # macOS
-xdg-open build/docs/html/index.html   # Linux
-```
-
-Check output for:
-- Warnings/errors in terminal
-- All documented classes appear
-- Parameters and return values shown
-- Code examples render correctly
-
-### Online Documentation
-
-Published API docs: `https://<owner>.github.io/<repo>/api/`
-
-Documentation is automatically updated when version tags are pushed:
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-### Adding Doxygen Comments
-
-Document all public APIs with Doxygen-style comments:
-
-```cpp
-/**
- * @brief Short one-line description
- *
- * Optional detailed description explaining behavior,
- * thread safety, usage patterns, etc.
- *
- * @param name Parameter description
- * @return Return value description
- */
-ReturnType function_name(ParamType name);
-```
-
-**Reference files with excellent documentation:**
-- `include/moonraker_client.h` - Comprehensive method docs
-- `include/wifi_manager.h` - Clear API with behavioral notes
-- `include/wifi_backend.h` - Abstract interface patterns
-
-**Complete guide:** See [DOXYGEN_GUIDE.md](DOXYGEN_GUIDE.md) for detailed patterns and best practices.
-
-## Debugging
-
-```cpp
-// Add debug output to verify subject updates
-void ui_panel_xyz_update(const char* text, int value) {
-    printf("DEBUG: Updating text to: %s\n", text);
-    lv_subject_copy_string(&text_subject, text);
-
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", value);
-    printf("DEBUG: Updating value to: %s\n", buf);
-    lv_subject_copy_string(&value_subject, buf);
-}
-```
-
-## Gotchas
+## Common Gotchas
 
 ❌ **Don't:** Use stack buffers for string subjects
 ```cpp
@@ -682,62 +495,23 @@ lv_xml_register_subject(...);
 lv_xml_create(...);
 ```
 
-## CI/CD Testing
+---
 
-### Test CI Build Locally (Before Push)
-
-**Ubuntu-like build:**
-```bash
-# Clean state
-make clean
-rm -rf ../libhv/lib
-
-# Build dependencies (as CI does)
-cd ../libhv
-./configure --with-openssl=no
-make -j$(nproc)
-
-# Build project
-cd ../prototype-ui9
-make -j$(nproc)
-./build/bin/helix-ui-proto --help
+❌ **Don't:** Use abbreviated 'img' in style properties
+```xml
+<lv_image style_img_recolor="#ff0000"/>  <!-- Parser ignores this -->
 ```
 
-**macOS build:**
-```bash
-# Clean state
-make clean
-rm -rf ../libhv/lib
-
-# Build dependencies
-cd ../libhv
-./configure --with-openssl=no
-make -j$(sysctl -n hw.ncpu)
-
-# Build project
-cd ../prototype-ui9
-make -j$(sysctl -n hw.ncpu)
-./build/bin/helix-ui-proto --help
+✅ **Do:** Use full word 'image'
+```xml
+<lv_image style_image_recolor="#ff0000"/>  <!-- This works -->
 ```
 
-### Run Quality Checks Locally
+---
 
-```bash
-# Check dependencies
-make check-deps
+## See Also
 
-# Validate XML encoding (ASCII is valid UTF-8 subset)
-for xml in ui_xml/*.xml; do
-  file "$xml" | grep -qE "UTF-8|ASCII" || echo "❌ $xml"
-done
-
-# Check copyright headers (excluding test files and generated files)
-for file in src/*.cpp include/*.h; do
-  basename=$(basename "$file")
-  if [[ "$basename" != test_*.cpp ]] && [[ "$basename" != *_data.h ]]; then
-    head -n 5 "$file" | grep -q "Copyright" || echo "⚠️  Missing: $file"
-  fi
-done
-```
-
-**See [CI_CD_GUIDE.md](CI_CD_GUIDE.md) for complete CI/CD documentation.**
+- **[LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md)** - Complete XML syntax and patterns
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and reactive patterns
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Build system and daily workflow
+- **[DOXYGEN_GUIDE.md](DOXYGEN_GUIDE.md)** - API documentation standards

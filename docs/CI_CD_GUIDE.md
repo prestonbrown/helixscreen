@@ -1,134 +1,155 @@
 # CI/CD Guide for HelixScreen
 
-This guide documents the GitHub Actions CI/CD setup for the prototype-ui9 project, including patterns for subdirectory workflows, platform-specific builds, and quality checks.
+This guide documents the GitHub Actions CI/CD setup for HelixScreen, including platform-specific builds and quality checks.
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Subdirectory CI Patterns](#subdirectory-ci-patterns)
+- [Workflows](#workflows)
 - [Platform-Specific Dependencies](#platform-specific-dependencies)
 - [Dependency Build Order](#dependency-build-order)
 - [Quality Checks](#quality-checks)
-- [Workflow Structure](#workflow-structure)
 - [Testing Locally](#testing-locally)
 - [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-The prototype-ui9 project uses GitHub Actions for continuous integration across multiple platforms:
+HelixScreen uses GitHub Actions for continuous integration across multiple platforms:
 
-- **Build Workflow** (`prototype-ui9-build.yml`) - Multi-platform builds (Ubuntu, macOS)
-- **Quality Workflow** (`prototype-ui9-quality.yml`) - Code quality, structure, and dependency validation
+- **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 14)
+- **Quality Workflow** (`.github/workflows/quality.yml`) - Code quality checks via shared script
 
-**Key Challenge:** This project lives in a subdirectory (`prototype-ui9/`) within the main guppyscreen repository, requiring special workflow configuration.
+Both workflows trigger on:
+- Pushes to `main` branch
+- Pushes to branches matching `claude/**` pattern
+- Pull requests to `main` branch
 
-## Subdirectory CI Patterns
+## Workflows
 
-### Problem: Running CI for a Subdirectory Project
+### Build Workflow
 
-Most GitHub Actions examples assume your project is at the repository root. When your project is in a subdirectory, you need to adjust workflow configuration.
+**File:** `.github/workflows/build.yml`
 
-### Solution: `working-directory` and Path Filtering
+The build workflow runs parallel builds on Ubuntu and macOS, then aggregates results:
 
 ```yaml
-# .github/workflows/prototype-ui9-build.yml
+name: Build
+
 on:
   push:
-    branches: [ main, ui-redesign ]
-    paths:
-      - 'prototype-ui9/**'                    # Only trigger on subdirectory changes
-      - '.github/workflows/prototype-ui9-*.yml'  # Also trigger on workflow changes
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build-ubuntu:
+    name: Build (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+    # ... build steps ...
+
+  build-macos:
+    name: Build (macOS 14)
+    runs-on: macos-14
+    # ... build steps ...
+
+  build-status:
+    name: Build Status
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: prototype-ui9      # All commands run in subdirectory
+    needs: [build-ubuntu, build-macos]
+    # ... aggregates results ...
 ```
 
-### Pattern: Artifact Paths Must Include Subdirectory
+**Key Steps:**
+1. Checkout with recursive submodules
+2. Install platform-specific dependencies
+3. Verify submodule initialization
+4. Install Node.js dependencies (font converters)
+5. Generate fonts (platform-conditional)
+6. Build dependencies (libhv, wpa_supplicant, TinyGL)
+7. Build HelixScreen
+8. Upload binary artifacts (7-day retention)
+
+**Artifacts:**
+- `helix-ui-proto-ubuntu-22.04` - Ubuntu binary
+- `helix-ui-proto-macos-14` - macOS binary
+
+### Quality Workflow
+
+**File:** `.github/workflows/quality.yml`
+
+Simple workflow that runs the shared quality checks script:
 
 ```yaml
-- name: Upload binary
-  uses: actions/upload-artifact@v4
-  with:
-    name: helix-ui-proto-ubuntu
-    path: prototype-ui9/build/bin/helix-ui-proto  # Must include subdirectory prefix
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality-checks:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Run quality checks
+      run: |
+        chmod +x scripts/quality-checks.sh
+        ./scripts/quality-checks.sh
 ```
 
-**Why:** The `working-directory` only affects `run` commands, not `uses` actions. Actions always run from repository root.
-
-### Benefits
-
-✅ **Reduced CI usage** - Workflows only trigger when relevant files change
-✅ **Faster feedback** - Parent repo changes don't trigger prototype-ui9 builds
-✅ **Clear separation** - Each subdirectory can have its own CI strategy
+**Checks performed by `scripts/quality-checks.sh`:**
+- Verify required directories exist
+- Check copyright headers on source files (excludes test files and generated files)
+- Validate XML file encoding (UTF-8/ASCII)
+- Check for TODO/FIXME comments without context
 
 ## Platform-Specific Dependencies
 
 ### Problem: macOS System Fonts Don't Exist on Linux
 
-Our initial CI failure:
+Our font generation uses macOS-specific fonts for arrow icons:
 ```
-lv_font_conv: error: Cannot read file "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
-```
-
-**Root cause:** Font generation scripts used macOS-specific paths:
-```json
-{
-  "convert-arrows-64": "lv_font_conv --font '/System/Library/Fonts/Supplemental/Arial Unicode.ttf' ..."
-}
+/System/Library/Fonts/Supplemental/Arial Unicode.ttf
 ```
 
-### Solution 1: Commit Pre-Generated Platform-Specific Files
+### Solution: Commit Pre-Generated Platform-Specific Files
 
-Arrow fonts are **already generated and committed** to the repository:
+Arrow fonts are **pre-generated and committed** to the repository:
 ```bash
 assets/fonts/arrows_32.c  # ✅ In git
 assets/fonts/arrows_48.c  # ✅ In git
 assets/fonts/arrows_64.c  # ✅ In git
 ```
 
-Linux builds skip regeneration and use committed files.
+### Platform-Conditional Font Generation
 
-### Solution 2: Platform-Conditional Generation
+**Ubuntu build:**
+```yaml
+- name: Generate fonts (FontAwesome only, skip platform-specific arrows)
+  run: npm run convert-fonts-ci
+```
 
-**Makefile pattern:**
-```makefile
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    PLATFORM := macOS
-else
-    PLATFORM := Linux
-endif
-
-.fonts.stamp: package.json
-	@if [ "$(PLATFORM)" = "macOS" ]; then \
-		npm run convert-all-fonts; \
-	else \
-		npm run convert-fonts-ci; \  # Skips platform-specific fonts
-	fi
+**macOS build:**
+```yaml
+- name: Generate fonts (all fonts including arrows)
+  run: npm run convert-all-fonts
 ```
 
 **package.json pattern:**
 ```json
 {
   "scripts": {
-    "convert-all-fonts": "npm run convert-font-64 && ... && npm run convert-arrows-64 && ...",
+    "convert-all-fonts": "npm run convert-font-64 && ... && npm run convert-arrows-64",
     "convert-fonts-ci": "npm run convert-font-64 && ... (no arrows)"
   }
 }
 ```
 
-### Lessons Learned
-
-⚠️ **Never assume platform-specific paths exist** on CI runners
-✅ **Commit generated files** for platform-specific dependencies
-✅ **Create CI-safe variants** of scripts that skip optional platform-specific steps
-✅ **Use platform detection** in Makefiles to choose appropriate commands
-
-### Other Platform Differences to Watch
+### Platform Differences Reference
 
 | Aspect | macOS | Linux |
 |--------|-------|-------|
@@ -140,215 +161,160 @@ endif
 
 ## Dependency Build Order
 
-### Problem: Missing Header Files
+HelixScreen depends on several libraries that must be built in order:
 
-Initial CI error:
-```
-include/config.h:7:10: fatal error: 'hv/json.hpp' file not found
-```
+### Build Order
 
-**Root cause:** Main project tried to compile before libhv was built.
+1. **libhv** - HTTP/WebSocket client library
+   ```bash
+   cd libhv
+   ./configure --with-http-client
+   make -j$(nproc)
+   ```
 
-### Solution: Build Dependencies First
+2. **wpa_supplicant** (Linux only) - WiFi management library
+   ```bash
+   make -C wpa_supplicant/wpa_supplicant -j$(nproc) libwpa_client.a
+   ```
+
+3. **TinyGL** - Software 3D rasterizer
+   ```bash
+   cd tinygl
+   make -j$(nproc)
+   ```
+
+4. **HelixScreen** - Main application
+   ```bash
+   make -j$(nproc)
+   ```
+
+### CI Workflow Pattern
 
 ```yaml
 - name: Build libhv
   run: |
-    cd ../libhv
-    ./configure --with-openssl=no
+    cd libhv
+    ./configure --with-http-client
+    make -j$(nproc) libhv
+    echo "✓ libhv built successfully"
+
+- name: Build wpa_supplicant client library
+  run: |
+    make -C wpa_supplicant/wpa_supplicant -j$(nproc) libwpa_client.a
+    echo "✓ wpa_supplicant client library built successfully"
+
+- name: Build TinyGL
+  run: |
+    cd tinygl
     make -j$(nproc)
+    echo "✓ TinyGL built successfully"
 
-- name: Build project
-  run: make -j$(nproc)
+- name: Build HelixScreen
+  run: |
+    make -j$(nproc)
+    echo "✓ HelixScreen built successfully"
 ```
-
-### Pattern: Symlinked Submodule Dependencies
-
-The prototype-ui9 project uses **symlinks** to parent repo submodules:
-```
-prototype-ui9/
-├── libhv -> ../libhv           # Symlink to parent repo submodule
-├── spdlog -> ../spdlog         # Symlink to parent repo submodule
-└── lvgl/                       # Real submodule in prototype-ui9
-```
-
-**CI workflow must:**
-1. Checkout with `submodules: recursive` to get all submodules
-2. Build parent repo dependencies (libhv) before building prototype-ui9
-3. Use `working-directory` to navigate relative paths (`cd ../libhv`)
-
-### Lessons Learned
-
-⚠️ **Symlinked dependencies aren't automatically built** by GitHub Actions
-✅ **Build dependencies explicitly** before main project
-✅ **Check dependency status** in CI logs (e.g., "⚠ libhv not built")
-✅ **Use relative paths** in CI to navigate to symlinked dependencies
 
 ## Quality Checks
 
-### Problem: False Positives in Copyright Header Checks
+The quality workflow uses a shared script (`scripts/quality-checks.sh`) that runs the same checks locally and in CI.
 
-Initial CI failure:
-```
-⚠️  Missing copyright header: src/test_dynamic_cards.cpp
-⚠️  Missing copyright header: include/helix_icon_data.h
-```
+### Copyright Header Checks
 
-**Root cause:** Test files and auto-generated files don't need copyright headers.
+**Pattern:** All source files must have GPL v3 copyright headers
 
-### Solution: Exclude Auto-Generated and Test Files
+**Exclusions:**
+- Test files: `test_*.cpp`
+- Generated files: `*_data.h`, `*_icon_data.h`
+- Third-party code
 
-```yaml
-- name: Check C++ copyright headers
-  run: |
-    for file in src/*.cpp include/*.h; do
-      basename=$(basename "$file")
-
-      # Skip test files and generated files
-      if [[ "$basename" == test_*.cpp ]] || [[ "$basename" == *_data.h ]]; then
-        echo "⏭️  Skipping: $file"
-        continue
-      fi
-
-      if ! head -n 5 "$file" | grep -q "Copyright"; then
-        echo "⚠️  Missing copyright header: $file"
-        MISSING=$((MISSING + 1))
-      fi
-    done
+```bash
+for file in src/*.cpp include/*.h; do
+  basename=$(basename "$file")
+  if [[ "$basename" == test_*.cpp ]] || [[ "$basename" == *_data.h ]]; then
+    continue  # Skip
+  fi
+  if ! head -n 5 "$file" | grep -q "Copyright"; then
+    echo "⚠️  Missing copyright header: $file"
+  fi
+done
 ```
 
-### Problem: ASCII Files Reported as Not UTF-8
+### XML Encoding Validation
 
-Initial CI failure:
-```
-❌ ui_xml/advanced_panel.xml is not UTF-8 encoded
-```
+**Pattern:** All XML files must be UTF-8 or ASCII encoded
 
-**Root cause:** The `file` command reports ASCII files as "ASCII text", not "UTF-8 text", even though ASCII is a valid subset of UTF-8.
-
-### Solution: Accept Both UTF-8 and ASCII
-
-```yaml
-- name: Check XML files
-  run: |
-    for xml in ui_xml/*.xml; do
-      if ! file "$xml" | grep -qE "UTF-8|ASCII"; then
-        echo "❌ $xml is not UTF-8/ASCII encoded"
-        exit 1
-      fi
-    done
+```bash
+for xml in ui_xml/*.xml; do
+  if ! file "$xml" | grep -qE "UTF-8|ASCII"; then
+    echo "❌ $xml is not UTF-8/ASCII encoded"
+    exit 1
+  fi
+done
 ```
 
-### Quality Check Patterns
+**Why ASCII is accepted:** ASCII is a valid subset of UTF-8, so ASCII files are UTF-8 compatible.
 
-| Check Type | Pattern to Exclude | Example |
-|------------|-------------------|---------|
-| Copyright headers | `test_*.cpp` | Test files |
-| Copyright headers | `*_data.h` | Auto-generated files |
-| Copyright headers | `*.min.js` | Minified files |
-| Linting | `vendor/*` | Third-party code |
-| Encoding | Accept "ASCII" as valid | ASCII ⊂ UTF-8 |
+### TODO/FIXME Comments
 
-### Lessons Learned
+**Pattern:** Check for uncommented TODOs that lack context
 
-⚠️ **Not all source files need copyright headers** (tests, generated files)
-✅ **Use pattern matching** to exclude special files (`test_*.cpp`, `*_data.h`)
-✅ **ASCII is valid UTF-8** - accept both in encoding checks
-✅ **Document exclusion patterns** in workflow for maintainability
-
-## Workflow Structure
-
-### Recommended Structure: Separate Build and Quality Workflows
-
-**Why separate?**
-- **Faster feedback** - Quality checks (1-2 min) complete before builds (5-10 min)
-- **Clear failure reasons** - Know immediately if it's a quality issue or build failure
-- **Parallelization** - Both run simultaneously
-
-### Build Workflow Structure
-
-```yaml
-jobs:
-  build-ubuntu:     # Ubuntu build job
-  build-macos:      # macOS build job
-  build-status:     # Summary job (runs after both)
+```bash
+if grep -r "TODO\|FIXME" src/ include/ --exclude-dir=build | grep -v "//.*TODO"; then
+  echo "⚠️  Found uncommented TODO/FIXME"
+fi
 ```
-
-**Key points:**
-- Multi-platform matrix builds run in parallel
-- Each platform uploads its binary as artifact
-- Summary job aggregates results and fails if any build fails
-
-### Quality Workflow Structure
-
-```yaml
-jobs:
-  dependency-check:    # Verify submodules, Makefile, scripts
-  project-structure:   # Verify required files exist
-  copyright-headers:   # Validate GPL v3 headers
-```
-
-**Key points:**
-- Independent checks run in parallel
-- Fast validation (no compilation)
-- Clear, actionable error messages
-
-### Artifact Retention
-
-```yaml
-- name: Upload binary
-  uses: actions/upload-artifact@v4
-  with:
-    retention-days: 7  # Good default for dev builds
-```
-
-**Recommendations:**
-- **7 days** - Development branches
-- **30 days** - Release candidates
-- **90 days** - Tagged releases
 
 ## Testing Locally
 
-Before pushing, test CI-like builds locally to catch issues early.
+Test CI-like builds locally before pushing to catch issues early.
 
-### Simulate Ubuntu CI Build
+### Simulate Ubuntu Build
 
 ```bash
-cd prototype-ui9
-
 # Clean state
 make clean
-rm -rf ../libhv/lib
 
-# Build dependencies (as CI does)
-cd ../libhv
-./configure --with-openssl=no
+# Build dependencies
+cd libhv
+./configure --with-http-client
 make -j$(nproc)
+cd ..
+
+make -C wpa_supplicant/wpa_supplicant -j$(nproc) libwpa_client.a
+
+cd tinygl
+make -j$(nproc)
+cd ..
 
 # Build project
-cd ../prototype-ui9
+npm install
+npm run convert-fonts-ci
 make -j$(nproc)
 
 # Verify binary
 ./build/bin/helix-ui-proto --help
 ```
 
-### Simulate macOS CI Build
+### Simulate macOS Build
 
 ```bash
-cd prototype-ui9
-
 # Clean state
 make clean
-rm -rf ../libhv/lib
 
 # Build dependencies
-cd ../libhv
-./configure --with-openssl=no
+cd libhv
+./configure --with-http-client
 make -j$(sysctl -n hw.ncpu)
+cd ..
+
+cd tinygl
+make -j$(sysctl -n hw.ncpu)
+cd ..
 
 # Build project
-cd ../prototype-ui9
+npm install
+npm run convert-all-fonts
 make -j$(sysctl -n hw.ncpu)
 
 # Verify binary
@@ -358,56 +324,33 @@ make -j$(sysctl -n hw.ncpu)
 ### Run Quality Checks Locally
 
 ```bash
-cd prototype-ui9
-
-# Check dependencies
-make check-deps
-
-# Validate XML encoding
-for xml in ui_xml/*.xml; do
-  file "$xml" | grep -qE "UTF-8|ASCII" || echo "❌ $xml"
-done
-
-# Check copyright headers (excluding test files)
-for file in src/*.cpp include/*.h; do
-  basename=$(basename "$file")
-  if [[ "$basename" != test_*.cpp ]] && [[ "$basename" != *_data.h ]]; then
-    head -n 5 "$file" | grep -q "Copyright" || echo "⚠️  $file"
-  fi
-done
+# Use the same script as CI
+./scripts/quality-checks.sh
 ```
 
-### Docker-Based CI Testing (Advanced)
+### Docker-Based CI Testing
 
-To exactly match CI environment:
+To exactly match the CI environment:
 
 ```bash
-# Ubuntu 22.04 (matches ubuntu-latest)
+# Ubuntu 22.04 (matches build workflow)
 docker run -it --rm -v "$PWD:/work" -w /work ubuntu:22.04 bash
 
 # Inside container
 apt update
-apt install -y libsdl2-dev clang make python3 npm git
-cd prototype-ui9
-# ... build steps ...
+apt install -y \
+  libsdl2-dev clang make python3 npm git \
+  libssl-dev pkg-config libfmt-dev \
+  libcairo2-dev libpango1.0-dev \
+  libpng-dev libjpeg-dev
+
+# Run build steps
+npm install
+npm run convert-fonts-ci
+# ... continue with build ...
 ```
 
 ## Troubleshooting
-
-### Workflow Not Triggering
-
-**Symptom:** Push to `ui-redesign` doesn't trigger workflow.
-
-**Check:**
-```yaml
-on:
-  push:
-    branches: [ main, ui-redesign ]  # Is your branch listed?
-    paths:
-      - 'prototype-ui9/**'            # Did you modify files in this path?
-```
-
-**Debug:** Look at "Actions" tab → "All workflows" (not just "Active workflows").
 
 ### Build Fails: "file not found"
 
@@ -416,13 +359,13 @@ on:
 fatal error: 'hv/json.hpp' file not found
 ```
 
-**Solution:** Add libhv build step **before** main build:
-```yaml
-- name: Build libhv
-  run: |
-    cd ../libhv
-    ./configure --with-openssl=no
-    make -j$(nproc)
+**Solution:** Ensure libhv is built before HelixScreen:
+```bash
+cd libhv
+./configure --with-http-client
+make -j$(nproc)
+cd ..
+make -j$(nproc)
 ```
 
 ### Font Generation Fails on Linux
@@ -432,57 +375,85 @@ fatal error: 'hv/json.hpp' file not found
 Cannot read file "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
 ```
 
-**Solution:** Use platform-conditional font generation (see [Platform-Specific Dependencies](#platform-specific-dependencies)).
+**Solution:** Use `npm run convert-fonts-ci` instead of `npm run convert-all-fonts` on Linux. The CI-safe version skips platform-specific arrow fonts (which are pre-generated and committed).
 
-### Artifacts Not Found
+### Submodule Issues
 
-**Symptom:** Artifact upload succeeds but download gives "artifact not found".
-
-**Solution:** Artifact paths must include subdirectory when using `working-directory`:
-```yaml
-# ❌ Wrong (relative to working-directory)
-path: build/bin/helix-ui-proto
-
-# ✅ Correct (relative to repo root)
-path: prototype-ui9/build/bin/helix-ui-proto
+**Symptom:**
+```
+fatal: not a git repository: lvgl/.git
 ```
 
-### Copyright Check Fails on Test Files
+**Solution:** Initialize submodules recursively:
+```bash
+git submodule update --init --recursive
+```
+
+### Quality Check Fails on Test Files
 
 **Symptom:**
 ```
 ⚠️  Missing copyright header: src/test_dynamic_cards.cpp
 ```
 
-**Solution:** Exclude test files and generated files (see [Quality Checks](#quality-checks)).
+**Solution:** The quality checks script should automatically exclude `test_*.cpp` files. If not, update `scripts/quality-checks.sh` to skip test files.
 
-### Workflow Runs on Unrelated Changes
+### Workflow Not Triggering
 
-**Symptom:** Workflow triggers when only parent repo files change.
+**Symptom:** Push to branch doesn't trigger workflow.
 
-**Solution:** Add `paths` filter:
+**Check:** Verify your branch name matches the trigger patterns:
+- `main` - Always triggers
+- `claude/**` - Any branch starting with `claude/` triggers
+- Pull requests to `main` - Always trigger
+
+**Debug:** Check the "Actions" tab in GitHub - workflows may be disabled or skipped.
+
+### Artifacts Not Found
+
+**Symptom:** Artifact upload succeeds but download gives "artifact not found".
+
+**Check workflow file:**
 ```yaml
-on:
-  push:
-    paths:
-      - 'prototype-ui9/**'
-      - '.github/workflows/prototype-ui9-*.yml'
+- name: Upload binary
+  uses: actions/upload-artifact@v4
+  with:
+    name: helix-ui-proto-ubuntu-22.04
+    path: build/bin/helix-ui-proto  # Verify this path is correct
+    retention-days: 7
 ```
 
-## Summary: CI/CD Best Practices
+**Verify:** Check that the binary actually exists at `build/bin/helix-ui-proto` after the build step.
 
-✅ **Path filtering** - Only trigger workflows when relevant files change
-✅ **Platform detection** - Handle platform-specific dependencies gracefully
-✅ **Build order** - Build dependencies before main project
-✅ **Exclude special files** - Skip test files and generated files in quality checks
-✅ **Clear failure messages** - Include helpful context in error output
-✅ **Test locally** - Simulate CI builds before pushing
-✅ **Separate workflows** - Build and quality checks in parallel
-✅ **Document exceptions** - Explain why files are excluded from checks
+## Workflow Best Practices
+
+✅ **Parallel platform builds** - Ubuntu and macOS build simultaneously
+✅ **Platform-conditional scripts** - Different font generation per platform
+✅ **Shared quality script** - Same checks locally and in CI
+✅ **Explicit dependency order** - Build libhv → wpa_supplicant → TinyGL → HelixScreen
+✅ **Clear error messages** - Include helpful context in build output
+✅ **Test locally first** - Simulate CI builds before pushing
+✅ **Artifact retention** - 7 days for development builds
+
+## Artifact Retention
+
+Current retention policy:
+
+- **7 days** - Development builds (current default)
+- **30 days** - Consider for release candidates
+- **90 days** - Consider for tagged releases
+
+To modify retention:
+```yaml
+- name: Upload binary
+  uses: actions/upload-artifact@v4
+  with:
+    retention-days: 30  # Adjust as needed
+```
 
 ## See Also
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [CLAUDE.md](../CLAUDE.md) - Project context for AI assistants
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Common development patterns
+- [DEVELOPMENT.md](../DEVELOPMENT.md) - Build system and daily workflow
+- [BUILD_SYSTEM.md](BUILD_SYSTEM.md) - Makefile details and submodule patches
 - [COPYRIGHT_HEADERS.md](COPYRIGHT_HEADERS.md) - GPL v3 header templates

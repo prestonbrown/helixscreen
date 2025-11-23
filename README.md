@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/prototype-ui9-build.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/prototype-ui9-build.yml/badge.svg?branch=main" alt="Build"></a>
-  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/prototype-ui9-quality.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/prototype-ui9-quality.yml/badge.svg?branch=main" alt="Code Quality"></a>
+  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/build.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/build.yml/badge.svg?branch=main" alt="Build"></a>
+  <a href="https://github.com/prestonbrown/helixscreen/actions/workflows/quality.yml"><img src="https://github.com/prestonbrown/helixscreen/actions/workflows/quality.yml/badge.svg?branch=main" alt="Code Quality"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
   <a href="https://lvgl.io/"><img src="https://img.shields.io/badge/LVGL-9.4.0-green.svg" alt="LVGL"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg" alt="Platform">
@@ -18,7 +18,7 @@ HelixScreen is a next-generation printer control interface built from the ground
 
 > ⚠️ **Development Status:** This project is in active development (Alpha/Prototype phase). Core functionality works, but expect breaking changes and incomplete features. See [Project Status](#project-status) for details.
 
-**Quick Links:** [Features](#key-features) · [Screenshots](#screenshots) · [Getting Started](#quick-start) · [Requirements](#requirements) · [Documentation](#documentation) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md)
+**Quick Links:** [Features](#key-features) · [Screenshots](#screenshots) · [Getting Started](#quick-start) · [Requirements](#requirements) · [Documentation](#documentation) · [FAQ](#faq) · [Contributing](docs/CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md)
 
 ---
 
@@ -308,7 +308,7 @@ A: Any 3D printer running Klipper + Moonraker. HelixScreen connects to your Moon
 A: Yes! Target hardware includes Pi 3/4/5, Zero 2 W, BTT Pad 7, and various vendor displays. Development currently uses SDL2 simulator; production framebuffer support is planned.
 
 **Q: How do I contribute?**
-A: See [CONTRIBUTING.md](CONTRIBUTING.md) for code standards, testing guidelines, and PR process. Contributions welcome!
+A: See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for code standards, testing guidelines, and PR process. Contributions welcome!
 
 **Q: Where can I report bugs or request features?**
 A: Open an issue on [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues). Please include steps to reproduce and your system info.
@@ -320,7 +320,7 @@ A: Production mode requires real hardware (printer, network). Test mode (`--test
 
 - **Issues & Bug Reports:** [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)
 - **Feature Requests:** [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues) (use "enhancement" label)
-- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) - Code standards and PR workflow
+- **Contributing:** [CONTRIBUTING.md](docs/CONTRIBUTING.md) - Code standards and PR workflow
 - **Discussions:** [GitHub Discussions](https://github.com/prestonbrown/helixscreen/discussions) (if enabled)
 
 **Getting Help:**
@@ -348,7 +348,7 @@ A: Production mode requires real hardware (printer, network). Test mode (`--test
 - **Themes not switching** → Verify globals.xml loaded, check theme registration logs
 - **Subjects not updating** → Check subject initialization order, verify bindings in XML
 
-For detailed troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md) or open a [GitHub issue](https://github.com/prestonbrown/helixscreen/issues).
+For detailed troubleshooting, see [DEVELOPMENT.md](docs/DEVELOPMENT.md) or open a [GitHub issue](https://github.com/prestonbrown/helixscreen/issues).
 
 ## Architecture
 
@@ -375,10 +375,10 @@ C++ Application Logic (src/*.cpp)
 - **[ROADMAP.md](docs/ROADMAP.md)** - Detailed feature timeline and milestones
 
 ### Development
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Build system and daily workflow
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Code standards and PR process
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and patterns
-- **[HANDOFF.md](HANDOFF.md)** - Current work status (for active developers)
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Build system and daily workflow
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Code standards and PR process
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design and patterns
+- **[HANDOFF.md](docs/HANDOFF.md)** - Current work status (for active developers)
 
 ### Technical Reference
 - **[LVGL 9 XML Guide](docs/LVGL9_XML_GUIDE.md)** - Complete XML syntax reference
