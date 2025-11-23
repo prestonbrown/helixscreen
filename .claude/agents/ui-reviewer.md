@@ -1,7 +1,7 @@
 ---
 name: ui-reviewer
-description: LVGL 9 XML UI auditor for identifying mistakes, anti-patterns, and improvement opportunities
-tools: All tools
+description: Use PROACTIVELY for LVGL 9 XML UI audits, identifying mistakes, anti-patterns, code smells, and improvement opportunities in UI implementations. MUST BE USED when reviewing XML components, validating LVGL patterns, or checking for UI best practices violations. Invoke automatically when user requests UI review, XML audit, or LVGL code quality check.
+tools: Read, Grep, Glob
 model: inherit
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: widget-maker
-description: LVGL 9 XML UI system expert for creating components, layouts, and reactive data binding
-tools: All tools
+description: Use PROACTIVELY when creating, modifying, reviewing, or debugging LVGL 9 XML UI components, layouts, widgets, panels, or reactive data bindings. MUST BE USED for ANY work involving files in ui_xml/ directory, LVGL XML syntax, lv_xml_create calls, or UI component development. Invoke automatically when user mentions XML components, UI layouts, widgets, toasts, modals, panels, or LVGL.
+tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 ---
 

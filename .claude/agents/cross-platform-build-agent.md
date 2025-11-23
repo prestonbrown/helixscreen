@@ -1,6 +1,6 @@
 ---
 name: cross-platform-build-agent
-description: Expert in multi-target builds, cross-compilation, toolchain management, and platform-specific build issues. Use when configuring builds, troubleshooting compilation errors, or handling platform-specific code.
+description: Use PROACTIVELY when configuring builds, troubleshooting compilation errors, fixing linker issues, managing toolchains, or handling platform-specific build problems (macOS/Linux). MUST BE USED for ANY work involving Makefile, build system, compiler errors, linking issues, or cross-platform compatibility. Invoke automatically when user mentions build failures, compilation errors, or make issues.
 tools: Bash, Read, Edit, Grep, Glob
 model: inherit
 ---

@@ -1,6 +1,6 @@
 ---
 name: gcode-preview-agent
-description: Expert in G-code file handling, thumbnail extraction, metadata parsing, and optimized image loading for embedded displays. Use when implementing file browsers, thumbnail extraction, or G-code metadata features.
+description: Use PROACTIVELY when implementing G-code file handling, thumbnail extraction, metadata parsing, file browser features, or optimized image loading for embedded displays. MUST BE USED for ANY work involving G-code files, print file selection, thumbnail generation, or file metadata. Invoke automatically when user mentions G-code, thumbnails, file browser, or print file features.
 tools: Read, Edit, Write, Grep, Glob, Bash, WebFetch
 model: inherit
 ---

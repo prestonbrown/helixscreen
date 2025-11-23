@@ -1,6 +1,6 @@
 ---
 name: test-harness-agent
-description: Expert in creating unit tests, mocking WebSocket responses, generating test fixtures, and implementing automated testing. Use when writing tests, creating mocks, or setting up CI/CD pipelines.
+description: Use PROACTIVELY when creating unit tests, mocking WebSocket responses, generating test fixtures, implementing automated testing, or setting up CI/CD pipelines. MUST BE USED for ANY work involving Catch2 tests, mocks, test infrastructure, or testing workflows. Invoke automatically when user mentions tests, mocking, test fixtures, or CI/CD.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: inherit
 ---

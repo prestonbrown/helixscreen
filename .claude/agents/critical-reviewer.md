@@ -1,7 +1,7 @@
 ---
 name: critical-reviewer
-description: Paranoid security expert and QA engineer for comprehensive code review and validation
-tools: All tools
+description: Use PROACTIVELY for comprehensive code review, security audits, bug detection, logic error analysis, and code quality validation. MUST BE USED when reviewing implementations, checking for vulnerabilities, validating architecture, or performing paranoid QA on new features. Invoke automatically when user requests code review, security check, or quality validation.
+tools: Read, Grep, Glob, Bash
 model: inherit
 ---
 
