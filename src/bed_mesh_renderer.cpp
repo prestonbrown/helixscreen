@@ -369,6 +369,10 @@ void bed_mesh_renderer_destroy(bed_mesh_renderer_t* renderer) {
 
 bool bed_mesh_renderer_set_mesh_data(bed_mesh_renderer_t* renderer, const float* const* mesh,
                                      int rows, int cols) {
+    // Security: Maximum dimensions to prevent integer overflow and memory exhaustion
+    // A 1000x1000 mesh = 1 million points, which is already excessive for bed leveling
+    constexpr int MAX_MESH_DIMENSION = 1000;
+
     if (!renderer || !mesh || rows <= 0 || cols <= 0) {
         spdlog::error(
             "Invalid parameters for set_mesh_data: renderer={}, mesh={}, rows={}, cols={}",
@@ -376,6 +380,27 @@ bool bed_mesh_renderer_set_mesh_data(bed_mesh_renderer_t* renderer, const float*
         if (renderer) {
             renderer->state = RendererState::ERROR;
         }
+        return false;
+    }
+
+    // Security: Validate maximum dimensions to prevent integer overflow
+    if (rows > MAX_MESH_DIMENSION || cols > MAX_MESH_DIMENSION) {
+        spdlog::error(
+            "Mesh dimensions too large: {}x{} exceeds maximum {}x{}",
+            rows, cols, MAX_MESH_DIMENSION, MAX_MESH_DIMENSION);
+        renderer->state = RendererState::ERROR;
+        return false;
+    }
+
+    // Security: Check for integer overflow in quad count calculation
+    // Number of quads = (rows - 1) * (cols - 1)
+    // Use size_t to detect overflow before casting to int
+    size_t quad_count_size_t = static_cast<size_t>(rows - 1) * static_cast<size_t>(cols - 1);
+    if (quad_count_size_t > static_cast<size_t>(INT_MAX)) {
+        spdlog::error(
+            "Mesh dimensions would cause integer overflow: {}x{} quads exceeds INT_MAX",
+            rows - 1, cols - 1);
+        renderer->state = RendererState::ERROR;
         return false;
     }
 
