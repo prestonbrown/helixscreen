@@ -29,9 +29,9 @@ endif
 #extract the maximum possible performance from gcc.
 
 #CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function
-CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function -mmacosx-version-min=14.0 $(OPENMP_FLAGS)
+CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function $(OPENMP_FLAGS)
 #CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function
-CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function -mmacosx-version-min=14.0 $(OPENMP_FLAGS)
+CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function $(OPENMP_FLAGS)
 
 
 #CFLAGS= -Wall -Ofast -std=gnu99 -DNDEBUG -mtune=native
