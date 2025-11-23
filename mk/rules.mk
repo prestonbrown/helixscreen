@@ -39,6 +39,18 @@ $(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(TINYGL_LIB) $(APP_C_OBJS) $(APP_OBJS) $(OB
 # Collect all header dependencies
 HEADERS := $(shell find $(INC_DIR) -name "*.h" 2>/dev/null)
 
+# Precompiled header rule (must be built before any C++ compilation)
+$(PCH): $(PCH_HEADER) $(HEADERS) $(LIBHV_LIB)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(MAGENTA)$(BOLD)[PCH]$(RESET) $<"
+ifeq ($(V),1)
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -x c++-header -c $< -o $@"
+endif
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -x c++-header -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ PCH compilation failed:$(RESET) $<"; \
+		exit 1; \
+	}
+
 # Compile app C sources (depend on headers and libhv for hv/json.hpp)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) $(LIBHV_LIB)
 	$(Q)mkdir -p $(dir $@)
@@ -52,29 +64,29 @@ endif
 		exit 1; \
 	}
 
-# Compile app C++ sources (depend on headers and libhv for hv/json.hpp)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) $(LIBHV_LIB)
+# Compile app C++ sources (depend on headers, libhv, and PCH)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) $(LIBHV_LIB) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
-		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
 		exit 1; \
 	}
 
-# Compile app Objective-C++ sources (macOS .mm files, depend on headers and libhv for hv/json.hpp)
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm $(HEADERS) $(LIBHV_LIB)
+# Compile app Objective-C++ sources (macOS .mm files, depend on headers, libhv, and PCH)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm $(HEADERS) $(LIBHV_LIB) $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[OBJCXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
-		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
 		exit 1; \
 	}
 
@@ -90,14 +102,14 @@ endif
 		exit 1; \
 	}
 
-# Compile LVGL C++ sources (ThorVG)
-$(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.cpp
+# Compile LVGL C++ sources (ThorVG) - use PCH
+$(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.cpp $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
@@ -129,7 +141,7 @@ run: $(TARGET)
 clean:
 	$(ECHO) "$(YELLOW)Cleaning build artifacts...$(RESET)"
 	$(Q)if [ -d "$(BUILD_DIR)" ]; then \
-		echo "$(YELLOW)→ Removing:$(RESET) $(BUILD_DIR)"; \
+		echo "$(YELLOW)→ Removing:$(RESET) $(BUILD_DIR) (includes PCH and .d files)"; \
 		rm -rf $(BUILD_DIR); \
 		echo "$(GREEN)✓ Clean complete$(RESET)"; \
 	else \

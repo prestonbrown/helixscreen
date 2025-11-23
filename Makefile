@@ -100,8 +100,22 @@ ifeq ($(origin CXX),default)
     endif
 endif
 
+# Ccache integration - auto-detect and use if available (10x faster rebuilds)
+CCACHE := $(shell command -v ccache 2>/dev/null)
+ifneq ($(CCACHE),)
+    CC := ccache $(CC)
+    CXX := ccache $(CXX)
+    $(info Using ccache for faster rebuilds)
+endif
+
+# Compiler flags
 CFLAGS := -std=c11 -Wall -Wextra -O2 -g -D_GNU_SOURCE
 CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -g
+
+# Automatic dependency tracking (-MMD generates .d files, -MP adds phony targets)
+DEP_FLAGS := -MMD -MP
+CFLAGS += $(DEP_FLAGS)
+CXXFLAGS += $(DEP_FLAGS)
 
 # Platform detection (needed early for conditional compilation)
 UNAME_S := $(shell uname -s)
@@ -232,6 +246,11 @@ endif
 WPA_DIR := lib/wpa_supplicant
 WPA_CLIENT_LIB := $(WPA_DIR)/wpa_supplicant/libwpa_client.a
 WPA_INC := -I$(WPA_DIR)/src/common -I$(WPA_DIR)/src/utils
+
+# Precompiled header for LVGL (30-50% faster clean builds)
+PCH_HEADER := $(INC_DIR)/lvgl_pch.h
+PCH := $(BUILD_DIR)/lvgl_pch.h.gch
+PCH_FLAGS := -include $(PCH_HEADER)
 
 # Include paths
 INCLUDES := -I. -I$(INC_DIR) -Ilib -Ilib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(TINYGL_INC) $(WPA_INC) $(SDL2_INC)
@@ -376,3 +395,8 @@ include mk/tests.mk
 include mk/fonts.mk
 include mk/format.mk
 include mk/rules.mk
+
+# Include compiler-generated dependency files (.d files from -MMD -MP)
+# The '-' prefix suppresses errors if .d files don't exist yet
+DEP_FILES := $(shell find $(BUILD_DIR) -name "*.d" 2>/dev/null)
+-include $(DEP_FILES)
