@@ -180,12 +180,12 @@ lv_xml_register_widget("widget_name", create_cb, apply_cb);
 
 ## Documentation Structure
 
-📋 **HANDOFF.md** - Active work + next 3 priorities (≤150 lines, prune aggressively)
-🗺️ **ROADMAP.md** - Future features and milestones
-📖 **README.md** - Project overview and quick start
-🔧 **DEVELOPMENT.md** - Build system and daily workflow
-🏗️ **ARCHITECTURE.md** - System design and patterns
-✅ **CONTRIBUTING.md** - Code standards and git workflow
+📋 **docs/HANDOFF.md** - Active work + next 3 priorities (≤150 lines, prune aggressively)
+🗺️ **docs/ROADMAP.md** - Future features and milestones
+📖 **README.md** - Project overview and quick start (root level)
+🔧 **docs/DEVELOPMENT.md** - Build system and daily workflow
+🏗️ **docs/ARCHITECTURE.md** - System design and patterns
+✅ **docs/CONTRIBUTING.md** - Code standards and git workflow
 
 **Technical Reference (lazy-load only when needed):**
 📘 **docs/LVGL9_XML_GUIDE.md** - Complete XML reference
@@ -198,13 +198,26 @@ lv_xml_register_widget("widget_name", create_cb, apply_cb);
 ## File Organization
 
 ```
-prototype-ui9/
+helixscreen/
 ├── src/              # C++ business logic
 ├── include/          # Headers
+├── lib/              # External libraries and dependencies
+│   ├── lvgl/         # LVGL 9.4 UI library (submodule)
+│   ├── libhv/        # HTTP/WebSocket library (submodule)
+│   ├── spdlog/       # Logging library (submodule)
+│   ├── sdl2/         # SDL2 for development (submodule)
+│   ├── glm/          # OpenGL Mathematics (submodule)
+│   ├── openvdb/      # VDB library (submodule)
+│   ├── wpa_supplicant/ # WiFi management (submodule)
+│   └── tinygl/       # Software 3D rasterizer (local)
 ├── ui_xml/           # XML component definitions
-├── assets/           # Fonts, images
+├── assets/           # Fonts, images, icons
+├── config/           # Configuration templates and data
+│   ├── helixconfig.json.template
+│   ├── printer_database.json
+│   └── printing_tips.json
 ├── scripts/          # Build/screenshot automation
-├── docs/             # Documentation
+├── docs/             # All documentation files
 └── Makefile          # Build system
 ```
 
