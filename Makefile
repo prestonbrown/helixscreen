@@ -100,8 +100,12 @@ ifeq ($(origin CXX),default)
     endif
 endif
 
-CFLAGS := -std=c11 -Wall -Wextra -O2 -g -D_GNU_SOURCE
-CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -g
+CFLAGS := -std=c11 -Wall -Wextra -O2 -g -D_GNU_SOURCE \
+    -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fno-common \
+    -Werror=format-security
+CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -g \
+    -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fno-common \
+    -Werror=format-security
 
 # Platform detection (needed early for conditional compilation)
 UNAME_S := $(shell uname -s)
@@ -250,13 +254,16 @@ ifeq ($(UNAME_S),Darwin)
 
     CFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
-    LDFLAGS := $(LDFLAGS_COMMON) -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
+    # Security: PIE enabled by default on modern macOS, but explicit for clarity
+    LDFLAGS := $(LDFLAGS_COMMON) -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv -Wl,-pie
     PLATFORM := macOS
     WPA_DEPS :=
 else
     # Linux - Include libwpa_client.a for WiFi control
     NPROC := $(shell nproc 2>/dev/null || echo 4)
-    LDFLAGS := $(LDFLAGS_COMMON) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl
+    # Security: PIE for ASLR, RELRO for GOT protection
+    LDFLAGS := $(LDFLAGS_COMMON) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl \
+        -pie -Wl,-z,relro,-z,now
     PLATFORM := Linux
     WPA_DEPS := $(WPA_CLIENT_LIB)
 endif
