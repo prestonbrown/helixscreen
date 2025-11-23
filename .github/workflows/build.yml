@@ -27,7 +27,18 @@ jobs:
           python3 \
           npm \
           libssl-dev \
-          pkg-config
+          pkg-config \
+          libfmt-dev \
+          libcairo2-dev \
+          libpango1.0-dev \
+          libpng-dev \
+          libjpeg-dev
+
+    - name: Verify submodules
+      run: |
+        echo "Checking submodule status..."
+        git submodule status
+        echo "✓ Submodules initialized"
 
     - name: Install Node.js dependencies
       run: npm install
@@ -37,6 +48,11 @@ jobs:
 
     - name: Configure wpa_supplicant build
       run: |
+        # Verify wpa_supplicant submodule exists before configuring
+        if [ ! -d "wpa_supplicant/wpa_supplicant" ]; then
+          echo "❌ wpa_supplicant submodule not initialized"
+          exit 1
+        fi
         # Create minimal .config for wpa_supplicant client library build
         cat > wpa_supplicant/wpa_supplicant/.config << 'EOF'
         CONFIG_CTRL_IFACE=y
@@ -45,9 +61,15 @@ jobs:
         EOF
         echo "✓ wpa_supplicant config created"
 
+    - name: Build libhv
+      run: |
+        cd libhv
+        ./configure --with-http-client
+        make -j$(nproc) libhv
+        echo "✓ libhv built successfully"
+
     - name: Build HelixScreen
       run: |
-        # The Makefile handles building libhv and wpa_supplicant automatically
         make -j$(nproc)
         echo "✓ HelixScreen built successfully"
 
@@ -79,15 +101,27 @@ jobs:
         # node/npm usually pre-installed on GitHub Actions macOS runners
         # If not installed, brew install node will also provide npm
 
+    - name: Verify submodules
+      run: |
+        echo "Checking submodule status..."
+        git submodule status
+        echo "✓ Submodules initialized"
+
     - name: Install Node.js dependencies
       run: npm install
 
     - name: Generate fonts (all fonts including arrows)
       run: npm run convert-all-fonts
 
+    - name: Build libhv
+      run: |
+        cd libhv
+        ./configure --with-http-client
+        make -j$(sysctl -n hw.ncpu) libhv
+        echo "✓ libhv built successfully"
+
     - name: Build HelixScreen
       run: |
-        # The Makefile handles building libhv automatically
         make -j$(sysctl -n hw.ncpu)
         echo "✓ HelixScreen built successfully"
 
