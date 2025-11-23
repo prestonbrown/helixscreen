@@ -49,8 +49,30 @@ void Config::init(const std::string& config_path) {
     if (stat(config_path.c_str(), &buffer) == 0) {
         // Load existing config
         spdlog::info("Loading config from {}", config_path);
-        data = json::parse(std::fstream(config_path));
-    } else {
+        try {
+            std::ifstream config_file(config_path);
+            if (!config_file.is_open()) {
+                spdlog::error("Failed to open config file for reading: {}", config_path);
+                spdlog::warn("Using default configuration instead");
+                // Fall through to create default config
+            } else {
+                data = json::parse(config_file);
+                spdlog::debug("Config loaded successfully from {}", config_path);
+                config_file.close();
+            }
+        } catch (const json::parse_error& e) {
+            spdlog::error("JSON parse error in config file {}: {}", config_path, e.what());
+            spdlog::warn("Using default configuration instead");
+            // Fall through to create default config
+        } catch (const std::exception& e) {
+            spdlog::error("Error reading config file {}: {}", config_path, e.what());
+            spdlog::warn("Using default configuration instead");
+            // Fall through to create default config
+        }
+    }
+
+    // Create default config if not loaded
+    if (data.is_null() || data.empty()) {
         // Create default config
         spdlog::info("Creating default config at {}", config_path);
         data = {{"log_path", "/tmp/helixscreen.log"},
@@ -116,8 +138,27 @@ void Config::init(const std::string& config_path) {
     }
 
     // Save updated config with any new defaults
-    std::ofstream o(config_path);
-    o << std::setw(2) << data << std::endl;
+    try {
+        std::ofstream o(config_path);
+        if (!o.is_open()) {
+            spdlog::error("Failed to open config file for writing during init: {}", config_path);
+            // Continue anyway - config is loaded in memory
+        } else {
+            o << std::setw(2) << data << std::endl;
+
+            if (!o.good()) {
+                spdlog::error("Error writing config file during init: {}", config_path);
+                // Continue anyway - config is loaded in memory
+            } else {
+                spdlog::debug("Config file saved successfully: {}", config_path);
+            }
+
+            o.close();
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("Exception while saving config during init: {}", e.what());
+        // Continue anyway - config is loaded in memory
+    }
 
     spdlog::info("Config initialized: moonraker={}:{}", get<std::string>(df() + "moonraker_host"),
                  get<int>(df() + "moonraker_port"));
