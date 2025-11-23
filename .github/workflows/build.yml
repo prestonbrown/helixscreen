@@ -68,6 +68,12 @@ jobs:
         make -j$(nproc) libhv
         echo "✓ libhv built successfully"
 
+    - name: Build wpa_supplicant client library
+      run: |
+        # Build libwpa_client.a for WiFi control on Linux
+        make -C wpa_supplicant/wpa_supplicant -j$(nproc) libwpa_client.a
+        echo "✓ wpa_supplicant client library built successfully"
+
     - name: Build HelixScreen
       run: |
         make -j$(nproc)
