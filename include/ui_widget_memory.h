@@ -71,6 +71,7 @@
 
 #include "lvgl/lvgl.h"
 
+#include <cstring>  // for memset
 #include <memory>
 
 /**
