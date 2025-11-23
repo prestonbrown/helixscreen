@@ -14,10 +14,11 @@
 # - TEST_CORE_DEPS: Always required (Catch2, test utilities, test objects)
 # - TEST_LVGL_DEPS: Required for all UI tests (includes ThorVG for SVG support)
 # - TEST_WIZARD_DEPS: Wizard validation and UI screens
-# - TEST_UI_DEPS: Common UI components (navigation, theme, modals)
+# - TEST_UI_DEPS: Common UI components (navigation, theme, modals, utils)
 # - TEST_WIFI_DEPS: Network managers and backends
 # - TEST_MOONRAKER_DEPS: Printer communication (includes libhv WebSocket)
 # - TEST_CONFIG_DEPS: Configuration and utilities
+# - TEST_GCODE_DEPS: GCode parsing, geometry, bed mesh transforms
 # - TEST_PLATFORM_DEPS: Platform-specific (wpa_supplicant on Linux)
 
 # Core test infrastructure (always required)
@@ -37,16 +38,21 @@ TEST_WIZARD_DEPS := \
     $(OBJ_DIR)/ui_wizard_fan_select.o \
     $(OBJ_DIR)/ui_wizard_led_select.o \
     $(OBJ_DIR)/ui_wizard_printer_identify.o \
-    $(OBJ_DIR)/ui_wizard_summary.o
+    $(OBJ_DIR)/ui_wizard_summary.o \
+    $(OBJ_DIR)/ui_wizard_helpers.o \
+    $(OBJ_DIR)/ui_wizard_hardware_selector.o
 
 # UI components (theme, modals, navigation)
+# Note: ui_icon.o and ui_switch.o excluded - their tests include the .cpp directly
 TEST_UI_DEPS := \
     $(OBJ_DIR)/ui_nav.o \
     $(OBJ_DIR)/ui_temp_graph.o \
     $(OBJ_DIR)/ui_keyboard.o \
     $(OBJ_DIR)/ui_modal.o \
     $(OBJ_DIR)/ui_theme.o \
-    $(OBJ_DIR)/helix_theme.o
+    $(OBJ_DIR)/helix_theme.o \
+    $(OBJ_DIR)/ui_utils.o \
+    $(OBJ_DIR)/ui_temperature_utils.o
 
 # Network/WiFi components
 TEST_WIFI_DEPS := \
@@ -71,6 +77,14 @@ TEST_MOONRAKER_DEPS := \
 TEST_CONFIG_DEPS := \
     $(OBJ_DIR)/config.o \
     $(OBJ_DIR)/tips_manager.o
+
+# GCode parsing and geometry (for gcode tests and bed mesh)
+TEST_GCODE_DEPS := \
+    $(OBJ_DIR)/gcode_parser.o \
+    $(OBJ_DIR)/gcode_geometry_builder.o \
+    $(OBJ_DIR)/gcode_camera.o \
+    $(OBJ_DIR)/bed_mesh_coordinate_transform.o \
+    $(OBJ_DIR)/bed_mesh_renderer.o
 
 # Platform-specific dependencies (Linux wpa_supplicant, macOS frameworks via LDFLAGS)
 TEST_PLATFORM_DEPS := $(WPA_DEPS)
@@ -125,6 +139,7 @@ $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(TEST_WIFI_DEPS) \
              $(TEST_MOONRAKER_DEPS) \
              $(TEST_CONFIG_DEPS) \
+             $(TEST_GCODE_DEPS) \
              $(TEST_PLATFORM_DEPS)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) run_tests"
