@@ -77,6 +77,30 @@ double mesh_row_to_world_y(int row, int rows, double scale);
  */
 double mesh_z_to_world_z(double z_height, double z_center, double z_scale);
 
+/**
+ * @brief Compute Z-center value for mesh rendering
+ *
+ * Calculates the midpoint of mesh Z values for centering the mesh around origin.
+ * This value is used across all rendering functions for consistent Z positioning.
+ *
+ * @param mesh_min_z Minimum Z value in mesh data
+ * @param mesh_max_z Maximum Z value in mesh data
+ * @return Center Z value (min_z + max_z) / 2
+ */
+double compute_mesh_z_center(double mesh_min_z, double mesh_max_z);
+
+/**
+ * @brief Compute grid plane Z coordinate in world space
+ *
+ * Calculates the Z coordinate for the base grid plane used in axis rendering.
+ * The grid sits at the base of the mesh after centering and scaling.
+ *
+ * @param z_center Mesh Z center value (from compute_mesh_z_center)
+ * @param z_scale Vertical amplification factor
+ * @return Grid plane Z coordinate in world space
+ */
+double compute_grid_z(double z_center, double z_scale);
+
 } // namespace BedMeshCoordinateTransform
 
 #endif // BED_MESH_COORDINATE_TRANSFORM_H

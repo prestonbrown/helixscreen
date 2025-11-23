@@ -127,11 +127,6 @@ typedef struct {
     lv_color_t center_color; // Fallback solid color for fast rendering (drag mode)
 } bed_mesh_quad_3d_t;
 
-// RGB color structure (for intermediate calculations)
-typedef struct {
-    uint8_t r, g, b;
-} bed_mesh_rgb_t;
-
 // View/camera state for interactive rotation
 typedef struct {
     double angle_x;   // Tilt angle (up/down rotation in degrees)

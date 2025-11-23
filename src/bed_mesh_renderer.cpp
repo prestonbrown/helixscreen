@@ -24,6 +24,8 @@
 #include "bed_mesh_renderer.h"
 
 #include "bed_mesh_coordinate_transform.h"
+#include "bed_mesh_gradient.h"
+#include "bed_mesh_projection.h"
 
 #include <spdlog/spdlog.h>
 
@@ -61,36 +63,11 @@ const lv_color_t AXIS_LINE_COLOR = lv_color_make(180, 180, 180); // Light gray
 constexpr double AXIS_EXTENSION_FACTOR = 0.1; // 10% extension
 constexpr double Z_AXIS_HEIGHT_FACTOR = 1.1;  // 10% above mesh max
 
-// Color desaturation (for muted heat map appearance)
-constexpr double COLOR_SATURATION = 0.65;   // 65% original color
-constexpr double COLOR_DESATURATION = 0.35; // 35% grayscale mix
-
-// Heat-map gradient band thresholds (5-band: Purple→Blue→Cyan→Yellow→Red)
-constexpr double GRADIENT_BAND_1_END = 0.125; // Purple to Blue transition
-constexpr double GRADIENT_BAND_2_END = 0.375; // Blue to Cyan transition
-constexpr double GRADIENT_BAND_3_END = 0.625; // Cyan to Yellow transition
-constexpr double GRADIENT_BAND_4_END = 0.875; // Yellow to Red transition
-
-// Gradient color RGB values (endpoints of each band)
-// Note: Omitted values are 0 (e.g., Purple has G=0, Red has G=0 and B=0)
-constexpr uint8_t GRADIENT_PURPLE_R = 128;
-constexpr uint8_t GRADIENT_PURPLE_B = 255;
-constexpr uint8_t GRADIENT_BLUE_G = 128;
-constexpr uint8_t GRADIENT_CYAN_G = 255;
-constexpr uint8_t GRADIENT_YELLOW_R = 255;
-constexpr uint8_t GRADIENT_YELLOW_G = 255;
-constexpr uint8_t GRADIENT_RED_R = 255;
-
 // Rendering opacity values
 constexpr lv_opa_t MESH_TRIANGLE_OPACITY = LV_OPA_90; // 90% opacity for mesh surfaces
 constexpr lv_opa_t GRID_LINE_OPACITY =
     LV_OPA_70; // 70% opacity for grid overlay (increased for Mainsail match)
 constexpr lv_opa_t AXIS_LINE_OPACITY = LV_OPA_80; // 80% opacity for axis indicators
-
-// Color gradient lookup table (pre-computed for performance)
-constexpr int COLOR_GRADIENT_LUT_SIZE = 1024; // 1024 samples for smooth gradient
-lv_color_t g_color_gradient_lut[COLOR_GRADIENT_LUT_SIZE];
-std::once_flag g_color_gradient_lut_init_flag;
 
 // ========== Adaptive Gradient Rasterization Constants ==========
 // Line width thresholds for adaptive segment count (Phase 2 optimization)
@@ -179,10 +156,6 @@ static void compute_projected_mesh_bounds(const bed_mesh_renderer_t* renderer, i
 static void compute_centering_offset(int mesh_min_x, int mesh_max_x, int mesh_min_y, int mesh_max_y,
                                      int layer_offset_x, int layer_offset_y, int canvas_width,
                                      int canvas_height, int* out_offset_x, int* out_offset_y);
-static bed_mesh_point_3d_t project_3d_to_2d(double x, double y, double z, int canvas_width,
-                                            int canvas_height, const bed_mesh_view_state_t* view);
-static lv_color_t height_to_color(double value, double min_val, double max_val);
-static bed_mesh_rgb_t lerp_color(bed_mesh_rgb_t a, bed_mesh_rgb_t b, double t);
 static void fill_triangle_solid(lv_layer_t* layer, int x1, int y1, int x2, int y2, int x3, int y3,
                                 int canvas_width, int canvas_height, lv_color_t color);
 static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t c1, int x2, int y2,
@@ -227,6 +200,22 @@ static inline double mesh_row_to_world_y(int row, int rows) {
  */
 static inline double mesh_z_to_world_z(double z_height, double z_center, double z_scale) {
     return BedMeshCoordinateTransform::mesh_z_to_world_z(z_height, z_center, z_scale);
+}
+
+/**
+ * Compute Z-center value for mesh rendering
+ * Single source of truth for Z-centering calculations
+ */
+static inline double compute_mesh_z_center(double mesh_min_z, double mesh_max_z) {
+    return BedMeshCoordinateTransform::compute_mesh_z_center(mesh_min_z, mesh_max_z);
+}
+
+/**
+ * Compute grid plane Z coordinate in world space
+ * Used for axis rendering at the base of the mesh
+ */
+static inline double compute_grid_z(double z_center, double z_scale) {
+    return BedMeshCoordinateTransform::compute_grid_z(z_center, z_scale);
 }
 
 // Triangle rasterization helpers
@@ -849,8 +838,8 @@ static void project_and_cache_vertices(bed_mesh_renderer_t* renderer, int canvas
         renderer->projected_screen_y.resize(renderer->rows);
     }
 
-    // Center mesh Z values (must match quad generation for proper alignment)
-    double z_center = (renderer->mesh_min_z + renderer->mesh_max_z) / 2.0;
+    // Center mesh Z values (single source of truth via coordinate transform helper)
+    double z_center = compute_mesh_z_center(renderer->mesh_min_z, renderer->mesh_max_z);
 
     // Project all vertices once (projection handles centering internally)
     for (int row = 0; row < renderer->rows; row++) {
@@ -867,7 +856,7 @@ static void project_and_cache_vertices(bed_mesh_renderer_t* renderer, int canvas
                 mesh_z_to_world_z(renderer->mesh[row][col], z_center, renderer->view_state.z_scale);
 
             // Project to screen space and cache only screen coordinates (SOA)
-            bed_mesh_point_3d_t projected = project_3d_to_2d(
+            bed_mesh_point_3d_t projected = bed_mesh_projection_project_3d_to_2d(
                 world_x, world_y, world_z, canvas_width, canvas_height, &renderer->view_state);
 
             renderer->projected_screen_x[row][col] = projected.screen_x;
@@ -904,7 +893,7 @@ static void project_and_cache_quads(bed_mesh_renderer_t* renderer, int canvas_wi
 
         for (int i = 0; i < 4; i++) {
             bed_mesh_point_3d_t projected =
-                project_3d_to_2d(quad.vertices[i].x, quad.vertices[i].y, quad.vertices[i].z,
+                bed_mesh_projection_project_3d_to_2d(quad.vertices[i].x, quad.vertices[i].y, quad.vertices[i].z,
                                  canvas_width, canvas_height, &renderer->view_state);
 
             quad.screen_x[i] = projected.screen_x;
@@ -995,127 +984,6 @@ static void compute_centering_offset(int mesh_min_x, int mesh_max_x, int mesh_mi
                   *out_offset_y);
 }
 
-static bed_mesh_point_3d_t project_3d_to_2d(double x, double y, double z, int canvas_width,
-                                            int canvas_height, const bed_mesh_view_state_t* view) {
-    bed_mesh_point_3d_t result;
-
-    // Step 1: Z-axis rotation (spin around vertical axis)
-    // Use cached trig values (computed once per frame instead of per-vertex)
-    double rotated_x = x * view->cached_cos_z - y * view->cached_sin_z;
-    double rotated_y = x * view->cached_sin_z + y * view->cached_cos_z;
-    double rotated_z = z;
-
-    // Step 2: X-axis rotation (tilt up/down)
-    // Use cached trig values (computed once per frame instead of per-vertex)
-    double final_x = rotated_x;
-    double final_y = rotated_y * view->cached_cos_x + rotated_z * view->cached_sin_x;
-    double final_z = rotated_y * view->cached_sin_x - rotated_z * view->cached_cos_x;
-
-    // Step 3: Translate camera back
-    final_z += BED_MESH_CAMERA_DISTANCE;
-
-    // Step 4: Perspective projection (similar triangles)
-    double perspective_x = (final_x * view->fov_scale) / final_z;
-    double perspective_y = (final_y * view->fov_scale) / final_z;
-
-    // Step 5: Convert to screen coordinates (centered in canvas)
-    result.screen_x = static_cast<int>(canvas_width / 2 + perspective_x) + view->center_offset_x;
-    result.screen_y =
-        static_cast<int>(canvas_height * BED_MESH_Z_ORIGIN_VERTICAL_POS + perspective_y) +
-        view->center_offset_y;
-    result.depth = final_z;
-
-    return result;
-}
-
-/**
- * Initialize color gradient lookup table (called once at startup)
- * Pre-computes all gradient colors to avoid repeated calculations
- * Thread-safe via std::call_once
- */
-static void init_color_gradient_lut() {
-    // Pre-compute gradient for normalized values [0.0, 1.0]
-    for (int i = 0; i < COLOR_GRADIENT_LUT_SIZE; i++) {
-        double normalized = static_cast<double>(i) / (COLOR_GRADIENT_LUT_SIZE - 1);
-
-        // Compute RGB using 5-band heat-map (Purple→Blue→Cyan→Yellow→Red)
-        uint8_t r, g, b;
-
-        if (normalized < GRADIENT_BAND_1_END) {
-            // Band 1: Purple to Blue
-            double t = normalized / GRADIENT_BAND_1_END;
-            r = static_cast<uint8_t>(GRADIENT_PURPLE_R * (1.0 - t));
-            g = static_cast<uint8_t>(GRADIENT_BLUE_G * t);
-            b = GRADIENT_PURPLE_B;
-        } else if (normalized < GRADIENT_BAND_2_END) {
-            // Band 2: Blue to Cyan
-            double band_width = GRADIENT_BAND_2_END - GRADIENT_BAND_1_END;
-            double t = (normalized - GRADIENT_BAND_1_END) / band_width;
-            r = 0;
-            g = static_cast<uint8_t>(GRADIENT_BLUE_G + (GRADIENT_CYAN_G - GRADIENT_BLUE_G) * t);
-            b = GRADIENT_PURPLE_B;
-        } else if (normalized < GRADIENT_BAND_3_END) {
-            // Band 3: Cyan to Yellow
-            double band_width = GRADIENT_BAND_3_END - GRADIENT_BAND_2_END;
-            double t = (normalized - GRADIENT_BAND_2_END) / band_width;
-            r = static_cast<uint8_t>(GRADIENT_YELLOW_R * t);
-            g = GRADIENT_CYAN_G;
-            b = static_cast<uint8_t>(GRADIENT_PURPLE_B * (1.0 - t));
-        } else if (normalized < GRADIENT_BAND_4_END) {
-            // Band 4: Yellow to Red
-            double band_width = GRADIENT_BAND_4_END - GRADIENT_BAND_3_END;
-            double t = (normalized - GRADIENT_BAND_3_END) / band_width;
-            r = GRADIENT_YELLOW_R;
-            g = static_cast<uint8_t>(GRADIENT_YELLOW_G * (1.0 - t));
-            b = 0;
-        } else {
-            // Band 5: Deep Red (maximum temperature)
-            r = GRADIENT_RED_R;
-            g = 0;
-            b = 0;
-        }
-
-        // Desaturate by 35% for muted appearance
-        uint8_t gray = (r + g + b) / 3;
-        r = static_cast<uint8_t>(r * COLOR_SATURATION + gray * COLOR_DESATURATION);
-        g = static_cast<uint8_t>(g * COLOR_SATURATION + gray * COLOR_DESATURATION);
-        b = static_cast<uint8_t>(b * COLOR_SATURATION + gray * COLOR_DESATURATION);
-
-        g_color_gradient_lut[i] = lv_color_make(r, g, b);
-    }
-
-    spdlog::debug("Initialized color gradient LUT with {} samples", COLOR_GRADIENT_LUT_SIZE);
-}
-
-static lv_color_t height_to_color(double value, double min_val, double max_val) {
-    // Ensure LUT is initialized (thread-safe, runs exactly once)
-    std::call_once(g_color_gradient_lut_init_flag, init_color_gradient_lut);
-
-    // Apply color compression for enhanced contrast
-    double data_range = max_val - min_val;
-    double adjusted_range = data_range * BED_MESH_COLOR_COMPRESSION;
-    double data_center = (min_val + max_val) / 2.0;
-    double color_min = data_center - (adjusted_range / 2.0);
-
-    // Normalize to [0, 1]
-    double normalized = (value - color_min) / adjusted_range;
-    normalized = std::max(0.0, std::min(1.0, normalized));
-
-    // Look up color in pre-computed gradient table (10-15% faster than computing)
-    // Map normalized [0.0, 1.0] to LUT index [0, 1023]
-    int lut_index = static_cast<int>(normalized * (COLOR_GRADIENT_LUT_SIZE - 1));
-    lut_index = std::max(0, std::min(COLOR_GRADIENT_LUT_SIZE - 1, lut_index));
-
-    return g_color_gradient_lut[lut_index];
-}
-
-static bed_mesh_rgb_t lerp_color(bed_mesh_rgb_t a, bed_mesh_rgb_t b, double t) {
-    bed_mesh_rgb_t result;
-    result.r = static_cast<uint8_t>(a.r + t * (b.r - a.r));
-    result.g = static_cast<uint8_t>(a.g + t * (b.g - a.g));
-    result.b = static_cast<uint8_t>(a.b + t * (b.b - a.b));
-    return result;
-}
 
 static void fill_triangle_solid(lv_layer_t* layer, int x1, int y1, int x2, int y2, int x3, int y3,
                                 int canvas_width, int canvas_height, lv_color_t color) {
@@ -1171,7 +1039,7 @@ static void interpolate_edge(int y, int y0, int x0, const bed_mesh_rgb_t& c0, in
     } else {
         double t = (y - y0) / static_cast<double>(y1 - y0);
         *x_out = x0 + static_cast<int>(t * (x1 - x0));
-        *c_out = lerp_color(c0, c1, t);
+        *c_out = bed_mesh_gradient_lerp_color(c0, c1, t);
     }
 }
 
@@ -1211,7 +1079,7 @@ static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t
         // Interpolate along long edge (v0 -> v2)
         double t_long = (y - v[0].y) / static_cast<double>(v[2].y - v[0].y);
         int x_long = v[0].x + static_cast<int>(t_long * (v[2].x - v[0].x));
-        bed_mesh_rgb_t c_long = lerp_color(v[0].color, v[2].color, t_long);
+        bed_mesh_rgb_t c_long = bed_mesh_gradient_lerp_color(v[0].color, v[2].color, t_long);
 
         // Interpolate along short edge (upper half: v0->v1, lower half: v1->v2)
         int x_short;
@@ -1236,7 +1104,7 @@ static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t
 
         // Performance: use solid color for thin lines
         if (line_width < BED_MESH_GRADIENT_MIN_LINE_WIDTH) {
-            bed_mesh_rgb_t avg = lerp_color(c_left, c_right, 0.5);
+            bed_mesh_rgb_t avg = bed_mesh_gradient_lerp_color(c_left, c_right, 0.5);
             lv_color_t avg_color = lv_color_make(avg.r, avg.g, avg.b);
             dsc.bg_color = avg_color;
 
@@ -1278,7 +1146,7 @@ static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t
                 // Sample color at segment center for better color distribution
                 double interpolation_factor =
                     (segment_index + GRADIENT_SEGMENT_SAMPLE_POSITION) / segment_count;
-                bed_mesh_rgb_t seg_color = lerp_color(c_left, c_right, interpolation_factor);
+                bed_mesh_rgb_t seg_color = bed_mesh_gradient_lerp_color(c_left, c_right, interpolation_factor);
                 lv_color_t color = lv_color_make(seg_color.r, seg_color.g, seg_color.b);
                 dsc.bg_color = color;
 
@@ -1306,8 +1174,8 @@ static void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
     int expected_quads = (renderer->rows - 1) * (renderer->cols - 1);
     renderer->quads.reserve(expected_quads);
 
-    // Center mesh around origin for rotation
-    double z_center = (renderer->mesh_min_z + renderer->mesh_max_z) / 2.0;
+    // Center mesh around origin for rotation (single source of truth)
+    double z_center = compute_mesh_z_center(renderer->mesh_min_z, renderer->mesh_max_z);
 
     // Generate quads for each mesh cell
     for (int row = 0; row < renderer->rows - 1; row++) {
@@ -1348,28 +1216,28 @@ static void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
             quad.vertices[0].y = base_y_1;
             quad.vertices[0].z = mesh_z_to_world_z(renderer->mesh[row + 1][col], z_center,
                                                    renderer->view_state.z_scale);
-            quad.vertices[0].color = height_to_color(renderer->mesh[row + 1][col],
+            quad.vertices[0].color = bed_mesh_gradient_height_to_color(renderer->mesh[row + 1][col],
                                                      renderer->color_min_z, renderer->color_max_z);
 
             quad.vertices[1].x = base_x_1;
             quad.vertices[1].y = base_y_1;
             quad.vertices[1].z = mesh_z_to_world_z(renderer->mesh[row + 1][col + 1], z_center,
                                                    renderer->view_state.z_scale);
-            quad.vertices[1].color = height_to_color(renderer->mesh[row + 1][col + 1],
+            quad.vertices[1].color = bed_mesh_gradient_height_to_color(renderer->mesh[row + 1][col + 1],
                                                      renderer->color_min_z, renderer->color_max_z);
 
             quad.vertices[2].x = base_x_0;
             quad.vertices[2].y = base_y_0;
             quad.vertices[2].z =
                 mesh_z_to_world_z(renderer->mesh[row][col], z_center, renderer->view_state.z_scale);
-            quad.vertices[2].color = height_to_color(renderer->mesh[row][col],
+            quad.vertices[2].color = bed_mesh_gradient_height_to_color(renderer->mesh[row][col],
                                                      renderer->color_min_z, renderer->color_max_z);
 
             quad.vertices[3].x = base_x_1;
             quad.vertices[3].y = base_y_0;
             quad.vertices[3].z = mesh_z_to_world_z(renderer->mesh[row][col + 1], z_center,
                                                    renderer->view_state.z_scale);
-            quad.vertices[3].color = height_to_color(renderer->mesh[row][col + 1],
+            quad.vertices[3].color = bed_mesh_gradient_height_to_color(renderer->mesh[row][col + 1],
                                                      renderer->color_min_z, renderer->color_max_z);
 
             // Compute center color for fast rendering
@@ -1503,9 +1371,9 @@ static void draw_axis_line(lv_layer_t* layer, lv_draw_line_dsc_t* line_dsc, doub
                            int canvas_width, int canvas_height,
                            const bed_mesh_view_state_t* view_state) {
     bed_mesh_point_3d_t start =
-        project_3d_to_2d(start_x, start_y, start_z, canvas_width, canvas_height, view_state);
+        bed_mesh_projection_project_3d_to_2d(start_x, start_y, start_z, canvas_width, canvas_height, view_state);
     bed_mesh_point_3d_t end =
-        project_3d_to_2d(end_x, end_y, end_z, canvas_width, canvas_height, view_state);
+        bed_mesh_projection_project_3d_to_2d(end_x, end_y, end_z, canvas_width, canvas_height, view_state);
 
     // Clamp line endpoints to canvas bounds to prevent drawing outside widget
     int x1 = std::max(0, std::min(canvas_width - 1, start.screen_x));
@@ -1530,9 +1398,9 @@ static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* ren
         return;
     }
 
-    // Center mesh Z values (matching grid/quad calculations)
-    double z_center = (renderer->mesh_min_z + renderer->mesh_max_z) / 2.0;
-    double grid_z = -z_center * renderer->view_state.z_scale; // At base of mesh
+    // Center mesh Z values and compute grid plane Z (single source of truth)
+    double z_center = compute_mesh_z_center(renderer->mesh_min_z, renderer->mesh_max_z);
+    double grid_z = compute_grid_z(z_center, renderer->view_state.z_scale);
 
     // Configure axis line drawing style (brighter than grid lines)
     lv_draw_line_dsc_t axis_line_dsc;
@@ -1578,11 +1446,11 @@ static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* ren
     label_dsc.align = LV_TEXT_ALIGN_CENTER;
 
     // Position labels at the end of each axis line (reproject endpoints for label positioning)
-    bed_mesh_point_3d_t x_pos = project_3d_to_2d(x_axis_end_x, x_axis_y, grid_z, canvas_width,
+    bed_mesh_point_3d_t x_pos = bed_mesh_projection_project_3d_to_2d(x_axis_end_x, x_axis_y, grid_z, canvas_width,
                                                  canvas_height, &renderer->view_state);
-    bed_mesh_point_3d_t y_pos = project_3d_to_2d(y_axis_x, y_axis_end_y, grid_z, canvas_width,
+    bed_mesh_point_3d_t y_pos = bed_mesh_projection_project_3d_to_2d(y_axis_x, y_axis_end_y, grid_z, canvas_width,
                                                  canvas_height, &renderer->view_state);
-    bed_mesh_point_3d_t z_pos = project_3d_to_2d(z_axis_x, z_axis_y, z_axis_top, canvas_width,
+    bed_mesh_point_3d_t z_pos = bed_mesh_projection_project_3d_to_2d(z_axis_x, z_axis_y, z_axis_top, canvas_width,
                                                  canvas_height, &renderer->view_state);
 
     // Draw X label (with bounds checking to prevent rendering outside canvas)
@@ -1653,9 +1521,9 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
     double bed_width_mm = (renderer->cols - 1) * BED_MESH_SCALE;
     double bed_height_mm = (renderer->rows - 1) * BED_MESH_SCALE;
 
-    // Center mesh Z values (matching axis label calculations)
-    double z_center = (renderer->mesh_min_z + renderer->mesh_max_z) / 2.0;
-    double grid_z = -z_center * renderer->view_state.z_scale;
+    // Center mesh Z values and compute grid plane Z (single source of truth)
+    double z_center = compute_mesh_z_center(renderer->mesh_min_z, renderer->mesh_max_z);
+    double grid_z = compute_grid_z(z_center, renderer->view_state.z_scale);
 
     // Configure label drawing style (smaller font than axis letters)
     lv_draw_label_dsc_t label_dsc;
@@ -1677,7 +1545,7 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
     for (double x_mm = 0; x_mm <= bed_width_mm / 2.0; x_mm += tick_spacing) {
         // Draw positive X tick
         double world_x = x_mm;
-        bed_mesh_point_3d_t pos_tick = project_3d_to_2d(world_x, x_axis_y, grid_z, canvas_width,
+        bed_mesh_point_3d_t pos_tick = bed_mesh_projection_project_3d_to_2d(world_x, x_axis_y, grid_z, canvas_width,
                                                         canvas_height, &renderer->view_state);
 
         if (pos_tick.screen_x >= 0 && pos_tick.screen_x < canvas_width && pos_tick.screen_y >= 0 &&
@@ -1702,7 +1570,7 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
         // Draw negative X tick (skip 0 to avoid duplicate)
         if (x_mm > 0.1) {
             world_x = -x_mm;
-            bed_mesh_point_3d_t neg_tick = project_3d_to_2d(world_x, x_axis_y, grid_z, canvas_width,
+            bed_mesh_point_3d_t neg_tick = bed_mesh_projection_project_3d_to_2d(world_x, x_axis_y, grid_z, canvas_width,
                                                             canvas_height, &renderer->view_state);
 
             if (neg_tick.screen_x >= 0 && neg_tick.screen_x < canvas_width &&
@@ -1730,7 +1598,7 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
     for (double y_mm = 0; y_mm <= bed_height_mm / 2.0; y_mm += tick_spacing) {
         // Draw positive Y tick
         double world_y = y_mm;
-        bed_mesh_point_3d_t pos_tick = project_3d_to_2d(y_axis_x, world_y, grid_z, canvas_width,
+        bed_mesh_point_3d_t pos_tick = bed_mesh_projection_project_3d_to_2d(y_axis_x, world_y, grid_z, canvas_width,
                                                         canvas_height, &renderer->view_state);
 
         if (pos_tick.screen_x >= 0 && pos_tick.screen_x < canvas_width && pos_tick.screen_y >= 0 &&
@@ -1754,7 +1622,7 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
         // Draw negative Y tick (skip 0 to avoid duplicate)
         if (y_mm > 0.1) {
             world_y = -y_mm;
-            bed_mesh_point_3d_t neg_tick = project_3d_to_2d(y_axis_x, world_y, grid_z, canvas_width,
+            bed_mesh_point_3d_t neg_tick = bed_mesh_projection_project_3d_to_2d(y_axis_x, world_y, grid_z, canvas_width,
                                                             canvas_height, &renderer->view_state);
 
             if (neg_tick.screen_x >= 0 && neg_tick.screen_x < canvas_width &&

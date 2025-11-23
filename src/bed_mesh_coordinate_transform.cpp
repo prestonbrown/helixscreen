@@ -37,4 +37,12 @@ double mesh_z_to_world_z(double z_height, double z_center, double z_scale) {
     return (z_height - z_center) * z_scale;
 }
 
+double compute_mesh_z_center(double mesh_min_z, double mesh_max_z) {
+    return (mesh_min_z + mesh_max_z) / 2.0;
+}
+
+double compute_grid_z(double z_center, double z_scale) {
+    return -z_center * z_scale;
+}
+
 } // namespace BedMeshCoordinateTransform
