@@ -31,7 +31,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include <cstdlib> // for atoi
+#include <algorithm> // for std::find
+#include <cstdlib>   // for atoi
 #include <vector>
 
 // Active panel tracking
@@ -434,9 +435,28 @@ void ui_nav_set_panels(lv_obj_t** panels) {
     spdlog::info("Panel widgets registered for show/hide management");
 }
 
+// Deletion callback - removes panel from stack when it's deleted externally
+static void panel_deletion_cb(lv_event_t* e) {
+    lv_obj_t* panel = lv_event_get_target(e);
+
+    // Remove from panel stack if present
+    auto it = std::find(panel_stack.begin(), panel_stack.end(), panel);
+    if (it != panel_stack.end()) {
+        panel_stack.erase(it);
+        spdlog::debug("Panel {} deleted, removed from navigation stack (depth: {})",
+                      (void*)panel, panel_stack.size());
+    }
+}
+
 void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     if (!overlay_panel) {
         spdlog::error("Cannot push NULL overlay panel");
+        return;
+    }
+
+    // Validate panel is a valid LVGL object
+    if (!lv_obj_is_valid(overlay_panel)) {
+        spdlog::error("Cannot push invalid overlay panel");
         return;
     }
 
@@ -447,9 +467,19 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     // Hide current top panel (if any)
     if (!panel_stack.empty()) {
         lv_obj_t* current_top = panel_stack.back();
-        lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
-        spdlog::debug("Hiding current top panel {} (pushing overlay)", (void*)current_top);
+
+        // Validate pointer before using
+        if (current_top && lv_obj_is_valid(current_top)) {
+            lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
+            spdlog::debug("Hiding current top panel {} (pushing overlay)", (void*)current_top);
+        } else {
+            spdlog::warn("Invalid panel in stack, cleaning up");
+            panel_stack.pop_back();
+        }
     }
+
+    // Register deletion callback to auto-cleanup if panel is deleted externally
+    lv_obj_add_event_cb(overlay_panel, panel_deletion_cb, LV_EVENT_DELETE, nullptr);
 
     // Show the new overlay and push it to stack
     lv_obj_remove_flag(overlay_panel, LV_OBJ_FLAG_HIDDEN);
@@ -557,6 +587,24 @@ bool ui_nav_go_back() {
     // Show previous panel (new top of stack)
     lv_obj_t* previous_panel = panel_stack.back();
 
+    // Validate pointer before using
+    if (!previous_panel || !lv_obj_is_valid(previous_panel)) {
+        spdlog::error("Invalid previous panel in stack, clearing and falling back to home");
+        panel_stack.clear();
+
+        // Show home panel
+        if (panel_widgets[UI_PANEL_HOME] && lv_obj_is_valid(panel_widgets[UI_PANEL_HOME])) {
+            lv_obj_remove_flag(panel_widgets[UI_PANEL_HOME], LV_OBJ_FLAG_HIDDEN);
+            panel_stack.push_back(panel_widgets[UI_PANEL_HOME]);
+            active_panel = UI_PANEL_HOME;
+            lv_subject_set_int(&active_panel_subject, UI_PANEL_HOME);
+            return true;
+        }
+
+        spdlog::error("Cannot show home panel - widget not found or invalid!");
+        return false;
+    }
+
     // If previous panel is one of the main nav panels, hide all other main panels
     bool is_main_panel = false;
     for (int i = 0; i < UI_PANEL_COUNT; i++) {
@@ -564,7 +612,7 @@ bool ui_nav_go_back() {
             is_main_panel = true;
             // Hide all main panels except this one
             for (int j = 0; j < UI_PANEL_COUNT; j++) {
-                if (j != i && panel_widgets[j]) {
+                if (j != i && panel_widgets[j] && lv_obj_is_valid(panel_widgets[j])) {
                     lv_obj_add_flag(panel_widgets[j], LV_OBJ_FLAG_HIDDEN);
                 }
             }
