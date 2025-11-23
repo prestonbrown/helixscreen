@@ -400,6 +400,32 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
         }
     };
 
+    // Error callback - handles WebSocket protocol errors
+    // Wrap entire callback body in try-catch to prevent any exception from escaping
+    onerror = [this](const std::string& err_msg) {
+        try {
+            // Prevent callback execution if client is being destroyed
+            if (is_destroying_.load()) {
+                return;
+            }
+
+            spdlog::error("[Moonraker Client] WebSocket error: {}", err_msg);
+
+            // Update connection state to indicate error
+            ConnectionState current = connection_state_.load();
+            if (current == ConnectionState::CONNECTING) {
+                set_connection_state(ConnectionState::DISCONNECTED);
+            } else if (current == ConnectionState::CONNECTED) {
+                set_connection_state(ConnectionState::RECONNECTING);
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[Moonraker Client] onerror callback threw unexpected exception: {}",
+                          e.what());
+        } catch (...) {
+            spdlog::error("[Moonraker Client] onerror callback threw unknown exception");
+        }
+    };
+
     // WebSocket ping (keepalive) - use configured interval
     setPingInterval(keepalive_interval_ms_);
 
