@@ -15,6 +15,7 @@
 # - TEST_LVGL_DEPS: Required for all UI tests (includes ThorVG for SVG support)
 # - TEST_WIZARD_DEPS: Wizard validation and UI screens
 # - TEST_UI_DEPS: Common UI components (navigation, theme, modals, utils)
+# - TEST_PANEL_DEPS: UI panel components (home, controls, settings, etc.)
 # - TEST_WIFI_DEPS: Network managers and backends
 # - TEST_MOONRAKER_DEPS: Printer communication (includes libhv WebSocket)
 # - TEST_CONFIG_DEPS: Configuration and utilities
@@ -53,7 +54,26 @@ TEST_UI_DEPS := \
     $(OBJ_DIR)/ui_theme.o \
     $(OBJ_DIR)/helix_theme.o \
     $(OBJ_DIR)/ui_utils.o \
-    $(OBJ_DIR)/ui_temperature_utils.o
+    $(OBJ_DIR)/ui_temperature_utils.o \
+    $(OBJ_DIR)/ui_component_keypad.o \
+    $(OBJ_DIR)/ui_jog_pad.o \
+    $(OBJ_DIR)/ui_component_header_bar.o \
+    $(OBJ_DIR)/ui_bed_mesh.o \
+    $(FONT_OBJS)
+
+# UI panel components (all panels for smoke tests)
+TEST_PANEL_DEPS := \
+    $(OBJ_DIR)/ui_panel_home.o \
+    $(OBJ_DIR)/ui_panel_controls.o \
+    $(OBJ_DIR)/ui_panel_controls_temp.o \
+    $(OBJ_DIR)/ui_panel_controls_extrusion.o \
+    $(OBJ_DIR)/ui_panel_motion.o \
+    $(OBJ_DIR)/ui_panel_filament.o \
+    $(OBJ_DIR)/ui_panel_settings.o \
+    $(OBJ_DIR)/ui_panel_bed_mesh.o \
+    $(OBJ_DIR)/ui_panel_print_select.o \
+    $(OBJ_DIR)/ui_panel_print_status.o \
+    $(OBJ_DIR)/ui_panel_common.o
 
 # Network/WiFi components
 TEST_WIFI_DEPS := \
@@ -149,6 +169,7 @@ $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(TEST_LVGL_DEPS) \
              $(TEST_WIZARD_DEPS) \
              $(TEST_UI_DEPS) \
+             $(TEST_PANEL_DEPS) \
              $(TEST_WIFI_DEPS) \
              $(TEST_MOONRAKER_DEPS) \
              $(TEST_CONFIG_DEPS) \
