@@ -41,8 +41,7 @@ struct PrintFileData {
 // ============================================================================
 // Sorting comparator (replicates logic from ui_panel_print_select.cpp)
 // ============================================================================
-enum class PrintSelectSortColumn { FILENAME, SIZE, MODIFIED, PRINT_TIME, FILAMENT };
-enum class PrintSelectSortDirection { ASCENDING, DESCENDING };
+// Note: PrintSelectSortColumn and PrintSelectSortDirection are now in ui_panel_print_select.h
 
 bool compare_files(const PrintFileData& a, const PrintFileData& b,
                    PrintSelectSortColumn column,
