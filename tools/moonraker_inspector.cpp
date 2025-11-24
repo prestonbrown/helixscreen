@@ -16,6 +16,7 @@
  */
 
 #include "moonraker_client.h"
+#include "ansi_colors.h"
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
@@ -26,6 +27,9 @@
 #include <thread>
 
 using json = nlohmann::json;
+
+// Global flag for color support (auto-detected or disabled via --no-color)
+static bool use_colors = true;
 
 // Simple state machine for async queries
 struct InspectorState {
@@ -45,20 +49,37 @@ struct InspectorState {
 static InspectorState state;
 
 void print_header(const std::string& title) {
-    std::cout << "\n";
-    std::cout << "╔════════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║ " << std::left << std::setw(62) << title << " ║\n";
-    std::cout << "╚════════════════════════════════════════════════════════════════╝\n";
+    if (use_colors) {
+        std::cout << "\n" << ansi::BOLD << ansi::BRIGHT_CYAN;
+        std::cout << "╔════════════════════════════════════════════════════════════════╗\n";
+        std::cout << "║ " << std::left << std::setw(62) << title << " ║\n";
+        std::cout << "╚════════════════════════════════════════════════════════════════╝";
+        std::cout << ansi::RESET << "\n";
+    } else {
+        std::cout << "\n";
+        std::cout << "╔════════════════════════════════════════════════════════════════╗\n";
+        std::cout << "║ " << std::left << std::setw(62) << title << " ║\n";
+        std::cout << "╚════════════════════════════════════════════════════════════════╝\n";
+    }
 }
 
 void print_section(const std::string& title) {
-    std::cout << "\n┌─ " << title << "\n";
+    if (use_colors) {
+        std::cout << "\n" << ansi::BOLD << ansi::CYAN << "┌─ " << title << ansi::RESET << "\n";
+    } else {
+        std::cout << "\n┌─ " << title << "\n";
+    }
 }
 
 void print_kv(const std::string& key, const std::string& value, int indent = 0) {
     std::string prefix(indent * 2, ' ');
-    std::cout << prefix << "  " << std::left << std::setw(30 - indent * 2) << key
-              << ": " << value << "\n";
+    if (use_colors) {
+        std::cout << prefix << "  " << ansi::BRIGHT_BLUE << std::left << std::setw(30 - indent * 2) << key
+                  << ansi::RESET << ": " << ansi::WHITE << value << ansi::RESET << "\n";
+    } else {
+        std::cout << prefix << "  " << std::left << std::setw(30 - indent * 2) << key
+                  << ": " << value << "\n";
+    }
 }
 
 void print_list_item(const std::string& item, int indent = 0) {
@@ -70,7 +91,13 @@ void print_server_info(const json& info) {
     print_section("Server Information");
 
     if (info.contains("klippy_connected")) {
-        std::string status = info["klippy_connected"].get<bool>() ? "Connected ✓" : "Disconnected ✗";
+        bool connected = info["klippy_connected"].get<bool>();
+        std::string status;
+        if (use_colors) {
+            status = connected ? ansi::success("Connected ✓") : ansi::error("Disconnected ✗");
+        } else {
+            status = connected ? "Connected ✓" : "Disconnected ✗";
+        }
         print_kv("Klippy Status", status);
     }
 
@@ -113,9 +140,16 @@ void print_printer_info(const json& info) {
     print_section("Printer Information");
 
     if (info.contains("state")) {
-        std::string state = info["state"].get<std::string>();
-        std::string indicator = (state == "ready") ? "✓" : "⚠";
-        print_kv("State", state + " " + indicator);
+        std::string state_str = info["state"].get<std::string>();
+        std::string display;
+        if (use_colors) {
+            display = (state_str == "ready") ?
+                      ansi::success(state_str + " ✓") :
+                      ansi::warning(state_str + " ⚠");
+        } else {
+            display = state_str + ((state_str == "ready") ? " ✓" : " ⚠");
+        }
+        print_kv("State", display);
     }
 
     if (info.contains("state_message")) {
@@ -216,15 +250,31 @@ void print_hardware_objects(const json& objects) {
 }
 
 int main(int argc, char** argv) {
+    // Auto-detect TTY for color support
+    use_colors = ansi::is_tty();
+
     // Parse command line
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <ip_address> [port]\n";
+        std::cerr << "Usage: " << argv[0] << " <ip_address> [port] [--no-color]\n";
         std::cerr << "Example: " << argv[0] << " 192.168.1.100 7125\n";
+        std::cerr << "\nOptions:\n";
+        std::cerr << "  --no-color    Disable colored output\n";
         return 1;
     }
 
     std::string ip = argv[1];
-    int port = (argc >= 3) ? std::atoi(argv[2]) : 7125;
+    int port = 7125;
+
+    // Parse remaining arguments
+    for (int i = 2; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "--no-color" || arg == "--no-colour") {
+            use_colors = false;
+        } else if (arg[0] >= '0' && arg[0] <= '9') {
+            port = std::atoi(arg.c_str());
+        }
+    }
+
     std::string url = "ws://" + ip + ":" + std::to_string(port) + "/websocket";
 
     // Configure logging

@@ -21,3 +21,6 @@
 [submodule "openvdb"]
 	path = lib/openvdb
 	url = https://github.com/AcademySoftwareFoundation/openvdb.git
+[submodule "lib/ftxui"]
+	path = lib/ftxui
+	url = https://github.com/ArthurSonzogni/FTXUI.git
