@@ -4,15 +4,15 @@
 # HelixScreen UI Prototype - Main Makefile
 # LVGL 9 + SDL2 simulator with modular build system
 #
-# ⚠️ CRITICAL: Always use 'make' or 'make -j' - NEVER invoke gcc/g++ directly!
+# ⚠️ CRITICAL: Always use 'make' - NEVER invoke gcc/g++ directly!
 # The build system handles:
 #   - Dependency management (libhv, lvgl, SDL2)
 #   - Platform detection (macOS vs Linux)
-#   - Parallel builds (-j auto-detects cores)
+#   - Parallel builds (auto-fixes 'make -j' to use correct core count)
 #   - Patch application for multi-display support
 #
 # Common commands:
-#   make -j       # Parallel incremental build (daily development)
+#   make -j       # Parallel incremental build (auto-detects cores)
 #   make build    # Clean build from scratch
 #   make help     # Show all available targets
 #
@@ -286,12 +286,29 @@ CFLAGS += $(TINYGL_DEFINES)
 CXXFLAGS += $(TINYGL_DEFINES)
 
 # Parallel build control
-# Set JOBS=N to override, or use -j directly
-# Default: use all cores
+# CRITICAL: 'make -j' (no number) means UNLIMITED parallelism in GNU Make!
+# This causes hundreds of simultaneous compiler processes, crushing the system.
+#
+# Detection method:
+#   - 'make -j' (unlimited): MAKEFLAGS = "pj" (just flags, no jobserver)
+#   - 'make -j8' (bounded):  MAKEFLAGS = "p --jobserver-fds=3,5 -j" (has jobserver)
+#
+# We check for 'j' in flags WITHOUT '--jobserver-fds' to detect unlimited -j.
+
 JOBS ?= $(NPROC)
 
-# Don't auto-enable parallel - let user control it
-# Use 'make -j' or 'make JOBS=N' for parallel builds
+# Detect unbounded 'make -j' (unlimited parallelism)
+# NOTE: Detection happens in a guard target (see mk/rules.mk) because $(MAKEFLAGS)
+# isn't accessible via make functions in GNU Make 3.81. The guard target runs
+# FIRST before any compilation starts and aborts if unlimited -j is detected.
+#
+# MAKEFLAGS format in GNU Make 3.81:
+#   - 'make -j':  MAKEFLAGS = "j" (just the flag, NO jobserver)
+#   - 'make -j8': MAKEFLAGS = " --jobserver-fds=3,5 -j" (has jobserver pipe)
+#
+# Usage: make -j$(nproc) or make -j8 (NEVER bare 'make -j')
+
+# Output synchronization for parallel builds (requires make 4.0+, ignored on 3.81)
 ifneq ($(JOBS),1)
     MAKEFLAGS += --output-sync=target
 endif

@@ -4,10 +4,38 @@
 # HelixScreen UI Prototype - Compilation Rules Module
 # Handles all compilation rules, linking, and main build targets
 
-# Main build target
+# ============================================================================
+# UNLIMITED -j DETECTION AND AUTO-FIX
+# ============================================================================
+# Problem: 'make -j' (no number) means UNLIMITED parallelism in GNU Make.
+# This spawns hundreds of compiler processes, crushing the system (load 100+).
+#
+# Solution: We use a two-phase build. The default 'all' target checks for
+# unlimited -j and re-invokes make with bounded parallelism if needed.
+# The _PARALLEL_CHECKED variable prevents infinite recursion.
+#
+# MAKEFLAGS format: "j" = unlimited, " --jobserver-fds=X,Y -j" = bounded
+# ============================================================================
+
+# Phase 1: Check for unlimited -j and re-invoke if needed
+# This target has NO dependencies, so it runs alone even with unlimited -j
+.PHONY: all
+all:
+ifndef _PARALLEL_CHECKED
+	@if echo "$(MAKEFLAGS)" | grep -qE '^j$$'; then \
+		echo ""; \
+		echo "$(YELLOW)$(BOLD)⚠️  'make -j' (unlimited) detected - auto-fixing to -j$(NPROC)$(RESET)"; \
+		echo ""; \
+		$(MAKE) _PARALLEL_CHECKED=1 -j$(NPROC) $(MAKECMDGOALS); \
+	else \
+		$(MAKE) _PARALLEL_CHECKED=1 $(MAKECMDGOALS); \
+	fi
+else
+# Phase 2: Actual build (only runs when _PARALLEL_CHECKED is set)
 all: check-deps apply-patches generate-fonts $(TARGET)
 	$(ECHO) "$(GREEN)$(BOLD)✓ Build complete!$(RESET)"
 	$(ECHO) "$(CYAN)Run with: $(YELLOW)./$(TARGET)$(RESET)"
+endif
 
 # Build libhv if not present (dependency rule)
 $(LIBHV_LIB):
@@ -176,9 +204,9 @@ build:
 	$(ECHO) "$(CYAN)Platform:$(RESET) $(PLATFORM) | $(CYAN)Jobs:$(RESET) $(NPROC) | $(CYAN)Compiler:$(RESET) $(CXX)"
 	@$(MAKE) clean
 	@echo ""
-	@echo "$(CYAN)Building with $(NPROC) parallel jobs...$(RESET)"
+	@echo "$(CYAN)Building (use -j for parallel builds)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(MAKE) -j$(NPROC) all && \
+	$(MAKE) all && \
 	END_TIME=$$(date +%s); \
 	DURATION=$$((END_TIME - START_TIME)); \
 	echo ""; \
@@ -210,7 +238,7 @@ compile_commands:
 	elif command -v bear >/dev/null 2>&1; then \
 		echo "$(CYAN)Using bear...$(RESET)"; \
 		bear -- $(MAKE) clean; \
-		bear -- $(MAKE) -j$(NPROC); \
+		bear -- $(MAKE); \
 	else \
 		echo "$(RED)Error: Neither 'compiledb' nor 'bear' found$(RESET)"; \
 		echo "Install compiledb: $(YELLOW)pip install compiledb$(RESET)"; \
