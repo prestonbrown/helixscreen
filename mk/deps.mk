@@ -473,9 +473,14 @@ ifneq ($(UNAME_S),Darwin)
 $(WPA_CLIENT_LIB):
 	$(ECHO) "$(BOLD)$(BLUE)[WPA]$(RESET) Building wpa_supplicant client library..."
 	$(Q)if [ ! -f "$(WPA_DIR)/wpa_supplicant/.config" ]; then \
-		echo "$(RED)✗ wpa_supplicant/.config not found$(RESET)"; \
-		echo "  Expected at: $(WPA_DIR)/wpa_supplicant/.config"; \
-		exit 1; \
+		if [ -f "$(WPA_DIR)/wpa_supplicant/defconfig" ]; then \
+			echo "$(CYAN)→ Creating .config from defconfig...$(RESET)"; \
+			cp "$(WPA_DIR)/wpa_supplicant/defconfig" "$(WPA_DIR)/wpa_supplicant/.config"; \
+		else \
+			echo "$(RED)✗ wpa_supplicant/.config not found and no defconfig$(RESET)"; \
+			echo "  Expected at: $(WPA_DIR)/wpa_supplicant/.config"; \
+			exit 1; \
+		fi; \
 	fi
 	$(Q)$(MAKE) -C $(WPA_DIR)/wpa_supplicant -j$(NPROC) libwpa_client.a
 	$(ECHO) "$(GREEN)✓ libwpa_client.a built successfully$(RESET)"
