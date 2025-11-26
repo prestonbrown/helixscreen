@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2025 356C LLC
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Test panel for LV_SIZE_CONTENT behavior with nested containers
+  This demonstrates the issue where height="LV_SIZE_CONTENT" collapses to 0
+-->
+<component>
+    <lv_label name="title" text="LV_SIZE_CONTENT Test"/>
+
+    <!-- Test cases container -->
+    <lv_obj name="tests_container" width="100%" flex_grow="1"
+            style_bg_opa="0" style_border_width="0"
+            style_pad_all="#padding_medium" style_pad_gap="#gap_medium"
+            flex_flow="column" scrollable="true">
+
+        <!-- Test 1: Simple container with content height -->
+        <lv_obj name="test1_container" width="100%" height="LV_SIZE_CONTENT"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="column">
+
+            <lv_label text="Test 1: Simple SIZE_CONTENT" style_text_color="#text_secondary"/>
+            <lv_label text="This text should be visible"/>
+        </lv_obj>
+
+        <!-- Test 2: Container with SIZE_CONTENT wrapping label + image -->
+        <lv_obj name="test2_container" width="100%" height="LV_SIZE_CONTENT"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="row" style_flex_cross_place="center" style_pad_gap="#gap_small">
+
+            <lv_label name="test2_icon" text="&#xF043;" style_text_font="#font_icons_normal"/>
+            <lv_label text="Test 2: Row with icon"/>
+        </lv_obj>
+
+        <!-- Test 3: Nested SIZE_CONTENT containers (THE PROBLEMATIC CASE) -->
+        <lv_obj name="test3_outer" width="100%" height="LV_SIZE_CONTENT"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="column" style_pad_gap="#gap_tiny">
+
+            <lv_label text="Test 3: NESTED SIZE_CONTENT" style_text_color="#warning_color"/>
+
+            <!-- Inner container also with SIZE_CONTENT -->
+            <lv_obj name="test3_inner" width="100%" height="LV_SIZE_CONTENT"
+                    style_bg_color="#surface_variant" style_bg_opa="255"
+                    style_border_width="0" style_radius="4"
+                    style_pad_all="#padding_small" flex_flow="column">
+
+                <lv_label text="Inner content line 1"/>
+                <lv_label text="Inner content line 2"/>
+            </lv_obj>
+        </lv_obj>
+
+        <!-- Test 4: Triple nested SIZE_CONTENT -->
+        <lv_obj name="test4_level1" width="100%" height="LV_SIZE_CONTENT"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="column" style_pad_gap="#gap_tiny">
+
+            <lv_label text="Test 4: TRIPLE NESTED" style_text_color="#error_color"/>
+
+            <lv_obj name="test4_level2" width="100%" height="LV_SIZE_CONTENT"
+                    style_bg_color="#surface_variant" style_bg_opa="255"
+                    style_border_width="0" style_radius="4"
+                    style_pad_all="#padding_small" flex_flow="column">
+
+                <lv_obj name="test4_level3" width="100%" height="LV_SIZE_CONTENT"
+                        style_bg_color="#surface_dim" style_bg_opa="255"
+                        style_border_width="0" style_radius="4"
+                        style_pad_all="#padding_small" flex_flow="column">
+
+                    <lv_label text="Deepest nested content"/>
+                </lv_obj>
+            </lv_obj>
+        </lv_obj>
+
+        <!-- Test 5: Button row with SIZE_CONTENT -->
+        <lv_obj name="test5_container" width="100%" height="LV_SIZE_CONTENT"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="column" style_pad_gap="#gap_small">
+
+            <lv_label text="Test 5: Button row with SIZE_CONTENT"/>
+
+            <!-- Button row -->
+            <lv_obj name="test5_button_row" width="100%" height="LV_SIZE_CONTENT"
+                    style_bg_opa="0" style_border_width="0" style_pad_all="0"
+                    flex_flow="row" style_flex_main_place="end"
+                    style_pad_gap="#gap_small">
+
+                <lv_button>
+                    <lv_label text="Cancel"/>
+                </lv_button>
+                <lv_button>
+                    <lv_label text="OK"/>
+                </lv_button>
+            </lv_obj>
+        </lv_obj>
+
+        <!-- Test 6: Using style_min_height as fallback -->
+        <lv_obj name="test6_container" width="100%" height="LV_SIZE_CONTENT"
+                style_min_height="60"
+                style_bg_color="#card_bg" style_bg_opa="255"
+                style_border_width="1" style_border_color="#card_border"
+                style_radius="#card_radius" style_pad_all="#padding_small"
+                flex_flow="column">
+
+            <lv_label text="Test 6: SIZE_CONTENT with style_min_height=60"/>
+            <lv_label text="Should be at least 60px tall" style_text_color="#text_secondary"/>
+        </lv_obj>
+
+    </lv_obj>
+</component>
