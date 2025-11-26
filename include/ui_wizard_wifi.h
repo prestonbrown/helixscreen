@@ -1,32 +1,22 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/*
- * Copyright (C) 2025 356C LLC
- * Author: Preston Brown <pbrown@brown-house.net>
- *
- * This file is part of HelixScreen.
- *
- * HelixScreen is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * HelixScreen is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
- */
-
 #pragma once
 
 #include "lvgl/lvgl.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
+// Forward declarations
+class WiFiManager;
+class EthernetManager;
+struct WiFiNetwork;
+
 /**
- * Wizard WiFi Setup Screen
+ * @file ui_wizard_wifi.h
+ * @brief Wizard WiFi setup step - network configuration and connection
  *
  * Handles WiFi configuration during first-run wizard:
  * - WiFi on/off toggle
@@ -35,104 +25,242 @@
  * - Connection status feedback
  * - Ethernet status display
  *
+ * ## Class-Based Architecture (Phase 6)
+ *
+ * This step has been migrated from function-based to class-based design:
+ * - Instance members instead of static globals
+ * - Shared pointer WiFiManager for async callback safety
+ * - Static trampolines for LVGL event callbacks
+ * - Global singleton getter for backwards compatibility
+ *
+ * ## Subject Bindings (7 total):
+ *
+ * - wifi_enabled (int) - 0=off, 1=on
+ * - wifi_status (string) - Status message
+ * - ethernet_status (string) - Ethernet connection status
+ * - wifi_scanning (int) - 0=not scanning, 1=scanning
+ * - wifi_password_modal_visible (int) - 0=hidden, 1=visible
+ * - wifi_password_modal_ssid (string) - SSID for password modal
+ * - wifi_connecting (int) - 0=idle, 1=connecting
+ *
  * Initialization Order (CRITICAL):
  *   1. Register XML components (wizard_wifi_setup.xml, wifi_password_modal.xml)
- *   2. ui_wizard_wifi_init_subjects()
- *   3. ui_wizard_wifi_register_callbacks()
- *   4. ui_wizard_wifi_create(parent)
- *   5. ui_wizard_wifi_init_wifi_manager() <- Start WiFi backend integration
- *
- * NOTE: WiFi screen responsive constants (wifi_card_height, wifi_toggle_height, etc.)
- *       are now registered by ui_wizard_container_register_responsive_constants()
- *       and propagated to this screen automatically.
+ *   2. init_subjects()
+ *   3. register_callbacks()
+ *   4. create(parent)
+ *   5. init_wifi_manager()
  */
 
 /**
- * Initialize WiFi screen subjects
+ * @class WizardWifiStep
+ * @brief WiFi setup step for the first-run wizard
  *
- * Creates and registers reactive subjects:
- * - wifi_enabled (int, 0=off 1=on)
- * - wifi_status (string, e.g. "Scanning...", "Connected to MyNetwork")
- * - ethernet_status (string, e.g. "Connected", "Disconnected")
- *
- * MUST be called BEFORE creating XML components.
+ * Manages WiFi network discovery, selection, and connection.
+ * Handles password entry via modal dialog for secured networks.
  */
+class WizardWifiStep {
+  public:
+    WizardWifiStep();
+    ~WizardWifiStep();
+
+    // Non-copyable
+    WizardWifiStep(const WizardWifiStep&) = delete;
+    WizardWifiStep& operator=(const WizardWifiStep&) = delete;
+
+    // Movable
+    WizardWifiStep(WizardWifiStep&& other) noexcept;
+    WizardWifiStep& operator=(WizardWifiStep&& other) noexcept;
+
+    /**
+     * @brief Initialize reactive subjects
+     *
+     * Creates and registers 7 subjects with defaults.
+     */
+    void init_subjects();
+
+    /**
+     * @brief Register event callbacks with lv_xml system
+     *
+     * Registers callbacks:
+     * - on_wifi_toggle_changed
+     * - on_network_item_clicked
+     * - on_modal_cancel_clicked
+     * - on_modal_connect_clicked
+     */
+    void register_callbacks();
+
+    /**
+     * @brief Register responsive constants for WiFi network list
+     *
+     * Registers WiFi-specific constants to component scopes.
+     */
+    void register_responsive_constants();
+
+    /**
+     * @brief Create the WiFi setup UI from XML
+     *
+     * @param parent Parent container (wizard_content)
+     * @return Root object of the step, or nullptr on failure
+     */
+    lv_obj_t* create(lv_obj_t* parent);
+
+    /**
+     * @brief Initialize WiFi and Ethernet managers
+     *
+     * Sets up WiFiManager callbacks for network scanning and connection.
+     */
+    void init_wifi_manager();
+
+    /**
+     * @brief Cleanup resources
+     *
+     * Stops scanning, destroys managers, and resets UI references.
+     */
+    void cleanup();
+
+    /**
+     * @brief Show password entry modal for secured network
+     *
+     * @param ssid Network SSID to connect to
+     */
+    void show_password_modal(const char* ssid);
+
+    /**
+     * @brief Hide password entry modal
+     */
+    void hide_password_modal();
+
+    /**
+     * @brief Get step name for logging
+     */
+    const char* get_name() const { return "WiFi Screen"; }
+
+  private:
+    // Screen instances
+    lv_obj_t* screen_root_ = nullptr;
+    lv_obj_t* password_modal_ = nullptr;
+    lv_obj_t* network_list_container_ = nullptr;
+
+    // Subjects (7 total)
+    lv_subject_t wifi_enabled_;
+    lv_subject_t wifi_status_;
+    lv_subject_t ethernet_status_;
+    lv_subject_t wifi_scanning_;
+    lv_subject_t wifi_password_modal_visible_;
+    lv_subject_t wifi_password_modal_ssid_;
+    lv_subject_t wifi_connecting_;
+
+    // String buffers (must be persistent)
+    char wifi_status_buffer_[64];
+    char ethernet_status_buffer_[64];
+    char wifi_password_modal_ssid_buffer_[64];
+
+    // WiFiManager and EthernetManager (shared_ptr for async safety)
+    std::shared_ptr<WiFiManager> wifi_manager_;
+    std::unique_ptr<EthernetManager> ethernet_manager_;
+
+    // Current network selection for password modal
+    char current_ssid_[64];
+    bool current_secured_ = false;
+
+    // Theme-aware colors
+    lv_color_t wifi_item_bg_color_;
+    lv_color_t wifi_item_text_color_;
+
+    // State tracking
+    bool subjects_initialized_ = false;
+
+    // Event handler implementations
+    void handle_wifi_toggle_changed(lv_event_t* e);
+    void handle_network_item_clicked(lv_event_t* e);
+    void handle_modal_cancel_clicked();
+    void handle_modal_connect_clicked();
+
+    // Helper functions
+    void update_wifi_status(const char* status);
+    void update_ethernet_status();
+    void populate_network_list(const std::vector<WiFiNetwork>& networks);
+    void clear_network_list();
+    void init_wifi_item_colors();
+    void apply_connected_network_highlight(lv_obj_t* item);
+
+    // Static trampolines for LVGL callbacks
+    static void on_wifi_toggle_changed_static(lv_event_t* e);
+    static void on_network_item_clicked_static(lv_event_t* e);
+    static void on_modal_cancel_clicked_static(lv_event_t* e);
+    static void on_modal_connect_clicked_static(lv_event_t* e);
+
+    // Static helpers
+    static const char* get_status_text(const char* status_name);
+    static const char* get_wifi_signal_icon(int signal_strength, bool is_secured);
+};
+
+// ============================================================================
+// Global Instance Access
+// ============================================================================
+
+/**
+ * @brief Get the global WizardWifiStep instance
+ *
+ * Creates the instance on first call. Used by wizard framework.
+ */
+WizardWifiStep* get_wizard_wifi_step();
+
+/**
+ * @brief Destroy the global WizardWifiStep instance
+ *
+ * Call during application shutdown.
+ */
+void destroy_wizard_wifi_step();
+
+// ============================================================================
+// Deprecated Legacy API
+// ============================================================================
+
+/**
+ * @deprecated Use get_wizard_wifi_step()->init_subjects()
+ */
+[[deprecated("Use get_wizard_wifi_step()->init_subjects()")]]
 void ui_wizard_wifi_init_subjects();
 
 /**
- * Register event callbacks
- *
- * Registers callbacks for:
- * - on_wifi_toggle_changed (WiFi enable/disable)
- * - on_network_item_clicked (Network selection)
- * - on_modal_cancel_clicked (Password modal cancel)
- * - on_modal_connect_clicked (Password modal connect)
- *
- * MUST be called BEFORE creating XML components.
+ * @deprecated Use get_wizard_wifi_step()->register_callbacks()
  */
+[[deprecated("Use get_wizard_wifi_step()->register_callbacks()")]]
 void ui_wizard_wifi_register_callbacks();
 
 /**
- * Register responsive constants for WiFi network list
- *
- * Detects screen size and registers WiFi-specific constants:
- * - list_item_padding (vertical spacing between network items)
- * - list_item_height (calculated from font height using ui_theme_get_font_height())
- * - list_item_font (responsive font for network SSID labels)
- *
- * Constants are registered to wifi_network_item and wizard_wifi_setup scopes only,
- * keeping WiFi-specific values isolated from wizard_container scope.
- *
- * MUST be called AFTER wizard_wifi_setup.xml is loaded (during ui_wizard_wifi_create())
- * but BEFORE creating dynamic network items.
+ * @deprecated Use get_wizard_wifi_step()->register_responsive_constants()
  */
+[[deprecated("Use get_wizard_wifi_step()->register_responsive_constants()")]]
 void ui_wizard_wifi_register_responsive_constants();
 
 /**
- * Create WiFi setup screen
- *
- * Creates the WiFi UI from wizard_wifi_setup.xml.
- * Returns the root WiFi screen object.
- *
- * Prerequisites:
- * - ui_wizard_wifi_init_subjects() called
- * - ui_wizard_wifi_register_callbacks() called
- *
- * @param parent Parent container (typically wizard_content area)
- * @return The WiFi screen root object, or NULL on failure
+ * @deprecated Use get_wizard_wifi_step()->create()
  */
+[[deprecated("Use get_wizard_wifi_step()->create()")]]
 lv_obj_t* ui_wizard_wifi_create(lv_obj_t* parent);
 
 /**
- * Initialize WiFi manager integration
- *
- * Sets up WiFiManager callbacks for:
- * - Network scan results
- * - Connection status updates
- * - WiFi enable/disable events
- *
- * MUST be called AFTER ui_wizard_wifi_create().
+ * @deprecated Use get_wizard_wifi_step()->init_wifi_manager()
  */
+[[deprecated("Use get_wizard_wifi_step()->init_wifi_manager()")]]
 void ui_wizard_wifi_init_wifi_manager();
 
 /**
- * Cleanup WiFi screen resources
- *
- * Stops WiFi scanning, disconnects callbacks, and cleans up subjects.
- * Called when leaving the WiFi setup step.
+ * @deprecated Use get_wizard_wifi_step()->cleanup()
  */
+[[deprecated("Use get_wizard_wifi_step()->cleanup()")]]
 void ui_wizard_wifi_cleanup();
 
 /**
- * Show password entry modal
- *
- * Displays the password modal for a secured network.
- *
- * @param ssid Network SSID to display
+ * @deprecated Use get_wizard_wifi_step()->show_password_modal()
  */
+[[deprecated("Use get_wizard_wifi_step()->show_password_modal()")]]
 void ui_wizard_wifi_show_password_modal(const char* ssid);
 
 /**
- * Hide password entry modal
+ * @deprecated Use get_wizard_wifi_step()->hide_password_modal()
  */
+[[deprecated("Use get_wizard_wifi_step()->hide_password_modal()")]]
 void ui_wizard_wifi_hide_password_modal();

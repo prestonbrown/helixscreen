@@ -1,34 +1,14 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/*
- * Copyright (C) 2025 356C LLC
- * Author: Preston Brown <pbrown@brown-house.net>
- *
- * This file is part of HelixScreen.
- *
- * HelixScreen is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * HelixScreen is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
- */
-
 #include "ui_wizard_connection.h"
 
-#include "ui_event_safety.h"
-#include "ui_keyboard.h" // For keyboard support
-#include "ui_subject_registry.h"
-#include "ui_wizard.h"   // For ui_wizard_set_next_button_enabled()
-#include "ui_notification.h"
 #include "ui_error_reporting.h"
+#include "ui_event_safety.h"
+#include "ui_keyboard.h"
+#include "ui_notification.h"
+#include "ui_subject_registry.h"
+#include "ui_wizard.h"
 
 #include "app_globals.h"
 #include "config.h"
@@ -39,48 +19,113 @@
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+#include <memory>
 #include <string>
 
 // ============================================================================
-// Static Data & Subjects
+// External Subject (defined in ui_wizard.cpp)
 // ============================================================================
 
-// External subject from ui_wizard.cpp (controls Next button globally)
+// Controls wizard Next button globally - shared across wizard steps
 extern lv_subject_t connection_test_passed;
 
-// Subject declarations (module scope)
-static lv_subject_t connection_ip;
-static lv_subject_t connection_port;
-static lv_subject_t connection_status_icon; // FontAwesome icon (check/xmark/empty)
-static lv_subject_t connection_status_text; // Status message text
-static lv_subject_t connection_testing;     // 0=idle, 1=testing (controls spinner)
-
-// String buffers (must be persistent)
-static char connection_ip_buffer[128];
-static char connection_port_buffer[8];
-static char connection_status_icon_buffer[8];   // UTF-8 icon (max 4 bytes + null)
-static char connection_status_text_buffer[256]; // Status message
-
-// Connection screen instance
-static lv_obj_t* connection_screen_root = nullptr;
-
-// Track whether connection has been validated
-static bool connection_validated = false;
-
 // ============================================================================
-// Forward Declarations
+// Global Instance
 // ============================================================================
 
-static void on_test_connection_clicked(lv_event_t* e);
-static void on_ip_input_changed(lv_event_t* e);
-static void on_port_input_changed(lv_event_t* e);
+static std::unique_ptr<WizardConnectionStep> g_wizard_connection_step;
+
+WizardConnectionStep* get_wizard_connection_step() {
+    if (!g_wizard_connection_step) {
+        g_wizard_connection_step = std::make_unique<WizardConnectionStep>();
+    }
+    return g_wizard_connection_step.get();
+}
+
+void destroy_wizard_connection_step() {
+    g_wizard_connection_step.reset();
+}
+
+// ============================================================================
+// Constructor / Destructor
+// ============================================================================
+
+WizardConnectionStep::WizardConnectionStep() {
+    // Zero-initialize buffers
+    std::memset(connection_ip_buffer_, 0, sizeof(connection_ip_buffer_));
+    std::memset(connection_port_buffer_, 0, sizeof(connection_port_buffer_));
+    std::memset(connection_status_icon_buffer_, 0, sizeof(connection_status_icon_buffer_));
+    std::memset(connection_status_text_buffer_, 0, sizeof(connection_status_text_buffer_));
+
+    spdlog::debug("[{}] Instance created", get_name());
+}
+
+WizardConnectionStep::~WizardConnectionStep() {
+    // NOTE: Do NOT call LVGL functions here - LVGL may be destroyed first
+    // NOTE: Do NOT log here - spdlog may be destroyed first
+    screen_root_ = nullptr;
+}
+
+// ============================================================================
+// Move Semantics
+// ============================================================================
+
+WizardConnectionStep::WizardConnectionStep(WizardConnectionStep&& other) noexcept
+    : screen_root_(other.screen_root_),
+      connection_ip_(other.connection_ip_),
+      connection_port_(other.connection_port_),
+      connection_status_icon_(other.connection_status_icon_),
+      connection_status_text_(other.connection_status_text_),
+      connection_testing_(other.connection_testing_),
+      connection_validated_(other.connection_validated_),
+      subjects_initialized_(other.subjects_initialized_),
+      saved_ip_(std::move(other.saved_ip_)),
+      saved_port_(std::move(other.saved_port_)) {
+    // Move buffers
+    std::memcpy(connection_ip_buffer_, other.connection_ip_buffer_, sizeof(connection_ip_buffer_));
+    std::memcpy(connection_port_buffer_, other.connection_port_buffer_, sizeof(connection_port_buffer_));
+    std::memcpy(connection_status_icon_buffer_, other.connection_status_icon_buffer_, sizeof(connection_status_icon_buffer_));
+    std::memcpy(connection_status_text_buffer_, other.connection_status_text_buffer_, sizeof(connection_status_text_buffer_));
+
+    // Null out other
+    other.screen_root_ = nullptr;
+    other.subjects_initialized_ = false;
+    other.connection_validated_ = false;
+}
+
+WizardConnectionStep& WizardConnectionStep::operator=(WizardConnectionStep&& other) noexcept {
+    if (this != &other) {
+        screen_root_ = other.screen_root_;
+        connection_ip_ = other.connection_ip_;
+        connection_port_ = other.connection_port_;
+        connection_status_icon_ = other.connection_status_icon_;
+        connection_status_text_ = other.connection_status_text_;
+        connection_testing_ = other.connection_testing_;
+        connection_validated_ = other.connection_validated_;
+        subjects_initialized_ = other.subjects_initialized_;
+        saved_ip_ = std::move(other.saved_ip_);
+        saved_port_ = std::move(other.saved_port_);
+
+        // Move buffers
+        std::memcpy(connection_ip_buffer_, other.connection_ip_buffer_, sizeof(connection_ip_buffer_));
+        std::memcpy(connection_port_buffer_, other.connection_port_buffer_, sizeof(connection_port_buffer_));
+        std::memcpy(connection_status_icon_buffer_, other.connection_status_icon_buffer_, sizeof(connection_status_icon_buffer_));
+        std::memcpy(connection_status_text_buffer_, other.connection_status_text_buffer_, sizeof(connection_status_text_buffer_));
+
+        // Null out other
+        other.screen_root_ = nullptr;
+        other.subjects_initialized_ = false;
+        other.connection_validated_ = false;
+    }
+    return *this;
+}
 
 // ============================================================================
 // Subject Initialization
 // ============================================================================
 
-void ui_wizard_connection_init_subjects() {
-    spdlog::debug("[Wizard Connection] Initializing subjects");
+void WizardConnectionStep::init_subjects() {
+    spdlog::debug("[{}] Initializing subjects", get_name());
 
     // Load existing values from config if available
     Config* config = Config::get_instance();
@@ -96,86 +141,103 @@ void ui_wizard_connection_init_subjects() {
         int port_num = config->get<int>(printer_path + "/moonraker_port", 7125);
         default_port = std::to_string(port_num);
 
-        spdlog::debug("[Wizard Connection] Loaded from config: {}:{}", default_ip, default_port);
+        spdlog::debug("[{}] Loaded from config: {}:{}", get_name(), default_ip, default_port);
     } catch (const std::exception& e) {
-        spdlog::debug("[Wizard Connection] No existing config, using defaults: {}", e.what());
+        spdlog::debug("[{}] No existing config, using defaults: {}", get_name(), e.what());
     }
 
     // Initialize with values from config or defaults
-    strncpy(connection_ip_buffer, default_ip.c_str(), sizeof(connection_ip_buffer) - 1);
-    connection_ip_buffer[sizeof(connection_ip_buffer) - 1] = '\0';
+    strncpy(connection_ip_buffer_, default_ip.c_str(), sizeof(connection_ip_buffer_) - 1);
+    connection_ip_buffer_[sizeof(connection_ip_buffer_) - 1] = '\0';
 
-    strncpy(connection_port_buffer, default_port.c_str(), sizeof(connection_port_buffer) - 1);
-    connection_port_buffer[sizeof(connection_port_buffer) - 1] = '\0';
+    strncpy(connection_port_buffer_, default_port.c_str(), sizeof(connection_port_buffer_) - 1);
+    connection_port_buffer_[sizeof(connection_port_buffer_) - 1] = '\0';
 
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_ip, connection_ip_buffer, connection_ip_buffer, "connection_ip");
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_port, connection_port_buffer, connection_port_buffer, "connection_port");
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_icon, connection_status_icon_buffer, "", "connection_status_icon"); // Empty initially
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text, connection_status_text_buffer, "", "connection_status_text"); // Empty initially
-    UI_SUBJECT_INIT_AND_REGISTER_INT(connection_testing, 0, "connection_testing"); // Not testing initially
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_ip_, connection_ip_buffer_, connection_ip_buffer_, "connection_ip");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_port_, connection_port_buffer_, connection_port_buffer_, "connection_port");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_icon_, connection_status_icon_buffer_, "", "connection_status_icon");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text_, connection_status_text_buffer_, "", "connection_status_text");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(connection_testing_, 0, "connection_testing");
 
     // Set connection_test_passed to 0 (disabled) for this step
-    // (It's defined globally in ui_wizard.cpp and defaults to 1 for other steps)
     lv_subject_set_int(&connection_test_passed, 0);
 
     // Reset validation state
-    connection_validated = false;
+    connection_validated_ = false;
+    subjects_initialized_ = true;
 
-    // Check if we have a saved configuration that might already be valid
+    // Check if we have a saved configuration
     if (!default_ip.empty() && !default_port.empty()) {
-        // We have saved values, but they haven't been tested yet this session
-        spdlog::debug("[Wizard Connection] Have saved config, but needs validation");
+        spdlog::debug("[{}] Have saved config, but needs validation", get_name());
     }
 
-    spdlog::debug("[Wizard Connection] Subjects initialized (IP: {}, Port: {})",
-                 default_ip.empty() ? "<empty>" : default_ip, default_port);
+    spdlog::debug("[{}] Subjects initialized (IP: {}, Port: {})", get_name(),
+                  default_ip.empty() ? "<empty>" : default_ip, default_port);
 }
 
 // ============================================================================
-// Event Handlers
+// Static Trampolines for LVGL Callbacks
 // ============================================================================
 
-/**
- * @brief Handle Test Connection button click
- *
- * Validates inputs, attempts WebSocket connection to Moonraker,
- * and updates status based on result.
- */
-static void on_test_connection_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] on_test_connection_clicked");
-    (void)e; // Unused parameter
+void WizardConnectionStep::on_test_connection_clicked_static(lv_event_t* e) {
+    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_test_connection_clicked();
+    }
+}
+
+void WizardConnectionStep::on_ip_input_changed_static(lv_event_t* e) {
+    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_ip_input_changed();
+    }
+}
+
+void WizardConnectionStep::on_port_input_changed_static(lv_event_t* e) {
+    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_port_input_changed();
+    }
+}
+
+// ============================================================================
+// Event Handler Implementations
+// ============================================================================
+
+void WizardConnectionStep::handle_test_connection_clicked() {
+    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_test_connection_clicked");
 
     // Get values from subjects
-    const char* ip = lv_subject_get_string(&connection_ip);
-    const char* port_str = lv_subject_get_string(&connection_port);
+    const char* ip = lv_subject_get_string(&connection_ip_);
+    const char* port_str = lv_subject_get_string(&connection_port_);
 
-    spdlog::debug("[Wizard Connection] Test connection clicked: {}:{}", ip, port_str);
+    spdlog::debug("[{}] Test connection clicked: {}:{}", get_name(), ip, port_str);
 
     // Clear previous validation state
-    connection_validated = false;
+    connection_validated_ = false;
     lv_subject_set_int(&connection_test_passed, 0);
 
     // Validate inputs
     if (!ip || strlen(ip) == 0) {
-        lv_subject_copy_string(&connection_status_icon, ""); // No icon for prompt
-        lv_subject_copy_string(&connection_status_text, "Please enter an IP address or hostname");
-        spdlog::warn("[Wizard Connection] Empty IP address");
+        lv_subject_copy_string(&connection_status_icon_, "");
+        lv_subject_copy_string(&connection_status_text_, "Please enter an IP address or hostname");
+        spdlog::warn("[{}] Empty IP address", get_name());
         return;
     }
 
     if (!is_valid_ip_or_hostname(ip)) {
         const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text, "Invalid IP address or hostname");
-        spdlog::warn("[Wizard Connection] Invalid IP/hostname: {}", ip);
+        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Invalid IP address or hostname");
+        spdlog::warn("[{}] Invalid IP/hostname: {}", get_name(), ip);
         return;
     }
 
     if (!is_valid_port(port_str)) {
         const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text, "Invalid port (must be 1-65535)");
-        spdlog::warn("[Wizard Connection] Invalid port: {}", port_str);
+        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Invalid port (must be 1-65535)");
+        spdlog::warn("[{}] Invalid port: {}", get_name(), port_str);
         return;
     }
 
@@ -183,192 +245,160 @@ static void on_test_connection_clicked(lv_event_t* e) {
     MoonrakerClient* client = get_moonraker_client();
     if (!client) {
         const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text, "Error: Moonraker client not initialized");
-        lv_subject_set_int(&connection_testing, 0);
-        LOG_ERROR_INTERNAL("[Wizard Connection] MoonrakerClient is nullptr - coding error");
+        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Error: Moonraker client not initialized");
+        lv_subject_set_int(&connection_testing_, 0);
+        LOG_ERROR_INTERNAL("[{}] MoonrakerClient is nullptr", get_name());
         return;
     }
 
-    // Disconnect any previous connection attempt to ensure clean state
-    // This prevents libhv internal state conflicts when rapidly retrying
+    // Disconnect any previous connection attempt
     client->disconnect();
 
-    // Store IP/port for potential config save (before async callback)
-    static std::string saved_ip;
-    static std::string saved_port;
-    saved_ip = ip;
-    saved_port = port_str;
+    // Store IP/port for async callback
+    saved_ip_ = ip;
+    saved_port_ = port_str;
 
     // Set UI to testing state
-    lv_subject_set_int(&connection_testing, 1); // Disable button during test
-    // Use question mark icon during testing (no spinner icon defined)
+    lv_subject_set_int(&connection_testing_, 1);
     const char* testing_icon = lv_xml_get_const(nullptr, "icon_question_circle");
-    lv_subject_copy_string(&connection_status_icon, testing_icon ? testing_icon : "");
-    lv_subject_copy_string(&connection_status_text, "Testing connection...");
+    lv_subject_copy_string(&connection_status_icon_, testing_icon ? testing_icon : "");
+    lv_subject_copy_string(&connection_status_text_, "Testing connection...");
 
-    spdlog::debug("[Wizard Connection] Starting connection test to {}:{}", ip, port_str);
+    spdlog::debug("[{}] Starting connection test to {}:{}", get_name(), ip, port_str);
 
-    // Set shorter timeout for wizard testing (5 seconds)
+    // Set shorter timeout for wizard testing
     client->set_connection_timeout(5000);
 
     // Construct WebSocket URL
     std::string ws_url = "ws://" + std::string(ip) + ":" + std::string(port_str) + "/websocket";
 
-    // Connection states explained:
-    // - CONNECTING (1): TCP connection attempt in progress
-    // - CONNECTED (2): TCP WebSocket connection succeeded (socket is open)
-    // - DISCONNECTED (0): Connection closed or failed
-    //
-    // IMPORTANT: CONNECTED state means the TCP socket opened successfully, NOT that
-    // the Moonraker application handshake succeeded. If there's no printer at the
-    // address, the socket will connect (state=2) but then immediately fail when
-    // trying the Moonraker protocol handshake, triggering on_disconnected callback.
-    //
-    // Attempt connection
+    // Capture 'this' for async callbacks
+    // NOTE: This is safe because the WizardConnectionStep instance outlives the connection test
+    WizardConnectionStep* self = this;
+
     int result = client->connect(
         ws_url.c_str(),
         // On connected callback
-        []() {
-            spdlog::info("[Wizard Connection] Connection successful!");
-
-            // Get check icon from globals.xml
-            const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-
-            // Update icon and text separately
-            lv_subject_copy_string(&connection_status_icon, check_icon ? check_icon : "");
-            lv_subject_copy_string(&connection_status_text, "Connection successful!");
-            lv_subject_set_int(&connection_testing, 0); // Hide spinner
-            connection_validated = true;
-            lv_subject_set_int(&connection_test_passed,
-                               1); // Enable Next button via reactive binding
-
-            // Save configuration to helixconfig.json
-            Config* config = Config::get_instance();
-            try {
-                std::string default_printer =
-                    config->get<std::string>("/default_printer", "default_printer");
-                std::string printer_path = "/printers/" + default_printer;
-
-                config->set(printer_path + "/moonraker_host", saved_ip);
-                config->set(printer_path + "/moonraker_port", std::stoi(saved_port));
-                if (config->save()) {
-                    spdlog::debug("[Wizard Connection] Saved configuration: {}:{}", saved_ip,
-                                 saved_port);
-                } else {
-                    spdlog::error("[Wizard Connection] Failed to save configuration to disk!");
-                    NOTIFY_ERROR("Failed to save printer configuration. You may need to re-enter connection settings.");
-                }
-            } catch (const std::exception& e) {
-                spdlog::error("[Wizard Connection] Failed to save config: {}", e.what());
-                NOTIFY_ERROR("Error saving configuration: {}", e.what());
-            }
-
-            // Trigger hardware discovery now that connection is established
-            // This will populate heaters, sensors, fans, and LEDs for wizard steps 4-7
-            MoonrakerClient* client = get_moonraker_client();
-            if (client) {
-                client->discover_printer([]() {
-                    spdlog::debug("[Wizard Connection] Hardware discovery complete!");
-
-                    // Log discovered hardware counts
-                    MoonrakerClient* client = get_moonraker_client();
-                    if (client) {
-                        auto heaters = client->get_heaters();
-                        auto sensors = client->get_sensors();
-                        auto fans = client->get_fans();
-
-                        spdlog::debug(
-                            "[Wizard Connection] Discovered {} heaters, {} sensors, {} fans",
-                            heaters.size(), sensors.size(), fans.size());
-                    }
-                });
-            }
+        [self]() {
+            self->on_connection_success();
         },
         // On disconnected callback
-        []() {
-            // Check if we're still in testing mode
-            int testing_state = lv_subject_get_int(&connection_testing);
-            spdlog::debug("[Wizard Connection] on_disconnected fired, connection_testing={}",
-                          testing_state);
-
-            // If we're still in testing mode, this disconnect means the test failed
-            // (connection_testing will be 0 if we successfully connected, since on_connected clears
-            // it)
-            if (testing_state == 1) {
-                spdlog::error("[Wizard Connection] Connection failed");
-
-                // Get error icon from globals.xml
-                const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-
-                // Update icon and text separately
-                lv_subject_copy_string(&connection_status_icon, error_icon ? error_icon : "");
-                lv_subject_copy_string(&connection_status_text,
-                                       "Connection failed. Check IP/port and try again.");
-                lv_subject_set_int(&connection_testing, 0); // Hide spinner
-                connection_validated = false;
-                lv_subject_set_int(&connection_test_passed,
-                                   0); // Disable Next button via reactive binding
-            } else {
-                spdlog::debug("[Wizard Connection] Ignoring disconnect (not in testing mode)");
-            }
+        [self]() {
+            self->on_connection_failure();
         });
 
-    // Disable automatic reconnection for wizard testing - we want manual control
-    // Must be called AFTER connect() since connect() sets reconnect settings
+    // Disable automatic reconnection for wizard testing
     client->setReconnect(nullptr);
 
     if (result != 0) {
-        spdlog::error("[Wizard Connection] Failed to initiate connection: {}", result);
+        spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
         const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text, "Error starting connection test");
-        lv_subject_set_int(&connection_testing, 0);
+        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Error starting connection test");
+        lv_subject_set_int(&connection_testing_, 0);
     }
+
     LVGL_SAFE_EVENT_CB_END();
 }
 
-/**
- * @brief Handle IP input field changes
- *
- * Clear status message when user starts typing
- */
-static void on_ip_input_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] on_ip_input_changed");
-    (void)e;
+void WizardConnectionStep::on_connection_success() {
+    spdlog::info("[{}] Connection successful!", get_name());
 
-    // Clear any previous status message when user modifies input
-    const char* current_status = lv_subject_get_string(&connection_status_text);
-    if (current_status && strlen(current_status) > 0) {
-        lv_subject_copy_string(&connection_status_icon, "");
-        lv_subject_copy_string(&connection_status_text, "");
+    const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
+    lv_subject_copy_string(&connection_status_icon_, check_icon ? check_icon : "");
+    lv_subject_copy_string(&connection_status_text_, "Connection successful!");
+    lv_subject_set_int(&connection_testing_, 0);
+    connection_validated_ = true;
+    lv_subject_set_int(&connection_test_passed, 1);
+
+    // Save configuration
+    Config* config = Config::get_instance();
+    try {
+        std::string default_printer =
+            config->get<std::string>("/default_printer", "default_printer");
+        std::string printer_path = "/printers/" + default_printer;
+
+        config->set(printer_path + "/moonraker_host", saved_ip_);
+        config->set(printer_path + "/moonraker_port", std::stoi(saved_port_));
+        if (config->save()) {
+            spdlog::debug("[{}] Saved configuration: {}:{}", get_name(), saved_ip_, saved_port_);
+        } else {
+            spdlog::error("[{}] Failed to save configuration!", get_name());
+            NOTIFY_ERROR("Failed to save printer configuration");
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[{}] Failed to save config: {}", get_name(), e.what());
+        NOTIFY_ERROR("Error saving configuration: {}", e.what());
     }
 
-    // Clear validation state when input changes
-    connection_validated = false;
-    lv_subject_set_int(&connection_test_passed, 0); // Disable Next button via reactive binding
+    // Trigger hardware discovery
+    MoonrakerClient* client = get_moonraker_client();
+    if (client) {
+        client->discover_printer([]() {
+            spdlog::debug("[Wizard Connection] Hardware discovery complete!");
+            MoonrakerClient* client = get_moonraker_client();
+            if (client) {
+                auto heaters = client->get_heaters();
+                auto sensors = client->get_sensors();
+                auto fans = client->get_fans();
+                spdlog::debug("[Wizard Connection] Discovered {} heaters, {} sensors, {} fans",
+                              heaters.size(), sensors.size(), fans.size());
+            }
+        });
+    }
+}
+
+void WizardConnectionStep::on_connection_failure() {
+    // Check if we're still in testing mode
+    int testing_state = lv_subject_get_int(&connection_testing_);
+    spdlog::debug("[{}] on_disconnected fired, connection_testing={}", get_name(), testing_state);
+
+    if (testing_state == 1) {
+        spdlog::error("[{}] Connection failed", get_name());
+
+        const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
+        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Connection failed. Check IP/port and try again.");
+        lv_subject_set_int(&connection_testing_, 0);
+        connection_validated_ = false;
+        lv_subject_set_int(&connection_test_passed, 0);
+    } else {
+        spdlog::debug("[{}] Ignoring disconnect (not in testing mode)", get_name());
+    }
+}
+
+void WizardConnectionStep::handle_ip_input_changed() {
+    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_ip_input_changed");
+
+    // Clear any previous status message
+    const char* current_status = lv_subject_get_string(&connection_status_text_);
+    if (current_status && strlen(current_status) > 0) {
+        lv_subject_copy_string(&connection_status_icon_, "");
+        lv_subject_copy_string(&connection_status_text_, "");
+    }
+
+    // Clear validation state
+    connection_validated_ = false;
+    lv_subject_set_int(&connection_test_passed, 0);
+
     LVGL_SAFE_EVENT_CB_END();
 }
 
-/**
- * @brief Handle port input field changes
- *
- * Clear status message when user starts typing
- */
-static void on_port_input_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] on_port_input_changed");
-    (void)e;
+void WizardConnectionStep::handle_port_input_changed() {
+    LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_port_input_changed");
 
-    // Clear any previous status message when user modifies input
-    const char* current_status = lv_subject_get_string(&connection_status_text);
+    // Clear any previous status message
+    const char* current_status = lv_subject_get_string(&connection_status_text_);
     if (current_status && strlen(current_status) > 0) {
-        lv_subject_copy_string(&connection_status_icon, "");
-        lv_subject_copy_string(&connection_status_text, "");
+        lv_subject_copy_string(&connection_status_icon_, "");
+        lv_subject_copy_string(&connection_status_text_, "");
     }
 
-    // Clear validation state when input changes
-    connection_validated = false;
-    lv_subject_set_int(&connection_test_passed, 0); // Disable Next button via reactive binding
+    // Clear validation state
+    connection_validated_ = false;
+    lv_subject_set_int(&connection_test_passed, 0);
+
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -376,128 +406,153 @@ static void on_port_input_changed(lv_event_t* e) {
 // Callback Registration
 // ============================================================================
 
-void ui_wizard_connection_register_callbacks() {
-    spdlog::debug("[Wizard Connection] Registering event callbacks");
+void WizardConnectionStep::register_callbacks() {
+    spdlog::debug("[{}] Registering event callbacks", get_name());
 
-    // Register callbacks with lv_xml system
-    lv_xml_register_event_cb(nullptr, "on_test_connection_clicked", on_test_connection_clicked);
-    lv_xml_register_event_cb(nullptr, "on_ip_input_changed", on_ip_input_changed);
-    lv_xml_register_event_cb(nullptr, "on_port_input_changed", on_port_input_changed);
+    // NOTE: We use static trampolines registered via lv_xml_register_event_cb
+    // The actual event binding happens in create() where we have 'this' pointer
+    lv_xml_register_event_cb(nullptr, "on_test_connection_clicked", on_test_connection_clicked_static);
+    lv_xml_register_event_cb(nullptr, "on_ip_input_changed", on_ip_input_changed_static);
+    lv_xml_register_event_cb(nullptr, "on_port_input_changed", on_port_input_changed_static);
 
-    spdlog::debug("[Wizard Connection] Event callbacks registered");
+    spdlog::debug("[{}] Event callbacks registered", get_name());
 }
 
 // ============================================================================
 // Screen Creation
 // ============================================================================
 
-lv_obj_t* ui_wizard_connection_create(lv_obj_t* parent) {
-    spdlog::debug("[Wizard Connection] Creating connection screen");
+lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
+    spdlog::debug("[{}] Creating connection screen", get_name());
 
     if (!parent) {
-        LOG_ERROR_INTERNAL("[Wizard Connection] Cannot create: null parent - coding error");
+        LOG_ERROR_INTERNAL("[{}] Cannot create: null parent", get_name());
         return nullptr;
     }
 
     // Create from XML
-    connection_screen_root = (lv_obj_t*)lv_xml_create(parent, "wizard_connection", nullptr);
+    screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_connection", nullptr));
 
-    if (!connection_screen_root) {
-        LOG_ERROR_INTERNAL("[Wizard Connection] Failed to create from XML - check wizard_connection.xml");
+    if (!screen_root_) {
+        LOG_ERROR_INTERNAL("[{}] Failed to create from XML", get_name());
         return nullptr;
     }
 
-    // Find and configure test button (in case XML doesn't have event_cb)
-    lv_obj_t* test_btn = lv_obj_find_by_name(connection_screen_root, "btn_test_connection");
+    // Find and configure test button - pass 'this' as user_data
+    lv_obj_t* test_btn = lv_obj_find_by_name(screen_root_, "btn_test_connection");
     if (test_btn) {
-        lv_obj_add_event_cb(test_btn, on_test_connection_clicked, LV_EVENT_CLICKED, nullptr);
-        spdlog::debug("[Wizard Connection] Test button callback attached");
+        lv_obj_add_event_cb(test_btn, on_test_connection_clicked_static, LV_EVENT_CLICKED, this);
+        spdlog::debug("[{}] Test button callback attached", get_name());
     } else {
-        LOG_ERROR_INTERNAL("[Wizard Connection] Test button 'btn_test_connection' not found in XML - check wizard_connection.xml");
+        LOG_ERROR_INTERNAL("[{}] Test button not found in XML", get_name());
     }
 
     // Find input fields and attach change handlers + keyboard support
-    lv_obj_t* ip_input = lv_obj_find_by_name(connection_screen_root, "ip_input");
+    lv_obj_t* ip_input = lv_obj_find_by_name(screen_root_, "ip_input");
     if (ip_input) {
-        // Set initial text from subject buffer (bind_text only syncs changes, not initial values)
-        const char* ip_text = lv_subject_get_string(&connection_ip);
+        const char* ip_text = lv_subject_get_string(&connection_ip_);
         if (ip_text && strlen(ip_text) > 0) {
             lv_textarea_set_text(ip_input, ip_text);
-            spdlog::debug("[Wizard Connection] Pre-filled IP input: {}", ip_text);
+            spdlog::debug("[{}] Pre-filled IP input: {}", get_name(), ip_text);
         }
-        lv_obj_add_event_cb(ip_input, on_ip_input_changed, LV_EVENT_VALUE_CHANGED, nullptr);
+        lv_obj_add_event_cb(ip_input, on_ip_input_changed_static, LV_EVENT_VALUE_CHANGED, this);
         ui_keyboard_register_textarea(ip_input);
-        spdlog::debug("[Wizard Connection] IP input configured with keyboard");
+        spdlog::debug("[{}] IP input configured with keyboard", get_name());
     }
 
-    lv_obj_t* port_input = lv_obj_find_by_name(connection_screen_root, "port_input");
+    lv_obj_t* port_input = lv_obj_find_by_name(screen_root_, "port_input");
     if (port_input) {
-        // Set initial text from subject buffer (bind_text only syncs changes, not initial values)
-        const char* port_text = lv_subject_get_string(&connection_port);
+        const char* port_text = lv_subject_get_string(&connection_port_);
         if (port_text && strlen(port_text) > 0) {
             lv_textarea_set_text(port_input, port_text);
-            spdlog::debug("[Wizard Connection] Pre-filled port input: {}", port_text);
+            spdlog::debug("[{}] Pre-filled port input: {}", get_name(), port_text);
         }
-        lv_obj_add_event_cb(port_input, on_port_input_changed, LV_EVENT_VALUE_CHANGED, nullptr);
+        lv_obj_add_event_cb(port_input, on_port_input_changed_static, LV_EVENT_VALUE_CHANGED, this);
         ui_keyboard_register_textarea(port_input);
-        spdlog::debug("[Wizard Connection] Port input configured with keyboard");
+        spdlog::debug("[{}] Port input configured with keyboard", get_name());
     }
 
-    // Update layout
-    lv_obj_update_layout(connection_screen_root);
+    lv_obj_update_layout(screen_root_);
 
-    spdlog::debug("[Wizard Connection] Screen created successfully");
-    return connection_screen_root;
+    spdlog::debug("[{}] Screen created successfully", get_name());
+    return screen_root_;
 }
 
 // ============================================================================
 // Cleanup
 // ============================================================================
 
-void ui_wizard_connection_cleanup() {
-    spdlog::debug("[Wizard Connection] Cleaning up connection screen");
+void WizardConnectionStep::cleanup() {
+    spdlog::debug("[{}] Cleaning up connection screen", get_name());
 
     // If a connection test is in progress, cancel it
-    if (lv_subject_get_int(&connection_testing) == 1) {
+    if (lv_subject_get_int(&connection_testing_) == 1) {
         MoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }
-        lv_subject_set_int(&connection_testing, 0);
+        lv_subject_set_int(&connection_testing_, 0);
     }
 
-    // Clear status (both icon and text)
-    lv_subject_copy_string(&connection_status_icon, "");
-    lv_subject_copy_string(&connection_status_text, "");
+    // Clear status
+    lv_subject_copy_string(&connection_status_icon_, "");
+    lv_subject_copy_string(&connection_status_text_, "");
 
-    // Reset UI references
-    connection_screen_root = nullptr;
+    // Reset UI references (wizard framework handles deletion)
+    screen_root_ = nullptr;
 
-    spdlog::debug("[Wizard Connection] Cleanup complete");
+    spdlog::debug("[{}] Cleanup complete", get_name());
 }
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
-bool ui_wizard_connection_get_url(char* buffer, size_t size) {
+bool WizardConnectionStep::get_url(char* buffer, size_t size) const {
     if (!buffer || size == 0) {
         return false;
     }
 
-    const char* ip = lv_subject_get_string(&connection_ip);
-    const char* port_str = lv_subject_get_string(&connection_port);
+    // Cast away const for LVGL API (subject is not modified by get_string)
+    const char* ip = lv_subject_get_string(const_cast<lv_subject_t*>(&connection_ip_));
+    const char* port_str = lv_subject_get_string(const_cast<lv_subject_t*>(&connection_port_));
 
-    // Validate inputs
     if (!is_valid_ip_or_hostname(ip) || !is_valid_port(port_str)) {
         return false;
     }
 
-    // Build URL
     snprintf(buffer, size, "ws://%s:%s/websocket", ip, port_str);
     return true;
 }
 
+bool WizardConnectionStep::is_validated() const {
+    return connection_validated_;
+}
+
+// ============================================================================
+// Deprecated Legacy API Wrappers
+// ============================================================================
+
+void ui_wizard_connection_init_subjects() {
+    get_wizard_connection_step()->init_subjects();
+}
+
+void ui_wizard_connection_register_callbacks() {
+    get_wizard_connection_step()->register_callbacks();
+}
+
+lv_obj_t* ui_wizard_connection_create(lv_obj_t* parent) {
+    return get_wizard_connection_step()->create(parent);
+}
+
+void ui_wizard_connection_cleanup() {
+    get_wizard_connection_step()->cleanup();
+}
+
+bool ui_wizard_connection_get_url(char* buffer, size_t size) {
+    return get_wizard_connection_step()->get_url(buffer, size);
+}
+
 bool ui_wizard_connection_is_validated() {
-    return connection_validated;
+    return get_wizard_connection_step()->is_validated();
 }
