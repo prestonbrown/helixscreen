@@ -5,6 +5,7 @@
 [submodule "libhv"]
 	path = lib/libhv
 	url = https://github.com/ithewei/libhv.git
+	ignore = dirty
 [submodule "wpa_supplicant"]
 	path = lib/wpa_supplicant
 	url = https://github.com/fluispotter/hostap.git
