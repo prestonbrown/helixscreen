@@ -40,3 +40,14 @@ apply-patches:
 	else \
 		echo "$(GREEN)✓ LVGL image parser contain/cover patch already applied$(RESET)"; \
 	fi
+	$(Q)if git -C $(LVGL_DIR) diff --quiet src/layouts/flex/lv_flex.c 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL flex SIZE_CONTENT propagation patch...$(RESET)"; \
+		if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_flex_size_content_propagate.patch 2>/dev/null; then \
+			git -C $(LVGL_DIR) apply ../../patches/lvgl_flex_size_content_propagate.patch && \
+			echo "$(GREEN)✓ Flex SIZE_CONTENT propagation patch applied$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠ Cannot apply patch (already applied or conflicts)$(RESET)"; \
+		fi \
+	else \
+		echo "$(GREEN)✓ LVGL flex SIZE_CONTENT propagation patch already applied$(RESET)"; \
+	fi
