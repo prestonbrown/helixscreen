@@ -61,6 +61,10 @@ static std::vector<lv_obj_t*> panel_stack;
 // Shared overlay backdrop widget - created once and reused for all overlays
 static lv_obj_t* overlay_backdrop = nullptr;
 
+// Overlay slide animation constants
+static constexpr uint32_t OVERLAY_ANIM_DURATION_MS = 200; // Fast but visible
+static constexpr int32_t OVERLAY_SLIDE_OFFSET = 400;      // Pixels to slide from off-screen
+
 // Observer callback - updates all icon colors when active panel changes
 static void active_panel_observer_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     int32_t new_active_panel = lv_subject_get_int(subject);
@@ -417,6 +421,65 @@ void ui_nav_set_panels(lv_obj_t** panels) {
     spdlog::debug("Panel widgets registered for show/hide management");
 }
 
+// Animation callback: called when slide-out completes to hide the panel
+static void overlay_slide_out_complete_cb(lv_anim_t* anim) {
+    lv_obj_t* panel = static_cast<lv_obj_t*>(anim->var);
+    lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+    // Reset translate_x for next time panel is shown
+    lv_obj_set_style_translate_x(panel, 0, LV_PART_MAIN);
+    spdlog::debug("Overlay slide-out complete, panel {} hidden", (void*)panel);
+}
+
+// Animate overlay panel sliding in from right
+static void overlay_animate_slide_in(lv_obj_t* panel) {
+    // Get panel width for slide distance
+    int32_t panel_width = lv_obj_get_width(panel);
+    if (panel_width <= 0) {
+        panel_width = OVERLAY_SLIDE_OFFSET; // Fallback if not yet laid out
+    }
+
+    // Start off-screen (translated right by panel width)
+    lv_obj_set_style_translate_x(panel, panel_width, LV_PART_MAIN);
+
+    // Animate translate_x from panel_width to 0
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, panel);
+    lv_anim_set_values(&anim, panel_width, 0);
+    lv_anim_set_duration(&anim, OVERLAY_ANIM_DURATION_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, [](void* obj, int32_t value) {
+        lv_obj_set_style_translate_x(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+    });
+    lv_anim_start(&anim);
+
+    spdlog::debug("Started slide-in animation for panel {} (width={})", (void*)panel, panel_width);
+}
+
+// Animate overlay panel sliding out to right, then hide
+static void overlay_animate_slide_out(lv_obj_t* panel) {
+    // Get panel width for slide distance
+    int32_t panel_width = lv_obj_get_width(panel);
+    if (panel_width <= 0) {
+        panel_width = OVERLAY_SLIDE_OFFSET;
+    }
+
+    // Animate translate_x from 0 to panel_width (slide right off-screen)
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, panel);
+    lv_anim_set_values(&anim, 0, panel_width);
+    lv_anim_set_duration(&anim, OVERLAY_ANIM_DURATION_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
+    lv_anim_set_exec_cb(&anim, [](void* obj, int32_t value) {
+        lv_obj_set_style_translate_x(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+    });
+    lv_anim_set_completed_cb(&anim, overlay_slide_out_complete_cb);
+    lv_anim_start(&anim);
+
+    spdlog::debug("Started slide-out animation for panel {} (width={})", (void*)panel, panel_width);
+}
+
 void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     if (!overlay_panel) {
         spdlog::error("Cannot push NULL overlay panel");
@@ -453,6 +516,9 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
                       panel_stack.size());
     }
 
+    // Animate slide-in from right
+    overlay_animate_slide_in(overlay_panel);
+
     spdlog::debug("Showing overlay panel {} (stack depth: {})", (void*)overlay_panel,
                   panel_stack.size());
 }
@@ -460,24 +526,35 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
 bool ui_nav_go_back() {
     spdlog::debug("=== ui_nav_go_back() called, stack depth: {} ===", panel_stack.size());
 
-    // DEFENSIVE: Always hide any overlay panels (not in panel_widgets)
-    // This handles cases where panels were shown via command line or other means
+    // Get current top panel before popping
+    lv_obj_t* current_top = panel_stack.empty() ? nullptr : panel_stack.back();
+
+    // Check if current top is an overlay (not a main nav panel)
+    bool is_overlay = false;
+    if (current_top) {
+        is_overlay = true;
+        for (int j = 0; j < UI_PANEL_COUNT; j++) {
+            if (panel_widgets[j] == current_top) {
+                is_overlay = false;
+                break;
+            }
+        }
+    }
+
+    // If it's an overlay, animate it sliding out (callback will hide it)
+    if (is_overlay && current_top) {
+        overlay_animate_slide_out(current_top);
+    }
+
+    // DEFENSIVE: Hide any OTHER overlay panels that might be visible
+    // (not the current one we're animating)
     lv_obj_t* screen = lv_screen_active();
     if (screen) {
-        spdlog::debug("Scanning {} screen children for overlays to hide",
-                      lv_obj_get_child_count(screen));
         for (uint32_t i = 0; i < lv_obj_get_child_count(screen); i++) {
             lv_obj_t* child = lv_obj_get_child(screen, i);
 
-            // Don't hide app_layout (contains navbar + panels)
-            if (child == app_layout_widget) {
-                spdlog::trace("  Child {}: app_layout (skip)", i);
-                continue;
-            }
-
-            // Don't hide shared backdrop - we'll handle it below
-            if (child == overlay_backdrop) {
-                spdlog::trace("  Child {}: overlay_backdrop (skip)", i);
+            // Skip app_layout, backdrop, and the panel we're animating
+            if (child == app_layout_widget || child == overlay_backdrop || child == current_top) {
                 continue;
             }
 
@@ -490,12 +567,10 @@ bool ui_nav_go_back() {
                 }
             }
 
-            // Hide any overlay panel (even if already hidden, for consistency)
-            if (!is_main_panel) {
+            // Immediately hide any other overlay panel
+            if (!is_main_panel && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
                 lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
-                spdlog::trace("  Child {}: {} - HIDING overlay panel", i, (void*)child);
-            } else {
-                spdlog::trace("  Child {}: {} - main panel (skip)", i, (void*)child);
+                spdlog::trace("  Child {}: {} - HIDING stale overlay", i, (void*)child);
             }
         }
     }

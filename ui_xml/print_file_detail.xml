@@ -4,18 +4,18 @@
 <component>
   <!-- Print File Detail View - Full overlay showing file details and print options -->
   <!-- Uses reactive subjects for file data (no API properties needed) -->
-  <view extends="lv_obj" x="#nav_width" height="100%" style_bg_opa="255" style_border_width="0" style_pad_all="0" flex_flow="column" clickable="true" name="detail_view_root">
+  <view extends="lv_obj" width="#overlay_panel_width_large" height="100%" align="right_mid" style_bg_opa="255" style_border_width="0" style_pad_all="0" flex_flow="column" clickable="true" name="detail_view_root">
     <!-- HEADER BAR (full width at top) -->
     <header_bar title="Print File" name="detail_header"/>
     <!-- CONTENT AREA (two columns) -->
     <lv_obj width="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_left="#padding_normal" style_pad_right="#padding_normal" style_pad_top="#padding_normal" style_pad_bottom="#padding_normal" flex_flow="row" style_pad_gap="#gap_normal" scrollable="false" name="content_container">
       <!-- ================================================================== -->
-      <!-- LEFT SECTION: File card with reactive bindings (2/3 width)        -->
+      <!-- LEFT SECTION: File card with reactive bindings (5/9 width)        -->
       <!-- NOTE: Can't reuse print_file_card here because it uses props ($) -->
       <!-- for static data, but detail view needs bindings (bind_*) for     -->
       <!-- reactive updates when user selects different files.              -->
       <!-- ================================================================== -->
-      <ui_card name="detail_card" flex_grow="2" height="100%" style_radius="#border_radius" style_pad_all="0" style_clip_corner="true">
+      <ui_card name="detail_card" flex_grow="5" height="100%" style_radius="#border_radius" style_pad_all="0" style_clip_corner="true">
         <!-- Gradient background -->
         <ui_gradient_canvas width="100%" height="100%" dither="true"/>
         <!-- Thumbnail with reactive binding -->
@@ -24,17 +24,17 @@
         <lv_obj width="100%" height="90" style_bg_opa="0" style_border_width="0" style_radius="0" style_pad_all="0" align="bottom_mid" scrollable="false" name="detail_metadata_clip">
           <!-- Inner overlay with rounded corners - taller to hide top radius -->
           <lv_obj width="100%" height="98" style_bg_opa="204" style_border_width="0" style_radius="#border_radius" style_pad_left="#gap_small" style_pad_right="#gap_small" style_pad_top="#gap_large" style_pad_bottom="#gap_small" align="bottom_mid" flex_flow="column" scrollable="false" name="detail_metadata_overlay">
-            <!-- Filename with reactive binding -->
+            <!-- Filename with reactive binding, specified height so that text will purposely get truncated and not wrap -->
             <lv_label bind_text="selected_filename" width="100%" height="24" long_mode="dots" style_text_font="montserrat_18" name="detail_filename_label"/>
             <!-- Metadata row -->
-            <lv_obj width="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_top="4" flex_flow="row" style_pad_gap="#gap_tiny" flex_grow="1" name="detail_metadata_row">
+            <lv_obj width="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_top="#gap_tiny" flex_flow="row" style_pad_gap="#gap_tiny" flex_grow="1" name="detail_metadata_row">
               <!-- Print time -->
-              <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_pad_gap="3" style_flex_cross_place="center">
+              <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_pad_gap="#gap_card" style_flex_cross_place="center">
                 <icon src="mat_clock" size="xs" variant="accent"/>
                 <lv_label bind_text="selected_print_time" flex_grow="1" style_min_width="35" style_text_color="#text_secondary" style_text_font="montserrat_14" name="detail_time_label"/>
               </lv_obj>
               <!-- Filament weight -->
-              <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_pad_gap="3" style_flex_cross_place="center">
+              <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_pad_gap="#gap_card" style_flex_cross_place="center">
                 <icon src="mat_layers" size="xs" variant="accent"/>
                 <lv_label bind_text="selected_filament_weight" flex_grow="1" style_min_width="35" style_text_color="#text_secondary" style_text_font="montserrat_14" name="detail_filament_label"/>
               </lv_obj>
@@ -43,25 +43,26 @@
         </lv_obj>
       </ui_card>
       <!-- ================================================================== -->
-      <!-- RIGHT SECTION: Options and buttons (1/3 width)                    -->
+      <!-- RIGHT SECTION: Options and buttons (4/9 width)                    -->
       <!-- ================================================================== -->
-      <lv_obj name="options_section" flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="#gap_large" flex_flow="column" scrollable="false">
+      <lv_obj name="options_section" flex_grow="4" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="#gap_small" style_pad_gap="#gap_large" flex_flow="column" scrollable="false">
         <!-- Options card -->
-        <ui_card name="options_card" width="100%" flex_grow="5" style_radius="#border_radius" flex_flow="column">
+        <ui_card name="options_card" width="100%" style_radius="#border_radius" flex_flow="column">
           <!-- Filament type dropdown -->
           <text_body text="Filament Type" width="100%"/>
-          <lv_dropdown name="filament_dropdown" options="PLA&#10;PETG&#10;ABS&#10;TPU&#10;Nylon&#10;ASA&#10;PC&#10;HIPS&#10;PVA&#10;Wood Fill&#10;Carbon Fiber" width="100%" height="#button_height"/>
+          <lv_dropdown name="filament_dropdown" options="PLA&#10;PETG&#10;ABS&#10;TPU&#10;Nylon&#10;ASA&#10;PC&#10;" width="100%" height="#button_height"/>
           <!-- Automatic bed leveling checkbox -->
           <lv_checkbox name="bed_leveling_checkbox" text="Automatic Bed Leveling" width="100%"/>
         </ui_card>
+
         <!-- Button row -->
-        <lv_obj name="button_row" width="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="#button_padding" flex_flow="row">
+        <lv_obj name="button_row" width="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="#button_padding" flex_flow="row">
           <!-- Delete button -->
-          <lv_button name="delete_button" flex_grow="1" height="#button_height" style_radius="4" clickable="true">
+          <lv_button name="delete_button" flex_grow="1" height="#button_height">
             <text_body text="Delete" align="center"/>
           </lv_button>
           <!-- Print button -->
-          <lv_button name="print_button" flex_grow="1" height="#button_height" style_radius="4" clickable="true">
+          <lv_button name="print_button" flex_grow="1" height="#button_height">
             <text_body text="Print" align="center"/>
           </lv_button>
         </lv_obj>
