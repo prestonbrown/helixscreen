@@ -355,3 +355,38 @@ void ui_notification_error(const char* message, const char* title, bool modal) {
                   title ? title : "(null)",
                   modal);
 }
+
+// Stub implementations for toast functions (tests don't display UI)
+#include "ui_toast.h"
+
+void ui_toast_init() {
+    // No-op in tests
+}
+
+void ui_toast_show(ToastSeverity severity, const char* message, uint32_t duration_ms) {
+    (void)severity;
+    (void)duration_ms;
+    spdlog::debug("[Test Stub] ui_toast_show: {}", message ? message : "(null)");
+}
+
+void ui_toast_show_with_action(ToastSeverity severity, const char* message,
+                                const char* action_text, toast_action_callback_t action_callback,
+                                void* user_data, uint32_t duration_ms) {
+    (void)severity;
+    (void)action_text;
+    (void)action_callback;
+    (void)user_data;
+    (void)duration_ms;
+    spdlog::debug("[Test Stub] ui_toast_show_with_action: {}", message ? message : "(null)");
+}
+
+void ui_toast_hide() {
+    // No-op in tests
+}
+
+bool ui_toast_is_visible() {
+    return false;
+}
+
+// Note: FanPanel is provided by ui_panel_fan.o which is linked in TEST_PANEL_DEPS
+// The get_global_fan_panel() function is defined in ui_panel_fan.cpp
