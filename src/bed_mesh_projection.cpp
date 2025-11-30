@@ -42,11 +42,14 @@ bed_mesh_point_3d_t bed_mesh_projection_project_3d_to_2d(double x, double y, dou
     double perspective_x = (final_x * view->fov_scale) / final_z;
     double perspective_y = (final_y * view->fov_scale) / final_z;
 
-    // Step 5: Convert to screen coordinates (centered in canvas)
-    result.screen_x = static_cast<int>(canvas_width / 2 + perspective_x) + view->center_offset_x;
+    // Step 5: Convert to screen coordinates (centered in canvas, then offset to layer position)
+    // center_offset_x/y = canvas-relative centering adjustment
+    // layer_offset_x/y = layer position on screen (updated every frame for animations)
+    result.screen_x = static_cast<int>(canvas_width / 2 + perspective_x) + view->center_offset_x +
+                      view->layer_offset_x;
     result.screen_y =
         static_cast<int>(canvas_height * BED_MESH_Z_ORIGIN_VERTICAL_POS + perspective_y) +
-        view->center_offset_y;
+        view->center_offset_y + view->layer_offset_y;
     result.depth = final_z;
 
     return result;

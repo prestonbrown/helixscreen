@@ -171,6 +171,9 @@ static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* ren
                                int canvas_width, int canvas_height);
 static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer_t* renderer,
                                       int canvas_width, int canvas_height);
+static void draw_axis_tick_label(lv_layer_t* layer, lv_draw_label_dsc_t* label_dsc, int screen_x,
+                                 int screen_y, int offset_x, int offset_y, double value,
+                                 int canvas_width, int canvas_height);
 
 // Coordinate transformation helpers
 // NOTE: These are now wrapper functions that delegate to the CoordinateTransform namespace.
@@ -346,6 +349,10 @@ bed_mesh_renderer_t* bed_mesh_renderer_create(void) {
     // Initialize centering offsets to zero (will be computed after projection)
     renderer->view_state.center_offset_x = 0;
     renderer->view_state.center_offset_y = 0;
+
+    // Initialize layer offsets to zero (updated every frame during render)
+    renderer->view_state.layer_offset_x = 0;
+    renderer->view_state.layer_offset_y = 0;
 
     spdlog::debug("Created bed mesh renderer");
     return renderer;
@@ -663,6 +670,10 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer, 
     // Quads are now pre-generated in set_mesh_data() - no need to regenerate every frame!
     // Just project vertices and update cached screen coordinates
 
+    // Apply layer offset for final rendering (updated every frame for animation support)
+    renderer->view_state.layer_offset_x = layer_offset_x;
+    renderer->view_state.layer_offset_y = layer_offset_y;
+
     // PERF: Track rendering pipeline timings
     auto t_start = std::chrono::high_resolution_clock::now();
 
@@ -689,18 +700,18 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer, 
             quad_max_y = std::max(quad_max_y, quad.screen_y[i]);
         }
     }
-    spdlog::info("[GRADIENT_OVERALL] All quads bounds: x=[{},{}] y=[{},{}] quads={} canvas={}x{}",
-                 quad_min_x, quad_max_x, quad_min_y, quad_max_y, renderer->quads.size(),
-                 canvas_width, canvas_height);
+    spdlog::trace("[GRADIENT_OVERALL] All quads bounds: x=[{},{}] y=[{},{}] quads={} canvas={}x{}",
+                  quad_min_x, quad_max_x, quad_min_y, quad_max_y, renderer->quads.size(),
+                  canvas_width, canvas_height);
 
     // DEBUG: Log first quad vertex positions using cached coordinates
     if (!renderer->quads.empty()) {
         const auto& first_quad = renderer->quads[0];
-        spdlog::info("[FIRST_QUAD] Vertices (world -> cached screen):");
+        spdlog::trace("[FIRST_QUAD] Vertices (world -> cached screen):");
         for (int i = 0; i < 4; i++) {
-            spdlog::info("  v{}: world=({:.2f},{:.2f},{:.2f}) -> screen=({},{})", i,
-                         first_quad.vertices[i].x, first_quad.vertices[i].y,
-                         first_quad.vertices[i].z, first_quad.screen_x[i], first_quad.screen_y[i]);
+            spdlog::trace("  v{}: world=({:.2f},{:.2f},{:.2f}) -> screen=({},{})", i,
+                          first_quad.vertices[i].x, first_quad.vertices[i].y,
+                          first_quad.vertices[i].z, first_quad.screen_x[i], first_quad.screen_y[i]);
         }
     }
 
@@ -736,7 +747,7 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer, 
         use_gradient ? "gradient" : "solid");
 
     // Output canvas dimensions and view coordinates
-    spdlog::info(
+    spdlog::trace(
         "[CANVAS_SIZE] Widget dimensions: {}x{} | Alt: {:.1f}° | Az: {:.1f}° | Zoom: {:.2f}x",
         canvas_width, canvas_height, renderer->view_state.angle_x, renderer->view_state.angle_z,
         renderer->view_state.fov_scale / DEFAULT_FOV_SCALE);
@@ -967,20 +978,22 @@ static void compute_projected_mesh_bounds(const bed_mesh_renderer_t* renderer, i
  * @param[out] out_offset_y Vertical centering offset
  */
 static void compute_centering_offset(int mesh_min_x, int mesh_max_x, int mesh_min_y, int mesh_max_y,
-                                     int layer_offset_x, int layer_offset_y, int canvas_width,
+                                     int /*layer_offset_x*/, int /*layer_offset_y*/, int canvas_width,
                                      int canvas_height, int* out_offset_x, int* out_offset_y) {
-    // Calculate centers in screen space
+    // Calculate centers in CANVAS space (not screen space)
+    // The mesh bounds are relative to canvas origin, so we center within the canvas
+    // Layer offset is handled separately in projection to support animations
     int mesh_center_x = (mesh_min_x + mesh_max_x) / 2;
     int mesh_center_y = (mesh_min_y + mesh_max_y) / 2;
-    int layer_center_x = layer_offset_x + (canvas_width / 2);
-    int layer_center_y = layer_offset_y + (canvas_height / 2);
+    int canvas_center_x = canvas_width / 2;
+    int canvas_center_y = canvas_height / 2;
 
-    // Offset needed to move mesh center to layer center (both in screen coords)
-    *out_offset_x = layer_center_x - mesh_center_x;
-    *out_offset_y = layer_center_y - mesh_center_y;
+    // Offset needed to move mesh center to canvas center (canvas-relative coords)
+    *out_offset_x = canvas_center_x - mesh_center_x;
+    *out_offset_y = canvas_center_y - mesh_center_y;
 
-    spdlog::debug("[CENTERING] Mesh center: ({},{}) -> Layer center: ({},{}) = offset ({},{})",
-                  mesh_center_x, mesh_center_y, layer_center_x, layer_center_y, *out_offset_x,
+    spdlog::debug("[CENTERING] Mesh center: ({},{}) -> Canvas center: ({},{}) = offset ({},{})",
+                  mesh_center_x, mesh_center_y, canvas_center_x, canvas_center_y, *out_offset_x,
                   *out_offset_y);
 }
 
@@ -1356,9 +1369,9 @@ static void render_grid_lines(lv_layer_t* layer, const bed_mesh_renderer_t* rend
 
     // DEBUG: Log grid line bounds summary
     if (grid_lines_drawn > 0) {
-        spdlog::info("[GRID_LINES] Total bounds: x=[{},{}] y=[{},{}] lines_drawn={} canvas={}x{}",
-                     grid_min_x, grid_max_x, grid_min_y, grid_max_y, grid_lines_drawn, canvas_width,
-                     canvas_height);
+        spdlog::trace("[GRID_LINES] Total bounds: x=[{},{}] y=[{},{}] lines_drawn={} canvas={}x{}",
+                      grid_min_x, grid_max_x, grid_min_y, grid_max_y, grid_lines_drawn, canvas_width,
+                      canvas_height);
     }
 }
 
@@ -1506,6 +1519,40 @@ static void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* ren
 }
 
 /**
+ * @brief Draw a single axis tick label at the given screen position
+ *
+ * Helper to reduce code duplication in render_numeric_axis_ticks.
+ * Handles bounds checking, text formatting, and deferred text copy for LVGL.
+ */
+static void draw_axis_tick_label(lv_layer_t* layer, lv_draw_label_dsc_t* label_dsc, int screen_x,
+                                 int screen_y, int offset_x, int offset_y, double value,
+                                 int canvas_width, int canvas_height) {
+    // Check screen bounds for tick position
+    if (screen_x < 0 || screen_x >= canvas_width || screen_y < 0 || screen_y >= canvas_height) {
+        return;
+    }
+
+    // Format label text
+    char label_text[8];
+    snprintf(label_text, sizeof(label_text), "%.0f", value);
+    label_dsc->text = label_text;
+    label_dsc->text_length = strlen(label_text);
+
+    // Calculate label area with offsets
+    lv_area_t label_area;
+    label_area.x1 = screen_x + offset_x;
+    label_area.y1 = screen_y + offset_y;
+    label_area.x2 = label_area.x1 + 30;
+    label_area.y2 = label_area.y1 + 12;
+
+    // Clamp to canvas bounds before drawing
+    if (label_area.x1 >= 0 && label_area.x2 < canvas_width && label_area.y1 >= 0 &&
+        label_area.y2 < canvas_height) {
+        lv_draw_label(layer, label_dsc, &label_area);
+    }
+}
+
+/**
  * @brief Render numeric tick labels on X and Y axes
  *
  * Adds millimeter labels (e.g., "0", "50", "100") at regular intervals along
@@ -1532,6 +1579,7 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
     label_dsc.font = &lv_font_montserrat_10; // Smaller font for numeric labels
     label_dsc.opa = LV_OPA_80;               // Slightly more transparent than axis letters
     label_dsc.align = LV_TEXT_ALIGN_CENTER;
+    label_dsc.text_local = 1; // Tell LVGL to copy text (we use stack buffers)
 
     // Determine appropriate tick spacing (aim for 3-5 ticks per axis)
     // Common printer bed sizes: 180mm, 220mm, 235mm, 250mm, 300mm
@@ -1540,108 +1588,48 @@ static void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer
         tick_spacing = 100.0; // For larger beds (e.g., 300mm+)
     }
 
-    // Draw X-axis tick labels
-    double x_axis_y = mesh_row_to_world_y(0, renderer->rows); // Front edge
+    // X-axis tick label offsets: centered below the axis line
+    constexpr int X_LABEL_OFFSET_X = -15;
+    constexpr int X_LABEL_OFFSET_Y = 5;
+    // Y-axis tick label offsets: to the left of the axis line
+    constexpr int Y_LABEL_OFFSET_X = -35;
+    constexpr int Y_LABEL_OFFSET_Y = -6;
+
+    // Draw X-axis tick labels (along front edge)
+    double x_axis_y = mesh_row_to_world_y(0, renderer->rows);
     for (double x_mm = 0; x_mm <= bed_width_mm / 2.0; x_mm += tick_spacing) {
-        // Draw positive X tick
-        double world_x = x_mm;
+        // Positive X tick
         bed_mesh_point_3d_t pos_tick = bed_mesh_projection_project_3d_to_2d(
-            world_x, x_axis_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
+            x_mm, x_axis_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
+        draw_axis_tick_label(layer, &label_dsc, pos_tick.screen_x, pos_tick.screen_y,
+                             X_LABEL_OFFSET_X, X_LABEL_OFFSET_Y, x_mm, canvas_width, canvas_height);
 
-        if (pos_tick.screen_x >= 0 && pos_tick.screen_x < canvas_width && pos_tick.screen_y >= 0 &&
-            pos_tick.screen_y < canvas_height) {
-            char label_text[8];
-            snprintf(label_text, sizeof(label_text), "%.0f", x_mm);
-            label_dsc.text = label_text;
-
-            lv_area_t label_area;
-            label_area.x1 = pos_tick.screen_x - 15;
-            label_area.y1 = pos_tick.screen_y + 5; // Below the axis line
-            label_area.x2 = label_area.x1 + 30;
-            label_area.y2 = label_area.y1 + 12;
-
-            // Clamp to canvas bounds
-            if (label_area.x1 >= 0 && label_area.x2 < canvas_width && label_area.y1 >= 0 &&
-                label_area.y2 < canvas_height) {
-                lv_draw_label(layer, &label_dsc, &label_area);
-            }
-        }
-
-        // Draw negative X tick (skip 0 to avoid duplicate)
+        // Negative X tick (skip 0 to avoid duplicate)
         if (x_mm > 0.1) {
-            world_x = -x_mm;
             bed_mesh_point_3d_t neg_tick = bed_mesh_projection_project_3d_to_2d(
-                world_x, x_axis_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
-
-            if (neg_tick.screen_x >= 0 && neg_tick.screen_x < canvas_width &&
-                neg_tick.screen_y >= 0 && neg_tick.screen_y < canvas_height) {
-                char label_text[8];
-                snprintf(label_text, sizeof(label_text), "%.0f", -x_mm);
-                label_dsc.text = label_text;
-
-                lv_area_t label_area;
-                label_area.x1 = neg_tick.screen_x - 15;
-                label_area.y1 = neg_tick.screen_y + 5;
-                label_area.x2 = label_area.x1 + 30;
-                label_area.y2 = label_area.y1 + 12;
-
-                if (label_area.x1 >= 0 && label_area.x2 < canvas_width && label_area.y1 >= 0 &&
-                    label_area.y2 < canvas_height) {
-                    lv_draw_label(layer, &label_dsc, &label_area);
-                }
-            }
+                -x_mm, x_axis_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
+            draw_axis_tick_label(layer, &label_dsc, neg_tick.screen_x, neg_tick.screen_y,
+                                 X_LABEL_OFFSET_X, X_LABEL_OFFSET_Y, -x_mm, canvas_width,
+                                 canvas_height);
         }
     }
 
-    // Draw Y-axis tick labels
-    double y_axis_x = mesh_col_to_world_x(0, renderer->cols); // Left edge
+    // Draw Y-axis tick labels (along left edge)
+    double y_axis_x = mesh_col_to_world_x(0, renderer->cols);
     for (double y_mm = 0; y_mm <= bed_height_mm / 2.0; y_mm += tick_spacing) {
-        // Draw positive Y tick
-        double world_y = y_mm;
+        // Positive Y tick
         bed_mesh_point_3d_t pos_tick = bed_mesh_projection_project_3d_to_2d(
-            y_axis_x, world_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
+            y_axis_x, y_mm, grid_z, canvas_width, canvas_height, &renderer->view_state);
+        draw_axis_tick_label(layer, &label_dsc, pos_tick.screen_x, pos_tick.screen_y,
+                             Y_LABEL_OFFSET_X, Y_LABEL_OFFSET_Y, y_mm, canvas_width, canvas_height);
 
-        if (pos_tick.screen_x >= 0 && pos_tick.screen_x < canvas_width && pos_tick.screen_y >= 0 &&
-            pos_tick.screen_y < canvas_height) {
-            char label_text[8];
-            snprintf(label_text, sizeof(label_text), "%.0f", y_mm);
-            label_dsc.text = label_text;
-
-            lv_area_t label_area;
-            label_area.x1 = pos_tick.screen_x - 35; // To the left of the axis
-            label_area.y1 = pos_tick.screen_y - 6;
-            label_area.x2 = label_area.x1 + 30;
-            label_area.y2 = label_area.y1 + 12;
-
-            if (label_area.x1 >= 0 && label_area.x2 < canvas_width && label_area.y1 >= 0 &&
-                label_area.y2 < canvas_height) {
-                lv_draw_label(layer, &label_dsc, &label_area);
-            }
-        }
-
-        // Draw negative Y tick (skip 0 to avoid duplicate)
+        // Negative Y tick (skip 0 to avoid duplicate)
         if (y_mm > 0.1) {
-            world_y = -y_mm;
             bed_mesh_point_3d_t neg_tick = bed_mesh_projection_project_3d_to_2d(
-                y_axis_x, world_y, grid_z, canvas_width, canvas_height, &renderer->view_state);
-
-            if (neg_tick.screen_x >= 0 && neg_tick.screen_x < canvas_width &&
-                neg_tick.screen_y >= 0 && neg_tick.screen_y < canvas_height) {
-                char label_text[8];
-                snprintf(label_text, sizeof(label_text), "%.0f", -y_mm);
-                label_dsc.text = label_text;
-
-                lv_area_t label_area;
-                label_area.x1 = neg_tick.screen_x - 35;
-                label_area.y1 = neg_tick.screen_y - 6;
-                label_area.x2 = label_area.x1 + 30;
-                label_area.y2 = label_area.y1 + 12;
-
-                if (label_area.x1 >= 0 && label_area.x2 < canvas_width && label_area.y1 >= 0 &&
-                    label_area.y2 < canvas_height) {
-                    lv_draw_label(layer, &label_dsc, &label_area);
-                }
-            }
+                y_axis_x, -y_mm, grid_z, canvas_width, canvas_height, &renderer->view_state);
+            draw_axis_tick_label(layer, &label_dsc, neg_tick.screen_x, neg_tick.screen_y,
+                                 Y_LABEL_OFFSET_X, Y_LABEL_OFFSET_Y, -y_mm, canvas_width,
+                                 canvas_height);
         }
     }
 }

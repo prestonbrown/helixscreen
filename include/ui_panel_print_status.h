@@ -8,6 +8,7 @@
 #include "ui_panel_base.h"
 
 #include <string>
+#include <unordered_set>
 
 /**
  * @brief Print status panel - shows active print progress and controls
@@ -328,6 +329,61 @@ class PrintStatusPanel : public PanelBase {
 
     bool led_on_ = false;
     std::string configured_led_;
+
+    //
+    // === Exclude Object State ===
+    //
+
+    /// Objects already excluded (sent to Klipper, cannot be undone)
+    std::unordered_set<std::string> excluded_objects_;
+
+    /// Object pending exclusion (in undo window, not yet sent to Klipper)
+    std::string pending_exclude_object_;
+
+    /// Timer for undo window (5 seconds before sending EXCLUDE_OBJECT to Klipper)
+    lv_timer_t* exclude_undo_timer_{nullptr};
+
+    /// Active confirmation dialog (if showing)
+    lv_obj_t* exclude_confirm_dialog_{nullptr};
+
+    //
+    // === Exclude Object Handlers ===
+    //
+
+    /**
+     * @brief Handle long-press on object in G-code viewer
+     * Shows confirmation dialog for excluding the object
+     */
+    void handle_object_long_press(const char* object_name);
+
+    /**
+     * @brief Handle confirmation of object exclusion
+     * Starts the delayed undo window and shows undo toast
+     */
+    void handle_exclude_confirmed();
+
+    /**
+     * @brief Handle cancellation of exclusion dialog
+     */
+    void handle_exclude_cancelled();
+
+    /**
+     * @brief Handle undo button press on toast (cancels pending exclusion)
+     */
+    void handle_exclude_undo();
+
+    /**
+     * @brief Timer callback when undo window expires - sends EXCLUDE_OBJECT to Klipper
+     */
+    static void exclude_undo_timer_cb(lv_timer_t* timer);
+
+    //
+    // === Exclude Object Static Trampolines ===
+    //
+
+    static void on_object_long_pressed(lv_obj_t* viewer, const char* object_name, void* user_data);
+    static void on_exclude_confirm_clicked(lv_event_t* e);
+    static void on_exclude_cancel_clicked(lv_event_t* e);
 };
 
 // Global instance accessor (needed by main.cpp)

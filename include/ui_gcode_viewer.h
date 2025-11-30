@@ -512,4 +512,62 @@ void ui_gcode_viewer_register(void);
 void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
                                              const std::unordered_set<std::string>& object_names);
 
+/**
+ * @brief Set excluded objects
+ * @param obj Viewer widget
+ * @param object_names Set of object names that are excluded from print
+ *
+ * Excluded objects are rendered with a red/orange strikethrough style at
+ * reduced opacity to indicate they won't be printed. Use this to sync the
+ * visual state with Klipper's exclude_object feature.
+ */
+void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
+                                          const std::unordered_set<std::string>& object_names);
+
+/**
+ * @brief Callback type for object tap events
+ * @param viewer The viewer widget
+ * @param object_name Name of the tapped object (empty if no object hit)
+ * @param user_data User-provided context
+ */
+typedef void (*gcode_viewer_object_tap_callback_t)(lv_obj_t* viewer, const char* object_name,
+                                                   void* user_data);
+
+/**
+ * @brief Register callback for object tap events
+ * @param obj Viewer widget
+ * @param callback Function to call when an object is tapped (NULL to clear)
+ * @param user_data User data passed to callback
+ *
+ * The callback is invoked when user taps on an object in the 3D view.
+ * Use this to implement exclude object confirmation UI.
+ */
+void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj, gcode_viewer_object_tap_callback_t callback,
+                                             void* user_data);
+
+/**
+ * @brief Callback type for object long-press events
+ * @param viewer The viewer widget
+ * @param object_name Name of the long-pressed object (empty if no object hit)
+ * @param user_data User-provided context
+ *
+ * Long-press is triggered after holding for 500ms without moving.
+ */
+typedef void (*gcode_viewer_object_long_press_callback_t)(lv_obj_t* viewer, const char* object_name,
+                                                          void* user_data);
+
+/**
+ * @brief Register callback for object long-press events
+ * @param obj Viewer widget
+ * @param callback Function to call when an object is long-pressed (NULL to clear)
+ * @param user_data User data passed to callback
+ *
+ * The callback is invoked when user long-presses (500ms) on an object without moving.
+ * Use this to implement the exclude object confirmation flow - long-press to exclude
+ * is more intentional than tap, preventing accidental exclusions.
+ */
+void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t* obj,
+                                                     gcode_viewer_object_long_press_callback_t callback,
+                                                     void* user_data);
+
 #endif

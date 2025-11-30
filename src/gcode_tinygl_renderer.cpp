@@ -757,6 +757,18 @@ void GCodeTinyGLRenderer::set_highlighted_objects(const std::unordered_set<std::
     }
 }
 
+void GCodeTinyGLRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
+    // Only rebuild if the excluded objects actually changed
+    if (excluded_objects_ != names) {
+        excluded_objects_ = names;
+        // Trigger geometry rebuild to apply excluded object coloring
+        geometry_.reset();
+        current_gcode_filename_.clear();
+        spdlog::debug("TinyGL: Excluded objects changed ({} excluded), geometry will rebuild",
+                      names.size());
+    }
+}
+
 void GCodeTinyGLRenderer::reset_colors() {
     // Reset to default filament color mode
     geometry_builder_->set_use_height_gradient(false);

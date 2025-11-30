@@ -142,9 +142,13 @@ typedef struct {
     double cached_sin_z;   // sin(angle_z in radians)
     bool trig_cache_valid; // True if cached values match current angles
 
-    // Centering offsets (computed after scaling to fit canvas)
-    int center_offset_x; // Horizontal centering offset in screen pixels
-    int center_offset_y; // Vertical centering offset in screen pixels
+    // Centering offsets (computed after scaling to fit canvas, canvas-relative)
+    int center_offset_x; // Horizontal centering offset in canvas pixels
+    int center_offset_y; // Vertical centering offset in canvas pixels
+
+    // Layer offset (updated every frame to track panel position during animations)
+    int layer_offset_x; // Layer's X position on screen (from clip area)
+    int layer_offset_y; // Layer's Y position on screen (from clip area)
 } bed_mesh_view_state_t;
 
 // Main renderer instance (opaque handle)

@@ -29,6 +29,7 @@ GCodeRenderer::GCodeRenderer() {
     color_travel_ = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
     color_object_boundary_ = ui_theme_parse_color(lv_xml_get_const(NULL, "secondary_color"));
     color_highlighted_ = ui_theme_parse_color(lv_xml_get_const(NULL, "secondary_color"));
+    color_excluded_ = ui_theme_parse_color(lv_xml_get_const(NULL, "danger_color"));
 
     // Save theme defaults for reset
     theme_color_extrusion_ = color_extrusion_;
@@ -54,6 +55,10 @@ void GCodeRenderer::set_show_extrusions(bool show) {
 
 void GCodeRenderer::set_highlighted_object(const std::string& name) {
     options_.highlighted_object = name;
+}
+
+void GCodeRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
+    options_.excluded_objects = names;
 }
 
 void GCodeRenderer::set_lod_level(LODLevel level) {
@@ -322,11 +327,17 @@ lv_draw_line_dsc_t GCodeRenderer::get_line_style(const ToolpathSegment& segment,
     // Determine line width and base opacity
     bool is_highlighted =
         !options_.highlighted_object.empty() && segment.object_name == options_.highlighted_object;
+    bool is_excluded = !segment.object_name.empty() &&
+                       options_.excluded_objects.count(segment.object_name) > 0;
 
     lv_opa_t base_opa;
     int line_width;
 
-    if (is_highlighted) {
+    if (is_excluded) {
+        // Excluded objects: render with reduced opacity and thinner lines
+        line_width = 1;
+        base_opa = LV_OPA_60; // 60% opacity for strikethrough effect
+    } else if (is_highlighted) {
         line_width = 3;
         base_opa = LV_OPA_COVER;
     } else if (segment.is_extrusion) {
@@ -380,8 +391,10 @@ lv_draw_line_dsc_t GCodeRenderer::get_line_style(const ToolpathSegment& segment,
         gradient_color = lv_color_make(255, static_cast<uint8_t>(255 * (1.0f - t)), 0);
     }
 
-    // Use gradient color (highlighted objects override with their special color)
-    if (is_highlighted) {
+    // Use gradient color (excluded/highlighted objects override with their special color)
+    if (is_excluded) {
+        dsc.color = color_excluded_;  // Red/orange strikethrough color
+    } else if (is_highlighted) {
         dsc.color = color_highlighted_;
     } else {
         dsc.color = gradient_color;

@@ -823,6 +823,33 @@ void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_su
         "printer.gcode.script", params, [on_success](json) { on_success(); }, on_error);
 }
 
+// ============================================================================
+// Object Exclusion Operations
+// ============================================================================
+
+void MoonrakerAPI::exclude_object(const std::string& object_name, SuccessCallback on_success,
+                                  ErrorCallback on_error) {
+    // Validate object name to prevent G-code injection
+    if (!is_safe_identifier(object_name)) {
+        NOTIFY_ERROR("Invalid object name '{}'. Contains unsafe characters.", object_name);
+        if (on_error) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::VALIDATION_ERROR;
+            err.message = "Invalid object name contains illegal characters";
+            err.method = "exclude_object";
+            on_error(err);
+        }
+        return;
+    }
+
+    std::ostringstream gcode;
+    gcode << "EXCLUDE_OBJECT NAME=" << object_name;
+
+    spdlog::info("[Moonraker API] Excluding object: {}", object_name);
+
+    execute_gcode(gcode.str(), on_success, on_error);
+}
+
 void MoonrakerAPI::emergency_stop(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::warn("[Moonraker API] Emergency stop requested!");
 

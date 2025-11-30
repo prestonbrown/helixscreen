@@ -10,6 +10,7 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
+#include "ui_toast.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -84,6 +85,16 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
 PrintStatusPanel::~PrintStatusPanel() {
     // ObserverGuard handles observer cleanup automatically
     resize_registered_ = false;
+
+    // Clean up exclude object resources
+    if (exclude_undo_timer_) {
+        lv_timer_delete(exclude_undo_timer_);
+        exclude_undo_timer_ = nullptr;
+    }
+    if (exclude_confirm_dialog_) {
+        lv_obj_delete(exclude_confirm_dialog_);
+        exclude_confirm_dialog_ = nullptr;
+    }
 }
 
 // ============================================================================
@@ -163,6 +174,10 @@ void PrintStatusPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     if (gcode_viewer_) {
         spdlog::debug("[{}]   ✓ G-code viewer widget found", get_name());
+
+        // Register long-press callback for exclude object feature
+        ui_gcode_viewer_set_object_long_press_callback(gcode_viewer_, on_object_long_pressed, this);
+        spdlog::debug("[{}]   ✓ Registered long-press callback for exclude object", get_name());
     } else {
         spdlog::error("[{}]   ✗ G-code viewer widget NOT FOUND", get_name());
     }
@@ -891,6 +906,238 @@ void PrintStatusPanel::end_preparing(bool success) {
         // Transition back to Idle
         set_state(PrintState::Idle);
         spdlog::warn("[{}] Preparation cancelled or failed", get_name());
+    }
+}
+
+// ============================================================================
+// EXCLUDE OBJECT FEATURE
+// ============================================================================
+
+constexpr uint32_t EXCLUDE_UNDO_WINDOW_MS = 5000; // 5 second undo window
+
+void PrintStatusPanel::on_object_long_pressed(lv_obj_t* viewer, const char* object_name,
+                                               void* user_data) {
+    (void)viewer;
+    auto* self = static_cast<PrintStatusPanel*>(user_data);
+    if (self && object_name && object_name[0] != '\0') {
+        self->handle_object_long_press(object_name);
+    }
+}
+
+void PrintStatusPanel::handle_object_long_press(const char* object_name) {
+    if (!object_name || object_name[0] == '\0') {
+        spdlog::debug("[{}] Long-press on empty area (no object)", get_name());
+        return;
+    }
+
+    // Check if already excluded
+    if (excluded_objects_.count(object_name) > 0) {
+        spdlog::info("[{}] Object '{}' already excluded - ignoring", get_name(), object_name);
+        return;
+    }
+
+    // Check if there's already a pending exclusion
+    if (!pending_exclude_object_.empty()) {
+        spdlog::warn("[{}] Already have pending exclusion for '{}' - ignoring new request",
+                     get_name(), pending_exclude_object_);
+        return;
+    }
+
+    spdlog::info("[{}] Long-press on object: '{}' - showing confirmation", get_name(), object_name);
+
+    // Store the object name for when confirmation happens
+    pending_exclude_object_ = object_name;
+
+    // Create confirmation dialog
+    std::string title = "Exclude Object?";
+    std::string message = "Stop printing \"" + std::string(object_name) +
+                          "\"?\n\nThis cannot be undone after 5 seconds.";
+
+    const char* attrs[] = {
+        "title", title.c_str(),
+        "message", message.c_str(),
+        nullptr
+    };
+
+    lv_obj_t* screen = lv_screen_active();
+    lv_xml_create(screen, "confirmation_dialog", attrs);
+
+    // Find the created dialog (should be last child of screen)
+    uint32_t child_cnt = lv_obj_get_child_count(screen);
+    exclude_confirm_dialog_ = (child_cnt > 0) ? lv_obj_get_child(screen, child_cnt - 1) : nullptr;
+
+    if (!exclude_confirm_dialog_) {
+        spdlog::error("[{}] Failed to create exclude confirmation dialog", get_name());
+        pending_exclude_object_.clear();
+        return;
+    }
+
+    // Update button text - "Exclude" instead of default "Delete"
+    lv_obj_t* confirm_btn = lv_obj_find_by_name(exclude_confirm_dialog_, "dialog_confirm_btn");
+    if (confirm_btn) {
+        lv_obj_t* btn_label = lv_obj_get_child(confirm_btn, 0);
+        if (btn_label) {
+            lv_label_set_text(btn_label, "Exclude");
+        }
+    }
+
+    // Wire up button callbacks
+    lv_obj_t* cancel_btn = lv_obj_find_by_name(exclude_confirm_dialog_, "dialog_cancel_btn");
+    if (cancel_btn) {
+        lv_obj_add_event_cb(cancel_btn, on_exclude_cancel_clicked, LV_EVENT_CLICKED, this);
+    }
+    if (confirm_btn) {
+        lv_obj_add_event_cb(confirm_btn, on_exclude_confirm_clicked, LV_EVENT_CLICKED, this);
+    }
+}
+
+void PrintStatusPanel::on_exclude_confirm_clicked(lv_event_t* e) {
+    auto* self = static_cast<PrintStatusPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_exclude_confirmed();
+    }
+}
+
+void PrintStatusPanel::on_exclude_cancel_clicked(lv_event_t* e) {
+    auto* self = static_cast<PrintStatusPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_exclude_cancelled();
+    }
+}
+
+void PrintStatusPanel::handle_exclude_confirmed() {
+    spdlog::info("[{}] Exclusion confirmed for '{}'", get_name(), pending_exclude_object_);
+
+    // Close the dialog
+    if (exclude_confirm_dialog_) {
+        lv_obj_delete(exclude_confirm_dialog_);
+        exclude_confirm_dialog_ = nullptr;
+    }
+
+    if (pending_exclude_object_.empty()) {
+        spdlog::error("[{}] No pending object for exclusion", get_name());
+        return;
+    }
+
+    // Immediately update visual state in G-code viewer (red/semi-transparent)
+    if (gcode_viewer_) {
+        // For immediate visual feedback, we add to a "visually excluded" set
+        // but don't send to Klipper yet - that happens after undo timer
+        std::unordered_set<std::string> visual_excluded = excluded_objects_;
+        visual_excluded.insert(pending_exclude_object_);
+        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, visual_excluded);
+        spdlog::debug("[{}] Updated viewer with visual exclusion", get_name());
+    }
+
+    // Start undo timer - when it fires, we send EXCLUDE_OBJECT to Klipper
+    if (exclude_undo_timer_) {
+        lv_timer_delete(exclude_undo_timer_);
+    }
+    exclude_undo_timer_ = lv_timer_create(exclude_undo_timer_cb, EXCLUDE_UNDO_WINDOW_MS, this);
+    lv_timer_set_repeat_count(exclude_undo_timer_, 1);
+
+    // Show toast with "Undo" action button
+    std::string toast_msg = "Excluding \"" + pending_exclude_object_ + "\"...";
+    ui_toast_show_with_action(
+        ToastSeverity::WARNING,
+        toast_msg.c_str(),
+        "Undo",
+        [](void* user_data) {
+            auto* self = static_cast<PrintStatusPanel*>(user_data);
+            if (self) {
+                self->handle_exclude_undo();
+            }
+        },
+        this,
+        EXCLUDE_UNDO_WINDOW_MS
+    );
+
+    spdlog::info("[{}] Started {}ms undo window for '{}'", get_name(), EXCLUDE_UNDO_WINDOW_MS,
+                 pending_exclude_object_);
+}
+
+void PrintStatusPanel::handle_exclude_cancelled() {
+    spdlog::info("[{}] Exclusion cancelled for '{}'", get_name(), pending_exclude_object_);
+
+    // Close the dialog
+    if (exclude_confirm_dialog_) {
+        lv_obj_delete(exclude_confirm_dialog_);
+        exclude_confirm_dialog_ = nullptr;
+    }
+
+    // Clear pending state
+    pending_exclude_object_.clear();
+
+    // Clear selection in viewer
+    if (gcode_viewer_) {
+        std::unordered_set<std::string> empty_set;
+        ui_gcode_viewer_set_highlighted_objects(gcode_viewer_, empty_set);
+    }
+}
+
+void PrintStatusPanel::handle_exclude_undo() {
+    if (pending_exclude_object_.empty()) {
+        spdlog::warn("[{}] Undo called but no pending exclusion", get_name());
+        return;
+    }
+
+    spdlog::info("[{}] Undo pressed - cancelling exclusion of '{}'", get_name(),
+                 pending_exclude_object_);
+
+    // Cancel the timer
+    if (exclude_undo_timer_) {
+        lv_timer_delete(exclude_undo_timer_);
+        exclude_undo_timer_ = nullptr;
+    }
+
+    // Restore visual state - remove from visual exclusion
+    if (gcode_viewer_) {
+        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
+    }
+
+    // Clear pending
+    pending_exclude_object_.clear();
+
+    // Show confirmation that undo succeeded
+    ui_toast_show(ToastSeverity::SUCCESS, "Exclusion cancelled", 2000);
+}
+
+void PrintStatusPanel::exclude_undo_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<PrintStatusPanel*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+
+    self->exclude_undo_timer_ = nullptr; // Timer auto-deletes after single shot
+
+    if (self->pending_exclude_object_.empty()) {
+        spdlog::warn("[PrintStatusPanel] Undo timer fired but no pending object");
+        return;
+    }
+
+    std::string object_name = self->pending_exclude_object_;
+    self->pending_exclude_object_.clear();
+
+    spdlog::info("[PrintStatusPanel] Undo window expired - sending EXCLUDE_OBJECT for '{}'",
+                 object_name);
+
+    // Actually send the command to Klipper via MoonrakerAPI
+    if (self->api_) {
+        self->api_->exclude_object(
+            object_name,
+            [self, object_name]() {
+                spdlog::info("[PrintStatusPanel] EXCLUDE_OBJECT '{}' sent successfully", object_name);
+                // Move to confirmed excluded set
+                self->excluded_objects_.insert(object_name);
+            },
+            [object_name](const MoonrakerError& err) {
+                spdlog::error("[PrintStatusPanel] Failed to exclude '{}': {}", object_name,
+                              err.message);
+                // TODO: Show error toast and revert visual state
+            });
+    } else {
+        spdlog::warn("[PrintStatusPanel] No API available - simulating exclusion");
+        self->excluded_objects_.insert(object_name);
     }
 }
 

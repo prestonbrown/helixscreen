@@ -58,6 +58,11 @@ enum class ToastSeverity {
 void ui_toast_init();
 
 /**
+ * @brief Callback type for toast action button
+ */
+typedef void (*toast_action_callback_t)(void* user_data);
+
+/**
  * @brief Show a toast notification
  *
  * Displays a toast notification with the specified severity and message.
@@ -68,6 +73,24 @@ void ui_toast_init();
  * @param duration_ms Duration in milliseconds before auto-dismiss (default: 4000ms)
  */
 void ui_toast_show(ToastSeverity severity, const char* message, uint32_t duration_ms = 4000);
+
+/**
+ * @brief Show a toast notification with an action button
+ *
+ * Displays a toast with an action button (e.g., "Undo"). The action callback
+ * is invoked when the button is clicked. The toast auto-dismisses after
+ * duration_ms, or when the close button is clicked.
+ *
+ * @param severity Toast severity level (determines color)
+ * @param message Message text to display
+ * @param action_text Text for the action button (e.g., "Undo")
+ * @param action_callback Callback invoked when action button is clicked
+ * @param user_data User data passed to the callback
+ * @param duration_ms Duration in milliseconds before auto-dismiss (default: 5000ms)
+ */
+void ui_toast_show_with_action(ToastSeverity severity, const char* message,
+                                const char* action_text, toast_action_callback_t action_callback,
+                                void* user_data, uint32_t duration_ms = 5000);
 
 /**
  * @brief Hide the currently visible toast

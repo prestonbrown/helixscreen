@@ -20,6 +20,7 @@
 #include <glm/glm.hpp>
 #include <optional>
 #include <string>
+#include <unordered_set>
 
 /**
  * @file gcode_renderer.h
@@ -61,6 +62,7 @@ struct RenderOptions {
     LODLevel lod{LODLevel::FULL};   ///< Level of detail
     int layer_start{0};             ///< First layer to render (inclusive)
     int layer_end{-1};              ///< Last layer to render (-1 = all)
+    std::unordered_set<std::string> excluded_objects; ///< Objects excluded from print
 };
 
 /**
@@ -145,6 +147,15 @@ class GCodeRenderer {
      * @param name Object name to highlight (empty string to clear)
      */
     void set_highlighted_object(const std::string& name);
+
+    /**
+     * @brief Set excluded objects
+     * @param names Set of object names that are excluded from print
+     *
+     * Excluded objects are rendered with a red/orange strikethrough style
+     * at reduced opacity to indicate they won't be printed.
+     */
+    void set_excluded_objects(const std::unordered_set<std::string>& names);
 
     /**
      * @brief Set level of detail
@@ -327,6 +338,7 @@ class GCodeRenderer {
     lv_color_t color_travel_;
     lv_color_t color_object_boundary_;
     lv_color_t color_highlighted_;
+    lv_color_t color_excluded_;  ///< Red/orange for excluded objects
 
     // Theme default colors (for reset)
     lv_color_t theme_color_extrusion_;

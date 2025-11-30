@@ -5,7 +5,11 @@
 <!-- Toast Notification Component - Temporary non-blocking messages
      Uses severity_card widget for icon color styling (border disabled for toasts).
      Pass severity="error|warning|success|info" and it handles icon colors.
-     Call ui_severity_card_finalize() after creation to style icon. -->
+     Call ui_severity_card_finalize() after creation to style icon.
+
+     Optional action button: Set toast_action_visible subject to 1 and
+     toast_action_text subject to show an action button (e.g., "Undo").
+     Wire toast_action_btn click handler in C++ code. -->
 <component>
   <api>
     <prop type="string" name="severity"/>
@@ -20,7 +24,7 @@
         y="16"
         width="content"
         style_min_width="50%"
-        style_max_width="400"
+        style_max_width="450"
         height="content"
         style_radius="#border_radius_large"
         style_pad_all="#padding_normal"
@@ -33,9 +37,9 @@
         style_shadow_ofs_y="4"
         flex_flow="row"
         style_flex_main_place="start"
-        style_flex_cross_place="start">
+        style_flex_cross_place="center">
 
-    <!-- Severity icon (left, top-aligned) -->
+    <!-- Severity icon (left) -->
     <lv_label name="severity_icon" text="&#xF071;"
               style_text_font="fa_icons_24"/>
 
@@ -47,7 +51,28 @@
               style_pad_left="#gap_small"
               style_pad_right="#gap_small"/>
 
-    <!-- Close button (top-right corner, transparent background) -->
+    <!-- Action button (hidden by default, shown via toast_action_visible subject) -->
+    <lv_button name="toast_action_btn"
+               width="content"
+               height="36"
+               style_min_width="72"
+               style_radius="#border_radius"
+               style_border_width="0"
+               style_bg_color="#accent_color"
+               style_pad_left="#padding_normal"
+               style_pad_right="#padding_normal"
+               hidden="true"
+               clickable="true">
+      <!-- Bind visibility to toast_action_visible subject (hidden when 0) -->
+      <lv_obj-bind_flag_if_eq subject="toast_action_visible" flag="hidden" ref_value="0"/>
+      <lv_label name="toast_action_label" align="center"
+                style_text_font="#font_body"
+                style_text_color="#text_on_accent">
+        <lv_label-bind_text subject="toast_action_text"/>
+      </lv_label>
+    </lv_button>
+
+    <!-- Close button (transparent background) -->
     <lv_button name="toast_close_btn"
                width="32"
                height="32"

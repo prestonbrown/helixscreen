@@ -56,6 +56,22 @@ struct gcode_viewer_state_t {
     // Selection state (future-proofed for multi-select)
     std::unordered_set<std::string> selected_objects;
 
+    // Excluded objects state (synced with Klipper)
+    std::unordered_set<std::string> excluded_objects;
+
+    // Object tap callback for exclude object UI
+    gcode_viewer_object_tap_callback_t object_tap_callback{nullptr};
+    void* object_tap_user_data{nullptr};
+
+    // Long-press callback for exclude object flow (more intentional than tap)
+    gcode_viewer_object_long_press_callback_t object_long_press_callback{nullptr};
+    void* object_long_press_user_data{nullptr};
+
+    // Long-press detection state
+    lv_timer_t* long_press_timer{nullptr};       ///< Timer for 500ms long-press detection
+    bool long_press_fired{false};                 ///< True if long-press callback was invoked
+    std::string long_press_object_name;           ///< Object under finger when long-press started
+
     // Rendering settings
     bool use_filament_color{true}; // Auto-apply filament color from metadata
 
@@ -160,8 +176,60 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
     }
 }
 
+// Long-press threshold in milliseconds
+constexpr uint32_t LONG_PRESS_THRESHOLD_MS = 500;
+
 /**
- * @brief Touch press callback - start drag gesture
+ * @brief Timer callback for long-press detection
+ *
+ * Fires after LONG_PRESS_THRESHOLD_MS if user hasn't moved the finger.
+ * Picks the object under the initial press position and invokes the long-press callback.
+ */
+static void long_press_timer_cb(lv_timer_t* timer) {
+    lv_obj_t* obj = static_cast<lv_obj_t*>(lv_timer_get_user_data(timer));
+    gcode_viewer_state_t* st = get_state(obj);
+
+    if (!st || !st->gcode_file)
+        return;
+
+    // Timer fired - this is a long-press
+    st->long_press_fired = true;
+
+    // Delete the timer (one-shot)
+    lv_timer_delete(timer);
+    st->long_press_timer = nullptr;
+
+    // Pick object at the original press position
+    const char* picked = ui_gcode_viewer_pick_object(obj, st->drag_start.x, st->drag_start.y);
+
+    if (picked && picked[0] != '\0') {
+        st->long_press_object_name = picked;
+
+        // Highlight the object to provide visual feedback
+        st->selected_objects.clear();
+        st->selected_objects.insert(picked);
+        ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
+
+        spdlog::info("GCodeViewer: Long-press on object '{}'", picked);
+
+        // Invoke long-press callback
+        if (st->object_long_press_callback) {
+            st->object_long_press_callback(obj, picked, st->object_long_press_user_data);
+        }
+    } else {
+        st->long_press_object_name.clear();
+        spdlog::debug("GCodeViewer: Long-press at ({}, {}) - no object found", st->drag_start.x,
+                      st->drag_start.y);
+
+        // Invoke callback with empty string to indicate long-press on empty space
+        if (st->object_long_press_callback) {
+            st->object_long_press_callback(obj, "", st->object_long_press_user_data);
+        }
+    }
+}
+
+/**
+ * @brief Touch press callback - start drag gesture and long-press timer
  */
 static void gcode_viewer_press_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
@@ -180,12 +248,30 @@ static void gcode_viewer_press_cb(lv_event_t* e) {
     st->is_dragging = true;
     st->drag_start = point;
     st->last_drag_pos = point;
+    st->long_press_fired = false;
+    st->long_press_object_name.clear();
+
+    // Start long-press timer if callback is registered
+    if (st->object_long_press_callback && st->gcode_file) {
+        // Cancel any existing timer
+        if (st->long_press_timer) {
+            lv_timer_delete(st->long_press_timer);
+        }
+        // Start new timer for long-press detection
+        st->long_press_timer = lv_timer_create(long_press_timer_cb, LONG_PRESS_THRESHOLD_MS, obj);
+        lv_timer_set_repeat_count(st->long_press_timer, 1); // One-shot timer
+    }
 
     spdlog::trace("GCodeViewer: Press at ({}, {})", point.x, point.y);
 }
 
+// Movement threshold to cancel long-press (same as click threshold)
+constexpr int LONG_PRESS_MOVE_THRESHOLD = 10;
+
 /**
  * @brief Touch pressing callback - handle drag for camera rotation
+ *
+ * Also cancels long-press timer if user moves beyond threshold.
  */
 static void gcode_viewer_pressing_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
@@ -200,6 +286,18 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
 
     lv_point_t point;
     lv_indev_get_point(indev, &point);
+
+    // Check if movement exceeds threshold - cancel long-press timer
+    int total_dx = abs(point.x - st->drag_start.x);
+    int total_dy = abs(point.y - st->drag_start.y);
+
+    if ((total_dx >= LONG_PRESS_MOVE_THRESHOLD || total_dy >= LONG_PRESS_MOVE_THRESHOLD) &&
+        st->long_press_timer) {
+        // User started dragging - cancel long-press
+        lv_timer_delete(st->long_press_timer);
+        st->long_press_timer = nullptr;
+        spdlog::trace("GCodeViewer: Long-press cancelled due to movement");
+    }
 
     // Calculate delta from last position
     int dx = point.x - st->last_drag_pos.x;
@@ -225,6 +323,8 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
 
 /**
  * @brief Touch release callback - handle click vs drag gesture
+ *
+ * Skips tap handling if long-press already fired (user held for 500ms+).
  */
 static void gcode_viewer_release_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
@@ -232,6 +332,12 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
 
     if (!st)
         return;
+
+    // Cancel long-press timer if still pending
+    if (st->long_press_timer) {
+        lv_timer_delete(st->long_press_timer);
+        st->long_press_timer = nullptr;
+    }
 
     // Get release position
     lv_indev_t* indev = lv_indev_active();
@@ -248,6 +354,14 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
     int dy = abs(point.y - st->drag_start.y);
 
     const int CLICK_THRESHOLD = 10; // pixels - distinguish click from drag
+
+    // Skip tap handling if long-press already fired
+    if (st->long_press_fired) {
+        spdlog::trace("GCodeViewer: Release after long-press - skipping tap handling");
+        st->is_dragging = false;
+        st->long_press_fired = false;
+        return;
+    }
 
     // If movement was minimal, treat as click and try to pick object
     if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD && st->gcode_file) {
@@ -271,10 +385,19 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
 
             // Update highlighting to show all selected objects
             ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
+
+            // Invoke tap callback if registered (for exclude object UI)
+            if (st->object_tap_callback) {
+                st->object_tap_callback(obj, picked, st->object_tap_user_data);
+            }
         } else {
             spdlog::debug("GCodeViewer: Click at ({}, {}) - no object found (G-code may lack "
                           "EXCLUDE_OBJECT metadata)",
                           point.x, point.y);
+            // Still invoke callback with empty string to indicate click on empty space
+            if (st->object_tap_callback) {
+                st->object_tap_callback(obj, "", st->object_tap_user_data);
+            }
         }
         // Note: If no object picked, keep current selection (per user requirements)
     }
@@ -318,6 +441,12 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     gcode_viewer_state_t* st = get_state(obj);
 
     if (st) {
+        // Clean up long-press timer if pending
+        if (st->long_press_timer) {
+            lv_timer_delete(st->long_press_timer);
+            st->long_press_timer = nullptr;
+        }
+
         spdlog::debug("GCodeViewer: Widget destroyed");
         delete st; // C++ destructor will clean up unique_ptrs
         lv_obj_set_user_data(obj, nullptr);
@@ -804,6 +933,44 @@ void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
 
     st->renderer->set_highlighted_objects(object_names);
     lv_obj_invalidate(obj);
+}
+
+void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
+                                          const std::unordered_set<std::string>& object_names) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st)
+        return;
+
+    st->excluded_objects = object_names;
+    st->renderer->set_excluded_objects(object_names);
+    lv_obj_invalidate(obj);
+
+    spdlog::debug("GCodeViewer: Excluded objects updated ({} objects)", object_names.size());
+}
+
+void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj,
+                                             gcode_viewer_object_tap_callback_t callback,
+                                             void* user_data) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st)
+        return;
+
+    st->object_tap_callback = callback;
+    st->object_tap_user_data = user_data;
+}
+
+void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t* obj,
+                                                     gcode_viewer_object_long_press_callback_t callback,
+                                                     void* user_data) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st)
+        return;
+
+    st->object_long_press_callback = callback;
+    st->object_long_press_user_data = user_data;
+
+    spdlog::debug("GCodeViewer: Long-press callback {}",
+                  callback ? "registered" : "cleared");
 }
 
 // ==============================================

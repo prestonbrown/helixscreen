@@ -351,6 +351,24 @@ class MoonrakerAPI {
     void execute_gcode(const std::string& gcode, SuccessCallback on_success,
                        ErrorCallback on_error);
 
+    // ========================================================================
+    // Object Exclusion Operations
+    // ========================================================================
+
+    /**
+     * @brief Exclude an object from the current print
+     *
+     * Sends EXCLUDE_OBJECT command to Klipper to skip printing a specific object.
+     * Object must be defined in the G-code file metadata (EXCLUDE_OBJECT_DEFINE).
+     * Requires [exclude_object] section in printer.cfg.
+     *
+     * @param object_name Object name from G-code metadata (e.g., "Part_1")
+     * @param on_success Success callback
+     * @param on_error Error callback
+     */
+    void exclude_object(const std::string& object_name, SuccessCallback on_success,
+                        ErrorCallback on_error);
+
     /**
      * @brief Emergency stop
      *

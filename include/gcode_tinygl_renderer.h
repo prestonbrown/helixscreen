@@ -205,6 +205,15 @@ class GCodeTinyGLRenderer {
     void set_highlighted_objects(const std::unordered_set<std::string>& names);
 
     /**
+     * @brief Set excluded objects
+     * @param names Set of object names that are excluded from print
+     *
+     * Excluded objects are rendered with a red/orange color at reduced opacity
+     * to indicate they won't be printed.
+     */
+    void set_excluded_objects(const std::unordered_set<std::string>& names);
+
+    /**
      * @brief Reset to default rendering settings
      */
     void reset_colors();
@@ -379,6 +388,7 @@ class GCodeTinyGLRenderer {
     int layer_start_{0};
     int layer_end_{-1}; // -1 = all layers
     std::unordered_set<std::string> highlighted_objects_;
+    std::unordered_set<std::string> excluded_objects_;  ///< Objects excluded from print
     lv_opa_t global_opacity_{LV_OPA_100};
     float brightness_factor_{1.0f};
 
