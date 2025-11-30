@@ -6,14 +6,13 @@
 
 ## 🎯 Current Priorities
 
-1. **Phase 5:** Fan Control Sub-Screen (currently "Coming soon")
-2. **Phase 8:** Implement thumbnail HTTP downloads
-3. **Phase 8:** File upload functionality
-4. **Phase 12:** Production readiness
+1. **Phase 8:** USB File Upload (detect USB drives, import G-code files)
+2. **Settings Panel:** Complete configuration UI
+3. **Phase 12:** Production readiness
 
-**Completed Phases:** 1, 2, 3, 4, 11, 13, 14
-**Mostly Complete:** 5, 7, 8, 15
-**In Progress:** 6, 9, 10
+**Completed Phases:** 1, 2, 3, 4, 5, 11, 13, 14
+**Mostly Complete:** 6, 7, 8, 15
+**In Progress:** 9, 10
 
 ---
 
@@ -134,11 +133,11 @@
 
 ---
 
-## ✅ Phase 5: Controls Panel (MOSTLY COMPLETE)
+## ✅ Phase 5: Controls Panel (COMPLETE)
 
 **Priority: High** - Manual printer control with Bambu X1C-style sub-screens
 
-**Status:** Motion, Nozzle Temp, Bed Temp, Extrusion screens complete. Fan control pending.
+**Status:** All sub-screens complete: Motion, Nozzle Temp, Bed Temp, Extrusion, Fan Control.
 
 ### Phase 1: Launcher Panel ✅ COMPLETE (2025-10-12 Night)
 
@@ -149,7 +148,7 @@
   - [x] Card icons + titles + subtitles
   - [x] Click handlers for all 6 cards
   - [x] C++ integration (ui_panel_controls.cpp/h)
-  - [x] Fan Control card dimmed as "Coming soon" placeholder
+  - [x] Fan Control card (now fully functional)
 
 - [x] **Design Specification**
   - [x] 70-page comprehensive UI design document (controls-panel-v1.md)
@@ -234,12 +233,14 @@
   - [x] Safety warning when nozzle < 170°C
   - [x] Back button navigation
 
-### Phase 6: Advanced Features (PENDING)
+### Phase 6: Advanced Features (MOSTLY COMPLETE)
 
-- [ ] **Fan Control Sub-Screen**
-  - [ ] Part cooling fan slider (0-100%)
-  - [ ] Preset buttons (Off, 50%, 100%)
-  - [ ] Current speed display
+- [x] **Fan Control Sub-Screen** ✅ COMPLETE (2025-11-30)
+  - [x] Part cooling fan slider (0-100%) with live value updates
+  - [x] Preset buttons (Off, 50%, 75%, 100%)
+  - [x] Current speed display with reactive subjects
+  - [x] Real-time observer from PrinterState
+  - [x] Moonraker API integration (`set_fan_speed`)
 
 - [ ] **Motors Disable**
   - [ ] Confirmation dialog
@@ -731,6 +732,11 @@ lv_subject_set_int(&safety_warning_subject_, show ? 1 : 0);
 
 | Feature | Phase | Date |
 |---------|-------|------|
+| **KlippyState unit tests** | 10 | 2025-11-30 |
+| **Mock simulation: fan control, Z offset, restart** | 10 | 2025-11-30 |
+| **Test fixtures for mock initialization** | 10 | 2025-11-30 |
+| **G-code viewer sizing & progress bar fixes** | 8 | 2025-11-30 |
+| **Fan Control Sub-Screen COMPLETE** | 5 | 2025-11-30 |
 | **First-Run Wizard COMPLETE (all 7 steps)** | 11 | 2025-11-30 |
 | **Exclude Object feature (touch-to-exclude with undo)** | 6, 8 | 2025-11-29 |
 | **Bed mesh deferred render fix (hidden panels)** | 6 | 2025-11-29 |
