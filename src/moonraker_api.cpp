@@ -31,10 +31,11 @@
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
-#include <thread>
 #include <cctype>
 #include <iomanip>
+#include <set>
 #include <sstream>
+#include <thread>
 
 // ============================================================================
 // Input Validation Helpers
@@ -1417,4 +1418,246 @@ std::string MoonrakerAPI::generate_absolute_move_gcode(char axis, double positio
         gcode << " F" << feedrate;
     }
     return gcode.str();
+}
+
+// ============================================================================
+// Domain Service Operations (Hardware Discovery, Bed Mesh, Object Exclusion)
+// ============================================================================
+
+std::string MoonrakerAPI::guess_bed_heater() const {
+    const auto& heaters = client_.get_heaters();
+
+    // Priority 1: Exact match "heater_bed" (most common)
+    if (std::find(heaters.begin(), heaters.end(), "heater_bed") != heaters.end()) {
+        spdlog::debug("[Moonraker API] guess_bed_heater() -> 'heater_bed'");
+        return "heater_bed";
+    }
+
+    // Priority 2: Exact match "heated_bed"
+    if (std::find(heaters.begin(), heaters.end(), "heated_bed") != heaters.end()) {
+        spdlog::debug("[Moonraker API] guess_bed_heater() -> 'heated_bed'");
+        return "heated_bed";
+    }
+
+    // Priority 3: Substring match - any heater containing "bed"
+    for (const auto& heater : heaters) {
+        if (heater.find("bed") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_bed_heater() -> '{}'", heater);
+            return heater;
+        }
+    }
+
+    spdlog::debug("[Moonraker API] guess_bed_heater() -> no match found");
+    return "";
+}
+
+std::string MoonrakerAPI::guess_hotend_heater() const {
+    const auto& heaters = client_.get_heaters();
+
+    // Priority 1: Exact match "extruder" (base extruder, most common)
+    if (std::find(heaters.begin(), heaters.end(), "extruder") != heaters.end()) {
+        spdlog::debug("[Moonraker API] guess_hotend_heater() -> 'extruder'");
+        return "extruder";
+    }
+
+    // Priority 2: Exact match "extruder0"
+    if (std::find(heaters.begin(), heaters.end(), "extruder0") != heaters.end()) {
+        spdlog::debug("[Moonraker API] guess_hotend_heater() -> 'extruder0'");
+        return "extruder0";
+    }
+
+    // Priority 3: Substring match - any heater containing "extruder"
+    for (const auto& heater : heaters) {
+        if (heater.find("extruder") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_heater() -> '{}'", heater);
+            return heater;
+        }
+    }
+
+    // Priority 4: Substring match - any heater containing "hotend"
+    for (const auto& heater : heaters) {
+        if (heater.find("hotend") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_heater() -> '{}'", heater);
+            return heater;
+        }
+    }
+
+    // Priority 5: Substring match - any heater containing "e0"
+    for (const auto& heater : heaters) {
+        if (heater.find("e0") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_heater() -> '{}'", heater);
+            return heater;
+        }
+    }
+
+    spdlog::debug("[Moonraker API] guess_hotend_heater() -> no match found");
+    return "";
+}
+
+std::string MoonrakerAPI::guess_bed_sensor() const {
+    // Heaters have built-in thermistors, so check heaters first
+    std::string bed_heater = guess_bed_heater();
+    if (!bed_heater.empty()) {
+        spdlog::debug("[Moonraker API] guess_bed_sensor() -> '{}' (from heater)", bed_heater);
+        return bed_heater;
+    }
+
+    // No bed heater found, search sensors for names containing "bed"
+    const auto& sensors = client_.get_sensors();
+    for (const auto& sensor : sensors) {
+        if (sensor.find("bed") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_bed_sensor() -> '{}'", sensor);
+            return sensor;
+        }
+    }
+
+    spdlog::debug("[Moonraker API] guess_bed_sensor() -> no match found");
+    return "";
+}
+
+std::string MoonrakerAPI::guess_hotend_sensor() const {
+    // Heaters have built-in thermistors, so check heaters first
+    std::string hotend_heater = guess_hotend_heater();
+    if (!hotend_heater.empty()) {
+        spdlog::debug("[Moonraker API] guess_hotend_sensor() -> '{}' (from heater)", hotend_heater);
+        return hotend_heater;
+    }
+
+    // No hotend heater found, search sensors for names containing relevant patterns
+    // Priority: extruder > hotend > e0
+    const auto& sensors = client_.get_sensors();
+
+    for (const auto& sensor : sensors) {
+        if (sensor.find("extruder") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_sensor() -> '{}'", sensor);
+            return sensor;
+        }
+    }
+
+    for (const auto& sensor : sensors) {
+        if (sensor.find("hotend") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_sensor() -> '{}'", sensor);
+            return sensor;
+        }
+    }
+
+    for (const auto& sensor : sensors) {
+        if (sensor.find("e0") != std::string::npos) {
+            spdlog::debug("[Moonraker API] guess_hotend_sensor() -> '{}'", sensor);
+            return sensor;
+        }
+    }
+
+    spdlog::debug("[Moonraker API] guess_hotend_sensor() -> no match found");
+    return "";
+}
+
+const BedMeshProfile* MoonrakerAPI::get_active_bed_mesh() const {
+    // Suppress deprecation warning - we're the migration target
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    const BedMeshProfile& mesh = client_.get_active_bed_mesh();
+#pragma GCC diagnostic pop
+
+    if (mesh.probed_matrix.empty()) {
+        return nullptr;
+    }
+    return &mesh;
+}
+
+std::vector<std::string> MoonrakerAPI::get_bed_mesh_profiles() const {
+    // Suppress deprecation warning - we're the migration target
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    return client_.get_bed_mesh_profiles();
+#pragma GCC diagnostic pop
+}
+
+bool MoonrakerAPI::has_bed_mesh() const {
+    // Suppress deprecation warning - we're the migration target
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    return client_.has_bed_mesh();
+#pragma GCC diagnostic pop
+}
+
+void MoonrakerAPI::get_excluded_objects(std::function<void(const std::set<std::string>&)> on_success,
+                                        ErrorCallback on_error) {
+    // Query exclude_object state from Klipper
+    json params = {{"objects", json::object({{"exclude_object", nullptr}})}};
+
+    client_.send_jsonrpc(
+        "printer.objects.query", params,
+        [on_success](json response) {
+            std::set<std::string> excluded;
+
+            try {
+                if (response.contains("result") && response["result"].contains("status") &&
+                    response["result"]["status"].contains("exclude_object")) {
+                    const json& exclude_obj = response["result"]["status"]["exclude_object"];
+
+                    // excluded_objects is an array of object names
+                    if (exclude_obj.contains("excluded_objects") &&
+                        exclude_obj["excluded_objects"].is_array()) {
+                        for (const auto& obj : exclude_obj["excluded_objects"]) {
+                            if (obj.is_string()) {
+                                excluded.insert(obj.get<std::string>());
+                            }
+                        }
+                    }
+                }
+
+                spdlog::debug("[Moonraker API] get_excluded_objects() -> {} objects",
+                              excluded.size());
+                if (on_success) {
+                    on_success(excluded);
+                }
+            } catch (const std::exception& e) {
+                spdlog::error("[Moonraker API] Failed to parse excluded objects: {}", e.what());
+                if (on_success) {
+                    on_success(std::set<std::string>{}); // Return empty set on error
+                }
+            }
+        },
+        on_error);
+}
+
+void MoonrakerAPI::get_available_objects(
+    std::function<void(const std::vector<std::string>&)> on_success, ErrorCallback on_error) {
+    // Query exclude_object state from Klipper
+    json params = {{"objects", json::object({{"exclude_object", nullptr}})}};
+
+    client_.send_jsonrpc(
+        "printer.objects.query", params,
+        [on_success](json response) {
+            std::vector<std::string> objects;
+
+            try {
+                if (response.contains("result") && response["result"].contains("status") &&
+                    response["result"]["status"].contains("exclude_object")) {
+                    const json& exclude_obj = response["result"]["status"]["exclude_object"];
+
+                    // objects is an array of {name, center, polygon} objects
+                    if (exclude_obj.contains("objects") && exclude_obj["objects"].is_array()) {
+                        for (const auto& obj : exclude_obj["objects"]) {
+                            if (obj.is_object() && obj.contains("name") && obj["name"].is_string()) {
+                                objects.push_back(obj["name"].get<std::string>());
+                            }
+                        }
+                    }
+                }
+
+                spdlog::debug("[Moonraker API] get_available_objects() -> {} objects",
+                              objects.size());
+                if (on_success) {
+                    on_success(objects);
+                }
+            } catch (const std::exception& e) {
+                spdlog::error("[Moonraker API] Failed to parse available objects: {}", e.what());
+                if (on_success) {
+                    on_success(std::vector<std::string>{}); // Return empty vector on error
+                }
+            }
+        },
+        on_error);
 }

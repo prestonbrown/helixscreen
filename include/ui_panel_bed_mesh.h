@@ -5,7 +5,7 @@
 
 #include "ui_panel_base.h"
 
-#include "moonraker_client.h" // For MoonrakerClient::BedMeshProfile
+#include "moonraker_domain_service.h" // For BedMeshProfile
 
 #include <vector>
 
@@ -62,7 +62,7 @@ class BedMeshPanel : public PanelBase {
 
     void setup_profile_dropdown();
     void setup_moonraker_subscription();
-    void on_mesh_update_internal(const MoonrakerClient::BedMeshProfile& mesh);
+    void on_mesh_update_internal(const BedMeshProfile& mesh);
     void update_info_subjects(const std::vector<std::vector<float>>& mesh_data, int cols, int rows);
 
     static void on_panel_delete(lv_event_t* e);

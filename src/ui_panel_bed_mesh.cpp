@@ -222,7 +222,7 @@ void BedMeshPanel::setup_moonraker_subscription() {
     spdlog::debug("[{}] Registered Moonraker callback for mesh updates", get_name());
 }
 
-void BedMeshPanel::on_mesh_update_internal(const MoonrakerClient::BedMeshProfile& mesh) {
+void BedMeshPanel::on_mesh_update_internal(const BedMeshProfile& mesh) {
     spdlog::debug("[{}] on_mesh_update_internal called, probed_matrix.size={}", get_name(),
                   mesh.probed_matrix.size());
 

@@ -26,6 +26,7 @@
 #define MOONRAKER_CLIENT_H
 
 #include "hv/WebSocketClient.h"
+#include "moonraker_domain_service.h"
 #include "moonraker_error.h"
 #include "moonraker_events.h"
 #include "moonraker_request.h"
@@ -335,7 +336,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Returns the first match found, or empty string if none found.
      *
      * @return Bed heater name or empty string
+     * @deprecated Use MoonrakerAPI::guess_bed_heater() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::guess_bed_heater() instead")]]
     std::string guess_bed_heater() const;
 
     /**
@@ -345,7 +349,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Prioritizes "extruder" (base extruder) over numbered variants.
      *
      * @return Hotend heater name or empty string
+     * @deprecated Use MoonrakerAPI::guess_hotend_heater() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::guess_hotend_heater() instead")]]
     std::string guess_hotend_heater() const;
 
     /**
@@ -355,7 +362,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * If no bed heater found, searches sensors_ for names containing "bed".
      *
      * @return Bed sensor name or empty string
+     * @deprecated Use MoonrakerAPI::guess_bed_sensor() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::guess_bed_sensor() instead")]]
     std::string guess_bed_sensor() const;
 
     /**
@@ -366,23 +376,11 @@ class MoonrakerClient : public hv::WebSocketClient {
      * "e0".
      *
      * @return Hotend sensor name or empty string
+     * @deprecated Use MoonrakerAPI::guess_hotend_sensor() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::guess_hotend_sensor() instead")]]
     std::string guess_hotend_sensor() const;
-
-    /**
-     * @brief Bed mesh profile data from Klipper
-     */
-    struct BedMeshProfile {
-        std::string name;                              // Profile name (e.g., "default", "adaptive")
-        std::vector<std::vector<float>> probed_matrix; // Z height grid (row-major order)
-        float mesh_min[2];                             // Min X,Y coordinates
-        float mesh_max[2];                             // Max X,Y coordinates
-        int x_count;                                   // Probes per row
-        int y_count;                                   // Number of rows
-        std::string algo;                              // Interpolation algorithm
-
-        BedMeshProfile() : mesh_min{0, 0}, mesh_max{0, 0}, x_count(0), y_count(0) {}
-    };
 
     /**
      * @brief Get currently active bed mesh profile
@@ -391,7 +389,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * The probed_matrix field contains the 2D Z-height array ready for rendering.
      *
      * @return Active mesh profile, or empty profile if none loaded
+     * @deprecated Use MoonrakerAPI::get_active_bed_mesh() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::get_active_bed_mesh() instead")]]
     const BedMeshProfile& get_active_bed_mesh() const {
         return active_bed_mesh_;
     }
@@ -403,7 +404,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Empty vector if no profiles available or discovery hasn't completed.
      *
      * @return Vector of profile names
+     * @deprecated Use MoonrakerAPI::get_bed_mesh_profiles() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::get_bed_mesh_profiles() instead")]]
     const std::vector<std::string>& get_bed_mesh_profiles() const {
         return bed_mesh_profiles_;
     }
@@ -415,7 +419,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Does NOT guarantee the mesh is currently active in Klipper.
      *
      * @return true if probed_matrix is non-empty
+     * @deprecated Use MoonrakerAPI::has_bed_mesh() instead. Domain logic is migrating
+     *             from transport layer (MoonrakerClient) to API layer (MoonrakerAPI).
      */
+    [[deprecated("Use MoonrakerAPI::has_bed_mesh() instead")]]
     bool has_bed_mesh() const {
         return !active_bed_mesh_.probed_matrix.empty();
     }

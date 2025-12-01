@@ -25,6 +25,11 @@
 #include "moonraker_client.h"
 #include "moonraker_client_mock.h"
 
+// Suppress deprecation warnings - these tests specifically validate deprecated
+// MoonrakerClient methods that are being migrated to MoonrakerAPI
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 // ============================================================================
 // Test Fixture for Hardware Guessing
 // ============================================================================
@@ -493,3 +498,6 @@ TEST_CASE("Hardware guessing edge cases", "[moonraker][hardware][guessing][edge]
         REQUIRE(client.guess_bed_heater() == "heater_bed_™");
     }
 }
+
+// Restore warning state
+#pragma GCC diagnostic pop

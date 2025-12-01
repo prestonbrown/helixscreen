@@ -25,11 +25,13 @@
 #define MOONRAKER_API_H
 
 #include "moonraker_client.h"
+#include "moonraker_domain_service.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
 
 #include <functional>
 #include <memory>
+#include <set>
 #include <vector>
 
 /**
@@ -526,6 +528,121 @@ class MoonrakerAPI {
      * @brief Get the current HTTP base URL
      */
     const std::string& get_http_base_url() const { return http_base_url_; }
+
+    // ========================================================================
+    // Domain Service Operations (Hardware Discovery, Bed Mesh, Object Exclusion)
+    // ========================================================================
+
+    /**
+     * @brief Guess the most likely bed heater from discovered hardware
+     *
+     * Searches heaters for names containing "bed", "heated_bed", "heater_bed".
+     * Returns the first match found using priority-based search:
+     * 1. Exact match: "heater_bed"
+     * 2. Exact match: "heated_bed"
+     * 3. Substring match: any heater containing "bed"
+     *
+     * Delegates to MoonrakerClient's discovered hardware list.
+     *
+     * @return Bed heater name or empty string if none found
+     */
+    std::string guess_bed_heater() const;
+
+    /**
+     * @brief Guess the most likely hotend heater from discovered hardware
+     *
+     * Searches heaters for names containing "extruder", "hotend", "e0".
+     * Prioritizes "extruder" (base extruder) over numbered variants.
+     * Priority order:
+     * 1. Exact match: "extruder"
+     * 2. Exact match: "extruder0"
+     * 3. Substring match: any heater containing "extruder"
+     * 4. Substring match: any heater containing "hotend"
+     * 5. Substring match: any heater containing "e0"
+     *
+     * Delegates to MoonrakerClient's discovered hardware list.
+     *
+     * @return Hotend heater name or empty string if none found
+     */
+    std::string guess_hotend_heater() const;
+
+    /**
+     * @brief Guess the most likely bed temperature sensor from discovered hardware
+     *
+     * First checks heaters for bed heater (heaters have built-in sensors).
+     * If no bed heater found, searches sensors for names containing "bed".
+     *
+     * Delegates to MoonrakerClient's discovered hardware list.
+     *
+     * @return Bed sensor name or empty string if none found
+     */
+    std::string guess_bed_sensor() const;
+
+    /**
+     * @brief Guess the most likely hotend temperature sensor from discovered hardware
+     *
+     * First checks heaters for extruder heater (heaters have built-in sensors).
+     * If no extruder heater found, searches sensors for names containing
+     * "extruder", "hotend", "e0".
+     *
+     * Delegates to MoonrakerClient's discovered hardware list.
+     *
+     * @return Hotend sensor name or empty string if none found
+     */
+    std::string guess_hotend_sensor() const;
+
+    /**
+     * @brief Get currently active bed mesh profile
+     *
+     * Returns pointer to the active mesh profile loaded from Moonraker's
+     * bed_mesh object. The probed_matrix field contains the 2D Z-height
+     * array ready for rendering.
+     *
+     * @return Pointer to active mesh profile, or nullptr if none loaded
+     */
+    const BedMeshProfile* get_active_bed_mesh() const;
+
+    /**
+     * @brief Get list of available mesh profile names
+     *
+     * Returns profile names from bed_mesh.profiles (e.g., "default",
+     * "adaptive", "calibration"). Empty vector if no profiles available
+     * or discovery hasn't completed.
+     *
+     * @return Vector of profile names
+     */
+    std::vector<std::string> get_bed_mesh_profiles() const;
+
+    /**
+     * @brief Check if bed mesh data is available
+     *
+     * @return true if a mesh profile with valid probed_matrix is loaded
+     */
+    bool has_bed_mesh() const;
+
+    /**
+     * @brief Get set of currently excluded object names (async)
+     *
+     * Queries Klipper's exclude_object module for the list of objects
+     * that have been excluded from the current print.
+     *
+     * @param on_success Callback with set of excluded object names
+     * @param on_error Error callback
+     */
+    void get_excluded_objects(std::function<void(const std::set<std::string>&)> on_success,
+                              ErrorCallback on_error);
+
+    /**
+     * @brief Get list of available objects in current print (async)
+     *
+     * Queries Klipper's exclude_object module for the list of objects
+     * defined in the current G-code file (from EXCLUDE_OBJECT_DEFINE).
+     *
+     * @param on_success Callback with vector of available object names
+     * @param on_error Error callback
+     */
+    void get_available_objects(std::function<void(const std::vector<std::string>&)> on_success,
+                               ErrorCallback on_error);
 
     // ========================================================================
     // Internal Access (for CommandSequencer integration)
