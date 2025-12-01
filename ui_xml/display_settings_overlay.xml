@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Display Settings Overlay Panel -->
+<!-- Allows adjustment of screen brightness and display sleep timeout -->
+<!-- XML-First Design: All layout/styling here; C++ only provides subjects and callbacks -->
+<!--
+  Subjects used (defined in C++):
+    - display_brightness: integer 0-100 (brightness percentage)
+    - display_brightness_label: string "50%" (formatted for display)
+    - display_sleep_options: string for dropdown (e.g., "Never\n1 min\n5 min\n10 min\n30 min")
+    - display_sleep_index: integer (selected dropdown index)
+-->
+<component>
+  <view extends="lv_obj" name="display_settings_overlay"
+        width="#overlay_panel_width" height="100%" align="right_mid"
+        style_border_width="0" style_pad_all="0"
+        style_bg_opa="255" style_bg_color="#card_bg"
+        scrollable="false" flex_flow="column">
+
+    <!-- Header Bar with title and back button -->
+    <header_bar name="overlay_header" title="Display Settings"/>
+
+    <!-- Content Area -->
+    <lv_obj name="overlay_content" flex_grow="1" width="100%"
+            style_bg_opa="0" style_pad_all="#padding_normal"
+            scrollable="false" style_border_width="0"
+            flex_flow="column" style_pad_gap="#padding_normal">
+
+      <!-- ================================================================== -->
+      <!-- BRIGHTNESS SECTION -->
+      <!-- ================================================================== -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#gap_small">
+
+        <!-- Section Label -->
+        <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center">
+          <lv_obj width="content" height="content" style_bg_opa="0" style_border_width="0"
+                  style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#gap_small">
+            <icon src="mat_light" size="sm" variant="secondary"/>
+            <lv_label text="Brightness" style_text_font="#font_body" style_text_color="#text_primary"/>
+          </lv_obj>
+          <!-- Current brightness value display -->
+          <lv_label name="brightness_value_label" text="50%"
+                    style_text_font="#font_body" style_text_color="#text_secondary"/>
+        </lv_obj>
+
+        <!-- Brightness Slider -->
+        <lv_obj width="100%" height="50" style_bg_opa="0" style_border_width="0"
+                style_pad_left="8" style_pad_right="8" style_pad_top="8" style_pad_bottom="8"
+                scrollable="false" flex_flow="row" style_flex_cross_place="center">
+          <!-- Min icon (sun dim) -->
+          <icon src="mat_light_off" size="xs" variant="secondary"/>
+          <!-- Slider -->
+          <lv_slider name="brightness_slider" flex_grow="1"
+                     min_value="10" max_value="100" value="50"
+                     style_margin_left="8" style_margin_right="8"/>
+          <!-- Max icon (sun bright) -->
+          <icon src="mat_light" size="xs" variant="primary"/>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Divider -->
+      <lv_obj width="100%" height="1" style_bg_color="#card_border" style_bg_opa="100"
+              style_border_width="0" scrollable="false"/>
+
+      <!-- ================================================================== -->
+      <!-- DISPLAY SLEEP SECTION -->
+      <!-- ================================================================== -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#gap_small">
+
+        <!-- Section Label with Icon -->
+        <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_cross_place="center" style_pad_gap="#gap_small">
+          <icon src="mat_clock" size="sm" variant="secondary"/>
+          <lv_label text="Display Sleep" style_text_font="#font_body" style_text_color="#text_primary"/>
+        </lv_obj>
+
+        <!-- Description -->
+        <lv_label text="Screen will dim after the selected period of inactivity"
+                  style_text_font="#font_small" style_text_color="#text_secondary"
+                  width="100%" style_text_align="left"/>
+
+        <!-- Timeout Preset Buttons (Row of options) -->
+        <lv_obj name="timeout_options" width="100%" height="content"
+                style_bg_opa="0" style_border_width="0" style_pad_all="0"
+                scrollable="false" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_pad_gap="#gap_small"
+                style_margin_top="#padding_small">
+
+          <!-- Never Button -->
+          <lv_button name="timeout_never" width="content" height="40"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_label text="Never" style_text_font="#font_small" align="center"/>
+          </lv_button>
+
+          <!-- 1 min Button -->
+          <lv_button name="timeout_1min" width="content" height="40"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_label text="1 min" style_text_font="#font_small" align="center"/>
+          </lv_button>
+
+          <!-- 5 min Button -->
+          <lv_button name="timeout_5min" width="content" height="40"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_label text="5 min" style_text_font="#font_small" align="center"/>
+          </lv_button>
+
+          <!-- 10 min Button -->
+          <lv_button name="timeout_10min" width="content" height="40"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_label text="10 min" style_text_font="#font_small" align="center"/>
+          </lv_button>
+
+          <!-- 30 min Button -->
+          <lv_button name="timeout_30min" width="content" height="40"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_label text="30 min" style_text_font="#font_small" align="center"/>
+          </lv_button>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Spacer to push info to bottom -->
+      <lv_obj flex_grow="1" width="100%" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+
+      <!-- Info Note at bottom -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" flex_flow="row"
+              style_flex_cross_place="center" style_pad_gap="#gap_small">
+        <icon src="mat_info" size="xs" variant="secondary"/>
+        <lv_label text="Touch screen to wake from sleep"
+                  style_text_font="#font_small" style_text_color="#text_secondary"/>
+      </lv_obj>
+
+    </lv_obj>
+  </view>
+</component>

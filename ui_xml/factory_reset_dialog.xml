@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Factory Reset Confirmation Dialog -->
+<!-- Full-screen modal with warning message and Cancel/Reset buttons -->
+<!-- XML-First: All layout here; C++ wires button callbacks and performs reset -->
+<component>
+  <!-- Full-screen backdrop overlay (semi-transparent black) -->
+  <view extends="lv_obj" name="factory_reset_dialog"
+        width="100%" height="100%"
+        style_bg_color="#000000" style_bg_opa="180"
+        style_border_width="0" style_pad_all="0" style_radius="0"
+        align="center" clickable="true" scrollable="false">
+
+    <!-- Dialog card (centered, themed) -->
+    <lv_obj name="dialog_card" width="420" height="280" align="center"
+            style_radius="#border_radius_large"
+            style_bg_color="#card_bg" style_bg_opa="255"
+            style_pad_all="#padding_large"
+            style_border_width="2" style_border_color="#error"
+            flex_flow="column" style_flex_main_place="space_between"
+            scrollable="false">
+
+      <!-- Header with warning icon -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#gap_small" scrollable="false">
+        <icon src="mat_emergency" size="md" variant="accent"/>
+        <lv_label text="Factory Reset" style_text_font="#font_heading"
+                  style_text_color="#text_primary"/>
+      </lv_obj>
+
+      <!-- Warning message -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" flex_flow="column" style_pad_gap="#gap_small"
+              scrollable="false">
+        <lv_label text="This will erase all settings and return the device to its initial state."
+                  style_text_font="#font_body" style_text_color="#text_primary"
+                  width="100%" long_mode="wrap"/>
+        <lv_label text="You will need to run the setup wizard again."
+                  style_text_font="#font_small" style_text_color="#text_secondary"
+                  width="100%" long_mode="wrap"/>
+      </lv_obj>
+
+      <!-- Consequences list -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" style_pad_left="#padding_normal"
+              flex_flow="column" style_pad_gap="#gap_tiny" scrollable="false">
+        <lv_label text="• WiFi credentials will be removed"
+                  style_text_font="#font_small" style_text_color="#text_secondary"/>
+        <lv_label text="• Theme and display settings will reset"
+                  style_text_font="#font_small" style_text_color="#text_secondary"/>
+        <lv_label text="• Printer connection will be cleared"
+                  style_text_font="#font_small" style_text_color="#text_secondary"/>
+      </lv_obj>
+
+      <!-- Button row -->
+      <lv_obj width="100%" height="56" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" flex_flow="row" style_flex_main_place="end"
+              style_pad_gap="#padding_normal" scrollable="false">
+
+        <!-- Cancel button (secondary) -->
+        <lv_button name="cancel_btn" width="120" height="48"
+                   style_radius="#border_radius"
+                   style_bg_color="#card_bg"
+                   style_border_width="1" style_border_color="#card_border"
+                   clickable="true">
+          <lv_label text="Cancel" align="center"
+                    style_text_font="#font_body" style_text_color="#text_primary"/>
+        </lv_button>
+
+        <!-- Reset button (danger/destructive) -->
+        <lv_button name="reset_btn" width="140" height="48"
+                   style_radius="#border_radius"
+                   style_bg_color="#error"
+                   style_border_width="0"
+                   clickable="true">
+          <lv_label text="Reset Device" align="center"
+                    style_text_font="#font_body" style_text_color="#ffffff"/>
+        </lv_button>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

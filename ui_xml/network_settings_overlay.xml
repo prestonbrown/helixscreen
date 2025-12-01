@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Network Settings Overlay Panel -->
+<!-- Displays current WiFi status and available networks for connection -->
+<!-- XML-First Design: All layout/styling here; C++ provides subjects and callbacks -->
+<!--
+  C++ populates:
+    - Current connection status (SSID, IP address, signal strength)
+    - Available networks list (dynamically created wifi_network_item components)
+    - Scan status indicator
+-->
+<component>
+  <view extends="lv_obj" name="network_settings_overlay"
+        width="#overlay_panel_width" height="100%" align="right_mid"
+        style_border_width="0" style_pad_all="0"
+        style_bg_opa="255" style_bg_color="#card_bg"
+        scrollable="false" flex_flow="column">
+
+    <!-- Header Bar with title and back button -->
+    <header_bar name="overlay_header" title="Network Settings"/>
+
+    <!-- Content Area -->
+    <lv_obj name="overlay_content" flex_grow="1" width="100%"
+            style_bg_opa="0" style_pad_all="#padding_normal"
+            scrollable="true" style_border_width="0"
+            flex_flow="column" style_pad_gap="#padding_normal">
+
+      <!-- ================================================================== -->
+      <!-- CURRENT CONNECTION SECTION -->
+      <!-- ================================================================== -->
+      <lv_obj name="connection_status_section" width="100%" height="content"
+              style_bg_color="#card_bg" style_bg_opa="0"
+              style_border_width="0" style_pad_all="0"
+              scrollable="false" flex_flow="column" style_pad_gap="#gap_small">
+
+        <!-- Section Label -->
+        <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_cross_place="center" style_pad_gap="#gap_small">
+          <icon src="mat_wifi" size="sm" variant="secondary"/>
+          <lv_label text="Current Connection" style_text_font="#font_body" style_text_color="#text_primary"/>
+        </lv_obj>
+
+        <!-- Connection Status Card -->
+        <lv_obj width="100%" height="content"
+                style_bg_color="#app_bg_color" style_bg_opa="255"
+                style_radius="#border_radius" style_border_width="0"
+                style_pad_all="#padding_normal" scrollable="false"
+                flex_flow="column" style_pad_gap="#gap_small">
+
+          <!-- Connected state (shown when connected) -->
+          <lv_obj name="connected_info" width="100%" height="content"
+                  style_bg_opa="0" style_border_width="0" style_pad_all="0"
+                  scrollable="false" flex_flow="column" style_pad_gap="#gap_tiny">
+
+            <!-- Network name with signal icon -->
+            <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                    style_pad_all="0" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#gap_small">
+              <icon name="connection_signal_icon" src="mat_wifi_strength_4" size="sm" variant="success"/>
+              <lv_label name="connected_ssid" text="MyNetwork"
+                        style_text_font="#font_body" style_text_color="#text_primary"/>
+            </lv_obj>
+
+            <!-- IP Address -->
+            <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                    style_pad_all="0" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#gap_small">
+              <lv_label text="IP Address:" style_text_font="#font_small" style_text_color="#text_secondary"/>
+              <lv_label name="connected_ip" text="192.168.1.100"
+                        style_text_font="#font_small" style_text_color="#text_primary"/>
+            </lv_obj>
+
+            <!-- Disconnect button -->
+            <lv_button name="disconnect_btn" width="content" height="36"
+                       style_radius="#border_radius" style_border_width="0"
+                       style_bg_color="#error" style_margin_top="#padding_small"
+                       style_pad_left="#padding_normal" style_pad_right="#padding_normal">
+              <lv_label text="Disconnect" style_text_font="#font_small" align="center" style_text_color="#ffffff"/>
+            </lv_button>
+          </lv_obj>
+
+          <!-- Disconnected state (shown when not connected) -->
+          <lv_obj name="disconnected_info" width="100%" height="content"
+                  style_bg_opa="0" style_border_width="0" style_pad_all="0"
+                  scrollable="false" flex_flow="row" style_flex_cross_place="center"
+                  style_pad_gap="#gap_small" hidden="true">
+            <icon src="mat_wifi_off" size="sm" variant="secondary"/>
+            <lv_label text="Not connected" style_text_font="#font_body" style_text_color="#text_secondary"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Divider -->
+      <lv_obj width="100%" height="1" style_bg_color="#card_border" style_bg_opa="100"
+              style_border_width="0" scrollable="false"/>
+
+      <!-- ================================================================== -->
+      <!-- AVAILABLE NETWORKS SECTION -->
+      <!-- ================================================================== -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#gap_small">
+
+        <!-- Section Header with Scan Button -->
+        <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+                style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center">
+
+          <!-- Title with icon -->
+          <lv_obj width="content" height="content" style_bg_opa="0" style_border_width="0"
+                  style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#gap_small">
+            <icon src="mat_wifi" size="sm" variant="secondary"/>
+            <lv_label text="Available Networks" style_text_font="#font_body" style_text_color="#text_primary"/>
+          </lv_obj>
+
+          <!-- Scan button -->
+          <lv_button name="scan_btn" width="content" height="36"
+                     style_radius="#border_radius" style_border_width="0"
+                     style_pad_left="#padding_small" style_pad_right="#padding_small">
+            <lv_obj width="content" height="100%" style_bg_opa="0" style_border_width="0"
+                    style_pad_all="0" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#gap_tiny">
+              <icon name="scan_icon" src="mat_refresh" size="xs" variant="primary"/>
+              <lv_label name="scan_btn_text" text="Scan" style_text_font="#font_small" align="center"/>
+            </lv_obj>
+          </lv_button>
+        </lv_obj>
+
+        <!-- Scanning indicator (hidden by default) -->
+        <lv_obj name="scanning_indicator" width="100%" height="content"
+                style_bg_opa="0" style_border_width="0" style_pad_all="#padding_small"
+                scrollable="false" flex_flow="row" style_flex_main_place="center"
+                style_flex_cross_place="center" style_pad_gap="#gap_small" hidden="true">
+          <lv_spinner/>
+          <lv_label text="Scanning for networks..." style_text_font="#font_small" style_text_color="#text_secondary"/>
+        </lv_obj>
+
+        <!-- Networks List Container (populated dynamically by C++) -->
+        <lv_obj name="networks_list" width="100%" height="content"
+                style_bg_color="#app_bg_color" style_bg_opa="255"
+                style_radius="#border_radius" style_border_width="0"
+                style_pad_all="0" scrollable="false" flex_flow="column">
+          <!-- wifi_network_item components are created here dynamically -->
+          <!-- Placeholder when no networks found -->
+          <lv_obj name="no_networks_placeholder" width="100%" height="80"
+                  style_bg_opa="0" style_border_width="0" style_pad_all="#padding_normal"
+                  scrollable="false" flex_flow="column" style_flex_main_place="center"
+                  style_flex_cross_place="center">
+            <icon src="mat_wifi_off" size="md" variant="secondary"/>
+            <lv_label text="No networks found" style_text_font="#font_small"
+                      style_text_color="#text_secondary" style_margin_top="#gap_small"/>
+            <lv_label text="Tap Scan to search again" style_text_font="#font_small"
+                      style_text_color="#text_secondary"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Spacer -->
+      <lv_obj flex_grow="1" width="100%" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+
+      <!-- Info Note at bottom -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" flex_flow="row"
+              style_flex_cross_place="center" style_pad_gap="#gap_small">
+        <icon src="mat_info" size="xs" variant="secondary"/>
+        <lv_label text="Tap a network to connect"
+                  style_text_font="#font_small" style_text_color="#text_secondary"/>
+      </lv_obj>
+
+    </lv_obj>
+  </view>
+</component>

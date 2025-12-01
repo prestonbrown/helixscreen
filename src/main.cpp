@@ -816,6 +816,10 @@ static void register_xml_components() {
     spdlog::debug("[XML] Registering bed_mesh_panel.xml...");
     auto ret = lv_xml_register_component_from_file("A:ui_xml/bed_mesh_panel.xml");
     spdlog::debug("[XML] bed_mesh_panel.xml registration returned: {}", (int)ret);
+    // Settings overlay panels (launched from settings rows)
+    lv_xml_register_component_from_file("A:ui_xml/display_settings_overlay.xml");
+    lv_xml_register_component_from_file("A:ui_xml/network_settings_overlay.xml");
+    lv_xml_register_component_from_file("A:ui_xml/factory_reset_dialog.xml");
     lv_xml_register_component_from_file("A:ui_xml/advanced_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/test_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_select_panel.xml");

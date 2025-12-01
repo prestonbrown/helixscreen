@@ -182,3 +182,44 @@ bool Config::is_wizard_required() {
     spdlog::debug("[Config] No wizard_completed flag found, wizard required");
     return true;
 }
+
+void Config::reset_to_defaults() {
+    spdlog::info("[Config] Resetting configuration to factory defaults");
+
+    // Default macro configuration (same as init())
+    json default_macros_conf = {
+        {"load_filament", "LOAD_FILAMENT"},
+        {"unload_filament", "UNLOAD_FILAMENT"},
+        {"cooldown", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE "
+                     "HEATER=heater_bed TARGET=0"}};
+
+    // Reset to default configuration structure
+    // Keep the config_path and log_path, reset everything else
+    std::string config_path_backup = path;
+
+    data = {{"log_path", "/tmp/helixscreen.log"},
+            {"config_path", config_path_backup},
+            {"display_sleep_sec", 600},
+            {"display_rotate", 0},
+            {"brightness", 50},
+            {"dark_mode", true},
+            {"sounds_enabled", true},
+            {"completion_alert", true},
+            {"wizard_completed", false}, // Force wizard to run again
+            {"default_printer", "default_printer"},
+            {"gcode_viewer", {{"shading_model", "phong"}, {"tube_sides", 4}}},
+            {"printers",
+             {{"default_printer",
+               {{"moonraker_api_key", false},
+                {"moonraker_host", ""},      // Cleared - requires reconfiguration
+                {"moonraker_port", 7125},
+                {"log_level", "debug"},
+                {"monitored_sensors", json::array()},
+                {"fans", json::array()},
+                {"default_macros", default_macros_conf}}}}}};
+
+    // Update default printer path prefix
+    default_printer = "/printers/default_printer/";
+
+    spdlog::info("[Config] Configuration reset to defaults. Wizard will run on next startup.");
+}

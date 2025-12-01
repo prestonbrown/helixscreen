@@ -69,7 +69,6 @@ void SettingsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     // Setup all handlers and bindings
     setup_toggle_handlers();
-    setup_dropdown();
     setup_action_handlers();
     populate_info_rows();
 
@@ -143,33 +142,15 @@ void SettingsPanel::setup_toggle_handlers() {
     }
 }
 
-void SettingsPanel::setup_dropdown() {
-    auto& settings = SettingsManager::instance();
-
-    lv_obj_t* sleep_row = lv_obj_find_by_name(panel_, "row_display_sleep");
-    if (sleep_row) {
-        display_sleep_dropdown_ = lv_obj_find_by_name(sleep_row, "dropdown");
-        if (display_sleep_dropdown_) {
-            // Set dropdown options
-            lv_dropdown_set_options(display_sleep_dropdown_,
-                                    SettingsManager::get_display_sleep_options());
-
-            // Set current selection
-            int current_sleep = settings.get_display_sleep_sec();
-            int index = SettingsManager::sleep_seconds_to_index(current_sleep);
-            lv_dropdown_set_selected(display_sleep_dropdown_, index);
-
-            // Wire up change handler
-            lv_obj_add_event_cb(display_sleep_dropdown_, on_display_sleep_changed,
-                                LV_EVENT_VALUE_CHANGED, this);
-
-            spdlog::debug("[{}]   ✓ Display sleep dropdown ({}s = index {})", get_name(),
-                          current_sleep, index);
-        }
-    }
-}
-
 void SettingsPanel::setup_action_handlers() {
+    // === Display Settings Row ===
+    display_settings_row_ = lv_obj_find_by_name(panel_, "row_display_settings");
+    if (display_settings_row_) {
+        lv_obj_add_event_cb(display_settings_row_, on_display_settings_clicked, LV_EVENT_CLICKED,
+                            this);
+        spdlog::debug("[{}]   ✓ Display settings action row", get_name());
+    }
+
     // === Bed Mesh Row ===
     bed_mesh_row_ = lv_obj_find_by_name(panel_, "row_bed_mesh");
     if (bed_mesh_row_) {
@@ -284,6 +265,105 @@ void SettingsPanel::handle_completion_alert_changed(bool enabled) {
     SettingsManager::instance().set_completion_alert(enabled);
 }
 
+void SettingsPanel::handle_display_settings_clicked() {
+    spdlog::debug("[{}] Display Settings clicked - opening overlay", get_name());
+
+    // Create display settings overlay on first access (lazy initialization)
+    if (!display_settings_overlay_ && parent_screen_) {
+        spdlog::debug("[{}] Creating display settings overlay...", get_name());
+
+        // Create from XML - component name matches filename
+        display_settings_overlay_ = static_cast<lv_obj_t*>(
+            lv_xml_create(parent_screen_, "display_settings_overlay", nullptr));
+        if (display_settings_overlay_) {
+            // Wire up back button
+            lv_obj_t* header = lv_obj_find_by_name(display_settings_overlay_, "overlay_header");
+            if (header) {
+                lv_obj_t* back_btn = lv_obj_find_by_name(header, "back_button");
+                if (back_btn) {
+                    lv_obj_add_event_cb(
+                        back_btn,
+                        [](lv_event_t*) { ui_nav_go_back(); },
+                        LV_EVENT_CLICKED, nullptr);
+                }
+            }
+
+            // Wire up brightness slider
+            lv_obj_t* brightness_slider =
+                lv_obj_find_by_name(display_settings_overlay_, "brightness_slider");
+            lv_obj_t* brightness_label =
+                lv_obj_find_by_name(display_settings_overlay_, "brightness_value_label");
+            if (brightness_slider && brightness_label) {
+                // Set initial value from settings
+                int brightness = SettingsManager::instance().get_brightness();
+                lv_slider_set_value(brightness_slider, brightness, LV_ANIM_OFF);
+                lv_label_set_text_fmt(brightness_label, "%d%%", brightness);
+
+                // Store label pointer for callback
+                lv_obj_set_user_data(brightness_slider, brightness_label);
+
+                // Wire up value change
+                lv_obj_add_event_cb(
+                    brightness_slider,
+                    [](lv_event_t* e) {
+                        auto* slider = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                        int value = lv_slider_get_value(slider);
+                        SettingsManager::instance().set_brightness(value);
+
+                        // Update label
+                        auto* label = static_cast<lv_obj_t*>(lv_obj_get_user_data(slider));
+                        if (label) {
+                            lv_label_set_text_fmt(label, "%d%%", value);
+                        }
+                    },
+                    LV_EVENT_VALUE_CHANGED, nullptr);
+            }
+
+            // Wire up timeout preset buttons
+            static constexpr struct {
+                const char* name;
+                int seconds;
+            } timeouts[] = {
+                {"timeout_never", 0},
+                {"timeout_1min", 60},
+                {"timeout_5min", 300},
+                {"timeout_10min", 600},
+                {"timeout_30min", 1800},
+            };
+
+            for (const auto& t : timeouts) {
+                lv_obj_t* btn = lv_obj_find_by_name(display_settings_overlay_, t.name);
+                if (btn) {
+                    // Store timeout value as user data (cast int to pointer)
+                    lv_obj_set_user_data(btn, reinterpret_cast<void*>(static_cast<intptr_t>(t.seconds)));
+                    lv_obj_add_event_cb(
+                        btn,
+                        [](lv_event_t* e) {
+                            auto* button = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                            int seconds = static_cast<int>(
+                                reinterpret_cast<intptr_t>(lv_obj_get_user_data(button)));
+                            SettingsManager::instance().set_display_sleep_sec(seconds);
+                            spdlog::info("Display sleep set to {}s", seconds);
+                        },
+                        LV_EVENT_CLICKED, nullptr);
+                }
+            }
+
+            // Initially hidden
+            lv_obj_add_flag(display_settings_overlay_, LV_OBJ_FLAG_HIDDEN);
+            spdlog::info("[{}] Display settings overlay created", get_name());
+        } else {
+            spdlog::error("[{}] Failed to create display settings overlay from XML", get_name());
+            return;
+        }
+    }
+
+    // Push overlay onto navigation history and show it
+    if (display_settings_overlay_) {
+        ui_nav_push_overlay(display_settings_overlay_);
+    }
+}
+
 void SettingsPanel::handle_bed_mesh_clicked() {
     spdlog::debug("[{}] Bed Mesh clicked - opening visualization", get_name());
 
@@ -374,13 +454,160 @@ void SettingsPanel::handle_pid_tuning_clicked() {
 }
 
 void SettingsPanel::handle_network_clicked() {
-    spdlog::debug("[{}] Network clicked (not yet implemented)", get_name());
-    // TODO: Open network settings panel
+    spdlog::debug("[{}] Network Settings clicked", get_name());
+
+    // Create network settings overlay on first access (lazy initialization)
+    if (!network_settings_overlay_ && parent_screen_) {
+        spdlog::debug("[{}] Creating network settings overlay...", get_name());
+
+        // Create from XML
+        network_settings_overlay_ = static_cast<lv_obj_t*>(
+            lv_xml_create(parent_screen_, "network_settings_overlay", nullptr));
+
+        if (network_settings_overlay_) {
+            // Wire up header bar back button to use nav stack
+            lv_obj_t* header = lv_obj_find_by_name(network_settings_overlay_, "overlay_header");
+            if (header) {
+                lv_obj_t* back_btn = lv_obj_find_by_name(header, "back_button");
+                if (back_btn) {
+                    lv_obj_add_event_cb(
+                        back_btn,
+                        [](lv_event_t*) { ui_nav_go_back(); },
+                        LV_EVENT_CLICKED, nullptr);
+                }
+            }
+
+            // Wire up Scan button
+            lv_obj_t* scan_btn = lv_obj_find_by_name(network_settings_overlay_, "scan_btn");
+            if (scan_btn) {
+                lv_obj_add_event_cb(
+                    scan_btn,
+                    [](lv_event_t*) {
+                        spdlog::info("[SettingsPanel] Network scan requested");
+                        // TODO: Trigger WiFiManager scan
+                        // WiFiManager::instance().start_scan(...);
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Wire up Disconnect button
+            lv_obj_t* disconnect_btn =
+                lv_obj_find_by_name(network_settings_overlay_, "disconnect_btn");
+            if (disconnect_btn) {
+                lv_obj_add_event_cb(
+                    disconnect_btn,
+                    [](lv_event_t*) {
+                        spdlog::info("[SettingsPanel] WiFi disconnect requested");
+                        // TODO: Disconnect via WiFiManager
+                        // WiFiManager::instance().disconnect();
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Initially hidden
+            lv_obj_add_flag(network_settings_overlay_, LV_OBJ_FLAG_HIDDEN);
+            spdlog::info("[{}] Network settings overlay created", get_name());
+        } else {
+            spdlog::error("[{}] Failed to create network settings overlay from XML", get_name());
+            return;
+        }
+    }
+
+    // Push overlay onto navigation history and show it with slide animation
+    if (network_settings_overlay_) {
+        ui_nav_push_overlay(network_settings_overlay_);
+
+        // TODO: Update connection status display
+        // Update connected_ssid, connected_ip labels based on WiFiManager state
+        // Show/hide connected_info vs disconnected_info based on connection state
+    }
 }
 
 void SettingsPanel::handle_factory_reset_clicked() {
-    spdlog::debug("[{}] Factory Reset clicked (not yet implemented)", get_name());
-    // TODO: Show confirmation dialog, then reset config
+    spdlog::debug("[{}] Factory Reset clicked - showing confirmation dialog", get_name());
+
+    // Create factory reset dialog on first access (lazy initialization)
+    if (!factory_reset_dialog_ && parent_screen_) {
+        spdlog::debug("[{}] Creating factory reset dialog...", get_name());
+
+        // Create from XML - component name matches filename
+        factory_reset_dialog_ = static_cast<lv_obj_t*>(
+            lv_xml_create(parent_screen_, "factory_reset_dialog", nullptr));
+        if (factory_reset_dialog_) {
+            // Wire up Cancel button - just hide the dialog
+            lv_obj_t* cancel_btn = lv_obj_find_by_name(factory_reset_dialog_, "cancel_btn");
+            if (cancel_btn) {
+                // Store dialog pointer for callback
+                lv_obj_set_user_data(cancel_btn, factory_reset_dialog_);
+                lv_obj_add_event_cb(
+                    cancel_btn,
+                    [](lv_event_t* e) {
+                        auto* btn = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                        auto* dialog = static_cast<lv_obj_t*>(lv_obj_get_user_data(btn));
+                        if (dialog) {
+                            lv_obj_add_flag(dialog, LV_OBJ_FLAG_HIDDEN);
+                        }
+                        spdlog::debug("[SettingsPanel] Factory reset cancelled");
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Wire up Reset button - perform factory reset
+            lv_obj_t* reset_btn = lv_obj_find_by_name(factory_reset_dialog_, "reset_btn");
+            if (reset_btn) {
+                lv_obj_add_event_cb(
+                    reset_btn,
+                    [](lv_event_t*) {
+                        spdlog::warn("[SettingsPanel] Factory reset confirmed - resetting config!");
+
+                        // Get config instance and reset
+                        Config* config = Config::get_instance();
+                        if (config) {
+                            // Reset to defaults by clearing the config
+                            config->reset_to_defaults();
+                            config->save();
+                            spdlog::info("[SettingsPanel] Config reset to defaults");
+                        }
+
+                        // TODO: In production, this would restart the application
+                        // or transition to the setup wizard. For now, just log.
+                        spdlog::info("[SettingsPanel] Device should restart or show wizard now");
+
+                        // For development: show a toast or message
+                        // In production: call system restart or show wizard
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Also allow clicking backdrop to cancel
+            lv_obj_add_event_cb(
+                factory_reset_dialog_,
+                [](lv_event_t* e) {
+                    // Only cancel if clicked directly on backdrop, not on children
+                    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                    auto* original = static_cast<lv_obj_t*>(lv_event_get_target(e));
+                    if (target == original) {
+                        lv_obj_add_flag(target, LV_OBJ_FLAG_HIDDEN);
+                        spdlog::debug("[SettingsPanel] Factory reset cancelled (backdrop click)");
+                    }
+                },
+                LV_EVENT_CLICKED, nullptr);
+
+            // Start hidden
+            lv_obj_add_flag(factory_reset_dialog_, LV_OBJ_FLAG_HIDDEN);
+            spdlog::info("[{}] Factory reset dialog created", get_name());
+        } else {
+            spdlog::error("[{}] Failed to create factory reset dialog from XML", get_name());
+            return;
+        }
+    }
+
+    // Show the dialog
+    if (factory_reset_dialog_) {
+        lv_obj_remove_flag(factory_reset_dialog_, LV_OBJ_FLAG_HIDDEN);
+        // Ensure dialog is on top
+        lv_obj_move_foreground(factory_reset_dialog_);
+    }
 }
 
 // ============================================================================
@@ -433,6 +660,15 @@ void SettingsPanel::on_completion_alert_changed(lv_event_t* e) {
     if (self && self->completion_alert_switch_) {
         bool enabled = lv_obj_has_state(self->completion_alert_switch_, LV_STATE_CHECKED);
         self->handle_completion_alert_changed(enabled);
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SettingsPanel::on_display_settings_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_display_settings_clicked");
+    auto* self = static_cast<SettingsPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_display_settings_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

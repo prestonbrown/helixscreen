@@ -107,6 +107,21 @@ class SettingsManager {
      */
     void set_display_sleep_sec(int seconds);
 
+    /**
+     * @brief Get display brightness (0-100)
+     * @return Brightness percentage
+     */
+    int get_brightness() const;
+
+    /**
+     * @brief Set display brightness
+     *
+     * Updates subject and persists. Effect applied elsewhere (display driver).
+     *
+     * @param percent Brightness percentage (0-100, clamped to 10-100 minimum)
+     */
+    void set_brightness(int percent);
+
     // =========================================================================
     // PRINTER SETTINGS
     // =========================================================================
@@ -168,6 +183,9 @@ class SettingsManager {
     /** @brief Display sleep subject (integer: seconds, 0=disabled) */
     lv_subject_t* subject_display_sleep() { return &display_sleep_subject_; }
 
+    /** @brief Brightness subject (integer: 10-100 percent) */
+    lv_subject_t* subject_brightness() { return &brightness_subject_; }
+
     /** @brief LED enabled subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_led_enabled() { return &led_enabled_subject_; }
 
@@ -212,6 +230,7 @@ class SettingsManager {
     // LVGL subjects
     lv_subject_t dark_mode_subject_;
     lv_subject_t display_sleep_subject_;
+    lv_subject_t brightness_subject_;
     lv_subject_t led_enabled_subject_;
     lv_subject_t sounds_enabled_subject_;
     lv_subject_t completion_alert_subject_;

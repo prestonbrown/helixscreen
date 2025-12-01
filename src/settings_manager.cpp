@@ -8,6 +8,8 @@
 #include "spdlog/spdlog.h"
 #include "ui_theme.h"
 
+#include <algorithm>
+
 // Display sleep option values (seconds)
 // Index: 0=Never, 1=1min, 2=5min, 3=10min, 4=30min
 static const int SLEEP_OPTIONS[] = {0, 60, 300, 600, 1800};
@@ -42,6 +44,11 @@ void SettingsManager::init_subjects() {
     int sleep_sec = config->get<int>("/display_sleep_sec", 600);
     lv_subject_init_int(&display_sleep_subject_, sleep_sec);
 
+    // Brightness (default: 50%, range 10-100)
+    int brightness = config->get<int>("/brightness", 50);
+    brightness = std::max(10, std::min(100, brightness));
+    lv_subject_init_int(&brightness_subject_, brightness);
+
     // LED state (ephemeral, not persisted - start as off)
     lv_subject_init_int(&led_enabled_subject_, 0);
 
@@ -56,6 +63,7 @@ void SettingsManager::init_subjects() {
     // Register subjects with LVGL XML system for data binding
     lv_xml_register_subject(nullptr, "settings_dark_mode", &dark_mode_subject_);
     lv_xml_register_subject(nullptr, "settings_display_sleep", &display_sleep_subject_);
+    lv_xml_register_subject(nullptr, "settings_brightness", &brightness_subject_);
     lv_xml_register_subject(nullptr, "settings_led_enabled", &led_enabled_subject_);
     lv_xml_register_subject(nullptr, "settings_sounds_enabled", &sounds_enabled_subject_);
     lv_xml_register_subject(nullptr, "settings_completion_alert", &completion_alert_subject_);
@@ -124,6 +132,27 @@ void SettingsManager::set_display_sleep_sec(int seconds) {
 
     // Note: Actual display sleep is handled by the display driver reading this value
     spdlog::debug("[SettingsManager] Display sleep set to {}s", seconds);
+}
+
+int SettingsManager::get_brightness() const {
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&brightness_subject_));
+}
+
+void SettingsManager::set_brightness(int percent) {
+    // Clamp to valid range (10-100, minimum 10% to prevent black screen)
+    int clamped = std::max(10, std::min(100, percent));
+    spdlog::info("[SettingsManager] set_brightness({})", clamped);
+
+    // 1. Update subject
+    lv_subject_set_int(&brightness_subject_, clamped);
+
+    // 2. Persist
+    Config* config = Config::get_instance();
+    config->set<int>("/brightness", clamped);
+    config->save();
+
+    // Note: Actual brightness is applied by the display driver reading this value
+    spdlog::debug("[SettingsManager] Brightness set to {}%", clamped);
 }
 
 // =============================================================================

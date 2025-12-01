@@ -3,13 +3,26 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 <!-- Reusable Settings Section Header Component -->
-<!-- Creates a section divider with title for settings panel groups -->
-<!-- Usage: <setting_section_header title="APPEARANCE"/> -->
+<!-- Creates a section divider with optional icon and title for settings panel groups -->
+<!-- Usage: <setting_section_header title="APPEARANCE" icon="mat_light_img"/> -->
+<!-- Props:
+     - title: Section title text (default: "Section")
+     - icon: Optional icon name (e.g., "mat_wifi"). If empty, no icon shown.
+-->
 <component>
   <api>
     <prop type="string" name="title" default="Section"/>
+    <prop type="string" name="icon" default=""/>
   </api>
-  <view extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#padding_normal" style_pad_right="#padding_normal" style_pad_top="#padding_small" style_pad_bottom="0" scrollable="false">
-    <lv_label text="$title" style_text_font="#font_small" style_text_color="#text_secondary" align="left_mid"/>
+  <view extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#padding_normal" style_pad_right="#padding_normal" style_pad_top="#padding_normal" style_pad_bottom="#padding_tiny" flex_flow="column" style_pad_gap="0" scrollable="false">
+    <!-- Section title row with optional icon -->
+    <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#gap_small" scrollable="false">
+      <!-- Section icon (only shown if icon prop is set) -->
+      <icon name="section_icon" src="$icon" size="xs" variant="secondary"/>
+      <!-- Section title (uppercase style with letter-spacing for hierarchy) -->
+      <lv_label text="$title" style_text_font="#font_small" style_text_color="#text_secondary" style_text_letter_space="1"/>
+    </lv_obj>
+    <!-- Subtle divider line below title -->
+    <lv_obj width="100%" height="1" style_bg_color="#text_secondary" style_bg_opa="30" style_border_width="0" style_margin_top="#padding_tiny" scrollable="false"/>
   </view>
 </component>

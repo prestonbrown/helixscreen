@@ -4,16 +4,23 @@
 
 <!-- Reusable Settings Info Row Component -->
 <!-- Creates a read-only row showing a label and value -->
-<!-- Usage: <setting_info_row label="Version" value="1.0.0"/> -->
-<!-- For dynamic values, use bind_text on the value label in C++ -->
+<!-- Usage: <setting_info_row label="Version" icon="mat_info_img" value="1.0.0"/> -->
+<!-- Props:
+     - label: Label text on left side
+     - icon: Optional left icon (e.g., "mat_info_img"). If empty, no icon shown.
+     - value: Value text on right side (can be updated via bind_text in C++)
+-->
 <component>
   <api>
     <prop type="string" name="label" default="Info"/>
+    <prop type="string" name="icon" default=""/>
     <prop type="string" name="value" default=""/>
   </api>
-  <view extends="lv_obj" name="info_row" width="100%" height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" style_pad_left="#padding_normal" style_pad_right="#padding_normal" style_pad_top="0" style_pad_bottom="0" scrollable="false">
-    <!-- Left side: Label -->
-    <lv_label name="label" text="$label" style_text_font="#font_body"/>
+  <view extends="lv_obj" name="info_row" width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" style_pad_left="#padding_normal" style_pad_right="#padding_normal" style_pad_top="#padding_small" style_pad_bottom="#padding_small" style_pad_gap="#gap_small" scrollable="false">
+    <!-- Left side: Optional icon -->
+    <icon name="row_icon" src="$icon" size="sm" variant="secondary"/>
+    <!-- Middle: Label -->
+    <lv_label name="label" text="$label" style_text_font="#font_body" style_text_color="#text_primary" flex_grow="1"/>
     <!-- Right side: Value (secondary color) -->
     <lv_label name="value" text="$value" style_text_font="#font_body" style_text_color="#text_secondary"/>
   </view>

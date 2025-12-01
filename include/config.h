@@ -163,6 +163,15 @@ class Config {
     bool is_wizard_required();
 
     /**
+     * @brief Reset configuration to factory defaults
+     *
+     * Clears all user settings and restores the config to initial state.
+     * This will require the setup wizard to run again.
+     * Call save() after this to persist the reset.
+     */
+    void reset_to_defaults();
+
+    /**
      * @brief Get singleton instance
      *
      * @return Pointer to global Config instance

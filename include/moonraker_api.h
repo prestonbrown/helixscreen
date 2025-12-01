@@ -116,7 +116,7 @@ class MoonrakerAPI {
      * @param state PrinterState instance (must remain valid during API lifetime)
      */
     MoonrakerAPI(MoonrakerClient& client, PrinterState& state);
-    ~MoonrakerAPI() = default;
+    virtual ~MoonrakerAPI() = default;
 
     // ========================================================================
     // File Management Operations
@@ -470,8 +470,8 @@ class MoonrakerAPI {
      * @param on_success Callback with file content as string
      * @param on_error Error callback
      */
-    void download_file(const std::string& root, const std::string& path,
-                       StringCallback on_success, ErrorCallback on_error);
+    virtual void download_file(const std::string& root, const std::string& path,
+                               StringCallback on_success, ErrorCallback on_error);
 
     /**
      * @brief Upload file content to the printer via HTTP multipart form
@@ -485,9 +485,9 @@ class MoonrakerAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void upload_file(const std::string& root, const std::string& path,
-                     const std::string& content, SuccessCallback on_success,
-                     ErrorCallback on_error);
+    virtual void upload_file(const std::string& root, const std::string& path,
+                             const std::string& content, SuccessCallback on_success,
+                             ErrorCallback on_error);
 
     /**
      * @brief Upload file content with custom filename
@@ -502,9 +502,9 @@ class MoonrakerAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void upload_file_with_name(const std::string& root, const std::string& path,
-                               const std::string& filename, const std::string& content,
-                               SuccessCallback on_success, ErrorCallback on_error);
+    virtual void upload_file_with_name(const std::string& root, const std::string& path,
+                                       const std::string& filename, const std::string& content,
+                                       SuccessCallback on_success, ErrorCallback on_error);
 
     /**
      * @brief Set the HTTP base URL for file transfers

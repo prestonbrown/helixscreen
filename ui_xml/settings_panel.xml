@@ -2,94 +2,95 @@
 <!-- Copyright 2025 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-<!-- Settings Panel - Scrolling List Design -->
-<!-- Comprehensive settings organized in sections: Appearance, Printer, Notifications, Calibration, System, About -->
+<!-- Settings Panel - Enhanced Scrolling List Design -->
+<!-- Comprehensive settings organized in sections with icons: Appearance, Printer, Notifications, Calibration, System, About -->
+<!-- All styling controlled via XML - C++ only updates subjects and handles callbacks -->
 <component>
-  <view extends="lv_obj" name="settings_panel" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="#padding_tiny" flex_flow="column" scrollable="true" scroll_dir="ver">
+  <view extends="lv_obj" name="settings_panel" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="true" scroll_dir="ver">
 
     <!-- ================================================================== -->
     <!-- APPEARANCE SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="APPEARANCE"/>
+    <setting_section_header title="APPEARANCE" icon="mat_light"/>
 
     <!-- Dark Mode Toggle -->
-    <setting_toggle_row name="row_dark_mode" label="Dark Mode"/>
+    <setting_toggle_row name="row_dark_mode" label="Dark Mode" icon="mat_light_off" description="Switch between light and dark themes"/>
 
-    <!-- Display Sleep Dropdown -->
-    <setting_dropdown_row name="row_display_sleep" label="Display Sleep"/>
+    <!-- Display Settings (opens overlay for brightness + sleep timeout) -->
+    <setting_action_row name="row_display_settings" label="Display Settings" icon="mat_light" description="Brightness and screen timeout"/>
 
     <!-- ================================================================== -->
     <!-- PRINTER SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="PRINTER"/>
+    <setting_section_header title="PRINTER" icon="mat_printer_3d"/>
 
     <!-- LED Light Toggle (hidden if no LED capability) -->
-    <lv_obj name="container_led_light" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+    <lv_obj name="container_led_light" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
       <lv_obj-bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
-      <setting_toggle_row name="row_led_light" label="LED Light"/>
+      <setting_toggle_row name="row_led_light" label="LED Light" icon="mat_light" description="Toggle printer LED strip"/>
     </lv_obj>
 
     <!-- ================================================================== -->
     <!-- NOTIFICATIONS SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="NOTIFICATIONS"/>
+    <setting_section_header title="NOTIFICATIONS" icon="mat_notifications"/>
 
     <!-- Sounds Toggle (placeholder) -->
-    <setting_toggle_row name="row_sounds" label="Sounds"/>
+    <setting_toggle_row name="row_sounds" label="Sounds" icon="mat_notifications" description="Enable audio feedback"/>
 
     <!-- Completion Alert Toggle -->
-    <setting_toggle_row name="row_completion_alert" label="Print Completion Alert"/>
+    <setting_toggle_row name="row_completion_alert" label="Print Completion Alert" icon="mat_notifications" description="Alert when print finishes"/>
 
     <!-- ================================================================== -->
     <!-- CALIBRATION SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="CALIBRATION"/>
+    <setting_section_header title="CALIBRATION" icon="mat_fine_tune"/>
 
     <!-- Bed Mesh Calibration (hidden if no bed mesh capability) -->
-    <lv_obj name="container_bed_mesh" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+    <lv_obj name="container_bed_mesh" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
       <lv_obj-bind_flag_if_eq subject="printer_has_bed_mesh" flag="hidden" ref_value="0"/>
-      <setting_action_row name="row_bed_mesh" label="Bed Mesh Calibration"/>
+      <setting_action_row name="row_bed_mesh" label="Bed Mesh Calibration" icon="mat_bedmesh" description="Visualize and calibrate bed mesh"/>
     </lv_obj>
 
     <!-- Z-Offset Calibration (hidden if no probe capability) -->
-    <lv_obj name="container_z_offset" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+    <lv_obj name="container_z_offset" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
       <lv_obj-bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
-      <setting_action_row name="row_z_offset" label="Z-Offset Calibration"/>
+      <setting_action_row name="row_z_offset" label="Z-Offset Calibration" icon="mat_z_closer" description="Adjust first layer height"/>
     </lv_obj>
 
     <!-- PID Tuning (always shown - extruder is always available) -->
-    <setting_action_row name="row_pid_tuning" label="PID Tuning"/>
+    <setting_action_row name="row_pid_tuning" label="PID Tuning" icon="mat_heater" description="Tune heater PID parameters"/>
 
     <!-- ================================================================== -->
     <!-- SYSTEM SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="SYSTEM"/>
+    <setting_section_header title="SYSTEM" icon="mat_sysinfo"/>
 
     <!-- Network Settings -->
-    <setting_action_row name="row_network" label="Network Settings"/>
+    <setting_action_row name="row_network" label="Network Settings" icon="mat_wifi" description="WiFi and Ethernet configuration"/>
 
     <!-- Factory Reset -->
-    <setting_action_row name="row_factory_reset" label="Factory Reset"/>
+    <setting_action_row name="row_factory_reset" label="Factory Reset" icon="mat_refresh" description="Reset all settings and restart wizard"/>
 
     <!-- ================================================================== -->
     <!-- ABOUT SECTION -->
     <!-- ================================================================== -->
-    <setting_section_header title="ABOUT"/>
+    <setting_section_header title="ABOUT" icon="mat_info"/>
 
     <!-- Version Info -->
-    <setting_info_row name="row_version" label="Version" value="1.0.0"/>
+    <setting_info_row name="row_version" label="Version" icon="mat_info" value="1.0.0"/>
 
     <!-- Printer Name -->
-    <setting_info_row name="row_printer" label="Printer" value="—"/>
+    <setting_info_row name="row_printer" label="Printer" icon="mat_printer_3d" value="—"/>
 
     <!-- Klipper Version -->
-    <setting_info_row name="row_klipper" label="Klipper" value="—"/>
+    <setting_info_row name="row_klipper" label="Klipper" icon="mat_sysinfo" value="—"/>
 
     <!-- Moonraker Version -->
-    <setting_info_row name="row_moonraker" label="Moonraker" value="—"/>
+    <setting_info_row name="row_moonraker" label="Moonraker" icon="mat_network" value="—"/>
 
     <!-- Bottom padding for scroll -->
-    <lv_obj width="100%" height="#padding_normal" style_bg_opa="0" style_border_width="0"/>
+    <lv_obj width="100%" height="#padding_normal" style_bg_opa="0" style_border_width="0" scrollable="false"/>
 
   </view>
 </component>
