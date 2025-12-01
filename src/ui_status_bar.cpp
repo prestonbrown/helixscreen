@@ -85,17 +85,13 @@ static void update_printer_icon_combined() {
     // KlippyState: 0=READY, 1=STARTUP, 2=SHUTDOWN, 3=ERROR
 
     lv_color_t color;
-    const char* icon_text = "\uF03E"; // Default: 3D printer icon (LV_SYMBOL_IMAGE)
-    bool use_sync_icon = false;
 
     if (cached_connection_state == 2) { // CONNECTED to Moonraker
         // Check klippy state
         switch (cached_klippy_state) {
         case 1: // STARTUP (restarting)
             color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
-            icon_text = "\uF021"; // fa-sync icon
-            use_sync_icon = true;
-            spdlog::debug("[StatusBar] Klippy STARTUP -> sync icon, orange");
+            spdlog::debug("[StatusBar] Klippy STARTUP -> printer icon, orange");
             break;
         case 2: // SHUTDOWN
         case 3: // ERROR
@@ -121,22 +117,10 @@ static void update_printer_icon_combined() {
         }
     }
 
-    // Update icon text if changed
-    const char* current_text = lv_label_get_text(printer_icon);
-    if (strcmp(current_text, icon_text) != 0) {
-        lv_label_set_text(printer_icon, icon_text);
-        // If using sync icon, use FA font; otherwise use heading font
-        if (use_sync_icon) {
-            lv_obj_set_style_text_font(printer_icon,
-                                       lv_xml_get_font(NULL, "fa_icons_24"), 0);
-        } else {
-            lv_obj_set_style_text_font(printer_icon,
-                                       lv_xml_get_font(NULL, "font_heading"), 0);
-        }
-    }
-
-    // Update color
-    lv_obj_set_style_text_color(printer_icon, color, 0);
+    // Printer icon is a Material Design image (lv_image), NOT an lv_label
+    // Use image recolor to change the icon color (same as network_icon)
+    lv_obj_set_style_image_recolor(printer_icon, color, 0);
+    lv_obj_set_style_image_recolor_opa(printer_icon, LV_OPA_COVER, 0);
 }
 
 // Track notification panel to prevent multiple instances

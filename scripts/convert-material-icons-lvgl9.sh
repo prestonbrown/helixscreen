@@ -5,7 +5,7 @@
 
 set -e
 
-SVG_SOURCE="/Users/pbrown/Code/Printing/helixscreen/assets/material_svg"
+SVG_SOURCE="/Users/pbrown/Code/Printing/helixscreen/assets/images/material"
 TEMP_PNG_DIR="/tmp/material_png"
 OUTPUT_DIR="assets/images/material"
 VENV_PYTHON=".venv/bin/python3"
