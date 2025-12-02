@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Unified Modal Dialog Component
+     Replaces: warning_dialog.xml, error_dialog.xml, confirmation_dialog.xml
+
+     Usage:
+       1. Set dialog_severity subject BEFORE creating (0=info, 1=warning, 2=error)
+       2. Set dialog_show_cancel subject (0=hide, 1=show cancel button)
+       3. Set dialog_primary_text subject ("OK", "Delete", etc.)
+       4. Set dialog_cancel_text subject ("Cancel", "No", etc.) if showing cancel
+       5. Create with title/message props
+
+     Icons follow toast pattern - all present, visibility bound to severity subject.
+-->
+<component>
+  <api>
+    <prop type="string" name="title"/>
+    <prop type="string" name="message"/>
+  </api>
+
+  <!-- Full-screen backdrop overlay -->
+  <view extends="lv_obj" name="modal_dialog_backdrop"
+        width="100%" height="100%"
+        style_bg_opa="200" style_border_width="0" style_pad_all="0" style_radius="0"
+        align="center" clickable="true">
+
+    <!-- Dialog card using ui_dialog widget (provides themed background) -->
+    <ui_dialog name="dialog_card" width="70%" height="content" align="center"
+               flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
+
+      <!-- Header row with icon + title -->
+      <lv_obj width="100%" height="content"
+              style_bg_opa="0" style_border_width="0"
+              style_pad_left="#padding_normal" style_pad_right="#padding_normal"
+              style_pad_top="#padding_normal" style_pad_bottom="#gap_small"
+              flex_flow="row" style_flex_cross_place="center" style_pad_gap="#gap_small">
+
+        <!-- INFO icon - shown when dialog_severity=0 (default) -->
+        <icon name="icon_info" src="mat_info" size="md" variant="accent">
+          <lv_obj-bind_flag_if_not_eq subject="dialog_severity" flag="hidden" ref_value="0"/>
+        </icon>
+
+        <!-- WARNING icon - shown when dialog_severity=1 -->
+        <icon name="icon_warning" src="mat_emergency" size="md" variant="warning" hidden="true">
+          <lv_obj-bind_flag_if_not_eq subject="dialog_severity" flag="hidden" ref_value="1"/>
+        </icon>
+
+        <!-- ERROR icon - shown when dialog_severity=2 -->
+        <icon name="icon_error" src="mat_emergency" size="md" variant="error" hidden="true">
+          <lv_obj-bind_flag_if_not_eq subject="dialog_severity" flag="hidden" ref_value="2"/>
+        </icon>
+
+        <!-- Title -->
+        <lv_label name="dialog_title" text="$title"
+                  style_text_font="#font_heading" style_text_align="left"
+                  flex_grow="1"/>
+      </lv_obj>
+
+      <!-- Message content area (scrollable for long content) -->
+      <lv_obj name="content_container" width="100%" height="content"
+              style_min_height="60"
+              style_bg_opa="0" style_border_width="0"
+              style_pad_left="#padding_normal" style_pad_right="#padding_normal"
+              style_pad_top="0" style_pad_bottom="#padding_normal"
+              scrollable="true" scroll_snap_y="none">
+        <lv_label name="dialog_message" text="$message" width="100%"
+                  style_text_font="#font_body" style_text_align="left"
+                  long_mode="wrap"/>
+      </lv_obj>
+
+      <!-- Horizontal divider above buttons -->
+      <lv_obj width="100%" height="1"
+              style_bg_color="#text_secondary" style_bg_opa="64"
+              style_border_width="0" style_pad_all="0"/>
+
+      <!-- Button row -->
+      <lv_obj width="100%" height="#button_height"
+              style_bg_opa="0" style_border_width="0" style_pad_all="0"
+              flex_flow="row">
+
+        <!-- Secondary button - hidden by default, shown when dialog_show_cancel=1 -->
+        <lv_button name="btn_secondary" flex_grow="1" height="100%"
+                   style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
+                   hidden="true" clickable="true">
+          <lv_obj-bind_flag_if_eq subject="dialog_show_cancel" flag="hidden" ref_value="0"/>
+          <lv_label name="btn_secondary_label" align="center"
+                    style_text_font="#font_body"
+                    bind_text="dialog_cancel_text"/>
+        </lv_button>
+
+        <!-- Vertical divider between buttons (only when cancel is visible) -->
+        <lv_obj name="btn_divider" width="1" height="100%"
+                style_bg_color="#text_secondary" style_bg_opa="64"
+                style_border_width="0" style_pad_all="0"
+                hidden="true">
+          <lv_obj-bind_flag_if_eq subject="dialog_show_cancel" flag="hidden" ref_value="0"/>
+        </lv_obj>
+
+        <!-- Primary button (always visible) -->
+        <lv_button name="btn_primary" flex_grow="1" height="100%"
+                   style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
+                   clickable="true">
+          <lv_label name="btn_primary_label" align="center"
+                    style_text_font="#font_body"
+                    bind_text="dialog_primary_text"/>
+        </lv_button>
+      </lv_obj>
+    </ui_dialog>
+  </view>
+</component>

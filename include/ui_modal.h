@@ -146,3 +146,71 @@ bool ui_modal_is_visible();
  * @param textarea The textarea widget
  */
 void ui_modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
+
+// =========================================================================
+// MODAL DIALOG SUBJECTS (for modal_dialog.xml binding)
+// =========================================================================
+
+/**
+ * @brief Severity levels for modal dialogs
+ *
+ * Controls which icon is displayed in modal_dialog:
+ * - INFO (0): Blue info icon - informational messages
+ * - WARNING (1): Orange warning icon - caution messages
+ * - ERROR (2): Red error icon - error messages
+ */
+enum ui_modal_severity {
+    UI_MODAL_SEVERITY_INFO = 0,
+    UI_MODAL_SEVERITY_WARNING = 1,
+    UI_MODAL_SEVERITY_ERROR = 2,
+};
+
+/**
+ * @brief Initialize modal dialog subjects
+ *
+ * Creates and registers LVGL subjects used by modal_dialog.xml:
+ * - dialog_severity (int): Controls icon display (0=info, 1=warning, 2=error)
+ * - dialog_show_cancel (int): Shows cancel button when 1
+ * - dialog_primary_text (string): Primary button label
+ * - dialog_cancel_text (string): Cancel button label
+ *
+ * Call ONCE during app startup, before creating any modal_dialog components.
+ */
+void ui_modal_init_subjects();
+
+/**
+ * @brief Configure modal dialog before showing
+ *
+ * Sets all subject values atomically. Call BEFORE lv_xml_create("modal_dialog", ...).
+ *
+ * @param severity Dialog severity (UI_MODAL_SEVERITY_INFO/WARNING/ERROR)
+ * @param show_cancel Whether to show cancel button
+ * @param primary_text Primary button label (e.g., "OK", "Delete")
+ * @param cancel_text Cancel button label (e.g., "Cancel", "No")
+ */
+void ui_modal_configure(ui_modal_severity severity, bool show_cancel,
+                        const char* primary_text, const char* cancel_text);
+
+/**
+ * @brief Get dialog_severity subject for direct access
+ * @return Pointer to lv_subject_t
+ */
+lv_subject_t* ui_modal_get_severity_subject();
+
+/**
+ * @brief Get dialog_show_cancel subject for direct access
+ * @return Pointer to lv_subject_t
+ */
+lv_subject_t* ui_modal_get_show_cancel_subject();
+
+/**
+ * @brief Get dialog_primary_text subject for direct access
+ * @return Pointer to lv_subject_t
+ */
+lv_subject_t* ui_modal_get_primary_text_subject();
+
+/**
+ * @brief Get dialog_cancel_text subject for direct access
+ * @return Pointer to lv_subject_t
+ */
+lv_subject_t* ui_modal_get_cancel_text_subject();

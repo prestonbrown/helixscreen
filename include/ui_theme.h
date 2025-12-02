@@ -112,11 +112,22 @@ void ui_theme_register_responsive_padding(lv_display_t* display);
 /**
  * @brief Toggle between light and dark themes
  *
- * Switches theme mode and triggers XML constant reload to apply
- * *_light or *_dark color variants from globals.xml.
- * Requires lv_xml_component_reload_consts() after this call.
+ * Switches theme mode, re-registers XML color constants, updates theme
+ * styles in-place, and forces a widget tree refresh. All existing widgets
+ * will update to the new color scheme without recreation.
  */
 void ui_theme_toggle_dark_mode();
+
+/**
+ * @brief Force style refresh on widget tree
+ *
+ * Walks the widget tree starting from root and forces style recalculation
+ * on each widget. This is called automatically by ui_theme_toggle_dark_mode()
+ * but can be used independently for custom refresh scenarios.
+ *
+ * @param root Root widget to start refresh from (typically lv_screen_active())
+ */
+void ui_theme_refresh_widget_tree(lv_obj_t* root);
 
 /**
  * @brief Check if dark mode is currently active

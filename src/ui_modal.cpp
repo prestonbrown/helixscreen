@@ -42,6 +42,21 @@ struct ModalMetadata {
 // Modal stack - topmost modal is at the back
 static std::vector<ModalMetadata> g_modal_stack;
 
+// =========================================================================
+// MODAL DIALOG SUBJECTS
+// =========================================================================
+
+// Static subjects for modal_dialog.xml binding
+static lv_subject_t g_dialog_severity;
+static lv_subject_t g_dialog_show_cancel;
+static lv_subject_t g_dialog_primary_text;
+static lv_subject_t g_dialog_cancel_text;
+
+// Default button labels (static storage for lv_subject_set_pointer)
+static const char* g_default_primary_text = "OK";
+static const char* g_default_cancel_text = "Cancel";
+static bool g_subjects_initialized = false;
+
 /**
  * @brief Find modal metadata by LVGL object pointer
  */
@@ -335,4 +350,72 @@ void ui_modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea) {
 
     spdlog::debug("[Modal] Keyboard registered for modal: {}, textarea: {}", (void*)modal,
                   (void*)textarea);
+}
+
+// =========================================================================
+// MODAL DIALOG SUBJECT IMPLEMENTATION
+// =========================================================================
+
+void ui_modal_init_subjects() {
+    if (g_subjects_initialized) {
+        spdlog::warn("[Modal] Subjects already initialized - skipping");
+        return;
+    }
+
+    spdlog::info("[Modal] Initializing modal dialog subjects");
+
+    // Initialize integer subjects
+    lv_subject_init_int(&g_dialog_severity, UI_MODAL_SEVERITY_INFO);
+    lv_subject_init_int(&g_dialog_show_cancel, 0);
+
+    // Initialize string subjects (pointer type)
+    lv_subject_init_pointer(&g_dialog_primary_text, (void*)g_default_primary_text);
+    lv_subject_init_pointer(&g_dialog_cancel_text, (void*)g_default_cancel_text);
+
+    // Register with LVGL XML system for binding (NULL scope = global subjects)
+    lv_xml_register_subject(nullptr, "dialog_severity", &g_dialog_severity);
+    lv_xml_register_subject(nullptr, "dialog_show_cancel", &g_dialog_show_cancel);
+    lv_xml_register_subject(nullptr, "dialog_primary_text", &g_dialog_primary_text);
+    lv_xml_register_subject(nullptr, "dialog_cancel_text", &g_dialog_cancel_text);
+
+    g_subjects_initialized = true;
+    spdlog::info("[Modal] Modal dialog subjects registered");
+}
+
+void ui_modal_configure(ui_modal_severity severity, bool show_cancel,
+                        const char* primary_text, const char* cancel_text) {
+    if (!g_subjects_initialized) {
+        spdlog::error("[Modal] Cannot configure - subjects not initialized! Call ui_modal_init_subjects() first");
+        return;
+    }
+
+    spdlog::debug("[Modal] Configuring dialog: severity={}, show_cancel={}, primary='{}', cancel='{}'",
+                  (int)severity, show_cancel, primary_text ? primary_text : "(null)",
+                  cancel_text ? cancel_text : "(null)");
+
+    lv_subject_set_int(&g_dialog_severity, severity);
+    lv_subject_set_int(&g_dialog_show_cancel, show_cancel ? 1 : 0);
+
+    if (primary_text) {
+        lv_subject_set_pointer(&g_dialog_primary_text, (void*)primary_text);
+    }
+    if (cancel_text) {
+        lv_subject_set_pointer(&g_dialog_cancel_text, (void*)cancel_text);
+    }
+}
+
+lv_subject_t* ui_modal_get_severity_subject() {
+    return &g_dialog_severity;
+}
+
+lv_subject_t* ui_modal_get_show_cancel_subject() {
+    return &g_dialog_show_cancel;
+}
+
+lv_subject_t* ui_modal_get_primary_text_subject() {
+    return &g_dialog_primary_text;
+}
+
+lv_subject_t* ui_modal_get_cancel_text_subject() {
+    return &g_dialog_cancel_text;
 }

@@ -132,13 +132,22 @@ static void ui_theme_register_color_pairs(lv_xml_component_scope_t* scope, bool 
 
         if (light_val && dark_val) {
             const char* selected = dark_mode ? dark_val : light_val;
+            spdlog::debug("[Theme] Registering {}: dark_mode={}, light={}, dark={}, selected={}",
+                          base_name, dark_mode, light_val, dark_val, selected);
             lv_xml_register_const(scope, base_name.c_str(), selected);
-            spdlog::trace("[Theme] Auto-registered color: {} -> {}", base_name, selected);
+
+            // Verify registration worked
+            const char* verify = lv_xml_get_const(nullptr, base_name.c_str());
+            if (verify && strcmp(verify, selected) != 0) {
+                spdlog::error("[Theme] MISMATCH! {} registered as {} but reads back as {}",
+                              base_name, selected, verify);
+            }
             registered++;
         }
     }
 
-    spdlog::debug("[Theme] Auto-registered {} theme-aware color pairs", registered);
+    spdlog::debug("[Theme] Auto-registered {} theme-aware color pairs (dark_mode={})",
+                  registered, dark_mode);
 }
 
 void ui_theme_register_responsive_padding(lv_display_t* display) {
@@ -295,6 +304,28 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
     }
 }
 
+/**
+ * Walk widget tree and force style refresh on each widget
+ *
+ * This is needed for widgets that have local/inline styles from XML.
+ * Theme styles are automatically refreshed by lv_obj_report_style_change(),
+ * but local styles need explicit refresh.
+ */
+static lv_obj_tree_walk_res_t refresh_style_cb(lv_obj_t* obj, void* user_data) {
+    (void)user_data;
+    // Force LVGL to recalculate all style properties for this widget
+    lv_obj_refresh_style(obj, LV_PART_ANY, LV_STYLE_PROP_ANY);
+    return LV_OBJ_TREE_WALK_NEXT;
+}
+
+void ui_theme_refresh_widget_tree(lv_obj_t* root) {
+    if (!root)
+        return;
+
+    // Walk entire tree and refresh each widget's styles
+    lv_obj_tree_walk(root, refresh_style_cb, nullptr);
+}
+
 void ui_theme_toggle_dark_mode() {
     if (!theme_display) {
         spdlog::error("[Theme] Cannot toggle: theme not initialized");
@@ -302,10 +333,49 @@ void ui_theme_toggle_dark_mode() {
     }
 
     bool new_use_dark_mode = !use_dark_mode;
-    spdlog::info("[Theme] Toggling to {} mode", new_use_dark_mode ? "dark" : "light");
+    use_dark_mode = new_use_dark_mode;
+    spdlog::info("[Theme] Switching to {} mode", new_use_dark_mode ? "dark" : "light");
 
-    ui_theme_init(theme_display, new_use_dark_mode);
+    // Read color values directly from _light/_dark variants
+    // Note: We can't update lv_xml_register_const() values at runtime (LVGL limitation),
+    // so we read the appropriate variant directly based on the new theme mode.
+    const char* suffix = new_use_dark_mode ? "_dark" : "_light";
+
+    auto get_themed_color = [suffix](const char* base_name) -> const char* {
+        char full_name[128];
+        snprintf(full_name, sizeof(full_name), "%s%s", base_name, suffix);
+        return lv_xml_get_const(nullptr, full_name);
+    };
+
+    const char* screen_bg_str = get_themed_color("app_bg_color");
+    const char* card_bg_str = get_themed_color("card_bg");
+    const char* theme_grey_str = get_themed_color("theme_grey");
+    const char* text_primary_str = get_themed_color("text_primary");
+
+    if (!screen_bg_str || !card_bg_str || !theme_grey_str || !text_primary_str) {
+        spdlog::error("[Theme] Failed to read color constants for {} mode",
+                      new_use_dark_mode ? "dark" : "light");
+        return;
+    }
+
+    lv_color_t screen_bg = ui_theme_parse_color(screen_bg_str);
+    lv_color_t card_bg = ui_theme_parse_color(card_bg_str);
+    lv_color_t theme_grey = ui_theme_parse_color(theme_grey_str);
+    lv_color_t text_primary_color = ui_theme_parse_color(text_primary_str);
+
+    spdlog::debug("[Theme] New colors: screen={}, card={}, grey={}, text={}",
+                  screen_bg_str, card_bg_str, theme_grey_str, text_primary_str);
+
+    // Update helix theme styles in-place (triggers lv_obj_report_style_change)
+    helix_theme_update_colors(new_use_dark_mode, screen_bg, card_bg, theme_grey, text_primary_color);
+
+    // Force style refresh on entire widget tree for local/inline styles
+    ui_theme_refresh_widget_tree(lv_screen_active());
+
+    // Invalidate screen to trigger redraw
     lv_obj_invalidate(lv_screen_active());
+
+    spdlog::info("[Theme] Theme toggle complete");
 }
 
 bool ui_theme_is_dark_mode() {
@@ -313,18 +383,22 @@ bool ui_theme_is_dark_mode() {
 }
 
 /**
- * Get theme-appropriate color variant
+ * Get theme-appropriate color variant with fallback for static colors
  *
- * Looks up {base_name}_light and {base_name}_dark from globals.xml,
- * selects the appropriate one based on current theme mode, and returns
- * the parsed lv_color_t.
+ * First attempts to look up {base_name}_light and {base_name}_dark from globals.xml,
+ * selecting the appropriate one based on current theme mode. If the theme variants
+ * don't exist, falls back to {base_name} directly (for static colors like
+ * warning_color, error_color that are the same in both themes).
  *
- * @param base_name Color constant base name (e.g., "app_bg_color", "card_bg")
+ * @param base_name Color constant base name (e.g., "app_bg_color", "warning_color")
  * @return Parsed color, or black (0x000000) if not found
  *
  * Example:
  *   lv_color_t bg = ui_theme_get_color("app_bg_color");
  *   // Returns app_bg_color_light in light mode, app_bg_color_dark in dark mode
+ *
+ *   lv_color_t warn = ui_theme_get_color("warning_color");
+ *   // Returns warning_color directly (static, no theme variants)
  */
 lv_color_t ui_theme_get_color(const char* base_name) {
     if (!base_name) {
@@ -343,8 +417,17 @@ lv_color_t ui_theme_get_color(const char* base_name) {
     const char* dark_str = lv_xml_get_const(nullptr, dark_name);
 
     if (!light_str || !dark_str) {
-        spdlog::error("[Theme] Color variant not found: {} (light={}, dark={})", base_name,
-                      light_str ? "found" : "missing", dark_str ? "found" : "missing");
+        // Fallback: try the base name directly (for static colors like warning_color, error_color)
+        const char* base_str = lv_xml_get_const(nullptr, base_name);
+        if (base_str) {
+            lv_color_t color = ui_theme_parse_color(base_str);
+            spdlog::debug("[Theme] ui_theme_get_color({}) = {} (0x{:06X}) (static, no theme variants)",
+                          base_name, base_str, lv_color_to_u32(color) & 0xFFFFFF);
+            return color;
+        }
+
+        spdlog::error("[Theme] Color not found: {} (no _light/_dark variants, no static fallback)",
+                      base_name);
         return lv_color_hex(0x000000);
     }
 

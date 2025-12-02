@@ -102,6 +102,7 @@ class SettingsPanel : public PanelBase {
     lv_obj_t* zoffset_cal_panel_ = nullptr;
     lv_obj_t* pid_cal_panel_ = nullptr;
     lv_obj_t* factory_reset_dialog_ = nullptr;
+    lv_obj_t* theme_restart_dialog_ = nullptr;
 
     //
     // === Setup Helpers ===
@@ -128,6 +129,7 @@ class SettingsPanel : public PanelBase {
     void handle_pid_tuning_clicked();
     void handle_network_clicked();
     void handle_factory_reset_clicked();
+    void show_theme_restart_dialog();
 
     //
     // === Static Trampolines ===

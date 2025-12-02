@@ -87,4 +87,54 @@ lv_subject_t& get_notification_subject();
  */
 void app_globals_init_subjects();
 
+/**
+ * @brief Store original command-line arguments for restart capability
+ *
+ * Must be called early in main() before any argument processing.
+ * Required for app_request_restart() to work.
+ *
+ * @param argc Argument count from main()
+ * @param argv Argument vector from main()
+ */
+void app_store_argv(int argc, char** argv);
+
+/**
+ * @brief Request clean application shutdown
+ *
+ * Sets a flag that the main event loop checks. When set, the main loop
+ * will exit cleanly, allowing proper cleanup (spdlog shutdown, etc.).
+ * Use this instead of exit() or _Exit() for graceful termination.
+ */
+void app_request_quit();
+
+/**
+ * @brief Request application restart
+ *
+ * Forks a new process and exec's the same binary with the same arguments.
+ * The new process starts fresh while the current process exits cleanly.
+ * On embedded (systemd), this provides seamless restart. On macOS for
+ * development, the new window appears and the old one closes.
+ *
+ * Requires app_store_argv() to have been called during startup.
+ */
+void app_request_restart();
+
+/**
+ * @brief Request application restart for theme change
+ *
+ * Like app_request_restart(), but modifies arguments for theme switch:
+ * - Removes any --dark or --light flags (so saved config is used)
+ * - Replaces -p/--panel argument with "-p settings" (return to settings)
+ * - Preserves all other arguments (--test, -s, -v, etc.)
+ *
+ * Call this after saving the new theme to config.
+ */
+void app_request_restart_for_theme();
+
+/**
+ * @brief Check if quit has been requested
+ * @return true if app_request_quit() or app_request_restart() was called
+ */
+bool app_quit_requested();
+
 #endif // APP_GLOBALS_H

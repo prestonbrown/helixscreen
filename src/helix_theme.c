@@ -257,3 +257,67 @@ lv_theme_t* helix_theme_init(lv_display_t* display, lv_color_t primary_color,
 
     return (lv_theme_t*)helix_theme_instance;
 }
+
+void helix_theme_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
+                               lv_color_t theme_grey, lv_color_t text_primary_color) {
+    if (!helix_theme_instance) {
+        return;
+    }
+
+    // Update our custom styles in-place
+    helix_theme_instance->is_dark_mode = is_dark;
+
+    // Recompute input widget background color
+    lv_color_t input_bg = compute_input_bg_color(card_bg, is_dark);
+    lv_style_set_bg_color(&helix_theme_instance->input_bg_style, input_bg);
+
+    // Update button style colors
+    lv_style_set_bg_color(&helix_theme_instance->button_style, theme_grey);
+    lv_style_set_text_color(&helix_theme_instance->button_style, text_primary_color);
+
+    // Update LVGL default theme's internal styles
+    // This is the same private API access pattern used in helix_theme_init
+    typedef enum {
+        DISP_SMALL = 0,
+        DISP_MEDIUM = 1,
+        DISP_LARGE = 2,
+    } disp_size_t;
+
+    typedef struct {
+        lv_style_t scr;
+        lv_style_t scrollbar;
+        lv_style_t scrollbar_scrolled;
+        lv_style_t card;
+        lv_style_t btn;
+    } theme_styles_partial_t;
+
+    typedef struct {
+        lv_theme_t base;
+        disp_size_t disp_size;
+        int32_t disp_dpi;
+        lv_color_t color_scr;
+        lv_color_t color_text;
+        lv_color_t color_card;
+        lv_color_t color_grey;
+        bool inited;
+        theme_styles_partial_t styles;
+    } default_theme_t;
+
+    default_theme_t* def_theme = (default_theme_t*)helix_theme_instance->default_theme;
+
+    // Update theme color fields
+    def_theme->color_scr = screen_bg;
+    def_theme->color_card = card_bg;
+    def_theme->color_grey = theme_grey;
+    def_theme->color_text = text_primary_color;
+
+    // Update pre-computed style colors
+    lv_style_set_bg_color(&def_theme->styles.scr, screen_bg);
+    lv_style_set_text_color(&def_theme->styles.scr, text_primary_color);
+    lv_style_set_bg_color(&def_theme->styles.card, card_bg);
+    lv_style_set_bg_color(&def_theme->styles.btn, theme_grey);
+
+    // Notify LVGL that all styles have changed - triggers refresh cascade
+    // NULL means "all styles changed", which forces a complete style recalculation
+    lv_obj_report_style_change(NULL);
+}

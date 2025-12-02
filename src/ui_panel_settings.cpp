@@ -9,6 +9,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "ui_event_safety.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_calibration_pid.h"
@@ -241,7 +242,90 @@ void SettingsPanel::populate_info_rows() {
 
 void SettingsPanel::handle_dark_mode_changed(bool enabled) {
     spdlog::info("[{}] Dark mode toggled: {}", get_name(), enabled ? "ON" : "OFF");
+
+    // Save the setting to config (will be applied on next app launch)
     SettingsManager::instance().set_dark_mode(enabled);
+
+    // Show dialog informing user that restart is required
+    show_theme_restart_dialog();
+}
+
+void SettingsPanel::show_theme_restart_dialog() {
+    // Create dialog on first use (lazy initialization)
+    if (!theme_restart_dialog_ && parent_screen_) {
+        spdlog::debug("[{}] Creating theme restart dialog...", get_name());
+
+        // Configure modal_dialog subjects BEFORE creation
+        // INFO severity (0) = blue info icon, show both buttons
+        // "Later" = dismiss (restart later), "Restart" = restart now
+        ui_modal_configure(UI_MODAL_SEVERITY_INFO, true, "Restart", "Later");
+
+        // Create modal_dialog with title/message props
+        const char* attrs[] = {"title",   "Theme Changed",
+                               "message", "Restart the app to apply the new theme.",
+                               nullptr};
+        theme_restart_dialog_ =
+            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "modal_dialog", attrs));
+
+        if (theme_restart_dialog_) {
+            // Wire up "Restart" button (btn_primary) to restart the app
+            lv_obj_t* restart_btn = lv_obj_find_by_name(theme_restart_dialog_, "btn_primary");
+            if (restart_btn) {
+                lv_obj_add_event_cb(
+                    restart_btn,
+                    [](lv_event_t* /*e*/) {
+                        spdlog::info("[SettingsPanel] User requested app restart for theme change");
+                        // Fork new process with modified args: removes --dark/--light,
+                        // forces -p settings. Theme is read from saved config.
+                        app_request_restart_for_theme();
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Wire up "OK" button (btn_secondary) to dismiss dialog
+            lv_obj_t* ok_btn = lv_obj_find_by_name(theme_restart_dialog_, "btn_secondary");
+            if (ok_btn) {
+                lv_obj_set_user_data(ok_btn, theme_restart_dialog_);
+                lv_obj_add_event_cb(
+                    ok_btn,
+                    [](lv_event_t* e) {
+                        auto* btn = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                        auto* dialog = static_cast<lv_obj_t*>(lv_obj_get_user_data(btn));
+                        if (dialog) {
+                            lv_obj_add_flag(dialog, LV_OBJ_FLAG_HIDDEN);
+                        }
+                        spdlog::debug("[SettingsPanel] Theme restart dialog dismissed (will restart later)");
+                    },
+                    LV_EVENT_CLICKED, nullptr);
+            }
+
+            // Also allow clicking backdrop to dismiss
+            lv_obj_add_event_cb(
+                theme_restart_dialog_,
+                [](lv_event_t* e) {
+                    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                    auto* original = static_cast<lv_obj_t*>(lv_event_get_target(e));
+                    if (target == original) {
+                        lv_obj_add_flag(target, LV_OBJ_FLAG_HIDDEN);
+                        spdlog::debug("[SettingsPanel] Theme restart dialog dismissed (backdrop)");
+                    }
+                },
+                LV_EVENT_CLICKED, nullptr);
+
+            // Start hidden
+            lv_obj_add_flag(theme_restart_dialog_, LV_OBJ_FLAG_HIDDEN);
+            spdlog::info("[{}] Theme restart dialog created", get_name());
+        } else {
+            spdlog::error("[{}] Failed to create theme restart dialog", get_name());
+            return;
+        }
+    }
+
+    // Show the dialog
+    if (theme_restart_dialog_) {
+        lv_obj_remove_flag(theme_restart_dialog_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(theme_restart_dialog_);
+    }
 }
 
 void SettingsPanel::handle_display_sleep_changed(int index) {

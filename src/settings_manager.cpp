@@ -93,26 +93,12 @@ void SettingsManager::set_dark_mode(bool enabled) {
     // 1. Update subject (UI reacts immediately via binding)
     lv_subject_set_int(&dark_mode_subject_, enabled ? 1 : 0);
 
-    // 2. Apply immediate effect (theme change)
-    apply_dark_mode(enabled);
-
-    // 3. Persist to config
+    // 2. Persist to config (theme change requires restart to take effect)
     Config* config = Config::get_instance();
     config->set<bool>("/dark_mode", enabled);
     config->save();
 
-    spdlog::debug("[SettingsManager] Dark mode {} and saved", enabled ? "enabled" : "disabled");
-}
-
-void SettingsManager::apply_dark_mode(bool enabled) {
-    // The ui_theme system manages the actual LVGL theme
-    // Check if we need to toggle (avoid unnecessary reloads)
-    bool current = ui_theme_is_dark_mode();
-    if (current != enabled) {
-        ui_theme_toggle_dark_mode();
-        // Note: The theme toggle will reload XML constants automatically
-        spdlog::debug("[SettingsManager] Theme toggled to {}", enabled ? "dark" : "light");
-    }
+    spdlog::debug("[SettingsManager] Dark mode {} saved (restart required)", enabled ? "enabled" : "disabled");
 }
 
 int SettingsManager::get_display_sleep_sec() const {

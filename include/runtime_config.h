@@ -105,8 +105,11 @@ struct RuntimeConfig {
     }
 
     /**
-     * @brief Check if splash screen should be skipped
+     * @brief Check if splash screen should be skipped based on command-line flags
      * @return true if --skip-splash flag set or test mode enabled
+     *
+     * Note: Callers should also check SettingsManager::get_skip_splash_once() for theme
+     *       change restart flow. That flag is cleared after startup.
      */
     bool should_skip_splash() const {
         return skip_splash || test_mode;

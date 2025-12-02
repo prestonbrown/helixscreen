@@ -789,6 +789,7 @@ static void register_xml_components() {
     spdlog::debug("[XML] notification_history_item.xml registration returned: {}",
                   (int)nh_item_ret);
     lv_xml_register_component_from_file("A:ui_xml/confirmation_dialog.xml");
+    lv_xml_register_component_from_file("A:ui_xml/modal_dialog.xml");
     lv_xml_register_component_from_file("A:ui_xml/tip_detail_dialog.xml");
     lv_xml_register_component_from_file("A:ui_xml/numeric_keypad_modal.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_file_card.xml");
@@ -1231,6 +1232,9 @@ static void initialize_moonraker_client(Config* config) {
 
 // Main application
 int main(int argc, char** argv) {
+    // Store argv early for restart capability (before any modifications)
+    app_store_argv(argc, argv);
+
     // Ensure we're running from the project root for relative path access
     ensure_project_root_cwd();
 
@@ -1835,14 +1839,24 @@ int main(int argc, char** argv) {
         config->get<int>(config->df() + "moonraker_timeout_check_interval_ms", 2000);
 
     // Main event loop - Let LVGL handle SDL events internally via lv_timer_handler()
-    // Loop continues while display exists (exits when window closed)
-    while (lv_display_get_next(NULL)) {
+    // Loop continues while display exists and quit not requested
+    while (lv_display_get_next(NULL) && !app_quit_requested()) {
         // Check for Cmd+Q (macOS) or Win+Q (Windows) to quit
         SDL_Keymod modifiers = SDL_GetModState();
         const Uint8* keyboard_state = SDL_GetKeyboardState(NULL);
         if ((modifiers & KMOD_GUI) && keyboard_state[SDL_SCANCODE_Q]) {
             spdlog::info("Cmd+Q/Win+Q pressed - exiting...");
             break;
+        }
+
+        // Check for 'T' key to toggle theme (for testing)
+        static bool t_key_was_pressed = false;
+        if (keyboard_state[SDL_SCANCODE_T] && !t_key_was_pressed) {
+            t_key_was_pressed = true;
+            spdlog::info("'T' pressed - toggling theme");
+            ui_theme_toggle_dark_mode();
+        } else if (!keyboard_state[SDL_SCANCODE_T]) {
+            t_key_was_pressed = false;
         }
 
         // Auto-screenshot after configured delay (only if enabled)

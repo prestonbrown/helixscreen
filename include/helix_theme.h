@@ -71,6 +71,25 @@ lv_theme_t* helix_theme_init(lv_display_t* display, lv_color_t primary_color,
                              bool is_dark, const lv_font_t* base_font, lv_color_t screen_bg,
                              lv_color_t card_bg, lv_color_t theme_grey, int32_t border_radius);
 
+/**
+ * @brief Update theme colors in-place without recreating the theme
+ *
+ * Updates all theme style objects with new colors for runtime dark/light mode
+ * switching. This modifies existing styles and calls lv_obj_report_style_change()
+ * to trigger LVGL's style refresh cascade.
+ *
+ * Unlike helix_theme_init(), this function preserves widget state and avoids
+ * the overhead of theme recreation.
+ *
+ * @param is_dark true for dark mode colors, false for light mode
+ * @param screen_bg Screen background color
+ * @param card_bg Card/panel background color
+ * @param theme_grey Grey color for buttons
+ * @param text_primary_color Primary text color
+ */
+void helix_theme_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
+                               lv_color_t theme_grey, lv_color_t text_primary_color);
+
 #ifdef __cplusplus
 }
 #endif

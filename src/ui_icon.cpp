@@ -59,7 +59,7 @@ static const IconSize SIZE_XL = {64, 64, 256};
  * Variant mapping: semantic name -> {recolor, opacity}
  * Colors are resolved from global theme constants at runtime.
  */
-enum class IconVariant { NONE, PRIMARY, SECONDARY, ACCENT, DISABLED };
+enum class IconVariant { NONE, PRIMARY, SECONDARY, ACCENT, DISABLED, WARNING, ERROR };
 
 /**
  * Parse size string to IconSize struct
@@ -101,6 +101,10 @@ static IconVariant parse_variant(const char* variant_str) {
         return IconVariant::ACCENT;
     } else if (strcmp(variant_str, "disabled") == 0) {
         return IconVariant::DISABLED;
+    } else if (strcmp(variant_str, "warning") == 0) {
+        return IconVariant::WARNING;
+    } else if (strcmp(variant_str, "error") == 0) {
+        return IconVariant::ERROR;
     } else if (strcmp(variant_str, "none") == 0) {
         return IconVariant::NONE;
     }
@@ -143,6 +147,14 @@ static void apply_variant(lv_obj_t* obj, IconVariant variant) {
         // Primary text color at 50% opacity
         color = UI_COLOR_TEXT_PRIMARY;
         opa = LV_OPA_50;
+        break;
+    case IconVariant::WARNING:
+        // Warning color (orange) from globals.xml
+        color = ui_theme_get_color("warning_color");
+        break;
+    case IconVariant::ERROR:
+        // Error color (red) from globals.xml
+        color = ui_theme_get_color("error_color");
         break;
     case IconVariant::NONE:
     default:
