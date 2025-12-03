@@ -52,6 +52,7 @@ RUN dpkg --add-architecture armhf && apt-get update && apt-get install -y --no-i
     libstdc++-8-dev:armhf \
     libssl-dev:armhf \
     libfmt-dev:armhf \
+    libsystemd-dev:armhf \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up cross-compilation environment

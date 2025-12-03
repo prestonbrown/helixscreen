@@ -274,6 +274,28 @@ else
     endif
 endif
 
+# libsystemd (for systemd journal logging on Linux)
+# Only check on Linux (native or cross-compile), not macOS
+SYSTEMD_LIBS :=
+SYSTEMD_CXXFLAGS :=
+ifneq ($(UNAME_S),Darwin)
+    ifneq ($(CROSS_COMPILE),)
+        # Cross-compiling: check if target libsystemd exists
+        SYSTEMD_TARGET_LIB := $(shell ls /usr/lib/$(TARGET_TRIPLE)/libsystemd.so 2>/dev/null || ls /usr/lib/$(TARGET_TRIPLE)/libsystemd.a 2>/dev/null)
+        ifneq ($(SYSTEMD_TARGET_LIB),)
+            SYSTEMD_CXXFLAGS := -DHELIX_HAS_SYSTEMD
+            SYSTEMD_LIBS := -lsystemd
+        endif
+    else
+        # Native Linux build: use pkg-config
+        SYSTEMD_PKG_CONFIG := $(shell pkg-config --exists libsystemd 2>/dev/null && echo "yes")
+        ifeq ($(SYSTEMD_PKG_CONFIG),yes)
+            SYSTEMD_CXXFLAGS := -DHELIX_HAS_SYSTEMD
+            SYSTEMD_LIBS := $(shell pkg-config --libs libsystemd)
+        endif
+    endif
+endif
+
 # TinyGL (software 3D rasterizer for G-code visualization)
 # Set ENABLE_TINYGL_3D=no to build without 3D rendering support
 ENABLE_TINYGL_3D ?= yes
@@ -320,7 +342,7 @@ ifneq ($(CROSS_COMPILE),)
     NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
     # Embedded targets link against libhv, wpa_supplicant, and OpenSSL
     # No SDL2 - display handled by framebuffer/DRM
-    LDFLAGS := $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl -lm -lpthread
+    LDFLAGS := $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) $(WPA_CLIENT_LIB) $(SYSTEMD_LIBS) -lssl -lcrypto -ldl -lm -lpthread
     # Add target-specific linker flags (e.g., -lstdc++fs for GCC 8)
     LDFLAGS += $(TARGET_LDFLAGS)
     # Add target-specific library path for cross-compilation
@@ -355,7 +377,7 @@ else ifeq ($(UNAME_S),Darwin)
 else
     # Linux native build - Include libwpa_client.a for WiFi control
     NPROC := $(shell nproc 2>/dev/null || echo 4)
-    LDFLAGS := $(LDFLAGS_COMMON) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl
+    LDFLAGS := $(LDFLAGS_COMMON) $(WPA_CLIENT_LIB) $(SYSTEMD_LIBS) -lssl -lcrypto -ldl
     PLATFORM := Linux
     WPA_DEPS := $(WPA_CLIENT_LIB)
 endif
@@ -363,6 +385,9 @@ endif
 # Add TinyGL defines to compiler flags
 CFLAGS += $(TINYGL_DEFINES)
 CXXFLAGS += $(TINYGL_DEFINES)
+
+# Add systemd defines to C++ compiler flags (for logging_init.cpp)
+CXXFLAGS += $(SYSTEMD_CXXFLAGS)
 
 # Parallel build control
 # CRITICAL: 'make -j' (no number) means UNLIMITED parallelism in GNU Make!

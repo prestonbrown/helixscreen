@@ -4,7 +4,10 @@
   "default_printer": "default_printer",
   "display_rotate": 0,
   "display_sleep_sec": 600,
-  "log_path": "/tmp/helixscreen.log",
+  "log_dest": "auto",
+  "_log_dest_comment": "Log destination: 'auto' (detect best), 'journal' (systemd), 'syslog', 'file', 'console' (disable system log)",
+  "log_path": "",
+  "_log_path_comment": "Log file path when using file destination. Empty = auto (/var/log or ~/.local/share)",
   "printers": {
     "default_printer": {
       "default_macros": {

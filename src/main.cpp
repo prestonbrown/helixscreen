@@ -70,6 +70,7 @@
 #include "config.h"
 #include "display_backend.h"
 #include "gcode_file_modifier.h"
+#include "logging_init.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/libs/svg/lv_svg_decoder.h"
 #include "lvgl/src/xml/lv_xml.h"
@@ -234,6 +235,10 @@ static BedMeshPanel* bed_mesh_panel = nullptr;
 
 // Runtime configuration
 static RuntimeConfig g_runtime_config;
+
+// Logging configuration (parsed before Config system is available)
+static std::string g_log_dest_cli; // CLI override for log destination
+static std::string g_log_file_cli; // CLI override for log file path
 
 // Thread-safe queue for Moonraker notifications (cross-thread communication)
 static std::queue<json> notification_queue;
@@ -623,6 +628,34 @@ static bool parse_command_line_args(
             }
         } else if (strcmp(argv[i], "--verbose") == 0) {
             verbosity++;
+        } else if (strcmp(argv[i], "--log-dest") == 0 || strncmp(argv[i], "--log-dest=", 11) == 0) {
+            const char* value = nullptr;
+            if (strncmp(argv[i], "--log-dest=", 11) == 0) {
+                value = argv[i] + 11;
+            } else if (i + 1 < argc) {
+                value = argv[++i];
+            } else {
+                printf("Error: --log-dest requires an argument\n");
+                return false;
+            }
+            g_log_dest_cli = value;
+            // Validate the value
+            if (g_log_dest_cli != "auto" && g_log_dest_cli != "journal" &&
+                g_log_dest_cli != "syslog" && g_log_dest_cli != "file" &&
+                g_log_dest_cli != "console") {
+                printf("Error: invalid --log-dest value: %s\n", g_log_dest_cli.c_str());
+                printf("Valid values: auto, journal, syslog, file, console\n");
+                return false;
+            }
+        } else if (strcmp(argv[i], "--log-file") == 0 || strncmp(argv[i], "--log-file=", 11) == 0) {
+            if (strncmp(argv[i], "--log-file=", 11) == 0) {
+                g_log_file_cli = argv[i] + 11;
+            } else if (i + 1 < argc) {
+                g_log_file_cli = argv[++i];
+            } else {
+                printf("Error: --log-file requires a path argument\n");
+                return false;
+            }
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             printf("Usage: %s [options]\n", argv[0]);
             printf("Options:\n");
@@ -643,6 +676,9 @@ static bool parse_command_line_args(
             printf("  --light              Use light theme\n");
             printf("  --skip-splash        Skip splash screen on startup\n");
             printf("  -v, --verbose        Increase verbosity (-v=info, -vv=debug, -vvv=trace)\n");
+            printf(
+                "  --log-dest <dest>    Log destination: auto, journal, syslog, file, console\n");
+            printf("  --log-file <path>    Log file path (when --log-dest=file)\n");
             printf("  -h, --help           Show this help message\n");
             printf("\nTest Mode Options:\n");
             printf("  --test               Enable test mode (uses all mocks by default)\n");
@@ -1446,20 +1482,45 @@ int main(int argc, char** argv) {
         screenshot_enabled = true;
     }
 
-    // Set spdlog log level based on verbosity flags
-    switch (verbosity) {
-    case 0:
-        spdlog::set_level(spdlog::level::warn); // Default: warnings and errors only
-        break;
-    case 1:
-        spdlog::set_level(spdlog::level::info); // -v: general information
-        break;
-    case 2:
-        spdlog::set_level(spdlog::level::debug); // -vv: debug information
-        break;
-    default:                                     // 3 or more
-        spdlog::set_level(spdlog::level::trace); // -vvv: trace everything
-        break;
+    // Initialize config system early so we can read logging settings
+    Config* config = Config::get_instance();
+    config->init("helixconfig.json");
+
+    // Initialize logging subsystem
+    // Priority: CLI > config > auto-detect
+    {
+        helix::logging::LogConfig log_config;
+
+        // Set log level from verbosity flags
+        switch (verbosity) {
+        case 0:
+            log_config.level = spdlog::level::warn;
+            break;
+        case 1:
+            log_config.level = spdlog::level::info;
+            break;
+        case 2:
+            log_config.level = spdlog::level::debug;
+            break;
+        default:
+            log_config.level = spdlog::level::trace;
+            break;
+        }
+
+        // Determine log destination: CLI > config > auto
+        std::string log_dest_str = g_log_dest_cli;
+        if (log_dest_str.empty()) {
+            log_dest_str = config->get<std::string>("/log_dest", "auto");
+        }
+        log_config.target = helix::logging::parse_log_target(log_dest_str);
+
+        // Determine log file path: CLI > config > auto
+        log_config.file_path = g_log_file_cli;
+        if (log_config.file_path.empty()) {
+            log_config.file_path = config->get<std::string>("/log_path", "");
+        }
+
+        helix::logging::init(log_config);
     }
 
     spdlog::info("HelixScreen UI Prototype");
@@ -1475,10 +1536,6 @@ int main(int argc, char** argv) {
     if (cleaned > 0) {
         spdlog::info("Cleaned up {} stale G-code temp file(s)", cleaned);
     }
-
-    // Initialize config system
-    Config* config = Config::get_instance();
-    config->init("helixconfig.json");
 
     // Determine theme: CLI overrides config, config overrides default (dark)
     bool dark_mode;
