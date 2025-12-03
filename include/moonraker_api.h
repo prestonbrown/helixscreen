@@ -30,10 +30,14 @@
 #include "moonraker_error.h"
 #include "printer_state.h"
 
+#include <atomic>
 #include <functional>
+#include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
+#include <thread>
 #include <vector>
 
 /**
@@ -120,7 +124,7 @@ class MoonrakerAPI {
      * @param state PrinterState instance (must remain valid during API lifetime)
      */
     MoonrakerAPI(MoonrakerClient& client, PrinterState& state);
-    virtual ~MoonrakerAPI() = default;
+    virtual ~MoonrakerAPI();
 
     // ========================================================================
     // File Management Operations
@@ -870,6 +874,22 @@ class MoonrakerAPI {
 
     SafetyLimits safety_limits_;
     bool limits_explicitly_set_ = false;
+
+    // Track pending HTTP request threads to ensure clean shutdown
+    // IMPORTANT: Prevents use-after-free when threads outlive the API object
+    mutable std::mutex http_threads_mutex_;
+    std::list<std::thread> http_threads_;
+    std::atomic<bool> shutting_down_{false};
+
+    /**
+     * @brief Launch an HTTP request thread with automatic lifecycle management
+     *
+     * Spawns a thread for async HTTP operations and tracks it for cleanup.
+     * Thread is automatically removed from tracking when it completes.
+     *
+     * @param func The function to execute in the thread
+     */
+    void launch_http_thread(std::function<void()> func);
 
     /**
      * @brief Parse file list response from server.files.list

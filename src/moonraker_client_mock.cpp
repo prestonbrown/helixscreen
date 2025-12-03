@@ -282,6 +282,12 @@ void MoonrakerClientMock::set_mock_state(std::shared_ptr<MockPrinterState> state
 }
 
 MoonrakerClientMock::~MoonrakerClientMock() {
+    // Signal restart thread to stop and wait for it
+    restart_pending_.store(false);
+    if (restart_thread_.joinable()) {
+        restart_thread_.join();
+    }
+
     stop_temperature_simulation();
 }
 
@@ -2260,15 +2266,36 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     spdlog::info("[MoonrakerClientMock] {} triggered - klippy_state='startup'",
                  is_firmware ? "FIRMWARE_RESTART" : "RESTART");
 
-    // Schedule return to ready state (non-blocking using detached thread)
+    // Schedule return to ready state using tracked thread
+    // IMPORTANT: Must track and join - detached threads cause use-after-free during destruction
     double delay_sec = is_firmware ? 3.0 : 2.0;
 
     // Apply speedup factor to delay
     double effective_delay = delay_sec / speedup_factor_.load();
 
-    std::thread([this, effective_delay, is_firmware]() {
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(static_cast<int>(effective_delay * 1000)));
+    // Cancel and wait for any existing restart thread
+    restart_pending_.store(false);
+    if (restart_thread_.joinable()) {
+        restart_thread_.join();
+    }
+
+    // Launch new restart thread
+    restart_pending_.store(true);
+    restart_thread_ = std::thread([this, effective_delay, is_firmware]() {
+        // Sleep in small increments to allow early exit on destruction
+        int total_ms = static_cast<int>(effective_delay * 1000);
+        int elapsed_ms = 0;
+        constexpr int SLEEP_INTERVAL_MS = 100;
+
+        while (elapsed_ms < total_ms && restart_pending_.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(SLEEP_INTERVAL_MS));
+            elapsed_ms += SLEEP_INTERVAL_MS;
+        }
+
+        // Check if we were cancelled
+        if (!restart_pending_.load()) {
+            return;
+        }
 
         // Return to ready state
         klippy_state_.store(KlippyState::READY);
@@ -2280,5 +2307,7 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
 
         spdlog::info("[MoonrakerClientMock] {} complete - klippy_state='ready'",
                      is_firmware ? "FIRMWARE_RESTART" : "RESTART");
-    }).detach();
+
+        restart_pending_.store(false);
+    });
 }

@@ -34,78 +34,144 @@
 #include <thread>
 #include <unordered_set>
 
-// Widget state (stored in LVGL object user_data)
-struct gcode_viewer_state_t {
-    // G-code data
-    std::unique_ptr<gcode::ParsedGCodeFile> gcode_file;
-    gcode_viewer_state_enum_t viewer_state{GCODE_VIEWER_STATE_EMPTY};
-
-    // Rendering components
-    std::unique_ptr<gcode::GCodeCamera> camera;
+/**
+ * @brief GCode Viewer widget state with proper RAII thread management
+ *
+ * Manages the lifecycle of async geometry building threads safely.
+ * The destructor signals cancellation and waits for threads to complete,
+ * preventing use-after-free crashes during shutdown.
+ */
+class GCodeViewerState {
+  public:
+    GCodeViewerState() {
+        camera_ = std::make_unique<gcode::GCodeCamera>();
 #ifdef ENABLE_TINYGL_3D
-    std::unique_ptr<gcode::GCodeTinyGLRenderer> renderer;
-#else
-    std::unique_ptr<gcode::GCodeRenderer> renderer;
-#endif
-
-    // Gesture state (for touch interaction)
-    bool is_dragging{false};
-    lv_point_t drag_start{0, 0};
-    lv_point_t last_drag_pos{0, 0};
-
-    // Selection state (future-proofed for multi-select)
-    std::unordered_set<std::string> selected_objects;
-
-    // Excluded objects state (synced with Klipper)
-    std::unordered_set<std::string> excluded_objects;
-
-    // Object tap callback for exclude object UI
-    gcode_viewer_object_tap_callback_t object_tap_callback{nullptr};
-    void* object_tap_user_data{nullptr};
-
-    // Long-press callback for exclude object flow (more intentional than tap)
-    gcode_viewer_object_long_press_callback_t object_long_press_callback{nullptr};
-    void* object_long_press_user_data{nullptr};
-
-    // Long-press detection state
-    lv_timer_t* long_press_timer{nullptr}; ///< Timer for 500ms long-press detection
-    bool long_press_fired{false};          ///< True if long-press callback was invoked
-    std::string long_press_object_name;    ///< Object under finger when long-press started
-
-    // Rendering settings
-    bool use_filament_color{true}; // Auto-apply filament color from metadata
-
-    // Async loading state
-    std::atomic<bool> geometry_building_{false};
-    std::thread geometry_thread_;
-    lv_obj_t* loading_container_{nullptr};
-    lv_obj_t* loading_spinner_{nullptr};
-    lv_obj_t* loading_label_{nullptr};
-    bool first_render_{true}; // Show "Rendering..." message on first draw
-
-    // Load completion callback
-    gcode_viewer_load_callback_t load_callback_{nullptr};
-    void* load_callback_user_data_{nullptr};
-
-    // Constructor
-    gcode_viewer_state_t() {
-        camera = std::make_unique<gcode::GCodeCamera>();
-#ifdef ENABLE_TINYGL_3D
-        renderer = std::make_unique<gcode::GCodeTinyGLRenderer>();
+        renderer_ = std::make_unique<gcode::GCodeTinyGLRenderer>();
         spdlog::info("GCode viewer using TinyGL 3D renderer");
 #else
-        renderer = std::make_unique<gcode::GCodeRenderer>();
+        renderer_ = std::make_unique<gcode::GCodeRenderer>();
         spdlog::info("GCode viewer using LVGL 2D renderer");
 #endif
     }
 
-    // Destructor - ensure thread is cleaned up
-    ~gcode_viewer_state_t() {
-        if (geometry_thread_.joinable()) {
-            geometry_thread_.detach(); // Let it finish in background
+    ~GCodeViewerState() {
+        // RAII cleanup: signal cancellation and wait for thread
+        cancel_build();
+
+        // Clean up LVGL timer if pending (safe even during destruction)
+        if (long_press_timer_) {
+            lv_timer_delete(long_press_timer_);
+            long_press_timer_ = nullptr;
         }
     }
+
+    // Non-copyable, non-movable (prevents accidental thread ownership issues)
+    GCodeViewerState(const GCodeViewerState&) = delete;
+    GCodeViewerState& operator=(const GCodeViewerState&) = delete;
+    GCodeViewerState(GCodeViewerState&&) = delete;
+    GCodeViewerState& operator=(GCodeViewerState&&) = delete;
+
+    // ========================================================================
+    // Async Build Management
+    // ========================================================================
+
+    /**
+     * @brief Check if a build operation can be cancelled
+     * @return true if cancellation was requested
+     */
+    bool is_cancelled() const { return cancel_flag_.load(); }
+
+    /**
+     * @brief Start an async geometry build operation
+     *
+     * Cancels any existing build, then launches a new thread.
+     *
+     * @param build_func Function to execute in background thread
+     */
+    void start_build(std::function<void()> build_func) {
+        // Cancel and wait for any existing build
+        cancel_build();
+
+        // Reset state for new build
+        cancel_flag_.store(false);
+        building_.store(true);
+
+        // Launch new thread
+        build_thread_ = std::thread([this, func = std::move(build_func)]() {
+            func();
+            building_.store(false);
+        });
+    }
+
+    /**
+     * @brief Cancel any in-progress build and wait for completion
+     *
+     * Safe to call multiple times. Blocks until thread exits.
+     */
+    void cancel_build() {
+        cancel_flag_.store(true);
+        if (build_thread_.joinable()) {
+            build_thread_.join();
+        }
+    }
+
+    bool is_building() const { return building_.load(); }
+
+    // ========================================================================
+    // Public State (accessed by static callbacks)
+    // ========================================================================
+
+    // G-code data
+    std::unique_ptr<gcode::ParsedGCodeFile> gcode_file;
+    gcode_viewer_state_enum_t viewer_state{GCODE_VIEWER_STATE_EMPTY};
+
+    // Rendering components (exposed for callbacks)
+    std::unique_ptr<gcode::GCodeCamera> camera_;
+#ifdef ENABLE_TINYGL_3D
+    std::unique_ptr<gcode::GCodeTinyGLRenderer> renderer_;
+#else
+    std::unique_ptr<gcode::GCodeRenderer> renderer_;
+#endif
+
+    // Gesture state
+    bool is_dragging{false};
+    lv_point_t drag_start{0, 0};
+    lv_point_t last_drag_pos{0, 0};
+
+    // Selection and exclusion state
+    std::unordered_set<std::string> selected_objects;
+    std::unordered_set<std::string> excluded_objects;
+
+    // Callbacks
+    gcode_viewer_object_tap_callback_t object_tap_callback{nullptr};
+    void* object_tap_user_data{nullptr};
+    gcode_viewer_object_long_press_callback_t object_long_press_callback{nullptr};
+    void* object_long_press_user_data{nullptr};
+    gcode_viewer_load_callback_t load_callback{nullptr};
+    void* load_callback_user_data{nullptr};
+
+    // Long-press state
+    lv_timer_t* long_press_timer_{nullptr};
+    bool long_press_fired{false};
+    std::string long_press_object_name;
+
+    // Rendering settings
+    bool use_filament_color{true};
+    bool first_render{true};
+
+    // Loading UI elements (managed by async load function)
+    lv_obj_t* loading_container{nullptr};
+    lv_obj_t* loading_spinner{nullptr};
+    lv_obj_t* loading_label{nullptr};
+
+  private:
+    std::thread build_thread_;
+    std::atomic<bool> building_{false};
+    std::atomic<bool> cancel_flag_{false};
 };
+
+// Type alias for compatibility with existing code
+using gcode_viewer_state_t = GCodeViewerState;
 
 // Helper: Get widget state from object
 static gcode_viewer_state_t* get_state(lv_obj_t* obj) {
@@ -129,7 +195,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
     }
 
     spdlog::debug("GCodeViewer: draw_cb called, state={}, gcode_file={}, first_render={}",
-                  (int)st->viewer_state, (void*)st->gcode_file.get(), st->first_render_);
+                  (int)st->viewer_state, (void*)st->gcode_file.get(), st->first_render);
 
     // If no G-code loaded, draw placeholder message
     if (st->viewer_state != GCODE_VIEWER_STATE_LOADED || !st->gcode_file) {
@@ -139,7 +205,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
     // On first render after async load, skip rendering to avoid blocking
     // The "Rendering..." label was already created by the async callback
-    if (st->first_render_) {
+    if (st->first_render) {
         spdlog::debug(
             "GCodeViewer: First draw after async load - skipping render, will render on timer");
         return; // Timer will trigger actual render
@@ -169,7 +235,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
     lv_obj_get_coords(obj, &widget_coords);
 
     // Render G-code (viewport size is already set by SIZE_CHANGED event)
-    st->renderer->render(layer, *st->gcode_file, *st->camera, &widget_coords);
+    st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
 
     // Log FPS every 60 frames (controlled by spdlog level)
     if (++frame_count >= 60) {
@@ -201,7 +267,7 @@ static void long_press_timer_cb(lv_timer_t* timer) {
 
     // Delete the timer (one-shot)
     lv_timer_delete(timer);
-    st->long_press_timer = nullptr;
+    st->long_press_timer_ = nullptr;
 
     // Pick object at the original press position
     const char* picked = ui_gcode_viewer_pick_object(obj, st->drag_start.x, st->drag_start.y);
@@ -258,12 +324,12 @@ static void gcode_viewer_press_cb(lv_event_t* e) {
     // Start long-press timer if callback is registered
     if (st->object_long_press_callback && st->gcode_file) {
         // Cancel any existing timer
-        if (st->long_press_timer) {
-            lv_timer_delete(st->long_press_timer);
+        if (st->long_press_timer_) {
+            lv_timer_delete(st->long_press_timer_);
         }
         // Start new timer for long-press detection
-        st->long_press_timer = lv_timer_create(long_press_timer_cb, LONG_PRESS_THRESHOLD_MS, obj);
-        lv_timer_set_repeat_count(st->long_press_timer, 1); // One-shot timer
+        st->long_press_timer_ = lv_timer_create(long_press_timer_cb, LONG_PRESS_THRESHOLD_MS, obj);
+        lv_timer_set_repeat_count(st->long_press_timer_, 1); // One-shot timer
     }
 
     spdlog::trace("GCodeViewer: Press at ({}, {})", point.x, point.y);
@@ -296,10 +362,10 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
     int total_dy = abs(point.y - st->drag_start.y);
 
     if ((total_dx >= LONG_PRESS_MOVE_THRESHOLD || total_dy >= LONG_PRESS_MOVE_THRESHOLD) &&
-        st->long_press_timer) {
+        st->long_press_timer_) {
         // User started dragging - cancel long-press
-        lv_timer_delete(st->long_press_timer);
-        st->long_press_timer = nullptr;
+        lv_timer_delete(st->long_press_timer_);
+        st->long_press_timer_ = nullptr;
         spdlog::trace("GCodeViewer: Long-press cancelled due to movement");
     }
 
@@ -313,7 +379,7 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
         float delta_azimuth = dx * 0.5f;
         float delta_elevation = -dy * 0.5f; // Flip Y for intuitive control
 
-        st->camera->rotate(delta_azimuth, delta_elevation);
+        st->camera_->rotate(delta_azimuth, delta_elevation);
 
         // Trigger redraw
         lv_obj_invalidate(obj);
@@ -338,9 +404,9 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
         return;
 
     // Cancel long-press timer if still pending
-    if (st->long_press_timer) {
-        lv_timer_delete(st->long_press_timer);
-        st->long_press_timer = nullptr;
+    if (st->long_press_timer_) {
+        lv_timer_delete(st->long_press_timer_);
+        st->long_press_timer_ = nullptr;
     }
 
     // Get release position
@@ -427,8 +493,8 @@ static void gcode_viewer_size_changed_cb(lv_event_t* e) {
     int height = lv_area_get_height(&coords);
 
     // Update camera and renderer viewport to match new size
-    st->camera->set_viewport_size(width, height);
-    st->renderer->set_viewport_size(width, height);
+    st->camera_->set_viewport_size(width, height);
+    st->renderer_->set_viewport_size(width, height);
 
     // Trigger redraw with new aspect ratio
     lv_obj_invalidate(obj);
@@ -445,14 +511,8 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     gcode_viewer_state_t* st = get_state(obj);
 
     if (st) {
-        // Clean up long-press timer if pending
-        if (st->long_press_timer) {
-            lv_timer_delete(st->long_press_timer);
-            st->long_press_timer = nullptr;
-        }
-
         spdlog::debug("GCodeViewer: Widget destroyed");
-        delete st; // C++ destructor will clean up unique_ptrs
+        delete st; // RAII destructor handles thread cleanup, timers, etc.
         lv_obj_set_user_data(obj, nullptr);
     }
 }
@@ -501,8 +561,8 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
     int height = lv_area_get_height(&coords);
 
     if (width > 0 && height > 0) {
-        st->camera->set_viewport_size(width, height);
-        st->renderer->set_viewport_size(width, height);
+        st->camera_->set_viewport_size(width, height);
+        st->renderer_->set_viewport_size(width, height);
         spdlog::debug("GCodeViewer INIT: viewport={}x{}, aspect={:.3f}", width, height,
                       (float)width / (float)height);
     } else {
@@ -534,45 +594,33 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         return;
     }
 
-    // Don't start new load if already loading
-    if (st->geometry_building_) {
-        spdlog::warn("GCodeViewer: Load already in progress, ignoring request");
-        return;
-    }
-
     spdlog::info("GCodeViewer: Loading file async: {}", file_path);
     st->viewer_state = GCODE_VIEWER_STATE_LOADING;
-    st->first_render_ = true; // Reset for new file
+    st->first_render = true; // Reset for new file
 
     // Clean up previous loading UI if it exists
-    if (st->loading_container_) {
-        lv_obj_delete(st->loading_container_);
-        st->loading_container_ = nullptr;
+    if (st->loading_container) {
+        lv_obj_delete(st->loading_container);
+        st->loading_container = nullptr;
     }
 
     // Create loading UI
-    st->loading_container_ = lv_obj_create(obj);
-    lv_obj_set_size(st->loading_container_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_center(st->loading_container_);
-    lv_obj_set_flex_flow(st->loading_container_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(st->loading_container_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+    st->loading_container = lv_obj_create(obj);
+    lv_obj_set_size(st->loading_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_center(st->loading_container);
+    lv_obj_set_flex_flow(st->loading_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(st->loading_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
 
-    st->loading_spinner_ = lv_spinner_create(st->loading_container_);
-    lv_obj_set_size(st->loading_spinner_, 50, 50);
+    st->loading_spinner = lv_spinner_create(st->loading_container);
+    lv_obj_set_size(st->loading_spinner, 50, 50);
 
-    st->loading_label_ = lv_label_create(st->loading_container_);
-    lv_label_set_text(st->loading_label_, "Loading G-code...");
+    st->loading_label = lv_label_create(st->loading_container);
+    lv_label_set_text(st->loading_label, "Loading G-code...");
 
-    // Launch worker thread
-    st->geometry_building_ = true;
-
-    // Join previous thread if it exists
-    if (st->geometry_thread_.joinable()) {
-        st->geometry_thread_.join();
-    }
-
-    st->geometry_thread_ = std::thread([obj, path = std::string(file_path)]() {
+    // Launch worker thread via RAII-managed start_build()
+    // Automatically cancels any existing build and joins the thread
+    st->start_build([st, obj, path = std::string(file_path)]() {
         auto result = std::make_unique<AsyncBuildResult>();
 
         try {
@@ -631,6 +679,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
             result->error_msg = std::string("Exception: ") + ex.what();
         }
 
+        // Check cancellation before dispatching to UI - if cancelled, widget may be destroyed
+        if (st->is_cancelled()) {
+            spdlog::debug("GCodeViewer: Build cancelled, discarding result");
+            return;
+        }
+
         // PHASE 3: Marshal result back to UI thread (SAFE)
         ui_async_call_safe<AsyncBuildResult>(std::move(result), [obj](AsyncBuildResult* r) {
             gcode_viewer_state_t* st = get_state(obj);
@@ -638,14 +692,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 return; // Widget was destroyed
             }
 
-            st->geometry_building_ = false;
-
             // Clean up loading UI
-            if (st->loading_container_) {
-                lv_obj_delete(st->loading_container_);
-                st->loading_container_ = nullptr;
-                st->loading_spinner_ = nullptr;
-                st->loading_label_ = nullptr;
+            if (st->loading_container) {
+                lv_obj_delete(st->loading_container);
+                st->loading_container = nullptr;
+                st->loading_spinner = nullptr;
+                st->loading_label = nullptr;
             }
 
             if (r->success) {
@@ -657,12 +709,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // Set pre-built geometry on renderer
 #ifdef ENABLE_TINYGL_3D
                 spdlog::debug("GCodeViewer: Calling set_prebuilt_geometry");
-                st->renderer->set_prebuilt_geometry(std::move(r->geometry),
+                st->renderer_->set_prebuilt_geometry(std::move(r->geometry),
                                                     st->gcode_file->filename);
 #endif
 
                 // Fit camera to model bounds
-                st->camera->fit_to_bounds(st->gcode_file->global_bounding_box);
+                st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
 
                 st->viewer_state = GCODE_VIEWER_STATE_LOADED;
                 spdlog::debug("GCodeViewer: State set to LOADED");
@@ -670,7 +722,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // Auto-apply filament color if enabled, but ONLY for single-color prints
                 // Multicolor prints have multiple colors in the geometry's color palette
 #ifdef ENABLE_TINYGL_3D
-                size_t color_count = st->renderer->get_geometry_color_count();
+                size_t color_count = st->renderer_->get_geometry_color_count();
                 bool is_multicolor = (color_count > 1); // >1 means multiple tool colors
 #else
                     bool is_multicolor = false; // 2D renderer doesn't have color palette
@@ -680,7 +732,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     st->gcode_file->filament_color_hex.length() >= 2) {
                     lv_color_t color = lv_color_hex(
                         std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16));
-                    st->renderer->set_extrusion_color(color);
+                    st->renderer_->set_extrusion_color(color);
                     spdlog::debug("GCodeViewer: Auto-applied single-color filament: {}",
                                   st->gcode_file->filament_color_hex);
                 } else if (is_multicolor) {
@@ -690,7 +742,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 }
 
                 // Clear first_render flag to allow actual rendering on next draw
-                st->first_render_ = false;
+                st->first_render = false;
 
                 // Trigger redraw (will render geometry now that first_render is false)
                 lv_obj_invalidate(obj);
@@ -698,9 +750,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 spdlog::info("GCodeViewer: Async load completed successfully");
 
                 // Invoke load callback if registered
-                if (st->load_callback_) {
+                if (st->load_callback) {
                     spdlog::debug("GCodeViewer: Invoking load callback");
-                    st->load_callback_(obj, st->load_callback_user_data_, true);
+                    st->load_callback(obj, st->load_callback_user_data, true);
                 }
             } else {
                 spdlog::error("GCodeViewer: Async load failed: {}", r->error_msg);
@@ -708,9 +760,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 st->gcode_file.reset();
 
                 // Invoke load callback with error status if registered
-                if (st->load_callback_) {
+                if (st->load_callback) {
                     spdlog::debug("GCodeViewer: Invoking load callback (error)");
-                    st->load_callback_(obj, st->load_callback_user_data_, false);
+                    st->load_callback(obj, st->load_callback_user_data, false);
                 }
             }
         });
@@ -729,8 +781,8 @@ void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback
         return;
     }
 
-    st->load_callback_ = callback;
-    st->load_callback_user_data_ = user_data;
+    st->load_callback = callback;
+    st->load_callback_user_data = user_data;
     spdlog::debug("GCodeViewer: Load callback registered");
 }
 
@@ -743,7 +795,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
     st->gcode_file.reset(static_cast<gcode::ParsedGCodeFile*>(gcode_data));
 
     // Fit camera to model (uses current camera orientation from reset())
-    st->camera->fit_to_bounds(st->gcode_file->global_bounding_box);
+    st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
 
     st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 
@@ -754,7 +806,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
     if (st->use_filament_color && st->gcode_file->filament_color_hex.length() >= 2) {
         lv_color_t color =
             lv_color_hex(std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16));
-        st->renderer->set_extrusion_color(color);
+        st->renderer_->set_extrusion_color(color);
         spdlog::info("GCodeViewer: Auto-applied filament color: {}",
                      st->gcode_file->filament_color_hex);
     }
@@ -789,7 +841,7 @@ void ui_gcode_viewer_rotate(lv_obj_t* obj, float delta_azimuth, float delta_elev
     if (!st)
         return;
 
-    st->camera->rotate(delta_azimuth, delta_elevation);
+    st->camera_->rotate(delta_azimuth, delta_elevation);
     lv_obj_invalidate(obj);
 }
 
@@ -798,7 +850,7 @@ void ui_gcode_viewer_pan(lv_obj_t* obj, float delta_x, float delta_y) {
     if (!st)
         return;
 
-    st->camera->pan(delta_x, delta_y);
+    st->camera_->pan(delta_x, delta_y);
     lv_obj_invalidate(obj);
 }
 
@@ -807,7 +859,7 @@ void ui_gcode_viewer_zoom(lv_obj_t* obj, float factor) {
     if (!st)
         return;
 
-    st->camera->zoom(factor);
+    st->camera_->zoom(factor);
     lv_obj_invalidate(obj);
 }
 
@@ -816,11 +868,11 @@ void ui_gcode_viewer_reset_camera(lv_obj_t* obj) {
     if (!st)
         return;
 
-    st->camera->reset();
+    st->camera_->reset();
 
     // Re-fit to model if loaded
     if (st->gcode_file) {
-        st->camera->fit_to_bounds(st->gcode_file->global_bounding_box);
+        st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
     }
 
     lv_obj_invalidate(obj);
@@ -833,16 +885,16 @@ void ui_gcode_viewer_set_view(lv_obj_t* obj, gcode_viewer_preset_view_t preset) 
 
     switch (preset) {
     case GCODE_VIEWER_VIEW_ISOMETRIC:
-        st->camera->set_isometric_view();
+        st->camera_->set_isometric_view();
         break;
     case GCODE_VIEWER_VIEW_TOP:
-        st->camera->set_top_view();
+        st->camera_->set_top_view();
         break;
     case GCODE_VIEWER_VIEW_FRONT:
-        st->camera->set_front_view();
+        st->camera_->set_front_view();
         break;
     case GCODE_VIEWER_VIEW_SIDE:
-        st->camera->set_side_view();
+        st->camera_->set_side_view();
         break;
     }
 
@@ -854,7 +906,7 @@ void ui_gcode_viewer_set_camera_azimuth(lv_obj_t* obj, float azimuth) {
     if (!st)
         return;
 
-    st->camera->set_azimuth(azimuth);
+    st->camera_->set_azimuth(azimuth);
     lv_obj_invalidate(obj);
 }
 
@@ -863,7 +915,7 @@ void ui_gcode_viewer_set_camera_elevation(lv_obj_t* obj, float elevation) {
     if (!st)
         return;
 
-    st->camera->set_elevation(elevation);
+    st->camera_->set_elevation(elevation);
     lv_obj_invalidate(obj);
 }
 
@@ -872,7 +924,7 @@ void ui_gcode_viewer_set_camera_zoom(lv_obj_t* obj, float zoom) {
     if (!st)
         return;
 
-    st->camera->set_zoom_level(zoom);
+    st->camera_->set_zoom_level(zoom);
     lv_obj_invalidate(obj);
 }
 
@@ -882,7 +934,7 @@ void ui_gcode_viewer_set_debug_colors(lv_obj_t* obj, bool enable) {
         return;
 
 #ifdef ENABLE_TINYGL_3D
-    st->renderer->set_debug_face_colors(enable);
+    st->renderer_->set_debug_face_colors(enable);
     lv_obj_invalidate(obj);
 #else
     (void)enable;
@@ -898,7 +950,7 @@ void ui_gcode_viewer_set_show_travels(lv_obj_t* obj, bool show) {
     if (!st)
         return;
 
-    st->renderer->set_show_travels(show);
+    st->renderer_->set_show_travels(show);
     lv_obj_invalidate(obj);
 }
 
@@ -907,7 +959,7 @@ void ui_gcode_viewer_set_show_extrusions(lv_obj_t* obj, bool show) {
     if (!st)
         return;
 
-    st->renderer->set_show_extrusions(show);
+    st->renderer_->set_show_extrusions(show);
     lv_obj_invalidate(obj);
 }
 
@@ -916,7 +968,7 @@ void ui_gcode_viewer_set_layer_range(lv_obj_t* obj, int start_layer, int end_lay
     if (!st)
         return;
 
-    st->renderer->set_layer_range(start_layer, end_layer);
+    st->renderer_->set_layer_range(start_layer, end_layer);
     lv_obj_invalidate(obj);
 }
 
@@ -935,7 +987,7 @@ void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
     if (!st)
         return;
 
-    st->renderer->set_highlighted_objects(object_names);
+    st->renderer_->set_highlighted_objects(object_names);
     lv_obj_invalidate(obj);
 }
 
@@ -946,7 +998,7 @@ void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
         return;
 
     st->excluded_objects = object_names;
-    st->renderer->set_excluded_objects(object_names);
+    st->renderer_->set_excluded_objects(object_names);
     lv_obj_invalidate(obj);
 
     spdlog::debug("GCodeViewer: Excluded objects updated ({} objects)", object_names.size());
@@ -984,7 +1036,7 @@ void ui_gcode_viewer_set_extrusion_color(lv_obj_t* obj, lv_color_t color) {
     if (!st)
         return;
 
-    st->renderer->set_extrusion_color(color);
+    st->renderer_->set_extrusion_color(color);
     lv_obj_invalidate(obj);
 }
 
@@ -993,7 +1045,7 @@ void ui_gcode_viewer_set_travel_color(lv_obj_t* obj, lv_color_t color) {
     if (!st)
         return;
 
-    st->renderer->set_travel_color(color);
+    st->renderer_->set_travel_color(color);
     lv_obj_invalidate(obj);
 }
 
@@ -1008,13 +1060,13 @@ void ui_gcode_viewer_use_filament_color(lv_obj_t* obj, bool enable) {
     if (enable && st->gcode_file && st->gcode_file->filament_color_hex.length() >= 2) {
         lv_color_t color =
             lv_color_hex(std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16));
-        st->renderer->set_extrusion_color(color);
+        st->renderer_->set_extrusion_color(color);
         lv_obj_invalidate(obj);
         spdlog::debug("GCodeViewer: Applied filament color: {}",
                       st->gcode_file->filament_color_hex);
     } else if (!enable) {
         // Reset to theme default
-        st->renderer->reset_colors();
+        st->renderer_->reset_colors();
         lv_obj_invalidate(obj);
     }
 }
@@ -1024,7 +1076,7 @@ void ui_gcode_viewer_set_opacity(lv_obj_t* obj, lv_opa_t opacity) {
     if (!st)
         return;
 
-    st->renderer->set_global_opacity(opacity);
+    st->renderer_->set_global_opacity(opacity);
     lv_obj_invalidate(obj);
 }
 
@@ -1033,7 +1085,7 @@ void ui_gcode_viewer_set_brightness(lv_obj_t* obj, float factor) {
     if (!st)
         return;
 
-    st->renderer->set_brightness_factor(factor);
+    st->renderer_->set_brightness_factor(factor);
     lv_obj_invalidate(obj);
 }
 
@@ -1050,7 +1102,7 @@ int ui_gcode_viewer_get_current_layer_start(lv_obj_t* obj) {
     if (!st)
         return 0;
 
-    return st->renderer->get_options().layer_start;
+    return st->renderer_->get_options().layer_start;
 }
 
 int ui_gcode_viewer_get_current_layer_end(lv_obj_t* obj) {
@@ -1058,7 +1110,7 @@ int ui_gcode_viewer_get_current_layer_end(lv_obj_t* obj) {
     if (!st)
         return -1;
 
-    return st->renderer->get_options().layer_end;
+    return st->renderer_->get_options().layer_end;
 }
 
 // ==============================================
@@ -1070,7 +1122,7 @@ void ui_gcode_viewer_set_print_progress(lv_obj_t* obj, int current_layer) {
     if (!st)
         return;
 
-    st->renderer->set_print_progress_layer(current_layer);
+    st->renderer_->set_print_progress_layer(current_layer);
     lv_obj_invalidate(obj);
 }
 
@@ -1079,7 +1131,7 @@ void ui_gcode_viewer_set_ghost_opacity(lv_obj_t* obj, lv_opa_t opacity) {
     if (!st)
         return;
 
-    st->renderer->set_ghost_opacity(opacity);
+    st->renderer_->set_ghost_opacity(opacity);
     lv_obj_invalidate(obj);
 }
 
@@ -1092,7 +1144,7 @@ void ui_gcode_viewer_set_ghost_mode(lv_obj_t* obj, int mode) {
     gcode::GhostRenderMode render_mode =
         (mode == 1) ? gcode::GhostRenderMode::Stipple : gcode::GhostRenderMode::Dimmed;
 
-    st->renderer->set_ghost_render_mode(render_mode);
+    st->renderer_->set_ghost_render_mode(render_mode);
     lv_obj_invalidate(obj);
 }
 
@@ -1101,7 +1153,7 @@ int ui_gcode_viewer_get_max_layer(lv_obj_t* obj) {
     if (!st)
         return -1;
 
-    return st->renderer->get_max_layer_index();
+    return st->renderer_->get_max_layer_index();
 }
 
 // ==============================================
@@ -1181,7 +1233,7 @@ const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
     if (!st || !st->gcode_file)
         return nullptr;
 
-    auto result = st->renderer->pick_object(glm::vec2(x, y), *st->gcode_file, *st->camera);
+    auto result = st->renderer_->pick_object(glm::vec2(x, y), *st->gcode_file, *st->camera_);
 
     if (result) {
         // Store in static buffer (safe for single-threaded LVGL)
@@ -1218,7 +1270,7 @@ int ui_gcode_viewer_get_segments_rendered(lv_obj_t* obj) {
     if (!st)
         return 0;
 
-    return static_cast<int>(st->renderer->get_segments_rendered());
+    return static_cast<int>(st->renderer_->get_segments_rendered());
 }
 
 // ==============================================
@@ -1231,7 +1283,7 @@ void ui_gcode_viewer_set_specular(lv_obj_t* obj, float intensity, float shinines
         return;
 
 #ifdef ENABLE_TINYGL_3D
-    st->renderer->set_specular(intensity, shininess);
+    st->renderer_->set_specular(intensity, shininess);
     lv_obj_invalidate(obj); // Request redraw
 #else
     spdlog::warn("[GCodeViewer] set_specular() ignored - not using TinyGL 3D renderer");

@@ -587,6 +587,10 @@ class MoonrakerClientMock : public MoonrakerClient {
     std::thread simulation_thread_;
     std::atomic<bool> simulation_running_{false};
 
+    // Restart simulation thread (for RESTART/FIRMWARE_RESTART commands)
+    std::thread restart_thread_;
+    std::atomic<bool> restart_pending_{false};
+
     // Simulation parameters (realistic heating rates)
     static constexpr double ROOM_TEMP = 25.0;
     static constexpr double EXTRUDER_HEAT_RATE = 3.0;  // °C/sec when heating

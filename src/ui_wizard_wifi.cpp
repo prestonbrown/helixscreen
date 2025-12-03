@@ -103,6 +103,11 @@ WizardWifiStep::WizardWifiStep() {
 }
 
 WizardWifiStep::~WizardWifiStep() {
+    // Clean up WiFi/Ethernet managers FIRST - they have background threads
+    // that may access spdlog or mutexes. Must be destroyed before those resources.
+    wifi_manager_.reset();
+    ethernet_manager_.reset();
+
     // NOTE: Do NOT call LVGL functions here - LVGL may be destroyed first
     // NOTE: Do NOT log here - spdlog may be destroyed first
     screen_root_ = nullptr;

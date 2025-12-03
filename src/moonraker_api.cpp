@@ -188,6 +188,41 @@ MoonrakerAPI::MoonrakerAPI(MoonrakerClient& client, PrinterState& state) : clien
     (void)state;
 }
 
+MoonrakerAPI::~MoonrakerAPI() {
+    // Signal shutdown and wait for all HTTP threads
+    shutting_down_.store(true);
+
+    std::list<std::thread> threads_to_join;
+    {
+        std::lock_guard<std::mutex> lock(http_threads_mutex_);
+        threads_to_join = std::move(http_threads_);
+    }
+
+    for (auto& t : threads_to_join) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+}
+
+void MoonrakerAPI::launch_http_thread(std::function<void()> func) {
+    // Check if we're shutting down - don't spawn new threads
+    if (shutting_down_.load()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(http_threads_mutex_);
+
+    // Clean up any finished threads first (they've set themselves to non-joinable id)
+    http_threads_.remove_if([](std::thread& t) { return !t.joinable(); });
+
+    // Launch the new thread
+    http_threads_.emplace_back([this, func = std::move(func)]() {
+        func();
+        // Thread auto-removed during next launch or destructor
+    });
+}
+
 // ============================================================================
 // File Management Operations
 // ============================================================================
@@ -1078,8 +1113,8 @@ void MoonrakerAPI::download_file(const std::string& root, const std::string& pat
 
     spdlog::debug("[Moonraker API] Downloading file: {}", url);
 
-    // Run HTTP request in a separate thread to avoid blocking
-    std::thread([url, path, on_success, on_error]() {
+    // Run HTTP request in a tracked thread to ensure clean shutdown
+    launch_http_thread([url, path, on_success, on_error]() {
         auto resp = requests::get(url.c_str());
 
         if (!resp) {
@@ -1127,7 +1162,7 @@ void MoonrakerAPI::download_file(const std::string& root, const std::string& pat
         if (on_success) {
             on_success(resp->body);
         }
-    }).detach();
+    });
 }
 
 void MoonrakerAPI::upload_file(const std::string& root, const std::string& path,
@@ -1170,8 +1205,8 @@ void MoonrakerAPI::upload_file_with_name(const std::string& root, const std::str
 
     spdlog::debug("[Moonraker API] Uploading {} bytes to {}/{}", content.size(), root, path);
 
-    // Run HTTP request in a separate thread to avoid blocking
-    std::thread([url, root, path, filename, content, on_success, on_error]() {
+    // Run HTTP request in a tracked thread to ensure clean shutdown
+    launch_http_thread([url, root, path, filename, content, on_success, on_error]() {
         // Create multipart form request
         auto req = std::make_shared<HttpRequest>();
         req->method = HTTP_POST;
@@ -1235,7 +1270,7 @@ void MoonrakerAPI::upload_file_with_name(const std::string& root, const std::str
         if (on_success) {
             on_success();
         }
-    }).detach();
+    });
 }
 
 // ============================================================================

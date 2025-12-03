@@ -64,6 +64,7 @@
 #include "ui_theme.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
+#include "ui_wizard_wifi.h"
 
 #include "app_globals.h"
 #include "config.h"
@@ -767,8 +768,10 @@ static void register_fonts_and_images() {
     lv_xml_register_font(NULL, "montserrat_12", &lv_font_montserrat_12);
     lv_xml_register_font(NULL, "montserrat_14", &lv_font_montserrat_14);
     lv_xml_register_font(NULL, "montserrat_16", &lv_font_montserrat_16);
+    lv_xml_register_font(NULL, "montserrat_18", &lv_font_montserrat_18);
     lv_xml_register_font(NULL, "montserrat_20", &lv_font_montserrat_20);
     lv_xml_register_font(NULL, "montserrat_24", &lv_font_montserrat_24);
+    lv_xml_register_font(NULL, "montserrat_26", &lv_font_montserrat_26);
     lv_xml_register_font(NULL, "montserrat_28", &lv_font_montserrat_28);
     lv_xml_register_image(NULL, "A:assets/images/printer_400.png",
                           "A:assets/images/printer_400.png");
@@ -2045,6 +2048,11 @@ int main(int argc, char** argv) {
     // Clean up USB manager explicitly BEFORE spdlog shutdown.
     // UsbBackendMock::stop() logs, and we need spdlog alive for that.
     usb_manager.reset();
+
+    // Clean up wizard WiFi step explicitly BEFORE lv_deinit and spdlog shutdown.
+    // This owns WiFiManager and EthernetManager which have background threads.
+    // If destroyed during static destruction, those threads may access destroyed mutexes.
+    destroy_wizard_wifi_step();
 
     lv_deinit(); // LVGL handles SDL cleanup internally
 
