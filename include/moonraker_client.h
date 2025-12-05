@@ -31,6 +31,7 @@
 #include "moonraker_events.h"
 #include "moonraker_request.h"
 #include "printer_capabilities.h"
+#include "printer_detector.h" // For BuildVolume struct
 #include "spdlog/spdlog.h"
 
 #include <atomic>
@@ -332,6 +333,70 @@ class MoonrakerClient : public hv::WebSocketClient {
     }
 
     /**
+     * @brief Get discovered stepper motors
+     *
+     * Populated during discover_printer() from printer.objects.list.
+     * Examples: "stepper_x", "stepper_y", "stepper_z", "stepper_z1", etc.
+     * Useful for detecting multi-Z printers (Voron 2.4 has 4 Z steppers).
+     */
+    const std::vector<std::string>& get_steppers() const {
+        return steppers_;
+    }
+
+    /**
+     * @brief Get all printer objects from Klipper
+     *
+     * Populated during discover_printer() from printer.objects.list.
+     * Contains all Klipper objects including macros, steppers, heaters, etc.
+     * Useful for detection heuristics (object_exists, macro_match).
+     */
+    const std::vector<std::string>& get_printer_objects() const {
+        return printer_objects_;
+    }
+
+    /**
+     * @brief Get kinematics type (corexy, cartesian, delta, etc.)
+     *
+     * Populated during discover_printer() from toolhead subscription.
+     * Empty string if not yet discovered.
+     */
+    const std::string& get_kinematics() const {
+        return kinematics_;
+    }
+
+    /**
+     * @brief Get build volume dimensions
+     *
+     * Populated from bed_mesh mesh_min/mesh_max bounds during discovery.
+     * Values may be 0 if bed mesh is not configured.
+     */
+    const BuildVolume& get_build_volume() const {
+        return build_volume_;
+    }
+
+    /**
+     * @brief Get primary MCU chip type
+     *
+     * Populated during discover_printer() from mcu.mcu_constants.MCU.
+     * Examples: "stm32h723xx", "stm32f446xx", "rp2040", "linux"
+     * Empty string if not yet discovered or MCU query failed.
+     */
+    const std::string& get_mcu() const {
+        return mcu_;
+    }
+
+    /**
+     * @brief Get all MCU chip types (primary + secondary)
+     *
+     * Populated during discover_printer() by querying all mcu objects.
+     * Useful for detecting CAN bus setups (toolheads often have rp2040).
+     * Vector may contain: primary MCU + CAN toolheads + linux host MCU
+     */
+    const std::vector<std::string>& get_mcu_list() const {
+        return mcu_list_;
+    }
+
+    /**
      * @brief Get printer capabilities (QGL, Z-tilt, bed mesh, macros, etc.)
      *
      * Populated during discover_printer() from printer.objects.list response.
@@ -610,16 +675,32 @@ class MoonrakerClient : public hv::WebSocketClient {
      */
     void cleanup_pending_requests();
 
+    /**
+     * @brief Complete discovery by subscribing to printer objects
+     *
+     * Called after MCU queries complete (or are skipped) to finish the
+     * discover_printer() sequence by subscribing to status updates.
+     *
+     * @param on_complete Callback to invoke when discovery is fully complete
+     */
+    void complete_discovery_subscription(std::function<void()> on_complete);
+
   protected:
     // Auto-discovered printer objects (protected to allow mock access)
-    std::vector<std::string> heaters_; // Controllable heaters (extruders, bed, etc.)
-    std::vector<std::string> sensors_; // Read-only temperature sensors
-    std::vector<std::string> fans_;    // All fan types
-    std::vector<std::string> leds_;    // LED outputs
-    std::string hostname_;             // Printer hostname from printer.info
-    std::string software_version_;     // Klipper software version from printer.info
-    std::string moonraker_version_;    // Moonraker version from server.info
-    PrinterCapabilities capabilities_; // QGL, Z-tilt, bed mesh, macros
+    std::vector<std::string> heaters_;         // Controllable heaters (extruders, bed, etc.)
+    std::vector<std::string> sensors_;         // Read-only temperature sensors
+    std::vector<std::string> fans_;            // All fan types
+    std::vector<std::string> leds_;            // LED outputs
+    std::vector<std::string> steppers_;        // Stepper motors (stepper_x, stepper_z, etc.)
+    std::vector<std::string> printer_objects_; // All Klipper objects (for detection)
+    std::string hostname_;                     // Printer hostname from printer.info
+    std::string software_version_;             // Klipper software version from printer.info
+    std::string moonraker_version_;            // Moonraker version from server.info
+    std::string kinematics_;                   // Kinematics type (corexy, cartesian, delta)
+    BuildVolume build_volume_;                 // Build dimensions from bed_mesh bounds
+    std::string mcu_;                          // Primary MCU chip (stm32f103xe, stm32h723xx, etc.)
+    std::vector<std::string> mcu_list_;        // All MCU chips (primary + CAN toolheads + host)
+    PrinterCapabilities capabilities_;         // QGL, Z-tilt, bed mesh, macros
 
     // Discovery callback (protected to allow mock to invoke it)
     std::function<void(const PrinterCapabilities&)> on_discovery_complete_;

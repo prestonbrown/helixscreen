@@ -197,7 +197,8 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
 
     auto field_data = get_field_data(hardware, field);
 
-    if (type == "sensor_match" || type == "fan_match" || type == "hostname_match") {
+    if (type == "sensor_match" || type == "fan_match" || type == "hostname_match" ||
+        type == "led_match") {
         // Simple pattern matching in specified field
         std::string pattern = heuristic.value("pattern", "");
         if (has_pattern(field_data, pattern)) {
@@ -292,6 +293,30 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
                 spdlog::debug("[PrinterDetector] Matched MCU '{}' (confidence: {})", pattern,
                               confidence);
                 return confidence;
+            }
+        }
+    } else if (type == "macro_match") {
+        // Match against G-code macro names in printer_objects
+        // G-code macros appear as "gcode_macro <NAME>" in the objects list
+        std::string pattern = heuristic.value("pattern", "");
+        std::string pattern_lower = pattern;
+        std::transform(pattern_lower.begin(), pattern_lower.end(), pattern_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        for (const auto& obj : hardware.printer_objects) {
+            // Check if object is a G-code macro
+            if (obj.rfind("gcode_macro ", 0) == 0) {
+                // Extract macro name (everything after "gcode_macro ")
+                std::string macro_name = obj.substr(12);
+                std::string macro_lower = macro_name;
+                std::transform(macro_lower.begin(), macro_lower.end(), macro_lower.begin(),
+                               [](unsigned char c) { return std::tolower(c); });
+
+                if (macro_lower.find(pattern_lower) != std::string::npos) {
+                    spdlog::debug("[PrinterDetector] Matched macro '{}' (confidence: {})",
+                                  macro_name, confidence);
+                    return confidence;
+                }
             }
         }
     } else {

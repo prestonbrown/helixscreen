@@ -68,7 +68,8 @@ struct PrinterHardwareData {
     std::vector<std::string> printer_objects{}; ///< Full list of Klipper objects from objects/list
     std::vector<std::string> steppers{}; ///< Stepper motor names (stepper_x, stepper_z, etc.)
     std::string kinematics{};            ///< Kinematics type (corexy, cartesian, delta, etc.)
-    std::string mcu{};                   ///< MCU chip type (STM32F103, etc.)
+    std::string mcu{};                   ///< Primary MCU chip type (e.g., "stm32h723xx", "rp2040")
+    std::vector<std::string> mcu_list{}; ///< All MCU chips (primary + secondary, CAN toolheads)
     BuildVolume build_volume{};          ///< Build volume dimensions from bed_mesh
 };
 

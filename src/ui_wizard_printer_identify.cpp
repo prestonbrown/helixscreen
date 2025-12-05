@@ -157,6 +157,23 @@ static PrinterDetectionHint detect_printer_type() {
     hardware.leds = client->get_leds();
     hardware.hostname = client->get_hostname();
 
+    // Additional detection data sources (Phase 1 enhancement)
+    hardware.steppers = client->get_steppers();
+    hardware.printer_objects = client->get_printer_objects();
+    hardware.kinematics = client->get_kinematics();
+    hardware.build_volume = client->get_build_volume();
+
+    // MCU detection data (Phase 3.1)
+    hardware.mcu = client->get_mcu();
+    hardware.mcu_list = client->get_mcu_list();
+
+    spdlog::debug("[Wizard Printer] Detection data: heaters={}, sensors={}, fans={}, leds={}, "
+                  "steppers={}, objects={}, kinematics={}, mcu={}, build=[{:.0f},{:.0f}]",
+                  hardware.heaters.size(), hardware.sensors.size(), hardware.fans.size(),
+                  hardware.leds.size(), hardware.steppers.size(), hardware.printer_objects.size(),
+                  hardware.kinematics, hardware.mcu, hardware.build_volume.x_max,
+                  hardware.build_volume.y_max);
+
     // Run detection engine
     PrinterDetectionResult result = PrinterDetector::detect(hardware);
 
