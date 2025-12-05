@@ -57,6 +57,17 @@
     <px name="space_xl_small" value="16"/>
     <px name="space_xl_medium" value="20"/>
     <px name="space_xl_large" value="24"/>
+
+    <!-- ===================================================================== -->
+    <!-- Responsive Icon Sizes (icon_size_*)                                  -->
+    <!-- ===================================================================== -->
+    <!-- Runtime selects appropriate variant via ui_theme_register_responsive_fonts()
+         Icon sizes for status card icons (home panel temp/network/light)
+         Values: xs(16), sm(24), md(32), lg(48), xl(64) -->
+    <string name="icon_size_card_small" value="sm"/>
+    <string name="icon_size_card_medium" value="md"/>
+    <string name="icon_size_card_large" value="xl"/>
+
     <!-- printer_img_size moved to home_panel.xml -->
     <!-- accent_bar_width moved to home_panel.xml -->
     <px name="accent_bar_height" value="28"/>
