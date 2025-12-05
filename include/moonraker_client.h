@@ -478,6 +478,16 @@ class MoonrakerClient : public hv::WebSocketClient {
     }
 
     /**
+     * @brief Get URL from last connect() call
+     *
+     * Returns the WebSocket URL used in the most recent connect() call.
+     * Empty string if never connected.
+     */
+    const std::string& get_last_url() const {
+        return last_url_;
+    }
+
+    /**
      * @brief Set callback for connection state changes
      *
      * @param cb Callback invoked when state changes (old_state, new_state)

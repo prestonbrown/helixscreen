@@ -24,6 +24,7 @@
 #include "ui_wizard.h"
 
 #include "ui_error_reporting.h"
+#include "ui_panel_home.h"
 #include "ui_subject_registry.h"
 #include "ui_theme.h"
 #include "ui_wizard_connection.h"
@@ -587,24 +588,36 @@ void ui_wizard_complete() {
         api->set_http_base_url(http_base_url);
     }
 
-    // Connect to Moonraker
-    spdlog::debug("[Wizard] Connecting to Moonraker at {}", moonraker_url);
-    int connect_result = client->connect(
-        moonraker_url.c_str(),
-        []() {
-            spdlog::info("✓ Connected to Moonraker");
-            // Start auto-discovery (must be called AFTER connection is established)
-            MoonrakerClient* client = get_moonraker_client();
-            if (client) {
-                client->discover_printer(
-                    []() { spdlog::info("✓ Printer auto-discovery complete"); });
-            }
-        },
-        []() { spdlog::warn("✗ Disconnected from Moonraker"); });
+    // Check if already connected to the same URL - skip reconnection to avoid toast
+    ConnectionState current_state = client->get_connection_state();
+    const std::string& current_url = client->get_last_url();
 
-    if (connect_result != 0) {
-        spdlog::error("[Wizard] Failed to initiate Moonraker connection (code {})", connect_result);
+    if (current_state == ConnectionState::CONNECTED && current_url == moonraker_url) {
+        spdlog::info("[Wizard] Already connected to {} - skipping reconnection", moonraker_url);
+    } else {
+        // Connect to Moonraker
+        spdlog::debug("[Wizard] Connecting to Moonraker at {}", moonraker_url);
+        int connect_result = client->connect(
+            moonraker_url.c_str(),
+            []() {
+                spdlog::info("✓ Connected to Moonraker");
+                // Start auto-discovery (must be called AFTER connection is established)
+                MoonrakerClient* client = get_moonraker_client();
+                if (client) {
+                    client->discover_printer(
+                        []() { spdlog::info("✓ Printer auto-discovery complete"); });
+                }
+            },
+            []() { spdlog::warn("✗ Disconnected from Moonraker"); });
+
+        if (connect_result != 0) {
+            spdlog::error("[Wizard] Failed to initiate Moonraker connection (code {})",
+                          connect_result);
+        }
     }
+
+    // 5. Tell Home Panel to reload its config-derived state (printer image, LED visibility)
+    get_global_home_panel().reload_from_config();
 
     spdlog::info("[Wizard] Wizard complete, transitioned to main UI");
 }

@@ -310,12 +310,12 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 void WizardConnectionStep::on_connection_success() {
     spdlog::info("[{}] Connection successful!", get_name());
 
-    const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-    lv_subject_copy_string(&connection_status_icon_, check_icon ? check_icon : "");
-    lv_subject_copy_string(&connection_status_text_, "Connection successful!");
+    // Show "discovering" status - don't enable Next yet until discovery completes
+    const char* spinner_icon = lv_xml_get_const(nullptr, "icon_loading");
+    lv_subject_copy_string(&connection_status_icon_, spinner_icon ? spinner_icon : "");
+    lv_subject_copy_string(&connection_status_text_, "Connected! Discovering printer...");
     lv_subject_set_int(&connection_testing_, 0);
-    connection_validated_ = true;
-    lv_subject_set_int(&connection_test_passed, 1);
+    // NOTE: connection_validated_ and connection_test_passed stay false until discovery completes
 
     // Save configuration
     Config* config = Config::get_instance();
@@ -337,20 +337,37 @@ void WizardConnectionStep::on_connection_success() {
         NOTIFY_ERROR("Error saving configuration: {}", e.what());
     }
 
-    // Trigger hardware discovery
+    // Trigger hardware discovery - only enable Next when this completes
     MoonrakerClient* client = get_moonraker_client();
     if (client) {
-        client->discover_printer([]() {
-            spdlog::debug("[Wizard Connection] Hardware discovery complete!");
+        // Capture 'this' to update UI when discovery completes
+        WizardConnectionStep* self = this;
+        client->discover_printer([self]() {
+            spdlog::info("[Wizard Connection] Hardware discovery complete!");
             MoonrakerClient* client = get_moonraker_client();
             if (client) {
                 auto heaters = client->get_heaters();
                 auto sensors = client->get_sensors();
                 auto fans = client->get_fans();
-                spdlog::debug("[Wizard Connection] Discovered {} heaters, {} sensors, {} fans",
-                              heaters.size(), sensors.size(), fans.size());
+                spdlog::info("[Wizard Connection] Discovered {} heaters, {} sensors, {} fans",
+                             heaters.size(), sensors.size(), fans.size());
+                spdlog::info("[Wizard Connection] Hostname: '{}'", client->get_hostname());
             }
+
+            // NOW enable Next button - discovery is complete
+            const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
+            lv_subject_copy_string(&self->connection_status_icon_, check_icon ? check_icon : "");
+            lv_subject_copy_string(&self->connection_status_text_, "Connection successful!");
+            self->connection_validated_ = true;
+            lv_subject_set_int(&connection_test_passed, 1);
         });
+    } else {
+        // No client available - still show success but warn
+        const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
+        lv_subject_copy_string(&connection_status_icon_, check_icon ? check_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Connected (no discovery)");
+        connection_validated_ = true;
+        lv_subject_set_int(&connection_test_passed, 1);
     }
 }
 
@@ -389,9 +406,15 @@ bool WizardConnectionStep::should_auto_probe() const {
         return false;
     }
 
-    // Only probe if IP is empty (no saved config)
-    const char* ip = lv_subject_get_string(const_cast<lv_subject_t*>(&connection_ip_));
-    return (ip == nullptr || strlen(ip) == 0);
+    // Don't probe if already validated
+    if (connection_validated_) {
+        return false;
+    }
+
+    // Probe both when:
+    // 1. IP is empty (no saved config) - will probe 127.0.0.1
+    // 2. IP is set but not validated yet - will test the saved config
+    return true;
 }
 
 void WizardConnectionStep::auto_probe_timer_cb(lv_timer_t* timer) {
@@ -402,7 +425,15 @@ void WizardConnectionStep::auto_probe_timer_cb(lv_timer_t* timer) {
 }
 
 void WizardConnectionStep::attempt_auto_probe() {
-    spdlog::debug("[{}] Starting auto-probe to 127.0.0.1:7125", get_name());
+    // Get the IP/port from subjects - may be from config or default
+    const char* ip = lv_subject_get_string(&connection_ip_);
+    const char* port = lv_subject_get_string(&connection_port_);
+
+    // If IP is empty, use localhost as default probe target
+    std::string probe_ip = (ip && strlen(ip) > 0) ? ip : "127.0.0.1";
+    std::string probe_port = (port && strlen(port) > 0) ? port : "7125";
+
+    spdlog::debug("[{}] Starting auto-probe to {}:{}", get_name(), probe_ip, probe_port);
 
     // Mark as attempted (prevents re-probe on re-entry)
     auto_probe_attempted_ = true;
@@ -423,13 +454,13 @@ void WizardConnectionStep::attempt_auto_probe() {
     client->disconnect();
 
     // Store probe target for callbacks
-    saved_ip_ = "127.0.0.1";
-    saved_port_ = "7125";
+    saved_ip_ = probe_ip;
+    saved_port_ = probe_port;
 
     // Show subtle probing indicator
     const char* probe_icon = lv_xml_get_const(nullptr, "icon_question_circle");
     lv_subject_copy_string(&connection_status_icon_, probe_icon ? probe_icon : "");
-    lv_subject_copy_string(&connection_status_text_, "Checking for local printer...");
+    lv_subject_copy_string(&connection_status_text_, "Testing connection...");
 
     // Set testing state (reuses existing subject for button disable)
     lv_subject_set_int(&connection_testing_, 1);
@@ -438,7 +469,7 @@ void WizardConnectionStep::attempt_auto_probe() {
     client->set_connection_timeout(3000);
 
     // Construct WebSocket URL
-    std::string ws_url = "ws://127.0.0.1:7125/websocket";
+    std::string ws_url = "ws://" + probe_ip + ":" + probe_port + "/websocket";
 
     WizardConnectionStep* self = this;
     int result = client->connect(
@@ -465,13 +496,15 @@ void WizardConnectionStep::on_auto_probe_success() {
         return;
     }
 
-    spdlog::info("[{}] Auto-probe successful! Found printer at localhost", get_name());
+    spdlog::info("[{}] Auto-probe successful! Connected to {}:{}", get_name(), saved_ip_,
+                 saved_port_);
 
     auto_probe_state_ = AutoProbeState::SUCCEEDED;
 
-    // Update subjects - reactive binding automatically updates textareas!
-    lv_subject_copy_string(&connection_ip_, "127.0.0.1");
-    lv_subject_copy_string(&connection_port_, "7125");
+    // Update subjects with the successful connection target
+    // (may already be set if loaded from config, but ensure consistency)
+    lv_subject_copy_string(&connection_ip_, saved_ip_.c_str());
+    lv_subject_copy_string(&connection_port_, saved_port_.c_str());
 
     // Hide help text on successful auto-probe
     if (screen_root_) {
@@ -481,17 +514,14 @@ void WizardConnectionStep::on_auto_probe_success() {
         }
     }
 
-    // Show success status
-    const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-    lv_subject_copy_string(&connection_status_icon_, check_icon ? check_icon : "");
-    lv_subject_copy_string(&connection_status_text_, "Found local printer");
+    // Show "discovering" status - don't enable Next until discovery completes
+    const char* spinner_icon = lv_xml_get_const(nullptr, "icon_loading");
+    lv_subject_copy_string(&connection_status_icon_, spinner_icon ? spinner_icon : "");
+    lv_subject_copy_string(&connection_status_text_, "Connected, discovering...");
 
     // Clear testing state
     lv_subject_set_int(&connection_testing_, 0);
-
-    // Enable Next button
-    connection_validated_ = true;
-    lv_subject_set_int(&connection_test_passed, 1);
+    // NOTE: connection_validated_ and connection_test_passed stay false until discovery completes
 
     // Save configuration (same as manual test success)
     Config* config = Config::get_instance();
@@ -509,11 +539,32 @@ void WizardConnectionStep::on_auto_probe_success() {
         spdlog::error("[{}] Auto-probe: Failed to save config: {}", get_name(), e.what());
     }
 
-    // Trigger hardware discovery
+    // Trigger hardware discovery - only enable Next when this completes
     MoonrakerClient* client = get_moonraker_client();
     if (client) {
-        client->discover_printer(
-            []() { spdlog::debug("[Wizard Connection] Auto-probe: Hardware discovery complete"); });
+        WizardConnectionStep* self = this;
+        client->discover_printer([self]() {
+            spdlog::info("[Wizard Connection] Auto-probe: Hardware discovery complete");
+            MoonrakerClient* client = get_moonraker_client();
+            if (client) {
+                spdlog::info("[Wizard Connection] Auto-probe: Hostname: '{}'",
+                             client->get_hostname());
+            }
+
+            // NOW enable Next button - discovery is complete
+            const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
+            lv_subject_copy_string(&self->connection_status_icon_, check_icon ? check_icon : "");
+            lv_subject_copy_string(&self->connection_status_text_, "Connection successful!");
+            self->connection_validated_ = true;
+            lv_subject_set_int(&connection_test_passed, 1);
+        });
+    } else {
+        // No client - still show success
+        const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
+        lv_subject_copy_string(&connection_status_icon_, check_icon ? check_icon : "");
+        lv_subject_copy_string(&connection_status_text_, "Connection successful!");
+        connection_validated_ = true;
+        lv_subject_set_int(&connection_test_passed, 1);
     }
 }
 
