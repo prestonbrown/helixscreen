@@ -74,25 +74,6 @@ static const lv_font_t* get_font_for_size(IconSize size) {
 }
 
 /**
- * Get pixel size for a given IconSize
- */
-static int32_t get_pixel_size(IconSize size) {
-    switch (size) {
-    case IconSize::XS:
-        return 16;
-    case IconSize::SM:
-        return 24;
-    case IconSize::MD:
-        return 32;
-    case IconSize::LG:
-        return 48;
-    case IconSize::XL:
-    default:
-        return 64;
-    }
-}
-
-/**
  * Parse variant string to IconVariant enum
  */
 static IconVariant parse_variant(const char* variant_str) {
@@ -121,14 +102,17 @@ static IconVariant parse_variant(const char* variant_str) {
 }
 
 /**
- * Apply size to icon widget (font + dimensions)
+ * Apply size to icon widget (font only - let content determine dimensions)
+ *
+ * Uses LV_SIZE_CONTENT so the widget automatically sizes to fit the font glyph.
+ * This prevents clipping when font line_height differs from nominal size
+ * (e.g., 32px font may have 33px line_height due to glyph bounding boxes).
  */
 static void apply_size(lv_obj_t* obj, IconSize size) {
     const lv_font_t* font = get_font_for_size(size);
-    int32_t px_size = get_pixel_size(size);
 
     lv_obj_set_style_text_font(obj, font, LV_PART_MAIN);
-    lv_obj_set_size(obj, px_size, px_size);
+    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
 }
 
 /**

@@ -6,8 +6,8 @@
   <view extends="lv_obj" name="controls_panel" width="100%" height="100%" style_pad_all="#space_lg" style_border_width="0" flex_flow="row_wrap" style_pad_gap="#space_lg" scrollable="true" scroll_dir="ver">
     <!-- Card 1: Movement & Home -->
     <ui_card name="card_motion" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
-      <!-- Icon -->
-      <icon src="move" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <!-- Icon: 4-way arrow cross for XYZ movement -->
+      <icon src="cursor_move" size="md" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
       <!-- Label -->
       <text_body text="Movement &amp; Home" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->
@@ -16,7 +16,7 @@
     <!-- Card 2: Nozzle Temperature -->
     <ui_card name="card_nozzle_temp" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
       <!-- Icon -->
-      <icon src="heater" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <icon src="heater" size="lg" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
       <!-- Label -->
       <text_body text="Nozzle Temp" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->
@@ -24,8 +24,11 @@
     </ui_card>
     <!-- Card 3: Heatbed Temperature -->
     <ui_card name="card_bed_temp" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
-      <!-- Icon -->
-      <icon src="bed" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <!-- Icon: Composite heatbed (flatbed + heat waves) - overlapped for visual cohesion -->
+      <lv_obj width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_bottom="#launcher_card_icon_padding" scrollable="false" flex_flow="column" flex_cross_place="center" style_pad_row="-20">
+        <icon src="heat_wave" size="md" variant="accent"/>
+        <icon src="train_flatbed" size="md" variant="accent"/>
+      </lv_obj>
       <!-- Label -->
       <text_body text="Heatbed Temp" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->
@@ -33,8 +36,8 @@
     </ui_card>
     <!-- Card 4: Extrude/Retract -->
     <ui_card name="card_extrusion" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
-      <!-- Icon -->
-      <icon src="heater" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <!-- Icon: Extruder nozzle (not heating nozzle) -->
+      <icon src="filament" size="lg" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
       <!-- Label -->
       <text_body text="Extrude/Retract" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->
@@ -43,7 +46,7 @@
     <!-- Card 5: Fan Control -->
     <ui_card name="card_fan" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
       <!-- Icon -->
-      <icon src="fan" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <icon src="fan" size="lg" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
       <!-- Label -->
       <text_body text="Fan Control" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->
@@ -52,7 +55,7 @@
     <!-- Card 6: Motors Disable -->
     <ui_card name="card_motors" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
       <!-- Icon -->
-      <icon src="engine_off" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
+      <icon src="engine_off" size="lg" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
       <!-- Label -->
       <text_body text="Motors Disable" style_pad_bottom="#launcher_card_title_padding"/>
       <!-- Subtitle -->

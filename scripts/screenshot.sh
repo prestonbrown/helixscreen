@@ -5,6 +5,49 @@
 
 set -e
 
+# Show help
+show_help() {
+    cat << 'EOF'
+Usage: screenshot.sh [BINARY] [NAME] [PANEL] [FLAGS...]
+
+Capture a screenshot of the HelixScreen UI.
+
+Arguments:
+  BINARY    Binary name in build/bin/ (default: helix-screen)
+  NAME      Output filename suffix (default: timestamp)
+            Screenshot saved to: /tmp/ui-screenshot-<NAME>.png
+  PANEL     Panel to display (optional)
+            Valid panels: home, controls, motion, nozzle-temp, bed-temp,
+            extrusion, filament, fan, settings, advanced, print-select
+  FLAGS     Additional flags passed to the binary (e.g., --test, -s large)
+
+Environment Variables:
+  HELIX_SCREENSHOT_DISPLAY   Display number to open window on (default: 1)
+  HELIX_SCREENSHOT_OPEN      If set, opens the screenshot in Preview (macOS)
+
+Examples:
+  ./scripts/screenshot.sh                           # Default binary, timestamp name
+  ./scripts/screenshot.sh helix-screen home-panel home
+  ./scripts/screenshot.sh helix-screen controls-test controls --test
+  ./scripts/screenshot.sh helix-screen motion-large motion -s large
+
+Output:
+  Screenshots are saved to /tmp/ui-screenshot-<NAME>.png
+  BMP files are automatically converted to PNG and cleaned up.
+
+Dependencies:
+  - ImageMagick (brew install imagemagick)
+EOF
+    exit 0
+}
+
+# Check for help flag
+case "${1:-}" in
+    -h|--help|help)
+        show_help
+        ;;
+esac
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
