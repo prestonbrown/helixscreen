@@ -7,6 +7,25 @@
 
 set -uo pipefail
 
+# Terminal width detection for 2-column layout
+# Try multiple methods: tput, COLUMNS env var, default to 80
+if [[ -n "${COLUMNS:-}" ]] && [[ $COLUMNS -gt 0 ]]; then
+    TERM_WIDTH=$COLUMNS
+elif command -v tput &>/dev/null && tput cols &>/dev/null; then
+    TERM_WIDTH=$(tput cols)
+else
+    TERM_WIDTH=80
+fi
+# Minimum width for 2-column layout (each column ~45 chars + gap)
+TWO_COL_MIN_WIDTH=100
+USE_TWO_COLS=false
+if [[ $TERM_WIDTH -ge $TWO_COL_MIN_WIDTH ]]; then
+    USE_TWO_COLS=true
+    COL_WIDTH=$(( (TERM_WIDTH - 6) / 2 ))  # 6 chars for gap between columns
+else
+    COL_WIDTH=$((TERM_WIDTH - 4))
+fi
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,6 +36,38 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
+
+# Function to print two temp files of lines side by side
+# Usage: print_two_columns_files left_file right_file
+# Works with older Bash (no nameref required)
+print_two_columns_files() {
+    local left_file=$1
+    local right_file=$2
+
+    # Read files into arrays (compatible with older bash)
+    local left_lines=()
+    local right_lines=()
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        left_lines+=("$line")
+    done < "$left_file"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        right_lines+=("$line")
+    done < "$right_file"
+
+    local max_lines=${#left_lines[@]}
+    [[ ${#right_lines[@]} -gt $max_lines ]] && max_lines=${#right_lines[@]}
+
+    for ((i=0; i<max_lines; i++)); do
+        local left_line="${left_lines[$i]:-}"
+        local right_line="${right_lines[$i]:-}"
+        # Strip ANSI codes for length calculation
+        local left_plain=$(echo -e "$left_line" | sed 's/\x1b\[[0-9;]*m//g')
+        local left_len=${#left_plain}
+        local padding=$((COL_WIDTH - left_len))
+        [[ $padding -lt 0 ]] && padding=0
+        printf "%b%*s   %b\n" "$left_line" "$padding" "" "$right_line"
+    done
+}
 
 # Check if we're in a git repo
 if ! git rev-parse --is-inside-work-tree &>/dev/null; then
@@ -167,25 +218,51 @@ cut -d'|' -f5 "$TMP_DIR/commits.txt" | tr '[:upper:]' '[:lower:]' | tr -cs '[:al
 # OUTPUT
 # ============================================================================
 
+# Calculate derived metrics
+COMMITS_PER_DAY=$(echo "scale=1; $TOTAL_COMMITS / $ACTIVE_DAYS" | bc)
+PCT_ACTIVE=$((ACTIVE_DAYS * 100 / PROJECT_DAYS))
+COMMITS_PER_WEEK=$(echo "scale=1; $TOTAL_COMMITS / $PROJECT_WEEKS" | bc)
+AVG_HRS=$(echo "scale=1; $avg_min / 60" | bc)
+ADJUSTED_HRS=$((total_hrs * 3 / 2))
+TOTAL_EFFORT=$((total_hrs * 3))
+WEEKLY_LOW=$(echo "scale=0; $ADJUSTED_HRS / $PROJECT_WEEKS" | bc)
+WEEKLY_HIGH=$(echo "scale=0; $TOTAL_EFFORT / $PROJECT_WEEKS" | bc)
+BEST_DAY=$(cat "$TMP_DIR/best_day.txt" | awk '{print $1 " commits on " $2}')
+LATE_PCT=$(echo "scale=1; $LATE_NIGHT * 100 / $TOTAL_COMMITS" | bc)
+WEEKEND_PCT=$(echo "scale=1; $WEEKEND * 100 / $TOTAL_COMMITS" | bc)
+LOC_PER_DAY=0
+[[ $TOTAL_LOC -gt 0 ]] && LOC_PER_DAY=$((TOTAL_LOC / ACTIVE_DAYS))
+COMMITS_PER_SESSION=$(echo "scale=1; $TOTAL_COMMITS / $sessions" | bc)
+
 echo ""
-echo -e "${BOLD}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║        ${PURPLE}📊 $REPO_NAME Development Statistics${NC}${BOLD}              ║${NC}"
-echo -e "${BOLD}╚════════════════════════════════════════════════════════════════╝${NC}"
+# Dynamic header box sizing
+TITLE="📊 $REPO_NAME Development Statistics"
+TITLE_PLAIN=$(echo "$TITLE" | sed 's/📊/XX/')  # Emoji counts as ~2 chars
+TITLE_LEN=${#TITLE_PLAIN}
+BOX_WIDTH=$((TITLE_LEN + 8))  # 4 chars padding each side
+[[ $BOX_WIDTH -lt 50 ]] && BOX_WIDTH=50
+[[ $BOX_WIDTH -gt $((TERM_WIDTH - 4)) ]] && BOX_WIDTH=$((TERM_WIDTH - 4))
+INNER_WIDTH=$((BOX_WIDTH - 2))
+PADDING=$(( (INNER_WIDTH - TITLE_LEN) / 2 ))
+PADDING_R=$((INNER_WIDTH - TITLE_LEN - PADDING))
+
+HORIZ_LINE=$(printf '═%.0s' $(seq 1 $INNER_WIDTH))
+PADDING_L_STR=$(printf ' %.0s' $(seq 1 $PADDING))
+PADDING_R_STR=$(printf ' %.0s' $(seq 1 $PADDING_R))
+
+echo -e "${BOLD}╔${HORIZ_LINE}╗${NC}"
+echo -e "${BOLD}║${PADDING_L_STR}${PURPLE}${TITLE}${NC}${BOLD}${PADDING_R_STR}║${NC}"
+echo -e "${BOLD}╚${HORIZ_LINE}╝${NC}"
 echo ""
 
-# Project span
+# Project span (always single column - header section)
 echo -e "${CYAN}${BOLD}📅 Project Timeline${NC}"
 echo -e "   Start Date:     ${GREEN}$FIRST_COMMIT_DATE${NC}"
 echo -e "   Latest Commit:  ${GREEN}$LAST_COMMIT_DATE${NC}"
 echo -e "   Duration:       ${YELLOW}$PROJECT_DAYS days${NC} (${PROJECT_WEEKS} weeks)"
 echo ""
 
-# Core metrics table
-COMMITS_PER_DAY=$(echo "scale=1; $TOTAL_COMMITS / $ACTIVE_DAYS" | bc)
-PCT_ACTIVE=$((ACTIVE_DAYS * 100 / PROJECT_DAYS))
-COMMITS_PER_WEEK=$(echo "scale=1; $TOTAL_COMMITS / $PROJECT_WEEKS" | bc)
-AVG_HRS=$(echo "scale=1; $avg_min / 60" | bc)
-
+# Core metrics table (always full width - too wide for columns)
 echo -e "${CYAN}${BOLD}🔢 Core Metrics${NC}"
 echo -e "   ┌────────────────────────┬───────────────┬────────────────────────────┐"
 echo -e "   │ Metric                 │ Value         │ Notes                      │"
@@ -199,7 +276,7 @@ printf "   │ %-22s │ %13s │ %-26s │\n" "Avg Session Length" "${avg_min} 
 echo -e "   └────────────────────────┴───────────────┴────────────────────────────┘"
 echo ""
 
-# Codebase composition
+# Codebase composition (always full width - table format)
 if [[ $TOTAL_LOC -gt 0 ]]; then
     echo -e "${CYAN}${BOLD}📁 Codebase Composition${NC}"
     echo -e "   ┌────────────────────────┬───────────────┬───────────────┐"
@@ -214,12 +291,7 @@ if [[ $TOTAL_LOC -gt 0 ]]; then
     echo ""
 fi
 
-# Time investment
-ADJUSTED_HRS=$((total_hrs * 3 / 2))
-TOTAL_EFFORT=$((total_hrs * 3))
-WEEKLY_LOW=$(echo "scale=0; $ADJUSTED_HRS / $PROJECT_WEEKS" | bc)
-WEEKLY_HIGH=$(echo "scale=0; $TOTAL_EFFORT / $PROJECT_WEEKS" | bc)
-
+# Time investment (always single column - important info)
 echo -e "${CYAN}${BOLD}⏰ Time Investment Estimate${NC}"
 echo -e "   Commit span analysis:      ${YELLOW}~${total_hrs} hours${NC} (lower bound)"
 echo -e "   Adjusted coding time:      ${YELLOW}~${ADJUSTED_HRS} hours${NC} (1.5× - includes debugging)"
@@ -227,66 +299,128 @@ echo -e "   Total effort estimate:     ${YELLOW}~${TOTAL_EFFORT} hours${NC} (3×
 echo -e "   ${BOLD}Weekly Average:             ~${WEEKLY_LOW}-${WEEKLY_HIGH} hours/week${NC}"
 echo ""
 
-# Author breakdown
-echo -e "${CYAN}${BOLD}👨‍💻 Authorship${NC}"
-while read count author; do
-    pct=$((count * 100 / TOTAL_COMMITS))
-    printf "   %-25s %5d commits (%d%%)\n" "$author" "$count" "$pct"
-done < "$TMP_DIR/authors.txt"
-echo ""
+# Two-column section: Day of Week + Peak Hours
+if $USE_TWO_COLS; then
+    # Build left column: Activity by day of week
+    echo -e "${CYAN}${BOLD}📆 Activity by Day of Week${NC}" > "$TMP_DIR/left_col.txt"
+    MAX_DOW=$(awk '{print $1}' "$TMP_DIR/dow.txt" | sort -rn | head -1)
+    while read count dow; do
+        bar_len=$((count * 20 / MAX_DOW))  # Shorter bars for column layout
+        bar=$(printf '%*s' "$bar_len" '' | tr ' ' '█')
+        case $dow in
+            1) dow_name="Mon" ;; 2) dow_name="Tue" ;; 3) dow_name="Wed" ;;
+            4) dow_name="Thu" ;; 5) dow_name="Fri" ;; 6) dow_name="Sat" ;; 7) dow_name="Sun" ;;
+        esac
+        printf "   %s %-20s %3d\n" "$dow_name" "$bar" "$count" >> "$TMP_DIR/left_col.txt"
+    done < "$TMP_DIR/dow.txt"
 
-# Activity by day of week
-echo -e "${CYAN}${BOLD}📆 Activity by Day of Week${NC}"
-MAX_DOW=$(awk '{print $1}' "$TMP_DIR/dow.txt" | sort -rn | head -1)
-while read count dow; do
-    bar_len=$((count * 30 / MAX_DOW))
-    bar=$(printf '%*s' "$bar_len" '' | tr ' ' '█')
-    case $dow in
-        1) dow_name="Mon" ;; 2) dow_name="Tue" ;; 3) dow_name="Wed" ;;
-        4) dow_name="Thu" ;; 5) dow_name="Fri" ;; 6) dow_name="Sat" ;; 7) dow_name="Sun" ;;
-    esac
-    printf "   %s %-30s %3d\n" "$dow_name" "$bar" "$count"
-done < "$TMP_DIR/dow.txt"
-echo ""
+    # Build right column: Peak hours
+    echo -e "${CYAN}${BOLD}🕐 Peak Hours (Top 5)${NC}" > "$TMP_DIR/right_col.txt"
+    sort -k1rn "$TMP_DIR/hours.txt" | head -5 | while read count hour; do
+        printf "   %s:00  %3d commits\n" "$hour" "$count" >> "$TMP_DIR/right_col.txt"
+    done
 
-# Peak hours
-echo -e "${CYAN}${BOLD}🕐 Peak Hours (Top 5)${NC}"
-sort -k1rn "$TMP_DIR/hours.txt" | head -5 | while read count hour; do
-    printf "   %s:00  %3d commits\n" "$hour" "$count"
-done
-echo ""
+    print_two_columns_files "$TMP_DIR/left_col.txt" "$TMP_DIR/right_col.txt"
+    echo ""
+else
+    # Single column fallback
+    echo -e "${CYAN}${BOLD}📆 Activity by Day of Week${NC}"
+    MAX_DOW=$(awk '{print $1}' "$TMP_DIR/dow.txt" | sort -rn | head -1)
+    while read count dow; do
+        bar_len=$((count * 30 / MAX_DOW))
+        bar=$(printf '%*s' "$bar_len" '' | tr ' ' '█')
+        case $dow in
+            1) dow_name="Mon" ;; 2) dow_name="Tue" ;; 3) dow_name="Wed" ;;
+            4) dow_name="Thu" ;; 5) dow_name="Fri" ;; 6) dow_name="Sat" ;; 7) dow_name="Sun" ;;
+        esac
+        printf "   %s %-30s %3d\n" "$dow_name" "$bar" "$count"
+    done < "$TMP_DIR/dow.txt"
+    echo ""
 
-# Hall of fame
-BEST_DAY=$(cat "$TMP_DIR/best_day.txt" | awk '{print $1 " commits on " $2}')
-LATE_PCT=$(echo "scale=1; $LATE_NIGHT * 100 / $TOTAL_COMMITS" | bc)
-WEEKEND_PCT=$(echo "scale=1; $WEEKEND * 100 / $TOTAL_COMMITS" | bc)
-LOC_PER_DAY=$((TOTAL_LOC / ACTIVE_DAYS))
-
-echo -e "${CYAN}${BOLD}🏆 Hall of Fame${NC}"
-echo -e "   Most Productive Day:   ${BEST_DAY}"
-echo -e "   Late Night (00-06):    ${LATE_NIGHT} commits (${LATE_PCT}%)"
-echo -e "   Weekend Warrior:       ${WEEKEND} commits (${WEEKEND_PCT}%)"
-[[ $TOTAL_LOC -gt 0 ]] && echo -e "   Lines/Active Day:      ~${LOC_PER_DAY}"
-echo ""
-
-# Most changed files
-if [[ -s "$TMP_DIR/top_files.txt" ]]; then
-    echo -e "${CYAN}${BOLD}🔥 Most Frequently Modified Files${NC}"
-    head -5 "$TMP_DIR/top_files.txt" | while read count file; do
-        printf "   %4d  %s\n" "$count" "$file"
+    echo -e "${CYAN}${BOLD}🕐 Peak Hours (Top 5)${NC}"
+    sort -k1rn "$TMP_DIR/hours.txt" | head -5 | while read count hour; do
+        printf "   %s:00  %3d commits\n" "$hour" "$count"
     done
     echo ""
 fi
 
-# Commit message words
-echo -e "${CYAN}${BOLD}💬 Top Commit Keywords${NC}"
-head -8 "$TMP_DIR/words.txt" | while read count word; do
-    printf "   %-15s %4d\n" "$word" "$count"
-done
-echo ""
+# Two-column section: Authorship + Hall of Fame
+if $USE_TWO_COLS; then
+    # Build left column: Authorship
+    echo -e "${CYAN}${BOLD}👨‍💻 Authorship${NC}" > "$TMP_DIR/left_col.txt"
+    while read count author; do
+        pct=$((count * 100 / TOTAL_COMMITS))
+        printf "   %-20s %4d (%d%%)\n" "$author" "$count" "$pct" >> "$TMP_DIR/left_col.txt"
+    done < "$TMP_DIR/authors.txt"
 
-# Velocity summary
-COMMITS_PER_SESSION=$(echo "scale=1; $TOTAL_COMMITS / $sessions" | bc)
+    # Build right column: Hall of Fame
+    echo -e "${CYAN}${BOLD}🏆 Hall of Fame${NC}" > "$TMP_DIR/right_col.txt"
+    echo "   Most Productive:  ${BEST_DAY}" >> "$TMP_DIR/right_col.txt"
+    echo "   Late Night:       ${LATE_NIGHT} commits (${LATE_PCT}%)" >> "$TMP_DIR/right_col.txt"
+    echo "   Weekend:          ${WEEKEND} commits (${WEEKEND_PCT}%)" >> "$TMP_DIR/right_col.txt"
+    [[ $TOTAL_LOC -gt 0 ]] && echo "   Lines/Day:        ~${LOC_PER_DAY}" >> "$TMP_DIR/right_col.txt"
+
+    print_two_columns_files "$TMP_DIR/left_col.txt" "$TMP_DIR/right_col.txt"
+    echo ""
+else
+    # Single column fallback
+    echo -e "${CYAN}${BOLD}👨‍💻 Authorship${NC}"
+    while read count author; do
+        pct=$((count * 100 / TOTAL_COMMITS))
+        printf "   %-25s %5d commits (%d%%)\n" "$author" "$count" "$pct"
+    done < "$TMP_DIR/authors.txt"
+    echo ""
+
+    echo -e "${CYAN}${BOLD}🏆 Hall of Fame${NC}"
+    echo -e "   Most Productive Day:   ${BEST_DAY}"
+    echo -e "   Late Night (00-06):    ${LATE_NIGHT} commits (${LATE_PCT}%)"
+    echo -e "   Weekend Warrior:       ${WEEKEND} commits (${WEEKEND_PCT}%)"
+    [[ $TOTAL_LOC -gt 0 ]] && echo -e "   Lines/Active Day:      ~${LOC_PER_DAY}"
+    echo ""
+fi
+
+# Two-column section: Top Files + Commit Keywords
+if $USE_TWO_COLS; then
+    # Build left column: Most changed files
+    echo -e "${CYAN}${BOLD}🔥 Most Modified Files${NC}" > "$TMP_DIR/left_col.txt"
+    if [[ -s "$TMP_DIR/top_files.txt" ]]; then
+        head -5 "$TMP_DIR/top_files.txt" | while read count file; do
+            # Truncate long filenames for column width
+            if [[ ${#file} -gt 35 ]]; then
+                file="...${file: -32}"
+            fi
+            printf "   %3d  %s\n" "$count" "$file" >> "$TMP_DIR/left_col.txt"
+        done
+    else
+        echo "   (no data)" >> "$TMP_DIR/left_col.txt"
+    fi
+
+    # Build right column: Commit keywords
+    echo -e "${CYAN}${BOLD}💬 Top Commit Keywords${NC}" > "$TMP_DIR/right_col.txt"
+    head -6 "$TMP_DIR/words.txt" | while read count word; do
+        printf "   %-12s %4d\n" "$word" "$count" >> "$TMP_DIR/right_col.txt"
+    done
+
+    print_two_columns_files "$TMP_DIR/left_col.txt" "$TMP_DIR/right_col.txt"
+    echo ""
+else
+    # Single column fallback
+    if [[ -s "$TMP_DIR/top_files.txt" ]]; then
+        echo -e "${CYAN}${BOLD}🔥 Most Frequently Modified Files${NC}"
+        head -5 "$TMP_DIR/top_files.txt" | while read count file; do
+            printf "   %4d  %s\n" "$count" "$file"
+        done
+        echo ""
+    fi
+
+    echo -e "${CYAN}${BOLD}💬 Top Commit Keywords${NC}"
+    head -8 "$TMP_DIR/words.txt" | while read count word; do
+        printf "   %-15s %4d\n" "$word" "$count"
+    done
+    echo ""
+fi
+
+# Velocity summary (always single column - summary)
 echo -e "${CYAN}${BOLD}📈 Velocity Summary${NC}"
 echo -e "   Commits/Week:          $COMMITS_PER_WEEK"
 echo -e "   Commits/Session:       $COMMITS_PER_SESSION"
