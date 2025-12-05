@@ -874,8 +874,8 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         }
     }
 
-    spdlog::debug("[WifiBackend] Status: connected={} ssid='{}' ip='{}'", status.connected,
-                  status.ssid, status.ip_address);
+    spdlog::debug("[WifiBackend] Status: connected={} ssid='{}' ip='{}' signal={}%",
+                  status.connected, status.ssid, status.ip_address, status.signal_strength);
     return status;
 }
 
