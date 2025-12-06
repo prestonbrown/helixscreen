@@ -1025,6 +1025,9 @@ static void initialize_subjects() {
     // Inject TempControlPanel into ControlsPanel for temperature sub-screens
     get_global_controls_panel().set_temp_control_panel(temp_control_panel.get());
 
+    // Inject TempControlPanel into HomePanel for temperature icon click
+    get_global_home_panel().set_temp_control_panel(temp_control_panel.get());
+
     // Initialize notification system (after subjects are ready)
     ui_notification_init();
 

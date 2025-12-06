@@ -72,7 +72,16 @@ class HomePanel : public PanelBase {
      */
     void reload_from_config();
 
+    /**
+     * @brief Set reference to TempControlPanel for temperature overlay
+     *
+     * Must be called before temp icon click handler can work.
+     * @param temp_panel Pointer to TempControlPanel instance
+     */
+    void set_temp_control_panel(TempControlPanel* temp_panel);
+
   private:
+    TempControlPanel* temp_control_panel_ = nullptr;
     lv_subject_t status_subject_;
     lv_subject_t temp_subject_;
     lv_subject_t network_icon_state_; // Integer subject: 0-5 for conditional icon visibility

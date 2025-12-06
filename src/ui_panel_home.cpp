@@ -294,8 +294,19 @@ void HomePanel::handle_tip_rotation_timer() {
     update_tip_of_day();
 }
 
+void HomePanel::set_temp_control_panel(TempControlPanel* temp_panel) {
+    temp_control_panel_ = temp_panel;
+    spdlog::debug("[{}] TempControlPanel reference set", get_name());
+}
+
 void HomePanel::handle_temp_clicked() {
     spdlog::info("[{}] Temperature icon clicked - opening nozzle temp panel", get_name());
+
+    if (!temp_control_panel_) {
+        spdlog::error("[{}] TempControlPanel not initialized", get_name());
+        NOTIFY_ERROR("Temperature panel not available");
+        return;
+    }
 
     // Create nozzle temp panel on first access (lazy initialization)
     if (!nozzle_temp_panel_ && parent_screen_) {
@@ -305,9 +316,8 @@ void HomePanel::handle_temp_clicked() {
         nozzle_temp_panel_ =
             static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "nozzle_temp_panel", nullptr));
         if (nozzle_temp_panel_) {
-            // Get TempControlPanel from global accessor and setup the panel
-            extern TempControlPanel& get_global_temp_control_panel();
-            get_global_temp_control_panel().setup_nozzle_panel(nozzle_temp_panel_, parent_screen_);
+            // Setup via injected TempControlPanel
+            temp_control_panel_->setup_nozzle_panel(nozzle_temp_panel_, parent_screen_);
 
             // Initially hidden
             lv_obj_add_flag(nozzle_temp_panel_, LV_OBJ_FLAG_HIDDEN);
