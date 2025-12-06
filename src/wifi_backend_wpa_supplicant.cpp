@@ -35,6 +35,7 @@
 #include "wpa_ctrl.h"
 
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -874,8 +875,19 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         }
     }
 
-    spdlog::debug("[WifiBackend] Status: connected={} ssid='{}' ip='{}' signal={}%",
-                  status.connected, status.ssid, status.ip_address, status.signal_strength);
+    // Only log when status actually changes (reduces log noise)
+    bool status_changed =
+        (status.connected != last_logged_status_.connected ||
+         status.ssid != last_logged_status_.ssid ||
+         status.ip_address != last_logged_status_.ip_address ||
+         std::abs(status.signal_strength - last_logged_status_.signal_strength) > 5);
+
+    if (status_changed) {
+        spdlog::debug("[WifiBackend] Status: connected={} ssid='{}' ip='{}' signal={}%",
+                      status.connected, status.ssid, status.ip_address, status.signal_strength);
+        last_logged_status_ = status;
+    }
+
     return status;
 }
 

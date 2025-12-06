@@ -264,6 +264,9 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     std::mutex callbacks_mutex_; ///< Protects callbacks map from race conditions
     std::map<std::string, std::function<void(const std::string&)>>
         callbacks; ///< Registered event handlers
+
+    // Change detection for status logging (reduces log noise)
+    ConnectionStatus last_logged_status_; ///< Previous status for change detection
 };
 
 #endif // __APPLE__
