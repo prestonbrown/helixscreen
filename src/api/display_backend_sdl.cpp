@@ -26,7 +26,7 @@ bool DisplayBackendSDL::is_available() const {
 lv_display_t* DisplayBackendSDL::create_display(int width, int height) {
     spdlog::debug("[SDL Backend] Creating SDL display: {}x{}", width, height);
     
-    // Force Double Buffering and VSync to stop tearing/flickering
+    // Force VSync to stop tearing/flickering
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");    
 
     // Prevent the compositor from bypassing formatting
