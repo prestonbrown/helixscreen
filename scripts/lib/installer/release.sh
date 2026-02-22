@@ -278,37 +278,26 @@ download_release() {
     local gh_url="https://github.com/${GITHUB_REPO}/releases/download/${version}/${filename}"
     log_info "URL: $gh_url"
 
-    local http_code=""
-    if command -v curl >/dev/null 2>&1; then
-        http_code=$(curl -sSL --connect-timeout 30 -w "%{http_code}" -o "$dest" "$gh_url")
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q --timeout=30 -O "$dest" "$gh_url"; then
-            http_code="200"
-        else
-            http_code="failed"
-        fi
+    if download_file "$gh_url" "$dest"; then
+        validate_tarball "$dest" "Downloaded "
+        local size
+        size=$(ls -lh "$dest" | awk '{print $5}')
+        log_success "Downloaded ${filename} (${size}) from GitHub"
+        return 0
     fi
 
-    if [ ! -f "$dest" ] || [ ! -s "$dest" ]; then
-        log_error "Failed to download release."
-        log_error "Tried: $r2_url"
-        log_error "Tried: $gh_url"
-        if [ -n "$http_code" ] && [ "$http_code" != "200" ]; then
-            log_error "HTTP status: $http_code"
-        fi
-        log_error ""
-        log_error "Possible causes:"
-        log_error "  - Version ${version} may not exist for platform ${platform}"
-        log_error "  - Network connectivity issues"
-        log_error "  - CDN and GitHub may be unavailable"
-        exit 1
-    fi
-
-    validate_tarball "$dest" "Downloaded "
-
-    local size
-    size=$(ls -lh "$dest" | awk '{print $5}')
-    log_success "Downloaded ${filename} (${size}) from GitHub"
+    log_error "Failed to download release."
+    log_error "Tried: $r2_url"
+    log_error "Tried: $gh_url"
+    log_error ""
+    log_error "Possible causes:"
+    log_error "  - Version ${version} may not exist for platform ${platform}"
+    log_error "  - Network connectivity issues"
+    log_error "  - CDN and GitHub may be unavailable"
+    log_error ""
+    log_error "To install manually, download on another machine and use:"
+    log_error "  ./install.sh --local /path/to/${filename}"
+    exit 1
 }
 
 # Use a local tarball instead of downloading
