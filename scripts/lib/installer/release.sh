@@ -32,14 +32,41 @@ fetch_url() {
 
 # Download a URL to a file
 # Returns 0 on success (file exists and is non-empty), non-zero on failure
+# Args: url dest [max_seconds] [min_speed_bps]
+#   max_seconds:  total transfer timeout (default 300)
+#   min_speed_bps: abort if average speed stays below this for 20s (default 0 = disabled)
+#                  Set to e.g. 51200 (50 KB/s) for CDN attempts so a slow CDN
+#                  fails fast and the caller can fall through to a better source.
 download_file() {
-    local url=$1 dest=$2
+    local url=$1 dest=$2 max_secs=${3:-300} min_speed=${4:-0}
     if command -v curl >/dev/null 2>&1; then
-        local http_code
-        http_code=$(curl -sSL --connect-timeout 30 -w "%{http_code}" -o "$dest" "$url" 2>/dev/null) || true
+        local http_code progress_flag speed_flags
+        if [ -t 2 ]; then
+            progress_flag="--progress-bar"
+        else
+            progress_flag="--no-progress-meter"
+        fi
+        # Speed floor: abort if average speed stays below min_speed for 20 consecutive
+        # seconds. Lets a slow CDN fail fast so we can fall through to GitHub.
+        if [ "${min_speed:-0}" -gt 0 ] 2>/dev/null; then
+            speed_flags="--speed-limit ${min_speed} --speed-time 20"
+        else
+            speed_flags=""
+        fi
+        http_code=$(curl -SL \
+            --connect-timeout 30 \
+            --max-time "$max_secs" \
+            $progress_flag \
+            $speed_flags \
+            -w "%{http_code}" \
+            -o "$dest" \
+            "$url" 2>&1) || true
+        http_code=$(printf '%s' "$http_code" | tail -1)
         [ "$http_code" = "200" ] && [ -f "$dest" ] && [ -s "$dest" ]
     elif command -v wget >/dev/null 2>&1; then
-        wget -q --timeout=30 -O "$dest" "$url" 2>/dev/null && [ -f "$dest" ] && [ -s "$dest" ]
+        # wget has no built-in speed floor; rely on max_secs being short for CDN calls.
+        wget --timeout="$max_secs" -O "$dest" "$url" 2>&1 && \
+            [ -f "$dest" ] && [ -s "$dest" ]
     else
         return 1
     fi
@@ -232,7 +259,7 @@ download_release() {
     log_info "Downloading HelixScreen ${version} for ${platform}..."
     log_info "URL: $r2_url"
 
-    if download_file "$r2_url" "$dest"; then
+    if download_file "$r2_url" "$dest" 300 51200; then
         # Quick validation — make sure it's actually a gzip file
         if gunzip -t "$dest" 2>/dev/null; then
             local size
