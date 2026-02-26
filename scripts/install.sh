@@ -599,9 +599,9 @@ set_install_paths() {
         esac
     elif [ "$platform" = "ad5x" ]; then
         # FlashForge AD5X - uses ZMOD, /usr/data structure
-        INSTALL_DIR="/usr/data/helixscreen"
+        INSTALL_DIR="/srv/helixscreen"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
-        PREVIOUS_UI_SCRIPT="/etc/init.d/S80guppyscreen"
+        PREVIOUS_UI_SCRIPT=""
         log_info "Platform: FlashForge AD5X (ZMOD)"
         log_info "Install directory: ${INSTALL_DIR}"
     elif [ "$platform" = "k1" ]; then

@@ -11,6 +11,7 @@
 #
 # Splash screen targets:
 #   gen-images-ad5m  - Generate only 800x480 (AD5M fixed display)
+#   gen-images-ad5x  - Generate only 800x480 (AD5X fixed display)
 #   gen-images-pi    - Generate all sizes (Pi variable displays)
 #   gen-images       - Generate all sizes (generic)
 #
@@ -31,6 +32,8 @@ REGEN_PRINTER_IMAGES_SCRIPT := scripts/regen_printer_images.sh
 # Pre-rendered image files (build artifacts, not in repo)
 # AD5M only needs 'small' (800x480)
 PRERENDERED_IMAGES_AD5M := $(PRERENDERED_DIR)/splash-logo-small.bin
+# AD5X only needs 'small' (800x480)
+PRERENDERED_IMAGES_AD5X := $(PRERENDERED_DIR)/splash-logo-small.bin
 
 # Pi needs all sizes (unknown display at build time)
 PRERENDERED_IMAGES_ALL := \
@@ -48,6 +51,16 @@ gen-images-ad5m:
 	$(Q)mkdir -p $(PRERENDERED_DIR)
 	$(Q)OUTPUT_DIR=$(PRERENDERED_DIR) TARGET_SIZES=small ./$(REGEN_IMAGES_SCRIPT)
 	$(ECHO) "$(GREEN)✓ AD5M images generated$(RESET)"
+
+# Generate images for AD5X (800x480 fixed display only)
+# NOTE: Uses mkdir -p instead of $(BUILD_DIR) dependency to avoid triggering 'build' target
+# which runs 'make clean' and wipes cross-compiled binaries
+.PHONY: gen-images-ad5x
+gen-images-ad5x:
+	$(ECHO) "$(CYAN)Generating pre-rendered images for AD5X (800x480)...$(RESET)"
+	$(Q)mkdir -p $(PRERENDERED_DIR)
+	$(Q)OUTPUT_DIR=$(PRERENDERED_DIR) TARGET_SIZES=small ./$(REGEN_IMAGES_SCRIPT)
+	$(ECHO) "$(GREEN)✓ AD5X images generated$(RESET)"
 
 # Generate images for Pi (all sizes for variable displays)
 .PHONY: gen-images-pi
@@ -173,6 +186,14 @@ gen-splash-3d-ad5m:
 	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes small
 	$(ECHO) "$(GREEN)✓ AD5M 3D splash images generated$(RESET)"
 
+# Generate 3D splash images for AD5X only (800x480)
+.PHONY: gen-splash-3d-ad5x
+gen-splash-3d-ad5x:
+	$(ECHO) "$(CYAN)Generating 3D splash images for AD5X (800x480)...$(RESET)"
+	$(Q)mkdir -p $(PRERENDERED_DIR)
+	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes small
+	$(ECHO) "$(GREEN)✓ AD5X 3D splash images generated$(RESET)"
+
 # Generate 3D splash images for K1 only (480x400)
 .PHONY: gen-splash-3d-k1
 gen-splash-3d-k1:
@@ -208,11 +229,13 @@ help-images:
 	@echo "  Splash screen:"
 	@echo "    gen-images         - Generate splash .bin files (all sizes)"
 	@echo "    gen-images-ad5m    - Generate splash for AD5M only (800x480)"
+	@echo "    gen-images-ad5x    - Generate splash for AD5X only (800x480)"
 	@echo "    gen-images-pi      - Generate splash for Pi (all sizes)"
 	@echo "    clean-images       - Remove splash .bin files"
 	@echo "    list-images        - Show splash targets"
 	@echo "    gen-splash-3d      - Generate 3D splash (all sizes, dark+light)"
 	@echo "    gen-splash-3d-ad5m - Generate 3D splash for AD5M only"
+	@echo "    gen-splash-3d-ad5x - Generate 3D splash for AD5X only"
 	@echo "    clean-splash-3d    - Remove 3D splash .bin files"
 	@echo ""
 	@echo "  Placeholder thumbnails:"

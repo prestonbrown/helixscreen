@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen - AD5X (MIPS32r5) Cross-Compilation Toolchain
+#
+# Build: docker build -t helixscreen/toolchain-ad5x -f Dockerfile.ad5x .
+# Usage: docker run --rm -v $(pwd):/src -w /src helixscreen/toolchain-ad5x make PLATFORM_TARGET=ad5x -j$(nproc)
+#
+# Target: Flashforge AD5X (на основе Buildroot)
+#   - CPU: MIPS32r5 (little-endian)
+#   - Display: 800x480 framebuffer
+#   - RAM: 512
+
+FROM debian:trixie-slim
+
+LABEL maintainer="HelixScreen <dev@helixscreen.io>"
+LABEL description="Cross-compilation toolchain for AD5X (MIPS32r5 glibc)"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG TARGETARCH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    pkg-config \
+    ca-certificates \
+    make \
+    cmake \
+    python3 \
+    file \
+    wget \
+    xz-utils \
+    autoconf \
+    automake \
+    libtool \
+    flex \
+    bison \
+    ccache \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir /opt/mipsel-zmod-ad5x
+WORKDIR /opt/mipsel-zmod-ad5x
+RUN TOOLCHAIN_NAME="mipsel-zmod-ad5x.tar.gz" && \
+    echo "Downloading ${TOOLCHAIN_NAME}..." && \
+    wget -q "https://github.com/ghzserg/FF/releases/download/R/${TOOLCHAIN_NAME}" && \
+    tar xzf "${TOOLCHAIN_NAME}" && \
+    rm "${TOOLCHAIN_NAME}"
+
+# ==============================================================================
+# Cross-Compilation Environment
+# ==============================================================================
+ENV PATH="/opt/mipsel-zmod-ad5x/bin:$PATH"
+ENV CROSS_COMPILE=mipsel-buildroot-linux-gnu-
+ENV CC=mipsel-buildroot-linux-gnu-gcc
+ENV CXX=mipsel-buildroot-linux-gnu-g++
+ENV AR=mipsel-buildroot-linux-gnu-gcc-ar
+ENV STRIP=mipsel-buildroot-linux-gnu-strip
+ENV RANLIB=mipsel-buildroot-linux-gnu-gcc-ranlib
+ENV LD=mipsel-buildroot-linux-gnu-ld
+
+ENV TARGET_CFLAGS="-march=mips32r5 -mtune=mips32r5"
+ENV TARGET_LDFLAGS=""
+
+RUN mipsel-buildroot-linux-gnu-gcc --version && \
+    mipsel-buildroot-linux-gnu-g++ --version && \
+    mipsel-buildroot-linux-gnu-gcc-ar --version && \
+    mipsel-buildroot-linux-gnu-gcc-ranlib --version && \
+    echo "✓ Toolchain verification passed (glibc)"
+
+WORKDIR /src
+
+RUN git config --global --add safe.directory '*'
+
+CMD ["make", "PLATFORM_TARGET=ad5x", "SKIP_OPTIONAL_DEPS=1", "-j"]
