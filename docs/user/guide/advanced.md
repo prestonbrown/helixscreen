@@ -53,7 +53,7 @@ A **power-cycle button** appears on the home panel when power devices are config
 
 ### Full Power Panel
 
-1. Navigate to **Advanced > Power Devices** (hidden when no power devices are detected)
+1. Navigate to **Advanced > Power Devices**, or **Settings > System > Power Devices** (hidden when no power devices are detected)
 2. Toggle individual devices on/off with switches
 
 **Main Power Button section:**

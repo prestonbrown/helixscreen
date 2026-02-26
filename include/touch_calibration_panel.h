@@ -232,6 +232,13 @@ class TouchCalibrationPanel {
      */
     const TouchCalibration* get_calibration() const;
 
+    /**
+     * @brief Whether auto-detected axis swap was applied during calibration
+     */
+    bool axes_swapped() const {
+        return axes_swapped_;
+    }
+
   private:
     State state_ = State::IDLE;
     int screen_width_ = 800;
@@ -249,6 +256,7 @@ class TouchCalibrationPanel {
     Point screen_points_[3]; ///< Target screen positions
     Point touch_points_[3];  ///< Captured raw touch positions
     TouchCalibration calibration_;
+    bool axes_swapped_ = false;
 
     // Multi-sample filtering
     static constexpr int SAMPLES_REQUIRED = 7;

@@ -293,6 +293,7 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                    {"input",
                     {{"scroll_throw", 25},
                      {"scroll_limit", 10},
+                     {"jitter_threshold", 15},
                      {"touch_device", ""},
                      {"calibration",
                       {{"valid", false},
@@ -400,7 +401,7 @@ void Config::init(const std::string& config_path) {
         {
             std::string env_path =
                 (fs::path(config_path).parent_path() / "helixscreen.env").string();
-            struct stat env_st{};
+            struct stat env_st {};
             if (stat(env_path.c_str(), &env_st) != 0 && stat(PREUPDATE_ENV_BACKUP, &env_st) == 0) {
                 spdlog::warn("[Config] helixscreen.env missing after upgrade — restoring from "
                              "pre-update backup");
@@ -561,6 +562,7 @@ void Config::init(const std::string& config_path) {
     if (!data.contains("input")) {
         data["input"] = {{"scroll_throw", 25},
                          {"scroll_limit", 10},
+                         {"jitter_threshold", 15},
                          {"touch_device", ""},
                          {"calibration",
                           {{"valid", false},
@@ -586,6 +588,10 @@ void Config::init(const std::string& config_path) {
         }
         if (!input.contains("touch_device")) {
             input["touch_device"] = "";
+            config_modified = true;
+        }
+        if (!input.contains("jitter_threshold")) {
+            input["jitter_threshold"] = 15;
             config_modified = true;
         }
 

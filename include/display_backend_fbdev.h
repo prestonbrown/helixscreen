@@ -12,6 +12,7 @@
 
 #include "display_backend.h"
 #include "touch_calibration.h"
+#include "touch_jitter_filter.h"
 
 #include <string>
 
@@ -26,6 +27,7 @@ struct CalibrationContext {
     lv_indev_read_cb_t original_read_cb = nullptr;
     int screen_width = 800;
     int screen_height = 480;
+    TouchJitterFilter jitter;
 };
 
 /**

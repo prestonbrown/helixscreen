@@ -16,6 +16,7 @@ static RuntimeConfig g_runtime_config;
 
 // Debug subjects flag (separate from RuntimeConfig instance for static access)
 static bool g_debug_subjects = false;
+static bool g_debug_touches = false;
 
 RuntimeConfig* get_runtime_config() {
     return &g_runtime_config;
@@ -35,6 +36,21 @@ bool RuntimeConfig::debug_subjects() {
 
 void RuntimeConfig::set_debug_subjects(bool value) {
     g_debug_subjects = value;
+}
+
+bool RuntimeConfig::debug_touches() {
+    static bool env_checked = false;
+    if (!env_checked) {
+        env_checked = true;
+        if (std::getenv("HELIX_DEBUG_TOUCHES") != nullptr) {
+            g_debug_touches = true;
+        }
+    }
+    return g_debug_touches;
+}
+
+void RuntimeConfig::set_debug_touches(bool value) {
+    g_debug_touches = value;
 }
 
 bool RuntimeConfig::hot_reload_enabled() {

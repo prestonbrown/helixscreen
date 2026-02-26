@@ -253,7 +253,7 @@ For layout customization, you can edit XML files in `ui_xml/` (no recompilation 
 
 ### Does it support power device control?
 
-**Yes.** If you have Moonraker power devices configured, the Power panel lets you control them. Access via **Advanced** → **Power**.
+**Yes.** If you have Moonraker power devices configured, the Power panel lets you control them. Access via **Settings** → **System** → **Power Devices**, or **Advanced** → **Power**, or long-press the home panel power button.
 
 ### Can I view and run bed mesh?
 

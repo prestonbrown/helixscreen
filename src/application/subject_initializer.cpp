@@ -255,7 +255,6 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
 
     // Inject TempControlPanel into dependent panels
     get_global_controls_panel().set_temp_control_panel(m_temp_control_panel.get());
-    get_global_home_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_print_status_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_filament_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_pid_cal_panel().set_temp_control_panel(m_temp_control_panel.get());

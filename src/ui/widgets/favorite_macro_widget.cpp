@@ -139,6 +139,13 @@ void FavoriteMacroWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) 
         lv_obj_set_user_data(widget_obj_, this);
     }
 
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "favorite_macro_1_clicked_cb", clicked_1_cb);
+    lv_xml_register_event_cb(nullptr, "favorite_macro_1_long_press_cb", long_press_1_cb);
+    lv_xml_register_event_cb(nullptr, "favorite_macro_2_clicked_cb", clicked_2_cb);
+    lv_xml_register_event_cb(nullptr, "favorite_macro_2_long_press_cb", long_press_2_cb);
+    lv_xml_register_event_cb(nullptr, "fav_macro_picker_backdrop_cb", picker_backdrop_cb);
+
     // Cache label pointers from XML
     icon_label_ = lv_obj_find_by_name(widget_obj_, "fav_macro_icon");
     name_label_ = lv_obj_find_by_name(widget_obj_, "fav_macro_name");

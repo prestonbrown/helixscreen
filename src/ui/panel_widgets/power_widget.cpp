@@ -53,6 +53,10 @@ void PowerWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     refresh_power_state();
 }
 
+void PowerWidget::on_activate() {
+    refresh_power_state();
+}
+
 void PowerWidget::detach() {
     *alive_ = false;
     if (widget_obj_) {

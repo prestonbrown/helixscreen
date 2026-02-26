@@ -290,6 +290,7 @@ bool WizardTouchCalibrationStep::commit_calibration() {
     config->set<double>("/input/calibration/d", static_cast<double>(pending_calibration_.d));
     config->set<double>("/input/calibration/e", static_cast<double>(pending_calibration_.e));
     config->set<double>("/input/calibration/f", static_cast<double>(pending_calibration_.f));
+    config->set<bool>("/input/calibration/swap_axes", panel_->axes_swapped());
     config->save();
 
     spdlog::info("[{}] Calibration committed to config", get_name());

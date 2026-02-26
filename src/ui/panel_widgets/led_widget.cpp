@@ -52,6 +52,10 @@ void LedWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     lv_obj_set_user_data(widget_obj_, this);
 
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "light_toggle_cb", light_toggle_cb);
+    lv_xml_register_event_cb(nullptr, "light_long_press_cb", light_long_press_cb);
+
     // Find light icon for dynamic brightness/color updates
     light_icon_ = lv_obj_find_by_name(widget_obj_, "light_icon");
     if (light_icon_) {
@@ -84,6 +88,19 @@ void LedWidget::detach() {
     led_brightness_observer_.reset();
 
     spdlog::debug("[LedWidget] Detached");
+}
+
+void LedWidget::reload_from_config() {
+    auto& led_ctrl = helix::led::LedController::instance();
+    const auto& strips = led_ctrl.selected_strips();
+    if (!strips.empty()) {
+        printer_state_.set_tracked_led(strips.front());
+        ensure_led_observers();
+        spdlog::info("[LedWidget] Reloaded LED config: {} LED(s)", strips.size());
+    } else {
+        printer_state_.set_tracked_led("");
+        spdlog::debug("[LedWidget] LED config cleared");
+    }
 }
 
 void LedWidget::handle_light_toggle() {

@@ -218,6 +218,7 @@ translations:
   Connection successful!: 连接成功！
   Console: 控制台
   Control optional print start features: 控制可选的打印启动功能
+  Control power relays and smart outlets: 控制电源继电器和智能插座
   Control power switches and relays: 控制电源开关和继电器
   Controlled by hardware sensor: 由硬件传感器控制
   Cool Down: 冷却
@@ -612,6 +613,7 @@ translations:
   No filaments found: 未找到耗材
   No file loaded: 未加载文件
   No files available for printing: 没有可用于打印的文件
+  No images found on USB drive: USB驱动器上未找到图片
   No macros available: 无可用宏
   No mesh loaded: 未加载网格
   No network. Scan QR code to report on your phone.: 无网络。扫描二维码在手机上报告。
@@ -685,6 +687,7 @@ translations:
   Pick: 选取
   Pick Color: 选择颜色
   Place PNG or JPEG files in config/custom_images/ to add custom images: 将 PNG 或 JPEG 文件放在 config/custom_images/ 中以添加自定义图片
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '将图片文件 (PNG, JPEG, BMP, GIF) 放入 config/custom_images/。最大尺寸: 2048×2048 像素。'
   Place plugins in the plugins directory to extend HelixScreen: 将插件放在 plugins 目录中以扩展 HelixScreen
   Play a test beep: 播放测试提示音
   Please enter a theme name: 请输入主题名称

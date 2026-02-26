@@ -309,6 +309,9 @@ void TelemetryManager::init(const std::string& config_dir) {
     // Check for crash file from a previous session (respects opt-in)
     check_previous_crash();
 
+    // Check for update success flag from a previous session
+    check_previous_update();
+
     // Initialize LVGL subject for settings UI binding
     if (!subjects_initialized_) {
         UI_MANAGED_SUBJECT_INT(enabled_subject_, enabled_.load() ? 1 : 0, "telemetry_enabled",
@@ -419,6 +422,92 @@ void TelemetryManager::record_print_outcome(const std::string& outcome, int dura
                                            filament_used_mm, filament_type, nozzle_temp, bed_temp);
     enqueue_event(std::move(event));
     save_queue();
+}
+
+void TelemetryManager::record_update_failure(const std::string& reason, const std::string& version,
+                                             const std::string& platform, int http_code,
+                                             int64_t file_size, int exit_code) {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::info("[TelemetryManager] Recording update failure: reason={} version={}", reason,
+                 version);
+    auto event =
+        build_update_failed_event(reason, version, platform, http_code, file_size, exit_code);
+    enqueue_event(std::move(event));
+    save_queue();
+}
+
+void TelemetryManager::write_update_success_flag(const std::string& config_dir,
+                                                 const std::string& version,
+                                                 const std::string& from_version,
+                                                 const std::string& platform) {
+    json flag;
+    flag["version"] = version;
+    flag["from_version"] = from_version;
+    flag["platform"] = platform;
+
+    // Use ISO 8601 timestamp
+    auto now = std::chrono::system_clock::now();
+    auto tt = std::chrono::system_clock::to_time_t(now);
+    struct tm utc {};
+    gmtime_r(&tt, &utc);
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    flag["timestamp"] = buf;
+
+    std::string path = config_dir + "/update_success.json";
+    std::ofstream ofs(path);
+    if (ofs) {
+        ofs << flag.dump();
+        spdlog::info("[TelemetryManager] Wrote update success flag: {}", path);
+    } else {
+        spdlog::error("[TelemetryManager] Failed to write update success flag: {}", path);
+    }
+}
+
+void TelemetryManager::check_previous_update() {
+    std::string flag_path = config_dir_ + "/update_success.json";
+
+    if (!fs::exists(flag_path)) {
+        return;
+    }
+
+    spdlog::info("[TelemetryManager] Found update success flag from previous session");
+
+    // Read and parse the flag file
+    json flag;
+    {
+        std::ifstream ifs(flag_path);
+        if (!ifs) {
+            spdlog::warn("[TelemetryManager] Could not open update success flag");
+            std::remove(flag_path.c_str());
+            return;
+        }
+        try {
+            flag = json::parse(ifs);
+        } catch (const json::parse_error& e) {
+            spdlog::warn("[TelemetryManager] Malformed update success flag: {}", e.what());
+            std::remove(flag_path.c_str());
+            return;
+        }
+    }
+
+    // Always clean up the flag file
+    std::remove(flag_path.c_str());
+
+    if (enabled_.load()) {
+        auto event = build_update_success_event(
+            flag.value("version", "unknown"), flag.value("from_version", "unknown"),
+            flag.value("platform", "unknown"), flag.value("timestamp", get_timestamp()));
+        enqueue_event(std::move(event));
+        save_queue();
+        spdlog::info("[TelemetryManager] Enqueued update_success event (version={})",
+                     flag.value("version", "unknown"));
+    } else {
+        spdlog::debug("[TelemetryManager] Update success event discarded (telemetry disabled)");
+    }
 }
 
 // =============================================================================
@@ -1022,6 +1111,50 @@ nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& ou
     event["filament_type"] = filament_type;
     event["nozzle_temp"] = nozzle_temp;
     event["bed_temp"] = bed_temp;
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_update_failed_event(const std::string& reason,
+                                                           const std::string& version,
+                                                           const std::string& platform,
+                                                           int http_code, int64_t file_size,
+                                                           int exit_code) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "update_failed";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["reason"] = reason;
+    event["version"] = version;
+    event["from_version"] = HELIX_VERSION;
+    event["platform"] = platform;
+
+    if (http_code >= 0) {
+        event["http_code"] = http_code;
+    }
+    if (file_size >= 0) {
+        event["file_size"] = file_size;
+    }
+    if (exit_code >= 0) {
+        event["exit_code"] = exit_code;
+    }
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_update_success_event(const std::string& version,
+                                                            const std::string& from_version,
+                                                            const std::string& platform,
+                                                            const std::string& timestamp) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "update_success";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = timestamp;
+    event["version"] = version;
+    event["from_version"] = from_version;
+    event["platform"] = platform;
 
     return event;
 }

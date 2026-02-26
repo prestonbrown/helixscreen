@@ -23,6 +23,16 @@ Tap to open the Network Settings overlay with a two-column layout:
 
 ---
 
+## Power Devices
+
+> Only shown when Moonraker power devices are configured.
+
+Tap to open the Power Devices overlay, where you can toggle individual power relays and smart outlets on or off. This is the same panel accessible from **Advanced > Power Devices** or by long-pressing the home panel power button.
+
+See [Power Device Control](../advanced.md#power-device-control) for full details on device selection and the home panel quick-toggle.
+
+---
+
 ## Host
 
 Shows the current Moonraker host address (e.g., `localhost:7125`). Tap to open the **Change Host** dialog where you can enter a new IP address and port to connect to a different printer.

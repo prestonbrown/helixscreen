@@ -45,6 +45,7 @@ SpoolmanPanel::SpoolmanPanel() {
 }
 
 SpoolmanPanel::~SpoolmanPanel() {
+    callback_guard_.reset();
     if (search_debounce_timer_) {
         lv_timer_delete(search_debounce_timer_);
         search_debounce_timer_ = nullptr;
@@ -158,6 +159,9 @@ void SpoolmanPanel::on_activate() {
     // Call base class first
     OverlayBase::on_activate();
 
+    // Create callback guard for async operations
+    callback_guard_ = std::make_shared<bool>(true);
+
     spdlog::debug("[{}] on_activate()", get_name());
 
     // Clear search on activation (text_input handles clear button visibility internally)
@@ -176,6 +180,9 @@ void SpoolmanPanel::on_activate() {
 }
 
 void SpoolmanPanel::on_deactivate() {
+    // Invalidate callback guard to prevent async callbacks from using stale 'this'
+    callback_guard_.reset();
+
     AmsState::instance().stop_spoolman_polling();
 
     // Clean up debounce timer
@@ -207,74 +214,53 @@ void SpoolmanPanel::refresh_spools() {
 
     show_loading_state();
 
+    std::weak_ptr<bool> weak_guard = callback_guard_;
+
+    // Shared handler: update cached spools and active ID, then repopulate
+    auto apply_spools = [this, weak_guard](std::vector<SpoolInfo> spools, int active_id) {
+        helix::ui::queue_update([this, weak_guard, spools = std::move(spools), active_id]() {
+            if (weak_guard.expired())
+                return;
+            cached_spools_ = spools;
+            active_spool_id_ = active_id;
+            populate_spool_list();
+        });
+    };
+
+    std::string name = get_name();
+
     api->spoolman().get_spoolman_spools(
-        [this](const std::vector<SpoolInfo>& spools) {
-            spdlog::info("[{}] Received {} spools from Spoolman", get_name(), spools.size());
+        [name, apply_spools](const std::vector<SpoolInfo>& spools) {
+            spdlog::info("[{}] Received {} spools from Spoolman", name, spools.size());
 
             // Also get active spool ID before updating UI
             MoonrakerAPI* api_inner = get_moonraker_api();
             if (!api_inner) {
-                spdlog::warn("[{}] API unavailable for status check", get_name());
-                // Schedule UI update on main thread
-                auto* data = new std::pair<SpoolmanPanel*, std::vector<SpoolInfo>>(this, spools);
-                helix::ui::async_call(
-                    [](void* ud) {
-                        auto* ctx =
-                            static_cast<std::pair<SpoolmanPanel*, std::vector<SpoolInfo>>*>(ud);
-                        ctx->first->cached_spools_ = std::move(ctx->second);
-                        ctx->first->active_spool_id_ = -1;
-                        ctx->first->populate_spool_list();
-                        delete ctx;
-                    },
-                    data);
+                spdlog::warn("[{}] API unavailable for status check", name);
+                apply_spools(spools, -1);
                 return;
             }
 
             api_inner->spoolman().get_spoolman_status(
-                [this, spools](bool /*connected*/, int active_id) {
-                    spdlog::debug("[{}] Active spool ID: {}", get_name(), active_id);
-                    // Schedule UI update on main thread
-                    auto* data = new std::tuple<SpoolmanPanel*, std::vector<SpoolInfo>, int>(
-                        this, spools, active_id);
-                    helix::ui::async_call(
-                        [](void* ud) {
-                            auto* ctx = static_cast<
-                                std::tuple<SpoolmanPanel*, std::vector<SpoolInfo>, int>*>(ud);
-                            auto* self = std::get<0>(*ctx);
-                            self->cached_spools_ = std::move(std::get<1>(*ctx));
-                            self->active_spool_id_ = std::get<2>(*ctx);
-                            self->populate_spool_list();
-                            delete ctx;
-                        },
-                        data);
+                [name, apply_spools, spools](bool /*connected*/, int active_id) {
+                    spdlog::debug("[{}] Active spool ID: {}", name, active_id);
+                    apply_spools(spools, active_id);
                 },
-                [this, spools](const MoonrakerError& err) {
-                    spdlog::warn("[{}] Failed to get active spool: {}", get_name(), err.message);
-                    auto* data =
-                        new std::pair<SpoolmanPanel*, std::vector<SpoolInfo>>(this, spools);
-                    helix::ui::async_call(
-                        [](void* ud) {
-                            auto* ctx =
-                                static_cast<std::pair<SpoolmanPanel*, std::vector<SpoolInfo>>*>(ud);
-                            ctx->first->cached_spools_ = std::move(ctx->second);
-                            ctx->first->active_spool_id_ = -1;
-                            ctx->first->populate_spool_list();
-                            delete ctx;
-                        },
-                        data);
+                [name, apply_spools, spools](const MoonrakerError& err) {
+                    spdlog::warn("[{}] Failed to get active spool: {}", name, err.message);
+                    apply_spools(spools, -1);
                 });
         },
-        [this](const MoonrakerError& err) {
-            spdlog::error("[{}] Failed to fetch spools: {}", get_name(), err.message);
-            helix::ui::async_call(
-                [](void* ud) {
-                    auto* self = static_cast<SpoolmanPanel*>(ud);
-                    self->cached_spools_.clear();
-                    self->show_empty_state();
-                    ToastManager::instance().show(ToastSeverity::ERROR,
-                                                  lv_tr("Failed to load spools"), 3000);
-                },
-                this);
+        [this, weak_guard, name](const MoonrakerError& err) {
+            spdlog::error("[{}] Failed to fetch spools: {}", name, err.message);
+            helix::ui::queue_update([this, weak_guard]() {
+                if (weak_guard.expired())
+                    return;
+                cached_spools_.clear();
+                show_empty_state();
+                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to load spools"),
+                                              3000);
+            });
         });
 }
 
@@ -429,40 +415,35 @@ void SpoolmanPanel::set_active_spool(int spool_id) {
         return;
     }
 
+    std::weak_ptr<bool> weak_guard = callback_guard_;
+
+    std::string name = get_name();
+
     api->spoolman().set_active_spool(
         spool_id,
-        [this, spool_id]() {
-            spdlog::info("[{}] Set active spool to {}", get_name(), spool_id);
+        [this, spool_id, weak_guard, name]() {
+            spdlog::info("[{}] Set active spool to {}", name, spool_id);
 
-            // Schedule all UI work on main thread (cached_spools_ is not thread-safe)
-            helix::ui::async_call(
-                [](void* ud) {
-                    auto* ctx = static_cast<std::pair<SpoolmanPanel*, int>*>(ud);
-                    auto* self = ctx->first;
-                    int id = ctx->second;
-                    delete ctx;
+            helix::ui::queue_update([this, spool_id, weak_guard]() {
+                if (weak_guard.expired())
+                    return;
 
-                    // Lookup spool name on UI thread where cached_spools_ is safe
-                    const SpoolInfo* found = self->find_cached_spool(id);
-                    std::string spool_name =
-                        found ? found->display_name() : "Spool " + std::to_string(id);
+                const SpoolInfo* found = find_cached_spool(spool_id);
+                std::string spool_name =
+                    found ? found->display_name() : "Spool " + std::to_string(spool_id);
 
-                    self->active_spool_id_ = id;
-                    self->update_active_indicators();
-                    std::string msg = std::string(lv_tr("Active")) + ": " + spool_name;
-                    ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
-                },
-                new std::pair<SpoolmanPanel*, int>(this, spool_id));
+                active_spool_id_ = spool_id;
+                update_active_indicators();
+                std::string msg = std::string(lv_tr("Active")) + ": " + spool_name;
+                ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
+            });
         },
-        [this, spool_id](const MoonrakerError& err) {
-            spdlog::error("[{}] Failed to set active spool {}: {}", get_name(), spool_id,
-                          err.message);
-            helix::ui::async_call(
-                [](void*) {
-                    ToastManager::instance().show(ToastSeverity::ERROR,
-                                                  lv_tr("Failed to set active spool"), 3000);
-                },
-                nullptr);
+        [name, spool_id](const MoonrakerError& err) {
+            spdlog::error("[{}] Failed to set active spool {}: {}", name, spool_id, err.message);
+            helix::ui::queue_update([]() {
+                ToastManager::instance().show(ToastSeverity::ERROR,
+                                              lv_tr("Failed to set active spool"), 3000);
+            });
         });
 }
 
@@ -532,23 +513,18 @@ void SpoolmanPanel::delete_spool(int spool_id) {
                 id,
                 [id]() {
                     spdlog::info("[Spoolman] Spool {} deleted successfully", id);
-                    // Schedule UI work on LVGL thread (API callbacks run on background thread)
-                    helix::ui::async_call(
-                        [](void*) {
-                            ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                                          lv_tr("Spool deleted"), 2000);
-                            get_global_spoolman_panel().refresh_spools();
-                        },
-                        nullptr);
+                    helix::ui::queue_update([id]() {
+                        ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                      lv_tr("Spool deleted"), 2000);
+                        get_global_spoolman_panel().refresh_spools();
+                    });
                 },
                 [id](const MoonrakerError& err) {
                     spdlog::error("[Spoolman] Failed to delete spool {}: {}", id, err.message);
-                    helix::ui::async_call(
-                        [](void*) {
-                            ToastManager::instance().show(ToastSeverity::ERROR,
-                                                          lv_tr("Failed to delete spool"), 3000);
-                        },
-                        nullptr);
+                    helix::ui::queue_update([]() {
+                        ToastManager::instance().show(ToastSeverity::ERROR,
+                                                      lv_tr("Failed to delete spool"), 3000);
+                    });
                 });
         },
         nullptr, // No cancel callback needed

@@ -68,6 +68,11 @@ void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         lv_obj_set_user_data(widget_obj_, this);
     }
 
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "thermistor_clicked_cb", thermistor_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "thermistor_picker_backdrop_cb",
+                             thermistor_picker_backdrop_cb);
+
     // Cache label pointers
     temp_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_temp");
     name_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_name");

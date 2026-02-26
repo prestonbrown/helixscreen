@@ -84,6 +84,7 @@ struct TouchCalibration {
     bool valid = false;
     float a = 1.0f, b = 0.0f, c = 0.0f; // screen_x = a*x + b*y + c
     float d = 0.0f, e = 1.0f, f = 0.0f; // screen_y = d*x + e*y + f
+    bool axes_swapped = false;          // auto-detected axis swap
 };
 
 /**
@@ -139,6 +140,21 @@ bool validate_calibration_result(const TouchCalibration& cal, const Point screen
                                  const Point touch_points[3], int screen_width, int screen_height,
                                  float max_residual = 10.0f);
 
+/**
+ * @brief Check if swapping touch X/Y axes produces a significantly better calibration
+ *
+ * Some touchscreen controllers report X/Y axes swapped relative to the display.
+ * This function detects that by comparing the cross-coupling ratio of the original
+ * calibration vs one computed with swapped touch coordinates.
+ *
+ * @param screen_points 3 screen coordinate targets
+ * @param touch_points 3 raw touch coordinates
+ * @param original_cal Calibration computed from the original (unswapped) points
+ * @return true if swapping axes produces a significantly better (lower cross-coupling) calibration
+ */
+bool calibration_suggests_axis_swap(const Point screen_points[3], const Point touch_points[3],
+                                    const TouchCalibration& original_cal);
+
 /// Maximum reasonable coefficient value for validation
 constexpr float MAX_CALIBRATION_COEFFICIENT = 1000.0f;
 
@@ -160,14 +176,34 @@ inline bool is_usb_input_phys(const std::string& phys) {
 }
 
 /**
+ * @brief Check if any pattern from a null-terminated array matches a device name
+ *
+ * Performs case-insensitive substring matching against the given patterns.
+ *
+ * @param name The device name to check
+ * @param patterns Null-terminated array of lowercase pattern strings
+ * @return true if any pattern matches
+ */
+inline bool matches_any_pattern(const std::string& name, const char* const patterns[]) {
+    std::string lower_name = name;
+    for (auto& c : lower_name) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    for (int i = 0; patterns[i] != nullptr; ++i) {
+        if (lower_name.find(patterns[i]) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * @brief Check if a device name matches known touchscreen patterns
  *
  * Used during touch device auto-detection to prefer known touchscreen
  * controllers. Performs case-insensitive substring matching against a list
  * of known touchscreen name patterns.
- *
- * Non-touch devices like HDMI CEC ("vc4-hdmi"), keyboard, or mouse
- * devices will not match and should return false.
  *
  * @param name The device name from /sys/class/input/eventN/device/name
  * @return true if the name matches a known touchscreen pattern
@@ -184,18 +220,7 @@ inline bool is_known_touchscreen_name(const std::string& name) {
                                      "edt-ft", // EDT FocalTech displays
                                      "tsc",    // Touch screen controller
                                      nullptr};
-
-    std::string lower_name = name;
-    for (auto& c : lower_name) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-
-    for (int i = 0; patterns[i] != nullptr; ++i) {
-        if (lower_name.find(patterns[i]) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
+    return matches_any_pattern(name, patterns);
 }
 
 /**
@@ -214,18 +239,7 @@ inline bool is_resistive_touchscreen_name(const std::string& name) {
                                      "tsc",   // Generic resistive touch screen controller
                                      "ns20",  // NS2009/NS2016 I2C resistive ADC (Nebula Pad)
                                      nullptr};
-
-    std::string lower_name = name;
-    for (auto& c : lower_name) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-
-    for (int i = 0; patterns[i] != nullptr; ++i) {
-        if (lower_name.find(patterns[i]) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
+    return matches_any_pattern(name, patterns);
 }
 
 /**

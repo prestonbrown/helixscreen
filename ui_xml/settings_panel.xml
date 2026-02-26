@@ -155,6 +155,14 @@
                           description="WiFi and Ethernet configuration"
                           description_tag="WiFi and Ethernet configuration" callback="on_network_clicked"/>
     </lv_obj>
+    <!-- Power Devices (hidden when no power devices discovered) -->
+    <lv_obj name="container_power_devices" width="100%" style_pad_all="0" scrollable="false">
+      <bind_flag_if_eq subject="power_device_count" flag="hidden" ref_value="0"/>
+      <setting_action_row name="row_power_devices"
+                          label="Power Devices" label_tag="Power Devices" icon="power_plug"
+                          description="Control power relays and smart outlets"
+                          description_tag="Control power relays and smart outlets" callback="on_power_devices_clicked"/>
+    </lv_obj>
     <!-- Printer Host (clickable - opens change host modal) -->
     <setting_action_row name="row_printer_host"
                         label="Host" label_tag="Host" icon="lan" callback="on_change_host_clicked"/>

@@ -6,17 +6,12 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_overlay_network_settings.h"
 #include "ui_panel_ams.h"
-#include "ui_panel_power.h"
 #include "ui_panel_print_status.h"
-#include "ui_panel_temp_control.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_subject_registry.h"
-#include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
@@ -24,65 +19,35 @@
 #include "app_globals.h"
 #include "config.h"
 #include "display_settings_manager.h"
-#include "ethernet_manager.h"
-#include "favorite_macro_widget.h"
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "injection_point_manager.h"
-#include "led/led_controller.h"
-#include "led/ui_led_control_overlay.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
-#include "panel_widgets/fan_stack_widget.h"
-#include "panel_widgets/network_widget.h"
-#include "panel_widgets/power_widget.h"
-#include "panel_widgets/temp_stack_widget.h"
-#include "panel_widgets/thermistor_widget.h"
-#include "prerendered_images.h"
-#include "printer_detector.h"
 #include "printer_image_manager.h"
 #include "printer_images.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
-#include "theme_manager.h"
-#include "tool_state.h"
-#include "wifi_manager.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <set>
 
 using namespace helix;
-
-// Signal polling interval (5 seconds)
-static constexpr uint32_t SIGNAL_POLL_INTERVAL_MS = 5000;
-
-using helix::ui::temperature::centi_to_degrees;
 
 HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     // Initialize buffer contents with default values
     std::strcpy(status_buffer_, "Welcome to HelixScreen");
-    std::snprintf(temp_buffer_, sizeof(temp_buffer_), "%s°C", helix::format::UNAVAILABLE);
+
     // Subscribe to PrinterState subjects (ObserverGuard handles cleanup)
-    // Note: Connection state dimming is now handled by XML binding to printer_connection_state
     using helix::ui::observe_int_sync;
     using helix::ui::observe_print_state;
     using helix::ui::observe_string;
-
-    extruder_temp_observer_ = observe_int_sync<HomePanel>(
-        printer_state_.get_active_extruder_temp_subject(), this,
-        [](HomePanel* self, int temp) { self->on_extruder_temp_changed(temp); });
-    extruder_target_observer_ = observe_int_sync<HomePanel>(
-        printer_state_.get_active_extruder_target_subject(), this,
-        [](HomePanel* self, int target) { self->on_extruder_target_changed(target); });
 
     // Subscribe to print state for dynamic print card updates
     print_state_observer_ = observe_print_state<HomePanel>(
@@ -119,14 +84,6 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
     image_changed_observer_ = observe_int_sync<HomePanel>(
         helix::PrinterImageManager::instance().get_image_changed_subject(), this,
         [](HomePanel* self, int /*ver*/) { self->refresh_printer_image(); });
-
-    // LED observers are set up lazily via ensure_led_observers() when strips become available.
-    // At construction time, hardware discovery may not have completed yet, so
-    // selected_strips() could be empty. The observers will be created on first
-    // reload_from_config() or handle_light_toggle() when strips are available.
-    //
-    // LED visibility on the home panel is controlled by the printer_has_led subject
-    // (set via set_printer_capabilities after hardware discovery).
 }
 
 HomePanel::~HomePanel() {
@@ -154,18 +111,9 @@ HomePanel::~HomePanel() {
         tip_animating_ = false;
         lv_anim_delete(this, nullptr);
 
-        // Stop light-flash animation (var=light_icon_, not this)
-        if (light_icon_) {
-            lv_anim_delete(light_icon_, nullptr);
-        }
-
         if (snapshot_timer_) {
             lv_timer_delete(snapshot_timer_);
             snapshot_timer_ = nullptr;
-        }
-        if (signal_poll_timer_) {
-            lv_timer_delete(signal_poll_timer_);
-            signal_poll_timer_ = nullptr;
         }
         if (tip_rotation_timer_) {
             lv_timer_delete(tip_rotation_timer_);
@@ -194,7 +142,6 @@ void HomePanel::init_subjects() {
     // Note: LED state (led_state) is managed by PrinterState and already registered
     UI_MANAGED_SUBJECT_STRING(status_subject_, status_buffer_, "Welcome to HelixScreen",
                               "status_text", subjects_);
-    UI_MANAGED_SUBJECT_STRING(temp_subject_, temp_buffer_, "— °C", "temp_text", subjects_);
 
     // Network subjects (home_network_icon_state, network_label) are owned by
     // NetworkWidget and initialized via PanelWidgetManager::init_widget_subjects()
@@ -207,36 +154,14 @@ void HomePanel::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_INT(printer_info_visible_, 0, "printer_info_visible", subjects_);
 
-    // Register event callbacks BEFORE loading XML
-    // Note: These use static trampolines that will look up the global instance
+    // Register panel-level event callbacks BEFORE loading XML.
+    // Widget-specific callbacks are self-registered in each widget's attach().
     register_xml_callbacks({
-        {"light_toggle_cb", light_toggle_cb},
-        {"light_long_press_cb", light_long_press_cb},
-        {"power_toggle_cb", power_toggle_cb},
-        {"power_long_press_cb", power_long_press_cb},
         {"print_card_clicked_cb", print_card_clicked_cb},
         {"tip_text_clicked_cb", tip_text_clicked_cb},
-        {"temp_clicked_cb", temp_clicked_cb},
         {"printer_status_clicked_cb", printer_status_clicked_cb},
-        {"network_clicked_cb", network_clicked_cb},
         {"printer_manager_clicked_cb", printer_manager_clicked_cb},
         {"ams_clicked_cb", ams_clicked_cb},
-        {"on_fan_stack_clicked", helix::FanStackWidget::on_fan_stack_clicked},
-        {"fan_stack_long_press_cb", helix::FanStackWidget::fan_stack_long_press_cb},
-        {"fan_carousel_long_press_cb", helix::FanStackWidget::fan_carousel_long_press_cb},
-        {"temp_stack_nozzle_cb", helix::TempStackWidget::temp_stack_nozzle_cb},
-        {"temp_stack_bed_cb", helix::TempStackWidget::temp_stack_bed_cb},
-        {"temp_stack_chamber_cb", helix::TempStackWidget::temp_stack_chamber_cb},
-        {"temp_stack_long_press_cb", helix::TempStackWidget::temp_stack_long_press_cb},
-        {"temp_carousel_long_press_cb", helix::TempStackWidget::temp_carousel_long_press_cb},
-        {"temp_carousel_page_cb", helix::TempStackWidget::temp_carousel_page_cb},
-        {"thermistor_clicked_cb", helix::ThermistorWidget::thermistor_clicked_cb},
-        {"thermistor_picker_backdrop_cb", helix::ThermistorWidget::thermistor_picker_backdrop_cb},
-        {"favorite_macro_1_clicked_cb", helix::FavoriteMacroWidget::clicked_1_cb},
-        {"favorite_macro_1_long_press_cb", helix::FavoriteMacroWidget::long_press_1_cb},
-        {"favorite_macro_2_clicked_cb", helix::FavoriteMacroWidget::clicked_2_cb},
-        {"favorite_macro_2_long_press_cb", helix::FavoriteMacroWidget::long_press_2_cb},
-        {"fav_macro_picker_backdrop_cb", helix::FavoriteMacroWidget::picker_backdrop_cb},
     });
 
     // Subscribe to AmsState slot_count to show/hide AMS indicator
@@ -292,21 +217,11 @@ void HomePanel::populate_widgets() {
     // Delegate generic widget creation to the manager
     active_widgets_ = helix::PanelWidgetManager::instance().populate_widgets("home", container);
 
-    // HomePanel-specific: cache references for light_icon_, power_icon_, etc.
+    // HomePanel-specific: cache widget references for tip animation, print card, etc.
     cache_widget_references();
 }
 
 void HomePanel::cache_widget_references() {
-    // Find light icon for dynamic brightness/color updates
-    light_icon_ = lv_obj_find_by_name(panel_, "light_icon");
-    if (light_icon_) {
-        spdlog::debug("[{}] Found light_icon for dynamic brightness/color", get_name());
-        update_light_icon();
-    }
-
-    // Find power icon for visual feedback
-    power_icon_ = lv_obj_find_by_name(panel_, "power_icon");
-
     // Cache tip label for fade animation
     tip_label_ = lv_obj_find_by_name(panel_, "status_text_label");
     if (!tip_label_) {
@@ -317,18 +232,6 @@ void HomePanel::cache_widget_references() {
     print_card_thumb_ = lv_obj_find_by_name(panel_, "print_card_thumb");
     print_card_active_thumb_ = lv_obj_find_by_name(panel_, "print_card_active_thumb");
     print_card_label_ = lv_obj_find_by_name(panel_, "print_card_label");
-
-    // Attach heating icon animator
-    lv_obj_t* temp_icon = lv_obj_find_by_name(panel_, "nozzle_icon_glyph");
-    if (temp_icon) {
-        temp_icon_animator_.attach(temp_icon);
-        cached_extruder_temp_ =
-            lv_subject_get_int(printer_state_.get_active_extruder_temp_subject());
-        cached_extruder_target_ =
-            lv_subject_get_int(printer_state_.get_active_extruder_target_subject());
-        temp_icon_animator_.update(cached_extruder_temp_, cached_extruder_target_);
-        spdlog::debug("[{}] Heating icon animator attached", get_name());
-    }
 }
 
 void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
@@ -358,28 +261,6 @@ void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (!tip_rotation_timer_) {
         tip_rotation_timer_ = lv_timer_create(tip_rotation_timer_cb, 60000, this);
         spdlog::debug("[{}] Started tip rotation timer (60s interval)", get_name());
-    }
-
-    // Use global WiFiManager for signal strength queries
-    if (!wifi_manager_) {
-        wifi_manager_ = get_wifi_manager();
-    }
-
-    // Initialize EthernetManager for Ethernet status detection
-    if (!ethernet_manager_) {
-        ethernet_manager_ = std::make_unique<EthernetManager>();
-        spdlog::debug("[{}] EthernetManager initialized for connection detection", get_name());
-    }
-
-    // Detect actual network type (Ethernet vs WiFi vs disconnected)
-    // This sets current_network_ and updates the icon state accordingly
-    detect_network_type();
-
-    // Start signal polling timer if on WiFi
-    if (!signal_poll_timer_ && current_network_ == NetworkType::Wifi) {
-        signal_poll_timer_ = lv_timer_create(signal_poll_timer_cb, SIGNAL_POLL_INTERVAL_MS, this);
-        spdlog::debug("[{}] Started signal polling timer ({}ms)", get_name(),
-                      SIGNAL_POLL_INTERVAL_MS);
     }
 
     // Load printer image from config (if available)
@@ -417,16 +298,6 @@ void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 }
 
 void HomePanel::on_activate() {
-    // Re-detect network type in case it changed while on another panel
-    detect_network_type();
-
-    // Start signal polling timer when panel becomes visible (only for WiFi)
-    if (!signal_poll_timer_ && current_network_ == NetworkType::Wifi) {
-        signal_poll_timer_ = lv_timer_create(signal_poll_timer_cb, SIGNAL_POLL_INTERVAL_MS, this);
-        spdlog::debug("[{}] Started signal polling timer ({}ms interval)", get_name(),
-                      SIGNAL_POLL_INTERVAL_MS);
-    }
-
     // Resume tip rotation timer when panel becomes visible
     if (!tip_rotation_timer_) {
         tip_rotation_timer_ = lv_timer_create(tip_rotation_timer_cb, 60000, this);
@@ -436,16 +307,9 @@ void HomePanel::on_activate() {
     // Re-check printer image (may have changed in settings overlay)
     refresh_printer_image();
 
-    // Refresh power button state from actual device status
-    refresh_power_state();
-
-    // Activate behavioral widgets (network polling, power refresh, etc.)
+    // Activate all behavioral widgets (network polling, power refresh, etc.)
     for (auto& w : active_widgets_) {
-        if (auto* nw = dynamic_cast<helix::NetworkWidget*>(w.get())) {
-            nw->on_activate();
-        } else if (auto* pw = dynamic_cast<helix::PowerWidget*>(w.get())) {
-            pw->refresh_power_state();
-        }
+        w->on_activate();
     }
 
     // Start Spoolman polling for AMS mini status updates
@@ -453,11 +317,9 @@ void HomePanel::on_activate() {
 }
 
 void HomePanel::on_deactivate() {
-    // Deactivate behavioral widgets
+    // Deactivate all behavioral widgets
     for (auto& w : active_widgets_) {
-        if (auto* nw = dynamic_cast<helix::NetworkWidget*>(w.get())) {
-            nw->on_deactivate();
-        }
+        w->on_deactivate();
     }
 
     AmsState::instance().stop_spoolman_polling();
@@ -472,13 +334,6 @@ void HomePanel::on_deactivate() {
     if (tip_animating_) {
         tip_animating_ = false;
         lv_anim_delete(this, nullptr);
-    }
-
-    // Stop signal polling timer when panel is hidden (saves CPU)
-    if (signal_poll_timer_) {
-        lv_timer_delete(signal_poll_timer_);
-        signal_poll_timer_ = nullptr;
-        spdlog::debug("[{}] Stopped signal polling timer", get_name());
     }
 
     // Stop tip rotation timer when panel is hidden (saves CPU)
@@ -600,191 +455,6 @@ void HomePanel::apply_pending_tip() {
     lv_anim_start(&anim);
 }
 
-void HomePanel::detect_network_type() {
-    // Priority: Ethernet > WiFi > Disconnected
-    // This ensures users on wired connections see the Ethernet icon even if WiFi is also available
-
-    // Check Ethernet first (higher priority - more reliable connection)
-    if (ethernet_manager_) {
-        EthernetInfo eth_info = ethernet_manager_->get_info();
-        if (eth_info.connected) {
-            spdlog::debug("[{}] Detected Ethernet connection on {} ({})", get_name(),
-                          eth_info.interface, eth_info.ip_address);
-            set_network(NetworkType::Ethernet);
-            return;
-        }
-    }
-
-    // Check WiFi second
-    if (wifi_manager_ && wifi_manager_->is_connected()) {
-        spdlog::info("[{}] Detected WiFi connection ({})", get_name(),
-                     wifi_manager_->get_connected_ssid());
-        set_network(NetworkType::Wifi);
-        return;
-    }
-
-    // Neither connected
-    spdlog::info("[{}] No network connection detected", get_name());
-    set_network(NetworkType::Disconnected);
-}
-
-void HomePanel::handle_light_toggle() {
-    // Suppress click that follows a long-press gesture
-    if (light_long_pressed_) {
-        light_long_pressed_ = false;
-        spdlog::debug("[{}] Light click suppressed (follows long-press)", get_name());
-        return;
-    }
-
-    spdlog::info("[{}] Light button clicked", get_name());
-
-    auto& led_ctrl = helix::led::LedController::instance();
-    const auto& strips = led_ctrl.selected_strips();
-    if (strips.empty()) {
-        spdlog::warn("[{}] Light toggle called but no LED configured", get_name());
-        return;
-    }
-
-    ensure_led_observers();
-
-    led_ctrl.light_toggle();
-
-    if (led_ctrl.light_state_trackable()) {
-        light_on_ = led_ctrl.light_is_on();
-        update_light_icon();
-    } else {
-        flash_light_icon();
-    }
-}
-
-void HomePanel::handle_light_long_press() {
-    spdlog::info("[{}] Light long-press: opening LED control overlay", get_name());
-
-    // Lazy-create overlay on first access
-    if (!led_control_panel_ && parent_screen_) {
-        auto& overlay = get_led_control_overlay();
-
-        if (!overlay.are_subjects_initialized()) {
-            overlay.init_subjects();
-        }
-        overlay.register_callbacks();
-        overlay.set_api(api_);
-
-        led_control_panel_ = overlay.create(parent_screen_);
-        if (!led_control_panel_) {
-            NOTIFY_ERROR("Failed to load LED control overlay");
-            return;
-        }
-
-        NavigationManager::instance().register_overlay_instance(led_control_panel_, &overlay);
-    }
-
-    if (led_control_panel_) {
-        light_long_pressed_ = true; // Suppress the click that follows long-press
-        get_led_control_overlay().set_api(api_);
-        NavigationManager::instance().push_overlay(led_control_panel_);
-    }
-}
-
-void HomePanel::handle_power_toggle() {
-    // Suppress click that follows a long-press gesture
-    if (power_long_pressed_) {
-        power_long_pressed_ = false;
-        spdlog::debug("[{}] Power click suppressed (follows long-press)", get_name());
-        return;
-    }
-
-    spdlog::info("[{}] Power button clicked", get_name());
-
-    if (!api_) {
-        spdlog::warn("[{}] Power toggle: no API available", get_name());
-        return;
-    }
-
-    // Get selected devices from power panel config
-    auto& power_panel = get_global_power_panel();
-    const auto& selected = power_panel.get_selected_devices();
-    if (selected.empty()) {
-        spdlog::warn("[{}] Power toggle: no devices selected", get_name());
-        return;
-    }
-
-    // Determine action: if currently on → turn off, else turn on
-    const char* action = power_on_ ? "off" : "on";
-    bool new_state = !power_on_;
-
-    for (const auto& device : selected) {
-        api_->set_device_power(
-            device, action,
-            [this, device]() {
-                spdlog::debug("[{}] Power device '{}' set successfully", get_name(), device);
-            },
-            [this, device](const MoonrakerError& err) {
-                spdlog::error("[{}] Failed to set power device '{}': {}", get_name(), device,
-                              err.message);
-                // On error, refresh from actual state
-                refresh_power_state();
-            });
-    }
-
-    // Optimistically update icon state
-    power_on_ = new_state;
-    update_power_icon(power_on_);
-}
-
-void HomePanel::handle_power_long_press() {
-    spdlog::info("[{}] Power long-press: opening power panel overlay", get_name());
-
-    auto& panel = get_global_power_panel();
-    lv_obj_t* overlay = panel.get_or_create_overlay(parent_screen_);
-    if (overlay) {
-        power_long_pressed_ = true; // Suppress the click that follows long-press
-        NavigationManager::instance().push_overlay(overlay);
-    }
-}
-
-void HomePanel::update_power_icon(bool is_on) {
-    if (!power_icon_)
-        return;
-
-    ui_icon_set_variant(power_icon_, is_on ? "danger" : "muted");
-}
-
-void HomePanel::refresh_power_state() {
-    if (!api_)
-        return;
-
-    // Capture selected devices on UI thread before async API call
-    auto& power_panel = get_global_power_panel();
-    const auto& selected = power_panel.get_selected_devices();
-    if (selected.empty())
-        return;
-    std::set<std::string> selected_set(selected.begin(), selected.end());
-
-    // Query power devices to determine if selected ones are on
-    api_->get_power_devices(
-        [this, selected_set](const std::vector<PowerDevice>& devices) {
-            // Check if any selected device is on
-            bool any_on = false;
-            for (const auto& dev : devices) {
-                if (selected_set.count(dev.device) > 0 && dev.status == "on") {
-                    any_on = true;
-                    break;
-                }
-            }
-
-            helix::ui::queue_update([this, any_on]() {
-                power_on_ = any_on;
-                update_power_icon(power_on_);
-                spdlog::debug("[{}] Power state refreshed: {}", get_name(),
-                              power_on_ ? "on" : "off");
-            });
-        },
-        [this](const MoonrakerError& err) {
-            spdlog::warn("[{}] Failed to refresh power state: {}", get_name(), err.message);
-        });
-}
-
 void HomePanel::handle_print_card_clicked() {
     // Check if a print is in progress
     if (!printer_state_.can_start_new_print()) {
@@ -825,69 +495,11 @@ void HomePanel::handle_tip_rotation_timer() {
     update_tip_of_day();
 }
 
-void HomePanel::set_temp_control_panel(TempControlPanel* temp_panel) {
-    temp_control_panel_ = temp_panel;
-    spdlog::trace("[{}] TempControlPanel reference set", get_name());
-}
-
-void HomePanel::handle_temp_clicked() {
-    spdlog::info("[{}] Temperature icon clicked - opening nozzle temp panel", get_name());
-
-    if (!temp_control_panel_) {
-        spdlog::error("[{}] TempControlPanel not initialized", get_name());
-        NOTIFY_ERROR("Temperature panel not available");
-        return;
-    }
-
-    // Create nozzle temp panel on first access (lazy initialization)
-    if (!nozzle_temp_panel_ && parent_screen_) {
-        spdlog::debug("[{}] Creating nozzle temperature panel...", get_name());
-
-        // Create from XML
-        nozzle_temp_panel_ =
-            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "nozzle_temp_panel", nullptr));
-        if (nozzle_temp_panel_) {
-            // Setup via injected TempControlPanel
-            temp_control_panel_->setup_nozzle_panel(nozzle_temp_panel_, parent_screen_);
-            NavigationManager::instance().register_overlay_instance(
-                nozzle_temp_panel_, temp_control_panel_->get_nozzle_lifecycle());
-
-            // Initially hidden
-            lv_obj_add_flag(nozzle_temp_panel_, LV_OBJ_FLAG_HIDDEN);
-            spdlog::info("[{}] Nozzle temp panel created and initialized", get_name());
-        } else {
-            spdlog::error("[{}] Failed to create nozzle temp panel from XML", get_name());
-            NOTIFY_ERROR("Failed to load temperature panel");
-            return;
-        }
-    }
-
-    // Push nozzle temp panel onto navigation history and show it
-    if (nozzle_temp_panel_) {
-        NavigationManager::instance().push_overlay(nozzle_temp_panel_);
-    }
-}
-
 void HomePanel::handle_printer_status_clicked() {
     spdlog::info("[{}] Printer status icon clicked - navigating to advanced settings", get_name());
 
     // Navigate to advanced settings panel
     NavigationManager::instance().set_active(PanelId::Advanced);
-}
-
-void HomePanel::handle_network_clicked() {
-    spdlog::info("[{}] Network icon clicked - opening network settings directly", get_name());
-
-    // Open Network settings overlay directly (same as Settings panel's Network row)
-    auto& overlay = get_network_settings_overlay();
-
-    if (!overlay.is_created()) {
-        overlay.init_subjects();
-        overlay.register_callbacks();
-        overlay.create(parent_screen_);
-    }
-
-    overlay.show();
 }
 
 void HomePanel::handle_printer_manager_clicked() {
@@ -920,151 +532,6 @@ void HomePanel::handle_ams_clicked() {
     }
 }
 
-void HomePanel::ensure_led_observers() {
-    using helix::ui::observe_int_sync;
-
-    if (!led_state_observer_) {
-        led_state_observer_ = observe_int_sync<HomePanel>(
-            printer_state_.get_led_state_subject(), this,
-            [](HomePanel* self, int state) { self->on_led_state_changed(state); });
-    }
-    if (!led_brightness_observer_) {
-        led_brightness_observer_ = observe_int_sync<HomePanel>(
-            printer_state_.get_led_brightness_subject(), this,
-            [](HomePanel* self, int /*brightness*/) { self->update_light_icon(); });
-    }
-}
-
-void HomePanel::on_led_state_changed(int state) {
-    if (!subjects_initialized_)
-        return;
-
-    auto& led_ctrl = helix::led::LedController::instance();
-    if (led_ctrl.light_state_trackable()) {
-        light_on_ = (state != 0);
-        spdlog::debug("[{}] LED state changed: {} (from PrinterState)", get_name(),
-                      light_on_ ? "ON" : "OFF");
-        update_light_icon();
-    } else {
-        spdlog::debug("[{}] LED state changed but not trackable (TOGGLE macro mode)", get_name());
-    }
-}
-
-void HomePanel::update_light_icon() {
-    if (!light_icon_) {
-        return;
-    }
-
-    // Get current brightness
-    int brightness = lv_subject_get_int(printer_state_.get_led_brightness_subject());
-
-    // Set icon based on brightness level
-    const char* icon_name = ui_brightness_to_lightbulb_icon(brightness);
-    ui_icon_set_source(light_icon_, icon_name);
-
-    // Calculate icon color from LED RGBW values
-    if (brightness == 0) {
-        // OFF state - use muted gray from design tokens
-        ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_off"), LV_OPA_COVER);
-    } else {
-        // Get RGB values from PrinterState
-        int r = lv_subject_get_int(printer_state_.get_led_r_subject());
-        int g = lv_subject_get_int(printer_state_.get_led_g_subject());
-        int b = lv_subject_get_int(printer_state_.get_led_b_subject());
-        int w = lv_subject_get_int(printer_state_.get_led_w_subject());
-
-        lv_color_t icon_color;
-        // If white channel dominant or RGB near white, use gold from design tokens
-        if (w > std::max({r, g, b}) || (r > 200 && g > 200 && b > 200)) {
-            icon_color = theme_manager_get_color("light_icon_on");
-        } else {
-            // Use actual LED color, boost if too dark for visibility
-            int max_val = std::max({r, g, b});
-            if (max_val < 128 && max_val > 0) {
-                float scale = 128.0f / static_cast<float>(max_val);
-                icon_color =
-                    lv_color_make(static_cast<uint8_t>(std::min(255, static_cast<int>(r * scale))),
-                                  static_cast<uint8_t>(std::min(255, static_cast<int>(g * scale))),
-                                  static_cast<uint8_t>(std::min(255, static_cast<int>(b * scale))));
-            } else {
-                icon_color = lv_color_make(static_cast<uint8_t>(r), static_cast<uint8_t>(g),
-                                           static_cast<uint8_t>(b));
-            }
-        }
-
-        ui_icon_set_color(light_icon_, icon_color, LV_OPA_COVER);
-    }
-
-    spdlog::trace("[{}] Light icon: {} at {}%", get_name(), icon_name, brightness);
-}
-
-void HomePanel::flash_light_icon() {
-    if (!light_icon_)
-        return;
-
-    // Flash gold briefly then fade back to muted
-    ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_on"), LV_OPA_COVER);
-
-    if (!DisplaySettingsManager::instance().get_animations_enabled()) {
-        // No animations -- the next status update will restore the icon naturally
-        return;
-    }
-
-    // Animate opacity 255 -> 0 then restore to muted on completion
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, light_icon_);
-    lv_anim_set_values(&anim, LV_OPA_COVER, LV_OPA_TRANSP);
-    lv_anim_set_duration(&anim, 300);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-    lv_anim_set_exec_cb(&anim, [](void* obj, int32_t value) {
-        lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value), 0);
-    });
-    lv_anim_set_completed_cb(&anim, [](lv_anim_t* a) {
-        auto* icon = static_cast<lv_obj_t*>(a->var);
-        lv_obj_set_style_opa(icon, LV_OPA_COVER, 0);
-        ui_icon_set_color(icon, theme_manager_get_color("light_icon_off"), LV_OPA_COVER);
-    });
-    lv_anim_start(&anim);
-
-    spdlog::debug("[{}] Flash light icon (TOGGLE macro, state unknown)", get_name());
-}
-
-void HomePanel::on_extruder_temp_changed(int temp_centi) {
-    // Cache the value unconditionally for when subjects/widgets are ready
-    cached_extruder_temp_ = temp_centi;
-
-    if (!subjects_initialized_)
-        return;
-
-    int temp_deg = centi_to_degrees(temp_centi);
-
-    // Format temperature for display and update the string subject
-    helix::ui::temperature::format_temperature(temp_deg, temp_buffer_, sizeof(temp_buffer_));
-    lv_subject_copy_string(&temp_subject_, temp_buffer_);
-
-    // Update animator (expects centidegrees)
-    update_temp_icon_animation();
-
-    spdlog::trace("[{}] Extruder temperature updated: {}°C", get_name(), temp_deg);
-}
-
-void HomePanel::on_extruder_target_changed(int target_centi) {
-    // Cache the value unconditionally for when subjects/widgets are ready
-    cached_extruder_target_ = target_centi;
-
-    if (!subjects_initialized_)
-        return;
-
-    // Animator expects centidegrees
-    update_temp_icon_animation();
-    spdlog::trace("[{}] Extruder target updated: {}°C", get_name(), centi_to_degrees(target_centi));
-}
-
-void HomePanel::update_temp_icon_animation() {
-    temp_icon_animator_.update(cached_extruder_temp_, cached_extruder_target_);
-}
-
 void HomePanel::reload_from_config() {
     using helix::ui::observe_int_sync;
 
@@ -1074,22 +541,9 @@ void HomePanel::reload_from_config() {
         return;
     }
 
-    // Reload LED configuration from LedController (single source of truth)
-    // LED visibility is controlled by printer_has_led subject set via set_printer_capabilities()
-    // which is called by the on_discovery_complete_ callback after hardware discovery
-    {
-        auto& led_ctrl = helix::led::LedController::instance();
-        const auto& strips = led_ctrl.selected_strips();
-        if (!strips.empty()) {
-            // Set up tracked LED and observers (idempotent)
-            printer_state_.set_tracked_led(strips.front());
-            ensure_led_observers();
-            spdlog::info("[{}] Reloaded LED config: {} LED(s)", get_name(), strips.size());
-        } else {
-            // No LED configured - clear tracking
-            printer_state_.set_tracked_led("");
-            spdlog::debug("[{}] LED config cleared", get_name());
-        }
+    // Delegate LED config reload to LedWidget via generic dispatch
+    for (auto& w : active_widgets_) {
+        w->reload_from_config();
     }
 
     // Update printer type in PrinterState (triggers capability cache refresh)
@@ -1234,41 +688,6 @@ void HomePanel::take_printer_image_snapshot() {
                   snap_h, snap_w * snap_h * 4);
 }
 
-void HomePanel::light_toggle_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] light_toggle_cb");
-    (void)e;
-    // XML-registered callbacks don't have user_data set to 'this'
-    // Use the global instance via legacy API bridge
-    // This will be fixed when main.cpp switches to class-based instantiation
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_light_toggle();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void HomePanel::light_long_press_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] light_long_press_cb");
-    (void)e;
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_light_long_press();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void HomePanel::power_toggle_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] power_toggle_cb");
-    (void)e;
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_power_toggle();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void HomePanel::power_long_press_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] power_long_press_cb");
-    (void)e;
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_power_long_press();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void HomePanel::print_card_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] print_card_clicked_cb");
     (void)e;
@@ -1285,27 +704,11 @@ void HomePanel::tip_text_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void HomePanel::temp_clicked_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] temp_clicked_cb");
-    (void)e;
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_temp_clicked();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 void HomePanel::printer_status_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] printer_status_clicked_cb");
     (void)e;
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_printer_status_clicked();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void HomePanel::network_clicked_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] network_clicked_cb");
-    (void)e;
-    extern HomePanel& get_global_home_panel();
-    get_global_home_panel().handle_network_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -1330,117 +733,6 @@ void HomePanel::tip_rotation_timer_cb(lv_timer_t* timer) {
     if (self) {
         self->handle_tip_rotation_timer();
     }
-}
-
-void HomePanel::update(const char* status_text, int temp) {
-    // Update subjects - all bound widgets update automatically
-    if (status_text) {
-        lv_subject_copy_string(&status_subject_, status_text);
-        spdlog::debug("[{}] Updated status_text subject to: {}", get_name(), status_text);
-    }
-
-    char buf[32];
-    helix::ui::temperature::format_temperature(temp, buf, sizeof(buf));
-    lv_subject_copy_string(&temp_subject_, buf);
-    spdlog::debug("[{}] Updated temp_text subject to: {}", get_name(), buf);
-}
-
-void HomePanel::set_network(NetworkType type) {
-    current_network_ = type;
-
-    // Look up network subjects owned by NetworkWidget
-    lv_subject_t* label_subject = lv_xml_get_subject(nullptr, "network_label");
-    if (label_subject) {
-        switch (type) {
-        case NetworkType::Wifi:
-            lv_subject_copy_string(label_subject, "WiFi");
-            break;
-        case NetworkType::Ethernet:
-            lv_subject_copy_string(label_subject, "Ethernet");
-            break;
-        case NetworkType::Disconnected:
-            lv_subject_copy_string(label_subject, "Disconnected");
-            break;
-        }
-    }
-
-    // Update the icon state (will query WiFi signal strength if connected)
-    update_network_icon_state();
-
-    spdlog::debug("[{}] Network type set to {} (icon state will be computed)", get_name(),
-                  static_cast<int>(type));
-}
-
-int HomePanel::compute_network_icon_state() {
-    // State values:
-    // 0 = Disconnected (wifi_off, disabled variant)
-    // 1 = WiFi strength 1 (≤25%, warning variant)
-    // 2 = WiFi strength 2 (26-50%, accent variant)
-    // 3 = WiFi strength 3 (51-75%, accent variant)
-    // 4 = WiFi strength 4 (>75%, accent variant)
-    // 5 = Ethernet connected (accent variant)
-
-    if (current_network_ == NetworkType::Disconnected) {
-        spdlog::trace("[{}] Network disconnected -> state 0", get_name());
-        return 0;
-    }
-
-    if (current_network_ == NetworkType::Ethernet) {
-        spdlog::trace("[{}] Network ethernet -> state 5", get_name());
-        return 5;
-    }
-
-    // WiFi - get signal strength from WiFiManager
-    int signal = 0;
-    if (wifi_manager_) {
-        signal = wifi_manager_->get_signal_strength();
-        spdlog::trace("[{}] WiFi signal strength: {}%", get_name(), signal);
-    } else {
-        spdlog::warn("[{}] WiFiManager not available for signal query", get_name());
-    }
-
-    // Map signal percentage to icon state (1-4)
-    int state;
-    if (signal <= 25)
-        state = 1; // Weak (warning)
-    else if (signal <= 50)
-        state = 2; // Fair
-    else if (signal <= 75)
-        state = 3; // Good
-    else
-        state = 4; // Strong
-
-    spdlog::trace("[{}] WiFi signal {}% -> state {}", get_name(), signal, state);
-    return state;
-}
-
-void HomePanel::update_network_icon_state() {
-    lv_subject_t* icon_state = lv_xml_get_subject(nullptr, "home_network_icon_state");
-    if (!icon_state) {
-        return;
-    }
-
-    int new_state = compute_network_icon_state();
-    int old_state = lv_subject_get_int(icon_state);
-
-    if (new_state != old_state) {
-        lv_subject_set_int(icon_state, new_state);
-        spdlog::debug("[{}] Network icon state: {} -> {}", get_name(), old_state, new_state);
-    }
-}
-
-void HomePanel::signal_poll_timer_cb(lv_timer_t* timer) {
-    auto* self = static_cast<HomePanel*>(lv_timer_get_user_data(timer));
-    if (self && self->current_network_ == NetworkType::Wifi) {
-        self->update_network_icon_state();
-    }
-}
-
-void HomePanel::set_light(bool is_on) {
-    // Note: The actual LED state is managed by PrinterState via Moonraker notifications.
-    // This method is only used for local state updates when API is unavailable.
-    light_on_ = is_on;
-    spdlog::debug("[{}] Local light state: {}", get_name(), is_on ? "ON" : "OFF");
 }
 
 void HomePanel::update_ams_indicator(int /* slot_count */) {

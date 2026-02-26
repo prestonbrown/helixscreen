@@ -22,6 +22,8 @@ class PowerWidget : public PanelWidget {
         return "power";
     }
 
+    void on_activate() override;
+
     /// Refresh power button state from actual device status (called on panel activate)
     void refresh_power_state();
 

@@ -15,6 +15,7 @@
 #include "ui_overlay_network_settings.h"
 #include "ui_panel_history_dashboard.h"
 #include "ui_panel_memory_stats.h"
+#include "ui_panel_power.h"
 #include "ui_settings_display.h"
 #include "ui_settings_hardware_health.h"
 #include "ui_settings_led.h"
@@ -485,6 +486,7 @@ void SettingsPanel::init_subjects() {
         {"on_macro_buttons_clicked", on_macro_buttons_clicked},
         {"on_machine_limits_clicked", on_machine_limits_clicked},
         {"on_network_clicked", on_network_clicked},
+        {"on_power_devices_clicked", on_power_devices_clicked},
         {"on_factory_reset_clicked", on_factory_reset_clicked},
         {"on_hardware_health_clicked", on_hardware_health_clicked},
         {"on_plugins_clicked", on_plugins_clicked},
@@ -1052,6 +1054,18 @@ void SettingsPanel::handle_network_clicked() {
     overlay.show();
 }
 
+void SettingsPanel::handle_power_devices_clicked() {
+    spdlog::debug("[{}] Power Devices clicked", get_name());
+
+    auto& panel = get_global_power_panel();
+    lv_obj_t* overlay = panel.get_or_create_overlay(parent_screen_);
+    if (overlay) {
+        NavigationManager::instance().push_overlay(overlay);
+    } else {
+        spdlog::error("[{}] Failed to open Power panel", get_name());
+    }
+}
+
 void SettingsPanel::handle_touch_calibration_clicked() {
     DisplayManager* dm = DisplayManager::instance();
     if (dm && !dm->needs_touch_calibration()) {
@@ -1368,6 +1382,12 @@ void SettingsPanel::on_network_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void SettingsPanel::on_power_devices_clicked(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_power_devices_clicked");
+    get_global_settings_panel().handle_power_devices_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void SettingsPanel::on_touch_calibration_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_touch_calibration_clicked");
     get_global_settings_panel().handle_touch_calibration_clicked();
@@ -1482,6 +1502,7 @@ void register_settings_panel_callbacks() {
         {"on_macro_buttons_clicked", SettingsPanel::on_macro_buttons_clicked},
         {"on_machine_limits_clicked", SettingsPanel::on_machine_limits_clicked},
         {"on_network_clicked", SettingsPanel::on_network_clicked},
+        {"on_power_devices_clicked", SettingsPanel::on_power_devices_clicked},
         {"on_touch_calibration_clicked", SettingsPanel::on_touch_calibration_clicked},
         {"on_factory_reset_clicked", SettingsPanel::on_factory_reset_clicked},
         {"on_hardware_health_clicked", SettingsPanel::on_hardware_health_clicked},

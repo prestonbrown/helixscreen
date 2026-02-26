@@ -396,6 +396,7 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
         config->set<double>("/input/calibration/d", static_cast<double>(cal->d));
         config->set<double>("/input/calibration/e", static_cast<double>(cal->e));
         config->set<double>("/input/calibration/f", static_cast<double>(cal->f));
+        config->set<bool>("/input/calibration/swap_axes", panel_->axes_swapped());
         config->save();
         spdlog::info("[{}] Calibration saved to config", get_name());
     }

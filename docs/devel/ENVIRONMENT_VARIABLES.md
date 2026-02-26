@@ -7,14 +7,14 @@ This document provides a comprehensive reference for all environment variables u
 | Category | Count | Prefix |
 |----------|-------|--------|
 | [Display & Backend](#display--backend-configuration) | 10 | `HELIX_` |
-| [Touch Calibration](#touch-calibration) | 5 | `HELIX_TOUCH_*` |
+| [Touch Calibration](#touch-calibration) | 6 | `HELIX_TOUCH_*` |
 | [G-Code Viewer](#g-code-viewer) | 3 | `HELIX_` |
 | [Bed Mesh](#bed-mesh) | 1 | `HELIX_` |
 | [Mock & Testing](#mock--testing) | 14 | `HELIX_MOCK_*` |
 | [UI Automation](#ui-automation) | 3 | `HELIX_AUTO_*` |
 | [Calibration](#calibration-auto-start) | 2 | `*_AUTO_START` |
 | [Development](#development) | 1 | `HELIX_` |
-| [Debugging](#debugging) | 1 | `HELIX_DEBUG_*` |
+| [Debugging](#debugging) | 2 | `HELIX_DEBUG_*` |
 | [Deployment](#deployment) | 1 | `HELIX_` |
 | [Logging & Startup](#logging--startup) | 2 | `HELIX_` |
 | [Data Paths](#data-paths) | 3 | `HELIX_` / Standard Unix |
@@ -264,13 +264,13 @@ Simple axis range mapping via LVGL's built-in calibration. Use for devices with 
 | `HELIX_TOUCH_MAX_X` | Maximum raw X value (maps to screen right) | Auto-detect |
 | `HELIX_TOUCH_MIN_Y` | Minimum raw Y value (maps to screen top) | Auto-detect |
 | `HELIX_TOUCH_MAX_Y` | Maximum raw Y value (maps to screen bottom) | Auto-detect |
-| `HELIX_TOUCH_SWAP_AXES` | Swap X/Y axes (set to "1" to enable) | Disabled |
+| `HELIX_TOUCH_SWAP_AXES` | Swap X/Y axes (set to "1" to enable). Overrides auto-detection. | Disabled (auto-detected) |
 
 **Usage Notes:**
 - All four min/max variables must be set together for calibration to apply
 - To invert an axis, swap the min/max values (e.g., `MIN_Y=3200 MAX_Y=900` inverts Y)
 - These values override the kernel-reported axis ranges from `EVIOCGABS`
-- `HELIX_TOUCH_SWAP_AXES` is now primarily a manual override — touch auto-rotation handles most rotation scenarios automatically (see `HELIX_DISPLAY_ROTATION` above)
+- `HELIX_TOUCH_SWAP_AXES` is now primarily a manual override — the calibration wizard auto-detects swapped axes and saves the flag to config (`/input/calibration/swap_axes`). The env var takes priority over auto-detection if both are set
 
 **Example:**
 ```bash
@@ -295,6 +295,27 @@ screen_y = d * touch_x + e * touch_y + f
 The calibration wizard is automatically presented during first-run setup on framebuffer devices. It can also be triggered manually from Settings.
 
 **Note:** There are no environment variable overrides for affine calibration. Edit the config file directly or use the calibration wizard.
+
+### Touch Jitter Filter
+
+Suppresses small coordinate jitter from noisy touch controllers (e.g., Goodix GT9xx) that would otherwise cause stationary taps to be misinterpreted as scroll/swipe gestures.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HELIX_TOUCH_JITTER` | Dead-zone threshold in pixels. Coordinate changes within this distance are suppressed. | `15` |
+
+**How it works:** When a finger is pressed, the filter records the initial position. Subsequent coordinate reports within the dead zone are snapped back to the last stable position. Once movement exceeds the threshold, the new position becomes the anchor. On release, the last stable position is reported.
+
+**Config file equivalent:** `/input/jitter_threshold` (integer, default `15`, set to `0` to disable)
+
+**Example:**
+```bash
+# Increase threshold for a very noisy touchscreen
+HELIX_TOUCH_JITTER=25 ./build/bin/helix-screen
+
+# Disable the jitter filter entirely
+HELIX_TOUCH_JITTER=0 ./build/bin/helix-screen
+```
 
 ---
 
@@ -772,6 +793,34 @@ HELIX_DEBUG_SUBJECTS=1 ./build/bin/helix-screen -vv
 - Debugging XML binding issues (e.g., `bind_text` on an INT subject)
 - Finding subject initialization order problems
 - Tracing observer callbacks that fire before subjects are ready
+
+### `HELIX_DEBUG_TOUCHES`
+
+Enable touch point visualization. When enabled, a ripple effect is drawn at each touch point, showing exactly where the system registers touches. Useful for diagnosing touch accuracy issues, verifying calibration, and identifying UI elements that absorb click events.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` (enable), unset (disable) |
+| **Default** | Disabled |
+| **CLI equivalent** | `--debug-touches` |
+| **File** | `src/system/runtime_config.cpp` |
+
+```bash
+# Enable via environment variable
+HELIX_DEBUG_TOUCHES=1 ./build/bin/helix-screen -vv
+
+# Or via command-line flag (equivalent)
+./build/bin/helix-screen --debug-touches -vv
+
+# Combine with test mode for desktop debugging
+./build/bin/helix-screen --test --debug-touches -vv
+```
+
+**Use cases:**
+- Verifying touch calibration accuracy
+- Diagnosing buttons or UI elements that don't respond to taps
+- Identifying overlapping UI elements that absorb click events
+- Confirming extended click areas are working correctly
 
 ---
 

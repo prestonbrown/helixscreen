@@ -218,6 +218,7 @@ translations:
   Connection successful!: Connexion réussie !
   Console: Console
   Control optional print start features: Contrôler les fonctionnalités optionnelles de démarrage d'impression
+  Control power relays and smart outlets: Contrôler les relais et prises connectées
   Control power switches and relays: Contrôler les interrupteurs et relais
   Controlled by hardware sensor: Contrôlé par capteur matériel
   Cool Down: Refroidir
@@ -612,6 +613,7 @@ translations:
   No filaments found: Aucun filament trouvé
   No file loaded: Aucun fichier chargé
   No files available for printing: Aucun fichier disponible pour l'impression
+  No images found on USB drive: Aucune image trouvée sur la clé USB
   No macros available: Aucune macro disponible
   No mesh loaded: Aucun maillage de plateau chargé
   No network. Scan QR code to report on your phone.: Pas de réseau. Scannez le QR code pour signaler depuis votre téléphone.
@@ -685,6 +687,7 @@ translations:
   Pick: Choisir
   Pick Color: Choisir la couleur
   Place PNG or JPEG files in config/custom_images/ to add custom images: Placez des fichiers PNG ou JPEG dans config/custom_images/ pour ajouter des images personnalisées
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Placez des fichiers image (PNG, JPEG, BMP, GIF) dans config/custom_images/. Taille max. : 2048×2048 pixels.'
   Place plugins in the plugins directory to extend HelixScreen: Placez les plugins dans le répertoire plugins pour étendre HelixScreen
   Play a test beep: Jouer un bip de test
   Please enter a theme name: Veuillez entrer un nom de thème

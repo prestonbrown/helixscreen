@@ -143,6 +143,8 @@
     "scroll_limit": 10,
     "_scroll_throw_comment": "Scroll momentum decay rate (1-99). Higher = faster decay. Default LVGL is 10, we use 25 for better touchpad feel.",
     "_scroll_limit_comment": "Pixels of movement before scrolling starts. Lower = more responsive. Default LVGL is 10, we use 10 to match.",
+    "jitter_threshold": 15,
+    "_jitter_threshold_comment": "Touch jitter filter dead zone in pixels (0 to disable). Suppresses coordinate noise from touch controllers like Goodix GT9xx that causes taps to register as swipes.",
     "touch_device": "",
     "_touch_device_comment": "Override touch/pointer input device (e.g., '/dev/input/event1'). Empty string enables auto-detection. Auto-detection finds touch or pointer capable devices."
   },

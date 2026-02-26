@@ -278,7 +278,7 @@ download_release() {
             log_success "Downloaded ${filename} (${size}) from CDN"
             return 0
         fi
-        log_warn "CDN download corrupt, trying GitHub..."
+        log_warn "CDN download incomplete or timed out, trying GitHub..."
         rm -f "$dest"
     else
         log_warn "CDN download failed, trying GitHub..."
