@@ -5,7 +5,7 @@
 # Build: docker build -t helixscreen/toolchain-ad5x -f Dockerfile.ad5x .
 # Usage: docker run --rm -v $(pwd):/src -w /src helixscreen/toolchain-ad5x make PLATFORM_TARGET=ad5x -j$(nproc)
 #
-# Target: Flashforge AD5X (на основе Buildroot)
+# Target: Flashforge AD5X (chroot Buildroot)
 #   - CPU: MIPS32r5 (little-endian)
 #   - Display: 800x480 framebuffer
 #   - RAM: 512

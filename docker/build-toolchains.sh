@@ -57,7 +57,7 @@ usage() {
     echo "After building, use:"
     echo "  make pi-docker      Cross-compile for Raspberry Pi"
     echo "  make ad5m-docker    Cross-compile for Adventurer 5M"
-    echo "  make ad5x-docker    Cross-compile for Adventurer 5MX"
+    echo "  make ad5x-docker    Cross-compile for Adventurer 5X"
     echo "  make cc1-docker     Cross-compile for Centauri Carbon 1"
 }
 
