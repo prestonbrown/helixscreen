@@ -17,6 +17,7 @@ LVGL_PATCHED_FILES := \
 	src/stdlib/clib/lv_string_clib.c \
 	src/stdlib/builtin/lv_string_builtin.c \
 	src/draw/sw/blend/lv_draw_sw_blend.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c \
 	src/draw/sw/lv_draw_sw_letter.c \
 	src/drivers/display/drm/lv_linux_drm.c \
 	src/drivers/display/drm/lv_linux_drm.h \
@@ -168,6 +169,17 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 		fi \
 	else \
 		echo "$(GREEN)✓ LVGL blend NULL guard patch already applied$(RESET)"; \
+	fi
+	$(Q)if git -C $(LVGL_DIR) diff --quiet src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL blend color NULL guard patch...$(RESET)"; \
+		if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_blend_color_null_guard.patch 2>/dev/null; then \
+			git -C $(LVGL_DIR) apply ../../patches/lvgl_blend_color_null_guard.patch && \
+			echo "$(GREEN)✓ Blend color NULL guard patch applied$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠ Cannot apply patch (already applied or conflicts)$(RESET)"; \
+		fi \
+	else \
+		echo "$(GREEN)✓ LVGL blend color NULL guard patch already applied$(RESET)"; \
 	fi
 	$(Q)if git -C $(LVGL_DIR) diff --quiet src/draw/sw/lv_draw_sw_letter.c 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL label draw NULL font guard patch...$(RESET)"; \

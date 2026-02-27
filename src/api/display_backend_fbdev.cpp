@@ -15,6 +15,7 @@
 #include <lvgl.h>
 
 // System includes for device access checks
+#include <algorithm>
 #include <climits>
 #include <cstring>
 #include <dirent.h>
@@ -94,7 +95,6 @@ bool has_touch_capabilities(int event_num, helix::AbsCapabilities* caps_out = nu
     return result.has_single_touch || result.has_multitouch;
 }
 
-// is_known_touchscreen_name() is now in touch_calibration.h (helix::is_known_touchscreen_name)
 using helix::is_known_touchscreen_name;
 
 /**
@@ -164,6 +164,7 @@ helix::TouchCalibration load_touch_calibration() {
     cal.d = static_cast<float>(cfg->get<double>("/input/calibration/d", 0.0));
     cal.e = static_cast<float>(cfg->get<double>("/input/calibration/e", 1.0));
     cal.f = static_cast<float>(cfg->get<double>("/input/calibration/f", 0.0));
+    cal.axes_swapped = cfg->get<bool>("/input/calibration/swap_axes", false);
 
     if (!helix::is_calibration_valid(cal)) {
         spdlog::warn("[Fbdev Backend] Stored calibration failed validation");
@@ -202,6 +203,11 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
         data->point.x = transformed.x;
         data->point.y = transformed.y;
     }
+
+    // Jitter filter: suppress small coordinate changes while finger is pressed.
+    // Prevents noisy touch controllers (e.g., Goodix GT9xx) from generating
+    // enough movement to trigger LVGL's scroll detection on stationary taps.
+    ctx->jitter.apply(data->state, data->point.x, data->point.y);
 }
 
 } // anonymous namespace
@@ -461,8 +467,27 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
                      "a={:.4f} b={:.4f} c={:.4f} d={:.4f} e={:.4f} f={:.4f}",
                      calibration_.a, calibration_.b, calibration_.c, calibration_.d, calibration_.e,
                      calibration_.f);
+        if (calibration_.axes_swapped && !(swap_axes && strcmp(swap_axes, "1") == 0)) {
+            spdlog::info("[Fbdev Backend] Applying auto-detected axis swap from calibration");
+            lv_evdev_set_swap_axes(touch_, true);
+        }
     } else {
         spdlog::info("[Fbdev Backend] No stored affine calibration found");
+    }
+
+    // Load jitter filter threshold from config (pixels, default 15 for noisy
+    // touch controllers like Goodix GT9xx). Set to 0 to disable.
+    int jitter_threshold = 15;
+    if (auto* cfg = helix::Config::get_instance()) {
+        jitter_threshold = cfg->get<int>("/input/jitter_threshold", 15);
+    }
+    const char* env_jitter = std::getenv("HELIX_TOUCH_JITTER");
+    if (env_jitter) {
+        jitter_threshold = std::atoi(env_jitter);
+    }
+    jitter_threshold = std::clamp(jitter_threshold, 0, 200);
+    if (jitter_threshold > 0) {
+        spdlog::info("[Fbdev Backend] Touch jitter filter: {}px dead zone", jitter_threshold);
     }
 
     // Always install the calibrated read callback — it handles both rotation
@@ -472,6 +497,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     calibration_context_.original_read_cb = lv_indev_get_read_cb(touch_);
     calibration_context_.screen_width = screen_width_;
     calibration_context_.screen_height = screen_height_;
+    calibration_context_.jitter.threshold_sq = jitter_threshold * jitter_threshold;
 
     lv_indev_set_user_data(touch_, &calibration_context_);
     lv_indev_set_read_cb(touch_, calibrated_read_cb);
@@ -829,6 +855,20 @@ bool DisplayBackendFbdev::set_calibration(const helix::TouchCalibration& cal) {
             spdlog::info("[Fbdev Backend] Calibration callback installed at runtime: "
                          "a={:.4f} b={:.4f} c={:.4f} d={:.4f} e={:.4f} f={:.4f}",
                          cal.a, cal.b, cal.c, cal.d, cal.e, cal.f);
+        }
+    }
+
+    // Apply or clear axis swap based on new calibration
+    if (touch_) {
+        bool should_swap = cal.axes_swapped;
+        // Env var always wins over auto-detection
+        const char* env_swap = std::getenv("HELIX_TOUCH_SWAP_AXES");
+        if (env_swap && strcmp(env_swap, "1") == 0) {
+            should_swap = true;
+        }
+        lv_evdev_set_swap_axes(touch_, should_swap);
+        if (should_swap) {
+            spdlog::info("[Fbdev Backend] Axis swap active at runtime");
         }
     }
 

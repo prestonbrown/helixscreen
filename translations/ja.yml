@@ -218,6 +218,7 @@ translations:
   Connection successful!: 接続成功！
   Console: コンソール
   Control optional print start features: オプションの印刷開始機能を制御
+  Control power relays and smart outlets: 電源リレーとスマートコンセントを制御
   Control power switches and relays: 電源スイッチとリレーを制御
   Controlled by hardware sensor: ハードウェアセンサーで制御
   Cool Down: 冷却
@@ -612,6 +613,7 @@ translations:
   No filaments found: フィラメントが見つかりません
   No file loaded: ファイルが読み込まれていません
   No files available for printing: 印刷可能なファイルがありません
+  No images found on USB drive: USBドライブに画像が見つかりません
   No macros available: 利用可能なマクロがありません
   No mesh loaded: メッシュが読み込まれていません
   No network. Scan QR code to report on your phone.: ネットワークなし。QR コードをスキャンしてスマホから報告してください。
@@ -685,6 +687,7 @@ translations:
   Pick: 選択
   Pick Color: 色を選択
   Place PNG or JPEG files in config/custom_images/ to add custom images: カスタム画像を追加するには config/custom_images/ に PNG または JPEG ファイルを配置してください
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
   Place plugins in the plugins directory to extend HelixScreen: HelixScreen を拡張するには、プラグインディレクトリにプラグインを配置してください
   Play a test beep: テストビープ音を再生
   Please enter a theme name: テーマ名を入力してください

@@ -218,6 +218,7 @@ translations:
   Connection successful!: Соединение успешно!
   Console: Консоль
   Control optional print start features: Управление дополнительными функциями начала печати
+  Control power relays and smart outlets: Управление реле и умными розетками
   Control power switches and relays: Управление выключателями и реле
   Controlled by hardware sensor: Управляется аппаратным датчиком
   Cool Down: Охладить
@@ -612,6 +613,7 @@ translations:
   No filaments found: Филаменты не найдены
   No file loaded: Файл не загружен
   No files available for printing: Нет файлов для печати
+  No images found on USB drive: Изображения на USB-накопителе не найдены
   No macros available: Нет доступных макросов
   No mesh loaded: Сетка не загружена
   No network. Scan QR code to report on your phone.: Нет сети. Отсканируйте QR-код, чтобы отправить отчёт с телефона.
@@ -685,6 +687,7 @@ translations:
   Pick: Выбрать
   Pick Color: Выбрать цвет
   Place PNG or JPEG files in config/custom_images/ to add custom images: Поместите PNG или JPEG файлы в config/custom_images/ для добавления изображений
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Поместите файлы изображений (PNG, JPEG, BMP, GIF) в config/custom_images/. Макс. размер: 2048×2048 пикселей.'
   Place plugins in the plugins directory to extend HelixScreen: Поместите плагины в директорию plugins для расширения HelixScreen
   Play a test beep: Воспроизвести тестовый сигнал
   Please enter a theme name: Введите название темы

@@ -102,6 +102,14 @@ void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     *alive_ = true;
     s_active_instance = this;
 
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "temp_stack_nozzle_cb", temp_stack_nozzle_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_bed_cb", temp_stack_bed_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_chamber_cb", temp_stack_chamber_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_long_press_cb", temp_stack_long_press_cb);
+    lv_xml_register_event_cb(nullptr, "temp_carousel_long_press_cb", temp_carousel_long_press_cb);
+    lv_xml_register_event_cb(nullptr, "temp_carousel_page_cb", temp_carousel_page_cb);
+
     if (is_carousel_mode()) {
         attach_carousel(widget_obj);
     } else {

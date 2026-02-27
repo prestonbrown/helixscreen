@@ -218,6 +218,7 @@ translations:
   Connection successful!: Connection successful!
   Console: Console
   Control optional print start features: Control optional print start features
+  Control power relays and smart outlets: Control power relays and smart outlets
   Control power switches and relays: Control power switches and relays
   Controlled by hardware sensor: Controlled by hardware sensor
   Cool Down: Cool Down
@@ -612,6 +613,7 @@ translations:
   No filaments found: No filaments found
   No file loaded: No file loaded
   No files available for printing: No files available for printing
+  No images found on USB drive: No images found on USB drive
   No macros available: No macros available
   No mesh loaded: No mesh loaded
   No network. Scan QR code to report on your phone.: No network. Scan QR code to report on your phone.
@@ -685,6 +687,7 @@ translations:
   Pick: Pick
   Pick Color: Pick Color
   Place PNG or JPEG files in config/custom_images/ to add custom images: Place PNG or JPEG files in config/custom_images/ to add custom images
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.'
   Place plugins in the plugins directory to extend HelixScreen: Place plugins in the plugins directory to extend HelixScreen
   Play a test beep: Play a test beep
   Please enter a theme name: Please enter a theme name

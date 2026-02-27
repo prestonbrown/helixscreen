@@ -21,6 +21,7 @@
 #include "display_backend_drm.h"
 #endif
 
+#include "ui_effects.h"
 #include "ui_fatal_error.h"
 #include "ui_update_queue.h"
 
@@ -31,6 +32,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
 
@@ -384,6 +386,36 @@ bool DisplayManager::init(const Config& config) {
     m_dim_brightness_percent = std::clamp(cfg->get<int>("/display/dim_brightness", 30), 1, 100);
     spdlog::debug("[DisplayManager] Display dim: {}s timeout, {}% brightness", m_dim_timeout_sec,
                   m_dim_brightness_percent);
+
+    // Debug touch visualization: draw ripple at each touch point
+    if (RuntimeConfig::debug_touches() && m_pointer) {
+        spdlog::info("[DisplayManager] Debug touch visualization enabled");
+        lv_timer_create(
+            [](lv_timer_t* t) {
+                auto* indev = static_cast<lv_indev_t*>(lv_timer_get_user_data(t));
+                if (!indev)
+                    return;
+
+                lv_indev_state_t state = lv_indev_get_state(indev);
+                if (state != LV_INDEV_STATE_PRESSED)
+                    return;
+
+                lv_point_t point;
+                lv_indev_get_point(indev, &point);
+
+                // Throttle: only create ripple when position changes
+                static lv_coord_t last_x = -100, last_y = -100;
+                lv_coord_t dx = point.x - last_x;
+                lv_coord_t dy = point.y - last_y;
+                if (dx * dx + dy * dy < 25) // <5px movement
+                    return;
+
+                last_x = point.x;
+                last_y = point.y;
+                helix::ui::create_ripple(lv_layer_top(), point.x, point.y, 10, 40, 300);
+            },
+            30, m_pointer);
+    }
 
     spdlog::trace("[DisplayManager] Initialized: {}x{}", m_width, m_height);
     m_initialized = true;

@@ -26,9 +26,9 @@ class NetworkWidget : public PanelWidget {
     }
 
     /// Called when panel activates — re-detects network and starts polling
-    void on_activate();
+    void on_activate() override;
     /// Called when panel deactivates — stops polling
-    void on_deactivate();
+    void on_deactivate() override;
 
   private:
     lv_obj_t* widget_obj_ = nullptr;

@@ -236,6 +236,7 @@ class SettingsPanel : public PanelBase {
     void handle_machine_limits_clicked();
     void handle_change_host_clicked();
     void handle_network_clicked();
+    void handle_power_devices_clicked();
     void handle_touch_calibration_clicked();
     void handle_restart_helix_clicked();
     void handle_factory_reset_clicked();
@@ -289,6 +290,7 @@ class SettingsPanel : public PanelBase {
     static void on_machine_limits_clicked(lv_event_t* e);
     static void on_change_host_clicked(lv_event_t* e);
     static void on_network_clicked(lv_event_t* e);
+    static void on_power_devices_clicked(lv_event_t* e);
     static void on_touch_calibration_clicked(lv_event_t* e);
     static void on_factory_reset_clicked(lv_event_t* e);
     static void on_hardware_health_clicked(lv_event_t* e);

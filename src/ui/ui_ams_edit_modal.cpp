@@ -118,13 +118,15 @@ bool AmsEditModal::show_for_slot(lv_obj_t* parent, int slot_index, const SlotInf
     // Reset remaining mode subject before showing (0 = view mode)
     lv_subject_set_int(&remaining_mode_subject_, 0);
 
+    // Set static active instance BEFORE Modal::show() so callbacks during
+    // on_show() (e.g., async fetch triggers) can resolve the instance
+    s_active_instance_ = this;
+
     // Show the modal via Modal
     if (!Modal::show(parent)) {
+        s_active_instance_ = nullptr;
         return false;
     }
-
-    // Set static active instance for callback routing
-    s_active_instance_ = this;
 
     // Determine first view: picker for empty slots with Spoolman, form otherwise
     bool has_spoolman = false;
@@ -1206,7 +1208,14 @@ void AmsEditModal::on_spool_item_cb(lv_event_t* e) {
 
     // Use current_target (the button with the handler), not target (the clicked child)
     lv_obj_t* item = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    if (!item) {
+        return;
+    }
     auto spool_id = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(item)));
+    if (spool_id <= 0) {
+        spdlog::warn("[AmsEditModal] Spool item clicked with invalid spool_id={}", spool_id);
+        return;
+    }
     self->handle_spool_selected(spool_id);
 }
 

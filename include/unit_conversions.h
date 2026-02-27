@@ -20,6 +20,8 @@ namespace helix::units {
  * Example: 25.5°C → 255 centidegrees
  */
 inline int to_centidegrees(double celsius) {
+    if (!std::isfinite(celsius))
+        return 0;
     return static_cast<int>(celsius * 10.0);
 }
 
@@ -62,6 +64,8 @@ inline int json_to_centidegrees(const nlohmann::json& obj, const char* key, int 
  * Example: 0.75 → 75
  */
 inline int to_percent(double ratio) {
+    if (!std::isfinite(ratio))
+        return 0;
     return static_cast<int>(std::round(ratio * 100.0));
 }
 
@@ -104,6 +108,8 @@ inline int json_to_percent(const nlohmann::json& obj, const char* key, int defau
  * Example: 1.25mm → 125 centimillimeters
  */
 inline int to_centimm(double mm) {
+    if (!std::isfinite(mm))
+        return 0;
     return static_cast<int>(mm * 100.0);
 }
 
@@ -155,6 +161,8 @@ inline int speed_factor_to_percent(double factor) {
  * @return Speed in mm/min
  */
 inline int mm_per_sec_to_mm_per_min(double mm_per_sec) {
+    if (!std::isfinite(mm_per_sec))
+        return 0;
     return static_cast<int>(mm_per_sec * 60.0);
 }
 

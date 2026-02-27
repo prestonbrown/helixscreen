@@ -159,7 +159,17 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
 
     overlay_cleanup();
 
-    overlay_ = lv_obj_create(lv_screen_active());
+    lv_obj_t* screen = lv_screen_active();
+    if (!screen) {
+        spdlog::warn("[KeyboardManager] show_overlay: no active screen");
+        return;
+    }
+
+    overlay_ = lv_obj_create(screen);
+    if (!overlay_) {
+        spdlog::error("[KeyboardManager] show_overlay: failed to create overlay");
+        return;
+    }
 
     size_t alt_count = strlen(alternatives);
     const int32_t char_width = 50;
@@ -214,7 +224,6 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     int32_t overlay_x = key_center_x - (overlay_width / 2);
     int32_t overlay_y = key_area->y1 - overlay_height - 10;
 
-    lv_obj_t* screen = lv_screen_active();
     int32_t screen_width = lv_obj_get_width(screen);
 
     if (overlay_x < 0) {
@@ -320,7 +329,12 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t* keyboard = lv_event_get_target_obj(e);
 
-    spdlog::info("[KeyboardManager] EVENT RECEIVED: code={}", (int)code);
+    if (keyboard == nullptr) {
+        spdlog::warn("[KeyboardManager] longpress_event_handler: keyboard target is NULL");
+        return;
+    }
+
+    spdlog::debug("[KeyboardManager] EVENT RECEIVED: code={}", (int)code);
 
     if (code == LV_EVENT_PRESSED) {
         uint32_t btn_id = lv_buttonmatrix_get_selected_button(keyboard);
@@ -470,6 +484,11 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t* keyboard = lv_event_get_target_obj(e);
 
+    if (keyboard == nullptr) {
+        spdlog::warn("[KeyboardManager] keyboard_event_cb: keyboard target is NULL");
+        return;
+    }
+
     if (code == LV_EVENT_READY) {
         spdlog::debug("[KeyboardManager] Enter pressed");
     } else if (code == LV_EVENT_CANCEL) {
@@ -603,6 +622,9 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
     auto& mgr = KeyboardManager::instance();
     lv_obj_t* keyboard = lv_event_get_target_obj(e);
     lv_layer_t* layer = lv_event_get_layer(e);
+
+    if (keyboard == nullptr)
+        return;
 
     const char* const* map = lv_buttonmatrix_get_map(keyboard);
     if (!map)

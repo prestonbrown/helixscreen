@@ -466,16 +466,50 @@ sudo usermod -aG input $USER
 
 ---
 
+### Taps Register as Swipes
+
+**Symptoms:**
+- Tapping buttons doesn't work — the screen scrolls instead
+- Most or all taps are interpreted as swipe/scroll gestures
+- Buttons only work when tapped very quickly and precisely
+
+**Cause:** Noisy touch controller (common with Goodix GT9xx and similar capacitive controllers) reports jittery coordinates even when the finger is stationary. The small coordinate changes exceed LVGL's scroll detection threshold.
+
+**Solution:** HelixScreen includes a jitter filter (enabled by default, 15px dead zone) that suppresses this noise. If taps still register as swipes, increase the threshold:
+
+```json
+// /opt/helixscreen/config/helixconfig.json
+{
+  "input": {
+    "jitter_threshold": 25
+  }
+}
+```
+
+Or test temporarily with an environment variable:
+```bash
+HELIX_TOUCH_JITTER=25 helix-screen
+```
+
+Set to `0` to disable the filter if it interferes with intentional touch gestures.
+
+---
+
 ### Touch Input is Inaccurate
 
 If taps are landing in the wrong place on screen:
 
-1. **Recalibrate:** Go to **Settings > System > Touch Calibration**
-2. **If the option isn't visible:** Your screen may not normally need calibration. SSH in and run:
+1. **Visualize touch points:** To see exactly where the system registers your taps, enable debug touch visualization:
+   ```bash
+   helix-screen --debug-touches
+   ```
+   This draws a ripple effect at each touch point, making it easy to see if touches are offset.
+2. **Recalibrate:** Go to **Settings > System > Touch Calibration**
+3. **If the option isn't visible:** Your screen may not normally need calibration. SSH in and run:
    ```bash
    helix-screen --calibrate-touch
    ```
-3. **If the screen is too broken to navigate:** SSH in and either:
+4. **If the screen is too broken to navigate:** SSH in and either:
    - Run `helix-screen --calibrate-touch`, or
    - Edit your config file: set `"force_calibration": true` in the `input` section and restart HelixScreen
 
@@ -519,9 +553,48 @@ Restart HelixScreen after changing. Touch coordinates rotate automatically to ma
 
 > **Note:** Touch Calibration option only appears on actual touchscreen hardware, not in desktop/SDL mode.
 
-**3. If calibration doesn't help:**
+**3. Visualize touch points to diagnose:**
+
+Enable `--debug-touches` to see exactly where touches register, then compare with where you're tapping:
+```bash
+helix-screen --debug-touches
+```
+Or set `HELIX_DEBUG_TOUCHES=1` in your environment for persistent debugging.
+
+**4. If calibration doesn't help:**
 
 Try different `rotate` values (0, 90, 180, 270) until touch aligns with visuals. Or remove the rotation config entirely and restart to re-trigger automatic detection (see "Display upside down or rotated" above).
+
+### Calibration doesn't help — touches still wildly off
+
+**Symptoms:**
+- Calibration wizard completes but touches still land far from where you tap
+- Accuracy varies wildly across different screen regions
+- Recalibrating multiple times doesn't improve things
+
+**Cause:**
+Some touchscreen controllers report X/Y axes that don't match the display orientation. The calibration math tries to compensate but produces a numerically unstable matrix — it technically "works" at the calibration points but falls apart everywhere else.
+
+This is common on devices where the touch controller is mounted at a different orientation than the display panel (e.g., some Sonic Pad configurations).
+
+**Solutions:**
+
+**1. Update to the latest version (recommended):**
+
+HelixScreen v0.9+ automatically detects swapped touch axes during calibration and corrects them. Update and recalibrate:
+```bash
+# Update HelixScreen, then recalibrate:
+# Settings > System > Recalibrate Touch
+```
+
+**2. Manual workaround (older versions):**
+
+Set the axis swap environment variable, then recalibrate:
+```bash
+# Add to your helixscreen.env:
+HELIX_TOUCH_SWAP_AXES=1
+```
+Then restart HelixScreen and run the calibration wizard again. The swap is applied before calibration, so the resulting matrix will be clean and stable.
 
 ---
 

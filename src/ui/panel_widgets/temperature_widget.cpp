@@ -46,6 +46,9 @@ void TemperatureWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Store this pointer for event callback recovery
     lv_obj_set_user_data(widget_obj_, this);
 
+    // Register XML event callback
+    lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
+
     // Set up temperature observers with alive guard
     using helix::ui::observe_int_sync;
     std::weak_ptr<bool> weak_alive = alive_;

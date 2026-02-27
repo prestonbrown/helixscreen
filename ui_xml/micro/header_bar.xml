@@ -53,7 +53,7 @@
     <!-- Title (flexible width, centered) -->
     <text_heading name="header_title"
                   text="$title" translation_tag="$title_tag" flex_grow="1" align="center" style_text_align="left" style_pad_left="#space_sm"
-                  scrollable="false"/>
+                  clickable="false" scrollable="false"/>
     <!-- Secondary action button (left of primary, hidden by default) -->
     <ui_button name="action_button_2"
                width="content" height="$action_button_height" style_min_width="72"

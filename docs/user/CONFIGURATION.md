@@ -320,7 +320,7 @@ This setting can also be changed via the Printer Manager overlay (tap the printe
 ### `calibration`
 **Type:** object
 **Default:** `{"valid": false}`
-**Description:** Touch calibration coefficients. Set by the calibration wizard or manually. Contains calibration matrix values when valid.
+**Description:** Touch calibration coefficients. Set by the calibration wizard or manually. Contains calibration matrix values (`a` through `f`) when valid. If the wizard auto-detects that the touchscreen's X/Y axes are swapped relative to the display, it also saves `"swap_axes": true` — this is applied automatically on startup.
 
 ---
 
@@ -333,6 +333,7 @@ Located in the `input` section:
   "input": {
     "scroll_throw": 25,
     "scroll_limit": 10,
+    "jitter_threshold": 15,
     "touch_device": "",
     "force_calibration": false
   }
@@ -356,6 +357,12 @@ Located in the `input` section:
 **Default:** `""` (auto-detect)
 **Example:** `"/dev/input/event1"`
 **Description:** Override touch/pointer input device. Leave empty for auto-detection. Auto-detection finds touch or pointer capable devices.
+
+### `jitter_threshold`
+**Type:** integer
+**Default:** `15`
+**Range:** `0` - `200`
+**Description:** Touch jitter filter dead zone in pixels. Suppresses small coordinate jitter from noisy touch controllers (e.g., Goodix GT9xx) that would cause taps to be misread as swipes. Set to `0` to disable. Can also be overridden with the `HELIX_TOUCH_JITTER` environment variable.
 
 ### `force_calibration`
 **Type:** boolean
@@ -1181,6 +1188,13 @@ HelixScreen accepts command-line options for overriding configuration and debugg
 | `--log-dest <dest>` | Log destination: `auto`, `journal`, `syslog`, `file`, `console` |
 | `--log-file <path>` | Log file path (when `--log-dest=file`) |
 
+### Debugging Options
+
+| Option | Description |
+|--------|-------------|
+| `--debug-touches` | Draw ripple effects at each touch point for diagnosing touch accuracy |
+| `--calibrate-touch` | Force touch calibration on startup |
+
 ### Utility Options
 
 | Option | Description |
@@ -1269,7 +1283,8 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
     "bed_mesh_show_zero_plane": true,
     "printer_image": "",
     "calibration": {
-      "valid": false
+      "valid": false,
+      "swap_axes": false
     }
   },
 

@@ -94,6 +94,12 @@ void FanStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     parent_screen_ = parent_screen;
     *alive_ = true;
     lv_obj_set_user_data(widget_obj_, this);
+
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "on_fan_stack_clicked", on_fan_stack_clicked);
+    lv_xml_register_event_cb(nullptr, "fan_stack_long_press_cb", fan_stack_long_press_cb);
+    lv_xml_register_event_cb(nullptr, "fan_carousel_long_press_cb", fan_carousel_long_press_cb);
+
     if (is_carousel_mode()) {
         attach_carousel(widget_obj);
     } else {

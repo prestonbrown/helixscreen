@@ -83,6 +83,8 @@ class TelemetryAnalyzer:
         self.sessions: pd.DataFrame = pd.DataFrame()
         self.prints: pd.DataFrame = pd.DataFrame()
         self.crashes: pd.DataFrame = pd.DataFrame()
+        self.update_failures: pd.DataFrame = pd.DataFrame()
+        self.update_successes: pd.DataFrame = pd.DataFrame()
         self.all_events: pd.DataFrame = pd.DataFrame()
 
     def load_events(
@@ -163,6 +165,26 @@ class TelemetryAnalyzer:
                 ):
                     flat[k] = ev.get(k)
 
+            elif ev.get("event") == "update_failed":
+                for k in (
+                    "reason",
+                    "version",
+                    "from_version",
+                    "platform",
+                    "http_code",
+                    "file_size",
+                    "exit_code",
+                ):
+                    flat[k] = ev.get(k)
+
+            elif ev.get("event") == "update_success":
+                for k in (
+                    "version",
+                    "from_version",
+                    "platform",
+                ):
+                    flat[k] = ev.get(k)
+
             flat_events.append(flat)
 
         df = pd.DataFrame(flat_events)
@@ -186,6 +208,8 @@ class TelemetryAnalyzer:
         self.sessions = df[df["event"] == "session"].copy()
         self.prints = df[df["event"] == "print_outcome"].copy()
         self.crashes = df[df["event"] == "crash"].copy()
+        self.update_failures = df[df["event"] == "update_failed"].copy()
+        self.update_successes = df[df["event"] == "update_success"].copy()
 
     # -- Adoption Metrics --------------------------------------------------
 
@@ -489,6 +513,41 @@ class TelemetryAnalyzer:
 
         return result
 
+    # -- Update Analysis ---------------------------------------------------
+
+    def compute_update_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        n_fail = len(self.update_failures)
+        n_success = len(self.update_successes)
+        n_total = n_fail + n_success
+
+        if n_total == 0:
+            return {"note": "No update data"}
+
+        rate = n_success / n_total * 100 if n_total > 0 else 0
+        result["total_attempts"] = n_total
+        result["successes"] = n_success
+        result["failures"] = n_fail
+        result["success_rate"] = round(rate, 1)
+
+        if n_fail > 0:
+            if "reason" in self.update_failures.columns:
+                result["failure_reasons"] = (
+                    self.update_failures["reason"]
+                    .dropna()
+                    .value_counts()
+                    .to_dict()
+                )
+            if "platform" in self.update_failures.columns:
+                result["failures_by_platform"] = (
+                    self.update_failures["platform"]
+                    .dropna()
+                    .value_counts()
+                    .to_dict()
+                )
+
+        return result
+
     # -- Aggregate ---------------------------------------------------------
 
     def compute_all(self) -> dict:
@@ -498,11 +557,14 @@ class TelemetryAnalyzer:
                 "sessions": len(self.sessions),
                 "prints": len(self.prints),
                 "crashes": len(self.crashes),
+                "update_failures": len(self.update_failures),
+                "update_successes": len(self.update_successes),
                 "total": len(self.all_events),
             },
             "adoption": self.compute_adoption_metrics(),
             "print_reliability": self.compute_print_metrics(),
             "crash_analysis": self.compute_crash_metrics(),
+            "update_analysis": self.compute_update_metrics(),
         }
 
     # -- Output Formatters -------------------------------------------------
@@ -521,7 +583,8 @@ class TelemetryAnalyzer:
             f"\n  Events loaded: {ec.get('total', 0)} "
             f"(sessions={ec.get('sessions', 0)}, "
             f"prints={ec.get('prints', 0)}, "
-            f"crashes={ec.get('crashes', 0)})"
+            f"crashes={ec.get('crashes', 0)}, "
+            f"updates={ec.get('update_successes', 0) + ec.get('update_failures', 0)})"
         )
 
         # Adoption
@@ -700,6 +763,28 @@ class TelemetryAnalyzer:
                 lines,
                 "Uptime before crash",
                 ca.get("uptime_distribution_before_crash"),
+            )
+
+        # Updates
+        ua = metrics.get("update_analysis", {})
+        if not ua.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append(
+                f"  UPDATES: {ua.get('total_attempts', 0)} attempts, "
+                f"{ua.get('successes', 0)} succeeded, "
+                f"{ua.get('failures', 0)} failed "
+                f"({ua.get('success_rate', 0):.0f}% success rate)"
+            )
+            lines.append(sep)
+            self._fmt_distribution(
+                lines,
+                "Failure reasons",
+                ua.get("failure_reasons"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Failures by platform",
+                ua.get("failures_by_platform"),
             )
 
         lines.append(f"\n{sep}")

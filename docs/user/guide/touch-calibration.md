@@ -200,6 +200,18 @@ Forces calibration on the next startup. Automatically cleared after successful c
 
 ---
 
+## Diagnosing Touch Problems
+
+If touch is inaccurate or buttons aren't responding, enable touch point visualization to see exactly where touches are being registered:
+
+```bash
+helix-screen --debug-touches
+```
+
+This draws a ripple effect at each touch point on the screen, making it easy to see if touches are offset, if a button's hit area is too small, or if another UI element is absorbing taps. You can also enable this persistently with the environment variable `HELIX_DEBUG_TOUCHES=1`.
+
+---
+
 ## Advanced: Environment Variables
 
 For power users and developers. These override config file settings and are useful for testing or unusual setups.
@@ -211,10 +223,14 @@ For power users and developers. These override config file settings and are usef
 | `HELIX_TOUCH_MAX_X` | Maximum raw X value (linear calibration) | `3580` |
 | `HELIX_TOUCH_MIN_Y` | Minimum raw Y value (linear calibration) | `3200` |
 | `HELIX_TOUCH_MAX_Y` | Maximum raw Y value (linear calibration) | `900` |
-| `HELIX_TOUCH_SWAP_AXES` | Swap X and Y axes | `1` |
+| `HELIX_TOUCH_SWAP_AXES` | Swap X and Y axes (auto-detected during calibration; use this to force it) | `1` |
 | `HELIX_DISPLAY_ROTATION` | Display rotation (touch auto-adjusts) | `90`, `180`, `270` |
+| `HELIX_DEBUG_TOUCHES` | Draw ripple at each touch point | `1` |
+| `HELIX_TOUCH_JITTER` | Touch jitter filter dead zone (pixels) | `15` |
 
 > **Note:** The MIN/MAX variables provide a simple linear calibration that bypasses the 3-point system. Most users should use the built-in calibration instead.
+>
+> **Jitter filter:** If taps are being misread as swipes, the jitter filter suppresses small coordinate noise from the touch controller. The default of 15 pixels works well for most screens. Increase it for very noisy controllers, or set to `0` to disable.
 
 **Setting environment variables in systemd:**
 

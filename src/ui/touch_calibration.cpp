@@ -184,4 +184,36 @@ bool validate_calibration_result(const TouchCalibration& cal, const Point screen
     return true;
 }
 
+bool calibration_suggests_axis_swap(const Point screen_points[3], const Point touch_points[3],
+                                    const TouchCalibration& original_cal) {
+    if (!original_cal.valid) {
+        return false;
+    }
+
+    constexpr float EPSILON = 0.001f;
+    float orig_cross = std::abs(original_cal.b) + std::abs(original_cal.d);
+    float orig_diag = std::abs(original_cal.a) + std::abs(original_cal.e) + EPSILON;
+    float orig_ratio = orig_cross / orig_diag;
+
+    // Swap X/Y in touch points and recompute
+    Point swapped_touch[3];
+    for (int i = 0; i < 3; i++) {
+        swapped_touch[i] = {touch_points[i].y, touch_points[i].x};
+    }
+
+    TouchCalibration swapped_cal;
+    if (!compute_calibration(screen_points, swapped_touch, swapped_cal)) {
+        return false;
+    }
+
+    float swap_cross = std::abs(swapped_cal.b) + std::abs(swapped_cal.d);
+    float swap_diag = std::abs(swapped_cal.a) + std::abs(swapped_cal.e) + EPSILON;
+    float swap_ratio = swap_cross / swap_diag;
+
+    spdlog::debug("[TouchCalibration] Axis swap check: orig_ratio={:.4f}, swap_ratio={:.4f}",
+                  orig_ratio, swap_ratio);
+
+    return swap_ratio < orig_ratio * 0.5f;
+}
+
 } // namespace helix

@@ -135,6 +135,7 @@ static void print_help(const char* program_name) {
     printf("  --show-memory        Show memory stats overlay (press M to toggle)\n");
     printf("  --release-notes      Fetch latest release notes and show in update modal\n");
     printf("  --debug-subjects     Enable verbose subject debugging with stack traces\n");
+    printf("  --debug-touches      Draw ripple effects at each touch point for debugging\n");
     printf("  --moonraker <url>    Override Moonraker URL (e.g., ws://192.168.1.112:7125)\n");
     printf("  --rotate <degrees>   Display rotation: 0, 90, 180, 270\n");
     printf("  --layout <type>      Override auto-detected layout (auto, standard, ultrawide, "
@@ -670,6 +671,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
             args.overlays.release_notes = true;
         } else if (strcmp(argv[i], "--debug-subjects") == 0) {
             RuntimeConfig::set_debug_subjects(true);
+        } else if (strcmp(argv[i], "--debug-touches") == 0) {
+            RuntimeConfig::set_debug_touches(true);
         }
         // Moonraker URL override
         else if (strcmp(argv[i], "--moonraker") == 0 || strncmp(argv[i], "--moonraker=", 12) == 0) {

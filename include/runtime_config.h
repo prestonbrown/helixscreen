@@ -117,6 +117,22 @@ struct RuntimeConfig {
     static void set_debug_subjects(bool value);
 
     /**
+     * @brief Check if debug touch visualization is enabled
+     *
+     * When enabled, a ripple effect is drawn at each touch point for debugging
+     * touch accuracy and hit areas. Enabled via --debug-touches flag.
+     *
+     * @return true if debug touch visualization is enabled
+     */
+    static bool debug_touches();
+
+    /**
+     * @brief Enable or disable debug touch visualization
+     * @param value true to enable touch point visualization
+     */
+    static void set_debug_touches(bool value);
+
+    /**
      * @brief Check if XML hot reload is enabled
      *
      * When enabled, XML files are polled for changes and re-registered live.

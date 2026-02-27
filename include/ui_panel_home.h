@@ -3,12 +3,10 @@
 
 #pragma once
 
-#include "ui_heating_animator.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_panel_print_status.h" // For RunoutGuidanceModal
 
-#include "led/led_controller.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
 #include "tips_manager.h"
@@ -16,12 +14,6 @@
 #include <memory>
 #include <vector>
 
-// Forward declarations
-namespace helix {
-class WiFiManager;
-}
-class EthernetManager;
-class TempControlPanel;
 namespace helix {
 enum class PrintJobState;
 }
@@ -29,21 +21,15 @@ enum class PrintJobState;
 /**
  * @brief Home panel - Main dashboard showing printer status and quick actions
  *
- * Displays printer image, temperature, network status, light toggle, and
- * tip of the day with auto-rotation. Responsive sizing based on screen dimensions.
+ * Manages grid lifecycle, widget dispatch, tip-of-the-day, print card,
+ * printer image snapshot, and filament runout modal. Widget-specific behavior
+ * (LED, power, network, temperature, fans, etc.) lives in PanelWidget subclasses.
  *
  * @see TipsManager for tip of the day functionality
  */
 
-#include "network_type.h"
-
 class HomePanel : public PanelBase {
   public:
-    /**
-     * @brief Construct HomePanel with injected dependencies
-     * @param printer_state Reference to helix::PrinterState
-     * @param api Pointer to MoonrakerAPI (for light control)
-     */
     HomePanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
     ~HomePanel() override;
 
@@ -59,180 +45,89 @@ class HomePanel : public PanelBase {
         return "home_panel";
     }
 
-    /**
-     * @brief Rebuild the widget list from current PanelWidgetConfig
-     *
-     * Called from PanelWidgetsOverlay when widget toggles change.
-     */
+    /// Rebuild the widget list from current PanelWidgetConfig
     void populate_widgets();
 
-    /**
-     * @brief Update status text and temperature display
-     * @param status_text New status/tip text (nullptr to keep current)
-     * @param temp Temperature in degrees Celsius
-     */
-    void update(const char* status_text, int temp);
-
-    /** @brief Set network status display */
-    void set_network(helix::NetworkType type);
-
-    /** @brief Set light state (on=gold, off=grey) */
-    void set_light(bool is_on);
-
-    bool get_light_state() const {
-        return light_on_;
-    }
-
-    /**
-     * @brief Reload printer image and LED visibility from config
-     *
-     * Called after wizard completion to update the home panel with
-     * newly configured printer type and LED settings.
-     */
+    /// Reload printer image, type/host overlay, and delegate to widgets
     void reload_from_config();
 
     /// Re-check printer image setting and update the home panel image widget
     void refresh_printer_image();
 
-    /**
-     * @brief Trigger a deferred runout check (used after wizard completes)
-     *
-     * Resets the shown flag and re-checks runout condition.
-     * This allows the modal to show after wizard if conditions are met.
-     */
+    /// Trigger a deferred runout check (used after wizard completes)
     void trigger_idle_runout_check();
-
-    /**
-     * @brief Set reference to TempControlPanel for temperature overlay
-     *
-     * Must be called before temp icon click handler can work.
-     * @param temp_panel Pointer to TempControlPanel instance
-     */
-    void set_temp_control_panel(TempControlPanel* temp_panel);
-
-    // Transition: widget callbacks delegate to these HomePanel handlers.
-    // These will move into widget classes once HomePanel code is removed.
-    void handle_light_toggle();
-    void handle_light_long_press();
-    void handle_power_toggle();
-    void handle_power_long_press();
-    void handle_temp_clicked();
-    void handle_network_clicked();
 
   private:
     SubjectManager subjects_;
-    TempControlPanel* temp_control_panel_ = nullptr;
     lv_subject_t status_subject_;
-    lv_subject_t temp_subject_;
-    // Network subjects (home_network_icon_state, network_label) are owned by
-    // NetworkWidget module — looked up by name via lv_xml_get_subject() when needed
     lv_subject_t printer_type_subject_;
     lv_subject_t printer_host_subject_;
     lv_subject_t printer_info_visible_;
 
     char status_buffer_[512];
-    char temp_buffer_[32];
     char printer_type_buffer_[64];
     char printer_host_buffer_[64];
 
-    bool light_on_ = false;
-    bool light_long_pressed_ = false; // Suppress click after long-press
-    bool power_on_ = false;           // Tracks power state for icon
-    bool power_long_pressed_ = false; // Suppress click after long-press for power button
-    helix::NetworkType current_network_ = helix::NetworkType::Wifi;
     helix::PrintingTip current_tip_;
-    helix::PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out
-    // configured_leds_ removed - read LedController::selected_strips() lazily
+    helix::PrintingTip pending_tip_;
     lv_timer_t* tip_rotation_timer_ = nullptr;
-    lv_obj_t* tip_label_ = nullptr; // Cached for fade animation
+    lv_obj_t* tip_label_ = nullptr;
+    bool tip_animating_ = false;
 
-    // Pre-scaled printer image snapshot — eliminates per-frame bilinear scaling
+    // Pre-scaled printer image snapshot
     lv_draw_buf_t* cached_printer_snapshot_ = nullptr;
     lv_timer_t* snapshot_timer_ = nullptr;
-    bool tip_animating_ = false;                        // Prevents overlapping animations
-    lv_timer_t* signal_poll_timer_ = nullptr;           // Polls WiFi signal strength every 5s
-    std::shared_ptr<helix::WiFiManager> wifi_manager_;  // For signal strength queries
-    std::unique_ptr<EthernetManager> ethernet_manager_; // For Ethernet status queries
 
-    // Light icon for dynamic brightness/color updates
-    lv_obj_t* light_icon_ = nullptr;
-    lv_obj_t* power_icon_ = nullptr;
+    // Active PanelWidget instances (factory-created, lifecycle-managed)
+    std::vector<std::unique_ptr<helix::PanelWidget>> active_widgets_;
 
-    // Lazily-created overlay panels (owned by LVGL parent, not us)
-    lv_obj_t* nozzle_temp_panel_ = nullptr;
-    lv_obj_t* led_control_panel_ = nullptr;
+    ObserverGuard ams_slot_count_observer_;
 
+    // Print card observers
+    ObserverGuard print_state_observer_;
+    ObserverGuard print_progress_observer_;
+    ObserverGuard print_time_left_observer_;
+    ObserverGuard print_thumbnail_path_observer_;
+
+    // Filament runout observer and modal
+    ObserverGuard filament_runout_observer_;
+    ObserverGuard image_changed_observer_;
+    RunoutGuidanceModal runout_modal_;
+    bool runout_modal_shown_ = false;
+
+    // Print card widgets (looked up after XML creation)
+    lv_obj_t* print_card_thumb_ = nullptr;
+    lv_obj_t* print_card_active_thumb_ = nullptr;
+    lv_obj_t* print_card_label_ = nullptr;
+
+    // Grid and widget lifecycle
     void setup_widget_gate_observers();
     void cache_widget_references();
+
+    // Tip of the day
     void update_tip_of_day();
     void start_tip_fade_transition(const helix::PrintingTip& new_tip);
-    void apply_pending_tip();               // Called when fade-out completes
-    void schedule_printer_image_snapshot(); // Deferred snapshot after layout
-    void take_printer_image_snapshot();     // Timer callback: capture pre-scaled image
-    void detect_network_type();             // Detects WiFi vs Ethernet vs disconnected
-    int compute_network_icon_state();       // Maps network type + signal → 0-5
-    void update_network_icon_state();       // Updates the subject
-    static void signal_poll_timer_cb(lv_timer_t* timer);
+    void apply_pending_tip();
 
-    void flash_light_icon();
-    void ensure_led_observers();
+    // Printer image snapshot
+    void schedule_printer_image_snapshot();
+    void take_printer_image_snapshot();
+
+    // Panel-level click handlers (not widget-delegated)
     void handle_print_card_clicked();
     void handle_tip_text_clicked();
     void handle_tip_rotation_timer();
     void handle_printer_status_clicked();
     void handle_printer_manager_clicked();
     void handle_ams_clicked();
-    void on_extruder_temp_changed(int temp);
-    void on_extruder_target_changed(int target);
-    void on_led_state_changed(int state);
-    void update_temp_icon_animation();
-    void update_light_icon();
-    void update_power_icon(bool is_on);
-    void refresh_power_state(); // Query API to sync icon with actual device state
 
-    static void light_toggle_cb(lv_event_t* e);
-    static void light_long_press_cb(lv_event_t* e);
-    static void power_toggle_cb(lv_event_t* e);
-    static void power_long_press_cb(lv_event_t* e);
+    // Panel-level static callbacks
     static void print_card_clicked_cb(lv_event_t* e);
     static void tip_text_clicked_cb(lv_event_t* e);
-    static void temp_clicked_cb(lv_event_t* e);
     static void printer_status_clicked_cb(lv_event_t* e);
-    static void network_clicked_cb(lv_event_t* e);
     static void printer_manager_clicked_cb(lv_event_t* e);
     static void ams_clicked_cb(lv_event_t* e);
     static void tip_rotation_timer_cb(lv_timer_t* timer);
-
-    ObserverGuard extruder_temp_observer_;
-    ObserverGuard extruder_target_observer_;
-    ObserverGuard led_state_observer_;
-    ObserverGuard led_brightness_observer_;
-    ObserverGuard ams_slot_count_observer_;
-
-    // Active PanelWidget instances (factory-created, lifecycle-managed)
-    std::vector<std::unique_ptr<helix::PanelWidget>> active_widgets_;
-
-    // Print card observers (for showing progress during active print)
-    ObserverGuard print_state_observer_;
-    ObserverGuard print_progress_observer_;
-    ObserverGuard print_time_left_observer_;
-    ObserverGuard print_thumbnail_path_observer_; // Observes shared thumbnail from PrintStatusPanel
-
-    // Filament runout observer and modal (shows when idle + runout detected)
-    ObserverGuard filament_runout_observer_;
-    ObserverGuard image_changed_observer_;
-    RunoutGuidanceModal runout_modal_;
-    bool runout_modal_shown_ = false; // Prevent repeated modals
-
-    // Print card widgets (looked up after XML creation)
-    lv_obj_t* print_card_thumb_ = nullptr;        // Idle state thumbnail
-    lv_obj_t* print_card_active_thumb_ = nullptr; // Active print thumbnail
-    lv_obj_t* print_card_label_ = nullptr;
-
-    // Heating icon animator (gradient color + pulse while heating)
-    HeatingIconAnimator temp_icon_animator_;
-    int cached_extruder_temp_ = 25;
-    int cached_extruder_target_ = 0;
 
     void update_ams_indicator(int slot_count);
 

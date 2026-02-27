@@ -12,6 +12,7 @@
 #include "spoolman_types.h" // For SpoolInfo
 #include "subject_managed_panel.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -77,6 +78,9 @@ class SpoolmanPanel : public OverlayBase {
 
     // ========== Flags ==========
     bool callbacks_registered_ = false;
+
+    // ========== Async callback guard ==========
+    std::shared_ptr<bool> callback_guard_;
 
     // ========== State ==========
     std::vector<SpoolInfo> cached_spools_;
