@@ -14,6 +14,7 @@
 #include "config.h"
 #include "ethernet_manager.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "wifi_manager.h"
@@ -615,7 +616,7 @@ void WizardWifiStep::handle_modal_connect_clicked() {
     if (!password || strlen(password) == 0) {
         lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
         if (modal_status) {
-            lv_label_set_text(modal_status, "Password cannot be empty");
+            lv_label_set_text(modal_status, lv_tr("Password cannot be empty"));
             lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
         }
         return;

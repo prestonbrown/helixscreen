@@ -470,6 +470,44 @@ TEST_CASE("PrinterDiscovery detects new AFC object types", "[printer_discovery][
         REQUIRE(lanes[1] == "lane2");
     }
 
+    SECTION("Natural sort: lane10 comes after lane9, not before lane2") {
+        json objects = {"AFC",
+                        "AFC_stepper lane0",
+                        "AFC_stepper lane1",
+                        "AFC_stepper lane2",
+                        "AFC_stepper lane3",
+                        "AFC_lane lane4",
+                        "AFC_lane lane5",
+                        "AFC_lane lane6",
+                        "AFC_lane lane7",
+                        "AFC_lane lane8",
+                        "AFC_lane lane9",
+                        "AFC_lane lane10",
+                        "AFC_lane lane11"};
+        hw.parse_objects(objects);
+
+        auto lanes = hw.afc_lane_names();
+        REQUIRE(lanes.size() == 12);
+        // Verify natural ordering: lane0..lane11 (not alphabetical where lane10 < lane2)
+        for (int i = 0; i < 12; ++i) {
+            REQUIRE(lanes[i] == "lane" + std::to_string(i));
+        }
+    }
+
+    SECTION("Natural sort: buffer names with numeric suffixes") {
+        json objects = {"AFC", "AFC_buffer TN", "AFC_buffer TN2", "AFC_buffer TN1",
+                        "AFC_buffer TN10"};
+        hw.parse_objects(objects);
+
+        auto buffers = hw.afc_buffer_names();
+        REQUIRE(buffers.size() == 4);
+        // "TN" has no trailing digits, then TN1, TN2, TN10
+        REQUIRE(buffers[0] == "TN");
+        REQUIRE(buffers[1] == "TN1");
+        REQUIRE(buffers[2] == "TN2");
+        REQUIRE(buffers[3] == "TN10");
+    }
+
     SECTION("Mixed AFC hardware - full J0eB0l setup") {
         json objects = {"AFC",
                         "AFC_stepper lane0",

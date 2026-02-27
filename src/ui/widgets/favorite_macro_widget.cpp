@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "device_display_name.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_modal.h"
 #include "moonraker_api.h"
 #include "panel_widget_config.h"
@@ -198,7 +199,7 @@ MoonrakerAPI* FavoriteMacroWidget::get_api() const {
 void FavoriteMacroWidget::update_display() {
     if (name_label_) {
         if (macro_name_.empty()) {
-            lv_label_set_text(name_label_, "Configure");
+            lv_label_set_text(name_label_, lv_tr("Configure"));
         } else {
             std::string display = helix::get_display_name(macro_name_, helix::DeviceType::MACRO);
             lv_label_set_text(name_label_, display.c_str());

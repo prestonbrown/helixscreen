@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "observer_factory.h"
@@ -643,12 +644,14 @@ void HistoryListPanel::update_empty_state() {
 
         if (filters_active) {
             // Filters are active but yielded no results
-            lv_subject_copy_string(&subject_empty_message_, "No matching prints");
-            lv_subject_copy_string(&subject_empty_hint_, "Try adjusting your search or filters");
+            lv_subject_copy_string(&subject_empty_message_, lv_tr("No matching prints"));
+            lv_subject_copy_string(&subject_empty_hint_,
+                                   lv_tr("Try adjusting your search or filters"));
         } else if (jobs_.empty()) {
             // No jobs at all
-            lv_subject_copy_string(&subject_empty_message_, "No print history found");
-            lv_subject_copy_string(&subject_empty_hint_, "Completed prints will appear here");
+            lv_subject_copy_string(&subject_empty_message_, lv_tr("No print history found"));
+            lv_subject_copy_string(&subject_empty_hint_,
+                                   lv_tr("Completed prints will appear here"));
         }
     }
 

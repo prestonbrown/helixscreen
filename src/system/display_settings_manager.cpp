@@ -31,7 +31,7 @@ static const char* SLEEP_OPTIONS_TEXT = "Never\n1 minute\n5 minutes\n10 minutes\
 
 // Bed mesh render mode options (Auto=0, 3D=1, 2D=2)
 static const char* BED_MESH_RENDER_MODE_OPTIONS_TEXT = "Auto\n3D View\n2D Heatmap";
-static const char* GCODE_RENDER_MODE_OPTIONS_TEXT = "Auto\n3D View\n2D Layers";
+static const char* GCODE_RENDER_MODE_OPTIONS_TEXT = "Auto\n3D View\n2D Layers\nThumbnail Only";
 
 // Time format options (12H=0, 24H=1)
 static const char* TIME_FORMAT_OPTIONS_TEXT = "12 Hour\n24 Hour";
@@ -150,7 +150,7 @@ void DisplaySettingsManager::init_subjects() {
 
     // G-code render mode (default: 0 = Auto)
     int gcode_mode = config->get<int>("/display/gcode_render_mode", 0);
-    gcode_mode = std::clamp(gcode_mode, 0, 2);
+    gcode_mode = std::clamp(gcode_mode, 0, 3);
     UI_MANAGED_SUBJECT_INT(gcode_render_mode_subject_, gcode_mode, "settings_gcode_render_mode",
                            subjects_);
 
@@ -494,8 +494,8 @@ int DisplaySettingsManager::get_gcode_render_mode() const {
 }
 
 void DisplaySettingsManager::set_gcode_render_mode(int mode) {
-    // Clamp to valid range (0=Auto, 1=3D, 2=2D)
-    int clamped = std::clamp(mode, 0, 2);
+    // Clamp to valid range (0=Auto, 1=3D, 2=2D, 3=Thumbnail Only)
+    int clamped = std::clamp(mode, 0, 3);
     spdlog::info("[DisplaySettingsManager] set_gcode_render_mode({})", clamped);
 
     // 1. Update subject (UI reacts)
@@ -506,8 +506,9 @@ void DisplaySettingsManager::set_gcode_render_mode(int mode) {
     config->set<int>("/display/gcode_render_mode", clamped);
     config->save();
 
+    static const char* MODE_NAMES[] = {"Auto", "3D", "2D", "Thumbnail Only"};
     spdlog::debug("[DisplaySettingsManager] G-code render mode set to {} ({})", clamped,
-                  clamped == 0 ? "Auto" : (clamped == 1 ? "3D" : "2D"));
+                  MODE_NAMES[clamped]);
 }
 
 const char* DisplaySettingsManager::get_gcode_render_mode_options() {

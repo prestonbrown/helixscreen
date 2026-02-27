@@ -525,15 +525,22 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         int slot_index = slots_.index_of(loaded_lane);
         if (slot_index >= 0) {
             system_info_.current_slot = slot_index;
+            // Derive current_tool from slot's mapped tool
+            int mapped = slots_.tool_for_slot(slot_index);
+            if (mapped >= 0) {
+                system_info_.current_tool = mapped;
+                spdlog::trace("[AMS AFC] Derived current_tool T{} from slot {}", mapped,
+                              slot_index);
+            }
             spdlog::trace("[AMS AFC] Current lane: {} (slot {})", loaded_lane,
                           system_info_.current_slot);
         }
     }
 
-    // Parse current tool
+    // Explicit current_tool from firmware overrides derived value
     if (afc_data.contains("current_tool") && afc_data["current_tool"].is_number_integer()) {
         system_info_.current_tool = afc_data["current_tool"].get<int>();
-        spdlog::trace("[AMS AFC] Current tool: {}", system_info_.current_tool);
+        spdlog::trace("[AMS AFC] Current tool (explicit): {}", system_info_.current_tool);
     }
 
     // Parse filament loaded state — try explicit field first, derive from current_load
@@ -549,6 +556,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         // current_load went null (unloaded) — clear filament state
         system_info_.filament_loaded = false;
         system_info_.current_slot = -1;
+        system_info_.current_tool = -1;
         spdlog::trace("[AMS AFC] Filament unloaded (current_load=null)");
     }
 

@@ -3,6 +3,7 @@
 
 #include "ui_temperature_utils.h"
 
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "spdlog/spdlog.h"
 #include "theme_manager.h"
 
@@ -37,13 +38,13 @@ bool is_extrusion_safe(int current_temp, int min_extrusion_temp) {
 
 const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp) {
     if (current_temp >= min_extrusion_temp) {
-        return "Ready";
+        return lv_tr("Ready");
     }
 
     // Calculate how far below minimum we are
     static char status_buf[64];
     int deficit = min_extrusion_temp - current_temp;
-    snprintf(status_buf, sizeof(status_buf), "Heating (%d°C below minimum)", deficit);
+    snprintf(status_buf, sizeof(status_buf), lv_tr("Heating (%d°C below minimum)"), deficit);
     return status_buf;
 }
 
@@ -145,11 +146,11 @@ HeaterDisplayResult heater_display(int current_centi, int target_centi) {
     if (target_centi <= 0) {
         result.status = "Off";
     } else if (current_deg < target_deg - DEFAULT_AT_TEMP_TOLERANCE) {
-        result.status = "Heating...";
+        result.status = lv_tr("Heating...");
     } else if (current_deg > target_deg + DEFAULT_AT_TEMP_TOLERANCE) {
         result.status = "Cooling";
     } else {
-        result.status = "Ready";
+        result.status = lv_tr("Ready");
     }
 
     // Get color from the same heating state logic

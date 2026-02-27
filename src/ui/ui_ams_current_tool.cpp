@@ -14,6 +14,7 @@
 #include "ui_nav_manager.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_ams.h"
+#include "ui_panel_ams_overview.h"
 
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -50,19 +51,11 @@ static void on_delete(lv_event_t* e) {
     }
 }
 
-// Click callback - opens AMS panel
+// Click callback - opens AMS panel (overview for multi-unit, detail for single)
 static void on_clicked(lv_event_t* e) {
     (void)e;
     spdlog::debug("[AmsCurrentTool] Clicked - opening AMS panel");
-
-    auto& ams_panel = get_global_ams_panel();
-    if (!ams_panel.are_subjects_initialized()) {
-        ams_panel.init_subjects();
-    }
-    lv_obj_t* panel_obj = ams_panel.get_panel();
-    if (panel_obj) {
-        NavigationManager::instance().push_overlay(panel_obj);
-    }
+    navigate_to_ams_panel();
 }
 
 // Post-create hook called after XML creates the widget

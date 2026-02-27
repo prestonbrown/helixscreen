@@ -535,6 +535,14 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
              (key_lower.find("linewidth") != std::string::npos)) {
         // Extract numeric value (handle "0.45mm" format and plain "0.4")
         std::string numeric_value = value;
+
+        // Skip percentage values (e.g., "100%", "112.5%") — OrcaSlicer's settings dump
+        // at end of file uses percentages of nozzle diameter, not absolute mm values.
+        // These would overwrite the correct mm values from the header comments.
+        if (numeric_value.find('%') != std::string::npos) {
+            return;
+        }
+
         // Remove "mm" suffix if present
         size_t mm_pos = numeric_value.find("mm");
         if (mm_pos != std::string::npos) {
@@ -543,6 +551,12 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
 
         try {
             float width = std::stof(numeric_value);
+
+            // Sanity check: extrusion widths should be 0.05mm to 3.0mm
+            if (width < 0.05f || width > 3.0f) {
+                spdlog::debug("[GCode Parser] Ignoring out-of-range extrusion width: {}mm", width);
+                return;
+            }
 
             // Categorize by feature type
             if (contains_all({"first", "layer"}) || contains_all({"initial", "layer"})) {

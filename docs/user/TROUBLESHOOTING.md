@@ -509,8 +509,9 @@ If taps are landing in the wrong place on screen:
    ```bash
    helix-screen --calibrate-touch
    ```
-4. **If the screen is too broken to navigate:** SSH in and either:
-   - Run `helix-screen --calibrate-touch`, or
+4. **If the screen is too broken to navigate:** SSH in and use any of these methods:
+   - Run `helix-screen --calibrate-touch`
+   - Set the environment variable: `HELIX_TOUCH_CALIBRATE=1` in your `helixscreen.env` and restart
    - Edit your config file: set `"force_calibration": true` in the `input` section and restart HelixScreen
 
 See the full [Touch Calibration Guide](guide/touch-calibration.md) for details.

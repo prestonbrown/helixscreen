@@ -2491,6 +2491,79 @@ TEST_CASE("AFC current_load fallback sets current_slot and filament_loaded", "[a
     REQUIRE(info.filament_loaded);
 }
 
+TEST_CASE("AFC current_tool derived from current_load via tool mapping",
+          "[ams][afc][status][current_tool]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4); // Sets slot N → tool N mapping
+
+    // AFC reports current_load=lane3 but no current_tool field
+    helper.feed_afc_state({{"current_load", "lane3"},
+                           {"current_state", "Idle"},
+                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE(info.current_slot == 2); // lane3 = slot index 2
+    REQUIRE(info.current_tool == 2); // derived from slot 2 → T2 mapping
+}
+
+TEST_CASE("AFC explicit current_tool overrides derived value", "[ams][afc][status][current_tool]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4); // slot N → tool N
+
+    // AFC reports both current_load and an explicit current_tool that differs
+    helper.feed_afc_state({{"current_load", "lane3"},
+                           {"current_tool", 5},
+                           {"current_state", "Idle"},
+                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE(info.current_slot == 2);
+    // Explicit current_tool=5 overrides derived T2
+    REQUIRE(info.current_tool == 5);
+}
+
+TEST_CASE("AFC current_tool cleared on unload (current_load null)",
+          "[ams][afc][status][current_tool]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+
+    // First: load lane2
+    helper.feed_afc_state({{"current_load", "lane2"},
+                           {"current_state", "Idle"},
+                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE(info.current_tool == 1); // lane2 → slot 1 → T1
+    REQUIRE(info.filament_loaded);
+
+    // Then: unload — current_load becomes null
+    helper.feed_afc_state({{"current_load", nullptr},
+                           {"current_state", "Idle"},
+                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}}});
+
+    info = helper.get_system_info();
+    REQUIRE(info.current_tool == -1); // cleared
+    REQUIRE(info.current_slot == -1);
+    REQUIRE_FALSE(info.filament_loaded);
+}
+
+TEST_CASE("AFC current_tool uses default 1:1 mapping from initialize_slots",
+          "[ams][afc][status][current_tool]") {
+    AmsBackendAfcTestHelper helper;
+    // initialize_test_lanes + initialize_slots_from_discovery creates default 1:1 mapping
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    helper.feed_afc_state({{"current_load", "lane3"},
+                           {"current_state", "Idle"},
+                           {"lanes", {"lane1", "lane2", "lane3", "lane4"}}});
+
+    auto info = helper.get_system_info();
+    REQUIRE(info.current_slot == 2);
+    // Default 1:1 mapping: slot 2 → T2
+    REQUIRE(info.current_tool == 2);
+}
+
 TEST_CASE("AFC explicit filament_loaded not overridden by stepper post-scan",
           "[ams][afc][status]") {
     AmsBackendAfcTestHelper helper;

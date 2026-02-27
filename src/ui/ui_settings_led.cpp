@@ -533,7 +533,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
 
     if (discovered.empty()) {
         auto* no_macros = lv_label_create(container);
-        lv_label_set_text(no_macros, "No LED macros detected on your printer.");
+        lv_label_set_text(no_macros, lv_tr("No LED macros detected on your printer."));
         lv_label_set_long_mode(no_macros, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(no_macros, lv_pct(100));
         lv_obj_set_style_text_color(no_macros, theme_manager_get_color("text_subtle"), 0);
@@ -720,7 +720,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     lv_obj_set_style_pad_right(save_btn, 16, 0);
 
     auto* save_lbl = lv_label_create(save_btn);
-    lv_label_set_text(save_lbl, "Save");
+    lv_label_set_text(save_lbl, lv_tr("Save"));
     lv_obj_set_style_text_color(save_lbl, lv_color_white(), 0);
     lv_obj_center(save_lbl);
 
@@ -1332,7 +1332,7 @@ void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_ke
 
         if (effects.empty()) {
             lv_obj_t* label = lv_label_create(container);
-            lv_label_set_text(label, "No effects available");
+            lv_label_set_text(label, lv_tr("No effects available"));
             lv_obj_set_style_text_color(label, theme_manager_get_color("text_subtle"), 0);
             return;
         }
@@ -1430,7 +1430,7 @@ void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_ke
 
         if (macros.empty()) {
             lv_obj_t* label = lv_label_create(container);
-            lv_label_set_text(label, "No macros available");
+            lv_label_set_text(label, lv_tr("No macros available"));
             lv_obj_set_style_text_color(label, theme_manager_get_color("text_subtle"), 0);
             return;
         }

@@ -96,12 +96,12 @@
         <event_cb trigger="clicked" callback="print_card_clicked_cb"/>
         <!-- IDLE STATE: Benchy + "Print Files" (hidden when print_active == 1) -->
         <lv_obj name="print_card_idle"
-                width="100%" height="100%" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="false">
+                width="100%" height="100%" style_pad_all="#space_xs" flex_flow="column" style_flex_main_place="center"
+                style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false">
           <bind_flag_if_not_eq subject="print_active" flag="hidden" ref_value="0"/>
           <lv_image name="print_card_thumb"
-                    width="50%" height="100%" src="A:assets/images/benchy_thumbnail_white.png" inner_align="contain"/>
-          <text_body name="print_card_label" text="Print Files" translation_tag="Print Files"/>
+                    width="100%" flex_grow="1" src="A:assets/images/benchy_thumbnail_white.png" inner_align="contain"/>
+          <text_body name="print_card_label" text="Print Files" translation_tag="Print Files" style_text_align="center" width="100%" long_mode="wrap"/>
         </lv_obj>
         <!-- PREPARING STATE: Progress + message (hidden when print_start_phase == 0/IDLE) -->
         <lv_obj name="print_card_preparing"

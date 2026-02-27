@@ -8,6 +8,7 @@
 #include "ui_overlay_network_settings.h"
 
 #include "ethernet_manager.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "panel_widget_registry.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
@@ -182,13 +183,13 @@ void NetworkWidget::set_network(NetworkType type) {
     if (network_label_subject_) {
         switch (type) {
         case NetworkType::Wifi:
-            lv_subject_copy_string(network_label_subject_, "WiFi");
+            lv_subject_copy_string(network_label_subject_, lv_tr("WiFi"));
             break;
         case NetworkType::Ethernet:
-            lv_subject_copy_string(network_label_subject_, "Ethernet");
+            lv_subject_copy_string(network_label_subject_, lv_tr("Ethernet"));
             break;
         case NetworkType::Disconnected:
-            lv_subject_copy_string(network_label_subject_, "Disconnected");
+            lv_subject_copy_string(network_label_subject_, lv_tr("Disconnected"));
             break;
         }
     }

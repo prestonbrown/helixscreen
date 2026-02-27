@@ -605,10 +605,10 @@ void BedMeshPanel::on_mesh_update_internal(const BedMeshProfile& mesh) {
 
     if (mesh.probed_matrix.empty()) {
         lv_subject_set_int(&bed_mesh_available_, 0);
-        lv_subject_copy_string(&bed_mesh_dimensions_, "No mesh data");
-        lv_subject_copy_string(&bed_mesh_max_label_, "Max");
+        lv_subject_copy_string(&bed_mesh_dimensions_, lv_tr("No mesh data"));
+        lv_subject_copy_string(&bed_mesh_max_label_, lv_tr("Max"));
         lv_subject_copy_string(&bed_mesh_max_value_, "--");
-        lv_subject_copy_string(&bed_mesh_min_label_, "Min");
+        lv_subject_copy_string(&bed_mesh_min_label_, lv_tr("Min"));
         lv_subject_copy_string(&bed_mesh_min_value_, "--");
         lv_subject_copy_string(&bed_mesh_variance_, "");
         spdlog::warn("[{}] No mesh data available", get_name());
@@ -821,7 +821,7 @@ void BedMeshPanel::start_calibration() {
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::PROBING));
     lv_subject_set_int(&bed_mesh_probe_progress_, 0);
-    lv_subject_copy_string(&bed_mesh_probe_text_, "Preparing...");
+    lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
 
     // Show modal immediately
     calibrate_modal_widget_ = helix::ui::modal_show("bed_mesh_calibrate_modal");

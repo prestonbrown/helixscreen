@@ -69,7 +69,7 @@
                             label="Bed Mesh Render" label_tag="Bed Mesh Render" icon="grid_large"
                             description="Choose rendering mode for bed mesh visualization"
                             description_tag="Choose rendering mode for bed mesh visualization"
-                            options="Auto&#10;3D View&#10;2D Heatmap" callback="on_bed_mesh_mode_changed"/>
+                            options="Auto&#10;3D View&#10;2D Heatmap" options_tag="Auto&#10;3D View&#10;2D Heatmap" callback="on_bed_mesh_mode_changed"/>
       <!-- ================================================================== -->
       <!-- G-CODE RENDER MODE (hidden until hardware-accelerated 3D is ready) -->
       <!-- ================================================================== -->
@@ -78,7 +78,7 @@
                               label="G-code Preview" label_tag="G-code Preview" icon="printer_3d"
                               description="Choose rendering mode for G-code visualization"
                               description_tag="Choose rendering mode for G-code visualization"
-                              options="Auto&#10;3D View&#10;2D Layers" callback="on_gcode_mode_changed"/>
+                              options="Auto&#10;3D View&#10;2D Layers" options_tag="Auto&#10;3D View&#10;2D Layers" callback="on_gcode_mode_changed"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- DISPLAY DIM -->
@@ -88,6 +88,7 @@
                             description="Screen dims to lower brightness after period of inactivity"
                             description_tag="Screen dims to lower brightness after period of inactivity"
                             options="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes"
+                            options_tag="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes"
                             callback="on_display_dim_changed"/>
       <!-- ================================================================== -->
       <!-- DISPLAY SLEEP -->
@@ -97,6 +98,7 @@
                             description="Screen will dim after the selected period of inactivity"
                             description_tag="Screen will dim after the selected period of inactivity"
                             options="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;30 minutes"
+                            options_tag="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;30 minutes"
                             callback="on_display_sleep_changed"/>
       <!-- ================================================================== -->
       <!-- SLEEP WHILE PRINTING -->
@@ -113,7 +115,7 @@
                             label="Time Format" label_tag="Time Format" icon="clock"
                             description="Choose 12-hour or 24-hour time display"
                             description_tag="Choose 12-hour or 24-hour time display" options="12 Hour&#10;24 Hour"
-                            callback="on_time_format_changed"/>
+                            options_tag="12 Hour&#10;24 Hour" callback="on_time_format_changed"/>
       <!-- ================================================================== -->
       <!-- INFO NOTE -->
       <!-- ================================================================== -->

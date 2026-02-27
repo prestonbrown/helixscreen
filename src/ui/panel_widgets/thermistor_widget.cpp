@@ -10,6 +10,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -211,7 +212,7 @@ void ThermistorWidget::update_display() {
 
     if (name_label_) {
         if (selected_sensor_.empty()) {
-            lv_label_set_text(name_label_, "Select sensor");
+            lv_label_set_text(name_label_, lv_tr("Select sensor"));
         } else {
             lv_label_set_text(name_label_, display_name_.c_str());
         }

@@ -136,7 +136,7 @@ class DisplaySettingsManager {
     /** @brief Get dropdown options string "Auto\n3D View\n2D Heatmap" */
     static const char* get_bed_mesh_render_mode_options();
 
-    /** @brief Get G-code render mode (0=Auto, 1=3D, 2=2D) */
+    /** @brief Get G-code render mode (0=Auto, 1=3D, 2=2D, 3=Thumbnail Only) */
     int get_gcode_render_mode() const;
 
     /** @brief Set G-code render mode (updates subject + persists) */
@@ -252,7 +252,7 @@ class DisplaySettingsManager {
         return &bed_mesh_render_mode_subject_;
     }
 
-    /** @brief G-code render mode subject (integer: 0=auto, 1=3D, 2=2D) */
+    /** @brief G-code render mode subject (integer: 0=auto, 1=3D, 2=2D, 3=thumbnail only) */
     lv_subject_t* subject_gcode_render_mode() {
         return &gcode_render_mode_subject_;
     }

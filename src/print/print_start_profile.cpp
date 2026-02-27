@@ -3,6 +3,8 @@
 
 #include "print_start_profile.h"
 
+#include "lvgl/src/others/translation/lv_translation.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -99,21 +101,21 @@ std::shared_ptr<PrintStartProfile> PrintStartProfile::load_default() {
     // clang-format off
     const PatternDef builtin_patterns[] = {
         {"G28|Homing|Home All Axes|homing",
-         PrintStartPhase::HOMING, "Homing...", 10},
+         PrintStartPhase::HOMING, lv_tr("Homing..."), 10},
         {"M190|M140\\s+S[1-9]|Heating bed|Heat Bed|BED_TEMP|bed.*heat",
-         PrintStartPhase::HEATING_BED, "Heating Bed...", 20},
+         PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."), 20},
         {"M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
-         PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle...", 20},
+         PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."), 20},
         {"QUAD_GANTRY_LEVEL|quad.?gantry.?level|QGL",
-         PrintStartPhase::QGL, "Leveling Gantry...", 15},
+         PrintStartPhase::QGL, lv_tr("Leveling Gantry..."), 15},
         {"Z_TILT_ADJUST|z.?tilt.?adjust",
-         PrintStartPhase::Z_TILT, "Z Tilt Adjust...", 15},
+         PrintStartPhase::Z_TILT, lv_tr("Z Tilt Adjust..."), 15},
         {"BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load",
-         PrintStartPhase::BED_MESH, "Loading Bed Mesh...", 10},
+         PrintStartPhase::BED_MESH, lv_tr("Loading Bed Mesh..."), 10},
         {"CLEAN_NOZZLE|NOZZLE_CLEAN|WIPE_NOZZLE|nozzle.?wipe|clean.?nozzle",
-         PrintStartPhase::CLEANING, "Cleaning Nozzle...", 5},
+         PrintStartPhase::CLEANING, lv_tr("Cleaning Nozzle..."), 5},
         {"VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line",
-         PrintStartPhase::PURGING, "Purging...", 5},
+         PrintStartPhase::PURGING, lv_tr("Purging..."), 5},
     };
     // clang-format on
 

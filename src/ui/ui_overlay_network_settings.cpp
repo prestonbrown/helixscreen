@@ -13,6 +13,7 @@
 
 #include "config.h"
 #include "ethernet_manager.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "network_tester.h"
 #include "static_panel_registry.h"
 #include "wifi_manager.h"
@@ -1240,7 +1241,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
         // Show error in modal
         lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
         if (modal_status) {
-            lv_label_set_text(modal_status, "Password cannot be empty");
+            lv_label_set_text(modal_status, lv_tr("Password cannot be empty"));
             lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
         }
         return;
@@ -1290,7 +1291,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
             if (self->password_modal_) {
                 lv_obj_t* modal_status = lv_obj_find_by_name(self->password_modal_, "modal_status");
                 if (modal_status) {
-                    lv_label_set_text(modal_status, "Connection failed. Check password.");
+                    lv_label_set_text(modal_status, lv_tr("Connection failed. Check password."));
                     lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
                 }
             }

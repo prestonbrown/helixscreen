@@ -35,6 +35,7 @@
 #include "format_utils.h"
 #include "gcode_parser.h" // For extract_thumbnails_from_content (USB thumbnail fallback)
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h" // For ConnectionState enum
 #include "observer_factory.h"
@@ -958,7 +959,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
     std::string print_time_str = format_print_time(total_minutes);
     std::string filament_str = format_filament_weight(filament_grams);
     std::string layer_count_str = format_layer_count(layer_count);
-    std::string print_height_str = format_print_height(object_height) + " tall";
+    std::string print_height_str = format_print_height(object_height) + " " + lv_tr("tall");
 
     // Format layer height (e.g., "0.24 mm")
     char layer_height_buf[32];

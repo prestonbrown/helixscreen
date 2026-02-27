@@ -19,6 +19,7 @@
 #include "ams_backend_mock.h"
 #include "app_globals.h"
 #include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_discovery.h"
@@ -986,7 +987,7 @@ void AmsState::sync_current_loaded_from_backend() {
     if (backends_.empty()) {
         // No backend - show empty state
         lv_subject_copy_string(&current_material_text_, "---");
-        lv_subject_copy_string(&current_slot_text_, "Currently Loaded");
+        lv_subject_copy_string(&current_slot_text_, lv_tr("Currently Loaded"));
         lv_subject_copy_string(&current_weight_text_, "");
         lv_subject_set_int(&current_has_weight_, 0);
         lv_subject_set_int(&current_color_, 0x505050);
@@ -1030,7 +1031,7 @@ void AmsState::sync_current_loaded_from_backend() {
 
     if (!loaded_backend) {
         lv_subject_copy_string(&current_material_text_, "---");
-        lv_subject_copy_string(&current_slot_text_, "Currently Loaded");
+        lv_subject_copy_string(&current_slot_text_, lv_tr("Currently Loaded"));
         lv_subject_copy_string(&current_weight_text_, "");
         lv_subject_set_int(&current_has_weight_, 0);
         lv_subject_set_int(&current_color_, 0x505050);
@@ -1039,7 +1040,7 @@ void AmsState::sync_current_loaded_from_backend() {
 
     // Check for bypass mode (slot_index == -2)
     if (slot_index == -2 && loaded_backend->is_bypass_active()) {
-        lv_subject_copy_string(&current_slot_text_, "Current: Bypass");
+        lv_subject_copy_string(&current_slot_text_, lv_tr("Current: Bypass"));
 
         // Show actual spool info if external spool is assigned
         auto ext_spool = get_external_spool_info();
@@ -1062,7 +1063,7 @@ void AmsState::sync_current_loaded_from_backend() {
             } else if (!ext.material.empty()) {
                 label = ext.material;
             } else {
-                label = "External";
+                label = lv_tr("External");
             }
             lv_subject_copy_string(&current_material_text_, label.c_str());
 
@@ -1076,7 +1077,7 @@ void AmsState::sync_current_loaded_from_backend() {
                 lv_subject_set_int(&current_has_weight_, 0);
             }
         } else {
-            lv_subject_copy_string(&current_material_text_, "External");
+            lv_subject_copy_string(&current_material_text_, lv_tr("External"));
             lv_subject_copy_string(&current_weight_text_, "");
             lv_subject_set_int(&current_has_weight_, 0);
             lv_subject_set_int(&current_color_, 0x888888);
@@ -1130,8 +1131,8 @@ void AmsState::sync_current_loaded_from_backend() {
 
             if (is_tool_changer(sys.type) && sys.units.empty()) {
                 // Pure tool changer with no AMS units — show tool index (0-based)
-                snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_), "Current: Tool %d",
-                         slot_index);
+                snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
+                         lv_tr("Current: Tool %d"), slot_index);
             } else {
                 std::string unit_display;
                 int display_slot = slot_index + 1; // 1-based global slot number
@@ -1147,10 +1148,10 @@ void AmsState::sync_current_loaded_from_backend() {
                 if (!unit_display.empty() && sys.units.size() > 1) {
                     // Multi-unit: show unit name + slot number on one line
                     snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
-                             "Current: %s · Slot %d", unit_display.c_str(), display_slot);
+                             lv_tr("Current: %s · Slot %d"), unit_display.c_str(), display_slot);
                 } else {
                     snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
-                             "Current: Slot %d", display_slot);
+                             lv_tr("Current: Slot %d"), display_slot);
                 }
             }
             lv_subject_copy_string(&current_slot_text_, current_slot_text_buf_);
@@ -1169,7 +1170,7 @@ void AmsState::sync_current_loaded_from_backend() {
     } else {
         // No filament loaded - show empty state
         lv_subject_copy_string(&current_material_text_, "---");
-        lv_subject_copy_string(&current_slot_text_, "Currently Loaded");
+        lv_subject_copy_string(&current_slot_text_, lv_tr("Currently Loaded"));
         lv_subject_copy_string(&current_weight_text_, "");
         lv_subject_set_int(&current_has_weight_, 0);
         lv_subject_set_int(&current_color_, 0x505050);

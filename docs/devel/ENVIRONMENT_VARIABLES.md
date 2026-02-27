@@ -7,7 +7,7 @@ This document provides a comprehensive reference for all environment variables u
 | Category | Count | Prefix |
 |----------|-------|--------|
 | [Display & Backend](#display--backend-configuration) | 10 | `HELIX_` |
-| [Touch Calibration](#touch-calibration) | 6 | `HELIX_TOUCH_*` |
+| [Touch Calibration](#touch-calibration) | 7 | `HELIX_TOUCH_*` |
 | [G-Code Viewer](#g-code-viewer) | 3 | `HELIX_` |
 | [Bed Mesh](#bed-mesh) | 1 | `HELIX_` |
 | [Mock & Testing](#mock--testing) | 14 | `HELIX_MOCK_*` |
@@ -292,9 +292,28 @@ screen_x = a * touch_x + b * touch_y + c
 screen_y = d * touch_x + e * touch_y + f
 ```
 
-The calibration wizard is automatically presented during first-run setup on framebuffer devices. It can also be triggered manually from Settings.
+The calibration wizard is automatically presented during first-run setup on framebuffer devices. It can also be triggered manually from Settings or via the `HELIX_TOUCH_CALIBRATE` environment variable.
 
-**Note:** There are no environment variable overrides for affine calibration. Edit the config file directly or use the calibration wizard.
+### `HELIX_TOUCH_CALIBRATE`
+
+Force the touch calibration wizard to appear on startup. Set to any value to enable.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HELIX_TOUCH_CALIBRATE` | Force touch calibration wizard on startup | Disabled |
+
+**Equivalent to:** `--calibrate-touch` CLI flag or `/input/force_calibration` config option.
+
+**Example:**
+```bash
+# One-shot: force calibration on next launch
+HELIX_TOUCH_CALIBRATE=1 ./build/bin/helix-screen
+
+# Or add to helixscreen.env for persistent use
+echo "HELIX_TOUCH_CALIBRATE=1" >> ~/helixscreen/config/helixscreen.env
+```
+
+**Note:** There are no environment variable overrides for affine calibration coefficients. Edit the config file directly or use the calibration wizard.
 
 ### Touch Jitter Filter
 

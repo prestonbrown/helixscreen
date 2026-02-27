@@ -166,9 +166,9 @@ void TelemetryDataOverlay::update_status() {
 
     // Update detail text with event count
     if (count == 0) {
-        lv_subject_copy_string(&detail_subject_, "No events queued");
+        lv_subject_copy_string(&detail_subject_, lv_tr("No events queued"));
     } else if (count == 1) {
-        lv_subject_copy_string(&detail_subject_, "1 event queued");
+        lv_subject_copy_string(&detail_subject_, lv_tr("1 event queued"));
     } else {
         snprintf(detail_buf_, sizeof(detail_buf_), "%zu events queued", count);
         lv_subject_copy_string(&detail_subject_, detail_buf_);

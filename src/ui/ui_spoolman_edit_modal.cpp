@@ -387,7 +387,7 @@ bool SpoolEditModal::validate_fields() {
 }
 
 void SpoolEditModal::update_save_button_text() {
-    lv_subject_copy_string(&save_button_text_subject_, is_dirty() ? "Save" : "Close");
+    lv_subject_copy_string(&save_button_text_subject_, is_dirty() ? lv_tr("Save") : lv_tr("Close"));
 }
 
 // ============================================================================

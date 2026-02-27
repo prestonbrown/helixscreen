@@ -11,6 +11,7 @@
 #include "ui_update_queue.h"
 
 #include "filament_database.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "static_panel_registry.h"
 
@@ -350,7 +351,7 @@ void PIDCalibrationPanel::set_state(State new_state) {
         pid_estimated_total_ = 3;
         has_kalico_progress_ = false;
         lv_subject_set_int(&subj_pid_progress_, 0);
-        lv_subject_copy_string(&subj_pid_progress_text_, "Starting...");
+        lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Starting..."));
         start_fallback_progress_timer();
     } else {
         stop_fallback_progress_timer();
@@ -730,7 +731,7 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
     if (success) {
         // Set progress to 100% on completion
         lv_subject_set_int(&subj_pid_progress_, 100);
-        lv_subject_copy_string(&subj_pid_progress_text_, "Complete!");
+        lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Complete!"));
 
         // Store results
         result_kp_ = kp;
@@ -825,7 +826,7 @@ void PIDCalibrationPanel::inject_demo_results() {
     lv_subject_copy_string(&subj_pid_kd_, val_buf);
 
     // Set descriptive labels
-    lv_subject_copy_string(&subj_calibrating_heater_, "Extruder PID Tuning");
+    lv_subject_copy_string(&subj_calibrating_heater_, lv_tr("Extruder PID Tuning"));
     lv_subject_copy_string(&subj_result_summary_,
                            "Temperature control optimized for extruder at 200\xC2\xB0"
                            "C.");
@@ -885,7 +886,8 @@ void PIDCalibrationPanel::start_fallback_progress_timer() {
             auto* self = static_cast<PIDCalibrationPanel*>(lv_timer_get_user_data(t));
             if (!self->has_kalico_progress_ && self->state_ == State::CALIBRATING) {
                 lv_subject_set_int(&self->subj_pid_progress_, 5);
-                lv_subject_copy_string(&self->subj_pid_progress_text_, "Heating to target...");
+                lv_subject_copy_string(&self->subj_pid_progress_text_,
+                                       lv_tr("Heating to target..."));
             }
             lv_timer_delete(t);
         },

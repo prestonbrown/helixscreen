@@ -11,6 +11,8 @@
 
 #include "ui_fonts.h"
 
+#include "lvgl/src/others/translation/lv_translation.h"
+
 #include <lvgl.h>
 
 // =============================================================================
@@ -109,7 +111,7 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     // Suggestions header and list
     if (suggestions && suggestions[0]) {
         lv_obj_t* suggest_header = lv_label_create(container);
-        lv_label_set_text(suggest_header, "Troubleshooting:");
+        lv_label_set_text(suggest_header, lv_tr("Troubleshooting:"));
         lv_obj_set_style_text_font(suggest_header, &noto_sans_14, 0);
         lv_obj_set_style_text_color(suggest_header, lv_color_hex(kBootstrapWarning), 0);
         lv_obj_set_style_pad_top(suggest_header, 20, 0);

@@ -105,7 +105,7 @@
     <setting_dropdown_row name="row_completion_alert"
                           label="Print Completion Alert" label_tag="Print Completion Alert" icon="notifications"
                           description="Notify when print finishes" description_tag="Notify when print finishes"
-                          options="Off&#10;Notification&#10;Alert" callback="on_completion_alert_changed"/>
+                          options="Off&#10;Notification&#10;Alert" options_tag="Off&#10;Notification&#10;Alert" callback="on_completion_alert_changed"/>
     <!-- ================================================================== -->
     <!-- MOTION SECTION -->
     <!-- ================================================================== -->
@@ -115,7 +115,7 @@
                           label="Z Movement" label_tag="Z Movement" icon="arrow_up_down"
                           description="How Z-axis movement is displayed"
                           description_tag="How Z-axis movement is displayed"
-                          options="Auto&#10;Bed Moves&#10;Nozzle Moves" callback="on_z_movement_style_changed"/>
+                          options="Auto&#10;Bed Moves&#10;Nozzle Moves" options_tag="Auto&#10;Bed Moves&#10;Nozzle Moves" callback="on_z_movement_style_changed"/>
     <!-- Machine Limits -->
     <setting_action_row name="row_machine_limits"
                         label="Machine Limits" label_tag="Machine Limits" icon="dashboard"
@@ -140,6 +140,7 @@
                             description="Time to wait before escalating to emergency stop"
                             description_tag="Time to wait before escalating to emergency stop"
                             options="15 seconds&#10;30 seconds&#10;60 seconds&#10;120 seconds"
+                            options_tag="15 seconds&#10;30 seconds&#10;60 seconds&#10;120 seconds"
                             bind_selected="settings_cancel_escalation_timeout"
                             callback="on_cancel_escalation_timeout_changed"/>
     </lv_obj>
@@ -266,7 +267,7 @@
       <bind_flag_if_eq subject="show_beta_features" flag="hidden" ref_value="0"/>
       <setting_dropdown_row name="row_update_channel"
                             label="Update Channel" label_tag="Update Channel" icon="swap_vertical"
-                            options="Stable&#10;Beta&#10;Dev" bind_selected="update_channel"
+                            options="Stable&#10;Beta&#10;Dev" options_tag="Stable&#10;Beta&#10;Dev" bind_selected="update_channel"
                             callback="on_update_channel_changed"/>
     </lv_obj>
     <!-- Check for Updates (reactive description shows available version; hidden on Android) -->

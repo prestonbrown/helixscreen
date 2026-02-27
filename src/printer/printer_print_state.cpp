@@ -499,6 +499,15 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         if (old_phase == static_cast<int>(PrintStartPhase::IDLE) &&
             phase != PrintStartPhase::IDLE) {
             reset_for_new_print();
+            // Clear terminal outcome immediately so cancel button shows during pre-print.
+            // Without this, print_outcome stays COMPLETE/CANCELLED/ERROR until Moonraker
+            // reports state=PRINTING (after PRINT_START finishes), leaving the reprint
+            // button visible for the entire pre-print duration.
+            auto current_outcome = static_cast<PrintOutcome>(lv_subject_get_int(&print_outcome_));
+            if (current_outcome != PrintOutcome::NONE) {
+                spdlog::info("[PrinterPrintState] Preparing new print - clearing outcome");
+                lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
+            }
         }
         lv_subject_set_int(&print_start_phase_, static_cast<int>(phase));
         if (!msg.empty()) {

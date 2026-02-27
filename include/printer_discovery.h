@@ -342,12 +342,12 @@ class PrinterDiscovery {
             }
         }
 
-        // Sort AFC lane names for consistent ordering
+        // Sort AFC lane names using natural sort (lane2 before lane10)
         if (!afc_lane_names_.empty()) {
-            std::sort(afc_lane_names_.begin(), afc_lane_names_.end());
+            natural_sort(afc_lane_names_);
         }
         if (!afc_buffer_names_.empty()) {
-            std::sort(afc_buffer_names_.begin(), afc_buffer_names_.end());
+            natural_sort(afc_buffer_names_);
         }
 
         // Sort tool names for consistent ordering
@@ -911,6 +911,29 @@ class PrinterDiscovery {
         std::transform(result.begin(), result.end(), result.begin(),
                        [](unsigned char c) { return std::toupper(c); });
         return result;
+    }
+
+    // Helper: natural sort — splits on trailing digits so "lane2" < "lane10"
+    static void natural_sort(std::vector<std::string>& names) {
+        std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
+            // Find where trailing digits start
+            auto digit_start = [](const std::string& s) -> size_t {
+                size_t i = s.size();
+                while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1])))
+                    --i;
+                return i;
+            };
+            size_t da = digit_start(a);
+            size_t db = digit_start(b);
+            std::string prefix_a = a.substr(0, da);
+            std::string prefix_b = b.substr(0, db);
+            if (prefix_a != prefix_b)
+                return prefix_a < prefix_b;
+            // Same prefix — compare numeric suffixes
+            int num_a = (da < a.size()) ? std::stoi(a.substr(da)) : -1;
+            int num_b = (db < b.size()) ? std::stoi(b.substr(db)) : -1;
+            return num_a < num_b;
+        });
     }
 
     // Helper: check if name matches any pattern

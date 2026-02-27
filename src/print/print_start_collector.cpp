@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 
 #include <spdlog/spdlog.h>
 
@@ -117,7 +118,7 @@ void PrintStartCollector::start() {
             if (macro.contains("print_started") && macro["print_started"].is_boolean() &&
                 macro["print_started"].get<bool>()) {
                 spdlog::info("[PrintStartCollector] Macro signal: print_started=true");
-                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
                 return;
             }
         }
@@ -128,7 +129,7 @@ void PrintStartCollector::start() {
             if (macro.contains("preparation_done") && macro["preparation_done"].is_boolean() &&
                 macro["preparation_done"].get<bool>()) {
                 spdlog::info("[PrintStartCollector] Macro signal: preparation_done=true");
-                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
                 return;
             }
         }
@@ -139,7 +140,7 @@ void PrintStartCollector::start() {
             if (macro.contains("print_started") && macro["print_started"].is_boolean() &&
                 macro["print_started"].get<bool>()) {
                 spdlog::info("[PrintStartCollector] Helix macro signal: print_started=true");
-                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
                 return;
             }
         }
@@ -149,7 +150,7 @@ void PrintStartCollector::start() {
     active_.store(true);
 
     // Set initial state
-    state_.set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing Print...", 0);
+    state_.set_print_start_state(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."), 0);
 
     // Create LVGL timer for periodic elapsed + ETA updates (runs on main thread)
     {
@@ -215,7 +216,7 @@ void PrintStartCollector::reset() {
     fallbacks_enabled_.store(false);
 
     if (active_.load()) {
-        state_.set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing Print...", 0);
+        state_.set_print_start_state(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."), 0);
     }
 
     spdlog::debug("[PrintStartCollector] Reset state");
@@ -279,16 +280,16 @@ void PrintStartCollector::check_fallback_completion() {
                 // Bed is far from target - primary heating phase
                 spdlog::info("[PrintStartCollector] Proactive: bed heating ({}/{})", bed_temp / 10,
                              bed_target / 10);
-                update_phase(PrintStartPhase::HEATING_BED, "Heating Bed...");
+                update_phase(PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."));
             } else if (nozzle_heating) {
                 // Nozzle heating (bed may be close or done)
                 spdlog::info("[PrintStartCollector] Proactive: nozzle heating ({}/{})",
                              ext_temp / 10, ext_target / 10);
-                update_phase(PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle...");
+                update_phase(PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."));
             } else {
                 // Generic initializing state
                 spdlog::info("[PrintStartCollector] Proactive: initializing (heaters ramping)");
-                update_phase(PrintStartPhase::INITIALIZING, "Preparing Print...");
+                update_phase(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."));
             }
             return;
         }
@@ -302,7 +303,7 @@ void PrintStartCollector::check_fallback_completion() {
     int layer = lv_subject_get_int(state_.get_print_layer_current_subject());
     if (layer >= 1) {
         spdlog::info("[PrintStartCollector] Fallback: layer {} detected", layer);
-        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
         return;
     }
 
@@ -311,7 +312,7 @@ void PrintStartCollector::check_fallback_completion() {
     int progress = lv_subject_get_int(state_.get_print_progress_subject());
     if (progress >= 2 && temps_ready) {
         spdlog::info("[PrintStartCollector] Fallback: progress {}% with temps ready", progress);
-        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
         return;
     }
 
@@ -323,7 +324,7 @@ void PrintStartCollector::check_fallback_completion() {
     if (elapsed > FALLBACK_TIMEOUT && temps_near) {
         auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
         spdlog::info("[PrintStartCollector] Fallback: timeout ({} sec)", elapsed_sec);
-        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
         return;
     }
 }
@@ -379,14 +380,14 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         }
     }
     if (should_set_initializing) {
-        update_phase(PrintStartPhase::INITIALIZING, "Starting Print...");
+        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Starting Print..."));
         spdlog::info("[PrintStartCollector] PRINT_START detected");
         return;
     }
 
     // Check for completion (layer 1 indicator)
     if (is_completion_marker(line)) {
-        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
         spdlog::debug("[PrintStartCollector] Print start complete - layer 1 detected");
         // Note: The caller (main.cpp) should stop the collector when print state becomes PRINTING
         return;
@@ -452,48 +453,48 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
             std::lock_guard<std::mutex> lock(state_mutex_);
             print_start_detected_ = true;
         }
-        update_phase(PrintStartPhase::INITIALIZING, "Preparing Print...");
+        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Preparing Print..."));
         return true;
     }
 
     if (phase_name == "COMPLETE" || phase_name == "DONE") {
-        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
         spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
         return true;
     }
 
     // Individual phases
     if (phase_name == "HOMING") {
-        update_phase(PrintStartPhase::HOMING, "Homing...");
+        update_phase(PrintStartPhase::HOMING, lv_tr("Homing..."));
         return true;
     }
     if (phase_name == "HEATING_BED" || phase_name == "BED_HEATING") {
-        update_phase(PrintStartPhase::HEATING_BED, "Heating Bed...");
+        update_phase(PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."));
         return true;
     }
     if (phase_name == "HEATING_NOZZLE" || phase_name == "NOZZLE_HEATING" ||
         phase_name == "HEATING_HOTEND") {
-        update_phase(PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle...");
+        update_phase(PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."));
         return true;
     }
     if (phase_name == "QGL" || phase_name == "QUAD_GANTRY_LEVEL") {
-        update_phase(PrintStartPhase::QGL, "Leveling Gantry...");
+        update_phase(PrintStartPhase::QGL, lv_tr("Leveling Gantry..."));
         return true;
     }
     if (phase_name == "Z_TILT" || phase_name == "Z_TILT_ADJUST") {
-        update_phase(PrintStartPhase::Z_TILT, "Z Tilt Adjust...");
+        update_phase(PrintStartPhase::Z_TILT, lv_tr("Z Tilt Adjust..."));
         return true;
     }
     if (phase_name == "BED_MESH" || phase_name == "BED_LEVELING") {
-        update_phase(PrintStartPhase::BED_MESH, "Loading Bed Mesh...");
+        update_phase(PrintStartPhase::BED_MESH, lv_tr("Loading Bed Mesh..."));
         return true;
     }
     if (phase_name == "CLEANING" || phase_name == "NOZZLE_CLEAN") {
-        update_phase(PrintStartPhase::CLEANING, "Cleaning Nozzle...");
+        update_phase(PrintStartPhase::CLEANING, lv_tr("Cleaning Nozzle..."));
         return true;
     }
     if (phase_name == "PURGING" || phase_name == "PURGE" || phase_name == "PRIMING") {
-        update_phase(PrintStartPhase::PURGING, "Purging...");
+        update_phase(PrintStartPhase::PURGING, lv_tr("Purging..."));
         return true;
     }
 

@@ -5,6 +5,20 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.7] - 2026-02-27
+
+### Added
+- Dropdown options now support translation via `options_tag` attribute
+- Broad internationalization pass across C++ UI code with `lv_tr()` calls
+- Touch calibration can be forced on startup with `HELIX_TOUCH_CALIBRATE` environment variable
+- Thumbnail Only option for G-code render mode in display settings
+
+### Fixed
+- AMS tray height reduced for better proportions in slot grid
+- G-code metadata parser rejects percentage values in extrusion width fields
+- Cancel button now appears immediately when starting a print
+- AFC multi-unit bugs: nozzle navigation, lane sorting, and current tool derivation
+
 ## [0.13.6] - 2026-02-26
 
 ### Added
@@ -1216,6 +1230,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.13.7]: https://github.com/prestonbrown/helixscreen/compare/v0.13.6...v0.13.7
 [0.13.6]: https://github.com/prestonbrown/helixscreen/compare/v0.13.5...v0.13.6
 [0.13.5]: https://github.com/prestonbrown/helixscreen/compare/v0.13.4...v0.13.5
 [0.13.4]: https://github.com/prestonbrown/helixscreen/compare/v0.13.3...v0.13.4

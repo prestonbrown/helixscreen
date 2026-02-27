@@ -9,6 +9,7 @@
 #include "calibration_types.h"
 #include "input_shaper_calibrator.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 
@@ -151,7 +152,7 @@ static void safe_set_complete(std::weak_ptr<std::atomic<bool>> alive_weak) {
         }
         WizardInputShaperStep* step = get_wizard_input_shaper_step();
         if (step) {
-            lv_subject_copy_string(step->get_status_subject(), "Calibration complete!");
+            lv_subject_copy_string(step->get_status_subject(), lv_tr("Calibration complete!"));
             lv_subject_set_int(step->get_progress_subject(), 100);
             step->set_calibration_complete(true);
 
@@ -193,7 +194,7 @@ static void on_start_calibration_clicked(lv_event_t* e) {
     lv_subject_set_int(&connection_test_passed, 0);
 
     // Update status (already on UI thread, so direct call is safe)
-    lv_subject_copy_string(step->get_status_subject(), "Checking accelerometer...");
+    lv_subject_copy_string(step->get_status_subject(), lv_tr("Checking accelerometer..."));
     lv_subject_set_int(step->get_progress_subject(), 0);
 
     // Capture alive flag as weak_ptr for async callbacks

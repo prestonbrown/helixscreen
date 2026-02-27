@@ -526,7 +526,8 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
         lv_subject_set_int(&calibration_valid_, 1);
 
         // Update header subtitle to show success
-        lv_subject_copy_string(&wizard_subtitle, "Calibration complete! Press 'Next' to continue.");
+        lv_subject_copy_string(&wizard_subtitle,
+                               lv_tr("Calibration complete! Press 'Next' to continue."));
 
         // Change button text from "Skip" to "Next" since calibration is complete
         lv_subject_set_int(&wizard_show_skip, 0);

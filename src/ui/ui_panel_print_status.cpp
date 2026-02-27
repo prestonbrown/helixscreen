@@ -421,10 +421,15 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         } else {
             // No cmdline or env var - apply saved settings
             int render_mode_val = DisplaySettingsManager::instance().get_gcode_render_mode();
-            auto render_mode = static_cast<GcodeViewerRenderMode>(render_mode_val);
-            ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
-            spdlog::debug("[{}]   ✓ Set G-code render mode: {} (settings)", get_name(),
-                          render_mode_val);
+            if (render_mode_val == 3) {
+                // Thumbnail Only mode - skip render mode setup, viewer won't be used
+                spdlog::debug("[{}]   ✓ G-code render mode: Thumbnail Only (settings)", get_name());
+            } else {
+                auto render_mode = static_cast<GcodeViewerRenderMode>(render_mode_val);
+                ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
+                spdlog::debug("[{}]   ✓ Set G-code render mode: {} (settings)", get_name(),
+                              render_mode_val);
+            }
         }
 
         // Create and initialize exclude object manager
@@ -1979,6 +1984,14 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
     // Skip if no API available
     if (!api_) {
         spdlog::debug("[{}] No API available - skipping G-code load", get_name());
+        return;
+    }
+
+    // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing
+    if (DisplaySettingsManager::instance().get_gcode_render_mode() == 3) {
+        spdlog::info("[{}] G-code render mode is Thumbnail Only - skipping G-code load",
+                     get_name());
+        show_gcode_viewer(false);
         return;
     }
 

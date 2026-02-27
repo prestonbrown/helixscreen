@@ -12,6 +12,7 @@
 #include "gcode_parser.h"
 #include "gcode_streaming_config.h"
 #include "gcode_streaming_controller.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_utils.h"
 #include "theme_manager.h"
 
@@ -1076,7 +1077,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         lv_obj_set_style_arc_opa(st->loading_spinner, LV_OPA_0, LV_PART_MAIN);
 
         st->loading_label = lv_label_create(st->loading_container);
-        lv_label_set_text(st->loading_label, "Indexing G-code...");
+        lv_label_set_text(st->loading_label, lv_tr("Indexing G-code..."));
         lv_obj_set_style_text_color(st->loading_label, theme_manager_get_color("text"),
                                     LV_PART_MAIN);
 
@@ -1218,7 +1219,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         lv_obj_set_style_arc_opa(st->loading_spinner, LV_OPA_0, LV_PART_MAIN);
 
         st->loading_label = lv_label_create(st->loading_container);
-        lv_label_set_text(st->loading_label, "Loading G-code...");
+        lv_label_set_text(st->loading_label, lv_tr("Loading G-code..."));
         lv_obj_set_style_text_color(st->loading_label, theme_manager_get_color("text"),
                                     LV_PART_MAIN);
     }

@@ -385,6 +385,19 @@ def extract_strings_from_xml(xml_path: Path) -> Set[str]:
             if not should_skip_text(text):
                 result.add(text)
 
+    # Extract individual options from options_tag attributes
+    # options_tag values use &#10; as separator in raw XML
+    for match in re.finditer(r'options_tag="([^"]*)"', content):
+        raw_value = match.group(1)
+        if not raw_value or raw_value.startswith("$"):
+            continue
+        # Split on &#10; (raw XML entity, before decode)
+        parts = raw_value.split("&#10;")
+        for part in parts:
+            decoded = _decode_xml_entities(part)
+            if not should_skip_text(decoded):
+                result.add(decoded)
+
     return result
 
 
@@ -437,6 +450,21 @@ def extract_strings_with_locations(xml_path: Path) -> Dict[str, List[Tuple[str, 
             if text not in result:
                 result[text] = []
             result[text].append((filename, line_num))
+
+    # Extract individual options from options_tag attributes
+    for match in re.finditer(r'options_tag="([^"]*)"', content):
+        raw_value = match.group(1)
+        if not raw_value or raw_value.startswith("$"):
+            continue
+        parts = raw_value.split("&#10;")
+        line_num = content[: match.start()].count("\n") + 1
+        for part in parts:
+            decoded = _decode_xml_entities(part)
+            if should_skip_text(decoded):
+                continue
+            if decoded not in result:
+                result[decoded] = []
+            result[decoded].append((filename, line_num))
 
     return result
 

@@ -1178,3 +1178,133 @@ TEST_CASE("GCodeParser - Real 3DBenchy layer count", "[gcode][parser][layers][in
         }
     }
 }
+
+// ============================================================================
+// Extrusion width metadata parsing
+// ============================================================================
+
+TEST_CASE("GCodeParser - Extrusion width metadata parsing", "[gcode][parser][metadata][width]") {
+    SECTION("Parse OrcaSlicer header width comments") {
+        GCodeParser parser;
+        parser.parse_line("; perimeters extrusion width = 0.45mm");
+        parser.parse_line("; infill extrusion width = 0.50mm");
+        parser.parse_line("; first layer extrusion width = 0.42mm");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        auto file = parser.finalize();
+
+        REQUIRE(file.perimeter_extrusion_width_mm == Approx(0.45f));
+        REQUIRE(file.infill_extrusion_width_mm == Approx(0.50f));
+        REQUIRE(file.first_layer_extrusion_width_mm == Approx(0.42f));
+    }
+
+    SECTION("Parse width without mm suffix") {
+        GCodeParser parser;
+        parser.parse_line("; perimeters extrusion width = 0.40");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        auto file = parser.finalize();
+
+        REQUIRE(file.perimeter_extrusion_width_mm == Approx(0.40f));
+    }
+
+    SECTION("Parse generic line_width as default extrusion width") {
+        GCodeParser parser;
+        parser.parse_line("; line_width = 0.4");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        auto file = parser.finalize();
+
+        REQUIRE(file.extrusion_width_mm == Approx(0.4f));
+    }
+
+    SECTION("Percentage values are ignored — not parsed as mm") {
+        GCodeParser parser;
+        // Header with correct mm values (parsed first)
+        parser.parse_line("; perimeters extrusion width = 0.40mm");
+        parser.parse_line("; infill extrusion width = 0.45mm");
+        parser.parse_line("; first layer extrusion width = 0.40mm");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        // OrcaSlicer settings dump at end with percentage values
+        parser.parse_line("; line_width = 100%");
+        parser.parse_line("; inner_wall_line_width = 100%");
+        parser.parse_line("; sparse_infill_line_width = 112.5%");
+        parser.parse_line("; initial_layer_line_width = 100%");
+        parser.parse_line("; outer_wall_line_width = 100%");
+        auto file = parser.finalize();
+
+        // Percentage values must NOT overwrite the correct mm values
+        INFO("extrusion_width_mm: " << file.extrusion_width_mm);
+        INFO("perimeter_extrusion_width_mm: " << file.perimeter_extrusion_width_mm);
+        INFO("infill_extrusion_width_mm: " << file.infill_extrusion_width_mm);
+        INFO("first_layer_extrusion_width_mm: " << file.first_layer_extrusion_width_mm);
+        REQUIRE(file.extrusion_width_mm < 1.0f);
+        REQUIRE(file.perimeter_extrusion_width_mm == Approx(0.40f));
+        REQUIRE(file.infill_extrusion_width_mm == Approx(0.45f));
+        REQUIRE(file.first_layer_extrusion_width_mm == Approx(0.40f));
+    }
+
+    SECTION("Percentage-only file gets zero width (no valid mm values)") {
+        GCodeParser parser;
+        parser.parse_line("; line_width = 100%");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        auto file = parser.finalize();
+
+        // No valid mm-based width was parsed, should remain 0
+        REQUIRE(file.extrusion_width_mm == Approx(0.0f));
+    }
+
+    SECTION("Out-of-range values are rejected") {
+        GCodeParser parser;
+        // Value too large (>3.0mm)
+        parser.parse_line("; line_width = 5.0");
+        parser.parse_line("G1 X10 Y10 Z0.2 E1");
+        auto file = parser.finalize();
+
+        REQUIRE(file.extrusion_width_mm == Approx(0.0f));
+    }
+}
+
+TEST_CASE("GCodeParser - Real OrcaSlicer SSR file metadata",
+          "[gcode][parser][metadata][integration]") {
+    // Integration test with the real file that triggered the 100mm width bug
+    std::string test_file = "assets/test_gcodes/ssr_heat_sink_orca.gcode";
+
+    std::ifstream check(test_file);
+    if (!check.good()) {
+        SKIP("Test G-code file not found: " << test_file);
+    }
+    check.close();
+
+    GCodeParser parser;
+    std::ifstream file_stream(test_file);
+    std::string line;
+    while (std::getline(file_stream, line)) {
+        parser.parse_line(line);
+    }
+    auto file = parser.finalize();
+
+    SECTION("Extrusion width is sane despite OrcaSlicer settings dump") {
+        INFO("extrusion_width_mm: " << file.extrusion_width_mm);
+        INFO("perimeter_extrusion_width_mm: " << file.perimeter_extrusion_width_mm);
+        INFO("infill_extrusion_width_mm: " << file.infill_extrusion_width_mm);
+        INFO("first_layer_extrusion_width_mm: " << file.first_layer_extrusion_width_mm);
+
+        // All widths must be in sane range (not 100mm from percentage parsing)
+        REQUIRE(file.extrusion_width_mm < 1.0f);
+        REQUIRE(file.perimeter_extrusion_width_mm < 1.0f);
+        REQUIRE(file.infill_extrusion_width_mm < 1.0f);
+        REQUIRE(file.first_layer_extrusion_width_mm < 1.0f);
+
+        // Should have parsed the correct header values
+        // Note: "solid infill extrusion width = 0.40mm" overwrites "infill extrusion width =
+        // 0.45mm" because both match the "infill" category (last-writer-wins)
+        REQUIRE(file.perimeter_extrusion_width_mm == Approx(0.40f));
+        REQUIRE(file.infill_extrusion_width_mm == Approx(0.40f));
+        REQUIRE(file.first_layer_extrusion_width_mm == Approx(0.40f));
+    }
+
+    SECTION("Layer count is correct") {
+        // File header says: ; total layer number: 153
+        INFO("Parsed layers: " << file.layers.size());
+        REQUIRE(file.layers.size() >= 150);
+        REQUIRE(file.layers.size() <= 156);
+    }
+}

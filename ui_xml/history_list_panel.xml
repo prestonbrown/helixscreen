@@ -22,11 +22,11 @@
         <event_cb trigger="value_changed" callback="history_search_changed"/>
       </text_input>
       <!-- Status filter dropdown -->
-      <lv_dropdown name="filter_status" options="All&#10;Completed&#10;Failed&#10;Cancelled" style_min_width="100">
+      <lv_dropdown name="filter_status" options="All&#10;Completed&#10;Failed&#10;Cancelled" options_tag="All&#10;Completed&#10;Failed&#10;Cancelled" style_min_width="100">
         <event_cb trigger="value_changed" callback="history_filter_status_changed"/>
       </lv_dropdown>
       <!-- Sort dropdown -->
-      <lv_dropdown name="sort_dropdown" options="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" style_min_width="120">
+      <lv_dropdown name="sort_dropdown" options="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" options_tag="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" style_min_width="120">
         <event_cb trigger="value_changed" callback="history_sort_changed"/>
       </lv_dropdown>
     </lv_obj>

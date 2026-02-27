@@ -17,6 +17,7 @@
 #include "config.h"
 #include "filament_sensor_manager.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "printer_discovery.h"
@@ -1036,7 +1037,7 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
     if (printers.empty()) {
         lv_subject_copy_string(&mdns_status_, lv_tr("No printers found"));
     } else if (printers.size() == 1) {
-        lv_subject_copy_string(&mdns_status_, "Found 1 printer");
+        lv_subject_copy_string(&mdns_status_, lv_tr("Found 1 printer"));
     } else {
         char buf[32];
         snprintf(buf, sizeof(buf), "Found %zu printers", printers.size());

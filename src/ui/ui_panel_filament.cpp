@@ -208,7 +208,7 @@ void FilamentPanel::init_subjects() {
                                subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
-        std::strncpy(card_title_buf_, "Multi-Filament", sizeof(card_title_buf_) - 1);
+        std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
         UI_MANAGED_SUBJECT_STRING(card_title_subject_, card_title_buf_, card_title_buf_,
                                   "filament_card_title", subjects_);
 
@@ -364,7 +364,8 @@ void FilamentPanel::update_status() {
         update_status_icon("check", "success");
     } else if (nozzle_target_ >= min_extrude_temp_) {
         // Heating in progress
-        std::snprintf(status_buf_, sizeof(status_buf_), "Heating to %d°C...", nozzle_target_);
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating to %d°C..."),
+                      nozzle_target_);
         lv_subject_copy_string(&status_subject_, status_buf_);
         update_status_icon("flash", "warning");
         return; // Already updated, exit early
@@ -911,7 +912,7 @@ void FilamentPanel::update_multi_filament_card_visibility() {
     }
 
     // Update card title dynamically (for AMS/multi-tool modes)
-    const char* title = external_spool_mode ? "External Spool" : "Multi-Filament";
+    const char* title = external_spool_mode ? lv_tr("External Spool") : lv_tr("Multi-Filament");
     std::strncpy(card_title_buf_, title, sizeof(card_title_buf_) - 1);
     card_title_buf_[sizeof(card_title_buf_) - 1] = '\0';
     lv_subject_copy_string(&card_title_subject_, card_title_buf_);
@@ -987,10 +988,10 @@ void FilamentPanel::update_external_spool_from_state() {
         ui_spool_canvas_set_fill_level(external_spool_canvas_, 0.0f);
 
         if (external_spool_material_label_) {
-            lv_label_set_text(external_spool_material_label_, "No spool assigned");
+            lv_label_set_text(external_spool_material_label_, lv_tr("No spool assigned"));
         }
         if (external_spool_color_label_) {
-            lv_label_set_text(external_spool_color_label_, "Tap to assign");
+            lv_label_set_text(external_spool_color_label_, lv_tr("Tap to assign"));
         }
     }
     ui_spool_canvas_redraw(external_spool_canvas_);

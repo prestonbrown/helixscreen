@@ -725,6 +725,75 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
     }
 }
 
+TEST_CASE("Print characterization: preparing phase clears outcome",
+          "[characterization][print][outcome][phase]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    SECTION("entering Preparing from COMPLETE clears outcome immediately") {
+        // Simulate: print completes
+        json complete = {{"print_stats", {{"state", "complete"}}}};
+        state.update_from_status(complete);
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::COMPLETE));
+
+        // User starts a new print — PRINT_START fires, entering Preparing phase.
+        // Moonraker state is still "standby" at this point (not yet "printing").
+        state.set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+        // Outcome should be cleared immediately — cancel button visible during pre-print
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::NONE));
+    }
+
+    SECTION("entering Preparing from CANCELLED clears outcome immediately") {
+        json cancelled = {{"print_stats", {{"state", "cancelled"}}}};
+        state.update_from_status(cancelled);
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::CANCELLED));
+
+        state.set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...", 20);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::NONE));
+    }
+
+    SECTION("entering Preparing from ERROR clears outcome immediately") {
+        json error = {{"print_stats", {{"state", "error"}}}};
+        state.update_from_status(error);
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::ERROR));
+
+        state.set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...", 5);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::NONE));
+    }
+
+    SECTION("phase change within Preparing does NOT re-clear outcome") {
+        // Simulate complete -> preparing
+        json complete = {{"print_stats", {{"state", "complete"}}}};
+        state.update_from_status(complete);
+
+        state.set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::NONE));
+
+        // Advance through phases — outcome stays NONE, no redundant clearing
+        state.set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...", 40);
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+                static_cast<int>(PrintOutcome::NONE));
+    }
+}
+
 TEST_CASE("Print characterization: print start phase safety reset",
           "[characterization][print][phase][safety]") {
     lv_init_safe();

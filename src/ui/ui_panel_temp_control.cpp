@@ -17,6 +17,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "filament_database.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -301,13 +302,13 @@ void TempControlPanel::update_status(HeaterType type) {
         // Sensor-only heaters (e.g., chamber without active heater) just show "Monitoring"
         snprintf(h.status_buf.data(), h.status_buf.size(), "Monitoring");
     } else if (h.target > 0 && h.current < h.target - TEMP_TOLERANCE_CENTI) {
-        snprintf(h.status_buf.data(), h.status_buf.size(), "Heating to %d°C...", target_deg);
+        snprintf(h.status_buf.data(), h.status_buf.size(), lv_tr("Heating to %d°C..."), target_deg);
     } else if (h.target > 0 && h.current >= h.target - TEMP_TOLERANCE_CENTI) {
         snprintf(h.status_buf.data(), h.status_buf.size(), "At target temperature");
     } else if (h.target == 0 && h.current > h.cooling_threshold_centi) {
         snprintf(h.status_buf.data(), h.status_buf.size(), "Cooling down");
     } else {
-        snprintf(h.status_buf.data(), h.status_buf.size(), "Idle");
+        snprintf(h.status_buf.data(), h.status_buf.size(), "%s", lv_tr("Idle"));
     }
 
     lv_subject_copy_string(&h.status_subject, h.status_buf.data());
@@ -404,7 +405,7 @@ void TempControlPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING_N(h.display_subject, h.display_buf.data(), h.display_buf.size(),
                                     h.display_buf.data(), display_names[i], subjects_);
         UI_MANAGED_SUBJECT_STRING_N(h.status_subject, h.status_buf.data(), h.status_buf.size(),
-                                    "Idle", status_names[i], subjects_);
+                                    lv_tr("Idle"), status_names[i], subjects_);
         UI_MANAGED_SUBJECT_INT(h.heating_subject, 0, heating_names[i], subjects_);
     }
 

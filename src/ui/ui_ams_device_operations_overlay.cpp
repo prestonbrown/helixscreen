@@ -78,7 +78,7 @@ void AmsDeviceOperationsOverlay::init_subjects() {
     lv_xml_register_subject(nullptr, "ams_device_ops_system_info", &system_info_subject_);
 
     // Status text
-    snprintf(status_buf_, sizeof(status_buf_), "Idle");
+    snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Idle"));
     lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_),
                            status_buf_);
     lv_xml_register_subject(nullptr, "ams_device_ops_status", &status_subject_);
@@ -344,7 +344,7 @@ void AmsDeviceOperationsOverlay::create_section_row(lv_obj_t* parent,
 const char* AmsDeviceOperationsOverlay::action_to_string(int action) {
     switch (static_cast<AmsAction>(action)) {
     case AmsAction::IDLE:
-        return "Idle";
+        return lv_tr("Idle");
     case AmsAction::LOADING:
         return "Loading filament...";
     case AmsAction::UNLOADING:
@@ -358,7 +358,7 @@ const char* AmsDeviceOperationsOverlay::action_to_string(int action) {
     case AmsAction::CUTTING:
         return "Cutting filament...";
     case AmsAction::HEATING:
-        return "Heating...";
+        return lv_tr("Heating...");
     case AmsAction::CHECKING:
         return "Checking slots...";
     case AmsAction::PAUSED:

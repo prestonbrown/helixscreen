@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "device_display_name.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
@@ -247,7 +248,7 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         // Show status text explaining why it's locked
         lv_obj_t* status_label = lv_obj_find_by_name(row, "device_status");
         if (status_label) {
-            lv_label_set_text(status_label, "Locked during print");
+            lv_label_set_text(status_label, lv_tr("Locked during print"));
             lv_obj_remove_flag(status_label, LV_OBJ_FLAG_HIDDEN);
         }
     }

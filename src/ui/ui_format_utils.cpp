@@ -5,6 +5,7 @@
 
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 
 #include <cstdio>
 #include <ctime>
@@ -33,9 +34,9 @@ std::string format_layer_count(uint32_t layer_count) {
     }
     char buf[32];
     if (layer_count == 1) {
-        snprintf(buf, sizeof(buf), "1 layer");
+        snprintf(buf, sizeof(buf), "%s", lv_tr("1 layer"));
     } else {
-        snprintf(buf, sizeof(buf), "%u layers", layer_count);
+        snprintf(buf, sizeof(buf), lv_tr("%u layers"), layer_count);
     }
     return std::string(buf);
 }

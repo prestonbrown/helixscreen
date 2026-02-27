@@ -164,8 +164,9 @@ static void on_z_movement_style_changed(lv_event_t* e) {
 static void on_gcode_mode_changed(lv_event_t* e) {
     lv_obj_t* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     int mode = static_cast<int>(lv_dropdown_get_selected(dropdown));
+    static const char* MODE_NAMES[] = {"Auto", "3D", "2D Layers", "Thumbnail Only"};
     spdlog::info("[SettingsPanel] G-code render mode changed: {} ({})", mode,
-                 mode == 0 ? "Auto" : (mode == 1 ? "3D" : "2D Layers"));
+                 (mode >= 0 && mode <= 3) ? MODE_NAMES[mode] : "Unknown");
     DisplaySettingsManager::instance().set_gcode_render_mode(mode);
 }
 

@@ -22,6 +22,7 @@
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "injection_point_manager.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "printer_image_manager.h"
@@ -841,7 +842,7 @@ void HomePanel::reset_print_card_to_idle() {
         lv_image_set_src(print_card_thumb_, "A:assets/images/benchy_thumbnail_white.png");
     }
     if (print_card_label_) {
-        lv_label_set_text(print_card_label_, "Print Files");
+        lv_label_set_text(print_card_label_, lv_tr("Print Files"));
     }
 }
 

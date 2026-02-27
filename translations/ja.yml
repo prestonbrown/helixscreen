@@ -1,28 +1,46 @@
 locale: ja
 translations:
-  ' elapsed · ': ' elapsed · '
+  ' elapsed · ': ' 経過 · '
   ' frames captured': ' フレームをキャプチャしました'
-  ' left': ' left'
+  ' left': ' 残り'
+  '%u layers': '%uレイヤー'
   + Add: + 追加
   + Add Preset: + プリセットを追加
   + New: + 新規
-  '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester] を確認してください'
+  '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
+    を確認してください'
   '- Ensure ADXL345 is connected': '- ADXL345 が接続されていることを確認してください'
   '- Try Measure Noise first': '- まず「ノイズ測定」をお試しください'
   --°C: --°C
   0 slots: '{0} スロット'
   0.4-2mm direct drive, 4-6mm bowden: 0.4-2mm ダイレクトドライブ、4-6mm ボーデン
+  1 event queued: 1件のイベント待機中
+  1 layer: 1レイヤー
+  1 minute: 1分
   1 more tap to {} beta features: あと1回タップでベータ機能を{}
   1. Printer homes and probes the bed: 1. プリンターがホーミングしてベッドをプローブします
   1. Printer will home and probe each screw: 1. プリンターがホーミングして各ネジをプローブします
+  10 minutes: 10分
+  12 Hour: 12時間
+  120 seconds: 120秒
+  15 seconds: 15秒
+  2 minutes: 2分
   2. Place paper between nozzle and bed: 2. ノズルとベッドの間に紙を置いてください
   2. Results show how much to turn each screw: 2. 各ネジをどれだけ回すか結果が表示されます
+  24 Hour: 24時間
+  2D Heatmap: 2Dヒートマップ
+  2D Layers: 2Dレイヤー
   3. Adjust screws, then re-probe to verify: 3. ネジを調整し、再度プローブして確認してください
   3. Lower nozzle until paper drags slightly: 3. 紙がわずかに引っかかるまでノズルを下げてください
+  30 minutes: 30分
+  30 seconds: 30秒
   3D Preview: 3Dプレビュー
+  3D View: 3Dビュー
   4. Paper should move but with resistance: 4. 紙が抵抗を感じながら動く状態が適切です
   4. Repeat until bed is level: 4. ベッドが水平になるまで繰り返してください
+  5 minutes: 5分
   5V: 5V
+  60 seconds: 60秒
   = Loosen: = 緩める
   = Tighten: = 締める
   ABOUT: 情報
@@ -62,6 +80,7 @@ translations:
   Adjusts individual characteristics of your heaters for optimal control: ヒーターの個別特性を調整して最適な制御を実現します
   Advanced Setting: 詳細設定
   After running the commands, tap Check Again below.: コマンド実行後、下の「再確認」をタップしてください。
+  Alert: アラート
   All: すべて
   All screws are within tolerance.: すべてのネジが許容範囲内です。
   Allow display to sleep during active prints: 印刷中のスリープを許可
@@ -80,7 +99,8 @@ translations:
   Apply Changes: 変更を適用
   Applying...: 適用中...
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
-  Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御
+  Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
+    LED を制御
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Auto: 自動
   Auto Bed Mesh: 自動ベッドメッシュ
@@ -103,12 +123,14 @@ translations:
   Bed Leveling: ベッドレベリング
   Bed Mesh: ベッドメッシュ
   Bed Mesh Render: ベッドメッシュ描画
+  Bed Moves: ベッド移動
   Bed Screw Adjustment: ベッドネジ調整
   Bed Screws: ベッドネジ
   Bed Temp: ベッド温度
   Bed is Level!: ベッドが水平です！
   Bed °C: ベッド °C
   'Bed:': 'ベッド:'
+  Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
   'Beta features: ON': 'ベータ機能: ON'
   Black: ブラック
@@ -142,6 +164,8 @@ translations:
   Calibration Complete!: キャリブレーション完了！
   Calibration Failed: キャリブレーション失敗
   Calibration complete: キャリブレーション完了
+  Calibration complete!: キャリブレーション完了！
+  Calibration complete! Press 'Next' to continue.: "キャリブレーション完了！「次へ」を押して続行してください。"
   Calibration failed - touch targets more precisely.: キャリブレーション失敗 – ターゲットをより正確にタッチしてください。
   Calibration saved but cannot apply on SDL display: キャリブレーションは保存されましたが SDL ディスプレイには適用できません
   Calibration timed out. Please try again.: タイムアウトしました。もう一度お試しください。
@@ -161,6 +185,7 @@ translations:
   Check Again: 再確認
   Check for Updates: 更新を確認
   Check the filament path and try again.: フィラメント経路を確認して、もう一度お試しください。
+  Checking accelerometer...: 加速度センサーを確認中...
   Checking for plugin...: プラグインを確認中...
   Checking slots...: スロットを確認中...
   Checking timelapse plugin...: タイムラプスプラグインを確認中...
@@ -172,6 +197,7 @@ translations:
   Choose rendering mode for bed mesh visualization: ベッドメッシュの視覚化レンダリングモードを選択
   Choose sound style: サウンドスタイルを選択
   Clean Nozzle: ノズル清掃
+  Cleaning Nozzle...: ノズル清掃中...
   Clear: クリア
   Clear All: すべてクリア
   Clear All Events: すべてのイベントをクリア
@@ -186,8 +212,10 @@ translations:
   Color Mismatch: 色の不一致
   Color Sensors: カラーセンサー
   Complete: 完了
+  Complete!: 完了！
   Completed: 完了
   Completed in 3 probes: 3回のプローブで完了
+  Completed prints will appear here: 完了した印刷がここに表示されます
   Computing calibration...: キャリブレーション計算中...
   Config-defined (read-only): 設定で定義済み（読み取り専用）
   Configuration added successfully.: 設定が正常に追加されました。
@@ -242,6 +270,12 @@ translations:
   Current Version: 現在のバージョン
   Current Z Position: 現在のZ位置
   'Current name:': '現在の名前:'
+  'Current: %s · Slot %d': '現在: %s · スロット %d'
+  'Current: %s Â· Slot %d': '現在: %s Â· スロット %d'
+  'Current: Bypass': '現在: バイパス'
+  'Current: Slot %d': '現在: スロット %d'
+  'Current: Tool %d': '現在: ツール %d'
+  Currently Loaded: 現在ロード中
   Currently printing: 印刷中
   Custom: カスタム
   Custom...: カスタム...
@@ -252,6 +286,8 @@ translations:
   Danger: 危険
   Dark Mode: ダークモード
   Database: データベース
+  Date (newest): 日付（新しい順）
+  Date (oldest): 日付（古い順）
   Day: 日
   Default border thickness: デフォルトの境界線の太さ
   Define macros in your printer.cfg: printer.cfg でマクロを定義してください
@@ -261,12 +297,14 @@ translations:
   Delete Spool?: スプールを削除しますか？
   'Delta:': '差分:'
   Deploy: 展開
+  Dev: 開発版
   Dev channel requires dev_url in config: 開発チャンネルには設定にdev_urlが必要です
   Device name is required: デバイス名は必須です
   Disable: 無効化
   Disable Motors?: モーターを無効にしますか？
   Discard: 破棄
   Discard Changes?: 変更を破棄しますか？
+  Disconnected: 切断
   Discord Community: Discordコミュニティ
   Discovered Printers: 検出されたプリンター
   Dismiss: 閉じる
@@ -334,6 +372,7 @@ translations:
   Exhaust Fan: 排気ファン
   Explore how the selected palette shapes text, controls, and status colors.: 選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。
   Explore palette and preview: パレットを確認してプレビュー
+  External: 外部
   External Spool: 外部スプール
   Extra prime to compensate ooze: 滲み出しを補正するための追加プライム
   Extrude: 押し出し
@@ -390,6 +429,7 @@ translations:
   Flat Concentric Rings (existing ams_slot): 同心円リング（既存の ams_slot）
   Flow Rate: フローレート
   Forming tip...: チップを形成中...
+  Found 1 printer: プリンター1台を検出
   Framerate: フレームレート
   Front: 正面
   G-code Console: G-code コンソール
@@ -411,7 +451,9 @@ translations:
   Hardware marked as optional: ハードウェアをオプションに設定しました
   Hardware saved to config: ハードウェアを設定に保存しました
   Have a piece of paper ready.: 紙を1枚用意してください。
-  ? Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't adjusted with                              thumb wheels or some other built-in mechanism.
+  ? Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't
+    adjusted with                              thumb wheels or some other built-in
+    mechanism.
   : ベッドがサムホイールなどの内蔵機構で調整できない場合は、ベッド調整ツール（ドライバー、六角レンチなど）を用意してください。
   Heading: 見出し
   Heat Soak: ヒートソーク
@@ -419,17 +461,24 @@ translations:
   Heatbed Temperature: ヒートベッド温度
   Heated Bed: 加熱ベッド
   Heater: ヒーター
+  Heating (%d°C below minimum): "加熱中（最低温度より%d°C低い）"
+  Heating Bed...: ベッド加熱中...
+  Heating Nozzle...: ノズル加熱中...
+  Heating to %d°C...: "%d°Cまで加熱中..."
+  Heating to target...: 目標温度まで加熱中...
   Heating...: 加熱中...
   HelixScreen: HelixScreen
   HelixScreen Crashed: HelixScreen がクラッシュしました
-  HelixScreen is detecting your display orientation: 'HelixScreenがディスプレイの向きを検出しています'
-  HelixScreen will integrate with your filament changer for multi-spool/color print operations.: HelixScreen はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。
+  HelixScreen is detecting your display orientation: HelixScreenがディスプレイの向きを検出しています
+  HelixScreen will integrate with your filament changer for multi-spool/color print operations.: HelixScreen
+    はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。
   Help improve HelixScreen?: HelixScreenの改善に協力しますか？
   Higher = faster: 高い = 速い
   Home: ホーム
   Home Widgets: ホームウィジェット
   Home failed: ホーミング失敗
   Homing AFC system...: AFCシステムをホーミング中...
+  Homing...: ホーミング中...
   Horizontal Progress (Leveling Wizard): 水平プログレス（レベリングウィザード）
   Host: ホスト
   Hotend: ホットエンド
@@ -439,6 +488,7 @@ translations:
   How often to check Spoolman for weight updates: Spoolman の重量更新をチェックする頻度
   Humidity: 湿度
   Humidity Sensors: 湿度センサー
+  Hyperlapse: ハイパーラプス
   IMPORT FROM USB: USBからインポート
   'IP:': 'IP:'
   Idle: アイドル
@@ -459,7 +509,8 @@ translations:
   Install HelixPrint Plugin: HelixPrint プラグインをインストール
   Install Plugin: プラグインをインストール
   Install Update: 更新をインストール
-  'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'
+  'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速
+    G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'
   Install the timelapse plugin via SSH,\nthen tap \"Check Again\".: SSHでタイムラプスプラグインをインストールし、\n「再確認」をタップしてください。
   Install timelapse plugin: タイムラプスプラグインをインストール
   Installation Failed: インストール失敗
@@ -476,8 +527,9 @@ translations:
   Keyboard Test (Gboard-style): キーボードテスト（Gboard風）
   Klipper: Klipper
   'Klipper firmware has disconnected from the host. ': 'Klipper ファームウェアがホストから切断されました。 '
-  'Klipper has entered an error state. This is typically caused by an MCU ': 'Klipperがエラー状態になりました。これは通常MCU'
-  'Klipper has entered shutdown state. This may be due to an emergency stop, ': 'Klipper がシャットダウン状態になりました。緊急停止が原因の可能性があります。 '
+  'Klipper has entered an error state. This is typically caused by an MCU ': Klipperがエラー状態になりました。これは通常MCU
+  'Klipper has entered shutdown state. This may be due to an emergency stop, ': 'Klipper
+    がシャットダウン状態になりました。緊急停止が原因の可能性があります。 '
   Klipper will restart to apply changes: 変更を適用するために Klipper が再起動します
   Klipper will restart to apply changes.: 変更を適用するために Klipper が再起動します。
   Klipper will restart to apply new PID values.: 新しい PID 値を適用するために Klipper が再起動します。
@@ -495,17 +547,20 @@ translations:
   Last print cancelled: 前回の印刷がキャンセルされました
   Last print failed: 前回の印刷が失敗しました
   Later: 後で
+  Layer: レイヤー
   Layer Height: レイヤー高さ
   Layer mode captures one frame per layer change. Best for most prints.: レイヤーモードはレイヤー変更ごとに1フレームをキャプチャします。ほとんどの印刷に最適です。
   'Layer:': 'レイヤー:'
   Layers: レイヤー
   Learn More: 詳細を見る
   'Length:': '長さ:'
+  Leveling Gantry...: ガントリーレベリング中...
   Light: ライト
   Link to Spoolman: Spoolmanに連携
   Load: 装填
   Load Filament: フィラメントを装填
   Loaded: 装填済み
+  Loading Bed Mesh...: ベッドメッシュ読込中...
   Loading Error: 装填エラー
   Loading G-code...: G-codeを読み込み中...
   Loading filament...: フィラメントを装填中...
@@ -551,6 +606,7 @@ translations:
   Match your typical print fan speed: 通常の印刷ファン速度に合わせてください
   Material: 素材
   Material Design Spinner: マテリアルデザインスピナー
+  Max: 最大
   Max Accel: 最大加速
   Max Acceleration: 最大加速度
   Max Velocity: 最大速度
@@ -563,6 +619,7 @@ translations:
   Measured: 測定値
   Memory (MB): メモリ (MB)
   Mesh Complete: メッシュ完了
+  Min: 最小
   Mode: モード
   Modified: 変更日時
   Month: 月
@@ -573,11 +630,12 @@ translations:
   Motors Off: モーターオフ
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Movement speed: 移動速度
-  ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
+  ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
+    minutes. The printer will make noise — this is normal.
   : プリントヘッドを移動させて各軸の振動周波数を測定します。2〜3分かかります。プリンターから音がしますが、これは正常です。
   Multi Filament System Overview: マルチフィラメントシステム概要
   Multi-Filament: マルチフィラメント
-  "Multi-Filament:": "マルチフィラメント："
+  'Multi-Filament:': マルチフィラメント：
   Multi-Material: マルチマテリアル
   My Custom Theme: マイカスタムテーマ
   My Panel: マイパネル
@@ -592,6 +650,7 @@ translations:
   Network Name (SSID): ネットワーク名 (SSID)
   Network Settings: ネットワーク設定
   Network Test: ネットワークテスト
+  Never: なし
   'New Spool: Step ': '新しいスプール: ステップ '
   'New Spool: Step 1 of 3': '新しいスプール: ステップ 1 / 3'
   New Version Available: 新バージョンあり
@@ -616,6 +675,8 @@ translations:
   No files available for printing: 印刷可能なファイルがありません
   No images found on USB drive: USBドライブに画像が見つかりません
   No macros available: 利用可能なマクロがありません
+  No matching prints: 一致する印刷なし
+  No mesh data: メッシュデータなし
   No mesh loaded: メッシュが読み込まれていません
   No network. Scan QR code to report on your phone.: ネットワークなし。QR コードをスキャンしてスマホから報告してください。
   No networks found: ネットワークが見つかりません
@@ -623,6 +684,7 @@ translations:
   No plugins found: プラグインが見つかりません
   No presets: プリセットなし
   No preview: プレビューなし
+  No print history found: 印刷履歴が見つかりません
   No print history yet: 印刷履歴がありません
   No print start macro found: 印刷開始マクロが見つかりません
   No printers found: プリンターが見つかりません
@@ -640,11 +702,13 @@ translations:
   Not yet calibrated: 未キャリブレーション
   Notes: メモ
   Notes (optional): メモ（オプション）
+  Notification: 通知
   Notifications: 通知
   Notify when print finishes: 印刷完了時に通知
   Nozzle: ノズル
   'Nozzle ': 'ノズル '
   Nozzle Clean: ノズル清掃
+  Nozzle Moves: ノズル移動
   Nozzle Priming: ノズルプライミング
   Nozzle Temp: ノズル温度
   Nozzle Temperature: ノズル温度
@@ -687,8 +751,10 @@ translations:
   Phase tracking update failed: フェーズトラッキングの更新に失敗
   Pick: 選択
   Pick Color: 色を選択
-  Place PNG or JPEG files in config/custom_images/ to add custom images: カスタム画像を追加するには config/custom_images/ に PNG または JPEG ファイルを配置してください
-  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
+  Place PNG or JPEG files in config/custom_images/ to add custom images: カスタム画像を追加するには
+    config/custom_images/ に PNG または JPEG ファイルを配置してください
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル
+    (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
   Place plugins in the plugins directory to extend HelixScreen: HelixScreen を拡張するには、プラグインディレクトリにプラグインを配置してください
   Play a test beep: テストビープ音を再生
   Please enter a theme name: テーマ名を入力してください
@@ -707,8 +773,10 @@ translations:
   Power: 電源
   Power Control: 電源制御
   Power Devices: 電源デバイス
-  Preparing: '準備中'
+  Preparing: 準備中
   Preparing Print: 印刷準備中
+  Preparing Print...: 印刷準備中...
+  Preparing...: 準備中...
   Preset: プリセット
   Presets: プリセット
   Previous: 前へ
@@ -761,6 +829,7 @@ translations:
   Progress Bar Tests: プログレスバーテスト
   Purge: パージ
   Purging nozzle: ノズルをパージ中
+  Purging...: パージ中...
   QGL: QGL
   QUEUED EVENTS: キュー内のイベント
   QUICK BUTTONS: クイックボタン
@@ -813,7 +882,7 @@ translations:
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
   Restarting Moonraker...: Moonrakerを再起動中...
-  Restarting...: '再起動中...'
+  Restarting...: 再起動中...
   Resume: 再開
   Resume Print: 印刷を再開
   Retract: 引き戻し
@@ -825,7 +894,8 @@ translations:
   Review detected hardware validation issues: 検出されたハードウェア検証の問題を確認
   Review your changes: 変更を確認
   'Role:': '役割:'
-  'Rotation: %d\xc2\xb0 - %ds remaining (or wait to retry)': '回転: %d\xc2\xb0 - %ds残り (待つと再試行)'
+  'Rotation: %d\xc2\xb0 - %ds remaining (or wait to retry)': '回転: %d\xc2\xb0 - %ds残り
+    (待つと再試行)'
   Run: 実行
   Run Macro: マクロを実行
   Runout Sensor: フィラメント切れセンサー
@@ -925,6 +995,7 @@ translations:
   Spoolman: Spoolman
   Spoolman has no spools configured: Spoolman にスプールが設定されていません
   Square Corner Velocity: 直角コーナー速度
+  Stable: 安定版
   Standby: スタンバイ
   Start: 開始
   Start Anyway: このまま開始
@@ -932,6 +1003,8 @@ translations:
   Start Print: 印刷を開始
   Start Probing: プローブ開始
   Started: 開始
+  Starting Print...: 印刷開始中...
+  Starting...: 開始中...
   Startup, auto-control, and macro devices: 起動、自動制御、マクロデバイス
   Status: ステータス
   Status icons: ステータスアイコン
@@ -956,11 +1029,12 @@ translations:
   THEME COLORS: テーマカラー
   TPU: TPU
   Takes 3-5 min. Do not interrupt.: 3〜5分かかります。中断しないでください。
-  Tap again to confirm this orientation: 'もう一度タップしてこの向きを確定'
-  Tap anywhere if this text is right-side up: 'この文字が正しい向きならどこかをタップ'
+  Tap again to confirm this orientation: もう一度タップしてこの向きを確定
+  Tap anywhere if this text is right-side up: この文字が正しい向きならどこかをタップ
   Tap anywhere to begin: どこかをタップして開始
   Tap anywhere to begin calibration: どこかをタップしてキャリブレーション開始
-  Tap the crosshair (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d: 十字をタップ（ポイント %1$d / 3）\xe2\x80\x94 タッチ %2$d / %3$d
+  Tap the crosshair (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d: 十字をタップ（ポイント
+    %1$d / 3）\xe2\x80\x94 タッチ %2$d / %3$d
   Tap to assign: タップして割当
   Tap to show keyboard...: タップしてキーボードを表示...
   Target Temperature: 目標温度
@@ -975,10 +1049,14 @@ translations:
   Test Network: ネットワークテスト
   Test Sound: テストサウンド
   Test probe repeatability: プローブの再現性をテスト
-  'Testing rotation: %d\xc2\xb0 (%d/%d) - %ds remaining': '回転テスト: %d\xc2\xb0 (%d/%d) - %ds残り'
-  Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！完全匿名の使用データが HelixScreen の改善に役立ちます。
-  ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
+  'Testing rotation: %d\xc2\xb0 (%d/%d) - %ds remaining': '回転テスト: %d\xc2\xb0 (%d/%d)
+    - %ds残り'
+  Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが
+    HelixScreen の改善に役立ちます。
+  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！完全匿名の使用データが
+    HelixScreen の改善に役立ちます。
+  ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
+    skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
   'The runout sensor indicates no filament is loaded. ': 'フィラメント切れセンサーがフィラメント未装填を検出しました。 '
@@ -990,22 +1068,29 @@ translations:
   Theme changes apply after restart.: テーマの変更は再起動後に適用されます。
   Theme reset to defaults: テーマをデフォルトにリセットしました
   Theme, brightness, and sleep settings: テーマ、明るさ、スリープ設定
-  This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。
+  This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して
+    Z-offset を設定します。
   This cannot be undone.: この操作は元に戻せません。
   This is exactly the data that will be sent: これが送信されるデータです
   This is what data would be sent if enabled: これは有効にした場合に送信されるデータです
   This may take up to 30 seconds: 最大30秒かかる場合があります
-  ? This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps.
-  : このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。インストール後、以下の「PRINT_START を設定」を使用してオプションの手順を有効にしてください。
+  ? This plugin lets HelixScreen control print start options like bed mesh and QGL.
+    Once installed, use Configure PRINT_START below to enable optional steps.
+  : このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。インストール後、以下の「PRINT_START
+    を設定」を使用してオプションの手順を有効にしてください。
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
-  'This will apply the Z-offset to your endstop and restart Klipper to save the ': 'Z-offset をエンドストップに適用し、保存のために Klipper を再起動します。 '
-  'This will apply the Z-offset to your probe and restart Klipper to save the ': 'Z-offset をプローブに適用し、保存のために Klipper を再起動します。 '
-  ? This will collect system info, logs, settings, and printer data to help diagnose issues. No passwords or sensitive data will be included.
+  'This will apply the Z-offset to your endstop and restart Klipper to save the ': 'Z-offset
+    をエンドストップに適用し、保存のために Klipper を再起動します。 '
+  'This will apply the Z-offset to your probe and restart Klipper to save the ': 'Z-offset
+    をプローブに適用し、保存のために Klipper を再起動します。 '
+  ? This will collect system info, logs, settings, and printer data to help diagnose
+    issues. No passwords or sensitive data will be included.
   : システム情報、ログ、設定、プリンターデータを収集して問題の診断に役立てます。パスワードや個人情報は含まれません。
   This will immediately halt all printer operations. The printer will require a restart to resume.: これはすべてのプリンター操作を直ちに停止します。再開するにはプリンターの再起動が必要です。
   This will reset all settings to defaults. This action cannot be undone.: これはすべての設定をデフォルトにリセットします。この操作は元に戻せません。
   This will restart Klipper firmware. Any active operations will be interrupted.: Klipperファームウェアを再起動します。実行中の操作は中断されます。
   This will restart Klipper.: これにより Klipper が再起動します。
+  Thumbnail Only: サムネイルのみ
   Time: 時間
   Time Format: 時間形式
   Time to wait before escalating to emergency stop: 緊急停止にエスカレートするまでの待機時間
@@ -1030,9 +1115,11 @@ translations:
   Touch anywhere to test calibration: どこでもタッチしてキャリブレーションをテスト
   Touch anywhere to verify accuracy: どこかをタッチして精度を確認
   Touch screen to wake from sleep: 画面をタッチしてスリープ解除
-  Touch the target (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d: ターゲットをタッチ（ポイント %1$d / 3）\xe2\x80\x94 タッチ %2$d / %3$d
+  Touch the target (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d: ターゲットをタッチ（ポイント
+    %1$d / 3）\xe2\x80\x94 タッチ %2$d / %3$d
   Travels: 移動
   'Troubleshooting:': 'トラブルシューティング:'
+  Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Tune: チューニング
   Tune at the temperature you print most often.: 最もよく印刷する温度でチューニングしてください。
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
@@ -1095,7 +1182,8 @@ translations:
   Webcam: ウェブカメラ
   Website (optional): ウェブサイト（オプション）
   Week: 週
-  ? Weight data is synced from Spoolman to display remaining filament. Changes are also synced when prints start, pause, or complete.
+  ? Weight data is synced from Spoolman to display remaining filament. Changes are
+    also synced when prints start, pause, or complete.
   : 残りのフィラメントを表示するために、重量データが Spoolman から同期されます。印刷の開始、一時停止、完了時にも変更が同期されます。
   Weight sync settings: 重量同期設定
   What We Collect: 収集する情報
@@ -1126,6 +1214,7 @@ translations:
   Z Movement: Z移動
   Z Offset: Zオフセット
   Z Range: Z 範囲
+  Z Tilt Adjust...: Zチルト調整中...
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset キャリブレーション
@@ -1150,6 +1239,7 @@ translations:
   of: の
   set to: に設定
   started: 開始
+  tall: 高さ
   used: 使用
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
   '{} more taps to {} beta features': あと{}回タップでベータ機能を{}

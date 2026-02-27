@@ -133,14 +133,14 @@ void ams_detail_update_tray(AmsDetailWidgets& w) {
     if (grid_height <= 0)
         return;
 
-    int32_t tray_height = grid_height / 3;
+    int32_t tray_height = grid_height / 4;
     if (tray_height < 20)
         tray_height = 20;
 
     lv_obj_set_height(w.slot_tray, tray_height);
     lv_obj_align(w.slot_tray, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-    spdlog::debug("[AmsDetail] Tray sized to {}px (1/3 of {}px grid)", tray_height, grid_height);
+    spdlog::debug("[AmsDetail] Tray sized to {}px (1/4 of {}px grid)", tray_height, grid_height);
 }
 
 void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,

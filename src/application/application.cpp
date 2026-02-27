@@ -1516,8 +1516,11 @@ void Application::create_overlays() {
         spdlog::info("[Application] Opened sensor settings overlay via CLI");
     }
 
-    // Force touch calibration: --calibrate-touch flag OR config force_calibration option
+    // Force touch calibration: --calibrate-touch flag, env var, OR config force_calibration option
     bool force_touch_cal = m_args.calibrate_touch;
+    if (!force_touch_cal) {
+        force_touch_cal = (std::getenv("HELIX_TOUCH_CALIBRATE") != nullptr);
+    }
     if (!force_touch_cal && m_config) {
         force_touch_cal = m_config->get<bool>("/input/force_calibration", false);
     }
