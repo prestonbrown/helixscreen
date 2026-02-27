@@ -57,20 +57,24 @@ jobs:
         include:
           - platform: pi
             display_name: "Raspberry Pi"
+            build_target: pi-both
           - platform: pi32
             display_name: "Raspberry Pi 32-bit"
+            build_target: pi32-both
           - platform: ad5m
-            display_name: "Adventurer 5M"
+            display_name: "Flashforge AD5M"
           - platform: cc1
             display_name: "Elegoo Centauri Carbon 1"
           - platform: k1
             display_name: "Creality K1 Series"
             docker_image: k1
             build_target: mips
+            build_dir: mips
           - platform: ad5x
-            display_name: "FlashForge AD5X"
+            display_name: "Flashforge AD5X"
             docker_image: k1
             build_target: mips
+            build_dir: mips
           - platform: k2
             display_name: "Creality K2 Series"
 
@@ -123,16 +127,6 @@ jobs:
           helixscreen/toolchain-${{ matrix.docker_image || matrix.platform }} \
           make PLATFORM_TARGET=${{ matrix.build_target || matrix.platform }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
-    - name: Cross-compile fbdev fallback for ${{ matrix.display_name }}
-      if: startsWith(matrix.platform, 'pi')
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
-          -w /src \
-          helixscreen/toolchain-${{ matrix.platform }} \
-          make PLATFORM_TARGET=${{ matrix.platform }}-fbdev SKIP_OPTIONAL_DEPS=1 -j$(nproc)
-
     - name: Show ccache stats
       run: |
         docker run --rm \
@@ -166,10 +160,10 @@ jobs:
       with:
         name: symbols-${{ matrix.platform }}
         path: |
-          build/${{ matrix.build_target || matrix.platform }}/bin/helix-screen.sym
-          build/${{ matrix.build_target || matrix.platform }}/bin/helix-screen.debug
-          build/${{ matrix.build_target || matrix.platform }}-fbdev/bin/helix-screen.sym
-          build/${{ matrix.build_target || matrix.platform }}-fbdev/bin/helix-screen.debug
+          build/${{ matrix.build_dir || matrix.platform }}/bin/helix-screen.sym
+          build/${{ matrix.build_dir || matrix.platform }}/bin/helix-screen.debug
+          build/${{ matrix.build_dir || matrix.platform }}-fbdev/bin/helix-screen.sym
+          build/${{ matrix.build_dir || matrix.platform }}-fbdev/bin/helix-screen.debug
         retention-days: 30
 
     - name: Move cache
@@ -341,7 +335,7 @@ jobs:
         ./helix-screen
         ```
 
-        ### Flashforge Adventurer 5M
+        ### Flashforge AD5M
         ```bash
         # Download and extract
         wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-ad5m-${{ steps.version.outputs.version }}.tar.gz

@@ -198,6 +198,14 @@ class NavigationManager {
     helix::PanelId get_active() const;
 
     /**
+     * @brief Get the active panel subject for observation
+     * @return Pointer to the LVGL subject tracking active panel ID
+     */
+    lv_subject_t* get_active_panel_subject() {
+        return &active_panel_subject_;
+    }
+
+    /**
      * @brief Register panel widgets for show/hide management
      *
      * @param panels Array of panel widgets (size: UI_PANEL_COUNT)

@@ -5,12 +5,17 @@
 
 #include "ui_update_queue.h"
 
+#include "accel_sensor_manager.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "audio_settings_manager.h"
+#include "color_sensor_manager.h"
 #include "config.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "filament_sensor_manager.h"
 #include "hv/requests.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
@@ -20,10 +25,14 @@
 #include "system/crash_handler.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "temperature_sensor_manager.h"
+#include "tool_state.h"
 #include "version.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -269,10 +278,26 @@ void TelemetryManager::init(const std::string& config_dir) {
     // Reset in-memory state for clean initialization
     enabled_.store(false);
     shutting_down_.store(false);
+    init_time_ = std::chrono::steady_clock::now();
     {
         std::lock_guard<std::mutex> lock(mutex_);
         queue_.clear();
     }
+
+    // Reset session trackers
+    panel_time_sec_.clear();
+    panel_visits_.clear();
+    current_panel_.clear();
+    overlay_open_count_ = 0;
+    connect_count_ = 0;
+    disconnect_count_ = 0;
+    total_connected_sec_ = 0;
+    total_disconnected_sec_ = 0;
+    longest_disconnect_sec_ = 0;
+    klippy_error_count_ = 0;
+    klippy_shutdown_count_ = 0;
+    connection_tracking_connected_ = false;
+    error_rate_limit_.clear();
 
     // Ensure config directory exists
     try {
@@ -332,10 +357,19 @@ void TelemetryManager::shutdown() {
     }
 
     spdlog::info("[TelemetryManager] Shutting down...");
+
+    // Record session-summary events before shutting down
+    record_panel_usage();
+    record_connection_stability();
+
     shutting_down_.store(true);
 
-    // Stop auto-send timer first
-    stop_auto_send();
+    // Stop auto-send timer first (LVGL call — skip if LVGL already torn down)
+    if (lv_is_initialized()) {
+        stop_auto_send();
+    } else {
+        auto_send_timer_ = nullptr;
+    }
 
     // Persist queue to disk
     save_queue();
@@ -346,8 +380,8 @@ void TelemetryManager::shutdown() {
         send_thread_.join();
     }
 
-    // Deinitialize LVGL subjects
-    if (subjects_initialized_) {
+    // Deinitialize LVGL subjects (skip if LVGL already torn down)
+    if (subjects_initialized_ && lv_is_initialized()) {
         subjects_.deinit_all();
         subjects_initialized_ = false;
     }
@@ -406,7 +440,6 @@ void TelemetryManager::record_session() {
     spdlog::debug("[TelemetryManager] Recording session event");
     auto event = build_session_event();
     enqueue_event(std::move(event));
-    save_queue();
 }
 
 void TelemetryManager::record_print_outcome(const std::string& outcome, int duration_sec,
@@ -421,7 +454,6 @@ void TelemetryManager::record_print_outcome(const std::string& outcome, int dura
     auto event = build_print_outcome_event(outcome, duration_sec, phases_completed,
                                            filament_used_mm, filament_type, nozzle_temp, bed_temp);
     enqueue_event(std::move(event));
-    save_queue();
 }
 
 void TelemetryManager::record_update_failure(const std::string& reason, const std::string& version,
@@ -436,7 +468,163 @@ void TelemetryManager::record_update_failure(const std::string& reason, const st
     auto event =
         build_update_failed_event(reason, version, platform, http_code, file_size, exit_code);
     enqueue_event(std::move(event));
-    save_queue();
+}
+
+void TelemetryManager::record_memory_snapshot(const std::string& trigger) {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording memory snapshot (trigger={})", trigger);
+    auto event = build_memory_snapshot_event(trigger);
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::record_hardware_profile() {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording hardware profile");
+    auto event = build_hardware_profile_event();
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::record_settings_snapshot() {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording settings snapshot");
+    auto event = build_settings_snapshot_event();
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::notify_panel_changed(const std::string& panel_name) {
+    auto now = std::chrono::steady_clock::now();
+
+    // Flush time for the previous panel
+    if (!current_panel_.empty()) {
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::seconds>(now - panel_start_time_).count();
+        panel_time_sec_[current_panel_] += static_cast<int>(elapsed);
+    }
+
+    // Start tracking the new panel
+    current_panel_ = panel_name;
+    panel_start_time_ = now;
+    panel_visits_[panel_name]++;
+
+    spdlog::trace("[TelemetryManager] Panel changed to '{}' (visits={})", panel_name,
+                  panel_visits_[panel_name]);
+}
+
+void TelemetryManager::notify_overlay_opened() {
+    overlay_open_count_++;
+    spdlog::trace("[TelemetryManager] Overlay opened (count={})", overlay_open_count_);
+}
+
+void TelemetryManager::record_panel_usage() {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    // Finalize: flush time for the current panel
+    if (!current_panel_.empty()) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::seconds>(now - panel_start_time_).count();
+        panel_time_sec_[current_panel_] += static_cast<int>(elapsed);
+        panel_start_time_ = now;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording panel usage event");
+    auto event = build_panel_usage_event();
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::notify_connection_state_changed(int state) {
+    auto now = std::chrono::steady_clock::now();
+
+    if (state == 2 && !connection_tracking_connected_) {
+        // Transitioning to connected from disconnected
+        if (connection_state_start_time_.time_since_epoch().count() > 0) {
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::seconds>(now - connection_state_start_time_)
+                    .count();
+            int elapsed_sec = static_cast<int>(elapsed);
+            total_disconnected_sec_ += elapsed_sec;
+            if (elapsed_sec > longest_disconnect_sec_) {
+                longest_disconnect_sec_ = elapsed_sec;
+            }
+        }
+        connect_count_++;
+        connection_tracking_connected_ = true;
+        connection_state_start_time_ = now;
+
+        spdlog::trace("[TelemetryManager] Connection state: connected (count={})", connect_count_);
+    } else if (state != 2 && connection_tracking_connected_) {
+        // Transitioning from connected to disconnected
+        if (connection_state_start_time_.time_since_epoch().count() > 0) {
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::seconds>(now - connection_state_start_time_)
+                    .count();
+            total_connected_sec_ += static_cast<int>(elapsed);
+        }
+        disconnect_count_++;
+        connection_tracking_connected_ = false;
+        connection_state_start_time_ = now;
+
+        spdlog::trace("[TelemetryManager] Connection state: disconnected (count={})",
+                      disconnect_count_);
+    } else if (connection_state_start_time_.time_since_epoch().count() == 0) {
+        // First state notification — initialize tracking
+        connection_tracking_connected_ = (state == 2);
+        connection_state_start_time_ = now;
+        if (state == 2) {
+            connect_count_++;
+        }
+        spdlog::trace("[TelemetryManager] Connection tracking initialized (connected={})",
+                      connection_tracking_connected_);
+    }
+}
+
+void TelemetryManager::notify_klippy_state_changed(int state) {
+    if (state == 2) {
+        klippy_shutdown_count_++;
+        spdlog::trace("[TelemetryManager] Klippy shutdown (count={})", klippy_shutdown_count_);
+    } else if (state == 3) {
+        klippy_error_count_++;
+        spdlog::trace("[TelemetryManager] Klippy error (count={})", klippy_error_count_);
+    }
+}
+
+void TelemetryManager::record_connection_stability() {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    // Finalize: flush time for the current connection state
+    auto now = std::chrono::steady_clock::now();
+    if (connection_state_start_time_.time_since_epoch().count() > 0) {
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::seconds>(now - connection_state_start_time_)
+                .count();
+        int elapsed_sec = static_cast<int>(elapsed);
+        if (connection_tracking_connected_) {
+            total_connected_sec_ += elapsed_sec;
+        } else {
+            total_disconnected_sec_ += elapsed_sec;
+            if (elapsed_sec > longest_disconnect_sec_) {
+                longest_disconnect_sec_ = elapsed_sec;
+            }
+        }
+        connection_state_start_time_ = now;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording connection stability event");
+    auto event = build_connection_stability_event();
+    enqueue_event(std::move(event));
 }
 
 void TelemetryManager::write_update_success_flag(const std::string& config_dir,
@@ -560,7 +748,8 @@ void TelemetryManager::try_send() {
 
     // Check send interval with backoff
     auto now = std::chrono::steady_clock::now();
-    auto interval = SEND_INTERVAL * backoff_multiplier_;
+    int backoff = backoff_multiplier_.load();
+    auto interval = SEND_INTERVAL * backoff;
     // Cap backoff at 7 days
     auto max_interval = std::chrono::hours{24 * 7};
     if (interval > max_interval) {
@@ -568,8 +757,7 @@ void TelemetryManager::try_send() {
     }
 
     if (last_send_time_.time_since_epoch().count() > 0 && now - last_send_time_ < interval) {
-        spdlog::debug("[TelemetryManager] try_send: too soon (backoff={}x), skipping",
-                      backoff_multiplier_);
+        spdlog::debug("[TelemetryManager] try_send: too soon (backoff={}x), skipping", backoff);
         return;
     }
 
@@ -618,16 +806,17 @@ void TelemetryManager::do_send(const nlohmann::json& batch) {
                          status_code);
             remove_sent_events(batch.size());
             save_queue();
-            backoff_multiplier_ = 1;
+            backoff_multiplier_.store(1);
         } else {
             // Failure: keep events, increase backoff
+            int new_backoff = std::min(backoff_multiplier_.load() * 2, 7);
             spdlog::warn("[TelemetryManager] Send failed (HTTP {}), will retry with backoff={}x",
-                         status_code, backoff_multiplier_ * 2);
-            backoff_multiplier_ = std::min(backoff_multiplier_ * 2, 7);
+                         status_code, new_backoff);
+            backoff_multiplier_.store(new_backoff);
         }
     } catch (const std::exception& e) {
         spdlog::error("[TelemetryManager] Send exception: {}", e.what());
-        backoff_multiplier_ = std::min(backoff_multiplier_ * 2, 7);
+        backoff_multiplier_.store(std::min(backoff_multiplier_.load() * 2, 7));
     }
 }
 
@@ -658,6 +847,10 @@ void TelemetryManager::start_auto_send() {
             if (self->is_enabled()) {
                 spdlog::debug("[TelemetryManager] Auto-send timer fired");
                 self->try_send();
+                // Record periodic memory snapshot
+                self->record_memory_snapshot("hourly");
+                // Periodic queue persistence (events no longer save individually)
+                self->save_queue();
             }
         },
         INITIAL_SEND_DELAY_MS, this);
@@ -1159,6 +1352,436 @@ nlohmann::json TelemetryManager::build_update_success_event(const std::string& v
     return event;
 }
 
+nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& trigger) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "memory_snapshot";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["trigger"] = trigger;
+
+    // Calculate uptime from init_time_
+    auto now = std::chrono::steady_clock::now();
+    auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
+    event["uptime_sec"] = static_cast<int>(uptime.count());
+
+    // Get current memory stats from MemoryMonitor
+    auto stats = helix::MemoryMonitor::get_current_stats();
+    event["rss_kb"] = static_cast<int>(stats.vm_rss_kb);
+    event["vm_size_kb"] = static_cast<int>(stats.vm_size_kb);
+    event["vm_data_kb"] = static_cast<int>(stats.vm_data_kb);
+    event["vm_swap_kb"] = static_cast<int>(stats.vm_swap_kb);
+    event["vm_peak_kb"] = static_cast<int>(stats.vm_peak_kb);
+    event["vm_hwm_kb"] = static_cast<int>(stats.vm_hwm_kb);
+
+    return event;
+}
+
+// ---------------------------------------------------------------------------
+// Hardware profile helper methods
+// ---------------------------------------------------------------------------
+
+nlohmann::json TelemetryManager::build_hw_fans_section(const helix::PrinterDiscovery& hw) {
+    json fans;
+    fans["total"] = static_cast<int>(hw.fans().size());
+    int part_cooling = 0, heater_fan = 0, controller_fan = 0, generic = 0;
+    for (const auto& fan_name : hw.fans()) {
+        if (fan_name.rfind("controller_fan", 0) == 0) {
+            controller_fan++;
+        } else if (fan_name.rfind("heater_fan", 0) == 0) {
+            heater_fan++;
+        } else if (fan_name.rfind("fan", 0) == 0) {
+            part_cooling++;
+        } else {
+            generic++;
+        }
+    }
+    fans["part_cooling"] = part_cooling;
+    fans["heater_fan"] = heater_fan;
+    fans["controller_fan"] = controller_fan;
+    fans["generic"] = generic;
+    return fans;
+}
+
+nlohmann::json TelemetryManager::build_hw_sensors_section() {
+    json sensors;
+    sensors["filament"] = static_cast<int>(FilamentSensorManager::instance().sensor_count());
+    sensors["temperature_extra"] =
+        static_cast<int>(sensors::TemperatureSensorManager::instance().sensor_count());
+    sensors["color"] = static_cast<int>(sensors::ColorSensorManager::instance().sensor_count());
+    sensors["accel"] = static_cast<int>(sensors::AccelSensorManager::instance().sensor_count());
+    return sensors;
+}
+
+nlohmann::json TelemetryManager::build_hw_probe_section(const helix::PrinterDiscovery& hw) {
+    json probe;
+    probe["has_probe"] = hw.has_probe();
+    probe["has_bed_mesh"] = hw.has_bed_mesh();
+    probe["has_qgl"] = hw.has_qgl();
+    probe["has_z_tilt"] = hw.has_z_tilt();
+    probe["has_screws_tilt"] = hw.has_screws_tilt();
+    return probe;
+}
+
+nlohmann::json TelemetryManager::build_hw_capabilities_section(const helix::PrinterDiscovery& hw) {
+    json capabilities;
+    capabilities["has_chamber"] = hw.supports_chamber();
+    capabilities["has_accelerometer"] = hw.has_accelerometer();
+    capabilities["has_firmware_retraction"] = hw.has_firmware_retraction();
+    capabilities["has_exclude_object"] = hw.has_exclude_object();
+    capabilities["has_timelapse"] = hw.has_timelapse();
+    capabilities["has_klippain_shaketune"] = hw.has_klippain_shaketune();
+    capabilities["has_speaker"] = hw.has_speaker();
+    return capabilities;
+}
+
+nlohmann::json TelemetryManager::build_hw_ams_section(const helix::PrinterDiscovery& hw) const {
+    json ams;
+    switch (hw.mmu_type()) {
+    case AmsType::HAPPY_HARE:
+        ams["type"] = "happy_hare";
+        break;
+    case AmsType::AFC:
+        ams["type"] = "afc";
+        break;
+    case AmsType::VALGACE:
+        ams["type"] = "valgace";
+        break;
+    case AmsType::TOOL_CHANGER:
+        ams["type"] = "tool_changer";
+        break;
+    default:
+        ams["type"] = "unknown";
+        break;
+    }
+    ams["unit_count"] = lv_subject_get_int(AmsState::instance().get_backend_count_subject());
+    ams["total_slots"] = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
+    return ams;
+}
+
+nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDiscovery& hw) {
+    json macros;
+    macros["total_count"] = static_cast<int>(hw.macros().size());
+    macros["has_helix_macros"] = !hw.helix_macros().empty();
+    macros["has_print_start"] = hw.has_macro("PRINT_START");
+    macros["has_nozzle_clean"] = hw.has_macro("CLEAN_NOZZLE") || hw.has_macro("NOZZLE_CLEAN") ||
+                                 hw.has_macro("NOZZLE_WIPE") || hw.has_macro("WIPE_NOZZLE") ||
+                                 hw.has_macro("PURGE_NOZZLE");
+    macros["has_heat_soak"] = hw.has_macro("HEAT_SOAK") || hw.has_macro("CHAMBER_SOAK") ||
+                              hw.has_macro("SOAK") || hw.has_macro("BED_SOAK");
+    macros["has_purge_line"] = hw.has_macro("PURGE_LINE") || hw.has_macro("PRIME_LINE") ||
+                               hw.has_macro("INTRO_LINE") || hw.has_macro("LINE_PURGE");
+    macros["led_macro_count"] = static_cast<int>(hw.led_macros().size());
+    return macros;
+}
+
+// ---------------------------------------------------------------------------
+
+nlohmann::json TelemetryManager::build_hardware_profile_event() const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "hardware_profile";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+
+    try {
+        // ---- printer section ----
+        json printer;
+        {
+            const auto& ptype = get_printer_state().get_printer_type();
+            if (!ptype.empty()) {
+                printer["detected_model"] = ptype;
+            }
+        }
+
+        auto* client = get_moonraker_client();
+        if (client) {
+            const auto& hw = client->hardware();
+
+            if (!hw.kinematics().empty()) {
+                printer["kinematics"] = hw.kinematics();
+            }
+            event["printer"] = printer;
+
+            // ---- mcus section ----
+            json mcus;
+            mcus["primary"] = hw.mcu();
+            mcus["count"] = static_cast<int>(hw.mcu_list().empty() ? (hw.mcu().empty() ? 0 : 1)
+                                                                   : hw.mcu_list().size());
+            if (!hw.mcu_list().empty()) {
+                mcus["chips"] = json(hw.mcu_list());
+            }
+            event["mcus"] = mcus;
+
+            // ---- build_volume section ----
+            const auto& bv = hw.build_volume();
+            if (bv.x_max > 0 && bv.y_max > 0) {
+                json build_volume;
+                build_volume["x_mm"] = static_cast<int>(bv.x_max - bv.x_min);
+                build_volume["y_mm"] = static_cast<int>(bv.y_max - bv.y_min);
+                build_volume["z_mm"] = static_cast<int>(bv.z_max);
+                event["build_volume"] = build_volume;
+            }
+
+            // ---- extruders section ----
+            json extruders;
+            int extruder_count = 0;
+            for (const auto& heater : hw.heaters()) {
+                if (heater.rfind("extruder", 0) == 0 && heater.rfind("extruder_stepper", 0) != 0) {
+                    extruder_count++;
+                }
+            }
+            extruders["count"] = extruder_count;
+            extruders["has_chamber_heater"] = hw.has_chamber_heater();
+            extruders["has_heater_bed"] = hw.has_heater_bed();
+            event["extruders"] = extruders;
+
+            event["fans"] = build_hw_fans_section(hw);
+
+            // ---- steppers section ----
+            json steppers;
+            steppers["count"] = static_cast<int>(hw.steppers().size());
+            event["steppers"] = steppers;
+
+            // ---- leds section ----
+            json leds;
+            leds["count"] = static_cast<int>(hw.leds().size());
+            leds["has_led_effects"] = hw.has_led_effects();
+            event["leds"] = leds;
+
+            event["sensors"] = build_hw_sensors_section();
+            event["probe"] = build_hw_probe_section(hw);
+            event["capabilities"] = build_hw_capabilities_section(hw);
+
+            // ---- ams section (only if MMU detected) ----
+            if (hw.mmu_type() != AmsType::NONE) {
+                event["ams"] = build_hw_ams_section(hw);
+            }
+
+            // ---- tools section ----
+            json tools;
+            tools["count"] = ToolState::instance().tool_count();
+            tools["is_multi_tool"] = ToolState::instance().is_multi_tool();
+            event["tools"] = tools;
+
+            event["macros"] = build_hw_macros_section(hw);
+        } else {
+            event["printer"] = printer;
+        }
+
+        // ---- plugins section ----
+        json plugins;
+        plugins["helix_plugin_installed"] = get_printer_state().service_has_helix_plugin();
+        plugins["phase_tracking_enabled"] = get_printer_state().is_phase_tracking_enabled();
+        event["plugins"] = plugins;
+
+        // ---- display_backend ----
+        if (auto* dm = DisplayManager::instance()) {
+            if (auto* backend = dm->backend()) {
+                event["display_backend"] = display_backend_type_to_string(backend->type());
+            }
+        }
+
+    } catch (const std::exception& e) {
+        spdlog::warn("[TelemetryManager] Error building hardware profile: {}", e.what());
+    }
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "settings_snapshot";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+
+    event["theme"] = DisplaySettingsManager::instance().get_dark_mode() ? "dark" : "light";
+    event["brightness_pct"] = DisplaySettingsManager::instance().get_brightness();
+    event["screensaver_timeout_sec"] = DisplaySettingsManager::instance().get_display_dim_sec();
+    event["screen_blank_timeout_sec"] = DisplaySettingsManager::instance().get_display_sleep_sec();
+    event["locale"] = SystemSettingsManager::instance().get_language();
+    event["sound_enabled"] = AudioSettingsManager::instance().get_sounds_enabled();
+    event["auto_update_channel"] = SystemSettingsManager::instance().get_update_channel();
+    event["animations_enabled"] = DisplaySettingsManager::instance().get_animations_enabled();
+    event["time_format"] =
+        DisplaySettingsManager::instance().get_time_format() == TimeFormat::HOUR_12 ? "12h" : "24h";
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_panel_usage_event() const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "panel_usage";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+
+    // Session duration from init_time_
+    auto now = std::chrono::steady_clock::now();
+    auto session_dur = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
+    event["session_duration_sec"] = static_cast<int>(session_dur.count());
+
+    // Per-panel time and visit maps
+    json time_map = json::object();
+    for (const auto& [name, sec] : panel_time_sec_) {
+        time_map[name] = sec;
+    }
+    event["panel_time_sec"] = time_map;
+
+    json visit_map = json::object();
+    for (const auto& [name, count] : panel_visits_) {
+        visit_map[name] = count;
+    }
+    event["panel_visits"] = visit_map;
+
+    event["overlay_open_count"] = overlay_open_count_;
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_connection_stability_event() const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "connection_stability";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+
+    // Session duration from init_time_
+    auto now = std::chrono::steady_clock::now();
+    auto session_dur = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
+    event["session_duration_sec"] = static_cast<int>(session_dur.count());
+
+    event["connect_count"] = connect_count_;
+    event["disconnect_count"] = disconnect_count_;
+    event["total_connected_sec"] = total_connected_sec_;
+    event["total_disconnected_sec"] = total_disconnected_sec_;
+    event["longest_disconnect_sec"] = longest_disconnect_sec_;
+    event["klippy_error_count"] = klippy_error_count_;
+    event["klippy_shutdown_count"] = klippy_shutdown_count_;
+
+    return event;
+}
+
+// =============================================================================
+// Phase 3: Print Start Context + Error Tracking
+// =============================================================================
+
+void TelemetryManager::record_print_start_context(const std::string& source, bool has_thumbnail,
+                                                  int64_t file_size_bytes,
+                                                  int estimated_duration_sec,
+                                                  const std::string& slicer, int tool_count_used,
+                                                  bool ams_active) {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording print start context: source={}, slicer={}", source,
+                  slicer);
+    auto event = build_print_start_context_event(source, has_thumbnail, file_size_bytes,
+                                                 estimated_duration_sec, slicer, tool_count_used,
+                                                 ams_active);
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::record_error(const std::string& category, const std::string& code,
+                                    const std::string& context) {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    // Validate category against allow-list to prevent unbounded map growth
+    static const std::array<std::string_view, 4> ALLOWED_CATEGORIES = {"moonraker_api", "websocket",
+                                                                       "file_io", "display"};
+    if (std::find(ALLOWED_CATEGORIES.begin(), ALLOWED_CATEGORIES.end(), category) ==
+        ALLOWED_CATEGORIES.end()) {
+        spdlog::trace("[TelemetryManager] Ignoring error with unknown category: {}", category);
+        return;
+    }
+
+    // Rate limit: max 1 event per category per 5 minutes
+    // Guarded by mutex_ since record_error() is called from background threads
+    auto now = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = error_rate_limit_.find(category);
+        if (it != error_rate_limit_.end() && now - it->second < ERROR_RATE_LIMIT_INTERVAL) {
+            spdlog::trace("[TelemetryManager] Error event rate-limited: category={}", category);
+            return;
+        }
+        error_rate_limit_[category] = now;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording error: category={}, code={}, context={}", category,
+                  code, context);
+    auto event = build_error_event(category, code, context);
+    enqueue_event(std::move(event));
+}
+
+nlohmann::json TelemetryManager::build_print_start_context_event(
+    const std::string& source, bool has_thumbnail, int64_t file_size_bytes,
+    int estimated_duration_sec, const std::string& slicer, int tool_count_used,
+    bool ams_active) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "print_start_context";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["source"] = source;
+    event["has_thumbnail"] = has_thumbnail;
+    event["file_size_bucket"] = bucket_file_size(file_size_bytes);
+    event["estimated_duration_bucket"] = bucket_duration(estimated_duration_sec);
+    event["slicer"] = slicer;
+    event["tool_count_used"] = tool_count_used;
+    event["ams_active"] = ams_active;
+
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_error_event(const std::string& category,
+                                                   const std::string& code,
+                                                   const std::string& context) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "error_encountered";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["category"] = category;
+    event["code"] = code;
+    event["context"] = context;
+
+    // Uptime from init_time_
+    auto now = std::chrono::steady_clock::now();
+    auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
+    event["uptime_sec"] = static_cast<int>(uptime.count());
+
+    return event;
+}
+
+std::string TelemetryManager::bucket_file_size(int64_t bytes) {
+    if (bytes < 1024 * 1024)
+        return "<1MB";
+    if (bytes < 10 * 1024 * 1024)
+        return "1-10MB";
+    if (bytes < 50 * 1024 * 1024)
+        return "10-50MB";
+    if (bytes < 100LL * 1024 * 1024)
+        return "50-100MB";
+    return "100MB+";
+}
+
+std::string TelemetryManager::bucket_duration(int sec) {
+    if (sec < 1800)
+        return "<30min";
+    if (sec < 3600)
+        return "30min-1hr";
+    if (sec < 14400)
+        return "1-4hr";
+    if (sec < 43200)
+        return "4-12hr";
+    return "12hr+";
+}
+
 std::string TelemetryManager::get_hashed_device_id() const {
     // Safe without mutex: device_uuid_ and device_salt_ are immutable after
     // init() completes, and callers verify initialized_ flag before calling
@@ -1314,11 +1937,26 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
                         // marshal cache write to main thread via ui_queue_update
                         std::string ftype = metadata.filament_type;
                         float ftotal = static_cast<float>(metadata.filament_total);
-                        helix::ui::queue_update([ftype = std::move(ftype), ftotal]() {
+                        bool has_thumb = !metadata.thumbnails.empty();
+                        int64_t fsize = metadata.size;
+                        int est_dur = static_cast<int>(metadata.estimated_time);
+                        std::string slicer_name = metadata.slicer;
+                        helix::ui::queue_update([ftype = std::move(ftype), ftotal, has_thumb, fsize,
+                                                 est_dur, slicer_name = std::move(slicer_name)]() {
                             s_telemetry_filament_type = ftype;
                             s_telemetry_filament_used_mm = ftotal;
                             spdlog::debug("[Telemetry] Cached filament: type='{}', total={:.1f}mm",
                                           s_telemetry_filament_type, s_telemetry_filament_used_mm);
+
+                            // Record print start context with metadata
+                            std::string source = "local";
+                            int tools = ToolState::instance().tool_count();
+                            bool ams =
+                                lv_subject_get_int(AmsState::instance().get_ams_type_subject()) !=
+                                static_cast<int>(AmsType::NONE);
+
+                            TelemetryManager::instance().record_print_start_context(
+                                source, has_thumb, fsize, est_dur, slicer_name, tools, ams);
                         });
                     },
                     [](const MoonrakerError& error) {

@@ -1708,6 +1708,9 @@ void Application::setup_discovery_callbacks() {
 
             // Record telemetry session event now that hardware data is available
             TelemetryManager::instance().record_session();
+            TelemetryManager::instance().record_hardware_profile();
+            TelemetryManager::instance().record_settings_snapshot();
+            TelemetryManager::instance().record_memory_snapshot("session_start");
 
             // Fetch safety limits and build volume from Klipper config (stepper ranges,
             // min_extrude_temp, max_temp, etc.) — runs for ALL discovery completions

@@ -324,26 +324,27 @@ void AmsEditModal::fetch_vendors_from_spoolman() {
     // Capture callback guard for async safety [L012]
     std::weak_ptr<bool> guard = callback_guard_;
 
-    api_->spoolman().get_spoolman_spools(
-        [this, guard](const std::vector<SpoolInfo>& spools) {
-            // Extract vendor list on this thread (WebSocket), then marshal to main
+    // Use dedicated vendor endpoint instead of downloading all spools
+    api_->spoolman().get_spoolman_vendors(
+        [this, guard](const std::vector<VendorInfo>& vendors_result) {
+            // Build vendor list on background thread, then marshal to main
             std::set<std::string> unique_vendors;
             unique_vendors.insert("Generic"); // Always have Generic as first option
-            for (const auto& spool : spools) {
-                if (!spool.vendor.empty()) {
-                    unique_vendors.insert(spool.vendor);
+            for (const auto& vendor : vendors_result) {
+                if (!vendor.name.empty()) {
+                    unique_vendors.insert(vendor.name);
                 }
             }
 
             // Build vendor list and options string (local copies, no member access)
             std::vector<std::string> vendors;
             std::string options;
-            for (const auto& vendor : unique_vendors) {
+            for (const auto& name : unique_vendors) {
                 if (!options.empty()) {
                     options += '\n';
                 }
-                options += vendor;
-                vendors.push_back(vendor);
+                options += name;
+                vendors.push_back(name);
             }
 
             // Marshal member writes to main thread
@@ -361,8 +362,7 @@ void AmsEditModal::fetch_vendors_from_spoolman() {
             });
         },
         [](const MoonrakerError& err) {
-            spdlog::warn("[AmsEditModal] Failed to fetch Spoolman spools for vendor list: {}",
-                         err.message);
+            spdlog::warn("[AmsEditModal] Failed to fetch Spoolman vendors: {}", err.message);
             // Keep using fallback vendors
         });
 }

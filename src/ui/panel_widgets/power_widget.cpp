@@ -9,9 +9,12 @@
 #include "ui_panel_power.h"
 #include "ui_update_queue.h"
 
+#include "app_globals.h"
 #include "moonraker_api.h"
+#include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "printer_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -24,6 +27,10 @@ void register_power_widget() {
         auto* api = PanelWidgetManager::instance().shared_resource<MoonrakerAPI>();
         return std::make_unique<PowerWidget>(api);
     });
+
+    // Register XML event callbacks at startup (before any XML is parsed)
+    lv_xml_register_event_cb(nullptr, "power_toggle_cb", PowerWidget::power_toggle_cb);
+    lv_xml_register_event_cb(nullptr, "power_long_press_cb", PowerWidget::power_long_press_cb);
 }
 
 PowerWidget::PowerWidget(MoonrakerAPI* api) : api_(api) {}
@@ -46,11 +53,16 @@ void PowerWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         spdlog::warn("[PowerWidget] Could not find 'power_icon' in widget XML");
     }
 
-    // Register XML event callbacks
-    lv_xml_register_event_cb(nullptr, "power_toggle_cb", power_toggle_cb);
-    lv_xml_register_event_cb(nullptr, "power_long_press_cb", power_long_press_cb);
-
-    refresh_power_state();
+    // Observe power_device_count to refresh state when devices are discovered.
+    // Fires immediately on add (triggers initial refresh), so no separate call needed.
+    std::weak_ptr<bool> weak_alive = alive_;
+    power_count_observer_ = helix::ui::observe_int_sync<PowerWidget>(
+        get_printer_state().get_power_device_count_subject(), this,
+        [weak_alive](PowerWidget* self, int /*count*/) {
+            if (weak_alive.expired())
+                return;
+            self->refresh_power_state();
+        });
 }
 
 void PowerWidget::on_activate() {
@@ -59,12 +71,16 @@ void PowerWidget::on_activate() {
 
 void PowerWidget::detach() {
     *alive_ = false;
+
+    // Nullify widget pointers BEFORE resetting observers (matches LedWidget pattern)
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, nullptr);
     }
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
     power_icon_ = nullptr;
+
+    power_count_observer_.reset();
 }
 
 void PowerWidget::handle_power_toggle() {

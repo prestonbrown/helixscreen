@@ -413,6 +413,156 @@ struct ToolInfo {
 
 ---
 
+## Panel Widget System
+
+The home panel exposes a row of modular "widgets" — small cards that each display one aspect of printer state: fan speeds, temperatures, LED, power, network, thermistors, and more. Each widget is a self-contained C++ object that owns its own XML component and observer lifecycle.
+
+### What Are PanelWidgets?
+
+PanelWidgets live in `src/ui/panel_widgets/` (implementations) and headers alongside each `.cpp`. Current widgets:
+
+| Widget ID | Class | Displays |
+|-----------|-------|---------|
+| `fan_stack` | `FanStackWidget` | Part / hotend / aux fan speeds with spinning icon animations |
+| `temp_stack` | `TempStackWidget` | Nozzle and bed temperatures |
+| `temperature` | `TemperatureWidget` | Single temperature display |
+| `thermistor` | `ThermistorWidget` | Thermistor sensor readings |
+| `led` | `LedWidget` | LED on/off toggle with brightness-reactive icon |
+| `power` | `PowerWidget` | Power device toggle |
+| `network` | `NetworkWidget` | Network connection status |
+
+Widgets that are pure XML data binding (filament, probe, humidity, etc.) do NOT need a `PanelWidget` subclass — they work via subject bindings defined in their XML component alone.
+
+### PanelWidget Base Class
+
+`include/panel_widget.h` defines the interface:
+
+```cpp
+class PanelWidget {
+public:
+    virtual void init_subjects() {}       // Create subjects before lv_xml_create()
+    virtual void set_config(const nlohmann::json& config) {}  // Per-widget config
+    virtual std::string get_component_name() const;           // XML component to create
+    virtual void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) = 0;
+    virtual void detach() = 0;            // Reset observers, clear pointers
+    virtual void on_activate() {}         // Panel became visible
+    virtual void on_deactivate() {}       // Panel went offscreen
+    virtual void set_row_density(size_t widgets_in_row) {}    // Adjust for layout density
+    virtual const char* id() const = 0;  // Stable widget ID string
+};
+```
+
+### Widget Factory Pattern
+
+Each widget registers a factory function at startup via `register_widget_factory()`. The registry (`include/panel_widget_registry.h`) pairs an ID string with a factory lambda:
+
+```cpp
+// From fan_stack_widget.cpp — called once at startup
+void register_fan_stack_widget() {
+    register_widget_factory("fan_stack", []() {
+        auto& ps = get_printer_state();
+        return std::make_unique<FanStackWidget>(ps);
+    });
+
+    // XML event callbacks must be registered before any XML is parsed
+    lv_xml_register_event_cb(nullptr, "on_fan_stack_clicked", FanStackWidget::on_fan_stack_clicked);
+}
+```
+
+`PanelWidgetManager` (`include/panel_widget_manager.h`) is the central coordinator:
+- `init_widget_subjects()` — calls each widget's `init_subjects()` before XML creation
+- `populate_widgets(panel_id, container)` — creates XML components and calls `attach()` for each enabled widget
+- `setup_gate_observers(panel_id, rebuild_cb)` — observes hardware availability subjects; rebuilds the widget row when capabilities change
+- `notify_config_changed(panel_id)` — triggers a rebuild after config changes (e.g., widget reorder)
+
+### HomePanel Integration
+
+`HomePanel::populate_widgets()` (`src/ui/ui_panel_home.cpp`) delegates entirely to `PanelWidgetManager`:
+
+```cpp
+void HomePanel::populate_widgets() {
+    lv_obj_t* container = lv_obj_find_by_name(panel_, "widget_container");
+
+    // Detach and clear previous widgets
+    for (auto& w : active_widgets_) { w->detach(); }
+    active_widgets_.clear();
+
+    // Manager handles XML creation, factory invocation, and attach()
+    active_widgets_ = PanelWidgetManager::instance().populate_widgets("home", container);
+
+    cache_widget_references();
+}
+```
+
+Gate observers call `populate_widgets()` automatically when hardware capabilities or klippy state change, so the widget row adapts to the connected printer without any manual dispatch.
+
+### Version-Observer Self-Binding Pattern
+
+The key architectural pattern used by interactive widgets: instead of HomePanel notifying each widget when hardware discovery completes, widgets observe a **version subject** that bumps whenever the relevant hardware list changes. On each bump, the widget calls its `bind_*()` method to reset and recreate all per-item observers.
+
+**Why this approach:**
+- Widgets are fully self-contained — no external dispatch needed
+- The version subject fires immediately on `observe_int_sync()` registration, giving an initial bind with no special init path
+- Reconnection / rediscovery automatically re-binds to the new hardware
+
+**FanStackWidget example:**
+
+```cpp
+void FanStackWidget::attach_stack(lv_obj_t* /*widget_obj*/) {
+    // ...cache label pointers...
+
+    // Observe fans_version to re-bind when fans are discovered or change
+    version_observer_ = helix::ui::observe_int_sync<FanStackWidget>(
+        printer_state_.get_fans_version_subject(), this,
+        [weak_alive](FanStackWidget* self, int /*version*/) {
+            if (weak_alive.expired()) return;
+            self->bind_fans();  // Reset observers, read current fans, create new observers
+        });
+}
+
+void FanStackWidget::bind_fans() {
+    // 1. Reset existing per-fan observers
+    part_observer_.reset();
+    hotend_observer_.reset();
+    aux_observer_.reset();
+
+    // 2. Read current hardware config
+    const auto& fans = printer_state_.get_fans();
+    if (fans.empty()) return;
+
+    // 3. Create new per-fan observers using SubjectLifetime for dynamic subject safety
+    SubjectLifetime lifetime;
+    lv_subject_t* subject = printer_state_.get_fan_speed_subject(part_fan_name_, lifetime);
+    part_observer_ = helix::ui::observe_int_sync<FanStackWidget>(
+        subject, this, [weak_alive](FanStackWidget* self, int speed) {
+            if (weak_alive.expired()) return;
+            self->update_label(self->part_label_, speed);
+        }, lifetime);
+}
+```
+
+**LedWidget example** — observes `led_config_version_` on `LedController`:
+
+```cpp
+void LedWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
+    // ...
+
+    // Fires immediately on add, triggering initial bind_led() — no separate init call needed
+    led_version_observer_ = helix::ui::observe_int_sync<LedWidget>(
+        led_ctrl.get_led_config_version_subject(), this,
+        [weak_alive](LedWidget* self, int /*version*/) {
+            if (weak_alive.expired()) return;
+            self->bind_led();
+        });
+}
+```
+
+**PowerWidget** uses the same pattern but observes `power_device_count` instead of a version counter — the count itself changes whenever devices are discovered.
+
+The old pattern (removed) was a `HomePanel::reload_from_config()` dispatch loop that called `PanelWidget::reload_from_config()` on each widget. The version-observer pattern replaced it: each widget is responsible for its own rebinding.
+
+---
+
 ## Data Flow Architecture
 
 ### Subject Initialization Pattern
@@ -477,10 +627,32 @@ void on_temp_increase(lv_event_t* e) {
 
 ### Subject Lifecycle
 
-- **Creation:** During `ui_*_init_subjects()` functions
-- **Lifetime:** Persistent throughout application runtime
-- **Updates:** Via `lv_subject_set_*()` functions from any thread
-- **Cleanup:** Automatic when application exits
+- **Creation:** During each class's `init_subjects()` method (e.g., `PrinterState::init_subjects()`, `HomePanel::init_subjects()`)
+- **Lifetime:** Persistent throughout application runtime (static subjects) or until hardware changes (dynamic subjects — see below)
+- **Updates:** Via `lv_subject_set_*()` functions from the main thread only; background threads must use `helix::ui::queue_update()`
+- **Cleanup:** Each `init_subjects()` self-registers its `deinit_subjects()` with `StaticSubjectRegistry` or `StaticPanelRegistry`; explicit cleanup runs before `lv_deinit()`
+
+### Dynamic Subject Safety (SubjectLifetime)
+
+Per-fan, per-sensor, and per-extruder subjects are **dynamic** — they are destroyed and recreated when hardware is rediscovered after a disconnect/reconnect. Observing a dynamic subject without a `SubjectLifetime` token causes a **use-after-free crash**: `lv_subject_deinit()` frees the subject's observer list, but `ObserverGuard` still holds a dangling pointer into that list.
+
+| ❌ Crash | ✅ Safe |
+|----------|---------|
+| `auto* s = state.get_fan_speed_subject(name);` | `SubjectLifetime lt;` |
+| `obs = observe_int_sync(s, this, handler);` | `auto* s = state.get_fan_speed_subject(name, lt);` |
+| | `obs = observe_int_sync(s, this, handler, lt);` |
+
+**Dynamic subject sources** (always require a `SubjectLifetime` token when observing):
+
+| Source | Method |
+|--------|--------|
+| `PrinterFanState` | `get_fan_speed_subject(name, lifetime)` — per-fan speeds |
+| `TemperatureSensorManager` | `get_temp_subject(name, lifetime)` — per-sensor temperatures |
+| `PrinterTemperatureState` | `get_extruder_temp_subject(name, lifetime)`, `get_extruder_target_subject(name, lifetime)` |
+
+**Static subjects** (singleton lifetime, no token needed): `get_fan_speed_subject()` with no args, `get_bed_temp_subject()`, `get_nozzle_temp_subject()`, etc.
+
+See `include/ui_observer_guard.h` for full `SubjectLifetime` documentation. For real usage, see `FanStackWidget::bind_fans()` in `src/ui/panel_widgets/fan_stack_widget.cpp`.
 
 ### Widget Management
 
@@ -1259,9 +1431,9 @@ Optional plugin for enhanced print phase tracking. See [moonraker-plugin/README.
 
 ### LED Control System
 
-Unified LED management across four backends with automatic state-based lighting:
+Unified LED management across five backends with automatic state-based lighting:
 
-- **LedController** - Singleton orchestrating four backends: `NativeBackend` (Klipper neopixel/dotstar/led), `LedEffectBackend` (led_effect plugin animations), `WledBackend` (WLED network strips via Moonraker HTTP bridge), `MacroBackend` (user-configured macro devices)
+- **LedController** - Singleton orchestrating five backends: `NativeBackend` (Klipper neopixel/dotstar/led), `LedEffectBackend` (led_effect plugin animations), `WledBackend` (WLED network strips via Moonraker HTTP bridge), `MacroBackend` (user-configured macro devices), `OutputPinBackend` (output_pin brightness-only or on/off devices)
 - **LedAutoState** - Observes printer state subjects (print status, klippy state, extruder target) and automatically applies LED actions for six states: idle, heating, printing, paused, error, complete
 - **PrinterLedState** - Domain class tracking one LED strip for home panel display (RGBW subjects)
 - **LedControlOverlay** - Full control overlay with color presets, effects, WLED presets, macro buttons

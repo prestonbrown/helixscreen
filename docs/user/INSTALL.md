@@ -11,7 +11,7 @@ This guide walks you through installing HelixScreen on your 3D printer's touchsc
 - [Quick Start](#quick-start)
 - [Prerequisites](#prerequisites)
 - [MainsailOS Installation](#mainsailos-installation)
-- [Adventurer 5M Installation](#adventurer-5m-installation)
+- [Flashforge Adventurer 5M Installation](#flashforge-adventurer-5m-installation)
 - [Creality K1 Installation](#creality-k1-series-simple-af)
 - [Creality K2 Series (Untested)](#creality-k2-series-untested)
 - [Elegoo Centauri Carbon 1 (Testing)](#elegoo-centauri-carbon-1-testing)
@@ -28,7 +28,7 @@ This guide walks you through installing HelixScreen on your 3D printer's touchsc
 
 > **⚠️ Run these commands on your printer's host, not your local computer.**
 >
-> SSH into your Raspberry Pi, BTT CB1/Manta, or similar host. For all-in-one printers (Creality K1, K2 series, Adventurer 5M/Pro), SSH directly into the printer itself as root.
+> SSH into your Raspberry Pi, BTT CB1/Manta, or similar host. For all-in-one printers (Creality K1, K2 series, Flashforge Adventurer 5M/Pro), SSH directly into the printer itself as root.
 
 **Raspberry Pi (MainsailOS) or Creality K1:**
 ```bash
@@ -37,7 +37,7 @@ curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/script
 
 The installer automatically detects your platform and downloads the correct release.
 
-**Adventurer 5M:** The easiest option is our [ready-made firmware image](https://github.com/prestonbrown/ff5m) — just flash from a USB drive. For manual installation on existing Forge-X or Klipper Mod setups, see [Adventurer 5M Installation](#adventurer-5m-installation).
+**Flashforge Adventurer 5M:** The easiest option is our [ready-made firmware image](https://github.com/prestonbrown/ff5m) — just flash from a USB drive. For manual installation on existing Forge-X or Klipper Mod setups, see [Flashforge Adventurer 5M Installation](#flashforge-adventurer-5m-installation).
 
 > **Note:** Both `bash` and `sh` work. The installer is POSIX-compatible for BusyBox environments.
 
@@ -72,12 +72,12 @@ This covers any Klipper printer with a Raspberry Pi running MainsailOS (or simil
 
 > **32-bit vs 64-bit:** The installer automatically detects your OS architecture and downloads the correct binary. If you're unsure which you have, run `uname -m` — `aarch64` means 64-bit, `armv7l` means 32-bit.
 
-### Adventurer 5M / 5M Pro
+### Flashforge Adventurer 5M / 5M Pro
 
 > **Easiest option:** We provide a [ready-made firmware image](https://github.com/prestonbrown/ff5m) — a fork of Forge-X 1.4.0 with HelixScreen pre-configured. Just put it on a flash drive and install on your printer. No SSH, no manual setup. If you'd rather install HelixScreen on an existing Forge-X or Klipper Mod setup, follow the manual instructions below.
 
 - **Hardware:**
-  - FlashForge Adventurer 5M or 5M Pro
+  - Flashforge Adventurer 5M or 5M Pro
   - Stock 4.3" touchscreen (800x480)
   - Network connection
 
@@ -86,7 +86,7 @@ This covers any Klipper printer with a Raspberry Pi running MainsailOS (or simil
   - SSH access to the printer (usually `root@<printer-ip>`)
   - About 100MB free disk space
 
-> **Tested versions:** Most thoroughly tested on ForgeX 1.4.0 with FlashForge firmware 3.1.5. Other versions may work fine.
+> **Tested versions:** Most thoroughly tested on ForgeX 1.4.0 with Flashforge firmware 3.1.5. Other versions may work fine.
 
 #### AD5M Firmware Variants
 
@@ -111,7 +111,7 @@ The installer automatically detects which firmware you're running and configures
 The HelixScreen installer will:
 - Keep ForgeX in GUPPY display mode (required for backlight control)
 - Disable GuppyScreen's init scripts (so HelixScreen takes over)
-- Disable the stock FlashForge UI in auto_run.sh
+- Disable the stock Flashforge UI in auto_run.sh
 - Patch ForgeX's `screen.sh` to prevent backlight dimming conflicts
 - Install HelixScreen as the replacement touchscreen UI
 
@@ -240,7 +240,7 @@ See [First Boot & Setup Wizard](#first-boot--setup-wizard) for details.
 
 ---
 
-## Adventurer 5M Installation
+## Flashforge Adventurer 5M Installation
 
 ### Ready-Made Firmware Image (Easiest)
 
@@ -307,7 +307,7 @@ The install script automatically detects your firmware (Forge-X or Klipper Mod) 
 **What the installer does on Forge-X:**
 - Verifies ForgeX is installed and sets display mode to `GUPPY`
 - Stops and disables GuppyScreen (`chmod -x` on init scripts)
-- Disables stock FlashForge UI in `/opt/auto_run.sh`
+- Disables stock Flashforge UI in `/opt/auto_run.sh`
 - Patches `/opt/config/mod/.shell/screen.sh` to skip backlight commands when HelixScreen is running (prevents ForgeX's delayed_gcode from dimming the screen)
 - Installs HelixScreen to `/opt/helixscreen/`
 - Creates init script at `/etc/init.d/S90helixscreen`
@@ -700,7 +700,7 @@ The easiest way to update is using the install script with `--update`:
 curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh -s -- --update
 ```
 
-**Adventurer 5M** (no HTTPS support - two-step process):
+**Flashforge Adventurer 5M** (no HTTPS support - two-step process):
 ```bash
 # On your computer (replace vX.Y.Z with actual version):
 VERSION=vX.Y.Z  # Check latest at https://github.com/prestonbrown/helixscreen/releases/latest
@@ -724,7 +724,7 @@ This preserves your configuration and updates to the latest version.
 curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh -s -- --update --version v1.2.0
 ```
 
-**Adventurer 5M:** Download the specific version tarball from [GitHub Releases](https://github.com/prestonbrown/helixscreen/releases), then use `--local` as shown above.
+**Flashforge Adventurer 5M:** Download the specific version tarball from [GitHub Releases](https://github.com/prestonbrown/helixscreen/releases), then use `--local` as shown above.
 
 ### Preserving Configuration
 
@@ -775,7 +775,7 @@ The install script with `--uninstall` removes HelixScreen and **restores your pr
 curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh -s -- --uninstall
 ```
 
-**Adventurer 5M** (use the bundled install.sh):
+**Flashforge Adventurer 5M** (use the bundled install.sh):
 ```bash
 # Forge-X:
 /opt/helixscreen/install.sh --uninstall
@@ -819,7 +819,7 @@ rm -rf /opt/helixscreen
 chmod +x /opt/config/mod/.root/S80guppyscreen 2>/dev/null || true
 chmod +x /opt/config/mod/.root/S35tslib 2>/dev/null || true
 
-# Restore stock FlashForge UI in auto_run.sh (if it was disabled)
+# Restore stock Flashforge UI in auto_run.sh (if it was disabled)
 sed -i 's|^# Disabled by HelixScreen: /opt/PROGRAM/ffstartup-arm|/opt/PROGRAM/ffstartup-arm|' /opt/auto_run.sh 2>/dev/null || true
 
 # Remove HelixScreen patch from screen.sh (restores backlight control)
@@ -948,7 +948,7 @@ HelixScreen is optimized for low memory, but if you experience issues:
 2. Reduce Moonraker's cache size
 3. Consider a lighter Mainsail configuration
 
-### Adventurer 5M Memory Constraints
+### Flashforge Adventurer 5M Memory Constraints
 
 The AD5M has limited RAM (~108MB total, with only ~24MB free after Klipper, Moonraker, and screen UI). HelixScreen is built with static linking and memory optimization for this environment.
 

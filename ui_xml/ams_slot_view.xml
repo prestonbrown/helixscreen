@@ -28,6 +28,7 @@
         flex_flow="column"
         style_flex_main_place="start"
         style_flex_cross_place="center"
+        style_flex_track_place="center"
         style_pad_row="#space_xs"
         style_pad_all="2"
         style_bg_opa="0"

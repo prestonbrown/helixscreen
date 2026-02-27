@@ -25,6 +25,9 @@ void register_temperature_widget() {
         auto* tcp = PanelWidgetManager::instance().shared_resource<TempControlPanel>();
         return std::make_unique<TemperatureWidget>(ps, tcp);
     });
+
+    // Register XML event callbacks at startup (before any XML is parsed)
+    lv_xml_register_event_cb(nullptr, "temp_clicked_cb", TemperatureWidget::temp_clicked_cb);
 }
 } // namespace helix
 
@@ -43,11 +46,12 @@ void TemperatureWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     parent_screen_ = parent_screen;
     *alive_ = true;
 
-    // Store this pointer for event callback recovery
-    lv_obj_set_user_data(widget_obj_, this);
-
-    // Register XML event callback
-    lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
+    // Store this pointer on the button that has the event_cb in XML,
+    // not on the outer container — event current_target is the button.
+    temp_btn_ = lv_obj_find_by_name(widget_obj_, "temp_btn");
+    if (temp_btn_) {
+        lv_obj_set_user_data(temp_btn_, this);
+    }
 
     // Set up temperature observers with alive guard
     using helix::ui::observe_int_sync;
@@ -95,8 +99,11 @@ void TemperatureWidget::detach() {
         helix::ui::safe_delete(nozzle_temp_panel_);
     }
 
+    if (temp_btn_) {
+        lv_obj_set_user_data(temp_btn_, nullptr);
+        temp_btn_ = nullptr;
+    }
     if (widget_obj_) {
-        lv_obj_set_user_data(widget_obj_, nullptr);
         widget_obj_ = nullptr;
     }
     parent_screen_ = nullptr;

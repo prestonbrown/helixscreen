@@ -15,7 +15,7 @@ HelixScreen includes an optional, anonymous telemetry system that helps us under
 
 ## What Is Collected
 
-HelixScreen collects three types of events when telemetry is enabled:
+When telemetry is enabled, HelixScreen collects the following types of events:
 
 ### Session Events
 
@@ -23,7 +23,7 @@ Recorded once per application launch. Helps us understand the hardware landscape
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `schema_version` | Event schema version | `1` |
+| `schema_version` | Event schema version | `2` |
 | `event` | Event type identifier | `"session"` |
 | `device_id` | Anonymized device identifier (see below) | `"a3f8c1..."` (64-char hex) |
 | `timestamp` | ISO 8601 UTC timestamp | `"2026-02-08T14:30:00Z"` |
@@ -37,7 +37,7 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `schema_version` | Event schema version | `1` |
+| `schema_version` | Event schema version | `2` |
 | `event` | Event type identifier | `"print_outcome"` |
 | `device_id` | Anonymized device identifier | `"a3f8c1..."` (64-char hex) |
 | `timestamp` | ISO 8601 UTC timestamp | `"2026-02-08T16:45:00Z"` |
@@ -55,7 +55,7 @@ Recorded automatically when HelixScreen crashes. Picked up on the next startup. 
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `schema_version` | Event schema version | `1` |
+| `schema_version` | Event schema version | `2` |
 | `event` | Event type identifier | `"crash"` |
 | `device_id` | Anonymized device identifier | `"a3f8c1..."` (64-char hex) |
 | `timestamp` | ISO 8601 UTC timestamp | `"2026-02-08T12:00:00Z"` |
@@ -64,6 +64,91 @@ Recorded automatically when HelixScreen crashes. Picked up on the next startup. 
 | `app_version` | HelixScreen version at time of crash | `"0.9.6"` |
 | `uptime_sec` | Seconds since application started | `3600` |
 | `backtrace` | Stack frame addresses (hex) | `["0x0040abcd", "0x0040ef01"]` |
+
+### Update Events
+
+Recorded when the in-app updater runs. Tracks whether updates succeed or fail, helping us identify update reliability issues across different platforms.
+
+### Memory Snapshots
+
+Recorded periodically (hourly) and at startup. Helps detect memory leaks on different platforms, especially resource-constrained devices.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `trigger` | What caused the snapshot | `"hourly"`, `"session_start"` |
+| `uptime_sec` | Seconds since app started | `7200` |
+| `rss_kb` | Physical memory used (KB) | `48320` |
+| `vm_size_kb` | Virtual memory mapped (KB) | `142000` |
+
+### Hardware Profile
+
+Recorded once per session. Helps us prioritize feature development and hardware support.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `printer.detected_model` | Auto-detected printer model | `"Voron 2.4"` |
+| `printer.kinematics` | Motion system type | `"corexy"` |
+| `mcus.primary` | Main MCU chip | `"stm32h723xx"` |
+| `extruders.count` | Number of extruders | `1` |
+| `fans.total` | Total fan count | `5` |
+| `capabilities.*` | Boolean feature flags | `true`/`false` |
+
+Only aggregate hardware data is collected. No serial numbers, hostnames, or unique identifiers.
+
+### Settings Snapshot
+
+Recorded once per session. Helps us understand user preferences so we can choose better default settings.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `theme` | Light or dark theme | `"dark"` |
+| `brightness_pct` | Display brightness | `80` |
+| `locale` | Language setting | `"en"` |
+| `animations_enabled` | Whether animations are on | `true` |
+
+### Panel Usage
+
+Recorded when HelixScreen closes. Shows which screens are used most so we can focus improvement efforts. No specific actions or content are tracked.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `session_duration_sec` | Total time HelixScreen was open | `14400` |
+| `panel_time_sec` | Time spent on each panel (seconds) | `{"home": 8000, "controls": 3200}` |
+| `panel_visits` | Visit count per panel | `{"home": 42, "controls": 18}` |
+
+### Connection Stability
+
+Recorded when HelixScreen closes. Helps us understand connection reliability across different setups.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `connect_count` | Times connected to printer | `3` |
+| `disconnect_count` | Times disconnected | `2` |
+| `total_connected_sec` | Total connected time | `13800` |
+| `klippy_error_count` | Klippy error events | `1` |
+
+### Print Start Context
+
+Recorded when a print begins. Helps us understand slicer usage and file characteristics.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `source` | Print file source | `"local"` |
+| `has_thumbnail` | Whether file has thumbnail | `true` |
+| `file_size_bucket` | File size range | `"1-10MB"` |
+| `slicer` | Slicer software used | `"PrusaSlicer"` |
+
+No filenames are collected. File size is bucketed, not exact.
+
+### Error Events
+
+Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). Helps us identify common issues that users may never report.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `category` | Error category | `"moonraker_api"` |
+| `code` | Error code | `"timeout"` |
+| `context` | What was being attempted | `"get_printer_objects"` |
 
 ---
 
@@ -178,6 +263,11 @@ Telemetry helps us make HelixScreen better in specific, measurable ways:
 - **Hardware landscape**: Knowing which platforms and display resolutions are most common helps us prioritize testing and optimization
 - **Print success rates**: Understanding failure patterns across the user base helps us identify and fix issues that affect real prints
 - **Crash regressions**: Crash reports with backtraces let us catch and fix bugs that might only appear on specific hardware or under specific conditions
+- **Memory profiling**: Detect memory issues on resource-constrained devices like Pi Zero
+- **Hardware census**: Understand what printers and features are in use to prioritize development
+- **UI engagement**: Know which features are actually used to focus improvement efforts
+- **Connection reliability**: Identify and fix connectivity issues across different setups
+- **Error patterns**: Find and fix silent errors that users may never report
 - **Development priorities**: Aggregate usage data helps us focus engineering effort where it matters most
 
 We believe in earning trust through transparency. That is why the telemetry system is opt-in, the data is viewable, and this document exists.
@@ -190,6 +280,6 @@ For developers and the technically curious:
 
 - **Source code**: `src/system/telemetry_manager.cpp`, `include/system/telemetry_manager.h`
 - **Crash handler**: `src/system/crash_handler.cpp` (async-signal-safe, no heap allocation in signal handler)
-- **Schema version**: `1` (all events include `schema_version` for forward compatibility)
+- **Schema version**: `2` (all events include `schema_version` for forward compatibility)
 - **Identity files**: `telemetry_device.json` (UUID + salt), `telemetry_config.json` (enabled state), `telemetry_queue.json` (event queue)
 - **Privacy policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

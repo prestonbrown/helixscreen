@@ -123,6 +123,13 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, MoonrakerAP
     led_ctrl.discover_from_hardware(hardware);
     led_ctrl.discover_wled_strips();
 
+    // Set tracked LED early so the subscription response populates subjects correctly.
+    // LedWidget::bind_led() will also call this (idempotent) when it attaches later.
+    const auto& strips = led_ctrl.selected_strips();
+    if (!strips.empty()) {
+        printer_state.set_tracked_led(strips.front());
+    }
+
     spdlog::info("[PrinterDiscovery] Subsystem initialization complete");
 }
 

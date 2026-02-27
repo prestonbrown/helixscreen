@@ -125,6 +125,7 @@ class KeyboardManager {
     // Helper methods
     void apply_keyboard_mode();
     void overlay_cleanup();
+    void longpress_reset();
     void show_overlay(const lv_area_t* key_area, const char* alternatives);
     const char* find_alternatives(char base_char) const;
     bool point_in_area(const lv_area_t* area, const lv_point_t* point) const;

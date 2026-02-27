@@ -953,7 +953,7 @@ void ui_wizard_complete() {
 
     // Tell Home Panel to reload immediately for printer image, type overlay
     // (LED and other hardware will update async when discovery completes)
-    get_global_home_panel().reload_from_config();
+    get_global_home_panel().apply_printer_config();
 
     spdlog::info("[Wizard] Wizard complete, transitioned to main UI");
 }

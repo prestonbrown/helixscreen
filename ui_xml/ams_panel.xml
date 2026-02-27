@@ -10,8 +10,28 @@
   <view name="ams_panel"
         extends="lv_obj" width="#overlay_panel_width" height="100%" align="right_mid" style_pad_all="0"
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
-    <!-- Header Bar -->
-    <header_bar name="overlay_header" title="Multi-Filament" title_tag="Multi-Filament"/>
+    <!-- Header Bar - custom layout to include system logo + name -->
+    <lv_obj name="overlay_header"
+            width="100%" height="#header_height" style_pad_left="#space_md" style_pad_right="#space_lg"
+            style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+            style_flex_main_place="start" style_flex_cross_place="center"
+            style_flex_track_place="center" scrollable="false">
+      <!-- Back button -->
+      <icon name="back_button" src="back" size="lg" variant="text" align="center" clickable="true">
+        <event_cb trigger="clicked" callback="on_header_back_clicked"/>
+      </icon>
+      <!-- Title: "Multi-Filament:" -->
+      <text_heading name="header_title"
+                    text="Multi-Filament:" translation_tag="Multi-Filament:"
+                    align="center" style_text_align="left" style_pad_left="#space_lg"
+                    clickable="false" scrollable="false"/>
+      <!-- System logo (bound to ams_system_logo subject) -->
+      <lv_image name="system_logo" width="20" height="20"
+                bind_src="ams_system_logo" inner_align="contain" style_pad_left="#space_xs"/>
+      <!-- System name (bound to ams_system_name subject) -->
+      <text_heading name="system_name_label" bind_text="ams_system_name"
+                    align="center" clickable="false" scrollable="false"/>
+    </lv_obj>
     <!-- Content Area: Two Columns -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_top="0"
@@ -32,14 +52,7 @@
                 scrollable="false" flag_hidden="true">
           <!-- Segments created dynamically in C++ -->
         </lv_obj>
-        <!-- Section Header: System Logo + Name (centered above slots) -->
-        <lv_obj name="system_header"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-          <!-- Logo image - set programmatically based on AMS type -->
-          <lv_image name="system_logo" width="#space_2xl" height="#space_2xl" inner_align="contain"/>
-          <text_body name="system_name_label" bind_text="ams_system_name"/>
-        </lv_obj>
+        <!-- System logo + name now displayed in header bar (setup_system_header) -->
         <!-- AMS Unit Card - contains the slot grid with tray effect -->
         <ui_card name="ams_unit_card"
                  width="100%" height="content" style_radius="#border_radius" style_pad_all="#space_sm"

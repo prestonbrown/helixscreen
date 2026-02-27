@@ -1683,6 +1683,7 @@ write_release_info() {
     case "${PLATFORM:-}" in
         pi32)       asset_name="helixscreen-pi32.zip" ;;
         ad5m)       asset_name="helixscreen-ad5m.zip" ;;
+        ad5x)       asset_name="helixscreen-k1.zip" ;;
         k1)         asset_name="helixscreen-k1.zip" ;;
         k1-dynamic) asset_name="helixscreen-k1-dynamic.zip" ;;
         k2)         asset_name="helixscreen-k2.zip" ;;

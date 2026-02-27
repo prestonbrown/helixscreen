@@ -31,7 +31,7 @@
         <lv_image name="gradient_bg" width="100%" height="100%" src="A:assets/images/gradient-panel-medium-dark.bin">
           <bind_flag_if_eq subject="detail_gcode_viewer_mode" flag="hidden" ref_value="1"/>
         </lv_image>
-        <!-- 3D/2D G-code viewer (hidden in thumbnail mode=0) -->
+        <!-- 3D G-code viewer (hidden in thumbnail mode=0; no 2D fallback on this panel) -->
         <gcode_viewer name="detail_gcode_viewer" width="100%" height="100%">
           <bind_flag_if_eq subject="detail_gcode_viewer_mode" flag="hidden" ref_value="0"/>
         </gcode_viewer>
@@ -247,9 +247,9 @@
           <!-- Button row -->
           <lv_obj name="button_row"
                   width="100%" height="content" style_pad_all="0" style_pad_gap="#button_padding" flex_flow="row">
-          <!-- Delete button -->
+          <!-- Delete button (icon-only) -->
           <ui_button name="delete_button"
-                     height="#button_height_lg" text="Delete" translation_tag="Delete" variant="danger" flex_grow="1" icon="trash_can_outline">
+                     height="#button_height_lg" width="#button_height_lg" variant="danger" icon="trash_can_outline">
             <event_cb trigger="clicked" callback="on_print_select_delete_button"/>
           </ui_button>
           <!-- Print button - primary action styling (disabled when print in progress) -->

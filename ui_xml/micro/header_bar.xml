@@ -43,17 +43,21 @@
     <prop name="hide_action_button_2" type="string" default="true"/>
   </api>
   <view extends="lv_obj"
-        width="100%" height="40" style_pad_left="#space_sm" style_pad_right="#space_xl"
+        width="100%" height="40" style_pad_left="0" style_pad_right="#space_xl"
         style_pad_top="0" style_pad_bottom="0" flex_flow="row" style_flex_main_place="space_between"
         style_flex_track_place="center" style_flex_cross_place="center" scrollable="false">
-    <!-- Back button (fixed width, left-aligned) -->
-    <icon name="back_button" src="back" size="lg" variant="text" align="center" clickable="true">
+    <!-- Back button: flex_grow region covers arrow + title = huge touch target -->
+    <lv_obj name="back_button" flex_grow="1" height="100%"
+            style_pad_left="#space_xs" style_pad_right="0" style_pad_top="0" style_pad_bottom="0"
+            scrollable="false" clickable="true"
+            style_flex_cross_place="center" style_flex_track_place="center"
+            flex_flow="row" style_pad_gap="#space_xs">
       <event_cb trigger="clicked" callback="$back_button_callback"/>
-    </icon>
-    <!-- Title (flexible width, centered) -->
-    <text_heading name="header_title"
-                  text="$title" translation_tag="$title_tag" flex_grow="1" align="center" style_text_align="left" style_pad_left="#space_sm"
-                  clickable="false" scrollable="false"/>
+      <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <text_heading name="header_title"
+                    text="$title" translation_tag="$title_tag" flex_grow="1" style_text_align="left"
+                    clickable="false" event_bubble="true" scrollable="false"/>
+    </lv_obj>
     <!-- Secondary action button (left of primary, hidden by default) -->
     <ui_button name="action_button_2"
                width="content" height="$action_button_height" style_min_width="72"

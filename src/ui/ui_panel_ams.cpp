@@ -358,6 +358,11 @@ void AmsPanel::on_activate() {
 
     refresh_slots();
 
+    // Ensure filament path canvas redraws after being stopped on deactivate
+    if (path_canvas_) {
+        ui_filament_path_canvas_refresh(path_canvas_);
+    }
+
     // Sync sidebar step progress and preheat feedback from current state
     if (sidebar_) {
         sidebar_->sync_from_state();
@@ -399,6 +404,11 @@ void AmsPanel::sync_spoolman_active_spool() {
 
 void AmsPanel::on_deactivate() {
     AmsState::instance().stop_spoolman_polling();
+
+    // Stop filament path animations to avoid burning CPU in the background
+    if (path_canvas_) {
+        ui_filament_path_canvas_stop_animations(path_canvas_);
+    }
 
     spdlog::debug("[{}] Deactivated", get_name());
     // Note: UI destruction is handled by NavigationManager close callback
@@ -460,43 +470,40 @@ void AmsPanel::clear_unit_scope() {
 // ============================================================================
 
 void AmsPanel::setup_system_header() {
-    // Find the system logo image in the header
-    lv_obj_t* system_logo = lv_obj_find_by_name(panel_, "system_logo");
-    if (!system_logo) {
-        spdlog::warn("[{}] system_logo not found in XML", get_name());
+    // System logo + name in header bar are declaratively bound to
+    // ams_system_logo / ams_system_name subjects (updated by AmsState::sync_from_backend).
+    //
+    // Only the scoped-unit case needs imperative override, since subjects
+    // hold system-level info, not per-unit info.
+    if (scoped_unit_index_ < 0) {
         return;
     }
 
-    // Get AMS system info from backend
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
-        spdlog::debug("[{}] No backend, hiding logo", get_name());
-        lv_obj_add_flag(system_logo, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
     const auto& info = backend->get_system_info();
-
-    // When scoped to a unit, show unit-specific name and logo
-    if (scoped_unit_index_ >= 0 && scoped_unit_index_ < static_cast<int>(info.units.size())) {
-        const AmsUnit& unit = info.units[scoped_unit_index_];
-
-        // Try unit-specific logo first, fall back to system logo
-        ams_draw::apply_logo(system_logo, unit, info);
-
-        // Override the header title with unit name
-        lv_obj_t* title_label = lv_obj_find_by_name(panel_, "system_name");
-        if (title_label) {
-            std::string display_name = ams_draw::get_unit_display_name(unit, scoped_unit_index_);
-            lv_label_set_text(title_label, display_name.c_str());
-        }
-
-        spdlog::info("[{}] Scoped to unit {}: '{}'", get_name(), scoped_unit_index_, unit.name);
+    if (scoped_unit_index_ >= static_cast<int>(info.units.size())) {
         return;
     }
 
-    // Default: show system-level logo (existing behavior)
-    ams_draw::apply_logo(system_logo, info.type_name);
+    const AmsUnit& unit = info.units[scoped_unit_index_];
+
+    // Override header with unit-specific logo + name
+    lv_obj_t* system_logo = lv_obj_find_by_name(panel_, "system_logo");
+    if (system_logo) {
+        ams_draw::apply_logo(system_logo, unit, info);
+    }
+
+    lv_obj_t* name_label = lv_obj_find_by_name(panel_, "system_name_label");
+    if (name_label) {
+        std::string display_name = ams_draw::get_unit_display_name(unit, scoped_unit_index_);
+        lv_label_set_text(name_label, display_name.c_str());
+    }
+
+    spdlog::info("[{}] Scoped to unit {}: '{}'", get_name(), scoped_unit_index_, unit.name);
 }
 
 void AmsPanel::rebuild_backend_selector() {
@@ -634,6 +641,9 @@ void AmsPanel::create_slots(int count) {
     // Labels overlay for 5+ slots
     ams_detail_update_labels(detail_widgets_, slot_widgets_, result.slot_count, result.layout);
 
+    // Move badges to overlay layer (in front of tray)
+    ams_detail_update_badges(detail_widgets_, slot_widgets_, result.slot_count, result.layout);
+
     // Update path canvas sizing
     if (path_canvas_) {
         ui_filament_path_canvas_set_slot_overlap(path_canvas_, result.layout.overlap);
@@ -743,14 +753,14 @@ void AmsPanel::setup_bypass_spool() {
     int32_t bypass_x = canvas_x + (int32_t)(canvas_w * BYPASS_X_RATIO);
     int32_t bypass_merge_y = canvas_y + (int32_t)(canvas_h * BYPASS_MERGE_Y_RATIO);
 
-    // Spool goes BELOW the "Bypass" label (which is canvas-drawn above bypass_merge_y).
-    // Place spool top edge at bypass_merge_y so it sits just under the label.
+    // Center spool vertically on the bypass merge line (horizontal filament path)
     lv_obj_update_layout(bypass_spool_box_);
     int32_t box_w = lv_obj_get_width(bypass_spool_box_);
-    lv_obj_set_pos(bypass_spool_box_, bypass_x - box_w / 2, bypass_merge_y);
+    int32_t box_h = lv_obj_get_height(bypass_spool_box_);
+    lv_obj_set_pos(bypass_spool_box_, bypass_x - box_w / 2, bypass_merge_y - box_h / 2);
 
-    spdlog::debug("[{}] Bypass spool: box_w={} at ({},{}), merge_y={}", get_name(), box_w,
-                  bypass_x - box_w / 2, bypass_merge_y, bypass_merge_y);
+    spdlog::debug("[{}] Bypass spool: {}x{} at ({},{}), merge_y={}", get_name(), box_w, box_h,
+                  bypass_x - box_w / 2, bypass_merge_y - box_h / 2, bypass_merge_y);
 }
 
 void AmsPanel::update_bypass_spool_from_state() {
@@ -1286,6 +1296,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
                 break;
 
             case helix::ui::AmsContextMenu::MenuAction::EDIT:
+            case helix::ui::AmsContextMenu::MenuAction::SPOOLMAN:
                 show_edit_modal(slot);
                 break;
 

@@ -40,6 +40,30 @@ export const router = createRouter({
       name: 'releases',
       component: ReleasesView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/memory',
+      name: 'memory',
+      component: () => import('@/views/MemoryView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/hardware',
+      name: 'hardware',
+      component: () => import('@/views/HardwareView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/engagement',
+      name: 'engagement',
+      component: () => import('@/views/EngagementView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/reliability',
+      name: 'reliability',
+      component: () => import('@/views/ReliabilityView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

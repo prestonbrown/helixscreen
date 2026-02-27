@@ -7,6 +7,7 @@
 #include "moonraker_api.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
+#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -65,6 +66,18 @@ void LedController::init(MoonrakerAPI* api, MoonrakerClient* client) {
     wled_.set_client(client);
     macro_.set_api(api);
     output_pin_.set_api(api);
+
+    // Initialize version subject for UI binding (idempotent)
+    if (!version_subject_initialized_) {
+        lv_subject_init_int(&led_config_version_, 0);
+        version_subject_initialized_ = true;
+        StaticSubjectRegistry::instance().register_deinit("LedController", [this]() {
+            if (version_subject_initialized_) {
+                lv_subject_deinit(&led_config_version_);
+                version_subject_initialized_ = false;
+            }
+        });
+    }
 
     initialized_ = true;
     load_config();
@@ -276,6 +289,13 @@ void LedController::discover_from_hardware(const helix::PrinterDiscovery& hardwa
         save_config();
         spdlog::info("[LedController] Auto-selected {} native strip(s) (first run)",
                      selected_strips_.size());
+    }
+
+    // Bump version to notify UI widgets to rebind
+    if (version_subject_initialized_) {
+        lv_subject_set_int(&led_config_version_, lv_subject_get_int(&led_config_version_) + 1);
+        spdlog::debug("[LedController] LED config version bumped to {}",
+                      lv_subject_get_int(&led_config_version_));
     }
 }
 
@@ -1864,6 +1884,14 @@ bool LedController::light_is_on() const {
     return light_on_;
 }
 
+void LedController::sync_light_state(bool is_on) {
+    if (light_on_ != is_on) {
+        spdlog::debug("[LedController] Syncing light state: {} -> {}", light_on_ ? "ON" : "OFF",
+                      is_on ? "ON" : "OFF");
+        light_on_ = is_on;
+    }
+}
+
 bool LedController::get_led_on_at_start() const {
     return led_on_at_start_;
 }
@@ -1889,6 +1917,11 @@ void LedController::apply_startup_preference() {
 
 void LedController::set_selected_strips(const std::vector<std::string>& strips) {
     selected_strips_ = strips;
+
+    // Bump version to notify UI widgets to rebind
+    if (version_subject_initialized_) {
+        lv_subject_set_int(&led_config_version_, lv_subject_get_int(&led_config_version_) + 1);
+    }
 }
 
 void LedController::set_last_color(uint32_t color) {

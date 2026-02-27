@@ -3,7 +3,6 @@
     <div class="page">
       <div class="page-header">
         <h2>Adoption</h2>
-        <DateRangePicker v-model="range" />
       </div>
 
       <div v-if="loading" class="loading">Loading...</div>
@@ -37,16 +36,16 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
-import DateRangePicker from '@/components/DateRangePicker.vue'
 import PieChart from '@/components/PieChart.vue'
 import BarChart from '@/components/BarChart.vue'
+import { useFiltersStore } from '@/stores/filters'
 import { api } from '@/services/api'
 import type { AdoptionData } from '@/services/api'
 import type { ChartOptions } from 'chart.js'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 
-const range = ref('30d')
+const filters = useFiltersStore()
 const data = ref<AdoptionData | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -94,7 +93,7 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    data.value = await api.getAdoption(range.value)
+    data.value = await api.getAdoption(filters.queryString)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load data'
   } finally {
@@ -102,7 +101,7 @@ async function fetchData() {
   }
 }
 
-watch(range, fetchData, { immediate: true })
+watch(() => filters.queryString, fetchData, { immediate: true })
 </script>
 
 <style scoped>

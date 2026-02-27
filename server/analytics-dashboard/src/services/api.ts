@@ -24,6 +24,7 @@ export interface PrintsData {
   success_rate_over_time: { date: string; rate: number; total: number }[]
   by_filament: { type: string; success_rate: number; count: number }[]
   avg_duration_sec: number
+  start_context?: PrintStartData
 }
 
 export interface CrashesData {
@@ -54,9 +55,54 @@ export interface ReleasesData {
   }[]
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+export interface MemoryData {
+  rss_over_time: { date: string; avg_rss_kb: number; p95_rss_kb: number; max_rss_kb: number }[]
+  rss_by_platform: { platform: string; avg_rss_kb: number }[]
+  vm_peak_trend: { date: string; avg_vm_peak_kb: number }[]
+}
+
+export interface HardwareData {
+  printer_models: { name: string; count: number }[]
+  kinematics: { name: string; count: number }[]
+  mcu_chips: { name: string; count: number }[]
+  capabilities: { total: number; bits: number[] }
+  avg_build_volume: { x: number; y: number; z: number }
+  avg_counts: { fans: number; sensors: number; macros: number }
+}
+
+export interface EngagementData {
+  panel_time: { panel: string; total_time_sec: number }[]
+  panel_visits: { panel: string; total_visits: number }[]
+  session_duration_trend: { date: string; avg_session_sec: number }[]
+  themes: { name: string; count: number }[]
+  locales: { name: string; count: number }[]
+  brightness: { p25: number; p50: number; p75: number }
+}
+
+export interface ReliabilityData {
+  uptime_trend: { date: string; avg_uptime_pct: number }[]
+  disconnect_trend: { date: string; avg_disconnects: number }[]
+  max_disconnect_sec: number
+  error_categories: { category: string; count: number }[]
+  error_codes: { category: string; code: string; count: number }[]
+}
+
+export interface PrintStartData {
+  slicers: { name: string; count: number }[]
+  file_size_buckets: { name: string; count: number }[]
+  thumbnail_rate: number
+  ams_rate: number
+  sources: { name: string; count: number }[]
+}
+
+async function apiFetch<T>(path: string, params?: Record<string, string>): Promise<T> {
   const auth = useAuthStore()
-  const res = await fetch(`${API_BASE}${path}`, {
+  let url = `${API_BASE}${path}`
+  if (params) {
+    const sep = path.includes('?') ? '&' : '?'
+    url += sep + new URLSearchParams(params).toString()
+  }
+  const res = await fetch(url, {
     headers: {
       'X-API-Key': auth.apiKey || ''
     }
@@ -76,28 +122,44 @@ async function apiFetch<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  getOverview(range: string): Promise<OverviewData> {
-    return apiFetch(`/v1/dashboard/overview?range=${range}`)
+  getOverview(queryString: string): Promise<OverviewData> {
+    return apiFetch(`/v1/dashboard/overview?${queryString}`)
   },
 
-  getAdoption(range: string): Promise<AdoptionData> {
-    return apiFetch(`/v1/dashboard/adoption?range=${range}`)
+  getAdoption(queryString: string): Promise<AdoptionData> {
+    return apiFetch(`/v1/dashboard/adoption?${queryString}`)
   },
 
-  getPrints(range: string): Promise<PrintsData> {
-    return apiFetch(`/v1/dashboard/prints?range=${range}`)
+  getPrints(queryString: string): Promise<PrintsData> {
+    return apiFetch(`/v1/dashboard/prints?${queryString}`)
   },
 
-  getCrashes(range: string): Promise<CrashesData> {
-    return apiFetch(`/v1/dashboard/crashes?range=${range}`)
+  getCrashes(queryString: string): Promise<CrashesData> {
+    return apiFetch(`/v1/dashboard/crashes?${queryString}`)
   },
 
-  getCrashList(range: string, limit = 50): Promise<CrashListData> {
-    return apiFetch(`/v1/dashboard/crash-list?range=${range}&limit=${limit}`)
+  getCrashList(queryString: string, limit = 50): Promise<CrashListData> {
+    return apiFetch(`/v1/dashboard/crash-list?${queryString}&limit=${limit}`)
   },
 
   getReleases(versions: string[]): Promise<ReleasesData> {
     const params = `versions=${versions.map(v => encodeURIComponent(v)).join(',')}`
     return apiFetch(`/v1/dashboard/releases?${params}`)
+  },
+
+  getMemory(queryString: string): Promise<MemoryData> {
+    return apiFetch(`/v1/dashboard/memory?${queryString}`)
+  },
+
+  getHardware(queryString: string): Promise<HardwareData> {
+    return apiFetch(`/v1/dashboard/hardware?${queryString}`)
+  },
+
+  getEngagement(queryString: string): Promise<EngagementData> {
+    return apiFetch(`/v1/dashboard/engagement?${queryString}`)
+  },
+
+  getReliability(queryString: string): Promise<ReliabilityData> {
+    return apiFetch(`/v1/dashboard/reliability?${queryString}`)
   }
 }

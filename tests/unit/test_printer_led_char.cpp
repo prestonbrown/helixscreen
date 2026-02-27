@@ -606,6 +606,86 @@ TEST_CASE("LED characterization: edge cases and boundary values", "[characteriza
 }
 
 // ============================================================================
+// Output Pin Format Tests - Verify output_pin LED parsing (value field, no color_data)
+// ============================================================================
+
+TEST_CASE("LED characterization: output_pin format updates",
+          "[characterization][led][output_pin]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    // output_pin LEDs use "value" field instead of "color_data"
+    state.set_tracked_led("output_pin chamber_light");
+
+    SECTION("output_pin full on (value=1.0)") {
+        json status = {{"output_pin chamber_light", {{"value", 1.0}}}};
+        state.update_from_status(status);
+
+        REQUIRE(lv_subject_get_int(state.get_led_r_subject()) == 255);
+        REQUIRE(lv_subject_get_int(state.get_led_g_subject()) == 255);
+        REQUIRE(lv_subject_get_int(state.get_led_b_subject()) == 255);
+        REQUIRE(lv_subject_get_int(state.get_led_w_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_led_brightness_subject()) == 100);
+        REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 1);
+    }
+
+    SECTION("output_pin off (value=0.0)") {
+        // First turn on
+        json on_status = {{"output_pin chamber_light", {{"value", 1.0}}}};
+        state.update_from_status(on_status);
+        REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 1);
+
+        // Then turn off
+        json off_status = {{"output_pin chamber_light", {{"value", 0.0}}}};
+        state.update_from_status(off_status);
+
+        REQUIRE(lv_subject_get_int(state.get_led_r_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_led_g_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_led_b_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_led_brightness_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 0);
+    }
+
+    SECTION("output_pin half brightness (value=0.5)") {
+        json status = {{"output_pin chamber_light", {{"value", 0.5}}}};
+        state.update_from_status(status);
+
+        // 0.5 * 255 + 0.5 = 128
+        REQUIRE(lv_subject_get_int(state.get_led_r_subject()) == 128);
+        REQUIRE(lv_subject_get_int(state.get_led_g_subject()) == 128);
+        REQUIRE(lv_subject_get_int(state.get_led_b_subject()) == 128);
+        REQUIRE(lv_subject_get_int(state.get_led_brightness_subject()) == 50);
+        REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 1);
+    }
+
+    SECTION("output_pin sets RGB equally, W stays 0") {
+        json status = {{"output_pin chamber_light", {{"value", 0.75}}}};
+        state.update_from_status(status);
+
+        // 0.75 * 255 + 0.5 = 191.75 -> 191
+        int expected = 191;
+        REQUIRE(lv_subject_get_int(state.get_led_r_subject()) == expected);
+        REQUIRE(lv_subject_get_int(state.get_led_g_subject()) == expected);
+        REQUIRE(lv_subject_get_int(state.get_led_b_subject()) == expected);
+        REQUIRE(lv_subject_get_int(state.get_led_w_subject()) == 0);
+    }
+
+    SECTION("non-output_pin LED with missing color_data is ignored") {
+        // If LED name does NOT start with "output_pin ", missing color_data → no update
+        state.set_tracked_led("neopixel led_strip");
+
+        json status = {{"neopixel led_strip", {{"value", 1.0}}}};
+        state.update_from_status(status);
+
+        // Should remain at 0 — neopixel without color_data is ignored
+        REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 0);
+    }
+}
+
+// ============================================================================
 // Observer Independence Tests - Verify observer isolation
 // ============================================================================
 

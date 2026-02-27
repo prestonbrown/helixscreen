@@ -13,7 +13,7 @@ For supported platforms (like AD5M), the preset is baked into the release packag
 
 | File | Platform | Notes |
 |------|----------|-------|
-| `ad5m.json` | FlashForge Adventurer 5M / 5M Pro | Touch calibration, hardware mappings, ForgeX macros. Printer type auto-detected at runtime (Pro vs non-Pro based on LED presence). |
+| `ad5m.json` | Flashforge Adventurer 5M / 5M Pro | Touch calibration, hardware mappings, ForgeX macros. Printer type auto-detected at runtime (Pro vs non-Pro based on LED presence). |
 | `voron-v2-afc.json` | Voron V2 with AFC | Reference config, not auto-baked |
 
 ## What's in a Preset

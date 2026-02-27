@@ -14,6 +14,7 @@
 #include "hv/HttpMessage.h"
 #include "moonraker_api.h"
 #include "spdlog/spdlog.h"
+#include "system/telemetry_manager.h"
 
 #include <algorithm>
 #include <cctype>
@@ -354,6 +355,12 @@ inline void report_error(const MoonrakerAPI::ErrorCallback& on_error, MoonrakerE
  */
 inline void report_http_error(const MoonrakerAPI::ErrorCallback& on_error, int status_code,
                               std::string_view method, std::string_view status_message) {
+    // Record telemetry for server errors and client errors (except 404, which is common)
+    if (status_code != 404) {
+        std::string code_str = (status_code >= 500) ? "http_5xx" : "http_4xx";
+        TelemetryManager::instance().record_error("moonraker_api", code_str, std::string(method));
+    }
+
     if (!on_error)
         return;
 
@@ -383,6 +390,8 @@ inline void report_http_error(const MoonrakerAPI::ErrorCallback& on_error, int s
  */
 inline void report_connection_error(const MoonrakerAPI::ErrorCallback& on_error,
                                     std::string_view method, std::string_view message) {
+    TelemetryManager::instance().record_error("moonraker_api", "connection_refused",
+                                              std::string(method));
     report_error(on_error, MoonrakerErrorType::CONNECTION_LOST, method, message);
 }
 
@@ -395,6 +404,7 @@ inline void report_connection_error(const MoonrakerAPI::ErrorCallback& on_error,
  */
 inline void report_parse_error(const MoonrakerAPI::ErrorCallback& on_error, std::string_view method,
                                std::string_view message) {
+    TelemetryManager::instance().record_error("moonraker_api", "parse_error", std::string(method));
     report_error(on_error, MoonrakerErrorType::PARSE_ERROR, method, message);
 }
 

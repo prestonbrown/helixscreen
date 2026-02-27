@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../ui_test_utils.h"
 #include "config.h"
 #include "led/led_controller.h"
 #include "printer_discovery.h"
@@ -814,4 +815,74 @@ TEST_CASE("OutputPinBackend: no API safety", "[led][output_pin]") {
     backend.turn_on("output_pin test");
     backend.turn_off("output_pin test");
     backend.set_brightness("output_pin test", 50);
+}
+
+// ============================================================================
+// LED Config Version Subject Tests
+// ============================================================================
+
+TEST_CASE("LedController: version subject accessible after init", "[led][version]") {
+    lv_init_safe();
+
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    // Subject should be accessible (no crash)
+    lv_subject_t* subj = ctrl.get_led_config_version_subject();
+    REQUIRE(subj != nullptr);
+    // Value is an integer (may be non-zero if other tests ran first)
+    lv_subject_get_int(subj);
+
+    ctrl.deinit();
+}
+
+TEST_CASE("LedController: set_selected_strips bumps version", "[led][version]") {
+    lv_init_safe();
+
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    int initial = lv_subject_get_int(ctrl.get_led_config_version_subject());
+    ctrl.set_selected_strips({"neopixel test_strip"});
+
+    REQUIRE(lv_subject_get_int(ctrl.get_led_config_version_subject()) == initial + 1);
+
+    ctrl.set_selected_strips({"neopixel strip_a", "neopixel strip_b"});
+    REQUIRE(lv_subject_get_int(ctrl.get_led_config_version_subject()) == initial + 2);
+
+    ctrl.deinit();
+}
+
+TEST_CASE("LedController: version observer fires on bump", "[led][version]") {
+    lv_init_safe();
+
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+
+    int before = lv_subject_get_int(ctrl.get_led_config_version_subject());
+
+    int user_data[2] = {0, -1}; // [count, last_value]
+    auto cb = [](lv_observer_t* observer, lv_subject_t* subject) {
+        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
+        int* value_ptr = count_ptr + 1;
+        (*count_ptr)++;
+        *value_ptr = lv_subject_get_int(subject);
+    };
+
+    lv_observer_t* obs =
+        lv_subject_add_observer(ctrl.get_led_config_version_subject(), cb, user_data);
+
+    // LVGL auto-fires on add
+    REQUIRE(user_data[0] == 1);
+    REQUIRE(user_data[1] == before);
+
+    ctrl.set_selected_strips({"neopixel test"});
+    REQUIRE(user_data[0] >= 2);
+    REQUIRE(user_data[1] == before + 1);
+
+    lv_observer_remove(obs);
+    ctrl.deinit();
 }

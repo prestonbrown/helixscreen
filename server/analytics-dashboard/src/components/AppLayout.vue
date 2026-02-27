@@ -20,13 +20,31 @@
         <router-link to="/releases" class="nav-link" :class="{ active: route.path === '/releases' }">
           Releases
         </router-link>
+        <div class="nav-separator"></div>
+        <router-link to="/memory" class="nav-link" :class="{ active: route.path === '/memory' }">
+          Memory
+        </router-link>
+        <router-link to="/hardware" class="nav-link" :class="{ active: route.path === '/hardware' }">
+          Hardware
+        </router-link>
+        <router-link to="/engagement" class="nav-link" :class="{ active: route.path === '/engagement' }">
+          Engagement
+        </router-link>
+        <router-link to="/reliability" class="nav-link" :class="{ active: route.path === '/reliability' }">
+          Reliability
+        </router-link>
       </nav>
       <div class="sidebar-footer">
         <button class="logout-btn" @click="handleLogout">Logout</button>
       </div>
     </aside>
     <main class="content">
-      <slot />
+      <div class="content-header">
+        <FilterBar />
+      </div>
+      <div class="content-body">
+        <slot />
+      </div>
     </main>
   </div>
 </template>
@@ -35,6 +53,7 @@
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { router } from '@/router'
+import FilterBar from '@/components/FilterBar.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -98,6 +117,12 @@ function handleLogout() {
   font-weight: 500;
 }
 
+.nav-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 16px;
+}
+
 .sidebar-footer {
   padding: 16px 20px;
   border-top: 1px solid var(--border);
@@ -120,6 +145,19 @@ function handleLogout() {
 }
 
 .content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-header {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.content-body {
   flex: 1;
   overflow-y: auto;
   padding: 32px;

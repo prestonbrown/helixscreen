@@ -62,6 +62,10 @@ FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& f
     if (fan_icon_) {
         lv_obj_set_style_transform_pivot_x(fan_icon_, LV_PCT(50), 0);
         lv_obj_set_style_transform_pivot_y(fan_icon_, LV_PCT(50), 0);
+
+        // Make the fan icon clickable (for opening the fan overlay)
+        lv_obj_add_flag(fan_icon_, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
     }
 
     // Add event callbacks with this pointer as user data
@@ -100,6 +104,8 @@ FanDial::~FanDial() {
         lv_obj_remove_event_cb(btn_off_, on_off_clicked);
     if (btn_on_)
         lv_obj_remove_event_cb(btn_on_, on_on_clicked);
+    if (fan_icon_)
+        lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
 
     spdlog::trace("[FanDial] Destroyed '{}'", name_);
 }
@@ -109,7 +115,8 @@ FanDial::FanDial(FanDial&& other) noexcept
       fan_icon_(other.fan_icon_), btn_off_(other.btn_off_), btn_on_(other.btn_on_),
       name_(std::move(other.name_)), fan_id_(std::move(other.fan_id_)),
       current_speed_(other.current_speed_), on_speed_changed_(std::move(other.on_speed_changed_)),
-      syncing_(other.syncing_), last_user_input_(other.last_user_input_) {
+      on_icon_clicked_(std::move(other.on_icon_clicked_)), syncing_(other.syncing_),
+      last_user_input_(other.last_user_input_) {
     // Clear the source pointers so other's destructor is a no-op
     other.root_ = nullptr;
     other.arc_ = nullptr;
@@ -134,6 +141,10 @@ FanDial::FanDial(FanDial&& other) noexcept
         lv_obj_remove_event_cb(btn_on_, on_on_clicked);
         lv_obj_add_event_cb(btn_on_, on_on_clicked, LV_EVENT_CLICKED, this);
     }
+    if (fan_icon_) {
+        lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
+        lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
+    }
 }
 
 FanDial& FanDial::operator=(FanDial&& other) noexcept {
@@ -147,6 +158,8 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
             lv_obj_remove_event_cb(btn_off_, on_off_clicked);
         if (btn_on_)
             lv_obj_remove_event_cb(btn_on_, on_on_clicked);
+        if (fan_icon_)
+            lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
         // Child widgets are destroyed with root_
         helix::ui::safe_delete(root_);
 
@@ -161,6 +174,7 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         fan_id_ = std::move(other.fan_id_);
         current_speed_ = other.current_speed_;
         on_speed_changed_ = std::move(other.on_speed_changed_);
+        on_icon_clicked_ = std::move(other.on_icon_clicked_);
         syncing_ = other.syncing_;
         last_user_input_ = other.last_user_input_;
 
@@ -188,6 +202,10 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         if (btn_on_) {
             lv_obj_remove_event_cb(btn_on_, on_on_clicked);
             lv_obj_add_event_cb(btn_on_, on_on_clicked, LV_EVENT_CLICKED, this);
+        }
+        if (fan_icon_) {
+            lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
+            lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
         }
     }
     return *this;
@@ -241,6 +259,16 @@ int FanDial::get_speed() const {
 
 void FanDial::set_on_speed_changed(SpeedCallback callback) {
     on_speed_changed_ = std::move(callback);
+}
+
+void FanDial::set_on_icon_clicked(IconClickCallback callback) {
+    on_icon_clicked_ = std::move(callback);
+}
+
+void FanDial::handle_icon_clicked() {
+    if (on_icon_clicked_) {
+        on_icon_clicked_(fan_id_);
+    }
 }
 
 void FanDial::update_button_states(int percent) {
@@ -493,6 +521,7 @@ void FanDial::start_spin(lv_obj_t* icon, int speed_pct) {
 DEFINE_EVENT_TRAMPOLINE_SIMPLE(FanDial, on_arc_value_changed, handle_arc_changed)
 DEFINE_EVENT_TRAMPOLINE_SIMPLE(FanDial, on_off_clicked, handle_off_clicked)
 DEFINE_EVENT_TRAMPOLINE_SIMPLE(FanDial, on_on_clicked, handle_on_clicked)
+DEFINE_EVENT_TRAMPOLINE_SIMPLE(FanDial, on_icon_clicked, handle_icon_clicked)
 
 // ============================================================================
 // XML Callback Registration

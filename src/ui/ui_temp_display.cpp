@@ -44,8 +44,9 @@ struct TempDisplayData {
     int current_centi = 0; // Centidegrees for precision formatting
     int current_temp = 0;  // Whole degrees (for heating color logic)
     int target_temp = 0;
-    bool show_target = false;        // Default: hide target (opt-in via prop)
-    bool has_target_binding = false; // True if bind_target was set (heater mode)
+    bool show_target = false;                 // Default: hide target (opt-in via prop)
+    bool has_target_binding = false;          // True if bind_target was set (heater mode)
+    bool target_subjects_initialized = false; // True if target subject was created
 
     // Child label pointers for efficient updates
     lv_obj_t* current_label = nullptr;
@@ -125,7 +126,7 @@ static void update_heating_color(TempDisplayData* data) {
  * - target>0: Display actual temperature value
  */
 static void format_target_text(TempDisplayData* data) {
-    if (!data)
+    if (!data || !data->target_subjects_initialized)
         return;
 
     if (data->target_temp == 0) {
@@ -189,7 +190,9 @@ static void on_delete(lv_event_t* e) {
         // would free the observer, but LVGL's child-delete would then try to
         // fire unsubscribe_on_delete_cb on the freed observer → crash.
         lv_subject_deinit(&data->current_text_subject);
-        lv_subject_deinit(&data->target_text_subject);
+        if (data->target_subjects_initialized) {
+            lv_subject_deinit(&data->target_text_subject);
+        }
         // data automatically freed when unique_ptr goes out of scope
     }
 }
@@ -276,7 +279,10 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     // Parse size attribute for font selection
     const char* size = lv_xml_get_value_of(attrs, "size");
     const lv_font_t* font = get_font_for_size(size);
+
+    // Look up colors once (theme_manager_get_color involves string lookups)
     lv_color_t text_color = theme_manager_get_color("text");
+    lv_color_t muted_color = theme_manager_get_color("text_muted");
 
     // Parse show_target attribute (default is false, opt-in to show)
     const char* show_target_str = lv_xml_get_value_of(attrs, "show_target");
@@ -289,45 +295,41 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     lv_obj_set_style_text_font(data_ptr->current_label, font, LV_PART_MAIN);
     lv_obj_set_style_text_color(data_ptr->current_label, text_color, LV_PART_MAIN);
 
-    // Create separator label " / "
-    data_ptr->separator_label = lv_label_create(container);
-    lv_label_set_text(data_ptr->separator_label, " / ");
-    lv_obj_set_style_text_font(data_ptr->separator_label, font, LV_PART_MAIN);
-    lv_obj_set_style_text_color(data_ptr->separator_label, theme_manager_get_color("text_muted"),
-                                LV_PART_MAIN);
-    if (!data_ptr->show_target) {
-        lv_obj_add_flag(data_ptr->separator_label, LV_OBJ_FLAG_HIDDEN);
-    }
+    if (data_ptr->show_target) {
+        // Create separator label " / "
+        data_ptr->separator_label = lv_label_create(container);
+        lv_label_set_text(data_ptr->separator_label, " / ");
+        lv_obj_set_style_text_font(data_ptr->separator_label, font, LV_PART_MAIN);
+        lv_obj_set_style_text_color(data_ptr->separator_label, muted_color, LV_PART_MAIN);
 
-    // Create target temp label
-    data_ptr->target_label = lv_label_create(container);
-    lv_obj_set_style_text_font(data_ptr->target_label, font, LV_PART_MAIN);
-    lv_obj_set_style_text_color(data_ptr->target_label, text_color, LV_PART_MAIN);
-    if (!data_ptr->show_target) {
-        lv_obj_add_flag(data_ptr->target_label, LV_OBJ_FLAG_HIDDEN);
+        // Create target temp label
+        data_ptr->target_label = lv_label_create(container);
+        lv_obj_set_style_text_font(data_ptr->target_label, font, LV_PART_MAIN);
+        lv_obj_set_style_text_color(data_ptr->target_label, text_color, LV_PART_MAIN);
+
+        // Initialize target text subject
+        snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "—");
+        lv_subject_init_string(&data_ptr->target_text_subject, data_ptr->target_text_buf, nullptr,
+                               sizeof(data_ptr->target_text_buf), data_ptr->target_text_buf);
+        data_ptr->target_text_observer =
+            lv_label_bind_text(data_ptr->target_label, &data_ptr->target_text_subject, nullptr);
+        data_ptr->target_subjects_initialized = true;
     }
 
     // Create unit label "°C"
     data_ptr->unit_label = lv_label_create(container);
     lv_label_set_text(data_ptr->unit_label, "°C");
     lv_obj_set_style_text_font(data_ptr->unit_label, font, LV_PART_MAIN);
-    lv_obj_set_style_text_color(data_ptr->unit_label, theme_manager_get_color("text_muted"),
-                                LV_PART_MAIN);
+    lv_obj_set_style_text_color(data_ptr->unit_label, muted_color, LV_PART_MAIN);
 
-    // Initialize string subjects for text binding
+    // Initialize current text subject
     snprintf(data_ptr->current_text_buf, sizeof(data_ptr->current_text_buf), "—");
     lv_subject_init_string(&data_ptr->current_text_subject, data_ptr->current_text_buf, nullptr,
                            sizeof(data_ptr->current_text_buf), data_ptr->current_text_buf);
 
-    snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "—");
-    lv_subject_init_string(&data_ptr->target_text_subject, data_ptr->target_text_buf, nullptr,
-                           sizeof(data_ptr->target_text_buf), data_ptr->target_text_buf);
-
-    // Bind labels to subjects for reactive updates (save observers for cleanup)
+    // Bind current label to subject for reactive updates
     data_ptr->current_text_observer =
         lv_label_bind_text(data_ptr->current_label, &data_ptr->current_text_subject, nullptr);
-    data_ptr->target_text_observer =
-        lv_label_bind_text(data_ptr->target_label, &data_ptr->target_text_subject, nullptr);
 
     // Register data and cleanup
     s_registry[container] = data_ptr.release();
@@ -372,13 +374,16 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
         } else if (strcmp(name, "bind_target") == 0) {
             // Bind target temperature to a subject (NULL = global scope)
             lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
-            if (subject && data && data->target_label) {
+            if (subject && data && data->current_label) {
                 data->has_target_binding = true; // Mark as heater mode (not sensor-only)
-                lv_subject_add_observer_obj(subject, target_temp_observer_cb, data->target_label,
-                                            nullptr);
+                // Use current_label as observer target (callback traverses to
+                // parent container to find data — works for any child label)
+                lv_obj_t* obs_target =
+                    data->target_label ? data->target_label : data->current_label;
+                lv_subject_add_observer_obj(subject, target_temp_observer_cb, obs_target, nullptr);
                 // Set initial value
                 data->target_temp = centi_to_degrees(lv_subject_get_int(subject));
-                // Set label text (shows "--" when heater off)
+                // Update target label text if it exists
                 format_target_text(data);
                 // Apply initial heating color
                 update_heating_color(data);

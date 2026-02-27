@@ -191,7 +191,8 @@ bool DisplayManager::init(const Config& config) {
     }
 
 #ifdef HELIX_DISPLAY_DRM
-    if (auto* drm = dynamic_cast<DisplayBackendDRM*>(m_backend.get())) {
+    if (m_backend->type() == DisplayBackendType::DRM) {
+        auto* drm = static_cast<DisplayBackendDRM*>(m_backend.get());
         if (drm->is_gpu_accelerated()) {
             spdlog::info("[Display] Rendering: GPU-accelerated (OpenGL ES via EGL)");
         } else {

@@ -18,9 +18,9 @@ LedAutoState (singleton)           PrinterLedState (domain class)
     │ observes printer state            │ tracks one LED for home panel
     │ applies LED actions               │ provides subjects for XML binding
     ↓                                   ↓
-LedControlOverlay (UI)             LedSettingsOverlay (UI)
-    │ color presets, effects,          │ strip selection, auto-state config,
-    │ WLED presets, macro buttons       │ macro device configuration
+LedControlOverlay (UI)             LedSettingsOverlay (UI)             LedWidget (home panel)
+    │ color presets, effects,          │ strip selection, auto-state config,  │ on/off toggle
+    │ WLED presets, macro buttons       │ macro device configuration            │ brightness icon
 ```
 
 ## Key Files
@@ -51,6 +51,8 @@ LedControlOverlay (UI)             LedSettingsOverlay (UI)
 | `include/ui_settings_led.h` | `LedSettingsOverlay` — settings configuration overlay |
 | `src/ui/ui_settings_led.cpp` | Strip selection chips, auto-state editor, macro device editor |
 | `include/ui_led_chip_factory.h` | Factory for creating LED action chips in overlay |
+| `src/ui/panel_widgets/led_widget.cpp` | `LedWidget` — home panel lightbulb button with version-observer binding |
+| `src/ui/panel_widgets/power_widget.cpp` | `PowerWidget` — home panel power toggle (included here as it interacts with LED-adjacent power state) |
 
 ### XML Layouts
 
@@ -251,6 +253,104 @@ Opened from Settings panel. Configures which strips HelixScreen controls and how
 - **LED commands**: Sent via `MoonrakerAPI` (through WebSocket, runs on libhv thread)
 - **Status updates**: `NativeBackend::update_from_status()`, `OutputPinBackend::update_from_status()`, and `WledBackend::update_strip_state()` called from Moonraker subscription handler (background thread), change callbacks dispatched to main thread
 - **UI updates**: All subject updates and widget manipulation on main thread only
+
+## Home Panel Widget Integration
+
+The lightbulb button on the home panel is implemented by `LedWidget` (`src/ui/panel_widgets/led_widget.cpp`). It uses the version-observer self-binding pattern documented in `ARCHITECTURE.md`.
+
+### LedWidget Binding Flow
+
+When `LedWidget::attach()` is called, it immediately subscribes to `LedController::get_led_config_version_subject()`:
+
+```cpp
+void LedWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
+    // ...find light_icon, set user_data...
+
+    // Fires immediately on add (triggering bind_led) — no separate init call needed
+    led_version_observer_ = helix::ui::observe_int_sync<LedWidget>(
+        led_ctrl.get_led_config_version_subject(), this,
+        [weak_alive](LedWidget* self, int /*version*/) {
+            if (weak_alive.expired()) return;
+            self->bind_led();
+        });
+}
+```
+
+`bind_led()` resets existing per-LED observers, then calls `PrinterState::set_tracked_led()` with the first selected strip, and creates observers for LED state and brightness:
+
+```cpp
+void LedWidget::bind_led() {
+    led_state_observer_.reset();
+    led_brightness_observer_.reset();
+
+    const auto& strips = led_ctrl.selected_strips();
+    if (!strips.empty()) {
+        // Tell PrinterState which LED to subscribe to for status updates
+        printer_state_.set_tracked_led(strips.front());
+
+        // Observe on/off state and brightness from PrinterLedState subjects
+        led_state_observer_ = helix::ui::observe_int_sync<LedWidget>(
+            printer_state_.get_led_state_subject(), this,
+            [weak_alive](LedWidget* self, int state) {
+                if (weak_alive.expired()) return;
+                self->on_led_state_changed(state);
+            });
+        led_brightness_observer_ = helix::ui::observe_int_sync<LedWidget>(
+            printer_state_.get_led_brightness_subject(), this,
+            [weak_alive](LedWidget* self, int /*brightness*/) {
+                if (weak_alive.expired()) return;
+                self->update_light_icon();
+            });
+    }
+    update_light_icon();
+}
+```
+
+### Timing: Discovery → Widget Icon
+
+The icon correctly reflects LED state on first render because of an early `set_tracked_led()` call in `printer_discovery.cpp`. The full sequence:
+
+```
+1. Hardware discovery runs (PrinterDiscovery)
+2. LedController discovers strips, bumps led_config_version_
+3. printer_discovery.cpp calls set_tracked_led(first_selected_strip)
+   — this starts the Moonraker subscription for that LED before the widget attaches
+4. Moonraker subscription response arrives, PrinterLedState subjects are populated
+5. Widget attaches (HomePanel::populate_widgets)
+6. LedWidget::attach() subscribes to led_config_version_ → fires immediately → bind_led()
+7. bind_led() calls set_tracked_led() again (idempotent) and creates state/brightness observers
+8. Observers fire with the already-populated subject values → icon renders correctly
+```
+
+Without step 3, the subscription would only start after the widget attaches, and the icon would briefly show the wrong state until the first Moonraker status update arrived.
+
+### Icon Rendering
+
+`update_light_icon()` reads brightness and RGBW values from `PrinterLedState` subjects and selects both the icon glyph (empty/dim/full bulb) and its color (muted gray when off, gold for white/warm LEDs, actual color for colored LEDs):
+
+```cpp
+void LedWidget::update_light_icon() {
+    int brightness = lv_subject_get_int(printer_state_.get_led_brightness_subject());
+    const char* icon_name = ui_brightness_to_lightbulb_icon(brightness);
+    ui_icon_set_source(light_icon_, icon_name);
+
+    if (brightness == 0) {
+        ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_off"), LV_OPA_COVER);
+    } else {
+        int r = lv_subject_get_int(printer_state_.get_led_r_subject());
+        int g = lv_subject_get_int(printer_state_.get_led_g_subject());
+        int b = lv_subject_get_int(printer_state_.get_led_b_subject());
+        int w = lv_subject_get_int(printer_state_.get_led_w_subject());
+        // White dominant or near-white → gold token; otherwise use actual LED color
+        // ...
+    }
+}
+```
+
+### Toggle vs Long-Press
+
+- **Short press** → `led_ctrl.light_toggle()` — toggles all selected strips; updates icon immediately for trackable strips or plays a flash animation for TOGGLE-macro strips
+- **Long press** → opens `LedControlOverlay` (lazy-created on first access), pushes it via `NavigationManager`
 
 ## Extending the System
 

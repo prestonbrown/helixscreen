@@ -47,7 +47,10 @@ check-uptodate:
 # the target changes. This prevents mixing ARM and x86/ARM64 objects.
 # ============================================================================
 ARCH_MARKER := $(BUILD_DIR)/.build-target
-CURRENT_TARGET := $(if $(PLATFORM_TARGET),$(PLATFORM_TARGET),native)
+# Map pi-both → pi, pi32-both → pi32 so switching between single/dual-link
+# modes doesn't trigger an unnecessary clean (they share the same build dir)
+_RAW_TARGET := $(if $(PLATFORM_TARGET),$(PLATFORM_TARGET),native)
+CURRENT_TARGET := $(subst pi32-both,pi32,$(subst pi-both,pi,$(_RAW_TARGET)))
 
 # Check if architecture changed and clean if needed
 define check-arch-change
@@ -111,7 +114,11 @@ ifndef _PARALLEL_CHECKED
 	fi
 else
 # Phase 2: Actual build (only runs when _PARALLEL_CHECKED is set)
+ifdef PI_DUAL_LINK
+all: apply-patches generate-fonts $(TRANS_GEN_C) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both
+else
 all: apply-patches generate-fonts $(TRANS_GEN_C) splash watchdog $(TARGET) strip
+endif
 	$(ECHO) "$(GREEN)$(BOLD)✓ Build complete!$(RESET)"
 	$(ECHO) "$(CYAN)Run with: $(YELLOW)./$(TARGET)$(RESET)"
 ifndef SKIP_COMPILE_COMMANDS

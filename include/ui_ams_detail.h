@@ -26,6 +26,7 @@ struct AmsDetailWidgets {
     lv_obj_t* slot_grid = nullptr;    ///< Flex row container for ams_slot widgets
     lv_obj_t* slot_tray = nullptr;    ///< Visual "holder" in front of spool bottoms
     lv_obj_t* labels_layer = nullptr; ///< Overlay for material labels (5+ slots)
+    lv_obj_t* badge_layer = nullptr;  ///< Overlay for slot badges (in front of tray)
 };
 
 /**
@@ -80,6 +81,16 @@ void ams_detail_update_tray(AmsDetailWidgets& w);
  * @param layout      Slot layout (width + overlap) from create_slots result
  */
 void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
+                              const AmsSlotLayout& layout);
+
+/**
+ * @brief Move slot badges to overlay layer so they render in front of the tray
+ * @param w           Widget pointers
+ * @param slot_widgets Array of slot widget pointers
+ * @param slot_count  Number of active slots
+ * @param layout      Slot layout (width + overlap) from create_slots result
+ */
+void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
                               const AmsSlotLayout& layout);
 
 /**

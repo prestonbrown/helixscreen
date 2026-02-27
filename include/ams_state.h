@@ -265,6 +265,14 @@ class AmsState {
     }
 
     /**
+     * @brief Get system logo path subject
+     * @return Subject holding logo image path (e.g., "A:assets/images/ams/ercf_64.png")
+     */
+    lv_subject_t* get_ams_system_logo_subject() {
+        return &ams_system_logo_;
+    }
+
+    /**
      * @brief Get current slot subject
      * @return Subject holding current slot index (-1 if none)
      */
@@ -878,6 +886,8 @@ class AmsState {
     char action_detail_buf_[64];
     lv_subject_t ams_system_name_;
     char system_name_buf_[32];
+    lv_subject_t ams_system_logo_;
+    char system_logo_buf_[64];
     lv_subject_t ams_current_tool_text_;
     char ams_current_tool_text_buf_[16]; // "T0" to "T15" or "---"
 

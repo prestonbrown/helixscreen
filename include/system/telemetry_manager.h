@@ -59,6 +59,7 @@
 #include "ui_observer_guard.h"
 
 #include "lvgl.h"
+#include "memory_monitor.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
@@ -66,9 +67,14 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "hv/json.hpp"
+
+namespace helix {
+class PrinterDiscovery;
+} // namespace helix
 
 /**
  * @brief Anonymous, opt-in telemetry manager
@@ -194,6 +200,141 @@ class TelemetryManager {
      * update_success event and deletes the file. Called from init().
      */
     void check_previous_update();
+
+    /**
+     * @brief Record a periodic memory snapshot event
+     *
+     * Captures current process memory usage (RSS, VM size, swap, etc.)
+     * along with uptime. No-op if telemetry is disabled.
+     *
+     * Thread-safe: may be called from any thread.
+     *
+     * @param trigger What triggered the snapshot ("hourly" or "session_start")
+     */
+    void record_memory_snapshot(const std::string& trigger);
+
+    /**
+     * @brief Record a comprehensive hardware profile event
+     *
+     * Captures full printer hardware inventory: MCUs, build volume, fans,
+     * steppers, LEDs, sensors, probing, capabilities, MMU, tools, macros,
+     * and plugin state. Call after printer discovery is complete.
+     * No-op if telemetry is disabled.
+     *
+     * Thread-safe: may be called from any thread.
+     */
+    void record_hardware_profile();
+
+    /**
+     * @brief Record a settings snapshot event
+     *
+     * Captures current user configuration: theme, brightness, timeouts,
+     * locale, sound, update channel, animations, and time format.
+     * No-op if telemetry is disabled.
+     *
+     * Thread-safe: may be called from any thread.
+     */
+    void record_settings_snapshot();
+
+    /**
+     * @brief Record a panel usage summary event at shutdown
+     *
+     * Finalizes panel time tracking and enqueues a panel_usage event
+     * with per-panel visit counts, time spent, and overlay count.
+     * No-op if telemetry is disabled.
+     *
+     * Must be called from the LVGL/main thread only (accesses session trackers).
+     */
+    void record_panel_usage();
+
+    /**
+     * @brief Notify that the active panel has changed
+     *
+     * Tracks cumulative time on each panel and visit counts.
+     * Always tracks regardless of enabled state (data is only
+     * recorded at shutdown if enabled).
+     *
+     * @param panel_name Lowercase panel name (e.g., "home", "controls")
+     */
+    void notify_panel_changed(const std::string& panel_name);
+
+    /**
+     * @brief Notify that an overlay was opened
+     *
+     * Increments the overlay open counter. Always tracks regardless
+     * of enabled state.
+     */
+    void notify_overlay_opened();
+
+    /**
+     * @brief Record print start context when a print begins
+     *
+     * Records metadata about the print job (source, thumbnail, file size,
+     * estimated duration, slicer, tool count, AMS state). No-op if
+     * telemetry is disabled.
+     *
+     * Thread-safe: may be called from any thread.
+     *
+     * @param source Print source ("local" or "usb")
+     * @param has_thumbnail Whether the file has a thumbnail
+     * @param file_size_bytes File size in bytes
+     * @param estimated_duration_sec Estimated print duration in seconds
+     * @param slicer Slicer software name from metadata
+     * @param tool_count_used Number of tools used
+     * @param ams_active Whether an AMS/MMU system is active
+     */
+    void record_print_start_context(const std::string& source, bool has_thumbnail,
+                                    int64_t file_size_bytes, int estimated_duration_sec,
+                                    const std::string& slicer, int tool_count_used,
+                                    bool ams_active);
+
+    /**
+     * @brief Record a non-fatal error event (rate-limited)
+     *
+     * Records non-fatal errors with category-based rate limiting (max 1 event
+     * per category per 5 minutes) to prevent queue flooding. No-op if
+     * telemetry is disabled.
+     *
+     * Thread-safe: may be called from any thread.
+     *
+     * @param category Error category ("moonraker_api", "websocket", "file_io", "display")
+     * @param code Error code ("timeout", "http_4xx", "http_5xx", "parse_error",
+     * "connection_refused")
+     * @param context Pre-defined context string (not user data)
+     */
+    void record_error(const std::string& category, const std::string& code,
+                      const std::string& context);
+
+    /**
+     * @brief Record a connection stability summary event at shutdown
+     *
+     * Finalizes connection time tracking and enqueues a connection_stability
+     * event with connect/disconnect counts, durations, and Klippy errors.
+     * No-op if telemetry is disabled.
+     *
+     * Must be called from the LVGL/main thread only (accesses session trackers).
+     */
+    void record_connection_stability();
+
+    /**
+     * @brief Notify that the WebSocket connection state changed
+     *
+     * Tracks connection/disconnection counts and durations.
+     * Always tracks regardless of enabled state.
+     *
+     * @param state Connection state: 0=disconnected, 1=connecting, 2=connected
+     */
+    void notify_connection_state_changed(int state);
+
+    /**
+     * @brief Notify that the Klippy state changed
+     *
+     * Tracks Klippy shutdown and error counts.
+     * Always tracks regardless of enabled state.
+     *
+     * @param state Klippy state: 0=ready, 1=startup, 2=shutdown, 3=error
+     */
+    void notify_klippy_state_changed(int state);
 
     /**
      * @brief Write update success flag file before restart
@@ -370,7 +511,10 @@ class TelemetryManager {
      * @brief Save the event queue to disk
      *
      * Writes the queue as a JSON array to the config directory.
-     * Called automatically on shutdown and after successful transmission.
+     * Called at shutdown, after successful transmission, and hourly
+     * by the auto-send timer. Individual record_*() methods do NOT
+     * call save_queue() — events are batched in memory to avoid
+     * redundant disk writes.
      */
     void save_queue() const;
 
@@ -492,6 +636,68 @@ class TelemetryManager {
                                               const std::string& timestamp) const;
 
     /**
+     * @brief Build a memory snapshot event JSON object
+     * @param trigger What triggered the snapshot ("hourly" or "session_start")
+     * @return JSON event with type "memory_snapshot" and memory stats
+     */
+    nlohmann::json build_memory_snapshot_event(const std::string& trigger) const;
+
+    /**
+     * @brief Build a hardware profile event JSON object
+     * @return JSON event with type "hardware_profile" and nested hardware sections
+     */
+    nlohmann::json build_hardware_profile_event() const;
+
+    // Hardware profile helper methods (used by build_hardware_profile_event)
+    static nlohmann::json build_hw_fans_section(const helix::PrinterDiscovery& hw);
+    static nlohmann::json build_hw_sensors_section();
+    static nlohmann::json build_hw_probe_section(const helix::PrinterDiscovery& hw);
+    static nlohmann::json build_hw_capabilities_section(const helix::PrinterDiscovery& hw);
+    nlohmann::json build_hw_ams_section(const helix::PrinterDiscovery& hw) const;
+    static nlohmann::json build_hw_macros_section(const helix::PrinterDiscovery& hw);
+
+    /**
+     * @brief Build a settings snapshot event JSON object
+     * @return JSON event with type "settings_snapshot" and user configuration
+     */
+    nlohmann::json build_settings_snapshot_event() const;
+
+    /**
+     * @brief Build a panel usage summary event JSON object
+     * @return JSON event with per-panel visit counts, time, and overlay count
+     */
+    nlohmann::json build_panel_usage_event() const;
+
+    /**
+     * @brief Build a connection stability summary event JSON object
+     * @return JSON event with connect/disconnect counts and durations
+     */
+    nlohmann::json build_connection_stability_event() const;
+
+    /**
+     * @brief Build a print start context event JSON object
+     * @return JSON event with print metadata (source, size bucket, slicer, etc.)
+     */
+    nlohmann::json build_print_start_context_event(const std::string& source, bool has_thumbnail,
+                                                   int64_t file_size_bytes,
+                                                   int estimated_duration_sec,
+                                                   const std::string& slicer, int tool_count_used,
+                                                   bool ams_active) const;
+
+    /**
+     * @brief Build an error encountered event JSON object
+     * @return JSON event with error category, code, context, and uptime
+     */
+    nlohmann::json build_error_event(const std::string& category, const std::string& code,
+                                     const std::string& context) const;
+
+    /// Bucket a file size in bytes into a human-readable range string
+    static std::string bucket_file_size(int64_t bytes);
+
+    /// Bucket a duration in seconds into a human-readable range string
+    static std::string bucket_duration(int sec);
+
+    /**
      * @brief Get the double-hashed device identifier
      * @return Hex-encoded hashed device ID for inclusion in events
      */
@@ -540,6 +746,9 @@ class TelemetryManager {
     /// Whether shutdown() has been called (prevents new work)
     std::atomic<bool> shutting_down_{false};
 
+    /// Timestamp of when init() was called (for uptime calculation)
+    std::chrono::steady_clock::time_point init_time_{};
+
     // =========================================================================
     // DEVICE IDENTITY
     // =========================================================================
@@ -554,7 +763,7 @@ class TelemetryManager {
     // EVENT QUEUE (mutex-protected)
     // =========================================================================
 
-    /// Protects queue_, device_uuid_, device_salt_
+    /// Protects queue_, device_uuid_, device_salt_, error_rate_limit_
     mutable std::mutex mutex_;
 
     /// Pending events awaiting transmission
@@ -587,8 +796,9 @@ class TelemetryManager {
     /// Timestamp of last successful (or attempted) send
     std::chrono::steady_clock::time_point last_send_time_{};
 
-    /// Exponential backoff multiplier (resets to 1 on success)
-    int backoff_multiplier_{1};
+    /// Exponential backoff multiplier (resets to 1 on success).
+    /// Atomic: read on LVGL thread (try_send), written on send thread (do_send).
+    std::atomic<int> backoff_multiplier_{1};
 
     /// Background thread for HTTP POST
     std::thread send_thread_;
@@ -598,4 +808,33 @@ class TelemetryManager {
 
     /// Whether the initial delay has fired (switches to normal interval after)
     bool auto_send_initial_fired_{false};
+
+    // =========================================================================
+    // SESSION TRACKERS (panel usage + connection stability)
+    // All accessed from LVGL/main thread only — no mutex needed.
+    // notify_*() called via LVGL observers, record_*() called from shutdown().
+    // =========================================================================
+
+    // Panel usage tracking
+    std::unordered_map<std::string, int> panel_time_sec_;
+    std::unordered_map<std::string, int> panel_visits_;
+    std::string current_panel_;
+    std::chrono::steady_clock::time_point panel_start_time_;
+    int overlay_open_count_{0};
+
+    // Error rate limiting (max 1 event per category per 5 minutes).
+    // Protected by mutex_ — accessed from background threads via record_error().
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> error_rate_limit_;
+    static constexpr auto ERROR_RATE_LIMIT_INTERVAL = std::chrono::minutes{5};
+
+    // Connection stability tracking
+    int connect_count_{0};
+    int disconnect_count_{0};
+    int total_connected_sec_{0};
+    int total_disconnected_sec_{0};
+    int longest_disconnect_sec_{0};
+    int klippy_error_count_{0};
+    int klippy_shutdown_count_{0};
+    bool connection_tracking_connected_{false};
+    std::chrono::steady_clock::time_point connection_state_start_time_;
 };

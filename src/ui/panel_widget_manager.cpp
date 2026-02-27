@@ -248,9 +248,12 @@ void PanelWidgetManager::setup_gate_observers(const std::string& panel_id,
                                               RebuildCallback rebuild_cb) {
     using helix::ui::observe_int_sync;
 
-    // Clear any existing observers for this panel
+    // Observers must be destroyed BEFORE timers — observer callbacks
+    // capture &timer references into rebuild_timers_
     gate_observers_.erase(panel_id);
+    rebuild_timers_.erase(panel_id);
     auto& observers = gate_observers_[panel_id];
+    auto& timer = rebuild_timers_.emplace(panel_id, ui::CoalescedTimer(1)).first->second;
 
     // Collect unique gate subject names from the widget registry
     std::vector<const char*> gate_names;
@@ -281,10 +284,13 @@ void PanelWidgetManager::setup_gate_observers(const std::string& panel_id,
         }
 
         // Use observe_int_sync with PanelWidgetManager as the class template parameter.
-        // The callback ignores the value and just triggers the panel's rebuild.
+        // The callback ignores the value and schedules a coalesced rebuild.
+        // Multiple gate subjects changing in the same LVGL tick (common during
+        // startup discovery) coalesce into a single rebuild instead of one each.
         observers.push_back(observe_int_sync<PanelWidgetManager>(
-            subject, this,
-            [rebuild_cb](PanelWidgetManager* /*self*/, int /*value*/) { rebuild_cb(); }));
+            subject, this, [&timer, rebuild_cb](PanelWidgetManager* /*self*/, int /*value*/) {
+                timer.schedule(rebuild_cb);
+            }));
 
         spdlog::trace("[PanelWidgetManager] Observing gate subject '{}' for panel '{}'", name,
                       panel_id);
@@ -299,8 +305,11 @@ void PanelWidgetManager::clear_gate_observers(const std::string& panel_id) {
     if (it != gate_observers_.end()) {
         spdlog::debug("[PanelWidgetManager] Clearing {} gate observers for panel '{}'",
                       it->second.size(), panel_id);
+        // Observers must be destroyed BEFORE timers — observer callbacks
+        // capture &timer references into rebuild_timers_
         gate_observers_.erase(it);
     }
+    rebuild_timers_.erase(panel_id);
 }
 
 } // namespace helix

@@ -3,7 +3,6 @@
     <div class="page">
       <div class="page-header">
         <h2>Overview</h2>
-        <DateRangePicker v-model="range" />
       </div>
 
       <div v-if="loading" class="loading">Loading...</div>
@@ -47,12 +46,12 @@
 import { ref, watch, computed } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
 import MetricCard from '@/components/MetricCard.vue'
-import DateRangePicker from '@/components/DateRangePicker.vue'
 import LineChart from '@/components/LineChart.vue'
+import { useFiltersStore } from '@/stores/filters'
 import { api } from '@/services/api'
 import type { OverviewData } from '@/services/api'
 
-const range = ref('30d')
+const filters = useFiltersStore()
 const data = ref<OverviewData | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -97,7 +96,7 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    data.value = await api.getOverview(range.value)
+    data.value = await api.getOverview(filters.queryString)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load data'
   } finally {
@@ -105,7 +104,7 @@ async function fetchData() {
   }
 }
 
-watch(range, fetchData, { immediate: true })
+watch(() => filters.queryString, fetchData, { immediate: true })
 </script>
 
 <style scoped>

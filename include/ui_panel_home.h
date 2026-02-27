@@ -48,8 +48,8 @@ class HomePanel : public PanelBase {
     /// Rebuild the widget list from current PanelWidgetConfig
     void populate_widgets();
 
-    /// Reload printer image, type/host overlay, and delegate to widgets
-    void reload_from_config();
+    /// Apply printer-level config: type, image, and host overlay
+    void apply_printer_config();
 
     /// Re-check printer image setting and update the home panel image widget
     void refresh_printer_image();
@@ -77,6 +77,9 @@ class HomePanel : public PanelBase {
     // Pre-scaled printer image snapshot
     lv_draw_buf_t* cached_printer_snapshot_ = nullptr;
     lv_timer_t* snapshot_timer_ = nullptr;
+
+    // Cached image path for skipping redundant refresh_printer_image() calls
+    std::string last_printer_image_path_;
 
     // Active PanelWidget instances (factory-created, lifecycle-managed)
     std::vector<std::unique_ptr<helix::PanelWidget>> active_widgets_;

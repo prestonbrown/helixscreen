@@ -289,6 +289,76 @@ void SubjectInitializer::init_observers() {
 
     // Print outcome telemetry observer (records anonymous print stats when telemetry enabled)
     m_observers.push_back(TelemetryManager::instance().init_print_outcome_observer());
+
+    // Panel usage tracking for telemetry
+    // Note: Uses raw ObserverGuard rather than observe_int_sync because there's no
+    // Panel* context — SubjectInitializer is not a Panel subclass.
+    {
+        auto* panel_subject = NavigationManager::instance().get_active_panel_subject();
+        if (panel_subject) {
+            m_observers.push_back(ObserverGuard(
+                panel_subject,
+                [](lv_observer_t* /*obs*/, lv_subject_t* subj) {
+                    int panel_id = lv_subject_get_int(subj);
+                    std::string name;
+                    switch (static_cast<helix::PanelId>(panel_id)) {
+                    case helix::PanelId::Home:
+                        name = "home";
+                        break;
+                    case helix::PanelId::PrintSelect:
+                        name = "print_select";
+                        break;
+                    case helix::PanelId::Controls:
+                        name = "controls";
+                        break;
+                    case helix::PanelId::Filament:
+                        name = "filament";
+                        break;
+                    case helix::PanelId::Settings:
+                        name = "settings";
+                        break;
+                    case helix::PanelId::Advanced:
+                        name = "advanced";
+                        break;
+                    default:
+                        name = "unknown";
+                        break;
+                    }
+                    TelemetryManager::instance().notify_panel_changed(name);
+                },
+                nullptr));
+        }
+    }
+
+    // Connection stability tracking for telemetry
+    {
+        auto& ps = get_printer_state();
+
+        // Connection state observer — safe without mutex because these subjects
+        // are only updated via ui_queue_update() (fires on LVGL/main thread).
+        auto* conn_subject = ps.get_printer_connection_state_subject();
+        if (conn_subject) {
+            m_observers.push_back(ObserverGuard(
+                conn_subject,
+                [](lv_observer_t* /*obs*/, lv_subject_t* subj) {
+                    int state = lv_subject_get_int(subj);
+                    TelemetryManager::instance().notify_connection_state_changed(state);
+                },
+                nullptr));
+        }
+
+        // Klippy state observer
+        auto* klippy_subject = ps.get_klippy_state_subject();
+        if (klippy_subject) {
+            m_observers.push_back(ObserverGuard(
+                klippy_subject,
+                [](lv_observer_t* /*obs*/, lv_subject_t* subj) {
+                    int state = lv_subject_get_int(subj);
+                    TelemetryManager::instance().notify_klippy_state_changed(state);
+                },
+                nullptr));
+        }
+    }
 }
 
 void SubjectInitializer::init_utility_subjects() {

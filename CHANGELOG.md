@@ -5,6 +5,62 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.6] - 2026-02-26
+
+### Added
+- Fan speed overlay opens directly when tapping the fan icon in carousel mode
+- Dual-output Pi builds: single compilation produces both DRM and fbdev binaries
+
+### Fixed
+- LED light state now syncs correctly from hardware on status updates
+- Empty AMS slots are clickable with placeholder circle and context menu
+- LED widget initial state and reactive bindings fixed
+- Print details delete button is now icon-only, giving more room for the print button
+- 2D fallback disabled on print details panel; thumbnails used instead
+- AMS slot positioning fixes for hidden spool containers and LINEAR selector box sizing
+- Keyboard overlay crash when cleanup nulls alternatives mid-use (#207)
+- Use-after-free in LED and temperature widget button user data
+- Tool badge now shown on empty unassigned AMS gates
+- Printer database JSON parsing hardened against type mismatches
+- ELF architecture validation uses platform key instead of uname
+- Updated Ender 5 Max printer image
+- Installer preserves user files in `printer_database.d` during upgrades
+- AMS flow animation no longer runs infinitely, fixing 50%+ CPU usage on AMS panel
+
+### Changed
+- XML event callbacks registered at startup instead of widget attach time
+- Panel switching and widget creation optimized for ARM
+- Spoolman vendor list fetched from dedicated endpoint instead of downloading all spools
+- AMS gate observer rebuilds coalesced to reduce startup churn
+
+## [0.13.5] - 2026-02-26
+
+### Added
+- Touch jitter filter for noisy controllers like Goodix GT9xx with automatic breakout detection
+- Auto-detect swapped touch axes during calibration, especially for Creality SonicPad and similar devices with misreported axis orientation
+- Power Devices entry in System settings
+- AMS filament system header bar now shows system logo and name with declarative bindings
+- AMS LINEAR output path with animated slide beneath active slot
+- Update telemetry tracking: success/failure recording across update lifecycle with analysis tools
+- Seven new telemetry event types with thread-safe recording
+- `--debug-touches` flag for touch input diagnostics
+
+### Fixed
+- Header back button touch target expanded to full title width for easier navigation
+- AMS bypass spool centered on filament line with label moved beneath
+- AMS spools centered inside tray with support for variable AFC lane count
+- Happy Hare AMS now uses LINEAR topology with SELECTOR butted against prep sensors
+- Float-to-int conversion guards against NaN/Inf values (#206)
+- AD5X platform now correctly maps to K1 MIPS binary (#203)
+- Async callback use-after-free in Spoolman spool selection
+- Null guards for keyboard events and NEON blend path (#207, #208)
+- Installer no longer shows misleading 'corrupt download' message on slow CDN connections
+- Jitter filter correctly disabled after breakout for smooth scrolling
+
+### Changed
+- HomePanel refactored into self-contained widgets
+- CI build split into separate compile and test jobs
+
 ## [0.13.4] - 2026-02-25
 
 ### Added
@@ -1160,6 +1216,8 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.13.6]: https://github.com/prestonbrown/helixscreen/compare/v0.13.5...v0.13.6
+[0.13.5]: https://github.com/prestonbrown/helixscreen/compare/v0.13.4...v0.13.5
 [0.13.4]: https://github.com/prestonbrown/helixscreen/compare/v0.13.3...v0.13.4
 [0.13.3]: https://github.com/prestonbrown/helixscreen/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/prestonbrown/helixscreen/compare/v0.13.1...v0.13.2

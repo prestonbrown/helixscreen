@@ -309,10 +309,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
                 ui_button_set_icon(btn_edit, "close");
             }
         } else {
-            // Truly empty — disable the button
-            if (btn_edit) {
-                lv_obj_add_state(btn_edit, LV_STATE_DISABLED);
-            }
+            // Truly empty — keep "Spool Info" enabled so users can assign a spool
         }
     }
 

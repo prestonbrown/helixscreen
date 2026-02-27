@@ -26,7 +26,7 @@ Fast, beautiful, and built for every Klipper printer — from a Creality K1 to a
 >
 > Core features are complete and stabilizing. We're looking for testers across different printer setups.
 >
-> **Tested on:** Voron 2.4 (Raspberry Pi 5), Voron 0.2, Doron Velta, RatRig V-Core, FlashForge Adventurer 5M Pro ([Forge-X](https://github.com/DrA1ex/ff5m) firmware)
+> **Tested on:** Voron 2.4 (Raspberry Pi 5), Voron 0.2, Doron Velta, RatRig V-Core, Flashforge AD5M Pro ([Forge-X](https://github.com/DrA1ex/ff5m) firmware)
 >
 > **Raspberry Pi:** Both 64-bit and 32-bit Raspberry Pi OS are supported.
 >
@@ -102,14 +102,14 @@ See [docs/GALLERY.md](docs/GALLERY.md) for all screenshots.
 
 > **⚠️ Run these commands on your printer's host computer, not your local machine.**
 >
-> SSH into your Raspberry Pi, BTT CB1/Manta, or similar host as root. For all-in-one printers (Creality K1, K2 series, Adventurer 5M/Pro), SSH directly into the printer itself.
+> SSH into your Raspberry Pi, BTT CB1/Manta, or similar host as root. For all-in-one printers (Creality K1, K2 series, Flashforge AD5M/Pro), SSH directly into the printer itself.
 
 **Raspberry Pi / Creality K1:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh
 ```
 
-**Adventurer 5M/Pro:** We provide a [ready-made firmware image](https://github.com/prestonbrown/ff5m) (Forge-X 1.4.0 fork with HelixScreen pre-configured) — just flash from a USB drive. Or install manually on an existing Forge-X/Klipper Mod setup.
+**Flashforge AD5M/Pro:** We provide a [ready-made firmware image](https://github.com/prestonbrown/ff5m) (Forge-X 1.4.0 fork with HelixScreen pre-configured) — just flash from a USB drive. Or install manually on an existing Forge-X/Klipper Mod setup.
 
 See [Installation Guide](docs/user/INSTALL.md) for detailed instructions, display configuration, and troubleshooting.
 
@@ -142,7 +142,7 @@ Beta status. Core features are stable and improving with each release. Suitable 
 More features, way less resource usage (~10MB RAM vs ~50MB for KlipperScreen), and actively developed. See the [comparison table](#why-helixscreen).
 
 **Which printers are supported?**
-Any Klipper + Moonraker printer. Tested on Voron 2.4, Voron 0.2, Doron Velta, RatRig V-Core, FlashForge Adventurer 5M Pro, and QIDI printers. Active testing underway on SOVOL SV06, SOVOL SV08 (both use the Pi build), and Elegoo Centauri Carbon 1 (dedicated `cc1` build). Snapmaker U1 cross-compile target exists but is untested. Both 64-bit and 32-bit Raspberry Pi OS are supported. Creality K1 and K2 series binaries are available but untested. The wizard auto-discovers your printer's capabilities.
+Any Klipper + Moonraker printer. Tested on Voron 2.4, Voron 0.2, Doron Velta, RatRig V-Core, Flashforge AD5M Pro, and QIDI printers. Active testing underway on SOVOL SV06, SOVOL SV08 (both use the Pi build), and Elegoo Centauri Carbon 1 (dedicated `cc1` build). Snapmaker U1 cross-compile target exists but is untested. Both 64-bit and 32-bit Raspberry Pi OS are supported. Creality K1 and K2 series binaries are available but untested. The wizard auto-discovers your printer's capabilities.
 
 **What screen sizes are supported?**
 800×480, 1024×600, and 1920×480 (ultrawide) are fully supported with auto-detecting layout system. Display rotation (0/90/180/270) is supported. Smaller displays like 480×320 (Snapmaker U1) are a work-in-progress.

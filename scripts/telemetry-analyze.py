@@ -85,6 +85,13 @@ class TelemetryAnalyzer:
         self.crashes: pd.DataFrame = pd.DataFrame()
         self.update_failures: pd.DataFrame = pd.DataFrame()
         self.update_successes: pd.DataFrame = pd.DataFrame()
+        self.memory_snapshots: pd.DataFrame = pd.DataFrame()
+        self.hardware_profiles: pd.DataFrame = pd.DataFrame()
+        self.settings_snapshots: pd.DataFrame = pd.DataFrame()
+        self.panel_usage: pd.DataFrame = pd.DataFrame()
+        self.connection_stability: pd.DataFrame = pd.DataFrame()
+        self.print_starts: pd.DataFrame = pd.DataFrame()
+        self.errors: pd.DataFrame = pd.DataFrame()
         self.all_events: pd.DataFrame = pd.DataFrame()
 
     def load_events(
@@ -185,6 +192,97 @@ class TelemetryAnalyzer:
                 ):
                     flat[k] = ev.get(k)
 
+            elif ev.get("event") == "memory_snapshot":
+                for k in (
+                    "trigger",
+                    "uptime_sec",
+                    "rss_kb",
+                    "vm_size_kb",
+                    "vm_data_kb",
+                    "vm_swap_kb",
+                    "vm_peak_kb",
+                    "vm_hwm_kb",
+                ):
+                    flat[k] = ev.get(k)
+
+            elif ev.get("event") == "hardware_profile":
+                # Flatten nested sections with dot notation
+                for section in (
+                    "printer",
+                    "mcus",
+                    "build_volume",
+                    "extruders",
+                    "fans",
+                    "steppers",
+                    "leds",
+                    "sensors",
+                    "probe",
+                    "capabilities",
+                    "ams",
+                    "tools",
+                    "macros",
+                    "plugins",
+                ):
+                    sub = ev.get(section, {})
+                    if isinstance(sub, dict):
+                        for k, v in sub.items():
+                            flat[f"{section}.{k}"] = v
+                flat["display_backend"] = ev.get("display_backend")
+
+            elif ev.get("event") == "settings_snapshot":
+                for k in (
+                    "theme",
+                    "brightness_pct",
+                    "screensaver_timeout_sec",
+                    "screen_blank_timeout_sec",
+                    "locale",
+                    "sound_enabled",
+                    "auto_update_channel",
+                    "animations_enabled",
+                    "time_format",
+                ):
+                    flat[k] = ev.get(k)
+
+            elif ev.get("event") == "panel_usage":
+                flat["session_duration_sec"] = ev.get(
+                    "session_duration_sec"
+                )
+                flat["overlay_open_count"] = ev.get("overlay_open_count")
+                for section in ("panel_time_sec", "panel_visits"):
+                    sub = ev.get(section, {})
+                    if isinstance(sub, dict):
+                        for k, v in sub.items():
+                            flat[f"{section}.{k}"] = v
+
+            elif ev.get("event") == "connection_stability":
+                for k in (
+                    "session_duration_sec",
+                    "connect_count",
+                    "disconnect_count",
+                    "total_connected_sec",
+                    "total_disconnected_sec",
+                    "longest_disconnect_sec",
+                    "klippy_error_count",
+                    "klippy_shutdown_count",
+                ):
+                    flat[k] = ev.get(k)
+
+            elif ev.get("event") == "print_start_context":
+                for k in (
+                    "source",
+                    "has_thumbnail",
+                    "file_size_bucket",
+                    "estimated_duration_bucket",
+                    "slicer",
+                    "tool_count_used",
+                    "ams_active",
+                ):
+                    flat[k] = ev.get(k)
+
+            elif ev.get("event") == "error_encountered":
+                for k in ("category", "code", "context", "uptime_sec"):
+                    flat[k] = ev.get(k)
+
             flat_events.append(flat)
 
         df = pd.DataFrame(flat_events)
@@ -210,6 +308,21 @@ class TelemetryAnalyzer:
         self.crashes = df[df["event"] == "crash"].copy()
         self.update_failures = df[df["event"] == "update_failed"].copy()
         self.update_successes = df[df["event"] == "update_success"].copy()
+        self.memory_snapshots = df[df["event"] == "memory_snapshot"].copy()
+        self.hardware_profiles = df[
+            df["event"] == "hardware_profile"
+        ].copy()
+        self.settings_snapshots = df[
+            df["event"] == "settings_snapshot"
+        ].copy()
+        self.panel_usage = df[df["event"] == "panel_usage"].copy()
+        self.connection_stability = df[
+            df["event"] == "connection_stability"
+        ].copy()
+        self.print_starts = df[
+            df["event"] == "print_start_context"
+        ].copy()
+        self.errors = df[df["event"] == "error_encountered"].copy()
 
     # -- Adoption Metrics --------------------------------------------------
 
@@ -548,6 +661,246 @@ class TelemetryAnalyzer:
 
         return result
 
+    # -- Memory Analysis ---------------------------------------------------
+
+    def compute_memory_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        m = self.memory_snapshots
+        if m.empty:
+            return {"note": "No memory snapshot data"}
+        result["total_snapshots"] = len(m)
+        for col in ("rss_kb", "vm_size_kb", "vm_peak_kb", "vm_hwm_kb"):
+            if col in m.columns:
+                vals = pd.to_numeric(m[col], errors="coerce").dropna()
+                if not vals.empty:
+                    result[f"{col}_mean"] = round(vals.mean(), 1)
+                    result[f"{col}_max"] = round(vals.max(), 1)
+                    result[f"{col}_p95"] = round(vals.quantile(0.95), 1)
+        return result
+
+    # -- Hardware Analysis -------------------------------------------------
+
+    def compute_hardware_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        h = self.hardware_profiles
+        if h.empty:
+            return {"note": "No hardware profile data"}
+        result["total_profiles"] = len(h)
+        result["printer_model_distribution"] = self._distribution(
+            h, "printer.detected_model", top=20
+        )
+        result["kinematics_distribution"] = self._distribution(
+            h, "printer.kinematics"
+        )
+        result["primary_mcu_distribution"] = self._distribution(
+            h, "mcus.primary", top=10
+        )
+        result["extruder_count_distribution"] = self._distribution(
+            h, "extruders.count"
+        )
+        # Bool capability adoption rates
+        for cap in (
+            "capabilities.has_chamber",
+            "capabilities.has_accelerometer",
+            "capabilities.has_firmware_retraction",
+            "capabilities.has_exclude_object",
+            "capabilities.has_timelapse",
+            "capabilities.has_klippain_shaketune",
+            "probe.has_probe",
+            "probe.has_bed_mesh",
+            "probe.has_qgl",
+        ):
+            if cap in h.columns:
+                vals = h[cap].dropna()
+                true_count = (
+                    vals.sum()
+                    if vals.dtype == bool
+                    else (vals == True).sum()  # noqa: E712
+                )
+                result[f"{cap}_pct"] = (
+                    round(true_count / len(vals) * 100, 1)
+                    if len(vals) > 0
+                    else 0
+                )
+        result["ams_type_distribution"] = self._distribution(
+            h, "ams.type"
+        )
+        result["display_backend_distribution"] = self._distribution(
+            h, "display_backend"
+        )
+        return result
+
+    # -- Settings Analysis -------------------------------------------------
+
+    def compute_settings_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        s = self.settings_snapshots
+        if s.empty:
+            return {"note": "No settings snapshot data"}
+        result["total_snapshots"] = len(s)
+        result["theme_distribution"] = self._distribution(s, "theme")
+        result["locale_distribution"] = self._distribution(s, "locale")
+        if "brightness_pct" in s.columns:
+            vals = pd.to_numeric(
+                s["brightness_pct"], errors="coerce"
+            ).dropna()
+            if not vals.empty:
+                result["brightness_mean"] = round(vals.mean(), 1)
+        result["time_format_distribution"] = self._distribution(
+            s, "time_format"
+        )
+        return result
+
+    # -- Panel Usage -------------------------------------------------------
+
+    def compute_panel_usage_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        p = self.panel_usage
+        if p.empty:
+            return {"note": "No panel usage data"}
+        result["total_sessions"] = len(p)
+        # Aggregate panel time across sessions
+        time_cols = [
+            c for c in p.columns if c.startswith("panel_time_sec.")
+        ]
+        if time_cols:
+            panel_totals = {}
+            for col in time_cols:
+                panel_name = col.replace("panel_time_sec.", "")
+                vals = pd.to_numeric(p[col], errors="coerce").fillna(0)
+                panel_totals[panel_name] = int(vals.sum())
+            result["total_time_by_panel_sec"] = dict(
+                sorted(panel_totals.items(), key=lambda x: -x[1])
+            )
+        visit_cols = [
+            c for c in p.columns if c.startswith("panel_visits.")
+        ]
+        if visit_cols:
+            panel_visits = {}
+            for col in visit_cols:
+                panel_name = col.replace("panel_visits.", "")
+                vals = pd.to_numeric(p[col], errors="coerce").fillna(0)
+                panel_visits[panel_name] = int(vals.sum())
+            result["total_visits_by_panel"] = dict(
+                sorted(panel_visits.items(), key=lambda x: -x[1])
+            )
+        if "session_duration_sec" in p.columns:
+            dur = pd.to_numeric(
+                p["session_duration_sec"], errors="coerce"
+            ).dropna()
+            if not dur.empty:
+                result["avg_session_duration_sec"] = round(dur.mean(), 1)
+                result["median_session_duration_sec"] = round(
+                    dur.median(), 1
+                )
+        return result
+
+    # -- Connection Stability ----------------------------------------------
+
+    def compute_connection_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        c = self.connection_stability
+        if c.empty:
+            return {"note": "No connection stability data"}
+        result["total_sessions"] = len(c)
+        for col in (
+            "connect_count",
+            "disconnect_count",
+            "klippy_error_count",
+            "klippy_shutdown_count",
+        ):
+            if col in c.columns:
+                vals = pd.to_numeric(c[col], errors="coerce").dropna()
+                if not vals.empty:
+                    result[f"{col}_total"] = int(vals.sum())
+                    result[f"{col}_mean"] = round(vals.mean(), 2)
+        if (
+            "total_connected_sec" in c.columns
+            and "session_duration_sec" in c.columns
+        ):
+            connected = pd.to_numeric(
+                c["total_connected_sec"], errors="coerce"
+            ).fillna(0)
+            duration = pd.to_numeric(
+                c["session_duration_sec"], errors="coerce"
+            ).fillna(0)
+            total_dur = duration.sum()
+            if total_dur > 0:
+                result["overall_connected_pct"] = round(
+                    connected.sum() / total_dur * 100, 1
+                )
+        if "longest_disconnect_sec" in c.columns:
+            vals = pd.to_numeric(
+                c["longest_disconnect_sec"], errors="coerce"
+            ).dropna()
+            if not vals.empty:
+                result["longest_disconnect_max_sec"] = round(
+                    vals.max(), 1
+                )
+                result["longest_disconnect_mean_sec"] = round(
+                    vals.mean(), 1
+                )
+        return result
+
+    # -- Print Start Context -----------------------------------------------
+
+    def compute_print_start_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        p = self.print_starts
+        if p.empty:
+            return {"note": "No print start data"}
+        result["total_print_starts"] = len(p)
+        result["source_distribution"] = self._distribution(p, "source")
+        result["slicer_distribution"] = self._distribution(
+            p, "slicer", top=10
+        )
+        result["file_size_distribution"] = self._distribution(
+            p, "file_size_bucket"
+        )
+        result["duration_estimate_distribution"] = self._distribution(
+            p, "estimated_duration_bucket"
+        )
+        if "has_thumbnail" in p.columns:
+            vals = p["has_thumbnail"].dropna()
+            true_count = (
+                vals.sum()
+                if vals.dtype == bool
+                else (vals == True).sum()  # noqa: E712
+            )
+            result["thumbnail_pct"] = (
+                round(true_count / len(vals) * 100, 1)
+                if len(vals) > 0
+                else 0
+            )
+        if "ams_active" in p.columns:
+            vals = p["ams_active"].dropna()
+            true_count = (
+                vals.sum()
+                if vals.dtype == bool
+                else (vals == True).sum()  # noqa: E712
+            )
+            result["ams_active_pct"] = (
+                round(true_count / len(vals) * 100, 1)
+                if len(vals) > 0
+                else 0
+            )
+        return result
+
+    # -- Error Analysis ----------------------------------------------------
+
+    def compute_error_metrics(self) -> dict:
+        result: dict[str, Any] = {}
+        e = self.errors
+        if e.empty:
+            return {"note": "No error data"}
+        result["total_errors"] = len(e)
+        result["errors_by_category"] = self._distribution(e, "category")
+        result["errors_by_code"] = self._distribution(e, "code", top=10)
+        result["errors_by_context"] = self._distribution(
+            e, "context", top=10
+        )
+        return result
+
     # -- Aggregate ---------------------------------------------------------
 
     def compute_all(self) -> dict:
@@ -559,12 +912,26 @@ class TelemetryAnalyzer:
                 "crashes": len(self.crashes),
                 "update_failures": len(self.update_failures),
                 "update_successes": len(self.update_successes),
+                "memory_snapshots": len(self.memory_snapshots),
+                "hardware_profiles": len(self.hardware_profiles),
+                "settings_snapshots": len(self.settings_snapshots),
+                "panel_usage": len(self.panel_usage),
+                "connection_stability": len(self.connection_stability),
+                "print_starts": len(self.print_starts),
+                "errors": len(self.errors),
                 "total": len(self.all_events),
             },
             "adoption": self.compute_adoption_metrics(),
             "print_reliability": self.compute_print_metrics(),
             "crash_analysis": self.compute_crash_metrics(),
             "update_analysis": self.compute_update_metrics(),
+            "memory_analysis": self.compute_memory_metrics(),
+            "hardware_analysis": self.compute_hardware_metrics(),
+            "settings_analysis": self.compute_settings_metrics(),
+            "panel_usage_analysis": self.compute_panel_usage_metrics(),
+            "connection_analysis": self.compute_connection_metrics(),
+            "print_start_analysis": self.compute_print_start_metrics(),
+            "error_analysis": self.compute_error_metrics(),
         }
 
     # -- Output Formatters -------------------------------------------------
@@ -584,7 +951,14 @@ class TelemetryAnalyzer:
             f"(sessions={ec.get('sessions', 0)}, "
             f"prints={ec.get('prints', 0)}, "
             f"crashes={ec.get('crashes', 0)}, "
-            f"updates={ec.get('update_successes', 0) + ec.get('update_failures', 0)})"
+            f"updates={ec.get('update_successes', 0) + ec.get('update_failures', 0)}, "
+            f"memory={ec.get('memory_snapshots', 0)}, "
+            f"hardware={ec.get('hardware_profiles', 0)}, "
+            f"settings={ec.get('settings_snapshots', 0)}, "
+            f"panel_usage={ec.get('panel_usage', 0)}, "
+            f"connection={ec.get('connection_stability', 0)}, "
+            f"print_starts={ec.get('print_starts', 0)}, "
+            f"errors={ec.get('errors', 0)})"
         )
 
         # Adoption
@@ -785,6 +1159,234 @@ class TelemetryAnalyzer:
                 lines,
                 "Failures by platform",
                 ua.get("failures_by_platform"),
+            )
+
+        # Memory analysis
+        mem = metrics.get("memory_analysis", {})
+        if not mem.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  MEMORY ANALYSIS")
+            lines.append(sep)
+            lines.append(
+                f"  Total snapshots: {mem.get('total_snapshots', 0)}"
+            )
+            for col in (
+                "rss_kb",
+                "vm_size_kb",
+                "vm_peak_kb",
+                "vm_hwm_kb",
+            ):
+                mean = mem.get(f"{col}_mean")
+                mx = mem.get(f"{col}_max")
+                p95 = mem.get(f"{col}_p95")
+                if mean is not None:
+                    lines.append(
+                        f"  {col}: mean={mean:.0f}"
+                        f" max={mx:.0f} p95={p95:.0f}"
+                    )
+
+        # Hardware analysis
+        hw = metrics.get("hardware_analysis", {})
+        if not hw.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  HARDWARE ANALYSIS")
+            lines.append(sep)
+            lines.append(
+                f"  Total profiles: {hw.get('total_profiles', 0)}"
+            )
+            self._fmt_distribution(
+                lines,
+                "Printer model (top 20)",
+                hw.get("printer_model_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Kinematics",
+                hw.get("kinematics_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Primary MCU (top 10)",
+                hw.get("primary_mcu_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Extruder count",
+                hw.get("extruder_count_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "AMS type",
+                hw.get("ams_type_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Display backend",
+                hw.get("display_backend_distribution"),
+            )
+            # Capability adoption percentages
+            cap_lines = []
+            for cap in (
+                "capabilities.has_chamber",
+                "capabilities.has_accelerometer",
+                "capabilities.has_firmware_retraction",
+                "capabilities.has_exclude_object",
+                "capabilities.has_timelapse",
+                "capabilities.has_klippain_shaketune",
+                "probe.has_probe",
+                "probe.has_bed_mesh",
+                "probe.has_qgl",
+            ):
+                pct = hw.get(f"{cap}_pct")
+                if pct is not None:
+                    cap_lines.append(
+                        f"    {cap.split('.')[-1]}: {pct}%"
+                    )
+            if cap_lines:
+                lines.append("\n  Capability adoption (%):")
+                lines.extend(cap_lines)
+
+        # Settings analysis
+        sa = metrics.get("settings_analysis", {})
+        if not sa.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  SETTINGS ANALYSIS")
+            lines.append(sep)
+            lines.append(
+                f"  Total snapshots: {sa.get('total_snapshots', 0)}"
+            )
+            self._fmt_distribution(
+                lines, "Theme", sa.get("theme_distribution")
+            )
+            self._fmt_distribution(
+                lines, "Locale", sa.get("locale_distribution")
+            )
+            self._fmt_distribution(
+                lines,
+                "Time format",
+                sa.get("time_format_distribution"),
+            )
+            bm = sa.get("brightness_mean")
+            if bm is not None:
+                lines.append(f"\n  Average brightness: {bm:.0f}%")
+
+        # Panel usage
+        pu = metrics.get("panel_usage_analysis", {})
+        if not pu.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  PANEL USAGE")
+            lines.append(sep)
+            lines.append(
+                f"  Sessions with usage data: "
+                f"{pu.get('total_sessions', 0)}"
+            )
+            avg_dur = pu.get("avg_session_duration_sec")
+            if avg_dur:
+                lines.append(
+                    f"  Avg session duration: "
+                    f"{self._fmt_duration(avg_dur)}"
+                )
+            self._fmt_distribution(
+                lines,
+                "Total time by panel (sec)",
+                pu.get("total_time_by_panel_sec"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Total visits by panel",
+                pu.get("total_visits_by_panel"),
+            )
+
+        # Connection stability
+        cs = metrics.get("connection_analysis", {})
+        if not cs.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  CONNECTION STABILITY")
+            lines.append(sep)
+            lines.append(
+                f"  Sessions: {cs.get('total_sessions', 0)}"
+            )
+            pct = cs.get("overall_connected_pct")
+            if pct is not None:
+                lines.append(f"  Overall connected: {pct:.1f}%")
+            for col in (
+                "connect_count",
+                "disconnect_count",
+                "klippy_error_count",
+                "klippy_shutdown_count",
+            ):
+                total = cs.get(f"{col}_total")
+                mean = cs.get(f"{col}_mean")
+                if total is not None:
+                    lines.append(
+                        f"  {col}: total={total}"
+                        f" mean={mean:.2f}/session"
+                    )
+            ld = cs.get("longest_disconnect_max_sec")
+            if ld is not None:
+                lines.append(
+                    f"  Longest disconnect: "
+                    f"{self._fmt_duration(ld)}"
+                )
+
+        # Print start context
+        ps = metrics.get("print_start_analysis", {})
+        if not ps.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  PRINT START CONTEXT")
+            lines.append(sep)
+            lines.append(
+                f"  Total print starts: "
+                f"{ps.get('total_print_starts', 0)}"
+            )
+            tp = ps.get("thumbnail_pct")
+            if tp is not None:
+                lines.append(f"  Has thumbnail: {tp:.1f}%")
+            ap = ps.get("ams_active_pct")
+            if ap is not None:
+                lines.append(f"  AMS active: {ap:.1f}%")
+            self._fmt_distribution(
+                lines, "Source", ps.get("source_distribution")
+            )
+            self._fmt_distribution(
+                lines,
+                "Slicer (top 10)",
+                ps.get("slicer_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "File size",
+                ps.get("file_size_distribution"),
+            )
+            self._fmt_distribution(
+                lines,
+                "Estimated duration",
+                ps.get("duration_estimate_distribution"),
+            )
+
+        # Error analysis
+        ea = metrics.get("error_analysis", {})
+        if not ea.get("note"):
+            lines.append(f"\n{sep}")
+            lines.append("  ERROR ANALYSIS")
+            lines.append(sep)
+            lines.append(
+                f"  Total errors: {ea.get('total_errors', 0)}"
+            )
+            self._fmt_distribution(
+                lines,
+                "By category",
+                ea.get("errors_by_category"),
+            )
+            self._fmt_distribution(
+                lines,
+                "By code (top 10)",
+                ea.get("errors_by_code"),
+            )
+            self._fmt_distribution(
+                lines,
+                "By context (top 10)",
+                ea.get("errors_by_context"),
             )
 
         lines.append(f"\n{sep}")

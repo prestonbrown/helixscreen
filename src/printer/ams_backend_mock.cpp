@@ -1161,7 +1161,7 @@ void AmsBackendMock::set_tool_changer_mode(bool enabled) {
         system_info_.type = AmsType::HAPPY_HARE;
         system_info_.type_name = "Happy Hare (Mock)";
         system_info_.supports_bypass = true;
-        topology_ = PathTopology::HUB;
+        topology_ = PathTopology::LINEAR;
 
         if (!system_info_.units.empty()) {
             system_info_.units[0].name = "Mock MMU";
@@ -1188,11 +1188,16 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // Disable conflicting mode
         tool_changer_mode_ = false;
 
+        // Respect gate count from constructor (via HELIX_AMS_GATES)
+        int lane_count = system_info_.total_slots;
+        if (lane_count <= 0)
+            lane_count = 4;
+
         // Configure system info for AFC Box Turtle
         system_info_.type = AmsType::AFC;
         system_info_.type_name = "AFC (Mock)";
         system_info_.version = "1.0.32-mock";
-        system_info_.total_slots = 4;
+        system_info_.total_slots = lane_count;
 
         // Use shared AFC defaults for capabilities
         auto afc_caps = helix::printer::afc_default_capabilities();
@@ -1206,11 +1211,16 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // HUB topology, single unit
         topology_ = PathTopology::HUB;
 
-        // Reinitialize registry with single Box Turtle unit
+        // Reinitialize registry with requested lane count
         slots_.clear();
-        slots_.initialize("Box Turtle (Mock)", {"0", "1", "2", "3"});
+        std::vector<std::string> slot_names;
+        slot_names.reserve(lane_count);
+        for (int i = 0; i < lane_count; ++i) {
+            slot_names.push_back(std::to_string(i));
+        }
+        slots_.initialize("Box Turtle (Mock)", slot_names);
 
-        // Populate slot data
+        // Populate slot data (cycles through sample data for any lane count)
         struct SlotData {
             const char* material;
             const char* brand;
@@ -1221,25 +1231,32 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             const char* spool_name;
             float remaining;
         };
-        const SlotData slot_data[] = {
+        const SlotData sample_data[] = {
             {"ASA", "Bambu Lab", 0x000000, "Black", SlotStatus::LOADED, 1, "Black ASA", 750.0f},
             {"PLA", "Polymaker", 0xFF0000, "Red", SlotStatus::AVAILABLE, 2, "Red PLA", 900.0f},
             {"PETG", "eSUN", 0x00FF00, "Green", SlotStatus::AVAILABLE, 3, "Green PETG", 500.0f},
             {"TPU", "eSUN", 0xFF6600, "Orange", SlotStatus::AVAILABLE, 0, "", 200.0f},
+            {"ABS", "Hatchbox", 0x0000FF, "Blue", SlotStatus::AVAILABLE, 4, "Blue ABS", 600.0f},
+            {"PLA", "Prusament", 0xFFFF00, "Yellow", SlotStatus::AVAILABLE, 5, "Yellow PLA",
+             850.0f},
+            {"PETG", "Overture", 0xFF00FF, "Purple", SlotStatus::AVAILABLE, 6, "Purple PETG",
+             400.0f},
+            {"ASA", "KVP", 0x00FFFF, "Cyan", SlotStatus::AVAILABLE, 7, "Cyan ASA", 700.0f},
         };
+        constexpr int sample_count = sizeof(sample_data) / sizeof(sample_data[0]);
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < lane_count; ++i) {
             auto* entry = slots_.get_mut(i);
             if (!entry)
                 continue;
-            const auto& d = slot_data[i];
+            const auto& d = sample_data[i % sample_count];
             entry->info.slot_index = i;
             entry->info.global_index = i;
             entry->info.material = d.material;
             entry->info.brand = d.brand;
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
-            entry->info.status = d.status;
+            entry->info.status = (i == 0) ? SlotStatus::LOADED : d.status;
             entry->info.spoolman_id = d.spoolman_id;
             entry->info.spool_name = d.spool_name;
             entry->info.total_weight_g = 1000.0f;
@@ -1252,15 +1269,19 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             }
         }
 
-        // Tool-to-slot mapping: T0->lane1, T1->lane2, T2->lane3, T3->lane4
-        slots_.set_tool_map({0, 1, 2, 3});
+        // Tool-to-slot mapping: 1:1
+        std::vector<int> tool_map(lane_count);
+        for (int i = 0; i < lane_count; ++i) {
+            tool_map[i] = i;
+        }
+        slots_.set_tool_map(tool_map);
 
         // Unit-level metadata
         system_info_.units.clear();
         AmsUnit unit_meta;
         unit_meta.unit_index = 0;
         unit_meta.name = "Box Turtle (Mock)";
-        unit_meta.slot_count = 4;
+        unit_meta.slot_count = lane_count;
         unit_meta.first_slot_global_index = 0;
         unit_meta.connected = true;
         unit_meta.firmware_version = "1.0.32-mock";
@@ -1269,15 +1290,15 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         unit_meta.has_slot_sensors = true;
         system_info_.units.push_back(unit_meta);
 
-        // Start with lane 0 (ASA) loaded
+        // Start with lane 0 loaded
         system_info_.current_slot = 0;
         system_info_.current_tool = 0;
         system_info_.filament_loaded = true;
         filament_segment_ = PathSegment::NOZZLE;
 
-        // Simulate mid-print tool change progress (3rd of 5 swaps)
+        // Simulate mid-print tool change progress
         system_info_.current_toolchange = 2;
-        system_info_.number_of_toolchanges = 5;
+        system_info_.number_of_toolchanges = lane_count + 1;
 
         // AFC device sections and actions — use all defaults
         mock_device_sections_ = helix::printer::afc_default_sections();
@@ -1291,7 +1312,7 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             }
         }
 
-        spdlog::info("[AmsBackendMock] AFC mode enabled (4-lane Box Turtle)");
+        spdlog::info("[AmsBackendMock] AFC mode enabled ({}-lane Box Turtle)", lane_count);
     } else {
         // Revert to Happy Hare defaults
         afc_mode_ = false;
@@ -1299,7 +1320,7 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         system_info_.type_name = "Happy Hare (Mock)";
         system_info_.version = "2.7.0-mock";
         system_info_.supports_bypass = true;
-        topology_ = PathTopology::HUB;
+        topology_ = PathTopology::LINEAR;
 
         if (!system_info_.units.empty()) {
             system_info_.units[0].name = "Mock MMU";
@@ -1465,7 +1486,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
         system_info_.type_name = "Happy Hare (Mock)";
         system_info_.version = "2.7.0-mock";
         system_info_.supports_bypass = true;
-        topology_ = PathTopology::HUB;
+        topology_ = PathTopology::LINEAR;
 
         if (!system_info_.units.empty()) {
             system_info_.units[0].name = "Mock MMU";
@@ -1648,7 +1669,7 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
         system_info_.type_name = "Happy Hare (Mock)";
         system_info_.version = "2.7.0-mock";
         system_info_.supports_bypass = true;
-        topology_ = PathTopology::HUB;
+        topology_ = PathTopology::LINEAR;
 
         if (!system_info_.units.empty()) {
             system_info_.units[0].name = "Mock MMU";

@@ -146,6 +146,10 @@ bool KeyboardManager::point_in_area(const lv_area_t* area, const lv_point_t* poi
 
 void KeyboardManager::overlay_cleanup() {
     helix::ui::safe_delete(overlay_);
+}
+
+void KeyboardManager::longpress_reset() {
+    overlay_cleanup();
     alternatives_ = nullptr;
     pressed_char_ = 0;
     pressed_btn_id_ = 0;
@@ -401,7 +405,7 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
         if (mgr.longpress_state_ == LP_ALT_SELECTED) {
             // Auto-insert mode: alt char already inserted, just clean up
             spdlog::info("[KeyboardManager] Cleaning up overlay (alt already auto-inserted)");
-            mgr.overlay_cleanup();
+            mgr.longpress_reset();
             mgr.longpress_state_ = LP_IDLE;
 
         } else if (mgr.longpress_state_ == LP_LONG_DETECTED && mgr.overlay_ != nullptr) {
@@ -464,13 +468,13 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
             }
 
             spdlog::info("[KeyboardManager] Cleaning up overlay");
-            mgr.overlay_cleanup();
+            mgr.longpress_reset();
             mgr.longpress_state_ = LP_IDLE;
 
         } else if (mgr.longpress_state_ == LP_PRESSED) {
             spdlog::debug("[KeyboardManager] Short press - normal input");
+            mgr.longpress_reset();
             mgr.longpress_state_ = LP_IDLE;
-            mgr.overlay_cleanup();
         }
     }
 
@@ -958,7 +962,7 @@ void KeyboardManager::hide() {
     // Cancel any in-progress show animation
     lv_anim_delete(keyboard_, nullptr);
 
-    overlay_cleanup();
+    longpress_reset();
     longpress_state_ = LP_IDLE;
 
     lv_keyboard_set_textarea(keyboard_, nullptr);

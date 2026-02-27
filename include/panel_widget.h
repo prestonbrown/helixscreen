@@ -48,9 +48,6 @@ class PanelWidget {
     /// Called when the owning panel goes offscreen.
     virtual void on_deactivate() {}
 
-    /// Called when settings change and widgets should re-read config.
-    virtual void reload_from_config() {}
-
     /// Called after attach() with the number of widgets sharing this row.
     /// Widgets can use this to adjust font sizes or layout density.
     /// Default is no-op.

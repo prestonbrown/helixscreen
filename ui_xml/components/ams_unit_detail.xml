@@ -20,8 +20,9 @@
     - "labels_layer": overlay for material labels when 5+ slots overlap
     - "slot_tray": visual "holder" that renders ON TOP of spool bottoms
 
-    Z-order (front to back): labels_layer > slot_tray > slot_grid
-    Badge z-order handled by lv_obj_move_to_index(-1) in ui_ams_slot.cpp.
+    Z-order (front to back): labels_layer > badge_layer > slot_tray > slot_grid
+    Badges reparented to badge_layer by ams_detail_update_badges() so they
+    render in front of the tray.
   -->
   <view name="ams_unit_detail" extends="lv_obj" width="100%" height="content" style_pad_all="0" scrollable="false">
     <!-- Slot Grid (rendered first = behind everything) -->
@@ -50,5 +51,7 @@
               style_border_color="#text" style_border_opa="#tray_accent_border_opa" style_border_side="right"
               style_radius="#border_radius" style_pad_all="0" scrollable="false" clickable="false"/>
     </lv_obj>
+    <!-- Badge Layer - slot number badges reparented here to render in front of tray -->
+    <lv_obj name="badge_layer" width="100%" height="100%" style_pad_all="0" scrollable="false" clickable="false"/>
   </view>
 </component>

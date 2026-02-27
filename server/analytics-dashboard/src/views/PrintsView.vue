@@ -3,7 +3,6 @@
     <div class="page">
       <div class="page-header">
         <h2>Prints</h2>
-        <DateRangePicker v-model="range" />
       </div>
 
       <div v-if="loading" class="loading">Loading...</div>
@@ -25,6 +24,40 @@
             subtitle="across all completed prints"
           />
         </div>
+
+        <template v-if="data.start_context">
+          <h3 class="section-header">Print Start Insights</h3>
+
+          <div class="grid-2col">
+            <div class="chart-section">
+              <h3>Slicer Distribution</h3>
+              <PieChart :data="slicerChartData" />
+            </div>
+            <div class="chart-section">
+              <h3>Source Distribution</h3>
+              <PieChart :data="sourceChartData" />
+            </div>
+          </div>
+
+          <div class="grid-2col">
+            <div class="chart-section">
+              <h3>File Size Buckets</h3>
+              <BarChart :data="fileSizeChartData" />
+            </div>
+            <div class="metrics-col">
+              <MetricCard
+                title="Thumbnail Adoption"
+                :value="`${data.start_context.thumbnail_rate.toFixed(1)}%`"
+                color="var(--accent-green)"
+              />
+              <MetricCard
+                title="AMS Usage"
+                :value="`${data.start_context.ams_rate.toFixed(1)}%`"
+                color="var(--accent-blue)"
+              />
+            </div>
+          </div>
+        </template>
       </template>
     </div>
   </AppLayout>
@@ -33,14 +66,17 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
-import DateRangePicker from '@/components/DateRangePicker.vue'
 import LineChart from '@/components/LineChart.vue'
 import BarChart from '@/components/BarChart.vue'
+import PieChart from '@/components/PieChart.vue'
 import MetricCard from '@/components/MetricCard.vue'
+import { useFiltersStore } from '@/stores/filters'
 import { api } from '@/services/api'
 import type { PrintsData } from '@/services/api'
 
-const range = ref('30d')
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
+
+const filters = useFiltersStore()
 const data = ref<PrintsData | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -72,11 +108,36 @@ const filamentChartData = computed(() => ({
   }]
 }))
 
+const slicerChartData = computed(() => ({
+  labels: data.value?.start_context?.slicers.map(s => s.name) ?? [],
+  datasets: [{
+    data: data.value?.start_context?.slicers.map(s => s.count) ?? [],
+    backgroundColor: COLORS
+  }]
+}))
+
+const sourceChartData = computed(() => ({
+  labels: data.value?.start_context?.sources.map(s => s.name) ?? [],
+  datasets: [{
+    data: data.value?.start_context?.sources.map(s => s.count) ?? [],
+    backgroundColor: COLORS
+  }]
+}))
+
+const fileSizeChartData = computed(() => ({
+  labels: data.value?.start_context?.file_size_buckets.map(b => b.name) ?? [],
+  datasets: [{
+    label: 'Files',
+    data: data.value?.start_context?.file_size_buckets.map(b => b.count) ?? [],
+    backgroundColor: '#f59e0b'
+  }]
+}))
+
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    data.value = await api.getPrints(range.value)
+    data.value = await api.getPrints(filters.queryString)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load data'
   } finally {
@@ -84,7 +145,7 @@ async function fetchData() {
   }
 }
 
-watch(range, fetchData, { immediate: true })
+watch(() => filters.queryString, fetchData, { immediate: true })
 </script>
 
 <style scoped>
@@ -117,6 +178,21 @@ watch(range, fetchData, { immediate: true })
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 12px;
+}
+
+.section-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.metrics-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .loading, .error {

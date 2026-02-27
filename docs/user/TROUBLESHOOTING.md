@@ -17,7 +17,7 @@ Solutions to common problems with HelixScreen.
 - [Calibration Issues](#calibration-issues)
 - [Performance Issues](#performance-issues)
 - [Configuration Issues](#configuration-issues)
-- [Adventurer 5M Issues](#adventurer-5m-issues)
+- [Flashforge Adventurer 5M Issues](#flashforge-adventurer-5m-issues)
 - [Gathering Diagnostic Information](#gathering-diagnostic-information)
   - [Enabling Debug Logging](#enabling-debug-logging)
   - [Collecting Logs](#collecting-logs)
@@ -82,7 +82,7 @@ sudo journalctl -u helixscreen -f
 
    # Pi 4 typically uses /dev/dri/card1
    # Pi 5 may use /dev/dri/card1 or card2
-   # AD5M uses framebuffer /dev/fb0
+   # Flashforge Adventurer 5M (AD5M) uses framebuffer /dev/fb0
    ```
 
 3. **Permission issues**
@@ -319,7 +319,7 @@ sudo journalctl -u helixscreen -n 50
 
 **Identify your display hardware:**
 ```bash
-# Framebuffer devices (older displays, AD5M)
+# Framebuffer devices (older displays, Flashforge AD5M)
 ls -la /dev/fb*
 
 # DRM devices (Pi 4/5, modern displays)
@@ -1005,9 +1005,9 @@ Edit `~/helixscreen/config/helixconfig.json` to set correct printer type and fea
 
 ---
 
-## Adventurer 5M Issues
+## Flashforge Adventurer 5M Issues
 
-The AD5M has unique characteristics due to its embedded Linux environment and ForgeX/Klipper Mod firmware.
+The Flashforge Adventurer 5M (AD5M) has unique characteristics due to its embedded Linux environment and ForgeX/Klipper Mod firmware.
 
 ### Screen dims after a few seconds
 
@@ -1190,7 +1190,7 @@ Add to the service file:
 Environment="HELIX_LOG_LEVEL=debug"
 ```
 
-#### Adventurer 5M / Forge-X (SysV init)
+#### Flashforge Adventurer 5M / Forge-X (SysV init)
 
 ```bash
 # Stop the running service
@@ -1249,7 +1249,7 @@ sudo journalctl -u helixscreen -p err --no-pager
 sudo journalctl -u helixscreen -f
 ```
 
-**Adventurer 5M (SysV init):**
+**Flashforge Adventurer 5M (SysV init):**
 ```bash
 # Full log file
 cat /tmp/helixscreen.log

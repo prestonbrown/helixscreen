@@ -19,7 +19,7 @@ ENV_FILE="$PROJECT_ROOT/.env.telemetry"
 
 if [[ -z "${HELIX_ADMIN_KEY:-}" ]]; then
     if [[ -f "$ENV_FILE" ]]; then
-        HELIX_ADMIN_KEY=$(grep -E '^HELIX_TELEMETRY_ADMIN_KEY=' "$ENV_FILE" | cut -d= -f2)
+        HELIX_ADMIN_KEY=$(grep -E '^HELIX_TELEMETRY_ADMIN_KEY=' "$ENV_FILE" | cut -d= -f2 || true)
     fi
 fi
 
@@ -54,7 +54,7 @@ MODE="${2:---pretty}"
 # Fetch the bundle
 TMPFILE=$(mktemp)
 TMPJSON=$(mktemp)
-trap "rm -f $TMPFILE $TMPJSON" EXIT
+trap 'rm -f "$TMPFILE" "$TMPJSON"' EXIT
 
 HTTP_CODE=$(curl -s \
     -H "X-Admin-Key: $HELIX_ADMIN_KEY" \

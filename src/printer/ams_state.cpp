@@ -128,6 +128,7 @@ const char* AmsState::get_logo_path(const std::string& type_name) {
 AmsState::AmsState() {
     std::memset(action_detail_buf_, 0, sizeof(action_detail_buf_));
     std::memset(system_name_buf_, 0, sizeof(system_name_buf_));
+    std::memset(system_logo_buf_, 0, sizeof(system_logo_buf_));
     std::memset(current_material_text_buf_, 0, sizeof(current_material_text_buf_));
     std::memset(current_slot_text_buf_, 0, sizeof(current_slot_text_buf_));
     std::memset(current_weight_text_buf_, 0, sizeof(current_weight_text_buf_));
@@ -214,6 +215,12 @@ void AmsState::init_subjects(bool register_xml) {
     subjects_.register_subject(&ams_system_name_);
     if (register_xml)
         lv_xml_register_subject(nullptr, "ams_system_name", &ams_system_name_);
+
+    // Logo uses pointer subject — bind_src expects a pointer to the path string buffer
+    lv_subject_init_pointer(&ams_system_logo_, system_logo_buf_);
+    subjects_.register_subject(&ams_system_logo_);
+    if (register_xml)
+        lv_xml_register_subject(nullptr, "ams_system_logo", &ams_system_logo_);
 
     INIT_SUBJECT_STRING(ams_current_tool_text, "---", subjects_, register_xml);
 
@@ -678,11 +685,23 @@ void AmsState::sync_from_backend() {
     lv_subject_set_int(&ams_action_, static_cast<int>(info.action));
 
     // Set system name from backend type_name or fallback to type string
+    std::string sys_name;
     if (!info.type_name.empty()) {
-        lv_subject_copy_string(&ams_system_name_, info.type_name.c_str());
+        sys_name = info.type_name;
     } else {
-        lv_subject_copy_string(&ams_system_name_, ams_type_to_string(info.type));
+        sys_name = ams_type_to_string(info.type);
     }
+    lv_subject_copy_string(&ams_system_name_, sys_name.c_str());
+
+    // Set system logo path for declarative image binding (pointer subject for bind_src)
+    const char* logo_path = get_logo_path(sys_name);
+    if (logo_path) {
+        strncpy(system_logo_buf_, logo_path, sizeof(system_logo_buf_) - 1);
+        system_logo_buf_[sizeof(system_logo_buf_) - 1] = '\0';
+    } else {
+        system_logo_buf_[0] = '\0';
+    }
+    lv_subject_set_pointer(&ams_system_logo_, system_logo_buf_);
     lv_subject_set_int(&current_slot_, info.current_slot);
     lv_subject_set_int(&pending_target_slot_, info.pending_target_slot);
     lv_subject_set_int(&ams_current_tool_, info.current_tool);

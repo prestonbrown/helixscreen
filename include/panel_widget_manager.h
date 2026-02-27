@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_coalesced_timer.h"
 #include "ui_observer_guard.h"
 
 #include <any>
@@ -89,6 +90,10 @@ class PanelWidgetManager {
 
     /// Per-panel gate observers that trigger widget rebuilds on hardware changes
     std::unordered_map<std::string, std::vector<ObserverGuard>> gate_observers_;
+
+    /// Per-panel coalesced rebuild timers — batches rapid gate observer changes
+    /// into a single rebuild per LVGL frame instead of one per subject change
+    std::unordered_map<std::string, ui::CoalescedTimer> rebuild_timers_;
 };
 
 } // namespace helix

@@ -39,7 +39,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -979,30 +978,26 @@ void UpdateChecker::do_download() {
 }
 
 bool UpdateChecker::validate_elf_architecture(const std::string& tarball_path) {
-    struct utsname uts;
-    if (uname(&uts) != 0) {
-        spdlog::warn("[UpdateChecker] uname() failed, skipping arch validation");
-        return true; // Can't determine, allow
-    }
+    // Use the compile-time platform key to determine expected architecture.
+    // uname().machine is unreliable: Pi4 with 64-bit kernel + 32-bit userspace
+    // reports "aarch64" even though only 32-bit ARM binaries can execute.
+    std::string platform = get_platform_key();
+    spdlog::info("[UpdateChecker] Platform key: {}", platform);
 
-    std::string machine(uts.machine);
-    spdlog::info("[UpdateChecker] Runtime architecture: {}", machine);
-
-    // Determine expected ELF properties from runtime architecture
     uint8_t expected_class = 0;
     uint16_t expected_machine = 0;
     std::string expected_arch_name;
 
-    if (machine == "armv7l") {
+    if (platform == "pi32" || platform == "ad5m") {
         expected_class = 1;      // ELFCLASS32
         expected_machine = 0x28; // EM_ARM
         expected_arch_name = "ARM 32-bit";
-    } else if (machine == "aarch64") {
+    } else if (platform == "pi") {
         expected_class = 2;      // ELFCLASS64
         expected_machine = 0xB7; // EM_AARCH64
         expected_arch_name = "AARCH64 64-bit";
     } else {
-        spdlog::warn("[UpdateChecker] Unknown architecture '{}', skipping validation", machine);
+        spdlog::info("[UpdateChecker] Platform '{}' — skipping ELF validation", platform);
         return true;
     }
 

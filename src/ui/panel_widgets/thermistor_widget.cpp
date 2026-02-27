@@ -27,6 +27,12 @@ void register_thermistor_widget() {
         auto& ps = get_printer_state();
         return std::make_unique<ThermistorWidget>(ps);
     });
+
+    // Register XML event callbacks at startup (before any XML is parsed)
+    lv_xml_register_event_cb(nullptr, "thermistor_clicked_cb",
+                             ThermistorWidget::thermistor_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "thermistor_picker_backdrop_cb",
+                             ThermistorWidget::thermistor_picker_backdrop_cb);
 }
 } // namespace helix
 
@@ -67,11 +73,6 @@ void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, this);
     }
-
-    // Register XML event callbacks
-    lv_xml_register_event_cb(nullptr, "thermistor_clicked_cb", thermistor_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "thermistor_picker_backdrop_cb",
-                             thermistor_picker_backdrop_cb);
 
     // Cache label pointers
     temp_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_temp");

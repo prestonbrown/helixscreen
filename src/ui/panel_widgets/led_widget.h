@@ -24,10 +24,13 @@ class LedWidget : public PanelWidget {
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
-    void reload_from_config() override;
     const char* id() const override {
         return "led";
     }
+
+    // XML event callbacks (public for early registration in register_led_widget)
+    static void light_toggle_cb(lv_event_t* e);
+    static void light_long_press_cb(lv_event_t* e);
 
   private:
     PrinterState& printer_state_;
@@ -42,6 +45,7 @@ class LedWidget : public PanelWidget {
     bool light_on_ = false;
     bool light_long_pressed_ = false;
 
+    ObserverGuard led_version_observer_;
     ObserverGuard led_state_observer_;
     ObserverGuard led_brightness_observer_;
 
@@ -49,11 +53,8 @@ class LedWidget : public PanelWidget {
     void handle_light_long_press();
     void update_light_icon();
     void flash_light_icon();
-    void ensure_led_observers();
+    void bind_led();
     void on_led_state_changed(int state);
-
-    static void light_toggle_cb(lv_event_t* e);
-    static void light_long_press_cb(lv_event_t* e);
 };
 
 } // namespace helix

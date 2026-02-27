@@ -21,6 +21,7 @@ AmsDetailWidgets ams_detail_find_widgets(lv_obj_t* root) {
     w.slot_grid = lv_obj_find_by_name(root, "slot_grid");
     w.slot_tray = lv_obj_find_by_name(root, "slot_tray");
     w.labels_layer = lv_obj_find_by_name(root, "labels_layer");
+    w.badge_layer = lv_obj_find_by_name(root, "badge_layer");
 
     if (!w.slot_grid) {
         spdlog::warn("[AmsDetail] slot_grid not found in ams_unit_detail");
@@ -87,14 +88,20 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_
     lv_obj_set_style_pad_column(w.slot_grid, result.layout.overlap > 0 ? -result.layout.overlap : 0,
                                 LV_PART_MAIN);
 
+    // Center slots within the tray by adding left padding for the rounding remainder
+    if (result.layout.centering_offset > 0) {
+        lv_obj_set_style_pad_left(w.slot_grid, result.layout.centering_offset, LV_PART_MAIN);
+    }
+
     for (int i = 0; i < count; ++i) {
         if (slot_widgets[i]) {
             lv_obj_set_width(slot_widgets[i], result.layout.slot_width);
         }
     }
 
-    spdlog::debug("[AmsDetail] Created {} slots (offset={}, width={}, overlap={})", count,
-                  slot_offset, result.layout.slot_width, result.layout.overlap);
+    spdlog::debug("[AmsDetail] Created {} slots (offset={}, width={}, overlap={}, center_pad={})",
+                  count, slot_offset, result.layout.slot_width, result.layout.overlap,
+                  result.layout.centering_offset);
 
     return result;
 }
@@ -133,10 +140,6 @@ void ams_detail_update_tray(AmsDetailWidgets& w) {
     lv_obj_set_height(w.slot_tray, tray_height);
     lv_obj_align(w.slot_tray, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-    // Move tray behind slot_grid so slot badges and active glow render on top.
-    // The tray peeks out below/beside spool bottoms for the "holder" visual.
-    lv_obj_move_to_index(w.slot_tray, 0);
-
     spdlog::debug("[AmsDetail] Tray sized to {}px (1/3 of {}px grid)", tray_height, grid_height);
 }
 
@@ -151,12 +154,32 @@ void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
 
     for (int i = 0; i < slot_count; ++i) {
         if (slot_widgets[i]) {
-            int32_t slot_center_x = layout.slot_width / 2 + i * slot_spacing;
+            // Formula matches slot_grid flex positions, plus centering offset
+            int32_t slot_center_x =
+                layout.centering_offset + layout.slot_width / 2 + i * slot_spacing;
             ui_ams_slot_move_label_to_layer(slot_widgets[i], w.labels_layer, slot_center_x);
         }
     }
 
     spdlog::debug("[AmsDetail] Moved {} labels to overlay layer", slot_count);
+}
+
+void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
+                              const AmsSlotLayout& layout) {
+    if (!w.badge_layer)
+        return;
+
+    int32_t slot_spacing = layout.slot_width - layout.overlap;
+
+    for (int i = 0; i < slot_count; ++i) {
+        if (slot_widgets[i]) {
+            int32_t slot_center_x =
+                layout.centering_offset + layout.slot_width / 2 + i * slot_spacing;
+            ui_ams_slot_move_badge_to_layer(slot_widgets[i], w.badge_layer, slot_center_x);
+        }
+    }
+
+    spdlog::debug("[AmsDetail] Moved {} badges to overlay layer", slot_count);
 }
 
 void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,

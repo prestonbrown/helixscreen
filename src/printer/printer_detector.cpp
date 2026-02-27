@@ -251,6 +251,8 @@ bool has_pattern(const std::vector<std::string>& objects, const std::string& pat
 // Check if all patterns in array are present
 bool has_all_patterns(const std::vector<std::string>& objects, const json& patterns) {
     for (const auto& pattern : patterns) {
+        if (!pattern.is_string())
+            continue;
         if (!has_pattern(objects, pattern.get<std::string>())) {
             return false;
         }
@@ -312,26 +314,26 @@ bool check_build_volume_range(const BuildVolume& volume, const json& heuristic) 
         return false;
     }
 
-    // Check X range
+    // Check X range (value() provides type-safe default if key is wrong type)
     if (heuristic.contains("min_x")) {
-        float min_x = heuristic["min_x"].get<float>();
+        float min_x = heuristic.value("min_x", 0.0f);
         if (x_size < min_x)
             return false;
     }
     if (heuristic.contains("max_x")) {
-        float max_x = heuristic["max_x"].get<float>();
+        float max_x = heuristic.value("max_x", 0.0f);
         if (x_size > max_x)
             return false;
     }
 
     // Check Y range
     if (heuristic.contains("min_y")) {
-        float min_y = heuristic["min_y"].get<float>();
+        float min_y = heuristic.value("min_y", 0.0f);
         if (y_size < min_y)
             return false;
     }
     if (heuristic.contains("max_y")) {
-        float max_y = heuristic["max_y"].get<float>();
+        float max_y = heuristic.value("max_y", 0.0f);
         if (y_size > max_y)
             return false;
     }

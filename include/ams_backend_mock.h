@@ -463,7 +463,7 @@ class AmsBackendMock : public AmsBackend {
     bool realistic_mode_ = false; ///< Enable multi-phase operations (HEATING→LOADING→CHECKING)
 
     // Path visualization state
-    PathTopology topology_ = PathTopology::HUB;        ///< Simulated topology (default hub for AFC)
+    PathTopology topology_ = PathTopology::LINEAR;      ///< Simulated topology (default linear for HH)
     PathSegment filament_segment_ = PathSegment::NONE; ///< Current filament position
     PathSegment error_segment_ = PathSegment::NONE;    ///< Error location (if any)
 

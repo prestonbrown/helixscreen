@@ -83,7 +83,11 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
     // Subscribe to printer image changes for immediate refresh
     image_changed_observer_ = observe_int_sync<HomePanel>(
         helix::PrinterImageManager::instance().get_image_changed_subject(), this,
-        [](HomePanel* self, int /*ver*/) { self->refresh_printer_image(); });
+        [](HomePanel* self, int /*ver*/) {
+            // Clear cache so refresh_printer_image() actually applies the new image
+            self->last_printer_image_path_.clear();
+            self->refresh_printer_image();
+        });
 }
 
 HomePanel::~HomePanel() {
@@ -264,7 +268,7 @@ void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     }
 
     // Load printer image from config (if available)
-    reload_from_config();
+    apply_printer_config();
 
     // Check initial AMS state and show indicator if AMS is already available
     // (The observer may have fired before panel_ was set during init_subjects)
@@ -532,18 +536,13 @@ void HomePanel::handle_ams_clicked() {
     }
 }
 
-void HomePanel::reload_from_config() {
+void HomePanel::apply_printer_config() {
     using helix::ui::observe_int_sync;
 
     Config* config = Config::get_instance();
     if (!config) {
-        spdlog::warn("[{}] reload_from_config: Config not available", get_name());
+        spdlog::warn("[{}] apply_printer_config: Config not available", get_name());
         return;
-    }
-
-    // Delegate LED config reload to LedWidget via generic dispatch
-    for (auto& w : active_widgets_) {
-        w->reload_from_config();
     }
 
     // Update printer type in PrinterState (triggers capability cache refresh)
@@ -577,6 +576,26 @@ void HomePanel::refresh_printer_image() {
     if (!subjects_initialized_ || !panel_)
         return;
 
+    lv_display_t* disp = lv_display_get_default();
+    int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
+
+    // Resolve the image path (lightweight string work) before touching LVGL widgets
+    auto& pim = helix::PrinterImageManager::instance();
+    std::string resolved_path = pim.get_active_image_path(screen_width);
+    if (resolved_path.empty()) {
+        // Auto-detect from printer type using PrinterImages
+        Config* config = Config::get_instance();
+        std::string printer_type =
+            config ? config->get<std::string>(helix::wizard::PRINTER_TYPE, "") : "";
+        resolved_path = PrinterImages::get_best_printer_image(printer_type);
+    }
+
+    // Skip redundant work if the image path hasn't changed
+    if (resolved_path == last_printer_image_path_) {
+        return;
+    }
+    last_printer_image_path_ = resolved_path;
+
     // Free old snapshot — image source is about to change
     if (cached_printer_snapshot_) {
         lv_obj_t* img = lv_obj_find_by_name(panel_, "printer_image");
@@ -593,31 +612,10 @@ void HomePanel::refresh_printer_image() {
         cached_printer_snapshot_ = nullptr;
     }
 
-    lv_display_t* disp = lv_display_get_default();
-    int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
-
-    // Check for user-selected printer image (custom or shipped override)
-    auto& pim = helix::PrinterImageManager::instance();
-    std::string custom_path = pim.get_active_image_path(screen_width);
-    if (!custom_path.empty()) {
-        lv_obj_t* img = lv_obj_find_by_name(panel_, "printer_image");
-        if (img) {
-            lv_image_set_src(img, custom_path.c_str());
-            spdlog::debug("[{}] User-selected printer image: '{}'", get_name(), custom_path);
-        }
-        schedule_printer_image_snapshot();
-        return;
-    }
-
-    // Auto-detect from printer type using PrinterImages
-    Config* config = Config::get_instance();
-    std::string printer_type =
-        config ? config->get<std::string>(helix::wizard::PRINTER_TYPE, "") : "";
-    std::string image_path = PrinterImages::get_best_printer_image(printer_type);
     lv_obj_t* img = lv_obj_find_by_name(panel_, "printer_image");
     if (img) {
-        lv_image_set_src(img, image_path.c_str());
-        spdlog::debug("[{}] Printer image: '{}' for '{}'", get_name(), image_path, printer_type);
+        lv_image_set_src(img, resolved_path.c_str());
+        spdlog::debug("[{}] Printer image: '{}'", get_name(), resolved_path);
     }
     schedule_printer_image_snapshot();
 }

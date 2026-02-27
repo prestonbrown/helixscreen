@@ -29,11 +29,15 @@ class TemperatureWidget : public PanelWidget {
         return "temperature";
     }
 
+    // XML event callback (public for early registration in register_temperature_widget)
+    static void temp_clicked_cb(lv_event_t* e);
+
   private:
     PrinterState& printer_state_;
     TempControlPanel* temp_control_panel_;
 
     lv_obj_t* widget_obj_ = nullptr;
+    lv_obj_t* temp_btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     lv_obj_t* nozzle_temp_panel_ = nullptr;
 
@@ -50,8 +54,6 @@ class TemperatureWidget : public PanelWidget {
     void on_extruder_target_changed(int target_centi);
     void update_temp_icon_animation();
     void handle_temp_clicked();
-
-    static void temp_clicked_cb(lv_event_t* e);
 };
 
 } // namespace helix

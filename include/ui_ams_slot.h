@@ -112,6 +112,18 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int32_t slot_center_x);
 
 /**
+ * @brief Move status badge to an external container for z-ordering
+ *
+ * Reparents the status badge (slot number indicator) to a badge layer
+ * that renders in front of the tray.
+ *
+ * @param obj           The ams_slot widget
+ * @param badge_layer   Target container (should be above tray in z-order)
+ * @param slot_center_x X position of slot center in badge_layer coords
+ */
+void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32_t slot_center_x);
+
+/**
  * @brief Set pulsing animation state for a slot (during loading operations)
  *
  * When enabled, the spool_container border pulses continuously to indicate

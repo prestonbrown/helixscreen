@@ -62,6 +62,9 @@ namespace helix {
 void register_network_widget() {
     register_widget_factory("network", []() { return std::make_unique<NetworkWidget>(); });
     register_widget_subjects("network", network_widget_init_subjects);
+
+    // Register XML event callbacks at startup (before any XML is parsed)
+    lv_xml_register_event_cb(nullptr, "network_clicked_cb", NetworkWidget::network_clicked_cb);
 }
 } // namespace helix
 
@@ -99,9 +102,6 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         spdlog::debug("[NetworkWidget] Started signal polling timer ({}ms)",
                       SIGNAL_POLL_INTERVAL_MS);
     }
-
-    // Register XML callback
-    lv_xml_register_event_cb(nullptr, "network_clicked_cb", network_clicked_cb);
 
     spdlog::debug("[NetworkWidget] Attached");
 }

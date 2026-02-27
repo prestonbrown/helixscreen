@@ -243,6 +243,24 @@ void TelemetryDataOverlay::populate_events() {
                 event_type = "Print Outcome";
             } else if (event_type == "crash") {
                 event_type = "Crash Report";
+            } else if (event_type == "memory_snapshot") {
+                event_type = "Memory Snapshot";
+            } else if (event_type == "hardware_profile") {
+                event_type = "Hardware Profile";
+            } else if (event_type == "settings_snapshot") {
+                event_type = "Settings Snapshot";
+            } else if (event_type == "panel_usage") {
+                event_type = "Panel Usage";
+            } else if (event_type == "connection_stability") {
+                event_type = "Connection Stability";
+            } else if (event_type == "print_start_context") {
+                event_type = "Print Start";
+            } else if (event_type == "error_encountered") {
+                event_type = "Error";
+            } else if (event_type == "update_failed") {
+                event_type = "Update Failed";
+            } else if (event_type == "update_success") {
+                event_type = "Update Success";
             }
         }
 
@@ -258,6 +276,27 @@ void TelemetryDataOverlay::populate_events() {
         if (event.contains("event") && event["event"].is_string()) {
             type_str = event["event"].get<std::string>();
         }
+
+        // Helper lambdas for rendering simple fields
+        auto add_field_str = [&](const char* key, const char* display_name) {
+            if (event.contains(key) && event[key].is_string()) {
+                make_label(card, std::string(display_name) + ": " + event[key].get<std::string>(),
+                           "text_subtle");
+            }
+        };
+        auto add_field_num = [&](const char* key, const char* display_name, const char* suffix) {
+            if (event.contains(key) && event[key].is_number()) {
+                char buf[64];
+                if (event[key].is_number_integer()) {
+                    snprintf(buf, sizeof(buf), "%s: %d%s", display_name, event[key].get<int>(),
+                             suffix);
+                } else {
+                    snprintf(buf, sizeof(buf), "%s: %.1f%s", display_name, event[key].get<double>(),
+                             suffix);
+                }
+                make_label(card, buf, "text_subtle");
+            }
+        };
 
         if (type_str == "session") {
             // Session fields are nested under "app"
@@ -404,28 +443,6 @@ void TelemetryDataOverlay::populate_events() {
                 }
             }
         } else if (type_str == "print_outcome") {
-            // Print outcome fields are at top level
-            auto add_field_str = [&](const char* key, const char* display_name) {
-                if (event.contains(key) && event[key].is_string()) {
-                    make_label(card,
-                               std::string(display_name) + ": " + event[key].get<std::string>(),
-                               "text_subtle");
-                }
-            };
-            auto add_field_num = [&](const char* key, const char* display_name,
-                                     const char* suffix) {
-                if (event.contains(key) && event[key].is_number()) {
-                    char buf[64];
-                    if (event[key].is_number_integer()) {
-                        snprintf(buf, sizeof(buf), "%s: %d%s", display_name, event[key].get<int>(),
-                                 suffix);
-                    } else {
-                        snprintf(buf, sizeof(buf), "%s: %.1f%s", display_name,
-                                 event[key].get<double>(), suffix);
-                    }
-                    make_label(card, buf, "text_subtle");
-                }
-            };
             add_field_str("outcome", "Outcome");
             add_field_num("duration_sec", "Duration", "s");
             add_field_str("filament_type", "Filament");
@@ -435,6 +452,234 @@ void TelemetryDataOverlay::populate_events() {
             add_field_num("bed_temp", "Bed",
                           "\xC2\xB0"
                           "C");
+
+        } else if (type_str == "crash") {
+            add_field_str("signal_name", "Signal");
+            add_field_num("signal", "Signal #", "");
+            add_field_str("app_version", "Version");
+            add_field_num("uptime_sec", "Uptime", "s");
+            if (event.contains("backtrace") && event["backtrace"].is_array()) {
+                make_label(card,
+                           "Backtrace: " + std::to_string(event["backtrace"].size()) + " frames",
+                           "text_subtle");
+            }
+
+        } else if (type_str == "memory_snapshot") {
+            add_field_str("trigger", "Trigger");
+            add_field_num("uptime_sec", "Uptime", "s");
+            add_field_num("rss_kb", "RSS", " KB");
+            add_field_num("vm_size_kb", "VM Size", " KB");
+            add_field_num("vm_peak_kb", "VM Peak", " KB");
+            add_field_num("vm_hwm_kb", "High Water Mark", " KB");
+
+        } else if (type_str == "hardware_profile") {
+            // Show key sections from nested JSON
+            if (event.contains("printer") && event["printer"].is_object()) {
+                const auto& p = event["printer"];
+                std::string line;
+                if (p.contains("detected_model") && p["detected_model"].is_string()) {
+                    line = p["detected_model"].get<std::string>();
+                }
+                if (p.contains("kinematics") && p["kinematics"].is_string()) {
+                    if (!line.empty())
+                        line += " | ";
+                    line += p["kinematics"].get<std::string>();
+                }
+                if (!line.empty()) {
+                    make_label(card, "Printer: " + line, "text_subtle");
+                }
+            }
+            if (event.contains("mcus") && event["mcus"].is_object()) {
+                const auto& m = event["mcus"];
+                std::string line;
+                if (m.contains("primary") && m["primary"].is_string()) {
+                    line = "MCU: " + m["primary"].get<std::string>();
+                }
+                if (m.contains("count") && m["count"].is_number_integer()) {
+                    int cnt = m["count"].get<int>();
+                    if (cnt > 1) {
+                        line += " (x" + std::to_string(cnt) + ")";
+                    }
+                }
+                if (!line.empty()) {
+                    make_label(card, line, "text_subtle");
+                }
+            }
+            if (event.contains("build_volume") && event["build_volume"].is_object()) {
+                const auto& bv = event["build_volume"];
+                if (bv.contains("x_mm") && bv.contains("y_mm")) {
+                    std::string vol = std::to_string(bv["x_mm"].get<int>()) + "x" +
+                                      std::to_string(bv["y_mm"].get<int>());
+                    if (bv.contains("z_mm") && bv["z_mm"].is_number()) {
+                        vol += "x" + std::to_string(bv["z_mm"].get<int>());
+                    }
+                    make_label(card, "Build Volume: " + vol + " mm", "text_subtle");
+                }
+            }
+            if (event.contains("extruders") && event["extruders"].is_object()) {
+                const auto& e = event["extruders"];
+                std::string line;
+                if (e.contains("count") && e["count"].is_number_integer()) {
+                    line = std::to_string(e["count"].get<int>()) + " extruder(s)";
+                }
+                if (e.contains("has_heater_bed") && e["has_heater_bed"].get<bool>()) {
+                    line += ", heated bed";
+                }
+                if (e.contains("has_chamber_heater") && e["has_chamber_heater"].get<bool>()) {
+                    line += ", chamber heater";
+                }
+                if (!line.empty()) {
+                    make_label(card, line, "text_subtle");
+                }
+            }
+            // Fans, steppers, LEDs summary
+            {
+                std::string hw_line;
+                if (event.contains("fans") && event["fans"].contains("total")) {
+                    hw_line += std::to_string(event["fans"]["total"].get<int>()) + " fans";
+                }
+                if (event.contains("steppers") && event["steppers"].contains("count")) {
+                    if (!hw_line.empty())
+                        hw_line += ", ";
+                    hw_line += std::to_string(event["steppers"]["count"].get<int>()) + " steppers";
+                }
+                if (event.contains("leds") && event["leds"].contains("count")) {
+                    if (!hw_line.empty())
+                        hw_line += ", ";
+                    hw_line += std::to_string(event["leds"]["count"].get<int>()) + " LEDs";
+                }
+                if (!hw_line.empty()) {
+                    make_label(card, hw_line, "text_subtle");
+                }
+            }
+            // Capabilities summary (show true capabilities)
+            if (event.contains("capabilities") && event["capabilities"].is_object()) {
+                std::string caps;
+                for (auto it = event["capabilities"].begin(); it != event["capabilities"].end();
+                     ++it) {
+                    if (it.value().is_boolean() && it.value().get<bool>()) {
+                        std::string name = it.key();
+                        // Strip "has_" prefix for readability
+                        if (name.rfind("has_", 0) == 0) {
+                            name = name.substr(4);
+                        }
+                        if (!caps.empty())
+                            caps += ", ";
+                        caps += name;
+                    }
+                }
+                if (!caps.empty()) {
+                    make_label(card, "Capabilities: " + caps, "text_subtle");
+                }
+            }
+            // AMS
+            if (event.contains("ams") && event["ams"].is_object()) {
+                const auto& a = event["ams"];
+                std::string line = "AMS:";
+                if (a.contains("type") && a["type"].is_string()) {
+                    line += " " + a["type"].get<std::string>();
+                }
+                if (a.contains("total_slots") && a["total_slots"].is_number_integer()) {
+                    line += " (" + std::to_string(a["total_slots"].get<int>()) + " slots)";
+                }
+                make_label(card, line, "text_subtle");
+            }
+            // Tools
+            if (event.contains("tools") && event["tools"].is_object()) {
+                const auto& t = event["tools"];
+                if (t.contains("count") && t["count"].is_number_integer()) {
+                    std::string line = std::to_string(t["count"].get<int>()) + " tool(s)";
+                    if (t.contains("is_multi_tool") && t["is_multi_tool"].get<bool>()) {
+                        line += " (multi-tool)";
+                    }
+                    make_label(card, "Tools: " + line, "text_subtle");
+                }
+            }
+
+        } else if (type_str == "settings_snapshot") {
+            add_field_str("theme", "Theme");
+            add_field_num("brightness_pct", "Brightness", "%");
+            add_field_str("locale", "Locale");
+            add_field_num("screensaver_timeout_sec", "Screensaver", "s");
+            add_field_num("screen_blank_timeout_sec", "Screen Blank", "s");
+            add_field_num("auto_update_channel", "Update Channel", "");
+
+        } else if (type_str == "panel_usage") {
+            add_field_num("session_duration_sec", "Session Duration", "s");
+            add_field_num("overlay_open_count", "Overlays Opened", "");
+            // Show panel times
+            if (event.contains("panel_time_sec") && event["panel_time_sec"].is_object()) {
+                std::string panels;
+                for (auto it = event["panel_time_sec"].begin(); it != event["panel_time_sec"].end();
+                     ++it) {
+                    if (!panels.empty())
+                        panels += ", ";
+                    panels += it.key() + ": " + std::to_string(it.value().get<int>()) + "s";
+                }
+                if (!panels.empty()) {
+                    make_label(card, "Time: " + panels, "text_subtle");
+                }
+            }
+            if (event.contains("panel_visits") && event["panel_visits"].is_object()) {
+                std::string visits;
+                for (auto it = event["panel_visits"].begin(); it != event["panel_visits"].end();
+                     ++it) {
+                    if (!visits.empty())
+                        visits += ", ";
+                    visits += it.key() + ": " + std::to_string(it.value().get<int>());
+                }
+                if (!visits.empty()) {
+                    make_label(card, "Visits: " + visits, "text_subtle");
+                }
+            }
+
+        } else if (type_str == "connection_stability") {
+            add_field_num("session_duration_sec", "Session Duration", "s");
+            add_field_num("connect_count", "Connects", "");
+            add_field_num("disconnect_count", "Disconnects", "");
+            add_field_num("total_connected_sec", "Connected Time", "s");
+            add_field_num("total_disconnected_sec", "Disconnected Time", "s");
+            add_field_num("longest_disconnect_sec", "Longest Disconnect", "s");
+            add_field_num("klippy_error_count", "Klippy Errors", "");
+            add_field_num("klippy_shutdown_count", "Klippy Shutdowns", "");
+
+        } else if (type_str == "print_start_context") {
+            add_field_str("source", "Source");
+            if (event.contains("has_thumbnail")) {
+                make_label(card,
+                           std::string("Thumbnail: ") +
+                               (event["has_thumbnail"].get<bool>() ? "Yes" : "No"),
+                           "text_subtle");
+            }
+            add_field_str("file_size_bucket", "File Size");
+            add_field_str("estimated_duration_bucket", "Est. Duration");
+            add_field_str("slicer", "Slicer");
+            add_field_num("tool_count_used", "Tools Used", "");
+            if (event.contains("ams_active")) {
+                make_label(card,
+                           std::string("AMS Active: ") +
+                               (event["ams_active"].get<bool>() ? "Yes" : "No"),
+                           "text_subtle");
+            }
+
+        } else if (type_str == "error_encountered") {
+            add_field_str("category", "Category");
+            add_field_str("code", "Code");
+            add_field_str("context", "Context");
+            add_field_num("uptime_sec", "Uptime", "s");
+
+        } else if (type_str == "update_failed") {
+            add_field_str("reason", "Reason");
+            add_field_str("version", "Target Version");
+            add_field_str("from_version", "From Version");
+            add_field_str("platform", "Platform");
+            add_field_num("http_code", "HTTP Code", "");
+            add_field_num("exit_code", "Exit Code", "");
+
+        } else if (type_str == "update_success") {
+            add_field_str("version", "Version");
+            add_field_str("from_version", "From Version");
+            add_field_str("platform", "Platform");
         }
 
         // Show the full hashed device ID (no truncation)

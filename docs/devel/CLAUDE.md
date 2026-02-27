@@ -47,7 +47,7 @@ All developer documentation lives here. When working on features, look up the re
 | `PRINT_START_INTEGRATION.md` | User-facing macro setup for print start tracking |
 | `UPDATE_SYSTEM.md` | Update channels (stable/beta/dev), R2 CDN, Moonraker updater |
 | `SOUND_SYSTEM.md` | Audio architecture, JSON themes, backends (SDL, PWM, M300). User guide: `../user/guide/settings.md#sound-settings` |
-| `LED_CONTROL.md` | LED control system: 4 backends, auto-state lighting, control/settings overlays |
+| `LED_CONTROL.md` | LED control system: 5 backends, auto-state lighting, control/settings overlays, home panel widget |
 | `PRINTER_MANAGER.md` | Printer overlay, custom images, inline name editing |
 | `TIMELAPSE.md` | Moonraker timelapse plugin integration |
 | `CRASH_REPORTER.md` | Crash reporter: detection, delivery pipeline, CF Worker, modal UI |

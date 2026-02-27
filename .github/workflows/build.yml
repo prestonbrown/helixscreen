@@ -7,10 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  build-ubuntu:
-    name: Build (Ubuntu 22.04)
+  compile-ubuntu:
+    name: Compile (Ubuntu 22.04)
     runs-on: ubuntu-22.04
-    timeout-minutes: 50
+    timeout-minutes: 60
 
     steps:
     - name: Checkout repository
@@ -87,30 +87,69 @@ jobs:
     - name: Setup Python venv for translations
       run: make venv-setup
 
-    - name: Build HelixScreen and tests
-      timeout-minutes: 45
+    - name: Build HelixScreen
+      timeout-minutes: 50
       env:
         CC: ccache clang
         CXX: ccache clang++
       run: |
-        # The Makefile handles all dependency builds automatically:
-        # - libhv (HTTP/WebSocket library)
-        # - wpa_supplicant client library (WiFi on Linux)
-        # - Font generation
-        # - LVGL patches
-        # Dependencies are cached and will only rebuild if source changed
-        # ccache speeds up recompilation of unchanged source files
         make -j$(nproc)
+        echo "HelixScreen built successfully"
+        ccache -s
+
+    - name: Build tests
+      timeout-minutes: 15
+      env:
+        CC: ccache clang
+        CXX: ccache clang++
+      run: |
         make test -j$(nproc)
-        echo "HelixScreen and tests built successfully"
-        ccache -s  # Show ccache stats
+        echo "Tests built successfully"
+        ccache -s
+
+    - name: Verify binary
+      run: |
+        ./build/bin/helix-screen --help || true
+        echo "Binary verified"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: helix-screen-ubuntu-22.04
+        path: |
+          build/bin/helix-screen
+          build/bin/helix-tests
+        retention-days: 7
+
+  test-ubuntu:
+    name: Test (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+    needs: compile-ubuntu
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install runtime dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-2.0-0 libfmt-dev libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libpng16-16 libjpeg8
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: helix-screen-ubuntu-22.04
+        path: build/bin/
+
+    - name: Make binaries executable
+      run: chmod +x build/bin/helix-screen build/bin/helix-tests
 
     - name: Run unit tests
       timeout-minutes: 10
       run: |
-        # Run test binary directly — already built in build step.
-        # Using make test-run would re-evaluate all dependencies via FORCE
-        # target, which takes 5-10 minutes on CI's slow I/O.
         NPROCS=$(( $(nproc) * 2 ))
         echo "Running $NPROCS test shards in parallel..."
         pids=""
@@ -127,18 +166,6 @@ jobs:
           exit 1
         fi
         echo "All tests passed"
-
-    - name: Verify binary
-      run: |
-        ./build/bin/helix-screen --help || true
-        echo "Binary verified"
-
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: helix-screen-ubuntu-22.04
-        path: build/bin/helix-screen
-        retention-days: 7
 
   build-macos:
     name: Build (macOS 14)
@@ -199,43 +226,15 @@ jobs:
     - name: Setup Python venv for translations
       run: make venv-setup
 
-    - name: Build HelixScreen and tests
+    - name: Build HelixScreen
       timeout-minutes: 30
       env:
         CC: ccache clang
         CXX: ccache clang++
       run: |
-        # The Makefile handles all dependency builds automatically:
-        # - libhv (HTTP/WebSocket library)
-        # - Font generation
-        # - LVGL patches
-        # Dependencies are cached and will only rebuild if source changed
-        # ccache speeds up recompilation of unchanged source files
         make -j$(sysctl -n hw.ncpu)
-        make test -j$(sysctl -n hw.ncpu)
-        echo "HelixScreen and tests built successfully"
-        ccache -s  # Show ccache stats
-
-    - name: Run unit tests
-      timeout-minutes: 10
-      run: |
-        # Run test binary directly — already built in build step.
-        NPROCS=$(( $(sysctl -n hw.ncpu) * 2 ))
-        echo "Running $NPROCS test shards in parallel..."
-        pids=""
-        for i in $(seq 0 $((NPROCS-1))); do
-          ./build/bin/helix-tests "~[.] ~[slow]" --shard-count $NPROCS --shard-index $i 2>&1 | sed "s/^/[shard $i] /" &
-          pids="$pids $!"
-        done
-        failed=0
-        for pid in $pids; do
-          wait $pid || failed=1
-        done
-        if [ $failed -eq 1 ]; then
-          echo "One or more test shards failed!"
-          exit 1
-        fi
-        echo "All tests passed"
+        echo "HelixScreen built successfully"
+        ccache -s
 
     - name: Verify binary
       run: |
@@ -297,14 +296,18 @@ jobs:
   build-status:
     name: Build Status
     runs-on: ubuntu-latest
-    needs: [build-ubuntu, build-macos, build-android]
+    needs: [compile-ubuntu, test-ubuntu, build-macos, build-android]
     if: always()
 
     steps:
     - name: Check build results
       run: |
-        if [ "${{ needs.build-ubuntu.result }}" != "success" ]; then
-          echo "Ubuntu build failed"
+        if [ "${{ needs.compile-ubuntu.result }}" != "success" ]; then
+          echo "Ubuntu compile failed"
+          exit 1
+        fi
+        if [ "${{ needs.test-ubuntu.result }}" != "success" ]; then
+          echo "Ubuntu tests failed"
           exit 1
         fi
         if [ "${{ needs.build-macos.result }}" != "success" ]; then

@@ -11,7 +11,13 @@ import {
   crashesQueries,
   crashListQuery,
   releasesQueries,
+  memoryQueries,
+  hardwareQueries,
+  engagementQueries,
+  reliabilityQueries,
+  printStartQueries,
   type QueryConfig,
+  type FilterParams,
 } from "./queries";
 
 // Rate limiting binding type (added in @cloudflare/workers-types after our pinned version)
@@ -75,6 +81,17 @@ function validateEvent(evt: unknown, index: number): string | null {
     return `event[${index}]: timestamp must be a non-empty string`;
   }
   return null;
+}
+
+function parseFilters(searchParams: URLSearchParams): FilterParams {
+  const filters: FilterParams = {};
+  const platform = searchParams.get("platform");
+  const version = searchParams.get("version");
+  const model = searchParams.get("model");
+  if (platform) filters.platform = platform;
+  if (version) filters.version = version;
+  if (model) filters.model = model;
+  return filters;
 }
 
 export default {
@@ -246,11 +263,12 @@ export default {
 
       const range = url.searchParams.get("range");
       const days = parseRange(range);
+      const filters = parseFilters(url.searchParams);
 
       try {
         // GET /v1/dashboard/overview
         if (url.pathname === "/v1/dashboard/overview") {
-          const queries = overviewQueries(days);
+          const queries = overviewQueries(days, filters);
           const [devicesRes, totalRes, rateRes, printRes, timeRes, dailyActiveRes, firstSeenRes] =
             await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
 
@@ -298,7 +316,7 @@ export default {
 
         // GET /v1/dashboard/adoption
         if (url.pathname === "/v1/dashboard/adoption") {
-          const queries = adoptionQueries(days);
+          const queries = adoptionQueries(days, filters);
           const [platformsRes, versionsRes, modelsRes, kinematicsRes] =
             await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
 
@@ -317,13 +335,22 @@ export default {
 
         // GET /v1/dashboard/prints
         if (url.pathname === "/v1/dashboard/prints") {
-          const queries = printsQueries(days);
-          const [rateTimeRes, filamentRes, avgDurRes] =
-            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+          const queries = printsQueries(days, filters);
+          const startQueries = printStartQueries(days, filters);
+          const allResults = await Promise.all(
+            [...queries, ...startQueries].map((q) => executeQuery(queryConfig, q)),
+          );
+
+          const [rateTimeRes, filamentRes, avgDurRes, slicerRes, fileSizeRes, thumbRes, amsRes, sourceRes] = allResults;
 
           const rateTimeData = rateTimeRes as { data: Array<{ date: string; rate: number; total: number }> };
           const filamentData = filamentRes as { data: Array<{ type: string; success_rate: number; count: number }> };
           const avgDurData = avgDurRes as { data: Array<{ avg_duration_sec: number }> };
+          const slicerData = slicerRes as { data: Array<{ name: string; count: number }> };
+          const fileSizeData = fileSizeRes as { data: Array<{ name: string; count: number }> };
+          const thumbData = thumbRes as { data: Array<{ thumbnail_rate: number }> };
+          const amsData = amsRes as { data: Array<{ ams_rate: number }> };
+          const sourceData = sourceRes as { data: Array<{ name: string; count: number }> };
 
           return json({
             success_rate_over_time: (rateTimeData.data ?? []).map((r) => ({
@@ -337,12 +364,19 @@ export default {
               count: r.count,
             })),
             avg_duration_sec: avgDurData.data?.[0]?.avg_duration_sec ?? 0,
+            start_context: {
+              slicers: (slicerData.data ?? []).map((r) => ({ name: r.name, count: r.count })),
+              file_size_buckets: (fileSizeData.data ?? []).map((r) => ({ name: r.name, count: r.count })),
+              thumbnail_rate: thumbData.data?.[0]?.thumbnail_rate ?? 0,
+              ams_rate: amsData.data?.[0]?.ams_rate ?? 0,
+              sources: (sourceData.data ?? []).map((r) => ({ name: r.name, count: r.count })),
+            },
           });
         }
 
         // GET /v1/dashboard/crashes
         if (url.pathname === "/v1/dashboard/crashes") {
-          const queries = crashesQueries(days);
+          const queries = crashesQueries(days, filters);
           const [crashByVerRes, sessionByVerRes, signalRes, uptimeRes] =
             await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
 
@@ -381,7 +415,7 @@ export default {
             parseInt(url.searchParams.get("limit") ?? "50", 10) || 50,
             200,
           ));
-          const sql = crashListQuery(days, limit);
+          const sql = crashListQuery(days, limit, filters);
           const result = await executeQuery(queryConfig, sql);
           const data = result as {
             data: Array<{
@@ -402,6 +436,156 @@ export default {
               signal: r.sig,
               platform: r.platform,
               uptime_sec: r.uptime_sec,
+            })),
+          });
+        }
+
+        // GET /v1/dashboard/memory
+        if (url.pathname === "/v1/dashboard/memory") {
+          const queries = memoryQueries(days, filters);
+          const [rssTimeRes, rssPlatformRes, vmPeakRes] =
+            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+
+          const rssTimeData = rssTimeRes as { data: Array<{ date: string; avg_rss_kb: number; p95_rss_kb: number; max_rss_kb: number }> };
+          const rssPlatformData = rssPlatformRes as { data: Array<{ platform: string; avg_rss_kb: number }> };
+          const vmPeakData = vmPeakRes as { data: Array<{ date: string; avg_vm_peak_kb: number }> };
+
+          return json({
+            rss_over_time: (rssTimeData.data ?? []).map((r) => ({
+              date: r.date,
+              avg_rss_kb: r.avg_rss_kb,
+              p95_rss_kb: r.p95_rss_kb,
+              max_rss_kb: r.max_rss_kb,
+            })),
+            rss_by_platform: (rssPlatformData.data ?? []).map((r) => ({
+              platform: r.platform,
+              avg_rss_kb: r.avg_rss_kb,
+            })),
+            vm_peak_trend: (vmPeakData.data ?? []).map((r) => ({
+              date: r.date,
+              avg_vm_peak_kb: r.avg_vm_peak_kb,
+            })),
+          });
+        }
+
+        // GET /v1/dashboard/hardware
+        if (url.pathname === "/v1/dashboard/hardware") {
+          const queries = hardwareQueries(days, filters);
+          const [modelsRes, kinematicsRes, mcuRes, capsRes, volRes, countsRes] =
+            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+
+          const toList = (res: unknown) => {
+            const d = res as { data: Array<{ name: string; count: number }> };
+            return (d.data ?? []).map((r) => ({ name: r.name, count: r.count }));
+          };
+
+          const capsData = capsRes as { data: Array<Record<string, number>> };
+          const capsRow = capsData.data?.[0] ?? {};
+          const volData = volRes as { data: Array<{ avg_vol_x: number; avg_vol_y: number; avg_vol_z: number }> };
+          const volRow = volData.data?.[0] ?? { avg_vol_x: 0, avg_vol_y: 0, avg_vol_z: 0 };
+          const countsData = countsRes as { data: Array<{ avg_fan_count: number; avg_sensor_count: number; avg_macro_count: number }> };
+          const countsRow = countsData.data?.[0] ?? { avg_fan_count: 0, avg_sensor_count: 0, avg_macro_count: 0 };
+
+          return json({
+            printer_models: toList(modelsRes),
+            kinematics: toList(kinematicsRes),
+            mcu_chips: toList(mcuRes),
+            capabilities: {
+              total: capsRow.total ?? 0,
+              bits: [
+                capsRow.cap_0 ?? 0,
+                capsRow.cap_1 ?? 0,
+                capsRow.cap_2 ?? 0,
+                capsRow.cap_3 ?? 0,
+                capsRow.cap_4 ?? 0,
+                capsRow.cap_5 ?? 0,
+                capsRow.cap_6 ?? 0,
+                capsRow.cap_7 ?? 0,
+              ],
+            },
+            avg_build_volume: {
+              x: volRow.avg_vol_x,
+              y: volRow.avg_vol_y,
+              z: volRow.avg_vol_z,
+            },
+            avg_counts: {
+              fans: countsRow.avg_fan_count,
+              sensors: countsRow.avg_sensor_count,
+              macros: countsRow.avg_macro_count,
+            },
+          });
+        }
+
+        // GET /v1/dashboard/engagement
+        if (url.pathname === "/v1/dashboard/engagement") {
+          const queries = engagementQueries(days, filters);
+          const [panelTimeRes, panelVisitsRes, sessionTrendRes, themeRes, localeRes, brightnessRes] =
+            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+
+          const toList = (res: unknown) => {
+            const d = res as { data: Array<{ name: string; count: number }> };
+            return (d.data ?? []).map((r) => ({ name: r.name, count: r.count }));
+          };
+
+          const panelTimeData = panelTimeRes as { data: Array<{ panel: string; total_time_sec: number }> };
+          const panelVisitsData = panelVisitsRes as { data: Array<{ panel: string; total_visits: number }> };
+          const sessionTrendData = sessionTrendRes as { data: Array<{ date: string; avg_session_sec: number }> };
+          const brightnessData = brightnessRes as { data: Array<{ p25: number; p50: number; p75: number }> };
+          const brightnessRow = brightnessData.data?.[0] ?? { p25: 0, p50: 0, p75: 0 };
+
+          return json({
+            panel_time: (panelTimeData.data ?? []).map((r) => ({
+              panel: r.panel,
+              total_time_sec: r.total_time_sec,
+            })),
+            panel_visits: (panelVisitsData.data ?? []).map((r) => ({
+              panel: r.panel,
+              total_visits: r.total_visits,
+            })),
+            session_duration_trend: (sessionTrendData.data ?? []).map((r) => ({
+              date: r.date,
+              avg_session_sec: r.avg_session_sec,
+            })),
+            themes: toList(themeRes),
+            locales: toList(localeRes),
+            brightness: {
+              p25: brightnessRow.p25,
+              p50: brightnessRow.p50,
+              p75: brightnessRow.p75,
+            },
+          });
+        }
+
+        // GET /v1/dashboard/reliability
+        if (url.pathname === "/v1/dashboard/reliability") {
+          const queries = reliabilityQueries(days, filters);
+          const [uptimeRes, disconnectRes, longestRes, errorCatsRes, errorCodesRes] =
+            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+
+          const uptimeData = uptimeRes as { data: Array<{ date: string; avg_uptime_pct: number }> };
+          const disconnectData = disconnectRes as { data: Array<{ date: string; avg_disconnects: number }> };
+          const longestData = longestRes as { data: Array<{ max_disconnect_sec: number }> };
+          const errorCatsData = errorCatsRes as { data: Array<{ category: string; count: number }> };
+          const errorCodesData = errorCodesRes as { data: Array<{ category: string; code: string; count: number }> };
+
+          return json({
+            uptime_trend: (uptimeData.data ?? []).map((r) => ({
+              date: r.date,
+              avg_uptime_pct: r.avg_uptime_pct,
+            })),
+            disconnect_trend: (disconnectData.data ?? []).map((r) => ({
+              date: r.date,
+              avg_disconnects: r.avg_disconnects,
+            })),
+            max_disconnect_sec: longestData.data?.[0]?.max_disconnect_sec ?? 0,
+            error_categories: (errorCatsData.data ?? []).map((r) => ({
+              category: r.category,
+              count: r.count,
+            })),
+            error_codes: (errorCodesData.data ?? []).map((r) => ({
+              category: r.category,
+              code: r.code,
+              count: r.count,
             })),
           });
         }

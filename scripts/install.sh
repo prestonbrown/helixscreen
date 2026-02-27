@@ -2309,16 +2309,32 @@ extract_release() {
     # printer_database.d/, etc.).  Only copies items that don't already exist in
     # the new install so bundled files are never overwritten.
     # Uses [ ! -e ] instead of cp -n for BusyBox compatibility.
+    # For directories that exist in both old and new installs (e.g. printer_database.d/),
+    # merge at the file level so user additions are preserved alongside new bundled files.
     if [ -n "${INSTALL_BACKUP:-}" ] && [ -d "${INSTALL_BACKUP}/config" ]; then
         for _item in "${INSTALL_BACKUP}/config"/*; do
             [ -e "$_item" ] || continue
             _base=$(basename "$_item")
             if [ ! -e "${INSTALL_DIR}/config/${_base}" ]; then
+                # Item doesn't exist in new install — restore the whole thing
                 if $(file_sudo "${INSTALL_DIR}/config") cp -r "$_item" "${INSTALL_DIR}/config/${_base}" 2>/dev/null; then
                     log_info "Restored user data: config/${_base}"
                 else
                     log_warn "Failed to restore user data: config/${_base}"
                 fi
+            elif [ -d "$_item" ] && [ -d "${INSTALL_DIR}/config/${_base}" ]; then
+                # Both old and new have this directory — merge individual files
+                for _subitem in "$_item"/*; do
+                    [ -e "$_subitem" ] || continue
+                    _subbase=$(basename "$_subitem")
+                    if [ ! -e "${INSTALL_DIR}/config/${_base}/${_subbase}" ]; then
+                        if $(file_sudo "${INSTALL_DIR}/config/${_base}") cp -r "$_subitem" "${INSTALL_DIR}/config/${_base}/${_subbase}" 2>/dev/null; then
+                            log_info "Restored user data: config/${_base}/${_subbase}"
+                        else
+                            log_warn "Failed to restore user data: config/${_base}/${_subbase}"
+                        fi
+                    fi
+                done
             fi
         done
     fi

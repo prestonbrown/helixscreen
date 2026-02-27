@@ -595,19 +595,21 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
 // ============================================================================
 
 void PrintSelectDetailView::show_gcode_viewer(bool show) {
-    // Mode 0 = thumbnail, 1 = 3D, 2 = 2D
+    // Mode 0 = thumbnail, 1 = 3D
+    // Detail panel only supports 3D viewer — fall back to thumbnail if 2D
     int mode = 0;
     if (show) {
         bool is_2d = gcode_viewer_ && ui_gcode_viewer_is_using_2d_mode(gcode_viewer_);
-        mode = is_2d ? 2 : 1;
+        if (!is_2d) {
+            mode = 1;
+        }
     }
     lv_subject_set_int(&detail_gcode_viewer_mode_, mode);
 
     // Hide loading spinner now that viewer state is resolved
     lv_subject_set_int(&detail_gcode_loading_, 0);
 
-    spdlog::trace("[DetailView] G-code viewer mode: {} ({})", mode,
-                  mode == 0 ? "thumbnail" : (mode == 1 ? "3D" : "2D"));
+    spdlog::trace("[DetailView] G-code viewer mode: {} ({})", mode, mode == 0 ? "thumbnail" : "3D");
 }
 
 void PrintSelectDetailView::apply_tool_colors() {

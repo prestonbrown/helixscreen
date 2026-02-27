@@ -29,6 +29,19 @@ void register_temp_stack_widget() {
         auto* tcp = PanelWidgetManager::instance().shared_resource<TempControlPanel>();
         return std::make_unique<TempStackWidget>(ps, tcp);
     });
+
+    // Register XML event callbacks at startup (before any XML is parsed)
+    lv_xml_register_event_cb(nullptr, "temp_stack_nozzle_cb",
+                             TempStackWidget::temp_stack_nozzle_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_bed_cb", TempStackWidget::temp_stack_bed_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_chamber_cb",
+                             TempStackWidget::temp_stack_chamber_cb);
+    lv_xml_register_event_cb(nullptr, "temp_stack_long_press_cb",
+                             TempStackWidget::temp_stack_long_press_cb);
+    lv_xml_register_event_cb(nullptr, "temp_carousel_long_press_cb",
+                             TempStackWidget::temp_carousel_long_press_cb);
+    lv_xml_register_event_cb(nullptr, "temp_carousel_page_cb",
+                             TempStackWidget::temp_carousel_page_cb);
 }
 } // namespace helix
 
@@ -101,14 +114,6 @@ void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     parent_screen_ = parent_screen;
     *alive_ = true;
     s_active_instance = this;
-
-    // Register XML event callbacks
-    lv_xml_register_event_cb(nullptr, "temp_stack_nozzle_cb", temp_stack_nozzle_cb);
-    lv_xml_register_event_cb(nullptr, "temp_stack_bed_cb", temp_stack_bed_cb);
-    lv_xml_register_event_cb(nullptr, "temp_stack_chamber_cb", temp_stack_chamber_cb);
-    lv_xml_register_event_cb(nullptr, "temp_stack_long_press_cb", temp_stack_long_press_cb);
-    lv_xml_register_event_cb(nullptr, "temp_carousel_long_press_cb", temp_carousel_long_press_cb);
-    lv_xml_register_event_cb(nullptr, "temp_carousel_page_cb", temp_carousel_page_cb);
 
     if (is_carousel_mode()) {
         attach_carousel(widget_obj);

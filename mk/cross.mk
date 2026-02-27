@@ -9,6 +9,8 @@
 #   make PLATFORM_TARGET=pi-fbdev  # Cross-compile for Pi (aarch64, fbdev fallback)
 #   make PLATFORM_TARGET=pi32  # Cross-compile for Raspberry Pi (armhf, DRM+GLES)
 #   make PLATFORM_TARGET=pi32-fbdev  # Cross-compile for Pi (armhf, fbdev fallback)
+#   make PLATFORM_TARGET=pi-both  # Pi 64-bit: compile once, link DRM + fbdev
+#   make PLATFORM_TARGET=pi32-both  # Pi 32-bit: compile once, link DRM + fbdev
 #   make PLATFORM_TARGET=ad5m  # Cross-compile for Adventurer 5M (armv7-a)
 #   make PLATFORM_TARGET=cc1   # Cross-compile for Centauri Carbon 1 (armv7-a)
 #   make PLATFORM_TARGET=mips  # Cross-compile for MIPS32 devices (K1)
@@ -85,6 +87,27 @@ else ifeq ($(PLATFORM_TARGET),pi-fbdev)
     BUILD_SUBDIR := pi-fbdev
     STRIP_BINARY := yes
 
+else ifeq ($(PLATFORM_TARGET),pi-both)
+    # -------------------------------------------------------------------------
+    # Raspberry Pi (aarch64) - Dual-link mode: compile once, link DRM + fbdev
+    # Produces both build/pi/bin/helix-screen (DRM) and build/pi-fbdev/bin/helix-screen (fbdev)
+    # in a single compilation pass. Used by CI to cut build time in half.
+    # -------------------------------------------------------------------------
+    CROSS_COMPILE ?= aarch64-linux-gnu-
+    TARGET_ARCH := aarch64
+    TARGET_TRIPLE := aarch64-linux-gnu
+    TARGET_CFLAGS := -march=armv8-a -funwind-tables -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_BINARY_VARIANT=\"drm\"
+    DISPLAY_BACKEND := drm
+    ENABLE_OPENGLES := yes
+    ENABLE_SDL := no
+    ENABLE_GLES_3D := yes
+    ENABLE_EVDEV := yes
+    ENABLE_SSL := yes
+    HELIX_HAS_SYSTEMD := yes
+    BUILD_SUBDIR := pi
+    STRIP_BINARY := yes
+    PI_DUAL_LINK := yes
+
 else ifeq ($(PLATFORM_TARGET),pi32)
     # -------------------------------------------------------------------------
     # Raspberry Pi 32-bit (MainsailOS armhf) - armv7-a hard-float
@@ -131,6 +154,29 @@ else ifeq ($(PLATFORM_TARGET),pi32-fbdev)
     HELIX_HAS_SYSTEMD := yes
     BUILD_SUBDIR := pi32-fbdev
     STRIP_BINARY := yes
+
+else ifeq ($(PLATFORM_TARGET),pi32-both)
+    # -------------------------------------------------------------------------
+    # Raspberry Pi 32-bit (armhf) - Dual-link mode: compile once, link DRM + fbdev
+    # Produces both build/pi32/bin/helix-screen (DRM) and build/pi32-fbdev/bin/helix-screen (fbdev)
+    # in a single compilation pass. Used by CI to cut build time in half.
+    # -------------------------------------------------------------------------
+    CROSS_COMPILE ?= arm-linux-gnueabihf-
+    TARGET_ARCH := armv7-a
+    TARGET_TRIPLE := arm-linux-gnueabihf
+    TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -funwind-tables \
+        -I/usr/arm-linux-gnueabihf/include -I/usr/include/libdrm \
+        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_PI32 -DHELIX_BINARY_VARIANT=\"drm\"
+    DISPLAY_BACKEND := drm
+    ENABLE_OPENGLES := yes
+    ENABLE_SDL := no
+    ENABLE_GLES_3D := yes
+    ENABLE_EVDEV := yes
+    ENABLE_SSL := yes
+    HELIX_HAS_SYSTEMD := yes
+    BUILD_SUBDIR := pi32
+    STRIP_BINARY := yes
+    PI_DUAL_LINK := yes
 
 else ifeq ($(PLATFORM_TARGET),ad5m)
     # -------------------------------------------------------------------------
@@ -536,7 +582,7 @@ endif
 # Cross-Compilation Build Targets
 # =============================================================================
 
-.PHONY: pi pi32 ad5m cc1 mips k1 ad5x k1-dynamic k2 snapmaker-u1 pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker k1-dynamic-docker k2-docker snapmaker-u1-docker docker-toolchains docker-toolchain-snapmaker-u1 cross-info ensure-docker ensure-buildx maybe-stop-colima
+.PHONY: pi pi-both pi32 pi32-both ad5m cc1 mips k1 ad5x k1-dynamic k2 snapmaker-u1 pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker k1-dynamic-docker k2-docker snapmaker-u1-docker docker-toolchains docker-toolchain-snapmaker-u1 cross-info ensure-docker ensure-buildx maybe-stop-colima
 
 # Persistent ccache for Docker builds — bind-mounts a host directory so the
 # cache survives across container runs (the container is --rm).  Per-platform
@@ -684,7 +730,16 @@ pi-fbdev-docker: ensure-docker
 		make PLATFORM_TARGET=pi-fbdev SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
-pi-all-docker: pi-docker pi-fbdev-docker
+pi-all-docker: ensure-docker
+	@echo "$(CYAN)$(BOLD)Cross-compiling Pi (DRM + fbdev) via Docker...$(RESET)"
+	@if ! docker image inspect helixscreen/toolchain-pi >/dev/null 2>&1; then \
+		echo "$(YELLOW)Docker image not found. Building toolchain first...$(RESET)"; \
+		$(MAKE) docker-toolchain-pi; \
+	fi
+	$(call ensure-ccache-dir,pi)
+	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
+		make PLATFORM_TARGET=pi-both SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi32-docker: ensure-docker
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Raspberry Pi 32-bit via Docker...$(RESET)"
@@ -708,7 +763,16 @@ pi32-fbdev-docker: ensure-docker
 		make PLATFORM_TARGET=pi32-fbdev SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
-pi32-all-docker: pi32-docker pi32-fbdev-docker
+pi32-all-docker: ensure-docker
+	@echo "$(CYAN)$(BOLD)Cross-compiling Pi 32-bit (DRM + fbdev) via Docker...$(RESET)"
+	@if ! docker image inspect helixscreen/toolchain-pi32 >/dev/null 2>&1; then \
+		echo "$(YELLOW)Docker image not found. Building toolchain first...$(RESET)"; \
+		$(MAKE) docker-toolchain-pi32; \
+	fi
+	$(call ensure-ccache-dir,pi32)
+	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
+		make PLATFORM_TARGET=pi32-both SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	@$(MAKE) --no-print-directory maybe-stop-colima
 
 ad5m-docker: ensure-docker
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Adventurer 5M via Docker...$(RESET)"
