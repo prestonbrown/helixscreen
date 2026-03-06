@@ -459,7 +459,18 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
                     break;
                 }
             }
-            system_info_.filament_loaded = any_loaded;
+            // When AFC explicitly reported current_load=null (shuttle empty,
+            // e.g. mid tool-swap), don't let a lane-sensor scan override
+            // filament_loaded back to true.  Per-lane LOADED status reflects
+            // the lane sensor, not the toolhead — there's a timing gap where
+            // the old lane still reads LOADED briefly after the shuttle clears.
+            if (current_slot_set_by_afc_state && system_info_.current_slot < 0) {
+                spdlog::debug("[AMS AFC] Reconciliation: preserving filament_loaded=false "
+                              "(AFC cleared current_load), scan found loaded_slot={}",
+                              loaded_slot);
+            } else {
+                system_info_.filament_loaded = any_loaded;
+            }
             // Only set current_slot as fallback when AFC state didn't provide
             // an authoritative value (tool changers have ALL lanes loaded, so
             // scanning for first loaded lane would pick the wrong one).
@@ -598,6 +609,15 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                          "— toolhead loaded state will not display correctly",
                          loaded_lane, slots_.slot_count());
         }
+    } else if (afc_data.contains("current_lane") || afc_data.contains("current_load")) {
+        // current_lane/current_load is present but empty string or null — shuttle is empty.
+        // Clear state so the reconciliation block doesn't pick a stale lane.
+        system_info_.filament_loaded = false;
+        system_info_.current_slot = -1;
+        system_info_.current_tool = -1;
+        current_slot_set_by_afc_state = true;
+        current_slot_authoritative_ = false;
+        spdlog::trace("[AMS AFC] Filament unloaded (current_lane/current_load empty)");
     }
 
     // Explicit current_tool from firmware overrides derived value
