@@ -1462,11 +1462,10 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             }
 
             if (ext.total_weight_g > 0.0f && ext.remaining_weight_g >= 0.0f) {
-                snprintf(current_weight_text_buf_, sizeof(current_weight_text_buf_), "%.0fg",
-                         ext.remaining_weight_g);
-                if (strcmp(lv_subject_get_string(&current_weight_text_),
-                          current_weight_text_buf_) != 0) {
-                    lv_subject_copy_string(&current_weight_text_, current_weight_text_buf_);
+                char wt[32];
+                snprintf(wt, sizeof(wt), "%.0fg", ext.remaining_weight_g);
+                if (strcmp(lv_subject_get_string(&current_weight_text_), wt) != 0) {
+                    lv_subject_copy_string(&current_weight_text_, wt);
                 }
                 if (lv_subject_get_int(&current_has_weight_) != 1) {
                     lv_subject_set_int(&current_has_weight_, 1);
@@ -1543,14 +1542,18 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             }
         }
 
-        // Set slot label with unit name
+        // Set slot label with unit name.
+        // IMPORTANT: Use a local buffer for snprintf, NOT current_slot_text_buf_
+        // (which IS the subject's internal buffer). Writing to the subject buffer
+        // first makes strcmp(subject, buf) compare the buffer with itself → always
+        // equal → lv_subject_copy_string never called → observers never notified.
         {
             AmsSystemInfo sys = loaded_backend->get_system_info();
+            char tmp[64];
 
             if (is_tool_changer(sys.type) && sys.units.empty()) {
                 // Pure tool changer with no AMS units — show tool index (0-based)
-                snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
-                         lv_tr("Current: Tool %d"), slot_index);
+                snprintf(tmp, sizeof(tmp), lv_tr("Current: Tool %d"), slot_index);
             } else {
                 std::string unit_display;
                 int display_slot = slot_index + 1; // 1-based global slot number
@@ -1565,26 +1568,24 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
                 }
                 if (!unit_display.empty() && sys.units.size() > 1) {
                     // Multi-unit: show unit name + slot number on one line
-                    snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
-                             lv_tr("Current: %s · Slot %d"), unit_display.c_str(), display_slot);
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s · Slot %d"),
+                             unit_display.c_str(), display_slot);
                 } else {
-                    snprintf(current_slot_text_buf_, sizeof(current_slot_text_buf_),
-                             lv_tr("Current: Slot %d"), display_slot);
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
                 }
             }
-            if (strcmp(lv_subject_get_string(&current_slot_text_),
-                      current_slot_text_buf_) != 0) {
-                lv_subject_copy_string(&current_slot_text_, current_slot_text_buf_);
+            if (strcmp(lv_subject_get_string(&current_slot_text_), tmp) != 0) {
+                lv_subject_copy_string(&current_slot_text_, tmp);
             }
         }
 
         // Show remaining weight if available (from Spoolman or backend)
+        // Use local buffer — same snprintf-to-subject-buffer bug as slot text above.
         if (slot_info.total_weight_g > 0.0f && slot_info.remaining_weight_g >= 0.0f) {
-            snprintf(current_weight_text_buf_, sizeof(current_weight_text_buf_), "%.0fg",
-                     slot_info.remaining_weight_g);
-            if (strcmp(lv_subject_get_string(&current_weight_text_),
-                      current_weight_text_buf_) != 0) {
-                lv_subject_copy_string(&current_weight_text_, current_weight_text_buf_);
+            char wt[32];
+            snprintf(wt, sizeof(wt), "%.0fg", slot_info.remaining_weight_g);
+            if (strcmp(lv_subject_get_string(&current_weight_text_), wt) != 0) {
+                lv_subject_copy_string(&current_weight_text_, wt);
             }
             if (lv_subject_get_int(&current_has_weight_) != 1) {
                 lv_subject_set_int(&current_has_weight_, 1);
