@@ -505,7 +505,7 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             for (const auto& ext_name : extruder_names_) {
                 std::string key = "AFC_extruder " + ext_name;
                 if (params.contains(key) && params[key].is_object()) {
-                    parse_afc_extruder(params[key]);
+                    parse_afc_extruder(ext_name, params[key]);
                     state_changed = true;
                 }
             }
@@ -513,7 +513,7 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             // Backward compat: single extruder fallback
             if (params.contains("AFC_extruder extruder") &&
                 params["AFC_extruder extruder"].is_object()) {
-                parse_afc_extruder(params["AFC_extruder extruder"]);
+                parse_afc_extruder("extruder", params["AFC_extruder extruder"]);
                 state_changed = true;
             }
         }
@@ -1199,7 +1199,8 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
     }
 }
 
-void AmsBackendAfc::parse_afc_extruder(const nlohmann::json& data) {
+void AmsBackendAfc::parse_afc_extruder(const std::string& ext_name,
+                                       const nlohmann::json& data) {
     // Parse AFC_extruder object for toolhead sensors
     // {
     //   "tool_start_status": true,   // Toolhead entry sensor
@@ -1217,17 +1218,44 @@ void AmsBackendAfc::parse_afc_extruder(const nlohmann::json& data) {
 
     if (data.contains("lane_loaded") && !data["lane_loaded"].is_null()) {
         if (data["lane_loaded"].is_string()) {
-            current_lane_name_ = data["lane_loaded"].get<std::string>();
-            // Update current_slot from lane name
-            int loaded_slot = slots_.index_of(current_lane_name_);
+            std::string lane = data["lane_loaded"].get<std::string>();
+            int loaded_slot = slots_.index_of(lane);
             if (loaded_slot >= 0) {
-                system_info_.current_slot = loaded_slot;
+                // Derive tool number from extruder name:
+                // "extruder" = T0, "extruder1" = T1, "extruder2" = T2, etc.
+                int ext_tool = 0;
+                if (ext_name.size() > 8) { // longer than "extruder"
+                    try {
+                        ext_tool = std::stoi(ext_name.substr(8));
+                    } catch (...) {
+                        ext_tool = 0;
+                    }
+                }
+
+                // Only update current_slot if:
+                // - current_slot is unset (no authoritative source yet), OR
+                // - this extruder matches the active tool (it's the one printing)
+                // In multi-extruder setups, incremental updates from non-active
+                // extruders must NOT overwrite the correct current_slot.
+                bool is_active = (system_info_.current_tool < 0) ||
+                                 (ext_tool == system_info_.current_tool);
+                if (system_info_.current_slot < 0 || is_active) {
+                    current_lane_name_ = lane;
+                    system_info_.current_slot = loaded_slot;
+                    spdlog::trace("[AMS AFC] Extruder {} (T{}): lane_loaded={} → slot {}",
+                                  ext_name, ext_tool, lane, loaded_slot);
+                } else {
+                    spdlog::trace("[AMS AFC] Extruder {} (T{}): lane_loaded={} ignored "
+                                  "(active tool=T{}, current_slot={})",
+                                  ext_name, ext_tool, lane, system_info_.current_tool,
+                                  system_info_.current_slot);
+                }
             }
         }
     }
 
-    spdlog::trace("[AMS AFC] Extruder: tool_start={} tool_end={} lane={}", tool_start_sensor_,
-                  tool_end_sensor_, current_lane_name_);
+    spdlog::trace("[AMS AFC] Extruder {}: tool_start={} tool_end={} lane={}", ext_name,
+                  tool_start_sensor_, tool_end_sensor_, current_lane_name_);
 }
 
 void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann::json& data) {
