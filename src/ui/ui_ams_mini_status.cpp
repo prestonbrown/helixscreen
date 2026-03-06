@@ -90,10 +90,13 @@ struct AmsMiniStatusData {
     // Per-slot data
     SlotBarData slots[AMS_MINI_STATUS_MAX_VISIBLE];
 
-    // Auto-binding observer (observe AmsState slots_version subject)
-    // Uses ObserverGuard for RAII lifecycle management
-    // Note: slots_version is always bumped after slot_count changes, so one observer suffices
+    // Auto-binding observers (ObserverGuard for RAII lifecycle management)
+    // slots_version: fires on structural changes (slot count, color, status)
+    // current_slot: fires when active slot changes (e.g., tool change during print)
+    //   Needed because Klipper may send current_slot updates without slot status
+    //   changes (e.g., Happy Hare sends gate change without gate_status array).
     ObserverGuard slots_version_observer;
+    ObserverGuard current_slot_observer;
 };
 
 // Static registry for safe cleanup
@@ -623,7 +626,7 @@ bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
  * @brief Sync widget state from AmsState backend
  *
  * Reads slot count and per-slot info from AmsState and updates the widget.
- * Called on initial creation and when slot_count changes.
+ * Called on initial creation, when slots_version changes, or when current_slot changes.
  */
 static void sync_from_ams_state(AmsMiniStatusData* data) {
     if (!data)
@@ -653,6 +656,12 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         data->unit_rows[u].slot_count = 0;
     }
 
+    // Use current_slot subject as authoritative source for active slot highlight,
+    // matching the pattern used by AmsOverviewPanel::create_mini_bars().
+    // This ensures the highlight tracks correctly even when Klipper sends a
+    // gate/slot change without accompanying slot status updates.
+    int current_slot = lv_subject_get_int(AmsState::instance().get_current_slot_subject());
+
     // Populate each slot from backend slot info
     for (int i = 0; i < slot_count && i < AMS_MINI_STATUS_MAX_VISIBLE; ++i) {
         SlotInfo slot = backend->get_slot_info(i);
@@ -661,7 +670,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         slot_bar->color_rgb = slot.color_rgb;
         slot_bar->fill_pct = ams_draw::fill_percent_from_slot(slot, 0);
         slot_bar->present = slot.is_present();
-        slot_bar->loaded = (slot.status == SlotStatus::LOADED);
+        slot_bar->loaded = (i == current_slot);
         slot_bar->has_error = (slot.status == SlotStatus::BLOCKED || slot.error.has_value());
         slot_bar->severity = slot.error.has_value() ? slot.error->severity : SlotError::INFO;
     }
@@ -742,8 +751,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     // Initially hidden (no slots)
     lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
 
-    // Auto-bind to AmsState: observe slots_version changes
-    // slots_version is always bumped after slot_count changes, so one observer suffices
+    // Auto-bind to AmsState: observe slots_version and current_slot changes
     using helix::ui::observe_int_sync;
 
     lv_subject_t* slots_version_subject = AmsState::instance().get_slots_version_subject();
@@ -763,6 +771,20 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
         if (slot_count_subject && lv_subject_get_int(slot_count_subject) > 0) {
             sync_from_ams_state(data);
         }
+    }
+
+    // Observe current_slot to reactively update bar highlights when the active
+    // slot changes during printing (e.g., tool change). Without this, the highlight
+    // only updates when slots_version bumps (slot status change), which may not
+    // happen if Klipper sends a gate/slot change without accompanying status updates.
+    lv_subject_t* current_slot_subject = AmsState::instance().get_current_slot_subject();
+    if (current_slot_subject) {
+        data->current_slot_observer = observe_int_sync<lv_obj_t>(
+            current_slot_subject, container, [](lv_obj_t* obj, int /* slot */) {
+                auto* d = get_data(obj);
+                if (d)
+                    sync_from_ams_state(d);
+            });
     }
 
     spdlog::trace("[AmsMiniStatus] Created via XML (responsive height)");
