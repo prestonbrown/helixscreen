@@ -458,11 +458,31 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             system_info_.filament_loaded = any_loaded;
             // Only set current_slot as fallback when AFC state didn't provide
             // an authoritative value (tool changers have ALL lanes loaded, so
-            // scanning for first loaded lane would pick the wrong one)
+            // scanning for first loaded lane would pick the wrong one).
+            //
+            // Additionally, when current_slot was set by a PREVIOUS update's
+            // parse_afc_state() but THIS update only contains AFC_stepper data
+            // (no AFC global object), preserve the existing value as long as
+            // that slot is still LOADED.  Moonraker sends incremental updates
+            // during printing — often just per-lane sensor changes without the
+            // AFC global state.  Without this guard the scan always picks the
+            // first LOADED lane (often slot 0), overwriting the real value.
             if (!current_slot_set_by_afc_state) {
-                system_info_.current_slot = any_loaded ? loaded_slot : -1;
-                spdlog::debug("[AMS AFC] Reconciliation: current_slot={} (from lane scan)",
-                              system_info_.current_slot);
+                bool current_is_stale = true;
+                if (system_info_.current_slot >= 0) {
+                    const auto* cur = slots_.get(system_info_.current_slot);
+                    current_is_stale = !cur || cur->info.status != SlotStatus::LOADED;
+                }
+                if (system_info_.current_slot < 0 || current_is_stale) {
+                    system_info_.current_slot = any_loaded ? loaded_slot : -1;
+                    spdlog::debug("[AMS AFC] Reconciliation: current_slot={} (from lane scan)",
+                                  system_info_.current_slot);
+                } else {
+                    spdlog::debug(
+                        "[AMS AFC] Reconciliation: preserving current_slot={} (still LOADED), "
+                        "scan found loaded_slot={}",
+                        system_info_.current_slot, loaded_slot);
+                }
             } else {
                 spdlog::debug("[AMS AFC] Reconciliation: preserving current_slot={} (set by AFC "
                               "state), scan found loaded_slot={}",
