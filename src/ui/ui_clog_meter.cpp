@@ -6,6 +6,7 @@
 #include "ams_state.h"
 #include "observer_factory.h"
 #include "theme_manager.h"
+#include "ui_fonts.h"
 #include "ui_update_queue.h"
 
 #include "lvgl/lvgl.h"
@@ -85,6 +86,7 @@ UiClogMeter::~UiClogMeter() {
     label_left_ = nullptr;
     label_right_ = nullptr;
     center_label_ = nullptr;
+    safe_icon_ = nullptr;
     value_text_ = nullptr;
     spdlog::debug("[ClogMeter] Destroyed");
 }
@@ -125,6 +127,7 @@ void UiClogMeter::on_mode_changed(int mode) {
     }
 
     update_arc_color();
+    update_safe_state();
     spdlog::debug("[ClogMeter] Mode changed to {}", mode);
 }
 
@@ -141,6 +144,7 @@ void UiClogMeter::on_value_changed(int value) {
     }
 
     update_arc_color();
+    update_safe_state();
 }
 
 void UiClogMeter::on_warning_changed(int warning) {
@@ -184,12 +188,94 @@ void UiClogMeter::update_arc_color() {
     lv_obj_set_style_arc_color(arc_, color, LV_PART_INDICATOR);
 }
 
+void UiClogMeter::update_safe_state() {
+    bool safe = (current_mode_ == 3 && current_value_ == 0);
+
+    // Hide the arc entirely when safe — no info means no arc
+    if (arc_) {
+        if (safe) {
+            lv_obj_add_flag(arc_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(arc_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Hide enhanced arcs when safe
+    if (danger_arc_) {
+        if (safe) {
+            lv_obj_add_flag(danger_arc_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(danger_arc_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (peak_arc_) {
+        if (safe) {
+            lv_obj_add_flag(peak_arc_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(peak_arc_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Hide endpoint labels when safe
+    if (label_left_) {
+        if (safe) {
+            lv_obj_add_flag(label_left_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(label_left_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (label_right_) {
+        if (safe) {
+            lv_obj_add_flag(label_right_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(label_right_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Hide center label (fill-mode) when safe
+    if (center_label_) {
+        if (safe) {
+            lv_obj_add_flag(center_label_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(center_label_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Mini-meter: hide XML-bound value text when safe
+    if (!fill_mode_ && value_text_) {
+        if (safe) {
+            lv_obj_add_flag(value_text_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(value_text_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    // Create safe icon lazily on first need
+    if (safe && !safe_icon_ && arc_container_) {
+        safe_icon_ = lv_label_create(arc_container_);
+        lv_label_set_text(safe_icon_, ICON_CHECK_CIRCLE);
+        lv_obj_set_style_text_font(safe_icon_, &mdi_icons_24, 0);
+        lv_obj_set_style_text_color(safe_icon_, theme_manager_get_color("primary"), 0);
+        lv_obj_align(safe_icon_, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_remove_flag(safe_icon_, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(safe_icon_, LV_OBJ_FLAG_EVENT_BUBBLE);
+    }
+    if (safe_icon_) {
+        if (safe) {
+            lv_obj_remove_flag(safe_icon_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(safe_icon_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
 void UiClogMeter::set_fill_mode(bool fill) {
     fill_mode_ = fill;
     if (fill && !danger_arc_) {
         create_enhanced_widgets();
     }
     resize_arc();
+    update_safe_state();
 }
 
 void UiClogMeter::on_card_size_changed(lv_event_t* e) {
@@ -361,7 +447,7 @@ void UiClogMeter::create_enhanced_widgets() {
         ams.get_clog_meter_center_text_subject(), this,
         [](UiClogMeter* self, const char* text) {
             if (self->center_label_) {
-                lv_label_set_text(self->center_label_, text);
+                lv_label_set_text(self->center_label_, text ? text : "");
             }
         });
 

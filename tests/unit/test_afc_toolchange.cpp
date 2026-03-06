@@ -199,31 +199,35 @@ TEST_CASE("AmsState toolchange text formatting", "[afc][toolchange][format]") {
     auto* vis_subj = state.get_toolchange_visible_subject();
     auto* text_subj = state.get_toolchange_text_subject();
 
-    SECTION("mid-print: shows 1-based 'N / M'") {
+    SECTION("mid-print: raw subjects reflect 0-based current and total") {
         mock_ptr->set_toolchange_progress(2, 5); // 0-based: 3rd swap of 5
         state.sync_from_backend();
         helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(vis_subj) == 1);
-        REQUIRE(std::string(lv_subject_get_string(text_subj)) == "3 / 5");
+        // Raw int subjects store backend values; text formatting is UI-layer
+        REQUIRE(lv_subject_get_int(state.get_ams_current_toolchange_subject()) == 2);
+        REQUIRE(lv_subject_get_int(state.get_ams_number_of_toolchanges_subject()) == 5);
     }
 
-    SECTION("before first swap: shows '0 / N'") {
+    SECTION("before first swap: current is -1, total is N") {
         mock_ptr->set_toolchange_progress(-1, 5);
         state.sync_from_backend();
         helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(vis_subj) == 1);
-        REQUIRE(std::string(lv_subject_get_string(text_subj)) == "0 / 5");
+        REQUIRE(lv_subject_get_int(state.get_ams_current_toolchange_subject()) == -1);
+        REQUIRE(lv_subject_get_int(state.get_ams_number_of_toolchanges_subject()) == 5);
     }
 
-    SECTION("first swap complete: shows '1 / 5'") {
+    SECTION("first swap complete: current is 0, total is 5") {
         mock_ptr->set_toolchange_progress(0, 5);
         state.sync_from_backend();
         helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(vis_subj) == 1);
-        REQUIRE(std::string(lv_subject_get_string(text_subj)) == "1 / 5");
+        REQUIRE(lv_subject_get_int(state.get_ams_current_toolchange_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_ams_number_of_toolchanges_subject()) == 5);
     }
 
     SECTION("no swaps expected: hidden") {

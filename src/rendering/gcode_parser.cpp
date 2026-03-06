@@ -7,10 +7,46 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 #include <sys/stat.h>
+
+namespace {
+
+// GCC 10 (AD5M toolchain) lacks std::from_chars for floats.
+// This wrapper uses strtof with a temporary null-terminated copy.
+struct FloatParseResult {
+    const char* ptr;
+    std::errc ec;
+};
+
+inline FloatParseResult parse_float_range(const char* first, const char* last, float& value) {
+    // Fast path: if already null-terminated at `last`
+    char buf[64];
+    size_t len = static_cast<size_t>(last - first);
+    if (len == 0) {
+        return {first, std::errc::invalid_argument};
+    }
+    if (len >= sizeof(buf)) {
+        len = sizeof(buf) - 1;
+    }
+    std::memcpy(buf, first, len);
+    buf[len] = '\0';
+
+    char* end = nullptr;
+    float result = std::strtof(buf, &end);
+    if (end == buf) {
+        return {first, std::errc::invalid_argument};
+    }
+    value = result;
+    return {first + (end - buf), std::errc{}};
+}
+
+} // namespace
 
 namespace helix {
 namespace gcode {
@@ -216,11 +252,9 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
         if (extract_string_param(line, "CENTER", center_str)) {
             size_t comma = center_str.find(',');
             if (comma != std::string::npos) {
-                try {
-                    obj.center.x = std::stof(center_str.substr(0, comma));
-                    obj.center.y = std::stof(center_str.substr(comma + 1));
-                } catch (...) {
-                    // Internal parsing error - no user notification needed
+                auto [px, ecx] = parse_float_range(center_str.data(), center_str.data() + comma, obj.center.x);
+                auto [py, ecy] = parse_float_range(center_str.data() + comma + 1, center_str.data() + center_str.size(), obj.center.y);
+                if (ecx != std::errc{} || ecy != std::errc{}) {
                     spdlog::debug("[GCode Parser] Failed to parse CENTER for object: {}", name);
                 }
             }
@@ -248,22 +282,19 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
                     // Extract x coordinate (everything until comma)
                     size_t comma = polygon_str.find(',', pos);
                     if (comma != std::string::npos) {
-                        try {
-                            float x = std::stof(polygon_str.substr(pos, comma - pos));
-                            pos = comma + 1;
+                        float x = 0, y = 0;
+                        auto [px, ecx] = parse_float_range(polygon_str.data() + pos, polygon_str.data() + comma, x);
+                        if (ecx != std::errc{}) break;
+                        pos = comma + 1;
 
-                            // Extract y coordinate (everything until closing bracket)
-                            size_t close = polygon_str.find(']', pos);
-                            if (close != std::string::npos) {
-                                float y = std::stof(polygon_str.substr(pos, close - pos));
-                                obj.polygon.push_back(glm::vec2(x, y));
-                                pos = close + 1;
-                                spdlog::trace("[GCode Parser] Parsed polygon point: ({}, {})", x,
-                                              y);
-                            } else {
-                                break;
-                            }
-                        } catch (...) {
+                        size_t close = polygon_str.find(']', pos);
+                        if (close != std::string::npos) {
+                            auto [py, ecy] = parse_float_range(polygon_str.data() + pos, polygon_str.data() + close, y);
+                            if (ecy != std::errc{}) break;
+                            obj.polygon.push_back(glm::vec2(x, y));
+                            pos = close + 1;
+                            spdlog::trace("[GCode Parser] Parsed polygon point: ({}, {})", x, y);
+                        } else {
                             break;
                         }
                     } else {
@@ -327,34 +358,35 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
 
     // Check for layer change markers FIRST (before key=value parsing)
     // Common formats: ";LAYER_CHANGE", ";LAYER:N", "; LAYER_CHANGE"
-    std::string content_upper = line.substr(1);
-    // Remove leading whitespace for comparison
+    // Use string_view to avoid allocations for the layer marker check
+    std::string_view line_sv(line);
+    std::string_view after_semi = line_sv.substr(1);
+
+    // Skip leading whitespace
     size_t ws_start = 0;
-    while (ws_start < content_upper.length() && std::isspace(content_upper[ws_start])) {
+    while (ws_start < after_semi.length() && std::isspace(after_semi[ws_start])) {
         ws_start++;
     }
-    content_upper = content_upper.substr(ws_start);
-    std::transform(content_upper.begin(), content_upper.end(), content_upper.begin(), ::toupper);
+    std::string_view trimmed_content = after_semi.substr(ws_start);
 
-    // Detect layer change markers (but not LAYER_COUNT which is metadata)
-    if (content_upper.find("LAYER_CHANGE") == 0 || content_upper.find("LAYER:") == 0) {
-        // Mark that we found layer markers (prefer this over Z-based detection)
-        use_layer_markers_ = true;
-        pending_layer_marker_ = true;
-        spdlog::trace("[GCode Parser] Layer marker detected: '{}' (use_markers={}, pending={})",
-                      line, use_layer_markers_, pending_layer_marker_);
-        return; // Don't process as key=value metadata
+    // Quick uppercase check for LAYER markers without allocating a string
+    // LAYER_CHANGE starts with 'L'/'l', LAYER: also starts with 'L'/'l'
+    if (!trimmed_content.empty() && (trimmed_content[0] == 'L' || trimmed_content[0] == 'l')) {
+        std::string content_upper(trimmed_content);
+        std::transform(content_upper.begin(), content_upper.end(), content_upper.begin(), ::toupper);
+
+        // Detect layer change markers (but not LAYER_COUNT which is metadata)
+        if (content_upper.find("LAYER_CHANGE") == 0 || content_upper.find("LAYER:") == 0) {
+            use_layer_markers_ = true;
+            pending_layer_marker_ = true;
+            spdlog::trace("[GCode Parser] Layer marker detected: '{}' (use_markers={}, pending={})",
+                          line, use_layer_markers_, pending_layer_marker_);
+            return;
+        }
     }
 
-    // Skip '; ' to get key=value or key: value part
-    std::string content = line.substr(1);
-
-    // Trim leading whitespace
-    size_t start = 0;
-    while (start < content.length() && std::isspace(content[start])) {
-        start++;
-    }
-    content = content.substr(start);
+    // Use trimmed_content (already stripped ';' and leading whitespace)
+    std::string content(trimmed_content);
 
     // Look for '=' or ':' separator (support both OrcaSlicer and PrusaSlicer formats)
     size_t eq_pos = content.find('=');
@@ -376,15 +408,16 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
     std::string key = content.substr(0, sep_pos);
     std::string value = content.substr(sep_pos + 1);
 
-    // Trim whitespace from key and value
+    // Trim whitespace from key and value using erase instead of substr
     auto trim = [](std::string& s) {
+        size_t end = s.length();
+        while (end > 0 && std::isspace(s[end - 1]))
+            end--;
+        s.erase(end);
         size_t start = 0;
         while (start < s.length() && std::isspace(s[start]))
             start++;
-        size_t end = s.length();
-        while (end > start && std::isspace(s[end - 1]))
-            end--;
-        s = s.substr(start, end - start);
+        s.erase(0, start);
     };
     trim(key);
     trim(value);
@@ -465,52 +498,41 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
                contains_all({"print", "time"})) {
         // Parse various time formats: "29m 25s", "1h 23m", "45s", etc.
         float minutes = 0.0f;
+        std::string_view val_sv(value);
+
+        // Helper to parse float from a range, skipping leading whitespace
+        auto parse_float = [](std::string_view sv) -> float {
+            size_t s = 0;
+            while (s < sv.size() && std::isspace(sv[s]))
+                s++;
+            if (s >= sv.size())
+                return 0.0f;
+            float v = 0.0f;
+            parse_float_range(sv.data() + s, sv.data() + sv.size(), v);
+            return v;
+        };
 
         // Try to find hours
-        size_t h_pos = value.find('h');
-        if (h_pos != std::string::npos) {
-            try {
-                float hours = std::stof(value.substr(0, h_pos));
-                minutes += hours * 60.0f;
-            } catch (...) {
-            }
+        size_t h_pos = val_sv.find('h');
+        if (h_pos != std::string_view::npos) {
+            minutes += parse_float(val_sv.substr(0, h_pos)) * 60.0f;
         }
 
         // Try to find minutes
-        size_t m_pos = value.find('m');
-        if (m_pos != std::string::npos) {
-            try {
-                size_t start_pos = (h_pos != std::string::npos) ? h_pos + 1 : 0;
-                std::string min_str = value.substr(start_pos, m_pos - start_pos);
-                // Trim spaces
-                size_t min_start = 0;
-                while (min_start < min_str.length() && std::isspace(min_str[min_start]))
-                    min_start++;
-                if (min_start < min_str.length()) {
-                    minutes += std::stof(min_str.substr(min_start));
-                }
-            } catch (...) {
-            }
+        size_t m_pos = val_sv.find('m');
+        if (m_pos != std::string_view::npos) {
+            size_t start_pos = (h_pos != std::string_view::npos) ? h_pos + 1 : 0;
+            minutes += parse_float(val_sv.substr(start_pos, m_pos - start_pos));
         }
 
         // Try to find seconds
-        size_t s_pos = value.find('s');
-        if (s_pos != std::string::npos) {
-            try {
-                size_t start_pos = (m_pos != std::string::npos)   ? m_pos + 1
-                                   : (h_pos != std::string::npos) ? h_pos + 1
-                                                                  : 0;
-                std::string sec_str = value.substr(start_pos, s_pos - start_pos);
-                // Trim spaces
-                size_t sec_start = 0;
-                while (sec_start < sec_str.length() && std::isspace(sec_str[sec_start]))
-                    sec_start++;
-                if (sec_start < sec_str.length()) {
-                    float seconds = std::stof(sec_str.substr(sec_start));
-                    minutes += seconds / 60.0f;
-                }
-            } catch (...) {
-            }
+        size_t s_pos = val_sv.find('s');
+        if (s_pos != std::string_view::npos) {
+            size_t start_pos = (m_pos != std::string_view::npos)   ? m_pos + 1
+                               : (h_pos != std::string_view::npos) ? h_pos + 1
+                                                                   : 0;
+            float seconds = parse_float(val_sv.substr(start_pos, s_pos - start_pos));
+            minutes += seconds / 60.0f;
         }
 
         if (minutes > 0.0f) {
@@ -611,13 +633,15 @@ void GCodeParser::parse_extruder_color_metadata(const std::string& line) {
         return;
     }
 
-    std::string colors_str = line.substr(eq_pos + 1);
+    std::string_view colors_sv(line);
+    colors_sv = colors_sv.substr(eq_pos + 1);
 
-    // Trim leading whitespace from colors_str
-    size_t start = colors_str.find_first_not_of(" \t\r\n");
-    if (start != std::string::npos) {
-        colors_str = colors_str.substr(start);
-    }
+    // Trim leading whitespace
+    size_t start = 0;
+    while (start < colors_sv.size() && (colors_sv[start] == ' ' || colors_sv[start] == '\t' ||
+                                         colors_sv[start] == '\r' || colors_sv[start] == '\n'))
+        start++;
+    std::string colors_str(colors_sv.substr(start));
 
     // Split by semicolons
     std::stringstream ss(colors_str);
@@ -722,12 +746,8 @@ bool GCodeParser::extract_param(const std::string& line, char param, float& out_
         return false;
     }
 
-    try {
-        out_value = std::stof(line.substr(start, end - start));
-        return true;
-    } catch (...) {
-        return false;
-    }
+    auto [ptr, ec] = parse_float_range(line.data() + start, line.data() + end, out_value);
+    return ec == std::errc{};
 }
 
 bool GCodeParser::extract_string_param(const std::string& line, const std::string& param,
@@ -870,27 +890,32 @@ std::string GCodeParser::trim_line(const std::string& line) {
         return line;
     }
 
-    // Remove comments (everything after ';')
-    size_t comment_pos = line.find(';');
-    std::string without_comment =
-        (comment_pos != std::string::npos) ? line.substr(0, comment_pos) : line;
+    // Work with string_view to avoid intermediate allocations
+    std::string_view sv(line);
 
-    // Trim leading/trailing whitespace
+    // Remove comments (everything after ';')
+    size_t comment_pos = sv.find(';');
+    if (comment_pos != std::string_view::npos) {
+        sv = sv.substr(0, comment_pos);
+    }
+
+    // Trim leading whitespace
     size_t start = 0;
-    while (start < without_comment.length() && std::isspace(without_comment[start])) {
+    while (start < sv.length() && std::isspace(sv[start])) {
         start++;
     }
 
-    if (start == without_comment.length()) {
+    if (start == sv.length()) {
         return "";
     }
 
-    size_t end = without_comment.length();
-    while (end > start && std::isspace(without_comment[end - 1])) {
+    // Trim trailing whitespace
+    size_t end = sv.length();
+    while (end > start && std::isspace(sv[end - 1])) {
         end--;
     }
 
-    return without_comment.substr(start, end - start);
+    return std::string(sv.substr(start, end - start));
 }
 
 ParsedGCodeFile GCodeParser::finalize() {

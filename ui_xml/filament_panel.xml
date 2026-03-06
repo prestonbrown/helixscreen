@@ -194,7 +194,7 @@
                 width="100%" height="content" style_pad_all="0"
                 scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
                 style_pad_gap="#space_sm">
-          <!-- Row 1: PLA, PETG -->
+          <!-- Row 1: PLA, PETG, ABS -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" scrollable="false"
                   flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
@@ -213,12 +213,6 @@
               <text_small bind_text="filament_preset_petg_temps" style_text_align="center"
                           style_text_color="#text_muted" style_text_color:checked="#text"/>
             </ui_button>
-          </lv_obj>
-          <!-- Row 2: ABS, TPU -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_pad_gap="#space_md">
             <ui_button name="preset_abs" height="content" flex_grow="1" layout="column"
                        state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="clicked" callback="on_filament_preset_abs"/>
@@ -226,6 +220,12 @@
               <text_small bind_text="filament_preset_abs_temps" style_text_align="center"
                           style_text_color="#text_muted" style_text_color:checked="#text"/>
             </ui_button>
+          </lv_obj>
+          <!-- Row 2: TPU + Spool preset (spool hidden by default) -->
+          <lv_obj name="spool_preset_row" width="100%"
+                  height="content" style_pad_all="0" scrollable="false"
+                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+                  style_pad_gap="#space_md">
             <ui_button name="preset_tpu" height="content" flex_grow="1" layout="column"
                        state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="clicked" callback="on_filament_preset_tpu"/>
@@ -233,15 +233,9 @@
               <text_small bind_text="filament_preset_tpu_temps" style_text_align="center"
                           style_text_color="#text_muted" style_text_color:checked="#text"/>
             </ui_button>
-          </lv_obj>
-          <!-- Row 3: Spool preset (dynamic, hidden by default) -->
-          <lv_obj name="spool_preset_row" width="100%"
-                  flags="hidden"
-                  style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_pad_gap="#space_md">
-            <ui_button name="preset_spool" height="content" width="100%" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
+            <ui_button name="preset_spool" height="content" flex_grow="1" layout="column"
+                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing"
+                       flags="hidden">
               <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
               <text_body name="spool_preset_label" text="" style_text_color:checked="#text"/>
               <text_small name="spool_preset_temps" text="" style_text_align="center"

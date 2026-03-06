@@ -8,13 +8,25 @@ export interface AnalyticsEngineDataPoint {
 }
 
 /**
- * Maps a raw telemetry event to an Analytics Engine data point.
+ * Maps a raw telemetry event to one or more Analytics Engine data points.
+ * Most events produce a single data point; panel_usage is expanded into
+ * one data point per panel (since C++ sends an aggregate per-session event).
+ */
+export function mapEventToDataPoints(
+  event: Record<string, unknown>,
+): AnalyticsEngineDataPoint[] {
+  const result = mapEventToDataPointInternal(event);
+  return Array.isArray(result) ? result : [result];
+}
+
+/**
+ * Maps a raw telemetry event to an Analytics Engine data point (or array for panel_usage).
  * Each event type has a specific schema for blobs/doubles to enable
  * efficient SQL queries via the Analytics Engine SQL API.
  */
-export function mapEventToDataPoint(
+function mapEventToDataPointInternal(
   event: Record<string, unknown>,
-): AnalyticsEngineDataPoint {
+): AnalyticsEngineDataPoint | AnalyticsEngineDataPoint[] {
   const eventType = String(event.event ?? "unknown");
   const deviceId = String(event.device_id ?? "");
 
@@ -171,6 +183,46 @@ export function mapEventToDataPoint(
   }
 
   if (eventType === "hardware_profile") {
+    // Extract MCU chip from nested mcus object (C++ sends mcus.primary)
+    const mcus = (event.mcus ?? {}) as Record<string, unknown>;
+    const mcuChip = String(mcus.primary ?? event.mcu_chip ?? "");
+
+    // Extract probe type from nested probe object
+    const probe = (event.probe ?? {}) as Record<string, unknown>;
+    const probeType = String(probe.type ?? event.probe_type ?? "");
+
+    // Extract build volume from nested object
+    const buildVol = (event.build_volume ?? {}) as Record<string, unknown>;
+
+    // Extract extruder count from nested object
+    const extruders = (event.extruders ?? {}) as Record<string, unknown>;
+
+    // Extract fan/sensor/macro counts from nested objects
+    const fans = (event.fans ?? {}) as Record<string, unknown>;
+    const sensors = (event.sensors ?? {}) as Record<string, unknown>;
+    const macros = (event.macros ?? {}) as Record<string, unknown>;
+
+    // Build capabilities bitmask from nested boolean object
+    // Bit order: 0=chamber, 1=accelerometer, 2=firmware_retraction,
+    //            3=exclude_object, 4=timelapse, 5=klippain_shaketune, 6=speaker
+    const caps = (event.capabilities ?? {}) as Record<string, unknown>;
+    let capsBitmask = Number(event.capabilities_bitmask ?? 0);
+    if (typeof caps === "object" && caps !== null && Object.keys(caps).length > 0) {
+      const capBits = [
+        "has_chamber",
+        "has_accelerometer",
+        "has_firmware_retraction",
+        "has_exclude_object",
+        "has_timelapse",
+        "has_klippain_shaketune",
+        "has_speaker",
+      ];
+      capsBitmask = 0;
+      for (let i = 0; i < capBits.length; i++) {
+        if (caps[capBits[i]]) capsBitmask |= 1 << i;
+      }
+    }
+
     return {
       indexes: ["hardware_profile"],
       blobs: [
@@ -179,8 +231,8 @@ export function mapEventToDataPoint(
         String(app.platform ?? event.app_platform ?? event.platform ?? ""),
         String(printer.detected_model ?? event.printer_model ?? ""),
         String(printer.kinematics ?? event.kinematics ?? ""),
-        String(event.mcu_chip ?? ""),
-        String(event.probe_type ?? ""),
+        mcuChip,
+        probeType,
         "",
         "",
         "",
@@ -188,26 +240,28 @@ export function mapEventToDataPoint(
         "",
       ],
       doubles: [
-        Number(printer.extruder_count ?? event.extruder_count ?? 0),
-        Number(event.fan_count ?? 0),
-        Number(event.sensor_count ?? 0),
-        Number(event.macro_count ?? 0),
-        Number(event.build_vol_x ?? 0),
-        Number(event.build_vol_y ?? 0),
-        Number(event.build_vol_z ?? 0),
-        Number(event.capabilities_bitmask ?? 0),
+        Number(extruders.count ?? printer.extruder_count ?? event.extruder_count ?? 0),
+        Number(fans.count ?? event.fan_count ?? 0),
+        Number(sensors.count ?? event.sensor_count ?? 0),
+        Number(macros.count ?? event.macro_count ?? 0),
+        Number(buildVol.x_mm ?? event.build_vol_x ?? 0),
+        Number(buildVol.y_mm ?? event.build_vol_y ?? 0),
+        Number(buildVol.z_mm ?? event.build_vol_z ?? 0),
+        capsBitmask,
       ],
     };
   }
 
   if (eventType === "settings_snapshot") {
+    // Theme: prefer theme_name (full name like "Nord") over dark/light mode string
+    const themeName = String(event.theme_name ?? app.theme ?? event.theme ?? "");
     return {
       indexes: ["settings_snapshot"],
       blobs: [
         deviceId,
         String(app.version ?? event.app_version ?? event.version ?? ""),
         String(app.platform ?? event.app_platform ?? event.platform ?? ""),
-        String(app.theme ?? event.theme ?? ""),
+        themeName,
         String(app.locale ?? event.locale ?? ""),
         String(event.update_channel ?? ""),
         String(event.time_format ?? ""),
@@ -231,31 +285,52 @@ export function mapEventToDataPoint(
   }
 
   if (eventType === "panel_usage") {
+    const version = String(app.version ?? event.app_version ?? event.version ?? "");
+    const platform = String(app.platform ?? event.app_platform ?? event.platform ?? "");
+    const sessionDuration = Number(event.session_duration_sec ?? 0);
+    const overlayCount = Number(event.overlay_open_count ?? 0);
+
+    // C++ sends aggregate maps: panel_time_sec={panel:sec}, panel_visits={panel:count}
+    // Expand into one data point per panel for Analytics Engine querying
+    const timeMap = (event.panel_time_sec ?? {}) as Record<string, unknown>;
+    const visitMap = (event.panel_visits ?? {}) as Record<string, unknown>;
+    const panelNames = new Set([...Object.keys(timeMap), ...Object.keys(visitMap)]);
+
+    if (panelNames.size > 0) {
+      const points: AnalyticsEngineDataPoint[] = [];
+      for (const panel of panelNames) {
+        points.push({
+          indexes: ["panel_usage"],
+          blobs: [
+            deviceId, version, platform, panel,
+            "", "", "", "", "", "", "", "",
+          ],
+          doubles: [
+            sessionDuration,
+            Number(timeMap[panel] ?? 0),
+            Number(visitMap[panel] ?? 0),
+            overlayCount,
+            0, 0, 0, 0,
+          ],
+        });
+      }
+      return points;
+    }
+
+    // Fallback: flat format (pre-expansion schema or already per-panel)
     return {
       indexes: ["panel_usage"],
       blobs: [
-        deviceId,
-        String(app.version ?? event.app_version ?? event.version ?? ""),
-        String(app.platform ?? event.app_platform ?? event.platform ?? ""),
+        deviceId, version, platform,
         String(event.panel_name ?? ""),
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
+        "", "", "", "", "", "", "", "",
       ],
       doubles: [
-        Number(event.session_duration_sec ?? 0),
+        sessionDuration,
         Number(event.time_sec ?? 0),
         Number(event.visits ?? 0),
-        Number(event.overlay_open_count ?? 0),
-        0,
-        0,
-        0,
-        0,
+        overlayCount,
+        0, 0, 0, 0,
       ],
     };
   }

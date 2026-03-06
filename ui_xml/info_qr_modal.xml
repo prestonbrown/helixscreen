@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <api>
+    <prop name="icon_name" type="string" default="info"/>
+    <prop name="title" type="string" default=""/>
+    <prop name="message" type="string" default=""/>
+    <prop name="url_text" type="string" default=""/>
+  </api>
+  <!-- Reusable info modal with QR code — backdrop created by Modal system -->
+  <view name="info_qr_modal"
+        extends="ui_dialog" width="75%" height="content" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
+    <!-- Content area -->
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
+            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
+            style_flex_cross_place="center" style_pad_gap="#space_md">
+      <icon src="$icon_name" size="lg" variant="primary"/>
+      <text_heading text="$title" style_text_align="center"/>
+      <text_body width="100%" text="$message" long_mode="wrap" style_text_align="center"/>
+      <!-- QR code inserted programmatically for adaptive sizing -->
+      <lv_obj name="qr_container" width="content" height="content"
+              style_pad_all="0" style_border_width="0"/>
+      <text_small text="$url_text" style_text_color="#text_muted"/>
+    </lv_obj>
+    <!-- OK button -->
+    <divider_horizontal/>
+    <lv_obj width="100%" height="#button_height" style_pad_all="0" flex_flow="row">
+      <ui_button name="btn_ok" height="100%" text="OK" translation_tag="OK" flex_grow="1"
+                 style_radius="0" variant="primary"/>
+    </lv_obj>
+  </view>
+</component>

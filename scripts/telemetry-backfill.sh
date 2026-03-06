@@ -115,30 +115,35 @@ total_files=0
 total_batches=0
 total_errors=0
 
-# Accumulator for batching events across files
-batch_events="[]"
+# Accumulator for batching events across files (use temp files to avoid arg-list-too-long)
+BATCH_FILE=$(mktemp)
+echo '[]' > "$BATCH_FILE"
 batch_count=0
+trap 'rm -f "$BATCH_FILE"' EXIT
 
 flush_batch() {
     if [[ "$batch_count" -eq 0 ]]; then return; fi
     if $DRY_RUN; then
         echo "  Would backfill batch of $batch_count events"
         total_batches=$((total_batches + 1))
-        batch_events="[]"
+        echo '[]' > "$BATCH_FILE"
         batch_count=0
         return
     fi
 
-    local body
-    body=$(jq -n --argjson events "$batch_events" '{ events: $events }')
+    local body_file
+    body_file=$(mktemp)
+    jq -n --slurpfile events "$BATCH_FILE" '{ events: $events[0] }' > "$body_file"
 
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
         -X POST \
         -H "X-API-Key: $HELIX_TELEMETRY_ADMIN_KEY" \
         -H "Content-Type: application/json" \
-        -d "$body" \
+        -d @"$body_file" \
         "$API_BASE/v1/admin/backfill")
+
+    rm -f "$body_file"
 
     if [[ "$http_code" == "200" ]]; then
         total_batches=$((total_batches + 1))
@@ -147,7 +152,7 @@ flush_batch() {
         total_errors=$((total_errors + 1))
     fi
 
-    batch_events="[]"
+    echo '[]' > "$BATCH_FILE"
     batch_count=0
 }
 
@@ -207,8 +212,10 @@ for d in "${dates[@]}"; do
         file_event_count=$(echo "$events_json" | jq 'length' 2>/dev/null) || file_event_count=0
         [[ "$file_event_count" -eq 0 ]] && continue
 
-        # Merge into batch
-        batch_events=$(echo "$batch_events" "$events_json" | jq -s '.[0] + .[1]')
+        # Merge into batch (use temp files to avoid shell arg-list-too-long)
+        tmp_merge=$(mktemp)
+        echo "$events_json" | jq -s --slurpfile existing "$BATCH_FILE" '$existing[0] + .[0]' > "$tmp_merge"
+        mv "$tmp_merge" "$BATCH_FILE"
         batch_count=$((batch_count + file_event_count))
         total_events=$((total_events + file_event_count))
 

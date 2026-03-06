@@ -353,22 +353,38 @@ void HomePanel::ams_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-/// Returns true if the active input device is currently scrolling an object
-/// (e.g., user is swiping a carousel). Used to suppress edit mode interactions
-/// during drag/swipe gestures — LVGL fires LONG_PRESSED, PRESSING, etc.
-/// based purely on hold duration, regardless of finger movement.
-static bool is_indev_scrolling() {
+/// Returns true if the active input device is interacting with a widget that
+/// consumes drag gestures — either scrolling (e.g., swiping a carousel) or
+/// dragging an arc/slider knob (e.g., adjusting fan speed). LVGL fires
+/// LONG_PRESSED based purely on hold duration, regardless of finger movement,
+/// so we must check for these interactions to prevent false edit mode entry.
+static bool should_suppress_edit_mode(lv_event_t* e) {
     lv_indev_t* indev = lv_indev_active();
-    return indev && lv_indev_get_scroll_obj(indev);
+    if (indev && lv_indev_get_scroll_obj(indev))
+        return true;
+
+    // Check if the original press target (before event bubbling) is an arc or
+    // slider — these widgets consume drag gestures for value adjustment, so a
+    // long hold on them should never trigger edit mode.
+    lv_obj_t* target = lv_event_get_target_obj(e);
+    if (!target)
+        return false;
+    lv_obj_t* current = lv_event_get_current_target_obj(e);
+    while (target) {
+        if (lv_obj_has_class(target, &lv_arc_class) || lv_obj_has_class(target, &lv_slider_class))
+            return true;
+        // Stop at the container that owns the event handler
+        if (target == current)
+            break;
+        target = lv_obj_get_parent(target);
+    }
+
+    return false;
 }
 
 void HomePanel::on_home_grid_long_press(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] on_home_grid_long_press");
-
-    // A drag/swipe should never trigger or interact with edit mode.
-    // LVGL fires LONG_PRESSED based purely on hold duration, regardless
-    // of finger movement, so we must explicitly check for scroll state.
-    if (!is_indev_scrolling()) {
+    if (!should_suppress_edit_mode(e)) {
         auto& panel = get_global_home_panel();
         if (!panel.grid_edit_mode_.is_active()) {
             // Cancel the in-progress press to prevent the widget's click
@@ -408,7 +424,7 @@ void HomePanel::on_home_grid_clicked(lv_event_t* e) {
 
 void HomePanel::on_home_grid_pressing(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] on_home_grid_pressing");
-    if (!is_indev_scrolling()) {
+    if (!should_suppress_edit_mode(e)) {
         auto& panel = get_global_home_panel();
         if (panel.grid_edit_mode_.is_active()) {
             panel.grid_edit_mode_.handle_pressing(e);
@@ -419,7 +435,7 @@ void HomePanel::on_home_grid_pressing(lv_event_t* e) {
 
 void HomePanel::on_home_grid_released(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] on_home_grid_released");
-    if (!is_indev_scrolling()) {
+    if (!should_suppress_edit_mode(e)) {
         auto& panel = get_global_home_panel();
         if (panel.grid_edit_mode_.is_active()) {
             panel.grid_edit_mode_.handle_released(e);

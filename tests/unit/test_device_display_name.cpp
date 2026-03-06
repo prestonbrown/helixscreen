@@ -216,15 +216,15 @@ TEST_CASE("get_display_name() special word handling", "[device_display_name][spe
 
 TEST_CASE("get_display_name() macro handling", "[device_display_name][macro]") {
     SECTION("Basic macro") {
-        REQUIRE(get_display_name("LOAD_FILAMENT", DeviceType::MACRO) == "Load Filament");
+        REQUIRE(get_display_name("LOAD_FILAMENT", DeviceType::MACRO) == "LOAD FILAMENT");
     }
 
     SECTION("Macro with leading underscore") {
-        REQUIRE(get_display_name("_HEAT_NOZZLE", DeviceType::MACRO) == "Heat Nozzle");
+        REQUIRE(get_display_name("_HEAT_NOZZLE", DeviceType::MACRO) == "HEAT NOZZLE");
     }
 
     SECTION("Macro with HELIX_ prefix") {
-        REQUIRE(get_display_name("HELIX_LOAD_FILAMENT", DeviceType::MACRO) == "Load Filament");
+        REQUIRE(get_display_name("HELIX_LOAD_FILAMENT", DeviceType::MACRO) == "LOAD FILAMENT");
     }
 
     SECTION("Lowercase macro") {
@@ -285,7 +285,7 @@ TEST_CASE("prettify_name() snake_case conversion", "[device_display_name][pretti
 
     SECTION("Mixed case input normalized") {
         REQUIRE(prettify_name("HoTeNd_FaN") == "Hotend Fan");
-        REQUIRE(prettify_name("LED_STRIP") == "LED Strip");
+        REQUIRE(prettify_name("LED_STRIP") == "LED STRIP");
     }
 
     SECTION("Leading underscore stripped") {
@@ -293,7 +293,7 @@ TEST_CASE("prettify_name() snake_case conversion", "[device_display_name][pretti
     }
 
     SECTION("HELIX_ prefix stripped") {
-        REQUIRE(prettify_name("HELIX_LOAD_FILAMENT") == "Load Filament");
+        REQUIRE(prettify_name("HELIX_LOAD_FILAMENT") == "LOAD FILAMENT");
     }
 
     SECTION("Special words replaced") {

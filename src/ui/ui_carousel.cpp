@@ -437,8 +437,39 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
     // Clear existing dots
     lv_obj_clean(state->indicator_row);
 
-    // Create one dot per real page
     int count = static_cast<int>(state->real_tiles.size());
+
+    // Single page: hide indicators, disable swiping, allow click passthrough
+    if (count <= 1) {
+        lv_obj_add_flag(state->indicator_row, LV_OBJ_FLAG_HIDDEN);
+        if (state->scroll_container) {
+            lv_obj_set_scroll_dir(state->scroll_container, LV_DIR_NONE);
+            lv_obj_remove_flag(state->scroll_container, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_flag(state->scroll_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+        }
+        for (auto* tile : state->real_tiles) {
+            lv_obj_remove_flag(tile, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_flag(tile, LV_OBJ_FLAG_EVENT_BUBBLE);
+        }
+        spdlog::trace("[ui_carousel] Single page — indicators hidden, scroll disabled");
+        return;
+    }
+
+    // Multiple pages: show indicators, enable horizontal scrolling, capture clicks
+    if (state->show_indicators) {
+        lv_obj_remove_flag(state->indicator_row, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (state->scroll_container) {
+        lv_obj_set_scroll_dir(state->scroll_container, LV_DIR_HOR);
+        lv_obj_add_flag(state->scroll_container, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_flag(state->scroll_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+    }
+    for (auto* tile : state->real_tiles) {
+        lv_obj_add_flag(tile, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_flag(tile, LV_OBJ_FLAG_EVENT_BUBBLE);
+    }
+
+    // Create one dot per real page
     for (int i = 0; i < count; i++) {
         lv_obj_t* dot = lv_obj_create(state->indicator_row);
         // Strip LVGL's default theme styles so only our explicit styles apply

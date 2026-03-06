@@ -417,19 +417,19 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
         safe_write(fd, "bt:");
         safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext.arm_lr));
         safe_write(fd, "\n");
-#elif defined(__aarch64__)
-        safe_write(fd, "bt:");
-        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext.pc));
-        safe_write(fd, "\n");
-        safe_write(fd, "bt:");
-        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext.regs[30]));
-        safe_write(fd, "\n");
 #elif defined(__APPLE__) && defined(__aarch64__)
         safe_write(fd, "bt:");
         safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext->__ss.__pc));
         safe_write(fd, "\n");
         safe_write(fd, "bt:");
         safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext->__ss.__lr));
+        safe_write(fd, "\n");
+#elif defined(__aarch64__)
+        safe_write(fd, "bt:");
+        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext.pc));
+        safe_write(fd, "\n");
+        safe_write(fd, "bt:");
+        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), uctx->uc_mcontext.regs[30]));
         safe_write(fd, "\n");
 #elif defined(__APPLE__) && defined(__x86_64__)
         safe_write(fd, "bt:");

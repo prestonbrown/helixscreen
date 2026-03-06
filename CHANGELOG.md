@@ -5,6 +5,26 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.96.8] - 2026-03-05
+
+### Added
+- AFC buffer health indicators with safe-state green checkmark visualization
+- QR code info modals for Discord and Documentation links in settings
+
+### Fixed
+- Home screen edit mode triggered while dragging fan arc or slider knobs
+- Clog detection widget and single-page carousel not passing clicks through to parent
+- Spoolman spool item not accessible from extruder menu (#289)
+- Filament preset layout broken with 3-up display; cooldown not stopping bed and nozzle heating together
+- G-code viewer showing blank 3D preview when streaming mode is active
+- Memory: reduce heap churn, fix string leak, prevent unbounded growth
+- Telemetry dashboard data mapping for hardware, panel usage, memory, and themes
+- Build compatibility with GCC 10 (std::from_chars float overloads)
+- Crash handler preprocessor branches for macOS ARM64 compilation
+
+### Changed
+- Default dark theme palette darkened for improved contrast
+
 ## [0.96.7] - 2026-03-05
 
 Stability-focused release addressing multiple crash vectors, WiFi driver concurrency, async callback safety, and widget deletion during events. Also adds CJK font support, debug bundle improvements, and numerous UI fixes.
@@ -1618,6 +1638,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.96.8]: https://github.com/prestonbrown/helixscreen/compare/v0.96.7...v0.96.8
 [0.96.7]: https://github.com/prestonbrown/helixscreen/compare/v0.96.5...v0.96.7
 [0.96.5]: https://github.com/prestonbrown/helixscreen/compare/v0.96.4...v0.96.5
 [0.96.4]: https://github.com/prestonbrown/helixscreen/compare/v0.96.3...v0.96.4

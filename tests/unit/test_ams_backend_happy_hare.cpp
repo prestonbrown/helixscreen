@@ -1488,15 +1488,15 @@ TEST_CASE("Happy Hare num_units < 1 clamped to 1", "[ams][happy_hare][v4][multi-
     }
 }
 
-TEST_CASE("Happy Hare encoder flow_rate rejects float values",
+TEST_CASE("Happy Hare encoder flow_rate accepts float values",
           "[ams][happy_hare][v4][status][edge]") {
     AmsBackendHappyHareTestHelper helper;
 
-    // encoder.flow_rate uses is_number_integer() — floats should be ignored
+    // encoder.flow_rate uses is_number() — floats are accepted and truncated to int
     nlohmann::json mmu_data = {{"encoder", {{"flow_rate", 95.7}}}};
     helper.test_parse_mmu_state(mmu_data);
     auto info = helper.get_system_info();
-    REQUIRE(info.encoder_flow_rate == -1); // Default, float rejected
+    REQUIRE(info.encoder_flow_rate == 95); // Float truncated to int
 }
 
 TEST_CASE("Happy Hare active_unit parsed from status", "[ams][happy_hare][v4][multi-unit]") {
@@ -1987,10 +1987,10 @@ TEST_CASE("Happy Hare: parse flowguard object", "[ams][happy_hare][clog]") {
 
     nlohmann::json mmu_data;
     mmu_data["flowguard"] = {
-        {"is_enabled", true},
-        {"is_active", true},
-        {"clog_or_tangle", "CLOG"},
-        {"flow_rate_level", 0.35},
+        {"enabled", true},
+        {"active", true},
+        {"trigger", "CLOG"},
+        {"level", 0.35},
         {"max_clog", 0.8},
         {"max_tangle", -0.6}
     };
@@ -2024,7 +2024,7 @@ TEST_CASE("Happy Hare: parse sync_feedback_flow_rate", "[ams][happy_hare][clog]"
     helper.initialize_test_gates(4);
 
     nlohmann::json mmu_data;
-    mmu_data["sync_feedback"] = {{"flow_rate", 92.5}};
+    mmu_data["sync_feedback_flow_rate"] = 92.5;
     helper.test_parse_mmu_state(mmu_data);
 
     auto info = helper.get_system_info();

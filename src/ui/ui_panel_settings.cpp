@@ -10,6 +10,7 @@
 #include "ui_debug_bundle_modal.h"
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
+#include "ui_info_qr_modal.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_network_settings.h"
@@ -713,14 +714,28 @@ void SettingsPanel::handle_debug_bundle_clicked() {
 
 void SettingsPanel::handle_discord_clicked() {
     spdlog::info("[SettingsPanel] Discord clicked");
-    // i18n: URL, do not translate
-    ToastManager::instance().show(ToastSeverity::INFO, "Join us at discord.gg/helixscreen", 5000);
+    auto* modal = new helix::ui::InfoQrModal({
+        .icon = "message",
+        .title = lv_tr("Discord Community"),
+        .message = lv_tr("Join the HelixScreen community on Discord for discussion, "
+                         "tips, troubleshooting help, and feature requests."),
+        .url = "https://discord.gg/RZCT2StKhr",
+        .url_text = "discord.gg/RZCT2StKhr",
+    });
+    modal->show_modal(lv_screen_active());
 }
 
 void SettingsPanel::handle_docs_clicked() {
     spdlog::info("[SettingsPanel] Documentation clicked");
-    // i18n: URL, do not translate
-    ToastManager::instance().show(ToastSeverity::INFO, "Visit docs.helixscreen.org", 5000);
+    auto* modal = new helix::ui::InfoQrModal({
+        .icon = "book",
+        .title = lv_tr("Documentation"),
+        .message = lv_tr("Browse guides, configuration references, and troubleshooting "
+                         "resources for HelixScreen."),
+        .url = "https://docs.helixscreen.org",
+        .url_text = "docs.helixscreen.org",
+    });
+    modal->show_modal(lv_screen_active());
 }
 
 void SettingsPanel::handle_sound_settings_clicked() {

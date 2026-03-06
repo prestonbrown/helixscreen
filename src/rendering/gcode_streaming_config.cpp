@@ -79,7 +79,7 @@ size_t calculate_streaming_threshold(size_t available_memory_kb, int threshold_p
 }
 
 bool should_use_gcode_streaming(size_t file_size_bytes, const MemoryInfo& mem) {
-    // Force streaming on low-RAM devices (<=4GB total)
+    // Force streaming on low-RAM devices (<=2GB total)
     if (mem.should_force_streaming()) {
         spdlog::debug("[GCodeStreaming] Low-RAM device ({}MB) - forcing streaming",
                       mem.total_kb / 1024);

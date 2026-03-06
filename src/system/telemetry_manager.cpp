@@ -26,6 +26,7 @@
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 #include "version.h"
 
@@ -1388,6 +1389,8 @@ nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& 
     event["event"] = "memory_snapshot";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
+    event["app_version"] = HELIX_VERSION;
+    event["app_platform"] = UpdateChecker::get_platform_key();
     event["trigger"] = trigger;
 
     // Calculate uptime from init_time_
@@ -1428,6 +1431,8 @@ TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& wa
     event["event"] = "memory_warning";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
+    event["app_version"] = HELIX_VERSION;
+    event["app_platform"] = UpdateChecker::get_platform_key();
     event["level"] = helix::pressure_level_to_string(warning.level);
     event["reason"] = warning.reason;
 
@@ -1677,8 +1682,14 @@ nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
     event["event"] = "settings_snapshot";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
+    event["app_version"] = HELIX_VERSION;
+    event["app_platform"] = UpdateChecker::get_platform_key();
 
-    event["theme"] = DisplaySettingsManager::instance().get_dark_mode() ? "dark" : "light";
+    const auto& active_theme = theme_manager_get_active_theme();
+    bool dark_mode = DisplaySettingsManager::instance().get_dark_mode();
+    // theme_name: full theme identifier e.g. "Nord (Dark)", "Catppuccin (Light)"
+    event["theme_name"] = active_theme.name + (dark_mode ? " (Dark)" : " (Light)");
+    event["theme"] = dark_mode ? "dark" : "light";
     event["brightness_pct"] = DisplaySettingsManager::instance().get_brightness();
     event["screensaver_timeout_sec"] = DisplaySettingsManager::instance().get_display_dim_sec();
     event["screen_blank_timeout_sec"] = DisplaySettingsManager::instance().get_display_sleep_sec();
@@ -1698,6 +1709,8 @@ nlohmann::json TelemetryManager::build_panel_usage_event() const {
     event["event"] = "panel_usage";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
+    event["app_version"] = HELIX_VERSION;
+    event["app_platform"] = UpdateChecker::get_platform_key();
 
     // Session duration from init_time_
     auto now = std::chrono::steady_clock::now();
@@ -1792,6 +1805,17 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
             return;
         }
         error_rate_limit_[category] = now;
+
+        // Prune expired entries to prevent unbounded growth
+        if (error_rate_limit_.size() > 200) {
+            for (auto prune_it = error_rate_limit_.begin(); prune_it != error_rate_limit_.end();) {
+                if (now - prune_it->second >= ERROR_RATE_LIMIT_INTERVAL) {
+                    prune_it = error_rate_limit_.erase(prune_it);
+                } else {
+                    ++prune_it;
+                }
+            }
+        }
     }
 
     spdlog::debug("[TelemetryManager] Recording error: category={}, code={}, context={}", category,

@@ -259,6 +259,12 @@ class GCodeViewerState {
     /// Helper to check if currently using 2D layer renderer
     bool is_using_2d_mode() const {
 #ifdef ENABLE_3D_RENDERER
+        // Streaming mode provides layer data via streaming_controller_, not
+        // ParsedGCodeFile. The 3D GLES renderer requires ParsedGCodeFile, so
+        // fall back to 2D when streaming is active.
+        if (streaming_controller_ && streaming_controller_->is_open()) {
+            return true;
+        }
         // With GPU-accelerated GLES: Auto defaults to 3D, only Layer2D forces 2D
         return render_mode_ == GcodeViewerRenderMode::Layer2D || budget_forced_2d_;
 #else
@@ -508,6 +514,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         }
     } else {
         // 3D GLES Renderer (isometric ribbon view)
+        if (!st->gcode_file) {
+            return; // No ParsedGCodeFile (streaming mode) — 3D renderer needs full geometry
+        }
         st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
 
 #ifdef ENABLE_3D_RENDERER

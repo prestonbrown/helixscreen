@@ -12,7 +12,9 @@
         flex_flow="column"
         style_flex_main_place="center" style_flex_cross_place="center"
         style_flex_track_place="center" scrollable="false">
+    <event_cb trigger="clicked" callback="on_clog_detection_widget_clicked"/>
     <ui_carousel name="filament_health_carousel" width="100%" height="100%"
-                 wrap="true" show_indicators="true"/>
+                 wrap="true" show_indicators="true"
+                 clickable="false" event_bubble="true"/>
   </view>
 </component>

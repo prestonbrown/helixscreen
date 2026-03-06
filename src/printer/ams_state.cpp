@@ -1179,18 +1179,19 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
             if (use_afc && unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
                 mode = 3;
                 float dist = unit.buffer_health->distance_to_fault;
+                float max_dist = unit.buffer_health->fault_threshold();
 
-                if (dist < 0) {
-                    // Not tracking yet (distance_to_fault was null from AFC)
+                if (dist < 0 || dist > max_dist) {
+                    // Negative = fault timer stopped, counter stale (normal operation)
+                    // Above max = just reset or not yet tracking
                     value = 0;
                     warning = 0;
-                    snprintf(value_text, sizeof(value_text), "---");
+                    snprintf(value_text, sizeof(value_text), "%s",
+                             unit.buffer_health->state.c_str());
                 } else {
-                    // Value: proximity to fault (0=safe, 100=imminent)
-                    float max_dist = 60.0f;
-                    value = 100 - static_cast<int>((dist / max_dist) * 100.0f);
-                    value = std::clamp(value, 0, 100);
-                    warning = (value > 75) ? 1 : 0;
+                    // Actively counting down: 0=fault imminent, max_dist=safe
+                    value = unit.buffer_health->danger_value();
+                    warning = unit.buffer_health->is_warning() ? 1 : 0;
                     snprintf(value_text, sizeof(value_text), "%.0fmm", dist);
                 }
 
@@ -1199,9 +1200,10 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
 
                 // Enhanced clog detection widget subjects
                 new_danger_pct = 75;
-                new_peak_pct = (dist >= 0) ? value : 0;
+                new_peak_pct = value;
+                // Safe: empty center triggers checkmark icon; tracking: show distance
                 snprintf(center_buf, sizeof(center_buf), "%s",
-                         dist >= 0 ? value_text : "---");
+                         (dist >= 0 && dist <= max_dist) ? value_text : "");
                 snprintf(left_buf, sizeof(left_buf), "SAFE");
                 snprintf(right_buf, sizeof(right_buf), "FAULT");
                 break; // Use first unit with fault detection

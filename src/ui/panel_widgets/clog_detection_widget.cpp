@@ -4,6 +4,7 @@
 
 #include "ams_state.h"
 #include "ams_types.h"
+#include "buffer_status_modal.h"
 #include "clog_detection_config_modal.h"
 #include "panel_widget_registry.h"
 #include "ui_buffer_meter.h"
@@ -19,6 +20,14 @@ namespace helix {
 void register_clog_detection_widget() {
     register_widget_factory("clog_detection",
                             []() { return std::make_unique<ClogDetectionWidget>(); });
+
+    lv_xml_register_event_cb(nullptr, "on_clog_detection_widget_clicked", [](lv_event_t* /*e*/) {
+        auto* backend = AmsState::instance().get_backend();
+        if (!backend)
+            return;
+        auto info = backend->get_system_info();
+        BufferStatusModal::show_for(info, 0);
+    });
 }
 } // namespace helix
 

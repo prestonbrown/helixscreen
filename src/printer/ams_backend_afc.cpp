@@ -1127,6 +1127,7 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
     // {
     //   "fault_detection_enabled": true,
     //   "distance_to_fault": 25.5,
+    //   "error_sensitivity": 7,
     //   "state": "Advancing",
     //   "lanes": ["lane1", "lane2", "lane3", "lane4"]
     // }
@@ -1141,12 +1142,17 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
         health.distance_to_fault = data["distance_to_fault"].get<float>();
     }
 
+    if (data.contains("error_sensitivity") && data["error_sensitivity"].is_number()) {
+        health.error_sensitivity = data["error_sensitivity"].get<float>();
+    }
+
     if (data.contains("state") && data["state"].is_string()) {
         health.state = data["state"].get<std::string>();
     }
 
-    spdlog::trace("[AMS AFC] Buffer {}: fault_detect={} dist={} state={}", buffer_name,
-                  health.fault_detection_enabled, health.distance_to_fault, health.state);
+    spdlog::trace("[AMS AFC] Buffer {}: fault_detect={} dist={} sensitivity={} state={}",
+                  buffer_name, health.fault_detection_enabled, health.distance_to_fault,
+                  health.error_sensitivity, health.state);
 
     // Store buffer health at unit level (buffer sits between hub and toolhead, not per-lane)
     // Find which unit this buffer belongs to by checking its lane list

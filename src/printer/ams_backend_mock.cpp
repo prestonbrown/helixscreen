@@ -935,6 +935,7 @@ void AmsBackendMock::inject_mock_errors() {
         if (afc_mode_ && u == 0 && u < static_cast<int>(system_info_.units.size())) {
             BufferHealth health;
             health.fault_detection_enabled = true;
+            health.error_sensitivity = 7.0f;
             health.state = "Trailing";
             health.distance_to_fault = 12.5f;
             system_info_.units[u].buffer_health = health;
@@ -1241,6 +1242,11 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         system_info_.tip_method = afc_caps.tip_method;
         system_info_.has_hardware_bypass_sensor = false;
 
+        // AFC doesn't have encoder-based clog detection — use buffer fault detection instead
+        system_info_.encoder_info = {};
+        system_info_.clog_detection = 0;
+        system_info_.encoder_flow_rate = -1;
+
         // HUB topology, single unit
         topology_ = PathTopology::HUB;
 
@@ -1326,22 +1332,23 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // Values: "neutral" (default), "advancing", "trailing", "fault"
         BufferHealth buf_health;
         buf_health.fault_detection_enabled = true;
+        buf_health.error_sensitivity = 7.0f; // threshold = (11-7)*10 = 40mm
         std::string buf_env;
         if (const char* env = std::getenv("HELIX_MOCK_BUFFER_STATE")) {
             buf_env = env;
         }
         if (buf_env == "advancing") {
             buf_health.state = "Advancing";
-            buf_health.distance_to_fault = 25.0f;
+            buf_health.distance_to_fault = -100.0f; // fault timer stopped, stale — safe
         } else if (buf_env == "trailing") {
             buf_health.state = "Trailing";
-            buf_health.distance_to_fault = 25.0f;
+            buf_health.distance_to_fault = 25.0f; // within 40mm threshold — 37.5% danger
         } else if (buf_env == "fault") {
             buf_health.state = "Trailing";
-            buf_health.distance_to_fault = 50.0f;
+            buf_health.distance_to_fault = 5.0f; // within 40mm threshold — 87.5% danger
         } else {
             buf_health.state = "Neutral";
-            buf_health.distance_to_fault = 0.0f;
+            buf_health.distance_to_fault = 40.0f; // at threshold — 0% danger
         }
         unit_meta.buffer_health = buf_health;
 
@@ -1659,8 +1666,9 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
             u.topology = PathTopology::PARALLEL;
             BufferHealth health;
             health.fault_detection_enabled = true;
+            health.error_sensitivity = 7.0f;
             health.state = "Trailing";
-            health.distance_to_fault = 50.0f;
+            health.distance_to_fault = 25.0f;
             u.buffer_health = health;
             system_info_.units.push_back(u);
         }

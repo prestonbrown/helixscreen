@@ -44,6 +44,7 @@ TEST_CASE("BufferHealth defaults", "[ams][error_state]") {
 
     REQUIRE(health.fault_detection_enabled == false);
     REQUIRE(health.distance_to_fault == -1.0f);
+    REQUIRE(health.error_sensitivity == 0.0f);
     REQUIRE(health.state.empty());
 }
 
@@ -622,4 +623,107 @@ TEST_CASE("Happy Hare error: no slot error when no gate selected",
     for (int i = 0; i < 4; ++i) {
         REQUIRE_FALSE(helper.get_slot(i)->error.has_value());
     }
+}
+
+// ============================================================================
+// Task 5: AFC Clog Meter — BufferHealth Mapping Tests
+// ============================================================================
+
+TEST_CASE("AFC buffer health: error_sensitivity parsed from JSON", "[ams][afc][buffer_health]") {
+    AfcErrorStateHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_buffer_names({"Turtle_1"});
+
+    nlohmann::json buffer_data;
+    buffer_data["fault_detection_enabled"] = true;
+    buffer_data["distance_to_fault"] = 25.0f;
+    buffer_data["error_sensitivity"] = 7;
+    buffer_data["state"] = "Trailing";
+    buffer_data["lanes"] = nlohmann::json::array({"lane1", "lane2", "lane3", "lane4"});
+    helper.feed_afc_buffer("Turtle_1", buffer_data);
+
+    const auto& info = helper.get_system_info();
+    REQUIRE(info.units[0].buffer_health.has_value());
+    REQUIRE(info.units[0].buffer_health->error_sensitivity == Catch::Approx(7.0f));
+}
+
+TEST_CASE("AFC clog meter: fault_threshold from error_sensitivity", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // (11-7)*10 = 40mm
+    REQUIRE(h.fault_threshold() == Catch::Approx(40.0f));
+
+    h.error_sensitivity = 1.0f; // (11-1)*10 = 100mm
+    REQUIRE(h.fault_threshold() == Catch::Approx(100.0f));
+
+    h.error_sensitivity = 10.0f; // (11-10)*10 = 10mm
+    REQUIRE(h.fault_threshold() == Catch::Approx(10.0f));
+}
+
+TEST_CASE("AFC clog meter: fallback to 60mm when sensitivity=0", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 0.0f;
+    REQUIRE(h.fault_threshold() == Catch::Approx(60.0f));
+
+    // dist=30 out of 60 → 50% danger
+    h.distance_to_fault = 30.0f;
+    REQUIRE(h.danger_value() == 50);
+}
+
+TEST_CASE("AFC clog meter: negative distance maps to safe (value=0)", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f;
+    h.distance_to_fault = -106.0f; // fault timer stopped, stale counter
+    REQUIRE(h.danger_value() == 0);
+    REQUIRE(h.is_warning() == false);
+}
+
+TEST_CASE("AFC clog meter: distance at fault_sensitivity maps to safe (value=0)",
+          "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // threshold = 40mm
+    h.distance_to_fault = 40.0f; // at threshold = just reset
+    REQUIRE(h.danger_value() == 0);
+}
+
+TEST_CASE("AFC clog meter: distance near zero maps to danger (value~100)",
+          "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // threshold = 40mm
+    h.distance_to_fault = 2.0f; // 2/40 = 5% safe → 95% danger
+    REQUIRE(h.danger_value() == 95);
+    REQUIRE(h.is_warning() == true);
+}
+
+TEST_CASE("AFC clog meter: distance mid-range maps proportionally", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // threshold = 40mm
+    h.distance_to_fault = 20.0f; // 20/40 = 50% safe → 50% danger
+    REQUIRE(h.danger_value() == 50);
+    REQUIRE(h.is_warning() == false);
+}
+
+TEST_CASE("AFC clog meter: distance exceeding max maps to safe", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // threshold = 40mm
+    h.distance_to_fault = 50.0f; // above threshold
+    REQUIRE(h.danger_value() == 0);
+}
+
+TEST_CASE("AFC clog meter: distance=0 maps to 100% danger", "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 7.0f; // threshold = 40mm
+    h.distance_to_fault = 0.0f; // fault imminent
+    REQUIRE(h.danger_value() == 100);
+    REQUIRE(h.is_warning() == true);
+}
+
+TEST_CASE("AFC clog meter: out-of-spec sensitivity clamped to safe threshold",
+          "[ams][afc][clog_meter]") {
+    BufferHealth h;
+    h.error_sensitivity = 15.0f; // out of spec (AFC range is 1-10)
+    // Should clamp to 10 → threshold = (11-10)*10 = 10mm
+    REQUIRE(h.fault_threshold() == Catch::Approx(10.0f));
+
+    h.distance_to_fault = 5.0f; // 5/10 = 50% safe → 50% danger
+    REQUIRE(h.danger_value() == 50);
 }

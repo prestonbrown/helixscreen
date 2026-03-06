@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // HelixScreen telemetry ingestion worker — stores batched events in R2.
 
-import { mapEventToDataPoint } from "./analytics";
+import { mapEventToDataPoints } from "./analytics";
 import {
   executeQuery,
   parseRange,
@@ -171,9 +171,10 @@ export default {
       if (env.TELEMETRY_ANALYTICS) {
         for (const evt of body) {
           try {
-            env.TELEMETRY_ANALYTICS.writeDataPoint(
-              mapEventToDataPoint(evt as Record<string, unknown>),
-            );
+            const points = mapEventToDataPoints(evt as Record<string, unknown>);
+            for (const point of points) {
+              env.TELEMETRY_ANALYTICS.writeDataPoint(point);
+            }
           } catch {
             // Analytics Engine failure must not affect ingestion
           }
@@ -760,10 +761,11 @@ export default {
       let written = 0;
       for (const evt of events) {
         try {
-          env.TELEMETRY_ANALYTICS.writeDataPoint(
-            mapEventToDataPoint(evt as Record<string, unknown>),
-          );
-          written++;
+          const points = mapEventToDataPoints(evt as Record<string, unknown>);
+          for (const point of points) {
+            env.TELEMETRY_ANALYTICS.writeDataPoint(point);
+            written++;
+          }
         } catch {
           // Skip individual failures, continue backfilling
         }

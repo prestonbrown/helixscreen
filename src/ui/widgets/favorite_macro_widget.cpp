@@ -116,18 +116,6 @@ int resolve_space_token(const char* name, int fallback) {
 
 /// Free heap-allocated macro name strings stored as user_data on picker rows.
 /// Called from both dismiss_macro_picker() and the LV_EVENT_DELETE handler.
-void cleanup_picker_row_strings(lv_obj_t* backdrop) {
-    lv_obj_t* macro_list = lv_obj_find_by_name(backdrop, "macro_list");
-    if (!macro_list)
-        return;
-    uint32_t count = lv_obj_get_child_count(macro_list);
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_t* row = lv_obj_get_child(macro_list, i);
-        auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(row));
-        delete name_ptr;
-        lv_obj_set_user_data(row, nullptr);
-    }
-}
 } // namespace
 
 using namespace helix;
@@ -424,8 +412,6 @@ void FavoriteMacroWidget::show_macro_picker() {
             auto* self = static_cast<FavoriteMacroWidget*>(lv_event_get_user_data(e));
             if (!self)
                 return;
-            auto* backdrop = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-            cleanup_picker_row_strings(backdrop);
             self->picker_backdrop_ = nullptr;
             self->picker_icon_grid_ = nullptr;
             self->picker_color_grid_ = nullptr;
@@ -563,6 +549,12 @@ void FavoriteMacroWidget::populate_macro_list(lv_obj_t* list,
         // Store macro name for click handler
         auto* macro_name_copy = new std::string(macro);
         lv_obj_set_user_data(row, macro_name_copy);
+
+        // Free heap string when row is deleted
+        lv_obj_add_event_cb(
+            row,
+            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
+            LV_EVENT_DELETE, macro_name_copy);
 
         // Click no longer auto-dismisses — picker stays open for icon/color selection
         lv_obj_add_event_cb(

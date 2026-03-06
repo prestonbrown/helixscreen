@@ -168,39 +168,16 @@ void AssetManager::register_images() {
                           "A:assets/images/benchy_thumbnail_white.png");
 
     // Pre-rendered gradient backgrounds (LVGL native .bin format for fast blitting)
-    // Original unsuffixed files (backward compat)
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-small.bin",
-                          "A:assets/images/gradient-card-small.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-medium.bin",
-                          "A:assets/images/gradient-card-medium.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-large.bin",
-                          "A:assets/images/gradient-card-large.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-medium.bin",
-                          "A:assets/images/gradient-panel-medium.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-large.bin",
-                          "A:assets/images/gradient-panel-large.bin");
-    // Dark variants
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-small-dark.bin",
-                          "A:assets/images/gradient-card-small-dark.bin");
+    // Only medium variants are used by XML (card: print_file_card, panel: print_status/detail/history)
+    // Theme manager swaps -dark/-light suffixes at runtime
     lv_xml_register_image(nullptr, "A:assets/images/gradient-card-medium-dark.bin",
                           "A:assets/images/gradient-card-medium-dark.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-large-dark.bin",
-                          "A:assets/images/gradient-card-large-dark.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-medium-dark.bin",
-                          "A:assets/images/gradient-panel-medium-dark.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-large-dark.bin",
-                          "A:assets/images/gradient-panel-large-dark.bin");
-    // Light variants
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-small-light.bin",
-                          "A:assets/images/gradient-card-small-light.bin");
     lv_xml_register_image(nullptr, "A:assets/images/gradient-card-medium-light.bin",
                           "A:assets/images/gradient-card-medium-light.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-card-large-light.bin",
-                          "A:assets/images/gradient-card-large-light.bin");
+    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-medium-dark.bin",
+                          "A:assets/images/gradient-panel-medium-dark.bin");
     lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-medium-light.bin",
                           "A:assets/images/gradient-panel-medium-light.bin");
-    lv_xml_register_image(nullptr, "A:assets/images/gradient-panel-large-light.bin",
-                          "A:assets/images/gradient-panel-large-light.bin");
     // Pre-rendered placeholder thumbnails (for file cards without embedded thumbnails)
     lv_xml_register_image(nullptr, "A:assets/images/prerendered/thumbnail-placeholder-160.bin",
                           "A:assets/images/prerendered/thumbnail-placeholder-160.bin");

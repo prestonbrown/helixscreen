@@ -198,7 +198,7 @@ void FilamentPanel::init_subjects() {
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
 
-        // Cooldown button visibility (1 when nozzle target > 0)
+        // Cooldown button visibility (1 when nozzle or bed target > 0)
         UI_MANAGED_SUBJECT_INT(nozzle_heating_subject_, 0, "filament_nozzle_heating", subjects_);
 
         // Purge amount button active states (boolean: 0=inactive, 1=active)
@@ -524,7 +524,8 @@ void FilamentPanel::update_all_temps() {
         prev_bed_target_ = bed_target_;
         update_material_temp_display();
         check_and_auto_select_preset();
-        lv_subject_set_int(&nozzle_heating_subject_, nozzle_target_ > 0 ? 1 : 0);
+        lv_subject_set_int(&nozzle_heating_subject_,
+                           (nozzle_target_ > 0 || bed_target_ > 0) ? 1 : 0);
     }
 }
 
@@ -1289,11 +1290,11 @@ void FilamentPanel::handle_spool_preset_button() {
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
-    if (!spool_preset_row_)
+    if (!spool_preset_button_)
         return;
 
     if (!cached_active_material_.has_value()) {
-        lv_obj_add_flag(spool_preset_row_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -1306,7 +1307,7 @@ void FilamentPanel::update_spool_preset() {
         std::transform(preset_lower.begin(), preset_lower.end(), preset_lower.begin(), ::tolower);
         std::transform(mat_lower.begin(), mat_lower.end(), mat_lower.begin(), ::tolower);
         if (preset_lower == mat_lower) {
-            lv_obj_add_flag(spool_preset_row_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
             return;
         }
     }
@@ -1314,7 +1315,7 @@ void FilamentPanel::update_spool_preset() {
     // Novel material — show spool preset button.
     // Using lv_label_set_text directly: text is dynamic (material name + computed temps)
     // so subject binding is not practical here.
-    lv_obj_remove_flag(spool_preset_row_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
 
     if (spool_preset_label_) {
         lv_label_set_text(spool_preset_label_, active.material_name.c_str());

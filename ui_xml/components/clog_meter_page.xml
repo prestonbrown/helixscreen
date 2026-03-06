@@ -12,19 +12,22 @@
         style_pad_all="0" style_pad_row="0" style_pad_column="0"
         scrollable="false" flex_flow="column"
         style_flex_main_place="center" style_flex_cross_place="center"
-        style_flex_track_place="center">
+        style_flex_track_place="center"
+        clickable="false" event_bubble="true">
     <lv_obj name="clog_meter" width="100%" height="100%"
             style_pad_all="0" style_pad_row="0" style_pad_column="0"
             scrollable="false" flex_flow="column"
-            style_flex_main_place="center" style_flex_cross_place="center">
+            style_flex_main_place="center" style_flex_cross_place="center"
+            clickable="false" event_bubble="true">
       <bind_flag_if_eq subject="clog_meter_mode" flag="hidden" ref_value="0"/>
       <lv_obj name="clog_arc_container"
-              style_pad_all="0" scrollable="false">
+              style_pad_all="0" scrollable="false"
+              clickable="false" event_bubble="true">
         <lv_arc name="clog_arc" align="center"
                 bg_start_angle="135" bg_end_angle="45"
                 start_angle="135" end_angle="135"
                 min_value="0" max_value="100" value="0"
-                mode="normal" clickable="false"
+                mode="normal" clickable="false" event_bubble="true"
                 style_arc_color="#border" style_arc_color-indicator="#primary"
                 style_arc_rounded="true" style_arc_rounded-indicator="true"
                 style_bg_opa="0" style_border_width="0"
@@ -32,11 +35,13 @@
                 style_outline_width-knob="0"/>
         <text_tiny name="clog_value_text" align="center"
                    bind_text="clog_meter_value_text"
-                   style_text_align="center"/>
+                   style_text_align="center"
+                   clickable="false" event_bubble="true"/>
       </lv_obj>
       <text_tiny name="clog_mode_text" width="100%"
                  bind_text="clog_meter_mode_text"
-                 style_text_color="#text_muted" style_text_align="center"/>
+                 style_text_color="#text_muted" style_text_align="center"
+                 clickable="false" event_bubble="true"/>
     </lv_obj>
   </view>
 </component>

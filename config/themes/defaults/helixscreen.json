@@ -1,11 +1,11 @@
 {
   "name": "HelixScreen",
   "dark": {
-    "screen_bg": "#2A2A2E",
+    "screen_bg": "#19191C",
     "overlay_bg": "#333338",
-    "card_bg": "#3C3C42",
+    "card_bg": "#202023",
     "elevated_bg": "#4A4A52",
-    "border": "#5A5A64",
+    "border": "#36363C",
     "text": "#E8E8EC",
     "text_muted": "#B8B8C0",
     "text_subtle": "#787882",

@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import worker from "../index";
-import { mapEventToDataPoint } from "../analytics";
+import { mapEventToDataPoints } from "../analytics";
 import { parseRange } from "../queries";
 
 // Mock the executeQuery function so dashboard tests don't hit real Cloudflare API
@@ -734,9 +734,9 @@ describe("Analytics Engine dual-write", () => {
   });
 });
 
-// ---------- mapEventToDataPoint unit tests ----------
+// ---------- mapEventToDataPoints unit tests ----------
 
-describe("mapEventToDataPoint", () => {
+describe("mapEventToDataPoints", () => {
   it("maps session event correctly", () => {
     const event = {
       event: "session",
@@ -753,7 +753,7 @@ describe("mapEventToDataPoint", () => {
       cpu_cores: 4,
       extruder_count: 1,
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["session"]);
     expect(dp.blobs![0]).toBe("dev-123");
     expect(dp.blobs![1]).toBe("0.9.19");
@@ -780,7 +780,7 @@ describe("mapEventToDataPoint", () => {
       filament_used_mm: 15000,
       phases_completed: 8,
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["print_outcome"]);
     expect(dp.blobs![0]).toBe("dev-456");
     expect(dp.blobs![1]).toBe("success");
@@ -806,7 +806,7 @@ describe("mapEventToDataPoint", () => {
       signal_number: 11,
       backtrace_depth: 15,
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["crash"]);
     expect(dp.blobs![0]).toBe("dev-789");
     expect(dp.blobs![1]).toBe("0.9.18");
@@ -824,7 +824,7 @@ describe("mapEventToDataPoint", () => {
       event: "custom_thing",
       device_id: "dev-abc",
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["custom_thing"]);
     expect(dp.blobs![0]).toBe("dev-abc");
     expect(dp.blobs![1]).toBe("custom_thing");
@@ -842,7 +842,7 @@ describe("mapEventToDataPoint", () => {
       uptime_sec: 325,
       signal_number: 11,
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["crash"]);
     expect(dp.blobs![1]).toBe("0.9.9");
     expect(dp.blobs![2]).toBe("SIGSEGV");
@@ -856,7 +856,7 @@ describe("mapEventToDataPoint", () => {
       device_id: "dev-nested",
       app: { version: "0.9.10", platform: "pi", display: "800x480" },
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![1]).toBe("0.9.10");
     expect(dp.blobs![2]).toBe("pi");
   });
@@ -869,7 +869,7 @@ describe("mapEventToDataPoint", () => {
       app_version: "flat",
       signal_name: "SIGABRT",
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![1]).toBe("nested");
   });
 
@@ -880,7 +880,7 @@ describe("mapEventToDataPoint", () => {
       outcome: "success",
       app_version: "0.10.0",
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![3]).toBe("0.10.0");
   });
 
@@ -889,7 +889,7 @@ describe("mapEventToDataPoint", () => {
       event: "session",
       device_id: "dev-min",
     };
-    const dp = mapEventToDataPoint(event);
+    const dp = mapEventToDataPoints(event)[0];
     expect(dp.indexes).toEqual(["session"]);
     expect(dp.blobs![0]).toBe("dev-min");
     expect(dp.blobs![1]).toBe(""); // version

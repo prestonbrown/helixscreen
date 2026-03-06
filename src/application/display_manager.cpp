@@ -1404,6 +1404,12 @@ void DisplayManager::register_resize_callback(ResizeCallback callback) {
         return;
     }
 
+    // Deduplicate — same function pointer may be registered on panel re-activation
+    if (std::find(m_resize_callbacks.begin(), m_resize_callbacks.end(), callback) !=
+        m_resize_callbacks.end()) {
+        return;
+    }
+
     m_resize_callbacks.push_back(callback);
     spdlog::trace("[DisplayManager] Registered resize callback ({} total)",
                   m_resize_callbacks.size());

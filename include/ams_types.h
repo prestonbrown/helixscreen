@@ -532,7 +532,31 @@ struct SlotError {
 struct BufferHealth {
     bool fault_detection_enabled = false; ///< Whether buffer fault detection is active
     float distance_to_fault = -1.0f;     ///< Distance to fault in mm (-1 = not tracking/null)
+    float error_sensitivity = 0.0f;      ///< AFC sensitivity (1-10), 0 = not reported
     std::string state;                    ///< Buffer state (e.g., "Advancing", "Trailing")
+
+    /// Compute fault threshold from error_sensitivity: (11 - sensitivity) * 10 mm
+    /// Returns 60mm fallback when sensitivity is 0 (not reported)
+    /// Clamps sensitivity to 10 max to ensure threshold >= 10mm
+    float fault_threshold() const {
+        if (error_sensitivity <= 0.0f)
+            return 60.0f;
+        float clamped = std::min(error_sensitivity, 10.0f);
+        return (11.0f - clamped) * 10.0f;
+    }
+
+    /// Map distance_to_fault to danger percentage (0=safe, 100=fault imminent)
+    /// Negative or above-threshold distances are treated as safe (0)
+    int danger_value() const {
+        float max_dist = fault_threshold();
+        if (distance_to_fault < 0 || distance_to_fault > max_dist)
+            return 0;
+        int v = 100 - static_cast<int>((distance_to_fault / max_dist) * 100.0f);
+        return std::clamp(v, 0, 100);
+    }
+
+    /// Whether the danger level warrants a warning indicator
+    bool is_warning() const { return danger_value() > 75; }
 };
 
 /**
