@@ -487,7 +487,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     bool bypass_active_{false};     ///< Bypass mode active (external spool)
     bool afc_quiet_mode_{false};    ///< AFC quiet mode state
     bool afc_led_state_{false};     ///< AFC LED state
-    std::string current_lane_name_; ///< Currently active lane name
+    std::string current_lane_name_;          ///< Currently active lane name
+    bool current_slot_authoritative_{false}; ///< true when parse_afc_state() set current_slot
     // Two dedup trackers: last_error_msg_ prevents duplicate emit_event(EVENT_ERROR),
     // last_seen_message_ prevents duplicate toast/notification display. Both reset
     // when the AFC message field clears.

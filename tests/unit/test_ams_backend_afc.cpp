@@ -3237,8 +3237,42 @@ TEST_CASE("AFC reconciliation updates current_slot when active lane becomes unlo
     REQUIRE(helper.get_system_info().current_slot == 2);
 
     // Step 2: Tool change — lane2 is unloaded, lane3 is loaded.
-    //         This arrives as a stepper-only update (no AFC global state).
-    //         Reconciliation SHOULD detect lane2 is no longer LOADED and update.
+    //         In AFC, tool changes include an updated current_load in the
+    //         global state object alongside the per-lane stepper updates.
+    {
+        nlohmann::json params;
+        params["AFC"] = {{"current_load", "lane3"}};
+        params["AFC_stepper lane2"] = {
+            {"status", "Ready"}, {"tool_loaded", false}};
+        params["AFC_stepper lane3"] = {
+            {"status", "Tooled"}, {"tool_loaded", true},
+            {"color", "00FF00"},  {"material", "PETG"}};
+        helper.feed_status_update(params);
+    }
+
+    auto info = helper.get_system_info();
+    CHECK(info.current_slot == 3);
+}
+
+TEST_CASE("AFC reconciliation via stepper-only updates current_slot when no authoritative source",
+          "[ams][afc][reconciliation]") {
+    // When current_slot was never set by AFC state (e.g., old AFC version
+    // without current_load), the reconciliation heuristic should still work.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(4);
+    helper.initialize_slots_from_discovery();
+
+    // Step 1: Set current_slot via stepper LOADED status only (no AFC state)
+    {
+        nlohmann::json params;
+        params["AFC_stepper lane2"] = {
+            {"status", "Tooled"}, {"tool_loaded", true},
+            {"color", "FF0000"},  {"material", "PLA"}};
+        helper.feed_status_update(params);
+    }
+    REQUIRE(helper.get_system_info().current_slot == 2);
+
+    // Step 2: Stepper-only tool change — should detect and update
     {
         nlohmann::json params;
         params["AFC_stepper lane2"] = {
