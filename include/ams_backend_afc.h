@@ -383,9 +383,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /**
      * @brief Parse AFC_extruder object for toolhead sensor states
      *
+     * @param ext_name Klipper extruder name (e.g. "extruder", "extruder1")
      * @param data JSON object from AFC_extruder
      */
-    void parse_afc_extruder(const nlohmann::json& data);
+    void parse_afc_extruder(const std::string& ext_name, const nlohmann::json& data);
 
     /**
      * @brief Parse a unit-level Klipper object (AFC_BoxTurtle, AFC_OpenAMS)
