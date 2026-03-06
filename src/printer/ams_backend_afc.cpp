@@ -565,27 +565,6 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             }
         }
 
-        // Tool changer reconciliation: on PARALLEL topology (1:1 lane-to-tool),
-        // the active tool authoritatively determines current_slot.  During tool
-        // swaps current_load may briefly go null while current_tool already
-        // reflects the new tool — use the tool map to keep the "currently loaded"
-        // info panel in sync throughout purging and prime tower operations.
-        if (get_topology() == PathTopology::PARALLEL && system_info_.current_tool >= 0) {
-            int tool = system_info_.current_tool;
-            if (tool < static_cast<int>(system_info_.tool_to_slot_map.size())) {
-                int slot = system_info_.tool_to_slot_map[tool];
-                if (slot >= 0 && slot < slots_.slot_count()) {
-                    if (system_info_.current_slot != slot) {
-                        spdlog::debug("[AMS AFC] Tool changer reconciliation: T{} → slot {} "
-                                      "(was {})",
-                                      tool, slot, system_info_.current_slot);
-                    }
-                    system_info_.current_slot = slot;
-                    system_info_.filament_loaded = true;
-                    current_slot_authoritative_ = true;
-                }
-            }
-        }
     }
 
     // Emit events OUTSIDE the lock to avoid deadlock with callbacks
@@ -787,21 +766,20 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         }
     }
 
-    // Parse next_lane field — during loading, AFC reports the target lane
-    // before current_load updates.  Use it as an authoritative hint for
-    // current_slot when the system is in a loading/tool-change action and
-    // current_load hasn't been set yet (or is still the old lane).
+    // Parse next_lane field — AFC's authoritative signal for the lane it's
+    // switching to.  AFC orchestrates all lane and tool changes, so next_lane
+    // IS the active lane once set (even before current_load catches up).
     if (afc_data.contains("next_lane") && afc_data["next_lane"].is_string()) {
         std::string next = afc_data["next_lane"].get<std::string>();
         if (!next.empty() && loaded_lane.empty()) {
-            // Only use next_lane as current_slot when current_load hasn't
-            // provided an authoritative value in THIS update.
+            // current_load hasn't updated yet — trust next_lane as the active lane.
             int next_slot = slots_.index_of(next);
             if (next_slot >= 0) {
                 system_info_.current_slot = next_slot;
+                system_info_.filament_loaded = true;
                 current_slot_set_by_afc_state = true;
                 current_slot_authoritative_ = true;
-                spdlog::trace("[AMS AFC] next_lane: {} → current_slot={} (loading target)",
+                spdlog::trace("[AMS AFC] next_lane: {} → current_slot={} (AFC target)",
                               next, next_slot);
             }
         } else {
