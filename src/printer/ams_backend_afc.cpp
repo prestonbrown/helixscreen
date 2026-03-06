@@ -560,6 +560,28 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
                 state_changed = true;
             }
         }
+
+        // Tool changer reconciliation: on PARALLEL topology (1:1 lane-to-tool),
+        // the active tool authoritatively determines current_slot.  During tool
+        // swaps current_load may briefly go null while current_tool already
+        // reflects the new tool — use the tool map to keep the "currently loaded"
+        // info panel in sync throughout purging and prime tower operations.
+        if (get_topology() == PathTopology::PARALLEL && system_info_.current_tool >= 0) {
+            int tool = system_info_.current_tool;
+            if (tool < static_cast<int>(system_info_.tool_to_slot_map.size())) {
+                int slot = system_info_.tool_to_slot_map[tool];
+                if (slot >= 0 && slot < slots_.slot_count()) {
+                    if (system_info_.current_slot != slot) {
+                        spdlog::debug("[AMS AFC] Tool changer reconciliation: T{} → slot {} "
+                                      "(was {})",
+                                      tool, slot, system_info_.current_slot);
+                    }
+                    system_info_.current_slot = slot;
+                    system_info_.filament_loaded = true;
+                    current_slot_authoritative_ = true;
+                }
+            }
+        }
     }
 
     // Emit events OUTSIDE the lock to avoid deadlock with callbacks
