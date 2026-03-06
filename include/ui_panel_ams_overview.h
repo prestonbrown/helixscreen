@@ -106,6 +106,7 @@ class AmsOverviewPanel : public PanelBase {
 
     // === Observers ===
     ObserverGuard slots_version_observer_;
+    ObserverGuard current_slot_observer_;   ///< Reactive highlight update when active slot changes
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     bool units_rebuild_pending_ = false; ///< Coalesces rapid slots_version observer notifications
 
