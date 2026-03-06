@@ -129,11 +129,41 @@ void AmsOverviewPanel::init_subjects() {
                                                    }
                                                });
 
+        // Observe current_slot to reactively update lane highlights when the active
+        // slot changes (e.g., slot selected without load/unload). Without this, the
+        // highlight only updated on navigation away/back (issue: stale highlight).
+        current_slot_observer_ = observe_int_sync<AmsOverviewPanel>(
+            AmsState::instance().get_current_slot_subject(), this,
+            [](AmsOverviewPanel* self, int) {
+                if (!self->panel_)
+                    return;
+                if (self->detail_unit_index_ >= 0) {
+                    // In detail mode — detail slot widgets have their own
+                    // current_slot observers, but refresh the detail path canvas
+                    // which shows the active tool indicator.
+                    self->refresh_detail_if_needed();
+                    return;
+                }
+                // Overview mode — refresh unit cards to update mini bar highlights
+                // and system path to update active tool display.
+                if (!self->units_rebuild_pending_) {
+                    self->units_rebuild_pending_ = true;
+                    lv_async_call(
+                        [](void* data) {
+                            auto* panel = static_cast<AmsOverviewPanel*>(data);
+                            panel->units_rebuild_pending_ = false;
+                            if (panel->panel_ && panel->cards_row_ &&
+                                panel->detail_unit_index_ < 0)
+                                panel->refresh_units();
+                        },
+                        self);
+                }
+            });
+
         // Observe external spool color changes to reactively update bypass display.
         // NOTE: set_external_spool_info() calls lv_subject_set_int() directly (not via
         // ui_queue_update) which is safe because all current callers are on the LVGL thread.
         // If callers from background threads are added, those must use ui_queue_update().
-        using helix::ui::observe_int_sync;
         external_spool_observer_ = observe_int_sync<AmsOverviewPanel>(
             AmsState::instance().get_external_spool_color_subject(), this,
             [](AmsOverviewPanel* self, int /*color_int*/) {
@@ -862,6 +892,7 @@ void AmsOverviewPanel::clear_panel_reference() {
 
     // Clear observer guards before clearing widget pointers
     slots_version_observer_.reset();
+    current_slot_observer_.reset();
     external_spool_observer_.reset();
 
     // Clean up sidebar and dryer card before clearing panel references
