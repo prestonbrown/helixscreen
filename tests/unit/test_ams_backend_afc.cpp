@@ -3172,3 +3172,83 @@ TEST_CASE("AFC 3-unit incremental arrival preserves all unit lanes",
     }
     CHECK(found_turtle);
 }
+
+TEST_CASE("AFC stepper-only updates do not overwrite current_slot set by AFC state",
+          "[ams][afc][reconciliation]") {
+    AmsBackendAfcTestHelper helper;
+    // 10 lanes: lane0..lane9  (simulates a real multi-unit setup)
+    helper.initialize_test_lanes_zero_based(10);
+    helper.initialize_slots_from_discovery();
+
+    // Step 1: AFC global state sets current_load = "lane9" (slot 9)
+    //         Also mark lane9 as tool_loaded so it gets LOADED status.
+    {
+        nlohmann::json params;
+        params["AFC"] = {{"current_load", "lane9"}, {"filament_loaded", true}};
+        params["AFC_stepper lane9"] = {
+            {"status", "Tooled"}, {"tool_loaded", true},
+            {"color", "00AEFF"},  {"material", "ASA"},
+            {"spool_id", "42"},   {"weight", 800}};
+        helper.feed_status_update(params);
+    }
+    REQUIRE(helper.get_system_info().current_slot == 9);
+
+    // Step 2: Moonraker sends an incremental update with ONLY AFC_stepper
+    //         data for lane0 (sensor change, NO AFC global object).
+    //         This must NOT reset current_slot to 0.
+    {
+        nlohmann::json params;
+        params["AFC_stepper lane0"] = {
+            {"prep", true}, {"load", true}, {"status", "Ready"},
+            {"tool_loaded", false}};
+        helper.feed_status_update(params);
+    }
+
+    auto info = helper.get_system_info();
+    CHECK(info.current_slot == 9);
+    CHECK(info.filament_loaded == true);
+
+    // Step 3: Another stepper-only update for a different lane — still preserved
+    {
+        nlohmann::json params;
+        params["AFC_stepper lane3"] = {
+            {"prep", false}, {"load", false}, {"status", "None"},
+            {"tool_loaded", false}};
+        helper.feed_status_update(params);
+    }
+    CHECK(helper.get_system_info().current_slot == 9);
+}
+
+TEST_CASE("AFC reconciliation updates current_slot when active lane becomes unloaded",
+          "[ams][afc][reconciliation]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(4);
+    helper.initialize_slots_from_discovery();
+
+    // Step 1: Set current_slot = 2 via AFC state
+    {
+        nlohmann::json params;
+        params["AFC"] = {{"current_load", "lane2"}};
+        params["AFC_stepper lane2"] = {
+            {"status", "Tooled"}, {"tool_loaded", true},
+            {"color", "FF0000"},  {"material", "PLA"}};
+        helper.feed_status_update(params);
+    }
+    REQUIRE(helper.get_system_info().current_slot == 2);
+
+    // Step 2: Tool change — lane2 is unloaded, lane3 is loaded.
+    //         This arrives as a stepper-only update (no AFC global state).
+    //         Reconciliation SHOULD detect lane2 is no longer LOADED and update.
+    {
+        nlohmann::json params;
+        params["AFC_stepper lane2"] = {
+            {"status", "Ready"}, {"tool_loaded", false}};
+        params["AFC_stepper lane3"] = {
+            {"status", "Tooled"}, {"tool_loaded", true},
+            {"color", "00FF00"},  {"material", "PETG"}};
+        helper.feed_status_update(params);
+    }
+
+    auto info = helper.get_system_info();
+    CHECK(info.current_slot == 3);
+}
