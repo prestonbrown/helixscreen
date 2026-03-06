@@ -468,8 +468,22 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             // AFC global state.  Without this guard the scan always picks the
             // first LOADED lane (often slot 0), overwriting the real value.
             if (!current_slot_set_by_afc_state) {
+                // When AFC state (current_load/current_lane) previously set
+                // current_slot, trust it across incremental updates.  During
+                // loading the target lane is AVAILABLE (not yet LOADED at
+                // toolhead), and the tool may be docked so other lanes can
+                // appear LOADED — the scan would pick the wrong one.  Only
+                // fall back to lane-scan when AFC never provided a value.
                 bool current_is_stale = true;
-                if (system_info_.current_slot >= 0) {
+                if (current_slot_authoritative_ && system_info_.current_slot >= 0) {
+                    // AFC told us which lane is active — preserve unless it
+                    // became EMPTY/UNKNOWN (filament actually removed).
+                    const auto* cur = slots_.get(system_info_.current_slot);
+                    current_is_stale = !cur || cur->info.status == SlotStatus::EMPTY ||
+                                       cur->info.status == SlotStatus::UNKNOWN;
+                } else if (system_info_.current_slot >= 0) {
+                    // No authoritative source — original heuristic: stale if
+                    // not LOADED (allows tool-change detection via lane scan).
                     const auto* cur = slots_.get(system_info_.current_slot);
                     current_is_stale = !cur || cur->info.status != SlotStatus::LOADED;
                 }
@@ -563,6 +577,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         if (slot_index >= 0) {
             system_info_.current_slot = slot_index;
             current_slot_set_by_afc_state = true;
+            current_slot_authoritative_ = true;
             // Derive current_tool from slot's mapped tool
             int mapped = slots_.tool_for_slot(slot_index);
             if (mapped >= 0) {
@@ -595,6 +610,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         system_info_.filament_loaded = false;
         system_info_.current_slot = -1;
         system_info_.current_tool = -1;
+        current_slot_authoritative_ = false;
         spdlog::trace("[AMS AFC] Filament unloaded (current_load=null)");
     }
 
@@ -702,7 +718,30 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         if (load_slot >= 0) {
             system_info_.current_slot = load_slot;
             current_slot_set_by_afc_state = true;
+            current_slot_authoritative_ = true;
             spdlog::trace("[AMS AFC] Current load: {} (slot {})", load_lane, load_slot);
+        }
+    }
+
+    // Parse next_lane field — during loading, AFC reports the target lane
+    // before current_load updates.  Use it as an authoritative hint for
+    // current_slot when the system is in a loading/tool-change action and
+    // current_load hasn't been set yet (or is still the old lane).
+    if (afc_data.contains("next_lane") && afc_data["next_lane"].is_string()) {
+        std::string next = afc_data["next_lane"].get<std::string>();
+        if (!next.empty() && loaded_lane.empty()) {
+            // Only use next_lane as current_slot when current_load hasn't
+            // provided an authoritative value in THIS update.
+            int next_slot = slots_.index_of(next);
+            if (next_slot >= 0) {
+                system_info_.current_slot = next_slot;
+                current_slot_set_by_afc_state = true;
+                current_slot_authoritative_ = true;
+                spdlog::trace("[AMS AFC] next_lane: {} → current_slot={} (loading target)",
+                              next, next_slot);
+            }
+        } else {
+            spdlog::trace("[AMS AFC] next_lane: {} (current_load already set)", next);
         }
     }
 
@@ -1234,12 +1273,14 @@ void AmsBackendAfc::parse_afc_extruder(const std::string& ext_name,
 
                 // Only update current_slot if:
                 // - current_slot is unset (no authoritative source yet), OR
-                // - this extruder matches the active tool (it's the one printing)
-                // In multi-extruder setups, incremental updates from non-active
-                // extruders must NOT overwrite the correct current_slot.
-                bool is_active = (system_info_.current_tool < 0) ||
-                                 (ext_tool == system_info_.current_tool);
-                if (system_info_.current_slot < 0 || is_active) {
+                // - this extruder definitively matches the active tool
+                // When current_tool is unknown (-1), do NOT treat every extruder
+                // as active — that overwrites current_slot set by the more
+                // authoritative parse_afc_state(). Let AFC global state be the
+                // authority; AFC_extruder is only a secondary signal.
+                bool is_active_tool = (system_info_.current_tool >= 0) &&
+                                      (ext_tool == system_info_.current_tool);
+                if (system_info_.current_slot < 0 || is_active_tool) {
                     current_lane_name_ = lane;
                     system_info_.current_slot = loaded_slot;
                     spdlog::trace("[AMS AFC] Extruder {} (T{}): lane_loaded={} → slot {}",
