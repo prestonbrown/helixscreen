@@ -16,7 +16,7 @@
       <!-- ================================================================== -->
       <lv_obj width="100%"
               height="content" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
-              style_pad_top="#space_lg" style_pad_bottom="#space_md" style_pad_left="0" style_pad_right="0"
+              style_pad_top="0" style_pad_bottom="#space_md" style_pad_left="0" style_pad_right="0"
               style_pad_gap="#space_xs" scrollable="false">
         <lv_image src="A:assets/images/about-logo.bin" align="center"
                   width="120" height="120" inner_align="contain"/>

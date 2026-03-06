@@ -53,13 +53,13 @@
                           description="Quick actions, calibration, speed"
                           description_tag="Quick actions, calibration, speed" callback="on_ams_settings_clicked"/>
     </lv_obj>
-    <!-- Filament Sensors (hidden if no sensors detected) -->
+    <!-- Sensors (hidden if no sensors detected) -->
     <lv_obj name="container_filament_sensors" width="100%" style_pad_all="0" scrollable="false">
       <bind_flag_if_eq subject="filament_sensor_count" flag="hidden" ref_value="0"/>
       <setting_action_row name="row_filament_sensors"
-                          label="Filament Sensors" label_tag="Filament Sensors" icon="filament"
-                          description="Configure filament detection sensors"
-                          description_tag="Configure filament detection sensors" callback="on_filament_sensors_clicked"/>
+                          label="Sensors" label_tag="Sensors" icon="filament"
+                          description="Configure printer sensors"
+                          description_tag="Configure printer sensors" callback="on_filament_sensors_clicked"/>
     </lv_obj>
     <!-- Material Temperature Overrides -->
     <setting_action_row name="row_material_temps"

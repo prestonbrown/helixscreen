@@ -151,6 +151,8 @@ void AssetManager::register_images() {
     // Branding
     lv_xml_register_image(nullptr, "A:assets/images/helixscreen-logo.png",
                           "A:assets/images/helixscreen-logo.png");
+    lv_xml_register_image(nullptr, "A:assets/images/about-logo.bin",
+                          "A:assets/images/about-logo.bin");
 
     // Printer and UI images
     lv_xml_register_image(nullptr, "A:assets/images/printer_400.png",

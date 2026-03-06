@@ -123,6 +123,9 @@ class LedEffectBackend {
                          NativeBackend::ErrorCallback on_error = nullptr);
     void stop_all_effects(NativeBackend::SuccessCallback on_success = nullptr,
                           NativeBackend::ErrorCallback on_error = nullptr);
+    void stop_effect(const std::string& effect_name,
+                     NativeBackend::SuccessCallback on_success = nullptr,
+                     NativeBackend::ErrorCallback on_error = nullptr);
 
     // Set target LEDs for a specific effect by name
     void set_effect_targets(const std::string& effect_name,

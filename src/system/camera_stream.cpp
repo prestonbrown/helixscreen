@@ -454,20 +454,30 @@ int CameraStream::process_stream_data() {
 }
 
 void CameraStream::snapshot_poll_loop() {
+    // Capture alive guard — if the thread is detached and the CameraStream
+    // destroyed, this keeps the atomic<bool> valid for safe checking.
+    auto thread_alive = alive_;
+
     spdlog::info("[CameraStream] Starting snapshot poll loop (interval={}ms)", kSnapshotIntervalMs);
 
-    while (running_.load()) {
+    while (thread_alive->load() && running_.load()) {
         if (!frame_pending_.load()) {
             fetch_snapshot();
         }
         // Sleep in small increments to check running_ flag
-        for (int i = 0; i < kSnapshotIntervalMs / 100 && running_.load(); i++) {
+        for (int i = 0; i < kSnapshotIntervalMs / 100 && thread_alive->load() && running_.load();
+             i++) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 }
 
 void CameraStream::fetch_snapshot() {
+    // Capture alive guard — if the thread is detached and the CameraStream
+    // destroyed during the blocking HTTP call, this keeps the atomic<bool>
+    // valid so we can check before accessing member state (UAF prevention).
+    auto thread_alive = alive_;
+
     if (snapshot_url_.empty()) {
         return;
     }
@@ -486,6 +496,12 @@ void CameraStream::fetch_snapshot() {
     }
 
     auto resp = requests::request(req);
+
+    // After the blocking HTTP call, stop() may have run and the CameraStream
+    // may be destroyed (detached thread). Check alive BEFORE touching members.
+    if (!thread_alive->load()) {
+        return;
+    }
 
     // Clear active request
     {

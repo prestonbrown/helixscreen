@@ -204,6 +204,7 @@ void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) 
 void BufferStatusModal::on_show() {
     wire_ok_button("btn_primary");
     wire_cancel_button("btn_close");
+    wire_cancel_button("btn_secondary");
 
     populate(info_, effective_unit_);
 

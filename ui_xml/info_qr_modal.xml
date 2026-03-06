@@ -29,7 +29,9 @@
     <divider_horizontal/>
     <lv_obj width="100%" height="#button_height" style_pad_all="0" flex_flow="row">
       <ui_button name="btn_ok" height="100%" text="OK" translation_tag="OK" flex_grow="1"
-                 style_radius="0" variant="primary"/>
+                 style_radius="0" variant="primary">
+        <event_cb trigger="clicked" callback="on_modal_ok_clicked"/>
+      </ui_button>
     </lv_obj>
   </view>
 </component>

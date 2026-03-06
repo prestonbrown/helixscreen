@@ -109,9 +109,16 @@ class BacklightBackendSysfs : public BacklightBackend {
             return false;
         }
 
-        // Allow 0% for sleep mode (full off)
-        int target = (percent * max_brightness_) / 100;
-        target = std::clamp(target, 0, max_brightness_);
+        // Binary backlights (max_brightness=1, e.g. AD5X GPIO): any non-zero
+        // percent means ON. Integer division (50*1/100=0) would incorrectly
+        // truncate to OFF, causing wake-from-sleep failures (#303, #326).
+        int target;
+        if (max_brightness_ <= 1) {
+            target = (percent > 0) ? max_brightness_ : 0;
+        } else {
+            target = (percent * max_brightness_) / 100;
+            target = std::clamp(target, 0, max_brightness_);
+        }
 
         std::string brightness_path = device_path_ + "/brightness";
         std::ofstream f(brightness_path);

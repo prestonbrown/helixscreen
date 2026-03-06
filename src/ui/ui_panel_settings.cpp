@@ -564,10 +564,10 @@ void SettingsPanel::setup_action_handlers() {
         spdlog::trace("[{}]   ✓ Display settings action row", get_name());
     }
 
-    // === Filament Sensors Row ===
+    // === Sensors Row ===
     filament_sensors_row_ = lv_obj_find_by_name(panel_, "row_filament_sensors");
     if (filament_sensors_row_) {
-        spdlog::trace("[{}]   ✓ Filament sensors action row", get_name());
+        spdlog::trace("[{}]   ✓ Sensors action row", get_name());
     }
 
     // === Network Row ===

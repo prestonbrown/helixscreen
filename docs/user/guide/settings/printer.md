@@ -4,9 +4,9 @@ The Printer section contains settings for hardware connected to your printer. It
 
 ---
 
-## Filament Sensors
+## Sensors
 
-> Only shown when filament sensors are detected.
+> Only shown when sensors are detected.
 
 Tap to open the Sensor Settings overlay. Manage all detected filament sensors by choosing a role for each:
 

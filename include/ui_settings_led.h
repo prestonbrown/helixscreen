@@ -94,6 +94,7 @@ class LedSettingsOverlay : public OverlayBase {
 
     void init_led_on_at_start_toggle();
     void init_auto_state_toggle();
+    void discard_unsaved_macro_entry();
     void populate_macro_devices();
     void populate_macro_devices_impl();
     void rebuild_macro_edit_controls(lv_obj_t* container, int index);

@@ -255,6 +255,7 @@ translations:
   Configure Spoolman integration and weight sync settings.: Настройте интеграцию со Spoolman и синхронизацию веса.
   Configure devices in Moonraker: Настроить устройства в Moonraker
   Configure filament detection sensors: Настроить датчики обнаружения филамента
+  Configure printer sensors: Настроить датчики принтера
   Configure quick buttons and standard macros: Настроить быстрые кнопки и стандартные макросы
   Configure timelapse recording: Настроить запись таймлапса
   Configuring Moonraker...: Настройка Moonraker...

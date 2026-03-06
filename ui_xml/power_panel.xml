@@ -2,11 +2,12 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <view name="power_panel" extends="overlay_panel" title="Power Control" title_tag="Power Control">
+  <view name="power_panel" extends="overlay_panel" width="#overlay_panel_width_full"
+        title="Power Control" title_tag="Power Control" bg_color="#screen_bg">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_sm" style_pad_right="#space_sm"
-            style_pad_top="0" style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="0"
+            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg"
+            style_pad_top="0" style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="0"
             scrollable="false">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>

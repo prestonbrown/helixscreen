@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <set>
 #include <sstream>
 
 namespace {
@@ -846,6 +847,34 @@ void LedEffectBackend::stop_all_effects(NativeBackend::SuccessCallback on_succes
     spdlog::debug("[LedEffectBackend] stop_all_effects: gcode: STOP_LED_EFFECTS");
 
     api_->execute_gcode("STOP_LED_EFFECTS", on_success, [on_error](const MoonrakerError& err) {
+        if (on_error) {
+            on_error(err.message);
+        }
+    });
+}
+
+void LedEffectBackend::stop_effect(const std::string& effect_name,
+                                   NativeBackend::SuccessCallback on_success,
+                                   NativeBackend::ErrorCallback on_error) {
+    if (!api_) {
+        spdlog::warn("[LedEffectBackend] stop_effect called with no API (effect={})", effect_name);
+        if (on_error) {
+            on_error("No API connection available");
+        }
+        return;
+    }
+
+    // Strip "led_effect " prefix to get bare effect name for gcode
+    std::string bare_name = effect_name;
+    const std::string prefix = "led_effect ";
+    if (bare_name.rfind(prefix, 0) == 0) {
+        bare_name = bare_name.substr(prefix.size());
+    }
+
+    std::string gcode = "SET_LED_EFFECT EFFECT=" + bare_name + " STOP=1";
+    spdlog::debug("[LedEffectBackend] stop_effect: {} -> gcode: {}", effect_name, gcode);
+
+    api_->execute_gcode(gcode, on_success, [on_error](const MoonrakerError& err) {
         if (on_error) {
             on_error(err.message);
         }
@@ -1707,11 +1736,20 @@ void LedController::toggle_all(bool on) {
 
     spdlog::info("[LedController] toggle_all({}) for {} strip(s)", on, selected_strips_.size());
 
-    // When turning off, stop any active LED effects first.  LED effects
+    // When turning off, stop active LED effects on selected strips.  LED effects
     // continuously write their own color values to the neopixels, so a bare
     // SET_LED RED=0 will be immediately overridden if effects are still running.
+    // Only stop effects that target selected strips — not a blanket STOP_LED_EFFECTS
+    // which would affect deselected strips too (issue #329).
     if (!on && effects_.is_available()) {
-        effects_.stop_all_effects();
+        std::set<std::string> stopped;
+        for (const auto& strip_id : selected_strips_) {
+            for (const auto& effect : effects_.effects_for_strip(strip_id)) {
+                if (stopped.insert(effect.name).second) {
+                    effects_.stop_effect(effect.name);
+                }
+            }
+        }
     }
 
     for (const auto& strip_id : selected_strips_) {

@@ -308,7 +308,20 @@ void MoonrakerManager::register_callbacks() {
             title = "Request Failed";
         }
 
+        // Suppress expected transient events during startup grace period
+        auto now = std::chrono::steady_clock::now();
+        bool within_grace_period =
+            (now - m_startup_time) < AppConstants::Startup::NOTIFICATION_GRACE_PERIOD;
+
         if (evt.is_error) {
+            // Suppress discovery failures during startup — Klipper may still be starting
+            // on slow embedded devices (e.g. AD5M). Discovery will retry automatically.
+            if (evt.type == MoonrakerEventType::DISCOVERY_FAILED && within_grace_period) {
+                spdlog::info("[MoonrakerManager] Suppressing startup discovery failure: {}",
+                             evt.message);
+                return;
+            }
+
             bool is_critical = (evt.type == MoonrakerEventType::CONNECTION_FAILED);
             if (is_critical) {
                 NOTIFY_ERROR_MODAL(title, "{}", evt.message);
@@ -324,10 +337,6 @@ void MoonrakerManager::register_callbacks() {
             }
 
             // Suppress "Klipper ready" toast during startup (expected at boot)
-            auto now = std::chrono::steady_clock::now();
-            bool within_grace_period =
-                (now - m_startup_time) < AppConstants::Startup::NOTIFICATION_GRACE_PERIOD;
-
             if (evt.type == MoonrakerEventType::KLIPPY_READY && within_grace_period) {
                 spdlog::info("[MoonrakerManager] Suppressing startup Klipper ready notification");
                 return;

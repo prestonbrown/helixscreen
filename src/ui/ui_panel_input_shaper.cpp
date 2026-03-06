@@ -1591,12 +1591,18 @@ void InputShaperPanel::handle_retry_clicked() {
 
 void InputShaperPanel::handle_save_config_clicked() {
     spdlog::debug("[InputShaper] Save Config clicked");
+    clear_results();
+    set_state(State::IDLE);
+    NavigationManager::instance().go_back();
     save_configuration();
 }
 
 void InputShaperPanel::handle_save_clicked() {
     spdlog::debug("[InputShaper] Save clicked — applying and saving to config");
     apply_recommendation();
+    clear_results();
+    set_state(State::IDLE);
+    NavigationManager::instance().go_back();
     save_configuration();
 }
 

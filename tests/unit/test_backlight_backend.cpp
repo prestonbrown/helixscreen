@@ -173,6 +173,31 @@ TEST_CASE("Sysfs supports_dimming() returns false when max_brightness=1",
     REQUIRE_FALSE(backend->supports_dimming());
 }
 
+TEST_CASE("Binary backlight maps any non-zero brightness to ON",
+          "[api][backlight][sysfs]") {
+    FakeSysfsBacklight fake(1); // Binary backlight (GPIO on/off)
+    auto backend = BacklightBackend::create_sysfs(fake.base_dir.string());
+    REQUIRE(backend->is_available());
+
+    // Any non-zero percent must map to 1 (ON), not truncate to 0 via
+    // integer division. This was the root cause of AD5X wake failure (#326).
+    REQUIRE(backend->set_brightness(50));
+    REQUIRE(fake.read_file("brightness") == "1");
+
+    REQUIRE(backend->set_brightness(10));
+    REQUIRE(fake.read_file("brightness") == "1");
+
+    REQUIRE(backend->set_brightness(1));
+    REQUIRE(fake.read_file("brightness") == "1");
+
+    REQUIRE(backend->set_brightness(100));
+    REQUIRE(fake.read_file("brightness") == "1");
+
+    // 0% must still turn OFF
+    REQUIRE(backend->set_brightness(0));
+    REQUIRE(fake.read_file("brightness") == "0");
+}
+
 TEST_CASE("Sysfs supports_dimming() returns true when max_brightness > 1",
           "[api][backlight][sysfs]") {
     FakeSysfsBacklight fake(255); // PWM backlight with full range

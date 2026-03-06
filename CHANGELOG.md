@@ -5,6 +5,25 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.96.9] - 2026-03-06
+
+### Fixed
+- Camera snapshot polling use-after-free crash after thread detach
+- Binary GPIO backlight truncating brightness to OFF on wake (#326)
+- LED effects stopping on all strips when toggling a single strip (#329)
+- LED macro entries persisted as empty on Add (#330)
+- Input shaper results modal not dismissed before Klipper restart (#328)
+- Modal button focus stealing in host power dialog (#333)
+- About screen logo not registered and excess padding (#333)
+- Info QR modal OK button not wired (#332)
+- Buffer status modal cancel button not wired (#323)
+- Power panel using inconsistent overlay layout
+- Discovery failure toasts shown during startup on slow devices
+- Deploy targets failing with "Text file busy" when process still exiting
+
+### Changed
+- Renamed "Filament Sensors" to "Sensors" in settings panel
+
 ## [0.96.8] - 2026-03-05
 
 ### Added
@@ -1638,6 +1657,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.96.9]: https://github.com/prestonbrown/helixscreen/compare/v0.96.8...v0.96.9
 [0.96.8]: https://github.com/prestonbrown/helixscreen/compare/v0.96.7...v0.96.8
 [0.96.7]: https://github.com/prestonbrown/helixscreen/compare/v0.96.5...v0.96.7
 [0.96.5]: https://github.com/prestonbrown/helixscreen/compare/v0.96.4...v0.96.5

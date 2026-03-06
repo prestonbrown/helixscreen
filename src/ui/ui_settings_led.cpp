@@ -53,6 +53,7 @@ LedSettingsOverlay::LedSettingsOverlay() {
 }
 
 LedSettingsOverlay::~LedSettingsOverlay() {
+    discard_unsaved_macro_entry();
     spdlog::trace("[{}] Destroyed", get_name());
 }
 
@@ -766,6 +767,26 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
 // MACRO DEVICE HANDLERS
 // ============================================================================
 
+void LedSettingsOverlay::discard_unsaved_macro_entry() {
+    if (editing_macro_index_ < 0)
+        return;
+
+    auto& ctrl = helix::led::LedController::instance();
+    auto macros = ctrl.configured_macros();
+
+    if (editing_macro_index_ >= static_cast<int>(macros.size()))
+        return;
+
+    const auto& entry = macros[editing_macro_index_];
+    if (entry.display_name.empty()) {
+        spdlog::info("[{}] Discarding unsaved empty macro at index {}", get_name(),
+                     editing_macro_index_);
+        macros.erase(macros.begin() + editing_macro_index_);
+        ctrl.set_configured_macros(macros);
+        editing_macro_index_ = -1;
+    }
+}
+
 void LedSettingsOverlay::handle_add_macro_device() {
     spdlog::info("[{}] Adding new macro device", get_name());
 
@@ -777,8 +798,9 @@ void LedSettingsOverlay::handle_add_macro_device() {
     new_device.type = helix::led::MacroLedType::ON_OFF;
     updated.push_back(new_device);
 
+    // Only update in-memory list — don't persist to disk until user clicks Save.
+    // This prevents "ghost" empty entries from surviving app restarts.
     ctrl.set_configured_macros(updated);
-    ctrl.save_config();
 
     // Open in edit mode
     editing_macro_index_ = static_cast<int>(updated.size()) - 1;
@@ -787,6 +809,9 @@ void LedSettingsOverlay::handle_add_macro_device() {
 
 void LedSettingsOverlay::handle_edit_macro_device(int index) {
     spdlog::info("[{}] Editing macro device {}", get_name(), index);
+
+    // If we were editing a different entry, discard it if it was never saved (empty name)
+    discard_unsaved_macro_entry();
 
     if (editing_macro_index_ == index) {
         // Toggle off
