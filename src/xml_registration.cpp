@@ -19,6 +19,7 @@
 #include "ui_notification_badge.h"
 #include "ui_panel_home.h"
 #include "ui_panel_settings.h"
+#include "ui_printer_switch_menu.h"
 #include "ui_progress_bar.h"
 #include "ui_spinner.h"
 #include "ui_spool_canvas.h"
@@ -343,6 +344,8 @@ void register_xml_components() {
     register_xml("thermistor_sensor_picker.xml");
     register_xml("thermistor_configure_picker.xml");
     register_xml("favorite_macro_picker.xml");
+    helix::ui::PrinterSwitchMenu::register_callbacks();
+    register_xml("printer_switch_menu.xml");
     register_xml("macro_param_modal.xml");
 
     // Main navigation and panels
@@ -467,6 +470,8 @@ register_xml("sound_settings_overlay.xml");
 
     // Printer manager overlay (launched from home screen printer image)
     register_xml("printer_manager_overlay.xml");
+    register_xml("printer_list_item.xml");
+    register_xml("printer_list_overlay.xml");
 
     // Development tools
     register_xml("memory_stats_overlay.xml");

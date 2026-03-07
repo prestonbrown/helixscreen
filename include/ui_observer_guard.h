@@ -8,7 +8,7 @@
  * @pattern Guard that removes observer on destruction; release() for pre-destroyed subjects.
  *          For dynamic subjects (per-fan, per-sensor, per-extruder), use SubjectLifetime
  *          tokens to prevent use-after-free when subjects are deinited before observers.
- * @threading Main thread only
+ * @threading Main thread only (invalidate_all/revalidate_all use atomic for safety)
  * @gotchas Checks lv_is_initialized() - safe during LVGL shutdown.
  *          Dynamic subjects MUST provide a SubjectLifetime token — see printer_fan_state.h,
  *          temperature_sensor_manager.h, printer_temperature_state.h.
@@ -18,6 +18,7 @@
 
 #include "lvgl/lvgl.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -81,17 +82,34 @@ class ObserverGuard {
     ObserverGuard(const ObserverGuard&) = delete;
     ObserverGuard& operator=(const ObserverGuard&) = delete;
 
+    /**
+     * @brief Signal that all subjects have been torn down (soft restart).
+     *
+     * After this call, all ObserverGuard::reset() calls will release instead
+     * of calling lv_observer_remove(), because the observers have already been
+     * freed by lv_subject_deinit(). Call invalidate_all() AFTER
+     * StaticSubjectRegistry::deinit_all() and BEFORE any re-initialization.
+     * Call revalidate_all() at the END of init_printer_state() when all new
+     * observers are attached to live subjects.
+     */
+    static void invalidate_all() {
+        s_subjects_valid.store(false, std::memory_order_release);
+    }
+    static void revalidate_all() {
+        s_subjects_valid.store(true, std::memory_order_release);
+    }
+
     void reset() {
         if (observer_) {
             // If we have a lifetime token and it expired, the subject (and our
             // observer) was already destroyed by lv_subject_deinit(). Calling
             // lv_observer_remove() here would be a use-after-free crash.
             bool subject_dead = has_alive_token_ && alive_token_.expired();
-            if (!subject_dead && lv_is_initialized()) {
+            if (!subject_dead && s_subjects_valid.load(std::memory_order_acquire) &&
+                lv_is_initialized()) {
                 lv_observer_remove(observer_);
             }
-            // If LVGL is already torn down, just release — don't log,
-            // as spdlog may also be destroyed during static cleanup
+            // If LVGL is already torn down or subjects invalidated, just release
             observer_ = nullptr;
             alive_token_.reset();
             has_alive_token_ = false;
@@ -139,6 +157,8 @@ class ObserverGuard {
     }
 
   private:
+    static inline std::atomic<bool> s_subjects_valid{true};
+
     lv_observer_t* observer_ = nullptr;
     std::weak_ptr<bool> alive_token_; ///< Tracks dynamic subject lifetime
     /// Distinguishes "token never set" from "token expired". Required because a

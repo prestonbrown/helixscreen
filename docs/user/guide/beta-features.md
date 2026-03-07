@@ -44,6 +44,7 @@ When beta features are enabled, the following appear in the UI with an orange "B
 | **Macro Browser** | Advanced panel | Browse and execute custom Klipper macros | Functional; hides system macros, confirms dangerous ones |
 | **Z Calibration** | Controls panel | Quick-access Z calibration button | Functional; requires probe hardware |
 | **MPC Calibration** | Heater Calibration panel | Model Predictive Control calibration as an alternative to PID | Functional; requires Kalico firmware |
+| **Multi-Printer Management** | Settings panel, Navbar, Printer Manager | Add, switch between, and manage multiple Klipper printers from one touchscreen | Functional; switch/add/delete printers with one-tap switching |
 
 > **Graduated from beta:** PID Calibration, Input Shaper, the **Spool Wizard**, and the **G-code Console** are now available to all users without enabling beta features.
 

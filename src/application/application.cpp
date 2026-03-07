@@ -48,6 +48,7 @@
 #include "ui_crash_report_modal.h"
 #include "ui_dialog.h"
 #include "ui_emergency_stop.h"
+#include "ui_modal.h"
 #include "ui_error_reporting.h"
 #include "ui_fan_control_overlay.h"
 #include "ui_gcode_viewer.h"
@@ -56,8 +57,10 @@
 #include "ui_icon_loader.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav_manager.h"
+#include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
+#include "ui_observer_guard.h"
 #include "ui_overlay_network_settings.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
@@ -102,6 +105,7 @@
 #include "ui_wizard_touch_calibration.h"
 #include "ui_wizard_wifi.h"
 
+#include "active_print_media_manager.h"
 #include "android_asset_extractor.h"
 #include "data_root_resolver.h"
 #include "display_settings_manager.h"
@@ -157,6 +161,7 @@
 #include <SDL.h>
 #endif
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
@@ -403,6 +408,16 @@ int Application::run(int argc, char** argv) {
         return 1;
     }
 
+    // Set multi-printer subjects from config (needed for navbar badge binding)
+    {
+        auto printer_ids = m_config->get_printer_ids();
+        auto active_id = m_config->get_active_printer_id();
+        std::string printer_name =
+            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
+        get_printer_state().set_active_printer_name(printer_name);
+        get_printer_state().set_multi_printer_enabled(printer_ids.size() > 1);
+    }
+
     // Phase 9b: Initialize Moonraker (creates client + API)
     // Now works because PrinterState exists from phase 9a
     if (!init_moonraker()) {
@@ -472,6 +487,47 @@ int Application::run(int argc, char** argv) {
         auto* modal = new CrashReportModal();
         modal->set_report(report);
         modal->show_modal(lv_screen_active());
+    }
+
+    // Register wizard completion callback for add-printer recovery
+    set_wizard_completion_callback([this]() {
+        if (!m_wizard_previous_printer_id.empty()) {
+            spdlog::info("[Application] Wizard completed — clearing add-printer recovery state");
+            m_wizard_previous_printer_id.clear();
+        }
+        m_wizard_active = false;
+    });
+
+    // Cancel callback registered by add_printer_via_wizard() when recovery state exists.
+    // Don't register here — initial wizard has nowhere to cancel back to.
+
+    // Phase 11b: Graceful recovery — clean up stale incomplete printer entries
+    // If the active printer never finished the wizard (e.g., crash during add-printer),
+    // switch to a completed printer and remove the stale entry.
+    if (m_config && m_config->is_wizard_required()) {
+        auto printer_ids = m_config->get_printer_ids();
+        auto active_id = m_config->get_active_printer_id();
+
+        // Find a completed printer to fall back to
+        std::string fallback_id;
+        for (const auto& id : printer_ids) {
+            if (id == active_id)
+                continue;
+            bool completed = m_config->get<bool>("/printers/" + id + "/wizard_completed", false);
+            if (completed) {
+                fallback_id = id;
+                break;
+            }
+        }
+
+        if (!fallback_id.empty()) {
+            spdlog::info("[Application] Recovering from stale printer '{}' — "
+                         "switching to completed printer '{}'",
+                         active_id, fallback_id);
+            m_config->remove_printer(active_id);
+            m_config->set_active_printer(fallback_id);
+            m_config->save();
+        }
     }
 
     // Phase 12: Run wizard if needed
@@ -1154,6 +1210,11 @@ bool Application::init_ui() {
     // Wire navigation
     NavigationManager::instance().wire_events(navbar);
 
+    // Register printer switch/add callbacks so navbar badge menu can trigger actions
+    NavigationManager::instance().set_printer_callbacks(
+        [this](const std::string& printer_id) { switch_printer(printer_id); },
+        [this]() { add_printer_via_wizard(); });
+
     // Find panel container
     lv_obj_t* panel_container = lv_obj_find_by_name(content_area, "panel_container");
     if (!panel_container) {
@@ -1347,15 +1408,16 @@ bool Application::run_wizard() {
                                       nlohmann::json::object());
 
         // Clear wizard hardware selections (heaters, fans, LEDs, sensors)
-        const char* wizard_paths[] = {
+        const char* wizard_suffixes[] = {
             helix::wizard::BED_HEATER,    helix::wizard::HOTEND_HEATER, helix::wizard::BED_SENSOR,
             helix::wizard::HOTEND_SENSOR, helix::wizard::HOTEND_FAN,    helix::wizard::PART_FAN,
             helix::wizard::CHAMBER_FAN,   helix::wizard::EXHAUST_FAN,   helix::wizard::LED_STRIP,
         };
-        for (const auto* path : wizard_paths) {
-            m_config->set<std::string>(path, "");
+        for (const auto* suffix : wizard_suffixes) {
+            m_config->set<std::string>(m_config->df() + suffix, "");
         }
-        m_config->set<nlohmann::json>(helix::wizard::LED_SELECTED, nlohmann::json::array());
+        m_config->set<nlohmann::json>(m_config->df() + helix::wizard::LED_SELECTED,
+                                      nlohmann::json::array());
         m_config->set<nlohmann::json>(m_config->df() + "filament_sensors/sensors",
                                       nlohmann::json::array());
 
@@ -2427,11 +2489,39 @@ void Application::handle_keyboard_shortcuts() {
             },
             [this]() { return m_moonraker && m_moonraker->client(); });
 
-        // P key - test action prompt (test mode only)
+        // P key - cycle through configured printers (test mode only)
         shortcuts.register_key_if(
             SDL_SCANCODE_P,
             [this]() {
-                spdlog::info("[Application] P key - triggering test action prompt");
+                auto ids = m_config->get_printer_ids();
+                if (ids.size() > 1) {
+                    auto current = m_config->get_active_printer_id();
+                    auto it = std::find(ids.begin(), ids.end(), current);
+                    auto next = (it != ids.end() && std::next(it) != ids.end()) ? *std::next(it)
+                                                                                : ids.front();
+                    spdlog::info("[Application] P key - switching to printer '{}'", next);
+                    switch_printer(next);
+                } else {
+                    // Create a second test printer so we can test switching
+                    spdlog::info("[Application] P key - creating test printer for multi-printer testing");
+                    nlohmann::json test_data;
+                    test_data["printer_name"] = "Voron 2.4";
+                    test_data["type"] = "Voron 2.4 350mm";
+                    test_data["moonraker_host"] = "127.0.0.1";
+                    test_data["moonraker_port"] = 7125;
+                    m_config->add_printer("voron-24", test_data);
+                    m_config->save();
+                    // Update subjects so the badge appears
+                    get_printer_state().set_multi_printer_enabled(true);
+                }
+            },
+            [this]() { return get_runtime_config()->is_test_mode() && m_config; });
+
+        // A key - test action prompt (test mode only)
+        shortcuts.register_key_if(
+            SDL_SCANCODE_A,
+            [this]() {
+                spdlog::info("[Application] A key - triggering test action prompt");
                 m_action_prompt_manager->trigger_test_prompt();
             },
             [this]() { return get_runtime_config()->is_test_mode() && m_action_prompt_manager; });
@@ -2492,6 +2582,347 @@ void Application::check_timeouts() {
         }
         m_last_timeout_check = current_time;
     }
+}
+
+// ============================================================================
+// SOFT RESTART (printer switching)
+// ============================================================================
+
+void Application::switch_printer(const std::string& printer_id) {
+    if (m_soft_restart_in_progress) {
+        spdlog::warn("[Application] Ignoring switch_printer during active soft restart");
+        return;
+    }
+    m_soft_restart_in_progress = true;
+
+    spdlog::info("[Application] Switching to printer '{}'...", printer_id);
+
+    // Validate printer exists in config
+    if (!m_config->set_active_printer(printer_id)) {
+        spdlog::error("[Application] Failed to switch — unknown printer '{}'", printer_id);
+        m_soft_restart_in_progress = false;
+        return;
+    }
+    m_config->save();
+
+    tear_down_printer_state();
+    init_printer_state();
+
+    // Navigate to home
+    NavigationManager::instance().set_active(PanelId::Home);
+
+    // Show toast with the new printer name
+    std::string printer_name =
+        m_config->get<std::string>(m_config->df() + "printer_name", printer_id);
+    std::string toast_msg = "Connected to " + printer_name;
+    ToastManager::instance().show(ToastSeverity::INFO, toast_msg.c_str());
+
+    m_soft_restart_in_progress = false;
+    spdlog::info("[Application] Switched to printer '{}'", printer_id);
+}
+
+void Application::add_printer_via_wizard() {
+    if (m_soft_restart_in_progress) {
+        spdlog::warn("[Application] Ignoring add_printer_via_wizard during active soft restart");
+        return;
+    }
+    m_soft_restart_in_progress = true;
+
+    // Generate a unique ID for the new printer entry (loop to avoid collisions after deletes)
+    auto existing_ids = m_config->get_printer_ids();
+    int counter = static_cast<int>(existing_ids.size()) + 1;
+    std::string new_id;
+    do {
+        new_id = "printer-" + std::to_string(counter++);
+    } while (std::find(existing_ids.begin(), existing_ids.end(), new_id) != existing_ids.end());
+    std::string previous_id = m_config->get_active_printer_id();
+
+    // Create empty printer entry with wizard_completed=false so is_wizard_required()
+    // returns true (without this, root-level wizard_completed fallback blocks the wizard)
+    nlohmann::json printer_data = {{"wizard_completed", false}};
+    m_config->add_printer(new_id, printer_data);
+    m_config->set_active_printer(new_id);
+    m_config->save();
+
+    // Store previous ID so wizard cancellation can recover
+    m_wizard_previous_printer_id = previous_id;
+
+    spdlog::info("[Application] Adding new printer '{}' via wizard (previous: '{}')", new_id,
+                 previous_id);
+
+    // Soft restart and launch wizard for the new printer.
+    // init_printer_state() calls run_wizard() internally when is_wizard_required() returns true
+    // (which it does for the new empty printer entry with wizard_completed=false).
+    // Do NOT call run_wizard() again here — that creates a duplicate wizard container.
+    tear_down_printer_state();
+
+    // Register cancel callback AFTER tear_down (which clears it) but BEFORE init (which runs wizard)
+    set_wizard_cancel_callback([this]() {
+        cancel_add_printer_wizard();
+    });
+
+    init_printer_state();
+
+    m_soft_restart_in_progress = false;
+}
+
+void Application::cancel_add_printer_wizard() {
+    if (m_soft_restart_in_progress) {
+        spdlog::warn("[Application] Ignoring cancel_add_printer_wizard during active soft restart");
+        return;
+    }
+
+    if (m_wizard_previous_printer_id.empty()) {
+        spdlog::debug("[Application] No add-printer recovery state — ignoring cancel");
+        return;
+    }
+
+    std::string failed_id = m_config->get_active_printer_id();
+    std::string restore_id = m_wizard_previous_printer_id;
+    spdlog::info("[Application] Cancelling add-printer wizard — removing '{}', restoring '{}'",
+                 failed_id, restore_id);
+
+    m_config->remove_printer(failed_id);
+    m_config->set_active_printer(restore_id);
+    m_config->save();
+    m_wizard_previous_printer_id.clear();
+
+    // Defer wizard teardown + soft restart — we're called from a wizard button click handler,
+    // so the wizard_container must survive until the event callback returns.
+    helix::ui::queue_update([this]() {
+        m_soft_restart_in_progress = true;
+
+        set_wizard_active(false);
+        ui_wizard_deinit_subjects();
+
+        tear_down_printer_state();
+        init_printer_state();
+        NavigationManager::instance().set_active(PanelId::Home);
+
+        m_soft_restart_in_progress = false;
+    });
+}
+
+void Application::tear_down_printer_state() {
+    spdlog::info("[Application] Tearing down printer state...");
+
+    // Teardown mirrors shutdown() ordering. Subjects stay alive until step 12
+    // so ObserverGuards can properly call lv_observer_remove() during destruction.
+
+    // 0. Clear wizard cancel callback (prevent stale captures across soft restart)
+    set_wizard_cancel_callback(nullptr);
+
+    // 1. Clear app_globals BEFORE destroying managers to prevent
+    //    destructors from accessing destroyed objects
+    set_moonraker_manager(nullptr);
+    set_moonraker_api(nullptr);
+    set_moonraker_client(nullptr);
+    set_print_history_manager(nullptr);
+    set_temperature_history_manager(nullptr);
+
+    // 2. Deactivate overlays and clear navigation registries
+    NavigationManager::instance().shutdown();
+
+    // 3. Stop UpdateChecker auto-check timer (fires API calls on background thread)
+    if (!helix::is_android_platform()) {
+        UpdateChecker::instance().stop_auto_check();
+    }
+
+    // 4. Unload plugins (may hold refs to managers)
+    if (m_plugin_manager) {
+        m_plugin_manager->unload_all();
+        m_plugin_manager.reset();
+    }
+
+    // 5. Freeze update queue to prevent new callbacks during teardown
+    auto queue_freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
+
+    // 5b. Disconnect WebSocket thread to stop background callbacks
+    if (m_moonraker && m_moonraker->client()) {
+        m_moonraker->client()->disconnect();
+    }
+
+    // 6. Discard pending async callbacks queued by background threads.
+    //    Must happen AFTER disconnect (no more producers) and BEFORE destroying
+    //    objects referenced by queued callbacks.
+    helix::ui::update_queue_shutdown();
+
+    // 6b. Clear global pointer to JobQueueState (prevents access via global pointer).
+    //     Actual destruction deferred to after StaticSubjectRegistry::deinit_all()
+    //     so the registered lambda doesn't run on freed memory.
+    set_job_queue_state(nullptr);
+
+    // 7. Release history managers
+    m_history_manager.reset();
+    m_temp_history_manager.reset();
+
+    // 8. Unregister timelapse event callback
+    if (m_moonraker && m_moonraker->client()) {
+        m_moonraker->client()->unregister_method_callback("notify_timelapse_event",
+                                                          "timelapse_state");
+    }
+
+    // 9. Unregister action prompt callback
+    if (m_moonraker && m_moonraker->client() && m_action_prompt_manager) {
+        m_moonraker->client()->unregister_method_callback("notify_gcode_response",
+                                                          "action_prompt_manager");
+    }
+    AmsState::instance().set_gcode_response_callback(nullptr);
+    m_action_prompt_modal.reset();
+    helix::ActionPromptManager::set_instance(nullptr);
+    m_action_prompt_manager.reset();
+
+    // 10. Clear AMS backends (hold subscription guards with raw client pointers)
+    AmsState::instance().clear_backends();
+
+    // 11. Deinit LedController (holds API/client pointers about to be freed)
+    helix::led::LedController::instance().deinit();
+
+    // 12. Release PanelFactory and SubjectInitializer
+    m_panels.reset();
+    m_subjects.reset();
+
+    // 13. Kill all LVGL animations (hold widget pointers)
+    lv_anim_delete_all();
+
+    // 13b. Clear ModalStack tracking (widgets destroyed by lv_obj_del below)
+    ModalStack::instance().clear();
+
+    // 14. Destroy all static panel/overlay globals (releases ObserverGuards).
+    //     Subjects are still alive here, so lv_observer_remove() works correctly.
+    StaticPanelRegistry::instance().destroy_all();
+
+    // 15. Release global observer guards that observe subjects about to be freed
+    ui_notification_deinit();
+    helix::deinit_active_print_media_manager();
+
+    // 16. Deinit core singleton subjects (LIFO order via StaticSubjectRegistry).
+    //     lv_subject_deinit() removes+frees all remaining observers from each subject.
+    StaticSubjectRegistry::instance().deinit_all();
+
+    // 16b. Destroy JobQueueState (after deinit_all so its registered lambda runs safely)
+    m_job_queue_state.reset();
+
+    // 17. Invalidate all observer guards. From this point, any ObserverGuard::reset()
+    //     in surviving singletons (not destroyed by StaticPanelRegistry) will release
+    //     instead of calling lv_observer_remove() on freed observer pointers.
+    //     This protects the reinit path where old guards get reassigned.
+    ObserverGuard::invalidate_all();
+
+    // 18. Release MoonrakerManager
+    m_moonraker.reset();
+
+    // 19. Reset KeyboardManager (widget pointers become dangling after tree delete)
+    KeyboardManager::instance().reset();
+
+    // 20. Delete LVGL widget tree (panels already released references)
+    //     DO NOT call lv_deinit() — display stays alive
+    if (m_app_layout) {
+        lv_obj_del(m_app_layout);
+        m_app_layout = nullptr;
+    }
+    m_overlay_panels = {};
+
+    spdlog::info("[Application] Printer state torn down");
+}
+
+void Application::init_printer_state() {
+    spdlog::info("[Application] Initializing printer state...");
+
+    // Show error on screen so user isn't left with blank display after init failure.
+    // Exceptional error path — imperative LVGL is acceptable here.
+    auto show_init_error = [this]() {
+        lv_obj_t* err_label = lv_label_create(m_screen);
+        lv_label_set_text(err_label,
+                          "Printer initialization failed.\nPlease restart the application.");
+        lv_obj_center(err_label);
+        lv_obj_set_style_text_color(err_label, lv_color_hex(0xFF4444), 0);
+        lv_obj_set_style_text_font(err_label, lv_font_get_default(), 0);
+    };
+
+    // NOTE: ObserverGuard::invalidate_all() was called at the end of teardown.
+    // Guards in surviving singletons hold freed observer pointers. When they get
+    // reassigned (guard = observe_*()), the move-assignment calls reset() which
+    // safely releases instead of calling lv_observer_remove() on freed memory.
+    // We revalidate at the END of init after all old guards have been cleared.
+
+    // 1. Reinitialize update queue BEFORE moonraker so background thread callbacks
+    //    (hardware discovery, WebSocket messages) have a functioning queue.
+    helix::ui::update_queue_init();
+
+    // 2. Initialize core subjects (PrinterState, AmsState, etc.)
+    if (!init_core_subjects()) {
+        spdlog::error("[Application] Failed to reinitialize core subjects");
+        show_init_error();
+        ObserverGuard::revalidate_all();
+        return;
+    }
+
+    // 2b. Set multi-printer subjects from config
+    {
+        auto printer_ids = m_config->get_printer_ids();
+        auto active_id = m_config->get_active_printer_id();
+        std::string printer_name =
+            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
+        get_printer_state().set_active_printer_name(printer_name);
+        get_printer_state().set_multi_printer_enabled(printer_ids.size() > 1);
+    }
+
+    // 3. Initialize Moonraker (creates client + API + history managers)
+    if (!init_moonraker()) {
+        spdlog::error("[Application] Failed to reinitialize Moonraker");
+        show_init_error();
+        ObserverGuard::revalidate_all();
+        return;
+    }
+
+    // 4. Initialize panel subjects with API injection + post-init
+    if (!init_panel_subjects()) {
+        spdlog::error("[Application] Failed to reinitialize panel subjects");
+        show_init_error();
+        ObserverGuard::revalidate_all();
+        return;
+    }
+
+    // 5. Recreate UI (app_layout from XML, wire navigation)
+    if (!init_ui()) {
+        spdlog::error("[Application] Failed to reinitialize UI");
+        show_init_error();
+        ObserverGuard::revalidate_all();
+        return;
+    }
+
+    // 6. Run wizard if needed for new printer
+    if (run_wizard()) {
+        m_wizard_active = true;
+        set_wizard_active(true);
+    }
+
+    // 7. Create CLI overlay panels (if any)
+    if (!m_wizard_active) {
+        create_overlays();
+    }
+
+    // 8. Reload plugins
+    if (!init_plugins()) {
+        spdlog::warn("[Application] Plugin reinitialization had errors (non-fatal)");
+    }
+
+    // 9. Connect to new printer's Moonraker
+    if (!connect_moonraker()) {
+        spdlog::warn("[Application] Running without printer connection after switch");
+    }
+
+    // 10. Revalidate observer guards — all old guards have been reassigned (released)
+    //     during init, and all new observers are attached to live subjects.
+    ObserverGuard::revalidate_all();
+
+    // Force full screen refresh
+    lv_obj_update_layout(m_screen);
+    invalidate_all_recursive(m_screen);
+    lv_refr_now(nullptr);
+
+    spdlog::info("[Application] Printer state initialized");
 }
 
 void Application::shutdown() {

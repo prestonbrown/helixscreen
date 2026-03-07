@@ -68,6 +68,14 @@ class StaticPanelRegistry {
     void destroy_all();
 
     /**
+     * @brief Clear all registered entries without running callbacks
+     *
+     * Used during soft restart (printer switching) after destroy_all() has run,
+     * to ensure no stale entries remain before re-initialization registers new ones.
+     */
+    void clear();
+
+    /**
      * @brief Get count of registered panels (for testing/debugging)
      */
     size_t count() const {

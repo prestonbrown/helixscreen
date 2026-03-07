@@ -366,6 +366,11 @@ void AmsState::deinit_subjects() {
 
     spdlog::trace("[AMS State] Deinitializing subjects");
 
+    // Clear dangling API pointer — the MoonrakerAPI is destroyed during teardown
+    // before AmsState re-initializes. Without this, sync_from_backend() would
+    // dereference a freed pointer on the next init_subjects() cycle.
+    api_ = nullptr;
+
     // Release cross-singleton observer — it observes a subject from PrinterState
     // which may already be destroyed during StaticSubjectRegistry::deinit_all()
     // reverse-order teardown. Using release() (not reset()) avoids dereferencing

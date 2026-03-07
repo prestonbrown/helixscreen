@@ -96,13 +96,13 @@ setup() {
     [ -z "$result" ]
 }
 
-# --- generate_update_manager_config (type: zip) ---
+# --- generate_update_manager_config (type: web) ---
 
-@test "generate_update_manager_config emits type: zip" {
+@test "generate_update_manager_config emits type: web" {
     INSTALL_DIR="/opt/helixscreen"
     local config
     config=$(generate_update_manager_config)
-    echo "$config" | grep -q "type: zip"
+    echo "$config" | grep -q "type: web"
 }
 
 @test "generate_update_manager_config has correct repo" {

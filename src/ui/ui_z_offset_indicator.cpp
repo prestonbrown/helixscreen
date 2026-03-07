@@ -10,8 +10,10 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
+#include "nozzle_renderer_a4t.h"
 #include "nozzle_renderer_bambu.h"
 #include "nozzle_renderer_faceted.h"
+#include "settings_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -31,7 +33,6 @@ struct ZOffsetIndicatorData {
     int32_t arrow_progress = 0; // 0-255, draw-in progress (base to tip)
     int32_t arrow_opacity = 0;  // 0-255, overall opacity (for fade-out phase)
     int arrow_direction = 0;    // +1 (farther/up) or -1 (closer/down)
-    bool use_faceted_toolhead = false; // Which nozzle renderer to use
 
     // Cached theme colors (resolved once at creation, not per-frame)
     lv_color_t color_text_muted = {};
@@ -233,10 +234,16 @@ static void indicator_draw_cb(lv_event_t* e) {
     int32_t nozzle_scale = LV_CLAMP(5, h / 10, 12);
     lv_color_t nozzle_color = data->color_text;
 
-    if (data->use_faceted_toolhead) {
-        draw_nozzle_faceted(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
-    } else {
-        draw_nozzle_bambu(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+    switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+        case helix::ToolheadStyle::STEALTHBURNER:
+            draw_nozzle_faceted(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+            break;
+        case helix::ToolheadStyle::A4T:
+            draw_nozzle_a4t(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+            break;
+        default:
+            draw_nozzle_bambu(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+            break;
     }
 
     // --- Direction arrow flash (shaft + V-head, drawn from base to tip) ---
@@ -468,7 +475,6 @@ static void* z_offset_indicator_xml_create(lv_xml_parser_state_t* state, const c
 
     // Allocate and attach widget data
     auto* data = new ZOffsetIndicatorData{};
-    data->use_faceted_toolhead = false;
     data->color_text_muted = theme_manager_get_color("text_muted");
     data->color_text = theme_manager_get_color("text");
     data->color_primary = theme_manager_get_color("primary");

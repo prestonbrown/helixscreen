@@ -19,7 +19,7 @@
              flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
              scrollable="true">
       <!-- Telemetry opt-in: compact row with icon, label, toggle, and learn-more button -->
-      <lv_obj width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm"
+      <lv_obj name="telemetry_opt_in_row" width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm"
               flex_flow="row" style_flex_cross_place="center" scrollable="false">
         <icon src="chart_line" size="sm" variant="secondary"/>
         <lv_obj height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
@@ -41,7 +41,7 @@
         </ui_switch>
       </lv_obj>
       <!-- Divider between telemetry and config summary -->
-      <divider_horizontal/>
+      <divider_horizontal name="telemetry_divider"/>
       <!-- Config summary: two-column layout -->
       <lv_obj width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md"
               flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start">

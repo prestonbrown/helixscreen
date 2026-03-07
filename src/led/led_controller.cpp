@@ -1465,26 +1465,26 @@ void LedController::load_config() {
     // === One-time migration from old /led/ paths ===
     auto& old_strips = cfg->get_json("/led/selected_strips");
     if (old_strips.is_array() && !old_strips.empty()) {
-        auto& new_strips = cfg->get_json("/printer/leds/selected_strips");
+        auto& new_strips = cfg->get_json(cfg->df() + "leds/selected_strips");
         if (!new_strips.is_array() || new_strips.empty()) {
-            spdlog::info("[LedController] Migrating config from /led/ to /printer/leds/");
-            cfg->set("/printer/leds/selected_strips", old_strips);
+            spdlog::info("[LedController] Migrating config from /led/ to active printer leds/");
+            cfg->set(cfg->df() + "leds/selected_strips", old_strips);
 
             auto& old_color_json = cfg->get_json("/led/last_color");
             if (old_color_json.is_number()) {
-                cfg->set("/printer/leds/last_color", old_color_json.get<int>());
+                cfg->set(cfg->df() + "leds/last_color", old_color_json.get<int>());
             }
             auto& old_brightness_json = cfg->get_json("/led/last_brightness");
             if (old_brightness_json.is_number()) {
-                cfg->set("/printer/leds/last_brightness", old_brightness_json.get<int>());
+                cfg->set(cfg->df() + "leds/last_brightness", old_brightness_json.get<int>());
             }
             auto& old_presets = cfg->get_json("/led/color_presets");
             if (old_presets.is_array() && !old_presets.empty()) {
-                cfg->set("/printer/leds/color_presets", old_presets);
+                cfg->set(cfg->df() + "leds/color_presets", old_presets);
             }
             auto& old_macros = cfg->get_json("/led/macro_devices");
             if (old_macros.is_array() && !old_macros.empty()) {
-                cfg->set("/printer/leds/macro_devices", old_macros);
+                cfg->set(cfg->df() + "leds/macro_devices", old_macros);
             }
             cfg->save();
         }
@@ -1492,7 +1492,7 @@ void LedController::load_config() {
 
     // Selected strips
     selected_strips_.clear();
-    auto& strips_json = cfg->get_json("/printer/leds/selected_strips");
+    auto& strips_json = cfg->get_json(cfg->df() + "leds/selected_strips");
     if (strips_json.is_array()) {
         for (const auto& s : strips_json) {
             if (s.is_string()) {
@@ -1501,9 +1501,9 @@ void LedController::load_config() {
         }
     }
 
-    // Legacy migration: /printer/leds/selected (JSON array from old SettingsManager)
+    // Legacy migration: leds/selected (JSON array from old SettingsManager)
     if (selected_strips_.empty()) {
-        auto& legacy_selected = cfg->get_json("/printer/leds/selected");
+        auto& legacy_selected = cfg->get_json(cfg->df() + "leds/selected");
         if (legacy_selected.is_array()) {
             for (const auto& s : legacy_selected) {
                 if (s.is_string() && !s.get<std::string>().empty()) {
@@ -1511,15 +1511,15 @@ void LedController::load_config() {
                 }
             }
             if (!selected_strips_.empty()) {
-                spdlog::info("[LedController] Migrated {} strip(s) from /printer/leds/selected",
+                spdlog::info("[LedController] Migrated {} strip(s) from leds/selected",
                              selected_strips_.size());
             }
         }
     }
 
-    // Legacy migration: /printer/leds/strip (single string, oldest format)
+    // Legacy migration: leds/strip (single string, oldest format)
     if (selected_strips_.empty()) {
-        auto& legacy_strip_json = cfg->get_json("/printer/leds/strip");
+        auto& legacy_strip_json = cfg->get_json(cfg->df() + "leds/strip");
         std::string legacy_strip =
             legacy_strip_json.is_string() ? legacy_strip_json.get<std::string>() : "";
         if (!legacy_strip.empty()) {
@@ -1529,14 +1529,14 @@ void LedController::load_config() {
     }
 
     // Last color & brightness
-    auto& color_json = cfg->get_json("/printer/leds/last_color");
+    auto& color_json = cfg->get_json(cfg->df() + "leds/last_color");
     last_color_ = parse_json_color(color_json, 0xFFFFFF);
-    auto& brightness_json = cfg->get_json("/printer/leds/last_brightness");
+    auto& brightness_json = cfg->get_json(cfg->df() + "leds/last_brightness");
     last_brightness_ = brightness_json.is_number() ? brightness_json.get<int>() : 100;
 
     // Color presets
     color_presets_.clear();
-    auto& presets_json = cfg->get_json("/printer/leds/color_presets");
+    auto& presets_json = cfg->get_json(cfg->df() + "leds/color_presets");
     if (presets_json.is_array()) {
         for (const auto& p : presets_json) {
             uint32_t c = parse_json_color(p, UINT32_MAX);
@@ -1552,7 +1552,7 @@ void LedController::load_config() {
 
     // Configured macros
     configured_macros_.clear();
-    auto& macros_json = cfg->get_json("/printer/leds/macro_devices");
+    auto& macros_json = cfg->get_json(cfg->df() + "leds/macro_devices");
     if (macros_json.is_array()) {
         for (const auto& m : macros_json) {
             if (!m.is_object()) {
@@ -1645,13 +1645,13 @@ void LedController::load_config() {
             nlohmann::json arr = nlohmann::json::array();
             for (const auto& s2 : selected_strips_)
                 arr.push_back(s2);
-            cfg2->set("/printer/leds/selected_strips", arr);
+            cfg2->set(cfg2->df() + "leds/selected_strips", arr);
             cfg2->save();
         }
     }
 
     // LED on at start preference
-    auto& on_at_start_json = cfg->get_json("/printer/leds/led_on_at_start");
+    auto& on_at_start_json = cfg->get_json(cfg->df() + "leds/led_on_at_start");
     led_on_at_start_ = on_at_start_json.is_boolean() ? on_at_start_json.get<bool>() : false;
 
     auto& startup_brightness_json = cfg->get_json("/printer/leds/startup_brightness");
@@ -1675,18 +1675,18 @@ void LedController::save_config() {
     for (const auto& s : selected_strips_) {
         strips_arr.push_back(s);
     }
-    cfg->set("/printer/leds/selected_strips", strips_arr);
+    cfg->set(cfg->df() + "leds/selected_strips", strips_arr);
 
     // Last color & brightness (saved as #RRGGBB hex strings)
-    cfg->set("/printer/leds/last_color", helix::color_to_hex_string(last_color_));
-    cfg->set("/printer/leds/last_brightness", last_brightness_);
+    cfg->set(cfg->df() + "leds/last_color", helix::color_to_hex_string(last_color_));
+    cfg->set(cfg->df() + "leds/last_brightness", last_brightness_);
 
     // Color presets (saved as #RRGGBB hex strings)
     nlohmann::json presets_arr = nlohmann::json::array();
     for (const auto& p : color_presets_) {
         presets_arr.push_back(helix::color_to_hex_string(p));
     }
-    cfg->set("/printer/leds/color_presets", presets_arr);
+    cfg->set(cfg->df() + "leds/color_presets", presets_arr);
 
     // Configured macros
     nlohmann::json macros_arr = nlohmann::json::array();
@@ -1718,11 +1718,11 @@ void LedController::save_config() {
         obj["presets"] = presets_arr_macro;
         macros_arr.push_back(obj);
     }
-    cfg->set("/printer/leds/macro_devices", macros_arr);
+    cfg->set(cfg->df() + "leds/macro_devices", macros_arr);
 
     // LED on at start preference
-    cfg->set("/printer/leds/led_on_at_start", led_on_at_start_);
-    cfg->set("/printer/leds/startup_brightness", startup_brightness_);
+    cfg->set(cfg->df() + "leds/led_on_at_start", led_on_at_start_);
+    cfg->set(cfg->df() + "leds/startup_brightness", startup_brightness_);
 
     cfg->save();
     spdlog::debug("[LedController] Saved config");

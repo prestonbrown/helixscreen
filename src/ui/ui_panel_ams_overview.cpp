@@ -199,9 +199,6 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         system_path_ = ui_system_path_canvas_create(system_path_area_);
         if (system_path_) {
             lv_obj_set_size(system_path_, LV_PCT(100), LV_PCT(100));
-            if (PrinterDetector::is_voron_printer()) {
-                ui_system_path_canvas_set_faceted_toolhead(system_path_, true);
-            }
             spdlog::debug("[{}] Created system path canvas", get_name());
         }
     }

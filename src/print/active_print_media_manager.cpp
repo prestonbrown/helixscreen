@@ -34,6 +34,11 @@ void init_active_print_media_manager() {
     spdlog::debug("[ActivePrintMediaManager] Initialized");
 }
 
+void deinit_active_print_media_manager() {
+    g_instance.reset();
+    spdlog::debug("[ActivePrintMediaManager] Deinitialized");
+}
+
 ActivePrintMediaManager& get_active_print_media_manager() {
     if (!g_instance) {
         throw std::runtime_error("ActivePrintMediaManager not initialized");

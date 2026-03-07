@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Full-screen backdrop overlay - tap to dismiss -->
+  <view name="printer_switch_menu" extends="lv_obj"
+        width="100%" height="100%" style_bg_opa="128" style_bg_color="0x000000"
+        style_border_width="0" style_pad_all="0" style_radius="0" clickable="true">
+    <event_cb trigger="clicked" callback="printer_switch_backdrop_cb"/>
+    <!-- Context menu card - width and position set dynamically by C++ -->
+    <lv_obj name="context_menu"
+            width="content" height="content" style_bg_color="#elevated_bg" style_bg_opa="255"
+            style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_xs"
+            style_min_width="160"
+            flex_flow="column" scrollable="false" clickable="true">
+      <text_small text="Switch Printer" translation_tag="Switch Printer"
+                  style_text_color="#text_muted"/>
+      <lv_obj width="100%" height="1" style_bg_color="#text_muted" style_bg_opa="38"
+              style_pad_all="0" scrollable="false"/>
+      <!-- Printer rows populated dynamically by C++ -->
+      <!-- max_height set dynamically by C++ to ~2/3 screen height -->
+      <lv_obj name="printer_list" width="100%" height="content"
+              flex_flow="column" style_pad_all="0" style_pad_gap="0"
+              scrollable="true"/>
+      <lv_obj width="100%" height="1" style_bg_color="#text_muted" style_bg_opa="38"
+              style_pad_all="0" scrollable="false"/>
+      <ui_button name="btn_add_printer" text="+ Add Printer"
+                 translation_tag="+ Add Printer"
+                 variant="ghost" width="100%">
+        <event_cb trigger="clicked" callback="printer_switch_add_cb"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

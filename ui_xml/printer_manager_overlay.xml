@@ -289,6 +289,21 @@
 
       </lv_obj>
 
+      <!-- ================================================================== -->
+      <!-- SECTION 4: MANAGE PRINTERS (beta feature) -->
+      <!-- ================================================================== -->
+      <beta_feature>
+        <lv_obj width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
+                style_pad_top="#space_sm" style_pad_bottom="0" scrollable="false"
+                style_bg_opa="0" style_border_width="0">
+          <ui_button name="pm_manage_printers_btn"
+                     text="Manage Printers" translation_tag="Manage Printers"
+                     icon="printer_3d" width="100%">
+            <event_cb trigger="clicked" callback="pm_manage_printers_clicked"/>
+          </ui_button>
+        </lv_obj>
+      </beta_feature>
+
       <!-- Bottom padding for scroll -->
       <lv_obj width="100%" height="#space_lg" scrollable="false"/>
     </lv_obj>

@@ -49,6 +49,7 @@ All developer documentation lives here. When working on features, look up the re
 | `SOUND_SYSTEM.md` | Audio architecture, JSON themes, backends (SDL, PWM, M300). User guide: `../user/guide/settings.md#sound-settings` |
 | `LED_CONTROL.md` | LED control system: 5 backends, auto-state lighting, control/settings overlays, home panel widget |
 | `PRINTER_MANAGER.md` | Printer overlay, custom images, inline name editing |
+| `MULTI_PRINTER.md` | Multi-printer management: config v4, soft restart, printer switching |
 | `TIMELAPSE.md` | Moonraker timelapse plugin integration |
 | `CRASH_REPORTER.md` | Crash reporter: detection, delivery pipeline, CF Worker, modal UI |
 | `CONFIG_MIGRATION.md` | Versioned config migration: adding new migrations, testing |

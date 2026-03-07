@@ -54,7 +54,8 @@ extern "C" {
  *   - error_segment: Error location (0-7, PathSegment enum, 0=none)
  *   - anim_progress: Animation progress 0-100
  *   - filament_color: Active filament color (0xRRGGBB)
- *   - faceted_toolhead: "true" for faceted red style, "false" for Bambu style (default)
+ *   - faceted_toolhead: "true" for Stealthburner style, "false" for Bambu style (default)
+ *     Also accepts "stealthburner", "a4t", or "default" for explicit style selection
  */
 
 /**
@@ -307,16 +308,6 @@ void ui_filament_path_canvas_set_buffer_callback(lv_obj_t* obj, filament_path_bu
  * @param hub_only true to stop rendering at the hub
  */
 void ui_filament_path_canvas_set_hub_only(lv_obj_t* obj, bool hub_only);
-
-/**
- * @brief Set toolhead renderer style
- *
- * Switches between Bambu-style (metallic gray) and faceted (angular red) toolhead rendering.
- *
- * @param obj The filament_path_canvas widget
- * @param faceted true for faceted red style, false for Bambu metallic style (default)
- */
-void ui_filament_path_canvas_set_faceted_toolhead(lv_obj_t* obj, bool faceted);
 
 /**
  * @brief Set nozzle heat active state

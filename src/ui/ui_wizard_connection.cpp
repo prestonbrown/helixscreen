@@ -101,8 +101,8 @@ void WizardConnectionStep::init_subjects() {
     std::string default_port = "7125"; // Default Moonraker port
 
     try {
-        default_ip = config->get<std::string>(helix::wizard::MOONRAKER_HOST, "");
-        int port_num = config->get<int>(helix::wizard::MOONRAKER_PORT, 7125);
+        default_ip = config->get<std::string>(config->df() + helix::wizard::MOONRAKER_HOST, "");
+        int port_num = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT, 7125);
         default_port = std::to_string(port_num);
 
         spdlog::debug("[{}] Loaded from config: {}:{}", get_name(), default_ip, default_port);
@@ -317,8 +317,8 @@ void WizardConnectionStep::on_connection_success() {
             // NOW safe to access config (on main thread)
             Config* config = Config::get_instance();
             try {
-                config->set(helix::wizard::MOONRAKER_HOST, ip);
-                config->set(helix::wizard::MOONRAKER_PORT, std::stoi(port));
+                config->set(config->df() + helix::wizard::MOONRAKER_HOST, ip);
+                config->set(config->df() + helix::wizard::MOONRAKER_PORT, std::stoi(port));
                 if (config->save()) {
                     spdlog::debug("[Wizard Connection] Saved configuration: {}:{}", ip, port);
                 } else {
@@ -637,8 +637,8 @@ void WizardConnectionStep::on_auto_probe_success() {
             // NOW safe to access config (on main thread)
             Config* config = Config::get_instance();
             try {
-                config->set(helix::wizard::MOONRAKER_HOST, ip);
-                config->set(helix::wizard::MOONRAKER_PORT, std::stoi(port));
+                config->set(config->df() + helix::wizard::MOONRAKER_HOST, ip);
+                config->set(config->df() + helix::wizard::MOONRAKER_PORT, std::stoi(port));
                 if (config->save()) {
                     spdlog::debug("[Wizard Connection] Auto-probe: Saved configuration");
                 }

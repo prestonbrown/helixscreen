@@ -172,6 +172,11 @@ void ui_notification_init() {
     spdlog::debug("[Notification] Notification system initialized (main thread ID captured)");
 }
 
+void ui_notification_deinit() {
+    s_notification_observer.reset();
+    spdlog::debug("[Notification] Notification observer released");
+}
+
 void ui_notification_info(const char* message) {
     if (!message) {
         spdlog::warn("[Notification] Attempted to show info notification with null message");

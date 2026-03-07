@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <view name="printer_list_overlay" extends="overlay_panel"
+        title="Manage Printers" title_tag="Manage Printers">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0"
+            flex_flow="column" scrollable="true"
+            style_bg_color="#card_bg" style_bg_opa="255">
+      <!-- Dynamic printer rows populated by C++ -->
+      <lv_obj name="printer_list_container" width="100%" height="content"
+              flex_flow="column" style_pad_left="#space_md" style_pad_right="#space_md"
+              style_pad_top="#space_sm" style_pad_bottom="0" style_pad_gap="0"
+              scrollable="false"/>
+      <!-- Add Printer button -->
+      <lv_obj width="100%" height="content"
+              style_pad_left="#space_lg" style_pad_right="#space_lg"
+              style_pad_top="#space_md" style_pad_bottom="#space_lg"
+              scrollable="false" style_bg_opa="0" style_border_width="0">
+        <ui_button name="btn_add_printer"
+                   text="+ Add Printer" translation_tag="+ Add Printer"
+                   width="100%">
+          <event_cb trigger="clicked" callback="printer_list_add_cb"/>
+        </ui_button>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

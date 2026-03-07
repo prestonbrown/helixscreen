@@ -271,21 +271,21 @@ The installer appends this to `moonraker.conf`:
 
 ```ini
 [update_manager helixscreen]
-type: zip
+type: web
 channel: stable
 repo: prestonbrown/helixscreen
 path: /opt/helixscreen
-managed_services: helixscreen
 persistent_files:
     config/helixconfig.json
+    config/helixscreen.env
     config/.disabled_services
 ```
 
 Key points:
-- `type: zip` -- Moonraker downloads ZIP assets from GitHub releases (the manifest includes `zip_url` for each platform)
-- `managed_services: helixscreen` -- Moonraker restarts the helixscreen service after update
-- `persistent_files` -- Config files that survive updates
+- `type: web` -- Moonraker downloads ZIP assets from GitHub releases (workaround for mainsail-crew/mainsail#2444 where `type: zip` always shows UP-TO-DATE)
+- `persistent_files` -- Config files backed up before `shutil.rmtree` and restored after extraction. The installer runs `ensure_persistent_files()` on every upgrade to add this to existing configs that predate the feature.
 - `release_info.json` -- Written to the install directory so Moonraker can detect the installed version
+- A systemd path unit (`helixscreen-update.path`) watches `release_info.json` and restarts the service after Moonraker extracts an update (since `type: web` lacks `managed_services` support)
 
 ### Service Allowlist
 
@@ -293,7 +293,7 @@ The installer also adds `helixscreen` to `moonraker.asvc` (the service managemen
 
 ### Migration
 
-The installer detects and migrates old `type: git_repo` configurations to `type: zip`, cleaning up any leftover sparse clone directories.
+The installer detects and migrates old `type: git_repo` and `type: zip` configurations to `type: web`, cleaning up any leftover sparse clone directories. Existing `type: web` sections that lack `persistent_files` are patched in-place.
 
 ### Platform Scope
 

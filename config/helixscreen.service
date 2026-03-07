@@ -46,6 +46,11 @@ ExecStartPre=+/bin/sh -c 'systemctl stop display-sleep.service 2>/dev/null || tr
 # doesn't substitute them — they must remain literal to match a broken deployed file.
 ExecStartPre=+/bin/sh -c 'u=@@HELIX_USER@@; for f in /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla /etc/polkit-1/rules.d/50-helixscreen-network.rules; do [ -f "$$f" ] && grep -q "@@""HELIX_USER""@@" "$$f" 2>/dev/null && sed -i "s|@@""HELIX_USER""@@|$$u|g" "$$f" || true; done'
 
+# Fix install dir ownership for self-updates.  Initial installs (run as root)
+# may leave files root-owned; the service user needs write access for in-app
+# updates under NoNewPrivileges.  Runs as root (+prefix), safe no-op if already correct.
+ExecStartPre=+/bin/sh -c 'u=@@HELIX_USER@@; [ "$$u" != "root" ] && chown -Rh "$$u:$$u" "@@INSTALL_DIR@@" 2>/dev/null || true'
+
 # Unbind framebuffer console before starting (requires root, runs before User= drop)
 # vtcon1 is the fbcon driver; vtcon0 is the dummy. Unbinding prevents kernel
 # messages (dmesg, undervoltage) from painting over the UI via fbcon.
@@ -72,9 +77,12 @@ RestartSec=3
 LimitNOFILE=65536
 LimitNPROC=4096
 
-# Security hardening (can be relaxed if needed)
+# Security hardening
+# Full INSTALL_DIR is writable (not just config/) so in-app self-updates
+# can replace binaries without sudo.  ProtectSystem=strict prevents writes
+# anywhere else; NoNewPrivileges blocks privilege escalation.
 ProtectSystem=strict
-ReadWritePaths=@@INSTALL_DIR@@/config /var/log
+ReadWritePaths=@@INSTALL_DIR@@ /var/log
 StateDirectory=helixscreen
 StateDirectoryMode=0700
 PrivateTmp=true

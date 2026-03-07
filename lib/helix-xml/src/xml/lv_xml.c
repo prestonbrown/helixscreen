@@ -535,7 +535,9 @@ lv_result_t lv_xml_register_subject(lv_xml_component_scope_t * scope, const char
     lv_xml_subject_t * s;
     LV_LL_READ(&scope->subjects_ll, s) {
         if(lv_streq(s->name, name)) {
-            LV_LOG_INFO("Subject `%s` is already registered. Don't register it again.", name);
+            /* Update the pointer — the subject may have moved after a
+             * destroy/recreate cycle (e.g., soft restart). */
+            s->subject = subject;
             return LV_RESULT_OK;
         }
     }

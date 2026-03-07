@@ -1987,13 +1987,8 @@ get_latest_version() {
     local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
     log_info "Fetching latest version from GitHub..."
 
-    if command -v curl >/dev/null 2>&1; then
-        # Use basic sed regex (no -E flag) for BusyBox compatibility
-        version=$(curl -sSL --connect-timeout 10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
-    elif command -v wget >/dev/null 2>&1; then
-        # Use basic sed regex (no -E flag) for BusyBox compatibility
-        version=$(wget -qO- --timeout=10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
-    fi
+    # Use basic sed regex (no -E flag) for BusyBox compatibility
+    version=$(fetch_url "$url" | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
 
     if [ -z "$version" ]; then
         log_error "Failed to fetch latest version."
@@ -2248,38 +2243,27 @@ extract_release() {
     mkdir -p "$extract_dir"
     cd "$extract_dir" || exit 1
 
+    # BusyBox tar doesn't support -z; use gunzip pipe on embedded platforms
+    local extract_ok=false
     if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ] || [ "$platform" = "k1" ]; then
-        # BusyBox tar doesn't support -z
-        if ! gunzip -c "$tarball" | tar xf -; then
-            # Check if it was a space issue vs actual corruption
-            local post_mb
-            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
-            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
-                log_error "Failed to extract tarball: no space left on device."
-                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
-                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
-            else
-                log_error "Failed to extract tarball."
-                log_error "The archive may be corrupted. Try re-downloading."
-            fi
-            rm -rf "$extract_dir"
-            exit 1
-        fi
+        gunzip -c "$tarball" | tar xf - && extract_ok=true
     else
-        if ! tar -xzf "$tarball"; then
-            local post_mb
-            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
-            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
-                log_error "Failed to extract tarball: no space left on device."
-                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
-                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
-            else
-                log_error "Failed to extract tarball."
-                log_error "The archive may be corrupted. Try re-downloading."
-            fi
-            rm -rf "$extract_dir"
-            exit 1
+        tar -xzf "$tarball" && extract_ok=true
+    fi
+
+    if [ "$extract_ok" = false ]; then
+        local post_mb
+        post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+        if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
+            log_error "Failed to extract tarball: no space left on device."
+            log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
+            log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
+        else
+            log_error "Failed to extract tarball."
+            log_error "The archive may be corrupted. Try re-downloading."
         fi
+        rm -rf "$extract_dir"
+        exit 1
     fi
 
     # Phase 2: Validate extracted content
@@ -2318,6 +2302,105 @@ extract_release() {
             cp "${INSTALL_DIR}/config/helixscreen.env" "$BACKUP_ENV"
             log_info "Backed up existing helixscreen.env"
         fi
+
+        # Self-update under NoNewPrivileges: the parent directory (e.g. /opt)
+        # is read-only under ProtectSystem=strict, so we can't do an atomic
+        # directory rename.  Instead, replace contents in-place within
+        # INSTALL_DIR — this only needs write access to INSTALL_DIR itself
+        # (covered by ReadWritePaths in the service file).
+        if _has_no_new_privs; then
+            # Verify INSTALL_DIR is writable.  Older service files only grant
+            # ReadWritePaths to config/, so ProtectSystem=strict blocks writes
+            # to the rest.  If so, the ExecStartPre ownership fix in the new
+            # service file will resolve this on next restart.
+            if ! touch "${INSTALL_DIR}/.update_test" 2>/dev/null; then
+                log_error "Cannot write to ${INSTALL_DIR} (read-only under ProtectSystem)."
+                log_error "The systemd service file needs updating to allow self-updates."
+                log_error "Fix: re-run the installer once with:"
+                log_error "  curl -fsSL https://install.helixscreen.org | bash"
+                rm -rf "$extract_dir"
+                exit 1
+            fi
+            rm -f "${INSTALL_DIR}/.update_test" 2>/dev/null
+
+            log_info "Self-update: replacing install contents in-place..."
+
+            # Remove old contents (except config/).
+            # Don't use || true — if rm fails, we must not proceed to mv
+            # because mv can't overwrite a non-empty directory.
+            local _inplace_failed=false
+            for _item in "${INSTALL_DIR}"/*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                [ "$_base" = "config" ] && continue
+                if ! rm -rf "$_item"; then
+                    log_error "Failed to remove old ${_base}"
+                    _inplace_failed=true
+                fi
+            done
+            # Hidden files too
+            for _item in "${INSTALL_DIR}"/.*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                case "$_base" in .|..) continue ;; esac
+                rm -rf "$_item" 2>/dev/null || true
+            done
+
+            if [ "$_inplace_failed" = true ]; then
+                log_error "In-place update failed. Install may be in a broken state."
+                log_error "Fix: re-run the installer: curl -fsSL https://install.helixscreen.org | bash"
+                rm -rf "$extract_dir"
+                exit 1
+            fi
+
+            # Move new contents in (except config/)
+            for _item in "${new_install}"/*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                [ "$_base" = "config" ] && continue
+                if ! mv "$_item" "${INSTALL_DIR}/${_base}"; then
+                    log_error "Failed to install: ${_base}"
+                    rm -rf "$extract_dir"
+                    exit 1
+                fi
+            done
+            # Hidden files too
+            for _item in "${new_install}"/.*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                case "$_base" in .|..) continue ;; esac
+                mv "$_item" "${INSTALL_DIR}/${_base}" 2>/dev/null || true
+            done
+
+            # Merge new config defaults without overwriting user files.
+            # New versions may ship config files that didn't exist before.
+            if [ -d "${new_install}/config" ]; then
+                for _item in "${new_install}/config"/*; do
+                    [ -e "$_item" ] || continue
+                    _base=$(basename "$_item")
+                    if [ ! -e "${INSTALL_DIR}/config/${_base}" ]; then
+                        mv "$_item" "${INSTALL_DIR}/config/${_base}" 2>/dev/null || true
+                        log_info "Added new config default: ${_base}"
+                    elif [ -d "$_item" ] && [ -d "${INSTALL_DIR}/config/${_base}" ]; then
+                        # Merge directory contents (e.g. printer_database.d/)
+                        for _subitem in "$_item"/*; do
+                            [ -e "$_subitem" ] || continue
+                            _subbase=$(basename "$_subitem")
+                            if [ ! -e "${INSTALL_DIR}/config/${_base}/${_subbase}" ]; then
+                                mv "$_subitem" "${INSTALL_DIR}/config/${_base}/${_subbase}" 2>/dev/null || true
+                            fi
+                        done
+                    fi
+                done
+            fi
+
+            rm -rf "$extract_dir"
+            log_success "Updated in-place at ${INSTALL_DIR}"
+            return 0
+        fi
+
+        # Standard path (fresh install or non-self-update with sudo access):
+        # atomic directory swap via rename in parent directory.
 
         # Choose backup dir name for atomic swap.
         # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned
@@ -2458,6 +2541,13 @@ cleanup_old_install() {
 
 #
 # SERVICE_NAME is defined in common.sh
+# Portable in-place sed: GNU sed uses -i, BSD/macOS sed requires -i ''
+_sed_inplace() {
+    local pattern=$1 file=$2
+    $SUDO sed -i "$pattern" "$file" 2>/dev/null || \
+    $SUDO sed -i '' "$pattern" "$file" 2>/dev/null || true
+}
+
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
 # When helix-screen self-updates, it spawns install.sh as a child process.  The
 # helixscreen.service unit has NoNewPrivileges=true, so ALL sudo calls in install.sh
@@ -2524,14 +2614,9 @@ install_service_systemd() {
     local helix_group="${KLIPPER_USER:-root}"
     local install_dir="${INSTALL_DIR:-/opt/helixscreen}"
 
-    $SUDO sed -i "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest" 2>/dev/null || true
-
-    $SUDO sed -i "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest" 2>/dev/null || true
-
-    $SUDO sed -i "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest" 2>/dev/null || true
+    _sed_inplace "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest"
+    _sed_inplace "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest"
+    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest"
 
     if ! $SUDO systemctl daemon-reload; then
         log_error "Failed to reload systemd daemon."
@@ -2564,8 +2649,7 @@ install_update_watcher_systemd() {
     $SUDO cp "$svc_src" "$svc_dest"
 
     # Template the install directory path
-    $SUDO sed -i "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest" 2>/dev/null || true
+    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest"
 
     $SUDO systemctl daemon-reload
     $SUDO systemctl enable helixscreen-update.path 2>/dev/null || true
@@ -2600,8 +2684,7 @@ install_service_sysv() {
 
     # Update the DAEMON_DIR in the init script to match the install location
     # This is important for Klipper Mod which uses a different path
-    $SUDO sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || \
-    $SUDO sed -i '' "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || true
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST"
 
     CLEANUP_SERVICE=true
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
@@ -2711,20 +2794,22 @@ deploy_platform_hooks() {
     log_info "Deployed platform hooks: $platform"
 }
 
-# Fix ownership of config directory for non-root Klipper users
-# Binaries stay root-owned for security; only config needs user write access
+# Fix ownership of install directory for non-root service users.
+# The entire INSTALL_DIR must be user-owned so that in-app self-updates
+# (which run under NoNewPrivileges=true, blocking sudo) can replace
+# files without root access.  ProtectSystem=strict in the service file
+# limits filesystem writes to ReadWritePaths regardless of ownership.
+# Uses -h to avoid following symlinks outside INSTALL_DIR.
 fix_install_ownership() {
     local user="${KLIPPER_USER:-}"
     if [ -n "$user" ] && [ "$user" != "root" ] && [ -d "$INSTALL_DIR" ]; then
         log_info "Setting ownership to ${user}..."
-        if [ -d "${INSTALL_DIR}/config" ]; then
-            # Try without sudo first: during self-update under NoNewPrivileges,
-            # sudo is blocked but config is already user-owned so chown succeeds
-            # without it (or is a no-op).  Fall back to sudo for fresh installs
-            # where root may own the directory.
-            chown -R "${user}:${user}" "${INSTALL_DIR}/config" 2>/dev/null || \
-                $SUDO chown -R "${user}:${user}" "${INSTALL_DIR}/config" 2>/dev/null || true
-        fi
+        # Try without sudo first: during self-update under NoNewPrivileges,
+        # sudo is blocked but files are already user-owned so chown succeeds
+        # without it (or is a no-op).  Fall back to sudo for fresh installs
+        # where root may own the directory.
+        chown -Rh "${user}:${user}" "${INSTALL_DIR}" 2>/dev/null || \
+            $SUDO chown -Rh "${user}:${user}" "${INSTALL_DIR}" 2>/dev/null || true
     fi
 }
 
@@ -2897,6 +2982,41 @@ migrate_to_web_type() {
     log_success "Migrated to type: web update manager"
 }
 
+# Ensure the helixscreen section in moonraker.conf has persistent_files.
+# Older installs may have the section without persistent_files, causing
+# Moonraker's shutil.rmtree to wipe the user config on every update.
+# Args: $1 = moonraker.conf path
+ensure_persistent_files() {
+    local conf="$1"
+
+    # Check if persistent_files already present in the helixscreen section
+    if awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^persistent_files:/{print; exit}' "$conf" | grep -q 'persistent_files'; then
+        return 0
+    fi
+
+    log_warn "Moonraker config missing persistent_files — adding to prevent config loss on update"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    # Insert persistent_files block after the path: line in the helixscreen section
+    $fs awk '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^path:/ {
+            print
+            print "persistent_files:"
+            print "    config/helixconfig.json"
+            print "    config/helixscreen.env"
+            print "    config/.disabled_services"
+            in_section=0
+            next
+        }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "Added persistent_files to moonraker.conf"
+}
+
 # Write release_info.json if not already present
 # Moonraker type:web needs this file to detect installed version
 write_release_info() {
@@ -3018,6 +3138,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # Ensure persistent_files is present (added after initial releases).
+        # Without it, Moonraker's shutil.rmtree wipes the config on every update.
+        ensure_persistent_files "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
         return 0

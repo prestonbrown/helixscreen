@@ -8,6 +8,7 @@
 #include "prerendered_images.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"
+#include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
@@ -72,14 +73,14 @@ std::string PrinterImageManager::get_active_image_id() const {
     Config* config = Config::get_instance();
     if (!config)
         return "";
-    return config->get<std::string>("/display/printer_image", "");
+    return config->get<std::string>(config->df() + PRINTER_IMAGE, "");
 }
 
 void PrinterImageManager::set_active_image(const std::string& id) {
     Config* config = Config::get_instance();
     if (!config)
         return;
-    config->set<std::string>("/display/printer_image", id);
+    config->set<std::string>(config->df() + PRINTER_IMAGE, id);
     config->save();
     spdlog::info("[PrinterImageManager] Active image set to: '{}'",
                  id.empty() ? "(auto-detect)" : id);

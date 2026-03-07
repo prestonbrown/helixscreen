@@ -451,8 +451,20 @@ bool CrashReporter::save_to_file(const CrashReport& report) {
 // =============================================================================
 
 void CrashReporter::consume_crash_file() {
-    crash_handler::remove_crash_file(crash_file_path());
-    spdlog::debug("[CrashReporter] Consumed crash file");
+    // Rotate crash files to keep the last 3 raw crash dumps for analysis:
+    //   crash.txt → crash_1.txt → crash_2.txt → crash_3.txt (oldest dropped)
+    namespace fs = std::filesystem;
+    std::string base = config_dir_ + "/crash";
+    std::error_code ec;
+
+    fs::remove(base + "_3.txt", ec);
+    for (int i = 2; i >= 1; --i) {
+        fs::rename(base + "_" + std::to_string(i) + ".txt",
+                   base + "_" + std::to_string(i + 1) + ".txt", ec);
+    }
+    fs::rename(base + ".txt", base + "_1.txt", ec);
+
+    spdlog::debug("[CrashReporter] Rotated crash file");
 }
 
 // =============================================================================

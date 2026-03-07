@@ -30,7 +30,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/printer.md` | Filament sensors, AMS, Spoolman, LEDs, retraction, macros |
 | `guide/settings/notifications.md` | Sound settings, print completion alerts |
 | `guide/settings/motion.md` | Z movement, machine limits, E-Stop, cancel escalation |
-| `guide/settings/system.md` | Network, host, touch cal, hardware, plugins, telemetry, reset |
+| `guide/settings/system.md` | Network, host, printers, touch cal, hardware, plugins, telemetry, reset |
 | `guide/settings/help-about.md` | Debug bundles, Discord, docs, version, updates, print hours |
 | `guide/settings/led-settings.md` | LED strip selection, auto-state, macro devices, setup guides |
 | `guide/advanced.md` | Console, macros, power, history, timelapse |

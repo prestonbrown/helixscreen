@@ -8,6 +8,7 @@ Complete reference for HelixScreen configuration options.
 
 - [Configuration File Location](#configuration-file-location)
 - [Configuration Structure](#configuration-structure)
+- [Multi-Printer Configuration](#multi-printer-configuration)
 - [General Settings](#general-settings)
 - [Theme Settings](#theme-settings)
 - [Logging Settings](#logging-settings)
@@ -92,6 +93,42 @@ The configuration file is JSON format with several top-level sections:
   "update": { ... }
 }
 ```
+
+---
+
+## Multi-Printer Configuration
+
+When multiple printers are configured, the config file uses a versioned schema (v4) with per-printer settings:
+
+```json
+{
+  "config_version": 4,
+  "active_printer_id": "voron-24",
+  "printers": {
+    "voron-24": {
+      "printer_name": "Voron 2.4",
+      "moonraker_host": "192.168.1.100",
+      "moonraker_port": 7125,
+      "wizard_completed": true,
+      "printer_image": "shipped:voron-24r2",
+      ...per-printer settings...
+    },
+    "ender-3": {
+      "printer_name": "Workshop Ender",
+      "moonraker_host": "192.168.1.101",
+      "moonraker_port": 7125,
+      "wizard_completed": true,
+      ...per-printer settings...
+    }
+  },
+  "wifi": { ... },
+  "display": { ... }
+}
+```
+
+Each printer entry contains all printer-specific settings (connection details, hardware selections, LED config, filament sensors, etc.). Device-level settings like WiFi and display preferences remain at the root level and are shared across all printers.
+
+> **Note:** You don't need to edit the config file manually — use the Settings > Printers UI to add and manage printers. The config file is shown here for reference.
 
 ---
 

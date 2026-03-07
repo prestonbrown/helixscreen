@@ -18,7 +18,11 @@ namespace helix {
 class ChangeHostConfigFixture : public Config {
   public:
     ChangeHostConfigFixture() {
-        data = {{"printer", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}};
+        data = {{"config_version", 3},
+                {"active_printer_id", "default"},
+                {"printers",
+                 {{"default", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}}}};
+        active_printer_id_ = "default";
         saved_instance_ = instance;
         instance = this;
     }

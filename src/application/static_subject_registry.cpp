@@ -30,6 +30,11 @@ void StaticSubjectRegistry::register_deinit(const char* name, std::function<void
                   deinitializers_.size());
 }
 
+void StaticSubjectRegistry::clear() {
+    deinitializers_.clear();
+    spdlog::trace("[StaticSubjectRegistry] Cleared all entries (no callbacks run)");
+}
+
 void StaticSubjectRegistry::deinit_all() {
     if (deinitializers_.empty()) {
         spdlog::debug("[StaticSubjectRegistry] No subjects registered, nothing to deinit");

@@ -369,7 +369,7 @@ void PowerPanel::load_selected_devices() {
         return;
     }
 
-    auto devices = config->get<std::vector<std::string>>("/printer/power/selected_devices",
+    auto devices = config->get<std::vector<std::string>>(config->df() + "power/selected_devices",
                                                          std::vector<std::string>{});
     if (devices.empty()) {
         // No config exists yet - will auto-select all on first discovery
@@ -390,7 +390,7 @@ void PowerPanel::set_selected_devices(const std::vector<std::string>& devices) {
 
     Config* config = Config::get_instance();
     if (config) {
-        config->set("/printer/power/selected_devices", devices);
+        config->set(config->df() + "power/selected_devices", devices);
         config->save();
         spdlog::debug("[{}] Saved {} selected devices to config", get_name(), devices.size());
     }

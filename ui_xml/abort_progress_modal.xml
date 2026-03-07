@@ -19,6 +19,13 @@
       <text_muted name="abort_message_label"
                   width="100%" bind_text="abort_progress_message" text="Processing..." translation_tag="Processing..."
                   long_mode="wrap" style_text_align="center"/>
+      <!-- E-Stop escape hatch -->
+      <ui_button name="abort_estop_btn"
+                 width="100%" height="#button_height_lg" variant="danger" icon="alert_octagon"
+                 text="EMERGENCY STOP" translation_tag="EMERGENCY STOP"
+                 style_margin_top="#space_sm">
+        <event_cb trigger="clicked" callback="on_abort_emergency_stop"/>
+      </ui_button>
     </lv_obj>
   </view>
 </component>

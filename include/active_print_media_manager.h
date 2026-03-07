@@ -105,6 +105,14 @@ class ActivePrintMediaManager {
 void init_active_print_media_manager();
 
 /**
+ * @brief Destroy the ActivePrintMediaManager singleton for soft restart
+ *
+ * Releases the observer guard and destroys the instance. Must be called
+ * BEFORE PrinterState::deinit_subjects() to avoid dangling observer pointers.
+ */
+void deinit_active_print_media_manager();
+
+/**
  * @brief Get the global ActivePrintMediaManager instance
  *
  * @return Reference to the singleton instance

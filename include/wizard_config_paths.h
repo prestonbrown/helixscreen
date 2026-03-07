@@ -5,47 +5,57 @@
 
 /**
  * @file wizard_config_paths.h
- * @brief Centralized configuration paths for wizard screens
+ * @brief Centralized configuration path suffixes for wizard screens
  *
- * Defines all JSON configuration paths used by wizard screens to eliminate
- * hardcoded string literals and reduce typo risk.
+ * Defines JSON configuration path SUFFIXES used by wizard screens.
+ * These are relative to the active printer config section.
  *
- * All printer-specific paths are under /printer/...
+ * Usage: config->get<T>(config->df() + wizard::BED_HEATER, default_val)
+ *
+ * The df() method returns the printer prefix (e.g., "/printers/voron/")
+ * so the full path resolves to e.g., "/printers/voron/heaters/bed".
  */
 
 namespace helix {
 namespace wizard {
+
+// ---- Per-printer settings (suffixes — prepend config->df() for full path) ----
+// Example: config->get<T>(config->df() + wizard::BED_HEATER, default_val)
+//          resolves to e.g. "/printers/voron/heaters/bed"
+
 // Printer identification
-constexpr const char* PRINTER_NAME = "/printer/name";
-constexpr const char* PRINTER_TYPE = "/printer/type";
+constexpr const char* PRINTER_NAME = "printer_name";
+constexpr const char* PRINTER_TYPE = "type";
 
 // Bed hardware
-constexpr const char* BED_HEATER = "/printer/heaters/bed";
-constexpr const char* BED_SENSOR = "/printer/temp_sensors/bed";
+constexpr const char* BED_HEATER = "heaters/bed";
+constexpr const char* BED_SENSOR = "temp_sensors/bed";
 
 // Hotend hardware
-constexpr const char* HOTEND_HEATER = "/printer/heaters/hotend";
-constexpr const char* HOTEND_SENSOR = "/printer/temp_sensors/hotend";
+constexpr const char* HOTEND_HEATER = "heaters/hotend";
+constexpr const char* HOTEND_SENSOR = "temp_sensors/hotend";
 
 // Fan hardware
-constexpr const char* HOTEND_FAN = "/printer/fans/hotend";
-constexpr const char* PART_FAN = "/printer/fans/part";
-constexpr const char* CHAMBER_FAN = "/printer/fans/chamber";
-constexpr const char* EXHAUST_FAN = "/printer/fans/exhaust";
+constexpr const char* HOTEND_FAN = "fans/hotend";
+constexpr const char* PART_FAN = "fans/part";
+constexpr const char* CHAMBER_FAN = "fans/chamber";
+constexpr const char* EXHAUST_FAN = "fans/exhaust";
 
 // LED hardware (legacy — used for migration only in LedController::load_config()
 // and hardware_validator.cpp. New code should use LedController::selected_strips())
-constexpr const char* LED_STRIP = "/printer/leds/strip";
-constexpr const char* LED_SELECTED = "/printer/leds/selected";
+constexpr const char* LED_STRIP = "leds/strip";
+constexpr const char* LED_SELECTED = "leds/selected";
 
-// Network configuration
-constexpr const char* MOONRAKER_HOST = "/printer/moonraker_host";
-constexpr const char* MOONRAKER_PORT = "/printer/moonraker_port";
+// Network configuration (per-printer)
+constexpr const char* MOONRAKER_HOST = "moonraker_host";
+constexpr const char* MOONRAKER_PORT = "moonraker_port";
+
+// ---- Device-level settings (absolute paths — do NOT prepend df()) ----
 constexpr const char* WIFI_SSID = "/wifi/ssid";
 constexpr const char* WIFI_PASSWORD = "/wifi/password";
 } // namespace wizard
 
-// Display settings
-constexpr const char* PRINTER_IMAGE = "/display/printer_image";
+// Per-printer setting (suffix — prepend config->df() for full path)
+constexpr const char* PRINTER_IMAGE = "printer_image";
 
 } // namespace helix

@@ -47,7 +47,7 @@ static void on_delete(lv_event_t* e) {
         // Release observer before deleting data
         it->second->color_observer.release();
         s_registry.erase(it);
-        spdlog::debug("[AmsCurrentTool] Widget cleaned up");
+        spdlog::trace("[AmsCurrentTool] Widget cleaned up");
     }
 }
 

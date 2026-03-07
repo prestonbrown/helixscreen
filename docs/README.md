@@ -11,7 +11,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | Document | Description |
 |----------|-------------|
 | [**Installation Guide**](user/INSTALL.md) | Get HelixScreen running on your display |
-| [**User Guide**](user/USER_GUIDE.md) | Learn how to use the interface |
+| [**User Guide**](user/USER_GUIDE.md) | Learn how to use the interface (includes multi-printer management) |
 | [**Configuration**](user/CONFIGURATION.md) | All settings explained |
 | [**Troubleshooting**](user/TROUBLESHOOTING.md) | Solutions to common problems |
 | [**FAQ**](user/FAQ.md) | Quick answers to common questions |

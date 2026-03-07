@@ -41,6 +41,20 @@ After changing the host, HelixScreen disconnects from the current printer and re
 
 ---
 
+## Printers
+
+> Only shown when [beta features](../beta-features.md) are enabled.
+
+Manage all your configured printers. Tap to open the Printer Management overlay where you can:
+
+- **Switch printers** — Tap any printer in the list to switch to it. HelixScreen disconnects from the current printer and connects to the new one.
+- **Add a printer** — Tap "Add Printer" to launch the Setup Wizard for a new printer. You can cancel at any time to return to your current printer.
+- **Delete a printer** — Tap the trash icon next to any non-active printer and confirm. You cannot delete the last remaining printer.
+
+After switching, a toast notification confirms the new connection and you're taken to the Home panel.
+
+---
+
 ## Touch Calibration
 
 > Only shown on touchscreen displays that need calibration.

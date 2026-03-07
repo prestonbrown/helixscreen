@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "config.h"
+#include "static_subject_registry.h"
 #include "wizard_config_paths.h"
 
 #include <cstdlib>
@@ -147,23 +148,40 @@ class ConfigTestFixture {
     }
 
     void setup_default_config() {
-        // Manually populate config.data with realistic test JSON
+        // Manually populate config.data with realistic test JSON (v3 format)
         config.data = {
-            {"printer",
-             {{"moonraker_host", "192.168.1.100"},
-              {"moonraker_port", 7125},
-              {"log_level", "debug"},
-              {"hardware_map", {{"heated_bed", "heater_bed"}, {"hotend", "extruder"}}}}}};
+            {"config_version", 3},
+            {"active_printer_id", "default"},
+            {"printers",
+             {{"default",
+               {{"moonraker_host", "192.168.1.100"},
+                {"moonraker_port", 7125},
+                {"log_level", "debug"},
+                {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
+                {"temp_sensors", {{"bed", "temperature_sensor bed"}, {"hotend", "extruder"}}},
+                {"fans", {{"hotend", "heater_fan hotend_fan"}, {"part", "fan"}}},
+                {"hardware_map", {{"heated_bed", "heater_bed"}, {"hotend", "extruder"}}}}}}}};
+        config.active_printer_id_ = "default";
     }
 
     void setup_minimal_config() {
-        // Minimal config for wizard testing (default host)
-        config.data = {{"printer", {{"moonraker_host", "127.0.0.1"}, {"moonraker_port", 7125}}}};
+        // Minimal config for wizard testing (default host, v3 format)
+        config.data = {
+            {"config_version", 3},
+            {"active_printer_id", "default"},
+            {"printers",
+             {{"default", {{"moonraker_host", "127.0.0.1"}, {"moonraker_port", 7125}}}}}};
+        config.active_printer_id_ = "default";
     }
 
     void setup_incomplete_config() {
-        // Config missing hardware_map (should trigger wizard)
-        config.data = {{"printer", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}};
+        // Config missing hardware_map (should trigger wizard, v3 format)
+        config.data = {
+            {"config_version", 3},
+            {"active_printer_id", "default"},
+            {"printers",
+             {{"default", {{"moonraker_host", "192.168.1.50"}, {"moonraker_port", 7125}}}}}};
+        config.active_printer_id_ = "default";
     }
 };
 } // namespace helix
@@ -176,7 +194,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing string value
                  "[core][config][get]") {
     setup_default_config();
 
-    std::string host = config.get<std::string>("/printer/moonraker_host");
+    std::string host = config.get<std::string>(config.df() + "moonraker_host");
     REQUIRE(host == "192.168.1.100");
 }
 
@@ -184,7 +202,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing int value",
                  "[core][config][get]") {
     setup_default_config();
 
-    int port = config.get<int>("/printer/moonraker_port");
+    int port = config.get<int>(config.df() + "moonraker_port");
     REQUIRE(port == 7125);
 }
 
@@ -192,7 +210,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() returns existing nested value
                  "[config][get]") {
     setup_default_config();
 
-    std::string bed = config.get<std::string>("/printer/hardware_map/heated_bed");
+    std::string bed = config.get<std::string>(config.df() + "hardware_map/heated_bed");
     REQUIRE(bed == "heater_bed");
 }
 
@@ -208,7 +226,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with missing key throws excep
                  "[core][config][get]") {
     setup_default_config();
 
-    REQUIRE_THROWS_AS(config.get<std::string>("/printer/nonexistent_key"),
+    REQUIRE_THROWS_AS(config.get<std::string>(config.df() + "nonexistent_key"),
                       nlohmann::detail::type_error);
 }
 
@@ -216,7 +234,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with missing nested key throw
                  "[config][get]") {
     setup_default_config();
 
-    REQUIRE_THROWS_AS(config.get<std::string>("/printer/hardware_map/missing"),
+    REQUIRE_THROWS_AS(config.get<std::string>(config.df() + "hardware_map/missing"),
                       nlohmann::detail::type_error);
 }
 
@@ -225,14 +243,14 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with type mismatch throws exc
     setup_default_config();
 
     // Try to get string value as int
-    REQUIRE_THROWS(config.get<int>("/printer/moonraker_host"));
+    REQUIRE_THROWS(config.get<int>(config.df() + "moonraker_host"));
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with object returns nested structure",
                  "[config][get]") {
     setup_default_config();
 
-    auto hardware_map = config.get<json>("/printer/hardware_map");
+    auto hardware_map = config.get<json>(config.df() + "hardware_map");
     REQUIRE(hardware_map.is_object());
     REQUIRE(hardware_map["heated_bed"] == "heater_bed");
     REQUIRE(hardware_map["hotend"] == "extruder");
@@ -247,7 +265,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "[config][get][default]") {
     setup_default_config();
 
-    std::string host = config.get<std::string>("/printer/moonraker_host", "default.local");
+    std::string host = config.get<std::string>(config.df() + "moonraker_host", "default.local");
     REQUIRE(host == "192.168.1.100"); // Ignores default
 }
 
@@ -256,7 +274,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "[config][get][default]") {
     setup_default_config();
 
-    int port = config.get<int>("/printer/moonraker_port", 9999);
+    int port = config.get<int>(config.df() + "moonraker_port", 9999);
     REQUIRE(port == 7125); // Ignores default
 }
 
@@ -265,7 +283,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "[core][config][get][default]") {
     setup_default_config();
 
-    std::string printer_name = config.get<std::string>("/printer/printer_name", "My Printer");
+    std::string printer_name = config.get<std::string>(config.df() + "printer_name", "My Printer");
     REQUIRE(printer_name == "My Printer");
 }
 
@@ -274,7 +292,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "[config][get][default]") {
     setup_default_config();
 
-    int timeout = config.get<int>("/printer/timeout", 30);
+    int timeout = config.get<int>(config.df() + "timeout", 30);
     REQUIRE(timeout == 30);
 }
 
@@ -283,7 +301,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "[config][get][default]") {
     setup_default_config();
 
-    bool api_key = config.get<bool>("/printer/moonraker_api_key", false);
+    bool api_key = config.get<bool>(config.df() + "moonraker_api_key", false);
     REQUIRE(api_key == false);
 }
 
@@ -291,7 +309,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default handles nested m
                  "[config][get][default]") {
     setup_default_config();
 
-    std::string led = config.get<std::string>("/printer/hardware_map/main_led", "none");
+    std::string led = config.get<std::string>(config.df() + "hardware_map/main_led", "none");
     REQUIRE(led == "none");
 }
 
@@ -299,7 +317,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with empty string default",
                  "[config][get][default]") {
     setup_default_config();
 
-    std::string empty = config.get<std::string>("/printer/empty_field", "");
+    std::string empty = config.get<std::string>(config.df() + "empty_field", "");
     REQUIRE(empty == "");
 }
 
@@ -343,46 +361,46 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: set() creates new top-level key", "
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() updates existing key", "[config][set]") {
     setup_default_config();
 
-    config.set<std::string>("/printer/moonraker_host", "10.0.0.1");
-    REQUIRE(config.get<std::string>("/printer/moonraker_host") == "10.0.0.1");
+    config.set<std::string>(config.df() + "moonraker_host", "10.0.0.1");
+    REQUIRE(config.get<std::string>(config.df() + "moonraker_host") == "10.0.0.1");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() creates nested path", "[config][set]") {
     setup_default_config();
 
-    config.set<std::string>("/printer/hardware_map/main_led", "neopixel");
-    REQUIRE(config.get<std::string>("/printer/hardware_map/main_led") == "neopixel");
+    config.set<std::string>(config.df() + "hardware_map/main_led", "neopixel");
+    REQUIRE(config.get<std::string>(config.df() + "hardware_map/main_led") == "neopixel");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() updates nested value", "[config][set]") {
     setup_default_config();
 
-    config.set<std::string>("/printer/hardware_map/hotend", "extruder1");
-    REQUIRE(config.get<std::string>("/printer/hardware_map/hotend") == "extruder1");
+    config.set<std::string>(config.df() + "hardware_map/hotend", "extruder1");
+    REQUIRE(config.get<std::string>(config.df() + "hardware_map/hotend") == "extruder1");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() handles different types", "[config][set]") {
     setup_default_config();
 
-    config.set<int>("/printer/new_int", 42);
-    config.set<bool>("/printer/new_bool", true);
-    config.set<std::string>("/printer/new_string", "test");
+    config.set<int>(config.df() + "new_int", 42);
+    config.set<bool>(config.df() + "new_bool", true);
+    config.set<std::string>(config.df() + "new_string", "test");
 
-    REQUIRE(config.get<int>("/printer/new_int") == 42);
-    REQUIRE(config.get<bool>("/printer/new_bool") == true);
-    REQUIRE(config.get<std::string>("/printer/new_string") == "test");
+    REQUIRE(config.get<int>(config.df() + "new_int") == 42);
+    REQUIRE(config.get<bool>(config.df() + "new_bool") == true);
+    REQUIRE(config.get<std::string>(config.df() + "new_string") == "test");
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: set() overwrites value of different type",
                  "[config][set]") {
     setup_default_config();
 
-    config.set<int>("/printer/moonraker_port", 8080);
-    REQUIRE(config.get<int>("/printer/moonraker_port") == 8080);
+    config.set<int>(config.df() + "moonraker_port", 8080);
+    REQUIRE(config.get<int>(config.df() + "moonraker_port") == 8080);
 
     // Overwrite int with string
-    config.set<std::string>("/printer/moonraker_port", "9090");
-    REQUIRE(config.get<std::string>("/printer/moonraker_port") == "9090");
+    config.set<std::string>(config.df() + "moonraker_port", "9090");
+    REQUIRE(config.get<std::string>(config.df() + "moonraker_port") == "9090");
 }
 
 // ============================================================================
@@ -471,8 +489,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required() handles null w
 TEST_CASE_METHOD(ConfigTestFixture, "Config: handles deeply nested structures", "[config][edge]") {
     setup_default_config();
 
-    config.set<std::string>("/printer/nested/level1/level2/level3", "deep");
-    std::string deep = config.get<std::string>("/printer/nested/level1/level2/level3");
+    config.set<std::string>(config.df() + "nested/level1/level2/level3", "deep");
+    std::string deep = config.get<std::string>(config.df() + "nested/level1/level2/level3");
     REQUIRE(deep == "deep");
 }
 
@@ -481,7 +499,7 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default handles empty co
     // Empty config
     set_data_empty();
 
-    std::string host = config.get<std::string>("/printer/moonraker_host", "localhost");
+    std::string host = config.get<std::string>(config.df() + "moonraker_host", "localhost");
     REQUIRE(host == "localhost");
 }
 
@@ -491,75 +509,64 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: get() with default handles empty co
 // They SHOULD FAIL until the implementation is updated.
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: heaters path uses plural form /printer/heaters/",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: heaters path uses plural form",
                  "[config][paths][plural]") {
-    // Set up config with the NEW plural path structure
-    set_data_for_plural_test(
-        {{"printer", {{"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}});
+    setup_default_config();
+    config.set<std::string>(config.df() + "heaters/bed", "heater_bed");
+    config.set<std::string>(config.df() + "heaters/hotend", "extruder");
 
-    // Verify we can read from the plural path
-    std::string bed_heater = config.get<std::string>("/printer/heaters/bed");
+    std::string bed_heater = config.get<std::string>(config.df() + "heaters/bed");
     REQUIRE(bed_heater == "heater_bed");
 
-    std::string hotend_heater = config.get<std::string>("/printer/heaters/hotend");
+    std::string hotend_heater = config.get<std::string>(config.df() + "heaters/hotend");
     REQUIRE(hotend_heater == "extruder");
 }
 
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: temp_sensors path uses plural form /printer/temp_sensors/",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: temp_sensors path uses plural form",
                  "[config][paths][plural]") {
-    // Set up config with the NEW plural path structure
-    set_data_for_plural_test(
-        {{"printer", {{"temp_sensors", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}});
+    setup_default_config();
+    config.set<std::string>(config.df() + "temp_sensors/bed", "heater_bed");
+    config.set<std::string>(config.df() + "temp_sensors/hotend", "extruder");
 
-    // Verify we can read from the plural path
-    std::string bed_sensor = config.get<std::string>("/printer/temp_sensors/bed");
+    std::string bed_sensor = config.get<std::string>(config.df() + "temp_sensors/bed");
     REQUIRE(bed_sensor == "heater_bed");
 
-    std::string hotend_sensor = config.get<std::string>("/printer/temp_sensors/hotend");
+    std::string hotend_sensor = config.get<std::string>(config.df() + "temp_sensors/hotend");
     REQUIRE(hotend_sensor == "extruder");
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: fans path uses plural form /printer/fans/",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: fans path uses plural form",
                  "[config][paths][plural]") {
-    // Set up config with the NEW plural path structure
-    set_data_for_plural_test(
-        {{"printer", {{"fans", {{"part", "fan"}, {"hotend", "heater_fan hotend_fan"}}}}}});
+    setup_default_config();
+    config.set<std::string>(config.df() + "fans/part", "fan");
+    config.set<std::string>(config.df() + "fans/hotend", "heater_fan hotend_fan");
 
-    // Verify we can read from the plural path - fans is now an OBJECT, not array
-    std::string part_fan = config.get<std::string>("/printer/fans/part");
+    std::string part_fan = config.get<std::string>(config.df() + "fans/part");
     REQUIRE(part_fan == "fan");
 
-    std::string hotend_fan = config.get<std::string>("/printer/fans/hotend");
+    std::string hotend_fan = config.get<std::string>(config.df() + "fans/hotend");
     REQUIRE(hotend_fan == "heater_fan hotend_fan");
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: leds path uses plural form /printer/leds/",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: leds path uses plural form",
                  "[config][paths][plural]") {
-    // Set up config with the NEW plural path structure
-    set_data_for_plural_test({{"printer", {{"leds", {{"strip", "neopixel chamber_light"}}}}}});
+    setup_default_config();
+    config.set<std::string>(config.df() + "leds/strip", "neopixel chamber_light");
 
-    // Verify we can read from the plural path
-    std::string led_strip = config.get<std::string>("/printer/leds/strip");
+    std::string led_strip = config.get<std::string>(config.df() + "leds/strip");
     REQUIRE(led_strip == "neopixel chamber_light");
 }
 
 // ============================================================================
 // Default Config Structure Tests - NEW structure contract
-// These tests verify the default config matches the new schema.
-// They SHOULD FAIL until the implementation is updated.
 // ============================================================================
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: default structure has extra_sensors as empty object",
                  "[config][defaults][plural]") {
-    // After refactoring, monitored_sensors should become extra_sensors
-    // and should be an empty object {}, not an array []
-    set_data_for_plural_test({{"printer",
-                               {{"moonraker_host", "127.0.0.1"},
-                                {"moonraker_port", 7125},
-                                {"extra_sensors", json::object()}}}});
+    setup_default_config();
+    config.set<json>(config.df() + "extra_sensors", json::object());
 
-    auto extra_sensors = config.get<json>("/printer/extra_sensors");
+    auto extra_sensors = config.get<json>(config.df() + "extra_sensors");
     REQUIRE(extra_sensors.is_object());
     REQUIRE(extra_sensors.empty());
 }
@@ -567,14 +574,9 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: default structure has extra_sensors
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: default structure has no fans array - fans is object only",
                  "[config][defaults][plural]") {
-    // After refactoring, there should be no separate "fans" array
-    // The fans key should be an object with role mappings, not an array
-    set_data_for_plural_test({{"printer",
-                               {{"moonraker_host", "127.0.0.1"},
-                                {"moonraker_port", 7125},
-                                {"fans", {{"part", "fan"}}}}}});
+    setup_default_config();
 
-    auto fans = config.get<json>("/printer/fans");
+    auto fans = config.get<json>(config.df() + "fans", json::object());
     REQUIRE(fans.is_object());
     REQUIRE_FALSE(fans.is_array());
 }
@@ -582,26 +584,22 @@ TEST_CASE_METHOD(ConfigTestFixture,
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: temp_sensors key exists for temperature sensor mappings",
                  "[config][defaults][plural]") {
-    // The new structure uses temp_sensors (not just sensors) for temperature mappings
-    set_data_for_plural_test(
-        {{"printer", {{"temp_sensors", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}});
+    setup_default_config();
 
-    auto temp_sensors = config.get<json>("/printer/temp_sensors");
+    auto temp_sensors = config.get<json>(config.df() + "temp_sensors");
     REQUIRE(temp_sensors.is_object());
     REQUIRE(temp_sensors.contains("bed"));
     REQUIRE(temp_sensors.contains("hotend"));
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: hardware section is under /printer/hardware/",
+TEST_CASE_METHOD(ConfigTestFixture, "Config: hardware section is under printer/hardware/",
                  "[config][defaults][plural]") {
-    // Hardware config should be under /printer/hardware/ not /hardware/
-    set_data_for_plural_test({{"printer",
-                               {{"hardware",
-                                 {{"optional", json::array()},
-                                  {"expected", json::array()},
-                                  {"last_snapshot", json::object()}}}}}});
+    setup_default_config();
+    config.set<json>(config.df() + "hardware", {{"optional", json::array()},
+                                                {"expected", json::array()},
+                                                {"last_snapshot", json::object()}});
 
-    auto hardware = config.get<json>("/printer/hardware");
+    auto hardware = config.get<json>(config.df() + "hardware");
     REQUIRE(hardware.is_object());
     REQUIRE(hardware.contains("optional"));
     REQUIRE(hardware.contains("expected"));
@@ -609,55 +607,50 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: hardware section is under /printer/
 }
 
 // ============================================================================
-// Wizard Config Path Constants Tests - Verify plural naming
-// These tests verify that wizard_config_paths.h constants use plural form.
-// They SHOULD FAIL until the implementation is updated.
+// Wizard Config Path Constants Tests - Verify suffix format (v3 multi-printer)
+// Constants are now suffixes — callers prepend config->df() for full path.
 // ============================================================================
 
-TEST_CASE("WizardConfigPaths: BED_HEATER uses plural /printer/heaters/",
+TEST_CASE("WizardConfigPaths: BED_HEATER is suffix for heaters/bed",
           "[config][paths][wizard][plural]") {
-    // The path constant should use plural "heaters" not singular "heater"
     std::string path = helix::wizard::BED_HEATER;
-    REQUIRE(path == "/printer/heaters/bed");
+    REQUIRE(path == "heaters/bed");
 }
 
-TEST_CASE("WizardConfigPaths: HOTEND_HEATER uses plural /printer/heaters/",
+TEST_CASE("WizardConfigPaths: HOTEND_HEATER is suffix for heaters/hotend",
           "[config][paths][wizard][plural]") {
     std::string path = helix::wizard::HOTEND_HEATER;
-    REQUIRE(path == "/printer/heaters/hotend");
+    REQUIRE(path == "heaters/hotend");
 }
 
-TEST_CASE("WizardConfigPaths: BED_SENSOR uses plural /printer/temp_sensors/",
+TEST_CASE("WizardConfigPaths: BED_SENSOR is suffix for temp_sensors/bed",
           "[config][paths][wizard][plural]") {
-    // The path constant should use "temp_sensors" not "sensor"
     std::string path = helix::wizard::BED_SENSOR;
-    REQUIRE(path == "/printer/temp_sensors/bed");
+    REQUIRE(path == "temp_sensors/bed");
 }
 
-TEST_CASE("WizardConfigPaths: HOTEND_SENSOR uses plural /printer/temp_sensors/",
+TEST_CASE("WizardConfigPaths: HOTEND_SENSOR is suffix for temp_sensors/hotend",
           "[config][paths][wizard][plural]") {
     std::string path = helix::wizard::HOTEND_SENSOR;
-    REQUIRE(path == "/printer/temp_sensors/hotend");
+    REQUIRE(path == "temp_sensors/hotend");
 }
 
-TEST_CASE("WizardConfigPaths: PART_FAN uses plural /printer/fans/",
+TEST_CASE("WizardConfigPaths: PART_FAN is suffix for fans/part",
           "[config][paths][wizard][plural]") {
-    // The path constant should use plural "fans" not singular "fan"
     std::string path = helix::wizard::PART_FAN;
-    REQUIRE(path == "/printer/fans/part");
+    REQUIRE(path == "fans/part");
 }
 
-TEST_CASE("WizardConfigPaths: HOTEND_FAN uses plural /printer/fans/",
+TEST_CASE("WizardConfigPaths: HOTEND_FAN is suffix for fans/hotend",
           "[config][paths][wizard][plural]") {
     std::string path = helix::wizard::HOTEND_FAN;
-    REQUIRE(path == "/printer/fans/hotend");
+    REQUIRE(path == "fans/hotend");
 }
 
-TEST_CASE("WizardConfigPaths: LED_STRIP uses plural /printer/leds/",
+TEST_CASE("WizardConfigPaths: LED_STRIP is suffix for leds/strip",
           "[config][paths][wizard][plural]") {
-    // The path constant should use plural "leds" not singular "led"
     std::string path = helix::wizard::LED_STRIP;
-    REQUIRE(path == "/printer/leds/strip");
+    REQUIRE(path == "leds/strip");
 }
 
 // ============================================================================
@@ -1616,6 +1609,347 @@ TEST_CASE_METHOD(ConfigTestFixture,
     REQUIRE(test_config.get<bool>("/sounds_enabled", false) == false);
 
     std::filesystem::remove_all(temp_dir);
+}
+
+// ============================================================================
+// v3→v4 migration: Multi-printer support
+// ============================================================================
+
+TEST_CASE("Config: v3→v4 migration restructures single printer to multi-printer",
+          "[core][config][migration][v4]") {
+    std::string temp_dir = "/tmp/helix_test_v3_to_v4";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    // Write a v3 config with single /printer section (pre-multi-printer schema)
+    json v3_config = {
+        {"config_version", 3},
+        {"dark_mode", true},
+        {"wizard_completed", true},
+        {"printer",
+         {{"name", "My Voron 2.4"},
+          {"moonraker_host", "192.168.1.112"},
+          {"moonraker_port", 7125},
+          {"moonraker_api_key", false},
+          {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
+          {"leds", {{"strip", "neopixel"}, {"selected", json::array({"neopixel"})}}}}},
+        {"filament", {{"extrude_speed", 10}}},
+        {"panel_widgets", {{"home", json::array({{{"id", "temp"}, {"enabled", true}}})}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << v3_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    // Should have migrated to v4
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    // /printer should be gone, /printers should exist
+    REQUIRE_FALSE(test_config.get<json>("", json()).contains("printer"));
+    REQUIRE(test_config.get<json>("", json()).contains("printers"));
+
+    // Printer should be keyed by slugified name
+    std::string expected_id = "my-voron-2-4";
+    REQUIRE(test_config.get_active_printer_id() == expected_id);
+
+    // Access via df() should resolve correctly
+    REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "192.168.1.112");
+    REQUIRE(test_config.get<int>(test_config.df() + "moonraker_port") == 7125);
+
+    // Filament should have moved under printer entry
+    REQUIRE(test_config.get<int>(test_config.df() + "filament/extrude_speed") == 10);
+
+    // Panel widgets should have moved under printer entry
+    auto pw = test_config.get<json>(test_config.df() + "panel_widgets/home", json());
+    REQUIRE(pw.is_array());
+    REQUIRE(pw.size() == 1);
+
+    // wizard_completed should be copied to printer entry
+    REQUIRE(test_config.get<bool>(test_config.df() + "wizard_completed") == true);
+
+    // Root-level wizard_completed should still exist (backward compat)
+    REQUIRE(test_config.get<bool>("/wizard_completed") == true);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("Config: v3→v4 migration uses 'default' when printer has no name",
+          "[core][config][migration][v4]") {
+    std::string temp_dir = "/tmp/helix_test_v3_to_v4_noname";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    json v3_config = {{"config_version", 3},
+                      {"printer", {{"moonraker_host", "10.0.0.5"}, {"moonraker_port", 7125}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << v3_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    REQUIRE(test_config.get_active_printer_id() == "default");
+    REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "10.0.0.5");
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("Config: v3→v4 migration skips if /printers already exists",
+          "[core][config][migration][v4]") {
+    std::string temp_dir = "/tmp/helix_test_v3_skip";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    // Already v3 format
+    json v3_config = {{"config_version", 3},
+                      {"active_printer_id", "ender3"},
+                      {"printers",
+                       {{"ender3",
+                         {{"moonraker_host", "192.168.1.50"},
+                          {"moonraker_port", 7125},
+                          {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << v3_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    REQUIRE(test_config.get_active_printer_id() == "ender3");
+    REQUIRE(test_config.get<std::string>(test_config.df() + "moonraker_host") == "192.168.1.50");
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("Config: v3→v4 migration moves printer_image to per-printer path",
+          "[core][config][migration][v4]") {
+    std::string temp_dir = "/tmp/helix_test_v3_to_v4_printer_image";
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    // Write a v3 config with /display/printer_image (pre-multi-printer schema)
+    json v3_config = {
+        {"config_version", 3},
+        {"printer",
+         {{"name", "My Printer"},
+          {"moonraker_host", "192.168.1.100"},
+          {"moonraker_port", 7125}}},
+        {"display", {{"printer_image", "shipped:voron-24r2"}, {"rotate", 0}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << v3_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    // Should have migrated to v4
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    // printer_image should be at per-printer path, not under /display
+    REQUIRE(test_config.get<std::string>(test_config.df() + PRINTER_IMAGE) == "shipped:voron-24r2");
+
+    // /display/printer_image should no longer exist
+    auto display = test_config.get<json>("/display", json::object());
+    REQUIRE_FALSE(display.contains("printer_image"));
+
+    // /display should still have other keys intact
+    REQUIRE(test_config.get<int>("/display/rotate") == 0);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+// ============================================================================
+// Multi-printer CRUD
+// ============================================================================
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: slugify converts names to URL-safe IDs",
+                 "[core][config][multi-printer]") {
+    REQUIRE(Config::slugify("Voron 2.4") == "voron-2-4");
+    REQUIRE(Config::slugify("Ender 3 Pro") == "ender-3-pro");
+    REQUIRE(Config::slugify("  --Leading Hyphens--  ") == "leading-hyphens");
+    REQUIRE(Config::slugify("UPPERCASE") == "uppercase");
+    REQUIRE(Config::slugify("special!@#chars") == "special-chars");
+    REQUIRE(Config::slugify("") == "default");
+    REQUIRE(Config::slugify("   ") == "default");
+    REQUIRE(Config::slugify("simple") == "simple");
+    REQUIRE(Config::slugify("a--b") == "a-b");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: get_printer_ids returns all configured printers",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
+                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
+    config.set_active_printer("voron");
+
+    auto ids = config.get_printer_ids();
+    REQUIRE(ids.size() == 2);
+    // Order from JSON object iteration
+    bool has_voron = std::find(ids.begin(), ids.end(), "voron") != ids.end();
+    bool has_ender3 = std::find(ids.begin(), ids.end(), "ender3") != ids.end();
+    REQUIRE(has_voron);
+    REQUIRE(has_ender3);
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: set_active_printer switches df() routing",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
+                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
+    REQUIRE(config.set_active_printer("voron") == true);
+
+    REQUIRE(config.get<std::string>(config.df() + "moonraker_host") == "192.168.1.10");
+
+    REQUIRE(config.set_active_printer("ender3") == true);
+    REQUIRE(config.get<std::string>(config.df() + "moonraker_host") == "192.168.1.20");
+    REQUIRE(config.get_active_printer_id() == "ender3");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: set_active_printer rejects unknown printer",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
+    REQUIRE(config.set_active_printer("voron") == true);
+
+    REQUIRE(config.set_active_printer("nonexistent") == false);
+    // Should not have changed
+    REQUIRE(config.get_active_printer_id() == "voron");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: add_printer creates new printer entry",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
+
+    json new_printer = {{"moonraker_host", "10.0.0.1"}, {"moonraker_port", 7125}};
+    config.add_printer("bambu-x1", new_printer);
+
+    auto ids = config.get_printer_ids();
+    REQUIRE(ids.size() == 2);
+    REQUIRE(config.get<std::string>("/printers/bambu-x1/moonraker_host") == "10.0.0.1");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: remove_printer deletes entry and auto-selects remaining printer",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
+                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
+    config.set_active_printer("voron");
+
+    config.remove_printer("voron");
+
+    auto ids = config.get_printer_ids();
+    REQUIRE(ids.size() == 1);
+    // Active should auto-switch to remaining printer since we removed the active one
+    REQUIRE(config.get_active_printer_id() == "ender3");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: remove_printer keeps active if removing non-active",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"moonraker_host", "192.168.1.10"}}},
+                                {"ender3", {{"moonraker_host", "192.168.1.20"}}}}}});
+    config.set_active_printer("voron");
+
+    config.remove_printer("ender3");
+
+    REQUIRE(config.get_printer_ids().size() == 1);
+    REQUIRE(config.get_active_printer_id() == "voron");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: remove_printer prevents removing last printer",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
+    config.set_active_printer("voron");
+
+    config.remove_printer("voron");
+
+    // Should still have the printer — cannot remove the last one
+    REQUIRE(config.get_printer_ids().size() == 1);
+    REQUIRE(config.get_active_printer_id() == "voron");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: df() routes to active printer path",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "my-printer"},
+                              {"printers", {{"my-printer", {{"moonraker_host", "10.0.0.1"}}}}}});
+    config.set_active_printer("my-printer");
+
+    REQUIRE(config.df() == "/printers/my-printer/");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required checks per-printer flag",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test(
+        {{"active_printer_id", "voron"},
+         {"wizard_completed", false},
+         {"printers", {{"voron", {{"wizard_completed", true}, {"moonraker_host", "10.0.0.1"}}}}}});
+    config.set_active_printer("voron");
+
+    // Per-printer wizard_completed=true should take priority over root false
+    REQUIRE_FALSE(config.is_wizard_required());
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: is_wizard_required falls back to root flag",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"wizard_completed", true},
+                              {"printers", {{"voron", {{"moonraker_host", "10.0.0.1"}}}}}});
+    config.set_active_printer("voron");
+
+    // No per-printer flag, should fall back to root wizard_completed=true
+    REQUIRE_FALSE(config.is_wizard_required());
+}
+
+// ============================================================================
+// Registry deinit/re-init cycle tests (Phase 2: soft restart support)
+// ============================================================================
+
+TEST_CASE("StaticSubjectRegistry supports deinit/re-init cycles", "[core][registry]") {
+    // Verify deinit_all() clears vector, allowing fresh registrations
+    int call_count = 0;
+    StaticSubjectRegistry::instance().register_deinit("test_cycle_1", [&]() { call_count++; });
+    StaticSubjectRegistry::instance().deinit_all();
+    REQUIRE(call_count == 1);
+
+    // Re-register after deinit — should work (vector was cleared)
+    call_count = 0;
+    StaticSubjectRegistry::instance().register_deinit("test_cycle_2", [&]() { call_count++; });
+    StaticSubjectRegistry::instance().deinit_all();
+    REQUIRE(call_count == 1);
+}
+
+TEST_CASE("StaticSubjectRegistry deinit_all runs callbacks in LIFO order", "[core][registry]") {
+    std::vector<std::string> order;
+    StaticSubjectRegistry::instance().register_deinit("first", [&]() { order.push_back("first"); });
+    StaticSubjectRegistry::instance().register_deinit("second",
+                                                      [&]() { order.push_back("second"); });
+    StaticSubjectRegistry::instance().deinit_all();
+
+    REQUIRE(order.size() == 2);
+    // LIFO: second registered = first to deinit
+    REQUIRE(order[0] == "second");
+    REQUIRE(order[1] == "first");
 }
 
 // ============================================================================

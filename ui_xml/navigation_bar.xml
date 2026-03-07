@@ -128,5 +128,25 @@
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="5"/>
       </icon>
     </ui_button>
+    <!-- Printer switcher button — visible only when multiple printers configured AND beta features enabled -->
+    <ui_button name="nav_printer_badge"
+               width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
+               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0"
+               hidden="true">
+      <bind_flag_if_eq subject="multi_printer_enabled" flag="hidden" ref_value="0"/>
+      <bind_flag_if_eq subject="show_beta_features" flag="hidden" ref_value="0"/>
+      <!-- Disabled during grid edit mode -->
+      <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <lv_obj name="nav_printer_icon_wrap" clickable="false" event_bubble="true"
+              style_pad_all="0" style_border_width="0" style_bg_opa="0">
+        <icon src="printer_3d" size="#icon_size" variant="secondary"
+              clickable="false" event_bubble="true"/>
+        <lv_obj name="nav_printer_dot" width="8" height="8"
+                style_radius="4" style_bg_opa="255"
+                style_bg_color="#success"
+                align="top_right"
+                clickable="false" event_bubble="true"/>
+      </lv_obj>
+    </ui_button>
   </view>
 </component>

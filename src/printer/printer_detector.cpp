@@ -1315,7 +1315,8 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
     }
 
     // Check if printer type is already set
-    std::string saved_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+    std::string saved_type =
+        config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     if (!saved_type.empty()) {
         spdlog::debug("[PrinterDetector] Printer type already set: '{}', skipping auto-detection",
                       saved_type);
@@ -1330,7 +1331,7 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
                      result.type_name, result.confidence, result.reason);
 
         // Save to config
-        config->set<std::string>(helix::wizard::PRINTER_TYPE, result.type_name);
+        config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, result.type_name);
         config->save();
 
         // Update PrinterState so home panel gets correct image and capabilities
@@ -1349,7 +1350,8 @@ bool PrinterDetector::is_voron_printer() {
         return false;
     }
 
-    std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+    std::string printer_type =
+        config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     if (printer_type.empty()) {
         return false;
     }

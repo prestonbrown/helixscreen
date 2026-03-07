@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_printer_switch_menu.h"
 
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -308,6 +309,39 @@ class NavigationManager {
      */
     void set_backdrop_visible(bool visible);
 
+    /// Callback type for printer switch/add actions from the navbar badge menu
+    using PrinterSwitchCallback = std::function<void(const std::string& printer_id)>;
+    using AddPrinterCallback = std::function<void()>;
+
+    /**
+     * @brief Register callbacks for printer switching from navbar badge menu
+     *
+     * Application registers these during init so NavigationManager can trigger
+     * printer switch and add-printer actions without depending on Application directly.
+     *
+     * @param switch_cb Called with printer_id when user selects a different printer
+     * @param add_cb Called when user clicks "Add Printer" in the menu
+     */
+    void set_printer_callbacks(PrinterSwitchCallback switch_cb, AddPrinterCallback add_cb);
+
+    /**
+     * @brief Trigger a printer switch via the registered callback
+     *
+     * Used by overlays (PrinterListOverlay) that need to trigger printer switching
+     * without depending on Application directly.
+     *
+     * @param printer_id The printer ID to switch to
+     */
+    void trigger_printer_switch(const std::string& printer_id);
+
+    /**
+     * @brief Trigger the add-printer wizard via the registered callback
+     *
+     * Used by overlays (PrinterListOverlay) that need to launch the setup wizard
+     * without depending on Application directly.
+     */
+    void trigger_add_printer();
+
   private:
     // Private constructor/destructor for singleton
     NavigationManager() = default;
@@ -387,6 +421,10 @@ class NavigationManager {
     ObserverGuard active_panel_observer_;
     ObserverGuard connection_state_observer_;
     ObserverGuard klippy_state_observer_;
+    ObserverGuard printer_dot_observer_;
+
+    // Printer connection status dot widget
+    lv_obj_t* printer_dot_widget_ = nullptr;
 
     // Track previous states for detecting transitions
     int previous_connection_state_ = -1;
@@ -406,4 +444,10 @@ class NavigationManager {
 
     // Shutdown flag — overlays should skip destructive actions (e.g. ABORT)
     bool shutting_down_ = false;
+
+    // Printer badge menu
+    helix::ui::PrinterSwitchMenu printer_switch_menu_;
+    void on_printer_badge_clicked();
+    PrinterSwitchCallback printer_switch_cb_;
+    AddPrinterCallback add_printer_cb_;
 };

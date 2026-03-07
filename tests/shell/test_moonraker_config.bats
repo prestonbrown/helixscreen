@@ -523,3 +523,119 @@ CONF
 
     grep -q '^helixscreen$' "$printer_data/moonraker.asvc"
 }
+
+# =============================================================================
+# ensure_persistent_files
+# =============================================================================
+
+@test "ensure_persistent_files: adds persistent_files to section without it" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    # Add helixscreen section WITHOUT persistent_files (simulates old install)
+    cat >> "$conf" << 'CONF'
+
+[update_manager helixscreen]
+type: web
+channel: stable
+repo: prestonbrown/helixscreen
+path: /opt/helixscreen
+
+[update_manager klipper]
+type: git_repo
+CONF
+
+    ensure_persistent_files "$conf"
+
+    # persistent_files should now be present
+    awk '/^\[update_manager helixscreen\]/{found=1} found && /^\[update_manager klipper\]/{exit} found' "$conf" | grep -q 'persistent_files:'
+    awk '/^\[update_manager helixscreen\]/{found=1} found && /^\[update_manager klipper\]/{exit} found' "$conf" | grep -q 'config/helixconfig.json'
+    awk '/^\[update_manager helixscreen\]/{found=1} found && /^\[update_manager klipper\]/{exit} found' "$conf" | grep -q 'config/helixscreen.env'
+}
+
+@test "ensure_persistent_files: no-op when persistent_files already present" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+
+    local before
+    before=$(cat "$conf")
+
+    ensure_persistent_files "$conf"
+
+    # Content should be unchanged
+    [ "$(cat "$conf")" = "$before" ]
+}
+
+@test "ensure_persistent_files: preserves other sections" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    cat >> "$conf" << 'CONF'
+
+[update_manager helixscreen]
+type: web
+channel: stable
+repo: prestonbrown/helixscreen
+path: /usr/data/helixscreen
+
+[update_manager klipper]
+type: git_repo
+channel: dev
+path: ~/klipper
+CONF
+
+    ensure_persistent_files "$conf"
+
+    # Other sections preserved
+    grep -q '^\[server\]' "$conf"
+    grep -q '^\[authorization\]' "$conf"
+    grep -q '^\[update_manager mainsail\]' "$conf"
+    grep -q '^\[update_manager klipper\]' "$conf"
+    grep -q 'path: ~/klipper' "$conf"
+}
+
+@test "ensure_persistent_files: inserted after path: line" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    cat >> "$conf" << 'CONF'
+
+[update_manager helixscreen]
+type: web
+channel: stable
+repo: prestonbrown/helixscreen
+path: /usr/data/helixscreen
+CONF
+
+    ensure_persistent_files "$conf"
+
+    # persistent_files should appear after path: line
+    local path_line persistent_line
+    path_line=$(grep -n '^path: /usr/data/helixscreen' "$conf" | head -1 | cut -d: -f1)
+    persistent_line=$(grep -n '^persistent_files:' "$conf" | head -1 | cut -d: -f1)
+    [ "$persistent_line" -gt "$path_line" ]
+}
+
+@test "configure_moonraker_updates: existing section without persistent_files gets it added" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    # Add section WITHOUT persistent_files (old install scenario)
+    cat >> "$conf" << 'CONF'
+
+[update_manager helixscreen]
+type: web
+channel: stable
+repo: prestonbrown/helixscreen
+path: /usr/data/helixscreen
+CONF
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+
+    configure_moonraker_updates "k1"
+
+    # persistent_files should have been added
+    awk '/^\[update_manager helixscreen\]/{found=1} found' "$conf" | grep -q 'persistent_files:'
+    awk '/^\[update_manager helixscreen\]/{found=1} found' "$conf" | grep -q 'config/helixconfig.json'
+}

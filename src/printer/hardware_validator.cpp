@@ -455,7 +455,7 @@ void HardwareValidator::validate_configured_hardware(Config* config,
         std::vector<std::string> configured_leds;
 
         // Try new array format first
-        json& led_selected = config->get_json(helix::wizard::LED_SELECTED);
+        json& led_selected = config->get_json(config->df() + helix::wizard::LED_SELECTED);
         if (!led_selected.is_null() && led_selected.is_array()) {
             for (const auto& item : led_selected) {
                 if (item.is_string()) {
@@ -469,7 +469,8 @@ void HardwareValidator::validate_configured_hardware(Config* config,
 
         // Fall back to legacy single string
         if (configured_leds.empty()) {
-            std::string led_strip = config->get<std::string>(helix::wizard::LED_STRIP, "");
+            std::string led_strip =
+                config->get<std::string>(config->df() + helix::wizard::LED_STRIP, "");
             if (!led_strip.empty()) {
                 configured_leds.push_back(led_strip);
             }
@@ -585,13 +586,14 @@ void HardwareValidator::validate_new_hardware(Config* config,
     if (config) {
         try {
             // Try new array format first
-            json& led_selected = config->get_json(helix::wizard::LED_SELECTED);
+            json& led_selected = config->get_json(config->df() + helix::wizard::LED_SELECTED);
             if (!led_selected.is_null() && led_selected.is_array() && !led_selected.empty()) {
                 has_configured_led = true;
             }
             // Fall back to legacy single string
             if (!has_configured_led) {
-                std::string led_strip = config->get<std::string>(helix::wizard::LED_STRIP, "");
+                std::string led_strip =
+                    config->get<std::string>(config->df() + helix::wizard::LED_STRIP, "");
                 if (!led_strip.empty()) {
                     has_configured_led = true;
                 }

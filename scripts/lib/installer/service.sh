@@ -12,6 +12,13 @@ _HELIX_SERVICE_SOURCED=1
 
 # SERVICE_NAME is defined in common.sh
 
+# Portable in-place sed: GNU sed uses -i, BSD/macOS sed requires -i ''
+_sed_inplace() {
+    local pattern=$1 file=$2
+    $SUDO sed -i "$pattern" "$file" 2>/dev/null || \
+    $SUDO sed -i '' "$pattern" "$file" 2>/dev/null || true
+}
+
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
 # When helix-screen self-updates, it spawns install.sh as a child process.  The
 # helixscreen.service unit has NoNewPrivileges=true, so ALL sudo calls in install.sh
@@ -78,14 +85,9 @@ install_service_systemd() {
     local helix_group="${KLIPPER_USER:-root}"
     local install_dir="${INSTALL_DIR:-/opt/helixscreen}"
 
-    $SUDO sed -i "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest" 2>/dev/null || true
-
-    $SUDO sed -i "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest" 2>/dev/null || true
-
-    $SUDO sed -i "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest" 2>/dev/null || true
+    _sed_inplace "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest"
+    _sed_inplace "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest"
+    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest"
 
     if ! $SUDO systemctl daemon-reload; then
         log_error "Failed to reload systemd daemon."
@@ -118,8 +120,7 @@ install_update_watcher_systemd() {
     $SUDO cp "$svc_src" "$svc_dest"
 
     # Template the install directory path
-    $SUDO sed -i "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest" 2>/dev/null || \
-    $SUDO sed -i '' "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest" 2>/dev/null || true
+    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest"
 
     $SUDO systemctl daemon-reload
     $SUDO systemctl enable helixscreen-update.path 2>/dev/null || true
@@ -154,8 +155,7 @@ install_service_sysv() {
 
     # Update the DAEMON_DIR in the init script to match the install location
     # This is important for Klipper Mod which uses a different path
-    $SUDO sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || \
-    $SUDO sed -i '' "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || true
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST"
 
     CLEANUP_SERVICE=true
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
@@ -265,20 +265,22 @@ deploy_platform_hooks() {
     log_info "Deployed platform hooks: $platform"
 }
 
-# Fix ownership of config directory for non-root Klipper users
-# Binaries stay root-owned for security; only config needs user write access
+# Fix ownership of install directory for non-root service users.
+# The entire INSTALL_DIR must be user-owned so that in-app self-updates
+# (which run under NoNewPrivileges=true, blocking sudo) can replace
+# files without root access.  ProtectSystem=strict in the service file
+# limits filesystem writes to ReadWritePaths regardless of ownership.
+# Uses -h to avoid following symlinks outside INSTALL_DIR.
 fix_install_ownership() {
     local user="${KLIPPER_USER:-}"
     if [ -n "$user" ] && [ "$user" != "root" ] && [ -d "$INSTALL_DIR" ]; then
         log_info "Setting ownership to ${user}..."
-        if [ -d "${INSTALL_DIR}/config" ]; then
-            # Try without sudo first: during self-update under NoNewPrivileges,
-            # sudo is blocked but config is already user-owned so chown succeeds
-            # without it (or is a no-op).  Fall back to sudo for fresh installs
-            # where root may own the directory.
-            chown -R "${user}:${user}" "${INSTALL_DIR}/config" 2>/dev/null || \
-                $SUDO chown -R "${user}:${user}" "${INSTALL_DIR}/config" 2>/dev/null || true
-        fi
+        # Try without sudo first: during self-update under NoNewPrivileges,
+        # sudo is blocked but files are already user-owned so chown succeeds
+        # without it (or is a no-op).  Fall back to sudo for fresh installs
+        # where root may own the directory.
+        chown -Rh "${user}:${user}" "${INSTALL_DIR}" 2>/dev/null || \
+            $SUDO chown -Rh "${user}:${user}" "${INSTALL_DIR}" 2>/dev/null || true
     fi
 }
 

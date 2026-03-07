@@ -245,7 +245,7 @@ void AboutSettingsOverlay::populate_info_rows() {
     Config* config = Config::get_instance();
     if (config) {
         std::string printer_name =
-            config->get<std::string>(helix::wizard::PRINTER_NAME, "Unknown");
+            config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "Unknown");
         lv_subject_copy_string(&printer_value_subject_, printer_name.c_str());
         spdlog::trace("[{}] Printer: {}", get_name(), printer_name);
     }

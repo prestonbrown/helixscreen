@@ -94,28 +94,38 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
     }
 
-    // Create screen from XML
-    screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_led_select", nullptr));
-    if (!screen_root_) {
-        spdlog::error("[{}] Failed to create screen from XML", get_name());
+    try {
+        // Create screen from XML
+        spdlog::debug("[{}] About to call lv_xml_create", get_name());
+        screen_root_ =
+            static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_led_select", nullptr));
+        if (!screen_root_) {
+            spdlog::error("[{}] Failed to create screen from XML", get_name());
+            return nullptr;
+        }
+        spdlog::debug("[{}] XML created, populating dropdown", get_name());
+
+        // Populate LED dropdown (discover + filter + populate + restore)
+        wizard_populate_hardware_dropdown(
+            screen_root_, "led_main_dropdown", &led_strip_selected_, led_strip_items_,
+            [](MoonrakerAPI* a) -> const auto& { return a->hardware().leds(); },
+            nullptr, // No filter - include all LEDs
+            true,    // Allow "None" option
+            helix::wizard::LED_STRIP,
+            [](const PrinterHardware& hw) { return hw.guess_main_led_strip(); }, "[Wizard LED]",
+            helix::DeviceType::LED);
+
+        spdlog::debug("[{}] Dropdown populated, attaching callback", get_name());
+
+        // Attach LED dropdown callback programmatically
+        lv_obj_t* led_dropdown = lv_obj_find_by_name(screen_root_, "led_main_dropdown");
+        if (led_dropdown) {
+            lv_obj_add_event_cb(led_dropdown, wizard_hardware_dropdown_changed_cb,
+                                LV_EVENT_VALUE_CHANGED, &led_strip_selected_);
+        }
+    } catch (const std::exception& ex) {
+        spdlog::error("[{}] EXCEPTION during create: {}", get_name(), ex.what());
         return nullptr;
-    }
-
-    // Populate LED dropdown (discover + filter + populate + restore)
-    wizard_populate_hardware_dropdown(
-        screen_root_, "led_main_dropdown", &led_strip_selected_, led_strip_items_,
-        [](MoonrakerAPI* a) -> const auto& { return a->hardware().leds(); },
-        nullptr, // No filter - include all LEDs
-        true,    // Allow "None" option
-        helix::wizard::LED_STRIP,
-        [](const PrinterHardware& hw) { return hw.guess_main_led_strip(); }, "[Wizard LED]",
-        helix::DeviceType::LED);
-
-    // Attach LED dropdown callback programmatically
-    lv_obj_t* led_dropdown = lv_obj_find_by_name(screen_root_, "led_main_dropdown");
-    if (led_dropdown) {
-        lv_obj_add_event_cb(led_dropdown, wizard_hardware_dropdown_changed_cb,
-                            LV_EVENT_VALUE_CHANGED, &led_strip_selected_);
     }
 
     spdlog::debug("[{}] Screen created successfully", get_name());

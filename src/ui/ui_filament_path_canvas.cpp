@@ -15,8 +15,10 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
+#include "nozzle_renderer_a4t.h"
 #include "nozzle_renderer_bambu.h"
 #include "nozzle_renderer_faceted.h"
+#include "settings_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -166,7 +168,6 @@ struct FilamentPathData {
 
     // Rendering mode
     bool hub_only = false;             // true = stop rendering at hub (skip downstream)
-    bool use_faceted_toolhead = false; // false = Bambu-style, true = faceted red style
 
     // Buffer fault state (0=healthy, 1=warning/approaching, 2=fault)
     int buffer_fault_state = 0;
@@ -1509,11 +1510,16 @@ static void draw_parallel_topology(lv_event_t* e, FilamentPathData* data) {
                                 data->flow_offset, reverse);
         }
 
-        // Use the proper nozzle renderers (same as hub topology)
-        if (data->use_faceted_toolhead) {
-            draw_nozzle_faceted(layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
-        } else {
-            draw_nozzle_bambu(layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+        switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+            case helix::ToolheadStyle::STEALTHBURNER:
+                draw_nozzle_faceted(layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+                break;
+            case helix::ToolheadStyle::A4T:
+                draw_nozzle_a4t(layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+                break;
+            default:
+                draw_nozzle_bambu(layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+                break;
         }
 
         // Tool badge (T0, T1, etc.) below nozzle — matches system_path_canvas style
@@ -2240,23 +2246,33 @@ static void filament_path_draw_cb(lv_event_t* e) {
 
         // Extruder/print head icon (responsive size)
         // Draw nozzle first so heat glow can render on top
-        if (data->use_faceted_toolhead) {
-            draw_nozzle_faceted(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
-        } else {
-            draw_nozzle_bambu(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
+        switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+            case helix::ToolheadStyle::STEALTHBURNER:
+                draw_nozzle_faceted(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
+                break;
+            case helix::ToolheadStyle::A4T:
+                draw_nozzle_a4t(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
+                break;
+            default:
+                draw_nozzle_bambu(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
+                break;
         }
 
         // Draw heat glow around nozzle tip when heating (after nozzle so glow is visible)
         if (data->heat_active) {
             int32_t tip_y;
-            if (data->use_faceted_toolhead) {
-                // Stealthburner: nozzle tip is further below center due to larger body
-                // Tip is at cy + (460 * scale) - 6 where scale = extruder_scale / 100
-                tip_y = nozzle_y + (data->extruder_scale * 46) / 10 - 6;
-            } else {
-                // Bambu: tip is at cy + body_height/2 + tip_height
-                // = cy + scale*2 + scale*0.6 = cy + scale*2.6
-                tip_y = nozzle_y + (data->extruder_scale * 26) / 10;
+            switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+                case helix::ToolheadStyle::STEALTHBURNER:
+                case helix::ToolheadStyle::A4T:
+                    // Stealthburner/A4T: nozzle tip is further below center due to larger body
+                    // Tip is at cy + (460 * scale) - 6 where scale = extruder_scale / 100
+                    tip_y = nozzle_y + (data->extruder_scale * 46) / 10 - 6;
+                    break;
+                default:
+                    // Bambu: tip is at cy + body_height/2 + tip_height
+                    // = cy + scale*2 + scale*0.6 = cy + scale*2.6
+                    tip_y = nozzle_y + (data->extruder_scale * 26) / 10;
+                    break;
             }
             draw_heat_glow(layer, center_x, tip_y, sensor_r, data->heat_pulse_opa);
         }
@@ -2491,9 +2507,6 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
             needs_redraw = true;
         } else if (strcmp(name, "show_bypass") == 0) {
             data->show_bypass = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
-            needs_redraw = true;
-        } else if (strcmp(name, "faceted_toolhead") == 0) {
-            data->use_faceted_toolhead = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
             needs_redraw = true;
         } else if (strcmp(name, "hub_only") == 0) {
             data->hub_only = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
@@ -2864,18 +2877,6 @@ void ui_filament_path_canvas_set_hub_only(lv_obj_t* obj, bool hub_only) {
     if (data->hub_only != hub_only) {
         data->hub_only = hub_only;
         spdlog::debug("[FilamentPath] Hub-only mode: {}", hub_only ? "on" : "off");
-        lv_obj_invalidate(obj);
-    }
-}
-
-void ui_filament_path_canvas_set_faceted_toolhead(lv_obj_t* obj, bool faceted) {
-    auto* data = get_data(obj);
-    if (!data)
-        return;
-
-    if (data->use_faceted_toolhead != faceted) {
-        data->use_faceted_toolhead = faceted;
-        spdlog::debug("[FilamentPath] Toolhead style: {}", faceted ? "faceted" : "bambu");
         lv_obj_invalidate(obj);
     }
 }

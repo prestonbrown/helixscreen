@@ -1744,6 +1744,41 @@ migrate_to_web_type() {
     log_success "Migrated to type: web update manager"
 }
 
+# Ensure the helixscreen section in moonraker.conf has persistent_files.
+# Older installs may have the section without persistent_files, causing
+# Moonraker's shutil.rmtree to wipe the user config on every update.
+# Args: $1 = moonraker.conf path
+ensure_persistent_files() {
+    local conf="$1"
+
+    # Check if persistent_files already present in the helixscreen section
+    if awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^persistent_files:/{print; exit}' "$conf" | grep -q 'persistent_files'; then
+        return 0
+    fi
+
+    log_warn "Moonraker config missing persistent_files — adding to prevent config loss on update"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    # Insert persistent_files block after the path: line in the helixscreen section
+    $fs awk '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^path:/ {
+            print
+            print "persistent_files:"
+            print "    config/helixconfig.json"
+            print "    config/helixscreen.env"
+            print "    config/.disabled_services"
+            in_section=0
+            next
+        }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "Added persistent_files to moonraker.conf"
+}
+
 # Write release_info.json if not already present
 # Moonraker type:web needs this file to detect installed version
 write_release_info() {
@@ -1865,6 +1900,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # Ensure persistent_files is present (added after initial releases).
+        # Without it, Moonraker's shutil.rmtree wipes the config on every update.
+        ensure_persistent_files "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
         return 0

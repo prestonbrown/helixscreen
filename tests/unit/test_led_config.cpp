@@ -171,7 +171,7 @@ TEST_CASE("LedController config: default presets have correct values", "[led][co
     ctrl.deinit();
 }
 
-TEST_CASE("LedController config: paths use /printer/leds/ prefix", "[led][config]") {
+TEST_CASE("LedController config: paths use df() + leds/ prefix", "[led][config]") {
     // This test verifies that after save + reload, data persists under the new paths
     auto& ctrl = helix::led::LedController::instance();
     ctrl.deinit();
@@ -186,13 +186,13 @@ TEST_CASE("LedController config: paths use /printer/leds/ prefix", "[led][config
     auto* cfg = Config::get_instance();
     REQUIRE(cfg != nullptr);
 
-    auto& strips_json = cfg->get_json("/printer/leds/selected_strips");
+    auto& strips_json = cfg->get_json(cfg->df() + "leds/selected_strips");
     REQUIRE(strips_json.is_array());
     REQUIRE(strips_json.size() == 1);
     REQUIRE(strips_json[0].get<std::string>() == "neopixel test_strip");
 
-    REQUIRE(cfg->get<std::string>("/printer/leds/last_color", "") == "#AABBCC");
-    REQUIRE(cfg->get<int>("/printer/leds/last_brightness", 0) == 42);
+    REQUIRE(cfg->get<std::string>(cfg->df() + "leds/last_color", "") == "#AABBCC");
+    REQUIRE(cfg->get<int>(cfg->df() + "leds/last_brightness", 0) == 42);
 
     // Reload and verify
     ctrl.deinit();
@@ -204,9 +204,9 @@ TEST_CASE("LedController config: paths use /printer/leds/ prefix", "[led][config
     REQUIRE(ctrl.last_brightness() == 42);
 
     // Cleanup
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
-    cfg->set("/printer/leds/last_color", 0xFFFFFF);
-    cfg->set("/printer/leds/last_brightness", 100);
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/last_color", 0xFFFFFF);
+    cfg->set(cfg->df() + "leds/last_brightness", 100);
     cfg->save();
 
     ctrl.deinit();
@@ -228,10 +228,10 @@ TEST_CASE("LedController config: migration from old /led/ paths", "[led][config]
     cfg->save();
 
     // Clear new paths to simulate first run after update
-    cfg->set("/printer/leds/selected_strips", nlohmann::json());
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/last_brightness", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_brightness", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     // Init should migrate old -> new
@@ -251,10 +251,10 @@ TEST_CASE("LedController config: migration from old /led/ paths", "[led][config]
     cfg->set("/led/last_color", nlohmann::json());
     cfg->set("/led/last_brightness", nlohmann::json());
     cfg->set("/led/color_presets", nlohmann::json());
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/last_brightness", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_brightness", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -264,12 +264,12 @@ TEST_CASE("LedController config: legacy /printer/leds/selected migration", "[led
     auto* cfg = Config::get_instance();
     REQUIRE(cfg != nullptr);
 
-    // Simulate old SettingsManager data at /printer/leds/selected (JSON array)
+    // Simulate old SettingsManager data at df()+"leds/selected" (JSON array)
     nlohmann::json legacy_selected = nlohmann::json::array({"neopixel legacy_led"});
-    cfg->set("/printer/leds/selected", legacy_selected);
+    cfg->set(cfg->df() + "leds/selected", legacy_selected);
 
     // Make sure new-style selected_strips is empty
-    cfg->set("/printer/leds/selected_strips", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
     cfg->set("/led/selected_strips", nlohmann::json());
     cfg->save();
 
@@ -282,8 +282,8 @@ TEST_CASE("LedController config: legacy /printer/leds/selected migration", "[led
     REQUIRE(ctrl.selected_strips()[0] == "neopixel legacy_led");
 
     // Cleanup
-    cfg->set("/printer/leds/selected", nlohmann::json());
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
     cfg->save();
 
     ctrl.deinit();
@@ -293,12 +293,12 @@ TEST_CASE("LedController config: legacy /printer/leds/strip string migration", "
     auto* cfg = Config::get_instance();
     REQUIRE(cfg != nullptr);
 
-    // Simulate oldest format: single string at /printer/leds/strip
-    cfg->set<std::string>("/printer/leds/strip", "neopixel oldest_led");
+    // Simulate oldest format: single string at df()+"leds/strip"
+    cfg->set<std::string>(cfg->df() + "leds/strip", "neopixel oldest_led");
 
     // Make sure newer formats are empty
-    cfg->set("/printer/leds/selected", nlohmann::json());
-    cfg->set("/printer/leds/selected_strips", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
     cfg->set("/led/selected_strips", nlohmann::json());
     cfg->save();
 
@@ -311,8 +311,8 @@ TEST_CASE("LedController config: legacy /printer/leds/strip string migration", "
     REQUIRE(ctrl.selected_strips()[0] == "neopixel oldest_led");
 
     // Cleanup
-    cfg->set<std::string>("/printer/leds/strip", "");
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
+    cfg->set<std::string>(cfg->df() + "leds/strip", "");
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
     cfg->save();
 
     ctrl.deinit();
@@ -357,7 +357,7 @@ TEST_CASE("LedController config: macro_devices save/load at new path", "[led][co
 
     // Verify saved to new path
     auto* cfg = Config::get_instance();
-    auto& macros_json = cfg->get_json("/printer/leds/macro_devices");
+    auto& macros_json = cfg->get_json(cfg->df() + "leds/macro_devices");
     REQUIRE(macros_json.is_array());
     REQUIRE(macros_json.size() == 1);
     REQUIRE(macros_json[0]["name"] == "Test Macro");
@@ -369,7 +369,7 @@ TEST_CASE("LedController config: macro_devices save/load at new path", "[led][co
     REQUIRE(ctrl.configured_macros()[0].display_name == "Test Macro");
 
     // Cleanup
-    cfg->set("/printer/leds/macro_devices", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/macro_devices", nlohmann::json::array());
     cfg->save();
 
     ctrl.deinit();
@@ -413,11 +413,11 @@ TEST_CASE("LedController config: full migration chain end-to-end", "[led][config
     // Tested separately in LedAutoState tests.
 
     // --- Clear ALL new paths to simulate fresh upgrade ---
-    cfg->set("/printer/leds/selected_strips", nlohmann::json());
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/last_brightness", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
-    cfg->set("/printer/leds/macro_devices", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_brightness", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/macro_devices", nlohmann::json());
     cfg->save();
 
     // --- Init LedController (triggers migration) ---
@@ -453,12 +453,12 @@ TEST_CASE("LedController config: full migration chain end-to-end", "[led][config
     cfg->set("/led/last_brightness", nlohmann::json());
     cfg->set("/led/color_presets", nlohmann::json());
     cfg->set("/led/macro_devices", nlohmann::json());
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/last_brightness", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
-    cfg->set("/printer/leds/macro_devices", nlohmann::json::array());
-    cfg->set("/printer/leds/led_on_at_start", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_brightness", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/macro_devices", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/led_on_at_start", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -476,11 +476,11 @@ TEST_CASE("LedController config: hex string colors saved to config", "[led][conf
     auto* cfg = Config::get_instance();
 
     // Verify saved as hex strings, not integers
-    auto& color_json = cfg->get_json("/printer/leds/last_color");
+    auto& color_json = cfg->get_json(cfg->df() + "leds/last_color");
     REQUIRE(color_json.is_string());
     REQUIRE(color_json.get<std::string>() == "#FF0000");
 
-    auto& presets_json = cfg->get_json("/printer/leds/color_presets");
+    auto& presets_json = cfg->get_json(cfg->df() + "leds/color_presets");
     REQUIRE(presets_json.is_array());
     REQUIRE(presets_json.size() == 2);
     REQUIRE(presets_json[0].is_string());
@@ -488,8 +488,8 @@ TEST_CASE("LedController config: hex string colors saved to config", "[led][conf
     REQUIRE(presets_json[1].get<std::string>() == "#0000FF");
 
     // Cleanup
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -500,9 +500,9 @@ TEST_CASE("LedController config: loads hex string colors from config", "[led][co
     REQUIRE(cfg != nullptr);
 
     // Write hex string colors to config
-    cfg->set<std::string>("/printer/leds/last_color", "#AABB00");
+    cfg->set<std::string>(cfg->df() + "leds/last_color", "#AABB00");
     nlohmann::json presets = nlohmann::json::array({"#FF0000", "#00FF00", "#0000FF"});
-    cfg->set("/printer/leds/color_presets", presets);
+    cfg->set(cfg->df() + "leds/color_presets", presets);
     cfg->save();
 
     auto& ctrl = helix::led::LedController::instance();
@@ -516,8 +516,8 @@ TEST_CASE("LedController config: loads hex string colors from config", "[led][co
     REQUIRE(ctrl.color_presets()[2] == 0x0000FF);
 
     // Cleanup
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -528,10 +528,10 @@ TEST_CASE("LedController config: loads legacy integer colors from config", "[led
     REQUIRE(cfg != nullptr);
 
     // Write old-style integer colors
-    cfg->set("/printer/leds/last_color", static_cast<int>(0xFF8800));
+    cfg->set(cfg->df() + "leds/last_color", static_cast<int>(0xFF8800));
     nlohmann::json presets =
         nlohmann::json::array({static_cast<int>(0xFF0000), static_cast<int>(0x00FF00)});
-    cfg->set("/printer/leds/color_presets", presets);
+    cfg->set(cfg->df() + "leds/color_presets", presets);
     cfg->save();
 
     auto& ctrl = helix::led::LedController::instance();
@@ -544,8 +544,8 @@ TEST_CASE("LedController config: loads legacy integer colors from config", "[led
     REQUIRE(ctrl.color_presets()[1] == 0x00FF00);
 
     // Cleanup
-    cfg->set("/printer/leds/last_color", nlohmann::json());
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -560,7 +560,7 @@ TEST_CASE("LedController config: mixed integer and hex string presets", "[led][c
     presets.push_back("#FF0000");
     presets.push_back(static_cast<int>(0x00FF00));
     presets.push_back("#0000FF");
-    cfg->set("/printer/leds/color_presets", presets);
+    cfg->set(cfg->df() + "leds/color_presets", presets);
     cfg->save();
 
     auto& ctrl = helix::led::LedController::instance();
@@ -573,7 +573,7 @@ TEST_CASE("LedController config: mixed integer and hex string presets", "[led][c
     REQUIRE(ctrl.color_presets()[2] == 0x0000FF);
 
     // Cleanup
-    cfg->set("/printer/leds/color_presets", nlohmann::json());
+    cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();
@@ -602,8 +602,8 @@ TEST_CASE("LedController config: migration skips when new paths already populate
     cfg->set("/led/last_color", static_cast<int>(0x111111));
 
     nlohmann::json new_strips = nlohmann::json::array({"neopixel NEW"});
-    cfg->set("/printer/leds/selected_strips", new_strips);
-    cfg->set("/printer/leds/last_color", static_cast<int>(0x222222));
+    cfg->set(cfg->df() + "leds/selected_strips", new_strips);
+    cfg->set(cfg->df() + "leds/last_color", static_cast<int>(0x222222));
     cfg->save();
 
     ctrl.init(nullptr, nullptr);
@@ -616,8 +616,8 @@ TEST_CASE("LedController config: migration skips when new paths already populate
     // Cleanup
     cfg->set("/led/selected_strips", nlohmann::json());
     cfg->set("/led/last_color", nlohmann::json());
-    cfg->set("/printer/leds/selected_strips", nlohmann::json::array());
-    cfg->set("/printer/leds/last_color", nlohmann::json());
+    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/last_color", nlohmann::json());
     cfg->save();
 
     ctrl.deinit();

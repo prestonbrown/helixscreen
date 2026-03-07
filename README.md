@@ -22,7 +22,7 @@ Fast, beautiful, and built for every Klipper printer — from a Creality K1 to a
 
 ---
 
-> **Release Candidate — v0.96**
+> **Release Candidate — v0.97**
 >
 > Approaching 1.0 with a customizable grid dashboard, full widget system, and comprehensive printer support. Looking for testers across different printer setups.
 >

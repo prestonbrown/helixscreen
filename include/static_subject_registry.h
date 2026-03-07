@@ -76,6 +76,14 @@ class StaticSubjectRegistry {
     void deinit_all();
 
     /**
+     * @brief Clear all registered entries without running callbacks
+     *
+     * Used during soft restart (printer switching) after deinit_all() has run,
+     * to ensure no stale entries remain before re-initialization registers new ones.
+     */
+    void clear();
+
+    /**
      * @brief Get count of registered singletons (for testing/debugging)
      */
     size_t count() const {

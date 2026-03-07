@@ -16,6 +16,7 @@
 #include "json_fwd.h"
 
 #include <string>
+#include <vector>
 
 namespace helix {
 
@@ -54,12 +55,13 @@ struct MacroConfig {
  * ```
  */
 /// Current config schema version — bump when adding new migrations
-static constexpr int CURRENT_CONFIG_VERSION = 3;
+static constexpr int CURRENT_CONFIG_VERSION = 4;
 
 class Config {
   private:
     static Config* instance;
     std::string path;
+    std::string active_printer_id_; ///< Currently active printer slug ID
 
   protected:
     json data;
@@ -120,7 +122,7 @@ class Config {
      */
     template <typename T> T get(const std::string& json_ptr, const T& default_value) {
         json::json_pointer ptr(json_ptr);
-        if (data.contains(ptr)) {
+        if (data.contains(ptr) && !data[ptr].is_null()) {
             return data[ptr].template get<T>();
         }
         return default_value;
@@ -274,12 +276,69 @@ class Config {
      */
     void reset_to_defaults();
 
+    // ========================================================================
+    // Multi-printer support
+    // ========================================================================
+
+    /**
+     * @brief Get the active printer's slug ID
+     *
+     * @return Active printer ID (e.g., "voronv2", "ender3-pro")
+     */
+    std::string get_active_printer_id() const;
+
+    /**
+     * @brief Switch to a different printer configuration
+     *
+     * Updates active_printer_id and persists to config.
+     * df() will route to the new printer's config section.
+     *
+     * @param printer_id Slug ID of the printer to activate
+     * @return true if printer was found and activated, false otherwise
+     */
+    bool set_active_printer(const std::string& printer_id);
+
+    /**
+     * @brief Get list of all configured printer IDs
+     *
+     * @return Vector of printer slug IDs (keys of /printers object)
+     */
+    std::vector<std::string> get_printer_ids() const;
+
+    /**
+     * @brief Add a new printer configuration
+     *
+     * @param printer_id Slug ID for the new printer
+     * @param printer_data JSON object with printer configuration
+     */
+    void add_printer(const std::string& printer_id, const json& printer_data);
+
+    /**
+     * @brief Remove a printer configuration
+     *
+     * If the removed printer is the active one, active_printer_id is cleared.
+     *
+     * @param printer_id Slug ID of the printer to remove
+     */
+    void remove_printer(const std::string& printer_id);
+
     /**
      * @brief Get singleton instance
      *
      * @return Pointer to global Config instance
      */
     static Config* get_instance();
+
+    /**
+     * @brief Generate a URL-safe slug ID from a printer name
+     *
+     * Converts to lowercase, replaces spaces/special chars with hyphens,
+     * strips leading/trailing hyphens, collapses consecutive hyphens.
+     *
+     * @param name Human-readable printer name
+     * @return Slug ID (e.g., "Voron 2.4" → "voron-2-4")
+     */
+    static std::string slugify(const std::string& name);
 };
 
 } // namespace helix

@@ -299,6 +299,16 @@ class ModalStack {
         return stack_.empty();
     }
 
+    // Delete modal widgets and clear tracking (used during teardown after lv_anim_delete_all)
+    void clear() {
+        for (auto& entry : stack_) {
+            if (entry.backdrop && lv_obj_is_valid(entry.backdrop)) {
+                lv_obj_del(entry.backdrop);  // dialog is a child of backdrop — deleted too
+            }
+        }
+        stack_.clear();
+    }
+
     // Mark a modal as exiting (animation in progress, ignore further hide() calls)
     // Returns true if found and marked, false if not found or already exiting
     bool mark_exiting(lv_obj_t* backdrop);

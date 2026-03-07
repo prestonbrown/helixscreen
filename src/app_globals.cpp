@@ -60,6 +60,8 @@ static volatile sig_atomic_t g_quit_requested = 0;
 
 // Wizard active flag
 static bool g_wizard_active = false;
+static std::function<void()> g_wizard_completion_cb;
+static std::function<void()> g_wizard_cancel_cb;
 
 // Stored command-line arguments for restart capability
 static std::vector<char*> g_stored_argv;
@@ -294,8 +296,26 @@ bool is_wizard_active() {
 }
 
 void set_wizard_active(bool active) {
+    bool was_active = g_wizard_active;
     g_wizard_active = active;
     spdlog::debug("[App Globals] Wizard active state set to: {}", active);
+
+    // Fire completion callback when wizard transitions from active to inactive
+    if (was_active && !active && g_wizard_completion_cb) {
+        g_wizard_completion_cb();
+    }
+}
+
+void set_wizard_completion_callback(std::function<void()> cb) {
+    g_wizard_completion_cb = std::move(cb);
+}
+
+void set_wizard_cancel_callback(std::function<void()> cb) {
+    g_wizard_cancel_cb = std::move(cb);
+}
+
+std::function<void()> get_wizard_cancel_callback() {
+    return g_wizard_cancel_cb;
 }
 
 // ============================================================================

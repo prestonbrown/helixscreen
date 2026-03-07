@@ -23,8 +23,8 @@ PanelWidgetConfig::PanelWidgetConfig(const std::string& panel_id, Config& config
 void PanelWidgetConfig::load() {
     entries_.clear();
 
-    // Per-panel path: /panel_widgets/<panel_id>
-    std::string panel_path = "/panel_widgets/" + panel_id_;
+    // Per-panel path: /printers/{active}/panel_widgets/<panel_id>
+    std::string panel_path = config_.df() + "panel_widgets/" + panel_id_;
     auto saved = config_.get<json>(panel_path, json());
 
     // Migration: move legacy "home_widgets" to "panel_widgets.home"
@@ -144,7 +144,7 @@ void PanelWidgetConfig::save() {
         item["rowspan"] = entry.rowspan;
         widgets_array.push_back(std::move(item));
     }
-    config_.set<json>("/panel_widgets/" + panel_id_, widgets_array);
+    config_.set<json>(config_.df() + "panel_widgets/" + panel_id_, widgets_array);
     config_.save();
 }
 

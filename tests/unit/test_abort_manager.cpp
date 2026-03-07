@@ -133,7 +133,11 @@ class AbortManagerTestAccess {
             m.on_probe_timeout();
             break;
         case AbortManager::State::SENT_CANCEL:
-            m.escalate_to_estop();
+            if (SafetySettingsManager::instance().get_cancel_escalation_enabled()) {
+                m.escalate_to_estop();
+            } else {
+                m.complete_abort("Cancel command failed. Use E-Stop if print continues.");
+            }
             break;
         default:
             spdlog::warn("[AbortManager] API error in state {}", m.get_state_name());
@@ -163,6 +167,9 @@ class AbortManagerTestFixture : public LVGLTestFixture {
     AbortManagerTestFixture() : LVGLTestFixture() {
         // Reset AbortManager to known state before each test
         AbortManagerTestAccess::reset(AbortManager::instance());
+
+        // Most tests assume escalation is enabled (default in production is OFF)
+        SafetySettingsManager::instance().set_cancel_escalation_enabled(true);
     }
 
     ~AbortManagerTestFixture() override {

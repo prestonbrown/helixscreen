@@ -158,7 +158,7 @@ void PrinterImageWidget::reload_from_config() {
     }
 
     // Update printer type in PrinterState (triggers capability cache refresh)
-    std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+    std::string printer_type = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     get_printer_state().set_printer_type_sync(printer_type);
 
     // Update printer image
@@ -167,7 +167,7 @@ void PrinterImageWidget::reload_from_config() {
     // Update printer type/host overlay
     // Always visible (even for localhost) to maintain consistent flex layout.
     // Hidden flag removes elements from flex, causing printer image to scale differently.
-    std::string host = config->get<std::string>(helix::wizard::MOONRAKER_HOST, "");
+    std::string host = config->get<std::string>(config->df() + helix::wizard::MOONRAKER_HOST, "");
 
     if (host.empty() || host == "127.0.0.1" || host == "localhost") {
         // Space keeps the text_small at its font height for consistent layout
@@ -220,7 +220,7 @@ void PrinterImageWidget::refresh_printer_image() {
     // Auto-detect from printer type using PrinterImages
     Config* config = Config::get_instance();
     std::string printer_type =
-        config ? config->get<std::string>(helix::wizard::PRINTER_TYPE, "") : "";
+        config ? config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "") : "";
     std::string image_path = PrinterImages::get_best_printer_image(printer_type);
     lv_obj_t* img = lv_obj_find_by_name(widget_obj_, "printer_image");
     if (img) {

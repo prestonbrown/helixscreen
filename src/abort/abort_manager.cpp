@@ -2,6 +2,7 @@
 
 #include "abort_manager.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
@@ -44,6 +45,15 @@ void AbortManager::init_subjects() {
 
     // Register XML component for the modal
     lv_xml_register_component_from_file("A:ui_xml/abort_progress_modal.xml");
+
+    // Register E-Stop button callback (unique name per L039)
+    register_xml_callbacks({
+        {"on_abort_emergency_stop",
+         [](lv_event_t*) {
+             spdlog::warn("[AbortManager] E-Stop button pressed from abort modal");
+             AbortManager::instance().escalate_to_estop();
+         }},
+    });
 
     // Initialize state subject (default IDLE)
     UI_MANAGED_SUBJECT_INT(abort_state_subject_, static_cast<int>(State::IDLE), "abort_state",
@@ -301,7 +311,7 @@ void AbortManager::send_cancel_print() {
 
     commands_sent_++;
 
-    // Start timeout timer — only if escalation is enabled
+    // Start timeout timer
     bool escalation_enabled = SafetySettingsManager::instance().get_cancel_escalation_enabled();
     if (escalation_enabled) {
         uint32_t timeout_ms =
@@ -312,7 +322,11 @@ void AbortManager::send_cancel_print() {
         cancel_timer_ = lv_timer_create(cancel_timer_cb, timeout_ms, this);
         lv_timer_set_repeat_count(cancel_timer_, 1);
     } else {
-        spdlog::info("[AbortManager] Cancel escalation disabled, waiting for print state change");
+        // Escalation disabled — still create a nudge timer so user gets feedback
+        spdlog::info("[AbortManager] Cancel escalation disabled, nudge timer at {}ms",
+                     CANCEL_TIMEOUT_MS);
+        cancel_timer_ = lv_timer_create(cancel_timer_cb, CANCEL_TIMEOUT_MS, this);
+        lv_timer_set_repeat_count(cancel_timer_, 1);
     }
 
     // Send CANCEL_PRINT
@@ -327,12 +341,24 @@ void AbortManager::send_cancel_print() {
                 },
                 this);
         },
-        [this](const MoonrakerError& /* err */) {
-            // Error callback - escalate to ESTOP
+        [this](const MoonrakerError& err) {
+            spdlog::warn("[AbortManager] CANCEL_PRINT error: {}", err.message);
             helix::ui::async_call(
                 [](void* user_data) {
                     auto* self = static_cast<AbortManager*>(user_data);
-                    self->on_cancel_timeout();
+                    if (self->abort_state_ != State::SENT_CANCEL) {
+                        return;
+                    }
+                    bool esc =
+                        SafetySettingsManager::instance().get_cancel_escalation_enabled();
+                    if (esc) {
+                        self->on_cancel_timeout();
+                    } else {
+                        spdlog::warn(
+                            "[AbortManager] CANCEL_PRINT failed, escalation disabled");
+                        self->complete_abort(
+                            "Cancel command failed. Use E-Stop if print continues.");
+                    }
                 },
                 this);
         });
@@ -549,8 +575,17 @@ void AbortManager::on_probe_timeout() {
 
     probe_timer_ = nullptr;
 
-    spdlog::warn("[AbortManager] Queue blocked (M115 timed out), escalating to ESTOP");
-    escalate_to_estop();
+    bool escalation_enabled = SafetySettingsManager::instance().get_cancel_escalation_enabled();
+    if (escalation_enabled) {
+        spdlog::warn("[AbortManager] Queue blocked (M115 timed out), escalating to ESTOP");
+        escalate_to_estop();
+    } else {
+        spdlog::warn("[AbortManager] Queue blocked (M115 timed out), escalation disabled — "
+                     "sending CANCEL_PRINT anyway");
+        set_state(State::SENT_CANCEL);
+        set_progress_message("Stopping print...");
+        send_cancel_print();
+    }
 }
 
 void AbortManager::on_cancel_success() {
@@ -577,10 +612,15 @@ void AbortManager::on_cancel_timeout() {
 
     cancel_timer_ = nullptr;
 
-    // Note: cancel_state_observer_ is cleaned up by escalate_to_estop() → cancel_all_timers()
-
-    spdlog::warn("[AbortManager] CANCEL_PRINT timed out, escalating to ESTOP");
-    escalate_to_estop();
+    bool escalation_enabled = SafetySettingsManager::instance().get_cancel_escalation_enabled();
+    if (escalation_enabled) {
+        // Note: cancel_state_observer_ is cleaned up by escalate_to_estop() → cancel_all_timers()
+        spdlog::warn("[AbortManager] CANCEL_PRINT timed out, escalating to ESTOP");
+        escalate_to_estop();
+    } else {
+        spdlog::info("[AbortManager] Cancel taking a while, escalation disabled — showing nudge");
+        set_progress_message("Cancelling is taking a while.\nUse E-Stop to stop immediately.");
+    }
 }
 
 void AbortManager::on_estop_sent() {

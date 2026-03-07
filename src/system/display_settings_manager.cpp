@@ -11,6 +11,7 @@
 #include "static_subject_registry.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
+#include "wizard_config_paths.h"
 
 #include <algorithm>
 #include <cmath>
@@ -578,14 +579,14 @@ std::string DisplaySettingsManager::get_printer_image() const {
     Config* config = Config::get_instance();
     if (!config)
         return "";
-    return config->get<std::string>("/display/printer_image", "");
+    return config->get<std::string>(config->df() + PRINTER_IMAGE, "");
 }
 
 void DisplaySettingsManager::set_printer_image(const std::string& id) {
     Config* config = Config::get_instance();
     if (!config)
         return;
-    config->set<std::string>("/display/printer_image", id);
+    config->set<std::string>(config->df() + PRINTER_IMAGE, id);
     config->save();
     spdlog::info("[DisplaySettingsManager] Printer image set to: '{}'",
                  id.empty() ? "(auto-detect)" : id);

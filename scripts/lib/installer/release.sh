@@ -226,13 +226,8 @@ get_latest_version() {
     local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
     log_info "Fetching latest version from GitHub..."
 
-    if command -v curl >/dev/null 2>&1; then
-        # Use basic sed regex (no -E flag) for BusyBox compatibility
-        version=$(curl -sSL --connect-timeout 10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
-    elif command -v wget >/dev/null 2>&1; then
-        # Use basic sed regex (no -E flag) for BusyBox compatibility
-        version=$(wget -qO- --timeout=10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
-    fi
+    # Use basic sed regex (no -E flag) for BusyBox compatibility
+    version=$(fetch_url "$url" | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
 
     if [ -z "$version" ]; then
         log_error "Failed to fetch latest version."
@@ -487,38 +482,27 @@ extract_release() {
     mkdir -p "$extract_dir"
     cd "$extract_dir" || exit 1
 
+    # BusyBox tar doesn't support -z; use gunzip pipe on embedded platforms
+    local extract_ok=false
     if [ "$platform" = "ad5m" ] || [ "$platform" = "ad5x" ] || [ "$platform" = "k1" ]; then
-        # BusyBox tar doesn't support -z
-        if ! gunzip -c "$tarball" | tar xf -; then
-            # Check if it was a space issue vs actual corruption
-            local post_mb
-            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
-            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
-                log_error "Failed to extract tarball: no space left on device."
-                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
-                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
-            else
-                log_error "Failed to extract tarball."
-                log_error "The archive may be corrupted. Try re-downloading."
-            fi
-            rm -rf "$extract_dir"
-            exit 1
-        fi
+        gunzip -c "$tarball" | tar xf - && extract_ok=true
     else
-        if ! tar -xzf "$tarball"; then
-            local post_mb
-            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
-            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
-                log_error "Failed to extract tarball: no space left on device."
-                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
-                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
-            else
-                log_error "Failed to extract tarball."
-                log_error "The archive may be corrupted. Try re-downloading."
-            fi
-            rm -rf "$extract_dir"
-            exit 1
+        tar -xzf "$tarball" && extract_ok=true
+    fi
+
+    if [ "$extract_ok" = false ]; then
+        local post_mb
+        post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+        if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
+            log_error "Failed to extract tarball: no space left on device."
+            log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
+            log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
+        else
+            log_error "Failed to extract tarball."
+            log_error "The archive may be corrupted. Try re-downloading."
         fi
+        rm -rf "$extract_dir"
+        exit 1
     fi
 
     # Phase 2: Validate extracted content
@@ -557,6 +541,105 @@ extract_release() {
             cp "${INSTALL_DIR}/config/helixscreen.env" "$BACKUP_ENV"
             log_info "Backed up existing helixscreen.env"
         fi
+
+        # Self-update under NoNewPrivileges: the parent directory (e.g. /opt)
+        # is read-only under ProtectSystem=strict, so we can't do an atomic
+        # directory rename.  Instead, replace contents in-place within
+        # INSTALL_DIR — this only needs write access to INSTALL_DIR itself
+        # (covered by ReadWritePaths in the service file).
+        if _has_no_new_privs; then
+            # Verify INSTALL_DIR is writable.  Older service files only grant
+            # ReadWritePaths to config/, so ProtectSystem=strict blocks writes
+            # to the rest.  If so, the ExecStartPre ownership fix in the new
+            # service file will resolve this on next restart.
+            if ! touch "${INSTALL_DIR}/.update_test" 2>/dev/null; then
+                log_error "Cannot write to ${INSTALL_DIR} (read-only under ProtectSystem)."
+                log_error "The systemd service file needs updating to allow self-updates."
+                log_error "Fix: re-run the installer once with:"
+                log_error "  curl -fsSL https://install.helixscreen.org | bash"
+                rm -rf "$extract_dir"
+                exit 1
+            fi
+            rm -f "${INSTALL_DIR}/.update_test" 2>/dev/null
+
+            log_info "Self-update: replacing install contents in-place..."
+
+            # Remove old contents (except config/).
+            # Don't use || true — if rm fails, we must not proceed to mv
+            # because mv can't overwrite a non-empty directory.
+            local _inplace_failed=false
+            for _item in "${INSTALL_DIR}"/*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                [ "$_base" = "config" ] && continue
+                if ! rm -rf "$_item"; then
+                    log_error "Failed to remove old ${_base}"
+                    _inplace_failed=true
+                fi
+            done
+            # Hidden files too
+            for _item in "${INSTALL_DIR}"/.*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                case "$_base" in .|..) continue ;; esac
+                rm -rf "$_item" 2>/dev/null || true
+            done
+
+            if [ "$_inplace_failed" = true ]; then
+                log_error "In-place update failed. Install may be in a broken state."
+                log_error "Fix: re-run the installer: curl -fsSL https://install.helixscreen.org | bash"
+                rm -rf "$extract_dir"
+                exit 1
+            fi
+
+            # Move new contents in (except config/)
+            for _item in "${new_install}"/*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                [ "$_base" = "config" ] && continue
+                if ! mv "$_item" "${INSTALL_DIR}/${_base}"; then
+                    log_error "Failed to install: ${_base}"
+                    rm -rf "$extract_dir"
+                    exit 1
+                fi
+            done
+            # Hidden files too
+            for _item in "${new_install}"/.*; do
+                [ -e "$_item" ] || continue
+                _base=$(basename "$_item")
+                case "$_base" in .|..) continue ;; esac
+                mv "$_item" "${INSTALL_DIR}/${_base}" 2>/dev/null || true
+            done
+
+            # Merge new config defaults without overwriting user files.
+            # New versions may ship config files that didn't exist before.
+            if [ -d "${new_install}/config" ]; then
+                for _item in "${new_install}/config"/*; do
+                    [ -e "$_item" ] || continue
+                    _base=$(basename "$_item")
+                    if [ ! -e "${INSTALL_DIR}/config/${_base}" ]; then
+                        mv "$_item" "${INSTALL_DIR}/config/${_base}" 2>/dev/null || true
+                        log_info "Added new config default: ${_base}"
+                    elif [ -d "$_item" ] && [ -d "${INSTALL_DIR}/config/${_base}" ]; then
+                        # Merge directory contents (e.g. printer_database.d/)
+                        for _subitem in "$_item"/*; do
+                            [ -e "$_subitem" ] || continue
+                            _subbase=$(basename "$_subitem")
+                            if [ ! -e "${INSTALL_DIR}/config/${_base}/${_subbase}" ]; then
+                                mv "$_subitem" "${INSTALL_DIR}/config/${_base}/${_subbase}" 2>/dev/null || true
+                            fi
+                        done
+                    fi
+                done
+            fi
+
+            rm -rf "$extract_dir"
+            log_success "Updated in-place at ${INSTALL_DIR}"
+            return 0
+        fi
+
+        # Standard path (fresh install or non-self-update with sudo access):
+        # atomic directory swap via rename in parent directory.
 
         # Choose backup dir name for atomic swap.
         # Prefer INSTALL_DIR.old; if it exists and can't be removed (e.g. root-owned

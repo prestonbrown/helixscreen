@@ -4,6 +4,7 @@
 
 #include "ui_wizard.h"
 
+#include "app_globals.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "static_panel_registry.h"
@@ -399,12 +400,11 @@ bool WizardLanguageChooserStep::should_skip() const {
         return true;
     }
 
-    // Also skip if language is "en" but was explicitly set (check for wizard completion)
-    // For now, we check if the wizard was already completed
-    bool wizard_complete = !cfg->is_wizard_required();
-    if (wizard_complete && !saved_language.empty()) {
-        spdlog::info("[{}] Wizard complete and language set to '{}', skipping step", get_name(),
-                     saved_language);
+    // Skip when adding a subsequent printer — language is already configured.
+    // Multiple printers in config means at least one wizard has completed before.
+    if (cfg->get_printer_ids().size() > 1 && !saved_language.empty()) {
+        spdlog::info("[{}] Subsequent printer ({}), language '{}' already set, skipping step",
+                     get_name(), cfg->get_printer_ids().size(), saved_language);
         return true;
     }
 

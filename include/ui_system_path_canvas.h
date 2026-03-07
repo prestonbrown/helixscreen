@@ -220,14 +220,6 @@ void ui_system_path_canvas_set_current_tool(lv_obj_t* obj, int tool_index);
 void ui_system_path_canvas_set_tool_virtual_numbers(lv_obj_t* obj, const int* numbers, int count);
 
 /**
- * @brief Set toolhead rendering style
- *
- * @param obj The system_path_canvas widget
- * @param faceted true = Stealthburner/faceted style, false = Bambu/metallic style
- */
-void ui_system_path_canvas_set_faceted_toolhead(lv_obj_t* obj, bool faceted);
-
-/**
  * @brief Force redraw of the path visualization
  *
  * @param obj The system_path_canvas widget

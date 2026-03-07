@@ -181,7 +181,7 @@ void WizardHeaterSelectStep::cleanup() {
     int32_t bed_idx = lv_subject_get_int(&bed_heater_selected_);
     if (bed_idx >= 0 && static_cast<size_t>(bed_idx) < bed_heater_items_.size()) {
         const std::string& bed_heater_name = bed_heater_items_[static_cast<size_t>(bed_idx)];
-        config->set<std::string>(helix::wizard::BED_SENSOR, bed_heater_name);
+        config->set<std::string>(config->df() + helix::wizard::BED_SENSOR, bed_heater_name);
         spdlog::debug("[{}] Bed sensor set to: {}", get_name(), bed_heater_name);
     }
 
@@ -195,7 +195,7 @@ void WizardHeaterSelectStep::cleanup() {
     if (hotend_idx >= 0 && static_cast<size_t>(hotend_idx) < hotend_heater_items_.size()) {
         const std::string& hotend_heater_name =
             hotend_heater_items_[static_cast<size_t>(hotend_idx)];
-        config->set<std::string>(helix::wizard::HOTEND_SENSOR, hotend_heater_name);
+        config->set<std::string>(config->df() + helix::wizard::HOTEND_SENSOR, hotend_heater_name);
         spdlog::debug("[{}] Hotend sensor set to: {}", get_name(), hotend_heater_name);
     }
 

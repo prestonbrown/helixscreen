@@ -27,6 +27,14 @@
                         label="Animations" label_tag="Animations" icon="animation"
                         description="Enable UI motion effects" description_tag="Enable UI motion effects"
                         callback="on_animations_changed"/>
+    <!-- Toolhead Style Dropdown (Auto / Default / Stealthburner / Armored Turtle) -->
+    <setting_dropdown_row name="row_toolhead_style"
+                          label="Toolhead Style" label_tag="Toolhead Style" icon="palette"
+                          description="How the toolhead icon appears"
+                          description_tag="How the toolhead icon appears"
+                          options="Auto&#10;Default&#10;Stealthburner&#10;Armored Turtle"
+                          options_tag="Auto&#10;Default&#10;Stealthburner&#10;Armored Turtle"
+                          callback="on_toolhead_style_changed"/>
     <!-- G-code Preview Dropdown (options set in C++ - 3D View only on capable hardware) -->
     <setting_dropdown_row name="row_gcode_mode"
                           label="G-code Preview" label_tag="G-code Preview" icon="printer_3d"
@@ -45,6 +53,13 @@
     <!-- PRINTER SECTION -->
     <!-- ================================================================== -->
     <setting_section_header title="PRINTER" title_tag="PRINTER" icon="printer_3d"/>
+    <!-- Printer Management (manage configured printers) — beta feature -->
+    <beta_feature>
+      <setting_action_row name="row_printers"
+                          label="Printers" label_tag="Printers" icon="printer_3d"
+                          description="Manage configured printers"
+                          description_tag="Manage configured printers" callback="on_printers_clicked"/>
+    </beta_feature>
     <!-- AMS Management (hidden if no AMS detected) -->
     <lv_obj name="container_ams_settings" width="100%" style_pad_all="0" scrollable="false">
       <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>

@@ -37,6 +37,11 @@ void StaticPanelRegistry::register_destroy(const char* name, std::function<void(
     spdlog::trace("[StaticPanelRegistry] Registered: {} (total: {})", name, destroyers_.size());
 }
 
+void StaticPanelRegistry::clear() {
+    destroyers_.clear();
+    spdlog::trace("[StaticPanelRegistry] Cleared all entries (no callbacks run)");
+}
+
 void StaticPanelRegistry::destroy_all() {
     if (destroyers_.empty()) {
         spdlog::debug("[StaticPanelRegistry] No panels registered, nothing to destroy");

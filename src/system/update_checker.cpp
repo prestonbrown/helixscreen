@@ -1101,13 +1101,17 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
 
     report_download_status(DownloadStatus::Installing, 100, "Installing update...");
 
+    // Resolve install root BEFORE install.sh runs.  After the installer swaps
+    // the directory, /proc/self/exe shows "(deleted)" and resolve_install_root()
+    // fails.  We need this path to chdir() after install.sh finishes (see below).
+    const std::string install_root = resolve_install_root();
+
     // Safety net: copy config to fallback dir BEFORE calling install.sh.
     // The installer backs up config to TMP_DIR, but under systemd's PrivateTmp=true
     // that backup lives in a volatile mount that's cleaned up on service restart.
     // These backups supplement the rolling backups in /var/lib/helixscreen/ maintained
     // by Config::save(). Config::init() auto-restores from either location.
     {
-        std::string install_root = resolve_install_root();
         if (!install_root.empty()) {
             std::string config_src = install_root + "/config/helixconfig.json";
             std::string env_src = install_root + "/config/helixscreen.env";
@@ -1374,6 +1378,24 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     }
 
     spdlog::info("[UpdateChecker] Update installed successfully!");
+
+    // Restore CWD after install.sh moved/deleted the old install directory.
+    // The init script does `cd $DAEMON_DIR` before launching, so our CWD was
+    // inside the install dir.  install.sh does:
+    //   mv /opt/helixscreen /opt/helixscreen.old
+    //   mv new_install /opt/helixscreen
+    //   rm -rf /opt/helixscreen.old
+    // After the rm, our CWD inode is deleted and any relative path operation
+    // (e.g. telemetry writes to "config/") triggers SIGABRT on some platforms.
+    // install_root was resolved via /proc/self/exe BEFORE the swap; now it
+    // points to the new install directory at the same path.
+    if (!install_root.empty()) {
+        if (chdir(install_root.c_str()) == 0) {
+            spdlog::info("[UpdateChecker] Restored CWD to {}", install_root);
+        } else {
+            spdlog::warn("[UpdateChecker] chdir({}) failed: {}", install_root, strerror(errno));
+        }
+    }
 
     // Write update success flag for telemetry (picked up on next boot)
     TelemetryManager::write_update_success_flag("config", version, HELIX_VERSION,

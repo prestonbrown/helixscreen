@@ -98,7 +98,7 @@ int restore_dropdown_selection(lv_obj_t* dropdown, lv_subject_t* subject,
     }
     // Priority 2: Try to restore from saved config
     else if (Config* config = Config::get_instance()) {
-        std::string saved = config->get<std::string>(config_path, "");
+        std::string saved = config->get<std::string>(config->df() + config_path, "");
         if (!saved.empty() && try_select(saved, "Restored selection")) {
             // Found saved item
         } else {
@@ -157,7 +157,7 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
     // "None" is a UI placeholder meaning "no selection" — save as empty string
     const std::string& item_name = items[static_cast<size_t>(index)];
     const std::string save_value = (item_name == "None") ? "" : item_name;
-    config->set(config_path, save_value);
+    config->set(config->df() + config_path, save_value);
     spdlog::debug("{} Saved selection: '{}'", log_prefix, save_value);
 
     return true;

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Printer List Item - Reusable Component -->
+  <!-- Displays printer name, connection dot, and optional delete button -->
+  <!-- Active printer indicated via LV_STATE_CHECKED - adds left border accent -->
+  <styles>
+    <style name="checked_style"
+           border_width="#space_xs" border_side="left" border_color="#primary" bg_color="#elevated_bg"/>
+  </styles>
+  <view extends="lv_button"
+        width="100%" scrollable="false" clickable="true" style_bg_opa="0"
+        style_border_width="0" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_lg"
+        flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+    <style name="checked_style" selector="checked"/>
+    <event_cb trigger="clicked" callback="printer_list_row_cb"/>
+    <!-- Active check icon placeholder (fixed width reserves space for alignment in all rows) -->
+    <icon name="active_check" src="check" size="xs" variant="secondary"
+          width="16" clickable="false" event_bubble="true" style_text_opa="0"/>
+    <!-- Printer name -->
+    <text_body name="printer_name" clickable="false" event_bubble="true" flex_grow="1"
+               style_text_opa="255"/>
+    <!-- Connection status dot -->
+    <lv_obj name="connection_dot" width="8" height="8" style_radius="32767"
+            style_bg_color="#success" style_bg_opa="255"
+            style_border_width="0" style_pad_all="0"
+            clickable="false" event_bubble="true" scrollable="false"/>
+    <!-- Delete button (hidden when only 1 printer) -->
+    <icon name="delete_btn" src="delete" size="sm" variant="danger"
+          clickable="true" hidden="true">
+      <event_cb trigger="clicked" callback="printer_list_delete_cb"/>
+    </icon>
+  </view>
+</component>

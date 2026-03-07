@@ -5,6 +5,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
+#include "ui_printer_list_overlay.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_printer_image.h"
@@ -133,6 +134,8 @@ void PrinterManagerOverlay::register_callbacks() {
         {"pm_printer_name_clicked", pm_printer_name_clicked_cb},
         // Image click callback (opens printer image picker)
         {"on_change_printer_image_clicked", change_printer_image_clicked_cb},
+        // Manage printers callback (opens printer list)
+        {"pm_manage_printers_clicked", pm_manage_printers_clicked_cb},
     });
 }
 
@@ -251,6 +254,22 @@ void PrinterManagerOverlay::on_chip_speaker_clicked(lv_event_t* e) {
 }
 
 // =============================================================================
+// Manage Printers
+// =============================================================================
+
+void PrinterManagerOverlay::pm_manage_printers_clicked_cb(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PrinterManagerOverlay] manage_printers_clicked");
+    get_printer_manager_overlay().handle_manage_printers_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void PrinterManagerOverlay::handle_manage_printers_clicked() {
+    spdlog::info("[{}] Manage Printers clicked — opening printer list", get_name());
+    auto& overlay = helix::ui::get_printer_list_overlay();
+    overlay.show(lv_display_get_screen_active(nullptr));
+}
+
+// =============================================================================
 // Printer Image Click
 // =============================================================================
 
@@ -301,7 +320,7 @@ void PrinterManagerOverlay::start_name_edit() {
     // Pre-fill input with current name
     lv_textarea_set_text(name_input_, name_buf_);
 
-    // Swap visibility: hide heading, show input
+    // TODO: Replace imperative visibility toggling with subject + bind_flag_if_eq
     lv_obj_add_flag(name_heading_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(name_input_, LV_OBJ_FLAG_HIDDEN);
 
@@ -324,7 +343,7 @@ void PrinterManagerOverlay::finish_name_edit() {
     // Save to config
     Config* config = Config::get_instance();
     if (config) {
-        config->set<std::string>(helix::wizard::PRINTER_NAME, name_str);
+        config->set<std::string>(config->df() + helix::wizard::PRINTER_NAME, name_str);
         config->save();
         spdlog::info("[{}] Printer name changed to: '{}'", get_name(), name_str);
     }
@@ -394,7 +413,7 @@ void PrinterManagerOverlay::refresh_printer_info() {
     }
 
     // Printer name from config (user-given name, or fallback)
-    std::string name = config->get<std::string>(helix::wizard::PRINTER_NAME, "");
+    std::string name = config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "");
     if (name.empty()) {
         name = "My Printer";
     }
@@ -403,7 +422,7 @@ void PrinterManagerOverlay::refresh_printer_info() {
     lv_subject_copy_string(&printer_manager_name_, name_buf_);
 
     // Printer model/type from config
-    std::string model = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+    std::string model = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     std::strncpy(model_buf_, model.c_str(), sizeof(model_buf_) - 1);
     model_buf_[sizeof(model_buf_) - 1] = '\0';
     lv_subject_copy_string(&printer_manager_model_, model_buf_);

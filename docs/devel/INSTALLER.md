@@ -308,23 +308,33 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
 1. **`[update_manager helixscreen]` section** appended to `moonraker.conf`:
    ```ini
    [update_manager helixscreen]
-   type: zip
+   type: web
    channel: stable
    repo: prestonbrown/helixscreen
    path: /home/biqu/helixscreen
-   managed_services: helixscreen
    persistent_files:
        config/helixconfig.json
+       config/helixscreen.env
        config/.disabled_services
    ```
 
-2. **`release_info.json`** written to `$INSTALL_DIR/` -- Moonraker `type:zip` needs this to detect the installed version
+2. **`release_info.json`** written to `$INSTALL_DIR/` -- Moonraker `type:web` needs this to detect the installed version
 
 3. **`moonraker.asvc`** -- HelixScreen added to Moonraker's service allowlist so it can restart the service after updates
 
+### Config Survival on Updates
+
+Moonraker's `type: web` updater wipes the install directory (`shutil.rmtree`) before extracting each update. Config is preserved via three layers:
+
+1. **`persistent_files`** in moonraker.conf -- Moonraker backs up listed files before rmtree and restores them after extraction
+2. **Rolling backups** -- `Config::save()` maintains backups in `/var/lib/helixscreen/` (systemd `StateDirectory`) and `$HOME/.helixscreen/` (fallback). `Config::init()` auto-restores from these if the config file is missing after an update.
+3. **SysV init script** -- On BusyBox systems (K1, AD5M) where systemd isn't available, the init script exports `HOME=/root` and creates `/var/lib/helixscreen/` so backup paths are persistent (not volatile `/tmp/`).
+
+The installer also runs `ensure_persistent_files()` on every upgrade to add `persistent_files` to existing Moonraker configs that predate this feature.
+
 ### Migration
 
-The installer detects old `type: git_repo` configurations and auto-migrates them to `type: zip`, cleaning up the sparse clone directory.
+The installer detects old `type: git_repo` and `type: zip` configurations and auto-migrates them to `type: web`, cleaning up the sparse clone directory.
 
 ### moonraker.conf Discovery
 

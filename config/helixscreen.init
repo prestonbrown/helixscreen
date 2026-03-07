@@ -31,6 +31,15 @@ LOGFILE="/tmp/helixscreen.log"
 # HELIX_DATA_DIR="/mnt/data/helixscreen"
 # export HELIX_DATA_DIR
 
+# Ensure HOME is set (BusyBox init may not set it).
+# Without HOME, config backup falls back to volatile /tmp/ and is lost on reboot.
+: "${HOME:=/root}"
+export HOME
+
+# Ensure config backup directory exists (survives Moonraker's shutil.rmtree wipe).
+# On systemd systems StateDirectory= creates /var/lib/helixscreen/; on SysV we do it here.
+mkdir -p /var/lib/helixscreen 2>/dev/null || mkdir -p "${HOME}/.helixscreen" 2>/dev/null || true
+
 # Check if binary exists
 [ -x "$DAEMON" ] || exit 0
 

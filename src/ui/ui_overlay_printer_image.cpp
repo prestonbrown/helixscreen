@@ -193,7 +193,8 @@ void PrinterImageOverlay::on_activate() {
         std::string auto_path;
         Config* config = Config::get_instance();
         if (config) {
-            std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+            std::string printer_type =
+                config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
             auto_path = PrinterImages::get_best_printer_image(printer_type);
         }
         update_preview("", "Auto-Detect", auto_path);
@@ -473,7 +474,8 @@ void PrinterImageOverlay::handle_auto_detect() {
     std::string auto_path;
     Config* config = Config::get_instance();
     if (config) {
-        std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+        std::string printer_type =
+            config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
         auto_path = PrinterImages::get_best_printer_image(printer_type);
     }
     update_preview("", "Auto-Detect", auto_path);

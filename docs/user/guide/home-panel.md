@@ -601,6 +601,43 @@ A row of chips shows detected hardware capabilities: Probe, Bed Mesh, Heated Bed
 
 ![Printer Manager — name, image, software versions](../../images/user/home-printer-manager.png)
 
+### Managing Multiple Printers
+
+> Requires [beta features](beta-features.md) to be enabled and at least two printers configured.
+
+When you have multiple printers configured, the Printer Manager overlay shows a **Manage Printers** button at the bottom. Tap it to open the printer management screen (same as Settings > Printers).
+
+You can also switch printers directly from the **navigation bar**. When multiple printers are configured, a badge with your printer's name appears in the nav bar. Tap it to see a quick-switch menu listing all your printers — tap any printer to switch instantly.
+
+#### Adding Your First Extra Printer
+
+1. Enable [beta features](beta-features.md) if you haven't already
+2. Go to **Settings** > **Printers** (under the Printer section)
+3. Tap **Add Printer**
+4. The Setup Wizard launches — enter the new printer's IP address and port, select hardware, and complete the wizard
+5. After the wizard finishes, you're connected to the new printer
+
+#### Switching Between Printers
+
+**Quick switch (fastest):**
+1. Tap the **printer name badge** in the navigation bar (bottom of screen)
+2. Tap the printer you want to switch to
+3. HelixScreen reconnects and shows a "Connected to [name]" toast
+
+**From Settings:**
+1. Go to **Settings** > **Printers**
+2. Tap the printer you want to switch to
+3. The active printer is marked with a checkmark
+
+#### Removing a Printer
+
+1. Go to **Settings** > **Printers**
+2. Tap the **trash icon** next to the printer you want to remove
+3. Confirm the deletion
+4. You cannot delete the printer you're currently connected to, and you cannot delete the last remaining printer
+
+> **Note:** Removing a printer only removes it from HelixScreen. It does not affect the printer itself, its Klipper configuration, or Moonraker.
+
 ---
 
 **Next:** [Printing](printing.md) | **Prev:** [Getting Started](getting-started.md) | [Back to User Guide](../USER_GUIDE.md)

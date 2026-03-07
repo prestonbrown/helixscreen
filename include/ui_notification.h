@@ -54,6 +54,14 @@ typedef struct {
 void ui_notification_init();
 
 /**
+ * @brief Release notification observer for soft restart
+ *
+ * Resets the notification observer guard so it doesn't hold a dangling
+ * pointer after subjects are torn down. Called during tear_down_printer_state().
+ */
+void ui_notification_deinit();
+
+/**
  * @brief Show an informational toast notification
  *
  * Displays a non-blocking blue toast message that auto-dismisses after 4 seconds.

@@ -16,6 +16,9 @@ class MoonrakerClient;
 /** @brief Z movement style override (Auto=detect from kinematics, or force) */
 enum class ZMovementStyle { AUTO = 0, BED_MOVES = 1, NOZZLE_MOVES = 2 };
 
+/** @brief Toolhead rendering style (Auto=detect from printer type, or force) */
+enum class ToolheadStyle { AUTO = 0, DEFAULT = 1, STEALTHBURNER = 2, A4T = 3 };
+
 /**
  * @brief Application settings manager with reactive UI binding
  *
@@ -114,6 +117,27 @@ class SettingsManager {
     }
 
     // =========================================================================
+    // TOOLHEAD STYLE (owned by SettingsManager — appearance setting)
+    // =========================================================================
+
+    /** @brief Get toolhead rendering style */
+    ToolheadStyle get_toolhead_style() const;
+
+    /** @brief Get effective toolhead style (resolves AUTO using printer detection) */
+    ToolheadStyle get_effective_toolhead_style() const;
+
+    /** @brief Set toolhead rendering style and persist */
+    void set_toolhead_style(ToolheadStyle style);
+
+    /** @brief Get dropdown options string */
+    static const char* get_toolhead_style_options();
+
+    /** @brief Toolhead style subject (integer: 0=Auto, 1=Default, 2=Stealthburner, 3=A4T) */
+    lv_subject_t* subject_toolhead_style() {
+        return &toolhead_style_subject_;
+    }
+
+    // =========================================================================
     // EXTRUDE/RETRACT SPEED (owned by SettingsManager — persisted)
     // =========================================================================
 
@@ -169,6 +193,7 @@ class SettingsManager {
     lv_subject_t led_enabled_subject_;
     lv_subject_t z_movement_style_subject_;
     lv_subject_t extrude_speed_subject_;
+    lv_subject_t toolhead_style_subject_;
 
     // External references
     MoonrakerClient* moonraker_client_ = nullptr;

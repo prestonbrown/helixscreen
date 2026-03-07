@@ -5,6 +5,26 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.97.0] - 2026-03-06
+
+Multi-printer support (beta) and selectable toolhead renderers. Configure multiple printers in a single HelixScreen instance and switch between them from the navbar or settings. The Armored Turtle (A4T) toolhead style is now available alongside the default and Stealthburner renderers.
+
+### Added
+- Multi-printer support: configure, switch, and manage multiple Klipper printers from one device (beta feature flag)
+- Printer switcher badge in navbar with connection status indicator
+- Printer management overlay for adding, switching, and deleting printers
+- Toolhead style selector in display settings (Auto, Default, Stealthburner, A4T)
+- Armored Turtle (A4T) toolhead renderer with SVG-traced polygon geometry
+
+### Fixed
+- Self-update crash from CWD deletion causing SIGABRT on re-exec
+- In-app updates not offered on non-Klipper systemd installs
+- Config loss on Moonraker-triggered updates for K1/SysV devices
+- Cancel button not working in add-printer wizard flow
+- Null JSON values in config causing crashes instead of returning defaults
+- AFC filament loaded state detection returning false negatives
+- Abort dialog ignoring cancel_escalation_enabled setting
+
 ## [0.96.9] - 2026-03-06
 
 ### Fixed
@@ -1657,6 +1677,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.97.0]: https://github.com/prestonbrown/helixscreen/compare/v0.96.9...v0.97.0
 [0.96.9]: https://github.com/prestonbrown/helixscreen/compare/v0.96.8...v0.96.9
 [0.96.8]: https://github.com/prestonbrown/helixscreen/compare/v0.96.7...v0.96.8
 [0.96.7]: https://github.com/prestonbrown/helixscreen/compare/v0.96.5...v0.96.7
