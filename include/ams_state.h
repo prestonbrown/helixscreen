@@ -571,7 +571,7 @@ class AmsState {
 
     /**
      * @brief Set source override for clog meter display
-     * @param source 0=auto (priority logic), 1=encoder, 2=flowguard, 3=buffer
+     * @param source 0=auto (priority logic), 1=encoder, 2=flowguard, 3=afc
      */
     void set_source_override(int source);
 
@@ -1028,7 +1028,7 @@ class AmsState {
     lv_subject_t modal_duration_min_;  ///< Modal's duration in minutes (raw int subject)
 
     // Clog detection config overrides (set by ClogDetectionConfigModal)
-    int source_override_ = 0;           // 0=auto, 1=encoder, 2=flowguard, 3=buffer
+    int source_override_ = 0;           // 0=auto, 1=encoder, 2=flowguard, 3=afc
     int danger_threshold_override_ = 0; // 0=use computed default
 
     // Clog detection meter subjects
