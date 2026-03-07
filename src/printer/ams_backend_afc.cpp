@@ -656,6 +656,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         current_slot_authoritative_ = false;
         spdlog::debug("[AMS AFC] Filament unloaded (current lane/load=null)");
     }
+    // Note: when current_lane/current_load is empty/null, the block above (line 602)
+    // already cleared filament_loaded, current_slot, and current_tool.
 
     // Parse action/status
     if (afc_data.contains("status") && afc_data["status"].is_string()) {
