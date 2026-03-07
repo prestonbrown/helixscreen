@@ -26,10 +26,10 @@
       <lv_obj name="info_col" width="1" flex_grow="1" height="content"
               flex_flow="column" style_pad_gap="#space_xs">
 
-        <!-- ============ Happy Hare section ============ -->
-        <lv_obj name="hh_section" width="100%" height="content"
+        <!-- ============ Sync feedback section (any system with bias/espooler data) ============ -->
+        <lv_obj name="sync_section" width="100%" height="content"
                 flex_flow="column" style_pad_gap="#space_xs">
-          <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="1"/>
+          <bind_flag_if_eq subject="buf_show_sync_section" flag="hidden" ref_value="0"/>
 
           <!-- Description -->
           <text_small name="hh_description" bind_text="buf_description" width="100%"
@@ -70,10 +70,10 @@
           </lv_obj>
         </lv_obj>
 
-        <!-- ============ AFC section ============ -->
-        <lv_obj name="afc_section" width="100%" height="content"
+        <!-- ============ Buffer health section (any unit with buffer_health data) ============ -->
+        <lv_obj name="buffer_section" width="100%" height="content"
                 flex_flow="column" style_pad_gap="#space_xs">
-          <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="2"/>
+          <bind_flag_if_eq subject="buf_show_buffer_section" flag="hidden" ref_value="0"/>
 
           <!-- State row -->
           <text_small name="afc_state_label" bind_text="buf_afc_state" width="100%"
