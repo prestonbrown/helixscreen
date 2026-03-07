@@ -523,12 +523,11 @@ struct SlotError {
 };
 
 /**
- * @brief Buffer health data for filament buffer fault detection
+ * @brief Buffer health data for AFC buffer fault detection
  *
- * Any filament system with physical buffer hardware can populate this.
- * Currently used by AFC (TurtleNeck buffers), but the data model is
- * backend-agnostic — any backend that provides buffer fault data should
- * populate buffer_health on AmsUnit. Units without buffers leave it nullopt.
+ * Populated from AFC_buffer status objects. Only applicable to AFC
+ * systems with TurtleNeck buffer hardware. Other backends leave
+ * buffer_health as nullopt on SlotInfo.
  */
 struct BufferHealth {
     bool fault_detection_enabled = false; ///< Whether buffer fault detection is active
@@ -664,8 +663,8 @@ struct AmsUnit {
     bool has_hub_sensor = false;       ///< Unit has a hub/combiner sensor
     bool hub_sensor_triggered = false; ///< Filament detected at this unit's hub
 
-    // Buffer health (one buffer per unit, sits between hub and toolhead)
-    std::optional<BufferHealth> buffer_health; ///< Buffer fault state (nullopt = no buffer on this unit)
+    // Buffer health (AFC TurtleNeck — one buffer per unit, sits between hub and toolhead)
+    std::optional<BufferHealth> buffer_health; ///< Buffer fault state (nullopt = no buffer data)
 
     // Per-unit topology (for mixed-topology setups like Box Turtle + OpenAMS)
     PathTopology topology = PathTopology::HUB; ///< Filament path topology for this unit

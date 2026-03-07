@@ -11,11 +11,7 @@ class UiBufferMeter;
 }
 
 /**
- * @brief Read-only modal showing buffer/sync status for any filament system
- *
- * Data-driven: shows sync feedback section when bias/espooler data is present,
- * and buffer health section when unit.buffer_health is populated — regardless
- * of which backend provides the data. Both sections can appear simultaneously.
+ * @brief Read-only modal showing buffer/sync status for Happy Hare or AFC
  *
  * Subjects are static (shared across instances) because lv_xml_register_subject
  * rejects duplicate names — the first registration wins and the pointer persists.
@@ -45,8 +41,7 @@ class BufferStatusModal : public Modal {
     helix::ui::UiBufferMeter* meter_ = nullptr;
 
     // Static subjects + backing buffers (persist across modal instances)
-    static lv_subject_t show_sync_section_;   // 1 = show sync feedback section
-    static lv_subject_t show_buffer_section_; // 1 = show buffer health section
+    static lv_subject_t type_subject_;
     static lv_subject_t show_meter_subject_;
     static lv_subject_t show_espooler_subject_;
     static lv_subject_t show_flow_subject_;

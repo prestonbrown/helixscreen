@@ -11,8 +11,7 @@
 
 // Static member definitions
 bool BufferStatusModal::subjects_initialized_ = false;
-lv_subject_t BufferStatusModal::show_sync_section_;
-lv_subject_t BufferStatusModal::show_buffer_section_;
+lv_subject_t BufferStatusModal::type_subject_;
 lv_subject_t BufferStatusModal::show_meter_subject_;
 lv_subject_t BufferStatusModal::show_espooler_subject_;
 lv_subject_t BufferStatusModal::show_flow_subject_;
@@ -47,8 +46,7 @@ void BufferStatusModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&show_sync_section_, 0);
-    lv_subject_init_int(&show_buffer_section_, 0);
+    lv_subject_init_int(&type_subject_, 0);
     lv_subject_init_int(&show_meter_subject_, 0);
     lv_subject_init_int(&show_espooler_subject_, 0);
     lv_subject_init_int(&show_flow_subject_, 0);
@@ -67,8 +65,7 @@ void BufferStatusModal::init_subjects() {
     lv_subject_init_string(&afc_distance_subject_, afc_distance_buf_, nullptr,
                            sizeof(afc_distance_buf_), "");
 
-    lv_xml_register_subject(nullptr, "buf_show_sync_section", &show_sync_section_);
-    lv_xml_register_subject(nullptr, "buf_show_buffer_section", &show_buffer_section_);
+    lv_xml_register_subject(nullptr, "buf_type", &type_subject_);
     lv_xml_register_subject(nullptr, "buf_show_meter", &show_meter_subject_);
     lv_xml_register_subject(nullptr, "buf_show_espooler", &show_espooler_subject_);
     lv_xml_register_subject(nullptr, "buf_show_flow", &show_flow_subject_);
@@ -85,18 +82,11 @@ void BufferStatusModal::init_subjects() {
 }
 
 void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) {
-    // Data-driven: show each section based on what data is available,
-    // not which backend type. Both sections can appear simultaneously.
-
-    // --- Sync feedback section (bias, espooler, gear sync, clog, flow) ---
-    bool has_bias = info.sync_feedback_bias > -1.5f;
-    bool has_espooler = !info.espooler_state.empty();
-    bool has_sync = has_bias || has_espooler || info.sync_drive || info.clog_detection > 0;
-
-    if (has_sync) {
-        lv_subject_set_int(&show_sync_section_, 1);
+    if (info.type == AmsType::HAPPY_HARE) {
+        lv_subject_set_int(&type_subject_, 1);
 
         // Description based on bias
+        bool has_bias = info.sync_feedback_bias > -1.5f;
         if (has_bias) {
             float abs_bias = std::fabs(info.sync_feedback_bias);
             if (abs_bias < 0.02f) {
@@ -113,7 +103,7 @@ void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) 
         }
 
         // eSpooler
-        if (has_espooler) {
+        if (!info.espooler_state.empty()) {
             lv_subject_set_int(&show_espooler_subject_, 1);
             if (info.espooler_state == "rewind") {
                 lv_subject_copy_string(&espooler_value_subject_, lv_tr("Rewinding"));
@@ -154,47 +144,45 @@ void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) 
 
         // Meter visibility
         lv_subject_set_int(&show_meter_subject_, has_bias ? 1 : 0);
-    } else {
-        lv_subject_set_int(&show_sync_section_, 0);
+
+    } else if (info.type == AmsType::AFC) {
+        lv_subject_set_int(&type_subject_, 2);
         lv_subject_set_int(&show_meter_subject_, 0);
-    }
 
-    // --- Buffer health section (any unit with buffer_health populated) ---
-    bool found_health = false;
-    if (effective_unit >= 0 && effective_unit < static_cast<int>(info.units.size())) {
-        const auto& unit = info.units[effective_unit];
-        if (unit.buffer_health.has_value()) {
-            const auto& bh = unit.buffer_health.value();
-            found_health = true;
+        bool found_health = false;
+        if (effective_unit >= 0 && effective_unit < static_cast<int>(info.units.size())) {
+            const auto& unit = info.units[effective_unit];
+            if (unit.buffer_health.has_value()) {
+                const auto& bh = unit.buffer_health.value();
+                found_health = true;
 
-            // State
-            if (!bh.state.empty()) {
-                if (bh.state == "Advancing") {
-                    lv_subject_copy_string(&afc_state_subject_,
-                                          lv_tr("Feeding filament forward"));
-                } else if (bh.state == "Trailing") {
-                    lv_subject_copy_string(&afc_state_subject_,
-                                          lv_tr("Pulling filament back"));
+                // State
+                if (!bh.state.empty()) {
+                    if (bh.state == "Advancing") {
+                        lv_subject_copy_string(&afc_state_subject_,
+                                              lv_tr("Feeding filament forward"));
+                    } else if (bh.state == "Trailing") {
+                        lv_subject_copy_string(&afc_state_subject_,
+                                              lv_tr("Pulling filament back"));
+                    } else {
+                        auto s = fmt::format("{}: {}", lv_tr("State"), bh.state);
+                        lv_subject_copy_string(&afc_state_subject_, s.c_str());
+                    }
                 } else {
-                    auto s = fmt::format("{}: {}", lv_tr("State"), bh.state);
-                    lv_subject_copy_string(&afc_state_subject_, s.c_str());
+                    lv_subject_copy_string(&afc_state_subject_, "");
                 }
-            } else {
-                lv_subject_copy_string(&afc_state_subject_, "");
-            }
 
-            // Distance
-            if (bh.fault_detection_enabled && bh.distance_to_fault >= 0) {
-                auto d = fmt::format("{:.1f} mm {}", bh.distance_to_fault,
-                                     lv_tr("remaining before clog detection triggers"));
-                lv_subject_copy_string(&afc_distance_subject_, d.c_str());
-                lv_subject_set_int(&show_distance_subject_, 1);
-            } else {
-                lv_subject_set_int(&show_distance_subject_, 0);
-            }
+                // Distance
+                if (bh.fault_detection_enabled && bh.distance_to_fault >= 0) {
+                    auto d = fmt::format("{:.1f} mm {}", bh.distance_to_fault,
+                                         lv_tr("remaining before clog detection triggers"));
+                    lv_subject_copy_string(&afc_distance_subject_, d.c_str());
+                    lv_subject_set_int(&show_distance_subject_, 1);
+                } else {
+                    lv_subject_set_int(&show_distance_subject_, 0);
+                }
 
-            // Clog detection (only set if sync section didn't already set it)
-            if (!has_sync) {
+                // Clog detection
                 if (bh.fault_detection_enabled) {
                     lv_subject_copy_string(&clog_value_subject_, lv_tr("Active"));
                 } else {
@@ -202,18 +190,14 @@ void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) 
                 }
             }
         }
-    }
-
-    if (found_health) {
-        lv_subject_set_int(&show_buffer_section_, 1);
-    } else {
-        lv_subject_set_int(&show_buffer_section_, 0);
-        // Only show "no buffer data" if there's also no sync section
-        if (!has_sync) {
+        if (!found_health) {
             lv_subject_copy_string(&afc_state_subject_, lv_tr("No buffer data available"));
             lv_subject_set_int(&show_distance_subject_, 0);
             lv_subject_copy_string(&clog_value_subject_, lv_tr("Unknown"));
         }
+    } else {
+        lv_subject_set_int(&type_subject_, 0);
+        lv_subject_set_int(&show_meter_subject_, 0);
     }
 }
 
@@ -239,7 +223,7 @@ void BufferStatusModal::on_show() {
     }
 
     // Create UiBufferMeter programmatically in the meter column
-    bool has_bias = info_.sync_feedback_bias > -1.5f;
+    bool has_bias = info_.type == AmsType::HAPPY_HARE && info_.sync_feedback_bias > -1.5f;
     if (has_bias && dialog()) {
         lv_obj_t* meter_col = lv_obj_find_by_name(dialog(), "meter_col");
         if (meter_col) {
