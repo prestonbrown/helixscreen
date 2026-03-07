@@ -405,16 +405,32 @@ SystemToolLayout compute_system_tool_layout(const AmsSystemInfo& info, const Ams
                 }
             }
         } else if (min_tool >= 0) {
-            // PARALLEL: each lane maps to its own physical nozzle
+            // PARALLEL: each lane maps to its own physical nozzle.
+            // Count actual mapped slots rather than using max-min+1 range,
+            // because tool remapping (SET_MAP) can create non-contiguous tool
+            // numbers that span across units (e.g., a 6-lane unit with tools
+            // T0,T1,T6,T7,T8,T11 would compute 12 instead of 6).
             int physical_first = total_physical;
-            int lane_count = max_tool - min_tool + 1;
+
+            // Collect and sort the mapped tool numbers for stable ranking
+            std::vector<int> mapped_tools;
+            for (const auto& slot : unit.slots) {
+                if (slot.mapped_tool >= 0) {
+                    mapped_tools.push_back(slot.mapped_tool);
+                }
+            }
+            std::sort(mapped_tools.begin(), mapped_tools.end());
+
+            int lane_count = static_cast<int>(mapped_tools.size());
             utl.first_physical_tool = physical_first;
             utl.tool_count = lane_count;
 
-            // Map each virtual tool to sequential physical position
+            // Map each virtual tool to sequential physical position by sorted rank
             for (const auto& slot : unit.slots) {
                 if (slot.mapped_tool >= 0) {
-                    int rank = slot.mapped_tool - min_tool;
+                    auto it = std::lower_bound(mapped_tools.begin(), mapped_tools.end(),
+                                               slot.mapped_tool);
+                    int rank = static_cast<int>(it - mapped_tools.begin());
                     result.virtual_to_physical[slot.mapped_tool] = physical_first + rank;
                 }
             }
