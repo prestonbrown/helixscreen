@@ -1067,8 +1067,8 @@ lv_subject_t* AmsState::get_dryer_info_visible_subject() {
 }
 
 void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
-    // Priority: flowguard > encoder > afc_buffer > legacy > none
-    // Source override: 0=auto (use priority), 1=encoder, 2=flowguard, 3=afc
+    // Priority: flowguard > encoder > buffer_health > legacy > none
+    // Source override: 0=auto (use priority), 1=encoder, 2=flowguard, 3=buffer
     int mode = 0;
     int value = 0;
     int warning = 0;
@@ -1083,10 +1083,10 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
     // Determine which sources are available
     bool has_flowguard = info.flowguard_info.enabled;
     bool has_encoder = info.encoder_info.enabled;
-    bool has_afc = false;
+    bool has_buffer = false;
     for (const auto& unit : info.units) {
         if (unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
-            has_afc = true;
+            has_buffer = true;
             break;
         }
     }
@@ -1094,18 +1094,18 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
     // Apply source override: skip to the forced source if available
     bool use_flowguard = has_flowguard;
     bool use_encoder = has_encoder;
-    bool use_afc = has_afc;
+    bool use_buffer = has_buffer;
 
     if (source_override_ == 1) {
         // Force encoder only
         use_flowguard = false;
-        use_afc = false;
+        use_buffer = false;
     } else if (source_override_ == 2) {
         // Force flowguard only
         use_encoder = false;
-        use_afc = false;
+        use_buffer = false;
     } else if (source_override_ == 3) {
-        // Force AFC only
+        // Force buffer only
         use_flowguard = false;
         use_encoder = false;
     }
@@ -1179,9 +1179,9 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
         snprintf(right_buf, sizeof(right_buf), "0");
 
     } else {
-        // Check AFC buffer fault detection (buffer_health is per-unit, not per-slot)
+        // Check buffer fault detection (buffer_health is per-unit, not per-slot)
         for (const auto& unit : info.units) {
-            if (use_afc && unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
+            if (use_buffer && unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
                 mode = 3;
                 float dist = unit.buffer_health->distance_to_fault;
                 float max_dist = unit.buffer_health->fault_threshold();

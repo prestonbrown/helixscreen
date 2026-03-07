@@ -17,7 +17,8 @@ class TestableBufferStatusModal : public BufferStatusModal {
     using BufferStatusModal::populate;
 
     // Read subject values for assertions (LVGL getters take non-const pointers)
-    int type_value() { return lv_subject_get_int(&type_subject_); }
+    int show_sync_section_value() { return lv_subject_get_int(&show_sync_section_); }
+    int show_buffer_section_value() { return lv_subject_get_int(&show_buffer_section_); }
     int show_meter_value() { return lv_subject_get_int(&show_meter_subject_); }
     int show_espooler_value() { return lv_subject_get_int(&show_espooler_subject_); }
     int show_flow_value() { return lv_subject_get_int(&show_flow_subject_); }
@@ -97,7 +98,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate HH with bias",
         info.sync_feedback_bias = 0.15f;
         modal.populate(info, 0);
 
-        REQUIRE(modal.type_value() == 1);
+        REQUIRE(modal.show_sync_section_value() == 1);
         REQUIRE(modal.show_meter_value() == 1);
         REQUIRE(std::string(modal.description_value()) == "Filament is loose");
     }
@@ -132,7 +133,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate HH without bias",
 
     modal.populate(info, 0);
 
-    REQUIRE(modal.type_value() == 1);
+    REQUIRE(modal.show_sync_section_value() == 1);
     REQUIRE(modal.show_meter_value() == 0);
     REQUIRE(std::string(modal.description_value()) == "");
 }
@@ -268,7 +269,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC with buffer he
 
     modal.populate(info, 0);
 
-    REQUIRE(modal.type_value() == 2);
+    REQUIRE(modal.show_buffer_section_value() == 1);
     REQUIRE(modal.show_meter_value() == 0);
     REQUIRE(std::string(modal.afc_state_value()) == "Feeding filament forward");
     REQUIRE(modal.show_distance_value() == 1);
@@ -350,7 +351,64 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC out-of-range u
 // Unknown AMS type
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate unknown type",
+// ============================================================================
+// Data-driven: buffer_health on any backend type
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal shows buffer section for non-AFC backend",
+                 "[modals][buffer_status]") {
+    TestableBufferStatusModal modal;
+    AmsSystemInfo info;
+    info.type = AmsType::HAPPY_HARE; // Not AFC, but has buffer_health
+
+    AmsUnit unit;
+    unit.unit_index = 0;
+    BufferHealth bh;
+    bh.fault_detection_enabled = true;
+    bh.distance_to_fault = 25.0f;
+    bh.state = "Advancing";
+    unit.buffer_health = bh;
+    info.units.push_back(unit);
+
+    // Also has sync feedback data
+    info.sync_feedback_bias = 0.1f;
+    info.sync_drive = true;
+    info.clog_detection = 2;
+
+    modal.populate(info, 0);
+
+    // Both sections should be visible
+    REQUIRE(modal.show_sync_section_value() == 1);
+    REQUIRE(modal.show_buffer_section_value() == 1);
+    REQUIRE(modal.show_meter_value() == 1);
+    REQUIRE(std::string(modal.afc_state_value()) == "Feeding filament forward");
+    REQUIRE(modal.show_distance_value() == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal shows buffer only when no sync data",
+                 "[modals][buffer_status]") {
+    TestableBufferStatusModal modal;
+    AmsSystemInfo info;
+    info.type = AmsType::NONE; // Generic backend
+
+    AmsUnit unit;
+    unit.unit_index = 0;
+    BufferHealth bh;
+    bh.fault_detection_enabled = true;
+    bh.distance_to_fault = 10.0f;
+    bh.state = "Trailing";
+    unit.buffer_health = bh;
+    info.units.push_back(unit);
+
+    modal.populate(info, 0);
+
+    REQUIRE(modal.show_sync_section_value() == 0);
+    REQUIRE(modal.show_buffer_section_value() == 1);
+    REQUIRE(std::string(modal.afc_state_value()) == "Pulling filament back");
+    REQUIRE(std::string(modal.clog_value()) == "Active");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate no data hides both sections",
                  "[modals][buffer_status]") {
     TestableBufferStatusModal modal;
     AmsSystemInfo info;
@@ -358,6 +416,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate unknown type",
 
     modal.populate(info, 0);
 
-    REQUIRE(modal.type_value() == 0);
+    REQUIRE(modal.show_sync_section_value() == 0);
+    REQUIRE(modal.show_buffer_section_value() == 0);
     REQUIRE(modal.show_meter_value() == 0);
 }
