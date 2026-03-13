@@ -933,8 +933,23 @@ install_runtime_deps() {
     # GPU libs are needed for DRM+EGL hardware-accelerated rendering on Pi
     # libturbojpeg0: SIMD-accelerated JPEG decode for camera MJPEG streams
     # Note: OpenSSL is statically linked for Pi builds, no runtime libssl needed
-    local deps="libdrm2 libinput10 libgbm1 libegl1 libgles2 libturbojpeg0"
+    local deps="libdrm2 libinput10 libgbm1 libegl1 libgles2"
     local missing=""
+    local turbo_lib=""
+    local turbo_candidates="libturbojpeg0 libturbojpeg0-dev"
+    
+    for candidate in $turbo_candidates; do
+        # Check if package is installed or available in apt repo
+        if dpkg-query -W -f='${Status}' "$candidate" 2>/dev/null | grep -q "install ok installed" || \
+           apt-cache show "$candidate" 2>/dev/null | grep -q "^Package: $candidate$"; then
+            turbo_lib="$candidate"
+            log_info "Selected turbojpeg library: $candidate"
+            break
+        fi
+    done
+    
+    # Add selected turbojpeg library to dependencies list
+    [ -n "$turbo_lib" ] && deps="$deps $turbo_lib"
 
     for dep in $deps; do
         # Check if package is installed (dpkg-query returns 0 if installed)
