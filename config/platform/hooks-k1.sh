@@ -23,6 +23,8 @@ platform_stop_competing_uis() {
     # S99start_app also manages dropbear (SSH) on stock K1 firmware.
     # Disabling it kills SSH on next reboot (#535). Ensure SSH survives.
     _ensure_ssh_running
+
+    _kill_boot_logo
 }
 
 # Ensure SSH (dropbear) is running. On stock K1, dropbear is started by
@@ -69,6 +71,18 @@ INITEOF
             chmod +x /etc/init.d/S50dropbear
         fi
     fi
+}
+
+_kill_boot_logo(){
+	if [ -f /etc/init.d/S12boot_display ]; then
+		# kill the boot display so it does not keep showing over top of hellixscreen
+		killall boot_display 2> /dev/null
+	fi
+
+	if [ -f  /usr/data/pellcorp/k1/black.jpg ]; then
+		# display black transition image to stop the corrupt image being shown
+		cmd_jpeg_display /usr/data/pellcorp/k1/black.jpg &
+	fi
 }
 
 platform_enable_backlight() {
