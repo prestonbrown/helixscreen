@@ -38,6 +38,15 @@
 #   make x86-all-docker        # Docker-based x86_64 build (both variants)
 
 # =============================================================================
+# Docker Build Configuration
+# =============================================================================
+
+# NPROC_DOCKER_RUN: Number of parallel jobs for Docker builds
+# Capped at 8 to prevent resource exhaustion in containerized environments
+# Can be overridden via environment variable: NPROC_DOCKER_RUN=<value>
+NPROC_DOCKER_RUN ?= $(shell echo $$(($(NPROC) > 8 ? 8 : $(NPROC))))
+
+# =============================================================================
 # Target Platform Definitions
 # =============================================================================
 
@@ -813,8 +822,8 @@ pi-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
-		make PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
+		make PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi-fbdev-docker: ensure-docker
@@ -824,8 +833,8 @@ pi-fbdev-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi-fbdev)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi-fbdev) helixscreen/toolchain-pi \
-		make PLATFORM_TARGET=pi-fbdev SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi-fbdev) helixscreen/toolchain-pi \
+		make PLATFORM_TARGET=pi-fbdev SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi-all-docker: ensure-docker
@@ -835,8 +844,8 @@ pi-all-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
-		make PLATFORM_TARGET=pi-both SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
+		make PLATFORM_TARGET=pi-both SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi32-docker: ensure-docker
@@ -846,8 +855,8 @@ pi32-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
-		make PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
+		make PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi32-fbdev-docker: ensure-docker
@@ -857,8 +866,8 @@ pi32-fbdev-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32-fbdev)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32-fbdev) helixscreen/toolchain-pi32 \
-		make PLATFORM_TARGET=pi32-fbdev SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32-fbdev) helixscreen/toolchain-pi32 \
+		make PLATFORM_TARGET=pi32-fbdev SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 pi32-all-docker: ensure-docker
@@ -868,8 +877,8 @@ pi32-all-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32)
-	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
-		make PLATFORM_TARGET=pi32-both SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
+		make PLATFORM_TARGET=pi32-both SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 ad5m-docker: ensure-docker
@@ -880,7 +889,7 @@ ad5m-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,ad5m)
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,ad5m) helixscreen/toolchain-ad5m \
-		make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/ad5m/certs
 	@docker run --rm helixscreen/toolchain-ad5m cat /etc/ssl/certs/ca-certificates.crt > build/ad5m/certs/ca-certificates.crt 2>/dev/null \
@@ -896,7 +905,7 @@ ad5x-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,ad5x)
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,ad5x) helixscreen/toolchain-ad5x \
-		make PLATFORM_TARGET=ad5x SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=ad5x SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/ad5x/certs
 	@docker run --rm helixscreen/toolchain-ad5x cat /etc/ssl/certs/ca-certificates.crt > build/ad5x/certs/ca-certificates.crt 2>/dev/null \
@@ -912,7 +921,7 @@ cc1-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,cc1)
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,cc1) helixscreen/toolchain-cc1 \
-		make PLATFORM_TARGET=cc1 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=cc1 SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/cc1/certs
 	@docker run --rm helixscreen/toolchain-cc1 cat /etc/ssl/certs/ca-certificates.crt > build/cc1/certs/ca-certificates.crt 2>/dev/null \
@@ -929,7 +938,7 @@ mips-docker: ensure-docker
 	$(call ensure-ccache-dir,k1)
 	# Do not inherit host jobserver flags into containerized make.
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -e MAKEFLAGS= -v "$(PWD)":/src -w /src $(call docker-ccache-args,k1) helixscreen/toolchain-k1 \
-		make PLATFORM_TARGET=mips SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=mips SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/mips/certs
 	@docker run --rm helixscreen/toolchain-k1 cat /etc/ssl/certs/ca-certificates.crt > build/mips/certs/ca-certificates.crt 2>/dev/null \
@@ -948,7 +957,7 @@ k1-dynamic-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,k1-dynamic)
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,k1-dynamic) helixscreen/toolchain-k1-dynamic \
-		make PLATFORM_TARGET=k1-dynamic SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=k1-dynamic SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 k2-docker: ensure-docker
@@ -959,7 +968,7 @@ k2-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,k2)
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,k2) helixscreen/toolchain-k2 \
-		make PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 snapmaker-u1-docker: ensure-docker
@@ -970,7 +979,7 @@ snapmaker-u1-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,snapmaker-u1)
 	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,snapmaker-u1) helixscreen/toolchain-snapmaker-u1 \
-		make PLATFORM_TARGET=snapmaker-u1 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=snapmaker-u1 SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/snapmaker-u1/certs
 	@docker run --rm helixscreen/toolchain-snapmaker-u1 cat /etc/ssl/certs/ca-certificates.crt > build/snapmaker-u1/certs/ca-certificates.crt 2>/dev/null \
@@ -986,7 +995,7 @@ x86-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,x86)
 	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
-		make PLATFORM_TARGET=x86 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=x86 SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 x86-fbdev-docker: ensure-docker
@@ -997,7 +1006,7 @@ x86-fbdev-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,x86-fbdev)
 	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,x86-fbdev) helixscreen/toolchain-x86 \
-		make PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 x86-all-docker: ensure-docker
@@ -1008,7 +1017,7 @@ x86-all-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,x86)
 	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
-		make PLATFORM_TARGET=x86-both SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+		make PLATFORM_TARGET=x86-both SKIP_OPTIONAL_DEPS=1 -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 # Stop Colima after build to free up RAM (macOS only)
@@ -1028,11 +1037,11 @@ docker-toolchains: docker-toolchain-pi docker-toolchain-pi32 docker-toolchain-ad
 
 docker-toolchain-pi: ensure-buildx
 	@echo "$(CYAN)Building Raspberry Pi toolchain Docker image...$(RESET)"
-	$(Q)docker buildx build --platform linux/amd64 -t helixscreen/toolchain-pi -f docker/Dockerfile.pi docker/
+	$(Q)docker buildx build -t helixscreen/toolchain-pi -f docker/Dockerfile.pi docker/
 
 docker-toolchain-pi32: ensure-buildx
 	@echo "$(CYAN)Building Raspberry Pi 32-bit toolchain Docker image...$(RESET)"
-	$(Q)docker buildx build --platform linux/amd64 -t helixscreen/toolchain-pi32 -f docker/Dockerfile.pi32 docker/
+	$(Q)docker buildx build -t helixscreen/toolchain-pi32 -f docker/Dockerfile.pi32 docker/
 
 docker-toolchain-ad5m: ensure-buildx
 	@echo "$(CYAN)Building Adventurer 5M toolchain Docker image...$(RESET)"
@@ -1060,7 +1069,7 @@ docker-toolchain-k2: ensure-buildx
 
 docker-toolchain-snapmaker-u1: ensure-buildx
 	@echo "$(CYAN)Building Snapmaker U1 toolchain Docker image...$(RESET)"
-	$(Q)docker buildx build --platform linux/amd64 -t helixscreen/toolchain-snapmaker-u1 -f docker/Dockerfile.snapmaker-u1 docker/
+	$(Q)docker buildx build -t helixscreen/toolchain-snapmaker-u1 -f docker/Dockerfile.snapmaker-u1 docker/
 
 docker-toolchain-x86: ensure-buildx
 	@echo "$(CYAN)Building x86_64 Debian toolchain Docker image...$(RESET)"
