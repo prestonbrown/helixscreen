@@ -14,10 +14,18 @@
  * Built with cpp-terminal - modern C++ TUI library
  */
 
-#include "moonraker_client.h"
-#include <json.hpp>  // nlohmann/json from libhv
-#include <spdlog/spdlog.h>
+#include "moonraker_client_cli.h"
+
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/spdlog.h>
+
+#include <chrono>
+#include <cstring>
+#include <json.hpp> // nlohmann/json from libhv
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "cpp-terminal/color.hpp"
 #include "cpp-terminal/exception.hpp"
@@ -30,28 +38,24 @@
 #include "cpp-terminal/terminal.hpp"
 #include "cpp-terminal/tty.hpp"
 
-#include <chrono>
-#include <cstring>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <vector>
-
 using json = nlohmann::json;
+using helix::cli::MoonrakerClient;
+using helix::cli::MoonrakerError;
 
 // Tree node for hierarchical data display
 struct TreeNode {
     std::string key;
     std::string value;
     bool expanded;
-    bool is_section;  // Section headers vs data items
+    bool is_section; // Section headers vs data items
     int indent_level;
-    std::string object_name;  // Moonraker object name for querying
-    json object_data;  // Detailed data from Moonraker
-    bool data_fetched;  // Have we fetched detailed data?
+    std::string object_name; // Moonraker object name for querying
+    json object_data;        // Detailed data from Moonraker
+    bool data_fetched;       // Have we fetched detailed data?
     std::vector<TreeNode> children;
 
-    TreeNode(const std::string& k, const std::string& v = "", bool section = false, int indent = 0, const std::string& obj_name = "")
+    TreeNode(const std::string& k, const std::string& v = "", bool section = false, int indent = 0,
+             const std::string& obj_name = "")
         : key(k), value(v), expanded(false), is_section(section), indent_level(indent),
           object_name(obj_name), data_fetched(false) {}
 };
@@ -64,13 +68,15 @@ struct InteractiveState {
     json printer_info;
     json objects_list;
     bool data_ready;
-    MoonrakerClient* client;  // For querying object details
-    TreeNode* selected_node;  // Track actual selected node (not just index)
-    bool need_redraw;  // Flag to trigger redraw from async callbacks
-    size_t spinner_frame;  // For animated spinner
-    int pending_queries;  // Track pending async queries
+    MoonrakerClient* client; // For querying object details
+    TreeNode* selected_node; // Track actual selected node (not just index)
+    bool need_redraw;        // Flag to trigger redraw from async callbacks
+    size_t spinner_frame;    // For animated spinner
+    int pending_queries;     // Track pending async queries
 
-    InteractiveState() : selected_index(0), data_ready(false), client(nullptr), selected_node(nullptr), need_redraw(false), spinner_frame(0), pending_queries(0) {}
+    InteractiveState()
+        : selected_index(0), data_ready(false), client(nullptr), selected_node(nullptr),
+          need_redraw(false), spinner_frame(0), pending_queries(0) {}
 };
 
 static InteractiveState* g_state = nullptr;
@@ -104,7 +110,8 @@ void add_json_to_tree(TreeNode* parent, const std::string& key, const json& val,
             // Show small numeric arrays inline (not expandable)
             std::string result = "[";
             for (size_t i = 0; i < size; i++) {
-                if (i > 0) result += ", ";
+                if (i > 0)
+                    result += ", ";
                 result += format_scalar(val[i]);
             }
             result += "]";
@@ -159,18 +166,19 @@ void query_object_data(TreeNode* node, MoonrakerClient* client) {
     node->children.push_back(TreeNode("Loading data...", "", false, 3));
     if (g_state) {
         g_state->need_redraw = true;
-        g_state->pending_queries++;  // Track pending query
+        g_state->pending_queries++; // Track pending query
     }
 
     // Query this specific object
     json params = json::object();
     params["objects"] = json::object();
-    params["objects"][node->object_name] = json::value_t::null;  // Query all fields
+    params["objects"][node->object_name] = json::value_t::null; // Query all fields
 
-    client->send_jsonrpc("printer.objects.query", params,
+    client->send_jsonrpc(
+        "printer.objects.query", params,
         [node](json response) {
             if (g_state) {
-                g_state->pending_queries--;  // Query completed
+                g_state->pending_queries--; // Query completed
             }
             spdlog::debug("Received response for object: {}", node->object_name);
             spdlog::debug("Response JSON: {}", response.dump());
@@ -186,7 +194,8 @@ void query_object_data(TreeNode* node, MoonrakerClient* client) {
 
                 if (node->object_data.contains(node->object_name)) {
                     const auto& obj_data = node->object_data[node->object_name];
-                    spdlog::debug("Found object data for '{}', has {} fields", node->object_name, obj_data.size());
+                    spdlog::debug("Found object data for '{}', has {} fields", node->object_name,
+                                  obj_data.size());
 
                     // Add each field as a child (using recursive tree builder)
                     for (auto it = obj_data.begin(); it != obj_data.end(); ++it) {
@@ -248,7 +257,7 @@ void query_object_data(TreeNode* node, MoonrakerClient* client) {
                     spdlog::debug("Total children added: {}", node->children.size());
                 } else {
                     spdlog::debug("Object name '{}' NOT found in status data. Available keys: {}",
-                                 node->object_name, node->object_data.dump());
+                                  node->object_name, node->object_data.dump());
                 }
 
                 // Trigger redraw to show new data
@@ -264,7 +273,7 @@ void query_object_data(TreeNode* node, MoonrakerClient* client) {
         },
         [node](const MoonrakerError&) {
             if (g_state) {
-                g_state->pending_queries--;  // Query completed (with error)
+                g_state->pending_queries--; // Query completed (with error)
             }
             // Query failed - show error
             node->children.clear();
@@ -351,7 +360,8 @@ std::string get_object_description(const std::string& obj_name) {
         } else {
             return "Part cooling fan - cools printed plastic";
         }
-    } else if (obj_name.find("led") != std::string::npos || obj_name.find("neopixel") != std::string::npos) {
+    } else if (obj_name.find("led") != std::string::npos ||
+               obj_name.find("neopixel") != std::string::npos) {
         return "LED strip - lighting/status indication";
     } else if (obj_name.find("tmc") != std::string::npos) {
         return "TMC stepper driver - silent motor control with stallguard";
@@ -376,7 +386,7 @@ std::string get_object_description(const std::string& obj_name) {
     } else if (obj_name.find("firmware_retraction") != std::string::npos) {
         return "Firmware retraction - fast filament retract/prime";
     }
-    return "";  // No description
+    return ""; // No description
 }
 
 // Build tree from collected data (all sections collapsed by default)
@@ -385,7 +395,7 @@ void build_tree(InteractiveState* state) {
 
     // Server Information section (collapsed by default)
     TreeNode server_section("📡 Server Information", "", true, 0);
-    server_section.expanded = false;  // Collapsed by default
+    server_section.expanded = false; // Collapsed by default
 
     if (state->server_info.contains("klippy_connected")) {
         bool connected = state->server_info["klippy_connected"].get<bool>();
@@ -394,27 +404,28 @@ void build_tree(InteractiveState* state) {
     }
 
     if (state->server_info.contains("klippy_state")) {
-        server_section.children.push_back(TreeNode("Klippy State",
-            state->server_info["klippy_state"].get<std::string>(), false, 1));
+        server_section.children.push_back(TreeNode(
+            "Klippy State", state->server_info["klippy_state"].get<std::string>(), false, 1));
     }
 
     // Moonraker version field is actually "version" not "moonraker_version"
     if (state->server_info.contains("version")) {
-        server_section.children.push_back(TreeNode("Moonraker Version",
-            state->server_info["version"].get<std::string>(), false, 1));
+        server_section.children.push_back(TreeNode(
+            "Moonraker Version", state->server_info["version"].get<std::string>(), false, 1));
     } else if (state->server_info.contains("moonraker_version")) {
-        server_section.children.push_back(TreeNode("Moonraker Version",
-            state->server_info["moonraker_version"].get<std::string>(), false, 1));
+        server_section.children.push_back(
+            TreeNode("Moonraker Version",
+                     state->server_info["moonraker_version"].get<std::string>(), false, 1));
     }
 
     if (state->server_info.contains("klippy_version")) {
-        server_section.children.push_back(TreeNode("Klippy Version",
-            state->server_info["klippy_version"].get<std::string>(), false, 1));
+        server_section.children.push_back(TreeNode(
+            "Klippy Version", state->server_info["klippy_version"].get<std::string>(), false, 1));
     }
 
     if (state->server_info.contains("components")) {
         TreeNode comp_node("🧩 Components (Moonraker Modules)", "", true, 1);
-        comp_node.expanded = false;  // Collapsible subsection
+        comp_node.expanded = false; // Collapsible subsection
         for (const auto& comp : state->server_info["components"]) {
             std::string comp_name = comp.get<std::string>();
             std::string desc = get_component_description(comp_name);
@@ -435,17 +446,19 @@ void build_tree(InteractiveState* state) {
     }
 
     if (state->printer_info.contains("hostname")) {
-        printer_section.children.push_back(TreeNode("Hostname",
-            state->printer_info["hostname"].get<std::string>(), false, 1));
+        printer_section.children.push_back(
+            TreeNode("Hostname", state->printer_info["hostname"].get<std::string>(), false, 1));
     }
 
     // Check multiple possible field names for Klipper version
     if (state->printer_info.contains("software_version")) {
-        printer_section.children.push_back(TreeNode("Klipper Version",
-            state->printer_info["software_version"].get<std::string>(), false, 1));
+        printer_section.children.push_back(
+            TreeNode("Klipper Version", state->printer_info["software_version"].get<std::string>(),
+                     false, 1));
     } else if (state->printer_info.contains("klipper_version")) {
-        printer_section.children.push_back(TreeNode("Klipper Version",
-            state->printer_info["klipper_version"].get<std::string>(), false, 1));
+        printer_section.children.push_back(
+            TreeNode("Klipper Version", state->printer_info["klipper_version"].get<std::string>(),
+                     false, 1));
     }
 
     state->tree.push_back(printer_section);
@@ -453,7 +466,7 @@ void build_tree(InteractiveState* state) {
     // Hardware Objects section
     if (state->objects_list.contains("objects")) {
         TreeNode hw_section("🔧 Hardware Objects", "", true, 0);
-        hw_section.expanded = false;  // Collapsed by default
+        hw_section.expanded = false; // Collapsed by default
 
         const auto& obj_array = state->objects_list["objects"];
 
@@ -471,8 +484,8 @@ void build_tree(InteractiveState* state) {
             } else if (name.find("gcode_macro") != std::string::npos) {
                 macros.push_back(name);
             } else if (name.find("extruder") != std::string::npos ||
-                name.find("heater_bed") != std::string::npos ||
-                name.find("heater_generic") != std::string::npos) {
+                       name.find("heater_bed") != std::string::npos ||
+                       name.find("heater_generic") != std::string::npos) {
                 heaters.push_back(name);
             } else if (name.find("temperature_sensor") != std::string::npos ||
                        name.find("temperature_") != std::string::npos) {
@@ -501,17 +514,20 @@ void build_tree(InteractiveState* state) {
 
         // Add categorized subsections (all collapsed by default)
         if (!heaters.empty()) {
-            TreeNode heater_node("🔥 Heaters (" + std::to_string(heaters.size()) + ")", "", true, 1);
+            TreeNode heater_node("🔥 Heaters (" + std::to_string(heaters.size()) + ")", "", true,
+                                 1);
             heater_node.expanded = false;
             for (const auto& h : heaters) {
                 std::string desc = get_object_description(h);
-                heater_node.children.push_back(TreeNode(h, desc, true, 2, h));  // Expandable, store object name
+                heater_node.children.push_back(
+                    TreeNode(h, desc, true, 2, h)); // Expandable, store object name
             }
             hw_section.children.push_back(heater_node);
         }
 
         if (!sensors.empty()) {
-            TreeNode sensor_node("🌡️  Sensors (" + std::to_string(sensors.size()) + ")", "", true, 1);
+            TreeNode sensor_node("🌡️  Sensors (" + std::to_string(sensors.size()) + ")", "", true,
+                                 1);
             sensor_node.expanded = false;
             for (const auto& s : sensors) {
                 std::string desc = get_object_description(s);
@@ -541,7 +557,8 @@ void build_tree(InteractiveState* state) {
         }
 
         if (!steppers.empty()) {
-            TreeNode stepper_node("🔩 Steppers/Drivers (" + std::to_string(steppers.size()) + ")", "", true, 1);
+            TreeNode stepper_node("🔩 Steppers/Drivers (" + std::to_string(steppers.size()) + ")",
+                                  "", true, 1);
             stepper_node.expanded = false;
             for (const auto& s : steppers) {
                 std::string desc = get_object_description(s);
@@ -551,7 +568,8 @@ void build_tree(InteractiveState* state) {
         }
 
         if (!probes.empty()) {
-            TreeNode probe_node("📍 Probes/Leveling (" + std::to_string(probes.size()) + ")", "", true, 1);
+            TreeNode probe_node("📍 Probes/Leveling (" + std::to_string(probes.size()) + ")", "",
+                                true, 1);
             probe_node.expanded = false;
             for (const auto& p : probes) {
                 std::string desc = get_object_description(p);
@@ -561,8 +579,9 @@ void build_tree(InteractiveState* state) {
         }
 
         if (!macros.empty()) {
-            TreeNode macro_node("⚙️  G-code Macros (" + std::to_string(macros.size()) + ")", "", true, 1);
-            macro_node.expanded = false;  // ESPECIALLY collapsed by default
+            TreeNode macro_node("⚙️  G-code Macros (" + std::to_string(macros.size()) + ")", "",
+                                true, 1);
+            macro_node.expanded = false; // ESPECIALLY collapsed by default
             for (const auto& m : macros) {
                 std::string desc = get_object_description(m);
                 macro_node.children.push_back(TreeNode(m, desc, true, 2, m));
@@ -571,7 +590,8 @@ void build_tree(InteractiveState* state) {
         }
 
         if (!other.empty()) {
-            TreeNode other_node("🔌 Accessories (" + std::to_string(other.size()) + ")", "", true, 1);
+            TreeNode other_node("🔌 Accessories (" + std::to_string(other.size()) + ")", "", true,
+                                1);
             other_node.expanded = false;
             for (const auto& o : other) {
                 std::string desc = get_object_description(o);
@@ -736,69 +756,69 @@ void handle_input(InteractiveState* state, Term::Key key) {
     size_t max_index = flat_tree.empty() ? 0 : flat_tree.size() - 1;
 
     switch (key) {
-        case Term::Key::ArrowUp:
-            if (state->selected_index > 0) {
+    case Term::Key::ArrowUp:
+        if (state->selected_index > 0) {
+            state->selected_index--;
+            // Skip non-sections
+            while (state->selected_index > 0) {
+                TreeNode* node = find_node_by_index(state->tree, state->selected_index);
+                if (node && node->is_section) {
+                    state->selected_node = node;
+                    break;
+                }
                 state->selected_index--;
-                // Skip non-sections
-                while (state->selected_index > 0) {
-                    TreeNode* node = find_node_by_index(state->tree, state->selected_index);
-                    if (node && node->is_section) {
-                        state->selected_node = node;
-                        break;
-                    }
-                    state->selected_index--;
-                }
-            }
-            break;
-
-        case Term::Key::ArrowDown:
-            if (state->selected_index < max_index) {
-                state->selected_index++;
-                // Skip non-sections
-                while (state->selected_index < max_index) {
-                    TreeNode* node = find_node_by_index(state->tree, state->selected_index);
-                    if (node && node->is_section) {
-                        state->selected_node = node;
-                        break;
-                    }
-                    state->selected_index++;
-                }
-            }
-            break;
-
-        case Term::Key::Enter:
-        case Term::Key::Space:
-        {
-            TreeNode* node = find_node_by_index(state->tree, state->selected_index);
-            spdlog::debug("Enter/Space pressed on node: {} (is_section={}, object_name='{}', data_fetched={}, expanded={})",
-                         node ? node->key : "null",
-                         node ? node->is_section : false,
-                         node ? node->object_name : "",
-                         node ? node->data_fetched : false,
-                         node ? node->expanded : false);
-
-            if (node && node->is_section) {
-                bool was_expanded = node->expanded;
-                node->expanded = !node->expanded;
-
-                spdlog::debug("Toggled expansion: was_expanded={}, now_expanded={}", was_expanded, node->expanded);
-
-                // If expanding and has object name, query Moonraker for details
-                if (!was_expanded && !node->object_name.empty() && !node->data_fetched && state->client) {
-                    spdlog::debug("Triggering query_object_data for: {}", node->object_name);
-                    query_object_data(node, state->client);
-                } else {
-                    spdlog::debug("NOT querying: was_expanded={}, object_name='{}', data_fetched={}, client={}",
-                                 was_expanded, node->object_name, node->data_fetched, state->client != nullptr);
-                }
-
-                state->selected_node = node;
             }
         }
         break;
 
-        default:
-            break;
+    case Term::Key::ArrowDown:
+        if (state->selected_index < max_index) {
+            state->selected_index++;
+            // Skip non-sections
+            while (state->selected_index < max_index) {
+                TreeNode* node = find_node_by_index(state->tree, state->selected_index);
+                if (node && node->is_section) {
+                    state->selected_node = node;
+                    break;
+                }
+                state->selected_index++;
+            }
+        }
+        break;
+
+    case Term::Key::Enter:
+    case Term::Key::Space: {
+        TreeNode* node = find_node_by_index(state->tree, state->selected_index);
+        spdlog::debug("Enter/Space pressed on node: {} (is_section={}, object_name='{}', "
+                      "data_fetched={}, expanded={})",
+                      node ? node->key : "null", node ? node->is_section : false,
+                      node ? node->object_name : "", node ? node->data_fetched : false,
+                      node ? node->expanded : false);
+
+        if (node && node->is_section) {
+            bool was_expanded = node->expanded;
+            node->expanded = !node->expanded;
+
+            spdlog::debug("Toggled expansion: was_expanded={}, now_expanded={}", was_expanded,
+                          node->expanded);
+
+            // If expanding and has object name, query Moonraker for details
+            if (!was_expanded && !node->object_name.empty() && !node->data_fetched &&
+                state->client) {
+                spdlog::debug("Triggering query_object_data for: {}", node->object_name);
+                query_object_data(node, state->client);
+            } else {
+                spdlog::debug(
+                    "NOT querying: was_expanded={}, object_name='{}', data_fetched={}, client={}",
+                    was_expanded, node->object_name, node->data_fetched, state->client != nullptr);
+            }
+
+            state->selected_node = node;
+        }
+    } break;
+
+    default:
+        break;
     }
 }
 
@@ -817,7 +837,8 @@ int run_interactive(const std::string& ip, int port) {
         const char* debug_env = std::getenv("MOONRAKER_DEBUG");
         if (debug_env && strcmp(debug_env, "1") == 0) {
             // Create file sink to avoid corrupting TUI
-            auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("/tmp/moonraker-inspector-debug.log", true);
+            auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+                "/tmp/moonraker-inspector-debug.log", true);
             auto logger = std::make_shared<spdlog::logger>("moonraker", file_sink);
             logger->set_level(spdlog::level::debug);
             spdlog::set_default_logger(logger);
@@ -827,7 +848,8 @@ int run_interactive(const std::string& ip, int port) {
         }
 
         // Set terminal options
-        Term::terminal.setOptions(Term::Option::Raw, Term::Option::NoSignalKeys, Term::Option::ClearScreen, Term::Option::NoCursor);
+        Term::terminal.setOptions(Term::Option::Raw, Term::Option::NoSignalKeys,
+                                  Term::Option::ClearScreen, Term::Option::NoCursor);
 
         Term::Screen term_size = Term::screen_size();
         bool need_to_render = true;
@@ -844,7 +866,8 @@ int run_interactive(const std::string& ip, int port) {
             connected = true;
 
             // Query all data
-            client.send_jsonrpc("server.info", json::object(),
+            client.send_jsonrpc(
+                "server.info", json::object(),
                 [&](json response) {
                     if (response.contains("result")) {
                         state.server_info = response["result"];
@@ -852,7 +875,8 @@ int run_interactive(const std::string& ip, int port) {
                 },
                 [](const MoonrakerError&) {});
 
-            client.send_jsonrpc("printer.info", json::object(),
+            client.send_jsonrpc(
+                "printer.info", json::object(),
                 [&](json response) {
                     if (response.contains("result")) {
                         state.printer_info = response["result"];
@@ -860,7 +884,8 @@ int run_interactive(const std::string& ip, int port) {
                 },
                 [](const MoonrakerError&) {});
 
-            client.send_jsonrpc("printer.objects.list", json::object(),
+            client.send_jsonrpc(
+                "printer.objects.list", json::object(),
                 [&](json response) {
                     if (response.contains("result")) {
                         state.objects_list = response["result"];
@@ -877,7 +902,7 @@ int run_interactive(const std::string& ip, int port) {
         int result = client.connect(url.c_str(), on_connect, on_disconnect);
         if (result != 0) {
             Term::cerr << Term::color_fg(Term::Color::Name::Red) << "Failed to connect to " << url
-                      << Term::color_fg(Term::Color::Name::Default) << std::endl;
+                       << Term::color_fg(Term::Color::Name::Default) << std::endl;
             return 1;
         }
 
@@ -900,41 +925,38 @@ int run_interactive(const std::string& ip, int port) {
             Term::Event event = Term::read_event();
 
             switch (event.type()) {
-                case Term::Event::Type::Key:
-                {
-                    Term::Key key(event);
-                    if (key == Term::Key::q || key == Term::Key::Esc) {
-                        running = false;
-                    } else {
-                        handle_input(&state, key);
-                        need_to_render = true;
-                    }
-                    break;
-                }
-                case Term::Event::Type::Screen:
-                {
-                    term_size = Term::Screen(event);
+            case Term::Event::Type::Key: {
+                Term::Key key(event);
+                if (key == Term::Key::q || key == Term::Key::Esc) {
+                    running = false;
+                } else {
+                    handle_input(&state, key);
                     need_to_render = true;
-                    break;
                 }
-                case Term::Event::Type::Empty:
-                    // No event - continue loop to check for async updates
-                    break;
-                default:
-                    break;
+                break;
+            }
+            case Term::Event::Type::Screen: {
+                term_size = Term::Screen(event);
+                need_to_render = true;
+                break;
+            }
+            case Term::Event::Type::Empty:
+                // No event - continue loop to check for async updates
+                break;
+            default:
+                break;
             }
         }
 
-        Term::cout << "\n" << Term::color_fg(Term::Color::Name::Green) << "Exited interactive mode."
-                  << Term::color_fg(Term::Color::Name::Default) << std::endl;
+        Term::cout << "\n"
+                   << Term::color_fg(Term::Color::Name::Green) << "Exited interactive mode."
+                   << Term::color_fg(Term::Color::Name::Default) << std::endl;
 
         return 0;
-    }
-    catch (const Term::Exception& e) {
+    } catch (const Term::Exception& e) {
         Term::cerr << "cpp-terminal error: " << e.what() << std::endl;
         return 2;
-    }
-    catch (...) {
+    } catch (...) {
         Term::cerr << "Unknown error." << std::endl;
         return 1;
     }

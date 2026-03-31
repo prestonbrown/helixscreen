@@ -18,10 +18,14 @@ INSPECTOR_OBJ := $(OBJ_DIR)/tools/moonraker_inspector.o
 INSPECTOR_INTERACTIVE_OBJ := $(OBJ_DIR)/tools/moonraker_inspector_interactive.o
 INSPECTOR_STUB_OBJ := $(OBJ_DIR)/tools/ui_notification_stub.o
 
+# CLI Moonraker client (minimal dependencies for tools)
+CLI_MOONRAKER_SRC := $(TOOLS_DIR)/moonraker_client_cli.cpp
+CLI_MOONRAKER_OBJ := $(OBJ_DIR)/tools/moonraker_client_cli.o
+
 # Inspector needs moonraker_client and its dependencies, but NOT UI code
 # Extract just the Moonraker-related objects (no LVGL, no UI, no SDL2)
 INSPECTOR_DEPS := \
-	$(OBJ_DIR)/moonraker_client.o \
+	$(CLI_MOONRAKER_OBJ) \
 	$(INSPECTOR_INTERACTIVE_OBJ) \
 	$(INSPECTOR_STUB_OBJ) \
 	$(CPP_TERMINAL_OBJS)
@@ -53,6 +57,18 @@ ifeq ($(V),1)
 	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) $(CPP_TERMINAL_INC) -I$(TOOLS_DIR) -c $< -o $@"
 endif
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(CPP_TERMINAL_INC) -I$(TOOLS_DIR) -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
+		exit 1; \
+	}
+
+# Compile CLI Moonraker client
+$(CLI_MOONRAKER_OBJ): $(CLI_MOONRAKER_SRC) $(HEADERS) $(LIBHV_LIB)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[CXX]$(RESET) $<"
+ifeq ($(V),1)
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(INCLUDES) -I$(TOOLS_DIR) -c $< -o $@"
+endif
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(TOOLS_DIR) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
@@ -146,7 +162,7 @@ endif
 .PHONY: tools moonraker-inspector validate-xml-constants validate-xml-attrs
 
 # Build all tools
-tools: moonraker-inspector validate-xml-constants validate-xml-attrs
+tools: moonraker-inspector validate-xml-attrs
 
 # Individual tool targets
 moonraker-inspector: $(MOONRAKER_INSPECTOR)
