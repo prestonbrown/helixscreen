@@ -44,7 +44,8 @@
 # NPROC_DOCKER_RUN: Number of parallel jobs for Docker builds
 # Capped at 8 to prevent resource exhaustion in containerized environments
 # Can be overridden via environment variable: NPROC_DOCKER_RUN=<value>
-NPROC_DOCKER_RUN ?= $(shell echo $$(($(NPROC) > 8 ? 8 : $(NPROC))))
+_NPROC_HOST := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+NPROC_DOCKER_RUN ?= $(shell echo $$(($(_NPROC_HOST) > 8 ? 8 : $(_NPROC_HOST))))
 
 # =============================================================================
 # Target Platform Definitions
