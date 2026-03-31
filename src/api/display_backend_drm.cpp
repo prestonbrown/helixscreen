@@ -408,25 +408,28 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                     close(fd);
 
                     if (got_x && got_y) {
-                        spdlog::info("[DRM Backend] Touch ABS range: X({}..{}), Y({}..{}) — display: {}x{}",
-                                     abs_x.minimum, abs_x.maximum, abs_y.minimum, abs_y.maximum,
-                                     screen_width_, screen_height_);
+                        spdlog::info(
+                            "[DRM Backend] Touch ABS range: X({}..{}), Y({}..{}) — display: {}x{}",
+                            abs_x.minimum, abs_x.maximum, abs_y.minimum, abs_y.maximum,
+                            screen_width_, screen_height_);
 
                         if (abs_x.maximum <= 0 && abs_y.maximum <= 0) {
                             needs_calibration_ = true;
                             spdlog::warn("[DRM Backend] ABS range is zero — forcing calibration");
                         } else if (helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
-                                                                    screen_width_, screen_height_)) {
+                                                                   screen_width_, screen_height_)) {
                             needs_calibration_ = true;
-                            spdlog::warn("[DRM Backend] ABS range ({},{}) mismatches display ({}x{}) — forcing calibration",
-                                         abs_x.maximum, abs_y.maximum, screen_width_, screen_height_);
+                            spdlog::warn("[DRM Backend] ABS range ({},{}) mismatches display "
+                                         "({}x{}) — forcing calibration",
+                                         abs_x.maximum, abs_y.maximum, screen_width_,
+                                         screen_height_);
                         }
                     }
                 }
             }
 
-            spdlog::info("[DRM Backend] Touch device '{}' phys='{}' — calibration {}",
-                         dev_name, dev_phys, needs_calibration_ ? "needed" : "not needed");
+            spdlog::info("[DRM Backend] Touch device '{}' phys='{}' — calibration {}", dev_name,
+                         dev_phys, needs_calibration_ ? "needed" : "not needed");
 
             // Load stored calibration and install wrapper
             calibration_ = helix::load_touch_calibration();
@@ -435,9 +438,8 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         }
     }
 
-    if (touch_path) {
-        lv_free(touch_path);
-    }
+    // Note: Don't free touch_path - it's managed internally by LVGL's libinput module
+    // and will be freed when LVGL shuts down or rescans devices.
 
     // If no touch was found, try evdev fallback on common device paths
     if (!pointer_) {
@@ -452,7 +454,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                 spdlog::warn("[DRM Backend] Failed to create libinput device for: {}",
                              pointer_path);
             }
-            lv_free(pointer_path);
+            // Note: Don't free pointer_path - it's managed internally by LVGL's libinput module
         }
     }
 
@@ -499,8 +501,8 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         if (mouse_dev) {
             mouse_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
             if (mouse_) {
-                spdlog::info("[DRM Backend] Mouse created on {} via evdev ({})",
-                             mouse_dev->path, mouse_dev->name);
+                spdlog::info("[DRM Backend] Mouse created on {} via evdev ({})", mouse_dev->path,
+                             mouse_dev->name);
             } else {
                 spdlog::warn("[DRM Backend] Failed to create evdev mouse on {}", mouse_dev->path);
             }
@@ -546,11 +548,11 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
         keyboard_ = lv_libinput_create(LV_INDEV_TYPE_KEYPAD, kb_path);
         if (keyboard_) {
             spdlog::info("[DRM Backend] Keyboard created on {}", kb_path);
-            lv_free(kb_path);
+            // Note: Don't free kb_path - it's managed internally by LVGL's libinput module
             return keyboard_;
         }
         spdlog::warn("[DRM Backend] Failed to create keyboard device on {}", kb_path);
-        lv_free(kb_path);
+        // Note: Don't free kb_path - it's managed internally by LVGL's libinput module
     }
 
     // Priority 3: Fall back to sysfs evdev scanning
@@ -558,8 +560,8 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
     if (kb_dev) {
         keyboard_ = lv_evdev_create(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
         if (keyboard_) {
-            spdlog::info("[DRM Backend] Keyboard created on {} via evdev ({})",
-                         kb_dev->path, kb_dev->name);
+            spdlog::info("[DRM Backend] Keyboard created on {} via evdev ({})", kb_dev->path,
+                         kb_dev->name);
             return keyboard_;
         }
         spdlog::warn("[DRM Backend] Failed to create evdev keyboard on {}", kb_dev->path);
@@ -771,10 +773,8 @@ static bool is_fbcon_bound() {
         }
 
         // Check if this vtconsole is a framebuffer type
-        std::string name_path =
-            std::string("/sys/class/vtconsole/") + entry->d_name + "/name";
-        std::string bind_path =
-            std::string("/sys/class/vtconsole/") + entry->d_name + "/bind";
+        std::string name_path = std::string("/sys/class/vtconsole/") + entry->d_name + "/name";
+        std::string bind_path = std::string("/sys/class/vtconsole/") + entry->d_name + "/bind";
 
         // Read name — look for "frame buffer"
         int name_fd = open(name_path.c_str(), O_RDONLY);
@@ -866,7 +866,8 @@ bool DisplayBackendDRM::set_calibration(const helix::TouchCalibration& cal) {
         auto* ctx = static_cast<helix::CalibrationContext*>(lv_indev_get_user_data(pointer_));
         if (ctx) {
             ctx->calibration = cal;
-            spdlog::info("[DRM Backend] Calibration updated: a={:.4f} b={:.4f} c={:.4f} d={:.4f} e={:.4f} f={:.4f}",
+            spdlog::info("[DRM Backend] Calibration updated: a={:.4f} b={:.4f} c={:.4f} d={:.4f} "
+                         "e={:.4f} f={:.4f}",
                          cal.a, cal.b, cal.c, cal.d, cal.e, cal.f);
         } else {
             // Wrapper not yet installed — install it now
@@ -894,7 +895,8 @@ void DisplayBackendDRM::enable_affine_calibration() {
         auto* ctx = static_cast<helix::CalibrationContext*>(lv_indev_get_user_data(pointer_));
         if (ctx) {
             ctx->calibration = calibration_;
-            spdlog::debug("[DRM Backend] Affine calibration re-enabled (valid={})", calibration_.valid);
+            spdlog::debug("[DRM Backend] Affine calibration re-enabled (valid={})",
+                          calibration_.valid);
         }
     }
 }
