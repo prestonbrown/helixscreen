@@ -477,6 +477,7 @@ bool WidthSensorManager::parse_klipper_name(const std::string& klipper_name,
                                             std::string& sensor_name, WidthSensorType& type) const {
     const std::string tsl_name = "tsl1401cl_filament_width_sensor";
     const std::string hall_name = "hall_filament_width_sensor";
+    const std::string hall_alias = "hall_fila_switch";
 
     if (klipper_name == tsl_name) {
         sensor_name = "tsl1401cl";
@@ -484,7 +485,7 @@ bool WidthSensorManager::parse_klipper_name(const std::string& klipper_name,
         return true;
     }
 
-    if (klipper_name == hall_name) {
+    if (klipper_name == hall_name || klipper_name == hall_alias) {
         sensor_name = "hall";
         type = WidthSensorType::HALL;
         return true;

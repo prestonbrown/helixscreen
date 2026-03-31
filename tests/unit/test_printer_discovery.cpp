@@ -437,10 +437,7 @@ TEST_CASE("PrinterDiscovery detects new AFC object types", "[printer_discovery][
 
     SECTION("AFC_stepper used as lanes when no AFC_lane objects exist") {
         // Box Turtle firmware only has AFC_stepper for lanes
-        json objects = {"AFC",
-                        "AFC_stepper lane1",
-                        "AFC_stepper lane2",
-                        "AFC_stepper lane3",
+        json objects = {"AFC", "AFC_stepper lane1", "AFC_stepper lane2", "AFC_stepper lane3",
                         "AFC_stepper lane4"};
         hw.parse_objects(objects);
 
@@ -475,11 +472,8 @@ TEST_CASE("PrinterDiscovery detects new AFC object types", "[printer_discovery][
     SECTION("Vivid motors not merged with AFC_lane objects") {
         // Vivid has AFC_stepper for motors (not lanes) + AFC_lane for actual lanes.
         // Motor names should NOT be merged since they don't match "lane" prefix.
-        json objects = {"AFC",
-                        "AFC_stepper Vivid_1_drive",
-                        "AFC_stepper Vivid_1_selector",
-                        "AFC_lane lane1",
-                        "AFC_lane lane2"};
+        json objects = {"AFC", "AFC_stepper Vivid_1_drive", "AFC_stepper Vivid_1_selector",
+                        "AFC_lane lane1", "AFC_lane lane2"};
         hw.parse_objects(objects);
 
         auto lanes = hw.afc_lane_names();
@@ -1036,6 +1030,23 @@ TEST_CASE("PrinterDiscovery detects chamber heater and sensor", "[printer_discov
         REQUIRE(hw.supports_chamber());
     }
 
+    SECTION("Chamber sensor with adc_temperature") {
+        json objects = {"adc_temperature m1_chamber"};
+        hw.parse_objects(objects);
+
+        REQUIRE(hw.has_chamber_sensor());
+        REQUIRE(hw.supports_chamber());
+        REQUIRE(hw.chamber_sensor_name() == "adc_temperature m1_chamber");
+    }
+
+    SECTION("Chamber sensor with adc_temperature containing chamber") {
+        json objects = {"adc_temperature chamber_temp"};
+        hw.parse_objects(objects);
+
+        REQUIRE(hw.has_chamber_sensor());
+        REQUIRE(hw.supports_chamber());
+    }
+
     SECTION("Both chamber heater and sensor") {
         json objects = {"heater_generic chamber", "temperature_sensor chamber_temp"};
         hw.parse_objects(objects);
@@ -1176,12 +1187,7 @@ TEST_CASE("PrinterDiscovery detects screws_tilt_adjust from config when missing 
 
 TEST_CASE("AFC unknown unit types detected generically", "[printer_discovery][afc]") {
     PrinterDiscovery hw;
-    json objects = json::array({
-        "AFC",
-        "AFC_stepper lane1",
-        "AFC_NightOwl Owl_1",
-        "AFC_buffer TN"
-    });
+    json objects = json::array({"AFC", "AFC_stepper lane1", "AFC_NightOwl Owl_1", "AFC_buffer TN"});
     hw.parse_objects(objects);
 
     REQUIRE(hw.has_mmu());
@@ -1194,15 +1200,14 @@ TEST_CASE("AFC unknown unit types detected generically", "[printer_discovery][af
 
     // Known component types should NOT appear as unit objects
     CHECK(hw.afc_lane_names().size() == 1);   // lane1 from AFC_stepper
-    CHECK(hw.afc_buffer_names().size() == 1);  // TN from AFC_buffer
+    CHECK(hw.afc_buffer_names().size() == 1); // TN from AFC_buffer
 }
 
 // ==========================================================================
 // AD5X IFS Detection
 // ==========================================================================
 
-TEST_CASE("PrinterDiscovery detects AD5X IFS via zmod sensors",
-          "[printer_discovery][ad5x_ifs]") {
+TEST_CASE("PrinterDiscovery detects AD5X IFS via zmod sensors", "[printer_discovery][ad5x_ifs]") {
     helix::PrinterDiscovery discovery;
     discovery.parse_objects(nlohmann::json::array({
         "extruder",

@@ -1,0 +1,197 @@
+{
+  "preset": "artillery_m1_pro",
+  "wizard_completed": false,
+  "display": {
+    "animations_enabled": false,
+    "bed_mesh_render_mode": 0,
+    "dim_brightness": 30,
+    "dim_sec": 300,
+    "drm_device": "",
+    "gcode_render_mode": 3,
+    "sleep_sec": 600,
+    "time_format": 1
+  },
+  "input": {
+    "calibration": {
+      "a": 1.6315054893493652,
+      "b": -0.09013842791318893,
+      "c": 9.534071922302246,
+      "d": -0.008477304130792618,
+      "e": 1.7463246583938599,
+      "f": 0.2030278444290161,
+      "swap_axes": false,
+      "valid": true
+    },
+    "jitter_threshold": 5,
+    "scroll_limit": 10,
+    "scroll_throw": 25,
+    "touch_device": ""
+  },
+  "panel_widgets": {
+    "home": {
+      "pages": [
+        {
+          "id": "main",
+          "widgets": [
+            {
+              "col": 0,
+              "colspan": 1,
+              "enabled": true,
+              "id": "printer_image",
+              "row": 0,
+              "rowspan": 2
+            },
+            {
+              "col": 0,
+              "colspan": 2,
+              "enabled": true,
+              "id": "print_status",
+              "row": 2,
+              "rowspan": 2
+            },
+            {
+              "col": 5,
+              "colspan": 1,
+              "enabled": true,
+              "id": "led",
+              "row": 2,
+              "rowspan": 1
+            },
+            {
+              "col": 2,
+              "colspan": 1,
+              "enabled": true,
+              "id": "temperature",
+              "row": 2,
+              "rowspan": 1
+            },
+            {
+              "col": 2,
+              "colspan": 1,
+              "enabled": true,
+              "id": "bed_temperature",
+              "row": 3,
+              "rowspan": 1
+            },
+            {
+              "col": 3,
+              "colspan": 1,
+              "enabled": true,
+              "id": "temp_stack",
+              "row": 3,
+              "rowspan": 1
+            },
+            {
+              "col": 3,
+              "colspan": 1,
+              "enabled": true,
+              "id": "width_sensor",
+              "row": 2,
+              "rowspan": 1
+            },
+            {
+              "col": 1,
+              "colspan": 2,
+              "enabled": true,
+              "id": "print_stats",
+              "row": 0,
+              "rowspan": 2
+            },
+            {
+              "col": 4,
+              "colspan": 1,
+              "enabled": true,
+              "id": "gcode_console",
+              "row": 3,
+              "rowspan": 1
+            },
+            {
+              "col": 5,
+              "colspan": 1,
+              "enabled": true,
+              "id": "notifications",
+              "row": 3,
+              "rowspan": 1
+            },
+            {
+              "col": 4,
+              "colspan": 1,
+              "enabled": true,
+              "id": "fan_stack:1",
+              "row": 2,
+              "rowspan": 1
+            },
+            {
+              "col": 3,
+              "colspan": 3,
+              "enabled": true,
+              "id": "temp_graph:1",
+              "row": 0,
+              "rowspan": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "printer": {
+    "moonraker_host": "127.0.0.1",
+    "moonraker_port": 7125,
+    "heaters": {
+      "bed": "heater_bed",
+      "hotend": "extruder",
+      "chamber": "heater_generic chamber"
+    },
+    "temp_sensors": {
+      "bed": "heater_bed",
+      "hotend": "extruder",
+      "chamber": "heater_generic chamber",
+      "mcu_thr": "temperature_sensor THR",
+      "mcu_rockchip": "temperature_sensor ROCKCHIP"
+    },
+    "fans": {
+      "chamber": "heater_fan _ptc_fan",
+      "exhaust": "fan_generic filter_fan",
+      "hotend": "heater_fan hotend_fan",
+      "part": "fan"
+    },
+    "leds": {},
+    "filament_sensors": {
+      "master_enabled": true,
+      "sensors": [
+        {
+          "enabled": true,
+          "klipper_name": "hall_fila_switch",
+          "role": "runout",
+          "type": "hall_effect"
+        }
+      ]
+    },
+    "hardware": {
+      "expected": [
+        "heater_bed",
+        "extruder",
+        "heater_generic chamber",
+        "fan",
+        "fan_generic _Secondary_Fan",
+        "fan_generic auxiliary_fan",
+        "fan_generic filter_fan",
+        "heater_fan hotend_fan",
+        "heater_fan _ptc_fan",
+        "probe_air",
+        "hall_fila_switch",
+        "hall_fila_cut",
+        "temperature_sensor THR",
+        "temperature_sensor ROCKCHIP",
+        "validate_bed_mesh"
+      ]
+    },
+    "default_macros": {
+      "cooldown": "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0\nSET_HEATER_TEMPERATURE HEATER=chamber TARGET=0",
+      "load_filament": { "label": "Load", "gcode": "LOAD_FILAMENT" },
+      "unload_filament": { "label": "Unload", "gcode": "UNLOAD_FILAMENT" },
+      "macro_1": { "label": "Clean Nozzle", "gcode": "HELIX_CLEAN_NOZZLE" },
+      "macro_2": { "label": "Bed Mesh", "gcode": "BED_MESH_CALIBRATE" }
+    }
+  }
+}

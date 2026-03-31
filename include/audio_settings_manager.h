@@ -49,6 +49,12 @@ class AudioSettingsManager {
     /** @brief Set master sound enabled state (updates subject + persists) */
     void set_sounds_enabled(bool enabled);
 
+    /** @brief Get sounds disabled state (persistent setting from config) */
+    bool get_sounds_disabled() const;
+
+    /** @brief Set sounds disabled state (persists to config, requires restart) */
+    void set_sounds_disabled(bool disabled);
+
     /** @brief Get UI interaction sounds enabled state */
     bool get_ui_sounds_enabled() const;
 

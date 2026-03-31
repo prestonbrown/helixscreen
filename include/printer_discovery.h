@@ -52,7 +52,27 @@ class PrinterDiscovery {
 
         // Validate input is an array
         if (!objects.is_array()) {
+            spdlog::warn("[PrinterDiscovery] parse_objects: input is not an array");
             return;
+        }
+
+        // Debug dump: pretty-print all discovered objects
+        spdlog::debug("[PrinterDiscovery] parse_objects: received {} objects", objects.size());
+        if (spdlog::should_log(spdlog::level::debug)) {
+            try {
+                // Dump objects as a formatted list for easy reading
+                std::string obj_list;
+                for (const auto& obj : objects) {
+                    if (obj.is_string()) {
+                        obj_list += "\n  - " + obj.get<std::string>();
+                    }
+                }
+                if (!obj_list.empty()) {
+                    spdlog::debug("[PrinterDiscovery] Objects list:{}\n", obj_list);
+                }
+            } catch (const std::exception& e) {
+                spdlog::debug("[PrinterDiscovery] Failed to format objects: {}", e.what());
+            }
         }
 
         // AFC_stepper names collected separately — only used as lane source when
@@ -275,12 +295,9 @@ class PrinterDiscovery {
             }
             // AFC unit-level objects (BoxTurtle, OpenAMS, ViViD, NightOwl, etc.)
             // Any AFC_ object not matching known component prefixes is a unit type
-            else if (name.rfind("AFC_", 0) == 0 &&
-                     name.rfind("AFC_stepper ", 0) != 0 &&
-                     name.rfind("AFC_hub ", 0) != 0 &&
-                     name.rfind("AFC_extruder ", 0) != 0 &&
-                     name.rfind("AFC_lane ", 0) != 0 &&
-                     name.rfind("AFC_buffer ", 0) != 0 &&
+            else if (name.rfind("AFC_", 0) == 0 && name.rfind("AFC_stepper ", 0) != 0 &&
+                     name.rfind("AFC_hub ", 0) != 0 && name.rfind("AFC_extruder ", 0) != 0 &&
+                     name.rfind("AFC_lane ", 0) != 0 && name.rfind("AFC_buffer ", 0) != 0 &&
                      name.rfind("AFC_led ", 0) != 0) {
                 afc_unit_object_names_.push_back(name); // Store FULL name for Klipper queries
             }
@@ -321,7 +338,7 @@ class PrinterDiscovery {
             // ================================================================
             // Width sensors (filament diameter measurement)
             // ================================================================
-            else if (name == "hall_filament_width_sensor" ||
+            else if (name == "hall_filament_width_sensor" || name == "hall_fila_switch" ||
                      name == "tsl1401cl_filament_width_sensor") {
                 width_sensor_objects_.push_back(name);
             }
@@ -466,6 +483,35 @@ class PrinterDiscovery {
             detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
             mmu_type_ = AmsType::TOOL_CHANGER;
         }
+
+        // Debug summary: log detected hardware
+        spdlog::debug("[PrinterDiscovery] Hardware discovery complete:");
+        spdlog::debug(
+            "  Heaters: {} (extruders: {}, bed: {}, generic: {})", heaters_.size(),
+            std::count_if(heaters_.begin(), heaters_.end(),
+                          [](const std::string& h) { return h.rfind("extruder", 0) == 0; }),
+            has_heater_bed_ ? 1 : 0,
+            std::count_if(heaters_.begin(), heaters_.end(),
+                          [](const std::string& h) { return h.rfind("heater_generic ", 0) == 0; }));
+        spdlog::debug("  Chamber: heater='{}' (detected: {}), sensor='{}' (detected: {})",
+                      chamber_heater_name_, has_chamber_heater_ ? "yes" : "no",
+                      chamber_sensor_name_, has_chamber_sensor_ ? "yes" : "no");
+        spdlog::debug("  Sensors: {} (temp: {}, fans: {})", sensors_.size(),
+                      std::count_if(sensors_.begin(), sensors_.end(),
+                                    [](const std::string& s) {
+                                        return s.rfind("temperature_sensor ", 0) == 0;
+                                    }),
+                      std::count_if(sensors_.begin(), sensors_.end(), [](const std::string& s) {
+                          return s.rfind("temperature_fan ", 0) == 0;
+                      }));
+        spdlog::debug("  Fans: {}, LEDs: {}, Steppers: {}", fans_.size(), leds_.size(),
+                      steppers_.size());
+        spdlog::debug("  Filament sensors: {}, Width sensors: {}", filament_sensor_names_.size(),
+                      width_sensor_objects_.size());
+        spdlog::debug("  MMU: {} (type: {}), Tool changer: {}, Tools: {}", has_mmu_ ? "yes" : "no",
+                      static_cast<int>(mmu_type_), has_tool_changer_ ? "yes" : "no",
+                      tool_names_.size());
+        spdlog::debug("  Macros: {} (Helix: {})", macros_.size(), helix_macros_.size());
     }
 
     /**
@@ -496,9 +542,8 @@ class PrinterDiscovery {
 
         for (const auto& [key, value] : config.items()) {
             if (key == "adxl345" || key.rfind("adxl345 ", 0) == 0 || key == "lis2dw" ||
-                key.rfind("lis2dw ", 0) == 0 || key == "mpu9250" ||
-                key.rfind("mpu9250 ", 0) == 0 || key == "lis3dh" ||
-                key.rfind("lis3dh ", 0) == 0 || key == "icm20948" ||
+                key.rfind("lis2dw ", 0) == 0 || key == "mpu9250" || key.rfind("mpu9250 ", 0) == 0 ||
+                key == "lis3dh" || key.rfind("lis3dh ", 0) == 0 || key == "icm20948" ||
                 key.rfind("icm20948 ", 0) == 0 || key == "resonance_tester") {
                 has_accelerometer_ = true;
                 spdlog::debug("[PrinterDiscovery] Accelerometer detected from config: {}", key);

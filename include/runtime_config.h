@@ -42,6 +42,9 @@ struct RuntimeConfig {
     bool simulate_disconnect =
         false; ///< Simulate disconnected state for testing (--disconnected, requires --test)
 
+    bool disable_sounds = false;           ///< Disable all sound/audio output (--no-sounds)
+    bool disable_sounds_persisted = false; ///< Sounds disabled via settings.json (read from config)
+
     // Debug/testing options
     bool test_history_api = false; ///< Test print history API on startup (--test-history)
 
@@ -211,14 +214,30 @@ struct RuntimeConfig {
         return test_mode && !use_real_sensors;
     }
 #else
-    constexpr bool should_mock_wifi() const { return false; }
-    constexpr bool should_mock_ethernet() const { return false; }
-    constexpr bool should_mock_moonraker() const { return false; }
-    constexpr bool should_use_test_files() const { return false; }
-    constexpr bool should_mock_ams() const { return false; }
-    constexpr bool should_mock_usb() const { return false; }
-    constexpr bool should_mock_mdns() const { return false; }
-    constexpr bool should_mock_sensors() const { return false; }
+    constexpr bool should_mock_wifi() const {
+        return false;
+    }
+    constexpr bool should_mock_ethernet() const {
+        return false;
+    }
+    constexpr bool should_mock_moonraker() const {
+        return false;
+    }
+    constexpr bool should_use_test_files() const {
+        return false;
+    }
+    constexpr bool should_mock_ams() const {
+        return false;
+    }
+    constexpr bool should_mock_usb() const {
+        return false;
+    }
+    constexpr bool should_mock_mdns() const {
+        return false;
+    }
+    constexpr bool should_mock_sensors() const {
+        return false;
+    }
 #endif
 
     /**

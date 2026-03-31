@@ -187,6 +187,18 @@ TEST_CASE_METHOD(WidthSensorTestFixture, "WidthSensorManager - discovery", "[wid
         REQUIRE(configs[0].role == WidthSensorRole::FLOW_COMPENSATION);
     }
 
+    SECTION("Discovers Hall sensor alias (hall_fila_switch)") {
+        std::vector<std::string> sensors = {"hall_fila_switch"};
+        mgr().discover(sensors);
+
+        REQUIRE(mgr().sensor_count() == 1);
+
+        auto configs = mgr().get_sensors();
+        REQUIRE(configs[0].klipper_name == "hall_fila_switch");
+        REQUIRE(configs[0].sensor_name == "hall");
+        REQUIRE(configs[0].type == WidthSensorType::HALL);
+    }
+
     SECTION("Discovers multiple sensors") {
         discover_test_sensors();
 

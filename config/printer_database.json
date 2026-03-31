@@ -3685,12 +3685,12 @@
         {
           "type": "build_volume_range",
           "field": "bed_mesh",
-          "min_x": 245,
-          "max_x": 275,
-          "min_y": 245,
-          "max_y": 275,
-          "confidence": 40,
-          "reason": "Build volume ~260x260mm (M1 Pro size)"
+          "min_x": 250,
+          "max_x": 270,
+          "min_y": 250,
+          "max_y": 270,
+          "confidence": 50,
+          "reason": "Build volume ~260x260mm (Artillery M1 Pro size)"
         },
         {
           "type": "object_exists",
@@ -3702,23 +3702,44 @@
         {
           "type": "hostname_match",
           "field": "hostname",
-          "pattern": "artillery",
+          "pattern": "linaro-alip",
           "confidence": 85,
-          "reason": "Hostname contains 'artillery'"
+          "reason": "Hostname contains 'linaro-alip'"
         },
         {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "m1-pro",
-          "confidence": 95,
-          "reason": "Hostname contains 'm1-pro'"
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "THR",
+          "confidence": 70,
+          "reason": "THR temperature sensor (MKS THR board)"
         },
         {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "m1pro",
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "probe_air",
           "confidence": 95,
-          "reason": "Hostname contains 'm1pro'"
+          "reason": "probe_air object (Artillery M1 Pro custom probe)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "hall_fila_switch",
+          "confidence": 95,
+          "reason": "hall_fila_switch object (Artillery M1 Pro filament sensor)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "hall_fila_cut",
+          "confidence": 95,
+          "reason": "hall_fila_cut object (Artillery M1 Pro filament cutter)"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "MKS_THR",
+          "confidence": 75,
+          "reason": "MKS THR board (Artillery M1 Pro stock board)"
         }
       ]
     },

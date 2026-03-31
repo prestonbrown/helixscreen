@@ -31,6 +31,7 @@ namespace helix::sensors {
  * Klipper object names:
  * - tsl1401cl_filament_width_sensor
  * - hall_filament_width_sensor
+ * - hall_fila_switch (alias for hall_filament_width_sensor)
  *
  * Status JSON format:
  * @code

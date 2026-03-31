@@ -78,6 +78,11 @@ void print_test_mode_banner() {
     if (config.disable_mock_ams)
         printf("  Mock AMS DISABLED (runout modal enabled)\n");
 
+    if (config.disable_sounds || config.disable_sounds_persisted) {
+        printf("  Sounds DISABLED (CLI: %s, settings: %s)\n", config.disable_sounds ? "yes" : "no",
+               config.disable_sounds_persisted ? "yes" : "no");
+    }
+
     printf("  Config: %s\n", RuntimeConfig::TEST_CONFIG_PATH);
 
     printf("\n");
@@ -151,6 +156,7 @@ static void print_help(const char* program_name) {
     printf("    --real-sensors     Use real sensor data (requires --test)\n");
     printf("    --disconnected     Simulate disconnected state (requires --test)\n");
     printf("    --no-ams           Don't create mock AMS (enables runout modal testing)\n");
+    printf("    --no-sounds        Disable all sound/audio output (also in settings.json)\n");
     printf("    --test-history     Enable test history API data\n");
     printf("    --sim-speed <n>    Simulation speedup factor (1.0-1000.0, e.g., 100 for 100x)\n");
     printf("    --mock-crash       Write synthetic crash.txt to test crash reporter UI\n");
@@ -296,8 +302,7 @@ static bool parse_panel_arg(const char* panel_arg, CliArgs& args) {
         args.initial_panel = static_cast<int>(PanelId::Settings);
         args.overlays.about = true;
     } else if (strcmp(panel_arg, "timelapse-videos") == 0 ||
-               strcmp(panel_arg, "timelapse_videos") == 0 ||
-               strcmp(panel_arg, "timelapse") == 0) {
+               strcmp(panel_arg, "timelapse_videos") == 0 || strcmp(panel_arg, "timelapse") == 0) {
         args.initial_panel = static_cast<int>(PanelId::Advanced);
         args.overlays.timelapse_videos = true;
     } else {
@@ -582,6 +587,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
             config.simulate_disconnect = true;
         } else if (strcmp(argv[i], "--no-ams") == 0) {
             config.disable_mock_ams = true;
+        } else if (strcmp(argv[i], "--no-sounds") == 0) {
+            config.disable_sounds = true;
         } else if (strcmp(argv[i], "--test-history") == 0) {
             config.test_history_api = true;
         } else if (strcmp(argv[i], "--sim-speed") == 0) {

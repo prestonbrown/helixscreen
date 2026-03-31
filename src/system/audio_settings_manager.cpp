@@ -4,6 +4,7 @@
 #include "audio_settings_manager.h"
 
 #include "config.h"
+#include "runtime_config.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
 
@@ -33,6 +34,10 @@ void AudioSettingsManager::init_subjects() {
 
     Config* config = Config::get_instance();
 
+    // Check if sounds are disabled in settings.json (persistent setting)
+    bool sounds_disabled = config->get<bool>("/sounds_disabled", false);
+    get_runtime_config()->disable_sounds_persisted = sounds_disabled;
+
     // Sounds master switch (default: false)
     bool sounds = config->get<bool>("/sounds_enabled", false);
     UI_MANAGED_SUBJECT_INT(sounds_enabled_subject_, sounds ? 1 : 0, "settings_sounds_enabled",
@@ -60,8 +65,8 @@ void AudioSettingsManager::init_subjects() {
         "AudioSettingsManager", []() { AudioSettingsManager::instance().deinit_subjects(); });
 
     spdlog::debug("[AudioSettingsManager] Subjects initialized: sounds={}, ui_sounds={}, "
-                  "volume={}, completion_alert={}",
-                  sounds, ui_sounds, volume, completion_mode);
+                  "volume={}, completion_alert={}, disabled={}",
+                  sounds, ui_sounds, volume, completion_mode, sounds_disabled);
 }
 
 void AudioSettingsManager::deinit_subjects() {
@@ -91,6 +96,22 @@ void AudioSettingsManager::set_sounds_enabled(bool enabled) {
     Config* config = Config::get_instance();
     config->set<bool>("/sounds_enabled", enabled);
     config->save();
+}
+
+bool AudioSettingsManager::get_sounds_disabled() const {
+    Config* config = Config::get_instance();
+    return config->get<bool>("/sounds_disabled", false);
+}
+
+void AudioSettingsManager::set_sounds_disabled(bool disabled) {
+    spdlog::info("[AudioSettingsManager] set_sounds_disabled({})", disabled);
+
+    Config* config = Config::get_instance();
+    config->set<bool>("/sounds_disabled", disabled);
+    config->save();
+
+    // Update runtime config for immediate effect
+    get_runtime_config()->disable_sounds_persisted = disabled;
 }
 
 bool AudioSettingsManager::get_ui_sounds_enabled() const {

@@ -53,6 +53,15 @@ void SoundManager::initialize() {
         return;
     }
 
+    // Check if sounds are disabled via command-line flag or settings.json
+    auto* config = get_runtime_config();
+    if (config->disable_sounds || config->disable_sounds_persisted) {
+        spdlog::info("[SoundManager] Sounds disabled (CLI: {}, settings: {}), skipping "
+                     "initialization",
+                     config->disable_sounds, config->disable_sounds_persisted);
+        return;
+    }
+
     // Create the best available backend
     backend_ = create_backend();
     if (!backend_) {
