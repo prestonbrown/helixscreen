@@ -109,6 +109,14 @@ void SoundManager::play(const std::string& sound_name) {
 }
 
 void SoundManager::play(const std::string& sound_name, SoundPriority priority) {
+    // Check CLI flag and persisted setting first (--no-sounds or settings.json)
+    auto* config = get_runtime_config();
+    if (config->disable_sounds || config->disable_sounds_persisted) {
+        spdlog::trace("[SoundManager] play('{}') skipped - sounds disabled (CLI: {}, settings: {})",
+                      sound_name, config->disable_sounds, config->disable_sounds_persisted);
+        return;
+    }
+
     // Master switch
     if (!AudioSettingsManager::instance().get_sounds_enabled()) {
         spdlog::trace("[SoundManager] play('{}') skipped - sounds disabled", sound_name);
@@ -318,6 +326,15 @@ bool SoundManager::can_mix() const {
 
 #ifdef HELIX_HAS_TRACKER
 void SoundManager::play_file(const std::string& path, SoundPriority priority) {
+    // Check CLI flag and persisted setting first (--no-sounds or settings.json)
+    auto* config = get_runtime_config();
+    if (config->disable_sounds || config->disable_sounds_persisted) {
+        spdlog::trace(
+            "[SoundManager] play_file('{}') skipped - sounds disabled (CLI: {}, settings: {})",
+            path, config->disable_sounds, config->disable_sounds_persisted);
+        return;
+    }
+
     if (!AudioSettingsManager::instance().get_sounds_enabled()) {
         spdlog::trace("[SoundManager] play_file('{}') skipped - sounds disabled", path);
         return;
