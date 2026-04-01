@@ -10,6 +10,20 @@
 namespace helix {
 
 /**
+ * @brief Z-offset calibration strategy — determines gcode commands for calibration and save
+ *
+ * Different printers need different approaches to calibrate and persist Z-offset.
+ * ForgeX-mod printers use SET_GCODE_OFFSET (auto-persisted by mod macro).
+ * Standard Klipper uses PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
+ * Endstop printers use Z_ENDSTOP_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
+ */
+enum class ZOffsetCalibrationStrategy {
+    PROBE_CALIBRATE, ///< Standard Klipper: PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG
+    GCODE_OFFSET,    ///< ForgeX mod: G28 -> move -> G1 adjustments -> SET_GCODE_OFFSET
+    ENDSTOP ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
+};
+
+/**
  * @brief Manages motion-related subjects for printer state
  *
  * Extracted from PrinterState as part of god class decomposition.
@@ -105,6 +119,24 @@ class PrinterMotionState {
     bool has_pending_z_offset_adjustment() const;
     void clear_pending_z_offset_delta();
 
+    /**
+     * @brief Get computed subject for save Z-offset button visibility
+     *
+     * Returns 1 when button should be visible (strategy != GCODE_OFFSET AND gcode_z_offset != 0).
+     * Use with bind_flag_if_eq in XML: hidden="true" + ref_value="0" = visible when subject is 1.
+     */
+    lv_subject_t* get_z_offset_save_button_visible_subject() {
+        return &z_offset_save_button_visible_;
+    }
+
+    /**
+     * @brief Update the save button visibility subject
+     *
+     * Called when either z_offset_calibration_strategy or gcode_z_offset changes.
+     * Button is visible (1) when strategy != GCODE_OFFSET AND gcode_z_offset != 0.
+     */
+    void update_z_offset_save_button_visibility(ZOffsetCalibrationStrategy strategy);
+
   private:
     friend class PrinterMotionStateTestAccess;
 
@@ -129,13 +161,14 @@ class PrinterMotionState {
     lv_subject_t flow_factor_{};
 
     // Actual speed/velocity subjects
-    lv_subject_t gcode_speed_{};              // mm/s (from gcode_move.speed)
-    lv_subject_t max_velocity_{};             // mm/s (from toolhead.max_velocity)
-    lv_subject_t live_extruder_velocity_{};   // centimm/s (from motion_report, ×100 for precision)
+    lv_subject_t gcode_speed_{};            // mm/s (from gcode_move.speed)
+    lv_subject_t max_velocity_{};           // mm/s (from toolhead.max_velocity)
+    lv_subject_t live_extruder_velocity_{}; // centimm/s (from motion_report, ×100 for precision)
 
     // Z-offset subjects
     lv_subject_t gcode_z_offset_{};
     lv_subject_t pending_z_offset_delta_{};
+    lv_subject_t z_offset_save_button_visible_{}; // Computed: 1 if visible
 };
 
 } // namespace helix

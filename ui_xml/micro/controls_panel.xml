@@ -84,11 +84,11 @@
             <icon src="chevron_right" size="xs" variant="secondary"/>
           </lv_obj>
         </lv_obj>
-        <!-- Save Z-Offset button (conditional: visible when gcode_z_offset != 0, disabled during print) -->
+        <!-- Save Z-Offset button (visible when strategy != GCODE_OFFSET AND gcode_z_offset != 0) -->
         <ui_button name="btn_save_z_offset"
                    width="100%" height="#button_height_sm" variant="success" icon="check" text="Save Z-Offset"
                    translation_tag="Save Z-Offset" hidden="true">
-          <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
+          <bind_flag_if_eq subject="z_offset_save_button_visible" flag="hidden" ref_value="0"/>
           <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
         </ui_button>

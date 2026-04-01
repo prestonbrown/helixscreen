@@ -319,6 +319,9 @@ void PrinterState::update_from_status(const json& state) {
     // Delegate motion updates to motion state component
     motion_state_.update_from_status(state);
 
+    // Update save button visibility when gcode_z_offset changes
+    motion_state_.update_z_offset_save_button_visibility(z_offset_calibration_strategy_);
+
     // Delegate print updates to print state component
     print_domain_.update_from_status(state);
 
@@ -376,14 +379,15 @@ void PrinterState::update_from_status(const json& state) {
         if (eo.contains("objects") && eo["objects"].is_array()) {
             std::vector<PrinterExcludedObjectsState::ObjectInfo> objects;
             for (const auto& obj : eo["objects"]) {
-                if (!obj.is_object() || !obj.contains("name")) continue;
+                if (!obj.is_object() || !obj.contains("name"))
+                    continue;
 
                 PrinterExcludedObjectsState::ObjectInfo info;
                 info.name = obj["name"].get<std::string>();
 
                 if (obj.contains("center") && obj["center"].is_array() &&
-                    obj["center"].size() >= 2 &&
-                    obj["center"][0].is_number() && obj["center"][1].is_number()) {
+                    obj["center"].size() >= 2 && obj["center"][0].is_number() &&
+                    obj["center"][1].is_number()) {
                     info.center.x = obj["center"][0].get<float>();
                     info.center.y = obj["center"][1].get<float>();
                     info.has_center = true;
@@ -398,8 +402,8 @@ void PrinterState::update_from_status(const json& state) {
                     float max_x = std::numeric_limits<float>::lowest();
                     float max_y = max_x;
                     for (const auto& pt : obj["polygon"]) {
-                        if (pt.is_array() && pt.size() >= 2 &&
-                            pt[0].is_number() && pt[1].is_number()) {
+                        if (pt.is_array() && pt.size() >= 2 && pt[0].is_number() &&
+                            pt[1].is_number()) {
                             float x = pt[0].get<float>(), y = pt[1].get<float>();
                             info.polygon.push_back({x, y});
                             min_x = std::min(min_x, x);
@@ -467,7 +471,6 @@ void PrinterState::update_from_status(const json& state) {
     helix::sensors::AccelSensorManager::instance().update_from_status(state);
     helix::sensors::ColorSensorManager::instance().update_from_status(state);
     helix::sensors::TemperatureSensorManager::instance().update_from_status(state);
-
 }
 
 void PrinterState::reset_for_new_print() {
@@ -558,8 +561,8 @@ void PrinterState::set_hardware(const helix::PrinterDiscovery& hardware) {
         chamber_heater = "";
     }
 
-    spdlog::debug("[PrinterState] Chamber resolved: sensor='{}' heater='{}'",
-                  chamber_sensor, chamber_heater);
+    spdlog::debug("[PrinterState] Chamber resolved: sensor='{}' heater='{}'", chamber_sensor,
+                  chamber_heater);
     temperature_state_.set_chamber_sensor_name(chamber_sensor);
     temperature_state_.set_chamber_heater_name(chamber_heater);
 
@@ -621,8 +624,7 @@ void PrinterState::set_spoolman_available(bool available) {
 }
 
 void PrinterState::set_webcam_available(bool available, const std::string& stream_url,
-                                        const std::string& snapshot_url,
-                                        bool flip_h, bool flip_v) {
+                                        const std::string& snapshot_url, bool flip_h, bool flip_v) {
     // Delegate to capabilities_state_ component (handles thread-safety)
     capabilities_state_.set_webcam_available(available, stream_url, snapshot_url, flip_h, flip_v);
 }
@@ -804,9 +806,8 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     } else if (strategy_str == "probe_calibrate") {
         new_strategy = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     } else {
-        new_strategy = capabilities_state_.has_probe()
-                           ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
-                           : ZOffsetCalibrationStrategy::ENDSTOP;
+        new_strategy = capabilities_state_.has_probe() ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
+                                                       : ZOffsetCalibrationStrategy::ENDSTOP;
     }
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_) {
@@ -816,6 +817,9 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     printer_type_ = type;
     print_start_capabilities_ = new_caps;
     z_offset_calibration_strategy_ = new_strategy;
+
+    // Update save button visibility when strategy changes
+    motion_state_.update_z_offset_save_button_visibility(new_strategy);
 
     // Apply probe type override from database (e.g., prtouch_v2 for K1 series)
     std::string probe_type_str = PrinterDetector::get_probe_type(type);

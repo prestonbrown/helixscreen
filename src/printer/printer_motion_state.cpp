@@ -50,6 +50,8 @@ void PrinterMotionState::init_subjects(bool register_xml) {
                      register_xml); // Z-offset in microns from homing_origin[2]
     INIT_SUBJECT_INT(pending_z_offset_delta, 0, subjects_,
                      register_xml); // Accumulated adjustment during print
+    INIT_SUBJECT_INT(z_offset_save_button_visible, 0, subjects_,
+                     register_xml); // Computed: 1 if save button should be visible
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterMotionState] Subjects initialized successfully");
@@ -169,8 +171,7 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
     if (status.contains("motion_report")) {
         const auto& mr = status["motion_report"];
         if (mr.contains("live_extruder_velocity") && mr["live_extruder_velocity"].is_number()) {
-            int vel_centimm =
-                static_cast<int>(mr["live_extruder_velocity"].get<double>() * 100.0);
+            int vel_centimm = static_cast<int>(mr["live_extruder_velocity"].get<double>() * 100.0);
             if (lv_subject_get_int(&live_extruder_velocity_) != vel_centimm) {
                 lv_subject_set_int(&live_extruder_velocity_, vel_centimm);
             }
@@ -203,6 +204,17 @@ void PrinterMotionState::clear_pending_z_offset_delta() {
         spdlog::info("[PrinterMotionState] Clearing pending Z-offset delta");
         lv_subject_set_int(&pending_z_offset_delta_, 0);
     }
+}
+
+void PrinterMotionState::update_z_offset_save_button_visibility(
+    ZOffsetCalibrationStrategy strategy) {
+    // Button visible when: strategy != GCODE_OFFSET (1) AND gcode_z_offset != 0
+    int z_offset = lv_subject_get_int(&gcode_z_offset_);
+    int visible = (strategy != ZOffsetCalibrationStrategy::GCODE_OFFSET && z_offset != 0) ? 1 : 0;
+    lv_subject_set_int(&z_offset_save_button_visible_, visible);
+    spdlog::trace(
+        "[PrinterMotionState] Z-offset save button visible: {} (strategy={}, z_offset={})", visible,
+        static_cast<int>(strategy), z_offset);
 }
 
 } // namespace helix

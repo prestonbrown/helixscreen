@@ -141,20 +141,6 @@ enum class PrintStartPhase {
 };
 
 /**
- * @brief Z-offset calibration strategy — determines gcode commands for calibration and save
- *
- * Different printers need different approaches to calibrate and persist Z-offset.
- * ForgeX-mod printers use SET_GCODE_OFFSET (auto-persisted by mod macro).
- * Standard Klipper uses PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
- * Endstop printers use Z_ENDSTOP_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
- */
-enum class ZOffsetCalibrationStrategy {
-    PROBE_CALIBRATE, ///< Standard Klipper: PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG
-    GCODE_OFFSET,    ///< ForgeX mod: G28 -> move -> G1 adjustments -> SET_GCODE_OFFSET
-    ENDSTOP ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
-};
-
-/**
  * @brief Convert PrintJobState enum to display string
  *
  * Returns a human-readable string for UI display.
@@ -863,6 +849,16 @@ class PrinterState {
     }
 
     /**
+     * @brief Get computed subject for save Z-offset button visibility
+     *
+     * Returns 1 when button should be visible (strategy != GCODE_OFFSET AND gcode_z_offset != 0).
+     * Use with bind_flag_if_eq in XML: hidden="true" + ref_value="0" = visible when subject is 1.
+     */
+    lv_subject_t* get_z_offset_save_button_visible_subject() {
+        return motion_state_.get_z_offset_save_button_visible_subject();
+    }
+
+    /**
      * @brief Clear pending Z-offset delta (after save or dismiss)
      */
     void clear_pending_z_offset_delta() {
@@ -1254,8 +1250,8 @@ class PrinterState {
      * @param snapshot_url Snapshot URL of first enabled webcam
      */
     void set_webcam_available(bool available, const std::string& stream_url = "",
-                              const std::string& snapshot_url = "",
-                              bool flip_h = false, bool flip_v = false);
+                              const std::string& snapshot_url = "", bool flip_h = false,
+                              bool flip_v = false);
 
     /// Get MJPEG stream URL of first enabled webcam
     const std::string& get_webcam_stream_url() const {
@@ -1684,7 +1680,9 @@ class PrinterState {
      * String subject holding the human-readable name of the active printer.
      * Use with bind_text in XML to display the current printer name.
      */
-    lv_subject_t* get_active_printer_name_subject() { return &active_printer_name_; }
+    lv_subject_t* get_active_printer_name_subject() {
+        return &active_printer_name_;
+    }
 
     /**
      * @brief Get the multi-printer enabled subject
@@ -1692,7 +1690,9 @@ class PrinterState {
      * Integer subject: 1 when multiple printers are configured, 0 otherwise.
      * Use with bind_flag_if_eq in XML to show/hide multi-printer UI elements.
      */
-    lv_subject_t* get_multi_printer_enabled_subject() { return &multi_printer_enabled_; }
+    lv_subject_t* get_multi_printer_enabled_subject() {
+        return &multi_printer_enabled_;
+    }
 
     /**
      * @brief Set the active printer display name
