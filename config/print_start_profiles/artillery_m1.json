@@ -1,0 +1,61 @@
+{
+  "name": "Artillery M1 Pro",
+  "description": "Artillery M1 Pro with [AM1P] State: signal tracking. Flow: Init → Heat Chamber (opt) → Heat Bed → Home → Clean → Mesh (opt) → Shaper (opt) → Home Preprint → Heat Nozzle → Prime → Ready",
+  "progress_mode": "sequential",
+  "signal_formats": [
+    {
+      "prefix": "[AM1P] State: ",
+      "mappings": {
+        "INIT_START":       { "phase": "INITIALIZING",    "message": "Initializing print...",      "progress": 3 },
+        "HEAT_CHAMBER":     { "phase": "HEATING_NOZZLE",  "message": "Heating chamber...",         "progress": 8 },
+        "HEAT_BED":         { "phase": "HEATING_BED",     "message": "Heating bed...",             "progress": 15 },
+        "HOMING":           { "phase": "HOMING",          "message": "Homing axes...",             "progress": 22 },
+        "NOZZLE_CLEAN":     { "phase": "CLEANING",        "message": "Cleaning nozzle...",         "progress": 30 },
+        "MESH":             { "phase": "BED_MESH",        "message": "Calibrating bed mesh...",    "progress": 42 },
+        "MESH_VALIDATE":    { "phase": "BED_MESH",        "message": "Validating bed mesh...",     "progress": 50 },
+        "SHAPER":           { "phase": "INITIALIZING",    "message": "Input shaper calibration...", "progress": 55 },
+        "HOMING_PREPRINT":  { "phase": "HOMING",          "message": "Pre-print homing...",        "progress": 62 },
+        "HEAT_NOZZLE":      { "phase": "HEATING_NOZZLE",  "message": "Heating nozzle...",          "progress": 75 },
+        "PRIME":            { "phase": "PURGING",         "message": "Extruding prime line...",    "progress": 88 },
+        "READY":            { "phase": "COMPLETE",        "message": "Starting print...",          "progress": 100 },
+        "PRINT_END":        { "phase": "COMPLETE",        "message": "Print ending...",            "progress": 100 },
+        "PRINT_END_DONE":   { "phase": "COMPLETE",        "message": "Print complete",             "progress": 100 }
+      }
+    }
+  ],
+  "response_patterns": [
+    {
+      "pattern": "G28|Home All Axes",
+      "phase": "HOMING",
+      "message": "Homing axes...",
+      "weight": 10
+    },
+    {
+      "pattern": "BED_MESH_CALIBRATE",
+      "phase": "BED_MESH",
+      "message": "Calibrating bed mesh...",
+      "weight": 15
+    },
+    {
+      "pattern": "M190 S(\\d+)",
+      "phase": "HEATING_BED",
+      "message": "Heating bed to $1°C...",
+      "weight": 20
+    },
+    {
+      "pattern": "M109 S(\\d+)",
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating nozzle to $1°C...",
+      "weight": 15
+    }
+  ],
+  "phase_weights": {
+    "INITIALIZING": 5,
+    "HEATING_BED": 20,
+    "HEATING_NOZZLE": 20,
+    "HOMING": 15,
+    "CLEANING": 10,
+    "BED_MESH": 20,
+    "PURGING": 10
+  }
+}

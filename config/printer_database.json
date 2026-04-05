@@ -3673,6 +3673,7 @@
       "name": "Artillery M1 Pro",
       "manufacturer": "Artillery",
       "image": "artillery-m1-pro.png",
+      "print_start_profile": "artillery_m1",
       "z_offset_calibration_strategy": "firmware_managed",
       "heuristics": [
         {
