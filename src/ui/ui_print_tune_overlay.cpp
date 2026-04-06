@@ -3,7 +3,6 @@
 
 #include "ui_print_tune_overlay.h"
 
-#include "observer_factory.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_nav_manager.h"
@@ -14,6 +13,7 @@
 #include "format_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
+#include "observer_factory.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 #include "z_offset_utils.h"
@@ -245,25 +245,17 @@ void PrintTuneOverlay::setup_panel() {
     if (printer_state_) {
         speed_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
             printer_state_->get_speed_factor_subject(), this,
-            [](PrintTuneOverlay* self, int /*value*/) {
-                self->update_actual_speed_display();
-            });
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_actual_speed_display(); });
         gcode_speed_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
             printer_state_->get_gcode_speed_subject(), this,
-            [](PrintTuneOverlay* self, int /*value*/) {
-                self->update_actual_speed_display();
-            });
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_actual_speed_display(); });
         max_velocity_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
             printer_state_->get_max_velocity_subject(), this,
-            [](PrintTuneOverlay* self, int /*value*/) {
-                self->update_actual_speed_display();
-            });
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_actual_speed_display(); });
         // Observe extruder velocity for live flow display
         extruder_vel_observer_ = helix::ui::observe_int_sync<PrintTuneOverlay>(
             printer_state_->get_live_extruder_velocity_subject(), this,
-            [](PrintTuneOverlay* self, int /*value*/) {
-                self->update_actual_flow_display();
-            });
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_actual_flow_display(); });
     }
 
     spdlog::debug("[PrintTuneOverlay] Panel setup complete");
@@ -400,8 +392,8 @@ void PrintTuneOverlay::update_actual_flow_display() {
     double flow_mm3_s = (vel_centimm / 100.0) * FILAMENT_AREA_175;
 
     if (flow_mm3_s >= 0.1) {
-        std::snprintf(tune_actual_flow_buf_, sizeof(tune_actual_flow_buf_),
-                      "%.1f mm\xC2\xB3/s", flow_mm3_s);
+        std::snprintf(tune_actual_flow_buf_, sizeof(tune_actual_flow_buf_), "%.1f mm\xC2\xB3/s",
+                      flow_mm3_s);
     } else {
         tune_actual_flow_buf_[0] = '\0';
     }
@@ -471,7 +463,8 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
                      Z_OFFSET_MIN, Z_OFFSET_MAX);
         new_offset = std::clamp(new_offset, Z_OFFSET_MIN, Z_OFFSET_MAX);
         delta = new_offset - current_z_offset_;
-        if (std::abs(delta) < 0.0005) return; // Already at limit
+        if (std::abs(delta) < 0.0005)
+            return; // Already at limit
     }
 
     // Round to nearest micron to prevent floating-point drift from repeated additions
@@ -484,6 +477,13 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
     if (printer_state_) {
         int delta_microns = static_cast<int>(std::lround(delta * 1000.0));
         printer_state_->add_pending_z_offset_delta(delta_microns);
+
+        // Immediately update the gcode_z_offset subject so Controls panel reflects the change
+        // (otherwise it waits for Moonraker to broadcast the status update)
+        int current_microns = static_cast<int>(std::lround(current_z_offset_ * 1000.0));
+        if (auto* subj = printer_state_->get_gcode_z_offset_subject()) {
+            lv_subject_set_int(subj, current_microns);
+        }
     }
 
     spdlog::debug("[PrintTuneOverlay] Z-offset adjust: {:+.3f}mm (total: {:.3f}mm)", delta,
