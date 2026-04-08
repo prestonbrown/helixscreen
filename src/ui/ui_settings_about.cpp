@@ -47,7 +47,9 @@ inline constexpr int kContributorCount = 1;
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#ifdef HELIX_DISPLAY_SDL
 #include <SDL.h>
+#endif
 #include <memory>
 
 namespace helix::settings {
@@ -466,11 +468,13 @@ void AboutSettingsOverlay::on_about_install_update_clicked(lv_event_t* /*e*/) {
 
     if (helix::is_android_platform()) {
         spdlog::info("[AboutSettings] Opening Play Store for update");
+#ifdef HELIX_DISPLAY_SDL
         int result = SDL_OpenURL("market://details?id=org.helixscreen.app");
         if (result != 0) {
             spdlog::warn("[AboutSettings] market:// failed, trying web URL: {}", SDL_GetError());
             SDL_OpenURL("https://play.google.com/store/apps/details?id=org.helixscreen.app");
         }
+#endif
     } else {
         spdlog::info("[AboutSettings] Install update requested");
         get_about_settings_overlay().show_update_download_modal();
