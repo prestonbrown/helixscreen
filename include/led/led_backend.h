@@ -16,6 +16,14 @@ struct LedStripInfo {
     bool supports_color; // RGB/RGBW capable
     bool supports_white; // Has W channel (RGBW)
     bool is_pwm = false; // PWM capable (output_pin with pwm:true)
+
+    // Per-channel capability (set from configfile for generic [led] sections).
+    // When all false, capabilities are inferred from the LED type prefix.
+    bool has_red_pin = false;
+    bool has_green_pin = false;
+    bool has_blue_pin = false;
+    bool has_white_pin = false;
+    bool pin_config_known = false; // True if configfile was parsed for this strip
 };
 
 struct LedEffectInfo {

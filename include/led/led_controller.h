@@ -57,6 +57,10 @@ class NativeBackend {
     void add_strip(const LedStripInfo& strip);
     void clear();
 
+    /// Update channel capabilities from configfile config (called during discovery).
+    /// Sets has_red_pin, has_green_pin, etc. for strips with configfile data.
+    void update_pin_config(const nlohmann::json& config_section);
+
     // Control methods
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const std::string&)>;
@@ -378,6 +382,10 @@ class LedController {
 
     // Update output_pin PWM config from configfile config section
     void update_output_pin_config(const nlohmann::json& configfile_config);
+
+    // Update LED channel capabilities from configfile config section
+    // (detects red_pin, green_pin, blue_pin, white_pin for generic [led] sections)
+    void update_led_pin_config(const nlohmann::json& configfile_config);
 
     // Queries
     [[nodiscard]] bool has_any_backend() const;

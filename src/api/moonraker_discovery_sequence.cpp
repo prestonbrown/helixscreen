@@ -476,13 +476,14 @@ void MoonrakerDiscoverySequence::continue_discovery_objects() {
                                 });
 
                                 // Update LED controller with configfile data (effect targets +
-                                // output_pin PWM)
+                                // output_pin PWM + generic LED pin config)
                                 nlohmann::json cfg_copy = cfg;
                                 helix::ui::queue_update([cfg_copy]() {
                                     auto& led_ctrl = helix::led::LedController::instance();
                                     if (led_ctrl.is_initialized()) {
                                         led_ctrl.update_effect_targets(cfg_copy);
                                         led_ctrl.update_output_pin_config(cfg_copy);
+                                        led_ctrl.update_led_pin_config(cfg_copy);
                                     }
                                 });
                             }
