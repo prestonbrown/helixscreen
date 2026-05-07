@@ -55,7 +55,7 @@ std::string TempGraphWidget::get_component_name() const {
 
 void TempGraphWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    follow_overlay_ = config.value("follow_overlay", false);
+    follow_overlay_ = config.is_object() && config.value("follow_overlay", false);
 }
 
 void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -413,7 +413,7 @@ void TempGraphWidget::TempGraphConfigModal::populate_follow_toggle() {
     // Toggle switch
     lv_obj_t* sw = lv_switch_create(row);
     lv_obj_set_size(sw, 44, 24);
-    if (config_.value("follow_overlay", false))
+    if (config_.is_object() && config_.value("follow_overlay", false))
         lv_obj_add_state(sw, LV_STATE_CHECKED);
     follow_switch_ = sw;
 }

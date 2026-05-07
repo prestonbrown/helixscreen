@@ -172,6 +172,28 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
     REQUIRE(report.klipper_version.empty());
 }
 
+// Regression: bundle CHUQCNAE (2026-05-05, AD5X v0.99.53) shipped a crash.txt
+// containing only "signal:\n" — the signal handler was killed mid-write before
+// the signum or any other field landed. Application::run still showed the
+// crash dialog, the user clicked Send, and the resulting bundle had no
+// actionable data. read_crash_file() returns null in this case (signal_name
+// missing), so collect_report() yields a default-constructed CrashReport with
+// signal_name == "". The Application::run gate keys on that to suppress the
+// dialog; this test pins the contract.
+TEST_CASE_METHOD(CrashReporterTestFixture,
+                 "CrashReporter: collect_report yields empty signal_name for truncated crash file",
+                 "[crash_reporter]") {
+    std::ofstream ofs((temp_dir_ / "crash.txt").string());
+    ofs << "signal:";
+    ofs.close();
+
+    auto& cr = CrashReporter::instance();
+    auto report = cr.collect_report();
+
+    REQUIRE(report.signal_name.empty());
+    REQUIRE(report.signal == 0);
+}
+
 TEST_CASE_METHOD(CrashReporterTestFixture, "CrashReporter: collect_report includes platform key",
                  "[crash_reporter]") {
     write_crash_file();

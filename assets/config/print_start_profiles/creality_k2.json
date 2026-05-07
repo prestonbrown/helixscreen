@@ -2,13 +2,7 @@
   "name": "Creality K2",
   "description": "Print start patterns for Creality K2 series (K2, K2 Pro, K2 Plus) with CFS",
   "progress_mode": "weighted",
-  "signal_formats": [
-    {
-      "pattern": "print prepared",
-      "phase": "READY",
-      "message": "Prepared"
-    }
-  ],
+  "signal_formats": [],
   "response_patterns": [
     {
       "pattern": "G28|Homing|Home All Axes|ACCURATE_G28",
@@ -35,28 +29,16 @@
       "weight": 20
     },
     {
-      "pattern": "M191|chamber.*heat|SET_CHAMBER_FAN|chamber_heater",
-      "phase": "HEATING_CHAMBER",
-      "message": "Heating Chamber...",
-      "weight": 15
-    },
-    {
       "pattern": "Z_TILT_ADJUST|z.?tilt.?adjust|z_align",
       "phase": "Z_TILT",
       "message": "Z Tilt Adjust...",
       "weight": 10
     },
     {
-      "pattern": "BED_MESH_CALIBRATE|BED_MESH_CALIBRATE_START_PRINT|mesh.*load",
+      "pattern": "BED_MESH_CALIBRATE",
       "phase": "BED_MESH",
       "message": "Bed Mesh...",
       "weight": 10
-    },
-    {
-      "pattern": "BOX_GO_TO_EXTRUDE_POS|BOX_EXTRUDE_MATERIAL|M8200.*L",
-      "phase": "LOADING_FILAMENT",
-      "message": "Loading Filament...",
-      "weight": 5
     },
     {
       "pattern": "BOX_MATERIAL_FLUSH|BOX_MATERIAL_CHANGE_FLUSH|M8200.*F",
@@ -70,10 +52,8 @@
     "CLEANING": 5,
     "HEATING_BED": 20,
     "HEATING_NOZZLE": 20,
-    "HEATING_CHAMBER": 15,
     "Z_TILT": 10,
     "BED_MESH": 10,
-    "LOADING_FILAMENT": 5,
     "PURGING": 5
   }
 }

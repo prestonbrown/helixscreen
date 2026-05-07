@@ -7,6 +7,7 @@
 #include "gcode_parser.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
+#include "system/crash_handler.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -460,7 +461,20 @@ bool GCodeLayerRenderer::has_support_detection() const {
 void GCodeLayerRenderer::destroy_cache() {
     if (cache_buf_) {
         if (lv_is_initialized()) {
+            // Mechanism B (#929): cache_buf_ is referenced by parallel-render-thread
+            // draw tasks via dsc.src in blit_cache(); freeing it while a task is
+            // in flight UAFs in argb8888_image_blend (cluster:pstat-async-delete,
+            // v0.99.54 production telemetry pinned the source pointer to a freed
+            // mmap'd cache_buf_).
+            //
+            // lv_draw_wait_for_finish() blocks until every draw unit's pending
+            // tasks complete (no-op when LV_USE_OS == 0, so single-threaded
+            // builds are unaffected). After it returns, no in-flight task
+            // references cache_buf_ and lv_draw_buf_destroy is safe.
+            crash_handler::breadcrumb::note("cache_buf", "destroy_pre");
+            lv_draw_wait_for_finish();
             lv_draw_buf_destroy(cache_buf_);
+            crash_handler::breadcrumb::note("cache_buf", "destroy_post");
         }
         cache_buf_ = nullptr;
     }
@@ -510,6 +524,10 @@ void GCodeLayerRenderer::ensure_ssao_cache(int width, int height) {
 void GCodeLayerRenderer::destroy_ssao_cache() {
     if (ssao_buf_) {
         if (lv_is_initialized()) {
+            // ssao_buf_ feeds dsc.src in apply_ssao()'s blit (line ~595) — same
+            // parallel-render UAF pattern as cache_buf_ (#929). Wait for in-flight
+            // draw tasks before freeing.
+            lv_draw_wait_for_finish();
             lv_draw_buf_destroy(ssao_buf_);
         }
         ssao_buf_ = nullptr;
@@ -792,6 +810,10 @@ void GCodeLayerRenderer::blit_cache(lv_layer_t* target) {
 void GCodeLayerRenderer::destroy_ghost_cache() {
     if (ghost_buf_) {
         if (lv_is_initialized()) {
+            // ghost_buf_ feeds dsc.src in render_ghost_layers's blit (line ~894) —
+            // same parallel-render UAF pattern as cache_buf_ (#929). Wait for
+            // in-flight draw tasks before freeing.
+            lv_draw_wait_for_finish();
             lv_draw_buf_destroy(ghost_buf_);
         }
         ghost_buf_ = nullptr;

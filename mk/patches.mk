@@ -526,6 +526,20 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 	else \
 		echo "$(GREEN)✓ LVGL event-dispatch-depth guard patch already applied$(RESET)"; \
 	fi
+	$(Q)if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_event_stack_array.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL #907 array-backed event stack (replaces e->prev linked list)...$(RESET)"; \
+		git -C $(LVGL_DIR) apply ../../patches/lvgl_event_stack_array.patch && \
+		echo "$(GREEN)✓ #907 array-backed event stack patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL #907 array-backed event stack patch already applied$(RESET)"; \
+	fi
+	$(Q)if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_obj_event_null_guards.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL obj-event NULL guards (VHTR49QJ — recoverable bail + telemetry)...$(RESET)"; \
+		git -C $(LVGL_DIR) apply ../../patches/lvgl_obj_event_null_guards.patch && \
+		echo "$(GREEN)✓ obj-event NULL guards patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL obj-event NULL guards patch already applied$(RESET)"; \
+	fi
 	$(Q)if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_style_null_guards.patch 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL style NULL guards patch (null style pointers in transitions/cache)...$(RESET)"; \
 		git -C $(LVGL_DIR) apply ../../patches/lvgl_style_null_guards.patch && \

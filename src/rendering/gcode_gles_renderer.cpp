@@ -264,6 +264,11 @@ GCodeGLESRenderer::~GCodeGLESRenderer() {
     destroy_gl();
 
     if (draw_buf_) {
+        // draw_buf_ is handed to the parallel render thread via dsc.src in
+        // draw_cached_to_lvgl (line ~1313/1397) — same UAF pattern as
+        // GCodeLayerRenderer::cache_buf_ (#929). Wait for in-flight draw tasks
+        // before freeing.
+        lv_draw_wait_for_finish();
         lv_draw_buf_destroy(draw_buf_);
         draw_buf_ = nullptr;
     }
@@ -1323,6 +1328,9 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
     // Create or recreate draw buffer at widget size
     if (!draw_buf_ || draw_buf_width_ != widget_w || draw_buf_height_ != widget_h) {
         if (draw_buf_) {
+            // draw_buf_ may still be in flight to the parallel render thread
+            // (#929 cluster). Drain pending draws before freeing.
+            lv_draw_wait_for_finish();
             lv_draw_buf_destroy(draw_buf_);
         }
         draw_buf_ = lv_draw_buf_create(static_cast<uint32_t>(widget_w),

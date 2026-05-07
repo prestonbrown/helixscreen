@@ -190,6 +190,7 @@
 #include <fstream>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <typeinfo>
 #include <unistd.h>
 
 #ifdef __APPLE__
@@ -646,6 +647,18 @@ int Application::run(int argc, char** argv) {
         return 1;
     }
 
+    // Post-UI safety net: phases 11-16b run finalize_setup, plugin init,
+    // overlay construction, and the first synchronous render. Any std::exception
+    // escaping here unwinds out of run() into main()'s catch and exits 134,
+    // which the watchdog interprets as a deterministic crash and (after
+    // CRASH_LOOP_MAX_CRASHES) shows the recovery dialog. The 4ca58af52 hotfix
+    // wraps main_loop() iterations but does not cover this pre-loop window —
+    // the 5ac58e051 follow_overlay regression hit exactly here, in
+    // HomePanel::finalize_setup() → set_config(null) (json::type_error::306).
+    // Catch + log + breadcrumb + toast + continue so the user gets a degraded
+    // but usable app instead of a watchdog crash loop they can only escape by
+    // reflashing. main_loop() owns the runaway-streak guard for steady state.
+    try {
     // Heap snapshot after XML panel load completes. Delta against
     // post_telemetry_init is the cost of init_panel_subjects + connect_moonraker
     // + init_ui — the window where #758 class aborts have fired.
@@ -662,7 +675,16 @@ int Application::run(int argc, char** argv) {
             CrashReporter::instance().consume_crash_file();
         } else {
             auto report = CrashReporter::instance().collect_report();
-            if (CrashReporter::instance().is_duplicate(report)) {
+            if (report.signal_name.empty()) {
+                // Empty signal_name means read_crash_file() returned null because
+                // the file lacked the required signal/name fields — typically a
+                // signal handler killed mid-write (OOM-killer, watchdog, power
+                // loss). Showing a dialog here just lets the user submit a
+                // useless bundle (see CHUQCNAE 2026-05-05).
+                spdlog::warn(
+                    "[Application] Crash file unparseable — consuming and skipping dialog");
+                CrashReporter::instance().consume_crash_file();
+            } else if (CrashReporter::instance().is_duplicate(report)) {
                 spdlog::info("[Application] Duplicate crash ({}), suppressing dialog",
                              CrashReporter::fingerprint(report));
                 CrashReporter::instance().consume_crash_file();
@@ -806,6 +828,27 @@ int Application::run(int argc, char** argv) {
             lv_timer_delete(timer);
         };
         lv_timer_create(deferred_refresh_cb, 100, m_screen); // 100ms delay
+    }
+
+    } catch (const std::exception& e) {
+        const char* type_name = typeid(e).name();
+        spdlog::error("[Application] Caught exception during post-UI init: {} ({})", e.what(),
+                      type_name);
+        crash_handler::breadcrumb::note("post_init_catch", type_name);
+        crash_handler::breadcrumb::dump_to_fd(STDERR_FILENO);
+        try {
+            TelemetryManager::instance().record_error("post_init", "unhandled_exception", e.what());
+        } catch (...) {
+            // Telemetry must never re-throw out of the catch handler.
+        }
+        try {
+            ToastManager::instance().show(
+                ToastSeverity::ERROR,
+                "App startup encountered an error. Some features may be unavailable.",
+                0 /* sticky */);
+        } catch (...) {
+            // Toast failure is non-fatal; the user still gets a working main loop.
+        }
     }
 
     // Phase 17: Main loop
@@ -1095,9 +1138,26 @@ bool Application::init_display() {
     // Must be after lv_init() because it resets global state and clears callbacks
     helix::logging::register_lvgl_log_handler();
 
-    // Apply custom DPI if specified
-    if (m_args.dpi > 0) {
-        lv_display_set_dpi(m_display->display(), m_args.dpi);
+    // Always set DPI explicitly. LVGL's lv_display_create() initializes dpi to
+    // LV_DPI_DEF (160), but the fbdev/DRM drivers will OVERWRITE it from the
+    // kernel's reported physical screen size (FBIOGET_VSCREENINFO width/height
+    // in mm, or DRM connector mmWidth). When the driver reports BOGUS physical
+    // dimensions — observed on BTT CB1 / sun4i-drmdrmfb, which reports the
+    // BTT HDMI5 5" panel (real ≈109mm × 65mm) as 890mm × 500mm (≈35"×20",
+    // off by ~8×) — that computes to dpi≈23, and LV_DPX_CALC(23, 10) clamps
+    // PAD_SMALL to 1px via
+    // its MAX(.., 1) safeguard. Result: dropdown / input padding visually
+    // disappears. Forcing dpi here (after the driver has had its chance) makes
+    // the UI immune to lying kernel drivers.
+    int32_t effective_dpi = (m_args.dpi > 0) ? m_args.dpi : LV_DPI_DEF;
+    int32_t pre_set_dpi = lv_display_get_dpi(m_display->display());
+    lv_display_set_dpi(m_display->display(), effective_dpi);
+    spdlog::debug("[Application] Display DPI applied: {} (was {} before set)",
+                  effective_dpi, pre_set_dpi);
+    if (pre_set_dpi < 50 && m_args.dpi == 0) {
+        spdlog::warn("[Application] Display reported dpi={} before set — backend lost LV_DPI_DEF "
+                     "between create and theme init. Fix-forward applied (forced to {}).",
+                     pre_set_dpi, effective_dpi);
     }
 
     // Get active screen
@@ -2799,9 +2859,20 @@ void Application::init_action_prompt() {
                     auto j = nlohmann::json::parse(text);
                     if (j.contains("code") && j["code"].is_string()) {
                         out_code = j["code"].get<std::string>();
+                        // Pass `values` through so the decoder can splice
+                        // " in unit 1 slot B" into the friendly message.
+                        // Telemetry sample (2026-05-05): key849 with
+                        // `values: [1, "B"]` previously surfaced a generic
+                        // "Retract failed — filament stuck in connector"
+                        // with no slot locator; user had to investigate.
+                        nlohmann::json values = nlohmann::json::array();
+                        if (j.contains("values")) {
+                            values = j["values"];
+                        }
                         if (auto friendly =
-                                helix::printer::CfsErrorDecoder::lookup_message(out_code)) {
-                            text = std::string(friendly->first) + ". " + friendly->second;
+                                helix::printer::CfsErrorDecoder::lookup_message_with_values(
+                                    out_code, values)) {
+                            text = friendly->first + ". " + friendly->second;
                             return;
                         }
                     }
@@ -3070,8 +3141,26 @@ int Application::main_loop() {
     show_screensaver_migration_notice_if_pending();
 #endif
 
+    // Top-level safety net: any std::exception thrown from a callback invoked
+    // inside lv_timer_handler() (observers, queued UpdateQueue items, LVGL
+    // animations, async calls) unwinds the entire stack out of main_loop into
+    // main()'s catch and exits 134 — the watchdog interprets this as a crash
+    // and after CRASH_LOOP_MAX_CRASHES same-signature events triggers the
+    // "HelixScreen Keeps Crashing" recovery dialog (#931, v0.99.54). The
+    // 1b643f99c safety net wraps the initial-subscription dispatch path, but
+    // queued/observer/timer callbacks inside lv_timer_handler are not yet
+    // guarded. Catch + log + dump breadcrumbs + continue: the user gets a
+    // toast and a usable app instead of a crash loop they can only escape
+    // by reflashing the previous version. A streak counter breaks out if the
+    // catch itself is in a tight retry loop.
+    int exception_streak = 0;
+    uint32_t streak_window_start = 0;
+    static constexpr int RUNAWAY_THRESHOLD = 5;
+    static constexpr uint32_t RUNAWAY_WINDOW_MS = 30000;
+
     // Main event loop
     while (lv_display_get_next(nullptr) && !app_quit_requested()) {
+        try {
         uint32_t current_tick = DisplayManager::get_ticks();
         m_loop_handler.on_frame(current_tick);
 
@@ -3209,6 +3298,62 @@ int Application::main_loop() {
             DisplayManager::delay(sleep_ms);
         } else {
             DisplayManager::delay(1);
+        }
+        } catch (const std::exception& e) {
+            // A callback inside this iteration threw and was not caught
+            // closer to the source. Pre-#931, this unwound through main()
+            // and exited 134, triggering a watchdog crash loop. Now: log
+            // type+what, dump the recent breadcrumb ring, record telemetry,
+            // and continue. If catches pile up faster than RUNAWAY_THRESHOLD
+            // / RUNAWAY_WINDOW_MS, exit cleanly so the watchdog sees a
+            // graceful shutdown instead of an infinite throw-catch tight loop.
+            const char* type_name = typeid(e).name();
+            spdlog::error("[Application] Caught exception in main loop: {} ({})",
+                          e.what(), type_name);
+            crash_handler::breadcrumb::note("loop_catch", type_name);
+            // Dump breadcrumbs so the next user log captures which observer/
+            // callback path threw — root cause of #931 needs this trail.
+            crash_handler::breadcrumb::dump_to_fd(STDERR_FILENO);
+            try {
+                TelemetryManager::instance().record_error(
+                    "main_loop", "unhandled_exception", e.what());
+            } catch (...) {
+                // Telemetry must never re-throw out of the catch handler.
+            }
+
+            uint32_t now_tick = DisplayManager::get_ticks();
+            if (exception_streak == 0 ||
+                (now_tick - streak_window_start) > RUNAWAY_WINDOW_MS) {
+                streak_window_start = now_tick;
+                exception_streak = 1;
+            } else {
+                ++exception_streak;
+            }
+            if (exception_streak >= RUNAWAY_THRESHOLD) {
+                spdlog::critical(
+                    "[Application] Runaway exception streak ({} in {}ms) — "
+                    "exiting main loop cleanly to break the throw-catch tight loop",
+                    exception_streak, RUNAWAY_WINDOW_MS);
+                break;
+            }
+
+            // Best-effort recovery toast. Wrap so a throw here doesn't escape.
+            try {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    "An internal error occurred. The app continues running — "
+                    "please send a debug bundle from Settings → About if it repeats.",
+                    8000);
+            } catch (...) {
+                // Toast subsystem itself in trouble — keep running anyway.
+            }
+        } catch (...) {
+            spdlog::critical("[Application] Caught non-std::exception in main loop");
+            crash_handler::breadcrumb::note("loop_catch", "non_std");
+            crash_handler::breadcrumb::dump_to_fd(STDERR_FILENO);
+            // Non-std exceptions are vanishingly rare and usually indicate
+            // ABI breakage — bail cleanly rather than risk corruption.
+            break;
         }
     }
 

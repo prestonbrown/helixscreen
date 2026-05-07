@@ -77,8 +77,13 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
             continue;
         }
 
-        // Load optional per-widget config
-        nlohmann::json widget_config;
+        // Load optional per-widget config. Default to {} rather than the
+        // default-constructed JSON null so downstream set_config() implementations
+        // can use .value("key", default) without guarding against null. Layouts
+        // written before a widget gained config fields omit "config" entirely;
+        // that path used to ship a JSON null and crash the widget on lookup
+        // (json::type_error::306, regression introduced in v0.99.54 by 5ac58e051).
+        nlohmann::json widget_config = nlohmann::json::object();
         if (item.contains("config") && item["config"].is_object()) {
             widget_config = item["config"];
         }

@@ -16,6 +16,7 @@
 #include "geometry_budget_manager.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_utils.h"
+#include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
 #include "theme_manager.h"
 
@@ -116,7 +117,9 @@ class GCodeViewerState {
         // Renderer holds a raw pointer to streaming_controller_ and may have a
         // background ghost thread running. Destroy renderer first to join that
         // thread before the controller is freed.
+        crash_handler::breadcrumb::note("layer_renderer", "dtor_pre");
         layer_renderer_2d_.reset();
+        crash_handler::breadcrumb::note("layer_renderer", "dtor_post");
         streaming_controller_.reset();
 
         // Clean up LVGL timer if pending
@@ -1216,7 +1219,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Destroy renderer FIRST — its background ghost thread holds a raw pointer to
     // the streaming controller; joining that thread before destroying the controller
     // prevents use-after-free crashes (prestonbrown/helixscreen#XXX).
+    crash_handler::breadcrumb::note("layer_renderer", "load_reset_pre");
     st->layer_renderer_2d_.reset();
+    crash_handler::breadcrumb::note("layer_renderer", "load_reset_post");
     st->streaming_controller_.reset();
     st->gcode_file.reset();
 
@@ -1757,7 +1762,9 @@ void ui_gcode_viewer_clear(lv_obj_t* obj) {
     // Destroy renderer FIRST — its background ghost thread holds a raw pointer to
     // the streaming controller; must join that thread before destroying the controller
     // to prevent use-after-free crashes.
+    crash_handler::breadcrumb::note("layer_renderer", "clear_reset_pre");
     st->layer_renderer_2d_.reset();
+    crash_handler::breadcrumb::note("layer_renderer", "clear_reset_post");
     st->gcode_file.reset();
     st->streaming_controller_.reset();
     st->has_external_color_override = false; // Clear external color override

@@ -169,6 +169,24 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     bool check_helix_phase_signal(const std::string& line);
 
     /**
+     * @brief Check for K2/CFS-specific gcode tag stream signals
+     *
+     * Creality K2 and CFS-equipped printers emit a richer gcode tag stream
+     * than stock Klipper. These tags carry phase info that universal probe-
+     * line / regex heuristics can't extract precisely. Currently:
+     *
+     * - `// num: N, velocity: V, percent F` (purge percent, fraction or int)
+     * - `// [box] cut sensor detected` / `// [box] cut to return` /
+     *   `BOX_LOAD_MATERIAL` (CFS filament-load events)
+     *
+     * Mapped onto the existing PrintStartPhase enum (PURGING, INITIALIZING)
+     * so the legacy `preparing_overlay` UI binds without change.
+     *
+     * @return true if a K2/CFS signal was detected and handled
+     */
+    bool check_k2_cfs_signal(const std::string& line);
+
+    /**
      * @brief Update phase and recalculate progress (weighted mode)
      */
     void update_phase(helix::PrintStartPhase phase, const char* message);

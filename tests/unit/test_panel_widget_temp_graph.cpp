@@ -328,6 +328,25 @@ TEST_CASE("TempGraphWidget: config with unknown sensor name does not crash",
     REQUIRE(widget.get_component_name() == "panel_widget_temp_graph");
 }
 
+// Regression: set_config(null) used to throw json::type_error::306
+// ("cannot use value() with null") via the new follow_overlay lookup
+// added in v0.99.54 (commit 5ac58e051). PanelWidgetConfig::parse_widget_array
+// can pass a default-constructed (= JSON null) config when a stored layout
+// entry omits the "config" key, which is the case for any layout written
+// before the follow-overlay feature shipped. The throw escaped Application::run()
+// before main_loop()'s safety net, exited 134, and triggered the watchdog
+// crash-loop dialog.
+TEST_CASE("TempGraphWidget: set_config tolerates JSON null/non-object configs",
+          "[temp_graph][panel_widget][crash-safety]") {
+    TempGraphWidget widget("test_null_cfg");
+
+    REQUIRE_NOTHROW(widget.set_config(nlohmann::json()));               // default-constructed = null
+    REQUIRE_NOTHROW(widget.set_config(nullptr));                        // explicit null literal
+    REQUIRE_NOTHROW(widget.set_config(nlohmann::json::array()));        // wrong type: array
+    REQUIRE_NOTHROW(widget.set_config(nlohmann::json("a string")));    // wrong type: string
+    REQUIRE_NOTHROW(widget.set_config(nlohmann::json::object()));       // empty object — the happy path
+}
+
 // ============================================================================
 // Generation counter rejects stale callbacks
 // ============================================================================

@@ -541,6 +541,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return; // Signal handled
     }
 
+    // Check for K2/CFS-specific gcode tag stream (purge percent, box filament load).
+    // These tags are emitted by Creality firmware and carry per-step progress that
+    // universal heuristics can't infer. Falls through on stock Klipper printers.
+    if (check_k2_cfs_signal(line)) {
+        return; // Signal handled
+    }
+
     // Check for RESPOND-based print start completion (authoritative signal)
     // Many users end PRINT_START macros with RESPOND MSG="Print started!" or similar.
     // This fires before Moonraker's state transition and is a definitive end-of-preprint signal.
@@ -583,13 +590,24 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     // emit a separate BED_MESH_CALIBRATE command line before probing starts.
     {
         bool in_mesh = false;
+        bool in_leveling = false;
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             in_mesh = (current_phase_ == PrintStartPhase::BED_MESH);
+            // QGL and Z_TILT also fire "probe at X,Y is z=Z" lines via Klipper's
+            // shared probe routine. Voron 2.4 QGL probes 4 corner pads with
+            // `samples: 3` = 12 probe lines back-to-back, well over the
+            // pre-mesh entry threshold. Without this guard the collector
+            // would enter BED_MESH on the third QGL probe and count corner
+            // pads against the bed_mesh probe total, throwing the displayed
+            // "X / Y" count off by the number of leveling probes.
+            in_leveling = (current_phase_ == PrintStartPhase::QGL ||
+                           current_phase_ == PrintStartPhase::Z_TILT);
         }
 
-        bool is_probe_line =
-            !in_mesh && (helix::parse_probe_progress(line) || helix::is_probe_result_line(line));
+        bool is_probe_line = !in_mesh && !in_leveling &&
+                             (helix::parse_probe_progress(line) ||
+                              helix::is_probe_result_line(line));
 
         // If we see a probe line but aren't in BED_MESH yet, buffer probes
         // before entering the phase. Some printers (e.g. AD5M Klipper mod)
@@ -893,6 +911,47 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
     return false;
 }
 
+bool PrintStartCollector::check_k2_cfs_signal(const std::string& line) {
+    // ---- K2 purge percent --------------------------------------------------
+    // Real K2 firmware emits: "// num: 0, velocity: 575.000000, percent 1.000000"
+    //   - "percent" with no colon, value is a 0..1 fraction (not 0..100)
+    // Earlier/integer form may appear as "percent: 50" with 0..100. Tolerate both.
+    if (auto p = line.find("percent"); p != std::string::npos &&
+                                       (line.find("num:") != std::string::npos ||
+                                        line.find("velocity:") != std::string::npos)) {
+        const char* cursor = line.c_str() + p + 7; // past "percent"
+        while (*cursor == ':' || *cursor == ' ') cursor++;
+
+        float frac = -1.0f;
+        if (std::sscanf(cursor, "%f", &frac) == 1 && frac >= 0.0f) {
+            // Accept both 0..1 (K2 fraction) and 0..100 (legacy/integer).
+            int percent = (frac <= 1.5f) ? static_cast<int>(frac * 100.0f + 0.5f)
+                                         : static_cast<int>(frac + 0.5f);
+            percent = std::max(0, std::min(100, percent));
+
+            char msg[32];
+            std::snprintf(msg, sizeof(msg), "%s — %d%%", lv_tr("Purging"), percent);
+            update_phase(PrintStartPhase::PURGING, std::string(msg), percent);
+            return true;
+        }
+    }
+
+    // ---- CFS filament-load events ------------------------------------------
+    // The box (CFS unit) emits these distinct lines during a load sequence.
+    // Stock Klipper / AFC / ERCF use different vocabulary (LOAD_FILAMENT,
+    // RESPOND MSG="Loading...", etc.) — those are handled elsewhere.
+    if (line.find("[box] cut sensor detected") != std::string::npos ||
+        line.find("[box] cut to return") != std::string::npos ||
+        line.find("BOX_LOAD_MATERIAL") != std::string::npos) {
+        // No dedicated PrintStartPhase value — INITIALIZING is the closest
+        // non-terminal neighbor; the message carries the human-facing label.
+        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Loading Filament..."));
+        return true;
+    }
+
+    return false;
+}
+
 void PrintStartCollector::update_phase(PrintStartPhase phase, const char* message) {
     int progress;
     bool should_save = false;
@@ -904,6 +963,14 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
             return;
         entering_mesh =
             (phase == PrintStartPhase::BED_MESH && current_phase_ != PrintStartPhase::BED_MESH);
+        // Entering a leveling phase clears the pre-mesh probe buffer — any
+        // stray probe lines that arrived before the QGL/Z_TILT regex hit
+        // (rare, but possible if firmware emits a probe before the macro
+        // echo) shouldn't carry into the eventual BED_MESH count.
+        if ((phase == PrintStartPhase::QGL || phase == PrintStartPhase::Z_TILT) &&
+            current_phase_ != phase) {
+            pre_mesh_probe_count_ = 0;
+        }
         current_phase_ = phase;
         detected_phases_.insert(phase); // Track for progress calculation
 
@@ -957,6 +1024,10 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
             return;
         entering_mesh =
             (phase == PrintStartPhase::BED_MESH && current_phase_ != PrintStartPhase::BED_MESH);
+        if ((phase == PrintStartPhase::QGL || phase == PrintStartPhase::Z_TILT) &&
+            current_phase_ != phase) {
+            pre_mesh_probe_count_ = 0;
+        }
         current_phase_ = phase;
         detected_phases_.insert(phase);
 

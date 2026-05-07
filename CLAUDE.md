@@ -97,54 +97,24 @@ Note: `ui_theme_get_color()` for tokens, `ui_theme_parse_color()` for hex string
 
 ## Threading & Lifecycle
 
+> **Deep reference + code examples:** `.claude/skills/helix-threading/` (auto-triggers on src/ threading edits). The rules below are the always-loaded safety net — every rule exists because something crashed in production.
+
 WebSocket/libhv callbacks = background thread. **NEVER** call `lv_subject_set_*()` directly.
-Use `ui_queue_update()` from `ui_update_queue.h`. Pattern: `printer_state.cpp` `set_*_internal()`
+Use `ui_queue_update()` from `ui_update_queue.h`. Pattern: `printer_state.cpp` `set_*_internal()`.
 
 Use `ObserverGuard` for RAII cleanup. See `observer_factory.h` for `observe_int_sync`, `observe_int_async`, `observe_string`, `observe_string_async`.
 
-**Observer safety:** `observe_int_sync` and `observe_string` **defer callbacks** via `ui_queue_update()` to prevent re-entrant observer destruction crashes (issue #82). Use `observe_int_immediate` / `observe_string_immediate` ONLY if you're certain the callback won't modify observer lifecycle (no reassignment, no widget destruction).
+**Observer safety:** `observe_int_sync` and `observe_string` **defer callbacks** via `ui_queue_update()` to prevent re-entrant observer destruction crashes (#82). Use `*_immediate` variants ONLY if you're certain the callback won't modify observer lifecycle (no reassignment, no widget destruction).
 
-**UpdateQueue ScopedFreeze (MANDATORY for drain+destroy):** When destroying widgets that may have pending deferred callbacks, always freeze the queue around the drain+destroy sequence. This closes the race window where the WebSocket background thread can enqueue new callbacks between `drain()` and widget destruction.
+**UpdateQueue ScopedFreeze (MANDATORY for drain+destroy):** Closes the race window where the WebSocket background thread enqueues new callbacks between `drain()` and widget destruction. Pattern: `auto freeze = UpdateQueue::instance().scoped_freeze();` then drain + destroy.
 
-```cpp
-auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
-helix::ui::UpdateQueue::instance().drain();
-lv_obj_clean(container);  // or safe_delete(), lv_obj_delete()
-// freeze thaws when it goes out of scope
-```
+**Async callback safety (MANDATORY):** Background threads (WebSocket, HTTP, timers) updating UI must use `AsyncLifetimeGuard` to prevent UAF if the owner is dismissed. `Modal` / `OverlayBase` provide `lifetime_` automatically; standalone classes declare their own (`helix::AsyncLifetimeGuard lifetime_;`).
 
-**Async callback safety (MANDATORY):** When background threads (WebSocket, HTTP, timers) need
-to update UI, use `AsyncLifetimeGuard` to prevent use-after-free if the owning object is dismissed.
+- **From BG threads:** use `auto tok = lifetime_.token();` then capture `tok` and call `tok.defer(...)`. **NOT `lifetime_.defer()`** — that's a TOCTOU race (#707).
+- **From main thread:** `lifetime_.defer(...)` is safe (`this` guaranteed valid).
+- **Cancel-and-retry:** `lifetime_.invalidate();` then fresh `lifetime_.token()`.
 
-`Modal` and `OverlayBase` provide `lifetime_` automatically. Standalone classes add their own:
-`helix::AsyncLifetimeGuard lifetime_;`
-
-```cpp
-// Common pattern: bg thread → deferred UI update
-// IMPORTANT: Use tok.defer() (NOT lifetime_.defer()) from BG-thread callbacks.
-// lifetime_.defer() accesses this->lifetime_ which is a TOCTOU race — this
-// can be destroyed between the tok.expired() check and the defer() call (#707).
-auto tok = lifetime_.token();
-api->fetch([this, tok]() {
-    if (tok.expired()) return;         // Owner dismissed — skip
-    tok.defer([this]() {               // Safe: uses token's own shared_ptr
-        update_ui();
-    });
-});
-
-// lifetime_.defer() is safe ONLY from the main thread (this guaranteed valid):
-void MyPanel::on_activate() {
-    lifetime_.defer([this]() { rebuild_layout(); });  // OK — main thread
-}
-
-// Cancel-and-retry (e.g., re-test while previous test in flight):
-lifetime_.invalidate();                // Expire all outstanding tokens
-auto tok = lifetime_.token();          // Fresh token for new operation
-```
-
-Do **NOT** use `shared_ptr<bool> alive_`, `callback_guard_`, `alive_guard_`, `weak_ptr<bool>`,
-or `shared_ptr<atomic<bool>>` for callback safety. These are deprecated patterns replaced by
-`AsyncLifetimeGuard`. See `include/async_lifetime_guard.h` and `docs/devel/ARCHITECTURE.md`.
+Do **NOT** use `shared_ptr<bool> alive_`, `callback_guard_`, `alive_guard_`, `weak_ptr<bool>`, or `shared_ptr<atomic<bool>>` for callback safety. Deprecated; replaced by `AsyncLifetimeGuard`. See `include/async_lifetime_guard.h`.
 
 **HTTP work runs on HttpExecutor, NOT raw `std::thread`.** Two process-wide lanes:
 `HttpExecutor::fast()` (4 workers) for REST/API/timelapse/thumbnails/small uploads,
@@ -188,19 +158,7 @@ Multiple sync deletions in the same `UpdateQueue::process_pending()` batch corru
 
 **Safe escape routes (truly outside UpdateQueue batches):** `safe_delete_deferred()`, `safe_delete_deferred_raw()`, `helix::ui::safe_clean_children()`, `lv_obj_delete_async()`, and raw `lv_async_call(cb, ud)`. Note: our wrapper `helix::ui::async_call` does NOT escape — it routes through `queue_update`. See `include/ui_utils.h` and `ARCHITECTURE.md` § "No safe_delete() Inside UpdateQueue Callbacks".
 
-**Subject shutdown safety (MANDATORY):** Any class that creates LVGL subjects MUST self-register its cleanup inside `init_subjects()`. This prevents shutdown crashes (observer removal on freed subjects during `lv_deinit`). See `static_subject_registry.h` for full docs.
-
-```cpp
-void MyState::init_subjects() {
-    if (subjects_initialized_) return;
-    // ... create subjects ...
-    subjects_initialized_ = true;
-    StaticSubjectRegistry::instance().register_deinit(
-        "MyState", []() { MyState::instance().deinit_subjects(); });
-}
-```
-
-**Never** register cleanup externally (e.g., in SubjectInitializer). Co-locating init+cleanup prevents forgotten registrations that cause shutdown crashes.
+**Subject shutdown safety (MANDATORY):** Any class creating LVGL subjects MUST self-register its cleanup inside `init_subjects()` via `StaticSubjectRegistry::instance().register_deinit(name, deinit_fn)`. Prevents observer removal on freed subjects during `lv_deinit`. **Never** register externally (e.g., in `SubjectInitializer`) — co-locating init+cleanup prevents forgotten registrations. See `static_subject_registry.h`.
 
 **Dynamic subject lifetime safety (MANDATORY):** Per-fan, per-sensor, and per-extruder subjects are **dynamic** — they can be destroyed and recreated during reconnection/rediscovery. Observing a dynamic subject without a `SubjectLifetime` token causes **use-after-free crashes** when `lv_subject_deinit()` frees observers but `ObserverGuard` still holds a dangling pointer.
 
@@ -232,28 +190,9 @@ std::vector<SubjectLifetime>   carousel_lifetimes_;   // MUST clear before obser
 
 **Static subjects** (singleton lifetime, no token needed): `get_fan_speed_subject()` (no args), `get_bed_temp_subject()`, etc.
 
-**SubjectLifetime reset ordering (MANDATORY):** When rebinding observers to new subjects, reset the lifetime BEFORE the observer. The observer guard's `weak_ptr` only expires if the `shared_ptr` (SubjectLifetime) is destroyed first. Wrong order = `lv_observer_remove()` on a freed subject (#705).
+**SubjectLifetime reset ordering (MANDATORY):** Reset the lifetime BEFORE the observer when rebinding. The observer guard's `weak_ptr` only expires if the `SubjectLifetime` is destroyed first. Wrong order = `lv_observer_remove()` on a freed subject (#705). Pattern: `speed_lifetime_.reset(); speed_observer_.reset();` — never the reverse.
 
-```cpp
-// ✅ CORRECT: lifetime first, then observer
-speed_lifetime_.reset();
-speed_observer_.reset();
-
-// ❌ CRASH: observer tries lv_observer_remove() while weak_ptr is still alive
-speed_observer_.reset();
-speed_lifetime_.reset();
-```
-
-**`ObserverGuard::reset()` is the default — `release()` is NOT (MANDATORY).** Use `reset()` for all normal cleanup: panel teardown, widget `LV_EVENT_DELETE` callbacks, and repopulate paths. It internally checks `s_subjects_valid` and `lv_is_initialized()`, so it is safe even if LVGL is already torn down. `release()` is **only** for the very last pre-deinit cleanup (`StaticSubjectRegistry::register_deinit()` callbacks) where the observer ctx must be intentionally leaked because the subject is already destroyed. (Codebase-wide audit 2026-04-22 confirmed no existing violations; this rule applies to new code.)
-
-| ❌ UAF (zombie observer, deferred callback fires on stale `this`) | ✅ CORRECT |
-|---|---|
-| `// in widget LV_EVENT_DELETE callback:` | `// in widget LV_EVENT_DELETE callback:` |
-| `data->color_observer.release();` | `data->color_observer.reset();` |
-
-If you find yourself reasoning "`release()` seems safer because it skips `lv_observer_remove()`" — that's the misconception that caused 17 #579 reports. Skipping the remove call leaks the `LambdaObserverContext` and corrupts rendering state. The safety you want lives inside `reset()` already (`s_subjects_valid` + `lv_is_initialized()` guards). Don't write `release()` in new cleanup code.
-
-See `ui_observer_guard.h` for full documentation of the `SubjectLifetime` pattern.
+**`ObserverGuard::reset()` is the default — `release()` is NOT (MANDATORY).** Use `reset()` for all normal cleanup (panel teardown, widget `LV_EVENT_DELETE` callbacks, repopulate paths). `reset()` already handles the shutdown case via `s_subjects_valid` + `lv_is_initialized()` guards. `release()` is **only** for the very last pre-deinit cleanup (`StaticSubjectRegistry::register_deinit()` callbacks) where the subject is already destroyed. If you reason *"`release()` skips `lv_observer_remove()` so it's safer"* — that's the misconception that caused 17 #579 reports. Skipping the remove call leaks the `LambdaObserverContext` and corrupts rendering state. Don't write `release()` in new cleanup code. See `ui_observer_guard.h`.
 
 **No `lv_obj_delete()` in input event handlers:** Never delete container children synchronously inside `LV_EVENT_CLICKED`/`LV_EVENT_RELEASED` handlers — LVGL may be iterating the child list during `indev_proc_release`. If a rebuild (`lv_obj_clean`) follows, just null pointers and let the rebuild handle deletion. See `docs/devel/ARCHITECTURE.md` § "No Object Deletion During Input Event Processing".
 

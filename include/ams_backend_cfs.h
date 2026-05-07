@@ -71,6 +71,16 @@ class CfsErrorDecoder {
     /// Returns {message, hint} or nullopt for unknown codes.
     static std::optional<std::pair<const char*, const char*>>
         lookup_message(const std::string& key_code);
+
+    /// Variant that splices the `values` array (e.g. `[1,"B"]` from
+    /// `!! {"code":"key849","values":[1,"B"]}`) into the user-facing
+    /// message when the code's value-format is known. Returns full
+    /// `std::string` so the caller doesn't have to mix const-char + string
+    /// concatenation. Falls back to the un-augmented message+hint when
+    /// the values shape is unknown for that code.
+    static std::optional<std::pair<std::string, std::string>>
+        lookup_message_with_values(const std::string& key_code,
+                                    const nlohmann::json& values);
 };
 
 /// CFS (Creality Filament System) backend — K2 series printers with RS-485 CFS units
@@ -154,6 +164,17 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     // Callback lifetime management
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// Dispatch a load/unload/swap CR_BOX_* script with proper completion
+    /// semantics: ensures the toolhead is homed, sends the gcode, and flips
+    /// `system_info_.action` back to IDLE *only when Klipper finishes the
+    /// entire script* (success or error). The previous design relied on the
+    /// `filament_switch_sensor` flipping to declare "done" — but that sensor
+    /// triggers at the toolhead extruder, which is reached at the *end of
+    /// CR_BOX_EXTRUDE* (step 2 of 5). The remaining `CR_BOX_WASTE` and
+    /// `CR_BOX_FLUSH` (~3 min of nozzle-at-240 °C extrusion) ran while the
+    /// UI told the user the load was idle.
+    AmsError dispatch_action_script(std::string gcode);
 
     /// Layer a configured FilamentSlotOverride for `slot_index` over `slot`,
     /// mutating `slot` in place. Override wins for every non-default field;

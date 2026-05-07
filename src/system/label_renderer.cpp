@@ -390,17 +390,18 @@ LabelBitmap LabelRenderer::render(const SpoolInfo& spool, LabelPreset preset,
     }
 
     // --- STANDARD / COMPACT: QR left, text right (wide labels) ---
-    // Die-cut labels have fixed dimensions — use tighter margins and smaller
-    // QR to maximize text area (especially important on narrow die-cuts like 38mm).
-    bool die_cut = size.height_px > 0;
-    if (die_cut && label_width < 500) {
+    // Narrow labels (≤62mm tape, ≤500px) get tighter margins and a smaller
+    // QR to maximize text area — applies to both die-cut AND narrow continuous
+    // tape (29mm/38mm Brother QL), where horizontal width is the tight axis.
+    bool narrow = label_width < 500;
+    if (narrow) {
         margin = 12;
     }
 
     int qr_pct = (preset == LabelPreset::STANDARD) ? 40 : 30;
     int qr_max = (preset == LabelPreset::STANDARD) ? 250 : 200;
-    if (die_cut && label_width < 500) {
-        qr_pct -= 8;  // shrink QR on narrow die-cut labels
+    if (narrow) {
+        qr_pct -= 8;  // shrink QR on narrow labels (die-cut or continuous)
         qr_max = std::min(qr_max, 180);
     }
     int qr_target = std::min(label_width * qr_pct / 100, qr_max);
@@ -411,12 +412,16 @@ LabelBitmap LabelRenderer::render(const SpoolInfo& spool, LabelPreset preset,
         return LabelBitmap::create(label_width, margin * 2);
     }
 
-    int gap = (die_cut && label_width < 500) ? 10 : 16;
+    int gap = narrow ? 10 : 16;
     int text_x = margin + qr.width() + gap;
     int text_area_width = label_width - text_x - margin;
 
-    // Scale selection based on label width AND height to fill available space
-    int avail_h = size.height_px > 0 ? size.height_px : 300;
+    // Scale selection based on label width AND height to fill available space.
+    // Continuous tape has no fixed length — use a tighter target than die-cut so
+    // fonts stay smaller and more characters fit horizontally. 260px @ 300dpi
+    // gives scale_lg=5/md=4/sm=3 for STANDARD continuous (was 6/5/4 with the
+    // 300px default — too tall and wasted horizontal width on 62mm tape).
+    int avail_h = size.height_px > 0 ? size.height_px : 260;
     int scale_lg, scale_md, scale_sm;
     if (preset == LabelPreset::COMPACT) {
         // Compact: 3 lines. Scale to fill ~80% of height.
@@ -432,8 +437,12 @@ LabelBitmap LabelRenderer::render(const SpoolInfo& spool, LabelPreset preset,
         scale_md = std::clamp(target_scale - 1, 2, 6);
         scale_sm = std::clamp(target_scale - 2, 2, 5);
     }
-    // Also cap by text area width (don't let chars overflow horizontally)
-    int max_scale_by_width = text_area_width / ((FONT_W + 1) * 4); // fit ≥4 chars
+    // Also cap by text area width (don't let chars overflow horizontally).
+    // Floor of 8 chars: vendor/material strings ("PRUSAMENT", "POLYMAKER") are
+    // typically 7-9 chars — anything less truncates them to garble on narrow
+    // tape. Was 4, which left 29mm continuous showing only "PRUS".
+    int max_scale_by_width = text_area_width / ((FONT_W + 1) * 8); // fit ≥8 chars
+    if (max_scale_by_width < 2) max_scale_by_width = 2;
     scale_lg = std::min(scale_lg, max_scale_by_width);
     scale_md = std::min(scale_md, max_scale_by_width);
     scale_sm = std::min(scale_sm, max_scale_by_width);

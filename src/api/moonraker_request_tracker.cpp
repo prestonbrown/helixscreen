@@ -210,7 +210,16 @@ bool MoonrakerRequestTracker::route_response(
         }
 
         if (error_cb) {
-            error_cb(error);
+            try {
+                error_cb(error);
+            } catch (const std::exception& e) {
+                spdlog::error(
+                    "[INTERNAL] [Request Tracker] Error callback for '{}' threw exception: {}",
+                    method_name, e.what());
+                // Symmetric with success_cb below: never re-throw out of
+                // libhv's event loop. Pre-#931 a throwing callback unwound
+                // through main_loop and exited 134.
+            }
         }
     } else if (success_cb) {
         try {

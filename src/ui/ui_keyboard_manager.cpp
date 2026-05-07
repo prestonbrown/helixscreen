@@ -417,8 +417,8 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
         }
 
     } else if (code == LV_EVENT_RELEASED) {
-        spdlog::info("[KeyboardManager] RELEASED event - state={}, overlay={}, textarea={}",
-                     (int)mgr.longpress_state_, (void*)mgr.overlay_, (void*)mgr.context_textarea_);
+        spdlog::trace("[KeyboardManager] RELEASED event - state={}, overlay={}, textarea={}",
+                      (int)mgr.longpress_state_, (void*)mgr.overlay_, (void*)mgr.context_textarea_);
 
         if (mgr.longpress_state_ == LP_ALT_SELECTED) {
             // Auto-insert mode: alt char already inserted, just clean up
