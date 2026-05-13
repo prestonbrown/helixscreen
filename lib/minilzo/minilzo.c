@@ -5280,7 +5280,7 @@ DO_COMPRESS      ( const lzo_bytep in , lzo_uint  in_len,
 #undef DO_COMPRESS
 #undef LZO_HASH
 
-#undef LZO_TEST_OVERRUN
+#define LZO_TEST_OVERRUN 1
 #undef DO_DECOMPRESS
 #define DO_DECOMPRESS       lzo1x_decompress
 
