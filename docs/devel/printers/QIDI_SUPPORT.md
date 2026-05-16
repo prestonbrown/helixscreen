@@ -160,7 +160,7 @@ HelixScreen has a **stub backend** for the Box (`AmsType::QIDI_BOX`, `AmsBackend
 
 Full context, references to the `qidi-community/Plus4-Wiki` open-source reimplementation, and the follow-up work list live in [`FILAMENT_MANAGEMENT.md` → QIDI Box](../FILAMENT_MANAGEMENT.md#qidi-box-qidi-plus4--q2--max4).
 
-Currenr Solution: Install community box firmware, [Bunny Box](https://github.com/Wazzup77/Bunny-Box) for box access. Most stock features currently work and extra features work while following the Bunny Box wiki.
+Current Solution: Install community box firmware, [Bunny Box](https://github.com/Wazzup77/Bunny-Box) for box access. Most stock features currently work and extra features work while following the Bunny Box setup wiki.
 
 Stock integration is blocked on test-hardware access.
 
