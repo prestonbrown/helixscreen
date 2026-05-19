@@ -357,3 +357,76 @@ TEST_CASE_METHOD(LVGLTestFixture,
     int brightness = theme_compute_brightness(text);
     REQUIRE(brightness < 128);
 }
+
+// ============================================================================
+// responsive_dimension() — picks the smaller screen axis so portrait layouts
+// adapt to their cramped width instead of their tall height.
+// ============================================================================
+
+namespace {
+// Bufferless display: responsive_dimension() only reads the resolution, never
+// renders, so no draw buffer / flush_cb is needed.
+lv_display_t* make_test_display(int32_t w, int32_t h) {
+    return lv_display_create(w, h);
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "responsive_dimension picks the smaller screen axis",
+                 "[theme][breakpoints]") {
+    SECTION("landscape — min is height (unchanged behavior)") {
+        lv_display_t* d = make_test_display(800, 480);
+        REQUIRE(responsive_dimension(d) == 480);
+        lv_display_delete(d);
+
+        d = make_test_display(1024, 600);
+        REQUIRE(responsive_dimension(d) == 600);
+        lv_display_delete(d);
+    }
+
+    SECTION("portrait — min is width (the fix)") {
+        lv_display_t* d = make_test_display(480, 800);
+        REQUIRE(responsive_dimension(d) == 480); // was 800 (ver_res) before
+        lv_display_delete(d);
+
+        d = make_test_display(320, 480);
+        REQUIRE(responsive_dimension(d) == 320);
+        lv_display_delete(d);
+
+        d = make_test_display(272, 480);
+        REQUIRE(responsive_dimension(d) == 272);
+        lv_display_delete(d);
+    }
+
+    SECTION("square — either axis") {
+        lv_display_t* d = make_test_display(480, 480);
+        REQUIRE(responsive_dimension(d) == 480);
+        lv_display_delete(d);
+    }
+
+    SECTION("null display falls back to the default display") {
+        // lv_display_get_default() returns the first display created — here the
+        // fixture's TEST_DISPLAY_WIDTH x TEST_DISPLAY_HEIGHT screen — so the
+        // fallback resolves to its smaller axis, not any later-created display.
+        REQUIRE(responsive_dimension(nullptr) == std::min(TEST_DISPLAY_WIDTH, TEST_DISPLAY_HEIGHT));
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "responsive_dimension feeds breakpoint selection — portrait no longer overflows",
+                 "[theme][breakpoints]") {
+    // End-to-end: a 480x800 portrait screen used to resolve to _xlarge (via
+    // ver_res=800) and overflow; it now resolves to _medium via the 480 width.
+    lv_display_t* d = make_test_display(480, 800);
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(responsive_dimension(d))) == "_medium");
+    lv_display_delete(d);
+
+    // 320x480 portrait resolves to _tiny instead of _medium.
+    d = make_test_display(320, 480);
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(responsive_dimension(d))) == "_tiny");
+    lv_display_delete(d);
+
+    // Landscape 800x480 is byte-identical to the old behavior — still _medium.
+    d = make_test_display(800, 480);
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(responsive_dimension(d))) == "_medium");
+    lv_display_delete(d);
+}
