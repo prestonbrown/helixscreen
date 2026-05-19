@@ -950,8 +950,7 @@ void DisplaySoundSettingsOverlay::apply_preview_palette_to_screen_popups() {
 
     lv_obj_t* modal_dialog = lv_obj_find_by_name(lv_screen_active(), "modal_dialog");
     if (modal_dialog) {
-        const char* suffix =
-            theme_manager_get_breakpoint_suffix(lv_display_get_vertical_resolution(nullptr));
+        const char* suffix = theme_manager_get_breakpoint_suffix(responsive_dimension(nullptr));
         int radius_px =
             helix::BorderRadiusSizes::pixels(theme.properties.border_radius_size, suffix);
         lv_obj_set_style_radius(modal_dialog, radius_px, LV_PART_MAIN);

@@ -261,11 +261,25 @@ void theme_manager_deinit();
  * Returns the suffix string used to select responsive variants from globals.xml.
  * Useful for testing and debugging responsive behavior.
  *
- * @param resolution Screen height (vertical resolution)
+ * @param resolution Screen dimension in pixels (typically responsive_dimension(display) —
+ *                   the smaller of width and height, so portrait orientations pick a
+ *                   breakpoint matched to the cramped axis).
  * @return "_tiny" (≤390), "_small" (391-460), "_medium" (461-550), "_large" (551-700), or "_xlarge"
  * (>700)
  */
 const char* theme_manager_get_breakpoint_suffix(int32_t resolution);
+
+/**
+ * @brief Return the smaller dimension of the display (width or height).
+ *
+ * Used for responsive breakpoint selection so portrait layouts pick a breakpoint
+ * suited to the cramped axis. Landscape: typically returns height. Portrait:
+ * returns width. Pass nullptr to use the default display.
+ *
+ * @param display LVGL display instance, or nullptr for the default display
+ * @return min(horizontal_resolution, vertical_resolution), or 600 as a safe fallback
+ */
+int32_t responsive_dimension(lv_display_t* display);
 
 /**
  * @brief Register responsive spacing tokens (space_* system)
