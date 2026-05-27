@@ -102,6 +102,16 @@
     <string name="icon_size_xlarge" value="xl"/>
     <string name="icon_size_xxlarge" value="xl"/>
 
+    <!-- Nav bar inactive icon size — one tier below icon_size for size differentiation -->
+    <!-- Active nav icons use #icon_size; inactive use this smaller size + muted color -->
+    <string name="icon_size_nav_inactive_micro" value="sm"/>
+    <string name="icon_size_nav_inactive_tiny" value="sm"/>
+    <string name="icon_size_nav_inactive_small" value="sm"/>
+    <string name="icon_size_nav_inactive_medium" value="md"/>
+    <string name="icon_size_nav_inactive_large" value="lg"/>
+    <string name="icon_size_nav_inactive_xlarge" value="lg"/>
+    <string name="icon_size_nav_inactive_xxlarge" value="lg"/>
+
     <!-- ===================================================================== -->
     <!-- Responsive Badge Sizes (badge_size)                                   -->
     <!-- ===================================================================== -->

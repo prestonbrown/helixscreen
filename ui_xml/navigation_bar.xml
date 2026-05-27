@@ -34,72 +34,62 @@
       <event_cb trigger="clicked" callback="on_edit_done_clicked"/>
     </ui_button>
     <!-- ================================================================== -->
-    <!-- Navigation Buttons - Dual icon pattern (accent/secondary variants) -->
+    <!-- Navigation Buttons                                                  -->
+    <!-- Active: #icon_size + variant="primary" (blue, full size)           -->
+    <!-- Inactive: #icon_size_nav_inactive + variant="muted" (gray, smaller)-->
+    <!-- Home/Filament/Settings use outline glyphs for inactive state       -->
     <!-- ================================================================== -->
     <!-- Home Button (Panel 0) -->
     <ui_button name="nav_btn_home"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <!-- Active icon (accent color) - shown when active_panel == 0 -->
       <icon name="nav_icon_home_active" src="home" size="#icon_size" variant="primary" hidden="true">
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="0"/>
       </icon>
-      <!-- Inactive icon (gray) - shown when active_panel != 0 -->
-      <icon name="nav_icon_home_inactive" src="home" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_home_inactive" src="home_outline" size="#icon_size_nav_inactive" variant="muted">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="0"/>
       </icon>
     </ui_button>
     <!-- Controls Button (Panel 2) - CONNECTION + KLIPPY READY REQUIRED -->
-    <!-- Uses combined nav_buttons_enabled subject (1=enabled when connected AND klippy ready) -->
     <ui_button name="nav_btn_controls"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
-      <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
       <lv_obj name="nav_controls_icons" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
-        <!-- Active icon (accent) - shown when on controls panel -->
         <icon name="nav_icon_controls_active" src="fine_tune" size="#icon_size" variant="primary" hidden="true">
           <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
-        <!-- Inactive icon (secondary) - shown when not on controls panel -->
-        <icon name="nav_icon_controls_inactive" src="fine_tune" size="#icon_size" variant="secondary">
+        <icon name="nav_icon_controls_inactive" src="fine_tune" size="#icon_size_nav_inactive" variant="muted">
           <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
       </lv_obj>
-      <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
-      <icon name="nav_icon_controls_disabled" src="fine_tune" size="#icon_size" variant="disabled">
+      <!-- Disabled icon - visible only when disconnected OR klippy not ready -->
+      <icon name="nav_icon_controls_disabled" src="fine_tune" size="#icon_size_nav_inactive" variant="disabled">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="1"/>
       </icon>
     </ui_button>
     <!-- Filament Button (Panel 3) - CONNECTION + KLIPPY READY REQUIRED -->
-    <!-- Uses combined nav_buttons_enabled subject (1=enabled when connected AND klippy ready) -->
     <ui_button name="nav_btn_filament"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
-      <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
       <lv_obj name="nav_filament_icons" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
-        <!-- Active icon (accent) - shown when on filament panel -->
         <icon name="nav_icon_filament_active" src="filament" size="#icon_size" variant="primary" hidden="true">
           <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
-        <!-- Inactive icon (secondary) - shown when not on filament panel -->
-        <icon name="nav_icon_filament_inactive" src="filament" size="#icon_size" variant="secondary">
+        <icon name="nav_icon_filament_inactive" src="filament_outline" size="#icon_size_nav_inactive" variant="muted">
           <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
       </lv_obj>
-      <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
-      <icon name="nav_icon_filament_disabled" src="filament" size="#icon_size" variant="disabled">
+      <!-- Disabled icon - visible only when disconnected OR klippy not ready -->
+      <icon name="nav_icon_filament_disabled" src="filament_outline" size="#icon_size_nav_inactive" variant="disabled">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="1"/>
       </icon>
     </ui_button>
@@ -107,12 +97,11 @@
     <ui_button name="nav_btn_settings"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <icon name="nav_icon_settings_active" src="settings" size="#icon_size" variant="primary" hidden="true">
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="4"/>
       </icon>
-      <icon name="nav_icon_settings_inactive" src="settings" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_settings_inactive" src="cog_outline" size="#icon_size_nav_inactive" variant="muted">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="4"/>
       </icon>
     </ui_button>
@@ -120,12 +109,11 @@
     <ui_button name="nav_btn_advanced"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <icon name="nav_icon_advanced_active" src="dots_vertical" size="#icon_size" variant="primary" hidden="true">
         <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="5"/>
       </icon>
-      <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="#icon_size" variant="secondary">
+      <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="#icon_size_nav_inactive" variant="muted">
         <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="5"/>
       </icon>
     </ui_button>
@@ -135,11 +123,10 @@
                style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0"
                hidden="true">
       <bind_flag_if_eq subject="show_printer_switcher" flag="hidden" ref_value="0"/>
-      <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <lv_obj name="nav_printer_icon_wrap" clickable="false" event_bubble="true"
               style_pad_all="0" style_border_width="0" style_bg_opa="0">
-        <icon src="printer_3d" size="#icon_size" variant="secondary"
+        <icon src="printer_3d" size="#icon_size_nav_inactive" variant="secondary"
               clickable="false" event_bubble="true"/>
         <lv_obj name="nav_printer_dot" width="8" height="8"
                 style_radius="4" style_bg_opa="255"
