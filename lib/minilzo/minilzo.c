@@ -4070,6 +4070,7 @@ lzo_unused_funcs_impl(void, lzo_memops_unused_funcs)(void)
 #endif
 
 #define MEMCPY8_DS(dest,src,len) \
+    if (lzo_unlikely((lzo_uint)(op_end - (dest)) < (lzo_uint)(len))) goto output_overrun; \
     lzo_memcpy(dest,src,len); dest += len; src += len
 
 #define BZERO8_PTR(s,l,n) \
