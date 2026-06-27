@@ -224,7 +224,7 @@ HelixScreen ships a **Q2 Happy Hare preset** (`presets/qidi_q2.json`) for exactl
 - **Q2 resolution is very small** -- The Q2's 480x272 display uses the MICRO layout. Some UI elements may be cramped but the layout is functional.
 - **Q2 has limited RAM** -- ~498 MB total. HelixScreen must be memory-conscious on this device.
 - **Max 4 untested** -- Detection heuristics and display rendering for this model are based on specs. Community testers welcome.
-- **No chamber heater control UI** -- QIDI printers have heated chambers, but HelixScreen doesn't yet have a dedicated chamber temperature control panel.
+- **No mmu heater control UI** -- The Qidi Box has a dedicated heater, but HelixScreen doesn't yet have a dedicated MMU temp widget.
 
 ## Q2 Hardware Details
 
