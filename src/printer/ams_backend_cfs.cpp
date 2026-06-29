@@ -635,17 +635,19 @@ AmsSystemInfo AmsBackendCfs::parse_box_status(const nlohmann::json& box_json) {
                 }
             }
 
+            std::string vender_str = "none";
+            if (i < static_cast<int>(vender_arr.size()) && vender_arr[i].is_string()) {
+                vender_str = vender_arr[i].get<std::string>();
+            }
+
             // Brand fallback: the CFS material-DB lookup above populates
             // slot.brand for known Creality material codes. For RFID spools
             // whose code isn't in our DB, fall back to the box's own per-slot
             // "vender" string when it carries a real value (hardware reports
             // the sentinel "unknown"/"-1" when no RFID vendor data is present).
-            if (slot.brand.empty() && i < static_cast<int>(vender_arr.size()) &&
-                vender_arr[i].is_string()) {
-                std::string vender = vender_arr[i].get<std::string>();
-                if (!vender.empty() && vender != "unknown" && vender != "-1" && vender != "None") {
-                    slot.brand = vender;
-                }
+            if (slot.brand.empty() && !vender_str.empty() && vender_str != "unknown" &&
+                vender_str != "-1" && vender_str != "None" && vender_str != "none") {
+                slot.brand = vender_str;
             }
 
             // Remaining length
@@ -671,6 +673,24 @@ AmsSystemInfo AmsBackendCfs::parse_box_status(const nlohmann::json& box_json) {
                 slot.status = SlotStatus::EMPTY;
             } else if (slot.remaining_length_m <= 0.0f && remain_str != "-1") {
                 slot.status = SlotStatus::EMPTY;
+            } else {
+                slot.status = SlotStatus::AVAILABLE;
+            }
+
+            if (vender_str == "none" || vender_str == "None" || vender_str == "-1" ||
+                vender_str.empty()) {
+                slot.status = SlotStatus::EMPTY;
+
+                slot.brand.clear();
+                slot.material.clear();
+                slot.color_name.clear();
+                slot.spool_name.clear();
+                slot.color_rgb = CfsMaterialDb::parse_color("-1");
+                slot.spoolman_id = 0;
+                slot.spoolman_vendor_id = 0;
+                slot.remaining_length_m = 0.0f;
+                slot.remaining_weight_g = -1.0f;
+                slot.total_weight_g = -1.0f;
             } else {
                 slot.status = SlotStatus::AVAILABLE;
             }
@@ -1878,15 +1898,26 @@ void AmsBackendCfs::apply_overrides(SlotInfo& slot, int slot_index) {
     // always read RFID -1, so firmware reports the bay EMPTY even though a
     // spool is physically present. If the override carries a real assignment,
     // the user has told us a spool is in this bay — promote it to AVAILABLE.
-    const bool real_assignment = o.spoolman_id > 0 || !o.material.empty() || !o.brand.empty() ||
-                                 !o.spool_name.empty() || o.color_set;
-    if (real_assignment && slot.status == SlotStatus::EMPTY) {
-        slot.status = SlotStatus::AVAILABLE;
-    }
+    // const bool real_assignment = o.spoolman_id > 0 || !o.material.empty() || !o.brand.empty() ||
+    //                              !o.spool_name.empty() || o.color_set;
+    // if (real_assignment && slot.status == SlotStatus::EMPTY) {
+    //     slot.status = SlotStatus::AVAILABLE;
+    // }
 }
 
 void AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                const std::string& observed_uid) {
+    if (slot.status == SlotStatus::EMPTY) {
+        auto ovr_it = overrides_.find(slot_index);
+        if (ovr_it != overrides_.end()) {
+            spdlog::info("{} Slot {} is physically empty, clearing stale override",
+                         backend_log_tag(), slot_index);
+            clear_override_locked(slot_index, slot);
+        }
+        last_rfid_uid_.erase(slot_index);
+        return;
+    }
+
     // Empty observed UID = no RFID tag / sentinel material_type / sentinel
     // color_value. Treat as non-signal: don't update the baseline, don't
     // clear. Without this guard every tag-less poll would overwrite a real
