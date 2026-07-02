@@ -99,6 +99,7 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::atomic<bool> status_running_{false};
     std::atomic<bool> status_refresh_requested_{false};
     ConnectionStatus cached_status_{}; // Protected by status_mutex_
+    std::atomic<bool> prev_connected_{false}; // Track transitions for event firing
 
     // 5GHz support — computed once at start(), never changes
     std::atomic<bool> supports_5ghz_cached_{false};

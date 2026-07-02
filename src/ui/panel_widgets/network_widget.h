@@ -53,7 +53,7 @@ class NetworkWidget : public PanelWidget {
     // ethernet probes can't touch freed subjects.
     helix::AsyncLifetimeGuard lifetime_;
 
-    void detect_network_type();
+    void detect_network_type(bool force = false);
     int compute_network_icon_state();
     void update_network_icon_state();
     void set_network(NetworkType type);

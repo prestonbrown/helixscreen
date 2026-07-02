@@ -66,6 +66,11 @@ class WifiBackendMock : public WifiBackend {
     ConnectionStatus get_status() override;
     bool supports_5ghz() const override;
 
+    // Test helpers — allow test code to drive state directly without going
+    // through the simulated async connect/disconnect flow.
+    void set_connected_state(bool connected, const std::string& ssid = "",
+                             const std::string& ip = "", int signal = 0);
+
   private:
     // ========================================================================
     // Internal State

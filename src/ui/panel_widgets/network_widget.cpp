@@ -108,13 +108,17 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // home-panel load and races the backend worker thread. Without this, an
     // initial empty STATUS response pins the widget on 'Disconnected' until
     // the user navigates away and back.
+    //
+    // force=true ensures CONNECTED/DISCONNECTED events are always reflected
+    // regardless of current_network_, fixing both the initial connection race
+    // and stale icon after disconnect (prestonbrown/helixscreen#1059).
     if (wifi_manager_) {
         wifi_manager_->add_state_observer(lifetime_.token(), [this]() {
             // Mark backend as ready — this fires on READY, CONNECTED, and
             // DISCONNECTED events. Once true, detect_network_type() will
             // re-check WiFi status even if current_network_ != Unknown.
             backend_ready_ = true;
-            detect_network_type();
+            detect_network_type(true);
             if (!signal_poll_timer_ && current_network_ == NetworkType::Wifi) {
                 signal_poll_timer_ =
                     lv_timer_create(signal_poll_timer_cb, SIGNAL_POLL_INTERVAL_MS, this);
@@ -179,7 +183,7 @@ void NetworkWidget::on_deactivate() {
     }
 }
 
-void NetworkWidget::detect_network_type() {
+void NetworkWidget::detect_network_type(bool force) {
     // Priority: Ethernet > WiFi > Disconnected
     // Ensures users on wired connections see the Ethernet icon even if WiFi is also available.
     //
@@ -217,7 +221,12 @@ void NetworkWidget::detect_network_type() {
     // and we're currently Disconnected, re-check WiFi status. This fixes the
     // race where the widget attached before the backend finished init and got
     // pinned on Disconnected before the READY event could trigger a refresh.
-    if (current_network_ == NetworkType::Unknown ||
+    //
+    // When force=true (from state observer callback), always re-check WiFi so
+    // CONNECTED/DISCONNECTED events are reflected even when current_network_
+    // is already Wifi — fixes stale connected icon after disconnect and delayed
+    // initial connection detection (prestonbrown/helixscreen#1059).
+    if (force || current_network_ == NetworkType::Unknown ||
         (backend_ready_ && current_network_ == NetworkType::Disconnected)) {
         apply_wifi_fallback();
     }

@@ -1038,10 +1038,21 @@ void WifiBackendNetworkManager::status_thread_func() {
             fresh_status = poll_status_now();
         }
 
-        // Update cache
+        // Update cache and fire events on connection state transitions
         {
             std::lock_guard<std::mutex> lock(status_mutex_);
             cached_status_ = fresh_status;
+        }
+
+        bool now_connected = fresh_status.connected;
+        bool was_connected = prev_connected_.exchange(now_connected);
+
+        if (now_connected && !was_connected) {
+            spdlog::info("[WifiBackend] NM: Connection detected via status poll");
+            fire_event("CONNECTED");
+        } else if (!now_connected && was_connected) {
+            spdlog::info("[WifiBackend] NM: Disconnection detected via status poll");
+            fire_event("DISCONNECTED");
         }
 
         spdlog::trace(

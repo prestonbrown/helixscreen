@@ -329,6 +329,14 @@ WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
     return status;
 }
 
+void WifiBackendMock::set_connected_state(bool connected, const std::string& ssid,
+                                          const std::string& ip, int signal) {
+    connected_ = connected;
+    connected_ssid_ = ssid;
+    connected_ip_ = ip;
+    connected_signal_ = signal;
+}
+
 bool WifiBackendMock::supports_5ghz() const {
     // Mock simulates typical embedded hardware which is 2.4GHz only
     return false;
