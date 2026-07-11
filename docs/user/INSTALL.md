@@ -205,10 +205,10 @@ sh /usr/data/install.sh --local /usr/data/helixscreen-k1.zip
 
 Installs to `/usr/data/helixscreen/`, boot service at `/etc/init.d/S99helixscreen`.
 
-### Creality K2 Series
+### Creality  Series
 
 - **Hardware:**
-  - Creality K2 Max, K2 Plus, or K2 Pro
+  - Creality K2 Plus, or K2 Pro
   - Stock 4.3" touchscreen display (480x800)
   - Network connection
 
