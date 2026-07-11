@@ -205,7 +205,7 @@ sh /usr/data/install.sh --local /usr/data/helixscreen-k1.zip
 
 Installs to `/usr/data/helixscreen/`, boot service at `/etc/init.d/S99helixscreen`.
 
-### Creality  Series
+### Creality K2 Series
 
 - **Hardware:**
   - Creality K2 Plus, or K2 Pro
