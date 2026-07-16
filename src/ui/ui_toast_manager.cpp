@@ -244,7 +244,17 @@ void ToastManager::deinit_subjects() {
 
 void ToastManager::ensure_stack_container() {
     const int32_t margin = xml_int_const("space_2xl", 24);
-    const int32_t stack_width = compute_toast_stack_width();
+    int32_t stack_width = compute_toast_stack_width();
+
+    // The breakpoint width table is calibrated for landscape; in portrait the
+    // cramped axis is the width, so clamp to the screen or the stack overflows
+    // the left edge (it is anchored TOP_RIGHT with a margin on each side).
+    if (auto* disp = lv_display_get_default()) {
+        const int32_t max_width = lv_display_get_horizontal_resolution(disp) - 2 * margin;
+        if (max_width > 0 && stack_width > max_width) {
+            stack_width = max_width;
+        }
+    }
 
     if (!toast_stack_ || !lv_obj_is_valid(toast_stack_)) {
         lv_obj_t* layer = lv_layer_top();
