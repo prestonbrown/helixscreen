@@ -778,11 +778,25 @@ void TempGraphOverlay::rebuild_extruder_selector() {
     std::sort(sorted.begin(), sorted.end(),
               [](const auto* a, const auto* b) { return a->name < b->name; });
 
+    // Touch-friendly pill sizing (esp. Tiny breakpoint / 480x320): the four tool
+    // pills share the narrow 33% control column. Grow each pill to fill the row
+    // equally and give it a real minimum touch height plus a body-size digit,
+    // instead of shrinking to the glyph (was font_small + content-size, ~18px
+    // tall and near-untappable). Mirrors tool_switcher_widget's pill sizing.
+    const int32_t pill_min_h = theme_manager_get_spacing("button_height_sm");
+    const int32_t pill_pad_ver = theme_manager_get_spacing("space_xxs");
+    const int32_t pill_pad_hor = theme_manager_get_spacing("space_xs");
+
     for (const auto* ext : sorted) {
         lv_obj_t* btn = lv_obj_create(extruder_selector_row_);
-        lv_obj_set_size(btn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_xs"), 0);
-        lv_obj_set_style_radius(btn, theme_manager_get_spacing("space_xs"), 0);
+        lv_obj_set_height(btn, LV_SIZE_CONTENT);
+        lv_obj_set_flex_grow(btn, 1); // share the column width equally across pills
+        lv_obj_set_style_min_height(btn, pill_min_h, 0);
+        lv_obj_set_style_pad_ver(btn, pill_pad_ver, 0);
+        lv_obj_set_style_pad_hor(btn, pill_pad_hor, 0);
+        // Match the rounded-rectangle radius of the rest of the UI (preset
+        // buttons, dropdowns) rather than a full-circle pill.
+        lv_obj_set_style_radius(btn, ThemeManager::instance().current_palette().border_radius, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
@@ -791,6 +805,12 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         lv_obj_set_style_bg_color(
             btn,
             is_active ? theme_manager_get_color("primary") : theme_manager_get_color("card_bg"), 0);
+        // Inactive pills get an outline like the "Off" ghost button; the active
+        // pill stays a solid primary fill with no border.
+        lv_obj_set_style_border_width(
+            btn, is_active ? 0 : ThemeManager::instance().current_palette().border_width, 0);
+        lv_obj_set_style_border_color(btn, theme_manager_get_color("border"), 0);
+        lv_obj_set_style_border_opa(btn, LV_OPA_COVER, 0);
 
         lv_obj_t* label = lv_label_create(btn);
         // Compact pill label: show only the trailing number from "Nozzle N".
@@ -802,12 +822,13 @@ void TempGraphOverlay::rebuild_extruder_selector() {
                                     ? ext->display_name.substr(space_pos + 1)
                                     : ext->display_name;
         lv_label_set_text(label, pill_text.c_str());
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
+        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
         lv_obj_set_style_text_color(
             label,
             is_active ? theme_manager_get_color("on_primary") : theme_manager_get_color("text"), 0);
         lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_center(label); // center the digit within the grown pill
 
         // Store name as obj name for lookup in callback
         lv_obj_set_name(btn, ext->name.c_str());
