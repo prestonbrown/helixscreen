@@ -786,6 +786,11 @@ void TempGraphOverlay::rebuild_extruder_selector() {
     const int32_t pill_min_h = theme_manager_get_spacing("button_height_sm");
     const int32_t pill_pad_ver = theme_manager_get_spacing("space_xxs");
     const int32_t pill_pad_hor = theme_manager_get_spacing("space_xs");
+    // Rounded-rectangle radius + outline width, matching the preset buttons and
+    // dropdowns (both are breakpoint-aware theme consts, same values used in XML
+    // as #border_radius / #border_width).
+    const int32_t pill_radius = theme_manager_get_spacing("border_radius");
+    const int32_t pill_border_w = theme_manager_get_spacing("border_width");
 
     for (const auto* ext : sorted) {
         lv_obj_t* btn = lv_obj_create(extruder_selector_row_);
@@ -794,9 +799,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         lv_obj_set_style_min_height(btn, pill_min_h, 0);
         lv_obj_set_style_pad_ver(btn, pill_pad_ver, 0);
         lv_obj_set_style_pad_hor(btn, pill_pad_hor, 0);
-        // Match the rounded-rectangle radius of the rest of the UI (preset
-        // buttons, dropdowns) rather than a full-circle pill.
-        lv_obj_set_style_radius(btn, ThemeManager::instance().current_palette().border_radius, 0);
+        // Rounded rectangle rather than a full-circle pill.
+        lv_obj_set_style_radius(btn, pill_radius, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
@@ -807,10 +811,11 @@ void TempGraphOverlay::rebuild_extruder_selector() {
             is_active ? theme_manager_get_color("primary") : theme_manager_get_color("card_bg"), 0);
         // Inactive pills get an outline like the "Off" ghost button; the active
         // pill stays a solid primary fill with no border.
-        lv_obj_set_style_border_width(
-            btn, is_active ? 0 : ThemeManager::instance().current_palette().border_width, 0);
-        lv_obj_set_style_border_color(btn, theme_manager_get_color("border"), 0);
-        lv_obj_set_style_border_opa(btn, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(btn, is_active ? 0 : pill_border_w, 0);
+        if (!is_active) {
+            lv_obj_set_style_border_color(btn, theme_manager_get_color("border"), 0);
+            lv_obj_set_style_border_opa(btn, LV_OPA_COVER, 0);
+        }
 
         lv_obj_t* label = lv_label_create(btn);
         // Compact pill label: show only the trailing number from "Nozzle N".
