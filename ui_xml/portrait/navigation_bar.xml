@@ -4,30 +4,26 @@
 <component>
   <!-- Portrait variant: horizontal bottom navigation bar.
        Buttons share the row equally via flex_grow.
-       nav_height token is defined in ui_xml/navigation_bar.xml consts. -->
+       Height uses the global #button_height_lg ladder (ui_xml/globals.xml). -->
   <view extends="lv_obj"
-        width="100%" height="#nav_height"
-        style_pad_left="#space_xl" style_pad_right="#space_xl" style_pad_top="0" style_pad_bottom="0"
-        flex_flow="row"
-        style_flex_main_place="center" style_flex_track_place="center" style_flex_cross_place="center"
-        style_border_width="0" style_radius="0" scrollable="false"
+        width="100%" height="#button_height_lg" style_pad_left="#space_xl" style_pad_right="#space_xl" style_pad_top="0"
+        style_pad_bottom="0" flex_flow="row" style_flex_main_place="center" style_flex_track_place="center"
+        style_flex_cross_place="center" style_border_width="0" style_radius="0" scrollable="false"
         style_bg_color="#card_bg" style_bg_opa="255">
     <!-- ================================================================== -->
     <!-- Edit Mode Buttons - visible only during home panel grid edit       -->
     <!-- ================================================================== -->
     <!-- Add Widget (+) button -->
     <ui_button name="nav_btn_edit_add"
-               height="100%" style_min_width="48" variant="ghost" flex_flow="column"
-               style_flex_main_place="center" style_flex_cross_place="center"
-               style_flex_track_place="center" style_border_width="0" hidden="true">
+               height="100%" style_min_width="48" variant="ghost" flex_flow="column" style_flex_main_place="center"
+               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <icon src="plus" size="#icon_size" variant="primary" clickable="false" event_bubble="true"/>
       <event_cb trigger="clicked" callback="on_edit_add_widget_clicked"/>
     </ui_button>
     <!-- Done button (exits edit mode) — filled primary style -->
     <ui_button name="nav_btn_edit_done"
-               height="90%" style_min_width="36" variant="primary"
-               text="Done" translation_tag="Done" hidden="true">
+               height="90%" style_min_width="36" variant="primary" text="Done" translation_tag="Done" hidden="true">
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_edit_done_clicked"/>
     </ui_button>
@@ -114,18 +110,14 @@
     <!-- Printer switcher button — visible only when setting enabled -->
     <ui_button name="nav_printer_badge"
                height="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0"
-               hidden="true">
+               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
       <bind_flag_if_eq subject="show_printer_switcher" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <lv_obj name="nav_printer_icon_wrap" clickable="false" event_bubble="true"
-              style_pad_all="0" style_border_width="0" style_bg_opa="0">
-        <icon src="printer_3d" size="#icon_size" variant="secondary"
-              clickable="false" event_bubble="true"/>
-        <lv_obj name="nav_printer_dot" width="8" height="8"
-                style_radius="4" style_bg_opa="255"
-                style_bg_color="#success"
-                align="top_right"
+      <lv_obj name="nav_printer_icon_wrap"
+              clickable="false" event_bubble="true" style_pad_all="0" style_border_width="0" style_bg_opa="0">
+        <icon src="printer_3d" size="#icon_size" variant="secondary" clickable="false" event_bubble="true"/>
+        <lv_obj name="nav_printer_dot"
+                width="8" height="8" style_radius="4" style_bg_opa="255" style_bg_color="#success" align="top_right"
                 clickable="false" event_bubble="true"/>
       </lv_obj>
     </ui_button>

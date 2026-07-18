@@ -9,34 +9,26 @@
     <px name="nav_width_small" value="76"/>
     <px name="nav_width_medium" value="104"/>
     <px name="nav_width_large" value="132"/>
-    <!-- Nav bar height per breakpoint (used by portrait variant; auto-selected by vertical resolution) -->
-    <px name="nav_height_micro" value="42"/>
-    <px name="nav_height_tiny" value="48"/>
-    <px name="nav_height_small" value="56"/>
-    <px name="nav_height_medium" value="64"/>
-    <px name="nav_height_large" value="76"/>
-    <px name="nav_height_xlarge" value="88"/>
   </consts>
   <view extends="lv_obj"
-        width="#nav_width" height="100%" style_pad_top="#space_xl" style_pad_bottom="#space_xl" style_pad_left="0" style_pad_right="0" flex_flow="column"
-        style_flex_main_place="start" style_flex_track_place="center" style_flex_cross_place="center"
-        style_border_width="0" style_radius="0" scrollable="false" style_bg_color="#card_bg" style_bg_opa="255">
+        width="#nav_width" height="100%" style_pad_top="#space_xl" style_pad_bottom="#space_xl" style_pad_left="0"
+        style_pad_right="0" flex_flow="column" style_flex_main_place="start" style_flex_track_place="center"
+        style_flex_cross_place="center" style_border_width="0" style_radius="0" scrollable="false"
+        style_bg_color="#card_bg" style_bg_opa="255">
     <!-- ================================================================== -->
     <!-- Edit Mode Buttons - visible only during home panel grid edit      -->
     <!-- ================================================================== -->
     <!-- Add Widget (+) button -->
     <ui_button name="nav_btn_edit_add"
-               width="100%" style_min_height="48" variant="ghost" flex_flow="column"
-               style_flex_main_place="center" style_flex_cross_place="center"
-               style_flex_track_place="center" style_border_width="0" hidden="true">
+               width="100%" style_min_height="48" variant="ghost" flex_flow="column" style_flex_main_place="center"
+               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <icon src="plus" size="#icon_size" variant="primary" clickable="false" event_bubble="true"/>
       <event_cb trigger="clicked" callback="on_edit_add_widget_clicked"/>
     </ui_button>
     <!-- Done button (exits edit mode) — filled primary style -->
     <ui_button name="nav_btn_edit_done"
-               width="90%" style_min_height="36" variant="primary"
-               text="Done" translation_tag="Done" hidden="true">
+               width="90%" style_min_height="36" variant="primary" text="Done" translation_tag="Done" hidden="true">
       <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_edit_done_clicked"/>
     </ui_button>
@@ -139,19 +131,15 @@
     <!-- Printer switcher button — visible only when setting enabled -->
     <ui_button name="nav_printer_badge"
                width="100%" flex_grow="1" variant="ghost" flex_flow="column" style_flex_main_place="center"
-               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0"
-               hidden="true">
+               style_flex_cross_place="center" style_flex_track_place="center" style_border_width="0" hidden="true">
       <bind_flag_if_eq subject="show_printer_switcher" flag="hidden" ref_value="0"/>
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <lv_obj name="nav_printer_icon_wrap" clickable="false" event_bubble="true"
-              style_pad_all="0" style_border_width="0" style_bg_opa="0">
-        <icon src="printer_3d" size="#icon_size" variant="secondary"
-              clickable="false" event_bubble="true"/>
-        <lv_obj name="nav_printer_dot" width="8" height="8"
-                style_radius="4" style_bg_opa="255"
-                style_bg_color="#success"
-                align="top_right"
+      <lv_obj name="nav_printer_icon_wrap"
+              clickable="false" event_bubble="true" style_pad_all="0" style_border_width="0" style_bg_opa="0">
+        <icon src="printer_3d" size="#icon_size" variant="secondary" clickable="false" event_bubble="true"/>
+        <lv_obj name="nav_printer_dot"
+                width="8" height="8" style_radius="4" style_bg_opa="255" style_bg_color="#success" align="top_right"
                 clickable="false" event_bubble="true"/>
       </lv_obj>
     </ui_button>
