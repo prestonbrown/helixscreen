@@ -59,6 +59,7 @@ MDI_ICONS+=",0xF093A"    # animation-play (framerate/playback speed)
 MDI_ICONS+=",0xF009A"    # bell (notifications)
 MDI_ICONS+=",0xF00AD"    # block-helper (prohibited)
 MDI_ICONS+=",0xF00E4"    # bug (debug bundle)
+MDI_ICONS+=",0xF0232"    # filter (funnel)
 MDI_ICONS+=",0xF00AF"    # bluetooth
 MDI_ICONS+=",0xF00B1"    # bluetooth-connect
 MDI_ICONS+=",0xF0B5C"    # backspace-outline

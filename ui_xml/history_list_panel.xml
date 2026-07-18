@@ -10,25 +10,46 @@
     <header_bar name="header" title="Print History" title_tag="Print History"/>
     <!-- Filter/Search Row -->
     <lv_obj name="filter_row"
-            width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-            style_pad_column="#space_md" style_pad_left="#space_md" style_pad_right="#space_md"
+            width="100%" height="content" flex_flow="column" style_flex_cross_place="center"
+            scrollable="false"
+            style_pad_row="#space_sm" style_pad_left="#space_md" style_pad_right="#space_md"
             style_pad_top="#space_sm" style_pad_bottom="#space_sm">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Search box - fills remaining space -->
-      <text_input name="search_box"
-                  placeholder_text="Search filename..." placeholder_tag="Search filename..." translation_tag="Search filename..." flex_grow="1" style_min_width="120"
-                  style_max_height="#input_height" show_clear_button="true" clear_callback="history_search_clear">
-        <event_cb trigger="value_changed" callback="history_search_changed"/>
-      </text_input>
-      <!-- Status filter dropdown -->
-      <lv_dropdown name="filter_status" options="All&#10;Completed&#10;Failed&#10;Cancelled" options_tag="All&#10;Completed&#10;Failed&#10;Cancelled" style_min_width="100">
-        <event_cb trigger="value_changed" callback="history_filter_status_changed"/>
-      </lv_dropdown>
-      <!-- Sort dropdown -->
-      <lv_dropdown name="sort_dropdown" options="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" options_tag="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" style_min_width="120">
-        <event_cb trigger="value_changed" callback="history_sort_changed"/>
-      </lv_dropdown>
+      <!-- Row 1: search box + filter toggle -->
+      <lv_obj name="search_row" width="100%" height="content" flex_flow="row"
+              style_flex_cross_place="center" style_pad_gap="#space_sm" style_pad_all="0" scrollable="false">
+        <!-- Search box - fills remaining space -->
+        <text_input name="search_box"
+                    placeholder_text="Search filename..." placeholder_tag="Search filename..." translation_tag="Search filename..." flex_grow="1"
+                    style_max_height="#input_height" show_clear_button="true" clear_callback="history_search_clear">
+          <event_cb trigger="value_changed" callback="history_search_changed"/>
+        </text_input>
+        <!-- Collapse/expand the filter dropdowns -->
+        <ui_button name="filter_toggle" variant="secondary" width="#input_height" height="100%"
+                   style_pad_all="0" clickable="true"
+                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                   style_flex_track_place="center">
+          <event_cb trigger="clicked" callback="history_filters_toggle"/>
+          <!-- Icon as a child (not the icon= attr) so ui_button's contrast pass leaves
+               its colour alone; the accent is driven by refresh_filter_indicator(). -->
+          <icon name="filter_icon" src="filter" size="sm" variant="secondary"
+                clickable="false" event_bubble="true"/>
+        </ui_button>
+      </lv_obj>
+      <!-- Row 2: filter + sort dropdowns (collapsed by default; toggled by the tune button) -->
+      <lv_obj name="filter_dropdowns" width="100%" height="content" flex_flow="row"
+              style_pad_gap="#space_md" style_pad_all="0" scrollable="false">
+        <bind_flag_if_eq subject="history_filters_expanded" flag="hidden" ref_value="0"/>
+        <!-- Status filter dropdown -->
+        <lv_dropdown name="filter_status" options="All&#10;Completed&#10;Failed&#10;Cancelled" options_tag="All&#10;Completed&#10;Failed&#10;Cancelled" flex_grow="1">
+          <event_cb trigger="value_changed" callback="history_filter_status_changed"/>
+        </lv_dropdown>
+        <!-- Sort dropdown -->
+        <lv_dropdown name="sort_dropdown" options="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" options_tag="Date (newest)&#10;Date (oldest)&#10;Duration&#10;Filename" flex_grow="1">
+          <event_cb trigger="value_changed" callback="history_sort_changed"/>
+        </lv_dropdown>
+      </lv_obj>
     </lv_obj>
     <!-- Content area - scrollable container with three state-based views -->
     <lv_obj name="list_content"

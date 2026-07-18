@@ -3,6 +3,7 @@
 
 #include "ui_panel_history_list.h"
 
+#include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_fonts.h"
 #include "ui_format_utils.h"
@@ -23,6 +24,7 @@
 #include "print_history_manager.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "ui/ui_cleanup_helpers.h"
 
@@ -94,6 +96,9 @@ void HistoryListPanel::init_subjects() {
     // Initialize subject for panel state binding (0=LOADING, 1=EMPTY, 2=HAS_JOBS)
     UI_MANAGED_SUBJECT_INT(subject_panel_state_, 0, "history_list_panel_state", subjects_);
 
+    // Collapsible filter dropdowns: 0 = collapsed (default), 1 = expanded
+    UI_MANAGED_SUBJECT_INT(subject_filters_expanded_, 0, "history_filters_expanded", subjects_);
+
     // Initialize empty state message subjects
     UI_MANAGED_SUBJECT_STRING(subject_empty_message_, empty_message_buf_, "No print history found",
                               "history_empty_message", subjects_);
@@ -153,6 +158,8 @@ void HistoryListPanel::register_callbacks() {
                  get_global_history_list_panel().on_sort_changed(index);
              }
          }},
+        {"history_filters_toggle",
+         [](lv_event_t* /*e*/) { get_global_history_list_panel().toggle_filters(); }},
         {"history_detail_reprint",
          [](lv_event_t* /*e*/) { get_global_history_list_panel().handle_reprint(); }},
         {"history_detail_delete",
@@ -199,6 +206,12 @@ lv_obj_t* HistoryListPanel::create(lv_obj_t* parent) {
     search_box_ = lv_obj_find_by_name(overlay_root_, "search_box");
     filter_status_ = lv_obj_find_by_name(overlay_root_, "filter_status");
     sort_dropdown_ = lv_obj_find_by_name(overlay_root_, "sort_dropdown");
+
+    // Funnel toggle glyph — accented when a status/search filter is active.
+    // It's an XML child icon (not the ui_button icon= attr) so the button's
+    // contrast pass doesn't repaint over the accent.
+    filter_icon_ = lv_obj_find_by_name(overlay_root_, "filter_icon");
+    refresh_filter_indicator();
 
     spdlog::debug("[{}] Widget refs - content: {}, rows: {}, empty: {}", get_name(),
                   list_content_ != nullptr, list_rows_ != nullptr, empty_state_ != nullptr);
@@ -731,6 +744,9 @@ void HistoryListPanel::apply_filters_and_sort() {
                   search_query_, static_cast<int>(status_filter_), static_cast<int>(sort_column_),
                   sort_direction_ == HistorySortDirection::DESC ? "DESC" : "ASC");
 
+    // Keep the funnel accent in sync with the active-filter state.
+    refresh_filter_indicator();
+
     // Chain: search -> status -> sort
     auto result = apply_search_filter(jobs_);
     result = apply_status_filter(result);
@@ -916,6 +932,25 @@ void HistoryListPanel::on_sort_changed(int index) {
                   static_cast<int>(sort_column_),
                   sort_direction_ == HistorySortDirection::DESC ? "DESC" : "ASC");
     apply_filters_and_sort();
+}
+
+void HistoryListPanel::toggle_filters() {
+    int expanded = lv_subject_get_int(&subject_filters_expanded_) ? 0 : 1;
+    lv_subject_set_int(&subject_filters_expanded_, expanded);
+    spdlog::debug("[{}] Filter dropdowns {}", get_name(), expanded ? "expanded" : "collapsed");
+}
+
+void HistoryListPanel::refresh_filter_indicator() {
+    if (!filter_icon_)
+        return;
+    // Active when either dropdown is off its default (status != All, or sort != the
+    // default Date-newest) or the search box is non-empty.
+    bool sort_default =
+        sort_column_ == HistorySortColumn::DATE && sort_direction_ == HistorySortDirection::DESC;
+    bool active =
+        !search_query_.empty() || status_filter_ != HistoryStatusFilter::ALL || !sort_default;
+    lv_obj_set_style_text_color(filter_icon_, theme_manager_get_color(active ? "primary" : "text"),
+                                LV_PART_MAIN);
 }
 
 // ============================================================================
