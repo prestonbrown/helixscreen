@@ -2,6 +2,13 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <styles>
+    <!-- Funnel accent: primary when a status/search/sort filter is active,
+         normal text colour otherwise. Driven by the history_filter_active
+         subject so the appearance lives in XML (not C++). -->
+    <style name="filter_active" text_color="#primary"/>
+    <style name="filter_inactive" text_color="#text"/>
+  </styles>
   <!-- Overlay panel structure - leaves room for navbar -->
   <view name="history_list_panel"
         extends="lv_obj" width="#overlay_panel_width" height="100%" align="right_mid" flex_flow="column"
@@ -31,13 +38,17 @@
                    flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                    style_flex_track_place="center">
           <event_cb trigger="clicked" callback="history_filters_toggle"/>
-          <!-- Icon as a child (not the icon= attr) so ui_button's contrast pass leaves
-               its colour alone; the accent is driven by refresh_filter_indicator(). -->
-          <icon name="filter_icon" src="filter" size="sm" variant="secondary"
-                clickable="false" event_bubble="true"/>
+          <!-- Icon as a child (not the icon= attr) so ui_button's contrast pass
+               leaves its colour alone; the accent is driven reactively by the
+               history_filter_active subject via the bind_style rules below. -->
+          <icon name="filter_icon" src="filter" size="sm"
+                clickable="false" event_bubble="true">
+            <bind_style name="filter_active" subject="history_filter_active" ref_value="1"/>
+            <bind_style name="filter_inactive" subject="history_filter_active" ref_value="0"/>
+          </icon>
         </ui_button>
       </lv_obj>
-      <!-- Row 2: filter + sort dropdowns (collapsed by default; toggled by the tune button) -->
+      <!-- Row 2: filter + sort dropdowns (collapsed by default; toggled by the funnel button) -->
       <lv_obj name="filter_dropdowns" width="100%" height="content" flex_flow="row"
               style_pad_gap="#space_md" style_pad_all="0" scrollable="false">
         <bind_flag_if_eq subject="history_filters_expanded" flag="hidden" ref_value="0"/>

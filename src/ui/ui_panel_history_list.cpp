@@ -3,7 +3,6 @@
 
 #include "ui_panel_history_list.h"
 
-#include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_fonts.h"
 #include "ui_format_utils.h"
@@ -24,7 +23,6 @@
 #include "print_history_manager.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
-#include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "ui/ui_cleanup_helpers.h"
 
@@ -98,6 +96,10 @@ void HistoryListPanel::init_subjects() {
 
     // Collapsible filter dropdowns: 0 = collapsed (default), 1 = expanded
     UI_MANAGED_SUBJECT_INT(subject_filters_expanded_, 0, "history_filters_expanded", subjects_);
+
+    // Funnel accent driver: 1 when a status/search/sort filter is active.
+    // The XML binds two <style>s to this via bind_style; C++ only sets the value.
+    UI_MANAGED_SUBJECT_INT(subject_filter_active_, 0, "history_filter_active", subjects_);
 
     // Initialize empty state message subjects
     UI_MANAGED_SUBJECT_STRING(subject_empty_message_, empty_message_buf_, "No print history found",
@@ -207,10 +209,7 @@ lv_obj_t* HistoryListPanel::create(lv_obj_t* parent) {
     filter_status_ = lv_obj_find_by_name(overlay_root_, "filter_status");
     sort_dropdown_ = lv_obj_find_by_name(overlay_root_, "sort_dropdown");
 
-    // Funnel toggle glyph — accented when a status/search filter is active.
-    // It's an XML child icon (not the ui_button icon= attr) so the button's
-    // contrast pass doesn't repaint over the accent.
-    filter_icon_ = lv_obj_find_by_name(overlay_root_, "filter_icon");
+    // Seed the funnel accent state (the XML bind_style rules react to the subject).
     refresh_filter_indicator();
 
     spdlog::debug("[{}] Widget refs - content: {}, rows: {}, empty: {}", get_name(),
@@ -941,16 +940,14 @@ void HistoryListPanel::toggle_filters() {
 }
 
 void HistoryListPanel::refresh_filter_indicator() {
-    if (!filter_icon_)
-        return;
     // Active when either dropdown is off its default (status != All, or sort != the
-    // default Date-newest) or the search box is non-empty.
+    // default Date-newest) or the search box is non-empty. Publish it as a subject;
+    // the XML bind_style rules recolour the funnel reactively (appearance stays in XML).
     bool sort_default =
         sort_column_ == HistorySortColumn::DATE && sort_direction_ == HistorySortDirection::DESC;
     bool active =
         !search_query_.empty() || status_filter_ != HistoryStatusFilter::ALL || !sort_default;
-    lv_obj_set_style_text_color(filter_icon_, theme_manager_get_color(active ? "primary" : "text"),
-                                LV_PART_MAIN);
+    lv_subject_set_int(&subject_filter_active_, active ? 1 : 0);
 }
 
 // ============================================================================
