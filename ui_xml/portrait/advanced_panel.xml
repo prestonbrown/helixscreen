@@ -1,0 +1,254 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Advanced Panel - Hub for advanced printer tools and emergency controls -->
+<!-- Sections ordered by usage frequency: Tools, Automation, Calibration, Power -->
+<!-- Emergency buttons pinned in non-scrolling bottom bar -->
+<!-- Features are conditionally shown based on printer capabilities -->
+<component>
+  <view name="advanced_panel"
+        extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="0" flex_flow="column"
+        scrollable="false" style_bg_color="#screen_bg">
+    <!-- ================================================================== -->
+    <!-- SCROLLABLE CONTENT AREA -->
+    <!-- ================================================================== -->
+    <lv_obj width="100%"
+            flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="true"
+            style_bg_color="#screen_bg">
+      <!-- Disable settings rows when printer not connected or klippy not ready -->
+      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+      <!-- ================================================================== -->
+      <!-- TOOLS SECTION -->
+      <!-- ================================================================== -->
+      <setting_group>
+        <setting_group_header title="TOOLS" title_tag="TOOLS" icon="toolbox_outline" hide_icon="false"/>
+        <!-- Macro Browser -->
+        <setting_action_row name="row_macros"
+                            label="Macro Browser" label_tag="Macro Browser" icon="script_text"
+                            description="Execute printer macros" description_tag="Execute printer macros">
+          <event_cb trigger="clicked" callback="on_advanced_macros"/>
+        </setting_action_row>
+        <!-- Console / G-code Terminal -->
+        <setting_action_row name="row_console"
+                            label="G-code Console" label_tag="G-code Console" icon="console"
+                            description="Send commands directly to printer"
+                            description_tag="Send commands directly to printer">
+          <event_cb trigger="clicked" callback="on_console_row_clicked"/>
+        </setting_action_row>
+        <!-- Print History -->
+        <setting_action_row name="row_print_history"
+                            label="Print History" label_tag="Print History" icon="clock"
+                            description="View print statistics and job history"
+                            description_tag="View print statistics and job history">
+          <event_cb trigger="clicked" callback="on_history_row_clicked"/>
+        </setting_action_row>
+        <!-- Spoolman (hidden if not connected) -->
+        <lv_obj name="container_spoolman" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="0"/>
+          <setting_action_row name="row_spoolman"
+                              label="Spoolman" label_tag="Spoolman" icon="inventory"
+                              description="Filament tracking and inventory"
+                              description_tag="Filament tracking and inventory">
+            <event_cb trigger="clicked" callback="on_advanced_spoolman"/>
+          </setting_action_row>
+        </lv_obj>
+        <!-- Fallback message when Spoolman not available -->
+        <lv_obj name="container_no_spoolman" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="1"/>
+          <setting_info_row name="row_no_spoolman"
+                            label="Spoolman" label_tag="Spoolman" icon="inventory" value="Not configured"
+                            value_tag="Not configured"/>
+        </lv_obj>
+      </setting_group>
+      <!-- ================================================================== -->
+      <!-- AUTOMATION SECTION -->
+      <!-- ================================================================== -->
+      <setting_group>
+        <setting_group_header title="AUTOMATION" title_tag="AUTOMATION" icon="code_tags" hide_icon="false"/>
+        <!-- Timelapse Videos -->
+        <setting_action_row name="row_timelapse_videos"
+                            label="Timelapse Videos" label_tag="Timelapse Videos" icon="video"
+                            description="Browse and play recorded timelapses"
+                            description_tag="Browse and play recorded timelapses">
+          <bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_timelapse_videos_clicked"/>
+        </setting_action_row>
+        <!-- Timelapse Setup (shown when plugin not installed but webcam available).
+           Two visibility conditions are nested — outer hides when timelapse is
+           already installed, inner hides when no webcam — instead of stacking
+           two bind_flags on a single element, where last-observer-wins
+           semantics produce an OR-show race. -->
+        <lv_obj width="100%" height="content" style_pad_all="0" style_pad_gap="0">
+          <bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="1"/>
+          <setting_action_row name="row_timelapse_setup"
+                              label="Setup Timelapse" label_tag="Setup Timelapse" icon="camera_timer"
+                              description="Install timelapse plugin" description_tag="Install timelapse plugin">
+            <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_timelapse_setup_clicked"/>
+          </setting_action_row>
+        </lv_obj>
+        <!-- HelixPrint Plugin (NOT installed - show Install row) -->
+        <!-- TEMPORARILY DISABLED: plugin install hidden from settings for now -->
+        <!--
+      <beta_feature name="container_helix_plugin_install">
+        <bind_flag_if_not_eq subject="helix_plugin_installed" flag="hidden" ref_value="0"/>
+        <setting_action_row name="row_helix_plugin_install"
+                            label="Install HelixPrint Plugin" label_tag="Install HelixPrint Plugin" icon="puzzle_outline"
+                            description="Control optional print start features"
+                            description_tag="Control optional print start features">
+          <event_cb trigger="clicked" callback="on_helix_plugin_install_clicked"/>
+        </setting_action_row>
+      </beta_feature>
+      -->
+
+        <!-- HelixPrint Plugin (INSTALLED - show Uninstall row) -->
+        <!-- Shows ONLY when value == 1 (installed), hidden otherwise (-1 or 0) -->
+        <beta_feature name="container_helix_plugin_uninstall">
+          <setting_action_row name="row_helix_plugin_uninstall"
+                              label="Uninstall HelixPrint Plugin" label_tag="Uninstall HelixPrint Plugin"
+                              icon="puzzle_outline" description="Remove plugin from printer"
+                              description_tag="Remove plugin from printer">
+            <bind_flag_if_not_eq subject="helix_plugin_installed" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_helix_plugin_uninstall_clicked"/>
+          </setting_action_row>
+        </beta_feature>
+        <!-- HelixPrint Plugin Help Text -->
+        <beta_feature>
+          <lv_obj width="100%"
+                  height="content" style_pad_left="#space_xl" style_pad_right="#space_lg" style_pad_top="0"
+                  style_pad_bottom="#space_md" scrollable="false" flex_flow="row" style_flex_cross_place="start"
+                  style_pad_gap="#space_sm">
+            <icon src="info" size="xs" variant="secondary"/>
+            <text_small flex_grow="1"
+                        text="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps."
+                        translation_tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps."
+                        long_mode="wrap" style_text_color="#text_muted"/>
+          </lv_obj>
+        </beta_feature>
+        <!-- Configure PRINT_START -->
+        <beta_feature>
+          <setting_action_row name="row_configure_print_start"
+                              label="Configure PRINT_START" label_tag="Configure PRINT_START" icon="code_braces"
+                              description="Make bed mesh and QGL skippable"
+                              description_tag="Make bed mesh and QGL skippable">
+            <event_cb trigger="clicked" callback="on_configure_print_start"/>
+          </setting_action_row>
+        </beta_feature>
+        <!-- Phase Tracking Toggle (beta, visible when plugin installed) -->
+        <!-- Shows ONLY when value == 1 (installed), hidden otherwise (-1 or 0) -->
+        <beta_feature name="container_phase_tracking">
+          <setting_toggle_row name="row_phase_tracking"
+                              label="Phase Tracking" label_tag="Phase Tracking" icon="progress_clock"
+                              description="Show detailed print preparation status"
+                              description_tag="Show detailed print preparation status" subject="phase_tracking_enabled"
+                              callback="on_phase_tracking_changed">
+            <bind_flag_if_not_eq subject="helix_plugin_installed" flag="hidden" ref_value="1"/>
+          </setting_toggle_row>
+        </beta_feature>
+      </setting_group>
+      <!-- ================================================================== -->
+      <!-- CALIBRATION SECTION -->
+      <!-- ================================================================== -->
+      <setting_group>
+        <setting_group_header title="CALIBRATION" title_tag="CALIBRATION" icon="tune" hide_icon="false"/>
+        <!-- Bed Leveling (hidden if screws_tilt_adjust not configured) -->
+        <lv_obj name="container_bed_leveling" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
+          <setting_action_row name="row_bed_mesh"
+                              label="Bed Leveling" label_tag="Bed Leveling" icon="grid_large"
+                              description="Auto-probe or manually check screw heights"
+                              description_tag="Auto-probe or manually check screw heights">
+            <event_cb trigger="clicked" callback="on_screws_tilt_row_clicked"/>
+          </setting_action_row>
+        </lv_obj>
+        <!-- Input Shaping (hidden if no accelerometer) -->
+        <setting_action_row name="row_input_shaping"
+                            label="Input Shaping" label_tag="Input Shaping" icon="inputshaper"
+                            description="Reduce ringing and ghosting artifacts"
+                            description_tag="Reduce ringing and ghosting artifacts">
+          <bind_flag_if_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_input_shaper_row_clicked"/>
+        </setting_action_row>
+        <!-- Belt Tension (hidden if no accelerometer) -->
+        <beta_feature>
+          <setting_action_row name="row_belt_tension"
+                              label="Belt Tension" label_tag="Belt Tension" icon="vibrate"
+                              description="Measure and compare belt path frequencies"
+                              description_tag="Measure and compare belt path frequencies">
+            <bind_flag_if_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_belt_tension_row_clicked"/>
+          </setting_action_row>
+        </beta_feature>
+        <!-- Probe Management (hidden if no probe) -->
+        <setting_action_row name="row_probe"
+                            label="Probe Management" label_tag="Probe Management" icon="target"
+                            description="Probe controls, accuracy test, and settings"
+                            description_tag="Probe controls, accuracy test, and settings">
+          <bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_probe_row_clicked"/>
+        </setting_action_row>
+        <!-- Z-Offset Calibration (hidden if no probe) -->
+        <setting_action_row name="row_z_offset"
+                            label="Z-Offset Calibration" label_tag="Z-Offset Calibration" icon="z_closer"
+                            description="Interactive probe calibration" description_tag="Interactive probe calibration">
+          <bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_zoffset_row_clicked"/>
+        </setting_action_row>
+        <!-- PID Tuning -->
+        <setting_action_row name="row_pid_tuning"
+                            label="Automatic Heater Control Calibration"
+                            label_tag="Automatic Heater Control Calibration" icon="heater"
+                            description="Adjusts individual characteristics of your heaters for optimal control"
+                            description_tag="Adjusts individual characteristics of your heaters for optimal control">
+          <event_cb trigger="clicked" callback="on_pid_tuning_clicked"/>
+        </setting_action_row>
+      </setting_group>
+      <!-- ================================================================== -->
+      <!-- POWER SECTION -->
+      <!-- ================================================================== -->
+      <!-- Both rows open the same dialog the home-panel power widget uses,
+           which handles single-/dual-host scope and confirms the action. -->
+      <setting_group>
+        <setting_group_header title="POWER" title_tag="POWER" icon="power" hide_icon="false"/>
+        <!-- Shutdown / Reboot — both rows open the same dialog (which presents
+           both actions plus, on dual-host, the printer/screen/both scope). -->
+        <setting_action_row name="row_shutdown"
+                            label="Shutdown" label_tag="Shutdown" icon="power"
+                            description="Power off the printer or screen"
+                            description_tag="Power off the printer or screen">
+          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+        </setting_action_row>
+        <setting_action_row name="row_reboot"
+                            label="Reboot" label_tag="Reboot" icon="restart" description="Restart the printer or screen"
+                            description_tag="Restart the printer or screen">
+          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+        </setting_action_row>
+      </setting_group>
+      <!-- Bottom padding for scroll -->
+      <lv_obj width="100%" height="#space_xl" scrollable="false"/>
+    </lv_obj>
+    <!-- ================================================================== -->
+    <!-- PINNED EMERGENCY BAR (non-scrolling, always enabled)               -->
+    <!-- Portrait: stacked column so all three labels stay readable         -->
+    <!-- ================================================================== -->
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+            style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+      <ui_button name="advanced_estop_btn"
+                 width="100%" height="#button_height_sm" icon="alert_octagon" text="E-Stop (M112)"
+                 translation_tag="E-Stop (M112)" variant="danger">
+        <event_cb trigger="clicked" callback="advanced_estop_clicked"/>
+      </ui_button>
+      <ui_button name="advanced_restart_klipper_btn"
+                 width="100%" height="#button_height_sm" icon="refresh" text="Restart Klipper"
+                 translation_tag="Restart Klipper" variant="warning">
+        <event_cb trigger="clicked" callback="advanced_restart_klipper_clicked"/>
+      </ui_button>
+      <ui_button name="advanced_firmware_restart_btn"
+                 width="100%" height="#button_height_sm" icon="update" text="Firmware Restart"
+                 translation_tag="Firmware Restart" variant="secondary">
+        <event_cb trigger="clicked" callback="advanced_firmware_restart_clicked"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>
