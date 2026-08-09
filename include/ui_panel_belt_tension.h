@@ -140,10 +140,13 @@ class BeltTensionPanel : public OverlayBase {
     int chart_series_a_ = -1;
     int chart_series_b_ = -1;
 
-    // Hardware detection cache
+    // Hardware detection cache. Written but not yet read - its readers were
+    // the strobe fine-tuning handlers removed with the strobe placeholder;
+    // phase 2 (live streaming) needs this again for its own hardware summary.
     helix::calibration::BeltTensionHardware detected_hw_;
 
-    // Last results for re-display
+    // Last results for re-display. Same phase-2 state as detected_hw_ above:
+    // written but not yet read after the strobe handlers were removed.
     helix::calibration::BeltTensionResult last_result_;
 };
 

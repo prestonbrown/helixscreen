@@ -8,8 +8,8 @@
  * @file pluck_aggregator.h
  * @brief Running median of per-pluck frequency estimates
  *
- * A single gated pluck is right about 95% of the time; a median of five is
- * effectively always right. The aggregator keeps collecting past the commit
+ * A single gated pluck is right about 95% of the time (measured, see
+ * pluck_detector.h). The aggregator keeps collecting past the commit
  * threshold so a user can keep plucking and watch the value hold steady.
  */
 
@@ -18,7 +18,9 @@ namespace helix::calibration {
 class PluckAggregator {
   public:
     /// Accepted plucks required before the median is trustworthy enough to show
-    /// as a committed result.
+    /// as a committed result. Derived, not measured directly: at a 95%
+    /// per-pluck accuracy, 5 draws give a majority (>=3) correct with
+    /// p ~= 0.999. No dedicated 5-pluck experiment backs this number.
     static constexpr size_t COMMIT_AFTER = 5;
 
     /// Record an estimate. Non-positive values are ignored.
