@@ -1305,9 +1305,31 @@ TEST_CASE("compute_psd bandwidth is clamped by Nyquist", "[belt_tension][fft][ed
     CHECK(psd.back().first <= sr / 2.0f + 1.0f);
 }
 
+TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t cast",
+          "[belt_tension][fft][edge_case]") {
+    // A bandwidth this large, cast to size_t without clamping to Nyquist first,
+    // is undefined behaviour rather than a large-then-clamped bin count.
+    const float sr = 1000.0f;
+    const int n = 1000;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        samples[static_cast<size_t>(i)].time = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].x = std::sin(static_cast<float>(i) * 0.1f);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+    auto psd = compute_psd(samples, sr, 1e12f);
+    REQUIRE(!psd.empty());
+    CHECK(psd.size() <= static_cast<size_t>(n) / 2);
+    CHECK(psd.back().first <= sr / 2.0f + 1.0f);
+}
+
 TEST_CASE("compute_psd phasor recurrence does not drift", "[belt_tension][fft][phasor]") {
-    // Two tones, the lower one stronger. A phasor that accumulates rotation
-    // error smears the peak; this catches that.
+    // Two tones, the lower one stronger: verifies the phasor DFT resolves them
+    // and puts the peak on the stronger (97 Hz) tone, not the weaker harmonic.
+    // This does NOT verify the double-vs-float accumulator choice - a float
+    // phasor passes this test too at n=1024, so the double accumulators are a
+    // deliberate defensive choice, not one this test enforces.
     const float sr = 3200.0f;
     const int n = 1024;
     std::vector<AccelSample> samples(static_cast<size_t>(n));

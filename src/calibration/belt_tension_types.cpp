@@ -276,8 +276,13 @@ std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>&
 
     // DFT parameters
     const float bandwidth = (max_freq_hz > 0.0f) ? max_freq_hz : 250.0f;
-    size_t max_bin =
-        std::min(n / 2, static_cast<size_t>(bandwidth * static_cast<float>(n) / sample_rate));
+    // Clamp to Nyquist BEFORE the float->size_t cast below: an unclamped bandwidth
+    // (e.g. a caller-supplied 1e12 Hz) produces a float product wildly out of
+    // size_t range, and casting that is undefined behaviour rather than a
+    // large-then-clamped value.
+    const float effective_bandwidth = std::min(bandwidth, sample_rate * 0.5f);
+    size_t max_bin = std::min(
+        n / 2, static_cast<size_t>(effective_bandwidth * static_cast<float>(n) / sample_rate));
     if (max_bin == 0) {
         spdlog::warn("[BeltTension] Bandwidth {:.1f} Hz yields no bins at {:.1f} Hz sample rate",
                      bandwidth, sample_rate);
