@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Belt Tension Tuning Panel - Measure and compare belt path frequencies -->
-<!-- States: 0=START, 1=PROGRESS, 2=RESULTS, 3=STROBE, 4=ERROR -->
+<!-- States: 0=START, 1=PROGRESS, 2=RESULTS, 3=ERROR -->
 <component>
   <view name="panel_belt_tension"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_border_width="0"
@@ -53,13 +53,6 @@
                   style_flex_cross_place="center" scrollable="false">
             <text_body text="Accelerometer" translation_tag="Accelerometer"/>
             <text_body bind_text="bt_hw_adxl" style_text_color="#primary"/>
-          </lv_obj>
-          <!-- LED row -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                  style_flex_cross_place="center" scrollable="false">
-            <text_body text="Strobe LED" translation_tag="Strobe LED"/>
-            <text_body bind_text="bt_hw_led" style_text_color="#primary"/>
           </lv_obj>
           <!-- Target frequency row -->
           <lv_obj width="100%"
@@ -155,85 +148,14 @@
             <text_body flex_grow="1" bind_text="bt_result_recommendation" long_mode="wrap"/>
           </lv_obj>
         </lv_obj>
-        <!-- Action buttons row -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <ui_button name="btn_strobe"
-                     height="#button_height" flex_grow="1" icon="sine_wave" text="Fine-Tune" translation_tag="Fine-Tune"
-                     variant="secondary">
-            <event_cb trigger="clicked" callback="belt_tension_strobe_cb"/>
-          </ui_button>
-        </lv_obj>
       </lv_obj>
       <!-- ============================================================ -->
-      <!-- STATE 3: STROBE - Fine-tuning mode -->
-      <!-- ============================================================ -->
-      <lv_obj name="state_strobe"
-              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
-              scrollable="false">
-        <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="3"/>
-        <!-- Strobe mode title row with help -->
-        <lv_obj width="100%"
-                height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="#space_lg" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-                scrollable="false">
-          <icon src="sine_wave" size="lg" variant="primary"/>
-          <text_body text="Adjust until belt appears frozen"
-                     translation_tag="Adjust until belt appears frozen" flex_grow="1" style_text_color="#text_muted"/>
-          <ui_button width="#icon_button_size_lg" height="#icon_button_size_lg" variant="ghost" icon="help_circle">
-            <event_cb trigger="clicked" callback="belt_tension_strobe_help_cb"/>
-          </ui_button>
-        </lv_obj>
-        <!-- Strobe frequency display -->
-        <lv_obj width="100%"
-                height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="#space_xl" flex_flow="column" style_pad_gap="#space_md" style_flex_main_place="center"
-                style_flex_cross_place="center" scrollable="false">
-          <text_small text="Current Frequency" translation_tag="Current Frequency" style_text_color="#text_muted"/>
-          <text_heading bind_text="bt_strobe_freq" style_text_color="#primary"/>
-          <!-- Adjustment buttons -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
-                  style_flex_main_place="center" scrollable="false">
-            <ui_button width="30%" height="#button_height" text="-0.5 Hz" variant="secondary">
-              <event_cb trigger="clicked" callback="belt_tension_strobe_freq_down_cb"/>
-            </ui_button>
-            <ui_button width="30%" height="#button_height" text="+0.5 Hz" variant="secondary">
-              <event_cb trigger="clicked" callback="belt_tension_strobe_freq_up_cb"/>
-            </ui_button>
-          </lv_obj>
-        </lv_obj>
-        <!-- Dynamic instructions (changes based on hardware) -->
-        <lv_obj width="100%"
-                height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <icon src="info" size="md" variant="primary"/>
-          <text_body width="100%" bind_text="bt_strobe_instruction" long_mode="wrap"/>
-        </lv_obj>
-        <!-- Lock buttons -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <ui_button height="#button_height" flex_grow="1" text="Lock A" translation_tag="Lock A" variant="secondary">
-            <event_cb trigger="clicked" callback="belt_tension_lock_a_cb"/>
-          </ui_button>
-          <ui_button height="#button_height" flex_grow="1" text="Lock B" translation_tag="Lock B" variant="secondary">
-            <event_cb trigger="clicked" callback="belt_tension_lock_b_cb"/>
-          </ui_button>
-        </lv_obj>
-        <!-- Back to results -->
-        <ui_button name="btn_back_results"
-                   width="100%" height="#button_height" icon="arrow_left" text="Back to Results"
-                   translation_tag="Back to Results" variant="secondary">
-          <event_cb trigger="clicked" callback="belt_tension_back_to_results_cb"/>
-        </ui_button>
-      </lv_obj>
-      <!-- ============================================================ -->
-      <!-- STATE 4: ERROR -->
+      <!-- STATE 3: ERROR -->
       <!-- ============================================================ -->
       <lv_obj name="state_error"
               width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
               scrollable="false">
-        <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="4"/>
+        <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="3"/>
         <!-- Error card -->
         <lv_obj width="100%"
                 height="content" style_bg_color="#danger" style_bg_opa="25" style_radius="#border_radius"

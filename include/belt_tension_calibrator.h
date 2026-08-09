@@ -6,11 +6,10 @@
  * @brief High-level orchestrator for belt tension calibration workflow
  *
  * BeltTensionCalibrator manages the belt tension measurement process:
- * 1. Detect printer hardware (kinematics, ADXL, PWM LED)
+ * 1. Detect printer hardware (kinematics, ADXL)
  * 2. Home printer if needed
  * 3. Run resonance sweeps on belt paths A and B
  * 4. Compute PSD, find peaks, calculate similarity
- * 5. Optionally enter strobe mode for manual tuning
  *
  * This is a state machine that coordinates MoonrakerAPI calls and
  * provides progress/error callbacks to the UI layer.
@@ -40,7 +39,6 @@ class BeltTensionCalibrator {
         TESTING_PATH_A,     ///< Running resonance sweep on path A
         TESTING_PATH_B,     ///< Running resonance sweep on path B
         RESULTS_READY,      ///< Both paths measured, results available
-        STROBE_MODE,        ///< PWM LED strobing at belt frequency
         ERROR,              ///< An error occurred
     };
 
@@ -123,23 +121,6 @@ class BeltTensionCalibrator {
                    BeltMeasurementCallback on_complete, BeltErrorCallback on_error);
 
     // ========================================================================
-    // Strobe Mode
-    // ========================================================================
-
-    /**
-     * @brief Start PWM LED strobe at specified frequency
-     * @param frequency_hz Strobe frequency in Hz
-     * @param on_error Called with error message on failure
-     */
-    void start_strobe(float frequency_hz, BeltErrorCallback on_error);
-
-    /// Update strobe frequency while in strobe mode
-    void set_strobe_frequency(float frequency_hz);
-
-    /// Stop strobe mode and return to RESULTS_READY or IDLE
-    void stop_strobe();
-
-    // ========================================================================
     // Control
     // ========================================================================
 
@@ -172,7 +153,6 @@ class BeltTensionCalibrator {
     MoonrakerAPI* api_ = nullptr;
     BeltTensionResult results_;
     BeltTensionHardware hardware_;
-    float strobe_frequency_ = 0.0f;
 
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;

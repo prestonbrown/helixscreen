@@ -27,7 +27,6 @@
   <translation tag="+ Add Preset" ru="+ Добавить пресет"/>
   <translation tag="+ Add Printer" ru="+ Добавить принтер"/>
   <translation tag="+ New" ru="+ Новый"/>
-  <translation tag="+0.5 Hz" ru="+0,5 Гц"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ru="- Проверьте блок [resonance_tester] в printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" ru="- Убедитесь, что ADXL345 подключен"/>
   <translation tag="- Try Measure Noise first" ru="- Сначала попробуйте измерить шум акселерометра"/>
@@ -36,7 +35,6 @@
   <translation tag="-- W" ru="-- Вт"/>
   <translation tag="-- kWh" ru="-- кВт·ч"/>
   <translation tag="--°C" ru="--°C"/>
-  <translation tag="-0.5 Hz" ru="-0,5 Гц"/>
   <translation tag="..." ru="..."/>
   <translation tag="0 = computed" ru="0 = вычислено"/>
   <translation tag="0 events queued" ru="0 событий в очереди"/>
@@ -133,10 +131,8 @@
   <translation tag="Add custom filament" ru="Добавить свой филамент"/>
   <translation tag="Added to Spoolman" ru="Добавлено в Spoolman"/>
   <translation tag="Address" ru="Адрес"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" ru="Регулируйте натяжение ремня, пока ремень не будет казаться неподвижным"/>
   <translation tag="Adjust screen brightness level" ru="Настроить уровень яркости экрана"/>
   <translation tag="Adjust screws, then re-probe." ru="Отрегулируйте винты, затем перепроверьте."/>
-  <translation tag="Adjust until belt appears frozen" ru="Регулируйте, пока ремень не покажется неподвижным"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." ru="Настройки активны до перезагрузки. Сохраните после завершения печати."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ru="Настраивает индивидуальные характеристики нагревателей для оптимального контроля"/>
   <translation tag="After running the commands, tap Check Again below." ru="После выполнения команд нажмите «Проверить снова» ниже."/>
@@ -200,7 +196,6 @@
   <translation tag="Automatic LED Control" ru="Автоматическое управление LED"/>
   <translation tag="Aux" ru="Доп"/>
   <translation tag="Available" ru="Доступен"/>
-  <translation tag="Available (%s)" ru="Доступно (%s)"/>
   <translation tag="Available Networks" ru="Доступные сети"/>
   <translation tag="Available networks" ru="Доступные сети"/>
   <translation tag="Average" ru="Среднее"/>
@@ -213,7 +208,6 @@
   <translation tag="BLUETOOTH PRINTERS" ru="BLUETOOTH-ПРИНТЕРЫ"/>
   <translation tag="BLUETOOTH SCANNERS" ru="BLUETOOTH-СКАНЕРЫ"/>
   <translation tag="Back" ru="Назад"/>
-  <translation tag="Back to Results" ru="Назад к результатам"/>
   <translation tag="Backtrace: {} frames" ru="Трассировка: {} кадров"/>
   <translation tag="Barcode Scanner" ru="Сканер штрих-кодов"/>
   <translation tag="Base" ru="Опорный"/>
@@ -238,8 +232,6 @@
   <translation tag="Bed target set to {}°C" ru="Целевая температура стола {}°C"/>
   <translation tag="Bed temp must be 0-200°C" ru="Температура стола должна быть 0-200°C"/>
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
-  <translation tag="Belt A frequency locked" ru="Частота ремня A зафиксирована"/>
-  <translation tag="Belt B frequency locked" ru="Частота ремня B зафиксирована"/>
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
   <translation tag="Belt Tension Check" ru="Проверка натяжения ремня"/>
   <translation tag="Belt tension looks good!" ru="Натяжение ремня в норме!"/>
@@ -535,7 +527,6 @@
   <translation tag="Critical hardware missing: {}" ru="Отсутствует критическое оборудование: {}"/>
   <translation tag="Current / Target" ru="Текущая / Цель"/>
   <translation tag="Current Configuration" ru="Текущая конфигурация"/>
-  <translation tag="Current Frequency" ru="Текущая частота"/>
   <translation tag="Current Mesh" ru="Текущая сетка"/>
   <translation tag="Current Temperature" ru="Текущая температура"/>
   <translation tag="Current Version" ru="Текущая версия"/>
@@ -885,7 +876,6 @@
   <translation tag="File Size" ru="Размер файла"/>
   <translation tag="Filename" ru="Имя файла"/>
   <translation tag="Fine" ru="Точно"/>
-  <translation tag="Fine-Tune" ru="Тонкая настройка"/>
   <translation tag="Finish" ru="Завершить"/>
   <translation tag="Finishing up..." ru="Завершение..."/>
   <translation tag="Firmware Restart" ru="Перезапуск прошивки"/>
@@ -1156,8 +1146,6 @@
   <translation tag="Locating Spoolman configuration..." ru="Поиск конфигурации Spoolman..."/>
   <translation tag="Location" ru="Расположение"/>
   <translation tag="Lock" ru="Блокировка"/>
-  <translation tag="Lock A" ru="Блокировка A"/>
-  <translation tag="Lock B" ru="Блокировка B"/>
   <translation tag="Lock screen after idle timeout" ru="Блокировать экран после простоя"/>
   <translation tag="Locked during print" ru="Заблокировано во время печати"/>
   <translation tag="Log Level" ru="Уровень журнала"/>
@@ -1316,7 +1304,6 @@
   <translation tag="No Multi-Filament System connected" ru="Мультифиламентная система не подключена"/>
   <translation tag="No Multi-Filament System connected." ru="Мультифиламентная система не подключена."/>
   <translation tag="No PRINT_START macro found" ru="Макрос PRINT_START не найден"/>
-  <translation tag="No PWM LED detected for strobe mode" ru="Не обнаружен PWM LED для режима стробоскопа"/>
   <translation tag="No Power Devices" ru="Нет устройств питания"/>
   <translation tag="No Spool" ru="Нет катушки"/>
   <translation tag="No Spools" ru="Нет катушек"/>
@@ -1379,8 +1366,6 @@
   <translation tag="Not connected to printer" ru="Нет подключения к принтеру"/>
   <translation tag="Not connected to printer." ru="Нет подключения к принтеру."/>
   <translation tag="Not detected" ru="Не обнаружено"/>
-  <translation tag="Not found (strobe only)" ru="Не найдено (только стробоскоп)"/>
-  <translation tag="Not found (use phone app)" ru="Не найдено (используйте приложение на телефоне)"/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
   <translation tag="Not yet calibrated" ru="Ещё не откалибровано"/>
@@ -1903,7 +1888,6 @@
   <translation tag="Set " ru="Установить "/>
   <translation tag="Set Active" ru="Сделать активной"/>
   <translation tag="Set PIN" ru="Установить PIN"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope" ru="Установите приложение-стробоскоп на телефоне на %.1f Гц и направьте на ремень. Регулируйте, пока ремень не будет казаться неподвижным.\n\nРекомендуемые приложения:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>
   <translation tag="Set logging verbosity for troubleshooting" ru="Установить уровень детализации журнала для устранения неполадок"/>
   <translation tag="Set up" ru="Настроить"/>
@@ -2033,7 +2017,6 @@
   <translation tag="Stopped between Spool and Lane" ru="Остановка между катушкой и слотом"/>
   <translation tag="Stops all motion. Requires firmware restart." ru="Останавливает всё движение. Требуется перезапуск прошивки."/>
   <translation tag="Stow" ru="Убрать"/>
-  <translation tag="Strobe LED" ru="Стробоскоп"/>
   <translation tag="Subtle" ru="Сдержанный"/>
   <translation tag="Success" ru="Успех"/>
   <translation tag="Success Rate" ru="Процент успеха"/>
@@ -2105,7 +2088,6 @@
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ru="Анимированная заставка была отключена на данном устройстве, чтобы она не мешала печати. Вы можете снова включить её в Настройки &gt; Дисплей."/>
   <translation tag="The filament system reported an error" ru="Система филамента сообщила об ошибке"/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." ru="Мотор вибрирует ремень, пока стробоскоп мигает с той же частотой. Когда ремень кажется неподвижным (застывшим), вы нашли резонансную частоту.\n\nИспользуйте кнопки частоты для перебора значений, пока ремень не будет выглядеть неподвижным, затем зафиксируйте показание."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ru="Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ru="Принтер потерял питание во время печати. Он может продолжить с места остановки."/>
@@ -2299,7 +2281,6 @@
   <translation tag="View live camera feed" ru="Просмотр трансляции с камеры"/>
   <translation tag="View print statistics and job history" ru="Просмотр статистики печати и истории заданий"/>
   <translation tag="Visits: " ru="Посещений: "/>
-  <translation tag="Visual Fine-Tuning" ru="Визуальная тонкая настройка"/>
   <translation tag="Volume" ru="Громкость"/>
   <translation tag="WIDTH SENSORS" ru="ДАТЧИКИ ШИРИНЫ"/>
   <translation tag="WLED" ru="WLED"/>
@@ -2313,7 +2294,6 @@
   <translation tag="Warming Bed..." ru="Прогрев стола..."/>
   <translation tag="Warn" ru="Предупреждение"/>
   <translation tag="Warning" ru="Предупреждение"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." ru="Наблюдайте за ремнём под стробоскопическим LED. Регулируйте частоту, пока ремень не будет казаться неподвижным — это и есть резонансная частота."/>
   <translation tag="Weak battery" ru="Слабый заряд"/>
   <translation tag="Webcam" ru="Веб-камера"/>
   <translation tag="Website (optional)" ru="Веб-сайт (необязательно)"/>

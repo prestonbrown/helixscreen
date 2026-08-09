@@ -64,8 +64,6 @@ const char* belt_status_to_string(BeltStatus status);
 struct BeltTensionHardware {
     KinematicsType kinematics = KinematicsType::UNKNOWN;
     bool has_adxl = false;
-    bool has_pwm_led = false;
-    std::string pwm_led_pin;     ///< Pin name for strobe LED
     std::string kinematics_name; ///< Raw string from Klipper
 };
 

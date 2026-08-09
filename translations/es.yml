@@ -27,7 +27,6 @@ translations:
   + Add Preset: + Agregar Preajuste
   + Add Printer: + Agregar Impresora
   + New: + Nuevo
-  +0.5 Hz: +0,5 Hz
   '- Check [resonance_tester] in printer.cfg': '- Verifique [resonance_tester] en
     printer.cfg'
   '- Ensure ADXL345 is connected': '- Asegúrese de que el ADXL345 esté conectado'
@@ -37,7 +36,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0,5 Hz
   '...': '...'
   0 = computed: 0 = calculado
   0 events queued: 0 eventos en cola
@@ -142,11 +140,8 @@ translations:
   Add custom filament: Añadir filamento personalizado
   Added to Spoolman: Añadido a Spoolman
   Address: Dirección
-  Adjust belt tension until the belt appears stationary: Ajusta la tensión de la correa
-    hasta que la correa parezca estar inmóvil
   Adjust screen brightness level: Ajustar el nivel de brillo de la pantalla
   Adjust screws, then re-probe.: Ajuste los tornillos, luego vuelva a sondear.
-  Adjust until belt appears frozen: Ajustar hasta que la correa parezca congelada
   Adjustments stay active until restart. Save after print completes.: Los ajustes
     permanecen activos hasta reiniciar. Guarde después de que termine la impresión.
   Adjusts individual characteristics of your heaters for optimal control: Ajusta las
@@ -229,7 +224,6 @@ translations:
   Automatic LED Control: Control Automático de LED
   Aux: Aux
   Available: Disponible
-  Available (%s): Disponible (%s)
   Available Networks: Redes Disponibles
   Available networks: Redes disponibles
   Average: Promedio
@@ -242,7 +236,6 @@ translations:
   BLUETOOTH PRINTERS: IMPRESORAS BLUETOOTH
   BLUETOOTH SCANNERS: ESCÁNERES BLUETOOTH
   Back: Volver
-  Back to Results: Volver a resultados
   'Backtrace: {} frames': 'Traza inversa: {} marcos'
   Barcode Scanner: Escáner de Código de Barras
   Base: Referencia
@@ -267,8 +260,6 @@ translations:
   Bed target set to {}°C: Cama configurada a {}°C
   Bed temp must be 0-200°C: La temperatura de la cama debe ser 0-200°C
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
-  Belt A frequency locked: Frecuencia de la correa A bloqueada
-  Belt B frequency locked: Frecuencia de la correa B bloqueada
   Belt Tension: Tensión de correa
   Belt Tension Check: Verificación de tensión de correa
   Belt tension looks good!: ¡La tensión de la correa se ve bien!
@@ -624,7 +615,6 @@ translations:
   'Critical hardware missing: {}': 'Falta hardware crítico: {}'
   Current / Target: Actual / Objetivo
   Current Configuration: Configuración Actual
-  Current Frequency: Frecuencia actual
   Current Mesh: Malla Actual
   Current Temperature: Temperatura Actual
   Current Version: Versión actual
@@ -1005,7 +995,6 @@ translations:
   File Size: Tamaño del archivo
   Filename: Nombre de Archivo
   Fine: Fino
-  Fine-Tune: Ajuste Fino
   Finish: Finalizar
   Finishing up...: Finalizando...
   Firmware Restart: Reinicio de Firmware
@@ -1330,8 +1319,6 @@ translations:
   Locating Spoolman configuration...: Localizando la configuración de Spoolman...
   Location: Ubicación
   Lock: Bloquear
-  Lock A: Bloquear A
-  Lock B: Bloquear B
   Lock screen after idle timeout: Bloquear pantalla tras inactividad
   Locked during print: Bloqueado durante impresión
   Log Level: Nivel de registro
@@ -1509,7 +1496,6 @@ translations:
   No Multi-Filament System connected: Ningún sistema multi-filamento conectado
   No Multi-Filament System connected.: No hay sistema multi-filamento conectado.
   No PRINT_START macro found: No se encontró macro PRINT_START
-  No PWM LED detected for strobe mode: No se detectó LED PWM para el modo estroboscópico
   No Power Devices: Sin Dispositivos de Energía
   No Spool: Sin bobina
   No Spools: Sin Bobinas
@@ -1579,8 +1565,6 @@ translations:
   Not connected to printer: No conectado a la impresora
   Not connected to printer.: No conectado a la impresora.
   Not detected: No detectado
-  Not found (strobe only): No encontrado (solo estroboscópico)
-  Not found (use phone app): No encontrado (usa la app del teléfono)
   Not in your spools? Set it up: ¿No está en tus bobinas? Configúralo
   Not now: Ahora no
   Not yet calibrated: Aún no calibrado
@@ -2172,12 +2156,6 @@ translations:
   'Set ': 'Establecer '
   Set Active: Establecer activo
   Set PIN: Establecer PIN
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : 'Configura una app estroboscópica del teléfono a %.1f Hz y apunta a la correa.
-    Ajusta hasta que la correa parezca estar inmóvil.\n\nApps recomendadas:\n  Android:
-    Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: Establecer zona horaria local para la hora
   Set logging verbosity for troubleshooting: Establecer el nivel de detalle del registro
     para solución de problemas
@@ -2326,7 +2304,6 @@ translations:
   Stops all motion. Requires firmware restart.: Detiene todo movimiento. Requiere
     reinicio de firmware.
   Stow: Guardar
-  Strobe LED: LED estroboscópico
   Subtle: Sutil
   Success: Éxito
   Success Rate: Tasa de Éxito
@@ -2419,14 +2396,6 @@ translations:
   The filament system reported an error: El sistema de filamento informó un error
   The heater will cycle on and off several times.: El calentador se encenderá y apagará
     varias veces.
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : El motor hace vibrar la correa mientras una luz estroboscópica parpadea a la misma
-    frecuencia. Cuando la correa parece quedarse quieta (congelada), has encontrado
-    la frecuencia de resonancia.\n\nUsa los botones de frecuencia para recorrer los
-    valores hasta que la correa parezca estar inmóvil, luego bloquea la lectura.
   The printer halted this print and cannot resume it. Restart from the beginning?: La
     impresora detuvo esta impresión y no puede reanudarla. ¿Reiniciar desde el principio?
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: La impresora no está referenciada. Si continúa, se referenciarán todos los ejes y el cabezal se moverá. Asegúrese de que la cama esté despejada.
@@ -2685,7 +2654,6 @@ translations:
   View print statistics and job history: Ver estadísticas de impresión e historial
     de trabajos
   'Visits: ': 'Visitas: '
-  Visual Fine-Tuning: Ajuste fino visual
   Volume: Volumen
   WIDTH SENSORS: SENSORES DE ANCHO
   WLED: WLED
@@ -2700,9 +2668,6 @@ translations:
   Warming Bed...: Calentando cama...
   Warn: Advertencia
   Warning: Advertencia
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Observa
-    la correa bajo el LED estroboscópico. Ajusta la frecuencia hasta que la correa
-    parezca estar inmóvil — esa es la frecuencia de resonancia.
   Weak battery: Batería baja
   Webcam: Webcam
   Website (optional): Sitio Web (opcional)

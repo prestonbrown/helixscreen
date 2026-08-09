@@ -27,7 +27,6 @@ translations:
   + Add Preset: + 添加预设
   + Add Printer: + 添加打印机
   + New: + 新建
-  +0.5 Hz: +0.5 Hz
   '- Check [resonance_tester] in printer.cfg': '- 检查 printer.cfg 中的 [resonance_tester]'
   '- Ensure ADXL345 is connected': '- 确保 ADXL345 已连接'
   '- Try Measure Noise first': '- 先尝试测量噪声'
@@ -36,7 +35,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0.5 Hz
   '...': '...'
   0 = computed: 0 = 自动计算
   0 events queued: 0 个事件已排队
@@ -133,10 +131,8 @@ translations:
   Add custom filament: 添加自定义耗材
   Added to Spoolman: 已添加到 Spoolman
   Address: 地址
-  Adjust belt tension until the belt appears stationary: 调整皮带张力,直到皮带看起来静止不动
   Adjust screen brightness level: 调整屏幕亮度
   Adjust screws, then re-probe.: 调整螺丝，然后重新探测。
-  Adjust until belt appears frozen: 调整直到皮带看起来静止
   Adjustments stay active until restart. Save after print completes.: 调整在重启前保持有效。打印完成后保存。
   Adjusts individual characteristics of your heaters for optimal control: 调整加热器的各项参数以实现最佳控制
   After running the commands, tap Check Again below.: 执行命令后，点击下方的重新检查。
@@ -202,7 +198,6 @@ translations:
   Automatic LED Control: 自动 LED 控制
   Aux: 辅助
   Available: 可用
-  Available (%s): 可用 (%s)
   Available Networks: 可用网络
   Available networks: 可用网络
   Average: 平均值
@@ -215,7 +210,6 @@ translations:
   BLUETOOTH PRINTERS: 蓝牙打印机
   BLUETOOTH SCANNERS: 蓝牙扫描器
   Back: 返回
-  Back to Results: 返回结果
   'Backtrace: {} frames': '回溯: {} 帧'
   Barcode Scanner: 条码扫描器
   Base: 基准
@@ -240,8 +234,6 @@ translations:
   Bed target set to {}°C: 热床目标已设为 {}°C
   Bed temp must be 0-200°C: 热床温度必须为 0-200°C
   Bed warming timed out: 热床加热超时
-  Belt A frequency locked: 皮带 A 频率已锁定
-  Belt B frequency locked: 皮带 B 频率已锁定
   Belt Tension: 皮带张力
   Belt Tension Check: 皮带张力检查
   Belt tension looks good!: 皮带张力良好！
@@ -543,7 +535,6 @@ translations:
   'Critical hardware missing: {}': '缺少关键硬件: {}'
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
-  Current Frequency: 当前频率
   Current Mesh: 当前网格
   Current Temperature: 当前温度
   Current Version: 当前版本
@@ -898,7 +889,6 @@ translations:
   File Size: 文件大小
   Filename: 文件名
   Fine: 细调
-  Fine-Tune: 微调
   Finish: 完成
   Finishing up...: 即将完成...
   Firmware Restart: 固件重启
@@ -1185,8 +1175,6 @@ translations:
   Locating Spoolman configuration...: 正在定位 Spoolman 配置...
   Location: 位置
   Lock: 锁定
-  Lock A: 锁定 A
-  Lock B: 锁定 B
   Lock screen after idle timeout: 空闲超时后锁定屏幕
   Locked during print: 打印期间锁定
   Log Level: 日志级别
@@ -1349,7 +1337,6 @@ translations:
   No Multi-Filament System connected: 未连接多耗材系统
   No Multi-Filament System connected.: 未连接多耗材系统。
   No PRINT_START macro found: 未找到 PRINT_START 宏
-  No PWM LED detected for strobe mode: 未检测到用于频闪模式的 PWM LED
   No Power Devices: 无电源设备
   No Spool: 无料盘
   No Spools: 无料盘
@@ -1412,8 +1399,6 @@ translations:
   Not connected to printer: 未连接到打印机
   Not connected to printer.: 未连接到打印机。
   Not detected: 未检测到
-  Not found (strobe only): 未找到 (仅频闪)
-  Not found (use phone app): 未找到 (使用手机应用)
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not yet calibrated: 尚未校准
@@ -1950,11 +1935,6 @@ translations:
   'Set ': '设置 '
   Set Active: 设为活动
   Set PIN: 设置 PIN
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : '将手机频闪应用设置为 %.1f Hz 并对准皮带。调整直到皮带看起来静止不动。\n\n推荐应用:\n  Android: Strobily, Strobe
-    Light\n  iOS: Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: 设置本地时区以显示时间
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
   Set up: 设置
@@ -2086,7 +2066,6 @@ translations:
   Stopped between Spool and Lane: 停在料盘与料仓之间
   Stops all motion. Requires firmware restart.: 停止所有运动。需要固件重启。
   Stow: 收回
-  Strobe LED: 频闪LED
   Subtle: 微妙
   Success: 成功
   Success Rate: 成功率
@@ -2167,11 +2146,6 @@ translations:
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。
   The filament system reported an error: 耗材系统报告错误
   The heater will cycle on and off several times.: 加热器将多次开关循环。
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : 电机振动皮带的同时,频闪灯以相同频率闪烁。当皮带看起来静止不动(冻结)时,即找到了共振频率。\n\n使用频率按钮扫描各数值,直到皮带看起来静止,然后锁定读数。
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: 打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。
   The printer lost power during a print. It can resume where it left off.: 打印机在打印过程中断电。可以从中断处继续。
@@ -2384,7 +2358,6 @@ translations:
   View live camera feed: 查看实时摄像头画面
   View print statistics and job history: 查看打印统计和作业历史
   'Visits: ': '访问次数: '
-  Visual Fine-Tuning: 视觉微调
   Volume: 音量
   WIDTH SENSORS: 宽度传感器
   WLED: WLED
@@ -2398,8 +2371,6 @@ translations:
   Warming Bed...: 正在预热热床...
   Warn: 警告
   Warning: 警告
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: 在频闪
-    LED 下观察皮带。调整频率直到皮带看起来静止 — 那就是共振频率。
   Weak battery: 电池电量低
   Webcam: 摄像头
   Website (optional): 网站（可选）

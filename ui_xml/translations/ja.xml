@@ -27,7 +27,6 @@
   <translation tag="+ Add Preset" ja="+ プリセットを追加"/>
   <translation tag="+ Add Printer" ja="+ プリンターを追加"/>
   <translation tag="+ New" ja="+ 新規"/>
-  <translation tag="+0.5 Hz" ja="+0.5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ja="- printer.cfg の [resonance_tester] を確認してください"/>
   <translation tag="- Ensure ADXL345 is connected" ja="- ADXL345 が接続されていることを確認してください"/>
   <translation tag="- Try Measure Noise first" ja="- まず「ノイズ測定」をお試しください"/>
@@ -36,7 +35,6 @@
   <translation tag="-- W" ja="-- W"/>
   <translation tag="-- kWh" ja="-- kWh"/>
   <translation tag="--°C" ja="--°C"/>
-  <translation tag="-0.5 Hz" ja="-0.5 Hz"/>
   <translation tag="..." ja="..."/>
   <translation tag="0 = computed" ja="0 = 自動計算"/>
   <translation tag="0 events queued" ja="待機中のイベントなし"/>
@@ -133,10 +131,8 @@
   <translation tag="Add custom filament" ja="カスタムフィラメントを追加"/>
   <translation tag="Added to Spoolman" ja="Spoolman に追加しました"/>
   <translation tag="Address" ja="アドレス"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" ja="ベルトが静止して見えるまでベルト張力を調整してください"/>
   <translation tag="Adjust screen brightness level" ja="画面の明るさを調整します"/>
   <translation tag="Adjust screws, then re-probe." ja="ネジを調整して、再度プローブしてください。"/>
-  <translation tag="Adjust until belt appears frozen" ja="ベルトが静止して見えるまで調整"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." ja="調整は再起動まで有効です。印刷完了後に保存してください。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ja="ヒーターの個別特性を調整して最適な制御を実現します"/>
   <translation tag="After running the commands, tap Check Again below." ja="コマンド実行後、下の「再確認」をタップしてください。"/>
@@ -200,7 +196,6 @@
   <translation tag="Automatic LED Control" ja="自動LED制御"/>
   <translation tag="Aux" ja="補助"/>
   <translation tag="Available" ja="利用可能"/>
-  <translation tag="Available (%s)" ja="利用可能 (%s)"/>
   <translation tag="Available Networks" ja="利用可能なネットワーク"/>
   <translation tag="Available networks" ja="利用可能なネットワーク"/>
   <translation tag="Average" ja="平均"/>
@@ -213,7 +208,6 @@
   <translation tag="BLUETOOTH PRINTERS" ja="Bluetooth プリンター"/>
   <translation tag="BLUETOOTH SCANNERS" ja="Bluetooth スキャナー"/>
   <translation tag="Back" ja="戻る"/>
-  <translation tag="Back to Results" ja="結果に戻る"/>
   <translation tag="Backtrace: {} frames" ja="バックトレース: {} フレーム"/>
   <translation tag="Barcode Scanner" ja="バーコードスキャナー"/>
   <translation tag="Base" ja="基準"/>
@@ -238,8 +232,6 @@
   <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
   <translation tag="Bed temp must be 0-200°C" ja="ベッド温度は 0〜200°C にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
-  <translation tag="Belt A frequency locked" ja="ベルト A の周波数を固定しました"/>
-  <translation tag="Belt B frequency locked" ja="ベルト B の周波数を固定しました"/>
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt tension looks good!" ja="ベルトテンションは良好です！"/>
@@ -535,7 +527,6 @@
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
-  <translation tag="Current Frequency" ja="現在の周波数"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>
   <translation tag="Current Temperature" ja="現在の温度"/>
   <translation tag="Current Version" ja="現在のバージョン"/>
@@ -885,7 +876,6 @@
   <translation tag="File Size" ja="ファイルサイズ"/>
   <translation tag="Filename" ja="ファイル名"/>
   <translation tag="Fine" ja="微動"/>
-  <translation tag="Fine-Tune" ja="微調整"/>
   <translation tag="Finish" ja="完了"/>
   <translation tag="Finishing up..." ja="完了中..."/>
   <translation tag="Firmware Restart" ja="ファームウェア再起動"/>
@@ -1156,8 +1146,6 @@
   <translation tag="Locating Spoolman configuration..." ja="Spoolman の設定を検索中..."/>
   <translation tag="Location" ja="場所"/>
   <translation tag="Lock" ja="ロック"/>
-  <translation tag="Lock A" ja="ロック A"/>
-  <translation tag="Lock B" ja="ロック B"/>
   <translation tag="Lock screen after idle timeout" ja="アイドルタイムアウト後に画面をロック"/>
   <translation tag="Locked during print" ja="印刷中はロックされています"/>
   <translation tag="Log Level" ja="ログレベル"/>
@@ -1316,7 +1304,6 @@
   <translation tag="No Multi-Filament System connected" ja="マルチフィラメントシステムが接続されていません"/>
   <translation tag="No Multi-Filament System connected." ja="マルチフィラメントシステムが接続されていません。"/>
   <translation tag="No PRINT_START macro found" ja="PRINT_START マクロが見つかりません"/>
-  <translation tag="No PWM LED detected for strobe mode" ja="ストロボモード用の PWM LED が検出されませんでした"/>
   <translation tag="No Power Devices" ja="電源デバイスなし"/>
   <translation tag="No Spool" ja="スプールなし"/>
   <translation tag="No Spools" ja="スプールなし"/>
@@ -1379,8 +1366,6 @@
   <translation tag="Not connected to printer" ja="プリンターに未接続"/>
   <translation tag="Not connected to printer." ja="プリンターに未接続です。"/>
   <translation tag="Not detected" ja="検出されません"/>
-  <translation tag="Not found (strobe only)" ja="見つかりません (ストロボのみ)"/>
-  <translation tag="Not found (use phone app)" ja="見つかりません (スマホアプリを使用)"/>
   <translation tag="Not in your spools? Set it up" ja="スプールにない？登録する"/>
   <translation tag="Not now" ja="後で"/>
   <translation tag="Not yet calibrated" ja="未キャリブレーション"/>
@@ -1903,7 +1888,6 @@
   <translation tag="Set " ja="設定 "/>
   <translation tag="Set Active" ja="アクティブに設定"/>
   <translation tag="Set PIN" ja="PIN を設定"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope" ja="スマホのストロボアプリを %.1f Hz に設定してベルトに向けてください。ベルトが静止して見えるまで調整します。\n\n推奨アプリ:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
   <translation tag="Set up" ja="セットアップ"/>
@@ -2033,7 +2017,6 @@
   <translation tag="Stopped between Spool and Lane" ja="スプールとレーンの間で停止"/>
   <translation tag="Stops all motion. Requires firmware restart." ja="すべての動作を停止します。ファームウェアの再起動が必要です。"/>
   <translation tag="Stow" ja="格納"/>
-  <translation tag="Strobe LED" ja="ストロボLED"/>
   <translation tag="Subtle" ja="サトル"/>
   <translation tag="Success" ja="成功"/>
   <translation tag="Success Rate" ja="成功率"/>
@@ -2105,7 +2088,6 @@
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ja="アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 &gt; ディスプレイで再度有効にできます。"/>
   <translation tag="The filament system reported an error" ja="フィラメントシステムがエラーを報告しました"/>
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." ja="モーターがベルトを振動させ、ストロボライトが同じ周波数で点滅します。ベルトが静止して(止まって)見えたとき、共振周波数を見つけたことになります。\n\n周波数ボタンで値を変化させ、ベルトが静止して見えたらその値を固定してください。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ja="印刷中にプリンターの電源が失われました。中断した箇所から再開できます。"/>
@@ -2299,7 +2281,6 @@
   <translation tag="View live camera feed" ja="ライブカメラ映像を表示"/>
   <translation tag="View print statistics and job history" ja="印刷統計とジョブ履歴を表示"/>
   <translation tag="Visits: " ja="表示回数: "/>
-  <translation tag="Visual Fine-Tuning" ja="視覚的微調整"/>
   <translation tag="Volume" ja="音量"/>
   <translation tag="WIDTH SENSORS" ja="幅センサー"/>
   <translation tag="WLED" ja="WLED"/>
@@ -2313,7 +2294,6 @@
   <translation tag="Warming Bed..." ja="ベッド予熱中..."/>
   <translation tag="Warn" ja="警告"/>
   <translation tag="Warning" ja="警告"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." ja="ストロボ LED の下でベルトを観察してください。ベルトが静止して見えるまで周波数を調整します — それが共振周波数です。"/>
   <translation tag="Weak battery" ja="バッテリー残量低下"/>
   <translation tag="Webcam" ja="ウェブカメラ"/>
   <translation tag="Website (optional)" ja="ウェブサイト（オプション）"/>

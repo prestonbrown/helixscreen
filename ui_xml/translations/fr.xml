@@ -27,7 +27,6 @@
   <translation tag="+ Add Preset" fr="+ Ajouter un préréglage"/>
   <translation tag="+ Add Printer" fr="+ Ajouter une imprimante"/>
   <translation tag="+ New" fr="+ Nouveau"/>
-  <translation tag="+0.5 Hz" fr="+0,5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" fr="- Vérifiez [resonance_tester] dans printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" fr="- Assurez-vous que l&apos;ADXL345 est connecté"/>
   <translation tag="- Try Measure Noise first" fr="- Essayez d&apos;abord Mesurer le bruit"/>
@@ -36,7 +35,6 @@
   <translation tag="-- W" fr="-- W"/>
   <translation tag="-- kWh" fr="-- kWh"/>
   <translation tag="--°C" fr="--°C"/>
-  <translation tag="-0.5 Hz" fr="-0,5 Hz"/>
   <translation tag="..." fr="..."/>
   <translation tag="0 = computed" fr="0 = calculé"/>
   <translation tag="0 events queued" fr="0 événement en file"/>
@@ -133,10 +131,8 @@
   <translation tag="Add custom filament" fr="Ajouter un filament personnalisé"/>
   <translation tag="Added to Spoolman" fr="Ajouté à Spoolman"/>
   <translation tag="Address" fr="Adresse"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" fr="Ajustez la tension de la courroie jusquà ce quelle paraisse immobile"/>
   <translation tag="Adjust screen brightness level" fr="Ajuster le niveau de luminosité de l&apos;écran"/>
   <translation tag="Adjust screws, then re-probe." fr="Ajustez les vis, puis re-palpez."/>
-  <translation tag="Adjust until belt appears frozen" fr="Ajuster jusqu&apos;à ce que la courroie semble figée"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." fr="Les ajustements restent actifs jusqu&apos;au redémarrage. Enregistrez après la fin de l&apos;impression."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" fr="Ajuste les caractéristiques individuelles de vos chauffages pour un contrôle optimal"/>
   <translation tag="After running the commands, tap Check Again below." fr="Après avoir exécuté les commandes, appuyez sur Revérifier ci-dessous."/>
@@ -200,7 +196,6 @@
   <translation tag="Automatic LED Control" fr="Contrôle LED automatique"/>
   <translation tag="Aux" fr="Aux"/>
   <translation tag="Available" fr="Disponible"/>
-  <translation tag="Available (%s)" fr="Disponible (%s)"/>
   <translation tag="Available Networks" fr="Réseaux disponibles"/>
   <translation tag="Available networks" fr="Réseaux disponibles"/>
   <translation tag="Average" fr="Moyenne"/>
@@ -213,7 +208,6 @@
   <translation tag="BLUETOOTH PRINTERS" fr="IMPRIMANTES BLUETOOTH"/>
   <translation tag="BLUETOOTH SCANNERS" fr="SCANNERS BLUETOOTH"/>
   <translation tag="Back" fr="Retour"/>
-  <translation tag="Back to Results" fr="Retour aux résultats"/>
   <translation tag="Backtrace: {} frames" fr="Trace : {} frames"/>
   <translation tag="Barcode Scanner" fr="Scanner de codes-barres"/>
   <translation tag="Base" fr="Référence"/>
@@ -238,8 +232,6 @@
   <translation tag="Bed target set to {}°C" fr="Cible plateau réglée à {}°C"/>
   <translation tag="Bed temp must be 0-200°C" fr="La température du plateau doit être entre 0 et 200°C"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
-  <translation tag="Belt A frequency locked" fr="Fréquence de la courroie A verrouillée"/>
-  <translation tag="Belt B frequency locked" fr="Fréquence de la courroie B verrouillée"/>
   <translation tag="Belt Tension" fr="Tension de courroie"/>
   <translation tag="Belt Tension Check" fr="Vérification de tension de courroie"/>
   <translation tag="Belt tension looks good!" fr="La tension de courroie semble bonne !"/>
@@ -535,7 +527,6 @@
   <translation tag="Critical hardware missing: {}" fr="Matériel critique manquant : {}"/>
   <translation tag="Current / Target" fr="Actuel / Cible"/>
   <translation tag="Current Configuration" fr="Configuration actuelle"/>
-  <translation tag="Current Frequency" fr="Fréquence actuelle"/>
   <translation tag="Current Mesh" fr="Maillage du plateau actuel"/>
   <translation tag="Current Temperature" fr="Température actuelle"/>
   <translation tag="Current Version" fr="Version actuelle"/>
@@ -885,7 +876,6 @@
   <translation tag="File Size" fr="Taille du fichier"/>
   <translation tag="Filename" fr="Nom du fichier"/>
   <translation tag="Fine" fr="Fin"/>
-  <translation tag="Fine-Tune" fr="Réglage fin"/>
   <translation tag="Finish" fr="Terminer"/>
   <translation tag="Finishing up..." fr="Finalisation..."/>
   <translation tag="Firmware Restart" fr="Redémarrage firmware"/>
@@ -1156,8 +1146,6 @@
   <translation tag="Locating Spoolman configuration..." fr="Localisation de la configuration Spoolman..."/>
   <translation tag="Location" fr="Emplacement"/>
   <translation tag="Lock" fr="Verrouiller"/>
-  <translation tag="Lock A" fr="Verrouiller A"/>
-  <translation tag="Lock B" fr="Verrouiller B"/>
   <translation tag="Lock screen after idle timeout" fr="Verrouiller l&apos;écran après inactivité"/>
   <translation tag="Locked during print" fr="Verrouillé pendant l&apos;impression"/>
   <translation tag="Log Level" fr="Niveau de log"/>
@@ -1316,7 +1304,6 @@
   <translation tag="No Multi-Filament System connected" fr="Aucun système multi-filament connecté"/>
   <translation tag="No Multi-Filament System connected." fr="Aucun système multi-filament connecté."/>
   <translation tag="No PRINT_START macro found" fr="Aucune macro PRINT_START trouvée"/>
-  <translation tag="No PWM LED detected for strobe mode" fr="Aucune LED PWM détectée pour le mode stroboscope"/>
   <translation tag="No Power Devices" fr="Aucun appareil électrique"/>
   <translation tag="No Spool" fr="Aucune bobine"/>
   <translation tag="No Spools" fr="Aucune bobine"/>
@@ -1379,8 +1366,6 @@
   <translation tag="Not connected to printer" fr="Non connecté à l&apos;imprimante"/>
   <translation tag="Not connected to printer." fr="Non connecté à l&apos;imprimante."/>
   <translation tag="Not detected" fr="Non détecté"/>
-  <translation tag="Not found (strobe only)" fr="Introuvable (stroboscope uniquement)"/>
-  <translation tag="Not found (use phone app)" fr="Introuvable (utilisez lapplication mobile)"/>
   <translation tag="Not in your spools? Set it up" fr="Pas dans vos bobines ? Configurez-la"/>
   <translation tag="Not now" fr="Pas maintenant"/>
   <translation tag="Not yet calibrated" fr="Pas encore calibré"/>
@@ -1903,7 +1888,6 @@
   <translation tag="Set " fr="Définir "/>
   <translation tag="Set Active" fr="Définir actif"/>
   <translation tag="Set PIN" fr="Définir le PIN"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope" fr="Réglez une application stroboscope sur téléphone à %.1f Hz et visez la courroie. Ajustez jusqu&apos;à ce que la courroie paraisse immobile.\n\nApplications recommandées :\n  Android : Strobily, Strobe Light\n  iOS : Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set local timezone for time display" fr="Définir le fuseau horaire local pour l&apos;affichage"/>
   <translation tag="Set logging verbosity for troubleshooting" fr="Définir le niveau de détail des logs pour le dépannage"/>
   <translation tag="Set up" fr="Configurer"/>
@@ -2033,7 +2017,6 @@
   <translation tag="Stopped between Spool and Lane" fr="Arrêté entre la bobine et la voie"/>
   <translation tag="Stops all motion. Requires firmware restart." fr="Arrête tout mouvement. Nécessite un redémarrage du firmware."/>
   <translation tag="Stow" fr="Ranger"/>
-  <translation tag="Strobe LED" fr="LED stroboscopique"/>
   <translation tag="Subtle" fr="Subtil"/>
   <translation tag="Success" fr="Succès"/>
   <translation tag="Success Rate" fr="Taux de réussite"/>
@@ -2105,7 +2088,6 @@
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." fr="L&apos;économiseur d&apos;écran animé a été désactivé sur cet appareil pour éviter qu&apos;il n&apos;interfère avec les impressions. Vous pouvez le réactiver dans Paramètres &gt; Affichage et son."/>
   <translation tag="The filament system reported an error" fr="Le système de filament a signalé une erreur"/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." fr="Le moteur fait vibrer la courroie tandis qu&apos;un stroboscope clignote à la même fréquence. Lorsque la courroie semble immobile (figée), vous avez trouvé la fréquence de résonance.\n\nUtilisez les boutons de fréquence pour balayer les valeurs jusqu&apos;à ce que la courroie paraisse immobile, puis verrouillez la lecture."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" fr="L&apos;imprimante a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début ?"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." fr="L&apos;imprimante n&apos;est pas référencée. Continuer référencera tous les axes et déplacera la tête d&apos;outil. Assurez-vous que le plateau est dégagé."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." fr="L&apos;imprimante a été mise hors tension pendant une impression. Elle peut reprendre là où elle s&apos;est arrêtée."/>
@@ -2299,7 +2281,6 @@
   <translation tag="View live camera feed" fr="Voir le flux de la caméra en direct"/>
   <translation tag="View print statistics and job history" fr="Voir les statistiques d&apos;impression et l&apos;historique des travaux"/>
   <translation tag="Visits: " fr="Visites : "/>
-  <translation tag="Visual Fine-Tuning" fr="Réglage fin visuel"/>
   <translation tag="Volume" fr="Volume"/>
   <translation tag="WIDTH SENSORS" fr="CAPTEURS DE LARGEUR"/>
   <translation tag="WLED" fr="WLED"/>
@@ -2313,7 +2294,6 @@
   <translation tag="Warming Bed..." fr="Préchauffage du plateau..."/>
   <translation tag="Warn" fr="Avertissement"/>
   <translation tag="Warning" fr="Avertissement"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." fr="Observez la courroie sous la LED stroboscope. Ajustez la fréquence jusquà ce que la courroie paraisse immobile — cest la fréquence de résonance."/>
   <translation tag="Weak battery" fr="Batterie faible"/>
   <translation tag="Webcam" fr="Webcam"/>
   <translation tag="Website (optional)" fr="Site web (facultatif)"/>

@@ -28,7 +28,6 @@ translations:
   + Add Preset: + Добавить пресет
   + Add Printer: + Добавить принтер
   + New: + Новый
-  +0.5 Hz: +0,5 Гц
   '- Check [resonance_tester] in printer.cfg': '- Проверьте блок [resonance_tester]
     в printer.cfg'
   '- Ensure ADXL345 is connected': '- Убедитесь, что ADXL345 подключен'
@@ -38,7 +37,6 @@ translations:
   -- W: -- Вт
   -- kWh: -- кВт·ч
   --°C: --°C
-  -0.5 Hz: -0,5 Гц
   '...': '...'
   0 = computed: 0 = вычислено
   0 events queued: 0 событий в очереди
@@ -140,11 +138,8 @@ translations:
   Add custom filament: Добавить свой филамент
   Added to Spoolman: Добавлено в Spoolman
   Address: Адрес
-  Adjust belt tension until the belt appears stationary: Регулируйте натяжение ремня,
-    пока ремень не будет казаться неподвижным
   Adjust screen brightness level: Настроить уровень яркости экрана
   Adjust screws, then re-probe.: Отрегулируйте винты, затем перепроверьте.
-  Adjust until belt appears frozen: Регулируйте, пока ремень не покажется неподвижным
   Adjustments stay active until restart. Save after print completes.: Настройки активны
     до перезагрузки. Сохраните после завершения печати.
   Adjusts individual characteristics of your heaters for optimal control: Настраивает
@@ -225,7 +220,6 @@ translations:
   Automatic LED Control: Автоматическое управление LED
   Aux: Доп
   Available: Доступен
-  Available (%s): Доступно (%s)
   Available Networks: Доступные сети
   Available networks: Доступные сети
   Average: Среднее
@@ -238,7 +232,6 @@ translations:
   BLUETOOTH PRINTERS: BLUETOOTH-ПРИНТЕРЫ
   BLUETOOTH SCANNERS: BLUETOOTH-СКАНЕРЫ
   Back: Назад
-  Back to Results: Назад к результатам
   'Backtrace: {} frames': 'Трассировка: {} кадров'
   Barcode Scanner: Сканер штрих-кодов
   Base: Опорный
@@ -263,8 +256,6 @@ translations:
   Bed target set to {}°C: Целевая температура стола {}°C
   Bed temp must be 0-200°C: Температура стола должна быть 0-200°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
-  Belt A frequency locked: Частота ремня A зафиксирована
-  Belt B frequency locked: Частота ремня B зафиксирована
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
   Belt tension looks good!: Натяжение ремня в норме!
@@ -612,7 +603,6 @@ translations:
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
   Current / Target: Текущая / Цель
   Current Configuration: Текущая конфигурация
-  Current Frequency: Текущая частота
   Current Mesh: Текущая сетка
   Current Temperature: Текущая температура
   Current Version: Текущая версия
@@ -989,7 +979,6 @@ translations:
   File Size: Размер файла
   Filename: Имя файла
   Fine: Точно
-  Fine-Tune: Тонкая настройка
   Finish: Завершить
   Finishing up...: Завершение...
   Firmware Restart: Перезапуск прошивки
@@ -1313,8 +1302,6 @@ translations:
   Locating Spoolman configuration...: Поиск конфигурации Spoolman...
   Location: Расположение
   Lock: Блокировка
-  Lock A: Блокировка A
-  Lock B: Блокировка B
   Lock screen after idle timeout: Блокировать экран после простоя
   Locked during print: Заблокировано во время печати
   Log Level: Уровень журнала
@@ -1489,7 +1476,6 @@ translations:
   No Multi-Filament System connected: Мультифиламентная система не подключена
   No Multi-Filament System connected.: Мультифиламентная система не подключена.
   No PRINT_START macro found: Макрос PRINT_START не найден
-  No PWM LED detected for strobe mode: Не обнаружен PWM LED для режима стробоскопа
   No Power Devices: Нет устройств питания
   No Spool: Нет катушки
   No Spools: Нет катушек
@@ -1558,8 +1544,6 @@ translations:
   Not connected to printer: Нет подключения к принтеру
   Not connected to printer.: Нет подключения к принтеру.
   Not detected: Не обнаружено
-  Not found (strobe only): Не найдено (только стробоскоп)
-  Not found (use phone app): Не найдено (используйте приложение на телефоне)
   Not in your spools? Set it up: Нет в ваших катушках? Настроить
   Not now: Не сейчас
   Not yet calibrated: Ещё не откалибровано
@@ -2143,12 +2127,6 @@ translations:
   'Set ': 'Установить '
   Set Active: Сделать активной
   Set PIN: Установить PIN
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : 'Установите приложение-стробоскоп на телефоне на %.1f Гц и направьте на ремень.
-    Регулируйте, пока ремень не будет казаться неподвижным.\n\nРекомендуемые приложения:\n  Android:
-    Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: Установить часовой пояс для отображения времени
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала
     для устранения неполадок
@@ -2295,7 +2273,6 @@ translations:
   Stops all motion. Requires firmware restart.: Останавливает всё движение. Требуется
     перезапуск прошивки.
   Stow: Убрать
-  Strobe LED: Стробоскоп
   Subtle: Сдержанный
   Success: Успех
   Success Rate: Процент успеха
@@ -2388,14 +2365,6 @@ translations:
   The filament system reported an error: Система филамента сообщила об ошибке
   The heater will cycle on and off several times.: Нагреватель будет несколько раз
     включаться и выключаться.
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : Мотор вибрирует ремень, пока стробоскоп мигает с той же частотой. Когда ремень
-    кажется неподвижным (застывшим), вы нашли резонансную частоту.\n\nИспользуйте
-    кнопки частоты для перебора значений, пока ремень не будет выглядеть неподвижным,
-    затем зафиксируйте показание.
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
     остановил эту печать и не может её возобновить. Начать с начала?
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
@@ -2643,7 +2612,6 @@ translations:
   View live camera feed: Просмотр трансляции с камеры
   View print statistics and job history: Просмотр статистики печати и истории заданий
   'Visits: ': 'Посещений: '
-  Visual Fine-Tuning: Визуальная тонкая настройка
   Volume: Громкость
   WIDTH SENSORS: ДАТЧИКИ ШИРИНЫ
   WLED: WLED
@@ -2658,9 +2626,6 @@ translations:
   Warming Bed...: Прогрев стола...
   Warn: Предупреждение
   Warning: Предупреждение
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Наблюдайте
-    за ремнём под стробоскопическим LED. Регулируйте частоту, пока ремень не будет
-    казаться неподвижным — это и есть резонансная частота.
   Weak battery: Слабый заряд
   Webcam: Веб-камера
   Website (optional): Веб-сайт (необязательно)

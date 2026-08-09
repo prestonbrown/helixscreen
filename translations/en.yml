@@ -27,7 +27,6 @@ translations:
   + Add Preset: + Add Preset
   + Add Printer: + Add Printer
   + New: + New
-  +0.5 Hz: +0.5 Hz
   '- Check [resonance_tester] in printer.cfg': '- Check [resonance_tester] in printer.cfg'
   '- Ensure ADXL345 is connected': '- Ensure ADXL345 is connected'
   '- Try Measure Noise first': '- Try Measure Noise first'
@@ -36,7 +35,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0.5 Hz
   '...': '...'
   0 = computed: 0 = computed
   0 events queued: 0 events queued
@@ -136,11 +134,8 @@ translations:
   Add custom filament: Add custom filament
   Added to Spoolman: Added to Spoolman
   Address: Address
-  Adjust belt tension until the belt appears stationary: Adjust belt tension until
-    the belt appears stationary
   Adjust screen brightness level: Adjust screen brightness level
   Adjust screws, then re-probe.: Adjust screws, then re-probe.
-  Adjust until belt appears frozen: Adjust until belt appears frozen
   Adjustments stay active until restart. Save after print completes.: Adjustments
     stay active until restart. Save after print completes.
   Adjusts individual characteristics of your heaters for optimal control: Adjusts
@@ -218,7 +213,6 @@ translations:
   Automatic LED Control: Automatic LED Control
   Aux: Aux
   Available: Available
-  Available (%s): Available (%s)
   Available Networks: Available Networks
   Available networks: Available networks
   Average: Average
@@ -231,7 +225,6 @@ translations:
   BLUETOOTH PRINTERS: BLUETOOTH PRINTERS
   BLUETOOTH SCANNERS: BLUETOOTH SCANNERS
   Back: Back
-  Back to Results: Back to Results
   'Backtrace: {} frames': 'Backtrace: {} frames'
   Barcode Scanner: Barcode Scanner
   Base: Base
@@ -256,8 +249,6 @@ translations:
   Bed target set to {}°C: Bed target set to {}°C
   Bed temp must be 0-200°C: Bed temp must be 0-200°C
   Bed warming timed out: Bed warming timed out
-  Belt A frequency locked: Belt A frequency locked
-  Belt B frequency locked: Belt B frequency locked
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt tension looks good!: Belt tension looks good!
@@ -595,7 +586,6 @@ translations:
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
   Current / Target: Current / Target
   Current Configuration: Current Configuration
-  Current Frequency: Current Frequency
   Current Mesh: Current Mesh
   Current Temperature: Current Temperature
   Current Version: Current Version
@@ -969,7 +959,6 @@ translations:
   File Size: File Size
   Filename: Filename
   Fine: Fine
-  Fine-Tune: Fine-Tune
   Finish: Finish
   Finishing up...: Finishing up...
   Firmware Restart: Firmware Restart
@@ -1289,8 +1278,6 @@ translations:
   Locating Spoolman configuration...: Locating Spoolman configuration...
   Location: Location
   Lock: Lock
-  Lock A: Lock A
-  Lock B: Lock B
   Lock screen after idle timeout: Lock screen after idle timeout
   Locked during print: Locked during print
   Log Level: Log Level
@@ -1463,7 +1450,6 @@ translations:
   No Multi-Filament System connected: No Multi-Filament System connected
   No Multi-Filament System connected.: No Multi-Filament System connected.
   No PRINT_START macro found: No PRINT_START macro found
-  No PWM LED detected for strobe mode: No PWM LED detected for strobe mode
   No Power Devices: No Power Devices
   No Spool: No Spool
   No Spools: No Spools
@@ -1531,8 +1517,6 @@ translations:
   Not connected to printer: Not connected to printer
   Not connected to printer.: Not connected to printer.
   Not detected: Not detected
-  Not found (strobe only): Not found (strobe only)
-  Not found (use phone app): Not found (use phone app)
   Not in your spools? Set it up: Not in your spools? Set it up
   Not now: Not now
   Not yet calibrated: Not yet calibrated
@@ -2113,12 +2097,6 @@ translations:
   'Set ': 'Set '
   Set Active: Set Active
   Set PIN: Set PIN
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: Set local timezone for time display
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
   Set up: Set up
@@ -2261,7 +2239,6 @@ translations:
   Stops all motion. Requires firmware restart.: Stops all motion. Requires firmware
     restart.
   Stow: Stow
-  Strobe LED: Strobe LED
   Subtle: Subtle
   Success: Success
   Success Rate: Success Rate
@@ -2353,14 +2330,6 @@ translations:
   The filament system reported an error: The filament system reported an error
   The heater will cycle on and off several times.: The heater will cycle on and off
     several times.
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
   The printer halted this print and cannot resume it. Restart from the beginning?: The
     printer halted this print and cannot resume it. Restart from the beginning?
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.
@@ -2602,7 +2571,6 @@ translations:
   View live camera feed: View live camera feed
   View print statistics and job history: View print statistics and job history
   'Visits: ': 'Visits: '
-  Visual Fine-Tuning: Visual Fine-Tuning
   Volume: Volume
   WIDTH SENSORS: WIDTH SENSORS
   WLED: WLED
@@ -2618,9 +2586,6 @@ translations:
   Warming Bed...: Warming Bed...
   Warn: Warn
   Warning: Warning
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Watch
-    the belt under the strobe LED. Adjust frequency until the belt appears stationary
-    — that is the resonant frequency.
   Weak battery: Weak battery
   Webcam: Webcam
   Website (optional): Website (optional)

@@ -28,7 +28,6 @@ translations:
   + Add Preset: + Voreinstellung
   + Add Printer: + Drucker hinzufügen
   + New: + Neu
-  +0.5 Hz: +0,5 Hz
   '- Check [resonance_tester] in printer.cfg': '- Prüfen Sie [resonance_tester] in
     printer.cfg'
   '- Ensure ADXL345 is connected': '- Stellen Sie sicher, dass der ADXL345 angeschlossen
@@ -39,7 +38,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0,5 Hz
   '...': '...'
   0 = computed: 0 = berechnet
   0 events queued: 0 Ereignisse in Warteschlange
@@ -145,11 +143,8 @@ translations:
   Add custom filament: Benutzerdefiniertes Filament hinzufügen
   Added to Spoolman: Zu Spoolman hinzugefügt
   Address: Adresse
-  Adjust belt tension until the belt appears stationary: Riemenspannung anpassen,
-    bis der Riemen stillzustehen scheint
   Adjust screen brightness level: Bildschirmhelligkeit anpassen
   Adjust screws, then re-probe.: Schrauben einstellen, dann erneut prüfen.
-  Adjust until belt appears frozen: Anpassen, bis der Riemen stillzustehen scheint
   Adjustments stay active until restart. Save after print completes.: Anpassungen
     bleiben bis zum Neustart aktiv. Nach Druckende speichern.
   Adjusts individual characteristics of your heaters for optimal control: Passt individuelle
@@ -235,7 +230,6 @@ translations:
   Automatic LED Control: Automatische LED-Steuerung
   Aux: Aux
   Available: Verfügbar
-  Available (%s): Verfügbar (%s)
   Available Networks: Verfügbare Netzwerke
   Available networks: Verfügbare Netzwerke
   Average: Durchschnitt
@@ -249,7 +243,6 @@ translations:
   BLUETOOTH PRINTERS: BLUETOOTH-DRUCKER
   BLUETOOTH SCANNERS: BLUETOOTH-SCANNER
   Back: Zurück
-  Back to Results: Zurück zu Ergebnissen
   'Backtrace: {} frames': 'Backtrace: {} Frames'
   Barcode Scanner: Barcode-Scanner
   Base: Referenz
@@ -274,8 +267,6 @@ translations:
   Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
   Bed temp must be 0-200°C: Betttemperatur muss 0-200°C betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
-  Belt A frequency locked: Frequenz Riemen A fixiert
-  Belt B frequency locked: Frequenz Riemen B fixiert
   Belt Tension: Riemenspannung
   Belt Tension Check: Riemenspannungsprüfung
   Belt tension looks good!: Riemenspannung sieht gut aus!
@@ -629,7 +620,6 @@ translations:
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
-  Current Frequency: Aktuelle Frequenz
   Current Mesh: Aktuelles Netz
   Current Temperature: Aktuelle Temperatur
   Current Version: Aktuelle Version
@@ -1016,7 +1006,6 @@ translations:
   File Size: Dateigröße
   Filename: Dateiname
   Fine: Fein
-  Fine-Tune: Feinabstimmung
   Finish: Fertig
   Finishing up...: Wird abgeschlossen...
   Firmware Restart: Firmware-Neustart
@@ -1343,8 +1332,6 @@ translations:
   Locating Spoolman configuration...: Spoolman-Konfiguration wird gesucht...
   Location: Standort
   Lock: Sperren
-  Lock A: Sperre A
-  Lock B: Sperre B
   Lock screen after idle timeout: Bildschirm nach Inaktivität sperren
   Locked during print: Während des Drucks gesperrt
   Log Level: Protokollstufe
@@ -1520,7 +1507,6 @@ translations:
   No Multi-Filament System connected: Kein Multi-Filament-System verbunden
   No Multi-Filament System connected.: Kein Multi-Filament-System verbunden.
   No PRINT_START macro found: Kein PRINT_START-Makro gefunden
-  No PWM LED detected for strobe mode: Keine PWM-LED für Stroboskopmodus erkannt
   No Power Devices: Keine Stromgeräte
   No Spool: Keine Spule
   No Spools: Keine Spulen
@@ -1589,8 +1575,6 @@ translations:
   Not connected to printer: Nicht mit Drucker verbunden
   Not connected to printer.: Nicht mit Drucker verbunden.
   Not detected: Nicht erkannt
-  Not found (strobe only): Nicht gefunden (nur Stroboskop)
-  Not found (use phone app): Nicht gefunden (Telefon-App verwenden)
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
   Not now: Nicht jetzt
   Not yet calibrated: Noch nicht kalibriert
@@ -2182,12 +2166,6 @@ translations:
   'Set ': 'Setzen '
   Set Active: Aktiv setzen
   Set PIN: PIN festlegen
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : 'Stellen Sie eine Stroboskop-App auf dem Telefon auf %.1f Hz ein und richten Sie
-    sie auf den Riemen. Passen Sie an, bis der Riemen stillzustehen scheint.\n\nEmpfohlene
-    Apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: Lokale Zeitzone für Zeitanzeige festlegen
   Set logging verbosity for troubleshooting: Protokollierungsdetailgrad für Fehlerbehebung
     festlegen
@@ -2333,7 +2311,6 @@ translations:
   Stopped between Spool and Lane: Zwischen Spule und Spur gestoppt
   Stops all motion. Requires firmware restart.: Stoppt alle Bewegung. Erfordert Firmware-Neustart.
   Stow: Einfahren
-  Strobe LED: Strobe-LED
   Subtle: Dezent
   Success: Erfolg
   Success Rate: Erfolgsrate
@@ -2425,15 +2402,6 @@ translations:
   The filament system reported an error: Das Filamentsystem meldete einen Fehler
   The heater will cycle on and off several times.: Die Heizung wird mehrmals ein-
     und ausschalten.
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : Der Motor lässt den Riemen vibrieren, während ein Stroboskoplicht mit derselben
-    Frequenz blinkt. Wenn der Riemen stillzustehen scheint (eingefroren), haben Sie
-    die Resonanzfrequenz gefunden.\n\nVerwenden Sie die Frequenztasten, um die Werte
-    durchzugehen, bis der Riemen stillzustehen scheint, und fixieren Sie dann den
-    Messwert.
   The printer halted this print and cannot resume it. Restart from the beginning?: Der
     Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu
     starten?
@@ -2691,7 +2659,6 @@ translations:
   View live camera feed: Live-Kamerabild anzeigen
   View print statistics and job history: Druckstatistiken und Auftragsverlauf anzeigen
   'Visits: ': 'Aufrufe: '
-  Visual Fine-Tuning: Visuelle Feinabstimmung
   Volume: Lautstärke
   WIDTH SENSORS: BREITENSENSOREN
   WLED: WLED
@@ -2706,9 +2673,6 @@ translations:
   Warming Bed...: Bett wird vorgeheizt...
   Warn: Warnung
   Warning: Warnung
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: Beobachten
-    Sie den Riemen unter der Stroboskop-LED. Passen Sie die Frequenz an, bis der Riemen
-    stillzustehen scheint — das ist die Resonanzfrequenz.
   Weak battery: Schwache Batterie
   Webcam: Webcam
   Website (optional): Webseite (optional)

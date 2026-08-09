@@ -24,16 +24,14 @@ struct ui_frequency_response_chart_t;
  * @brief Belt tension tuning panel for CoreXY/Cartesian belt frequency measurement
  *
  * Interactive overlay that guides users through belt tension measurement:
- * - Detects hardware (kinematics, accelerometer, LED strobe)
+ * - Detects hardware (kinematics, accelerometer)
  * - Runs frequency sweeps on belt paths A and B
  * - Displays resonant frequency comparison and recommendations
- * - Optional strobe fine-tuning mode for visual belt tension matching
  *
  * ## State Machine:
  * - START: Hardware summary + start button
  * - PROGRESS: Testing in progress with progress bar
  * - RESULTS: Show measurements, delta, similarity, recommendation
- * - STROBE: Strobe fine-tuning mode (placeholder for MVP)
  * - ERROR: Error display with retry
  *
  * ## Usage:
@@ -50,8 +48,7 @@ class BeltTensionPanel : public OverlayBase {
         START = 0,    ///< Hardware summary + start button
         PROGRESS = 1, ///< Testing in progress
         RESULTS = 2,  ///< Show measurements + chart
-        STROBE = 3,   ///< Strobe fine-tuning mode
-        ERROR = 4,    ///< Error display
+        ERROR = 3,    ///< Error display
     };
 
     BeltTensionPanel() = default;
@@ -87,12 +84,6 @@ class BeltTensionPanel : public OverlayBase {
 
     void handle_start_clicked();
     void handle_cancel_clicked();
-    void handle_strobe_clicked();
-    void handle_strobe_freq_up();
-    void handle_strobe_freq_down();
-    void handle_lock_a_clicked();
-    void handle_lock_b_clicked();
-    void handle_back_to_results_clicked();
     void handle_retry_clicked();
 
   private:
@@ -101,7 +92,6 @@ class BeltTensionPanel : public OverlayBase {
     void on_sweep_complete(const helix::calibration::BeltTensionResult& result);
     void on_error(const std::string& message);
     void populate_results(const helix::calibration::BeltTensionResult& result);
-    void update_strobe_display();
 
     // Subject manager for RAII cleanup
     SubjectManager subjects_;
@@ -111,8 +101,6 @@ class BeltTensionPanel : public OverlayBase {
     char hw_kinematics_buf_[64] = {};
     lv_subject_t hw_adxl_subject_{};
     char hw_adxl_buf_[64] = {};
-    lv_subject_t hw_led_subject_{};
-    char hw_led_buf_[64] = {};
     lv_subject_t target_freq_subject_{};
     char target_freq_buf_[32] = {};
 
@@ -137,13 +125,6 @@ class BeltTensionPanel : public OverlayBase {
     lv_subject_t result_recommendation_subject_{};
     char result_recommendation_buf_[256] = {};
     lv_subject_t has_results_subject_{};
-    lv_subject_t has_strobe_subject_{};
-
-    // Strobe subjects
-    lv_subject_t strobe_freq_subject_{};
-    char strobe_freq_buf_[32] = {};
-    lv_subject_t strobe_instruction_subject_{};
-    char strobe_instruction_buf_[512] = {};
 
     // Error subject
     lv_subject_t error_message_subject_{};
@@ -158,9 +139,6 @@ class BeltTensionPanel : public OverlayBase {
     ui_frequency_response_chart_t* chart_ = nullptr;
     int chart_series_a_ = -1;
     int chart_series_b_ = -1;
-
-    // Strobe state
-    float current_strobe_freq_ = 100.0f;
 
     // Hardware detection cache
     helix::calibration::BeltTensionHardware detected_hw_;

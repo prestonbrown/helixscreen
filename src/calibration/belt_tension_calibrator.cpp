@@ -377,104 +377,11 @@ void BeltTensionCalibrator::run_auto_sweep(BeltProgressCallback on_progress,
 }
 
 // ============================================================================
-// start_strobe() — delegates to API
-// ============================================================================
-
-void BeltTensionCalibrator::start_strobe(float frequency_hz, BeltErrorCallback on_error) {
-    if (!api_) {
-        spdlog::warn("[BeltTension] start_strobe called without API");
-        if (on_error) {
-            on_error("No API available");
-        }
-        return;
-    }
-
-    if (!hardware_.has_pwm_led) {
-        spdlog::warn("[BeltTension] No PWM LED available for strobe mode");
-        if (on_error) {
-            on_error("No PWM LED detected on printer");
-        }
-        return;
-    }
-
-    if (frequency_hz <= 0.0f) {
-        if (on_error)
-            on_error("Invalid strobe frequency");
-        return;
-    }
-
-    strobe_frequency_ = frequency_hz;
-    state_.store(State::STROBE_MODE);
-
-    spdlog::info("[BeltTension] Starting strobe at {:.1f} Hz on pin {}", frequency_hz,
-                 hardware_.pwm_led_pin);
-
-    api_->advanced().set_strobe_frequency(
-        hardware_.pwm_led_pin, frequency_hz, []() {}, // Strobe started successfully
-        lifetime_.bg_cb("BeltTensionCalibrator::start_strobe_error",
-                        [this, on_error](const MoonrakerError& err) {
-                            spdlog::error("[BeltTension] Failed to start strobe: {}", err.message);
-                            state_.store(State::IDLE);
-                            if (on_error)
-                                on_error("Failed to start strobe: " + err.message);
-                        }));
-}
-
-// ============================================================================
-// set_strobe_frequency() — delegates to API
-// ============================================================================
-
-void BeltTensionCalibrator::set_strobe_frequency(float frequency_hz) {
-    if (state_.load() != State::STROBE_MODE || !api_ || frequency_hz <= 0.0f) {
-        return;
-    }
-
-    strobe_frequency_ = frequency_hz;
-
-    api_->advanced().set_strobe_frequency(
-        hardware_.pwm_led_pin, frequency_hz, []() {},
-        [](const MoonrakerError& err) {
-            spdlog::warn("[BeltTension] Failed to update strobe frequency: {}", err.message);
-        });
-}
-
-// ============================================================================
-// stop_strobe() — delegates to API
-// ============================================================================
-
-void BeltTensionCalibrator::stop_strobe() {
-    if (state_.load() != State::STROBE_MODE) {
-        return;
-    }
-
-    spdlog::info("[BeltTension] Stopping strobe");
-
-    if (api_ && !hardware_.pwm_led_pin.empty()) {
-        api_->advanced().set_strobe_frequency(
-            hardware_.pwm_led_pin, 0.0f, // 0 = turn off
-            []() {},
-            [](const MoonrakerError& err) {
-                spdlog::warn("[BeltTension] Failed to stop strobe: {}", err.message);
-            });
-    }
-
-    strobe_frequency_ = 0.0f;
-    state_.store(results_.is_complete() ? State::RESULTS_READY : State::IDLE);
-}
-
-// ============================================================================
 // cancel()
 // ============================================================================
 
 void BeltTensionCalibrator::cancel() {
     spdlog::info("[BeltTension] Cancelling (was state={})", static_cast<int>(state_.load()));
-
-    // Stop strobe if active
-    if (state_.load() == State::STROBE_MODE) {
-        stop_strobe();
-        return;
-    }
-
     state_.store(State::IDLE);
 }
 
@@ -485,15 +392,9 @@ void BeltTensionCalibrator::cancel() {
 void BeltTensionCalibrator::reset() {
     spdlog::info("[BeltTension] Resetting calibrator");
 
-    // Stop strobe if active
-    if (state_.load() == State::STROBE_MODE) {
-        stop_strobe();
-    }
-
     state_.store(State::IDLE);
     results_ = BeltTensionResult{};
     hardware_ = BeltTensionHardware{};
-    strobe_frequency_ = 0.0f;
 }
 
 } // namespace helix::calibration

@@ -459,7 +459,7 @@ class MoonrakerAdvancedAPI {
     /**
      * @brief Detect printer hardware for belt tension calibration
      *
-     * Two-phase detection: queries printer.objects.list for ADXL/PWM presence,
+     * Two-phase detection: queries printer.objects.list for ADXL presence,
      * then printer.objects.query for kinematics type.
      *
      * @param on_complete Called with detected hardware capabilities
@@ -485,7 +485,7 @@ class MoonrakerAdvancedAPI {
                                      BeltResonanceCallback on_complete, ErrorCallback on_error);
 
     /**
-     * @brief Run TEST_RESONANCES at a fixed frequency (for strobe mode)
+     * @brief Run TEST_RESONANCES at a fixed frequency
      *
      * Holds near freq_hz for ~5 seconds by using a narrow frequency band
      * (FREQ_START=F FREQ_END=F+0.5 HZ_PER_SEC=0.1).
@@ -497,20 +497,6 @@ class MoonrakerAdvancedAPI {
      */
     virtual void excite_belt_at_frequency(const std::string& axis_param, float freq_hz,
                                           SuccessCallback on_complete, ErrorCallback on_error);
-
-    /**
-     * @brief Set PWM LED strobe frequency
-     *
-     * Controls a Klipper [pwm_cycle_time] pin for visual strobe tuning.
-     * Pass freq_hz <= 0 to turn off the strobe.
-     *
-     * @param pin_name Klipper pin name (from [pwm_cycle_time] section)
-     * @param freq_hz Strobe frequency in Hz, 0 to turn off
-     * @param on_success Called on success
-     * @param on_error Called on failure
-     */
-    virtual void set_strobe_frequency(const std::string& pin_name, float freq_hz,
-                                      SuccessCallback on_success, ErrorCallback on_error);
 
     /**
      * @brief Download raw accelerometer CSV from Klipper data store

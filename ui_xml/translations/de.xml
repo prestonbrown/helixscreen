@@ -27,7 +27,6 @@
   <translation tag="+ Add Preset" de="+ Voreinstellung"/>
   <translation tag="+ Add Printer" de="+ Drucker hinzufügen"/>
   <translation tag="+ New" de="+ Neu"/>
-  <translation tag="+0.5 Hz" de="+0,5 Hz"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" de="- Prüfen Sie [resonance_tester] in printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" de="- Stellen Sie sicher, dass der ADXL345 angeschlossen ist"/>
   <translation tag="- Try Measure Noise first" de="- Versuchen Sie zuerst Rauschen messen"/>
@@ -36,7 +35,6 @@
   <translation tag="-- W" de="-- W"/>
   <translation tag="-- kWh" de="-- kWh"/>
   <translation tag="--°C" de="--°C"/>
-  <translation tag="-0.5 Hz" de="-0,5 Hz"/>
   <translation tag="..." de="..."/>
   <translation tag="0 = computed" de="0 = berechnet"/>
   <translation tag="0 events queued" de="0 Ereignisse in Warteschlange"/>
@@ -133,10 +131,8 @@
   <translation tag="Add custom filament" de="Benutzerdefiniertes Filament hinzufügen"/>
   <translation tag="Added to Spoolman" de="Zu Spoolman hinzugefügt"/>
   <translation tag="Address" de="Adresse"/>
-  <translation tag="Adjust belt tension until the belt appears stationary" de="Riemenspannung anpassen, bis der Riemen stillzustehen scheint"/>
   <translation tag="Adjust screen brightness level" de="Bildschirmhelligkeit anpassen"/>
   <translation tag="Adjust screws, then re-probe." de="Schrauben einstellen, dann erneut prüfen."/>
-  <translation tag="Adjust until belt appears frozen" de="Anpassen, bis der Riemen stillzustehen scheint"/>
   <translation tag="Adjustments stay active until restart. Save after print completes." de="Anpassungen bleiben bis zum Neustart aktiv. Nach Druckende speichern."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" de="Passt individuelle Eigenschaften Ihrer Heizungen für optimale Regelung an"/>
   <translation tag="After running the commands, tap Check Again below." de="Tippen Sie nach Ausführung der Befehle unten auf Erneut prüfen."/>
@@ -200,7 +196,6 @@
   <translation tag="Automatic LED Control" de="Automatische LED-Steuerung"/>
   <translation tag="Aux" de="Aux"/>
   <translation tag="Available" de="Verfügbar"/>
-  <translation tag="Available (%s)" de="Verfügbar (%s)"/>
   <translation tag="Available Networks" de="Verfügbare Netzwerke"/>
   <translation tag="Available networks" de="Verfügbare Netzwerke"/>
   <translation tag="Average" de="Durchschnitt"/>
@@ -213,7 +208,6 @@
   <translation tag="BLUETOOTH PRINTERS" de="BLUETOOTH-DRUCKER"/>
   <translation tag="BLUETOOTH SCANNERS" de="BLUETOOTH-SCANNER"/>
   <translation tag="Back" de="Zurück"/>
-  <translation tag="Back to Results" de="Zurück zu Ergebnissen"/>
   <translation tag="Backtrace: {} frames" de="Backtrace: {} Frames"/>
   <translation tag="Barcode Scanner" de="Barcode-Scanner"/>
   <translation tag="Base" de="Referenz"/>
@@ -238,8 +232,6 @@
   <translation tag="Bed target set to {}°C" de="Bett-Zieltemperatur auf {}°C gesetzt"/>
   <translation tag="Bed temp must be 0-200°C" de="Betttemperatur muss 0-200°C betragen"/>
   <translation tag="Bed warming timed out" de="Bettaufheizung Zeitüberschreitung"/>
-  <translation tag="Belt A frequency locked" de="Frequenz Riemen A fixiert"/>
-  <translation tag="Belt B frequency locked" de="Frequenz Riemen B fixiert"/>
   <translation tag="Belt Tension" de="Riemenspannung"/>
   <translation tag="Belt Tension Check" de="Riemenspannungsprüfung"/>
   <translation tag="Belt tension looks good!" de="Riemenspannung sieht gut aus!"/>
@@ -535,7 +527,6 @@
   <translation tag="Critical hardware missing: {}" de="Kritische Hardware fehlt: {}"/>
   <translation tag="Current / Target" de="Aktuell / Ziel"/>
   <translation tag="Current Configuration" de="Aktuelle Konfiguration"/>
-  <translation tag="Current Frequency" de="Aktuelle Frequenz"/>
   <translation tag="Current Mesh" de="Aktuelles Netz"/>
   <translation tag="Current Temperature" de="Aktuelle Temperatur"/>
   <translation tag="Current Version" de="Aktuelle Version"/>
@@ -885,7 +876,6 @@
   <translation tag="File Size" de="Dateigröße"/>
   <translation tag="Filename" de="Dateiname"/>
   <translation tag="Fine" de="Fein"/>
-  <translation tag="Fine-Tune" de="Feinabstimmung"/>
   <translation tag="Finish" de="Fertig"/>
   <translation tag="Finishing up..." de="Wird abgeschlossen..."/>
   <translation tag="Firmware Restart" de="Firmware-Neustart"/>
@@ -1156,8 +1146,6 @@
   <translation tag="Locating Spoolman configuration..." de="Spoolman-Konfiguration wird gesucht..."/>
   <translation tag="Location" de="Standort"/>
   <translation tag="Lock" de="Sperren"/>
-  <translation tag="Lock A" de="Sperre A"/>
-  <translation tag="Lock B" de="Sperre B"/>
   <translation tag="Lock screen after idle timeout" de="Bildschirm nach Inaktivität sperren"/>
   <translation tag="Locked during print" de="Während des Drucks gesperrt"/>
   <translation tag="Log Level" de="Protokollstufe"/>
@@ -1316,7 +1304,6 @@
   <translation tag="No Multi-Filament System connected" de="Kein Multi-Filament-System verbunden"/>
   <translation tag="No Multi-Filament System connected." de="Kein Multi-Filament-System verbunden."/>
   <translation tag="No PRINT_START macro found" de="Kein PRINT_START-Makro gefunden"/>
-  <translation tag="No PWM LED detected for strobe mode" de="Keine PWM-LED für Stroboskopmodus erkannt"/>
   <translation tag="No Power Devices" de="Keine Stromgeräte"/>
   <translation tag="No Spool" de="Keine Spule"/>
   <translation tag="No Spools" de="Keine Spulen"/>
@@ -1379,8 +1366,6 @@
   <translation tag="Not connected to printer" de="Nicht mit Drucker verbunden"/>
   <translation tag="Not connected to printer." de="Nicht mit Drucker verbunden."/>
   <translation tag="Not detected" de="Nicht erkannt"/>
-  <translation tag="Not found (strobe only)" de="Nicht gefunden (nur Stroboskop)"/>
-  <translation tag="Not found (use phone app)" de="Nicht gefunden (Telefon-App verwenden)"/>
   <translation tag="Not in your spools? Set it up" de="Nicht in Ihren Spulen? Einrichten"/>
   <translation tag="Not now" de="Nicht jetzt"/>
   <translation tag="Not yet calibrated" de="Noch nicht kalibriert"/>
@@ -1903,7 +1888,6 @@
   <translation tag="Set " de="Setzen "/>
   <translation tag="Set Active" de="Aktiv setzen"/>
   <translation tag="Set PIN" de="PIN festlegen"/>
-  <translation tag="Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope" de="Stellen Sie eine Stroboskop-App auf dem Telefon auf %.1f Hz ein und richten Sie sie auf den Riemen. Passen Sie an, bis der Riemen stillzustehen scheint.\n\nEmpfohlene Apps:\n  Android: Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope"/>
   <translation tag="Set local timezone for time display" de="Lokale Zeitzone für Zeitanzeige festlegen"/>
   <translation tag="Set logging verbosity for troubleshooting" de="Protokollierungsdetailgrad für Fehlerbehebung festlegen"/>
   <translation tag="Set up" de="Einrichten"/>
@@ -2033,7 +2017,6 @@
   <translation tag="Stopped between Spool and Lane" de="Zwischen Spule und Spur gestoppt"/>
   <translation tag="Stops all motion. Requires firmware restart." de="Stoppt alle Bewegung. Erfordert Firmware-Neustart."/>
   <translation tag="Stow" de="Einfahren"/>
-  <translation tag="Strobe LED" de="Strobe-LED"/>
   <translation tag="Subtle" de="Dezent"/>
   <translation tag="Success" de="Erfolg"/>
   <translation tag="Success Rate" de="Erfolgsrate"/>
@@ -2105,7 +2088,6 @@
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." de="Der animierte Bildschirmschoner wurde auf diesem Gerät ausgeschaltet, um zu verhindern, dass er Drucke stört. Sie können ihn unter Einstellungen &gt; Anzeige wieder aktivieren."/>
   <translation tag="The filament system reported an error" de="Das Filamentsystem meldete einen Fehler"/>
   <translation tag="The heater will cycle on and off several times." de="Die Heizung wird mehrmals ein- und ausschalten."/>
-  <translation tag="The motor vibrates the belt while a strobe light flashes at the same frequency. When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse the frequency buttons to sweep through values until the belt looks stationary, then lock the reading." de="Der Motor lässt den Riemen vibrieren, während ein Stroboskoplicht mit derselben Frequenz blinkt. Wenn der Riemen stillzustehen scheint (eingefroren), haben Sie die Resonanzfrequenz gefunden.\n\nVerwenden Sie die Frequenztasten, um die Werte durchzugehen, bis der Riemen stillzustehen scheint, und fixieren Sie dann den Messwert."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" de="Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." de="Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." de="Der Drucker hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört hat."/>
@@ -2299,7 +2281,6 @@
   <translation tag="View live camera feed" de="Live-Kamerabild anzeigen"/>
   <translation tag="View print statistics and job history" de="Druckstatistiken und Auftragsverlauf anzeigen"/>
   <translation tag="Visits: " de="Aufrufe: "/>
-  <translation tag="Visual Fine-Tuning" de="Visuelle Feinabstimmung"/>
   <translation tag="Volume" de="Lautstärke"/>
   <translation tag="WIDTH SENSORS" de="BREITENSENSOREN"/>
   <translation tag="WLED" de="WLED"/>
@@ -2313,7 +2294,6 @@
   <translation tag="Warming Bed..." de="Bett wird vorgeheizt..."/>
   <translation tag="Warn" de="Warnung"/>
   <translation tag="Warning" de="Warnung"/>
-  <translation tag="Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency." de="Beobachten Sie den Riemen unter der Stroboskop-LED. Passen Sie die Frequenz an, bis der Riemen stillzustehen scheint — das ist die Resonanzfrequenz."/>
   <translation tag="Weak battery" de="Schwache Batterie"/>
   <translation tag="Webcam" de="Webcam"/>
   <translation tag="Website (optional)" de="Webseite (optional)"/>

@@ -27,7 +27,6 @@ translations:
   + Add Preset: + プリセットを追加
   + Add Printer: + プリンターを追加
   + New: + 新規
-  +0.5 Hz: +0.5 Hz
   '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
     を確認してください'
   '- Ensure ADXL345 is connected': '- ADXL345 が接続されていることを確認してください'
@@ -37,7 +36,6 @@ translations:
   -- W: -- W
   -- kWh: -- kWh
   --°C: --°C
-  -0.5 Hz: -0.5 Hz
   '...': '...'
   0 = computed: 0 = 自動計算
   0 events queued: 待機中のイベントなし
@@ -134,10 +132,8 @@ translations:
   Add custom filament: カスタムフィラメントを追加
   Added to Spoolman: Spoolman に追加しました
   Address: アドレス
-  Adjust belt tension until the belt appears stationary: ベルトが静止して見えるまでベルト張力を調整してください
   Adjust screen brightness level: 画面の明るさを調整します
   Adjust screws, then re-probe.: ネジを調整して、再度プローブしてください。
-  Adjust until belt appears frozen: ベルトが静止して見えるまで調整
   Adjustments stay active until restart. Save after print completes.: 調整は再起動まで有効です。印刷完了後に保存してください。
   Adjusts individual characteristics of your heaters for optimal control: ヒーターの個別特性を調整して最適な制御を実現します
   After running the commands, tap Check Again below.: コマンド実行後、下の「再確認」をタップしてください。
@@ -203,7 +199,6 @@ translations:
   Automatic LED Control: 自動LED制御
   Aux: 補助
   Available: 利用可能
-  Available (%s): 利用可能 (%s)
   Available Networks: 利用可能なネットワーク
   Available networks: 利用可能なネットワーク
   Average: 平均
@@ -216,7 +211,6 @@ translations:
   BLUETOOTH PRINTERS: Bluetooth プリンター
   BLUETOOTH SCANNERS: Bluetooth スキャナー
   Back: 戻る
-  Back to Results: 結果に戻る
   'Backtrace: {} frames': 'バックトレース: {} フレーム'
   Barcode Scanner: バーコードスキャナー
   Base: 基準
@@ -241,8 +235,6 @@ translations:
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
   Bed temp must be 0-200°C: ベッド温度は 0〜200°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
-  Belt A frequency locked: ベルト A の周波数を固定しました
-  Belt B frequency locked: ベルト B の周波数を固定しました
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt tension looks good!: ベルトテンションは良好です！
@@ -547,7 +539,6 @@ translations:
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
-  Current Frequency: 現在の周波数
   Current Mesh: 現在のメッシュ
   Current Temperature: 現在の温度
   Current Version: 現在のバージョン
@@ -902,7 +893,6 @@ translations:
   File Size: ファイルサイズ
   Filename: ファイル名
   Fine: 微動
-  Fine-Tune: 微調整
   Finish: 完了
   Finishing up...: 完了中...
   Firmware Restart: ファームウェア再起動
@@ -1190,8 +1180,6 @@ translations:
   Locating Spoolman configuration...: Spoolman の設定を検索中...
   Location: 場所
   Lock: ロック
-  Lock A: ロック A
-  Lock B: ロック B
   Lock screen after idle timeout: アイドルタイムアウト後に画面をロック
   Locked during print: 印刷中はロックされています
   Log Level: ログレベル
@@ -1355,7 +1343,6 @@ translations:
   No Multi-Filament System connected: マルチフィラメントシステムが接続されていません
   No Multi-Filament System connected.: マルチフィラメントシステムが接続されていません。
   No PRINT_START macro found: PRINT_START マクロが見つかりません
-  No PWM LED detected for strobe mode: ストロボモード用の PWM LED が検出されませんでした
   No Power Devices: 電源デバイスなし
   No Spool: スプールなし
   No Spools: スプールなし
@@ -1418,8 +1405,6 @@ translations:
   Not connected to printer: プリンターに未接続
   Not connected to printer.: プリンターに未接続です。
   Not detected: 検出されません
-  Not found (strobe only): 見つかりません (ストロボのみ)
-  Not found (use phone app): 見つかりません (スマホアプリを使用)
   Not in your spools? Set it up: スプールにない？登録する
   Not now: 後で
   Not yet calibrated: 未キャリブレーション
@@ -1958,11 +1943,6 @@ translations:
   'Set ': '設定 '
   Set Active: アクティブに設定
   Set PIN: PIN を設定
-  ? 'Set a phone strobe app to %.1f Hz and aim at the belt. Adjust until the belt
-    appears stationary.\n\nRecommended apps:\n  Android: Strobily, Strobe Light\n  iOS:
-    Strobe Light Tachometer, myStroboscope'
-  : 'スマホのストロボアプリを %.1f Hz に設定してベルトに向けてください。ベルトが静止して見えるまで調整します。\n\n推奨アプリ:\n  Android:
-    Strobily, Strobe Light\n  iOS: Strobe Light Tachometer, myStroboscope'
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
   Set up: セットアップ
@@ -2094,7 +2074,6 @@ translations:
   Stopped between Spool and Lane: スプールとレーンの間で停止
   Stops all motion. Requires firmware restart.: すべての動作を停止します。ファームウェアの再起動が必要です。
   Stow: 格納
-  Strobe LED: ストロボLED
   Subtle: サトル
   Success: 成功
   Success Rate: 成功率
@@ -2175,11 +2154,6 @@ translations:
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
   The filament system reported an error: フィラメントシステムがエラーを報告しました
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
-  ? The motor vibrates the belt while a strobe light flashes at the same frequency.
-    When the belt appears to stand still (frozen), you have found the resonant frequency.\n\nUse
-    the frequency buttons to sweep through values until the belt looks stationary,
-    then lock the reading.
-  : モーターがベルトを振動させ、ストロボライトが同じ周波数で点滅します。ベルトが静止して(止まって)見えたとき、共振周波数を見つけたことになります。\n\n周波数ボタンで値を変化させ、ベルトが静止して見えたらその値を固定してください。
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
   The printer lost power during a print. It can resume where it left off.: 印刷中にプリンターの電源が失われました。中断した箇所から再開できます。
@@ -2393,7 +2367,6 @@ translations:
   View live camera feed: ライブカメラ映像を表示
   View print statistics and job history: 印刷統計とジョブ履歴を表示
   'Visits: ': '表示回数: '
-  Visual Fine-Tuning: 視覚的微調整
   Volume: 音量
   WIDTH SENSORS: 幅センサー
   WLED: WLED
@@ -2407,8 +2380,6 @@ translations:
   Warming Bed...: ベッド予熱中...
   Warn: 警告
   Warning: 警告
-  Watch the belt under the strobe LED. Adjust frequency until the belt appears stationary — that is the resonant frequency.: ストロボ
-    LED の下でベルトを観察してください。ベルトが静止して見えるまで周波数を調整します — それが共振周波数です。
   Weak battery: バッテリー残量低下
   Webcam: ウェブカメラ
   Website (optional): ウェブサイト（オプション）

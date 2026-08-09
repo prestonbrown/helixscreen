@@ -429,7 +429,6 @@ TEST_CASE("BeltTensionCalibrator get_hardware returns default values",
     const auto& hw = cal.get_hardware();
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_pwm_led);
 }
 
 TEST_CASE("BeltTensionCalibrator is non-copyable and non-movable", "[belt_tension][calibrator]") {
@@ -449,36 +448,8 @@ TEST_CASE("BeltTensionCalibrator State enum values are distinct", "[belt_tension
     CHECK(State::HOMING != State::TESTING_PATH_A);
     CHECK(State::TESTING_PATH_A != State::TESTING_PATH_B);
     CHECK(State::TESTING_PATH_B != State::RESULTS_READY);
-    CHECK(State::RESULTS_READY != State::STROBE_MODE);
-    CHECK(State::STROBE_MODE != State::ERROR);
+    CHECK(State::RESULTS_READY != State::ERROR);
     CHECK(State::ERROR != State::IDLE);
-}
-
-// ============================================================================
-// Strobe Mode Tests
-// ============================================================================
-
-TEST_CASE("BeltTensionCalibrator start_strobe without API calls error",
-          "[belt_tension][calibrator][strobe]") {
-    BeltTensionCalibrator cal;
-    bool error_called = false;
-
-    cal.start_strobe(110.0f, [&](const std::string&) { error_called = true; });
-
-    CHECK(error_called);
-}
-
-TEST_CASE("BeltTensionCalibrator stop_strobe from IDLE is safe",
-          "[belt_tension][calibrator][strobe]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.stop_strobe());
-    CHECK(cal.get_state() == BeltTensionCalibrator::State::IDLE);
-}
-
-TEST_CASE("BeltTensionCalibrator start_strobe with null callback does not crash",
-          "[belt_tension][calibrator][strobe][edge_case]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.start_strobe(110.0f, nullptr));
 }
 
 // ============================================================================
@@ -646,8 +617,6 @@ TEST_CASE("BeltTensionHardware default construction", "[belt_tension][types]") {
     BeltTensionHardware hw;
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_pwm_led);
-    CHECK(hw.pwm_led_pin.empty());
     CHECK(hw.kinematics_name.empty());
 }
 
@@ -1013,12 +982,6 @@ TEST_CASE("BeltTensionCalibrator state transitions without API (error paths)",
                            [&](const std::string&) { error_called = true; });
         CHECK(error_called);
         CHECK(cal.get_state() == BeltTensionCalibrator::State::IDLE);
-    }
-
-    SECTION("start_strobe -> error -> IDLE") {
-        bool error_called = false;
-        cal.start_strobe(110.0f, [&](const std::string&) { error_called = true; });
-        CHECK(error_called);
     }
 }
 
