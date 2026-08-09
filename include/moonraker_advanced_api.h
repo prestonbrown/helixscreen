@@ -459,8 +459,9 @@ class MoonrakerAdvancedAPI {
     /**
      * @brief Detect printer hardware for belt tension calibration
      *
-     * Two-phase detection: queries printer.objects.list for ADXL presence,
-     * then printer.objects.query for kinematics type.
+     * Two-phase detection: queries printer.objects.list (response unused -
+     * ADXL presence comes from AccelSensorManager), then printer.objects.query
+     * for kinematics type.
      *
      * @param on_complete Called with detected hardware capabilities
      * @param on_error Called on failure

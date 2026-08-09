@@ -2,13 +2,15 @@
 
 /**
  * @file test_belt_hardware_detect.cpp
- * @brief Tests for MoonrakerAdvancedAPI::detect_belt_hardware object-list parsing
+ * @brief Tests for MoonrakerAdvancedAPI::detect_belt_hardware's two-RPC chain
  *
- * detect_belt_hardware() drives two RPCs: printer.objects.list to find the
- * hardware sections, then printer.objects.query for kinematics. The object list
- * arrives inside the JSON-RPC envelope's "result" member, so reading "objects"
- * off the top level silently yields nothing and every flag stays false
- * (prestonbrown/helixscreen#1137).
+ * detect_belt_hardware() drives two RPCs: printer.objects.list, then
+ * printer.objects.query for kinematics. printer.objects.list's response is no
+ * longer parsed for a hardware section list - accelerometer presence comes
+ * from AccelSensorManager instead - so the #1137 guard against a
+ * non-string object list went with the parse it was guarding. What remains
+ * to verify is that the chain still completes cleanly: one of the two
+ * callbacks fires, and nothing escapes the callback as an exception.
  */
 
 #include "../../include/belt_tension_types.h"
@@ -32,9 +34,10 @@ using namespace helix;
 // fidelity work rather than part of this fix.
 
 // A malformed envelope must not throw out of the callback or skip on_complete.
-// The parse sits behind a try/catch that reports through on_error, so the
-// contract is "one of the two callbacks fires, and nothing escapes".
-TEST_CASE("detect_belt_hardware tolerates an object list of non-strings",
+// The kinematics parse sits behind a try/catch that reports through
+// on_error, so the contract is "one of the two callbacks fires, and nothing
+// escapes".
+TEST_CASE("detect_belt_hardware's two-RPC chain completes without escaping an exception",
           "[belt_tension][detect]") {
     PrinterState state;
     state.init_subjects(false);

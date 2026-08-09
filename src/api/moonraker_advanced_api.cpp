@@ -2206,7 +2206,8 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
                                                 ErrorCallback on_error) {
     spdlog::info("[MoonrakerAPI] Detecting belt tension hardware capabilities");
 
-    // Step 1: Query printer.objects.list to discover available objects
+    // Step 1: Query printer.objects.list. The response is unused - accelerometer
+    // presence comes from AccelSensorManager below, not from parsing this list.
     json params = json::object();
     client_.send_jsonrpc(
         "printer.objects.list", params,
