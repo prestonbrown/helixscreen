@@ -150,7 +150,16 @@ endif
 # CALLED → getaddrinfo() EAI_SYSTEM on static-glibc devices). A fresh CI build
 # hides this because libhv.a doesn't exist yet; it only bites incremental dev
 # trees. Re-applying patches now invalidates the archive so the wiring lands.
-$(LIBHV_LIB): $(PATCHES_STAMP)
+#
+# $(LIBHV_PATCHED_SRCS) covers the case the stamp cannot see. lib/ is shared
+# between worktrees but build/ is not, so a tree that built its archive before
+# another tree re-applied the patches keeps that archive forever: its own stamp
+# never moved. Two libhv patches add members to hv::WebSocketClient and
+# hv::TcpClientEventLoopTmpl, so a stale archive constructs the object at
+# different member offsets than the headers our own objects compiled against —
+# ~MoonrakerClient then reads loop_ from the wrong offset and blocks forever on
+# a mutex made of unrelated bytes.
+$(LIBHV_LIB): $(PATCHES_STAMP) $(LIBHV_PATCHED_SRCS)
 	$(Q)$(MAKE) libhv-build
 
 ifneq ($(LIBHV_JSON_HEADER),)
