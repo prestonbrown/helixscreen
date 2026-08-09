@@ -2236,9 +2236,6 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
                     if (!obj.is_string())
                         continue;
                     std::string name = obj.get<std::string>();
-                    if (name == "quad_gantry_level") {
-                        hw.has_belted_z = true;
-                    }
                     if (name.find("pwm_cycle_time") != std::string::npos) {
                         hw.has_pwm_led = true;
                         size_t space = name.find(' ');
@@ -2248,8 +2245,8 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
                     }
                 }
 
-                spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}, belted_z={}, pwm_led={}",
-                             hw.has_adxl, hw.has_belted_z, hw.has_pwm_led);
+                spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}, pwm_led={}", hw.has_adxl,
+                             hw.has_pwm_led);
 
             } catch (const std::exception& e) {
                 spdlog::error("[MoonrakerAPI] Failed to parse object list: {}", e.what());

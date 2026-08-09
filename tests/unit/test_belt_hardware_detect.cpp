@@ -8,8 +8,7 @@
  * hardware sections, then printer.objects.query for kinematics. The object list
  * arrives inside the JSON-RPC envelope's "result" member, so reading "objects"
  * off the top level silently yields nothing and every flag stays false
- * (prestonbrown/helixscreen#1137). These tests pin the envelope level by
- * asserting on a mock whose config genuinely has the hardware.
+ * (prestonbrown/helixscreen#1137).
  */
 
 #include "../../include/belt_tension_types.h"
@@ -24,61 +23,6 @@
 #include "hv/json.hpp"
 
 using namespace helix;
-
-namespace {
-
-/// Run detect_belt_hardware against a mock printer, returning the detected
-/// hardware. The mock invokes JSON-RPC callbacks synchronously, so the whole
-/// two-step chain has completed by the time this returns.
-helix::calibration::BeltTensionHardware detect_for(MoonrakerClientMock::PrinterType type,
-                                                   bool& completed, std::string& error_out) {
-    PrinterState state;
-    state.init_subjects(false);
-    MoonrakerClientMock client(type);
-    MoonrakerAPI api(client, state);
-    MoonrakerAdvancedAPI advanced(client, api);
-
-    helix::calibration::BeltTensionHardware hw;
-    completed = false;
-    advanced.detect_belt_hardware(
-        [&](const helix::calibration::BeltTensionHardware& detected) {
-            completed = true;
-            hw = detected;
-        },
-        [&](const MoonrakerError& err) { error_out = err.message; });
-    return hw;
-}
-
-} // namespace
-
-// A Voron 2.4 config carries [quad_gantry_level]. That section is the sole
-// signal for has_belted_z, so a correct read of the object list must set it.
-// This is the direct regression guard for #1137: with the array read off the
-// envelope's top level the list is empty and this flag is always false.
-TEST_CASE("detect_belt_hardware finds quad_gantry_level on a belted-Z printer",
-          "[belt_tension][detect]") {
-    bool completed = false;
-    std::string error;
-    auto hw = detect_for(MoonrakerClientMock::PrinterType::VORON_24, completed, error);
-
-    INFO("error: " << error);
-    REQUIRE(completed);
-    CHECK(hw.has_belted_z);
-}
-
-// Mutation guard: the fix must actually read the list, not unconditionally set
-// the flag. A bed slinger has no [quad_gantry_level], so it must stay false
-// even though the very same code path ran and reported success.
-TEST_CASE("detect_belt_hardware leaves belted-Z false without quad_gantry_level",
-          "[belt_tension][detect]") {
-    bool completed = false;
-    std::string error;
-    auto hw = detect_for(MoonrakerClientMock::PrinterType::GENERIC_BEDSLINGER, completed, error);
-
-    INFO("error: " << error);
-    REQUIRE(completed);
-    CHECK_FALSE(hw.has_belted_z);
-}
 
 // Step 2 (printer.objects.query for kinematics) already reads through "result"
 // correctly, but it cannot be asserted here: the mock's configfile.settings.printer

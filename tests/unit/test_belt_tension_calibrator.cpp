@@ -429,7 +429,6 @@ TEST_CASE("BeltTensionCalibrator get_hardware returns default values",
     const auto& hw = cal.get_hardware();
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_belted_z);
     CHECK_FALSE(hw.has_pwm_led);
 }
 
@@ -451,10 +450,7 @@ TEST_CASE("BeltTensionCalibrator State enum values are distinct", "[belt_tension
     CHECK(State::TESTING_PATH_A != State::TESTING_PATH_B);
     CHECK(State::TESTING_PATH_B != State::RESULTS_READY);
     CHECK(State::RESULTS_READY != State::STROBE_MODE);
-    CHECK(State::STROBE_MODE != State::Z_BELT_GUIDE);
-    CHECK(State::Z_BELT_GUIDE != State::Z_LISTENING);
-    CHECK(State::Z_LISTENING != State::Z_RESULTS_READY);
-    CHECK(State::Z_RESULTS_READY != State::ERROR);
+    CHECK(State::STROBE_MODE != State::ERROR);
     CHECK(State::ERROR != State::IDLE);
 }
 
@@ -486,29 +482,6 @@ TEST_CASE("BeltTensionCalibrator start_strobe with null callback does not crash"
 }
 
 // ============================================================================
-// Z Belt Tests
-// ============================================================================
-
-TEST_CASE("BeltTensionCalibrator start_z_belt_listening without API calls error",
-          "[belt_tension][calibrator][z_belt]") {
-    BeltTensionCalibrator cal;
-    bool error_called = false;
-
-    cal.start_z_belt_listening(
-        ZBeltCorner::FRONT_LEFT,
-        [](const BeltMeasurement&) { FAIL("Should not succeed without API"); },
-        [&](const std::string&) { error_called = true; });
-
-    CHECK(error_called);
-}
-
-TEST_CASE("BeltTensionCalibrator start_z_belt_listening with null callbacks does not crash",
-          "[belt_tension][calibrator][z_belt][edge_case]") {
-    BeltTensionCalibrator cal;
-    REQUIRE_NOTHROW(cal.start_z_belt_listening(ZBeltCorner::REAR_RIGHT, nullptr, nullptr));
-}
-
-// ============================================================================
 // 7. BeltTensionResult Tests
 // ============================================================================
 
@@ -519,7 +492,6 @@ TEST_CASE("BeltTensionResult completeness checks", "[belt_tension][result]") {
         CHECK_FALSE(result.is_complete());
         CHECK_FALSE(result.has_path_a());
         CHECK_FALSE(result.has_path_b());
-        CHECK_FALSE(result.has_z_results());
     }
 
     SECTION("only path A is not complete") {
@@ -542,15 +514,6 @@ TEST_CASE("BeltTensionResult completeness checks", "[belt_tension][result]") {
         CHECK(result.has_path_a());
         CHECK(result.has_path_b());
         CHECK(result.is_complete());
-    }
-
-    SECTION("z results tracked separately") {
-        CHECK_FALSE(result.has_z_results());
-        ZBeltMeasurement z;
-        z.peak_frequency = 50.0f;
-        z.corner = ZBeltCorner::FRONT_LEFT;
-        result.z_belts.push_back(z);
-        CHECK(result.has_z_results());
     }
 }
 
@@ -675,14 +638,6 @@ TEST_CASE("BeltMeasurement validity", "[belt_tension][types]") {
     }
 }
 
-TEST_CASE("ZBeltMeasurement validity", "[belt_tension][types]") {
-    ZBeltMeasurement z;
-    CHECK_FALSE(z.is_valid());
-
-    z.peak_frequency = 50.0f;
-    CHECK(z.is_valid());
-}
-
 // ============================================================================
 // BeltTensionHardware Tests
 // ============================================================================
@@ -691,7 +646,6 @@ TEST_CASE("BeltTensionHardware default construction", "[belt_tension][types]") {
     BeltTensionHardware hw;
     CHECK(hw.kinematics == KinematicsType::UNKNOWN);
     CHECK_FALSE(hw.has_adxl);
-    CHECK_FALSE(hw.has_belted_z);
     CHECK_FALSE(hw.has_pwm_led);
     CHECK(hw.pwm_led_pin.empty());
     CHECK(hw.kinematics_name.empty());
@@ -711,12 +665,6 @@ TEST_CASE("KinematicsType enum values", "[belt_tension][types]") {
     CHECK(KinematicsType::UNKNOWN != KinematicsType::COREXY);
     CHECK(KinematicsType::COREXY != KinematicsType::CARTESIAN);
     CHECK(KinematicsType::UNKNOWN != KinematicsType::CARTESIAN);
-}
-
-TEST_CASE("ZBeltCorner enum values", "[belt_tension][types]") {
-    CHECK(ZBeltCorner::FRONT_LEFT != ZBeltCorner::FRONT_RIGHT);
-    CHECK(ZBeltCorner::REAR_LEFT != ZBeltCorner::REAR_RIGHT);
-    CHECK(ZBeltCorner::FRONT_LEFT != ZBeltCorner::REAR_LEFT);
 }
 
 // ============================================================================
@@ -1070,14 +1018,6 @@ TEST_CASE("BeltTensionCalibrator state transitions without API (error paths)",
     SECTION("start_strobe -> error -> IDLE") {
         bool error_called = false;
         cal.start_strobe(110.0f, [&](const std::string&) { error_called = true; });
-        CHECK(error_called);
-    }
-
-    SECTION("start_z_belt_listening -> error -> IDLE") {
-        bool error_called = false;
-        cal.start_z_belt_listening(
-            ZBeltCorner::FRONT_LEFT, [](const BeltMeasurement&) { FAIL("Should not succeed"); },
-            [&](const std::string&) { error_called = true; });
         CHECK(error_called);
     }
 }

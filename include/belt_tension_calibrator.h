@@ -6,12 +6,11 @@
  * @brief High-level orchestrator for belt tension calibration workflow
  *
  * BeltTensionCalibrator manages the belt tension measurement process:
- * 1. Detect printer hardware (kinematics, ADXL, belted Z, PWM LED)
+ * 1. Detect printer hardware (kinematics, ADXL, PWM LED)
  * 2. Home printer if needed
  * 3. Run resonance sweeps on belt paths A and B
  * 4. Compute PSD, find peaks, calculate similarity
  * 5. Optionally enter strobe mode for manual tuning
- * 6. Optionally measure Z belt corners
  *
  * This is a state machine that coordinates MoonrakerAPI calls and
  * provides progress/error callbacks to the UI layer.
@@ -42,9 +41,6 @@ class BeltTensionCalibrator {
         TESTING_PATH_B,     ///< Running resonance sweep on path B
         RESULTS_READY,      ///< Both paths measured, results available
         STROBE_MODE,        ///< PWM LED strobing at belt frequency
-        Z_BELT_GUIDE,       ///< Showing Z belt measurement instructions
-        Z_LISTENING,        ///< Listening for Z belt pluck
-        Z_RESULTS_READY,    ///< Z belt measurements complete
         ERROR,              ///< An error occurred
     };
 
@@ -142,19 +138,6 @@ class BeltTensionCalibrator {
 
     /// Stop strobe mode and return to RESULTS_READY or IDLE
     void stop_strobe();
-
-    // ========================================================================
-    // Z Belt Operations
-    // ========================================================================
-
-    /**
-     * @brief Start listening for Z belt pluck on a specific corner
-     * @param corner Corner to listen on
-     * @param on_complete Called with measurement on success
-     * @param on_error Called with error message on failure
-     */
-    void start_z_belt_listening(ZBeltCorner corner, BeltMeasurementCallback on_complete,
-                                BeltErrorCallback on_error);
 
     // ========================================================================
     // Control
