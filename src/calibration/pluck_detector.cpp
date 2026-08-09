@@ -104,7 +104,6 @@ bool PluckDetector::extract_ringdown(const std::vector<AccelSample>& buffer, flo
 
     out->samples.assign(buffer.begin() + static_cast<std::ptrdiff_t>(begin),
                         buffer.begin() + static_cast<std::ptrdiff_t>(begin + analyze_len));
-    out->rms_ratio = 0.0f;
     return true;
 }
 

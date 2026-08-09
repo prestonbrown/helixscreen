@@ -20,9 +20,13 @@
 namespace helix::calibration {
 
 /// A ring-down segment ready for spectral analysis.
+///
+/// Deliberately has no strength field: extract_ringdown() is static and has
+/// no access to the detection window it was pulled from, so it cannot
+/// compute one. The detection-window ratio (see PluckDetector::rms_ratio())
+/// belongs to whichever caller owns the live buffer.
 struct PluckWindow {
     std::vector<AccelSample> samples;
-    float rms_ratio = 0.0f;
 };
 
 class PluckDetector {
