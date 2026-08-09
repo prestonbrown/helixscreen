@@ -21,6 +21,7 @@
 #include "../../include/belt_tension_calibrator.h"
 #include "../../include/belt_tension_types.h"
 
+#include <cfloat>
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -1307,8 +1308,13 @@ TEST_CASE("compute_psd bandwidth is clamped by Nyquist", "[belt_tension][fft][ed
 
 TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t cast",
           "[belt_tension][fft][edge_case]") {
-    // A bandwidth this large, cast to size_t without clamping to Nyquist first,
-    // is undefined behaviour rather than a large-then-clamped bin count.
+    // FLT_MAX (~3.4e38) exceeds SIZE_MAX on both 32-bit and 64-bit targets, so
+    // casting an unclamped bandwidth*n/sample_rate product to size_t at this
+    // magnitude is undefined behaviour - the pre-fix code could have produced
+    // any result, not a specific known-bad one. This exercises the clamp on an
+    // input that was previously UB; it verifies that an absurd bandwidth
+    // request still yields a Nyquist-bounded bin count rather than reading
+    // past the array, not that it reproduces any particular old failure.
     const float sr = 1000.0f;
     const int n = 1000;
     std::vector<AccelSample> samples(static_cast<size_t>(n));
@@ -1318,7 +1324,7 @@ TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t
         samples[static_cast<size_t>(i)].y = 0.0f;
         samples[static_cast<size_t>(i)].z = 9.81f;
     }
-    auto psd = compute_psd(samples, sr, 1e12f);
+    auto psd = compute_psd(samples, sr, FLT_MAX);
     REQUIRE(!psd.empty());
     CHECK(psd.size() <= static_cast<size_t>(n) / 2);
     CHECK(psd.back().first <= sr / 2.0f + 1.0f);
