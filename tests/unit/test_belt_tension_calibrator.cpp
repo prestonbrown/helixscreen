@@ -1239,3 +1239,93 @@ TEST_CASE("Pipeline with noisy data", "[belt_tension][mock][pipeline]") {
     // Signal is much stronger than noise, should still detect 110 Hz
     CHECK(peak.frequency == Catch::Approx(110.0f).margin(5.0f));
 }
+
+TEST_CASE("compute_psd default bandwidth stays at 250 Hz", "[belt_tension][fft]") {
+    // Existing callers must not shift under them.
+    const float sr = 3200.0f;
+    const int n = 3200;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x = std::sin(2.0f * static_cast<float>(M_PI) * 100.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+
+    auto psd = compute_psd(samples, sr);
+    REQUIRE(!psd.empty());
+    CHECK(psd.back().first <= Catch::Approx(250.0f).margin(2.0f));
+}
+
+TEST_CASE("compute_psd honours a wider bandwidth request", "[belt_tension][fft]") {
+    const float sr = 3200.0f;
+    const int n = 3200;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x =
+            std::sin(2.0f * static_cast<float>(M_PI) * 100.0f * t) +
+            0.3f * std::sin(2.0f * static_cast<float>(M_PI) * 600.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+
+    auto narrow = compute_psd(samples, sr, 250.0f);
+    auto wide = compute_psd(samples, sr, 700.0f);
+
+    REQUIRE(!narrow.empty());
+    REQUIRE(!wide.empty());
+    CHECK(wide.size() > narrow.size());
+    CHECK(wide.back().first > 650.0f);
+
+    // The 600 Hz component is invisible at the narrow bandwidth and present at
+    // the wide one. This is exactly why harmonic analysis needs the parameter.
+    auto narrow_peak = find_peak_frequency(narrow, 500.0f, 700.0f);
+    auto wide_peak = find_peak_frequency(wide, 500.0f, 700.0f);
+    CHECK_FALSE(narrow_peak.found);
+    REQUIRE(wide_peak.found);
+    CHECK(wide_peak.frequency == Catch::Approx(600.0f).margin(4.0f));
+}
+
+TEST_CASE("compute_psd bandwidth is clamped by Nyquist", "[belt_tension][fft][edge_case]") {
+    const float sr = 1000.0f;
+    const int n = 1000;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        samples[static_cast<size_t>(i)].time = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].x = std::sin(static_cast<float>(i) * 0.1f);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9.81f;
+    }
+    // Asking for 5 kHz from a 1 kHz capture must not read past the array.
+    auto psd = compute_psd(samples, sr, 5000.0f);
+    REQUIRE(!psd.empty());
+    CHECK(psd.back().first <= sr / 2.0f + 1.0f);
+}
+
+TEST_CASE("compute_psd phasor recurrence does not drift", "[belt_tension][fft][phasor]") {
+    // Two tones, the lower one stronger. A phasor that accumulates rotation
+    // error smears the peak; this catches that.
+    const float sr = 3200.0f;
+    const int n = 1024;
+    std::vector<AccelSample> samples(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / sr;
+        samples[static_cast<size_t>(i)].time = t;
+        samples[static_cast<size_t>(i)].x =
+            std::sin(2.0f * static_cast<float>(M_PI) * 97.0f * t) +
+            0.5f * std::sin(2.0f * static_cast<float>(M_PI) * 194.0f * t);
+        samples[static_cast<size_t>(i)].y = 0.0f;
+        samples[static_cast<size_t>(i)].z = 9810.0f;
+    }
+
+    auto psd = compute_psd(samples, sr, 400.0f);
+    REQUIRE(psd.size() > 50);
+
+    auto peak = find_peak_frequency(psd, 20.0f, 300.0f);
+    REQUIRE(peak.found);
+    // The 97 Hz tone has 4x the power of the 194 Hz one, so it must win.
+    CHECK(peak.frequency == Catch::Approx(97.0f).margin(4.0f));
+}

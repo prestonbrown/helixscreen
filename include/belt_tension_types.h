@@ -156,10 +156,18 @@ struct AccelSample {
 /// Format: #time,accel_x,accel_y,accel_z
 std::vector<AccelSample> parse_accel_csv(const std::string& csv_data);
 
-/// Compute PSD via DFT from accelerometer samples
-/// Returns vector of (frequency_hz, power) pairs
+/// Compute PSD via DFT from accelerometer samples.
+///
+/// Returns vector of (frequency_hz, power) pairs. Bin i sits at
+/// (i+1)*resolution - there is no DC bin.
+///
+/// @param max_freq_hz Highest frequency to compute, clamped to Nyquist. The
+///        default preserves the original 250 Hz behaviour. Harmonic analysis
+///        needs roughly n_harmonics * f0 of bandwidth or the upper harmonics
+///        fall outside the array; see pitch_estimator.h.
 std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>& samples,
-                                                 float sample_rate = 3200.0f);
+                                                 float sample_rate = 3200.0f,
+                                                 float max_freq_hz = 250.0f);
 
 /// Peak frequency search result
 struct PeakResult {
