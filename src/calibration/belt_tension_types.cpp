@@ -275,6 +275,10 @@ std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>&
     // This matches Klipper/Shake&Tune's approach.
 
     // DFT parameters
+    if (max_freq_hz <= 0.0f) {
+        spdlog::warn("[BeltTension] No bandwidth requested, falling back to 250 Hz - this misses "
+                     "the harmonic series pitch estimation needs above ~60 Hz fundamentals");
+    }
     const float bandwidth = (max_freq_hz > 0.0f) ? max_freq_hz : 250.0f;
     // Clamp to Nyquist BEFORE the float->size_t cast below: an unclamped bandwidth
     // (e.g. a caller-supplied 1e12 Hz) produces a float product wildly out of

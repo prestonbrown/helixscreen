@@ -171,3 +171,68 @@ TEST_CASE("estimate_pitch rejects degenerate input", "[belt_tension][pitch][edge
     CHECK_FALSE(estimate_pitch(psd, 170.0f, 70.0f).valid);    // inverted window
     CHECK_FALSE(estimate_pitch(psd, 70.0f, 170.0f, 0).valid); // no harmonics
 }
+
+TEST_CASE("estimate_pitch rejects an all-zero PSD instead of confidently returning bin 0",
+          "[belt_tension][pitch][edge_case]") {
+    // best_product starts at -1.0; every candidate here scores exactly 0.0,
+    // which used to beat that sentinel and return the first in-window bin as
+    // "valid". A silent all-zero PSD (dead sensor, gated-out capture) must
+    // come back invalid, not confidently wrong.
+    std::vector<std::pair<float, float>> psd;
+    const float resolution = 4.0f;
+    for (size_t i = 0; i < 200; ++i) {
+        psd.emplace_back(static_cast<float>(i + 1) * resolution, 0.0f);
+    }
+    auto est = estimate_pitch(psd, 63.0f, 135.0f);
+    CHECK_FALSE(est.valid);
+}
+
+TEST_CASE("estimate_pitch_for_span reproduces the golden fixtures at 151mm",
+          "[belt_tension][pitch][golden]") {
+    for (const auto* name : {"a_belt_86hz_1.csv", "a_belt_86hz_2.csv", "a_belt_86hz_3.csv"}) {
+        auto samples = load_fixture(name);
+        REQUIRE(samples.size() > 1000);
+        auto est = estimate_pitch_for_span(samples, fixture_sample_rate(samples), 151.0f);
+        INFO("fixture " << name);
+        REQUIRE(est.valid);
+        CHECK(est.frequency_hz == Catch::Approx(86.0f).margin(2.0f));
+    }
+
+    for (const auto* name : {"b_belt_82hz_1.csv", "b_belt_82hz_2.csv", "b_belt_82hz_3.csv",
+                             "b_belt_82hz_hard_case.csv"}) {
+        auto samples = load_fixture(name);
+        REQUIRE(samples.size() > 1000);
+        auto est = estimate_pitch_for_span(samples, fixture_sample_rate(samples), 151.0f);
+        INFO("fixture " << name);
+        REQUIRE(est.valid);
+        CHECK(est.frequency_hz == Catch::Approx(82.0f).margin(2.0f));
+    }
+}
+
+TEST_CASE("estimate_pitch_for_span rejects degenerate span and sample rate",
+          "[belt_tension][pitch][edge_case]") {
+    auto samples = load_fixture("a_belt_86hz_1.csv");
+    const float sr = fixture_sample_rate(samples);
+    CHECK_FALSE(estimate_pitch_for_span(samples, sr, 0.0f).valid);
+    CHECK_FALSE(estimate_pitch_for_span(samples, sr, -151.0f).valid);
+    CHECK_FALSE(estimate_pitch_for_span(samples, 0.0f, 151.0f).valid);
+    CHECK_FALSE(estimate_pitch_for_span(samples, -sr, 151.0f).valid);
+}
+
+TEST_CASE("a PSD computed at compute_psd's default bandwidth yields no pitch estimate",
+          "[belt_tension][pitch][edge_case]") {
+    // This is the trap the composer exists to close: compute_psd()'s default
+    // 250 Hz cap does not cover 4 harmonics of a typical belt fundamental, so
+    // every candidate's harmonic series runs off the end of the array and
+    // estimate_pitch() has nothing complete to score. A caller who computes
+    // the PSD by hand and forgets required_bandwidth_hz() gets this - no
+    // crash, no error return, just a silent invalid estimate.
+    auto samples = load_fixture("a_belt_86hz_1.csv");
+    const float sr = fixture_sample_rate(samples);
+    float lo = 0.0f, hi = 0.0f;
+    REQUIRE(search_window_for_span(151.0f, &lo, &hi));
+
+    auto psd = compute_psd(samples, sr); // default bandwidth, no required_bandwidth_hz()
+    auto est = estimate_pitch(psd, lo, hi);
+    CHECK_FALSE(est.valid);
+}

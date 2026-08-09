@@ -64,7 +64,10 @@ PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, fl
             continue;
         }
 
-        if (product > best_product) {
+        // product == 0.0 means every harmonic bin in this candidate's series
+        // was zero - an all-zero (or silent) PSD must not produce a confident
+        // "valid" estimate just because 0.0 beats the -1.0 sentinel.
+        if (product > 0.0 && product > best_product) {
             best_product = product;
             out.frequency_hz = freq;
             out.valid = true;
@@ -74,8 +77,31 @@ PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, fl
     if (out.valid) {
         spdlog::debug("[PitchEstimator] f0={:.1f} Hz (window {:.1f}-{:.1f}, {} harmonics)",
                       out.frequency_hz, search_lo_hz, search_hi_hz, n_harmonics);
+    } else {
+        spdlog::warn("[PitchEstimator] no candidate had a complete harmonic series (PSD top "
+                     "freq {:.1f} Hz, window {:.1f}-{:.1f} Hz needs {:.1f} Hz of bandwidth for "
+                     "{} harmonics)",
+                     psd.back().first, search_lo_hz, search_hi_hz,
+                     required_bandwidth_hz(search_hi_hz, n_harmonics), n_harmonics);
     }
     return out;
+}
+
+PitchEstimate estimate_pitch_for_span(const std::vector<AccelSample>& samples, float sample_rate,
+                                      float span_mm, int n_harmonics) {
+    PitchEstimate out;
+    if (span_mm <= 0.0f || sample_rate <= 0.0f) {
+        return out;
+    }
+
+    float lo_hz = 0.0f, hi_hz = 0.0f;
+    if (!search_window_for_span(span_mm, &lo_hz, &hi_hz)) {
+        return out;
+    }
+
+    const float bandwidth = required_bandwidth_hz(hi_hz, n_harmonics);
+    auto psd = compute_psd(samples, sample_rate, bandwidth);
+    return estimate_pitch(psd, lo_hz, hi_hz, n_harmonics);
 }
 
 } // namespace helix::calibration
