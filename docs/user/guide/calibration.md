@@ -158,16 +158,13 @@ The Belt Tension tool:
 
 ### Requirements
 
-- **Accelerometer** (ADXL345, LIS2DW, or MPU) configured in your Klipper `printer.cfg`
+- **Accelerometer** (ADXL345, LIS2DW, or MPU) configured in your Klipper `printer.cfg` — required. Belt Tension measures resonance directly from accelerometer data; there is no accelerometer-free mode.
 - **CoreXY** or **Cartesian** kinematics (auto-detected)
-- **Optional:** A `[pwm_cycle_time]` LED pin for stroboscopic fine-tuning
-
-> **No accelerometer?** The strobe fine-tuning mode can still be used to visually identify belt resonance using a phone strobe app — no accelerometer needed for that step.
 
 ### Running a Belt Tension Check
 
 1. Navigate to **Advanced > Belt Tension** (requires [beta features](beta-features.md) enabled)
-2. Review the **hardware summary** card showing your detected kinematics, accelerometer status, strobe LED availability, and target frequency
+2. Review the **hardware summary** card showing your detected kinematics, accelerometer status, and target frequency
 3. Tap **Start Check**
 4. The printer homes (if needed), then runs a resonance sweep on each belt path
 5. A progress bar shows the measurement status ("Measuring Path A... / Path B...")
@@ -205,36 +202,6 @@ When the measurement completes, the results screen shows:
 | **Both paths match, but low** | Belts are balanced but too loose — tighten both equally |
 | **Both paths match, but high** | Belts are balanced but overtightened — loosen both equally |
 | **Paths differ significantly** | Tension is unbalanced — tighten the lower-frequency belt |
-
-### Strobe Fine-Tuning Mode
-
-After getting initial results, tap **Visual Fine-Tune (Strobe)** for precise belt tension matching. This mode vibrates the belt at a specific frequency while a strobe light flashes in sync — when the belt appears to "freeze" (stand still), you've found the resonant frequency.
-
-**With a PWM strobe LED:**
-
-If your printer has a `[pwm_cycle_time]` LED configured in Klipper, HelixScreen automatically syncs the LED strobe to the motor excitation frequency. Watch the belt under the strobe and adjust frequency with the **+0.5 Hz** / **-0.5 Hz** buttons until the belt appears stationary.
-
-**Klipper configuration for strobe LED:**
-
-```ini
-[pwm_cycle_time strobe_led]
-pin: <your_gpio_pin>    # Any available GPIO connected to an LED
-value: 0                 # Start off
-cycle_time: 0.01         # Default (will be changed dynamically)
-```
-
-**Without a strobe LED (phone app fallback):**
-
-HelixScreen shows the current frequency and recommends phone strobe apps you can use:
-
-- **Android:** Strobily, Strobe Light
-- **iOS:** Strobe Light Tachometer, myStroboscope
-
-Set the app to the displayed frequency, aim your phone at the belt, and adjust until the belt appears frozen.
-
-**Locking frequencies:**
-
-Use the **Lock A** and **Lock B** buttons to record the resonant frequency you found for each path.
 
 ### Tips
 
