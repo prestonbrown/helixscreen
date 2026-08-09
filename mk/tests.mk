@@ -892,6 +892,12 @@ $(TEST_BIN): FORCE
 		exec $(MAKE) _PARALLEL_GUARD=1 --no-print-directory -j$(NPROC) $@; \
 	fi
 else
+# $(LIBHV_LIB) and $(LIBHV_JSON_HEADER) are prerequisites for the same reason
+# $(TARGET) lists them (mk/rules.mk): libhv.a reaches the link through LDFLAGS,
+# so without them nothing here ever evaluates the archive's own rule and a tree
+# whose archive predates the current libhv patches links it silently. Both are
+# filtered out of the command line — the archive is already in LDFLAGS, and
+# repeating it changes link order.
 $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(TEST_LVGL_DEPS) \
              $(TEST_APP_OBJS) \
@@ -903,10 +909,12 @@ $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(FONT_OBJS) \
              $(TRANS_OBJS) \
              $(OBJCPP_OBJS) \
+             $(LIBHV_LIB) \
+             $(LIBHV_JSON_HEADER) \
              $(TEST_PLATFORM_DEPS)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) helix-tests"
-	$(Q)$(CXX) $(CXXFLAGS) $(sort $^) -o $@ $(LDFLAGS) || { \
+	$(Q)$(CXX) $(CXXFLAGS) $(filter-out %.a %.h %.hh %.hpp %.hxx,$(sort $^)) -o $@ $(LDFLAGS) || { \
 		echo "$(RED)$(BOLD)✗ Test linking failed!$(RESET)"; \
 		exit 1; \
 	}
