@@ -113,18 +113,26 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
-    - name: Compute ccache bucket
-      id: ccache-bucket
-      run: echo "month=$(date -u +%Y-%m)" >> $GITHUB_OUTPUT
-
-    - name: Cache ccache
-      uses: actions/cache@v5
+    # Restore-only, and it reads a cache warmed on the default branch — never one
+    # from a sibling release. A release runs on a tag ref (refs/tags/vX.Y.Z),
+    # whose only readable cache scopes are its own (always empty — every tag is
+    # new) and the default branch. Tag runs can never see each other's caches, so
+    # keying by SHA, by tag, or by month made no difference: every release built
+    # 100% cold (measured ~1% ccache hit across all platforms, v0.99.107 logs).
+    # The ccache-warm workflow now compiles the heavy platforms on `main` and
+    # saves ccache-release-<plat>-* into the default-branch scope; this restore
+    # picks it up via the prefix. depend_mode is intentionally NOT set (here or in
+    # the warmer): the global -DHELIX_VERSION changes each release and would sink
+    # direct-mode hits, but ccache's preprocessed fallback excludes -D from its
+    # hash, so the ~99% of TUs that don't read the version macro still hit.
+    - name: Restore ccache (warmed on main — see ccache-warm.yml)
+      uses: actions/cache/restore@v5
       with:
         path: /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}
-        # Monthly bucket so the primary key is stable across tag pushes (prior
-        # SHA-based keys never hit on tag-scoped cache and the cache never
-        # warmed). Restore-keys still fall through to any older bucket.
-        key: ccache-release-${{ matrix.docker_image || matrix.platform }}-${{ steps.ccache-bucket.outputs.month }}
+        # Restore-only on purpose: a release must not SAVE a cache. Its save would
+        # land in the unreadable tag scope, and 9 platforms x ~1.7 GB of such dead
+        # caches would evict the warmed ones under GitHub's 10 GB per-repo budget.
+        key: ccache-release-${{ matrix.docker_image || matrix.platform }}-restore
         restore-keys: |
           ccache-release-${{ matrix.docker_image || matrix.platform }}-
 

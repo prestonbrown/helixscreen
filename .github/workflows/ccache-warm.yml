@@ -1,0 +1,131 @@
+name: Warm release ccache
+
+# Why this exists
+# ----------------
+# The Release workflow triggers on tags (refs/tags/vX.Y.Z). GitHub Actions scopes
+# every cache by git ref, and a tag run can only restore caches from its own tag
+# scope (always empty — each tag is brand new) or the default branch's scope. Tag
+# runs can never read each other's caches, so no release ever restored the
+# previous release's ccache: every release cross-compile ran 100% cold (measured
+# ~1% hit across all platforms in the v0.99.107 logs). The heavy DRM+GLES+thorvg
+# targets (pi, pi32, x86) sit at 58-70 min because of it and creep toward the
+# job timeout as the tree grows.
+#
+# This workflow runs on `main`, so the ccache it saves lands in the DEFAULT
+# BRANCH scope — the one scope a release tag *can* restore from. The release job
+# reads it restore-only (see release.yml "Restore ccache"). It compiles with the
+# exact same toolchain image, mount, and make invocation as the release so the
+# cached objects match.
+#
+# Only the three heavy platforms are warmed: they are the only ones near the
+# timeout, and three ccaches (~1.7 GB each ≈ 5 GB) stay comfortably inside
+# GitHub's 10 GB per-repo cache budget. The light platforms (~35-47 min) have
+# ample headroom and are intentionally left to build cold.
+#
+# depend_mode is intentionally NOT enabled. The global -DHELIX_VERSION define
+# changes every release, which sinks ccache direct-mode hits; ccache's
+# preprocessed fallback excludes -D from its hash, so unchanged TUs still hit —
+# but only while preprocessed mode is available, which depend_mode would disable.
+
+on:
+  schedule:
+    # 06:00 UTC daily — after the 04:00 nightly, so a warm cache is waiting for
+    # any release cut during the day. Cadence, not freshness, is the tradeoff:
+    # a release lands as many hits as the last warm run's tree shares with it.
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Warm on demand right before cutting a release.
+
+# One warm run at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: ccache-warm
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    name: Warm (${{ matrix.display_name }})
+    # Upstream only — forks neither release nor share this repo's cache budget.
+    if: github.repository == 'prestonbrown/helixscreen'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: pi
+            display_name: "Raspberry Pi"
+            build_target: pi-both
+          - platform: pi32
+            display_name: "Raspberry Pi 32-bit"
+            build_target: pi32-both
+          - platform: x86
+            display_name: "x86_64 Debian"
+            build_target: x86-both
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    # Mirror the release job: the heavy cross-compiles write GCC assembler temp
+    # files and ccache to a root partition the runner ships nearly full.
+    - name: Free up disk space
+      run: |
+        df -h /
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+        df -h /
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    # Save+restore (unlike the release, which is restore-only). The unique run_id
+    # suffix guarantees a fresh save every run — a fixed key would hit on the
+    # primary key and actions/cache would then skip the save, freezing the cache.
+    # restore-keys still restores the most recent prior warm cache to build on.
+    - name: Cache ccache
+      uses: actions/cache@v5
+      with:
+        path: /tmp/.ccache-${{ matrix.platform }}
+        key: ccache-release-${{ matrix.platform }}-${{ github.run_id }}
+        restore-keys: |
+          ccache-release-${{ matrix.platform }}-
+
+    - name: Configure ccache
+      run: |
+        mkdir -p /tmp/.ccache-${{ matrix.platform }}
+        printf 'max_size = 2G\ncompression = true\n' > /tmp/.ccache-${{ matrix.platform }}/ccache.conf
+
+    - name: Build ${{ matrix.platform }} toolchain image
+      # Same type=gha scope the release uses, so this also warms the toolchain
+      # image cache (default-branch scope) that the release restores.
+      run: |
+        docker buildx build \
+          --cache-from type=gha,scope=toolchain-${{ matrix.platform }} \
+          --cache-to type=gha,mode=max,scope=toolchain-${{ matrix.platform }} \
+          --load \
+          -t helixscreen/toolchain-${{ matrix.platform }} \
+          -f docker/Dockerfile.${{ matrix.platform }} \
+          docker/
+
+    # Identical to the release cross-compile step (same image, mount, make flags)
+    # so the ccache objects this produces are the ones the release will look up.
+    # No packaging, symbols, or image generation — the objects in ccache are the
+    # entire product of this job.
+    - name: Cross-compile for ${{ matrix.display_name }} (warm cache only)
+      run: |
+        docker run --rm \
+          -v "${{ github.workspace }}":/src \
+          -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
+          -w /src \
+          helixscreen/toolchain-${{ matrix.platform }} \
+          make PLATFORM_TARGET=${{ matrix.build_target }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
+
+    - name: Show ccache stats
+      run: |
+        docker run --rm \
+          -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
+          helixscreen/toolchain-${{ matrix.platform }} \
+          ccache -s
