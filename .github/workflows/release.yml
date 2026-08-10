@@ -49,7 +49,15 @@ jobs:
     name: Build (${{ matrix.display_name }})
     needs: [validate-shell]
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    # The pi-both / pi32-both / x86-both cross-compiles are the long poles here:
+    # a full DRM+GLES+thorvg build that lands at 58-70 min and grows with the
+    # codebase, so 90 left almost no headroom (v0.99.108's pi64 job died at ~75
+    # min). ccache does not reliably survive between releases — 9 platform
+    # ccaches plus the type=gha toolchain caches overrun GitHub's 10 GB/repo
+    # cache budget and get evicted LRU — so builds run near-cold every time.
+    # 120 is margin, not a fix; the durable fix is cache survival (or splitting
+    # the Pi build). Other platforms finish in ~35-47 min and never approach it.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
