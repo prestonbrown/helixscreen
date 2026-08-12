@@ -1,12 +1,14 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "belt_dsp_probe.h"
+#include "pitch_estimator.h"
 
 #include "../catch_amalgamated.hpp"
 
 using helix::calibration::cached_dsp_probe;
 using helix::calibration::dsp_ms_is_capable;
 using helix::calibration::MAX_PSD_MS;
+using helix::calibration::PROBE_BANDWIDTH_HZ;
 using helix::calibration::probe_dsp_throughput;
 
 TEST_CASE("dsp_ms_is_capable brackets the threshold", "[belt][dsp_probe]") {
@@ -44,4 +46,15 @@ TEST_CASE("cached probe returns a stable result", "[belt][dsp_probe]") {
     const auto& b = cached_dsp_probe();
     CHECK(&a == &b);
     CHECK(a.psd_ms == b.psd_ms);
+}
+
+TEST_CASE("the probe measures at least the bandwidth production requests", "[belt][dsp_probe]") {
+    // If the search window or harmonic count ever widens, the probe must not
+    // silently start timing a cheaper transform than the pluck path runs -
+    // the gate would still pass while the real work no longer fits the budget.
+    float lo = 0.0f, hi = 0.0f;
+    REQUIRE(helix::calibration::search_window_for_span(helix::calibration::REFERENCE_SPAN_MM, &lo,
+                                                       &hi));
+    CHECK(PROBE_BANDWIDTH_HZ >=
+          helix::calibration::required_bandwidth_hz(hi, helix::calibration::DEFAULT_HARMONICS));
 }

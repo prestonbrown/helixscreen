@@ -35,7 +35,11 @@ DspProbeResult probe_dsp_throughput() {
     r.psd_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     r.capable = dsp_ms_is_capable(r.psd_ms);
 
-    // Keep the compiler from eliding the transform.
+    // Belt-and-suspenders against the compiler eliding the transform: the real
+    // guard is that compute_psd() lives in a separate translation unit and this
+    // build has no LTO, so the optimiser cannot see across the call to prove
+    // the result unused. If LTO is ever enabled for this target, that guarantee
+    // goes away and this branch stops being enough on its own.
     if (psd.empty()) {
         spdlog::debug("[BeltDsp] probe produced an empty spectrum");
     }
