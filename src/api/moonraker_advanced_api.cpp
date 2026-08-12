@@ -6,7 +6,6 @@
 #include "ui_error_reporting.h"
 #include "ui_notification.h"
 
-#include "accel_sensor_manager.h"
 #include "bed_mesh_probe_parser.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
@@ -2207,17 +2206,23 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
     spdlog::info("[MoonrakerAPI] Detecting belt tension hardware capabilities");
 
     // Step 1: Query printer.objects.list. The response is unused - accelerometer
-    // presence comes from AccelSensorManager below, not from parsing this list.
+    // presence comes from PrinterDiscovery below, not from parsing this list
+    // (Klipper's objects/list omits on-demand calibration tools like adxl345).
     json params = json::object();
     client_.send_jsonrpc(
         "printer.objects.list", params,
         [this, on_complete, on_error](const json& /*response*/) {
             helix::calibration::BeltTensionHardware hw;
 
-            // Use AccelSensorManager as the single source of truth for
-            // accelerometer detection (discovers from configfile.config,
-            // handles all chip types including beacon)
-            hw.has_adxl = helix::sensors::AccelSensorManager::instance().has_sensors();
+            // AccelSensorManager is never populated in production - nothing calls
+            // SensorRegistry::discover_all()/register_manager(), so has_sensors()
+            // always reports false. PrinterDiscovery (via the injected PrinterState,
+            // not the global singleton, matching api_'s existing pattern) is the
+            // source that is actually kept live: it parses configfile.config for
+            // adxl345/lis2dw/mpu9250/lis3dh/icm20948/beacon/resonance_tester and
+            // already backs the printer_has_accelerometer subject
+            // (see PrinterDiscovery::parse_config_keys()).
+            hw.has_adxl = api_.printer_state().get_discovery().has_accelerometer();
 
             spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}", hw.has_adxl);
 
