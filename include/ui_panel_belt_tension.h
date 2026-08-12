@@ -3,12 +3,16 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "belt_tension_calibrator.h"
 #include "belt_tension_types.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 
 class MoonrakerAPI;
 
@@ -29,10 +33,17 @@ struct ui_frequency_response_chart_t;
  * - Displays resonant frequency comparison and recommendations
  *
  * ## State Machine:
- * - START: Hardware summary + start button
- * - PROGRESS: Testing in progress with progress bar
- * - RESULTS: Show measurements, delta, similarity, recommendation
+ * - START: Gate result + hardware summary + start button
+ * - POSITION: Park the gantry so the free span is nominal, show which run to pluck
+ * - LISTEN: Live meter for one belt at a time
+ * - COMPARE: A vs B, delta, verdict
  * - ERROR: Error display with retry
+ *
+ * START's action is gated on `bt_can_start`, which is driven solely by
+ * evaluate_belt_gate(). Hiding the Advanced-panel menu row is not a gate: the
+ * panel is still reachable by `ctl navigate`, by a deep link, and by a printer
+ * whose accelerometer drops out after entry. Binding the button's disabled
+ * state to a subject holds in all three cases.
  *
  * ## Usage:
  * ```cpp
@@ -45,11 +56,16 @@ struct ui_frequency_response_chart_t;
 class BeltTensionPanel : public OverlayBase {
   public:
     enum class ViewState {
-        START = 0,    ///< Hardware summary + start button
-        PROGRESS = 1, ///< Testing in progress
-        RESULTS = 2,  ///< Show measurements + chart
-        ERROR = 3,    ///< Error display
+        START = 0,    ///< gate result + hardware summary + start button
+        POSITION = 1, ///< park the gantry, show which run to pluck
+        LISTEN = 2,   ///< live meter for one belt
+        COMPARE = 3,  ///< A vs B
+        ERROR = 4,
     };
+
+    /// Positioning move, not a print move - the gantry is empty and nothing is
+    /// being extruded, so this only has to be quick and undramatic.
+    static constexpr double PARK_FEEDRATE_MM_MIN = 3000.0;
 
     BeltTensionPanel() = default;
     ~BeltTensionPanel() override;
@@ -85,6 +101,7 @@ class BeltTensionPanel : public OverlayBase {
     void handle_start_clicked();
     void handle_cancel_clicked();
     void handle_retry_clicked();
+    void handle_position_confirmed();
 
   private:
     void set_view_state(ViewState state);
@@ -92,6 +109,18 @@ class BeltTensionPanel : public OverlayBase {
     void on_sweep_complete(const helix::calibration::BeltTensionResult& result);
     void on_error(const std::string& message);
     void populate_results(const helix::calibration::BeltTensionResult& result);
+
+    /// The single place the gate is computed. Nothing else may decide whether
+    /// Start is live.
+    void refresh_gate();
+    /// Attach the gate's subject observers once. Idempotent: the accelerometer
+    /// subject is owned by PrinterCapabilitiesState and may not exist yet the
+    /// first time this runs, so activation retries.
+    void ensure_gate_observers();
+    void handle_park_gantry();
+    /// Fetch the klippy UDS path from Moonraker and probe co-location.
+    void probe_klippy_socket();
+    [[nodiscard]] std::optional<float> span_offset_for_current_printer() const;
 
     // Subject manager for RAII cleanup
     SubjectManager subjects_;
@@ -104,10 +133,17 @@ class BeltTensionPanel : public OverlayBase {
     lv_subject_t target_freq_subject_{};
     char target_freq_buf_[32] = {};
 
-    // Progress subjects
-    lv_subject_t progress_subject_{};
-    lv_subject_t progress_label_subject_{};
-    char progress_label_buf_[64] = {};
+    // Gate subjects - START's action is bound to these, not to a hidden menu row
+    lv_subject_t can_start_subject_{};
+    lv_subject_t gate_message_subject_{};
+    char gate_message_buf_[128] = {};
+
+    // Positioning subjects
+    lv_subject_t has_target_subject_{};
+    lv_subject_t park_status_subject_{};
+    char park_status_buf_[64] = {};
+    lv_subject_t current_belt_subject_{};
+    char current_belt_buf_[8] = {};
 
     // Result subjects
     lv_subject_t result_a_freq_subject_{};
@@ -129,6 +165,20 @@ class BeltTensionPanel : public OverlayBase {
     // Error subject
     lv_subject_t error_message_subject_{};
     char error_message_buf_[256] = {};
+
+    // Gate observers. Every one carries PrinterState's own SubjectLifetime -
+    // the observe_* factories take it as a defaulted fourth parameter, so
+    // omitting it silently leaves the guard tokenless (#705).
+    ObserverGuard accel_observer_;
+    ObserverGuard print_active_observer_;
+    ObserverGuard connected_observer_;
+    bool gate_observers_wired_ = false;
+
+    // Klippy's UDS path, from Moonraker's /server/config. Reachability is
+    // probed once per activation, not per gate refresh: the gate recomputes on
+    // every subject change and a connect() syscall each time would be waste.
+    std::string klippy_socket_path_;
+    bool klippy_socket_reachable_ = false;
 
     // Calibrator
     std::unique_ptr<helix::calibration::BeltTensionCalibrator> calibrator_;

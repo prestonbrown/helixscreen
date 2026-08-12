@@ -96,6 +96,22 @@ TEST_CASE("every gate has a non-empty message", "[belt][gating]") {
     }
 }
 
+TEST_CASE("gate inputs assembled at panel entry reflect a fresh connection",
+          "[belt][gating][panel]") {
+    // At panel entry the accelerometer subject may still be 0 - discovery
+    // populates it from configfile.config, which arrives after connect. A gate
+    // that only ever ran against a settled value would pass here and then let
+    // a user press Start on a printer with no accelerometer.
+    BeltGateInputs in;
+    in.connected = true;
+    in.has_accelerometer = false; // not yet discovered
+    in.is_corexy = true;
+    in.klippy_socket_reachable = true;
+    in.dsp_capable = true;
+    in.print_active = false;
+    CHECK(evaluate_belt_gate(in) == BeltGate::NO_ACCELEROMETER);
+}
+
 TEST_CASE("park_y_for_span reproduces the measured reference geometry", "[belt][gating][span]") {
     // Measured on the reference Voron 2.4 300mm: Y115 produced a 151 mm span,
     // so the offset is 35 mm and a 150 mm span wants Y115.

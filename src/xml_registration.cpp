@@ -597,6 +597,7 @@ void register_xml_components() {
     register_xml("screws_tilt_share_modal.xml");
     register_xml("input_shaper_panel.xml");
     register_xml("components/belt_result_card.xml");
+    register_xml("components/pluck_animation.xml");
     register_xml("panel_belt_tension.xml");
 
     // Print history panels
