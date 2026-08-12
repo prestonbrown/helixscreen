@@ -409,6 +409,28 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.zip_tool reports zip 
     REQUIRE(legal_values.count(zip_tool) == 1);
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture, "Session event: host.screen_locality is local or remote",
+                 "[telemetry][session]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_session();
+    REQUIRE(tm.queue_size() == 1);
+    auto event = tm.get_queue_snapshot()[0];
+
+    // Derived from the same host-identity check that gates every klippy-UDS
+    // feature (helix::is_moonraker_on_same_host). Must always be present -
+    // it does not depend on DisplayManager or a live printer connection.
+    REQUIRE(event.contains("host"));
+    REQUIRE(event["host"].contains("screen_locality"));
+    REQUIRE(event["host"]["screen_locality"].is_string());
+
+    const std::string locality = event["host"]["screen_locality"];
+    const std::set<std::string> legal_values{"local", "remote"};
+    INFO("screen_locality was: " << locality);
+    REQUIRE(legal_values.count(locality) == 1);
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture, "Session event: app.zip_tool is on EVERY session event",
                  "[telemetry][session]") {
     auto& tm = TelemetryManager::instance();

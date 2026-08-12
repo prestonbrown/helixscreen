@@ -26,6 +26,7 @@
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "printer_state.h"
+#include "screen_locality.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/update_checker.h"
@@ -1478,6 +1479,15 @@ nlohmann::json TelemetryManager::build_session_event() const {
         if (caps.cpu_cores > 0) {
             host["cpu_cores"] = caps.cpu_cores;
         }
+    }
+
+    // Where the display runs relative to the printer. Derived from the same
+    // host-identity check that gates every klippy-UDS feature, so the metric
+    // and the gate can never disagree.
+    {
+        auto* cfg = Config::get_instance();
+        const std::string moonraker_host = cfg->get<std::string>(cfg->df() + "moonraker_host", "");
+        host["screen_locality"] = helix::screen_locality_for_host(moonraker_host);
     }
 
     // ---- printer & features sections (require discovery data) ----
