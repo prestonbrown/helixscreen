@@ -122,16 +122,52 @@
               width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
               scrollable="false">
         <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="2"/>
+        <!-- Hero readout. font_xl is the largest font token the theme defines; -->
+        <!-- there is no text_hero widget. The number has to be readable at -->
+        <!-- arm's length, standing at the machine with a hand on the belt. -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                style_flex_cross_place="center" scrollable="false">
-          <text_body text="Belt" translation_tag="Belt" style_text_color="#text_muted"/>
-          <text_heading bind_text="bt_current_belt" style_text_color="#primary"/>
+                height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
+                style_pad_all="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_xs"
+                scrollable="false">
+          <text_body name="bt_belt_label" bind_text="bt_current_belt" style_text_color="#text_muted"/>
+          <text_heading name="bt_live_freq_label"
+                        bind_text="bt_live_freq" style_text_font="#font_xl" style_text_align="center"/>
+          <text_small name="bt_pluck_count_label" bind_text="bt_pluck_count" style_text_color="#text_muted"/>
+          <text_small name="bt_median_freq_label" bind_text="bt_median_freq" style_text_color="#text_muted"/>
         </lv_obj>
-        <!-- Live meter and trace land here with the streaming wiring. -->
+        <!-- Match bar. Hidden until belt A has committed a median, because -->
+        <!-- there is nothing to match against before then. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+          <bind_flag_if_eq subject="bt_has_reference" flag="hidden" ref_value="0"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                  scrollable="false">
+            <text_body text="Match to belt A" translation_tag="Match to belt A"/>
+            <text_body name="bt_reference_freq_label" bind_text="bt_reference_freq" style_text_color="#primary"/>
+          </lv_obj>
+          <progress_bar name="bt_match_bar" width="100%" bind_value="bt_match_percent"/>
+        </lv_obj>
+        <!-- Waveform and spectrum traces land here in task 9. -->
         <lv_obj name="bt_trace_container"
                 width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
                 scrollable="false"/>
+        <text_body name="bt_hint_label"
+                   width="100%" bind_text="bt_hint" style_text_align="center" style_text_color="#text_muted"
+                   long_mode="wrap"/>
+        <!-- One button advances the flow; its label is bound, so it reads -->
+        <!-- "Next belt" on A and "Compare" on B. Disabled until the median -->
+        <!-- has committed - advancing on two plucks would ship a guess. -->
+        <ui_button name="btn_next_belt"
+                   width="100%" height="#button_height" bind_text="bt_advance_label" variant="primary">
+          <bind_state_if_eq subject="bt_committed" state="disabled" ref_value="0"/>
+          <event_cb trigger="clicked" callback="belt_tension_next_belt_cb"/>
+        </ui_button>
+        <ui_button name="btn_listen_cancel"
+                   width="100%" height="#button_height" icon="close" text="Cancel" translation_tag="Cancel"
+                   variant="danger">
+          <event_cb trigger="clicked" callback="belt_tension_cancel_cb"/>
+        </ui_button>
       </lv_obj>
       <!-- ============================================================ -->
       <!-- STATE 3: COMPARE - A vs B, delta, verdict -->
@@ -169,14 +205,16 @@
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
                   style_flex_cross_place="center" scrollable="false">
             <text_body text="Frequency Delta" translation_tag="Frequency Delta"/>
-            <text_body bind_text="bt_result_delta" style_text_color="#primary"/>
+            <text_body name="bt_result_delta_label" bind_text="bt_result_delta" style_text_color="#primary"/>
           </lv_obj>
-          <!-- Similarity -->
+          <!-- Match. Not "Path Similarity": that named a Pearson correlation -->
+          <!-- between two swept PSD curves, and the live tuner compares two -->
+          <!-- committed medians instead. -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
                   style_flex_cross_place="center" scrollable="false">
-            <text_body text="Path Similarity" translation_tag="Path Similarity"/>
-            <text_body bind_text="bt_result_similarity" style_text_color="#primary"/>
+            <text_body text="Match" translation_tag="Match"/>
+            <text_body name="bt_result_similarity_label" bind_text="bt_result_similarity" style_text_color="#primary"/>
           </lv_obj>
           <!-- Recommendation -->
           <lv_obj width="100%"

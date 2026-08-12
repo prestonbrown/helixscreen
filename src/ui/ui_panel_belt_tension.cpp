@@ -9,9 +9,12 @@
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
 
+#include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "belt_dsp_probe.h"
 #include "belt_gating.h"
+#include "belt_listen_session.h"
+#include "belt_live_data.h"
 #include "belt_stream_client.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
@@ -24,6 +27,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -37,6 +41,17 @@ static std::unique_ptr<BeltTensionPanel> g_belt_tension_panel;
 
 // State subject (0=START, 1=POSITION, 2=LISTEN, 3=COMPARE, 4=ERROR)
 static lv_subject_t s_belt_tension_state;
+
+namespace {
+/// Voron's documented frequency for a correctly tensioned TARGET_SPAN_MM span,
+/// and the band either side of it that still counts as correct. Same pair as
+/// BeltTensionResult's defaults; named here because populate_comparison() works
+/// from two medians rather than from a BeltTensionResult. Only used when the
+/// model has a measured span offset - without one the span is unknown and an
+/// absolute target means nothing.
+constexpr float TARGET_FREQUENCY_HZ = 110.0f;
+constexpr float TARGET_TOLERANCE_HZ = 10.0f;
+} // namespace
 
 // Forward declarations
 static void on_belt_tension_row_clicked(lv_event_t* e);
@@ -52,6 +67,10 @@ BeltTensionPanel& get_global_belt_tension_panel() {
 
 BeltTensionPanel::~BeltTensionPanel() {
     // lifetime_ destructor auto-invalidates all outstanding tokens
+
+    // Before anything else: a live stream is a background thread calling
+    // on_batch_bg() on members that are about to be destroyed.
+    stop_listening();
 
     accel_observer_.reset();
     print_active_observer_.reset();
@@ -122,6 +141,8 @@ void ui_panel_belt_tension_register_callbacks() {
          [](lv_event_t* /*e*/) { get_global_belt_tension_panel().handle_retry_clicked(); }},
         {"belt_tension_listen_cb",
          [](lv_event_t* /*e*/) { get_global_belt_tension_panel().handle_position_confirmed(); }},
+        {"belt_tension_next_belt_cb",
+         [](lv_event_t* /*e*/) { get_global_belt_tension_panel().handle_advance_clicked(); }},
         {"belt_tension_help_cb",
          [](lv_event_t* /*e*/) {
              helix::ui::modal_show_alert(
@@ -138,9 +159,11 @@ void ui_panel_belt_tension_register_callbacks() {
              helix::ui::modal_show_alert(
                  lv_tr("Understanding Results"),
                  lv_tr("Frequency Delta: Difference between Path A and B. "
-                       "Ideally under 5 Hz; over 15 Hz needs adjustment.\n\n"
-                       "Path Similarity: How closely the vibration profiles match. "
-                       "Above 90% is excellent; below 70% suggests uneven tension."),
+                       "Anything under 2 Hz is below what this measurement can "
+                       "resolve, so it counts as matched.\n\n"
+                       "Match: How close the two belts are, as a percentage of "
+                       "belt A's frequency. Above 95% is excellent; below 90% "
+                       "is worth adjusting."),
                  ModalSeverity::Info, lv_tr("Got it"));
          }},
     });
@@ -183,8 +206,23 @@ void BeltTensionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(has_target_subject_, 0, "bt_has_target", subjects_);
     UI_MANAGED_SUBJECT_STRING(park_status_subject_, park_status_buf_, lv_tr("Preparing..."),
                               "bt_park_status", subjects_);
-    UI_MANAGED_SUBJECT_STRING(current_belt_subject_, current_belt_buf_, "A", "bt_current_belt",
+    UI_MANAGED_SUBJECT_STRING(current_belt_subject_, current_belt_buf_, lv_tr("Belt A"),
+                              "bt_current_belt", subjects_);
+
+    // Live meter subjects
+    UI_MANAGED_SUBJECT_STRING(live_freq_subject_, live_freq_buf_, "--", "bt_live_freq", subjects_);
+    UI_MANAGED_SUBJECT_STRING(median_freq_subject_, median_freq_buf_, "", "bt_median_freq",
                               subjects_);
+    UI_MANAGED_SUBJECT_STRING(pluck_count_subject_, pluck_count_buf_, "0 / 5", "bt_pluck_count",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(hint_subject_, hint_buf_, lv_tr("Hold still"), "bt_hint", subjects_);
+    UI_MANAGED_SUBJECT_INT(committed_subject_, 0, "bt_committed", subjects_);
+    UI_MANAGED_SUBJECT_INT(match_percent_subject_, 0, "bt_match_percent", subjects_);
+    UI_MANAGED_SUBJECT_STRING(reference_freq_subject_, reference_freq_buf_, "--",
+                              "bt_reference_freq", subjects_);
+    UI_MANAGED_SUBJECT_INT(has_reference_subject_, 0, "bt_has_reference", subjects_);
+    UI_MANAGED_SUBJECT_STRING(advance_label_subject_, advance_label_buf_, lv_tr("Next belt"),
+                              "bt_advance_label", subjects_);
 
     // Result subjects
     UI_MANAGED_SUBJECT_STRING(result_a_freq_subject_, result_a_freq_buf_, "--", "bt_result_a_freq",
@@ -221,6 +259,12 @@ void BeltTensionPanel::init_subjects() {
 }
 
 void BeltTensionPanel::deinit_subjects() {
+    // A live stream keeps deferring publish_live_values() at 10 Hz. Tearing the
+    // subjects out from under it would leave those callbacks writing into
+    // deinited subjects; the generation bump below drops them, but there is no
+    // reason to keep producing them either.
+    stop_listening();
+
     // Expire outstanding async tokens here, not only in cleanup()/on_deactivate():
     // subjects can be torn down and re-inited on a LIVE panel (shutdown registry,
     // test isolation), and a queued callback would otherwise write into a subject
@@ -323,6 +367,18 @@ void BeltTensionPanel::refresh_gate() {
     lv_subject_copy_string(&gate_message_subject_,
                            lv_tr(helix::calibration::belt_gate_message(gate)));
     spdlog::debug("[BeltTension] gate = {}", helix::calibration::belt_gate_message(gate));
+
+    // A precondition that fails mid-measurement ends the measurement. The case
+    // that makes this real is a print starting while the user is plucking: the
+    // toolhead moves, every later reading is garbage, and leaving the meter
+    // running would present that garbage as a result.
+    if (gate != helix::calibration::BeltGate::OK &&
+        static_cast<ViewState>(lv_subject_get_int(&s_belt_tension_state)) == ViewState::LISTEN) {
+        spdlog::warn("[BeltTension] Gate closed mid-measurement: {}",
+                     helix::calibration::belt_gate_message(gate));
+        stop_listening();
+        on_error(lv_tr(helix::calibration::belt_gate_message(gate)));
+    }
 }
 
 void BeltTensionPanel::ensure_gate_observers() {
@@ -414,6 +470,21 @@ void BeltTensionPanel::handle_park_gantry() {
     const auto target =
         helix::calibration::park_y_for_span(helix::calibration::TARGET_SPAN_MM, offset, bounds);
 
+    // Fall back to the span implied by wherever the gantry is now. The search
+    // window the session builds around it only has to bracket the real
+    // frequency, so a stale Y is far better than pretending we parked.
+    listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
+    if (offset.has_value()) {
+        // position_y is a whole-mm int subject. A millimetre of rounding moves
+        // the search window by well under a Hz, so int is enough here.
+        const float span =
+            static_cast<float>(lv_subject_get_int(get_printer_state().get_position_y_subject())) +
+            *offset;
+        if (span > 0.0f) {
+            listen_span_mm_ = span;
+        }
+    }
+
     if (!target.valid) {
         // Matching is span-independent, so the feature still works - we just
         // cannot show an absolute target or park for the user.
@@ -440,6 +511,10 @@ void BeltTensionPanel::handle_park_gantry() {
                 'Y', y, PARK_FEEDRATE_MM_MIN,
                 lifetime_.bg_cb("BeltTension::parked",
                                 [this]() {
+                                    // The park landed, so the span is the one we
+                                    // asked for rather than one inferred from a
+                                    // position that may be stale.
+                                    listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
                                     lv_subject_copy_string(&park_status_subject_,
                                                            lv_tr("Ready to pluck"));
                                 }),
@@ -490,7 +565,14 @@ void BeltTensionPanel::on_activate() {
 
     // Reset subjects to defaults
     lv_subject_set_int(&has_results_subject_, 0);
-    lv_subject_copy_string(&current_belt_subject_, "A");
+    reference_hz_ = 0.0f;
+    belt_a_hz_ = 0.0f;
+    belt_b_hz_ = 0.0f;
+    listening_belt_ = 'A';
+    reset_live_subjects();
+    lv_subject_set_int(&has_reference_subject_, 0);
+    lv_subject_copy_string(&reference_freq_subject_, "--");
+    lv_subject_copy_string(&advance_label_subject_, lv_tr("Next belt"));
 
     // Re-evaluate the gate on every entry, and probe co-location once here
     // rather than on each gate refresh - the gate recomputes on every subject
@@ -498,6 +580,7 @@ void BeltTensionPanel::on_activate() {
     ensure_gate_observers();
     refresh_gate();
     probe_klippy_socket();
+    query_accel_chip();
 
     // Detect hardware capabilities
     if (calibrator_) {
@@ -526,6 +609,8 @@ void BeltTensionPanel::on_deactivate() {
 
     // Abandon an in-progress run. POSITION may have a park move outstanding and
     // LISTEN is the live meter; both must not survive the panel going away.
+    stop_listening();
+
     auto state = static_cast<ViewState>(lv_subject_get_int(&s_belt_tension_state));
     if (state == ViewState::POSITION || state == ViewState::LISTEN) {
         spdlog::info("[BeltTension] Cancelling measurement on deactivate");
@@ -540,6 +625,8 @@ void BeltTensionPanel::on_deactivate() {
 
 void BeltTensionPanel::cleanup() {
     spdlog::debug("[BeltTension] Cleaning up");
+
+    stop_listening();
 
     // Expire all outstanding async tokens
     lifetime_.invalidate();
@@ -627,13 +714,17 @@ void BeltTensionPanel::handle_start_clicked() {
 void BeltTensionPanel::handle_position_confirmed() {
     spdlog::info("[BeltTension] Position confirmed, listening");
 
-    lv_subject_copy_string(&current_belt_subject_, "A");
-    set_view_state(ViewState::LISTEN);
+    reference_hz_ = 0.0f;
+    belt_a_hz_ = 0.0f;
+    belt_b_hz_ = 0.0f;
+    lv_subject_set_int(&has_reference_subject_, 0);
+    start_listening('A');
 }
 
 void BeltTensionPanel::handle_cancel_clicked() {
     spdlog::info("[BeltTension] Cancel clicked");
 
+    stop_listening();
     if (calibrator_) {
         calibrator_->reset();
     }
@@ -642,22 +733,69 @@ void BeltTensionPanel::handle_cancel_clicked() {
 
 void BeltTensionPanel::handle_retry_clicked() {
     spdlog::info("[BeltTension] Retry clicked");
+    stop_listening();
     set_view_state(ViewState::START);
+}
+
+void BeltTensionPanel::handle_advance_clicked() {
+    if (listening_belt_ == 'A') {
+        handle_next_belt_clicked();
+    } else {
+        handle_compare_clicked();
+    }
+}
+
+void BeltTensionPanel::handle_next_belt_clicked() {
+    float median = 0.0f;
+    {
+        std::lock_guard<std::mutex> lock(listen_mutex_);
+        if (session_) {
+            median = session_->median_hz();
+        }
+    }
+    if (median <= 0.0f) {
+        spdlog::warn("[BeltTension] Next belt refused: belt A has no median yet");
+        return;
+    }
+
+    spdlog::info("[BeltTension] Belt A committed at {:.2f} Hz, moving to belt B", median);
+    belt_a_hz_ = median;
+    reference_hz_ = median;
+
+    stop_listening();
+
+    snprintf(reference_freq_buf_, sizeof(reference_freq_buf_), "%.0f Hz",
+             static_cast<double>(median));
+    lv_subject_notify(&reference_freq_subject_);
+    lv_subject_set_int(&has_reference_subject_, 1);
+
+    start_listening('B');
+}
+
+void BeltTensionPanel::handle_compare_clicked() {
+    float median = 0.0f;
+    {
+        std::lock_guard<std::mutex> lock(listen_mutex_);
+        if (session_) {
+            median = session_->median_hz();
+        }
+    }
+    if (median <= 0.0f) {
+        spdlog::warn("[BeltTension] Compare refused: belt B has no median yet");
+        return;
+    }
+
+    spdlog::info("[BeltTension] Belt B committed at {:.2f} Hz", median);
+    belt_b_hz_ = median;
+
+    stop_listening();
+    populate_comparison(belt_a_hz_, belt_b_hz_);
+    set_view_state(ViewState::COMPARE);
 }
 
 // ============================================================================
 // RESULT CALLBACKS
 // ============================================================================
-
-void BeltTensionPanel::on_sweep_complete(const helix::calibration::BeltTensionResult& result) {
-    spdlog::info("[BeltTension] Sweep complete: A={:.1f}Hz B={:.1f}Hz delta={:.1f}Hz sim={:.0f}%",
-                 result.path_a.peak_frequency, result.path_b.peak_frequency, result.frequency_delta,
-                 result.similarity_percent);
-
-    last_result_ = result;
-    populate_results(result);
-    set_view_state(ViewState::COMPARE);
-}
 
 void BeltTensionPanel::on_error(const std::string& message) {
     spdlog::error("[BeltTension] Error: {}", message);
@@ -667,40 +805,327 @@ void BeltTensionPanel::on_error(const std::string& message) {
     set_view_state(ViewState::ERROR);
 }
 
-void BeltTensionPanel::populate_results(const helix::calibration::BeltTensionResult& result) {
-    // Path A frequency and status
-    snprintf(result_a_freq_buf_, sizeof(result_a_freq_buf_), "%.1f Hz",
-             result.path_a.peak_frequency);
+void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
+    const bool have_target = lv_subject_get_int(&has_target_subject_) != 0;
+    const float delta = std::fabs(a_hz - b_hz);
+    const bool matched = helix::calibration::belt_frequencies_match(a_hz, b_hz);
+
+    // Whole Hz, never a decimal: see BELT_RESOLUTION_HZ.
+    snprintf(result_a_freq_buf_, sizeof(result_a_freq_buf_), "%.0f Hz", static_cast<double>(a_hz));
     lv_subject_notify(&result_a_freq_subject_);
-
-    snprintf(result_a_status_buf_, sizeof(result_a_status_buf_), "%s",
-             helix::calibration::belt_status_to_string(result.path_a.status));
-    lv_subject_notify(&result_a_status_subject_);
-
-    // Path B frequency and status
-    snprintf(result_b_freq_buf_, sizeof(result_b_freq_buf_), "%.1f Hz",
-             result.path_b.peak_frequency);
+    snprintf(result_b_freq_buf_, sizeof(result_b_freq_buf_), "%.0f Hz", static_cast<double>(b_hz));
     lv_subject_notify(&result_b_freq_subject_);
 
-    snprintf(result_b_status_buf_, sizeof(result_b_status_buf_), "%s",
-             helix::calibration::belt_status_to_string(result.path_b.status));
+    // An absolute GOOD/WARNING/BAD verdict only means something when the span
+    // is known, because the target frequency is a property of the span. With
+    // no measured span offset for this model the panel does matching only, and
+    // an absolute verdict would be an invention.
+    const char* a_status = "";
+    const char* b_status = "";
+    if (have_target) {
+        a_status =
+            helix::calibration::belt_status_to_string(helix::calibration::evaluate_belt_status(
+                a_hz, TARGET_FREQUENCY_HZ, TARGET_TOLERANCE_HZ));
+        b_status =
+            helix::calibration::belt_status_to_string(helix::calibration::evaluate_belt_status(
+                b_hz, TARGET_FREQUENCY_HZ, TARGET_TOLERANCE_HZ));
+    }
+    snprintf(result_a_status_buf_, sizeof(result_a_status_buf_), "%s", a_status);
+    lv_subject_notify(&result_a_status_subject_);
+    snprintf(result_b_status_buf_, sizeof(result_b_status_buf_), "%s", b_status);
     lv_subject_notify(&result_b_status_subject_);
 
-    // Delta
-    snprintf(result_delta_buf_, sizeof(result_delta_buf_), lv_tr("%.1f Hz difference"),
-             result.frequency_delta);
+    if (matched) {
+        snprintf(result_delta_buf_, sizeof(result_delta_buf_), "%s",
+                 lv_tr("Within measurement resolution"));
+    } else {
+        snprintf(result_delta_buf_, sizeof(result_delta_buf_), lv_tr("%.0f Hz difference"),
+                 static_cast<double>(delta));
+    }
     lv_subject_notify(&result_delta_subject_);
 
-    // Similarity
+    const float match = helix::calibration::belt_match_percent(a_hz, b_hz);
     snprintf(result_similarity_buf_, sizeof(result_similarity_buf_), "%.0f%%",
-             result.similarity_percent);
+             static_cast<double>(match));
     lv_subject_notify(&result_similarity_subject_);
+    lv_subject_set_int(&match_percent_subject_, static_cast<int>(std::lround(match)));
 
-    // Recommendation
-    std::string rec = result.recommendation();
-    snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_), "%s", rec.c_str());
+    if (matched) {
+        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_), "%s",
+                 lv_tr("Both belts read the same to within what this measurement can "
+                       "resolve. Nothing to adjust."));
+    } else if (a_hz > b_hz) {
+        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                 lv_tr("Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the "
+                       "front left, or loosen belt A."),
+                 static_cast<double>(delta));
+    } else {
+        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                 lv_tr("Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the "
+                       "front right, or loosen belt B."),
+                 static_cast<double>(delta));
+    }
     lv_subject_notify(&result_recommendation_subject_);
 
-    // Mark that we have results
     lv_subject_set_int(&has_results_subject_, 1);
+
+    spdlog::info("[BeltTension] Compare: A={:.2f} Hz B={:.2f} Hz delta={:.2f} Hz match={:.0f}%",
+                 a_hz, b_hz, delta, match);
+}
+
+// ============================================================================
+// LIVE MEASUREMENT
+// ============================================================================
+
+void BeltTensionPanel::query_accel_chip() {
+    // Fall back before asking, so the panel is never left with no sensor name
+    // if the query fails or the config has no resonance_tester section.
+    const auto sensors = helix::sensors::AccelSensorManager::instance().get_sensors();
+    if (!sensors.empty()) {
+        sensor_name_ = sensors.front().klipper_name;
+    }
+
+    if (!api_) {
+        return;
+    }
+
+    api_->query_configfile(
+        lifetime_.bg_cb("BeltTension::accel_chip",
+                        [this](const json& config) {
+                            if (!config.is_object() || !config.contains("resonance_tester") ||
+                                !config["resonance_tester"].is_object()) {
+                                spdlog::debug(
+                                    "[BeltTension] No resonance_tester section; sensor stays '{}'",
+                                    sensor_name_);
+                                return;
+                            }
+                            const json& rt = config["resonance_tester"];
+                            // accel_chip is the single-sensor form; accel_chip_x/_y is the
+                            // per-axis form. Either names a config section, and both belts
+                            // are measured from the same toolhead sensor, so the X one is
+                            // as good as the Y one.
+                            for (const char* key : {"accel_chip", "accel_chip_x"}) {
+                                if (rt.contains(key) && rt[key].is_string()) {
+                                    std::string chip = rt[key].get<std::string>();
+                                    if (!chip.empty()) {
+                                        sensor_name_ = std::move(chip);
+                                        break;
+                                    }
+                                }
+                            }
+                            spdlog::info("[BeltTension] Accelerometer section '{}'", sensor_name_);
+                        }),
+        lifetime_.bg_cb("BeltTension::accel_chip_err", [this](const MoonrakerError& err) {
+            spdlog::debug("[BeltTension] configfile query failed ({}); sensor stays '{}'",
+                          err.message, sensor_name_);
+        }));
+}
+
+void BeltTensionPanel::reset_live_subjects() {
+    lv_subject_copy_string(&current_belt_subject_,
+                           listening_belt_ == 'B' ? lv_tr("Belt B") : lv_tr("Belt A"));
+    lv_subject_copy_string(&live_freq_subject_, "--");
+    lv_subject_copy_string(&median_freq_subject_, "");
+    snprintf(pluck_count_buf_, sizeof(pluck_count_buf_), "0 / %zu",
+             helix::calibration::PluckAggregator::COMMIT_AFTER);
+    lv_subject_notify(&pluck_count_subject_);
+    lv_subject_copy_string(&hint_subject_, lv_tr("Hold still"));
+    lv_subject_set_int(&committed_subject_, 0);
+    lv_subject_set_int(&match_percent_subject_, 0);
+    helix::calibration::BeltLiveData::instance().clear();
+}
+
+void BeltTensionPanel::start_listening(char belt) {
+    stop_listening();
+
+    listening_belt_ = belt;
+    reset_live_subjects();
+    lv_subject_copy_string(&advance_label_subject_,
+                           belt == 'B' ? lv_tr("Compare") : lv_tr("Next belt"));
+    set_view_state(ViewState::LISTEN);
+
+    if (klippy_socket_path_.empty() || sensor_name_.empty()) {
+        on_error(lv_tr("No accelerometer stream available. Check that Klipper is running "
+                       "and an accelerometer is configured, then retry."));
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(listen_mutex_);
+        session_.reset();
+        noise_prefix_.clear();
+        had_reject_ = false;
+        last_event_tp_ = std::chrono::steady_clock::now();
+    }
+
+    if (!stream_) {
+        stream_ = std::make_unique<helix::calibration::BeltStreamClient>();
+    }
+
+    spdlog::info("[BeltTension] Listening on belt {} via '{}' at {} (span {:.0f} mm)", belt,
+                 sensor_name_, klippy_socket_path_, listen_span_mm_);
+
+    // on_batch is deliberately NOT wrapped in lifetime_.bg_cb: bg_cb defers the
+    // whole body to the main thread, which would put a 2048-point pitch
+    // estimate on the LVGL thread ten times a second. The DSP stays here, and
+    // lifetime safety comes from stop_listening() joining the loop thread on
+    // every exit path plus stream_ being the first member destroyed.
+    const bool ok = stream_->start(
+        klippy_socket_path_, sensor_name_,
+        [this, tok = lifetime_.token()](const helix::calibration::AccelBatch& batch) {
+            on_batch_bg(batch, tok);
+        },
+        lifetime_.bg_cb("BeltTension::stream_error",
+                        [this](const std::string& msg) { on_stream_error(msg); }));
+
+    if (!ok) {
+        on_error(lv_tr("Could not open Klipper's accelerometer stream. Check that Klipper "
+                       "is running, then retry."));
+    }
+}
+
+void BeltTensionPanel::stop_listening() {
+    // Close the socket and join the loop thread FIRST. After this returns no
+    // batch callback can be in flight, so clearing the session below cannot
+    // pull the buffer out from under a running DSP pass.
+    if (stream_) {
+        stream_->stop();
+    }
+
+    std::lock_guard<std::mutex> lock(listen_mutex_);
+    session_.reset();
+    noise_prefix_.clear();
+    noise_prefix_.shrink_to_fit();
+    had_reject_ = false;
+}
+
+void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
+                                   const helix::LifetimeToken& tok) {
+    LiveSnapshot snap;
+
+    {
+        std::lock_guard<std::mutex> lock(listen_mutex_);
+
+        if (!session_) {
+            // Noise-floor phase. Nothing is published, so the "Hold still"
+            // hint set by start_listening() stays up for its duration.
+            noise_prefix_.insert(noise_prefix_.end(), batch.samples.begin(), batch.samples.end());
+            if (noise_prefix_.size() < NOISE_FLOOR_SAMPLES) {
+                return;
+            }
+
+            // The session needs the measured rate, not the configured one, and
+            // the stream only knows it once samples have arrived - which is
+            // exactly now. Build the session here rather than in
+            // start_listening() for that reason.
+            float rate = stream_ ? stream_->sample_rate_hz() : 0.0f;
+            if (rate <= 0.0f) {
+                rate = 3200.0f;
+            }
+            session_ =
+                std::make_unique<helix::calibration::BeltListenSession>(listen_span_mm_, rate);
+            const bool learned = session_->learn_noise_floor(noise_prefix_);
+            spdlog::info("[BeltTension] Noise floor learned={} from {} samples at {:.0f} Hz",
+                         learned, noise_prefix_.size(), rate);
+            noise_prefix_.clear();
+            noise_prefix_.shrink_to_fit();
+            last_event_tp_ = std::chrono::steady_clock::now();
+            return;
+        }
+
+        // The DSP runs here, on the loop thread. Only finished numbers cross.
+        const auto event = session_->push(batch);
+        const auto now = std::chrono::steady_clock::now();
+
+        if (event) {
+            last_event_tp_ = now;
+            if (event->accepted) {
+                snap.last_hz = event->frequency_hz;
+            } else {
+                had_reject_ = true;
+                last_reject_tp_ = now;
+            }
+        }
+
+        snap.accepted = session_->accepted_count();
+        snap.median_hz = session_->median_hz();
+        snap.committed = session_->committed();
+        snap.window = session_->window();
+        snap.ms_since_event = static_cast<uint32_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - last_event_tp_).count());
+        if (had_reject_) {
+            snap.ms_since_reject = static_cast<uint32_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_reject_tp_)
+                    .count());
+        }
+    }
+
+    // Not lifetime_.defer(): that one is main-thread only. LifetimeToken::defer
+    // holds its own shared_ptr to the generation counter, so it is safe to call
+    // from the loop thread and it never reads `this` to decide whether to run.
+    tok.defer("BeltTension::batch_ui",
+              [this, snap = std::move(snap)]() { publish_live_values(snap); });
+}
+
+void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
+    if (snap.last_hz > 0.0f) {
+        snprintf(live_freq_buf_, sizeof(live_freq_buf_), "%.0f Hz",
+                 static_cast<double>(snap.last_hz));
+        lv_subject_notify(&live_freq_subject_);
+    } else if (snap.median_hz > 0.0f) {
+        snprintf(live_freq_buf_, sizeof(live_freq_buf_), "%.0f Hz",
+                 static_cast<double>(snap.median_hz));
+        lv_subject_notify(&live_freq_subject_);
+    }
+
+    if (snap.median_hz > 0.0f) {
+        snprintf(median_freq_buf_, sizeof(median_freq_buf_), lv_tr("Median %.0f Hz"),
+                 static_cast<double>(snap.median_hz));
+    } else {
+        median_freq_buf_[0] = '\0';
+    }
+    lv_subject_notify(&median_freq_subject_);
+
+    snprintf(pluck_count_buf_, sizeof(pluck_count_buf_), "%zu / %zu", snap.accepted,
+             helix::calibration::PluckAggregator::COMMIT_AFTER);
+    lv_subject_notify(&pluck_count_subject_);
+
+    lv_subject_set_int(&committed_subject_, snap.committed ? 1 : 0);
+
+    if (reference_hz_ > 0.0f && snap.median_hz > 0.0f) {
+        const float match = helix::calibration::belt_match_percent(reference_hz_, snap.median_hz);
+        lv_subject_set_int(&match_percent_subject_, static_cast<int>(std::lround(match)));
+    }
+
+    // Hint priority: a recent rejection is the most actionable thing we can
+    // say, then a long silence, then the neutral "we are listening".
+    const char* hint = nullptr;
+    if (snap.ms_since_reject < helix::calibration::REJECT_HINT_MS) {
+        hint = lv_tr("Too soft - pluck harder");
+    } else if (helix::calibration::belt_should_show_idle_hint(snap.ms_since_event)) {
+        // Front-left is belt B, front-right is belt A (design spec, confirmed
+        // against photographs of the machine).
+        hint = listening_belt_ == 'B' ? lv_tr("Pluck the front belt on the left")
+                                      : lv_tr("Pluck the front belt on the right");
+    } else {
+        hint = lv_tr("Listening");
+    }
+    lv_subject_copy_string(&hint_subject_, hint);
+
+    helix::calibration::BeltLiveData::instance().set_waveform(snap.window);
+}
+
+void BeltTensionPanel::on_stream_error(const std::string& message) {
+    spdlog::error("[BeltTension] Stream failed: {}", message);
+
+    // A dead stream must not leave the last good frequency on screen: the
+    // number would keep reading as live while nothing is being measured.
+    stop_listening();
+
+    char buf[256];
+    snprintf(buf, sizeof(buf),
+             lv_tr("The accelerometer stream stopped: %s. Check that "
+                   "Klipper is running, then retry."),
+             message.c_str());
+    on_error(buf);
 }

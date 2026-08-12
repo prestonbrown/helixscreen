@@ -5,20 +5,31 @@
 
 #include "ui_observer_guard.h"
 
+#include "belt_gating.h"
 #include "belt_tension_calibrator.h"
 #include "belt_tension_types.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
+#include <chrono>
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 class MoonrakerAPI;
 
 namespace helix {
 class MoonrakerClient;
 }
+
+namespace helix::calibration {
+class BeltListenSession;
+class BeltStreamClient;
+struct AccelBatch;
+} // namespace helix::calibration
 
 // Forward declare
 struct ui_frequency_response_chart_t;
@@ -67,6 +78,12 @@ class BeltTensionPanel : public OverlayBase {
     /// being extruded, so this only has to be quick and undramatic.
     static constexpr double PARK_FEEDRATE_MM_MIN = 3000.0;
 
+    /// Samples collected with the machine still before the strength gate has a
+    /// floor to compare against. About one second at the measured 3053 Hz. Kept
+    /// short deliberately: a pluck landing inside this window poisons the floor
+    /// and every later strike is measured against an inflated baseline.
+    static constexpr size_t NOISE_FLOOR_SAMPLES = 3000;
+
     BeltTensionPanel() = default;
     ~BeltTensionPanel() override;
 
@@ -102,13 +119,54 @@ class BeltTensionPanel : public OverlayBase {
     void handle_cancel_clicked();
     void handle_retry_clicked();
     void handle_position_confirmed();
+    /// The single LISTEN action button. Its label is bound to bt_advance_label,
+    /// so one button reads "Next belt" on A and "Compare" on B rather than two
+    /// buttons swapping visibility.
+    void handle_advance_clicked();
 
   private:
+    /// Everything one batch produced, already reduced to what the UI shows.
+    /// Assembled on the stream's loop thread and copied across to the main
+    /// thread; nothing in it points back into the session.
+    struct LiveSnapshot {
+        size_t accepted = 0;
+        float median_hz = 0.0f;
+        float last_hz = 0.0f;
+        bool committed = false;
+        uint32_t ms_since_event = 0;
+        uint32_t ms_since_reject = UINT32_MAX;
+        std::vector<helix::calibration::AccelSample> window;
+    };
+
     void set_view_state(ViewState state);
     void on_hardware_detected(const helix::calibration::BeltTensionHardware& hw);
-    void on_sweep_complete(const helix::calibration::BeltTensionResult& result);
     void on_error(const std::string& message);
-    void populate_results(const helix::calibration::BeltTensionResult& result);
+    /// Fill the COMPARE state from the two committed medians.
+    void populate_comparison(float a_hz, float b_hz);
+
+    //
+    // === Live measurement ===
+    //
+
+    /// Open the stream and begin a fresh session for one belt.
+    void start_listening(char belt);
+    /// Close the stream and drop the session. Idempotent, main thread only.
+    void stop_listening();
+    /// Runs on BeltStreamClient's loop thread. Does the DSP and marshals only
+    /// finished numbers to the main thread. Must not touch LVGL. The token is
+    /// captured once when the stream starts, because LifetimeToken::defer() is
+    /// the only deferral safe to call from a background thread.
+    void on_batch_bg(const helix::calibration::AccelBatch& batch, const helix::LifetimeToken& tok);
+    /// Main thread. Every lv_subject_set_* for the live meter happens here.
+    void publish_live_values(const LiveSnapshot& snap);
+    /// Main thread. A dead stream is an error, unlike a quiet one.
+    void on_stream_error(const std::string& message);
+    void reset_live_subjects();
+    void handle_next_belt_clicked();
+    void handle_compare_clicked();
+    /// Read resonance_tester.accel_chip, falling back to the first sensor
+    /// AccelSensorManager discovered.
+    void query_accel_chip();
 
     /// The single place the gate is computed. Nothing else may decide whether
     /// Start is live.
@@ -143,7 +201,25 @@ class BeltTensionPanel : public OverlayBase {
     lv_subject_t park_status_subject_{};
     char park_status_buf_[64] = {};
     lv_subject_t current_belt_subject_{};
-    char current_belt_buf_[8] = {};
+    char current_belt_buf_[16] = {};
+
+    // Live meter subjects. Frequencies are formatted as whole Hz on purpose:
+    // see BELT_RESOLUTION_HZ in belt_live_data.h.
+    lv_subject_t live_freq_subject_{};
+    char live_freq_buf_[16] = {};
+    lv_subject_t median_freq_subject_{};
+    char median_freq_buf_[48] = {};
+    lv_subject_t pluck_count_subject_{};
+    char pluck_count_buf_[32] = {};
+    lv_subject_t hint_subject_{};
+    char hint_buf_[96] = {};
+    lv_subject_t committed_subject_{};
+    lv_subject_t match_percent_subject_{};
+    lv_subject_t reference_freq_subject_{};
+    char reference_freq_buf_[16] = {};
+    lv_subject_t has_reference_subject_{};
+    lv_subject_t advance_label_subject_{};
+    char advance_label_buf_[32] = {};
 
     // Result subjects
     lv_subject_t result_a_freq_subject_{};
@@ -190,14 +266,46 @@ class BeltTensionPanel : public OverlayBase {
     int chart_series_a_ = -1;
     int chart_series_b_ = -1;
 
-    // Hardware detection cache. Written but not yet read - its readers were
-    // the strobe fine-tuning handlers removed with the strobe placeholder;
-    // phase 2 (live streaming) needs this again for its own hardware summary.
+    // Hardware detection cache. Feeds BeltGateInputs::is_corexy.
     helix::calibration::BeltTensionHardware detected_hw_;
 
-    // Last results for re-display. Same phase-2 state as detected_hw_ above:
-    // written but not yet read after the strobe handlers were removed.
-    helix::calibration::BeltTensionResult last_result_;
+    // Klipper config section name for the accelerometer, e.g. "adxl345" or
+    // "adxl345 hotend". Handed to BeltStreamClient whole - it splits the chip
+    // type from the mux key itself.
+    std::string sensor_name_;
+
+    // Free span handed to the session, which sets its harmonic search window.
+    // TARGET_SPAN_MM when the park succeeded, the span implied by the current
+    // Y when only an offset is known, and TARGET_SPAN_MM as a last resort with
+    // bt_has_target left at 0 so the UI shows matching only.
+    float listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
+
+    char listening_belt_ = 'A';
+    /// Belt A's committed median, 0 until it commits. Also the match reference.
+    float reference_hz_ = 0.0f;
+    float belt_a_hz_ = 0.0f;
+    float belt_b_hz_ = 0.0f;
+
+    // --- Touched by the stream's loop thread ---
+    //
+    // stop_listening() closes the stream before it clears any of this, and
+    // BeltStreamClient::stop() joins its loop thread, so the two threads cannot
+    // overlap in practice. The mutex makes that invariant local: a reader of
+    // this file should not have to go and verify stop()'s internals to see that
+    // session_ is safe to reset.
+    std::mutex listen_mutex_;
+    std::unique_ptr<helix::calibration::BeltListenSession> session_;
+    std::vector<helix::calibration::AccelSample> noise_prefix_;
+    std::chrono::steady_clock::time_point last_event_tp_{};
+    std::chrono::steady_clock::time_point last_reject_tp_{};
+    bool had_reject_ = false;
+
+    /// Declared LAST so it is destroyed FIRST. ~BeltStreamClient() joins its
+    /// loop thread, which must happen before session_, noise_prefix_ and the
+    /// timestamps above are destroyed - on_batch_bg touches all of them. The
+    /// destructor also calls stop_listening() explicitly; this ordering is the
+    /// structural backstop for the day someone deletes that line.
+    std::unique_ptr<helix::calibration::BeltStreamClient> stream_;
 };
 
 // Global instance accessor
