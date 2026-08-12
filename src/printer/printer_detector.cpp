@@ -1467,6 +1467,47 @@ std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& pri
     return "";
 }
 
+double PrinterDetector::get_belt_span_offset_mm(const std::string& printer_name) {
+    // -1 means "no measured value for this model", distinct from a real 0.
+    constexpr double kUnknown = -1.0;
+
+    if (!g_database.load()) {
+        return kUnknown;
+    }
+
+    if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
+        return kUnknown;
+    }
+
+    std::string name_lower = printer_name;
+    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    for (const auto& printer : g_database.data["printers"]) {
+        std::string db_name = printer.value("name", "");
+        std::string db_name_lower = db_name;
+        std::transform(db_name_lower.begin(), db_name_lower.end(), db_name_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (db_name_lower != name_lower) {
+            continue;
+        }
+
+        if (!printer.contains("calibration") || !printer["calibration"].is_object()) {
+            return kUnknown;
+        }
+        const auto& cal = printer["calibration"];
+        double offset = cal.value("belt_span_offset_mm", kUnknown);
+        if (offset >= 0.0) {
+            spdlog::debug("[PrinterDetector] Found belt_span_offset_mm {} for printer '{}'", offset,
+                          printer_name);
+        }
+        return offset;
+    }
+
+    return kUnknown;
+}
+
 // ============================================================================
 // Print Start Profile Lookup
 // ============================================================================

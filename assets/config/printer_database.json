@@ -545,6 +545,9 @@
       "name": "Voron 2.4",
       "manufacturer": "Voron",
       "image": "voron-v2.png",
+      "calibration": {
+        "belt_span_offset_mm": 35.0
+      },
       "heuristics": [
         {
           "type": "object_exists",
