@@ -60,6 +60,26 @@ bool fill_sockaddr(const std::string& path, sockaddr_un& addr) {
     return true;
 }
 
+/// Convert one of klippy's running totals into a per-batch count.
+///
+/// @param raw The cumulative value from this batch.
+/// @param previous In/out: the cumulative value from the previous batch. Zero
+///        before the first batch, so the first batch reports its raw value -
+///        which is right, those drops did happen on our stream.
+/// @return Samples dropped since the previous batch, never negative.
+int counter_delta(int raw, int& previous) {
+    if (raw < previous) {
+        // klippy resets the accumulator when measurements (re)start
+        // (bulk_sensor.py:278), so a lower total means the counter restarted,
+        // not that samples un-dropped. Rebase instead of reporting a negative.
+        previous = raw;
+        return 0;
+    }
+    const int delta = raw - previous;
+    previous = raw;
+    return delta;
+}
+
 /// socket() + connect() to a UDS path. Returns -1 on failure, errno preserved.
 int connect_uds(const std::string& path) {
     sockaddr_un addr{};
@@ -160,6 +180,8 @@ bool BeltStreamClient::start(const std::string& socket_path, const std::string& 
     col_z_ = 3;
     col_max_ = 3;
     time_base_set_ = false;
+    prev_errors_ = 0;
+    prev_overflows_ = 0;
     first_sample_time_ = 0.0;
     last_sample_time_ = 0.0;
     total_samples_ = 0;
@@ -345,10 +367,10 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
 
     AccelBatch batch;
     if (params.contains("errors") && params["errors"].is_number()) {
-        batch.errors = params["errors"].get<int>();
+        batch.errors = counter_delta(params["errors"].get<int>(), prev_errors_);
     }
     if (params.contains("overflows") && params["overflows"].is_number()) {
-        batch.overflows = params["overflows"].get<int>();
+        batch.overflows = counter_delta(params["overflows"].get<int>(), prev_overflows_);
     }
 
     const auto data_it = params.find("data");

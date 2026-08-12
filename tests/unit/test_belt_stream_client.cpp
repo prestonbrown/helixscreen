@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "belt_stream_client.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -12,6 +13,7 @@
 #include <sys/un.h>
 #include <thread>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -57,9 +59,16 @@ class FakeKlippySocket {
         c_ = c;
     }
 
+    /// Same cumulative counters on every batch.
     void set_counters(int errors, int overflows) {
-        errors_ = errors;
-        overflows_ = overflows;
+        counters_ = {{errors, overflows}};
+    }
+
+    /// Per-batch cumulative counters, exactly as klippy would send them (they
+    /// are running totals, not deltas). Batches past the end of the sequence
+    /// repeat its last entry.
+    void set_counter_sequence(std::vector<std::pair<int, int>> counters) {
+        counters_ = std::move(counters);
     }
 
     /// Close the connection once every batch has been written.
@@ -103,8 +112,9 @@ class FakeKlippySocket {
                          std::to_string(b_) + ',' + std::to_string(c_) + ']';
                     t += 1.0 / 3200.0;
                 }
-                f += R"(],"errors":)" + std::to_string(errors_) + R"(,"overflows":)" +
-                     std::to_string(overflows_) + "}}";
+                const auto& c = counters_[std::min(static_cast<size_t>(b), counters_.size() - 1)];
+                f += R"(],"errors":)" + std::to_string(c.first) + R"(,"overflows":)" +
+                     std::to_string(c.second) + "}}";
                 send_frame(f);
             }
 
@@ -160,8 +170,7 @@ class FakeKlippySocket {
     std::string subscribe_;
     std::vector<std::string> header_{"time", "x_acceleration", "y_acceleration", "z_acceleration"};
     double a_ = 1000.0, b_ = 2000.0, c_ = 3000.0;
-    int errors_ = 0;
-    int overflows_ = 0;
+    std::vector<std::pair<int, int>> counters_{{0, 0}};
     std::atomic<bool> close_when_done_{false};
 };
 
@@ -173,6 +182,37 @@ std::string temp_sock_path(const char* tag) {
 
 using helix::calibration::AccelBatch;
 using helix::calibration::BeltStreamClient;
+
+namespace {
+
+/// Subscribe against an already-configured fake and collect the first `want`
+/// batches, in order. Returns early on timeout so the caller's assertions
+/// report the shortfall rather than hanging.
+std::vector<AccelBatch> collect_batches(const std::string& path, size_t want) {
+    std::mutex m;
+    std::condition_variable cv;
+    std::vector<AccelBatch> got;
+
+    BeltStreamClient client;
+    REQUIRE(client.start(
+        path, "adxl345",
+        [&](const AccelBatch& b) {
+            std::lock_guard<std::mutex> lk(m);
+            got.push_back(b);
+            cv.notify_all();
+        },
+        nullptr));
+    {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait_for(lk, std::chrono::seconds(5), [&] { return got.size() >= want; });
+    }
+    client.stop();
+
+    std::lock_guard<std::mutex> lk(m);
+    return got;
+}
+
+} // namespace
 
 TEST_CASE("socket_reachable is false for a path that does not exist", "[belt][stream][slow]") {
     CHECK_FALSE(BeltStreamClient::socket_reachable("/tmp/helix-belt-nope-does-not-exist.sock"));
@@ -359,6 +399,129 @@ TEST_CASE("nonzero klippy counters mark the window as non-contiguous", "[belt][s
     CHECK(got.errors == 2);
     CHECK(got.overflows == 7);
     CHECK_FALSE(got.contiguous());
+}
+
+TEST_CASE("counters are per-batch deltas, not klippy's running totals", "[belt][stream][slow]") {
+    // klippy sends cumulative totals (bulk_sensor.py: self.last_overflows +=
+    // po_diff). Passed through raw, the single overflow in batch 2 would latch
+    // contiguous() false for the rest of the session and silently stop the
+    // panel from ever accepting another pluck.
+    const std::string path = temp_sock_path("delta");
+    FakeKlippySocket fake(path);
+    fake.set_counter_sequence({{0, 0}, {3, 3}, {3, 3}});
+    fake.serve(3, 10);
+
+    const auto got = collect_batches(path, 3);
+
+    REQUIRE(got.size() == 3);
+    CHECK(got[0].errors == 0);
+    CHECK(got[0].overflows == 0);
+    CHECK(got[0].contiguous());
+
+    CHECK(got[1].errors == 3);
+    CHECK(got[1].overflows == 3);
+    CHECK_FALSE(got[1].contiguous());
+
+    // The counter did not move, so nothing was dropped during batch 3 - it must
+    // be usable again.
+    CHECK(got[2].errors == 0);
+    CHECK(got[2].overflows == 0);
+    CHECK(got[2].contiguous());
+}
+
+TEST_CASE("the first batch reports its raw counter as the delta", "[belt][stream][slow]") {
+    // Baseline starts at zero, so drops klippy accumulated before our first
+    // batch really did happen on our stream and must be reported.
+    const std::string path = temp_sock_path("firstdelta");
+    FakeKlippySocket fake(path);
+    fake.set_counter_sequence({{4, 6}, {4, 6}});
+    fake.serve(2, 10);
+
+    const auto got = collect_batches(path, 2);
+
+    REQUIRE(got.size() == 2);
+    CHECK(got[0].errors == 4);
+    CHECK(got[0].overflows == 6);
+    CHECK_FALSE(got[0].contiguous());
+    CHECK(got[1].errors == 0);
+    CHECK(got[1].overflows == 0);
+    CHECK(got[1].contiguous());
+}
+
+TEST_CASE("a counter going backwards is a reset, not a negative delta", "[belt][stream][slow]") {
+    // klippy resets its accumulator when measurements restart. A lower total
+    // means a restart, not that samples un-dropped.
+    const std::string path = temp_sock_path("rewind");
+    FakeKlippySocket fake(path);
+    fake.set_counter_sequence({{5, 9}, {2, 1}, {4, 3}});
+    fake.serve(3, 10);
+
+    const auto got = collect_batches(path, 3);
+
+    REQUIRE(got.size() == 3);
+    CHECK(got[0].errors == 5);
+    CHECK(got[0].overflows == 9);
+
+    // Clamped, never negative.
+    CHECK(got[1].errors == 0);
+    CHECK(got[1].overflows == 0);
+    CHECK(got[1].contiguous());
+
+    // Rebased onto the restarted counter: 4-2 and 3-1, not 4-5 and 3-9.
+    CHECK(got[2].errors == 2);
+    CHECK(got[2].overflows == 2);
+}
+
+TEST_CASE("restarting the SAME client clears the counter baseline", "[belt][stream][slow]") {
+    // prev_errors_/prev_overflows_ must reset in start(). klippy resets its own
+    // accumulator on resubscribe, so a client that kept the old baseline would
+    // see 7 -> 7, compute a delta of 0, and silently swallow the second
+    // session's drops. One client object across both sessions is the whole
+    // point of this test - two clients would pass either way.
+    const std::string path = temp_sock_path("ctrreset");
+    BeltStreamClient client;
+
+    auto run_session = [&](FakeKlippySocket& fake) {
+        std::mutex m;
+        std::condition_variable cv;
+        std::vector<AccelBatch> got;
+        REQUIRE(client.start(
+            path, "adxl345",
+            [&](const AccelBatch& b) {
+                std::lock_guard<std::mutex> lk(m);
+                got.push_back(b);
+                cv.notify_all();
+            },
+            nullptr));
+        {
+            std::unique_lock<std::mutex> lk(m);
+            cv.wait_for(lk, std::chrono::seconds(5), [&] { return !got.empty(); });
+        }
+        client.stop();
+        fake.stop();
+        std::lock_guard<std::mutex> lk(m);
+        return got;
+    };
+
+    std::vector<AccelBatch> first, second;
+    {
+        FakeKlippySocket fake(path);
+        fake.set_counter_sequence({{7, 7}});
+        fake.serve(1, 10);
+        first = run_session(fake);
+    }
+    {
+        FakeKlippySocket fake(path);
+        fake.set_counter_sequence({{7, 7}});
+        fake.serve(1, 10);
+        second = run_session(fake);
+    }
+
+    REQUIRE(first.size() >= 1);
+    CHECK(first[0].errors == 7);
+    REQUIRE(second.size() >= 1);
+    CHECK(second[0].errors == 7);
+    CHECK(second[0].overflows == 7);
 }
 
 TEST_CASE("a 14 KB batch split across many reads still decodes", "[belt][stream][slow]") {

@@ -27,12 +27,15 @@ struct AccelBatch {
     /// than a few hours.
     std::vector<AccelSample> samples;
 
-    /// klippy's counters, taken verbatim from the batch. Both are **cumulative
-    /// since the first subscriber attached**, not per-batch deltas
-    /// (`adxl345.py:_process_batch` returns `self.last_error_count` and
-    /// `ffreader.get_last_overflows()`, which only reset in
-    /// `_start_measurements`). Nonzero therefore means samples were dropped at
-    /// some point in this session, so the window is not a clean ring-down.
+    /// Samples dropped **during this batch alone**. Nonzero means this window
+    /// has a gap in it and is not a clean ring-down; the next clean batch
+    /// reports zero again.
+    ///
+    /// The transport does the conversion because klippy sends running totals,
+    /// not deltas (`adxl345.py:_process_batch` returns `self.last_error_count`
+    /// and `ffreader.get_last_overflows()`, which only reset when measurements
+    /// start). Left raw, one overflow would latch contiguous() false for the
+    /// rest of the session.
     int errors = 0;
     int overflows = 0;
 
@@ -195,6 +198,11 @@ class BeltStreamClient {
     /// True between a successful attach() and close_on_loop(). Lets stop() skip
     /// a pointless two-second wait when there is nothing left to close.
     std::atomic<bool> io_open_{false};
+
+    /// Previous batch's cumulative counters, so AccelBatch can report a
+    /// per-batch delta. Reset in start(), matching klippy's own reset.
+    int prev_errors_ = 0;
+    int prev_overflows_ = 0;
 
     std::atomic<float> sample_rate_hz_{0.0f};
     double time_base_ = 0.0;
