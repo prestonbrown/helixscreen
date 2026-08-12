@@ -1870,6 +1870,14 @@
     "setting_group": {
       "attributes": {},
       "inherits": "lv_obj"
+    },
+    "belt_trace": {
+      "attributes": {
+        "mode": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -2812,7 +2820,8 @@
     "ui_split_button",
     "z_offset_indicator",
     "helix_sparkline",
-    "setting_group"
+    "setting_group",
+    "belt_trace"
   ],
   "runtime_constants": [
     "accent_bar_gap",

@@ -5,6 +5,7 @@
 #include "pitch_estimator.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace helix::calibration {
 
@@ -90,18 +91,22 @@ std::optional<PluckEvent> BeltListenSession::push(const AccelBatch& batch) {
         return PluckEvent{0.0f, ratio, false};
     }
 
-    const PitchEstimate est = estimate_pitch_for_span(ringdown.samples, sample_rate_hz_, span_mm_);
+    std::vector<std::pair<float, float>> psd;
+    const PitchEstimate est = estimate_pitch_for_span(ringdown.samples, sample_rate_hz_, span_mm_,
+                                                      DEFAULT_HARMONICS, &psd);
     if (!est.valid) {
         rejected_++;
         return PluckEvent{0.0f, ratio, false};
     }
 
+    last_spectrum_ = std::move(psd);
     aggregator_.add(est.frequency_hz);
     return PluckEvent{est.frequency_hz, ratio, true};
 }
 
 void BeltListenSession::reset() {
     window_.clear();
+    last_spectrum_.clear();
     aggregator_.reset();
     rejected_ = 0;
     cooldown_samples_ = 0;

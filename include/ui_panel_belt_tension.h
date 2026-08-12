@@ -124,6 +124,14 @@ class BeltTensionPanel : public OverlayBase {
     /// buttons swapping visibility.
     void handle_advance_clicked();
 
+    /// Lets BeltTrace (and anything else outside this panel) attach an
+    /// observer that releases safely across deinit_subjects()/init_subjects()
+    /// re-registration, the same contract PrinterState::get_subjects_lifetime()
+    /// gives observers of its subjects (#705).
+    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
+        return subjects_lifetime_;
+    }
+
   private:
     /// Everything one batch produced, already reduced to what the UI shows.
     /// Assembled on the stream's loop thread and copied across to the main
@@ -136,6 +144,12 @@ class BeltTensionPanel : public OverlayBase {
         uint32_t ms_since_event = 0;
         uint32_t ms_since_reject = UINT32_MAX;
         std::vector<helix::calibration::AccelSample> window;
+        /// Only non-empty when this batch's event was a freshly ACCEPTED
+        /// pluck - see BeltListenSession::last_spectrum(). publish_live_values()
+        /// leaves BeltLiveData's spectrum alone when this is empty, so the
+        /// strip holds the last analysed spectrum between plucks instead of
+        /// animating noise.
+        std::vector<std::pair<float, float>> spectrum;
     };
 
     void set_view_state(ViewState state);
@@ -215,6 +229,11 @@ class BeltTensionPanel : public OverlayBase {
     char hint_buf_[96] = {};
     lv_subject_t committed_subject_{};
     lv_subject_t match_percent_subject_{};
+    /// Bumped once per publish_live_values() call (10 Hz while listening).
+    /// BeltTrace observes this and invalidates itself - the data provider and
+    /// the widget never need to know about each other, same as
+    /// perf_history_tick driving HelixSparkline.
+    lv_subject_t live_tick_subject_{};
     lv_subject_t reference_freq_subject_{};
     char reference_freq_buf_[16] = {};
     lv_subject_t has_reference_subject_{};
@@ -249,6 +268,13 @@ class BeltTensionPanel : public OverlayBase {
     ObserverGuard print_active_observer_;
     ObserverGuard connected_observer_;
     bool gate_observers_wired_ = false;
+
+    /// Handed to BeltTrace's tick observer via get_subjects_lifetime().
+    /// Flipped false and replaced on every deinit_subjects()/init_subjects()
+    /// cycle, exactly like PrinterState::subjects_lifetime_ (#705) - a trace
+    /// widget that outlives one cycle must not call lv_observer_remove() on a
+    /// subject that has already been deinited.
+    SubjectLifetime subjects_lifetime_ = std::make_shared<bool>(true);
 
     // Klippy's UDS path, from Moonraker's /server/config. Reachability is
     // probed once per activation, not per gate refresh: the gate recomputes on

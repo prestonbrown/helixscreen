@@ -88,7 +88,8 @@ PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, fl
 }
 
 PitchEstimate estimate_pitch_for_span(const std::vector<AccelSample>& samples, float sample_rate,
-                                      float span_mm, int n_harmonics) {
+                                      float span_mm, int n_harmonics,
+                                      std::vector<std::pair<float, float>>* out_psd) {
     PitchEstimate out;
     if (span_mm <= 0.0f || sample_rate <= 0.0f) {
         return out;
@@ -101,7 +102,11 @@ PitchEstimate estimate_pitch_for_span(const std::vector<AccelSample>& samples, f
 
     const float bandwidth = required_bandwidth_hz(hi_hz, n_harmonics);
     auto psd = compute_psd(samples, sample_rate, bandwidth);
-    return estimate_pitch(psd, lo_hz, hi_hz, n_harmonics);
+    const PitchEstimate estimate = estimate_pitch(psd, lo_hz, hi_hz, n_harmonics);
+    if (out_psd) {
+        *out_psd = std::move(psd);
+    }
+    return estimate;
 }
 
 } // namespace helix::calibration

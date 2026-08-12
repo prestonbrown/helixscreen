@@ -8,6 +8,7 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_edit_overlay.h"
+#include "ui_belt_trace.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_confetti.h"
@@ -296,15 +297,17 @@ void register_xml_components() {
 
     // Register semantic text widgets (AFTER theme init, BEFORE components that use them)
     ui_text_init();
-    ui_text_input_init();         // <text_input> with bind_text support
-    ui_spinner_init();            // <spinner> with responsive sizing
-    ui_button_init();             // <ui_button> with variant styles and auto-contrast
-    ui_split_button_init();       // <ui_split_button> with primary action + dropdown
-    ui_markdown_init();           // <ui_markdown> with theme-aware markdown rendering
-    ui_notification_badge_init(); // <notification_badge> with auto-contrast text
-    ui_carousel_init();           // <ui_carousel> horizontal scroll-snap carousel
-    register_xml("carousel.xml"); // <carousel> XML component wrapping ui_carousel
-    ui_confetti_init();           // <ui_confetti> celebration animation canvas
+    ui_text_input_init();                    // <text_input> with bind_text support
+    ui_spinner_init();                       // <spinner> with responsive sizing
+    ui_button_init();                        // <ui_button> with variant styles and auto-contrast
+    ui_split_button_init();                  // <ui_split_button> with primary action + dropdown
+    ui_markdown_init();                      // <ui_markdown> with theme-aware markdown rendering
+    ui_notification_badge_init();            // <notification_badge> with auto-contrast text
+    ui_carousel_init();                      // <ui_carousel> horizontal scroll-snap carousel
+    register_xml("carousel.xml");            // <carousel> XML component wrapping ui_carousel
+    ui_confetti_init();                      // <ui_confetti> celebration animation canvas
+    helix::ui::register_belt_trace_widget(); // <belt_trace> waveform/spectrum strip, must
+                                             // precede register_xml("panel_belt_tension.xml")
     register_xml(
         "components/page_scroll_gutter.xml"); // <page_scroll_gutter> page scroll chevron column
 

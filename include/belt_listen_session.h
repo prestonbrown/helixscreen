@@ -80,6 +80,15 @@ class BeltListenSession {
         return window_;
     }
 
+    /// The PSD of the most recently ACCEPTED pluck, for the live spectrum
+    /// strip. Empty until the first accepted strike, and again after reset()
+    /// - a rejected strike leaves the previous spectrum in place rather than
+    /// clearing it, since there is nothing new to show and the last real
+    /// reading is more honest than a blank strip.
+    [[nodiscard]] const std::vector<std::pair<float, float>>& last_spectrum() const {
+        return last_spectrum_;
+    }
+
     void reset();
 
   private:
@@ -88,6 +97,7 @@ class BeltListenSession {
     PluckDetector detector_;
     PluckAggregator aggregator_;
     std::vector<AccelSample> window_;
+    std::vector<std::pair<float, float>> last_spectrum_;
     size_t rejected_ = 0;
     size_t cooldown_samples_ = 0;
 };

@@ -107,10 +107,21 @@ PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, fl
  * @param sample_rate Sample rate of `samples`, in Hz
  * @param span_mm Free span length in mm
  * @param n_harmonics Harmonics to multiply, including the fundamental
+ * @param out_psd When non-null, receives the PSD this call computed - the
+ *        same array estimate_pitch() searched. Lets a caller that wants both
+ *        the estimate and the spectrum (e.g. for a live display) get them
+ *        from one bandwidth/PSD pass instead of repeating the
+ *        search_window_for_span() -> required_bandwidth_hz() -> compute_psd()
+ *        chain itself, which is exactly the mistake this function's own doc
+ *        comment warns a repeated call site risks. Filled whenever a PSD was
+ *        computed, whether or not the estimate that followed is valid;
+ *        untouched if span_mm/sample_rate is non-positive or no search window
+ *        exists, since nothing was computed in that case.
  * @return Estimate with valid=false if span_mm or sample_rate is non-positive,
  *         or if the underlying estimate_pitch() call finds nothing
  */
 PitchEstimate estimate_pitch_for_span(const std::vector<AccelSample>& samples, float sample_rate,
-                                      float span_mm, int n_harmonics = DEFAULT_HARMONICS);
+                                      float span_mm, int n_harmonics = DEFAULT_HARMONICS,
+                                      std::vector<std::pair<float, float>>* out_psd = nullptr);
 
 } // namespace helix::calibration

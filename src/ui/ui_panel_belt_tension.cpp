@@ -72,6 +72,14 @@ BeltTensionPanel::~BeltTensionPanel() {
     // on_batch_bg() on members that are about to be destroyed.
     stop_listening();
 
+    // Backstop for a BeltTrace observer that outlives deinit_subjects() (e.g.
+    // torn down after StaticPanelRegistry::destroy_all() but before this
+    // object's own subjects field is destroyed) - same reasoning as
+    // PrinterState::~PrinterState().
+    if (subjects_lifetime_) {
+        *subjects_lifetime_ = false;
+    }
+
     accel_observer_.reset();
     print_active_observer_.reset();
     connected_observer_.reset();
@@ -218,6 +226,7 @@ void BeltTensionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(hint_subject_, hint_buf_, lv_tr("Hold still"), "bt_hint", subjects_);
     UI_MANAGED_SUBJECT_INT(committed_subject_, 0, "bt_committed", subjects_);
     UI_MANAGED_SUBJECT_INT(match_percent_subject_, 0, "bt_match_percent", subjects_);
+    UI_MANAGED_SUBJECT_INT(live_tick_subject_, 0, "bt_live_tick", subjects_);
     UI_MANAGED_SUBJECT_STRING(reference_freq_subject_, reference_freq_buf_, "--",
                               "bt_reference_freq", subjects_);
     UI_MANAGED_SUBJECT_INT(has_reference_subject_, 0, "bt_has_reference", subjects_);
@@ -277,6 +286,18 @@ void BeltTensionPanel::deinit_subjects() {
     print_active_observer_.reset();
     connected_observer_.reset();
     gate_observers_wired_ = false;
+
+    // Signal death of every subject below BEFORE it is torn down, so a
+    // BeltTrace observer still holding a copy of the old token sees it is
+    // gone and skips lv_observer_remove() on the observer node
+    // subjects_.deinit_all() is about to free (#705). Install a fresh live
+    // token rather than clearing the member - an empty token reads as "dead"
+    // in ObserverGuard::reset() and would make every observer registered
+    // after this point skip its removal too.
+    if (subjects_lifetime_) {
+        *subjects_lifetime_ = false;
+    }
+    subjects_lifetime_ = std::make_shared<bool>(true);
 
     if (subjects_initialized_) {
         subjects_.deinit_all();
@@ -1041,6 +1062,7 @@ void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
             last_event_tp_ = now;
             if (event->accepted) {
                 snap.last_hz = event->frequency_hz;
+                snap.spectrum = session_->last_spectrum();
             } else {
                 had_reject_ = true;
                 last_reject_tp_ = now;
@@ -1113,6 +1135,17 @@ void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
     lv_subject_copy_string(&hint_subject_, hint);
 
     helix::calibration::BeltLiveData::instance().set_waveform(snap.window);
+    // Only a freshly accepted pluck carries a new spectrum (see
+    // BeltListenSession::last_spectrum()) - an empty snap.spectrum here means
+    // "nothing new," and the strip is left holding whatever it last drew.
+    if (!snap.spectrum.empty()) {
+        helix::calibration::BeltLiveData::instance().set_spectrum(snap.spectrum);
+    }
+
+    // Drives BeltTrace's redraw. Bumped every publish, not only when the
+    // spectrum changes, because the waveform trace has fresh data every
+    // batch even between plucks.
+    lv_subject_set_int(&live_tick_subject_, lv_subject_get_int(&live_tick_subject_) + 1);
 }
 
 void BeltTensionPanel::on_stream_error(const std::string& message) {

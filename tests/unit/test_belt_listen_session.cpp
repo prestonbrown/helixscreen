@@ -276,4 +276,32 @@ TEST_CASE("reset clears everything", "[belt][listen]") {
     CHECK(s.median_hz() == 0.0f);
     CHECK_FALSE(s.committed());
     CHECK(s.window().empty());
+    CHECK(s.last_spectrum().empty());
+}
+
+TEST_CASE("last_spectrum holds the accepted pluck's PSD", "[belt][listen]") {
+    // The live spectrum strip reads this after every accepted strike. It must
+    // come from a real PSD pass, not just toggle non-empty - a rejected
+    // strike must leave the previous reading in place rather than clear it,
+    // since between plucks there is nothing new to show.
+    const auto fx = load_fixture("a_belt_86hz_3.csv");
+    auto live = splice_live_window(fx);
+
+    BeltListenSession s(SPAN_MM, fx.rate_hz);
+    CHECK(s.last_spectrum().empty()); // nothing accepted yet
+
+    REQUIRE(s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+    stream_through(s, live);
+    REQUIRE(s.accepted_count() >= 1);
+
+    REQUIRE_FALSE(s.last_spectrum().empty());
+    // Every bin is a real (frequency, power) pair from compute_psd(), not a
+    // placeholder - frequencies are strictly increasing and positive.
+    for (size_t i = 1; i < s.last_spectrum().size(); ++i) {
+        CHECK(s.last_spectrum()[i].first > s.last_spectrum()[i - 1].first);
+    }
+    CHECK(s.last_spectrum().front().first > 0.0f);
+
+    s.reset();
+    CHECK(s.last_spectrum().empty());
 }
