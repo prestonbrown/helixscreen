@@ -871,20 +871,59 @@ void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
     lv_subject_notify(&result_similarity_subject_);
     lv_subject_set_int(&match_percent_subject_, static_cast<int>(std::lround(match)));
 
-    if (matched) {
-        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_), "%s",
-                 lv_tr("Both belts read the same to within what this measurement can "
-                       "resolve. Nothing to adjust."));
-    } else if (a_hz > b_hz) {
+    // Matching alone is not advice. Two belts can match each other perfectly and
+    // both be far off the target, and "loosen the tighter one" is actively wrong
+    // when both are already below it - it moves the machine further from where it
+    // should be. So whenever the span is known, the target drives the wording and
+    // matching is the secondary concern. Only a printer with no measured span
+    // offset falls back to pure matching, because there the target is unknown
+    // rather than merely unmet.
+    const float need_a = TARGET_FREQUENCY_HZ - a_hz; // positive means "tighten"
+    const float need_b = TARGET_FREQUENCY_HZ - b_hz;
+    const bool a_in_band = std::fabs(need_a) <= TARGET_TOLERANCE_HZ;
+    const bool b_in_band = std::fabs(need_b) <= TARGET_TOLERANCE_HZ;
+    const char* looser = need_a > need_b ? lv_tr("A") : lv_tr("B");
+
+    if (!have_target) {
+        if (matched) {
+            snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_), "%s",
+                     lv_tr("Both belts read the same to within what this measurement can "
+                           "resolve. Nothing to adjust."));
+        } else if (a_hz > b_hz) {
+            snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                     lv_tr("Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the "
+                           "front left, or loosen belt A."),
+                     static_cast<double>(delta));
+        } else {
+            snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                     lv_tr("Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the "
+                           "front right, or loosen belt B."),
+                     static_cast<double>(delta));
+        }
+    } else if (a_in_band && b_in_band && matched) {
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
-                 lv_tr("Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the "
-                       "front left, or loosen belt A."),
-                 static_cast<double>(delta));
+                 lv_tr("Both belts are on the %.0f Hz target and match each other. "
+                       "Nothing to adjust."),
+                 static_cast<double>(TARGET_FREQUENCY_HZ));
+    } else if (need_a > 0.0f && need_b > 0.0f) {
+        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                 lv_tr("Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. "
+                       "Tighten both, %s more."),
+                 static_cast<double>(TARGET_FREQUENCY_HZ), static_cast<double>(need_a),
+                 static_cast<double>(need_b), looser);
+    } else if (need_a < 0.0f && need_b < 0.0f) {
+        snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
+                 lv_tr("Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. "
+                       "Loosen both."),
+                 static_cast<double>(TARGET_FREQUENCY_HZ), static_cast<double>(-need_a),
+                 static_cast<double>(-need_b));
     } else {
+        // One side of the target each, so they cannot be brought together by
+        // moving only one belt.
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
-                 lv_tr("Belt B (front left) is tighter by %.0f Hz. Tighten belt A, on the "
-                       "front right, or loosen belt B."),
-                 static_cast<double>(delta));
+                 lv_tr("Target is %.0f Hz. Tighten belt %s and loosen belt %s."),
+                 static_cast<double>(TARGET_FREQUENCY_HZ), need_a > 0.0f ? "A" : "B",
+                 need_a > 0.0f ? "B" : "A");
     }
     lv_subject_notify(&result_recommendation_subject_);
 
@@ -1063,6 +1102,11 @@ void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
             if (event->accepted) {
                 snap.last_hz = event->frequency_hz;
                 snap.spectrum = session_->last_spectrum();
+                // A good pluck answers the "too soft" prompt, so retire it now
+                // rather than letting it sit out its REJECT_HINT_MS window. It
+                // would otherwise still be telling the user to pluck harder
+                // while the accepted count ticks up in front of them.
+                had_reject_ = false;
             } else {
                 had_reject_ = true;
                 last_reject_tp_ = now;
