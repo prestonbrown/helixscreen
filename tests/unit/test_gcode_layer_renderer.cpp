@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
@@ -1020,4 +1021,193 @@ TEST_CASE("swapping to a different file with the same object count re-maps",
     // "cube1" is not in this file at all, so nothing here is excluded.
     REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[0])));
     REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[1])));
+}
+
+// ===========================================================================
+// Selection halo (the white silhouette outline).
+//
+// A selected object keeps its filament colour and is marked by a white halo
+// drawn beneath its strokes: the halo pass runs first at a wider width, then the
+// normal pass paints over it, so only the object's outer boundary stays white.
+// That is what traces the real toolpath contour rather than the convex hull the
+// slicer's EXCLUDE_OBJECT_DEFINE POLYGON gives us.
+//
+// Asserted by counting white pixels rather than probing coordinates: FRONT view
+// is isometric, so where a segment lands is a projection detail, but "white
+// appears only when something is selected" is the actual contract.
+// ===========================================================================
+
+namespace {
+
+// Drive enough frames to get past WARMUP_FRAMES and run the solid cache path,
+// then report how many canvas pixels are near-white and how many are painted.
+// Drive frames until the progressive solid cache reports it is complete.
+//
+// A fixed frame count is NOT deterministic here: layers_per_frame_ is adaptive
+// when config_layers_per_frame_ is 0, so under machine load a frame can advance
+// the cache by zero layers and a "render 6 frames" harness silently measures a
+// half-built cache. That produced painted=0 for one render and painted=141 for
+// an identical one. needs_more_frames() is the renderer's own completion signal.
+void drive_until_cached(GCodeLayerRenderer& renderer, lv_obj_t* canvas) {
+    // The canvas must have a resolved size/position before init_layer, or the
+    // first layer of a test gets an unusable clip area and the blit lands
+    // nowhere -- which showed up as the FIRST drive in each test case painting
+    // zero pixels while later ones in the same case worked.
+    lv_obj_update_layout(canvas);
+
+    auto frame = [&]() {
+        lv_layer_t layer;
+        lv_area_t clip = {0, 0, 199, 199};
+        lv_canvas_init_layer(canvas, &layer);
+        renderer.render(&layer, &clip);
+        lv_canvas_finish_layer(canvas, &layer);
+        lv_timer_handler_safe();
+    };
+    // WARMUP_FRAMES deliberately skips heavy caching; get past it first.
+    for (int i = 0; i < 3; ++i) {
+        frame();
+    }
+    int guard = 0;
+    while (renderer.needs_more_frames() && guard++ < 500) {
+        frame();
+    }
+    REQUIRE(guard < 500); // cache never completed: harness bug, not a halo bug
+    frame();              // final frame blits the completed cache to the canvas
+}
+
+struct RenderCounts {
+    int white = 0;
+    int painted = 0;
+};
+
+RenderCounts render_and_count(const std::unordered_set<std::string>& highlighted,
+                              ParsedGCodeFile& gcode, uint8_t* buf, lv_obj_t* canvas) {
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);   // no background thread: deterministic
+    renderer.set_ssao_enabled(false); // SSAO blits a different buffer and adds its own outline pass
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(0);
+    if (!highlighted.empty()) {
+        renderer.set_highlighted_objects(highlighted);
+    }
+
+    std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+    drive_until_cached(renderer, canvas);
+
+    RenderCounts c;
+    for (int i = 0; i < 200 * 200; ++i) {
+        const uint8_t b = buf[i * 4 + 0];
+        const uint8_t g = buf[i * 4 + 1];
+        const uint8_t r = buf[i * 4 + 2];
+        const uint8_t a = buf[i * 4 + 3];
+        if (a == 0) {
+            continue;
+        }
+        // Alpha, not colour: the fixture sets no filament colour, so ordinary
+        // segments draw black and an r|g|b test would score them as unpainted.
+        ++c.painted;
+        if (r >= 240 && g >= 240 && b >= 240) {
+            ++c.white;
+        }
+    }
+    return c;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "an unselected plate draws no white pixels",
+                 "[layer_renderer][halo]") {
+    // Baseline. The default filament colour is teal (0x26A69A) and depth shading
+    // only darkens it, so nothing should read as white without a selection. If
+    // this fails the white-detection threshold is wrong, not the halo.
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto counts = render_and_count({}, gcode, buf, canvas);
+    INFO("painted=" << counts.painted << " white=" << counts.white);
+    REQUIRE(counts.painted > 0); // the plate did render
+    REQUIRE(counts.white == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white halo",
+                 "[layer_renderer][halo]") {
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto plain = render_and_count({}, gcode, buf, canvas);
+    const auto selected = render_and_count({"cube1"}, gcode, buf, canvas);
+
+    INFO("plain: painted=" << plain.painted << " white=" << plain.white);
+    INFO("selected: painted=" << selected.painted << " white=" << selected.white);
+
+    // The halo is the only source of white.
+    REQUIRE(selected.white > 0);
+    // And it widens the object's footprint rather than merely recolouring it,
+    // which is what distinguishes a halo from the old blue-recolour behaviour.
+    REQUIRE(selected.painted > plain.painted);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the halo covers only the selected object",
+                 "[layer_renderer][halo]") {
+    // Selecting both objects must produce strictly more halo than selecting one.
+    // A halo keyed on the wrong thing (say, drawn for every segment whenever any
+    // selection exists) would give identical counts.
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    const auto one = render_and_count({"cube1"}, gcode, buf, canvas);
+    const auto both = render_and_count({"cube1", "cube2"}, gcode, buf, canvas);
+
+    INFO("one=" << one.white << " both=" << both.white);
+    REQUIRE(one.white > 0);
+    REQUIRE(both.white > one.white);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clearing the selection removes the halo",
+                 "[layer_renderer][halo]") {
+    auto gcode = make_test_gcode();
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[200 * 200 * 4];
+    lv_canvas_set_buffer(canvas, buf, 200, 200, LV_COLOR_FORMAT_ARGB8888);
+
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+    renderer.set_ghost_mode(false);
+    renderer.set_ssao_enabled(false);
+    renderer.set_canvas_size(200, 200);
+    renderer.set_current_layer(0);
+    renderer.set_highlighted_objects({"cube1"});
+
+    auto draw = [&]() {
+        std::fill(buf, buf + 200 * 200 * 4, uint8_t{0});
+        drive_until_cached(renderer, canvas);
+        int white = 0;
+        for (int i = 0; i < 200 * 200; ++i) {
+            if (buf[i * 4 + 3] && buf[i * 4 + 0] >= 240 && buf[i * 4 + 1] >= 240 &&
+                buf[i * 4 + 2] >= 240) {
+                ++white;
+            }
+        }
+        return white;
+    };
+
+    REQUIRE(draw() > 0);
+    // Deselecting must invalidate the solid cache, or the halo would persist as a
+    // stale cached image -- the exact bug the InvalidationScope split could cause
+    // if SolidCache were mishandled.
+    renderer.set_highlighted_objects({});
+    REQUIRE(draw() == 0);
 }

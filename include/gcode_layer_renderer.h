@@ -535,6 +535,15 @@ class GCodeLayerRenderer {
      */
     bool should_render_segment(const ToolpathSegment& seg) const;
 
+    /// Panels at or below this width get the narrower selection halo. A 2px-per-side
+    /// halo swallows small objects whole at 480x272, so the delta halves there.
+    static constexpr int SMALL_PANEL_WIDTH_PX = 320;
+
+    /// True when the render target is small enough to need the narrow halo.
+    bool is_small_panel() const {
+        return canvas_width_ <= SMALL_PANEL_WIDTH_PX;
+    }
+
     /**
      * @brief Get line color for a segment
      * @param seg Segment to get color for

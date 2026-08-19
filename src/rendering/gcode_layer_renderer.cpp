@@ -36,13 +36,9 @@ constexpr uint8_t EXCLUDED_R = (selection::kExcludedColor >> 16) & 0xFF;
 constexpr uint8_t EXCLUDED_G = (selection::kExcludedColor >> 8) & 0xFF;
 constexpr uint8_t EXCLUDED_B = selection::kExcludedColor & 0xFF;
 
-/// Selection blue for highlighted objects. Deliberately local: the shared style
-/// in gcode_selection_style.h has no highlight color because it carries selection
-/// with a white halo instead, and this path does not draw one.
-constexpr uint32_t HIGHLIGHTED_OBJECT_COLOR = 0x42A5F5;
-constexpr uint8_t HIGHLIGHTED_R = (HIGHLIGHTED_OBJECT_COLOR >> 16) & 0xFF;
-constexpr uint8_t HIGHLIGHTED_G = (HIGHLIGHTED_OBJECT_COLOR >> 8) & 0xFF;
-constexpr uint8_t HIGHLIGHTED_B = HIGHLIGHTED_OBJECT_COLOR & 0xFF;
+/// Core stroke width the lv_draw_line path uses for an extrusion move. Named so
+/// the halo pre-pass in render() widens the same number render_segment() draws.
+constexpr int DRAW_LINE_EXTRUSION_WIDTH = 2;
 
 /// Object pick distance threshold (pixels)
 constexpr float PICK_THRESHOLD_PX = 15.0f;
@@ -831,6 +827,51 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             return last_rendered;
         }
 
+        // -------------------------------------------------------------------
+        // Halo pre-pass: the white selection silhouette.
+        //
+        // The selected object's segments are drawn white at a wider width here,
+        // then the normal pass below paints its filament color over the middle.
+        // Only the rim the narrower core cannot reach survives, and that rim
+        // follows the real toolpath, which is the point: the slicer's
+        // EXCLUDE_OBJECT_DEFINE POLYGON is a convex hull and cannot trace a
+        // concave shape.
+        //
+        // This MUST stay a separate pass over the whole layer. Interleaved as
+        // two draws per segment, segment N+1's halo would cover segment N's
+        // core color and the silhouette would fill in solid.
+        //
+        // Gated on any_highlighted() so an unselected plate costs nothing.
+        if (selection_.any_highlighted()) {
+            // Opaque white. The halo is a backing shape, so it takes neither
+            // depth shading nor the tool palette.
+            const uint32_t halo_argb = (0xFFu << 24) | (selection::kOutlineColor & 0x00FFFFFFu);
+            const int halo_w = selection::halo_width(line_width, is_small_panel());
+            for (const auto& seg : *segments) {
+                if (!should_render_segment(seg))
+                    continue;
+                if (!seg.is_extrusion)
+                    continue;
+
+                const SelectionFlags sel = selection_.classify(seg.object_name_index);
+                const auto style =
+                    selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
+                if (!style.halo)
+                    continue;
+
+                glm::ivec2 h1 =
+                    world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
+                glm::ivec2 h2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
+                if (h1.x == h2.x && h1.y == h2.y)
+                    continue;
+
+                // Aa::Off deliberately: antialiasing a solid backing shape bleeds
+                // partial-coverage white outside the rim the core pass defines.
+                helix::gcode::thick_line(cache_target(), h1.x, h1.y, h2.x, h2.y, halo_argb, halo_w,
+                                         helix::gcode::Aa::Off);
+            }
+        }
+
         for (const auto& seg : *segments) {
             if (!should_render_segment(seg))
                 continue;
@@ -893,8 +934,10 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                 b = static_cast<uint8_t>(b * brightness);
             }
 
-            // Override color for excluded/highlighted objects. Classified on the
-            // interned index — no per-segment string allocation on this hot path.
+            // Override color for excluded objects. Classified on the interned
+            // index — no per-segment string allocation on this hot path. A
+            // highlighted object keeps its filament color; the halo pre-pass
+            // above is what marks it.
             {
                 const SelectionFlags sel = selection_.classify(seg.object_name_index);
                 if (sel.excluded) {
@@ -908,12 +951,6 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                                              line_width, helix::gcode::Aa::Off);
                     ++segments_rendered;
                     continue;
-                }
-                if (sel.highlighted) {
-                    // Highlighted: selection blue, full alpha
-                    r = HIGHLIGHTED_R;
-                    g = HIGHLIGHTED_G;
-                    b = HIGHLIGHTED_B;
                 }
             }
 
@@ -1235,6 +1272,42 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             if (streaming_controller_) {
                 refresh_selection_index_map();
             }
+
+            // Halo pre-pass, same mechanism as render_layers_to_cache(): white
+            // and wider first, normal strokes over the top, only the rim left.
+            // See that comment for why it cannot be folded into the loop below.
+            // Without it these view modes would show no selection at all, since
+            // the blue recolour render_segment() used to apply is gone.
+            if (selection_.any_highlighted()) {
+                lv_draw_line_dsc_t halo_dsc;
+                lv_draw_line_dsc_init(&halo_dsc);
+                halo_dsc.color = lv_color_hex(selection::kOutlineColor);
+                halo_dsc.opa = LV_OPA_COVER;
+                halo_dsc.width = static_cast<int32_t>(
+                    selection::halo_width(DRAW_LINE_EXTRUSION_WIDTH, is_small_panel()));
+                for (const auto& seg : *segments) {
+                    if (!should_render_segment(seg))
+                        continue;
+
+                    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+                    const auto style =
+                        selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
+                    if (!style.halo)
+                        continue;
+
+                    glm::ivec2 h1 = world_to_screen(seg.start.x, seg.start.y, seg.start.z);
+                    glm::ivec2 h2 = world_to_screen(seg.end.x, seg.end.y, seg.end.z);
+                    if (h1.x == h2.x && h1.y == h2.y)
+                        continue;
+
+                    halo_dsc.p1.x = static_cast<lv_value_precise_t>(h1.x);
+                    halo_dsc.p1.y = static_cast<lv_value_precise_t>(h1.y);
+                    halo_dsc.p2.x = static_cast<lv_value_precise_t>(h2.x);
+                    halo_dsc.p2.y = static_cast<lv_value_precise_t>(h2.y);
+                    lv_draw_line(layer, &halo_dsc);
+                }
+            }
+
             for (const auto& seg : *segments) {
                 if (!should_render_segment(seg))
                     continue;
@@ -1350,19 +1423,17 @@ void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment
         dsc.color = base_color;
     }
 
-    // Check excluded/highlighted state for width/opacity
+    // Check excluded state for width/opacity. A highlighted object draws exactly
+    // like an unselected one: the halo pre-pass in render() carries selection, so
+    // the core stroke must NOT widen: a wider core would eat its own halo.
     const SelectionFlags sel = selection_.classify(seg.object_name_index);
     const bool is_excluded = sel.excluded;
-    const bool is_highlighted = sel.highlighted;
 
     if (is_excluded) {
         dsc.width = 1;
         dsc.opa = LV_OPA_60;
-    } else if (is_highlighted) {
-        dsc.width = 3;
-        dsc.opa = LV_OPA_COVER;
     } else if (seg.is_extrusion) {
-        dsc.width = 2;
+        dsc.width = DRAW_LINE_EXTRUSION_WIDTH;
         dsc.opa = LV_OPA_COVER;
     } else {
         dsc.width = 1;
@@ -1671,13 +1742,11 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 }
 
 lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) const {
-    // Check excluded/highlighted state first
+    // Check excluded state first. Highlight is deliberately absent: a selected
+    // object keeps its filament color and is marked by the white halo pass.
     const SelectionFlags sel = selection_.classify(seg.object_name_index);
     if (sel.excluded) {
         return lv_color_hex(selection::kExcludedColor);
-    }
-    if (sel.highlighted) {
-        return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
     }
 
     // Existing logic below
