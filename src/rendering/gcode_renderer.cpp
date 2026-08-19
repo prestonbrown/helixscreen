@@ -5,6 +5,7 @@
 
 #include "gcode_renderer.h"
 
+#include "gcode_selection_style.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -30,7 +31,9 @@ void GCodeRenderer::ensure_colors_initialized() {
     color_travel_ = theme_manager_get_color("text_muted");
     color_object_boundary_ = theme_manager_get_color("success");
     color_highlighted_ = theme_manager_get_color("success");
-    color_excluded_ = theme_manager_get_color("danger");
+    // Shared with the isometric view rather than theme "danger", so an excluded
+    // object is the same orange-red whichever renderer is drawing it.
+    color_excluded_ = lv_color_hex(selection::kExcludedColor);
 
     // Save theme defaults for reset
     theme_color_extrusion_ = color_extrusion_;

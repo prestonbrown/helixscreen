@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "gcode_parser.h"
+#include "gcode_selection_style.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "system/crash_handler.h"
@@ -29,26 +30,22 @@ namespace gcode {
 
 namespace {
 
-/// Orange-red color for excluded objects (strikethrough style)
-constexpr uint32_t EXCLUDED_OBJECT_COLOR = 0xFF6B35;
-constexpr uint8_t EXCLUDED_R = (EXCLUDED_OBJECT_COLOR >> 16) & 0xFF;
-constexpr uint8_t EXCLUDED_G = (EXCLUDED_OBJECT_COLOR >> 8) & 0xFF;
-constexpr uint8_t EXCLUDED_B = EXCLUDED_OBJECT_COLOR & 0xFF;
+/// Excluded-object channel bytes, split out of the shared color so the software
+/// rasterizer can assemble ARGB words without restating the hue.
+constexpr uint8_t EXCLUDED_R = (selection::kExcludedColor >> 16) & 0xFF;
+constexpr uint8_t EXCLUDED_G = (selection::kExcludedColor >> 8) & 0xFF;
+constexpr uint8_t EXCLUDED_B = selection::kExcludedColor & 0xFF;
 
-/// Selection blue for highlighted objects
+/// Selection blue for highlighted objects. Deliberately local: the shared style
+/// in gcode_selection_style.h has no highlight color because it carries selection
+/// with a white halo instead, and this path does not draw one.
 constexpr uint32_t HIGHLIGHTED_OBJECT_COLOR = 0x42A5F5;
 constexpr uint8_t HIGHLIGHTED_R = (HIGHLIGHTED_OBJECT_COLOR >> 16) & 0xFF;
 constexpr uint8_t HIGHLIGHTED_G = (HIGHLIGHTED_OBJECT_COLOR >> 8) & 0xFF;
 constexpr uint8_t HIGHLIGHTED_B = HIGHLIGHTED_OBJECT_COLOR & 0xFF;
 
-/// Light grey for selection bracket wireframes
-constexpr uint32_t BRACKET_COLOR = 0xC0C0C0;
-
 /// Object pick distance threshold (pixels)
 constexpr float PICK_THRESHOLD_PX = 15.0f;
-
-/// Alpha value for excluded objects (60%)
-constexpr uint8_t EXCLUDED_ALPHA = 153;
 
 /// Ghost-look tuning. The goal is a faint, translucent, see-through apparition — NOT a
 /// dimmer solid copy and NOT a washed-out gray. The transparency cue comes from letting
@@ -852,8 +849,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                         r = EXCLUDED_R;
                         g = EXCLUDED_G;
                         b = EXCLUDED_B;
-                        uint32_t color = (static_cast<uint32_t>(EXCLUDED_ALPHA) << 24) | (r << 16) |
-                                         (g << 8) | b;
+                        uint32_t color = (static_cast<uint32_t>(selection::kExcludedOpa) << 24) |
+                                         (r << 16) | (g << 8) | b;
                         draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
                         ++segments_rendered;
                         continue;
@@ -1615,7 +1612,7 @@ lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) con
         const std::string& obj_name = resolve_object_name(seg.object_name_index);
         if (!obj_name.empty()) {
             if (excluded_objects_.count(obj_name) > 0) {
-                return lv_color_hex(EXCLUDED_OBJECT_COLOR);
+                return lv_color_hex(selection::kExcludedColor);
             }
             if (highlighted_objects_.count(obj_name) > 0) {
                 return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
@@ -1651,23 +1648,17 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
 
         const AABB& bbox = it->second.bounding_box;
 
-        // Calculate corner bracket length (20% of shortest edge, capped at 5mm)
-        // Same formula as 3D renderer
-        float dx = bbox.max.x - bbox.min.x;
-        float dy = bbox.max.y - bbox.min.y;
-        float dz = bbox.max.z - bbox.min.z;
-        float min_edge = std::min({dx, dy, dz});
-        float bracket_len = std::min(min_edge * 0.2f, 5.0f);
-
-        // If bounding box is degenerate, skip
-        if (bracket_len < 0.01f) {
+        // Corner bracket length, shared with the 3D renderers. Zero means the box
+        // is empty or too small to bracket legibly.
+        const float bracket_len = selection::bracket_arm_length(bbox);
+        if (bracket_len == 0.0f) {
             continue;
         }
 
         // Set up line drawing style
         lv_draw_line_dsc_t dsc;
         lv_draw_line_dsc_init(&dsc);
-        dsc.color = lv_color_hex(BRACKET_COLOR);
+        dsc.color = lv_color_hex(selection::kBracketColor);
         dsc.width = 2;
         dsc.opa = LV_OPA_COVER;
 

@@ -7,6 +7,7 @@
 
 #include "data_root_resolver.h"
 #include "gcode_gl_fallback.h"
+#include "gcode_selection_style.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -1933,21 +1934,18 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
             bmax = quant.dequantize_vec3(quant.quantize_vec3(bbox.max));
         }
 
-        const float dx = bmax.x - bmin.x;
-        const float dy = bmax.y - bmin.y;
-        const float dz = bmax.z - bmin.z;
-        const float min_edge = std::min({dx, dy, dz});
-        // 20% of shortest edge, capped at 5mm — matches the 2D layer renderer
-        // and the deleted TinyGL impl, so 2D and 3D bracket sizing feel alike.
-        const float bracket_len = std::min(min_edge * 0.2f, 5.0f);
-        if (bracket_len < 0.01f)
+        // Shared sizing, so 2D and 3D bracket proportions cannot drift apart.
+        // Measured on the quantized box, not the raw one.
+        const AABB quantized{bmin, bmax};
+        const float bracket_len = selection::bracket_arm_length(quantized);
+        if (bracket_len == 0.0f)
             continue;
 
-        AABB{bmin, bmax}.for_each_bracket_arm(bracket_len,
-                                              [&](const glm::vec3& origin, const glm::vec3& tip) {
-                                                  verts.push_back(origin);
-                                                  verts.push_back(tip);
-                                              });
+        quantized.for_each_bracket_arm(bracket_len,
+                                       [&](const glm::vec3& origin, const glm::vec3& tip) {
+                                           verts.push_back(origin);
+                                           verts.push_back(tip);
+                                       });
     }
 
     if (verts.empty())
@@ -1957,8 +1955,9 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
     glDisable(GL_DEPTH_TEST);
     glUseProgram(line_program_);
     glUniformMatrix4fv(line_u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp));
-    // #C0C0C0 silver, fully opaque — matches the 2D bracket color.
-    glUniform4f(line_u_color_, 0.75f, 0.75f, 0.75f, 1.0f);
+    // Silver, fully opaque, from the same constant the 2D path draws.
+    const glm::vec4 bracket_rgba = selection::to_vec4(selection::kBracketColor);
+    glUniform4f(line_u_color_, bracket_rgba.r, bracket_rgba.g, bracket_rgba.b, bracket_rgba.a);
 
     glBindBuffer(GL_ARRAY_BUFFER, line_vbo_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(verts.size() * sizeof(glm::vec3)),
