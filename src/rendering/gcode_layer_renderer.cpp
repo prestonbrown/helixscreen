@@ -96,9 +96,6 @@ constexpr float DEFAULT_EXTRUSION_WIDTH_MM = 0.4f;
 constexpr int MIN_EXTRUSION_PIXEL_WIDTH = 1;
 constexpr int MAX_EXTRUSION_PIXEL_WIDTH = 8;
 
-/// Minimum line length for thick line perpendicular computation
-constexpr float MIN_LINE_LENGTH = 0.001f;
-
 } // namespace
 
 // ============================================================================
@@ -739,7 +736,7 @@ void GCodeLayerRenderer::ensure_cache(int width, int height) {
     if (!cache_buf_) {
         // Create the draw buffer (no canvas widget - avoids clip area contamination
         // from overlays/toasts on lv_layer_top())
-        // Must stay ARGB8888 — blend_pixel() writes 4-byte BGRA pixels directly
+        // Must stay ARGB8888 — helix::gcode::blend() writes 4-byte BGRA pixels directly
         cache_buf_ = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
         if (!cache_buf_) {
             spdlog::error("[GCodeLayerRenderer] Failed to create cache buffer {}x{}", width,
@@ -907,7 +904,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     b = EXCLUDED_B;
                     uint32_t color = (static_cast<uint32_t>(selection::kExcludedOpa) << 24) |
                                      (r << 16) | (g << 8) | b;
-                    draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
+                    helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color,
+                                             line_width, helix::gcode::Aa::Off);
                     ++segments_rendered;
                     continue;
                 }
@@ -924,9 +922,11 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
 
             // Draw using software line drawing - bypasses LVGL draw API for AD5M compatibility
             if (ssao_enabled_.load(std::memory_order_relaxed)) {
-                draw_thick_line_aa_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
+                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                                         helix::gcode::Aa::On);
             } else {
-                draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
+                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                                         helix::gcode::Aa::Off);
             }
             ++segments_rendered;
         }
@@ -1993,7 +1993,8 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
             }
 
             // Draw line using Bresenham algorithm (width-aware)
-            draw_thick_line_bresenham(p1.x, p1.y, p2.x, p2.y, seg_color, local_line_width);
+            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color,
+                                     local_line_width, helix::gcode::Aa::Off);
             ++segments_rendered;
         }
     }
@@ -2067,155 +2068,16 @@ void GCodeLayerRenderer::copy_raw_to_ghost_buf() {
                   copied_height);
 }
 
-void GCodeLayerRenderer::blend_pixel(int x, int y, uint32_t color) {
-    // Bounds check
-    if (x < 0 || x >= ghost_raw_width_ || y < 0 || y >= ghost_raw_height_) {
-        return;
+helix::gcode::RasterTarget GCodeLayerRenderer::cache_target() const {
+    if (!cache_buf_) {
+        return {};
     }
-
-    // Calculate pixel offset (ARGB8888 = 4 bytes per pixel)
-    uint8_t* pixel = ghost_raw_buffer_.get() + y * ghost_raw_stride_ + x * 4;
-
-    // Simple overwrite for now (could add alpha blending later)
-    // LVGL uses ARGB8888: byte order is B, G, R, A on little-endian
-    pixel[0] = color & 0xFF;         // B
-    pixel[1] = (color >> 8) & 0xFF;  // G
-    pixel[2] = (color >> 16) & 0xFF; // R
-    pixel[3] = (color >> 24) & 0xFF; // A
+    return {static_cast<uint8_t*>(cache_buf_->data), static_cast<size_t>(cache_buf_->header.stride),
+            cached_width_, cached_height_};
 }
 
-void GCodeLayerRenderer::blend_pixel_solid(int x, int y, uint32_t color) {
-    // Bounds check using cached dimensions
-    if (x < 0 || x >= cached_width_ || y < 0 || y >= cached_height_ || !cache_buf_) {
-        return;
-    }
-
-    // Get stride from LVGL buffer (may differ from width * 4 due to alignment)
-    uint32_t stride = cache_buf_->header.stride;
-
-    // Calculate pixel offset (ARGB8888 = 4 bytes per pixel)
-    uint8_t* pixel = static_cast<uint8_t*>(cache_buf_->data) + y * stride + x * 4;
-
-    // LVGL uses ARGB8888: byte order is B, G, R, A on little-endian
-    pixel[0] = color & 0xFF;         // B
-    pixel[1] = (color >> 8) & 0xFF;  // G
-    pixel[2] = (color >> 16) & 0xFF; // R
-    pixel[3] = (color >> 24) & 0xFF; // A
-}
-
-void GCodeLayerRenderer::blend_pixel_solid_alpha(int x, int y, uint32_t color, uint8_t coverage) {
-    if (x < 0 || x >= cached_width_ || y < 0 || y >= cached_height_ || !cache_buf_)
-        return;
-    if (coverage == 0)
-        return;
-
-    uint32_t stride = cache_buf_->header.stride;
-    uint8_t* pixel = static_cast<uint8_t*>(cache_buf_->data) + y * stride + x * 4;
-
-    uint8_t src_b = color & 0xFF;
-    uint8_t src_g = (color >> 8) & 0xFF;
-    uint8_t src_r = (color >> 16) & 0xFF;
-
-    if (coverage == 255 || pixel[3] == 0) {
-        // Full coverage or empty destination: just write
-        pixel[0] = src_b;
-        pixel[1] = src_g;
-        pixel[2] = src_r;
-        pixel[3] = coverage;
-    } else {
-        // Alpha blend: src over dst
-        uint8_t dst_a = pixel[3];
-        uint16_t inv = 255 - coverage;
-        pixel[0] = static_cast<uint8_t>((src_b * coverage + pixel[0] * inv) / 255);
-        pixel[1] = static_cast<uint8_t>((src_g * coverage + pixel[1] * inv) / 255);
-        pixel[2] = static_cast<uint8_t>((src_r * coverage + pixel[2] * inv) / 255);
-        pixel[3] = static_cast<uint8_t>(coverage + (dst_a * inv) / 255);
-    }
-}
-
-void GCodeLayerRenderer::draw_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Xiaolin Wu's anti-aliased line algorithm
-    bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
-    if (steep) {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
-    if (x0 > x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float gradient = (dx < 0.001f) ? 1.0f : dy / dx;
-
-    // Strip alpha from color — we'll set it per-pixel via coverage
-    uint32_t base_color = color & 0x00FFFFFF;
-
-    // First endpoint
-    float yend = static_cast<float>(y0);
-    float intery = yend + gradient;
-
-    if (steep) {
-        blend_pixel_solid_alpha(static_cast<int>(yend), x0, base_color, 255);
-    } else {
-        blend_pixel_solid_alpha(x0, static_cast<int>(yend), base_color, 255);
-    }
-
-    // Second endpoint
-    if (steep) {
-        blend_pixel_solid_alpha(y1, x1, base_color, 255);
-    } else {
-        blend_pixel_solid_alpha(x1, y1, base_color, 255);
-    }
-
-    // Main loop — draw pixels with fractional coverage for AA
-    for (int x = x0 + 1; x < x1; x++) {
-        int iy = static_cast<int>(intery);
-        float frac = intery - iy;
-        uint8_t coverage_lo = static_cast<uint8_t>((1.0f - frac) * 255);
-        uint8_t coverage_hi = static_cast<uint8_t>(frac * 255);
-
-        if (steep) {
-            blend_pixel_solid_alpha(iy, x, base_color, coverage_lo);
-            blend_pixel_solid_alpha(iy + 1, x, base_color, coverage_hi);
-        } else {
-            blend_pixel_solid_alpha(x, iy, base_color, coverage_lo);
-            blend_pixel_solid_alpha(x, iy + 1, base_color, coverage_hi);
-        }
-        intery += gradient;
-    }
-}
-
-void GCodeLayerRenderer::draw_thick_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color,
-                                                  int width) {
-    if (width <= 1) {
-        draw_line_aa_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    constexpr float MIN_LINE_LENGTH = 0.5f;
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_aa_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular direction for thickness offset
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset perpendicular to the main line
-    int half = width / 2;
-    for (int i = -half; i <= half; i++) {
-        float offset = static_cast<float>(i);
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_aa_solid(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
+helix::gcode::RasterTarget GCodeLayerRenderer::ghost_target() const {
+    return {ghost_raw_buffer_.get(), ghost_raw_stride_, ghost_raw_width_, ghost_raw_height_};
 }
 
 int GCodeLayerRenderer::get_extrusion_pixel_width() const {
@@ -2233,131 +2095,6 @@ int GCodeLayerRenderer::get_extrusion_pixel_width() const {
 
     int pixel_width = static_cast<int>(std::round(width_mm * scale_));
     return std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
-}
-
-void GCodeLayerRenderer::draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color,
-                                                   int width) {
-    if (width <= 1) {
-        draw_line_bresenham(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Compute perpendicular direction to the line
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_bresenham(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular unit vector (rotated 90 degrees)
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset by [-width/2, +width/2]
-    float half = static_cast<float>(width - 1) * 0.5f;
-    for (int i = 0; i < width; ++i) {
-        float offset = static_cast<float>(i) - half;
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_bresenham(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
-}
-
-void GCodeLayerRenderer::draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1,
-                                                         uint32_t color, int width) {
-    if (width <= 1) {
-        draw_line_bresenham_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Compute perpendicular direction to the line
-    float dx = static_cast<float>(x1 - x0);
-    float dy = static_cast<float>(y1 - y0);
-    float len = std::sqrt(dx * dx + dy * dy);
-
-    if (len < MIN_LINE_LENGTH) {
-        draw_line_bresenham_solid(x0, y0, x1, y1, color);
-        return;
-    }
-
-    // Perpendicular unit vector (rotated 90 degrees)
-    float px = -dy / len;
-    float py = dx / len;
-
-    // Draw parallel lines offset by [-width/2, +width/2]
-    float half = static_cast<float>(width - 1) * 0.5f;
-    for (int i = 0; i < width; ++i) {
-        float offset = static_cast<float>(i) - half;
-        int ox = static_cast<int>(std::round(px * offset));
-        int oy = static_cast<int>(std::round(py * offset));
-        draw_line_bresenham_solid(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
-    }
-}
-
-void GCodeLayerRenderer::draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Bresenham's line algorithm for software line drawing to solid cache
-
-    int dx = std::abs(x1 - x0);
-    int dy = -std::abs(y1 - y0);
-    int sx = x0 < x1 ? 1 : -1;
-    int sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
-
-    while (true) {
-        blend_pixel_solid(x0, y0, color);
-
-        if (x0 == x1 && y0 == y1)
-            break;
-
-        int e2 = 2 * err;
-        if (e2 >= dy) {
-            if (x0 == x1)
-                break;
-            err += dy;
-            x0 += sx;
-        }
-        if (e2 <= dx) {
-            if (y0 == y1)
-                break;
-            err += dx;
-            y0 += sy;
-        }
-    }
-}
-
-void GCodeLayerRenderer::draw_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Bresenham's line algorithm for software line drawing
-    // This runs in the background thread where LVGL APIs are not available
-
-    int dx = std::abs(x1 - x0);
-    int dy = -std::abs(y1 - y0);
-    int sx = x0 < x1 ? 1 : -1;
-    int sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
-
-    while (true) {
-        blend_pixel(x0, y0, color);
-
-        if (x0 == x1 && y0 == y1)
-            break;
-
-        int e2 = 2 * err;
-        if (e2 >= dy) {
-            if (x0 == x1)
-                break;
-            err += dy;
-            x0 += sx;
-        }
-        if (e2 <= dx) {
-            if (y0 == y1)
-                break;
-            err += dx;
-            y0 += sy;
-        }
-    }
 }
 
 // ============================================================================

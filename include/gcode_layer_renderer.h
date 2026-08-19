@@ -6,6 +6,7 @@
 #include "gcode_color_palette.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
+#include "gcode_raster.h"
 #include "gcode_selection_state.h"
 #include "gcode_streaming_controller.h"
 
@@ -742,33 +743,15 @@ class GCodeLayerRenderer {
     /// Copy completed raw buffer to LVGL ghost_buf_ (called on main thread)
     void copy_raw_to_ghost_buf();
 
-    /// Software Bresenham line drawing to raw ARGB8888 buffer (ghost)
-    void draw_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color);
+    /// Rasterizer surface over the solid layer cache (main thread only —
+    /// cache_buf_ is reallocated there). Null-data when no cache is allocated,
+    /// which makes every write against it a no-op.
+    helix::gcode::RasterTarget cache_target() const;
 
-    /// Thick line drawing using parallel Bresenham lines (ghost buffer)
-    void draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color, int width);
-
-    /// Blend a pixel with alpha into the ghost raw buffer
-    void blend_pixel(int x, int y, uint32_t color);
-
-    /// Software Bresenham line drawing to solid cache buffer
-    /// Used for solid layer rendering, bypassing LVGL draw API for AD5M compatibility
-    void draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color);
-
-    /// Thick line drawing using parallel Bresenham lines (solid cache)
-    void draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color, int width);
-
-    /// Blend a pixel directly into the solid LVGL cache buffer
-    void blend_pixel_solid(int x, int y, uint32_t color);
-
-    /// Blend a pixel with coverage (0-255) into solid cache buffer (for AA)
-    void blend_pixel_solid_alpha(int x, int y, uint32_t color, uint8_t coverage);
-
-    /// Anti-aliased line drawing (Wu's algorithm) to solid cache buffer
-    void draw_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color);
-
-    /// Thick anti-aliased line drawing (parallel Wu's lines) to solid cache
-    void draw_thick_line_aa_solid(int x0, int y0, int x1, int y1, uint32_t color, int width);
+    /// Rasterizer surface over the raw ghost buffer. Reads only the ghost_raw_*
+    /// fields, which the background ghost render thread owns for the duration of
+    /// its run, so it is safe to call from there.
+    helix::gcode::RasterTarget ghost_target() const;
 
     /// Compute line width in pixels from extrusion width metadata and current scale
     int get_extrusion_pixel_width() const;
