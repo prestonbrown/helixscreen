@@ -134,6 +134,7 @@ void GCodeLayerRenderer::set_gcode(const ParsedGCodeFile* gcode) {
     bounds_valid_ = false;
     current_layer_ = 0;
     warmup_frames_remaining_ = WARMUP_FRAMES; // Allow panel to render before heavy caching
+    refresh_selection_index_map(/*force=*/true);
     invalidate_cache();
 
     if (gcode_) {
@@ -150,6 +151,7 @@ void GCodeLayerRenderer::set_streaming_controller(GCodeStreamingController* cont
     bounds_valid_ = false;
     current_layer_ = 0;
     warmup_frames_remaining_ = WARMUP_FRAMES; // Allow panel to render before heavy caching
+    refresh_selection_index_map(/*force=*/true);
     invalidate_cache();
 
     if (streaming_controller_) {
@@ -286,19 +288,23 @@ void GCodeLayerRenderer::reset_colors() {
 }
 
 void GCodeLayerRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
-    if (names == excluded_objects_) {
-        return; // No change - skip expensive cache invalidation
+    if (names == selection_.excluded()) {
+        // No change — bail before the join below, so a repeated no-op set does not
+        // kill and restart a healthy background ghost render. Reading the set is safe
+        // while the worker runs; only mutating it is not.
+        return;
     }
-    // Join the background ghost-render worker before reassigning excluded_objects_: the worker
-    // copy-reads this member without a lock, so rehashing/freeing it here would race its copy.
+    // Join the background ghost-render worker before mutating selection_: the worker takes a
+    // by-value copy of it, and rehashing/freeing the sets here would race that copy. Must stay
+    // ahead of set_excluded() — do not reorder.
     cancel_background_ghost_render();
-    excluded_objects_ = names;
-    invalidate_cache();
+    apply_selection_scope(selection_.set_excluded(names));
 }
 
 void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
-    if (names == highlighted_objects_) {
-        return; // No change - skip expensive cache invalidation
+    const InvalidationScope scope = selection_.set_highlighted(names);
+    if (scope == InvalidationScope::None) {
+        return;
     }
     if (names.empty()) {
         spdlog::debug("[GCodeLayerRenderer] Selection cleared");
@@ -307,8 +313,47 @@ void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::s
             spdlog::debug("[GCodeLayerRenderer] Selection brackets active for '{}'", name);
         }
     }
-    highlighted_objects_ = names;
-    invalidate_cache();
+    apply_selection_scope(scope);
+}
+
+void GCodeLayerRenderer::apply_selection_scope(InvalidationScope scope) {
+    switch (scope) {
+    case InvalidationScope::None:
+        return;
+    case InvalidationScope::SolidCache:
+        // Highlight only. The ghost pass never draws highlight, so leaving its cache
+        // and its worker alone saves a multi-second re-render of an identical image.
+        invalidate_solid_cache();
+        return;
+    case InvalidationScope::SolidAndGhost:
+        invalidate_cache();
+        return;
+    }
+}
+
+void GCodeLayerRenderer::refresh_selection_index_map(bool force) {
+    if (gcode_) {
+        const size_t count = gcode_->object_name_table.size();
+        if (force || count != selection_index_map_size_) {
+            selection_.rebuild_index_map(gcode_->object_name_table);
+            selection_index_map_size_ = count;
+        }
+        return;
+    }
+    if (streaming_controller_) {
+        // Poll the size first — object_name_table_snapshot() copies every name.
+        if (force || streaming_controller_->object_name_table_size() != selection_index_map_size_) {
+            const std::vector<std::string> table =
+                streaming_controller_->object_name_table_snapshot();
+            selection_index_map_size_ = table.size();
+            selection_.rebuild_index_map(table);
+        }
+        return;
+    }
+    if (force || selection_index_map_size_ != 0) {
+        selection_.rebuild_index_map({});
+        selection_index_map_size_ = 0;
+    }
 }
 
 // ============================================================================
@@ -551,13 +596,17 @@ void GCodeLayerRenderer::destroy_cache() {
     cached_height_ = 0;
 }
 
-void GCodeLayerRenderer::invalidate_cache() {
+void GCodeLayerRenderer::invalidate_solid_cache() {
     // Clear the cache buffer content but keep the buffer allocated
     if (cache_buf_) {
         lv_draw_buf_clear(cache_buf_, nullptr);
     }
     cached_up_to_layer_ = -1;
     ssao_cache_valid_ = false;
+}
+
+void GCodeLayerRenderer::invalidate_cache() {
+    invalidate_solid_cache();
 
     // Cancel any in-progress background ghost rendering
     cancel_background_ghost_render();
@@ -764,6 +813,13 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             segments = &gcode_->layers[layer_idx].segments;
         }
 
+        if (segments && streaming_controller_) {
+            // The load above may have interned new object names, and this cache is
+            // written once per layer — a segment classified before the map catches up
+            // would keep the wrong color for the life of the cache.
+            refresh_selection_index_map();
+        }
+
         if (!segments) {
             // Streaming load failed for this layer. Stop here so the caller
             // does not advance cached_up_to_layer_ past it — next frame
@@ -840,27 +896,26 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                 b = static_cast<uint8_t>(b * brightness);
             }
 
-            // Override color for excluded/highlighted objects
-            if (seg.object_name_index >= 0) {
-                const std::string& obj_name = resolve_object_name(seg.object_name_index);
-                if (!obj_name.empty()) {
-                    if (excluded_objects_.count(obj_name) > 0) {
-                        // Excluded: orange-red with reduced alpha
-                        r = EXCLUDED_R;
-                        g = EXCLUDED_G;
-                        b = EXCLUDED_B;
-                        uint32_t color = (static_cast<uint32_t>(selection::kExcludedOpa) << 24) |
-                                         (r << 16) | (g << 8) | b;
-                        draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
-                        ++segments_rendered;
-                        continue;
-                    }
-                    if (highlighted_objects_.count(obj_name) > 0) {
-                        // Highlighted: selection blue, full alpha
-                        r = HIGHLIGHTED_R;
-                        g = HIGHLIGHTED_G;
-                        b = HIGHLIGHTED_B;
-                    }
+            // Override color for excluded/highlighted objects. Classified on the
+            // interned index — no per-segment string allocation on this hot path.
+            {
+                const SelectionFlags sel = selection_.classify(seg.object_name_index);
+                if (sel.excluded) {
+                    // Excluded: orange-red with reduced alpha
+                    r = EXCLUDED_R;
+                    g = EXCLUDED_G;
+                    b = EXCLUDED_B;
+                    uint32_t color = (static_cast<uint32_t>(selection::kExcludedOpa) << 24) |
+                                     (r << 16) | (g << 8) | b;
+                    draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
+                    ++segments_rendered;
+                    continue;
+                }
+                if (sel.highlighted) {
+                    // Highlighted: selection blue, full alpha
+                    r = HIGHLIGHTED_R;
+                    g = HIGHLIGHTED_G;
+                    b = HIGHLIGHTED_B;
                 }
             }
 
@@ -1036,6 +1091,11 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
 
     uint32_t start_time = lv_tick_get();
 
+    // Selection classification runs off an index map snapshotted from the data
+    // source's name table; refresh it before anything classifies, and before the
+    // background ghost worker is handed its copy below.
+    refresh_selection_index_map();
+
     // Store widget screen offset for world_to_screen()
     if (widget_area) {
         widget_offset_x_ = widget_area->x1;
@@ -1171,6 +1231,10 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
         }
 
         if (segments) {
+            // Streaming may have interned new names while loading this layer.
+            if (streaming_controller_) {
+                refresh_selection_index_map();
+            }
             for (const auto& seg : *segments) {
                 if (!should_render_segment(seg))
                     continue;
@@ -1287,9 +1351,9 @@ void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment
     }
 
     // Check excluded/highlighted state for width/opacity
-    const std::string& seg_obj_name = resolve_object_name(seg.object_name_index);
-    bool is_excluded = !seg_obj_name.empty() && excluded_objects_.count(seg_obj_name) > 0;
-    bool is_highlighted = !seg_obj_name.empty() && highlighted_objects_.count(seg_obj_name) > 0;
+    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+    const bool is_excluded = sel.excluded;
+    const bool is_highlighted = sel.highlighted;
 
     if (is_excluded) {
         dsc.width = 1;
@@ -1608,16 +1672,12 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 
 lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) const {
     // Check excluded/highlighted state first
-    if (seg.object_name_index >= 0) {
-        const std::string& obj_name = resolve_object_name(seg.object_name_index);
-        if (!obj_name.empty()) {
-            if (excluded_objects_.count(obj_name) > 0) {
-                return lv_color_hex(selection::kExcludedColor);
-            }
-            if (highlighted_objects_.count(obj_name) > 0) {
-                return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
-            }
-        }
+    const SelectionFlags sel = selection_.classify(seg.object_name_index);
+    if (sel.excluded) {
+        return lv_color_hex(selection::kExcludedColor);
+    }
+    if (sel.highlighted) {
+        return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
     }
 
     // Existing logic below
@@ -1636,11 +1696,11 @@ lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) con
 
 void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
     // Only render if we have highlighted objects and full gcode data
-    if (highlighted_objects_.empty() || !gcode_) {
+    if (!selection_.any_highlighted() || !gcode_) {
         return;
     }
 
-    for (const auto& object_name : highlighted_objects_) {
+    for (const auto& object_name : selection_.highlighted()) {
         auto it = gcode_->objects.find(object_name);
         if (it == gcode_->objects.end()) {
             continue;
@@ -1714,7 +1774,10 @@ void GCodeLayerRenderer::start_background_ghost_render() {
 
     // Launch background thread - only set running flag after successful creation
     try {
-        ghost_thread_ = std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this);
+        // selection_ is copied here, on the spawning thread, so the worker never
+        // reads the member while the main thread rebuilds its index map.
+        ghost_thread_ =
+            std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this, selection_);
         ghost_thread_running_.store(true);
     } catch (const std::system_error& e) {
         spdlog::error("[GCodeLayerRenderer] Failed to start ghost render thread: {}", e.what());
@@ -1756,7 +1819,7 @@ bool GCodeLayerRenderer::is_ghost_build_running() const {
     return ghost_thread_running_.load();
 }
 
-void GCodeLayerRenderer::background_ghost_render_thread() {
+void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection) {
     // Works with both full-file mode (gcode_) and streaming mode (streaming_controller_)
     if (!ghost_raw_buffer_ || (!gcode_ && !streaming_controller_)) {
         ghost_thread_running_.store(false);
@@ -1796,8 +1859,12 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     // Capture extrusion pixel width (uses scale_ which may change on main thread)
     const int local_line_width = get_extrusion_pixel_width();
 
-    // Capture excluded objects for ghost rendering (thread-safe copy)
-    const auto local_excluded = excluded_objects_;
+    // Selection state for ghost rendering. Already a private by-value copy (see the
+    // std::thread call), so this thread owns it outright. Not const: in streaming mode
+    // the loop below grows the merged name table as it loads layers, and the index map
+    // has to follow or a newly interned excluded object would stop being dimmed.
+    SelectionState local_selection = std::move(selection);
+    size_t local_name_table_size = 0;
 
     // Capture data source pointers — these may be nulled on the main thread after
     // cancel_background_ghost_render() joins us, but we must not read the member
@@ -1876,8 +1943,19 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
         if (!segments)
             continue;
 
+        // Loading the layer above may have interned new object names. Poll the size
+        // (cheap) and re-snapshot only when it grew.
+        if (local_streaming) {
+            if (local_streaming->object_name_table_size() != local_name_table_size) {
+                const std::vector<std::string> table =
+                    local_streaming->object_name_table_snapshot();
+                local_name_table_size = table.size();
+                local_selection.rebuild_index_map(table);
+            }
+        }
+
         for (const auto& seg : *segments) {
-            // Resolve object name once per segment (used for support detection + exclusion)
+            // Resolve object name once per segment (used for support detection)
             const std::string obj_name = local_resolve_name(seg.object_name_index);
 
             if (!local_should_render(seg, obj_name))
@@ -1906,7 +1984,7 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
                 uint8_t tb = wash_to_white(tc.blue, GHOST_WASH_PERCENT) * bright_pct / 100;
                 seg_color = (255u << 24) | (tr << 16) | (tg << 8) | tb;
             }
-            if (!obj_name.empty() && local_excluded.count(obj_name) > 0) {
+            if (local_selection.classify(seg.object_name_index).excluded) {
                 // Excluded: dim orange-red
                 uint8_t ex_r = EXCLUDED_R * GHOST_INFILL_BRIGHT_PERCENT / 100;
                 uint8_t ex_g = EXCLUDED_G * GHOST_INFILL_BRIGHT_PERCENT / 100;

@@ -6,6 +6,7 @@
 #include "gcode_color_palette.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
+#include "gcode_selection_state.h"
 #include "gcode_streaming_controller.h"
 
 #include <lvgl/lvgl.h>
@@ -440,6 +441,18 @@ class GCodeLayerRenderer {
      */
     bool has_support_detection() const;
 
+    /**
+     * @brief Colour one segment would draw in, given the current selection state.
+     *
+     * Public because it is the only observable that exercises the selection index
+     * map end to end: source swap -> rebuild_index_map -> classify. The setters
+     * alone can be asserted with REQUIRE_NOTHROW while the wiring is completely
+     * broken, which is exactly the failure this guards.
+     *
+     * Pure query; does not touch cache or draw state.
+     */
+    lv_color_t get_segment_color(const ToolpathSegment& seg) const;
+
   private:
     // =========================================================================
     // Internal Rendering
@@ -526,7 +539,6 @@ class GCodeLayerRenderer {
      * @param seg Segment to get color for
      * @return LVGL color
      */
-    lv_color_t get_segment_color(const ToolpathSegment& seg) const;
 
     /**
      * @brief Resolve object name index to string via current data source
@@ -534,6 +546,21 @@ class GCodeLayerRenderer {
      * @return Resolved object name, or empty string if invalid
      */
     std::string resolve_object_name(int16_t index) const;
+
+    /**
+     * @brief Re-snapshot the active data source's object-name table into selection_
+     *
+     * classify() answers nothing for an index the map has not seen, so this must
+     * run before any classify() call on freshly loaded geometry. Cheap when
+     * nothing changed: one size comparison (a mutex lock plus a size read in
+     * streaming mode). Main thread only — the background ghost worker gets its
+     * own by-value copy of the state.
+     *
+     * @param force Rebuild even when the table size is unchanged. Required when
+     *              the data source itself was swapped, since a different file
+     *              can have the same number of objects.
+     */
+    void refresh_selection_index_map(bool force = false);
 
     // Data source (exactly one should be non-null)
     const ParsedGCodeFile* gcode_ = nullptr;
@@ -569,9 +596,14 @@ class GCodeLayerRenderer {
     bool use_custom_support_color_ = false;
     GCodeColorPalette tool_palette_; ///< Per-tool colors for multi-color prints
 
-    // Object exclusion/highlight state
-    std::unordered_set<std::string> excluded_objects_;
-    std::unordered_set<std::string> highlighted_objects_;
+    // Object exclusion/highlight state, plus the interned-index map it classifies
+    // segments through. See gcode_selection_state.h.
+    SelectionState selection_;
+
+    /// Size of the name table the index map was last built from. Streaming mode
+    /// grows the merged table as layers load, so this is polled per frame /
+    /// per layer batch to decide whether a rebuild is due.
+    size_t selection_index_map_size_ = 0;
 
     // Cached bounds
     float bounds_min_x_ = 0.0f;
@@ -646,6 +678,13 @@ class GCodeLayerRenderer {
     /// Adjust layers_per_frame based on last render time (when config_layers_per_frame_ == 0)
     void adapt_layers_per_frame();
 
+    /// Clear the solid layer cache (and its SSAO derivative) only. Leaves the
+    /// ghost cache and the background ghost worker alone — the ghost pass does
+    /// not render highlight, so a highlight change must not restart it.
+    void invalidate_solid_cache();
+    /// Act on the scope a SelectionState setter returned.
+    void apply_selection_scope(InvalidationScope scope);
+    /// Clear both caches and cancel the background ghost worker.
     void invalidate_cache();
     void ensure_cache(int width, int height);
     /// Render [from_layer, to_layer] into cache_buf_. Returns the highest layer
@@ -694,8 +733,11 @@ class GCodeLayerRenderer {
     /// Cancel any in-progress background ghost render
     void cancel_background_ghost_render();
 
-    /// Background thread entry point (renders all layers to raw buffer)
-    void background_ghost_render_thread();
+    /// Background thread entry point (renders all layers to raw buffer).
+    /// Takes the selection state BY VALUE: std::thread copies the argument on the
+    /// spawning (main) thread, so the worker never reads selection_ while the main
+    /// thread may be rebuilding its index map.
+    void background_ghost_render_thread(SelectionState selection);
 
     /// Copy completed raw buffer to LVGL ghost_buf_ (called on main thread)
     void copy_raw_to_ghost_buf();

@@ -1113,9 +1113,9 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
     current_state.progress_layer = progress_layer_;
     current_state.layer_start = layer_start_;
     current_state.layer_end = layer_end_;
-    current_state.highlight_count = highlighted_objects_.size();
-    current_state.highlight_set_hash = highlighted_objects_hash_;
-    current_state.exclude_count = excluded_objects_.size();
+    current_state.highlight_count = selection_.highlighted().size();
+    current_state.highlight_set_hash = selection_.highlighted_hash();
+    current_state.exclude_count = selection_.excluded().size();
     current_state.filament_color = filament_color_;
     current_state.ghost_opacity = ghost_opacity_;
 
@@ -1652,22 +1652,15 @@ void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
 }
 
 void GCodeGLESRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
-    if (highlighted_objects_ != names) {
-        highlighted_objects_ = names;
-        // Memoize the set hash so the per-frame cached-state build doesn't
-        // iterate every name on each LVGL invalidation tick.
-        size_t h = 0;
-        for (const auto& n : highlighted_objects_) {
-            h ^= std::hash<std::string>{}(n) + 0x9e3779b9 + (h << 6) + (h >> 2);
-        }
-        highlighted_objects_hash_ = h;
+    // SelectionState memoizes the set hash, so the per-frame cached-state build
+    // does not iterate every name on each LVGL invalidation tick.
+    if (selection_.set_highlighted(names) != InvalidationScope::None) {
         frame_dirty_ = true;
     }
 }
 
 void GCodeGLESRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
-    if (excluded_objects_ != names) {
-        excluded_objects_ = names;
+    if (selection_.set_excluded(names) != InvalidationScope::None) {
         frame_dirty_ = true;
     }
 }
@@ -1905,7 +1898,7 @@ bool GCodeGLESRenderer::init_line_program() {
 }
 
 void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const glm::mat4& mvp) {
-    if (highlighted_objects_.empty())
+    if (!selection_.any_highlighted())
         return;
     if (!line_program_ && !init_line_program())
         return;
@@ -1913,9 +1906,9 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
     // Collect line endpoints (one vec3 per vertex, two verts per line).
     // 8 corners * 3 axes * 2 verts = 48 vertices per object.
     std::vector<glm::vec3> verts;
-    verts.reserve(highlighted_objects_.size() * 48);
+    verts.reserve(selection_.highlighted().size() * 48);
 
-    for (const auto& name : highlighted_objects_) {
+    for (const auto& name : selection_.highlighted()) {
         auto it = gcode.objects.find(name);
         if (it == gcode.objects.end())
             continue;

@@ -5,6 +5,7 @@
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "gcode_projection.h"
+#include "gcode_selection_style.h"
 #include "gcode_streaming_controller.h"
 #include "system/crash_handler.h"
 
@@ -935,4 +936,88 @@ TEST_CASE("pick_object_at honors the support visibility toggle",
         REQUIRE(widget_hit.has_value());
         CHECK(widget_hit.value() == "widget");
     }
+}
+
+// ===========================================================================
+// Selection index-map wiring.
+//
+// Selection is classified by interned object index through SelectionState, which
+// only answers correctly once rebuild_index_map() has been fed the object-name
+// table. Miss a wiring site and selection silently stops working while every
+// unit test above stays green -- the pre-existing exclude tests assert only
+// REQUIRE_NOTHROW on the setters, so they cannot catch it.
+//
+// These assert the rendered colour, which is the end of the chain.
+// ===========================================================================
+
+namespace {
+
+bool is_excluded_colour(lv_color_t c) {
+    const lv_color_t want = lv_color_hex(helix::gcode::selection::kExcludedColor);
+    return c.red == want.red && c.green == want.green && c.blue == want.blue;
+}
+
+} // namespace
+
+TEST_CASE("an excluded object renders in the excluded colour", "[layer_renderer][exclude]") {
+    ParsedGCodeFile gcode = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&gcode);
+    renderer.set_excluded_objects({"cube1"});
+
+    const auto& segs = gcode.layers[0].segments;
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(segs[0])));       // cube1
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(segs[1]))); // cube2
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(segs[2]))); // unnamed
+}
+
+TEST_CASE("an exclusion set before the gcode source still classifies",
+          "[layer_renderer][exclude]") {
+    // Ordering matters in practice: PrinterState can deliver excluded_objects from
+    // a Moonraker status update before the viewer has finished parsing the file.
+    ParsedGCodeFile gcode = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_excluded_objects({"cube1"});
+    renderer.set_gcode(&gcode);
+
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(gcode.layers[0].segments[0])));
+}
+
+TEST_CASE("swapping to a different file with the same object count re-maps",
+          "[layer_renderer][exclude]") {
+    // The index map is refreshed on a size heuristic plus a force flag at source
+    // swap. Without the force, two files with equal object counts would keep the
+    // first file's name-to-index mapping, and index 0 would still read as
+    // excluded even though this file has no object by that name.
+    ParsedGCodeFile first = make_test_gcode();
+    GCodeLayerRenderer renderer;
+    renderer.set_gcode(&first);
+    renderer.set_excluded_objects({"cube1"});
+    REQUIRE(is_excluded_colour(renderer.get_segment_color(first.layers[0].segments[0])));
+
+    ParsedGCodeFile second;
+    {
+        Layer layer;
+        layer.z_height = 0.2f;
+        layer.bounding_box.expand(glm::vec3(10.0f, 20.0f, 0.2f));
+        layer.bounding_box.expand(glm::vec3(50.0f, 80.0f, 0.2f));
+        ToolpathSegment a;
+        a.start = glm::vec3(10.0f, 20.0f, 0.2f);
+        a.end = glm::vec3(50.0f, 20.0f, 0.2f);
+        a.is_extrusion = true;
+        a.object_name_index = second.intern_object_name("cubeA");
+        layer.segments.push_back(a);
+        ToolpathSegment b;
+        b.start = glm::vec3(10.0f, 80.0f, 0.2f);
+        b.end = glm::vec3(50.0f, 80.0f, 0.2f);
+        b.is_extrusion = true;
+        b.object_name_index = second.intern_object_name("cubeB");
+        layer.segments.push_back(b);
+        second.layers.push_back(layer);
+    }
+
+    renderer.set_gcode(&second);
+    // "cube1" is not in this file at all, so nothing here is excluded.
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[0])));
+    REQUIRE_FALSE(is_excluded_colour(renderer.get_segment_color(second.layers[0].segments[1])));
 }
