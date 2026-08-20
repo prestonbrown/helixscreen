@@ -763,13 +763,21 @@ HELIX_GCODE_STREAMING=auto ./build/bin/helix-screen --test -vv &
 
 ### `HELIX_SSAO`
 
-Control enhanced 2D G-code shading. When enabled (default), the 2D layer renderer applies per-segment directional lighting, anti-aliased line drawing (Wu's algorithm), and a silhouette outline post-process for improved depth perception.
+Control enhanced 2D G-code shading: per-segment directional lighting, a
+silhouette outline post-process, and anti-aliased line drawing (Wu's algorithm).
+
+The outline pass and the antialiasing are **separate flags** internally, because
+they cost very different amounts. `HELIX_SSAO` overrides both together so a
+forced comparison covers all of it; the device tier sets them independently.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `0` (disable), unset (enabled by default) |
-| **Default** | Enabled |
-| **File** | `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+| **Values** | `1` (force both on), `0` (force both off), unset (device tier decides) |
+| **Default** | Unconstrained: both on. Constrained: outline on, antialiasing off. |
+| **File** | `include/gcode_ssao_policy.h`, `src/ui/ui_gcode_viewer.cpp`, `src/rendering/gcode_layer_renderer.cpp` |
+
+Only the exact strings `0` and `1` are honoured; anything else (including empty,
+`true`, `yes`) falls through to the tier.
 
 ```bash
 # Disable enhanced shading (use original flat rendering)
@@ -783,7 +791,15 @@ HELIX_SSAO=0 ./build/bin/helix-screen --test --gcode-file model.gcode -vv &
 - **Anti-aliased lines:** Wu's line algorithm replaces Bresenham for smoother edges
 - **Silhouette outline:** 1px darkened border on the alpha boundary of the model for edge definition
 
-Performance impact is minimal (~2ms post-process pass for the outline, negligible overhead for AA lines and normal shading).
+**Performance.** The outline pass is ~2 ms per cache revalidation, measured on a
+real AD5M. The antialiasing is not minimal and this doc used to claim it was:
+Wu's algorithm measures about **6.1x** the aliased rasterization cost
+(`tests/unit/test_gcode_raster_bench.cpp`, run with
+`./build/bin/helix-tests "[raster_bench]"`). On the 135,197-segment test plate
+that is roughly 29 ms aliased against 178 ms antialiased, and the adaptive
+controller settles at 49 layers per frame instead of 22 - so a preview appears
+about 2.2x faster with antialiasing off. That is why the constrained tier keeps
+the outline and drops the antialiasing rather than turning everything off.
 
 ---
 
