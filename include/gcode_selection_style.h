@@ -118,6 +118,18 @@ inline SegmentStyle resolve(bool excluded, bool highlighted, bool is_extrusion) 
     return s;
 }
 
+/// Whether a feature contributes to the selection silhouette.
+///
+/// Only the walls trace the object's contour. Haloing infill puts a white band
+/// along every infill line, which reads as stripes across the middle of the
+/// object instead of an outline - the outer ring looked right while the interior
+/// filled in. Unknown counts as eligible so a file with no ;TYPE annotations
+/// still gets a halo from all of its extrusions rather than none.
+inline bool halo_feature(FeatureType t) {
+    return t == FeatureType::OuterWall || t == FeatureType::OverhangWall ||
+           t == FeatureType::Unknown;
+}
+
 /// Width of the halo line drawn beneath a core line of `base_width`.
 inline int halo_width(int base_width, bool small_panel) {
     return base_width + (small_panel ? kHaloDeltaSmallPanelPx : kHaloDeltaPx);

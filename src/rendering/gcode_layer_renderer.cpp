@@ -858,6 +858,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
                 if (!style.halo)
                     continue;
+                if (!selection::halo_feature(seg.feature_type))
+                    continue;
 
                 glm::ivec2 h1 =
                     world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
@@ -1299,6 +1301,8 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                     const auto style =
                         selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
                     if (!style.halo)
+                        continue;
+                    if (!selection::halo_feature(seg.feature_type))
                         continue;
 
                     glm::ivec2 h1 = world_to_screen(seg.start.x, seg.start.y, seg.start.z);
@@ -2076,7 +2080,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
             const auto ghost_style =
                 selection::resolve(false, ghost_sel.highlighted, seg.is_extrusion);
             int ghost_width = local_line_width;
-            if (ghost_style.halo) {
+            if (ghost_style.halo && selection::halo_feature(seg.feature_type)) {
                 const uint32_t halo_argb = (0xFFu << 24) | (selection::kOutlineColor & 0x00FFFFFFu);
                 helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, halo_argb,
                                          selection::halo_width(local_line_width, local_small_panel),

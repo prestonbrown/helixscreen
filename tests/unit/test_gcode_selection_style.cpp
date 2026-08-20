@@ -136,3 +136,52 @@ TEST_CASE("to_vec4 carries alpha through", "[gcode_selection_style]") {
     auto v = selection::to_vec4(selection::kExcludedColor, selection::kExcludedOpa);
     REQUIRE(v.a == Catch::Approx(153.0f / 255.0f));
 }
+
+// ---------------------------------------------------------------------------
+// halo_feature(): which features trace the silhouette.
+//
+// This exists because of a defect the pixel tests below could not see. The halo
+// was drawn for every extrusion of the selected object, so each INFILL line got
+// its own white band and the object rendered as white stripes across a dark
+// middle with a correct-looking ring around it. The outer wall is the contour;
+// infill never is.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("only walls contribute to the silhouette", "[gcode_selection_style]") {
+    REQUIRE(selection::halo_feature(FeatureType::OuterWall));
+    REQUIRE(selection::halo_feature(FeatureType::OverhangWall));
+
+    // Infill is what produced the stripes.
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::SparseInfill));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::SolidInfill));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::GapInfill));
+
+    // Inner walls sit behind the outer one, so they would draw a second rim
+    // inside the object.
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::InnerWall));
+
+    // Skins and supports are not the object's outline either.
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::TopSurface));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::BottomSurface));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::Support));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::Skirt));
+    REQUIRE_FALSE(selection::halo_feature(FeatureType::Brim));
+}
+
+TEST_CASE("a file without feature annotations still gets a halo", "[gcode_selection_style]") {
+    // Not every slicer emits ;TYPE comments. Treating Unknown as ineligible
+    // would silently leave those files with no selection cue at all, which is a
+    // worse failure than a slightly generous one.
+    REQUIRE(selection::halo_feature(FeatureType::Unknown));
+}
+
+TEST_CASE("the halo cover width leaves a rim at least two pixels wide", "[gcode_selection_style]") {
+    // apply_ssao() darkens every filled pixel that has an empty neighbour, which
+    // consumes a one-pixel rim entirely - white 255 becomes 76 and nothing
+    // reaches the screen. The gap between halo and cover has to survive that.
+    const int rim_per_side = (selection::kHaloDeltaPx - selection::kHaloCoverBonusPx) / 2;
+    REQUIRE(rim_per_side >= 2);
+    // And the cover must actually be narrower than the halo, or there is no rim.
+    REQUIRE(selection::kHaloCoverBonusPx < selection::kHaloDeltaPx);
+    REQUIRE(selection::kHaloCoverBonusPx >= 0);
+}
