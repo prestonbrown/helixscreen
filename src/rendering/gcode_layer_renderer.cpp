@@ -938,8 +938,14 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             // index — no per-segment string allocation on this hot path. A
             // highlighted object keeps its filament color; the halo pre-pass
             // above is what marks it.
+            int core_width = line_width;
             {
                 const SelectionFlags sel = selection_.classify(seg.object_name_index);
+                // A haloed segment draws slightly wider so it covers the dilated
+                // halo underneath, leaving only a rim. Undilated strokes do not
+                // cover their own dilated footprint, so the halo floods.
+                core_width +=
+                    selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion).width_bonus;
                 if (sel.excluded) {
                     // Excluded: orange-red with reduced alpha
                     r = EXCLUDED_R;
@@ -959,10 +965,10 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
 
             // Draw using software line drawing - bypasses LVGL draw API for AD5M compatibility
             if (ssao_enabled_.load(std::memory_order_relaxed)) {
-                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, core_width,
                                          helix::gcode::Aa::On);
             } else {
-                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, core_width,
                                          helix::gcode::Aa::Off);
             }
             ++segments_rendered;
@@ -1927,6 +1933,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
 
     // Capture extrusion pixel width (uses scale_ which may change on main thread)
     const int local_line_width = get_extrusion_pixel_width();
+    const bool local_small_panel = is_small_panel();
 
     // Selection state for ghost rendering. Already a private by-value copy (see the
     // std::thread call), so this thread owns it outright. Not const: in streaming mode
@@ -2053,7 +2060,8 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
                 uint8_t tb = wash_to_white(tc.blue, GHOST_WASH_PERCENT) * bright_pct / 100;
                 seg_color = (255u << 24) | (tr << 16) | (tg << 8) | tb;
             }
-            if (local_selection.classify(seg.object_name_index).excluded) {
+            const SelectionFlags ghost_sel = local_selection.classify(seg.object_name_index);
+            if (ghost_sel.excluded) {
                 // Excluded: dim orange-red
                 uint8_t ex_r = EXCLUDED_R * GHOST_INFILL_BRIGHT_PERCENT / 100;
                 uint8_t ex_g = EXCLUDED_G * GHOST_INFILL_BRIGHT_PERCENT / 100;
@@ -2061,9 +2069,24 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
+            // Selection halo, same mechanism as the solid cache: white and wider
+            // first, then this segment's own stroke dilated just less, leaving a
+            // rim. The ghost is what is visible for most of a print, so a cue
+            // that skipped it would be a cue you cannot see.
+            const auto ghost_style =
+                selection::resolve(false, ghost_sel.highlighted, seg.is_extrusion);
+            int ghost_width = local_line_width;
+            if (ghost_style.halo) {
+                const uint32_t halo_argb = (0xFFu << 24) | (selection::kOutlineColor & 0x00FFFFFFu);
+                helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, halo_argb,
+                                         selection::halo_width(local_line_width, local_small_panel),
+                                         helix::gcode::Aa::Off);
+                ghost_width += ghost_style.width_bonus;
+            }
+
             // Draw line using Bresenham algorithm (width-aware)
-            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color,
-                                     local_line_width, helix::gcode::Aa::Off);
+            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color, ghost_width,
+                                     helix::gcode::Aa::Off);
             ++segments_rendered;
         }
     }

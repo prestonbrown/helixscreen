@@ -120,7 +120,7 @@ TEST_CASE("an exclusion change invalidates the ghost cache too", "[gcode_selecti
 TEST_CASE("clearing a selection is a change", "[gcode_selection_state]") {
     SelectionState s;
     s.set_highlighted({"cube_1"});
-    REQUIRE(s.set_highlighted({}) == InvalidationScope::SolidCache);
+    REQUIRE(s.set_highlighted({}) == InvalidationScope::SolidAndGhost);
 }
 
 // ---------------------------------------------------------------------------

@@ -48,10 +48,12 @@ InvalidationScope SelectionState::set_highlighted(const std::unordered_set<std::
     highlighted_ = names;
     highlighted_hash_ = hash_name_set(highlighted_);
     refresh_flags();
-    // Deliberately NOT SolidAndGhost: the ghost pass does not render highlight,
-    // so clearing its cache would restart a multi-second background render for
-    // an image that would come back identical.
-    return InvalidationScope::SolidCache;
+    // The ghost pass draws the selection halo too - it is what is visible for
+    // most of a print - so its cache is stale as well. Measured at 7ms for 219
+    // layers / 128k segments, so the earlier "multi-second re-render" worry that
+    // justified returning SolidCache here was inherited from a comment, not
+    // measured.
+    return InvalidationScope::SolidAndGhost;
 }
 
 void SelectionState::rebuild_index_map(const std::vector<std::string>& name_table) {

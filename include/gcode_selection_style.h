@@ -58,8 +58,16 @@ inline constexpr float kBracketArmMinMm = 0.01f;
 
 /// Halo thickness added to the core line width, total across both sides. Even so
 /// the outline is symmetric about the core rather than reading as a drop shadow.
-inline constexpr int kHaloDeltaPx = 4;
-inline constexpr int kHaloDeltaSmallPanelPx = 2;
+inline constexpr int kHaloDeltaPx = 6;
+inline constexpr int kHaloDeltaSmallPanelPx = 4;
+
+/// Dilation applied to the selected object's own strokes so they cover the halo
+/// except for the rim. The gap is (kHaloDeltaPx - kHaloCoverBonusPx) / 2 pixels
+/// per side, and it must be at least 2: apply_ssao() darkens every filled pixel
+/// that has an empty neighbour by OUTLINE_DARKEN, so a one-pixel rim is entirely
+/// consumed by that pass and no white survives to the screen. Two leaves a white
+/// pixel inside SSAO's dark edge, which reads as an outline with a border.
+inline constexpr int kHaloCoverBonusPx = kHaloDeltaPx - 4;
 
 /**
  * @brief Resolved draw style for one segment.
@@ -74,6 +82,15 @@ struct SegmentStyle {
     uint32_t rgb = 0;  ///< valid only when override_color
     uint8_t opa = 255; ///< selection/exclusion opacity; renderer applies its own for travels
     bool halo = false; ///< caller must emit the halo pass for this segment
+
+    /// Added to the core line width when drawing this segment normally.
+    ///
+    /// Non-zero only for a haloed segment, and it is what makes the halo read as
+    /// an OUTLINE rather than a flood fill. The halo pass dilates each stroke by
+    /// the halo delta, so the pass painting over it must be dilated too:
+    /// undilated strokes do not densely cover their own dilated footprint, so
+    /// white leaks between them and swallows the object.
+    int width_bonus = 0;
 };
 
 /**
@@ -90,6 +107,9 @@ struct SegmentStyle {
 inline SegmentStyle resolve(bool excluded, bool highlighted, bool is_extrusion) {
     SegmentStyle s;
     s.halo = highlighted && is_extrusion;
+    if (s.halo) {
+        s.width_bonus = kHaloCoverBonusPx;
+    }
     if (excluded) {
         s.override_color = true;
         s.rgb = kExcludedColor;
