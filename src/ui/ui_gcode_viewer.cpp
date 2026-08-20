@@ -616,10 +616,15 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
             apply_2d_renderer_colors(st);
 
-            // Apply SSAO setting from env var or prior API call
-            if (st->ssao_enabled_at_init_) {
-                st->layer_renderer_2d_->set_ssao_enabled(true);
-            }
+            // Push the decision either way. The renderer's own default is TRUE,
+            // so only ever calling set_ssao_enabled(true) meant "off" was never
+            // applied to it: decide_ssao_enabled() would log "enhanced shading
+            // off", the viewer would skip the call, and the renderer would carry
+            // on with its default. HELIX_SSAO=0 and the constrained-device tier
+            // were both inert, and the constrained devices paid for the SSAO
+            // pass, the full-canvas buffer, and antialiased rasterization (about
+            // 6x the aliased cost) that the tier exists to spare them.
+            st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
 
             spdlog::debug("[GCode Viewer] Initialized 2D layer renderer ({}x{})", width, height);
         }
@@ -1645,10 +1650,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     st->layer_renderer_2d_->set_canvas_size(width, height);
                     st->layer_renderer_2d_->auto_fit();
 
-                    // Apply SSAO setting
-                    if (st->ssao_enabled_at_init_) {
-                        st->layer_renderer_2d_->set_ssao_enabled(true);
-                    }
+                    // Apply the SSAO setting, both ways. See the note at the
+                    // renderer-init site: a one-way call leaves "off" unapplied.
+                    st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
 
                     st->viewer_state = GcodeViewerState::Loaded;
                     st->first_render = false;
@@ -2130,9 +2134,7 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
         st->layer_renderer_2d_->set_canvas_size(width, height);
         st->layer_renderer_2d_->auto_fit();
 
-        if (st->ssao_enabled_at_init_) {
-            st->layer_renderer_2d_->set_ssao_enabled(true);
-        }
+        st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
     }
 
 #ifdef ENABLE_3D_RENDERER

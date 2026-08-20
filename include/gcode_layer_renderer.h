@@ -677,6 +677,18 @@ class GCodeLayerRenderer {
     std::vector<SsaoUndoEntry> ssao_undo_;
     bool ssao_cache_valid_ = false;
 
+    /// Wall time the current progressive cache build started, and whether its
+    /// completion has been reported yet.
+    ///
+    /// The build is spread over frames by adapt_layers_per_frame(), so per-frame
+    /// timing says nothing about how long a preview takes to actually appear.
+    /// That total is the number that matters on a constrained device, and it is
+    /// what decides whether enabling enhanced shading there is affordable:
+    /// ssao_enabled_ also selects Aa::On for every stroke, and antialiased
+    /// rasterization measures about 6x the cost of aliased.
+    uint32_t cache_build_start_ms_ = 0;
+    bool cache_build_reported_ = false;
+
     /// True once stroke_selection_rim() has written the white silhouette into
     /// cache_buf_. The rim is pixels, not an overlay, so this is what stops a
     /// progressive append from building on top of a boundary that has moved.

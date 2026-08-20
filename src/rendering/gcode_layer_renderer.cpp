@@ -780,6 +780,11 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     if (!cache_buf_)
         return from_layer - 1;
 
+    if (from_layer == 0) {
+        cache_build_start_ms_ = lv_tick_get();
+        cache_build_reported_ = false;
+    }
+
     // Undo the shading BEFORE new geometry lands on top of it. Segments drawn
     // over a darkened pixel would bake that darkening in permanently, and the
     // log would then restore a colour the new geometry had already replaced.
@@ -1224,6 +1229,17 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             // trace the top of whatever has been drawn so far. Runs once per
             // build, and only while something is selected.
             // =====================================================================
+            if (!cache_build_reported_ && cached_up_to_layer_ >= target_layer &&
+                cache_build_start_ms_ != 0) {
+                cache_build_reported_ = true;
+                spdlog::debug("[GCodeLayerRenderer] Cache build complete: {} layers in {}ms "
+                              "({} segments, aa={}, layers_per_frame={})",
+                              cached_up_to_layer_ + 1, lv_tick_elaps(cache_build_start_ms_),
+                              last_segment_count_,
+                              ssao_enabled_.load(std::memory_order_relaxed) ? "on" : "off",
+                              layers_per_frame_);
+            }
+
             if (selection_.any_highlighted() && !selection_rim_stamped_ &&
                 cached_up_to_layer_ >= target_layer) {
                 const int rim = selection::outline_width_px(cached_width_);
