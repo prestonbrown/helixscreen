@@ -2145,22 +2145,29 @@ void GCodeGLESRenderer::render_selection_tag(const ParsedGCodeFile& gcode,
     if (layer_end < layer_start)
         return;
 
-    // Resolve the selected names to interned indices. This is the same table the
-    // geometry builder resolved segment.object_name_index against — the viewer
-    // builds the geometry from, and renders, one ParsedGCodeFile — so the indices
-    // in object_runs are directly comparable. Object counts are in the tens, so a
-    // linear scan beats building a map.
-    std::vector<int16_t> wanted;
-    wanted.reserve(selection_.highlighted().size());
+    // Resolve the selected names to interned indices, once, into a flat lookup.
+    // This is the same table the geometry builder resolved
+    // segment.object_name_index against — the viewer builds the geometry from,
+    // and renders, one ParsedGCodeFile — so the indices in object_runs are
+    // directly comparable.
+    //
+    // A vector<int16_t> plus std::find was the first shape here, copied from the
+    // code it replaced. That is a linear scan per RUN per LAYER, inside a
+    // per-frame pass; an indexed array is the same information with the search
+    // removed, and it is what SelectionState::classify() already does on the 2D
+    // side.
+    std::vector<bool> wanted(gcode.object_name_table.size(), false);
+    bool any_wanted = false;
     for (const auto& name : selection_.highlighted()) {
         for (size_t i = 0; i < gcode.object_name_table.size(); ++i) {
             if (gcode.object_name_table[i] == name) {
-                wanted.push_back(static_cast<int16_t>(i));
+                wanted[i] = true;
+                any_wanted = true;
                 break;
             }
         }
     }
-    if (wanted.empty())
+    if (!any_wanted)
         return;
 
     if (!shell_program_ && !init_shell_program())
@@ -2216,8 +2223,10 @@ void GCodeGLESRenderer::render_selection_tag(const ParsedGCodeFile& gcode,
 
         bool bound = false;
         for (const auto& run : runs) {
-            if (std::find(wanted.begin(), wanted.end(), run.object_index) == wanted.end())
+            if (run.object_index < 0 || static_cast<size_t>(run.object_index) >= wanted.size() ||
+                !wanted[static_cast<size_t>(run.object_index)]) {
                 continue;
+            }
             // Runs are validated at build time, but the VBO can lag the geometry
             // during incremental upload — never let a stale run read past the buffer.
             if (static_cast<size_t>(run.vertex_offset) + run.vertex_count > lv.vertex_count)
@@ -2275,6 +2284,73 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
 
     constexpr float PICK_THRESHOLD = selection::kPickThresholdPx;
 
+    // Stage 1: which objects could the tap possibly be on?
+    //
+    // Stage 2 costs two mat4 multiplies and a point-to-segment distance for
+    // EVERY segment of every visible layer, and the test plate parses to 135,197
+    // of them. Projecting eight corners per object first, and skipping segments
+    // whose object's projected box is nowhere near the tap, turns most of that
+    // into one array lookup. The 2D picker got this treatment in 1ee6ba494; this
+    // is the same idea against the same data.
+    //
+    // Objects are keyed by interned index, so the candidate set is a flat array
+    // rather than a set of strings.
+    std::vector<bool> candidate(gcode.object_name_table.size(), false);
+    bool any_candidate = false;
+    for (const auto& [name, obj] : gcode.objects) {
+        const AABB& box = obj.bounding_box;
+        // Defined but never extruded: the corners are +/-inf and projecting them
+        // yields garbage that would match every tap.
+        if (box.is_empty()) {
+            continue;
+        }
+        int16_t idx = -1;
+        for (size_t i = 0; i < gcode.object_name_table.size(); ++i) {
+            if (gcode.object_name_table[i] == name) {
+                idx = static_cast<int16_t>(i);
+                break;
+            }
+        }
+        if (idx < 0) {
+            continue;
+        }
+
+        float min_sx = std::numeric_limits<float>::max();
+        float min_sy = std::numeric_limits<float>::max();
+        float max_sx = std::numeric_limits<float>::lowest();
+        float max_sy = std::numeric_limits<float>::lowest();
+        bool projected = false;
+        for (int c = 0; c < 8; ++c) {
+            const glm::vec3 corner((c & 1) ? box.max.x : box.min.x, (c & 2) ? box.max.y : box.min.y,
+                                   (c & 4) ? box.max.z : box.min.z);
+            const glm::vec4 clip = transform * glm::vec4(corner, 1.0f);
+            if (std::abs(clip.w) < CLIP_SPACE_W_EPSILON) {
+                continue;
+            }
+            const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+            const float sx = (ndc.x + 1.0f) * 0.5f * static_cast<float>(viewport_width_);
+            const float sy = (1.0f - ndc.y) * 0.5f * static_cast<float>(viewport_height_);
+            min_sx = std::min(min_sx, sx);
+            max_sx = std::max(max_sx, sx);
+            min_sy = std::min(min_sy, sy);
+            max_sy = std::max(max_sy, sy);
+            projected = true;
+        }
+        // A box that projects to nothing usable stays a candidate: better to pay
+        // for stage 2 than to drop a pick outright.
+        if (!projected ||
+            (screen_pos.x >= min_sx - PICK_THRESHOLD && screen_pos.x <= max_sx + PICK_THRESHOLD &&
+             screen_pos.y >= min_sy - PICK_THRESHOLD && screen_pos.y <= max_sy + PICK_THRESHOLD)) {
+            candidate[static_cast<size_t>(idx)] = true;
+            any_candidate = true;
+        }
+    }
+    // No object metadata at all (or nothing near the tap): fall through with
+    // everything eligible rather than silently refusing to pick.
+    if (!any_candidate && gcode.objects.empty()) {
+        candidate.assign(candidate.size(), true);
+    }
+
     int ls = layer_start_;
     int le = (layer_end_ < 0 || layer_end_ >= static_cast<int>(gcode.layers.size()))
                  ? static_cast<int>(gcode.layers.size()) - 1
@@ -2290,6 +2366,11 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
                 continue;
             if (segment.object_name_index < 0)
                 continue;
+            // Stage 1 result: one array lookup instead of two mat4 multiplies.
+            if (static_cast<size_t>(segment.object_name_index) < candidate.size() &&
+                !candidate[static_cast<size_t>(segment.object_name_index)]) {
+                continue;
+            }
 
             glm::vec4 start_clip = transform * glm::vec4(segment.start, 1.0f);
             glm::vec4 end_clip = transform * glm::vec4(segment.end, 1.0f);
