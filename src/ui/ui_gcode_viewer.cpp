@@ -129,13 +129,16 @@ class GCodeViewerState {
 
         // Enhanced shading tiering lives in decide_ssao_enabled() (pure, unit
         // tested); this only applies the result and logs why.
-        const auto ssao = helix::gcode_viewer::decide_ssao_enabled(
-            helix::get_system_memory_info().is_constrained_device(), std::getenv("HELIX_SSAO"));
+        const bool constrained = helix::get_system_memory_info().is_constrained_device();
+        const char* ssao_env = std::getenv("HELIX_SSAO");
+        const auto ssao = helix::gcode_viewer::decide_ssao_enabled(constrained, ssao_env);
         ssao_enabled_at_init_ = ssao.enabled;
+        antialias_enabled_at_init_ =
+            helix::gcode_viewer::decide_antialias_enabled(constrained, ssao_env);
         switch (ssao.reason) {
-        case helix::gcode_viewer::SsaoReason::ConstrainedOff:
-            spdlog::info("[GCode Viewer] Constrained device - enhanced shading off by default "
-                         "(HELIX_SSAO=1 to force on)");
+        case helix::gcode_viewer::SsaoReason::ConstrainedReduced:
+            spdlog::info("[GCode Viewer] Constrained device - outline shading on, antialiasing off "
+                         "(HELIX_SSAO=0 to disable both, =1 to force both on)");
             break;
         case helix::gcode_viewer::SsaoReason::EnvForcedOff:
             spdlog::info("[GCode Viewer] HELIX_SSAO=0: enhanced shading disabled");
@@ -366,6 +369,7 @@ class GCodeViewerState {
 
     /// SSAO enabled at init (from HELIX_SSAO env var, applied when 2D renderer is created)
     bool ssao_enabled_at_init_{false};
+    bool antialias_enabled_at_init_{false};
 
     /// Render mode setting - set by constructor based on HELIX_GCODE_MODE env var
     /// Render mode setting - configurable via HELIX_GCODE_MODE env var
@@ -625,6 +629,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             // pass, the full-canvas buffer, and antialiased rasterization (about
             // 6x the aliased cost) that the tier exists to spare them.
             st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+            st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
 
             spdlog::debug("[GCode Viewer] Initialized 2D layer renderer ({}x{})", width, height);
         }
@@ -1653,6 +1658,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     // Apply the SSAO setting, both ways. See the note at the
                     // renderer-init site: a one-way call leaves "off" unapplied.
                     st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+                    st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
 
                     st->viewer_state = GcodeViewerState::Loaded;
                     st->first_render = false;
@@ -2135,6 +2141,7 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
         st->layer_renderer_2d_->auto_fit();
 
         st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
+        st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
     }
 
 #ifdef ENABLE_3D_RENDERER

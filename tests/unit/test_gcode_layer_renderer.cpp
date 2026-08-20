@@ -1086,7 +1086,13 @@ RenderCounts render_and_count(const std::unordered_set<std::string>& highlighted
     renderer.set_gcode(&gcode);
     renderer.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
     renderer.set_ghost_mode(false);   // no background thread: deterministic
-    renderer.set_ssao_enabled(false); // SSAO blits a different buffer and adds its own outline pass
+    renderer.set_ssao_enabled(false); // the outline pass would add white of its own
+    // Antialiasing is a separate flag now, and it has to be pinned too. A tagged
+    // (selected) stroke is always drawn aliased so the alpha tag survives, so
+    // leaving AA on here would give the unselected render an AA fringe the
+    // selected one does not have, and the footprint comparison below would be
+    // measuring that rather than the rim.
+    renderer.set_antialias_enabled(false);
     renderer.set_canvas_size(200, 200);
     renderer.set_current_layer(0);
     if (!highlighted.empty()) {

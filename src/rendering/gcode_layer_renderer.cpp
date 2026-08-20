@@ -918,9 +918,9 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     }
                 }
 
-                r = static_cast<uint8_t>(r * brightness);
-                g = static_cast<uint8_t>(g * brightness);
-                b = static_cast<uint8_t>(b * brightness);
+                r = apply_shading(r, brightness);
+                g = apply_shading(g, brightness);
+                b = apply_shading(b, brightness);
             }
 
             // Selection and exclusion, classified on the interned index — no
@@ -945,7 +945,7 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             // edge pixels the rim is derived from. Excluded objects were already
             // aliased for their own reason (partial alpha over partial alpha
             // compounds into mud), so this only changes selected objects.
-            const bool aa = ssao_enabled_.load(std::memory_order_relaxed) && !style.tagged &&
+            const bool aa = antialias_enabled_.load(std::memory_order_relaxed) && !style.tagged &&
                             !style.override_color;
             helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
                                      aa ? helix::gcode::Aa::On : helix::gcode::Aa::Off);
@@ -1236,7 +1236,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                               "({} segments, aa={}, layers_per_frame={})",
                               cached_up_to_layer_ + 1, lv_tick_elaps(cache_build_start_ms_),
                               last_segment_count_,
-                              ssao_enabled_.load(std::memory_order_relaxed) ? "on" : "off",
+                              antialias_enabled_.load(std::memory_order_relaxed) ? "on" : "off",
                               layers_per_frame_);
             }
 

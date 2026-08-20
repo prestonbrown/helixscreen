@@ -126,6 +126,10 @@ void configure(GCodeLayerRenderer& renderer, ParsedGCodeFile& gcode, bool ssao) 
     renderer.set_extrusion_color(lv_color_hex(0xC08040));
 
     renderer.set_ssao_enabled(ssao);
+    // Keep antialiasing tied to the shading flag here, which is what these tests
+    // assumed back when one flag drove both. They compare exact pixels, so the
+    // two renders must differ only in the thing under test.
+    renderer.set_antialias_enabled(ssao);
     renderer.set_canvas_size(kCanvas, kCanvas);
 }
 

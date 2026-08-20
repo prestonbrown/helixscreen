@@ -249,6 +249,21 @@ class GCodeLayerRenderer {
      *
      * Toggle via HELIX_SSAO=1 environment variable for testing.
      */
+    /// Enable/disable antialiased strokes, independently of the outline pass.
+    /// Invalidates the cache: the geometry has to be redrawn to change.
+    void set_antialias_enabled(bool enable) {
+        if (antialias_enabled_.load(std::memory_order_relaxed) == enable) {
+            return;
+        }
+        antialias_enabled_.store(enable, std::memory_order_relaxed);
+        invalidate_solid_cache();
+    }
+
+    /// Whether strokes are antialiased.
+    bool get_antialias_enabled() const {
+        return antialias_enabled_.load(std::memory_order_relaxed);
+    }
+
     void set_ssao_enabled(bool enable) {
         ssao_enabled_.store(enable, std::memory_order_relaxed);
         // Undo the shading before dropping the record of it, or the darkened
@@ -608,7 +623,15 @@ class GCodeLayerRenderer {
     std::atomic<bool> show_extrusions_{true};
     std::atomic<bool> show_supports_{true};
     std::atomic<bool> depth_shading_{true}; // Enabled by default for 3D-like appearance
-    std::atomic<bool> ssao_enabled_{true};  // Enhanced shading (normals, AA, outline)
+    /// The silhouette outline pass and the cheap normal-based shading that goes
+    /// with it. Measured at ~2ms per cache revalidation on an AD5M.
+    std::atomic<bool> ssao_enabled_{true};
+
+    /// Antialiased strokes. Separate from ssao_enabled_ because it is the
+    /// expensive half: ~6x the aliased rasterization cost, which is what makes a
+    /// preview take about 2.2x as long to appear. A constrained device can
+    /// afford the outline and not this.
+    std::atomic<bool> antialias_enabled_{true};
     std::atomic<int> view_mode_{static_cast<int>(ViewMode::FRONT)}; // Default to front view
 
     // Colors
