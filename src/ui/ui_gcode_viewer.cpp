@@ -399,8 +399,16 @@ class GCodeViewerState {
         return render_mode_ == GcodeViewerRenderMode::Layer2D || budget_forced_2d_ ||
                gpu_3d_blocked_;
 #else
-        // Without 3D renderer: only explicit Render3D would use 3D (but it's not available)
-        return render_mode_ != GcodeViewerRenderMode::Render3D;
+        // Without a 3D renderer there is no 3D mode, full stop.
+        //
+        // This used to read `render_mode_ != Render3D`, which left a hole: the
+        // settings UI removes the "3D View" option on these builds, but
+        // ui_gcode_viewer_set_render_mode() has no availability guard, so a
+        // stored display/gcode_render_mode of 1 - migrated, hand-edited, or
+        // copied from a device that does have GLES - still selected it. The
+        // fallback it reached was the legacy CPU wireframe, which no user has
+        // deliberately chosen in a long time.
+        return true;
 #endif
     }
 
