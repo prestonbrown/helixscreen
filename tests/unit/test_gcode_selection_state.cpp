@@ -107,9 +107,13 @@ TEST_CASE("an unchanged selection requires no invalidation", "[gcode_selection_s
     REQUIRE(s.set_excluded({"cube_2"}) == InvalidationScope::None);
 }
 
-TEST_CASE("a highlight change does not invalidate the ghost cache", "[gcode_selection_state]") {
+// This used to be SolidCache, on the reasoning that the ghost pass never drew
+// highlight and so could keep a multi-second render. It draws one now: the ghost
+// is what is visible for most of a print, so a selection cue that skipped it
+// would be a cue you cannot see while the print is running.
+TEST_CASE("a highlight change invalidates the ghost cache too", "[gcode_selection_state]") {
     SelectionState s;
-    REQUIRE(s.set_highlighted({"cube_1"}) == InvalidationScope::SolidCache);
+    REQUIRE(s.set_highlighted({"cube_1"}) == InvalidationScope::SolidAndGhost);
 }
 
 TEST_CASE("an exclusion change invalidates the ghost cache too", "[gcode_selection_state]") {

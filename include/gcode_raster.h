@@ -60,6 +60,19 @@ inline int round_offset(float v) {
     return static_cast<int>(std::floor(v + 0.5f));
 }
 
+/// Alpha value reserved to mean "this pixel belongs to the selected object".
+///
+/// The render cache is ARGB8888 and the alpha channel is only ever asked whether
+/// it is zero (apply_ssao's edge test) or handed to the blit, so one value out of
+/// 256 is free to carry a tag. Tagging costs nothing: the selected object draws
+/// exactly as it always did, one pass, same color, same width, with 254 in the
+/// alpha byte instead of 255. A 0.4% opacity difference is not visible.
+///
+/// stroke_selection_rim() then derives the white silhouette from where those
+/// pixels actually landed, rather than painting white in advance and hoping a
+/// later pass covers the parts that should not show.
+inline constexpr uint8_t kSelectedAlpha = 254;
+
 /// Overwrite one pixel. Not a composite despite the name, which is historical:
 /// all four channels are written unconditionally from `argb`.
 inline void blend(const RasterTarget& t, int x, int y, uint32_t argb) {
@@ -104,7 +117,11 @@ inline void blend_coverage(const RasterTarget& t, int x, int y, uint32_t rgb, ui
         pixel[0] = static_cast<uint8_t>((src_b * coverage + pixel[0] * inv) / 255);
         pixel[1] = static_cast<uint8_t>((src_g * coverage + pixel[1] * inv) / 255);
         pixel[2] = static_cast<uint8_t>((src_r * coverage + pixel[2] * inv) / 255);
-        pixel[3] = static_cast<uint8_t>(coverage + (dst_a * inv) / 255);
+        const uint8_t out_a = static_cast<uint8_t>(coverage + (dst_a * inv) / 255);
+        // Accumulating coverage can land on the reserved tag value by chance,
+        // which would put a stray white pixel on an unselected object. 254 and
+        // 255 are indistinguishable on screen, so round it off the tag.
+        pixel[3] = (out_a == kSelectedAlpha) ? 255 : out_a;
     }
 }
 
@@ -118,5 +135,24 @@ void line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb, 
 /// same thickness either way.
 void thick_line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t argb, int width,
                 Aa aa);
+
+/**
+ * @brief Paint the white selection silhouette, in place, from the alpha tag.
+ *
+ * Rewrites the RGB of every kSelectedAlpha pixel lying within `rim_px` of the
+ * edge of the tagged region, and leaves every other pixel alone. Alpha is never
+ * touched, so the tag survives and the pass is idempotent on a given buffer.
+ *
+ * `gap_px` is how deep a run of untagged pixels has to be before it counts as
+ * the outside. It exists because the tagged region is a stack of toolpaths, not
+ * a filled polygon, and sparse infill leaves pinholes in the middle of it: with
+ * gap_px = 1 every pinhole gets outlined and the interior fills with speckle.
+ * Requiring the gap to be as deep as the rim is thick means a genuine hole is
+ * still outlined while a one-pixel seam between two strokes is not.
+ *
+ * O(w*h) with one comparison per pixel, then up to 4*(rim_px+gap_px) reads per
+ * tagged pixel. Nothing is allocated.
+ */
+void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb);
 
 } // namespace helix::gcode

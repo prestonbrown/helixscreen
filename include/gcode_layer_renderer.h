@@ -647,6 +647,11 @@ class GCodeLayerRenderer {
     int ssao_cached_height_ = 0;
     bool ssao_cache_valid_ = false;
 
+    /// True once stroke_selection_rim() has written the white silhouette into
+    /// cache_buf_. The rim is pixels, not an overlay, so this is what stops a
+    /// progressive append from building on top of a boundary that has moved.
+    bool selection_rim_stamped_ = false;
+
     // Ghost cache - all layers rendered once at reduced opacity
     // Note: We only use draw buffers (no canvas widgets) to avoid clip area
     // contamination from overlays/toasts on lv_layer_top().

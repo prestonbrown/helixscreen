@@ -299,11 +299,11 @@ class GCodeGLESRenderer {
     /// image that gets blitted to LVGL. Matches the deleted TinyGL impl.
     void render_brackets_3d(const ParsedGCodeFile& gcode, const glm::mat4& mvp);
 
-    /// Lazily compile/link the shell program used by the selection silhouette.
+    /// Lazily compile/link the tag program used by the selection silhouette.
     bool init_shell_program();
 
     /**
-     * @brief Draw a white shell around the highlighted objects, under the lit pass.
+     * @brief Mark the highlighted objects' visible pixels in the framebuffer alpha.
      *
      * The silhouette has to follow the real toolpath: an object's bounding box is
      * a box, and EXCLUDE_OBJECT_DEFINE POLYGON= is the slicer's CONVEX HULL (a cat
@@ -311,21 +311,27 @@ class GCodeGLESRenderer {
      * is the only thing that carries the true contour, and
      * RibbonGeometry::object_runs is what makes a per-object subset of it drawable.
      *
-     * Technique: re-draw the object's own triangles with each position pushed
-     * outward along its normal, flat white, front faces culled so only the far
-     * side of the expanded shell rasterizes. The lit pass then paints the real
-     * surface over the shell's interior and what survives is a rim.
+     * This does NOT draw the rim. It re-draws the object's own triangles at the
+     * depth the lit pass already established, with the color mask set to alpha
+     * only, so every pixel where the object is VISIBLE ends up holding
+     * kSelectedAlpha. stroke_selection_rim() derives the white contour from that
+     * after readback, exactly as the software renderer does.
      *
-     * Depth test stays ENABLED (unlike render_brackets_3d, which deliberately
-     * disables it to draw brackets on top) so the shell is occluded by objects in
-     * front of it.
+     * The predecessor was an inverted hull: push the mesh out along its normals,
+     * cull front faces, let the lit pass overpaint the middle. That is
+     * dilate-and-overpaint, and it needs a watertight mesh to work. A toolpath is
+     * a stack of separate tubes, so on a sloped wall the pushed shell of one ring
+     * shows through the gap above it and keeps showing through - a test cone was
+     * mostly white by layer 130. Deriving the contour from the rendered pixels has
+     * no such failure mode, and it costs one depth-only draw instead of a full
+     * second rasterization of the object.
      *
      * @param mvp_dequant The lit pass's u_mvp — MVP with dequantization folded in.
      * @param layer_start,layer_end Solid layer range only; ghost layers are faded
-     *        context and an opaque white shell there would read as a solid object.
+     *        context and a full-strength rim there would read as a solid object.
      */
-    void render_selection_shell(const ParsedGCodeFile& gcode, const glm::mat4& mvp_dequant,
-                                int layer_start, int layer_end);
+    void render_selection_tag(const ParsedGCodeFile& gcode, const glm::mat4& mvp_dequant,
+                              int layer_start, int layer_end);
 
     // ====== Frame Skip ======
 
@@ -387,9 +393,7 @@ class GCodeGLESRenderer {
     unsigned int shell_program_ = 0;
     int shell_u_mvp_ = -1;
     int shell_u_color_ = -1;
-    int shell_u_extrude_ = -1;
     int shell_a_position_ = -1;
-    int shell_a_normal_ = -1;
     // Uniform locations
     int u_mvp_ = -1;
     int u_normal_matrix_ = -1;

@@ -25,6 +25,7 @@
  */
 
 #include "gcode_parser.h" // helix::gcode::AABB
+#include "gcode_raster.h" // helix::gcode::kSelectedAlpha
 
 #include <algorithm>
 #include <cstdint>
@@ -56,18 +57,45 @@ inline constexpr float kBracketArmMaxMm = 5.0f;
 /// Below this, brackets are sub-pixel noise and are not drawn at all.
 inline constexpr float kBracketArmMinMm = 0.01f;
 
-/// Halo thickness added to the core line width, total across both sides. Even so
-/// the outline is symmetric about the core rather than reading as a drop shadow.
-inline constexpr int kHaloDeltaPx = 6;
-inline constexpr int kHaloDeltaSmallPanelPx = 4;
+/// Silhouette rim width, in SCREEN PIXELS.
+///
+/// Both renderers derive the rim from where the object actually lands on screen:
+/// the 3D shell pushes its vertices this far in screen space, and the 2D pass
+/// scans this far for a neighbouring pixel that is not the selected object. So
+/// this is the width you get, at any zoom, on any plate, on any panel.
+///
+/// It replaces a pair of world-space knobs that could not do that. The 2D halo
+/// was a dilate-and-overpaint: draw the object wide in white, draw it again
+/// narrower on top, keep what survived. That holds up on a vertical wall, where
+/// consecutive layers land on each other, and floods on a sloped one, where each
+/// layer's white sticks out past the layer above it (a cone went solid white by
+/// layer 120). The 3D shell pushed 0.25mm along the normal, which at plate-wide
+/// zoom is roughly half a pixel: it survived on scattered pixels and read as
+/// speckle, or as nothing at all.
+inline constexpr int kOutlinePx = 2;
+inline constexpr int kOutlineSmallPanelPx = 1;
 
-/// Dilation applied to the selected object's own strokes so they cover the halo
-/// except for the rim. The gap is (kHaloDeltaPx - kHaloCoverBonusPx) / 2 pixels
-/// per side, and it must be at least 2: apply_ssao() darkens every filled pixel
-/// that has an empty neighbour by OUTLINE_DARKEN, so a one-pixel rim is entirely
-/// consumed by that pass and no white survives to the screen. Two leaves a white
-/// pixel inside SSAO's dark edge, which reads as an outline with a border.
-inline constexpr int kHaloCoverBonusPx = kHaloDeltaPx - 4;
+/// Panels at or below this width get the narrower rim: 2px per side swallows a
+/// small object whole at 480x272.
+inline constexpr int kSmallPanelWidthPx = 320;
+
+/// Rim width for a render target `target_width_px` pixels wide.
+inline int outline_width_px(int target_width_px) {
+    return (target_width_px <= kSmallPanelWidthPx) ? kOutlineSmallPanelPx : kOutlinePx;
+}
+
+/**
+ * @brief Halo geometry for the draw-API fallback (TOP_DOWN / ISOMETRIC).
+ *
+ * Those view modes paint straight into the LVGL layer, so there is no pixel
+ * buffer for the rim scan to read and they keep the older dilate-and-overpaint:
+ * draw the walls wide in white, draw them again narrower on top, keep what
+ * survives. That is sound here for exactly the reason it was not sound in the
+ * stacked FRONT view - one layer is drawn, so there are no layers above to punch
+ * through the white and no accumulation down a sloped wall.
+ */
+inline constexpr int kFallbackHaloDeltaPx = 6;
+inline constexpr int kFallbackHaloDeltaSmallPanelPx = 4;
 
 /**
  * @brief Resolved draw style for one segment.
@@ -81,16 +109,16 @@ struct SegmentStyle {
     bool override_color = false;
     uint32_t rgb = 0;  ///< valid only when override_color
     uint8_t opa = 255; ///< selection/exclusion opacity; renderer applies its own for travels
-    bool halo = false; ///< caller must emit the halo pass for this segment
 
-    /// Added to the core line width when drawing this segment normally.
-    ///
-    /// Non-zero only for a haloed segment, and it is what makes the halo read as
-    /// an OUTLINE rather than a flood fill. The halo pass dilates each stroke by
-    /// the halo delta, so the pass painting over it must be dilated too:
-    /// undilated strokes do not densely cover their own dilated footprint, so
-    /// white leaks between them and swallows the object.
-    int width_bonus = 0;
+    /// True when `opa` is kSelectedAlpha, i.e. this segment carries the tag the
+    /// rim scan reads. The renderer must draw it WITHOUT antialiasing: the AA
+    /// rasterizer writes coverage into alpha and would erase the tag along every
+    /// edge, which is where the rim needs it most.
+    bool tagged = false;
+
+    /// Emit the draw-API fallback's halo for this segment. See kFallbackHaloDeltaPx.
+    /// The cached path ignores it and uses `tagged` instead.
+    bool fallback_halo = false;
 };
 
 /**
@@ -106,33 +134,42 @@ struct SegmentStyle {
  */
 inline SegmentStyle resolve(bool excluded, bool highlighted, bool is_extrusion) {
     SegmentStyle s;
-    s.halo = highlighted && is_extrusion;
-    if (s.halo) {
-        s.width_bonus = kHaloCoverBonusPx;
-    }
     if (excluded) {
         s.override_color = true;
         s.rgb = kExcludedColor;
         s.opa = kExcludedOpa;
     }
+    if (highlighted && is_extrusion) {
+        // The tag replaces the opacity, including the excluded object's 60%: an
+        // object cannot be tagged and faded at once, and being able to see what
+        // you just picked matters more than the fade. Excluded-and-selected
+        // draws opaque orange inside a white rim, which reads correctly.
+        s.opa = kSelectedAlpha;
+        s.tagged = true;
+        s.fallback_halo = true;
+    }
     return s;
 }
 
-/// Whether a feature contributes to the selection silhouette.
+/// Whether a feature contributes to the draw-API fallback's halo.
 ///
 /// Only the walls trace the object's contour. Haloing infill puts a white band
 /// along every infill line, which reads as stripes across the middle of the
-/// object instead of an outline - the outer ring looked right while the interior
-/// filled in. Unknown counts as eligible so a file with no ;TYPE annotations
-/// still gets a halo from all of its extrusions rather than none.
+/// object instead of an outline. Unknown counts as eligible so a file with no
+/// ;TYPE annotations still gets a halo from all of its extrusions rather than
+/// none.
+///
+/// The tag path does NOT use this and deliberately tags every extrusion: the rim
+/// is derived from the boundary of the tagged region, so tagging the interior
+/// too is what stops infill gaps from reading as boundaries.
 inline bool halo_feature(FeatureType t) {
     return t == FeatureType::OuterWall || t == FeatureType::OverhangWall ||
            t == FeatureType::Unknown;
 }
 
-/// Width of the halo line drawn beneath a core line of `base_width`.
+/// Width of the fallback halo line drawn beneath a core line of `base_width`.
 inline int halo_width(int base_width, bool small_panel) {
-    return base_width + (small_panel ? kHaloDeltaSmallPanelPx : kHaloDeltaPx);
+    return base_width + (small_panel ? kFallbackHaloDeltaSmallPanelPx : kFallbackHaloDeltaPx);
 }
 
 /**

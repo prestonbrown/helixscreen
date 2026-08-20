@@ -1236,6 +1236,14 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
+    // Alpha is not part of the picture: readback converts RGBA to RGB and throws
+    // the alpha byte away. So it is reserved as the selection tag channel, and
+    // masking it off here is what guarantees the tag means only one thing. Ghost
+    // layers blend with GL_ONE_MINUS_SRC_ALPHA, which would otherwise leave
+    // arbitrary alpha behind and put stray rim pixels on unselected geometry.
+    // Everything stays at the cleared 255 until render_selection_tag() unmasks.
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+
     // Select active geometry
     auto* active_vbos = &layer_vbos_;
     active_geometry_ = geometry_.get();
@@ -1310,18 +1318,6 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
 
     triangles_rendered_ = 0;
 
-    // White silhouette FIRST, under the lit geometry: the lit pass then paints the
-    // real surface over the shell's interior and what survives is a rim tracing the
-    // object's true contour. Solid layers only — the ghost pass is faded context,
-    // and an opaque white shell there would read as a solid object.
-    {
-        int shell_end = draw_end;
-        if (progress_layer_ >= 0 && progress_layer_ < max_layer) {
-            shell_end = std::min(progress_layer_, draw_end);
-        }
-        render_selection_shell(gcode, mvp_dequant, draw_start, shell_end);
-    }
-
     // Ghost / print progress rendering
     if (progress_layer_ >= 0 && progress_layer_ < max_layer) {
         // Pass 1: Solid layers (0 to progress_layer_)
@@ -1350,11 +1346,25 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
 
     glUseProgram(0);
 
+    // Tag the selected object's visible pixels AFTER the geometry is final, so
+    // "visible" means what actually survived depth testing. Solid layers only —
+    // the ghost pass is faded context, and a full-strength rim there would read as
+    // a solid object. The rim itself is drawn on the CPU after readback.
+    {
+        int tag_end = draw_end;
+        if (progress_layer_ >= 0 && progress_layer_ < max_layer) {
+            tag_end = std::min(progress_layer_, draw_end);
+        }
+        render_selection_tag(gcode, mvp_dequant, draw_start, tag_end);
+    }
+
     // Selection brackets on top, using the same MVP as the geometry pass so
     // brackets stay anchored to objects under rotation/zoom. Drawn last with
-    // depth test disabled inside render_brackets_3d().
+    // depth test disabled inside render_brackets_3d(). Alpha is still masked, so
+    // the brackets cannot overwrite the tag they sit on top of.
     render_brackets_3d(gcode, mvp);
 
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -1482,6 +1492,25 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
     }
     glReadPixels(0, 0, fbo_width_, fbo_height_, GL_RGBA, GL_UNSIGNED_BYTE, readback_buf_.data());
     check_gl_error("glReadPixels");
+
+    // The white silhouette, derived from the tag render_selection_tag() left in
+    // the alpha byte. Byte 3 is alpha in the readback's RGBA and in the
+    // rasterizer's ARGB8888 alike, and the rim colour is white, so the channel
+    // order of the other three does not matter here.
+    if (selection_.any_highlighted()) {
+        const int rim = selection::outline_width_px(fbo_width_);
+        const RasterTarget rt{readback_buf_.data(), static_cast<size_t>(fbo_width_) * 4, fbo_width_,
+                              fbo_height_};
+        size_t tagged = 0;
+        if (spdlog::should_log(spdlog::level::trace)) {
+            for (size_t i = 3; i < readback_buf_.size(); i += 4) {
+                tagged += (readback_buf_[i] == helix::gcode::kSelectedAlpha);
+            }
+        }
+        helix::gcode::stroke_selection_rim(rt, rim, rim, selection::kOutlineColor);
+        spdlog::trace("[GCode GLES] Selection rim: {} tagged px of {}, rim {}px", tagged,
+                      static_cast<size_t>(fbo_width_) * fbo_height_, rim);
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -2005,41 +2034,24 @@ void GCodeGLESRenderer::render_brackets_3d(const ParsedGCodeFile& gcode, const g
 // ============================================================
 
 static const char* SHELL_VERTEX_DECLS = R"(
-    // Selection silhouette. Consumes the same packed vertex layout as the lit
-    // program, so it draws straight from the layer VBOs with no extra buffer:
+    // Selection tag. Consumes the same packed vertex layout as the lit program,
+    // so it draws straight from the layer VBOs with no extra buffer:
     //   a_position : vec3, raw quantized int16 (dequantization folded into u_mvp)
-    //   a_normal   : vec2 snorm8, octahedral-encoded unit normal
+    // The normal is not read: this pass reproduces the object exactly where the
+    // lit pass already drew it, and writes nothing but alpha.
     uniform mat4 u_mvp;
-    uniform float u_extrude; // outward push, in QUANTIZED units
     attribute vec3 a_position;
-    attribute vec2 a_normal;
 )";
 
 static const char* SHELL_VERTEX_MAIN = R"(
     void main() {
-        // oct_decode returns a unit vector, so the push is exactly u_extrude in
-        // every direction. That bound is also what makes segment CAP vertices
-        // safe: their normal is -dir (axial, not radial), so they slide along the
-        // tube axis instead of growing radially, and a fixed-length push cannot
-        // stretch one into a spike.
-        vec3 n = oct_decode(a_normal);
-        gl_Position = u_mvp * vec4(a_position + n * u_extrude, 1.0);
+        gl_Position = u_mvp * vec4(a_position, 1.0);
     }
 )";
 
-/// How far the shell is pushed out, in millimetres, as a fraction of the extrusion
-/// width: the rim should be proportional to the toolpath, not to the model size.
-/// Clamped at both ends because neither extreme reads as an outline — too small is
-/// sub-pixel at normal zoom, too large detaches from the surface it is tracing.
-///
-/// Note extrusion_width_ keeps its 0.5mm default in practice: ui_gcode_viewer
-/// feeds the file's real width to the geometry BUILDER, never to this renderer's
-/// set_extrusion_width(). So this currently evaluates to a flat 0.25mm, and it
-/// starts tracking the file the moment that setter is wired up. This is the one
-/// knob on how heavy the silhouette looks.
-static constexpr float SHELL_EXTRUDE_WIDTH_FRACTION = 0.5f;
-static constexpr float SHELL_EXTRUDE_MIN_MM = 0.15f;
-static constexpr float SHELL_EXTRUDE_MAX_MM = 0.40f;
+/// Alpha written by the tag pass, matching the software rasterizer's tag so both
+/// renderers hand stroke_selection_rim() the same thing.
+static constexpr float SHELL_TAG_ALPHA = static_cast<float>(kSelectedAlpha) / 255.0f;
 
 bool GCodeGLESRenderer::init_shell_program() {
     if (shell_program_)
@@ -2076,25 +2088,22 @@ bool GCodeGLESRenderer::init_shell_program() {
 
     shell_u_mvp_ = glGetUniformLocation(prog, "u_mvp");
     shell_u_color_ = glGetUniformLocation(prog, "u_color");
-    shell_u_extrude_ = glGetUniformLocation(prog, "u_extrude");
     shell_a_position_ = glGetAttribLocation(prog, "a_position");
-    shell_a_normal_ = glGetAttribLocation(prog, "a_normal");
 
-    if (shell_a_position_ < 0 || shell_a_normal_ < 0) {
-        spdlog::error("[GCode GLES] Shell program missing attributes (pos={}, normal={})",
-                      shell_a_position_, shell_a_normal_);
+    if (shell_a_position_ < 0) {
+        spdlog::error("[GCode GLES] Tag program missing a_position");
         glDeleteProgram(prog);
         return false;
     }
 
     shell_program_ = prog;
-    spdlog::debug("[GCode GLES] Selection shell program ready");
+    spdlog::debug("[GCode GLES] Selection tag program ready");
     return true;
 }
 
-void GCodeGLESRenderer::render_selection_shell(const ParsedGCodeFile& gcode,
-                                               const glm::mat4& mvp_dequant, int layer_start,
-                                               int layer_end) {
+void GCodeGLESRenderer::render_selection_tag(const ParsedGCodeFile& gcode,
+                                             const glm::mat4& mvp_dequant, int layer_start,
+                                             int layer_end) {
     // Gate before anything else, including the program link: an unselected plate
     // must cost nothing at all.
     if (!selection_.any_highlighted())
@@ -2122,50 +2131,42 @@ void GCodeGLESRenderer::render_selection_shell(const ParsedGCodeFile& gcode,
     if (wanted.empty())
         return;
 
-    // Millimetres to quantized units. Dequantization is a UNIFORM scale plus a
-    // translation, so the conversion is one multiply and needs no per-axis
-    // correction; the translation drops out because this is a direction.
-    const float scale = active_geometry_->quantization.scale_factor;
-    if (scale <= 0.0f)
-        return;
-    const float extrude_q = std::clamp(extrusion_width_ * SHELL_EXTRUDE_WIDTH_FRACTION,
-                                       SHELL_EXTRUDE_MIN_MM, SHELL_EXTRUDE_MAX_MM) *
-                            scale;
-
     if (!shell_program_ && !init_shell_program())
         return;
 
     // Save every piece of state this pass touches. render_brackets_3d brackets its
     // own glDisable(GL_DEPTH_TEST) the same way; anything left unrestored here
-    // corrupts the lit pass that runs immediately after.
+    // corrupts the frame.
     GLint prev_program = 0;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
     GLint prev_buffer = 0;
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_buffer);
-    const GLboolean prev_cull_enabled = glIsEnabled(GL_CULL_FACE);
-    GLint prev_cull_mode = GL_BACK;
-    glGetIntegerv(GL_CULL_FACE_MODE, &prev_cull_mode);
     GLboolean prev_depth_mask = GL_TRUE;
     glGetBooleanv(GL_DEPTH_WRITEMASK, &prev_depth_mask);
+    GLint prev_depth_func = GL_LESS;
+    glGetIntegerv(GL_DEPTH_FUNC, &prev_depth_func);
 
-    // Front faces culled, so only the FAR side of the expanded shell rasterizes.
-    // Without this the near side would sit in front of the real surface and the
-    // whole object would turn white instead of gaining an outline.
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
-    // Depth test stays ENABLED (it is on for the whole of render_to_fbo) so the
-    // shell is occluded by objects in front of it, and depth WRITES stay on so the
-    // surviving rim occludes what is behind it.
-    glDepthMask(GL_TRUE);
+    // Alpha only. The color channels already hold the lit image and must survive
+    // untouched; the rest of the frame runs with alpha writes masked off (see
+    // render_to_fbo) so nothing but this pass can put kSelectedAlpha anywhere.
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+
+    // Depth test stays enabled, but the function MUST be relaxed to LEQUAL. The
+    // renderer never calls glDepthFunc, so it runs on the GL default of LESS, and
+    // re-drawing a triangle at exactly the depth it already wrote fails LESS on
+    // every single fragment — the pass drew its 125 runs and tagged zero pixels.
+    // With LEQUAL it passes exactly where this object is the frontmost thing and
+    // fails where something else occludes it, which is the definition of
+    // "visible" and so the contour we want. Depth WRITES go off: the buffer is
+    // already correct and re-writing it would be a no-op at best.
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
 
     glUseProgram(shell_program_);
     glUniformMatrix4fv(shell_u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp_dequant));
-    const glm::vec4 rgba = selection::to_vec4(selection::kOutlineColor);
-    glUniform4f(shell_u_color_, rgba.r, rgba.g, rgba.b, rgba.a);
-    glUniform1f(shell_u_extrude_, extrude_q);
+    glUniform4f(shell_u_color_, 0.0f, 0.0f, 0.0f, SHELL_TAG_ALPHA);
 
     glEnableVertexAttribArray(static_cast<GLuint>(shell_a_position_));
-    glEnableVertexAttribArray(static_cast<GLuint>(shell_a_normal_));
 
     constexpr size_t STRIDE = PackedVertex::stride();
     size_t runs_drawn = 0;
@@ -2195,9 +2196,6 @@ void GCodeGLESRenderer::render_selection_shell(const ParsedGCodeFile& gcode,
                 glVertexAttribPointer(static_cast<GLuint>(shell_a_position_), 3, GL_SHORT, GL_FALSE,
                                       static_cast<GLsizei>(STRIDE),
                                       reinterpret_cast<void*>(PackedVertex::position_offset()));
-                glVertexAttribPointer(static_cast<GLuint>(shell_a_normal_), 2, GL_BYTE, GL_TRUE,
-                                      static_cast<GLsizei>(STRIDE),
-                                      reinterpret_cast<void*>(PackedVertex::normal_offset()));
                 bound = true;
             }
 
@@ -2208,30 +2206,28 @@ void GCodeGLESRenderer::render_selection_shell(const ParsedGCodeFile& gcode,
     }
 
     glDisableVertexAttribArray(static_cast<GLuint>(shell_a_position_));
-    glDisableVertexAttribArray(static_cast<GLuint>(shell_a_normal_));
 
-    // Restore, in the reverse order of the saves.
+    // Restore, in the reverse order of the saves. Alpha writes go back to masked
+    // off, which is how the rest of the frame runs.
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(prev_buffer));
     glDepthMask(prev_depth_mask);
-    glCullFace(static_cast<GLenum>(prev_cull_mode));
-    if (!prev_cull_enabled) {
-        glDisable(GL_CULL_FACE);
-    }
+    glDepthFunc(static_cast<GLenum>(prev_depth_func));
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     glUseProgram(static_cast<GLuint>(prev_program));
 
     // One error check for the whole pass, matching draw_layers. A fault here is
     // the same class of driver failure and must fall back the same way.
-    GLenum shell_err = glGetError();
-    if (gl_draw_error_is_fatal(shell_err)) {
-        spdlog::error("[GCode GLES] Fatal GL error in selection shell pass: 0x{:04X} — disabling "
+    GLenum tag_err = glGetError();
+    if (gl_draw_error_is_fatal(tag_err)) {
+        spdlog::error("[GCode GLES] Fatal GL error in selection tag pass: 0x{:04X} — disabling "
                       "GPU rendering, falling back to 2D",
-                      shell_err);
+                      tag_err);
         gl_render_failed_ = true;
         return;
     }
 
-    spdlog::trace("[GCode GLES] Selection shell: {} runs over layers {}..{}", runs_drawn,
-                  layer_start, layer_end);
+    spdlog::trace("[GCode GLES] Selection tag: {} runs over layers {}..{}", runs_drawn, layer_start,
+                  layer_end);
 }
 
 // ============================================================

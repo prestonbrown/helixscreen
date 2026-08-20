@@ -152,4 +152,72 @@ void thick_line(const RasterTarget& t, int x0, int y0, int x1, int y1, uint32_t 
     }
 }
 
+void stroke_selection_rim(const RasterTarget& t, int rim_px, int gap_px, uint32_t rgb) {
+    if (t.data == nullptr || rim_px < 1 || gap_px < 1) {
+        return;
+    }
+
+    const uint8_t rim_b = static_cast<uint8_t>(rgb & 0xFF);
+    const uint8_t rim_g = static_cast<uint8_t>((rgb >> 8) & 0xFF);
+    const uint8_t rim_r = static_cast<uint8_t>((rgb >> 16) & 0xFF);
+
+    // Four axis directions. Diagonals are deliberately left out: they cost 8
+    // probes per pixel instead of 4 and the extra rim they find is a single
+    // corner pixel, which the 4-connected sweep of the neighbouring rows picks
+    // up anyway.
+    static constexpr int DX[4] = {0, 0, -1, 1};
+    static constexpr int DY[4] = {-1, 1, 0, 0};
+
+    auto tagged = [&t](int x, int y) -> bool {
+        // Off-canvas counts as untagged, so an object running off the edge of
+        // the viewport gets a rim along the edge rather than silently losing it.
+        if (x < 0 || x >= t.w || y < 0 || y >= t.h) {
+            return false;
+        }
+        return t.data[static_cast<size_t>(y) * t.stride + static_cast<size_t>(x) * 4 + 3] ==
+               kSelectedAlpha;
+    };
+
+    for (int y = 0; y < t.h; ++y) {
+        uint8_t* row = t.data + static_cast<size_t>(y) * t.stride;
+        for (int x = 0; x < t.w; ++x) {
+            uint8_t* pixel = row + static_cast<size_t>(x) * 4;
+            if (pixel[3] != kSelectedAlpha) {
+                continue;
+            }
+
+            bool on_rim = false;
+            for (int d = 0; d < 4 && !on_rim; ++d) {
+                // Walk outward until the tag stops. Give up past rim_px: any
+                // boundary further away than that leaves this pixel interior.
+                int k = 1;
+                while (k <= rim_px && tagged(x + DX[d] * k, y + DY[d] * k)) {
+                    ++k;
+                }
+                if (k > rim_px) {
+                    continue;
+                }
+                // The tag stopped at k. It is only the outside if it stays
+                // stopped for gap_px pixels; a shorter break is a seam between
+                // two strokes of the same object.
+                bool deep_enough = true;
+                for (int j = 0; j < gap_px && deep_enough; ++j) {
+                    if (tagged(x + DX[d] * (k + j), y + DY[d] * (k + j))) {
+                        deep_enough = false;
+                    }
+                }
+                on_rim = deep_enough;
+            }
+
+            if (on_rim) {
+                // RGB only. Alpha keeps the tag, which is what makes this pass
+                // safe to run twice on the same buffer.
+                pixel[0] = rim_b;
+                pixel[1] = rim_g;
+                pixel[2] = rim_r;
+            }
+        }
+    }
+}
+
 } // namespace helix::gcode

@@ -18,7 +18,8 @@ TEST_CASE("plain extrusion keeps the caller's color at full opacity", "[gcode_se
     auto s = selection::resolve(/*excluded=*/false, /*highlighted=*/false, /*is_extrusion=*/true);
     REQUIRE(s.override_color == false);
     REQUIRE(s.opa == 255);
-    REQUIRE(s.halo == false);
+    REQUIRE(s.tagged == false);
+    REQUIRE(s.fallback_halo == false);
 }
 
 TEST_CASE("excluded segments are recolored and translucent", "[gcode_selection_style]") {
@@ -29,39 +30,71 @@ TEST_CASE("excluded segments are recolored and translucent", "[gcode_selection_s
 }
 
 // The whole point of the feature: a selected object keeps its filament color and
-// is marked by the halo instead of being recolored. A test that asserts
+// is marked by the rim instead of being recolored. A test that asserts
 // override_color == false here fails against the old blue-recolor behavior.
-TEST_CASE("highlighted segments keep filament color and get a halo", "[gcode_selection_style]") {
+TEST_CASE("highlighted segments keep filament color and carry the tag", "[gcode_selection_style]") {
     auto s = selection::resolve(false, true, true);
     REQUIRE(s.override_color == false);
-    REQUIRE(s.halo == true);
-    REQUIRE(s.opa == 255);
+    REQUIRE(s.tagged == true);
+    // The tag IS the opacity byte. Anything else and stroke_selection_rim() has
+    // nothing to find.
+    REQUIRE(s.opa == kSelectedAlpha);
 }
 
-// Exclusion wins on color because that is the existing cache-path precedence
-// (the excluded branch `continue`s before the highlight check ever runs), but
-// the halo must still be drawn: you have to be able to see which object you
-// just selected in order to un-exclude it from the side list.
-TEST_CASE("an excluded object that is also selected keeps exclusion color plus halo",
+// Exclusion still wins on color: you have to be able to see which object you
+// just selected in order to un-exclude it from the side list. What it does NOT
+// keep is its 60% fade, because the opacity byte is where the tag lives and an
+// object cannot be tagged and faded at the same time.
+TEST_CASE("an excluded object that is also selected keeps exclusion color and takes the tag",
           "[gcode_selection_style]") {
     auto s = selection::resolve(true, true, true);
     REQUIRE(s.override_color == true);
     REQUIRE(s.rgb == selection::kExcludedColor);
-    REQUIRE(s.opa == selection::kExcludedOpa);
-    REQUIRE(s.halo == true);
+    REQUIRE(s.tagged == true);
+    REQUIRE(s.opa == kSelectedAlpha);
+    REQUIRE(s.opa != selection::kExcludedOpa);
 }
 
-TEST_CASE("travel moves are never haloed", "[gcode_selection_style]") {
+TEST_CASE("travel moves are never tagged", "[gcode_selection_style]") {
     // A travel move belonging to the selected object must not contribute to the
-    // silhouette: travels cut across the interior and would spray white through
-    // the middle of the shape.
+    // silhouette: travels cut across the interior, so tagging them would drag the
+    // tagged region out to a bounding box and the rim would trace that instead of
+    // the object.
     auto s = selection::resolve(false, true, /*is_extrusion=*/false);
-    REQUIRE(s.halo == false);
+    REQUIRE(s.tagged == false);
+    REQUIRE(s.fallback_halo == false);
+    REQUIRE(s.opa != kSelectedAlpha);
 }
 
 // ---------------------------------------------------------------------------
-// halo_width(): shared so the software rasterizer and the lv_draw_line paths
-// cannot disagree about how thick the outline is.
+// outline_width_px(): the rim is measured in SCREEN PIXELS by both renderers.
+//
+// It replaced two world-space knobs that could not hold a width: the 3D shell
+// pushed a fixed 0.25mm along the normal, which at the plate-wide zoom the
+// viewer opens on is about half a pixel, so it read as speckle or as nothing.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("the rim is at least one pixel on any panel", "[gcode_selection_style]") {
+    for (int w : {128, 320, 321, 480, 800, 1024, 1920}) {
+        REQUIRE(selection::outline_width_px(w) >= 1);
+    }
+}
+
+TEST_CASE("the rim is thinner on small panels", "[gcode_selection_style]") {
+    // At 480x272 a 2px-per-side rim swallows small objects whole.
+    REQUIRE(selection::outline_width_px(320) < selection::outline_width_px(800));
+    // And the boundary is inclusive, so 320 itself counts as small.
+    REQUIRE(selection::outline_width_px(selection::kSmallPanelWidthPx) ==
+            selection::kOutlineSmallPanelPx);
+    REQUIRE(selection::outline_width_px(selection::kSmallPanelWidthPx + 1) ==
+            selection::kOutlinePx);
+}
+
+// ---------------------------------------------------------------------------
+// halo_width(): the draw-API fallback for TOP_DOWN / ISOMETRIC, which paint
+// straight into the LVGL layer and so have no pixel buffer for the rim scan to
+// read. Dilate-and-overpaint is sound there because those modes draw ONE layer:
+// there is nothing stacked above to punch through the white.
 // ---------------------------------------------------------------------------
 
 TEST_CASE("halo is wider than the core line it outlines", "[gcode_selection_style]") {
@@ -147,7 +180,7 @@ TEST_CASE("to_vec4 carries alpha through", "[gcode_selection_style]") {
 // infill never is.
 // ---------------------------------------------------------------------------
 
-TEST_CASE("only walls contribute to the silhouette", "[gcode_selection_style]") {
+TEST_CASE("only walls contribute to the fallback halo", "[gcode_selection_style]") {
     REQUIRE(selection::halo_feature(FeatureType::OuterWall));
     REQUIRE(selection::halo_feature(FeatureType::OverhangWall));
 
@@ -175,13 +208,12 @@ TEST_CASE("a file without feature annotations still gets a halo", "[gcode_select
     REQUIRE(selection::halo_feature(FeatureType::Unknown));
 }
 
-TEST_CASE("the halo cover width leaves a rim at least two pixels wide", "[gcode_selection_style]") {
-    // apply_ssao() darkens every filled pixel that has an empty neighbour, which
-    // consumes a one-pixel rim entirely - white 255 becomes 76 and nothing
-    // reaches the screen. The gap between halo and cover has to survive that.
-    const int rim_per_side = (selection::kHaloDeltaPx - selection::kHaloCoverBonusPx) / 2;
-    REQUIRE(rim_per_side >= 2);
-    // And the cover must actually be narrower than the halo, or there is no rim.
-    REQUIRE(selection::kHaloCoverBonusPx < selection::kHaloDeltaPx);
-    REQUIRE(selection::kHaloCoverBonusPx >= 0);
+TEST_CASE("only the fallback path is offered a halo", "[gcode_selection_style]") {
+    // The cached path must NOT be told to paint white: it derives the rim from
+    // where the object actually landed, and a white pre-pass would move the
+    // boundary outward so the rim stopped tracing the real contour.
+    auto s = selection::resolve(false, true, true);
+    REQUIRE(s.fallback_halo == true);
+    REQUIRE(s.tagged == true);
+    REQUIRE(selection::resolve(false, false, true).fallback_halo == false);
 }

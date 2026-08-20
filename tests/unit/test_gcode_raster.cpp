@@ -295,3 +295,218 @@ TEST_CASE("both blends bounds-check every write", "[gcode_raster]") {
     }
     REQUIRE(s.guard_band_clean());
 }
+
+// ===========================================================================
+// stroke_selection_rim(): the white silhouette, derived from the alpha tag.
+//
+// This replaced a dilate-and-overpaint halo, which was not a silhouette
+// algorithm at all: it drew the selected object wide in white, drew it again
+// narrower on top, and kept whatever survived. That holds up on a vertical wall,
+// where consecutive layers land on each other, and floods on a sloped one, where
+// each layer's white sticks out past the layer above it. A test cone went solid
+// white by layer 120. The cases below pin the properties that failure lacked.
+// ===========================================================================
+
+namespace {
+
+/// Fill a rectangle with the tag, at an arbitrary opaque colour.
+void fill_tagged(Surface& s, int x0, int y0, int x1, int y1) {
+    for (int y = y0; y <= y1; ++y) {
+        for (int x = x0; x <= x1; ++x) {
+            blend(s.target(), x, y, (static_cast<uint32_t>(kSelectedAlpha) << 24) | 0x336699);
+        }
+    }
+}
+
+bool is_white(const Surface& s, int x, int y) {
+    return s.channel(x, y, 0) == 0xFF && s.channel(x, y, 1) == 0xFF && s.channel(x, y, 2) == 0xFF;
+}
+
+constexpr uint32_t kWhite = 0xFFFFFF;
+
+} // namespace
+
+TEST_CASE("the rim traces the boundary of the tagged region", "[gcode_raster]") {
+    Surface s(20, 20);
+    fill_tagged(s, 5, 5, 14, 14);
+    stroke_selection_rim(s.target(), 1, 1, kWhite);
+
+    // Boundary is white.
+    CHECK(is_white(s, 5, 5));
+    CHECK(is_white(s, 14, 14));
+    CHECK(is_white(s, 5, 10));
+    CHECK(is_white(s, 10, 14));
+
+    // One pixel in is not: a 1px rim is a 1px rim.
+    CHECK_FALSE(is_white(s, 6, 6));
+    CHECK_FALSE(is_white(s, 10, 10));
+
+    // Nothing outside the tagged region was touched.
+    CHECK_FALSE(s.pixel_set(4, 4));
+    CHECK_FALSE(s.pixel_set(15, 15));
+    CHECK(s.guard_band_clean());
+}
+
+TEST_CASE("rim thickness follows the requested pixel width", "[gcode_raster]") {
+    Surface s(20, 20);
+    fill_tagged(s, 4, 4, 15, 15);
+    stroke_selection_rim(s.target(), 2, 1, kWhite);
+
+    CHECK(is_white(s, 4, 9));       // boundary
+    CHECK(is_white(s, 5, 9));       // one in, still rim at width 2
+    CHECK_FALSE(is_white(s, 6, 9)); // two in, interior
+}
+
+// The property dilate-and-overpaint did not have. A sloped wall is a stack of
+// offset strokes; the old halo left each layer's white sticking out past the one
+// above it, so the face filled in from the bottom up. Deriving the rim from the
+// tagged region's boundary cannot do that, whatever shape the region is.
+TEST_CASE("a staircase edge gets a rim, not a flood", "[gcode_raster]") {
+    Surface s(40, 40);
+    // Each row shifted one pixel right of the row below: a 45-degree wall.
+    for (int y = 0; y < 30; ++y) {
+        fill_tagged(s, 5 + y / 2, 5 + y, 30, 5 + y);
+    }
+    stroke_selection_rim(s.target(), 1, 1, kWhite);
+
+    int white = 0, tagged_total = 0;
+    for (int y = 0; y < 40; ++y) {
+        for (int x = 0; x < 40; ++x) {
+            if (s.channel(x, y, 3) == kSelectedAlpha) {
+                ++tagged_total;
+                if (is_white(s, x, y)) {
+                    ++white;
+                }
+            }
+        }
+    }
+    REQUIRE(tagged_total > 0);
+    REQUIRE(white > 0);
+    // A rim is a boundary, so it is a small minority of the area. The old halo
+    // put this above 90% on the same shape.
+    CHECK(white * 2 < tagged_total);
+}
+
+TEST_CASE("a one-pixel seam inside the object is not outlined", "[gcode_raster]") {
+    // Sparse infill leaves pinholes between strokes. With gap_px = 1 every one of
+    // them reads as the outside and the interior fills with speckle.
+    Surface s(20, 20);
+    fill_tagged(s, 4, 4, 15, 15);
+    // Punch a single untagged pixel in the middle.
+    blend(s.target(), 10, 10, 0xFF000000u | 0x112233);
+
+    stroke_selection_rim(s.target(), 2, 2, kWhite);
+
+    CHECK_FALSE(is_white(s, 9, 10));
+    CHECK_FALSE(is_white(s, 11, 10));
+    CHECK_FALSE(is_white(s, 10, 9));
+    CHECK_FALSE(is_white(s, 10, 11));
+    // The real boundary still gets its rim.
+    CHECK(is_white(s, 4, 10));
+}
+
+TEST_CASE("a hole deeper than the gap threshold IS outlined", "[gcode_raster]") {
+    // The counterpart to the seam case: a genuine hole through the object is a
+    // real contour and Orca outlines it too. Suppressing every interior boundary
+    // would be the wrong cure.
+    Surface s(24, 24);
+    fill_tagged(s, 4, 4, 19, 19);
+    for (int y = 10; y <= 13; ++y) {
+        for (int x = 10; x <= 13; ++x) {
+            blend(s.target(), x, y, 0xFF000000u | 0x112233);
+        }
+    }
+    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    CHECK(is_white(s, 9, 11));
+    CHECK(is_white(s, 14, 11));
+}
+
+TEST_CASE("untagged pixels are never recoloured", "[gcode_raster]") {
+    Surface s(20, 20);
+    // A fully opaque neighbour object butted right up against the tagged one.
+    for (int y = 4; y <= 15; ++y) {
+        for (int x = 4; x <= 9; ++x) {
+            blend(s.target(), x, y, 0xFF000000u | 0x112233);
+        }
+    }
+    fill_tagged(s, 10, 4, 15, 15);
+    stroke_selection_rim(s.target(), 2, 2, kWhite);
+
+    for (int y = 4; y <= 15; ++y) {
+        for (int x = 4; x <= 9; ++x) {
+            CHECK(s.channel(x, y, 2) == 0x11);
+            CHECK(s.channel(x, y, 1) == 0x22);
+            CHECK(s.channel(x, y, 0) == 0x33);
+        }
+    }
+    // And the tagged object still gets a rim along the shared border, because a
+    // neighbour occluding it is exactly where its visible contour ends.
+    CHECK(is_white(s, 10, 10));
+}
+
+// The rim writes RGB and leaves alpha alone. That is what lets the pass run more
+// than once over the same buffer without the second run reading its own output
+// as a boundary and eating inward a pixel at a time.
+TEST_CASE("the rim pass is idempotent", "[gcode_raster]") {
+    Surface a(20, 20);
+    fill_tagged(a, 5, 5, 14, 14);
+    stroke_selection_rim(a.target(), 2, 2, kWhite);
+    std::vector<uint8_t> once = a.mem;
+
+    stroke_selection_rim(a.target(), 2, 2, kWhite);
+    CHECK(a.mem == once);
+}
+
+TEST_CASE("an object running off the canvas is still outlined along the edge", "[gcode_raster]") {
+    Surface s(16, 16);
+    fill_tagged(s, 0, 0, 7, 15);
+    stroke_selection_rim(s.target(), 1, 1, kWhite);
+    // Off-canvas counts as outside, so the left column is a boundary. Losing this
+    // would silently drop the rim on any object the user has scrolled or zoomed
+    // partly out of view.
+    CHECK(is_white(s, 0, 8));
+    CHECK(is_white(s, 7, 8));
+    CHECK_FALSE(is_white(s, 4, 8));
+    CHECK(s.guard_band_clean());
+}
+
+TEST_CASE("a buffer with no tagged pixels is left completely alone", "[gcode_raster]") {
+    Surface s(16, 16);
+    for (int y = 2; y <= 13; ++y) {
+        for (int x = 2; x <= 13; ++x) {
+            blend(s.target(), x, y, 0xFF000000u | 0x445566);
+        }
+    }
+    std::vector<uint8_t> before = s.mem;
+    stroke_selection_rim(s.target(), 2, 2, kWhite);
+    CHECK(s.mem == before);
+}
+
+TEST_CASE("degenerate rim parameters are a no-op, not a crash", "[gcode_raster]") {
+    Surface s(16, 16);
+    fill_tagged(s, 4, 4, 11, 11);
+    std::vector<uint8_t> before = s.mem;
+
+    stroke_selection_rim(s.target(), 0, 2, kWhite);
+    CHECK(s.mem == before);
+    stroke_selection_rim(s.target(), 2, 0, kWhite);
+    CHECK(s.mem == before);
+
+    RasterTarget null_target{nullptr, 0, 16, 16};
+    stroke_selection_rim(null_target, 2, 2, kWhite); // must not dereference
+}
+
+// blend_coverage() accumulates alpha, so an antialiased edge on an UNSELECTED
+// object can land on the tag value by chance and pick up a stray white pixel.
+TEST_CASE("accumulated coverage never lands on the reserved tag value", "[gcode_raster]") {
+    Surface s(4, 4);
+    // Drive the accumulator across its whole range looking for the tag.
+    for (int first = 1; first < 255; ++first) {
+        for (int second = 1; second < 255; ++second) {
+            Surface t(4, 4);
+            blend_coverage(t.target(), 1, 1, 0x336699, static_cast<uint8_t>(first));
+            blend_coverage(t.target(), 1, 1, 0x336699, static_cast<uint8_t>(second));
+            REQUIRE(t.channel(1, 1, 3) != kSelectedAlpha);
+        }
+    }
+}

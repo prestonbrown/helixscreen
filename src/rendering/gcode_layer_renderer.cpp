@@ -37,7 +37,7 @@ constexpr uint8_t EXCLUDED_G = (selection::kExcludedColor >> 8) & 0xFF;
 constexpr uint8_t EXCLUDED_B = selection::kExcludedColor & 0xFF;
 
 /// Core stroke width the lv_draw_line path uses for an extrusion move. Named so
-/// the halo pre-pass in render() widens the same number render_segment() draws.
+/// the fallback halo pre-pass widens the same number render_segment() draws.
 constexpr int DRAW_LINE_EXTRUSION_WIDTH = 2;
 
 /// Object pick distance threshold (pixels)
@@ -596,6 +596,7 @@ void GCodeLayerRenderer::invalidate_solid_cache() {
     }
     cached_up_to_layer_ = -1;
     ssao_cache_valid_ = false;
+    selection_rim_stamped_ = false;
 }
 
 void GCodeLayerRenderer::invalidate_cache() {
@@ -682,6 +683,14 @@ void GCodeLayerRenderer::apply_ssao() {
         for (int x = 1; x < w - 1; x++) {
             uint32_t pixel = src[y * stride_px + x];
             uint8_t alpha = (pixel >> 24) & 0xFF;
+
+            if (alpha == helix::gcode::kSelectedAlpha) {
+                // Selected object. Its edge is the white rim stroke_selection_rim()
+                // already wrote; darkening it here would turn the rim grey, and
+                // darkening the rest of its boundary would put a dark line just
+                // inside the white one.
+                continue;
+            }
 
             if (alpha > 0) {
                 // Filled pixel: check if it's on the silhouette edge
@@ -827,53 +836,6 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             return last_rendered;
         }
 
-        // -------------------------------------------------------------------
-        // Halo pre-pass: the white selection silhouette.
-        //
-        // The selected object's segments are drawn white at a wider width here,
-        // then the normal pass below paints its filament color over the middle.
-        // Only the rim the narrower core cannot reach survives, and that rim
-        // follows the real toolpath, which is the point: the slicer's
-        // EXCLUDE_OBJECT_DEFINE POLYGON is a convex hull and cannot trace a
-        // concave shape.
-        //
-        // This MUST stay a separate pass over the whole layer. Interleaved as
-        // two draws per segment, segment N+1's halo would cover segment N's
-        // core color and the silhouette would fill in solid.
-        //
-        // Gated on any_highlighted() so an unselected plate costs nothing.
-        if (selection_.any_highlighted()) {
-            // Opaque white. The halo is a backing shape, so it takes neither
-            // depth shading nor the tool palette.
-            const uint32_t halo_argb = (0xFFu << 24) | (selection::kOutlineColor & 0x00FFFFFFu);
-            const int halo_w = selection::halo_width(line_width, is_small_panel());
-            for (const auto& seg : *segments) {
-                if (!should_render_segment(seg))
-                    continue;
-                if (!seg.is_extrusion)
-                    continue;
-
-                const SelectionFlags sel = selection_.classify(seg.object_name_index);
-                const auto style =
-                    selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
-                if (!style.halo)
-                    continue;
-                if (!selection::halo_feature(seg.feature_type))
-                    continue;
-
-                glm::ivec2 h1 =
-                    world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
-                glm::ivec2 h2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
-                if (h1.x == h2.x && h1.y == h2.y)
-                    continue;
-
-                // Aa::Off deliberately: antialiasing a solid backing shape bleeds
-                // partial-coverage white outside the rim the core pass defines.
-                helix::gcode::thick_line(cache_target(), h1.x, h1.y, h2.x, h2.y, halo_argb, halo_w,
-                                         helix::gcode::Aa::Off);
-            }
-        }
-
         for (const auto& seg : *segments) {
             if (!should_render_segment(seg))
                 continue;
@@ -936,43 +898,32 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                 b = static_cast<uint8_t>(b * brightness);
             }
 
-            // Override color for excluded objects. Classified on the interned
-            // index — no per-segment string allocation on this hot path. A
-            // highlighted object keeps its filament color; the halo pre-pass
-            // above is what marks it.
-            int core_width = line_width;
-            {
-                const SelectionFlags sel = selection_.classify(seg.object_name_index);
-                // A haloed segment draws slightly wider so it covers the dilated
-                // halo underneath, leaving only a rim. Undilated strokes do not
-                // cover their own dilated footprint, so the halo floods.
-                core_width +=
-                    selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion).width_bonus;
-                if (sel.excluded) {
-                    // Excluded: orange-red with reduced alpha
-                    r = EXCLUDED_R;
-                    g = EXCLUDED_G;
-                    b = EXCLUDED_B;
-                    uint32_t color = (static_cast<uint32_t>(selection::kExcludedOpa) << 24) |
-                                     (r << 16) | (g << 8) | b;
-                    helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color,
-                                             line_width, helix::gcode::Aa::Off);
-                    ++segments_rendered;
-                    continue;
-                }
+            // Selection and exclusion, classified on the interned index — no
+            // per-segment string allocation on this hot path. A selected object
+            // draws in its own color at its own width, exactly like an
+            // unselected one, and carries kSelectedAlpha in the alpha byte. The
+            // rim scan after the cache completes turns that tag into the white
+            // silhouette; nothing here paints white.
+            const SelectionFlags sel = selection_.classify(seg.object_name_index);
+            const auto style = selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
+            if (style.override_color) {
+                r = EXCLUDED_R;
+                g = EXCLUDED_G;
+                b = EXCLUDED_B;
             }
 
-            // Build ARGB8888 color (full alpha for solid layers)
-            uint32_t color = (255u << 24) | (r << 16) | (g << 8) | b;
+            const uint32_t color =
+                (static_cast<uint32_t>(style.opa) << 24) | (r << 16) | (g << 8) | b;
 
-            // Draw using software line drawing - bypasses LVGL draw API for AD5M compatibility
-            if (ssao_enabled_.load(std::memory_order_relaxed)) {
-                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, core_width,
-                                         helix::gcode::Aa::On);
-            } else {
-                helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, core_width,
-                                         helix::gcode::Aa::Off);
-            }
+            // A tagged segment must not be antialiased: blend_coverage writes
+            // coverage into alpha, which would strip the tag from precisely the
+            // edge pixels the rim is derived from. Excluded objects were already
+            // aliased for their own reason (partial alpha over partial alpha
+            // compounds into mud), so this only changes selected objects.
+            const bool aa = ssao_enabled_.load(std::memory_order_relaxed) && !style.tagged &&
+                            !style.override_color;
+            helix::gcode::thick_line(cache_target(), p1.x, p1.y, p2.x, p2.y, color, line_width,
+                                     aa ? helix::gcode::Aa::On : helix::gcode::Aa::Off);
             ++segments_rendered;
         }
 
@@ -1205,6 +1156,18 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
         if (cache_buf_) {
             // Check if we need to render new layers
             if (target_layer > cached_up_to_layer_) {
+                // The rim is stamped into the cache as pixels, so appending onto a
+                // cache that already carries one leaves white behind wherever the
+                // old boundary was — the print grows upward and the stale rim
+                // becomes interior. Start over instead. Only reachable while an
+                // object is selected, which is a transient interaction.
+                if (selection_rim_stamped_) {
+                    lv_draw_buf_clear(cache_buf_, nullptr);
+                    cached_up_to_layer_ = -1;
+                    selection_rim_stamped_ = false;
+                    ssao_cache_valid_ = false;
+                }
+
                 // Progressive rendering: only render up to layers_per_frame_ at a time
                 // This prevents UI freezing during initial load or big jumps
                 int from_layer = cached_up_to_layer_ + 1;
@@ -1232,6 +1195,22 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                 // Caller checks needs_more_frames() for continuation
             }
             // else: same layer, just blit cached image
+
+            // =====================================================================
+            // SELECTION RIM: derive the white silhouette from the alpha tag.
+            //
+            // Only on a complete cache — a rim over a half-built stack would
+            // trace the top of whatever has been drawn so far. Runs once per
+            // build, and only while something is selected.
+            // =====================================================================
+            if (selection_.any_highlighted() && !selection_rim_stamped_ &&
+                cached_up_to_layer_ >= target_layer) {
+                const int rim = selection::outline_width_px(cached_width_);
+                helix::gcode::stroke_selection_rim(cache_target(), rim, rim,
+                                                   selection::kOutlineColor);
+                selection_rim_stamped_ = true;
+                ssao_cache_valid_ = false;
+            }
 
             // =====================================================================
             // BLIT: Ghost first (underneath), then solid on top
@@ -1300,7 +1279,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                     const SelectionFlags sel = selection_.classify(seg.object_name_index);
                     const auto style =
                         selection::resolve(sel.excluded, sel.highlighted, seg.is_extrusion);
-                    if (!style.halo)
+                    if (!style.fallback_halo)
                         continue;
                     if (!selection::halo_feature(seg.feature_type))
                         continue;
@@ -1434,8 +1413,9 @@ void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment
     }
 
     // Check excluded state for width/opacity. A highlighted object draws exactly
-    // like an unselected one: the halo pre-pass in render() carries selection, so
-    // the core stroke must NOT widen: a wider core would eat its own halo.
+    // like an unselected one: this is the draw-API fallback, where the halo
+    // pre-pass in render() carries selection, so the core stroke must NOT widen -
+    // a wider core would eat its own halo.
     const SelectionFlags sel = selection_.classify(seg.object_name_index);
     const bool is_excluded = sel.excluded;
 
@@ -1753,7 +1733,7 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 
 lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) const {
     // Check excluded state first. Highlight is deliberately absent: a selected
-    // object keeps its filament color and is marked by the white halo pass.
+    // object keeps its filament color and is marked by the white rim instead.
     const SelectionFlags sel = selection_.classify(seg.object_name_index);
     if (sel.excluded) {
         return lv_color_hex(selection::kExcludedColor);
@@ -1937,7 +1917,6 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
 
     // Capture extrusion pixel width (uses scale_ which may change on main thread)
     const int local_line_width = get_extrusion_pixel_width();
-    const bool local_small_panel = is_small_panel();
 
     // Selection state for ghost rendering. Already a private by-value copy (see the
     // std::thread call), so this thread owns it outright. Not const: in streaming mode
@@ -2073,26 +2052,30 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
-            // Selection halo, same mechanism as the solid cache: white and wider
-            // first, then this segment's own stroke dilated just less, leaving a
-            // rim. The ghost is what is visible for most of a print, so a cue
-            // that skipped it would be a cue you cannot see.
+            // Same tag the solid cache applies, for the same reason: the rim is
+            // derived from it once the buffer is complete. The ghost is what is
+            // visible for most of a print, so a cue that skipped it would be a
+            // cue you cannot see.
             const auto ghost_style =
                 selection::resolve(false, ghost_sel.highlighted, seg.is_extrusion);
-            int ghost_width = local_line_width;
-            if (ghost_style.halo && selection::halo_feature(seg.feature_type)) {
-                const uint32_t halo_argb = (0xFFu << 24) | (selection::kOutlineColor & 0x00FFFFFFu);
-                helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, halo_argb,
-                                         selection::halo_width(local_line_width, local_small_panel),
-                                         helix::gcode::Aa::Off);
-                ghost_width += ghost_style.width_bonus;
+            if (ghost_style.tagged) {
+                seg_color = (static_cast<uint32_t>(ghost_style.opa) << 24) | (seg_color & 0xFFFFFF);
             }
 
             // Draw line using Bresenham algorithm (width-aware)
-            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color, ghost_width,
-                                     helix::gcode::Aa::Off);
+            helix::gcode::thick_line(ghost_target(), p1.x, p1.y, p2.x, p2.y, seg_color,
+                                     local_line_width, helix::gcode::Aa::Off);
             ++segments_rendered;
         }
+    }
+
+    // The ghost buffer is rendered whole on every pass, so the rim can be stamped
+    // straight into it with no staleness to manage — unlike the solid cache,
+    // which grows a layer at a time.
+    if (local_selection.any_highlighted()) {
+        helix::gcode::stroke_selection_rim(
+            ghost_target(), selection::outline_width_px(ghost_raw_width_),
+            selection::outline_width_px(ghost_raw_width_), selection::kOutlineColor);
     }
 
     // Mark as ready for main thread to copy

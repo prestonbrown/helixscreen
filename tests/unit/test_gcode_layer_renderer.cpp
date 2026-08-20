@@ -1134,7 +1134,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an unselected plate draws no white pixels",
     REQUIRE(counts.white == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white halo",
+TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white rim without growing it",
                  "[layer_renderer][halo]") {
     auto gcode = make_test_gcode();
     lv_obj_t* canvas = lv_canvas_create(test_screen());
@@ -1148,11 +1148,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "selecting an object draws a white halo",
     INFO("plain: painted=" << plain.painted << " white=" << plain.white);
     INFO("selected: painted=" << selected.painted << " white=" << selected.white);
 
-    // The halo is the only source of white.
+    // The rim is the only source of white.
     REQUIRE(selected.white > 0);
-    // And it widens the object's footprint rather than merely recolouring it,
-    // which is what distinguishes a halo from the old blue-recolour behaviour.
-    REQUIRE(selected.painted > plain.painted);
+
+    // And the object occupies exactly the same pixels it did unselected. This
+    // assertion used to be the other way round - the halo was painted wider than
+    // the object and the footprint grew - which is precisely why it flooded: the
+    // white it laid down outside the object had to be covered by something, and
+    // on a sloped wall nothing ever covered it.
+    REQUIRE(selected.painted == plain.painted);
+
+    // A rim is a boundary, so it is a minority of the object's pixels. A flood
+    // still satisfies "white > 0".
+    REQUIRE(selected.white * 2 < selected.painted);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "the halo covers only the selected object",
