@@ -407,6 +407,7 @@ class GCodeGLESRenderer {
     int u_specular_shininess_ = -1;
     int u_model_view_ = -1;
     int u_base_alpha_ = -1;
+    int u_lift_strength_ = -1;
     // Attribute locations
     int a_position_ = -1;
     int a_normal_ = -1;

@@ -7,6 +7,7 @@
 
 #include "data_root_resolver.h"
 #include "gcode_gl_fallback.h"
+#include "gcode_projection.h"
 #include "gcode_selection_style.h"
 #include "runtime_config.h"
 
@@ -271,6 +272,7 @@ static const char* FRAGMENT_SHADER_SOURCE = R"(
     uniform float u_specular_intensity;
     uniform float u_specular_shininess;
     uniform float u_base_alpha;
+    uniform float u_lift_strength;
 
     void main() {
         vec3 n = normalize(v_normal);
@@ -290,7 +292,19 @@ static const char* FRAGMENT_SHADER_SOURCE = R"(
             spec += pow(max(dot(n, half_dir), 0.0), u_specular_shininess);
         }
 
-        vec3 color = v_base_color * diffuse + vec3(spec * u_specular_intensity);
+        // Headroom-proportional lift, the same idea as apply_shading() on the
+        // 2D path and for the same reason. base * diffuse is a MULTIPLY: a black
+        // filament has nothing to multiply, so all form collapses and the only
+        // signal left is the specular term, which peaks around a quarter
+        // intensity. The object reads as a flat silhouette.
+        //
+        // Adding light proportional to what the channel has left (1 - base)
+        // gives a dark filament the range it lacks while a light one, having
+        // almost no headroom, is left essentially as it was.
+        float lit = clamp((diffuse.r + diffuse.g + diffuse.b) / 3.0, 0.0, 1.0);
+        vec3 lift = (vec3(1.0) - v_base_color) * lit * u_lift_strength;
+
+        vec3 color = v_base_color * diffuse + lift + vec3(spec * u_specular_intensity);
         gl_FragColor = vec4(color, u_base_alpha);
     }
 )";
@@ -610,6 +624,7 @@ bool GCodeGLESRenderer::compile_shaders() {
     u_specular_shininess_ = glGetUniformLocation(program_, "u_specular_shininess");
     u_model_view_ = glGetUniformLocation(program_, "u_model_view");
     u_base_alpha_ = glGetUniformLocation(program_, "u_base_alpha");
+    u_lift_strength_ = glGetUniformLocation(program_, "u_lift_strength");
     a_position_ = glGetAttribLocation(program_, "a_position");
     a_normal_ = glGetAttribLocation(program_, "a_normal");
     a_color_ = glGetAttribLocation(program_, "a_color");
@@ -1303,6 +1318,9 @@ void GCodeGLESRenderer::render_to_fbo(const ParsedGCodeFile& gcode, const GCodeC
     // Material
     glUniform1f(u_specular_intensity_, specular_intensity_);
     glUniform1f(u_specular_shininess_, specular_shininess_);
+    // Matches depth_shading::LIFT_STRENGTH on the 2D path, so the same model in
+    // the same filament reads the same way in either renderer.
+    glUniform1f(u_lift_strength_, helix::gcode::depth_shading::LIFT_STRENGTH);
 
     // Per-vertex color mode: use vertex colors when geometry has a color palette.
     // With per-tool AMS overrides, the palette is updated in-place so vertex colors

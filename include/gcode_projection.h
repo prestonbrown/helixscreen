@@ -184,6 +184,72 @@ constexpr float FULL_GRADIENT_HEIGHT = 50.0f; ///< Objects shorter than this get
 /// @param y_min  Minimum Y of the model/object bounding box
 /// @param y_max  Maximum Y of the bounding box
 /// @return Brightness multiplier in [~0.34, 1.0]
+/// How much headroom-proportional light apply_shading() adds on top of the
+/// multiply. Chosen so a black filament gains real form without a light one
+/// changing perceptibly.
+namespace depth_shading {
+constexpr float LIFT_STRENGTH = 0.40f;
+/// Bottom of compute_depth_brightness()'s range: MIN_BRIGHTNESS * BACK_FADE_MIN.
+constexpr float BRIGHTNESS_FLOOR = MIN_BRIGHTNESS * BACK_FADE_MIN;
+} // namespace depth_shading
+
+/**
+ * @brief Apply a depth-shading factor to one colour channel.
+ *
+ * compute_depth_brightness() returns roughly [0.34, 1.0], and applying that as
+ * a plain multiply means shading can only ever DARKEN. At the brightest point
+ * on the model the factor is 1.0, which returns the filament colour unchanged,
+ * so the lightest any pixel can be IS the filament colour.
+ *
+ * For a black filament that is 0 * anything = 0 and the whole object renders as
+ * a single tone. Measured on a stepped cone:
+ *
+ *     filament      spread  distinct
+ *     black              0         1     <- one value across 8820 pixels
+ *     near-black        13         9
+ *     mid grey          79        45
+ *     white            148        75
+ *
+ * A slicer thumbnail of the same object reads properly because its lighting
+ * ADDS light as well as subtracting it.
+ *
+ * So: keep the multiply exactly as it was, and add a second term proportional
+ * to the channel's remaining HEADROOM (255 - c). That term is what makes this
+ * adaptive rather than a trade:
+ *
+ *   - black has all the headroom, so it gains the entire highlight range and
+ *     goes from one flat tone to real form
+ *   - white has almost none, so the term is worth a few levels and its existing
+ *     tonal range is preserved intact
+ *
+ * A previous attempt re-centred the factor and split it evenly between darken
+ * and lighten. That fixed black and quietly wrecked white, whose 75 distinct
+ * luminances collapsed to 17 as the highlight half compressed into the 15
+ * levels it had left. Proportional-to-headroom has no such trade.
+ */
+inline uint8_t apply_shading(uint8_t c, float brightness) {
+    constexpr float floor_b = depth_shading::BRIGHTNESS_FLOOR;
+    float norm = (brightness - floor_b) / (1.0f - floor_b);
+    if (norm < 0.0f) {
+        norm = 0.0f;
+    }
+    if (norm > 1.0f) {
+        norm = 1.0f;
+    }
+
+    const float base = static_cast<float>(c);
+    const float lift = (255.0f - base) * norm * depth_shading::LIFT_STRENGTH;
+    float out = base * brightness + lift;
+
+    if (out < 0.0f) {
+        out = 0.0f;
+    }
+    if (out > 255.0f) {
+        out = 255.0f;
+    }
+    return static_cast<uint8_t>(out + 0.5f);
+}
+
 inline float compute_depth_brightness(float avg_z, float z_min, float z_max, float avg_y,
                                       float y_min, float y_max) {
     constexpr float EPSILON = 0.001f;
