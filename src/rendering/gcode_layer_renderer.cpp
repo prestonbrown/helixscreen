@@ -108,7 +108,6 @@ GCodeLayerRenderer::~GCodeLayerRenderer() {
     cancel_background_ghost_render();
 
     destroy_cache();
-    destroy_ssao_cache();
     destroy_ghost_cache();
 }
 
@@ -580,6 +579,8 @@ void GCodeLayerRenderer::destroy_cache() {
             crash_handler::breadcrumb::note("cache_buf", "destroy_post");
         }
         cache_buf_ = nullptr;
+        // Offsets into a buffer that no longer exists.
+        ssao_undo_.clear();
     }
     cached_up_to_layer_ = -1;
     cached_width_ = 0;
@@ -591,6 +592,9 @@ void GCodeLayerRenderer::invalidate_solid_cache() {
     if (cache_buf_) {
         lv_draw_buf_clear(cache_buf_, nullptr);
     }
+    // The pixels the undo log describes are gone, so there is nothing to put
+    // back. Replaying here would paint the old shading onto a cleared canvas.
+    ssao_undo_.clear();
     cached_up_to_layer_ = -1;
     ssao_cache_valid_ = false;
     selection_rim_stamped_ = false;
@@ -614,34 +618,45 @@ void GCodeLayerRenderer::invalidate_cache() {
 // SSAO Post-Processing
 // ============================================================================
 
-void GCodeLayerRenderer::ensure_ssao_cache(int width, int height) {
-    if (ssao_buf_ && ssao_cached_width_ == width && ssao_cached_height_ == height)
-        return;
+helix::gcode::RenderMemoryReport GCodeLayerRenderer::memory_report() const {
+    helix::gcode::RenderMemoryReport r;
 
-    destroy_ssao_cache();
-    ssao_buf_ = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
-    if (!ssao_buf_) {
-        spdlog::error("[GCodeLayerRenderer] Failed to create SSAO buffer {}x{}", width, height);
-        return;
-    }
-    lv_draw_buf_clear(ssao_buf_, nullptr);
-    ssao_cached_width_ = width;
-    ssao_cached_height_ = height;
+    // Real stride, not width*4. lv_draw_buf_create() is called with
+    // LV_STRIDE_AUTO, which aligns each row up to LV_DRAW_BUF_STRIDE_ALIGN, so
+    // the naive product understates the allocation.
+    auto draw_buf_bytes = [](const lv_draw_buf_t* b) -> size_t {
+        return b ? static_cast<size_t>(b->header.stride) * b->header.h : 0;
+    };
+
+    r.add("solid_cache", draw_buf_bytes(cache_buf_));
+    r.add("ghost_cache", draw_buf_bytes(ghost_buf_));
+    r.add("ghost_raw",
+          ghost_raw_buffer_ ? ghost_raw_stride_ * static_cast<size_t>(ghost_raw_height_) : 0);
+    // Not a canvas any more. The SSAO pass records only the pixels it darkens,
+    // so this line is the measurement of that trade rather than a buffer.
+    r.add("ssao_undo", ssao_undo_.capacity() * sizeof(SsaoUndoEntry));
+    return r;
 }
 
-void GCodeLayerRenderer::destroy_ssao_cache() {
-    if (ssao_buf_) {
-        if (lv_is_initialized()) {
-            // ssao_buf_ feeds dsc.src in apply_ssao()'s blit (line ~595) — same
-            // parallel-render UAF pattern as cache_buf_ (#929). Wait for in-flight
-            // draw tasks before freeing.
-            lv_draw_wait_for_finish();
-            lv_draw_buf_destroy(ssao_buf_);
-        }
-        ssao_buf_ = nullptr;
+void GCodeLayerRenderer::log_memory_report(const char* when) const {
+    if (!spdlog::should_log(spdlog::level::debug)) {
+        return;
     }
-    ssao_cached_width_ = 0;
-    ssao_cached_height_ = 0;
+    const auto r = memory_report();
+    spdlog::debug("[GCodeLayerRenderer] memory after {}: {}", when, r.format());
+}
+
+void GCodeLayerRenderer::restore_ssao_shading() {
+    if (ssao_undo_.empty()) {
+        return;
+    }
+    if (cache_buf_) {
+        auto* px = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(cache_buf_->data));
+        for (const auto& e : ssao_undo_) {
+            px[e.offset_px] = e.original;
+        }
+    }
+    ssao_undo_.clear();
     ssao_cache_valid_ = false;
 }
 
@@ -652,34 +667,46 @@ void GCodeLayerRenderer::apply_ssao() {
     const int w = cached_width_;
     const int h = cached_height_;
 
-    ensure_ssao_cache(w, h);
-    if (!ssao_buf_)
-        return;
+    // Start from a pristine buffer, always. Defence rather than mechanism: every
+    // path that invalidates the shading today already restores it first
+    // (render_layers_to_cache before it draws, set_ssao_enabled on toggle), and
+    // removing this line leaves the whole suite green. It stays because the
+    // failure it prevents is silent and cumulative - the darkening is a MULTIPLY,
+    // so a second pass over its own output gives 0.3 * 0.3 and the model creeps
+    // darker - and because restore_ssao_shading() costs one branch when there is
+    // nothing to undo. A new invalidation path that forgets to restore is caught
+    // here instead of shipping.
+    restore_ssao_shading();
 
-    auto* src_data = static_cast<uint8_t*>(cache_buf_->data);
-    auto* dst_data = static_cast<uint8_t*>(ssao_buf_->data);
-    uint32_t stride = cache_buf_->header.stride;
-    uint32_t stride_px = stride / 4;
-
-    auto* src = reinterpret_cast<const uint32_t*>(src_data);
-    auto* dst = reinterpret_cast<uint32_t*>(dst_data);
-
-    // Copy source to destination first
-    std::memcpy(dst_data, src_data, static_cast<size_t>(h) * stride);
+    auto* data = static_cast<uint8_t*>(cache_buf_->data);
+    const uint32_t stride = cache_buf_->header.stride;
+    const uint32_t stride_px = stride / 4;
+    auto* px = reinterpret_cast<uint32_t*>(data);
 
     uint32_t start_ms = lv_tick_get();
 
     // =========================================================================
-    // Silhouette outline: 1px dark border on alpha boundary
-    // For each empty pixel adjacent to a filled pixel, draw a dark outline.
-    // Makes the model pop from the background.
+    // Silhouette outline: 1px dark border on alpha boundary.
+    //
+    // Runs IN PLACE on the render cache. That is safe for one specific reason:
+    // the pass reads only the ALPHA of its neighbours and writes only RGB, so a
+    // pixel it has already rewritten still answers every later neighbour test
+    // identically. It used to memcpy the whole canvas into a second buffer to
+    // get that guarantee, which the channel split already provides for free.
     // =========================================================================
     constexpr float OUTLINE_DARKEN = 0.3f; // Outline brightness (0=black, 1=original)
 
+    size_t filled_px = 0; // pixels with any coverage at all
+
+    // One allocation per pass at most: the edge population is stable frame to
+    // frame, so after the first scan the vector is already big enough.
+    ssao_undo_.clear();
+
     for (int y = 1; y < h - 1; y++) {
         for (int x = 1; x < w - 1; x++) {
-            uint32_t pixel = src[y * stride_px + x];
-            uint8_t alpha = (pixel >> 24) & 0xFF;
+            const uint32_t offset = static_cast<uint32_t>(y) * stride_px + static_cast<uint32_t>(x);
+            const uint32_t pixel = px[offset];
+            const uint8_t alpha = (pixel >> 24) & 0xFF;
 
             if (alpha == helix::gcode::kSelectedAlpha) {
                 // Selected object. Its edge is the white rim stroke_selection_rim()
@@ -690,43 +717,33 @@ void GCodeLayerRenderer::apply_ssao() {
             }
 
             if (alpha > 0) {
+                ++filled_px;
                 // Filled pixel: check if it's on the silhouette edge
                 // (has at least one empty neighbor in 4-connected)
-                bool on_edge = ((src[(y - 1) * stride_px + x] >> 24) == 0) ||
-                               ((src[(y + 1) * stride_px + x] >> 24) == 0) ||
-                               ((src[y * stride_px + (x - 1)] >> 24) == 0) ||
-                               ((src[y * stride_px + (x + 1)] >> 24) == 0);
+                const bool on_edge = ((px[offset - stride_px] >> 24) == 0) ||
+                                     ((px[offset + stride_px] >> 24) == 0) ||
+                                     ((px[offset - 1] >> 24) == 0) || ((px[offset + 1] >> 24) == 0);
 
                 if (on_edge) {
-                    uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * OUTLINE_DARKEN);
-                    uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * OUTLINE_DARKEN);
-                    uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * OUTLINE_DARKEN);
-                    dst[y * stride_px + x] =
-                        (static_cast<uint32_t>(alpha) << 24) | (r << 16) | (g << 8) | b;
+                    ssao_undo_.push_back(SsaoUndoEntry{offset, pixel});
+                    const uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * OUTLINE_DARKEN);
+                    const uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * OUTLINE_DARKEN);
+                    const uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * OUTLINE_DARKEN);
+                    px[offset] = (static_cast<uint32_t>(alpha) << 24) |
+                                 (static_cast<uint32_t>(r) << 16) |
+                                 (static_cast<uint32_t>(g) << 8) | b;
                 }
             }
         }
     }
 
     uint32_t elapsed = lv_tick_elaps(start_ms);
-    spdlog::debug("[GCodeLayerRenderer] SSAO (outline) applied in {}ms ({}x{})", elapsed, w, h);
+    spdlog::debug("[GCodeLayerRenderer] SSAO (outline) applied in {}ms ({}x{}), "
+                  "edge_px={} filled_px={}, undo_log={}KB",
+                  elapsed, w, h, ssao_undo_.size(), filled_px,
+                  (ssao_undo_.size() * sizeof(SsaoUndoEntry) + 1023) / 1024);
 
     ssao_cache_valid_ = true;
-}
-
-void GCodeLayerRenderer::blit_ssao_cache(lv_layer_t* target) {
-    if (!ssao_buf_)
-        return;
-
-    lv_draw_image_dsc_t dsc;
-    lv_draw_image_dsc_init(&dsc);
-    dsc.src = ssao_buf_;
-
-    lv_area_t coords = {widget_offset_x_, widget_offset_y_,
-                        widget_offset_x_ + ssao_cached_width_ - 1,
-                        widget_offset_y_ + ssao_cached_height_ - 1};
-
-    lv_draw_image(target, &dsc, &coords);
 }
 
 void GCodeLayerRenderer::ensure_cache(int width, int height) {
@@ -755,12 +772,18 @@ void GCodeLayerRenderer::ensure_cache(int width, int height) {
 
         spdlog::debug("[GCodeLayerRenderer] Created cache buffer: {}x{}", width, height);
         helix::MemoryMonitor::log_now("gcode_cache_buffer_created");
+        log_memory_report("solid cache created");
     }
 }
 
 int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     if (!cache_buf_)
         return from_layer - 1;
+
+    // Undo the shading BEFORE new geometry lands on top of it. Segments drawn
+    // over a darkened pixel would bake that darkening in permanently, and the
+    // log would then restore a colour the new geometry had already replaced.
+    restore_ssao_shading();
 
     // Need either gcode file or streaming controller
     if (!gcode_ && !streaming_controller_)
@@ -932,10 +955,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                   from_layer, to_layer, segments_rendered, cached_width_, cached_height_,
                   cache_buf_ ? cache_buf_->header.stride : 0);
 
-    // Cache content changed; the SSAO post-processed copy is now stale.
-    // Without this, blit_ssao_cache() keeps drawing the first SSAO snapshot
-    // (frozen at the layer where SSAO was first applied) and progressive
-    // layers never become visible during an active print.
+    // Cache content changed, so the shading is stale. apply_ssao() restores
+    // before it re-scans, so simply marking it invalid is enough here.
     ssao_cache_valid_ = false;
 
     return last_rendered;
@@ -996,6 +1017,7 @@ void GCodeLayerRenderer::ensure_ghost_cache(int width, int height) {
         ghost_cache_valid_ = false;
         spdlog::debug("[GCodeLayerRenderer] Created ghost cache buffer: {}x{}", width, height);
         helix::MemoryMonitor::log_now("gcode_ghost_buffer_created");
+        log_memory_report("ghost cache created");
     }
 }
 
@@ -1160,6 +1182,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                 // object is selected, which is a transient interaction.
                 if (selection_rim_stamped_) {
                     lv_draw_buf_clear(cache_buf_, nullptr);
+                    ssao_undo_.clear();
                     cached_up_to_layer_ = -1;
                     selection_rim_stamped_ = false;
                     ssao_cache_valid_ = false;
@@ -1185,6 +1208,7 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
             } else if (target_layer < cached_up_to_layer_) {
                 // Going backwards - need to re-render from scratch (progressively)
                 lv_draw_buf_clear(cache_buf_, nullptr);
+                ssao_undo_.clear();
                 cached_up_to_layer_ = -1;
 
                 int to_layer = std::min(layers_per_frame_ - 1, target_layer);
@@ -1216,17 +1240,15 @@ void GCodeLayerRenderer::render(lv_layer_t* layer, const lv_area_t* widget_area)
                 blit_ghost_cache(layer);
             }
 
-            // Apply SSAO post-processing when enabled and cache is fully built
-            bool ssao_on = ssao_enabled_.load(std::memory_order_relaxed);
-            bool cache_complete = (cached_up_to_layer_ >= target_layer);
-            if (ssao_on && cache_complete) {
-                if (!ssao_cache_valid_) {
-                    apply_ssao();
-                }
-                blit_ssao_cache(layer);
-            } else {
-                blit_cache(layer);
+            // Apply SSAO post-processing when enabled and cache is fully built.
+            // There is one buffer now, so both branches blit the same thing; the
+            // difference is only whether the shading has been applied to it.
+            const bool ssao_on = ssao_enabled_.load(std::memory_order_relaxed);
+            const bool cache_complete = (cached_up_to_layer_ >= target_layer);
+            if (ssao_on && cache_complete && !ssao_cache_valid_) {
+                apply_ssao();
             }
+            blit_cache(layer);
             segments_rendered = last_segment_count_;
         }
     } else {

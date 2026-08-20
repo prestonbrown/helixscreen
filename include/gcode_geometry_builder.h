@@ -522,15 +522,6 @@ class GeometryBuilder {
     void set_filament_color(const std::string& hex_color);
 
     /**
-     * @brief Enable/disable smooth shading (Gouraud)
-     * @param enable true for smooth shading (averaged normals), false for flat shading (per-face
-     * normals)
-     */
-    void set_smooth_shading(bool enable) {
-        use_smooth_shading_ = enable;
-    }
-
-    /**
      * @brief Set layer height for tube geometry (default: 0.2mm)
      * @param height_mm Layer height in millimeters
      *
@@ -650,7 +641,6 @@ class GeometryBuilder {
     float travel_width_mm_ = 0.1f;                  ///< Thin for travels
     float layer_height_mm_ = 0.2f;                  ///< Layer height for tube vertical dimension
     bool use_height_gradient_ = true;               ///< Rainbow Z-gradient
-    bool use_smooth_shading_ = false;               ///< Smooth (Gouraud) vs flat shading
     uint8_t filament_r_ = 0x26;                     ///< Filament color red component
     uint8_t filament_g_ = 0xA6;                     ///< Filament color green component
     uint8_t filament_b_ = 0x9A;                     ///< Filament color blue component

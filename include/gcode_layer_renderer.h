@@ -7,6 +7,7 @@
 #include "gcode_parser.h"
 #include "gcode_projection.h"
 #include "gcode_raster.h"
+#include "gcode_render_memory.h"
 #include "gcode_selection_state.h"
 #include "gcode_streaming_controller.h"
 
@@ -250,16 +251,29 @@ class GCodeLayerRenderer {
      */
     void set_ssao_enabled(bool enable) {
         ssao_enabled_.store(enable, std::memory_order_relaxed);
+        // Undo the shading before dropping the record of it, or the darkened
+        // pixels stay dark forever with nothing left that knows how to restore
+        // them. Main-thread only, like every caller of this setter.
+        restore_ssao_shading();
         ssao_cache_valid_ = false;
-        if (!enable) {
-            // Release the full-canvas ARGB8888 scratch buffer; ensure_ssao_cache()
-            // recreates it if SSAO is switched back on. Main-thread only (waits for
-            // in-flight LVGL draw tasks) — all callers are widget/UI-thread code.
-            destroy_ssao_cache();
-        }
     }
 
     /** @brief Check if SSAO is enabled */
+    /**
+     * @brief Itemized heap this renderer holds, for A/B measurement.
+     *
+     * Four full-canvas buffers, which is one more than the count quoted in
+     * gcode_ssao_policy.h when it decided constrained devices could not afford
+     * enhanced shading. Sizes come from each buffer's real stride, not w*4:
+     * LV_STRIDE_AUTO aligns rows, so the naive product understates what was
+     * actually allocated.
+     */
+    helix::gcode::RenderMemoryReport memory_report() const;
+
+    /// Emit memory_report() at debug level, tagged with what just happened.
+    /// `when` is a short static label, e.g. "cache_created".
+    void log_memory_report(const char* when) const;
+
     bool get_ssao_enabled() const {
         return ssao_enabled_.load(std::memory_order_relaxed);
     }
@@ -641,10 +655,26 @@ class GCodeLayerRenderer {
     int cached_width_ = 0;        // Dimensions cache was built for
     int cached_height_ = 0;
 
-    // SSAO post-processing buffer - copy of cache with ambient occlusion applied
-    lv_draw_buf_t* ssao_buf_ = nullptr;
-    int ssao_cached_width_ = 0;
-    int ssao_cached_height_ = 0;
+    /// One pixel apply_ssao() darkened, and what it held first.
+    struct SsaoUndoEntry {
+        uint32_t offset_px; ///< index into cache_buf_, in pixels not bytes
+        uint32_t original;  ///< the ARGB word before darkening
+    };
+
+    /// What the SSAO pass changed, so it can be taken back.
+    ///
+    /// This replaced a full-canvas ARGB8888 second buffer whose only job was to
+    /// keep an untouched copy of the source. The pass darkens the silhouette
+    /// edge, and the edge is a perimeter: measured across a whole 218-layer
+    /// three-object print it peaked at 713 pixels, 4.3% of the filled pixels and
+    /// falling as the model densified. 713 entries is 6KB against the buffer's
+    /// 427KB.
+    ///
+    /// An undo log rather than simply running in place, because the darkening is
+    /// a MULTIPLY. Re-running it over its own output compounds (0.3 * 0.3), and
+    /// a progressive append leaves pixels darkened that are no longer edges. The
+    /// pass restores before it re-scans, which makes both cases exact.
+    std::vector<SsaoUndoEntry> ssao_undo_;
     bool ssao_cache_valid_ = false;
 
     /// True once stroke_selection_rim() has written the white silhouette into
@@ -711,11 +741,14 @@ class GCodeLayerRenderer {
     void blit_cache(lv_layer_t* target);
     void destroy_cache();
 
-    // SSAO post-processing
-    void ensure_ssao_cache(int width, int height);
+    // SSAO post-processing, applied to cache_buf_ in place.
     void apply_ssao();
-    void blit_ssao_cache(lv_layer_t* target);
-    void destroy_ssao_cache();
+
+    /// Put every pixel apply_ssao() darkened back the way it was, and forget
+    /// them. Safe to call when nothing is recorded. Must run before anything
+    /// draws into cache_buf_ again, or the log points at pixels that have moved
+    /// on and restoring would paint stale colour over new geometry.
+    void restore_ssao_shading();
 
     // Ghost cache methods (LVGL-based, for main thread progressive rendering)
     void ensure_ghost_cache(int width, int height);

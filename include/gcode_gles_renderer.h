@@ -9,6 +9,7 @@
 #include "gcode_color_palette.h"
 #include "gcode_geometry_builder.h"
 #include "gcode_parser.h"
+#include "gcode_render_memory.h"
 #include "gcode_selection_state.h"
 
 #include <lvgl/lvgl.h>
@@ -178,7 +179,6 @@ class GCodeGLESRenderer {
     // ====== Color / Material ======
 
     void set_filament_color(const std::string& hex_color);
-    void set_smooth_shading(bool enable);
     void set_simplification_tolerance(float tolerance_mm);
     void set_specular(float intensity, float shininess);
     void set_debug_face_colors(bool enable);
@@ -237,7 +237,13 @@ class GCodeGLESRenderer {
         return triangles_rendered_ / 2;
     }
     size_t get_geometry_color_count() const;
-    size_t get_memory_usage() const;
+    /// Itemized heap and VRAM this renderer holds, for A/B measurement. Replaces
+    /// a get_memory_usage() that returned a bare total, had no caller anywhere,
+    /// and silently omitted the readback buffer.
+    helix::gcode::RenderMemoryReport memory_report() const;
+
+    /// Emit memory_report() at debug level, tagged with what just happened.
+    void log_memory_report(const char* when) const;
     size_t get_triangle_count() const;
 
   private:

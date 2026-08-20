@@ -676,6 +676,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
 
     fbo_width_ = width;
     fbo_height_ = height;
+    log_memory_report("fbo created");
     spdlog::debug("[GCode GLES] FBO created: {}x{}", width, height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1665,10 +1666,6 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
     }
 }
 
-void GCodeGLESRenderer::set_smooth_shading(bool /*enable*/) {
-    frame_dirty_ = true;
-}
-
 void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
     // Simplification is applied during geometry build, not at render time
 }
@@ -1853,27 +1850,48 @@ size_t GCodeGLESRenderer::get_geometry_color_count() const {
     return 0;
 }
 
-size_t GCodeGLESRenderer::get_memory_usage() const {
-    size_t total = sizeof(*this);
+helix::gcode::RenderMemoryReport GCodeGLESRenderer::memory_report() const {
+    helix::gcode::RenderMemoryReport r;
+
+    size_t geometry = 0;
     if (geometry_) {
-        total += geometry_->vertices.size() * sizeof(RibbonVertex);
-        total += geometry_->strips.size() * sizeof(TriangleStrip);
-        total += geometry_->strip_color_index.size() * sizeof(uint8_t);
+        geometry += geometry_->vertices.size() * sizeof(RibbonVertex);
+        geometry += geometry_->strips.size() * sizeof(TriangleStrip);
+        geometry += geometry_->strip_color_index.size() * sizeof(uint8_t);
     }
-    if (draw_buf_) {
-        total += static_cast<size_t>(draw_buf_width_ * draw_buf_height_ * 3);
-    }
-    // Approximate GPU VRAM usage (VBOs + FBO)
+    r.add("geometry", geometry);
+
+    // RGB888, no alpha: blit_to_lvgl drops the alpha byte on the way in, which
+    // is what freed it up to carry the selection tag.
+    r.add("draw_buf", draw_buf_ ? static_cast<size_t>(draw_buf_width_) *
+                                      static_cast<size_t>(draw_buf_height_) * 3
+                                : 0);
+
+    // Was missing from the old accounting entirely. It is a full RGBA copy of
+    // the framebuffer and it is resident for the life of the renderer.
+    r.add("readback", readback_buf_.size());
+
+    size_t vbo = 0;
     for (const auto& lv : layer_vbos_) {
         if (lv.vbo) {
-            total += lv.vertex_count * PackedVertex::stride();
+            vbo += lv.vertex_count * PackedVertex::stride();
         }
     }
-    if (fbo_.id) {
-        // Color RBO (RGBA8 = 4 bytes/pixel) + Depth RBO (16-bit = 2 bytes/pixel)
-        total += static_cast<size_t>(fbo_width_ * fbo_height_ * 6);
+    r.add("vbo_gpu", vbo);
+
+    // Colour RBO (RGBA8, 4 bytes) + depth RBO (16-bit, 2 bytes). Lives in VRAM,
+    // reported alongside host heap because on the SoCs we ship to it is the same
+    // physical memory.
+    r.add("fbo_gpu",
+          fbo_.id ? static_cast<size_t>(fbo_width_) * static_cast<size_t>(fbo_height_) * 6 : 0);
+    return r;
+}
+
+void GCodeGLESRenderer::log_memory_report(const char* when) const {
+    if (!spdlog::should_log(spdlog::level::debug)) {
+        return;
     }
-    return total;
+    spdlog::debug("[GCode GLES] memory after {}: {}", when, memory_report().format());
 }
 
 size_t GCodeGLESRenderer::get_triangle_count() const {

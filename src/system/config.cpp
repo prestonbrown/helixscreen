@@ -1372,7 +1372,7 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                    {"dark_mode", true},
                    {"theme", {{"preset", 0}}},
                    {"display", get_default_display_config()},
-                   {"gcode_viewer", {{"shading_model", "phong"}, {"tube_sides", 4}}},
+                   {"gcode_viewer", {{"tube_sides", 4}}},
                    {"input",
                     {{"scroll_throw", 25},
                      {"scroll_limit", 10},
