@@ -2233,7 +2233,11 @@ int GCodeLayerRenderer::get_extrusion_pixel_width() const {
     // Streaming mode: no metadata available, use default 0.4mm
 
     int pixel_width = static_cast<int>(std::round(width_mm * scale_));
-    return std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
+    const int clamped =
+        std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
+    spdlog::trace("[GCodeLayerRenderer] extrusion width: {}mm * scale {} = {}px (clamped {})",
+                  width_mm, scale_, pixel_width, clamped);
+    return clamped;
 }
 
 // ============================================================================

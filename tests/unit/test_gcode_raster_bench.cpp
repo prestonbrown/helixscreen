@@ -131,25 +131,32 @@ TEST_CASE("thick_line throughput", "[.][raster_bench]") {
 
 TEST_CASE("antialiasing cost relative to aliased", "[.][raster_bench]") {
     // The solid cache draws antialiased whenever enhanced shading is on, so the
-    // AA path is the one that runs on a desktop and a Pi. Worth knowing what it
-    // costs before touching either.
+    // AA path is the one that runs on a desktop and a Pi.
+    //
+    // Width 1 is the row that matters. A 200mm plate across a 377px viewport is
+    // about 1.8 px/mm, so a 0.42mm extrusion is 0.75px and clamps to ONE - every
+    // stroke the viewer draws is a hairline, whatever the slicer said. Measuring
+    // this at width 4 overstates what the renderer actually pays.
     Canvas cv;
     constexpr int kSegments = 20000;
 
-    for (auto aa : {Aa::Off, Aa::On}) {
-        cv.clear();
-        const auto t0 = std::chrono::steady_clock::now();
-        for (int i = 0; i < kSegments; ++i) {
-            const int x0 = 20 + (i * 37) % 460;
-            const int y0 = 20 + (i * 53) % 460;
-            const int x1 = 20 + (i * 71) % 460;
-            const int y1 = 20 + (i * 97) % 460;
-            thick_line(cv.target(), x0, y0, x1, y1, 0xFF3060C0u, 4, aa);
+    for (int w : {1, 2, 4}) {
+        for (auto aa : {Aa::Off, Aa::On}) {
+            cv.clear();
+            const auto t0 = std::chrono::steady_clock::now();
+            for (int i = 0; i < kSegments; ++i) {
+                const int x0 = 20 + (i * 37) % 460;
+                const int y0 = 20 + (i * 53) % 460;
+                const int x1 = 20 + (i * 71) % 460;
+                const int y1 = 20 + (i * 97) % 460;
+                thick_line(cv.target(), x0, y0, x1, y1, 0xFF3060C0u, w, aa);
+            }
+            const auto t1 = std::chrono::steady_clock::now();
+            const double us =
+                std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+            std::printf("  width %d, Aa::%-3s : %8.1f us/1k segs\n", w, aa == Aa::On ? "On" : "Off",
+                        us / (kSegments / 1000.0));
         }
-        const auto t1 = std::chrono::steady_clock::now();
-        const double us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-        std::printf("  width 4, Aa::%-3s : %8.1f us/1k segs\n", aa == Aa::On ? "On" : "Off",
-                    us / (kSegments / 1000.0));
     }
     std::printf("\n");
     SUCCEED();
