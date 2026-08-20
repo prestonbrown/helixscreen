@@ -362,6 +362,7 @@ src/ui/ui_info_qr_modal.cpp
 src/ui/ui_job_queue_modal.cpp
 src/ui/ui_jog_pad.cpp
 src/ui/ui_keyboard_manager.cpp
+src/ui/ui_keycap_style.cpp
 src/ui/ui_led_chip_factory.cpp
 src/ui/ui_led_control_overlay.cpp
 src/ui/ui_lock_screen.cpp
