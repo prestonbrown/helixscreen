@@ -1669,10 +1669,6 @@ void GCodeGLESRenderer::set_smooth_shading(bool /*enable*/) {
     frame_dirty_ = true;
 }
 
-void GCodeGLESRenderer::set_extrusion_width(float width_mm) {
-    extrusion_width_ = width_mm;
-}
-
 void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
     // Simplification is applied during geometry build, not at render time
 }
@@ -2241,7 +2237,7 @@ std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& scree
     float closest_distance = std::numeric_limits<float>::max();
     std::optional<std::string> picked_object;
 
-    constexpr float PICK_THRESHOLD = PICK_THRESHOLD_PX;
+    constexpr float PICK_THRESHOLD = selection::kPickThresholdPx;
 
     int ls = layer_start_;
     int le = (layer_end_ < 0 || layer_end_ >= static_cast<int>(gcode.layers.size()))

@@ -40,9 +40,6 @@ constexpr uint8_t EXCLUDED_B = selection::kExcludedColor & 0xFF;
 /// the fallback halo pre-pass widens the same number render_segment() draws.
 constexpr int DRAW_LINE_EXTRUSION_WIDTH = 2;
 
-/// Object pick distance threshold (pixels)
-constexpr float PICK_THRESHOLD_PX = 15.0f;
-
 /// Ghost-look tuning. The goal is a faint, translucent, see-through apparition — NOT a
 /// dimmer solid copy and NOT a washed-out gray. The transparency cue comes from letting
 /// the black canvas show THROUGH the shell: the sparse internal infill is rendered nearly
@@ -1597,10 +1594,10 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 
             // Inflated by the same slop the segment test uses, so a tap on the
             // edge of a thin object still lands.
-            if (click_pos.x < min_sx - PICK_THRESHOLD_PX ||
-                click_pos.x > max_sx + PICK_THRESHOLD_PX ||
-                click_pos.y < min_sy - PICK_THRESHOLD_PX ||
-                click_pos.y > max_sy + PICK_THRESHOLD_PX)
+            if (click_pos.x < min_sx - selection::kPickThresholdPx ||
+                click_pos.x > max_sx + selection::kPickThresholdPx ||
+                click_pos.y < min_sy - selection::kPickThresholdPx ||
+                click_pos.y > max_sy + selection::kPickThresholdPx)
                 continue;
 
             if (candidate_count < MAX_CANDIDATES) {
@@ -1713,7 +1710,7 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
                                     static_cast<float>(p1.y) + t * v.y);
             float dist = glm::length(click_pos - closest_point);
 
-            if (dist < PICK_THRESHOLD_PX && dist < closest_distance) {
+            if (dist < selection::kPickThresholdPx && dist < closest_distance) {
                 closest_distance = dist;
                 picked_index = seg.object_name_index;
             }

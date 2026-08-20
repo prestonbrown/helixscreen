@@ -56,9 +56,6 @@ constexpr glm::vec4 DEFAULT_FILAMENT_COLOR{0.15f, 0.65f, 0.60f, 1.0f};
 // Ghost layer default opacity (out of 255)
 constexpr uint8_t DEFAULT_GHOST_OPACITY = 5; // ~2% opacity — ghost layers should barely be visible
 
-// Object picking screen-space threshold (pixels)
-constexpr float PICK_THRESHOLD_PX = 15.0f;
-
 // Near-zero threshold for clipping space W division
 constexpr float CLIP_SPACE_W_EPSILON = 0.0001f;
 
@@ -182,7 +179,6 @@ class GCodeGLESRenderer {
 
     void set_filament_color(const std::string& hex_color);
     void set_smooth_shading(bool enable);
-    void set_extrusion_width(float width_mm);
     void set_simplification_tolerance(float tolerance_mm);
     void set_specular(float intensity, float shininess);
     void set_debug_face_colors(bool enable);
@@ -450,7 +446,6 @@ class GCodeGLESRenderer {
     glm::vec4 filament_color_{DEFAULT_FILAMENT_COLOR};
     float specular_intensity_ = DEFAULT_SPECULAR_INTENSITY;
     float specular_shininess_ = DEFAULT_SPECULAR_SHININESS;
-    float extrusion_width_ = 0.5f;
     bool debug_face_colors_ = false;
     bool show_travels_ = false;
     bool show_extrusions_ = true;
