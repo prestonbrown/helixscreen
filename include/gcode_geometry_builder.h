@@ -193,6 +193,55 @@ using TriangleStrip = std::array<uint32_t, 4>;
 using ColorCache = std::unordered_map<uint32_t, uint8_t>;
 
 /**
+ * @brief One contiguous stretch of a layer's GPU vertices belonging to one object.
+ *
+ * The mesh itself carries no object identity: VBOs are grouped per LAYER, and
+ * PackedVertex is 12 bytes with no room for an id. Adding one would grow every
+ * vertex of every layer, on machines with 114MB of RAM, to serve a transient
+ * single selection. Runs are the indirection instead — a side table that says
+ * "vertices [offset, offset+count) of layer L are object N".
+ *
+ * Cheap because slicers emit EXCLUDE_OBJECT_START/END blocks: an object's
+ * segments within one layer are already near-contiguous, so it is typically 1 to
+ * 3 runs per object per layer rather than one per segment.
+ *
+ * @note @ref vertex_offset is relative to THAT LAYER's VBO, because each layer
+ *       has its own. It is not an index into RibbonGeometry::vertices.
+ */
+struct ObjectRun {
+    uint32_t vertex_offset; ///< First vertex within the layer's VBO
+    uint16_t vertex_count;  ///< Always a multiple of 6 (a strip expands to 6 vertices)
+    int16_t object_index;   ///< Interned; matches ToolpathSegment::object_name_index
+};
+static_assert(sizeof(ObjectRun) == 8, "ObjectRun must stay 8 bytes — one per object per layer");
+
+/// Non-owning view of one layer's runs. Valid until the geometry is rebuilt or moved.
+struct ObjectRunSpan {
+    const ObjectRun* first = nullptr;
+    size_t count = 0;
+
+    const ObjectRun* begin() const {
+        return first;
+    }
+    const ObjectRun* end() const {
+        return first + count;
+    }
+    bool empty() const {
+        return count == 0;
+    }
+};
+
+/// Hard ceiling on the run table. Past this the indirection stops being cheap
+/// relative to the geometry it indexes, so run collection is abandoned entirely
+/// and the renderer falls back to what it did before runs existed (brackets
+/// only, no shell). 65536 runs is 512KB.
+inline constexpr size_t MAX_OBJECT_RUNS = 65536;
+
+/// Largest vertex_count that fits uint16 while staying strip-aligned
+/// (6 vertices per strip). A longer stretch is split across several runs.
+inline constexpr uint32_t MAX_RUN_VERTICES = 65532;
+
+/**
  * @brief Complete ribbon geometry for rendering
  */
 struct RibbonGeometry {
@@ -222,6 +271,15 @@ struct RibbonGeometry {
     // Per-layer bounding boxes for frustum culling (indexed by layer)
     std::vector<AABB> layer_bboxes; ///< AABB per layer for frustum culling
 
+    /// Per-object vertex runs, flat and grouped by layer. Empty when the file has
+    /// no exclude-object metadata, or when the MAX_OBJECT_RUNS guard tripped.
+    std::vector<ObjectRun> object_runs;
+
+    /// [layer_idx] -> (first index into object_runs, run count). Empty whenever
+    /// object_runs is empty, so a file without exclude-object metadata allocates
+    /// nothing at all for either table.
+    std::vector<std::pair<uint32_t, uint32_t>> layer_object_run_ranges;
+
     // Palette lookup cache (O(1) lookup instead of O(N) linear search)
     std::unique_ptr<ColorCache> color_cache; ///< Cache for color palette lookups
 
@@ -229,6 +287,24 @@ struct RibbonGeometry {
     size_t travel_triangle_count;    ///< Triangles for travel moves
     QuantizationParams quantization; ///< Quantization params for dequantization
     float layer_height_mm{0.2f};     ///< Layer height for Z-offset calculations during LOD
+
+    /**
+     * @brief The object runs recorded for one layer.
+     *
+     * Returns an empty span for every layer when run collection did not happen,
+     * which is what keeps the GLES shell pass a no-op on files with no
+     * exclude-object metadata.
+     */
+    ObjectRunSpan layer_object_runs(size_t layer_index) const {
+        if (layer_index >= layer_object_run_ranges.size()) {
+            return {};
+        }
+        const auto& [first, count] = layer_object_run_ranges[layer_index];
+        if (count == 0 || static_cast<size_t>(first) + count > object_runs.size()) {
+            return {};
+        }
+        return ObjectRunSpan{object_runs.data() + first, count};
+    }
 
     /**
      * @brief Resolve a strip's RGB color through strip_color_index + color_palette.
@@ -256,7 +332,8 @@ struct RibbonGeometry {
             strips.size() * sizeof(TriangleStrip) + strip_color_index.size() * sizeof(uint8_t) +
             color_palette.size() * sizeof(uint32_t) + strip_layer_index.size() * sizeof(uint16_t) +
             layer_strip_ranges.size() * sizeof(std::pair<size_t, size_t>) +
-            layer_bboxes.size() * sizeof(AABB);
+            layer_bboxes.size() * sizeof(AABB) + object_runs.size() * sizeof(ObjectRun) +
+            layer_object_run_ranges.size() * sizeof(std::pair<uint32_t, uint32_t>);
         // prepared_buffers is empty during build() (it is filled afterwards on a background
         // thread), so this term only affects post-build reporting, not the budget check.
         for (const auto& pb : prepared_buffers) {

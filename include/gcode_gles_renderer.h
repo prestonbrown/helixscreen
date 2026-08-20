@@ -299,6 +299,34 @@ class GCodeGLESRenderer {
     /// image that gets blitted to LVGL. Matches the deleted TinyGL impl.
     void render_brackets_3d(const ParsedGCodeFile& gcode, const glm::mat4& mvp);
 
+    /// Lazily compile/link the shell program used by the selection silhouette.
+    bool init_shell_program();
+
+    /**
+     * @brief Draw a white shell around the highlighted objects, under the lit pass.
+     *
+     * The silhouette has to follow the real toolpath: an object's bounding box is
+     * a box, and EXCLUDE_OBJECT_DEFINE POLYGON= is the slicer's CONVEX HULL (a cat
+     * is described as an octagon), so neither can trace a concave shape. The mesh
+     * is the only thing that carries the true contour, and
+     * RibbonGeometry::object_runs is what makes a per-object subset of it drawable.
+     *
+     * Technique: re-draw the object's own triangles with each position pushed
+     * outward along its normal, flat white, front faces culled so only the far
+     * side of the expanded shell rasterizes. The lit pass then paints the real
+     * surface over the shell's interior and what survives is a rim.
+     *
+     * Depth test stays ENABLED (unlike render_brackets_3d, which deliberately
+     * disables it to draw brackets on top) so the shell is occluded by objects in
+     * front of it.
+     *
+     * @param mvp_dequant The lit pass's u_mvp — MVP with dequantization folded in.
+     * @param layer_start,layer_end Solid layer range only; ghost layers are faded
+     *        context and an opaque white shell there would read as a solid object.
+     */
+    void render_selection_shell(const ParsedGCodeFile& gcode, const glm::mat4& mvp_dequant,
+                                int layer_start, int layer_end);
+
     // ====== Frame Skip ======
 
     struct CachedRenderState {
@@ -353,6 +381,15 @@ class GCodeGLESRenderer {
     int line_u_color_ = -1;
     int line_a_position_ = -1;
     unsigned int line_vbo_ = 0;
+    // Flat-color shell program for the selection silhouette. Consumes the same
+    // packed vertex layout as the lit program, so it draws straight from the
+    // layer VBOs with no extra buffer.
+    unsigned int shell_program_ = 0;
+    int shell_u_mvp_ = -1;
+    int shell_u_color_ = -1;
+    int shell_u_extrude_ = -1;
+    int shell_a_position_ = -1;
+    int shell_a_normal_ = -1;
     // Uniform locations
     int u_mvp_ = -1;
     int u_normal_matrix_ = -1;
