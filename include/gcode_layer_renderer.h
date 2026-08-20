@@ -781,11 +781,53 @@ class GCodeLayerRenderer {
     /// Cancel any in-progress background ghost render
     void cancel_background_ghost_render();
 
+    /**
+     * @brief Everything the ghost worker is allowed to read from the renderer.
+     *
+     * The worker runs on a background thread while the main thread keeps using
+     * the renderer, so every non-atomic member it touches has to be captured
+     * before it starts. It used to capture them ITSELF, in a block headed
+     * "capture ALL shared state at thread start" - but "thread start" is on the
+     * worker, which is exactly the window in which the main thread is free to be
+     * writing. `selection_` was the one field already handled correctly, copied
+     * at std::thread construction; its neighbours were not.
+     *
+     * Unsynchronized against the worker's capture, before this struct existed:
+     * set_extrusion_color(), set_scale(), set_offset(), set_content_offset_y()
+     * and set_canvas_size(). set_tool_color_palette() had already been hardened
+     * by joining the worker first, and its comment names this exact hazard.
+     *
+     * Building the snapshot on the SPAWNING thread fixes the whole family at
+     * once, and passing it by value means the worker body has nothing to read a
+     * member through even by accident.
+     */
+    struct GhostSnapshot {
+        TransformParams transform{};
+        SelectionState selection{};
+        GCodeColorPalette tool_palette{};
+        lv_color_t color_extrusion{};
+        bool use_custom_extrusion = false;
+        bool show_travels = false;
+        bool show_extrusions = true;
+        bool show_supports = true;
+        int line_width = 1;
+        int layer_count = 0;
+
+        /// Data sources, captured so the body never reads the members. They are
+        /// only ever nulled after cancel_background_ghost_render() has joined.
+        const ParsedGCodeFile* gcode = nullptr;
+        GCodeStreamingController* streaming = nullptr;
+    };
+
+    /// Build the snapshot. MUST be called on the main thread, before the worker
+    /// is spawned.
+    GhostSnapshot capture_ghost_snapshot() const;
+
     /// Background thread entry point (renders all layers to raw buffer).
-    /// Takes the selection state BY VALUE: std::thread copies the argument on the
-    /// spawning (main) thread, so the worker never reads selection_ while the main
-    /// thread may be rebuilding its index map.
-    void background_ghost_render_thread(SelectionState selection);
+    /// Takes the snapshot BY VALUE: std::thread copies the argument on the
+    /// spawning (main) thread, so the worker never reads a renderer member that
+    /// the main thread might be writing.
+    void background_ghost_render_thread(GhostSnapshot snap);
 
     /// Copy completed raw buffer to LVGL ghost_buf_ (called on main thread)
     void copy_raw_to_ghost_buf();

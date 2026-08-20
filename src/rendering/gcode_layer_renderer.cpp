@@ -1820,6 +1820,36 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
 // thread using software Bresenham line drawing, then copy to the LVGL
 // draw buffer on the main thread when complete.
 
+GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() const {
+    // Main thread only. Every read below is of a member the main thread owns and
+    // may change at any moment; doing them here means the worker gets one
+    // internally consistent set rather than whatever happened to be current when
+    // it got scheduled.
+    GhostSnapshot snap;
+    snap.transform = capture_transform_params();
+    // The ghost buffer can differ from the display canvas, so the transform is
+    // retargeted to it. ghost_raw_* are set just above the call site, and are
+    // only ever changed after the worker has been joined.
+    snap.transform.canvas_width = ghost_raw_width_;
+    snap.transform.canvas_height = ghost_raw_height_;
+
+    snap.selection = selection_;
+    snap.tool_palette = tool_palette_;
+    snap.color_extrusion = color_extrusion_;
+    snap.use_custom_extrusion = use_custom_extrusion_color_;
+
+    snap.show_travels = show_travels_.load(std::memory_order_relaxed);
+    snap.show_extrusions = show_extrusions_.load(std::memory_order_relaxed);
+    snap.show_supports = show_supports_.load(std::memory_order_relaxed);
+
+    snap.line_width = get_extrusion_pixel_width();
+    snap.layer_count = get_layer_count();
+
+    snap.gcode = gcode_;
+    snap.streaming = streaming_controller_;
+    return snap;
+}
+
 void GCodeLayerRenderer::start_background_ghost_render() {
     // Cancel any existing render first
     cancel_background_ghost_render();
@@ -1852,10 +1882,11 @@ void GCodeLayerRenderer::start_background_ghost_render() {
 
     // Launch background thread - only set running flag after successful creation
     try {
-        // selection_ is copied here, on the spawning thread, so the worker never
-        // reads the member while the main thread rebuilds its index map.
-        ghost_thread_ =
-            std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this, selection_);
+        // Snapshot on THIS thread, then hand it over. std::thread copies the
+        // argument on the spawning side, so everything the worker reads was
+        // sampled while the main thread still owned it.
+        ghost_thread_ = std::thread(&GCodeLayerRenderer::background_ghost_render_thread, this,
+                                    capture_ghost_snapshot());
         ghost_thread_running_.store(true);
     } catch (const std::system_error& e) {
         spdlog::error("[GCodeLayerRenderer] Failed to start ghost render thread: {}", e.what());
@@ -1897,9 +1928,9 @@ bool GCodeLayerRenderer::is_ghost_build_running() const {
     return ghost_thread_running_.load();
 }
 
-void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection) {
-    // Works with both full-file mode (gcode_) and streaming mode (streaming_controller_)
-    if (!ghost_raw_buffer_ || (!gcode_ && !streaming_controller_)) {
+void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
+    // Works with both full-file mode (snap.gcode) and streaming mode (snap.streaming).
+    if (!ghost_raw_buffer_ || (!snap.gcode && !snap.streaming)) {
         ghost_thread_running_.store(false);
         return;
     }
@@ -1907,50 +1938,44 @@ void GCodeLayerRenderer::background_ghost_render_thread(SelectionState selection
     // Use std::chrono for timing - lv_tick_get() is not thread-safe
     auto start_time = std::chrono::steady_clock::now();
     size_t segments_rendered = 0;
-    int total_layers = get_layer_count();
+    const int total_layers = snap.layer_count;
 
     // =========================================================================
-    // THREAD SAFETY: Capture ALL shared state at thread start
-    // These values may be modified by the main thread during rendering, so we
-    // take a snapshot to ensure consistent rendering throughout.
+    // THREAD SAFETY
+    //
+    // Everything non-atomic this function needs was captured by
+    // capture_ghost_snapshot() on the MAIN thread before the thread was spawned.
+    // Read it from `snap`, never from a member.
+    //
+    // The members that remain legal to touch below are exactly three, and all of
+    // them are safe by construction:
+    //   - ghost_thread_cancel_ / ghost_thread_ready_ / ghost_thread_running_,
+    //     which are atomics
+    //   - ghost_raw_buffer_ and its dimensions, which are only reallocated by
+    //     start_background_ghost_render() after it has joined this thread
+    // Anything else is a data race, and this file used to have several: the
+    // capture block that lived here read color_extrusion_, tool_palette_, and
+    // the whole transform straight off the object, on this thread, while the
+    // main thread was free to be writing them.
     // =========================================================================
+    const TransformParams& transform = snap.transform;
+    const bool local_show_travels = snap.show_travels;
+    const bool local_show_extrusions = snap.show_extrusions;
+    const bool local_show_supports = snap.show_supports;
+    const lv_color_t local_color_extrusion = snap.color_extrusion;
+    const GCodeColorPalette& local_tool_palette = snap.tool_palette;
+    const int local_line_width = snap.line_width;
 
-    // Use TransformParams for unified coordinate conversion - includes content offset!
-    // This is the SINGLE SOURCE OF TRUTH for coordinate transforms.
-    TransformParams transform = capture_transform_params();
-    // Override canvas size with ghost buffer dimensions (may differ from display)
-    transform.canvas_width = ghost_raw_width_;
-    transform.canvas_height = ghost_raw_height_;
-
-    // Visibility flags (can be changed via set_show_*() on main thread)
-    const bool local_show_travels = show_travels_.load(std::memory_order_relaxed);
-    const bool local_show_extrusions = show_extrusions_.load(std::memory_order_relaxed);
-    const bool local_show_supports = show_supports_.load(std::memory_order_relaxed);
-
-    // Color (can be changed via set_extrusion_color() on main thread)
-    const lv_color_t local_color_extrusion = color_extrusion_;
-
-    // Tool palette (for multi-color ghost rendering)
-    const GCodeColorPalette local_tool_palette = tool_palette_;
-    const bool local_use_custom_extrusion = use_custom_extrusion_color_;
-
-    // Capture extrusion pixel width (uses scale_ which may change on main thread)
-    const int local_line_width = get_extrusion_pixel_width();
-
-    // Selection state for ghost rendering. Already a private by-value copy (see the
-    // std::thread call), so this thread owns it outright. Not const: in streaming mode
-    // the loop below grows the merged name table as it loads layers, and the index map
-    // has to follow or a newly interned excluded object would stop being dimmed.
-    SelectionState local_selection = std::move(selection);
+    // Not const: in streaming mode the loop below grows the merged name table as
+    // it loads layers, and the index map has to follow or a newly interned
+    // excluded object would stop being dimmed.
+    SelectionState& local_selection = snap.selection;
     size_t local_name_table_size = 0;
 
-    // Capture data source pointers — these may be nulled on the main thread after
-    // cancel_background_ghost_render() joins us, but we must not read the member
-    // fields during iteration (the objects they point to could be destroyed).
-    auto* local_streaming = streaming_controller_;
-    auto* local_gcode = gcode_;
+    auto* local_streaming = snap.streaming;
+    auto* local_gcode = snap.gcode;
 
-    // Local object name resolver using captured pointers (not member fields)
+    // Local object name resolver using the snapshot (not member fields)
     auto local_resolve_name = [local_gcode, local_streaming](int16_t index) -> std::string {
         if (index < 0)
             return {};

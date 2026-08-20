@@ -361,3 +361,77 @@ TEST_CASE_METHOD(LVGLTestFixture, "the ghost worker uses the selection as of its
     drive_with_ghost(r, canvas, buf);
     CHECK(differing_pixels(left_excluded, snapshot(buf)) == 0);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "main-thread setters during a ghost build do not race the worker",
+                 "[layer_renderer][ghost][threading]") {
+    // This test exists to be run under ThreadSanitizer. Green here proves very
+    // little on its own; the point is that it drives the interleaving that the
+    // snapshot was introduced to make safe.
+    //
+    // The worker used to capture color_extrusion_, tool_palette_ and the whole
+    // transform ITSELF, on the worker thread, under a comment reading "capture
+    // ALL shared state at thread start". That window is precisely when the main
+    // thread is free to be writing, and set_extrusion_color(), set_scale(),
+    // set_offset(), set_content_offset_y() and set_canvas_size() all wrote into
+    // it without joining first. set_tool_color_palette() was the one that had
+    // been hardened, and its comment names the hazard.
+    //
+    // capture_ghost_snapshot() now runs on the spawning thread and the worker
+    // reads nothing but its own copy, so the writes below cannot be observed by
+    // it at all.
+    auto gcode = make_two_object_tower(60);
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf[kBufBytes];
+    lv_canvas_set_buffer(canvas, buf, kCanvas, kCanvas, LV_COLOR_FORMAT_ARGB8888);
+
+    GCodeLayerRenderer r;
+    configure(r, gcode, /*ghost=*/true);
+    r.set_current_layer(0);
+    lv_obj_update_layout(canvas);
+
+    auto frame = [&]() {
+        lv_layer_t layer;
+        lv_area_t clip = {0, 0, kCanvas - 1, kCanvas - 1};
+        lv_canvas_init_layer(canvas, &layer);
+        r.render(&layer, &clip);
+        lv_canvas_finish_layer(canvas, &layer);
+        lv_timer_handler_safe();
+    };
+
+    // Get past warm-up so the ghost worker is actually spawned.
+    for (int i = 0; i < 4; ++i) {
+        frame();
+    }
+
+    // Hammer the setters that used to be unsynchronized, for a FIXED number of
+    // rounds rather than "until the build finishes". Several of them invalidate
+    // the ghost, so a wait-for-completion loop here never converges: each round
+    // respawns the worker it is waiting on. The first version of this test did
+    // exactly that, spun to its guard, and passed anyway when run alongside
+    // other cases purely on timing.
+    constexpr int kRounds = 150;
+    for (int i = 1; i <= kRounds; ++i) {
+        r.set_extrusion_color(lv_color_hex(i & 1 ? 0x3060C0 : 0xC06030));
+        r.set_scale(1.0f + static_cast<float>(i % 7) * 0.01f);
+        r.set_offset(static_cast<float>(i % 5), static_cast<float>(i % 3));
+        r.set_content_offset_y(static_cast<float>(i % 3) * 0.05f);
+        frame();
+    }
+
+    // Stop mutating, then let both the cache and the worker settle.
+    r.set_extrusion_color(lv_color_hex(0x3060C0));
+    r.set_scale(1.0f);
+    r.set_offset(0.0f, 0.0f);
+    r.set_content_offset_y(0.0f);
+
+    int guard = 0;
+    while ((r.needs_more_frames() || r.is_ghost_build_running()) && guard++ < 3000) {
+        frame();
+    }
+    REQUIRE(guard < 3000);
+    frame();
+    std::fill(buf, buf + kBufBytes, uint8_t{0});
+    frame();
+    CHECK(painted_pixels(snapshot(buf)) > 0);
+}
