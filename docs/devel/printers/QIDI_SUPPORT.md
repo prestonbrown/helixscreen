@@ -214,7 +214,7 @@ HelixScreen has a **read-only state mirror** and a **gated write-path** for the 
 - No `qidi_box_64.png` logo asset yet — `AmsState::get_system_logo_path()` returns nullptr for `"qidi box"`, UI falls back to a generic AMS chip.
 - Write-path needs field validation against real hardware. Tracking via issue #954.
 
-Full context and references to the `qidi-community/Plus4-Wiki` open-source reimplementation live in [`FILAMENT_MANAGEMENT.md` → QIDI Box](../FILAMENT_MANAGEMENT.md#qidi-box-qidi-plus4--q2--max4).
+Full context and references to the `qidi-community/Plus4-Wiki` open-source reimplementation live in [`FILAMENT_BACKEND_QIDI_BOX.md` → QIDI Box](../FILAMENT_BACKEND_QIDI_BOX.md#qidi-box-qidi-plus4--q2--max4).
 
 **Alternative path: [Bunny Box](https://github.com/Wazzup77/Bunny-Box)** — a community open-source replacement that reimplements the QIDI Box as a [Happy Hare](https://github.com/moggieuk/Happy-Hare) MMU. HelixScreen already has Happy Hare support, so a printer flashed with Bunny Box is controllable through HelixScreen via its existing Happy Hare integration. Plus 4 is the most mature target (tested on stock QIDI 1.7.3, FreeDi, and Kalico); Q2 is in active testing; Max 4 is not yet supported. Bunny Box currently depends on the maintainer's [Happy Hare fork](https://github.com/Wazzup77/Happy-Hare) for QIDI-specific hall-sensor and cutter handling, pending upstream merge.
 
