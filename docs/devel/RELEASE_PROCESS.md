@@ -210,7 +210,6 @@ The workflow auto-generates basic release notes if no annotation is provided.
 - [ ] All tests pass (`make test-run`)
 - [ ] No critical bugs in issue tracker
 - [ ] Documentation updated for new features
-- [ ] ROADMAP.md updated if needed
 - [ ] Tested on real hardware (Pi and/or AD5M)
 
 ### After Release

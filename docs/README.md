@@ -105,7 +105,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 
 | Document | Description |
 |----------|-------------|
-| [**Roadmap**](devel/ROADMAP.md) | Feature timeline and milestones |
+| [**Roadmap**](https://github.com/prestonbrown/helixscreen/issues) | Feature timeline and milestones (labeled issues) |
 | [**In-Flight Plans**](devel/plans/) | In-flight plans and specs — point-in-time, not current truth |
 
 ---
@@ -148,7 +148,6 @@ docs/
 │   ├── architecture/         # 15-chapter architecture guide
 │   ├── BUILD_SYSTEM.md       # Build internals
 │   ├── TESTING.md            # Test infrastructure
-│   ├── ROADMAP.md            # Feature timeline + docs-debt backlog
 │   ├── plans/                # In-flight plans and specs (single home)
 │   ├── printers/             # Platform guides (K1, K2, QIDI, U1, AD5X)
 │   ├── printer-research/     # Reverse-engineering notes

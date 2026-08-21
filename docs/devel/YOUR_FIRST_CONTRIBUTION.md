@@ -359,7 +359,7 @@ The retraction overlay is the pattern the codebase *has*. Here's the pattern it'
 2. **Multi-instance becomes possible.** Nothing in the design forces one-instance-per-app. If two contexts ever want the same overlay shape with different data, dynamic allocation supports it; the global pattern doesn't.
 3. **Teardown is simpler.** No `StaticPanelRegistry::register_destroy` dance at shutdown. The overlay destroys when popped, full stop.
 
-This pattern isn't yet established in code — if you're writing a new overlay, you get to set the precedent. Flag it in your PR and Preston will help shape the exact API. Migrating the existing singleton overlays is tracked as post-1.0 work (see `ROADMAP.md` § "Planned post-1.0 refactoring").
+This pattern isn't yet established in code — if you're writing a new overlay, you get to set the precedent. Flag it in your PR and Preston will help shape the exact API. Migrating the existing singleton overlays is tracked as post-1.0 work (prestonbrown/helixscreen#1329).
 
 ---
 
