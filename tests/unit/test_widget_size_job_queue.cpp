@@ -10,11 +10,10 @@
  * The old predicate required a 3-span on *either* axis for "expanded" (mode
  * 2), given both axes already clear the 2-span floor. `W_WIDE` is the width
  * analogue of that 3-span floor, but there was no height analogue among the
- * three widget_size.h constants — the design doc's measured table only
+ * three widget_size.h constants — the measured tier table only
  * derives a rowspan>=2 threshold (`H_TALL`), not rowspan>=3. The smallest
  * measured 3-row height across all eight tiers is 197.5px (Micro
- * 480x272) — see `docs/superpowers/specs/2026-08-04-home-grid-sizing-design.md`
- * and `.superpowers/sdd/2026-08-05-grid-metrics-followups/span-pixel-table.md`.
+ * 480x272).
  *
  * `H_TALLER` (197, just below that measured minimum) is added to
  * panel_widget_size.h as the height counterpart to `W_WIDE`, following the

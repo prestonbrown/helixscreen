@@ -306,7 +306,7 @@ Key points for UI contributors:
 
 | Path | Contents |
 |------|----------|
-| `ui_xml/` | All XML layouts (~170 files) |
+| `ui_xml/` | All XML layouts (230+ files) |
 | `ui_xml/components/` | Reusable XML components |
 | `ui_xml/ultrawide/` | Ultrawide layout overrides |
 | `ui_xml/globals.xml` | Design tokens and global variables (shared, never override) |
@@ -316,7 +316,9 @@ Key points for UI contributors:
 
 ## Worktrees
 
-For major feature work, use git worktrees to isolate your changes:
+Use a worktree for any multi-file or risky change — rule of thumb: 4+ files, or
+anything touching shutdown, threading, or the XML engine. A worktree isolates the
+change (and its build) from main:
 
 ```bash
 scripts/setup-worktree.sh feature/my-branch   # Creates in .worktrees/

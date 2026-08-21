@@ -62,7 +62,7 @@ private:
 
 ### Modal Pattern
 
-**Canonical example:** `src/ui_wizard_*.cpp`
+**Canonical example:** `src/ui/ui_wizard*.cpp`
 
 ```cpp
 class ConfirmDialog : public Modal {
@@ -291,7 +291,7 @@ ui_icon_set_size(icon, "lg");
 ui_icon_set_variant(icon, "accent");
 ```
 
-**Adding icons:** Find at [Pictogrammers MDI](https://pictogrammers.com/library/mdi/) → add to `ui_icon_codepoints.h` (sorted!) → add codepoint to `scripts/regen_mdi_fonts.sh` → run `./scripts/regen_mdi_fonts.sh`
+**Adding icons:** canonical path in [DEVELOPMENT.md](DEVELOPMENT.md) § "Icon & Font Workflow" (header edit + `make regen-fonts`).
 
 ---
 
@@ -343,6 +343,7 @@ Extensible sensor system via `ISensorManager` interface (`include/sensor_registr
 - `ColorSensorManager` - Filament color
 - `WidthSensorManager` - Filament diameter
 - `HumiditySensorManager` - Chamber humidity
+- `TemperatureSensorManager` - `temperature_sensor` / `temperature_fan` objects
 
 **Registration:**
 ```cpp

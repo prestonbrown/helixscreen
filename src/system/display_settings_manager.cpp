@@ -312,7 +312,6 @@ void DisplaySettingsManager::init_subjects() {
     // default to Flying Toasters (1). BASIC (Pi 3B-class) and EMBEDDED (AD5M,
     // AD5X) default to OFF (0) because animated screensavers starve Klipper's
     // CPU budget and cause print failures.
-    // See: docs/superpowers/specs/2026-04-23-screensaver-low-tier-defaults-design.md
     const int screensaver_default = PlatformCapabilities::detect().supports_animations ? 1 : 0;
 
     int screensaver_type = screensaver_default;

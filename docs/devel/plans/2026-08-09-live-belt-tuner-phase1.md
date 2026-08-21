@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Design spec: `docs/superpowers/specs/2026-08-09-live-belt-tuner-design.md`
 - SPDX header on every new file: `// SPDX-License-Identifier: GPL-3.0-or-later`
 - Logging is spdlog only. Never `printf`, `cout`, or `LV_LOG_*`.
 - New `.cpp` under `src/*/` and new tests under `tests/unit/` are picked up by existing wildcards. **No Makefile edits are needed.**

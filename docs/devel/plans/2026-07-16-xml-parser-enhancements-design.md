@@ -147,7 +147,6 @@ Each plan must, per the prior efforts: end every task with an independently test
 
 ## Prior art to read first
 
-- `docs/superpowers/specs/2026-07-15-xml-expressions-conditionals-looping-design.md` — the design that shipped Plans 1 & 2 (evaluator, `<subject_expr>`, `cond=`, `<repeat>`, `${i}`); its non-goals section explicitly shelved collection subjects.
 - `lib/helix-xml/src/xml/lv_xml.c` — `xml_repeat_*` functions (capture/replay/expand/rebuild/teardown, instance-lifetime `LV_EVENT_DELETE`), `resolve_params`/`resolve_consts`, `xml_compose_indexed`, `xml_state_free_composed`.
 - `lib/helix-xml/src/xml/lv_xml_expr.{c,h}` — the evaluator the `${expr}` and `<if cond>` features reuse.
 - CLAUDE.md § "CRITICAL RULES - Declarative UI" (rows 9-10) and § Threading for the crash-class rules.

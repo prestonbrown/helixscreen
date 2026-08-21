@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- **Spec:** `docs/superpowers/specs/2026-08-12-home-widgets-design.md`. Read it before starting.
 - **Branch:** `feature/home-widgets`, worktree `.worktrees/home-widgets`. Based on `fix/grid-cell-metrics`, NOT `main`.
 - **Never `git add -A` or `git add .`** — the worktree has `lib/` symlinks that a bare add clobbers, and other sessions share this repo. Always stage explicit paths.
 - **Never `git rm`** — it stages. Use plain `rm`.

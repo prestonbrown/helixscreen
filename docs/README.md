@@ -175,6 +175,7 @@ moonraker-plugin/
 | Use HelixScreen | [User Guide](user/USER_GUIDE.md) |
 | Build from source | [Development Guide](devel/DEVELOPMENT.md) |
 | Contribute code | [Development Guide - Contributing](devel/DEVELOPMENT.md#contributing) |
+| Set up a fresh checkout and first build | [Onboarding](devel/ONBOARDING.md) |
 | Fix layouts / contribute UI | [UI Contributor Guide](devel/UI_CONTRIBUTOR_GUIDE.md) |
 | Write my first contribution | [Your First Contribution](devel/YOUR_FIRST_CONTRIBUTION.md) |
 | Debug "my change did nothing" | [Contributor Gotchas](devel/CONTRIBUTOR_GOTCHAS.md) |

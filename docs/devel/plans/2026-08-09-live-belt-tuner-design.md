@@ -263,13 +263,6 @@ viewer turns its face away in isometric, so the rotation cannot be shown directl
 reads instead is what the roll exposes — the lit thickness edge widening, a highlight
 riding the top edge so its path visibly bows, and the teeth compressing as the face turns.
 
-*Starting point:* a parameterised generator producing the agreed scene lives at
-`.superpowers/brainstorm/3846895-1786305129/content/pluck-iso-generator.py`, with rendered
-frames beside it. Roughly two dozen named constants at the top carry the twist and pull
-profile, projection scale and all hardware coordinates, so it re-renders at any panel size
-rather than needing to be restarted. It is scratch, not shipping code — but it encodes the
-geometry decisions above and is quicker to adapt than to rederive.
-
 ## Telemetry
 
 Add `screen_locality: "local" | "remote"`, derived from the same UDS reachability probe
