@@ -133,10 +133,12 @@ TEST_CASE("antialiasing cost relative to aliased", "[.][raster_bench]") {
     // The solid cache draws antialiased whenever enhanced shading is on, so the
     // AA path is the one that runs on a desktop and a Pi.
     //
-    // Width 1 is the row that matters. A 200mm plate across a 377px viewport is
-    // about 1.8 px/mm, so a 0.42mm extrusion is 0.75px and clamps to ONE - every
-    // stroke the viewer draws is a hairline, whatever the slicer said. Measuring
-    // this at width 4 overstates what the renderer actually pays.
+    // Which row matters depends on the model, not on the plate. auto_fit() frames
+    // the model's bounding box, so scale_ is px per mm of MODEL: measured on the
+    // production path, a 48mm Benchy renders at 4.5 px/mm and width 2, a 10mm
+    // calibration cube at 21.5 px/mm and width 8 (it asks for 9 and hits the
+    // clamp), and anything filling a 200mm plate at 1.3-2.5 px/mm and width 1.
+    // The whole 1..8 clamp range occurs in practice, so read every row.
     Canvas cv;
     constexpr int kSegments = 20000;
 
