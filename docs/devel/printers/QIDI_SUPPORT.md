@@ -201,16 +201,14 @@ HelixScreen has a **read-only state mirror** and a **gated write-path** for the 
   - `slot<N>` → per-slot `SlotStatus` (0=empty, 1=available, 2=loaded, 3=transitional, -1/-2/-3=BLOCKED)
   - `value_t<N>="slot<M>"` → tool-to-slot mapping
   - `last_load_slot` → authoritative LOADED (with `"slot-1"` = nothing loaded)
-  - `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` → raw RFID indices in a private side-table
+  - `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` → RFID indices in a private side-table, resolved to filament / color / vendor strings via `officiall_filas_list.cfg`
 - **Temperature profiles** — fetches `/server/files/config/officiall_filas_list.cfg` via Moonraker's file API at `on_started()`. Parses the ConfigParser INI sections (`[fila<N>]` with `min_temp` / `max_temp` / `box_min_temp` / `box_max_temp`), caches them, and applies the nozzle min/max to `SlotInfo` whenever a `filament_slot<N>` index arrives. HTTP failure is non-fatal.
 - **Bootstrap** — `on_started()` issues a `printer.objects.query` for `save_variables` + `box_extras` so the initial snapshot lands; subsequent `notify_status_update` frames carry deltas only.
-- **Heater drying state** — `heater_generic heater_box<N>` notifications (temperature/target) flow into `AmsUnit::environment` as the max across all boxes, so the UI can show drying-active state regardless of which physical box is active.
+- **Heater drying state** — `heater_generic heater_box<N>` (temperature/target) and `aht20_f heater_box<N>` (temperature/humidity) notifications flow into each box's own `AmsUnit::environment` entry, so the UI can show drying-active state regardless of which physical box is active.
 - **Write-path** — always enabled: `load_filament` (`T<tool>`), `unload_filament` (`UNLOAD_T<tool>`, supports `-1` for active slot), `change_tool` (`T<tool>`), and `set_tool_mapping` (`SAVE_VARIABLE VARIABLE=value_t<t> VALUE="slot<s>"`). Commands verified against QIDI's open-source firmware (box_stepper.py/box_extras.py, #1030). Each op logs at `info` (entry log + raw G-code) for field visibility.
 
 **Known gaps:**
 
-- `aht20_f heater_box<N>` humidity isn't subscribed today — the classifier in `moonraker_discovery_sequence.cpp` only recognises `temperature_sensor <name>`/`temperature_fan <name>`/`tmc2240`/`tmc5160` as sensors. The parser handles humidity if it arrives, but the subscription side has to be extended.
-- `color_slot<N>` / `vendor_slot<N>` raw indices are captured but not yet mapped to material/color/brand strings — the python source doesn't read those names from `officiall_filas_list.cfg`, so the palette source needs separate identification.
 - No `qidi_box_64.png` logo asset yet — `AmsState::get_system_logo_path()` returns nullptr for `"qidi box"`, UI falls back to a generic AMS chip.
 - Write-path needs field validation against real hardware. Tracking via issue #954.
 

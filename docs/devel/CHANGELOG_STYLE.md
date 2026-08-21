@@ -17,7 +17,7 @@ Most releases land one to five changes. Write them as plain bold-lead bullets un
 usual categories - no intro paragraph, no extra structure:
 
 ```markdown
-## [0.99.113] - 2026-08-18
+## [0.99.116] - 2026-09-02
 
 ### Fixed
 
@@ -35,7 +35,7 @@ candidate, a theme with several chapters), expand:
 2. Bold sub-group headers inside categories when a category spans unrelated areas
    (`**Printer identification**`, `**Crashes**`) - so a reader can scan past what they
    do not care about.
-3. A `<!-- whatsnew ... -->` block (see below).
+3. A `<!-- whatsnew ... -->` block at the top of the section (see below).
 
 ## Voice: symptom and consequence, never machinery
 
@@ -135,6 +135,7 @@ After:
 
 ```markdown
 - **AMS slot labels now update after a filament change** (#1065) - changing only the
-  material on a slot used to leave its label stale until the panel was reopened; the
+  material on a slot used to leave its label stale until you left that screen and
+  came back; the
   label now follows what the printer reports.
 ```

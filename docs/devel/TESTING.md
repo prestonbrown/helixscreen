@@ -589,7 +589,7 @@ UITest::wait_until([]{ return done; });    // Pump timers until a condition
 UITest::cleanup();
 ```
 
-See UI_TESTING.md for the full utility list and the mandated base fixtures.
+See UI_TESTING.md for the full utility list.
 
 ---
 

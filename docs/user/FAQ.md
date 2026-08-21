@@ -15,7 +15,7 @@ HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to y
 - 3D G-code preview, bed mesh visualization, frequency response charts
 - 7 multi-material backends (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers) with Spoolman integration
 - First-run wizard with auto-detection of 80+ printer models
-- Theme editor with 17 presets (dark and light), 9 languages
+- Theme editor with 18 presets (dark and light), 9 languages
 - Sound system, timelapse integration, label printing, exclude objects
 - Auto-detecting layout system for displays from 480x320 to 1024x600 (ultrawide and portrait orientations are alpha)
 - ~15MB RAM on embedded targets — designed for the modest hardware most people already own, no desktop required
@@ -295,11 +295,11 @@ See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) sect
 
 ### Can I customize the colors or layout?
 
-**Yes!** HelixScreen includes a built-in theme editor with 17 preset themes:
+**Yes!** HelixScreen includes a built-in theme editor with 18 preset themes:
 
 1. Go to **Settings** → **Display & Sound**
 2. Tap **Theme Colors** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
+3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
 4. Toggle dark/light mode
 5. Customize individual colors if desired - changes are saved to `config/themes/`
 
