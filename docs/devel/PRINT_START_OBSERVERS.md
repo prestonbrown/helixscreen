@@ -99,4 +99,4 @@ input changes.
 | Position chain wipe → centre → corners → sweep on real captures | `test_print_start_position_classifier.cpp` (corpus: `tests/fixtures/print_start_position_corpus.json`, extracted from the 2026-08-19 K1C klippy.log capture) |
 | Position → message/phase integration, and the no-flag negative | `test_print_start_collector.cpp` - `[position]` integration tests |
 | K1C first-print ETA defaults from measured durations | `test_printer_detector.cpp` - `print_start_default_phases` |
-| Whole chain (wiring, observers, collector) against a real capture, no printer | `HELIX_MOCK_REPLAY=<script> --test` (see ENVIRONMENT_VARIABLES.md; script from `scripts/extract_mock_replay.py`) |
+| Whole chain (wiring, observers, collector) against a real capture, no printer | `HELIX_MOCK_REPLAY=<script> --test` (see MOCK_ENVIRONMENT_VARIABLES.md; script from `scripts/extract_mock_replay.py`) |

@@ -171,7 +171,7 @@ The mock arm of all this is what `--test` runs. `RuntimeConfig` ([`include/runti
 - **Teardown order is load-bearing:** `shutdown()` drops the client *first* — its destructor waits for in-flight libhv callbacks that capture raw pointers to the API ([`src/application/moonraker_manager.cpp:145`](../../../src/application/moonraker_manager.cpp#L145), #628) — then macro analysis, then the API.
 - **Intentional disconnects suppress the modal.** `disconnect()` arms a 2 s `suppress_disconnect_modal` window so the close it causes does not surface as "connection lost" ([`src/api/moonraker_client.cpp:297`](../../../src/api/moonraker_client.cpp#L297)); connection-test flows additionally disable auto-reconnect. If you add a deliberate disconnect path, use both.
 - **The mock API still takes a concrete `MoonrakerClient&`** — `MoonrakerAPIMock` predates the interface split. That is why `create_client()` records `m_concrete_client` for `create_api()` instead of downcasting the interface pointer.
-- **Mock knobs are env-gated and additive**: `HELIX_MOCK_PRINTER` (personality), `HELIX_MOCK_AUTO_PRINT`, `HELIX_MOCK_AMS=none`, `HELIX_MOCK_SPOOLMAN=0`, `--sim-speed`. Default `--test` behavior is a Voron 2.4 sitting in Preparing; details in [`../ENVIRONMENT_VARIABLES.md`](../ENVIRONMENT_VARIABLES.md).
+- **Mock knobs are env-gated and additive**: `HELIX_MOCK_PRINTER` (personality), `HELIX_MOCK_AUTO_PRINT`, `HELIX_MOCK_AMS=none`, `HELIX_MOCK_SPOOLMAN=0`, `--sim-speed`. Default `--test` behavior is a Voron 2.4 sitting in Preparing; details in [`../MOCK_ENVIRONMENT_VARIABLES.md`](../MOCK_ENVIRONMENT_VARIABLES.md).
 
 ## Going deeper
 
@@ -179,7 +179,7 @@ The mock arm of all this is what `--test` runs. `RuntimeConfig` ([`include/runti
 - [`../RPC_ERROR_OWNERSHIP.md`](../RPC_ERROR_OWNERSHIP.md) — the full three-surface error contract, the correlation window, and the rule that makes the decision computable at the call site.
 - [`../UPDATE_SYSTEM.md`](../UPDATE_SYSTEM.md) — release channels, the R2 CDN, and how `UpdateChecker` picks between `releases.helixscreen.org` and the GitHub API.
 - [`../TELEMETRY_ADMIN.md`](../TELEMETRY_ADMIN.md) and [`../CRASH_REPORTER.md`](../CRASH_REPORTER.md) — the pipelines behind the two `*.helixscreen.org` endpoints.
-- [`../ENVIRONMENT_VARIABLES.md`](../ENVIRONMENT_VARIABLES.md) — the full `HELIX_MOCK_*` matrix and every runtime knob the mock stack reads.
+- [`../MOCK_ENVIRONMENT_VARIABLES.md`](../MOCK_ENVIRONMENT_VARIABLES.md) — the full `HELIX_MOCK_*` matrix and every knob the mock stack reads.
 - [`../TESTING.md`](../TESTING.md) — the fixture-isolation design the mocks feed into (`HelixTestFixture` / `XMLTestFixture`) and the `[compile][drift]` tests that pin mock parity.
 - [`02-subjects-dataflow.md`](02-subjects-dataflow.md) — the main-thread half of this chapter's notification path: queue, dispatch ordering, subject writes.
 - [`03-threading-lifetime.md`](03-threading-lifetime.md) — the guards (`AsyncLifetimeGuard`, `bg_cb`) the event marshalling here relies on.

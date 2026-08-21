@@ -76,7 +76,8 @@ Most commonly needed:
 | `docs/devel/MODAL_SYSTEM.md` | Modal architecture: ui_dialog, modal_button_row, Modal pattern |
 | `docs/devel/FILAMENT_MANAGEMENT.md` | AMS, AFC, Happy Hare, ACE, AD5X IFS, CFS, Tool Changer |
 | `docs/devel/REVIEW_RUBRIC.md` | Reviewing a change: crash families, silent-failure traps, what the gates already cover |
-| `docs/devel/ENVIRONMENT_VARIABLES.md` | Runtime env vars, mock config |
+| `docs/devel/ENVIRONMENT_VARIABLES.md` | Runtime env vars |
+| `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` | Mock printer config for `--test` runs (`HELIX_MOCK_*`, replay) |
 | `docs/devel/LOGGING.md` | spdlog levels: info vs debug vs trace |
 | `docs/devel/BUILD_SYSTEM.md` | Makefile, cross-compilation |
 

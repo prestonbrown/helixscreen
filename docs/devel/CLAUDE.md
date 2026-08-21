@@ -15,6 +15,7 @@ All developer documentation lives here. When working on features, look up the re
 | `REVIEW_RUBRIC.md` | The quality bar for reviews: crash families, silent-failure traps, what not to flag, what the gates already cover |
 | `../../scripts/CLAUDE.md` | Index of `scripts/` — installer, release, asset regeneration, and the "Quality & Auditing" gate table covering every `check_*.py` lint and what it enforces |
 | `TESTING.md` | Catch2 test infrastructure, test patterns |
+| `MOCK_ENVIRONMENT_VARIABLES.md` | The `HELIX_MOCK_*` matrix, replay scripts, forced-modal and demo-injection knobs - every var that shapes a `--test` run. Runtime/display/logging vars stay in `ENVIRONMENT_VARIABLES.md` |
 | `HIDDEN_TESTS_TRACKER.md` | Tests hidden from the default run (`[.]`), why each is hidden, and how to run them |
 | `LOGGING.md` | spdlog levels, when to use info vs debug vs trace |
 | `COPYRIGHT_HEADERS.md` | SPDX license headers |

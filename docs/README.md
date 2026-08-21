@@ -48,6 +48,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Quick Reference**](devel/DEVELOPER_QUICK_REFERENCE.md) | Common patterns and code snippets |
 | [**Modal System**](devel/MODAL_SYSTEM.md) | ui_dialog, modal_button_row, Modal pattern |
 | [**Environment Variables**](devel/ENVIRONMENT_VARIABLES.md) | All runtime and build env vars |
+| [**Mock & Testing Env Vars**](devel/MOCK_ENVIRONMENT_VARIABLES.md) | The `HELIX_MOCK_*` matrix and test-harness variables (`--test` runs, replay, forced modals) |
 | [**Moonraker Architecture**](devel/MOONRAKER_ARCHITECTURE.md) | Moonraker integration details |
 | [**RPC Error Ownership**](devel/RPC_ERROR_OWNERSHIP.md) | Which surface reports a failed JSON-RPC call — caller UI, generic fallback, or the `!!` router |
 | [**Theme System**](devel/THEME_SYSTEM.md) | Reactive theming, color tokens, responsive sizing |

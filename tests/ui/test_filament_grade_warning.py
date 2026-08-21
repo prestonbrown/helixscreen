@@ -22,7 +22,7 @@ fired unconditionally would pass both.
 HELIX_MOCK_AMS_STATE=grade puts PLA-CF in every lane. Every lane rather than
 one because a tool reaches a lane by colour match and then by POSITIONAL
 fallback over the file's whole palette -- the calibration cube's used tool is
-T2, so it lands on lane 3, not lane 1. See ENVIRONMENT_VARIABLES.md.
+T2, so it lands on lane 3, not lane 1. See MOCK_ENVIRONMENT_VARIABLES.md.
 
 Mutation check (measured 2026-08-18, not assumed):
   - VARIANT_AFFIXES[]: flip CF's `filled` column to false
