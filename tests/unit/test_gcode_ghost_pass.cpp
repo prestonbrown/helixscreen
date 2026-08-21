@@ -8,8 +8,10 @@
 #include "gcode_selection_style.h"
 
 #include <algorithm>
+#include <chrono>
 #include <glm/glm.hpp>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -86,6 +88,27 @@ void configure(GCodeLayerRenderer& r, ParsedGCodeFile& gcode, bool ghost) {
     r.set_canvas_size(kCanvas, kCanvas);
 }
 
+/// Pump frames until the solid cache and the background ghost thread have both
+/// settled. Bounded by WALL CLOCK, not by an iteration count: the ghost build
+/// finishes on another thread, this loop spins far faster than that thread runs,
+/// and a fixed 2000-iteration ceiling trips on a loaded machine long before the
+/// worker is actually late. Once there is nothing left to draw, yield instead of
+/// spinning so the worker gets the CPU.
+template <typename Frame> void settle(GCodeLayerRenderer& r, Frame&& frame) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (!r.needs_more_frames() && !r.is_ghost_build_running()) {
+            break;
+        }
+        frame();
+        if (!r.needs_more_frames() && r.is_ghost_build_running()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    REQUIRE_FALSE(r.needs_more_frames()); // never settled: harness bug
+    REQUIRE_FALSE(r.is_ghost_build_running());
+}
+
 /// Drive until BOTH the solid cache and the ghost thread have settled, then take
 /// one clean blit. The clear before the final frame matters for the same reason
 /// it does in the SSAO tests: the blits composite, and a build that takes a
@@ -103,11 +126,7 @@ void drive_with_ghost(GCodeLayerRenderer& r, lv_obj_t* canvas, uint8_t* buf) {
     for (int i = 0; i < 3; ++i) {
         frame();
     }
-    int guard = 0;
-    while ((r.needs_more_frames() || r.is_ghost_build_running()) && guard++ < 2000) {
-        frame();
-    }
-    REQUIRE(guard < 2000); // never settled: harness bug
+    settle(r, frame);
     // One more pass so the finished ghost buffer is copied in and composited.
     frame();
     std::fill(buf, buf + kBufBytes, uint8_t{0});
@@ -426,11 +445,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "main-thread setters during a ghost build do n
     r.set_offset(0.0f, 0.0f);
     r.set_content_offset_y(0.0f);
 
-    int guard = 0;
-    while ((r.needs_more_frames() || r.is_ghost_build_running()) && guard++ < 3000) {
-        frame();
-    }
-    REQUIRE(guard < 3000);
+    settle(r, frame);
     frame();
     std::fill(buf, buf + kBufBytes, uint8_t{0});
     frame();
