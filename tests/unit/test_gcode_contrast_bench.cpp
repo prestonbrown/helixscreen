@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <glm/glm.hpp>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -175,5 +176,61 @@ TEST_CASE_METHOD(LVGLTestFixture, "2D tonal range by filament colour", "[.][cont
     std::printf("\n  spread = p95 - p5 luminance over painted pixels. It is how much\n"
                 "  tonal range the object actually shows; near zero reads as a flat\n"
                 "  silhouette regardless of what colour it is.\n\n");
+    SUCCEED();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "2D tonal range via the tool palette", "[.][contrast_bench]") {
+    // The detail-view preview does NOT call set_extrusion_color() on the 2D
+    // renderer. It calls set_tool_color_palette() with the slicer's declared
+    // filament colour. That is a different code path, and on an AD5M both a
+    // #000000 and a #F7F7F7 file rendered to the same grey, so this pins which
+    // of the two paths carries colour through to pixels.
+    auto gcode = make_cone(60);
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    REQUIRE(canvas != nullptr);
+    static uint8_t buf2[kBufBytes];
+    lv_canvas_set_buffer(canvas, buf2, kCanvas, kCanvas, LV_COLOR_FORMAT_ARGB8888);
+
+    const char* hexes[] = {"#000000", "#808080", "#F7F7F7"};
+
+    std::printf("\n  %-11s %6s %6s %8s %10s\n", "palette", "p5", "p95", "spread", "distinct");
+    std::printf("  %-11s %6s %6s %8s %10s\n", "-----------", "------", "------", "--------",
+                "----------");
+
+    for (const char* hex : hexes) {
+        GCodeLayerRenderer r;
+        r.set_gcode(&gcode);
+        r.set_view_mode(GCodeLayerRenderer::ViewMode::FRONT);
+        r.set_ghost_mode(false);
+        r.set_ssao_enabled(true);
+        r.set_antialias_enabled(false);
+        r.set_tool_color_palette(std::vector<std::string>{hex});
+        r.set_canvas_size(kCanvas, kCanvas);
+        r.set_current_layer(59);
+
+        lv_obj_update_layout(canvas);
+        auto frame = [&]() {
+            lv_layer_t layer;
+            lv_area_t clip = {0, 0, kCanvas - 1, kCanvas - 1};
+            lv_canvas_init_layer(canvas, &layer);
+            r.render(&layer, &clip);
+            lv_canvas_finish_layer(canvas, &layer);
+            lv_timer_handler_safe();
+        };
+        for (int i = 0; i < 3; ++i) {
+            frame();
+        }
+        int guard = 0;
+        while (r.needs_more_frames() && guard++ < 500) {
+            frame();
+        }
+        std::fill(buf2, buf2 + kBufBytes, uint8_t{0});
+        frame();
+
+        const Contrast c = measure(buf2);
+        std::printf("  %-11s %6d %6d %8d %10zu\n", hex, c.lo, c.hi, c.spread, c.distinct);
+    }
+    std::printf("\n  If all three rows match, the palette path never reaches the pixels\n"
+                "  and every model renders in the theme default regardless of filament.\n\n");
     SUCCEED();
 }

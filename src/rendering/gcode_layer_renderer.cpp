@@ -13,6 +13,7 @@
 #include "system/crash_handler.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -20,6 +21,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <string>
 
 namespace helix {
 namespace gcode {
@@ -252,7 +254,18 @@ void GCodeLayerRenderer::set_tool_color_overrides(const std::vector<uint32_t>& a
     // Invalidate caches so new colors take effect
     invalidate_cache();
 
-    spdlog::debug("[GCodeLayerRenderer] Applied {} tool color overrides", ams_colors.size());
+    // Log the values, not just the count: an override that silently resolves to
+    // the unknown-slot placeholder looks identical to a real one at count level,
+    // and it is what a preview renders when no filament data is known.
+    std::string applied;
+    for (size_t i = 0; i < ams_colors.size(); ++i) {
+        if (i > 0) {
+            applied += ", ";
+        }
+        applied += fmt::format("#{:06X}", ams_colors[i] & 0xFFFFFFu);
+    }
+    spdlog::debug("[GCodeLayerRenderer] Applied {} tool color overrides: [{}]", ams_colors.size(),
+                  applied);
 }
 
 void GCodeLayerRenderer::reset_colors() {

@@ -1915,8 +1915,17 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                     // Auto-apply filament color from gcode metadata (unless
                     // AMS/Spoolman has already set an external override)
+                    // Both renderers, not just the 3D one. The 2D renderer draws on
+                    // every build without GLES and on any device the user has put in
+                    // 2D mode, and until this it kept the theme default for
+                    // color_extrusion_ - the single-color fallback a file without a
+                    // parsed tool palette lands on.
                     if (st->has_external_color_override) {
                         st->renderer_->set_extrusion_color(st->external_color_override);
+                        if (st->layer_renderer_2d_) {
+                            st->layer_renderer_2d_->set_extrusion_color(
+                                st->external_color_override);
+                        }
                         spdlog::debug(
                             "[GCode Viewer] Applied external color override (AMS/Spoolman)");
                     } else if (st->use_filament_color &&
@@ -1924,6 +1933,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         lv_color_t color = lv_color_hex(static_cast<uint32_t>(std::strtol(
                             st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
                         st->renderer_->set_extrusion_color(color);
+                        if (st->layer_renderer_2d_) {
+                            st->layer_renderer_2d_->set_extrusion_color(color);
+                        }
                         spdlog::debug("[GCode Viewer] Applied filament color: {}",
                                       st->gcode_file->filament_color_hex);
                     }
