@@ -324,29 +324,14 @@ make PLATFORM_TARGET=ad5m clean release-ad5m
 
 ## Changelog Generation
 
-Currently, changelogs are written manually in the tag annotation. Future options:
+`CHANGELOG.md` is the changelog. It is written by hand in the release commit (Step 1);
+nothing generates it. The annotated tag's message becomes the GitHub release body
+(Step 2), and `scripts/generate-whatsnew.sh` distills the finished CHANGELOG section
+into the Play Store "What's New" - both consume what was already written.
 
-### Option A: Manual Changelog File
-
-Maintain `CHANGELOG.md` in the repository, update before each release.
-
-### Option B: Conventional Commits + Auto-generation
-
-Use tools like `git-cliff` or `semantic-release`:
-
-```bash
-# Generate changelog from conventional commits
-git cliff -o CHANGELOG.md
-```
-
-This requires commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat: add new feature`
-- `fix: resolve bug`
-- `docs: update documentation`
-
-### Current Approach
-
-We use annotated tags with manual release notes. This provides flexibility while keeping the process simple.
+Prose style - user-facing voice, separator, issue-link form, and the daily vs milestone
+entry shapes - is specified in [CHANGELOG_STYLE.md](CHANGELOG_STYLE.md). Read it before
+drafting the release's section.
 
 ---
 

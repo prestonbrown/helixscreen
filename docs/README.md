@@ -34,6 +34,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Architecture**](devel/ARCHITECTURE.md) | Whole-app model + routing to the 15-chapter guide (`devel/architecture/`) |
 | [**Build System**](devel/BUILD_SYSTEM.md) | Makefile, cross-compilation, patches |
 | [**Testing**](devel/TESTING.md) | Test infrastructure and Catch2 usage |
+| [**Changelog Style**](devel/CHANGELOG_STYLE.md) | How `CHANGELOG.md` entries are written: user-facing voice, separator, issue links, daily vs milestone shapes |
 
 ---
 
