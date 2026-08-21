@@ -95,16 +95,35 @@ void configure(GCodeLayerRenderer& r, ParsedGCodeFile& gcode, bool ghost) {
 /// worker is actually late. Once there is nothing left to draw, yield instead of
 /// spinning so the worker gets the CPU.
 template <typename Frame> void settle(GCodeLayerRenderer& r, Frame&& frame) {
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    const auto start = std::chrono::steady_clock::now();
+    const auto deadline = start + std::chrono::seconds(10);
+    long frames = 0;
+    long spawns = 0;
+    bool was_running = false;
     while (std::chrono::steady_clock::now() < deadline) {
         if (!r.needs_more_frames() && !r.is_ghost_build_running()) {
             break;
         }
         frame();
-        if (!r.needs_more_frames() && r.is_ghost_build_running()) {
+        ++frames;
+        // render() restarts the ghost build whenever the cache is invalid and no
+        // thread is running, so a rising edge here separates "the worker was
+        // starved" from "the worker kept being respawned".
+        const bool running = r.is_ghost_build_running();
+        if (running && !was_running) {
+            ++spawns;
+        }
+        was_running = running;
+        if (!r.needs_more_frames() && running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - start)
+                        .count();
+    UNSCOPED_INFO("settle: " << ms << "ms " << frames << " frames " << spawns
+                             << " ghost spawn(s) needs_more=" << r.needs_more_frames()
+                             << " running=" << r.is_ghost_build_running());
     REQUIRE_FALSE(r.needs_more_frames()); // never settled: harness bug
     REQUIRE_FALSE(r.is_ghost_build_running());
 }
