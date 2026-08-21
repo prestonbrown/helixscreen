@@ -44,7 +44,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | Document | Description |
 |----------|-------------|
 | [**LVGL 9 XML Guide**](devel/LVGL9_XML_GUIDE.md) | Complete XML syntax reference (92K) |
-| [**LVGL XML Fork Situation**](devel/LVGL_XML_SITUATION.md) | Where `lib/helix-xml/` came from, its MIT position, and the clean-room rule |
+| [**LVGL XML Fork**](devel/HELIX_XML_FORK.md) | Where `lib/helix-xml/` came from, its MIT position, and the clean-room rule |
 | [**Quick Reference**](devel/DEVELOPER_QUICK_REFERENCE.md) | Common patterns and code snippets |
 | [**Modal System**](devel/MODAL_SYSTEM.md) | ui_dialog, modal_button_row, Modal pattern |
 | [**Environment Variables**](devel/ENVIRONMENT_VARIABLES.md) | All runtime and build env vars |

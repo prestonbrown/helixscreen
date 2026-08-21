@@ -1401,7 +1401,7 @@ Each injection point can only exist once in the UI at a time. Injected widgets a
 
 ### Subject Unregistration
 
-Subjects registered via `api->register_subject()` are tracked but not actually unregistered from the XML system during cleanup — `lib/helix-xml/` provides no `lv_xml_unregister_subject()`. That is our own gap, not an upstream one: LVGL 9.5 has no XML engine at all, so nobody is going to add it for us (see `LVGL_XML_SITUATION.md`). Re-loading a plugin with the same subject names works fine (registration is idempotent). Only affects development scenarios with frequent plugin reloads.
+Subjects registered via `api->register_subject()` are tracked but not actually unregistered from the XML system during cleanup — `lib/helix-xml/` provides no `lv_xml_unregister_subject()`. That is our own gap, not an upstream one: LVGL 9.5 has no XML engine at all, so nobody is going to add it for us (see `HELIX_XML_FORK.md`). Re-loading a plugin with the same subject names works fine (registration is idempotent). Only affects development scenarios with frequent plugin reloads.
 
 ---
 

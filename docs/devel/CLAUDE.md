@@ -125,6 +125,6 @@ All developer documentation lives here. When working on features, look up the re
 |-----|-------------|
 | `LVGL9_XML_ATTRIBUTES_REFERENCE.md` | Complete XML attribute reference |
 | `LVGL9_XML_CHEATSHEET.html` | Quick XML cheatsheet (HTML) |
-| `LVGL_XML_SITUATION.md` | **Read before touching `lib/helix-xml/`** — fork origin (`a15dcbeb5`), MIT licensing position, why there is no upstream, the clean-room rule for anything LVGL Pro also has, and the upstream feature gap analysis |
+| `HELIX_XML_FORK.md` | **Read before touching `lib/helix-xml/`** — fork origin (`a15dcbeb5`), MIT licensing position, why there is no upstream, the clean-room rule for anything LVGL Pro also has, and the upstream feature gap analysis |
 | `SLOT_COMPONENT_DESIGNS.md` | Two unbuilt XML-deduplication proposals (network state icons, capability-gated setting rows), what the other two designs turned into, and the **measured** limits of the `lv_xml_expr.c` evaluator: integer-only, so string formatting cannot move to XML formulas. Nothing here has shipped |
 | `FLAG_ICONS_SOURCE.md` | Flag icon asset sources |

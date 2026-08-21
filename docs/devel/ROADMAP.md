@@ -295,7 +295,7 @@ The XML engine lives in its own repository and keeps its roadmap there, on GitHu
 `lib/helix-xml/` in this tree is a submodule pointing at that repo — edit it in place, push from
 inside the submodule, then commit the bumped pointer here. It is MIT — a permanent
 fork of the engine LVGL removed from core in v9.5 — and it has no upstream. Anything LVGL Pro also
-has must be built clean-room from published docs; see `LVGL_XML_SITUATION.md`.
+has must be built clean-room from published docs; see `HELIX_XML_FORK.md`.
 
 Currently open:
 
@@ -343,7 +343,7 @@ Consolidated 2026-08-20 from the docs-cleanup pass; sizes re-measured then.
 | **Contributor entry path** | Low | Four overlapping on-ramp docs (DEVELOPMENT / DEVELOPER_QUICK_REFERENCE / ONBOARDING / YOUR_FIRST_CONTRIBUTION) — converge on one marked path |
 | **ENVIRONMENT_VARIABLES.md size** | Medium | 2,512 lines — split by runtime / build / mock |
 | **FILAMENT_MANAGEMENT.md size** | Medium | 4,082 lines — split per backend |
-| **LVGL_XML_SITUATION.md name** | Low | Name promises an XML-status survey; the content is fork-origin and licensing history |
+| **XML fork doc name** | Low | Name promises an XML-status survey; the content is fork-origin and licensing history |
 | **user/guide routing** | Low | camera, fans, print-history, security, and sensors guides unrouted in `docs/user/CLAUDE.md` |
 | **TESTING vs UI_TESTING** | Low | Overlapping scopes — merge, or split cleanly by layer |
 | **helixctl golden variants** | Medium | Screenshot/verification harness has no size or theme golden variants |

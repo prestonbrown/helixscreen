@@ -483,7 +483,7 @@ the suite.
 
 Remember the inverted submodule workflow: edit in place, commit and push **inside**
 `lib/helix-xml/`, then commit the bumped pointer here. Never write a `patches/*.patch` for it.
-See `LVGL_XML_SITUATION.md`.
+See `HELIX_XML_FORK.md`.
 
 ---
 
@@ -653,5 +653,5 @@ lldb build/bin/helix-tests
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md):** Thread safety patterns
 - **[BUILD_SYSTEM.md](BUILD_SYSTEM.md):** Build configuration
-- **[LVGL_XML_SITUATION.md](LVGL_XML_SITUATION.md):** Why the XML engine is its own repo, with its own tests and CI
+- **[HELIX_XML_FORK.md](HELIX_XML_FORK.md):** Why the XML engine is its own repo, with its own tests and CI
 - **[DEVELOPMENT.md#contributing](DEVELOPMENT.md#contributing):** Code standards

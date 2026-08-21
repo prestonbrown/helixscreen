@@ -1,6 +1,6 @@
 # LVGL 9 XML UI System - Complete Guide
 
-Comprehensive guide to the declarative XML UI system with reactive data binding, based on practical experience building the HelixScreen UI. The XML engine lives in `lib/helix-xml/` — a permanent MIT-licensed fork of LVGL's XML engine taken at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It has no upstream; see `LVGL_XML_SITUATION.md`.
+Comprehensive guide to the declarative XML UI system with reactive data binding, based on practical experience building the HelixScreen UI. The XML engine lives in `lib/helix-xml/` — a permanent MIT-licensed fork of LVGL's XML engine taken at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It has no upstream; see `HELIX_XML_FORK.md`.
 
 **Last Updated:** 2026-07-15
 
@@ -1602,11 +1602,11 @@ lv_obj_t* w = lv_obj_find_by_name(parent, "widget_name");
 ## Resources
 
 - **Subject-Observer:** https://docs.lvgl.io/master/details/auxiliary-modules/observer/
-- **Fork origin and licensing:** `LVGL_XML_SITUATION.md`
+- **Fork origin and licensing:** `HELIX_XML_FORK.md`
 - **Upstream XML docs:** LVGL removed XML from core in v9.5 and now sells it as LVGL Pro. The old
   `docs.lvgl.io/master/details/xml/` link redirects to https://lvgl.io/docs/pro/syntax, which
   documents a different, closed engine — it is *not* authoritative for helix-xml syntax. Read it
-  for background only, and never read LVGL Pro source (see `LVGL_XML_SITUATION.md` § Clean-room rule).
+  for background only, and never read LVGL Pro source (see `HELIX_XML_FORK.md` § Clean-room rule).
 - **Quick Reference:** `LVGL9_XML_ATTRIBUTES_REFERENCE.md`
 - **Example Panels:** `ui_xml/bed_mesh_panel.xml` (gold standard)
 
