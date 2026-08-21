@@ -120,6 +120,18 @@ This step appears on-screen as **Printer Setup: Network**. If your device needs 
 
 The wizard shows signal strength for each network and indicates which one you're currently connected to. If you're using Ethernet, you'll see your connection status on the left — just skip ahead with **Next**.
 
+### About WiFi Network Lists
+
+Each network in the list can carry a small **band badge** — `2.4G` or `5G`, or `2.4/5G` when the same name is broadcast on both bands. It tells you which radio band the network lives on, which matters when a dual-band router uses one name for both: your panel follows whichever band it associates on. Badges only appear when the scan actually found networks on more than one band — on a 2.4GHz-only radio every row would read the same, so none of them do. Hardware that only supports 2.4GHz says so with a `(2.4GHz)` note next to the WiFi label in Network Settings.
+
+### Managing WiFi After Setup
+
+Later WiFi changes happen in **Settings > System > Network** (see [System Settings](settings/system.md#network-settings)) — pick a different network, add a hidden one, or switch the WiFi radio off entirely.
+
+**Forgetting a network:** next to the connected network's name is a **trash icon**. Tapping it asks for confirmation, then removes the network *and its password* from this device — you'll need the password again to reconnect. Use this before passing a panel on, or when a network's password changed and reconnection keeps failing.
+
+**Where passwords live:** WiFi passwords you enter are stored on the device itself — in the printer's own WiFi configuration where that is possible, and otherwise in HelixScreen's own credential file (`wifi_networks.json` in the HelixScreen config directory), which is readable only by its own user account and is never included in a debug bundle. Forgetting a network removes it from both places.
+
 ### Printer Connection
 
 ![Printer Connection](../../images/user/wizard-connection.png)

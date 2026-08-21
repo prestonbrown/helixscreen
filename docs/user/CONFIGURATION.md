@@ -28,6 +28,7 @@ Complete reference for HelixScreen configuration options.
 - [Cache Settings](#cache-settings)
 - [Streaming Settings](#streaming-settings)
 - [Safety Settings](#safety-settings)
+- [Notification Settings](#notification-settings)
 - [Filament Settings](#filament-settings)
 - [Filament Sensor Settings](#filament-sensor-settings)
 - [Security Settings](#security-settings)
@@ -271,16 +272,17 @@ Located in the `theme` section:
 | 4 | Dracula |
 | 5 | Everforest |
 | 6 | Gruvbox |
-| 7 | HelixScreen |
-| 8 | Kanagawa |
-| 9 | Material Design |
-| 10 | Midnight |
-| 11 | Nord (default) |
-| 12 | One Dark |
-| 13 | Rose Pine |
-| 14 | Solarized |
-| 15 | Tokyo Night |
-| 16 | Yami |
+| 7 | Hazard |
+| 8 | HelixScreen |
+| 9 | Kanagawa |
+| 10 | Material Design |
+| 11 | Midnight |
+| 12 | Nord (default) |
+| 13 | One Dark |
+| 14 | Rose Pine |
+| 15 | Solarized |
+| 16 | Tokyo Night |
+| 17 | Yami |
 
 > **Tip:** You can also browse and apply themes visually in **Settings > Display & Sound > Theme Colors**.
 
@@ -383,7 +385,7 @@ Located in the `display` section:
 **Type:** integer
 **Default:** `0`
 **Values:** `0`, `90`, `180`, `270`
-**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match.
+**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match. Change via **Settings > Display & Sound > Screen Rotation** (applies after restart).
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
@@ -1343,6 +1345,26 @@ Located in the `safety` section:
 **Default:** `30`
 **Options:** `15`, `30`, `60`, `120`
 **Description:** How long to wait (in seconds) after sending a cancel before escalating to emergency stop. Only applies when `cancel_escalation_enabled` is `true`.
+
+---
+
+## Notification Settings
+
+Located in the `notifications` section:
+
+```json
+{
+  "notifications": {
+    "min_toast_severity": 0
+  }
+}
+```
+
+### `min_toast_severity`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (all toasts), `1` (warnings & errors), `2` (errors only)
+**Description:** The lowest notification level allowed to interrupt with a toast. Below-the-line notifications still land in the notification history; full-screen error dialogs always show. Change via **Settings > Safety & Notifications > On-screen Alerts**.
 
 ---
 
