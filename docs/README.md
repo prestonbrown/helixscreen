@@ -15,6 +15,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Configuration**](user/CONFIGURATION.md) | All settings explained |
 | [**Troubleshooting**](user/TROUBLESHOOTING.md) | Solutions to common problems |
 | [**FAQ**](user/FAQ.md) | Quick answers to common questions |
+| [**Telemetry**](user/TELEMETRY.md) | What telemetry collects, privacy controls, opt-in/out |
 | [**Feature Guides**](user/guide/) | 24 per-feature guides: printing, calibration, filament, sensors, camera, security, and more |
 | [**Plugin Development**](devel/PLUGIN_DEVELOPMENT.md) | Create custom plugins |
 
@@ -81,7 +82,6 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Printer Manager**](devel/PRINTER_MANAGER.md) | Printer overlay, custom images, inline editing |
 | [**Timelapse**](devel/TIMELAPSE.md) | Moonraker timelapse plugin integration |
 | [**Crash Reporter**](devel/CRASH_REPORTER.md) | Crash detection, delivery pipeline, CF Worker |
-| [**Telemetry**](user/TELEMETRY.md) | Anonymous telemetry, privacy controls |
 | [**HelixPrint Plugin**](../moonraker-plugin/README.md) | Phase tracking Moonraker plugin |
 
 ### Platform Support
