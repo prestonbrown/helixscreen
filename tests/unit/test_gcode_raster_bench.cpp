@@ -134,11 +134,15 @@ TEST_CASE("antialiasing cost relative to aliased", "[.][raster_bench]") {
     // AA path is the one that runs on a desktop and a Pi.
     //
     // Which row matters depends on the model, not on the plate. auto_fit() frames
-    // the model's bounding box, so scale_ is px per mm of MODEL: measured on the
-    // production path, a 48mm Benchy renders at 4.5 px/mm and width 2, a 10mm
-    // calibration cube at 21.5 px/mm and width 8 (it asks for 9 and hits the
-    // clamp), and anything filling a 200mm plate at 1.3-2.5 px/mm and width 1.
-    // The whole 1..8 clamp range occurs in practice, so read every row.
+    // the model's bounding box, so scale_ is px per mm of MODEL. Measured on the
+    // production path: a 48mm Benchy renders at 3.1 px/mm and width 1, a 10mm
+    // calibration cube at 15.0 px/mm and width 6, and anything filling a 200mm
+    // plate at 1.3-2.5 px/mm and width 1. Width 1 is the common case and the
+    // MAX_EXTRUSION_PIXEL_WIDTH clamp of 8 is not reached by these models.
+    //
+    // Re-measure after any change to framing: these numbers are a property of
+    // auto_fit(), not of the rasterizer, and they moved once already when the
+    // preview started framing against the real metadata overlap.
     Canvas cv;
     constexpr int kSegments = 20000;
 
