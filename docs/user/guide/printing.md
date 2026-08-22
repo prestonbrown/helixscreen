@@ -275,6 +275,23 @@ Once a print has finished — whether it completed, was cancelled, or failed —
 
 ---
 
+## Recovering After a Power Loss
+
+If the power dies mid-print, some printers keep a recovery point of the interrupted job. When HelixScreen connects to one of these printers and finds a recovery waiting, a dialog offers to pick the print back up:
+
+- **Resume** — continues the interrupted file from where the power failed
+- **Discard** — clears the recovery data so the printer starts fresh next time
+
+The dialog names the file and warns that the layer in progress when the power dropped may not line up perfectly — a small seam at the resume point is normal.
+
+This works on Creality's Klipper firmware (K1, K1C, K1 Max, K2 Plus, Ender 3 V3, Hi, and i7) and on the Snapmaker U1. On the Creality printers, HelixScreen asks the printer itself to confirm that a recoverable print exists before offering Resume — if the printer's own check does not pass, the offer never appears, because resuming without it can make the printer home straight through the part left on the bed.
+
+The offer appears once per connection while the printer is idle; if it went unanswered, it comes back the next time HelixScreen connects.
+
+For everything else HelixScreen watches for during and around a print, see [Print Monitoring & Failure Detection](print-monitoring.md).
+
+---
+
 ---
 
 ## See Also

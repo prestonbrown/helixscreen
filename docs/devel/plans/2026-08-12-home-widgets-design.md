@@ -517,7 +517,7 @@ the seven depend on one of its extractions.
 
 Batch 0 (the DRY refactors) is complete: 13 commits on `feature/home-widgets`,
 branched from `fix/grid-cell-metrics`. Plan:
-`docs/superpowers/plans/2026-08-12-home-widgets-batch0-dry.md`.
+`docs/devel/plans/2026-08-12-home-widgets-batch0-dry.md`.
 
 ## What Batch 0 delivered
 
@@ -629,8 +629,8 @@ Per widget, that file needs:
 > note at `:207` ("2x1 means 2 columns wide and 1 row tall"), while `s_widget_defs` now
 > stores **half-cell tracks**. Divide the registry values by 2 when writing these rows,
 > or the new rows will silently contradict every existing one. The square-cell plan
-> (`docs/superpowers/plans/2026-08-08-square-cell-grid.md:2490`) already flagged that
-> the existing columns need doubling — coordinate rather than fixing it twice.
+> already flagged that the existing columns need doubling — coordinate rather than
+> fixing it twice.
 
 **Cross-link bidirectionally** to the existing feature docs rather than duplicating
 them. The pattern already exists twice (`docs/user/guide/sensors.md:78` and

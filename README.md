@@ -255,7 +255,7 @@ See [docs/user/TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md) for more soluti
 | [LVGL9 XML Guide](docs/devel/LVGL9_XML_GUIDE.md) | XML syntax reference |
 | [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md) | Breakpoints, tokens, colors, widgets |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Roadmap](docs/devel/ROADMAP.md) | Feature timeline |
+| [Roadmap](https://github.com/prestonbrown/helixscreen/issues) | Feature timeline (labeled issues) |
 
 ## Community
 

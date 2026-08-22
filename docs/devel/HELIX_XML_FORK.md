@@ -242,7 +242,7 @@ that's convergent design on an obvious problem — record the doc URL in the com
 These are tracked as [helix-xml#1](https://github.com/prestonbrown/helix-xml/issues/1) (slots),
 [#2](https://github.com/prestonbrown/helix-xml/issues/2) (`<param>`), and
 [#3](https://github.com/prestonbrown/helix-xml/issues/3) (`<enumdef>`). The engine's roadmap lives
-on GitHub, not in `ROADMAP.md`.
+on GitHub.
 
 **Explicitly not adopting:** `<targets>`/`if_target`, `<preview>`, C export, `<element>`. And the
 dormant `<timeline>`/`<animation>` code should be either used or deleted rather than maintained on
@@ -262,4 +262,4 @@ the theory that upstream has it.
 
 Internal: `LVGL9_XML_GUIDE.md` (syntax) · `LVGL9_XML_ATTRIBUTES_REFERENCE.md` (attributes) ·
 `BUILD_SYSTEM.md` (how helix-xml is built) · `patches/README.md` (LVGL patches; XML patches are
-baked in) · `ROADMAP.md` § "XML Engine Extraction & LVGL 9.5 Upgrade"
+baked in)

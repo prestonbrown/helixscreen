@@ -105,6 +105,23 @@ graph TB
     PLG --> MA
 ```
 
+## Design Philosophy
+
+HelixScreen is a **local touchscreen** UI — users are physically present at the printer. This fundamentally differs from web UIs (Mainsail/Fluidd) designed for remote monitoring.
+
+**We prioritize:**
+- Tactile controls optimized for touch
+- At-a-glance information for the user standing at the machine
+- Calibration workflows (PID, Z-offset, screws tilt, input shaper)
+- Real-time tuning (speed, flow, firmware retraction)
+
+**Lower priority for this form factor:**
+- Job queue (requires manual print removal between jobs)
+- System stats (CPU/memory) — not diagnosing remote issues
+- Remote access/monitoring features
+
+Don't copy features from web UIs just because "competitors have it" — evaluate whether it makes sense for a local touchscreen.
+
 ## Pick your subsystem
 
 | I want to... | Read |

@@ -189,7 +189,7 @@ For debugging, every class in this chapter logs under a stable tag: `[AMS State]
 
 ## Going deeper
 
-- [`../FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) — everything this chapter defers: per-backend protocols and topology, the four-surface filament-op dispatch ladder, endless spool, error channels, `lane_data` slot-metadata persistence, UI panels.
+- [`../FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) — everything this chapter defers: the four-surface filament-op dispatch ladder, endless spool, error channels, `lane_data` slot-metadata persistence, UI panels, and the per-backend leaf docs (`FILAMENT_BACKEND_*.md`) for each backend's protocol and topology.
 - [`../TOOL_ABSTRACTION.md`](../TOOL_ABSTRACTION.md) — the ToolState deep dive: `ToolInfo` fields, `DetectState`, tool discovery from `tool T*` objects, backend_index/backend_slot mapping.
 - [`../FILAMENT_SLOT_METADATA.md`](../FILAMENT_SLOT_METADATA.md) + [`../../specs/filament_slots.md`](../../specs/filament_slots.md) — the user-editable slot metadata store and its public wire format (the OrcaSlicer-facing `lane_data` contract).
 - [`06-discovery-capabilities.md`](06-discovery-capabilities.md) — the detection half: how `detected_ams_systems_` is populated and how the AMS home widget gates on `ams_slot_count`.

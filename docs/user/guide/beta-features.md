@@ -47,6 +47,26 @@ When beta features are enabled, the following appear in the UI with an orange "B
 
 ---
 
+## ESP32-S3 Firmware (Alpha)
+
+Besides running on a printer's host computer (Linux, Raspberry Pi, Android), HelixScreen can be built as firmware that runs directly on ESP32-S3 display panels — the BTT K-Touch class of hardware.
+
+**Status: alpha.** This is an early, experimental port for developers and early testers. Expect rough edges, missing features, and instability — not for daily use, and not a scheduled release. The Linux, Pi, and Android targets are unaffected and remain the production ones.
+
+What works today:
+
+- Boots to the Home panel; heavier screens load on first visit to fit the panel's memory
+- Live printer status and bed mesh over WiFi through Moonraker
+- WiFi setup on first boot: the panel broadcasts its own setup hotspot — join it from your phone to configure the network
+- Over-the-air updates, with a fallback slot to recover a bad flash
+- All nine languages and the printer image set, packed to fit the panel's storage
+
+Not yet available on this target: the camera feed and QR features, the 2D G-code view, and the 3D bed mesh view.
+
+There is no release download yet — the firmware is built from the source tree with the ESP-IDF toolchain.
+
+---
+
 ## Update Channel Selection
 
 When beta features are enabled, a channel selector appears in **Settings** → **About**:

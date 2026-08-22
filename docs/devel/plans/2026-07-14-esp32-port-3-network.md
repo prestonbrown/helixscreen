@@ -4,7 +4,7 @@
 
 **Goal:** Make `IMoonrakerClient`/`IMoonrakerAPI` the complete, lint-enforced consumer contract for all Moonraker access (fixing every concrete-type bypass), then implement `IMoonrakerClient` on ESP-IDF over `esp_websocket_client` and prove it live against a real Moonraker from the K-Touch.
 
-**Architecture:** Preston's decision (2026-07-14): **widen the interfaces — no half measures.** Consumers depend only on interfaces; concrete `MoonrakerClient` (libhv) and `MoonrakerAPI` become implementations owned by `MoonrakerManager`. `MoonrakerAPI` is decoupled from the concrete client (consumes `IMoonrakerClient&`) so its ~800 lines of portable JSON-RPC wrappers are reused verbatim on ESP32; only the WS transport is reimplemented. A lint gate prevents new concrete-type bypasses. Research grounding: `.superpowers/sdd/p3-research-{client,api,consumers,espidf}.md`.
+**Architecture:** Preston's decision (2026-07-14): **widen the interfaces — no half measures.** Consumers depend only on interfaces; concrete `MoonrakerClient` (libhv) and `MoonrakerAPI` become implementations owned by `MoonrakerManager`. `MoonrakerAPI` is decoupled from the concrete client (consumes `IMoonrakerClient&`) so its ~800 lines of portable JSON-RPC wrappers are reused verbatim on ESP32; only the WS transport is reimplemented. A lint gate prevents new concrete-type bypasses.
 
 **Tech Stack:** C++17 main tree (libhv stays desktop transport), ESP-IDF v5.5 + managed component `espressif/esp_websocket_client ^1.6.1` (firmware), vendored nlohmann::json both sides.
 
