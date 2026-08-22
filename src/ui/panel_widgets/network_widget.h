@@ -41,7 +41,6 @@ class NetworkWidget : public PanelWidget {
     // Module-level subjects owned by network_widget.cpp
     // (initialized via register_widget_subjects → PanelWidgetManager::init_widget_subjects)
     lv_subject_t* network_icon_state_ = nullptr;
-    lv_subject_t* network_label_subject_ = nullptr;
 
     NetworkType current_network_ = NetworkType::Unknown;
     bool backend_ready_ = false; // True after WiFi backend fires READY event

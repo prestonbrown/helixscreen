@@ -184,7 +184,6 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     //
 
     /// Subject for volume value label binding
-    lv_subject_t volume_value_subject_;
     char volume_value_buf_[8]; // e.g., "100%"
 
     //

@@ -76,7 +76,6 @@ BarcodeScannerSettingsOverlay::~BarcodeScannerSettingsOverlay() {
         lv_subject_deinit(&bt_available_subject_);
         lv_subject_deinit(&bt_discovering_subject_);
         lv_subject_deinit(&keymap_index_subject_);
-        lv_subject_deinit(&has_devices_subject_);
         lv_subject_deinit(&current_device_label_subject_);
     }
 
@@ -105,9 +104,6 @@ void BarcodeScannerSettingsOverlay::init_subjects() {
 
     lv_subject_init_int(&bt_discovering_subject_, 0);
     lv_xml_register_subject(nullptr, "scanner_bt_discovering", &bt_discovering_subject_);
-
-    lv_subject_init_int(&has_devices_subject_, 0);
-    lv_xml_register_subject(nullptr, "scanner_has_devices", &has_devices_subject_);
 
     const std::string km = helix::SettingsManager::instance().get_scanner_keymap();
     int km_idx = 0;
@@ -387,9 +383,6 @@ void BarcodeScannerSettingsOverlay::populate_device_list() {
         add_usb_row(usb_list_, dev.name, sublabel, vendor_product);
         usb_count++;
     }
-
-    const bool any = usb_count > 0 || !bt_devices_.empty();
-    lv_subject_set_int(&has_devices_subject_, any ? 1 : 0);
 }
 
 int BarcodeScannerSettingsOverlay::selected_bt_index() const {

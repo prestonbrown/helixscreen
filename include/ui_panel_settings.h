@@ -142,7 +142,6 @@ class SettingsPanel : public PanelBase {
     // neutral "updates aren't available" notice, mutually exclusive with the
     // firmware-managed notice above.
     lv_subject_t updates_unavailable_subject_;
-    lv_subject_t show_backlight_settings_subject_;
 
     // Touch calibration status subject
     lv_subject_t touch_cal_status_subject_;

@@ -22,8 +22,6 @@ static constexpr uint32_t SIGNAL_POLL_INTERVAL_MS = 5000;
 
 // Subjects owned by NetworkWidget module — created before XML bindings resolve
 static lv_subject_t s_network_icon_state;
-static lv_subject_t s_network_label_subject;
-static char s_network_label_buffer[32];
 static bool s_subjects_initialized = false;
 
 static void network_widget_init_subjects() {
@@ -37,20 +35,12 @@ static void network_widget_init_subjects() {
     SubjectDebugRegistry::instance().register_subject(
         &s_network_icon_state, "home_network_icon_state", LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
-    // String subject for network type label
-    lv_subject_init_string(&s_network_label_subject, s_network_label_buffer, nullptr,
-                           sizeof(s_network_label_buffer), "WiFi");
-    lv_xml_register_subject(nullptr, "network_label", &s_network_label_subject);
-    SubjectDebugRegistry::instance().register_subject(&s_network_label_subject, "network_label",
-                                                      LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
-
     s_subjects_initialized = true;
 
     // Self-register cleanup with StaticSubjectRegistry (co-located with init)
     // Subjects must be deinitialized AFTER panels remove their observers (Phase 2)
     StaticSubjectRegistry::instance().register_deinit("NetworkWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_network_label_subject);
             lv_subject_deinit(&s_network_icon_state);
             s_subjects_initialized = false;
             spdlog::trace("[NetworkWidget] Subjects deinitialized");
@@ -96,7 +86,6 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     // Use module-owned subjects (initialized via network_widget_init_subjects)
     network_icon_state_ = &s_network_icon_state;
-    network_label_subject_ = &s_network_label_subject;
 
     // Get WiFiManager for signal strength queries
     wifi_manager_ = get_wifi_manager();
@@ -152,7 +141,6 @@ void NetworkWidget::detach() {
     ethernet_manager_.reset();
     wifi_manager_.reset();
     network_icon_state_ = nullptr;
-    network_label_subject_ = nullptr;
 
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, nullptr);
@@ -261,24 +249,6 @@ void NetworkWidget::detect_network_type(bool force) {
 
 void NetworkWidget::set_network(NetworkType type) {
     current_network_ = type;
-
-    // Update label text via subject
-    if (network_label_subject_) {
-        switch (type) {
-        case NetworkType::Wifi:
-            lv_subject_copy_string(network_label_subject_, "WiFi");
-            break;
-        case NetworkType::Ethernet:
-            lv_subject_copy_string(network_label_subject_, "Ethernet");
-            break;
-        case NetworkType::Disconnected:
-            lv_subject_copy_string(network_label_subject_, lv_tr("Disconnected"));
-            break;
-        case NetworkType::Unknown:
-            // No label change — only reached if called with the sentinel.
-            break;
-        }
-    }
 
     // Update the icon state (will query WiFi signal strength if connected)
     update_network_icon_state();
