@@ -626,6 +626,24 @@
     <!-- nord13 - warming -->
     <color name="temp_gradient_hot" value="#bf616a"/>
     <!-- nord11 - hot -->
+
+    <!-- Temperature graph and heat-state colors. Reached only from C++ via
+         theme_manager_get_color(): the temp graph and bed mesh renderers read
+         graph_bg, TemperatureService reads heating_color/cooling_color. No XML
+         component references them, so they belong here rather than in a panel;
+         dropping either half of a _light/_dark pair renders the element black. -->
+    <color name="graph_bg_light" value="#eceff4"/>
+    <!-- nord6 -->
+    <color name="graph_bg_dark" value="#2e3440"/>
+    <!-- nord0 -->
+    <color name="heating_color_light" value="#bf616a"/>
+    <!-- nord11 - hot -->
+    <color name="heating_color_dark" value="#bf616a"/>
+    <!-- nord11 - hot -->
+    <color name="cooling_color_light" value="#88c0d0"/>
+    <!-- nord8 - cold -->
+    <color name="cooling_color_dark" value="#88c0d0"/>
+    <!-- nord8 - cold -->
     <!-- ===================================================================== -->
     <!-- Nord Theme Color Reference (https://www.nordtheme.com)                -->
     <!-- ===================================================================== -->
