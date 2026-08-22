@@ -25,6 +25,7 @@
  */
 
 #include "ui_panel_controls.h"
+#include "ui_panel_print_status.h"
 #include "ui_temp_display.h"
 
 #include "../test_fixtures.h"
@@ -66,6 +67,15 @@ static lv_obj_t* require_named(lv_obj_t* root, const char* name) {
     return found;
 }
 
+// Visibility bindings are where a silent inversion lives: bind_flag_if_eq with
+// the wrong ref_value hides the card that should show, and every other gate is
+// happy because both the subject and the flag exist. Drive the subject across
+// the boundary and read the resolved flag.
+static bool is_hidden(lv_obj_t* obj) {
+    REQUIRE(obj != nullptr);
+    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
 static std::string label_text_of(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
     const char* t = lv_label_get_text(obj);
@@ -99,6 +109,7 @@ template <typename Owner> class SubjectOwner {
 
 using ControlsPanelSubjects = SubjectOwner<ControlsPanel>;
 using TemperatureSubjects = SubjectOwner<TemperatureService>;
+using PrintStatusSubjects = SubjectOwner<PrintStatusPanel>;
 
 // controls_panel binds every homing button's background through two bind_style
 // rules (see the <consts> block at the top of controls_panel.xml):
@@ -249,55 +260,22 @@ TEST_CASE_METHOD(XMLTestFixture, "temp_display: binds to bed temperature subject
 // HOME PANEL BINDING TESTS (SKIP - complex dependencies)
 // =============================================================================
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: status_text binding updates label",
-                 "[ui][home_panel][bind_text][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: printer_type_text binding updates label",
-                 "[ui][home_panel][bind_text][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: print_display_filename binding updates label",
-                 "[ui][home_panel][bind_text][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: print_progress_text binding updates label",
-                 "[ui][home_panel][bind_text][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: print_progress_bar binding updates bar value",
-                 "[ui][home_panel][bind_value][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: disconnected_overlay hidden when connected",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "panel_widget_printer_image: disconnected_overlay tracks connection",
                  "[ui][home_panel][bind_flag][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
+    // ref_value=2 is "connected"; anything else must surface the prohibited icon.
+    // An inverted ref_value here hides the only indication the printer is gone.
+    REQUIRE(register_component("components/panel_widget_printer_image"));
+    set_xml_subject("printer_connection_state", 2);
+    lv_obj_t* w = create_component("panel_widget_printer_image");
+    lv_obj_t* overlay = require_named(w, "disconnected_overlay");
+    CHECK(is_hidden(overlay));
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: notification_badge hidden when count is zero",
-                 "[ui][home_panel][bind_flag][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
+    set_xml_subject("printer_connection_state", 0);
+    CHECK_FALSE(is_hidden(overlay));
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: extruder_temp binding updates temp_display",
-                 "[ui][home_panel][bind_current][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "home_panel: extruder_target binding updates temp_display target",
-                 "[ui][home_panel][bind_target][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: network_label binding updates text",
-                 "[ui][home_panel][bind_text][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
+    set_xml_subject("printer_connection_state", 2);
+    CHECK(is_hidden(overlay));
 }
 
 // =============================================================================
@@ -346,16 +324,6 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: pos_z binding updates position
     CHECK(label_text_of(require_named(panel, "pos_z")) == "-5.00");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: speed_pct binding updates text",
-                 "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: flow_pct binding updates text",
-                 "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: x_homed drives btn_home_x background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
     ControlsPanelSubjects owner(state());
@@ -400,59 +368,35 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
 // PRINT STATUS PANEL BINDING TESTS (SKIP - complex dependencies)
 // =============================================================================
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_display_filename binding updates label",
-                 "[ui][print_status_panel][bind_text][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_elapsed binding updates time label",
-                 "[ui][print_status_panel][bind_text][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_remaining binding updates time label",
-                 "[ui][print_status_panel][bind_text][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_progress bar binding updates value",
-                 "[ui][print_status_panel][bind_value][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_progress_text binding updates label",
-                 "[ui][print_status_panel][bind_text][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "print_status_panel: print_layer_text binding updates label",
-                 "[ui][print_status_panel][bind_text][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: preparing_overlay hidden when not preparing",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "print_status_preview_card: preparing_overlay tracks preparing_visible",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
+    PrintStatusSubjects owner(state());
+    REQUIRE(register_component("components/print_status_preview_card"));
+    set_xml_subject("preparing_visible", 0);
+    lv_obj_t* card = create_component("print_status_preview_card");
+    lv_obj_t* overlay = require_named(card, "preparing_overlay");
+    CHECK(is_hidden(overlay));
+
+    set_xml_subject("preparing_visible", 1);
+    CHECK_FALSE(is_hidden(overlay));
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: print_complete_overlay visibility on outcome",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "print_status_preview_card: print_complete_overlay tracks show_complete_overlay",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
+    // The overlay is authored hidden="true" and revealed by the binding, so an
+    // inverted ref_value leaves a finished print with no completion feedback at
+    // all - and nothing logs.
+    PrintStatusSubjects owner(state());
+    REQUIRE(register_component("components/print_status_preview_card"));
+    set_xml_subject("show_complete_overlay", 0);
+    lv_obj_t* card = create_component("print_status_preview_card");
+    lv_obj_t* overlay = require_named(card, "print_complete_overlay");
+    CHECK(is_hidden(overlay));
+
+    set_xml_subject("show_complete_overlay", 1);
+    CHECK_FALSE(is_hidden(overlay));
 }
 
 // =============================================================================
@@ -565,23 +509,6 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_status binding updates sta
     CHECK(label_text_of(require_named(panel, "bed_status")).empty());
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "home_panel: print_card_idle visibility bound to print_active",
-                 "[ui][home_panel][bind_flag][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "home_panel: print_card_printing visibility bound to print_show_progress",
-                 "[ui][home_panel][bind_flag][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
-TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: printer_image dimmed style when disconnected",
-                 "[ui][home_panel][bind_style][.xml_required]") {
-    SKIP("Home panel has many component dependencies - implement after simpler panels work");
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
     ControlsPanelSubjects owner(state());
@@ -590,9 +517,17 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all 
     check_homing_button_tracks_subject(panel, "btn_home_all", "all_homed");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "print_status_panel: timelapse button visibility bound to capability",
+TEST_CASE_METHOD(XMLTestFixture, "print_status_panel: btn_timelapse hidden without the capability",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
-    SKIP("Print status panel has many component dependencies - implement after simpler panels "
-         "work");
+    // A printer with no timelapse component must not be offered the button;
+    // an inverted ref_value here offers an action that cannot work.
+    PrintStatusSubjects owner(state());
+    REQUIRE(register_component("print_status_panel"));
+    set_xml_subject("printer_has_timelapse", 0);
+    lv_obj_t* panel = create_component("print_status_panel");
+    lv_obj_t* btn = require_named(panel, "btn_timelapse");
+    CHECK(is_hidden(btn));
+
+    set_xml_subject("printer_has_timelapse", 1);
+    CHECK_FALSE(is_hidden(btn));
 }

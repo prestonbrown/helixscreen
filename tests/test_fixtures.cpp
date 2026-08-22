@@ -8,6 +8,7 @@
 #include "ui_card.h"
 #include "ui_dialog.h"
 #include "ui_icon.h"
+#include "ui_progress_bar.h"
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_text.h"
@@ -198,6 +199,7 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     ui_text_init();            // text_heading, text_body, text_small, text_xs
     ui_text_input_init();      // text_input (textarea with bind_text support)
     ui_button_init();          // ui_button with bind_icon support
+    ui_progress_bar_init();    // progress_bar (print progress, preview card)
     ui_card_register();        // ui_card
     ui_temp_display_init();    // temp_display
 
