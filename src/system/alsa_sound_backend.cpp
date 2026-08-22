@@ -334,6 +334,15 @@ void ALSASoundBackend::render_loop() {
             // before parking. On a stream that never started (PREPARED)
             // drain returns immediately.
             if (pcm_) {
+                // A sound shorter than the start threshold never started the
+                // stream, and drain on a PREPARED stream is a no-op, so its
+                // audio would be discarded by the prepare() below. Start it so
+                // drain actually plays it.
+                if (needs_start_before_drain(snd_pcm_state(pcm_), wrote_since_prepare_)) {
+                    int serr = snd_pcm_start(pcm_);
+                    if (serr < 0)
+                        spdlog::debug("[ALSASound] start before drain: {}", snd_strerror(serr));
+                }
                 int err = snd_pcm_drain(pcm_);
                 if (err < 0)
                     spdlog::debug("[ALSASound] drain on park: {}", snd_strerror(err));
@@ -347,8 +356,10 @@ void ALSASoundBackend::render_loop() {
             }
             if (!running_.load(std::memory_order_relaxed))
                 break;
-            if (pcm_)
+            if (pcm_) {
                 snd_pcm_prepare(pcm_);
+                wrote_since_prepare_ = false;
+            }
         }
 
         std::memset(mix_buf_.data(), 0, frames * sizeof(float));
@@ -434,6 +445,9 @@ void ALSASoundBackend::render_loop() {
 
         snd_pcm_sframes_t written =
             snd_pcm_writei(pcm_, write_buf, static_cast<snd_pcm_uframes_t>(frames));
+        if (written > 0) {
+            wrote_since_prepare_ = true;
+        }
         if (written < 0) {
             written = recover_xrun(written);
             if (written < 0) {
@@ -469,6 +483,7 @@ snd_pcm_sframes_t ALSASoundBackend::recover_xrun(snd_pcm_sframes_t err) {
             last_xrun_log_ = now;
         }
         int ret = snd_pcm_prepare(pcm_);
+        wrote_since_prepare_ = false;
         if (ret < 0) {
             spdlog::error("[ALSASound] Cannot recover from underrun: {}", snd_strerror(ret));
             return static_cast<snd_pcm_sframes_t>(ret);
@@ -508,6 +523,10 @@ void ALSASoundBackend::float_to_s16(const float* src, int16_t* dst, size_t sampl
     for (size_t i = 0; i < sample_count; ++i) {
         dst[i] = static_cast<int16_t>(std::clamp(src[i], -1.0f, 1.0f) * 32767.0f);
     }
+}
+
+bool ALSASoundBackend::needs_start_before_drain(snd_pcm_state_t state, bool wrote_since_prepare) {
+    return state == SND_PCM_STATE_PREPARED && wrote_since_prepare;
 }
 
 #endif // HELIX_HAS_ALSA
