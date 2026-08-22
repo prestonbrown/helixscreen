@@ -82,7 +82,6 @@ IMPLEMENTATION_PLAN.md
 .claude/*.lock
 .claude/projects/
 .claude/worktrees/
-.claude-recall/.gitignore
 
 # OpenCode local state
 .opencode/state/

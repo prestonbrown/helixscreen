@@ -41,6 +41,17 @@ endif
 		git config core.hooksPath .githooks; \
 		echo "$(GREEN)✓ Git pre-commit hooks enabled (auto-format with clang-format)$(RESET)"; \
 	fi
+	@# Auto-register the lesson-stats merge driver. .gitattributes marks
+	@# .claude-recall/*.json as merge=recall-stats; with no driver configured
+	@# git quietly falls back to a text merge, so the counters conflict any
+	@# time two branches both cited a lesson. (Setting the .name key without
+	@# .driver is worse - that combination aborts the merge outright.) Config
+	@# is shared across worktrees, so registering once covers all of them.
+	@if [ -f "scripts/recall_stats_merge.py" ] && [ -z "$$(git config merge.recall-stats.driver 2>/dev/null)" ]; then \
+		git config merge.recall-stats.name "recall lesson-stats union merge"; \
+		git config merge.recall-stats.driver "python3 scripts/recall_stats_merge.py %O %A %B"; \
+		echo "$(GREEN)✓ Lesson-stats merge driver registered (counters merge additively)$(RESET)"; \
+	fi
 
 # Auto-install missing dependencies (interactive, requires confirmation)
 install-deps:
