@@ -292,12 +292,20 @@ TEST_CASE("GCodeLayerCache thread safety", "[gcode][cache][thread][slow]") {
         // Pre-populate
         cache.get_or_load(0, test_loader(50));
 
+        // Catch2's assertion macros are not thread-safe: they mutate shared
+        // per-assertion state, so calling REQUIRE from these worker threads is
+        // itself a data race (TSan reported it as concurrent writes from two
+        // worker threads at the REQUIRE). Record the outcome atomically and
+        // assert once, back on the main thread.
+        std::atomic<bool> all_loaded{true};
         std::vector<std::thread> threads;
         for (int i = 0; i < 10; ++i) {
-            threads.emplace_back([&cache]() {
+            threads.emplace_back([&cache, &all_loaded]() {
                 for (int j = 0; j < 100; ++j) {
                     auto result = cache.get_or_load(0, test_loader(50));
-                    REQUIRE(result.segments != nullptr);
+                    if (result.segments == nullptr) {
+                        all_loaded.store(false, std::memory_order_relaxed);
+                    }
                 }
             });
         }
@@ -305,6 +313,7 @@ TEST_CASE("GCodeLayerCache thread safety", "[gcode][cache][thread][slow]") {
         for (auto& t : threads) {
             t.join();
         }
+        REQUIRE(all_loaded.load(std::memory_order_relaxed));
 
         REQUIRE(cache.is_cached(0));
     }
