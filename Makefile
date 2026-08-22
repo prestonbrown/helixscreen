@@ -1050,9 +1050,12 @@ dev:
 setup:
 	@git config core.hooksPath .githooks
 	@git config commit.template .githooks/commit-template
+	@git config merge.recall-stats.name "recall lesson-stats union merge"
+	@git config merge.recall-stats.driver "python3 scripts/recall_stats_merge.py %O %A %B"
 	@echo "✓ Git configured:"
 	@echo "  - Pre-commit hook enabled (.githooks/)"
 	@echo "  - Commit template enabled (.githooks/commit-template)"
+	@echo "  - Lesson-stats merge driver enabled (.claude-recall/*.json)"
 
 # Help target - shows common commands, references topic-specific help
 help:
