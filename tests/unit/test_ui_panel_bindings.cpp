@@ -24,11 +24,13 @@
  * - PrinterState subjects registered for XML bindings
  */
 
+#include "ui_panel_controls.h"
 #include "ui_temp_display.h"
 
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
 #include "printer_state.h"
+#include "theme_manager.h"
 
 #include <string>
 
@@ -43,6 +45,75 @@ static void set_xml_subject(const char* name, int value) {
     lv_subject_t* subject = lv_xml_get_subject(NULL, name);
     REQUIRE(subject != nullptr); // Fail fast if subject not registered
     lv_subject_set_int(subject, value);
+}
+
+// String counterpart of set_xml_subject, for bind_text targets.
+static void set_xml_subject_str(const char* name, const char* value) {
+    lv_subject_t* subject = lv_xml_get_subject(NULL, name);
+    REQUIRE(subject != nullptr);
+    lv_subject_copy_string(subject, value);
+}
+
+// Look up a named descendant, failing the test with the name if it is absent.
+// Panel XML is edited far more often than these tests, so a rename must report
+// WHICH widget vanished rather than a bare nullptr deref.
+static lv_obj_t* require_named(lv_obj_t* root, const char* name) {
+    REQUIRE(root != nullptr);
+    lv_obj_t* found = lv_obj_find_by_name(root, name);
+    INFO("looking for widget named '" << name << "'");
+    REQUIRE(found != nullptr);
+    return found;
+}
+
+static std::string label_text_of(lv_obj_t* obj) {
+    REQUIRE(obj != nullptr);
+    const char* t = lv_label_get_text(obj);
+    return t ? std::string(t) : std::string();
+}
+
+// controls_panel's bind_text/bind_value/bind_style targets (controls_pos_*,
+// controls_*_status, controls_fan_pct, *_homed) are owned by ControlsPanel, not
+// by PrinterState, so XMLTestFixture does not register them. Build the real
+// panel object and let it publish its own subjects: binding against subjects the
+// test invented would assert only that lv_xml resolves a name, not that the
+// panel and its XML agree on one.
+//
+// The ctor is trivial (no setup(), no XML); deinit_subjects() in the destructor
+// keeps the global XML subject registry from carrying dangling pointers into the
+// next test.
+class ControlsPanelSubjects {
+  public:
+    explicit ControlsPanelSubjects(PrinterState& st) : panel_(st, nullptr) {
+        panel_.init_subjects();
+    }
+    ~ControlsPanelSubjects() {
+        panel_.deinit_subjects();
+    }
+    ControlsPanelSubjects(const ControlsPanelSubjects&) = delete;
+    ControlsPanelSubjects& operator=(const ControlsPanelSubjects&) = delete;
+
+  private:
+    ControlsPanel panel_;
+};
+
+// controls_panel binds every homing button's background through two bind_style
+// rules (see the <consts> block at the top of controls_panel.xml):
+//   home_btn_homed   -> bg_color #success
+//   home_btn_unhomed -> bg_color #text @ opa 50
+// Driving the subject and reading the resolved background is what proves the
+// binding is live; asserting on the style NAME would only re-read the XML.
+static void check_homing_button_tracks_subject(lv_obj_t* panel, const char* button_name,
+                                               const char* subject_name) {
+    lv_obj_t* btn = require_named(panel, button_name);
+
+    set_xml_subject(subject_name, 1);
+    lv_color_t homed = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
+    CHECK(lv_color_to_u32(homed) == lv_color_to_u32(theme_manager_get_color("success")));
+
+    set_xml_subject(subject_name, 0);
+    lv_color_t unhomed = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
+    CHECK(lv_color_to_u32(unhomed) == lv_color_to_u32(theme_manager_get_color("text")));
+    CHECK(lv_color_to_u32(unhomed) != lv_color_to_u32(homed));
 }
 
 // =============================================================================
@@ -227,19 +298,46 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: network_label binding update
 // CONTROLS PANEL BINDING TESTS (SKIP - complex dependencies)
 // =============================================================================
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: pos_x binding updates position text",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: pos_x binding updates position text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject_str("controls_pos_x", "12.34");
+    lv_obj_t* panel = create_component("controls_panel");
+    CHECK(label_text_of(require_named(panel, "pos_x")) == "12.34");
+
+    // Reactive: the label must follow a later publish, not just whatever the
+    // subject happened to hold when the widget was built.
+    set_xml_subject_str("controls_pos_x", "-5.00");
+    CHECK(label_text_of(require_named(panel, "pos_x")) == "-5.00");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: pos_y binding updates position text",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: pos_y binding updates position text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject_str("controls_pos_y", "12.34");
+    lv_obj_t* panel = create_component("controls_panel");
+    CHECK(label_text_of(require_named(panel, "pos_y")) == "12.34");
+
+    // Reactive: the label must follow a later publish, not just whatever the
+    // subject happened to hold when the widget was built.
+    set_xml_subject_str("controls_pos_y", "-5.00");
+    CHECK(label_text_of(require_named(panel, "pos_y")) == "-5.00");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: pos_z binding updates position text",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: pos_z binding updates position text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject_str("controls_pos_z", "12.34");
+    lv_obj_t* panel = create_component("controls_panel");
+    CHECK(label_text_of(require_named(panel, "pos_z")) == "12.34");
+
+    // Reactive: the label must follow a later publish, not just whatever the
+    // subject happened to hold when the widget was built.
+    set_xml_subject_str("controls_pos_z", "-5.00");
+    CHECK(label_text_of(require_named(panel, "pos_z")) == "-5.00");
 }
 
 TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: speed_pct binding updates text",
@@ -252,30 +350,44 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: flow_pct binding updates
     SKIP("Controls panel has many component dependencies - implement after simpler panels work");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: x_homed indicator style changes when homed",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: x_homed drives btn_home_x background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    lv_obj_t* panel = create_component("controls_panel");
+    check_homing_button_tracks_subject(panel, "btn_home_x", "x_homed");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: y_homed indicator style changes when homed",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: y_homed drives btn_home_y background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    lv_obj_t* panel = create_component("controls_panel");
+    check_homing_button_tracks_subject(panel, "btn_home_y", "y_homed");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: z_homed indicator style changes when homed",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: z_homed drives btn_home_z background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    lv_obj_t* panel = create_component("controls_panel");
+    check_homing_button_tracks_subject(panel, "btn_home_z", "z_homed");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "controls_panel: part_fan_slider binding updates slider value",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding updates slider value",
                  "[ui][controls_panel][bind_value][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
-}
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject("controls_fan_pct", 40);
+    lv_obj_t* panel = create_component("controls_panel");
+    lv_obj_t* slider = require_named(panel, "part_fan_slider");
+    CHECK(lv_slider_get_value(slider) == 40);
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: z_offset_banner hidden when delta is zero",
-                 "[ui][controls_panel][bind_flag][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    set_xml_subject("controls_fan_pct", 100);
+    CHECK(lv_slider_get_value(slider) == 100);
+
+    set_xml_subject("controls_fan_pct", 0);
+    CHECK(lv_slider_get_value(slider) == 0);
 }
 
 // =============================================================================
@@ -360,26 +472,64 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "bed_temp_panel: status_message binding u
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
 // =============================================================================
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
+TEST_CASE_METHOD(XMLTestFixture,
                  "controls_panel: nozzle_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    // Subjects carry decidegrees; temp_display renders whole degrees.
+    set_xml_subject("extruder_temp", 2015);
+    set_xml_subject("extruder_target", 2200);
+    lv_obj_t* panel = create_component("controls_panel");
+    lv_obj_t* disp = require_named(panel, "nozzle_temp_display");
+    REQUIRE(ui_temp_display_is_valid(disp));
+    CHECK(ui_temp_display_get_current(disp) == 201);
+    CHECK(ui_temp_display_get_target(disp) == 220);
+
+    set_xml_subject("extruder_temp", 1000);
+    CHECK(ui_temp_display_get_current(disp) == 100);
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture,
-                 "controls_panel: bed_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp_display widget)",
+                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject("bed_temp", 600);
+    set_xml_subject("bed_target", 650);
+    lv_obj_t* panel = create_component("controls_panel");
+    lv_obj_t* disp = require_named(panel, "bed_temp_display");
+    REQUIRE(ui_temp_display_is_valid(disp));
+    CHECK(ui_temp_display_get_current(disp) == 60);
+    CHECK(ui_temp_display_get_target(disp) == 65);
+
+    // Nozzle and bed must not share a subject - a nozzle publish leaves the bed
+    // display alone.
+    set_xml_subject("extruder_temp", 2500);
+    CHECK(ui_temp_display_get_current(disp) == 60);
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: nozzle_status binding updates status text",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: nozzle_status binding updates status text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject_str("controls_nozzle_status", "Heating");
+    lv_obj_t* panel = create_component("controls_panel");
+    CHECK(label_text_of(require_named(panel, "nozzle_status")) == "Heating");
+
+    set_xml_subject_str("controls_nozzle_status", "");
+    CHECK(label_text_of(require_named(panel, "nozzle_status")).empty());
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: bed_status binding updates status text",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_status binding updates status text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    set_xml_subject_str("controls_bed_status", "Heating");
+    lv_obj_t* panel = create_component("controls_panel");
+    CHECK(label_text_of(require_named(panel, "bed_status")) == "Heating");
+
+    set_xml_subject_str("controls_bed_status", "");
+    CHECK(label_text_of(require_named(panel, "bed_status")).empty());
 }
 
 TEST_CASE_METHOD(MoonrakerTestFixture,
@@ -399,9 +549,12 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "home_panel: printer_image dimmed style w
     SKIP("Home panel has many component dependencies - implement after simpler panels work");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "controls_panel: all_homed button style changes when homed",
+TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
-    SKIP("Controls panel has many component dependencies - implement after simpler panels work");
+    ControlsPanelSubjects owner(state());
+    REQUIRE(register_component("controls_panel"));
+    lv_obj_t* panel = create_component("controls_panel");
+    check_homing_button_tracks_subject(panel, "btn_home_all", "all_homed");
 }
 
 TEST_CASE_METHOD(MoonrakerTestFixture,
