@@ -1493,6 +1493,7 @@ help-cross:
 	echo "  $${Y}SNAPMAKER_U1_HOST$${X}=hostname - Snapmaker U1 hostname/IP (default: snapmaker-u1.local)"; \
 	echo "  $${Y}SNAPMAKER_U1_USER$${X}=user     - Snapmaker U1 username (default: root)"; \
 	echo "  $${Y}SNAPMAKER_U1_DEPLOY_DIR$${X}=path - Snapmaker U1 deploy directory (default: /userdata/helixscreen)"; \
+	echo "  $${Y}HELIX_FORCE_UPDATES$${X}=1     - U1 only: force in-app self-update ON (default: firmware-managed)"; \
 	echo ""; \
 	echo "$${C}Current Configuration:$${X}"; \
 	echo "  Platform target: $(PLATFORM_TARGET)"; \
@@ -2179,6 +2180,14 @@ define snapmaker-u1-deploy-common
 	@# older Makefile version copied a real env file into the install dir).
 	@echo "  $(DIM)Verifying helixscreen.env symlink...$(RESET)"
 	ssh $(SNAPMAKER_U1_SSH_TARGET) 'PD=/oem/printer_data/config/helixscreen; IE=$(SNAPMAKER_U1_DEPLOY_DIR)/config/helixscreen.env; CE=$$PD/helixscreen.env; mkdir -p $$PD; if [ -L "$$IE" ]; then :; elif [ -f "$$IE" ] && [ ! -e "$$CE" ]; then mv "$$IE" "$$CE" && ln -s "$$CE" "$$IE" && echo "  migrated install env to $$CE"; elif [ -f "$$IE" ] && [ -f "$$CE" ]; then if cmp -s "$$IE" "$$CE"; then rm -f "$$IE" && ln -s "$$CE" "$$IE" && echo "  collapsed duplicate install env to symlink"; else echo "  WARN: helixscreen.env diverges between $$IE and $$CE — keeping both, please reconcile manually"; fi; elif [ ! -e "$$IE" ] && [ -f "$$CE" ]; then ln -s "$$CE" "$$IE" && echo "  created missing install env symlink"; fi'
+	@# Self-update is OFF by default on the U1: the platform defaults to
+	@# firmware-managed (helix::platform_defaults_to_external_updates()), because
+	@# PAXX ships HelixScreen as a pinned extended-pkg package it owns. A dev box
+	@# that wants to exercise the updater sets HELIX_FORCE_UPDATES=1 on the make
+	@# line, which writes the explicit falsy override into the deployed env. Any
+	@# other value removes the line so the platform default applies again.
+	@echo "  $(DIM)Update policy: $(if $(HELIX_FORCE_UPDATES),self-update FORCED ON,platform default (firmware-managed))$(RESET)"
+	ssh $(SNAPMAKER_U1_SSH_TARGET) 'CE=/oem/printer_data/config/helixscreen/helixscreen.env; touch $$CE; sed -i "/^HELIX_DISABLE_AUTO_UPDATES=/d" $$CE; if [ -n "$(HELIX_FORCE_UPDATES)" ]; then echo "HELIX_DISABLE_AUTO_UPDATES=0  # forced by make HELIX_FORCE_UPDATES=1" >> $$CE; fi'
 endef
 
 deploy-snapmaker-u1:
