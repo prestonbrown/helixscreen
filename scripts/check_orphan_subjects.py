@@ -17,10 +17,13 @@
 # print_status_layout_mode were each registered and written with zero readers.
 #
 # NOT flagged:
-#   - Subjects read by a C++ observer, matched two ways because observers take a
-#     subject POINTER, not a name: the quoted name near the call, and the member
-#     the INIT_SUBJECT_*/UI_MANAGED_SUBJECT_* macros derive from it (`<name>_`).
-#     Name-matching alone misses e.g. observe_int_sync(&extruder_version_, ...).
+#   - Subjects read by a C++ observer or getter. Observers take a subject POINTER,
+#     so the spelling at the read site is the MEMBER, which frequently does not
+#     match the subject string: "ams_external_spool_color" registers
+#     &external_spool_color_, "volume_value" registers &volume_value_subject_.
+#     The member is therefore resolved from the registration site itself
+#     (`lv_xml_register_subject(scope, "name", &member)`) and reads are matched
+#     against that. Deriving `<name>_` instead silently misses the majority.
 #   - Subjects referenced from XML by ANY attribute, not just bind_*/subject=.
 #     Component parameters forward a subject name under a caller-chosen name
 #     (`<ams_env_indicator temp_text="ams_env_ind_detail_temp_text"/>`), and
@@ -31,7 +34,9 @@
 #   - Names composed at runtime — XML `${...}` splices and C++ that builds the
 #     name with a format/concat. Neither side can be matched statically, so a
 #     registration whose name is not a plain literal is skipped entirely.
-#   - Any registration line carrying `// SUBJECT_OK: <reason>`.
+#   - Any registration carrying `// SUBJECT_OK: <reason>`. clang-format wraps
+#     these calls freely, so the annotation is honoured anywhere in the two lines
+#     following the name as well as on it.
 #
 # This is a RATCHET, not a wall: --max-allowed freezes today's count so the debt
 # can only shrink.
@@ -55,15 +60,19 @@ XML_DIR = "ui_xml"
 # register_subject("name", ...) and lv_xml_register_subject(scope, "name", ...)
 REGISTER_RE = re.compile(
     r'(?:lv_xml_register_subject\s*\([^,]+,\s*|(?<![a-z_])register_subject\s*\(\s*)"([a-z_0-9]+)"')
+# The member a registration hands over, so reads can be matched by pointer name.
+MEMBER_RE = re.compile(r'&\s*([A-Za-z_][A-Za-z_0-9]*)')
 # Any XML attribute that names a subject: bind_text=, bind_value=, subject=, ...
 XML_REF_RE = re.compile(r'(?:bind_[a-z_]+|subject)="([^"]+)"')
 # Expression attributes name subjects as bare identifiers: cond="a or b gt c".
 XML_EXPR_RE = re.compile(r'(?:cond|expr)="([^"]+)"')
 IDENT_RE = re.compile(r'[a-z_][a-z_0-9]*')
 # A C++ observer on the same literal name.
-# Any site that observes or reads a subject value.
+# Any site that observes or reads a subject value. lv_label_bind_text() and the
+# rest of LVGL's lv_*_bind_* family count: they attach an observer to the subject
+# just as observe_*() does, they just do it from C++ instead of from XML.
 READ_SITE_RE = re.compile(
-    r'(?:observe_[a-z_]+|lv_subject_add_observer\w*|lv_subject_get_\w+)\s*[(<]')
+    r'(?:observe_[a-z_]+|lv_subject_add_observer\w*|lv_subject_get_\w+|lv_\w+_bind_\w+)\s*[(<]')
 IDENT_TOKEN_RE = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
 ALLOW_RE = re.compile(r'//\s*SUBJECT_OK:')
 
@@ -73,21 +82,30 @@ def repo_root() -> pathlib.Path:
 
 
 def collect_registrations(root: pathlib.Path):
-    """Map subject name -> list of "path:line" registration sites."""
+    """Map subject name -> (sites, members)."""
     found: dict[str, list[str]] = {}
+    members: dict[str, set[str]] = {}
     for d in SRC_DIRS:
         for path in (root / d).rglob("*"):
             if path.suffix not in (".cpp", ".h", ".hpp", ".cc"):
                 continue
             if str(path.relative_to(root)) in SKIP_FILES:
                 continue
-            for n, line in enumerate(path.read_text(errors="ignore").splitlines(), 1):
-                if ALLOW_RE.search(line):
+            lines = path.read_text(errors="ignore").splitlines()
+            for n, line in enumerate(lines, 1):
+                # The call may wrap; accept the opt-out on any of its lines.
+                if any(ALLOW_RE.search(l) for l in lines[n - 1:n + 2]):
                     continue
                 for m in REGISTER_RE.finditer(line):
                     rel = path.relative_to(root)
-                    found.setdefault(m.group(1), []).append(f"{rel}:{n}")
-    return found
+                    name = m.group(1)
+                    found.setdefault(name, []).append(f"{rel}:{n}")
+                    # The pointer argument may sit on this line or the next.
+                    tail = line[m.end():]
+                    mem = MEMBER_RE.search(tail)
+                    if mem:
+                        members.setdefault(name, set()).add(mem.group(1))
+    return found, members
 
 
 def collect_xml_refs(root: pathlib.Path) -> set[str]:
@@ -112,27 +130,17 @@ def collect_xml_refs(root: pathlib.Path) -> set[str]:
     return refs
 
 
-def collect_cpp_readers(root: pathlib.Path) -> set[str]:
-    """Subject names that some C++ site observes or reads.
-
-    Observers and getters take a subject POINTER, so the spelling at the call
-    site is the member the subject macros derive (`foo_`), not the string "foo".
-    Calls also wrap across lines, so the file is joined before scanning rather
-    than windowed.
-    """
-    readers: set[str] = set()
+def collect_read_text(root: pathlib.Path) -> str:
+    """Concatenated text of every site that observes or reads a subject."""
+    chunks = []
     for d in SRC_DIRS:
         for path in (root / d).rglob("*"):
             if path.suffix not in (".cpp", ".h", ".hpp", ".cc"):
                 continue
             text = path.read_text(errors="ignore")
             for m in READ_SITE_RE.finditer(text):
-                chunk = text[m.start():m.start() + 400]
-                for tok in IDENT_TOKEN_RE.findall(chunk):
-                    readers.add(tok[:-1] if tok.endswith("_") else tok)
-                for q in re.finditer(r'"([a-z_0-9]+)"', chunk):
-                    readers.add(q.group(1))
-    return readers
+                chunks.append(text[m.start():m.start() + 400])
+    return "\n".join(chunks)
 
 
 def main() -> int:
@@ -143,12 +151,20 @@ def main() -> int:
     args = ap.parse_args()
 
     root = repo_root()
-    registered = collect_registrations(root)
+    registered, members = collect_registrations(root)
     bound = collect_xml_refs(root)
-    observed = collect_cpp_readers(root)
+    read_text = collect_read_text(root)
+
+    def is_read(name: str) -> bool:
+        if re.search(r'"' + re.escape(name) + r'"', read_text):
+            return True
+        for mem in members.get(name, ()):
+            if re.search(r'\b' + re.escape(mem) + r'\b', read_text):
+                return True
+        return False
 
     orphans = {n: sites for n, sites in registered.items()
-               if n not in bound and n not in observed}
+               if n not in bound and not is_read(n)}
 
     count = len(orphans)
     if args.list:

@@ -1574,12 +1574,15 @@ SECTION_START=$(date +%s)
 echo -n "🔌 Checking orphan subjects (registered, never read)..."
 
 if [ -f "scripts/check_orphan_subjects.py" ]; then
-  # Ratcheting baseline. The XML linter already rejects a bind_* naming a subject
-  # nobody registers; this is the other direction — a subject that is registered
-  # and kept current but read by neither an XML binding nor a C++ observer. It
-  # renders nothing and costs every update that writes it. Usually what a binding
-  # leaves behind when its widget is deleted or renamed.
-  if python3 scripts/check_orphan_subjects.py --max-allowed 16 --summary >/tmp/orphan_subjects.out 2>&1; then
+  # The ratchet has reached zero, so this is a hard gate, not a baseline. The XML
+  # linter already rejects a bind_* naming a subject nobody registers; this is the
+  # other direction — a subject registered and kept current but read by neither an
+  # XML binding nor a C++ consumer. It renders nothing and costs every update that
+  # writes it. Usually what a binding leaves behind when its widget is deleted or
+  # renamed. Genuinely-unreadable-by-static-analysis cases (a subject handed to a
+  # helper by pointer, or observed only from a test accessor) take
+  # `// SUBJECT_OK: <reason>` on the registration.
+  if python3 scripts/check_orphan_subjects.py --max-allowed 0 --summary >/tmp/orphan_subjects.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/orphan_subjects.out

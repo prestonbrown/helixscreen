@@ -78,7 +78,6 @@ class JobQueueState {
     bool subjects_initialized_ = false;
 
     // LVGL subjects
-    lv_subject_t job_queue_count_subject_;
     lv_subject_t job_queue_state_subject_;
     char state_buffer_[64];
     lv_subject_t job_queue_summary_subject_;
