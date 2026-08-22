@@ -7,7 +7,7 @@
  * Gates are pure functions of a PrintStartContext snapshot; the controller
  * gathers the snapshot (gather_print_start_context()) on every run_gates_from()
  * call so each resume re-reads live state. No LVGL objects or subjects are
- * touched here. Design: docs/superpowers/specs/2026-08-17-print-start-gate-pipeline-design.md
+ * touched here.
  */
 
 #include "ams_types.h"

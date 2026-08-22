@@ -77,7 +77,8 @@ Most commonly needed:
 | `docs/devel/FILAMENT_MANAGEMENT.md` | AMS, AFC, Happy Hare, ACE, AD5X IFS, CFS, Tool Changer |
 | `docs/devel/CHAMBER_HEATER.md` | Chamber heaters: backends, discovery, diagnostics, ceiling rules |
 | `docs/devel/REVIEW_RUBRIC.md` | Reviewing a change: crash families, silent-failure traps, what the gates already cover |
-| `docs/devel/ENVIRONMENT_VARIABLES.md` | Runtime env vars, mock config |
+| `docs/devel/ENVIRONMENT_VARIABLES.md` | Runtime env vars |
+| `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` | Mock printer config for `--test` runs (`HELIX_MOCK_*`, replay) |
 | `docs/devel/LOGGING.md` | spdlog levels: info vs debug vs trace |
 | `docs/devel/BUILD_SYSTEM.md` | Makefile, cross-compilation |
 
@@ -105,13 +106,14 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Observer factory** | Static callback + `lv_observer_get_user_data()` | `observe_int_sync<Panel>()` from `observer_factory.h` |
 | **Icon sync** | Add icon, forget fonts | `include/ui_icon_codepoints.h` + `make regen-fonts` + rebuild |
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
+| **Arch-guide citations** | Hand-writing the markdown link, or editing a chapter and skipping the regen | Write the plain backticked citation (`src/printer/printer_state.cpp:622`), then `make regen-doc-links` — `scripts/gen_doc_links.py` derives every link in `docs/devel/architecture/` from the citation text, so a renamed target is fixed once. `quality-checks.sh` fails a chapter that is out of date with the generator. |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
 | **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"` (libhv's bundled version) |
 | **Build system** | `cmake`, `ninja` | `make -j` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries (`HELIX_CONTEXT_MENU_KIND`), pointer-form `any_cast`. Firmware builds `-fno-rtti`; lint-gated, escape hatch `// RTTI_OK: <reason>` |
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite the issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. No issue? `fix(scope): thing` is complete on its own — the commit body carries the explanation. |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph (cf. `feat(z-offset)` 25e1505e7). Reserve the long form for genuine state-machine fixes that touch multiple subsystems (cf. `fix(ams): DRY unload API` 504905a2). |
-| **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | Add/amend `patches/*.patch` — `mk/patches.mk` auto-applies. **Exception: `lib/helix-xml/` is our own submodule** ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)) — edit it directly, commit and push *in the submodule*, then commit the bumped pointer in this repo. Never write a patch for it. |
+| **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | Add/amend `patches/*.patch` — `mk/patches.mk` auto-applies. **Exception: `lib/helix-xml/` is our own submodule** ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)) — edit it directly, commit and push *in the submodule*, then commit the bumped pointer in this repo. Never write a patch for it. A worktree gets its own checkout of it (not a symlink), so engine edits stay in that branch. |
 
 **ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.
 

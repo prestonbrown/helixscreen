@@ -114,7 +114,6 @@ translations:
   AFC reset complete: AFCリセット完了
   AFC reset failed: AFCリセット失敗
   AFC retracts filament from the toolhead at end of print: AFCは印刷終了時にツールヘッドからフィラメントを引き戻します
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: ''
   AI detection: AI 検出
   ALL DEVICES: すべてのデバイス
   AMS: AMS
@@ -221,6 +220,7 @@ translations:
   Auto-poll for weight updates: 重量更新の自動ポーリング
   Auto-probe or manually check screw heights: 自動プローブまたは手動でネジの高さを確認
   Auto-render video: 動画を自動レンダリング
+  'Auto-tuning Shapers...': ''
   Auto-uninstall only works on local Moonraker: 自動アンインストールはローカルの Moonraker でのみ動作します
   Automatic: 自動
   Automatic Heater Control Calibration: 自動ヒーター制御キャリブレーション
@@ -252,8 +252,10 @@ translations:
   Bed Level: ベッドレベル
   Bed Leveling: ベッドレベリング
   Bed Mesh: ベッドメッシュ
+  'Bed Mesh Complete': ''
   Bed Mesh Render: ベッドメッシュ描画
   Bed Mesh...: ベッドメッシュ...
+  Bed Meshing...: ''
   Bed Moves: ベッド移動
   Bed Screw Adjustment: ベッドネジ調整
   Bed Screw Results: ベッドネジ結果
@@ -263,6 +265,7 @@ translations:
   Bed Temperature: ベッド温度
   Bed is Level!: ベッドが水平です！
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
+  'Bed mesh...': ''
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
   Bed temp must be 0-200°C: ベッド温度は 0〜200°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
@@ -353,6 +356,8 @@ translations:
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
   Calibrate, tune jitter and scroll feel: キャリブレーション、ジッターとスクロール感度の調整
   Calibrated: キャリブレーション済み
+  'Calibrating Probe...': ''
+  'Calibrating bed mesh...': ''
   Calibrating {} axis...: '{} 軸をキャリブレーション中...'
   Calibrating...: キャリブレーション中...
   Calibration & Tools: キャリブレーションとツール
@@ -437,6 +442,7 @@ translations:
   Checking: 確認中
   Checking Spoolman server...: Spoolman サーバーを確認中...
   Checking accelerometer...: 加速度センサーを確認中...
+  'Checking extruders...': ''
   Checking filament...: フィラメントを確認中...
   Checking for plugin...: プラグインを確認中...
   Checking for webcam...: ウェブカメラを確認中...
@@ -459,6 +465,7 @@ translations:
   Clean Brush: ブラシを清掃
   Clean Nozzle: ノズル清掃
   Cleaning Nozzle...: ノズル清掃中...
+  'Cleaning nozzle...': ''
   Clear: クリア
   Clear All: すべてクリア
   Clear All Events: すべてのイベントをクリア
@@ -570,8 +577,9 @@ translations:
   Cool Down: 冷却
   Cool nozzle after filament ops: フィラメント操作後にノズルを冷却
   Cooling: 冷却中
-  Cooling Tube Length: 冷却チューブ長
-  Cooling Tube Retraction: 冷却チューブの引き戻し
+  Cooling Tube Length: '冷却チューブ長'
+  Cooling Tube Retraction: '冷却チューブの引き戻し'
+  'Cooling for probing...': ''
   Copied to clipboard!: クリップボードにコピーしました！
   Copy Command: コマンドをコピー
   Copy failed - use SSH manually: コピー失敗 - SSHを手動で使用してください
@@ -604,6 +612,7 @@ translations:
   Create a 4-6 digit security PIN: 4〜6桁のセキュリティ PIN を作成
   Create backup of %s before applying: 適用前に %s のバックアップを作成
   Create video when print completes: 印刷完了時に動画を作成
+  'Creating bed mesh...': ''
   Creating spool...: スプールを作成中...
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
   Current / Target: 現在 / 目標
@@ -663,6 +672,7 @@ translations:
   Deploy: 展開
   Describe the issue (optional): 問題の詳細（任意）
   Detailed: 詳細
+  'Detecting plate...': ''
   Detecting printer type...: プリンタータイプを検出中...
   Detecting...: 検出中...
   Detection Length: 検出長
@@ -845,7 +855,8 @@ translations:
   Extruder Unload Speed: エクストルーダーのアンロード速度
   Extruder distances and sensor configuration: エクストルーダー距離とセンサー設定
   Extruder heats automatically based on material: 素材に基づいてエクストルーダーが自動加熱
-  Extruder to Nozzle: エクストルーダーからノズルまで
+  Extruder to Nozzle: 'エクストルーダーからノズルまで'
+  'Extruding prime line...': ''
   FAILED: 失敗
   FILAMENTS: フィラメント
   FILTERS: フィルター
@@ -1005,6 +1016,7 @@ translations:
   Fine: 微動
   Fine-Tune: 微調整
   Finish: 完了
+  'Finishing clean...': ''
   Finishing up...: 完了中...
   Firmware Restart: ファームウェア再起動
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください
@@ -1018,6 +1030,7 @@ translations:
   Flow Compensation: フロー補正
   Flow Rate: フローレート
   Flowguard: フローガード
+  'Flushing Filament...': ''
   Flying Toasters: フライングトースター
   Follow active tool: アクティブツールに追従
   Follow graph screen: グラフ画面に追従
@@ -1104,7 +1117,13 @@ translations:
   Heating: 加熱中
   Heating (%d°C below minimum): '"加熱中（最低温度より%d°C低い）"'
   Heating Bed...: ベッド加熱中...
+  'Heating Chamber...': ''
   Heating Nozzle...: ノズル加熱中...
+  'Heating bed to $1°C...': ''
+  'Heating bed...': ''
+  'Heating chamber...': ''
+  'Heating nozzle to $1°C...': ''
+  'Heating nozzle...': ''
   Heating to %d°C... %.0f°C: '%d°Cに加熱中... %.0f°C'
   Heating to {}°C before {}...: '{}°Cに加熱中（{}の前）...'
   Heating to {}°C for {}...: '{}°Cに加熱中（{}）...'
@@ -1135,6 +1154,7 @@ translations:
   Homing Y...: Y軸をホーミング中...
   Homing Z...: Z軸をホーミング中...
   Homing all axes...: 全軸をホーミング中...
+  'Homing axes...': ''
   'Homing failed: ': 'ホーミングに失敗: '
   'Homing failed: {}': 'ホーミングに失敗しました: {}'
   Homing first...: ホーミング中...
@@ -1182,6 +1202,7 @@ translations:
   Info: 情報
   Initial speed for filament unloading: フィラメントアンロードの初速
   Initialized: 初期化済み
+  'Initializing print...': ''
   Initializing...: 初期化中...
   Initiate blade change procedure: ブレード交換手順を開始
   Input: 入力
@@ -1189,12 +1210,14 @@ translations:
   Input Shaper Help: 入力シェーパーヘルプ
   Input Shaping: インプットシェーピング
   Input shaper calibration sensors: インプットシェーパーキャリブレーションセンサー
+  'Input shaper calibration...': ''
   Input shaper settings applied!: インプットシェーパー設定が適用されました！
   Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.: インプットシェーピングは高速移動時のプリンター振動によるリンギングやゴーストのアーティファクトを軽減します。
   Input shaping reduces vibration artifacts (ringing) in your prints.: インプットシェーピングは印刷物の振動アーティファクト（リンギング）を軽減します。
   'Input: ': '入力: '
   InputShaper: InputShaper
   Insert filament before resuming: 再開前にフィラメントを挿入してください
+  'Inspecting bed...': ''
   Install: インストール
   Install HelixPrint Plugin: HelixPrint プラグインをインストール
   Install Older Version?: 以前のバージョンをインストールしますか？
@@ -1238,7 +1261,6 @@ translations:
   Keep Navigation Bar: ナビゲーションバーを維持
   Keep Printing: 印刷を続行
   Keep Required: 必須を維持
-  Keep Spool Info on Eject: ''
   Keep current: 現状維持
   Keep Spool Info on Eject: 取り出し時にスプール情報を保持
   Keep the bypass spool visible when bypass is off: バイパスオフ時もバイパススプールの表示を維持
@@ -1622,6 +1644,7 @@ translations:
   Nozzle Temperature: ノズル温度
   Nozzle Temperatures: ノズル温度
   Nozzle Temps: ノズル温度
+  'Nozzle clean complete': ''
   Nozzle did not reach {}°C — {} cancelled: ノズルが{}°Cに達しませんでした — {}を中止しました
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
   Nozzle target set to {}°C: ノズル目標温度を {}°C に設定しました
@@ -1762,15 +1785,19 @@ translations:
   Power Devices: 電源デバイス
   Power off the printer or screen: プリンターまたは画面の電源をオフにします
   'Pre-print command failed: {}': '印刷前コマンドに失敗しました: {}'
-  Preheat: 予熱
+  'Pre-print homing...': ''
+  Preheat: '予熱'
   Preheat Macro: 予熱マクロ
   Preheat PLA: PLA 予熱
   Preheat cancelled: 予熱がキャンセルされました
   'Preheat: T{} + bed set': '予熱: T{} + ベッド設定済み'
   'Preheat: all {} tools + bed set': '予熱: 全 {} ツール + ベッド設定済み'
+  'Prepared': ''
   Preparing: 準備中
   Preparing Print: 印刷準備中
   Preparing Print...: 印刷準備中...
+  'Preparing to Print...': ''
+  'Preparing to clean...': ''
   Preparing...: 準備中...
   Preset: プリセット
   'Preset ID: {}': 'プリセット ID: {}'
@@ -1782,6 +1809,7 @@ translations:
   Previous: 前回
   Price: 価格
   Primary: プライマリ
+  'Priming nozzle...': ''
   Priming...: プライミング中...
   Print: 印刷
   Print Anyway: それでも印刷
@@ -1808,8 +1836,10 @@ translations:
   Print Was Terminated: 印刷が中止されました
   Print cancelled: 印刷がキャンセルされました
   Print did not start: 印刷は開始されませんでした
+  'Print complete': ''
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 印刷が開始されませんでした
     — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})
+  'Print ending...': ''
   Print error: 印刷エラー
   Print failed: 印刷失敗
   Print issue detected: 印刷の問題を検出しました
@@ -1871,11 +1901,14 @@ translations:
   Probe Speed: プローブ速度
   Probe controls, accuracy test, and settings: プローブコントロール、精度テスト、設定
   Probing Bed Mesh: ベッドメッシュをプローブ中
+  'Probing Bed Mesh...': ''
   Probing Bed Screws...: ベッドネジをプローブ中...
   Probing Bed...: ベッドをプローブ中...
   Probing Failed: プローブ失敗
-  Probing point {} of {}: プローブ点 {} / {}
-  Probing... ({} points): プローブ中... ({} 点)
+  'Probing Z...': ''
+  'Checking Bed Mesh...': ''
+  Probing point {} of {}: 'プローブ点 {} / {}'
+  Probing... ({} points): 'プローブ中... ({} 点)'
   Proceed: 続行
   Processing...: 処理中...
   Profile deleted: プロファイルを削除しました
@@ -1966,6 +1999,7 @@ translations:
   Refresh Interval: 更新間隔
   Refresh RFID: 'RFIDを再読み込み'
   Relative vibration: 相対振動
+  'Reheating...': ''
   Release all stepper motors. Position will be lost.: すべてのステッピングモーターを解放します。位置情報は失われます。
   Remaining (g): 残量 (g)
   Remaining Weight (g): 残量（g）
@@ -1986,6 +2020,7 @@ translations:
   Render Now: 今すぐレンダリング
   Rendering timelapse...: タイムラプスをレンダリング中...
   Replay Welcome Tour: ウェルカムツアーを再生
+  'Replenishing filament...': ''
   Report saved to crash_report.txt: crash_report.txt にレポートを保存しました
   Reprint: 再印刷
   Reprint Last: 前回を再印刷
@@ -2041,6 +2076,7 @@ translations:
   Resume interrupted print?: 中断した印刷を再開しますか？
   Resume macro not configured: 再開マクロが未設定です
   Resume preparation failed: 再開準備に失敗しました
+  'Resuming print...': ''
   Resuming...: 再開中...
   Retract: 引き戻し
   Retract Distance: リトラクト距離
@@ -2329,6 +2365,8 @@ translations:
   Starting Print...: 印刷開始中...
   Starting download...: ダウンロードを開始中...
   Starting measurement...: 測定を開始中...
+  'Starting nozzle clean...': ''
+  'Starting print...': ''
   Starting...: 開始中...
   Startup Brightness: 起動時の明るさ
   Startup, auto-control, and macro devices: 起動、自動制御、マクロデバイス
@@ -2658,6 +2696,7 @@ translations:
   Use printer type to select image: プリンタータイプで画像を選択
   VM Peak: VM ピーク
   VM Size: VM サイズ
+  'Validating bed mesh...': ''
   Value must be between {:.0f} and {:.0f}: 値は {:.0f} から {:.0f} の間で入力してください
   Values must not be negative: 値は負の数にできません
   Velocity and acceleration limits: 速度と加速度の制限
@@ -2668,6 +2707,7 @@ translations:
   Verify: 確認
   Verifying SHA256 checksum...: SHA256 チェックサムを検証中...
   Verifying download...: ダウンロードを検証中...
+  'Verifying file...': ''
   Verifying timelapse plugin...: タイムラプスプラグインを確認中...
   Verifying...: 検証中...
   Version: バージョン
@@ -2840,9 +2880,7 @@ translations:
   nozzle: ノズル
   of: の
   'off': オフ
-  Monitor for print abnormalities (K2 Plus camera-based): 印刷異常を監視 (K2 Plus カメラベース)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC の remember_spool がファームウェア側でスプール情報を保持しているため、このトグル設定より優先されます
-  AI detection: AI 検出
   prints: 印刷
   remaining: 残り
   remaining before clog detection triggers: 残りで詰まり検出が作動します

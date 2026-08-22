@@ -450,10 +450,16 @@ void MacroManager::restart_klipper(SuccessCallback on_success, ErrorCallback on_
 }
 
 std::optional<std::string> MacroManager::parse_installed_version() const {
-    // Check if HELIX_READY macro exists (indicates v2.0+ macros)
+    // The installed pack exposes no queryable version, so infer it from which
+    // macros exist - each rung is the newest macro whose presence brackets the
+    // install. Adding a macro to the pack means adding a rung here (and a
+    // matching version bump in helix_macros.cfg).
+    if (hardware_.has_helix_macro("HELIX_UNLOAD_FILAMENT")) {
+        return "2.1.0";
+    }
+
     if (hardware_.has_helix_macro("HELIX_READY")) {
         // TODO: Query the actual version from _HELIX_STATE or similar via Moonraker
-        // For now, assume 2.0.0 if HELIX_READY exists
         return "2.0.0";
     }
 

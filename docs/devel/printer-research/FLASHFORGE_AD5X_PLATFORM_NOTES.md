@@ -250,8 +250,7 @@ The `core file size = 0` means **no automatic core dumps** for crash analysis
 - Vendor toolchain naming: `mips-linux-gnu-gcc`
 - Build flag: `-DHELIX_PLATFORM_AD5X`
 - Release asset: `helixscreen-ad5x.zip` (per `release_info.json`)
-- Manifest currently omits the `.zip` for K1/AD5X — see ROADMAP
-  "K1/AD5X zip workaround", revert by 1.0
+- Manifest currently omits the `.zip` for K1/AD5X — revert by 1.0
 
 ## Installer Caveats
 

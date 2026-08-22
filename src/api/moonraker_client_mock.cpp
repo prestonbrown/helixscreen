@@ -190,6 +190,156 @@ double MoonrakerClientMock::get_simulation_speedup() const {
     return speedup_factor_.load();
 }
 
+bool MoonrakerClientMock::arm_event_replay(const std::string& json_path) {
+    replay_events_.clear();
+    replay_next_ = 0;
+
+    std::ifstream f(json_path);
+    if (!f.good()) {
+        spdlog::warn("[Mock Replay] Cannot open replay script '{}'", json_path);
+        return false;
+    }
+    try {
+        json script = json::parse(f);
+        for (const auto& ev : script.at("events")) {
+            ReplayEvent re;
+            re.t_ms = ev.value("t", 0);
+            if (ev.value("type", "") == "gcode_response") {
+                re.is_gcode = true;
+                re.line = ev.at("line").get<std::string>();
+            } else {
+                re.object = ev.at("object").get<std::string>();
+                re.payload = ev.at("payload");
+            }
+            replay_events_.push_back(std::move(re));
+        }
+        // Optional: serve configfile.settings.bed_mesh.probe_count so the
+        // collector's denominator query answers like the real printer did.
+        if (script.contains("config_probe_count") && script["config_probe_count"].is_array() &&
+            script["config_probe_count"].size() == 2) {
+            set_config_bed_mesh_probe_count(script["config_probe_count"][0].get<int>(),
+                                            script["config_probe_count"][1].get<int>());
+        }
+    } catch (const std::exception& e) {
+        replay_events_.clear();
+        spdlog::warn("[Mock Replay] Failed to parse '{}': {}", json_path, e.what());
+        return false;
+    }
+
+    if (replay_events_.empty()) {
+        spdlog::warn("[Mock Replay] Script '{}' carries no events", json_path);
+        return false;
+    }
+    spdlog::info("[Mock Replay] Armed {} events from '{}' (span {:.0f}s)", replay_events_.size(),
+                 json_path, static_cast<double>(replay_events_.back().t_ms) / 1000.0);
+    return true;
+}
+
+namespace {
+/// Per-persona travel bounds reported as toolhead axis_maximum. The K1
+/// persona carries the real values from a K1C capture (printer.cfg
+/// position_max 229/227/255) so printer detection scores it as the Creality
+/// it is; every other persona keeps the long-standing generic volume and
+/// detects exactly as before.
+std::array<double, 3> persona_axis_maximum(MoonrakerClientMock::PrinterType type) {
+    switch (type) {
+    case MoonrakerClientMock::PrinterType::CREALITY_K1:
+        return {229.0, 227.0, 255.0};
+    default:
+        return {235.0, 235.0, 250.0};
+    }
+}
+} // namespace
+
+void MoonrakerClientMock::start_replay_timer() {
+    if (replay_events_.empty() || replay_timer_ != nullptr) {
+        return;
+    }
+    // Grace before the first event: the app re-dispatches its cached status
+    // snapshot after subsystem init (~1.4s in), which would otherwise land
+    // after the script's first print_stats edge and stamp standby over it.
+    replay_start_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(2500);
+    spdlog::info("[Mock Replay] Starting: {} events at {:.0f}x speedup", replay_events_.size(),
+                 get_simulation_speedup());
+    replay_timer_ = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<MoonrakerClientMock*>(lv_timer_get_user_data(t));
+            self->pump_replay();
+        },
+        20, this);
+}
+
+void MoonrakerClientMock::pump_replay() {
+    const double speed = std::max(1.0, get_simulation_speedup());
+    const auto now = std::chrono::steady_clock::now();
+    if (now < replay_start_) {
+        return;
+    }
+    const auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - replay_start_).count();
+    const uint64_t due_ms = static_cast<uint64_t>(static_cast<double>(elapsed_ms) * speed);
+
+    while (replay_next_ < replay_events_.size() && replay_events_[replay_next_].t_ms <= due_ms) {
+        fire_replay_event(replay_events_[replay_next_]);
+        ++replay_next_;
+    }
+    if (replay_next_ >= replay_events_.size() && replay_timer_ != nullptr) {
+        spdlog::info("[Mock Replay] Finished: {} events fired", replay_events_.size());
+        lv_timer_t* timer = replay_timer_;
+        replay_timer_ = nullptr;
+        lv_timer_delete(timer);
+    }
+}
+
+void MoonrakerClientMock::fire_replay_event(const ReplayEvent& event) {
+    if (event.is_gcode) {
+        json msg = {{"method", "notify_gcode_response"}, {"params", {event.line}}};
+        dispatch_method_callback("notify_gcode_response", msg);
+        return;
+    }
+
+    // Keep the mock's own simulators in step with the capture so their later
+    // pushes (idle-timeout steppers, cooldown transitions, snapshots rebuilt
+    // from internal state) agree with the script instead of fighting it.
+    if (event.object == "print_stats" && event.payload.contains("state")) {
+        const std::string state = event.payload.value("state", "");
+        int mapped = 0; // standby
+        if (state == "printing") {
+            mapped = 1;
+        } else if (state == "paused") {
+            mapped = 2;
+        } else if (state == "complete") {
+            mapped = 3;
+        } else if (state == "cancelled") {
+            mapped = 4;
+        } else if (state == "error") {
+            mapped = 5;
+        }
+        print_state_.store(mapped);
+        if (event.payload.contains("filename") && event.payload["filename"].is_string()) {
+            std::lock_guard<std::mutex> lock(print_mutex_);
+            print_filename_ = event.payload["filename"].get<std::string>();
+        }
+    } else if (event.object == "extruder") {
+        if (event.payload.contains("target") && event.payload["target"].is_number()) {
+            extruder_target_.store(event.payload["target"].get<double>());
+        }
+        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
+            extruder_temp_.store(event.payload["temperature"].get<double>());
+        }
+    } else if (event.object == "heater_bed") {
+        if (event.payload.contains("target") && event.payload["target"].is_number()) {
+            bed_target_.store(event.payload["target"].get<double>());
+        }
+        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
+            bed_temp_.store(event.payload["temperature"].get<double>());
+        }
+    }
+
+    json status = {{event.object, event.payload}};
+    dispatch_status_update(status);
+}
+
 void MoonrakerClientMock::reset_idle_timeout() {
     last_activity_time_ = std::chrono::steady_clock::now();
     if (idle_timeout_triggered_.load()) {
@@ -386,6 +536,10 @@ MoonrakerClientMock::~MoonrakerClientMock() {
     // The payload deleter runs either way when the timer is still armed: the
     // callback that would have freed it will never fire.
     if (lv_is_initialized()) {
+        if (replay_timer_ != nullptr) {
+            lv_timer_delete(replay_timer_);
+            replay_timer_ = nullptr;
+        }
         for (auto& tracked : calibration_timers_) {
             bool still_alive = false;
             lv_timer_t* t = lv_timer_get_next(nullptr);
@@ -456,6 +610,13 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
                                      : RuntimeConfig::DEFAULT_TEST_FILE;
         spdlog::info("[MoonrakerClientMock] Auto-starting print simulation with '{}'", print_file);
         start_print_internal(print_file);
+    }
+
+    // Walk a captured print-start sequence through the real dispatch paths
+    // (HELIX_MOCK_REPLAY). Runs after the initial state so the replay's
+    // print_stats edge arms the collector the same way a live print would.
+    if (!replay_events_.empty()) {
+        start_replay_timer();
     }
 
     // Immediately invoke connection callback
@@ -3622,7 +3783,9 @@ void MoonrakerClientMock::dispatch_initial_state() {
          {{"position", {x, y, z, 0.0}},
           {"homed_axes", homed},
           {"axis_minimum", {0.0, 0.0, 0.0, 0.0}},
-          {"axis_maximum", {235.0, 235.0, 250.0, 0.0}},
+          {"axis_maximum",
+           {persona_axis_maximum(printer_type_)[0], persona_axis_maximum(printer_type_)[1],
+            persona_axis_maximum(printer_type_)[2], 0.0}},
           {"kinematics", discovery_.hardware().kinematics()}}},
         {"gcode_move",
          {{"gcode_position", {x, y, z, 0.0}}, // Commanded position (same as toolhead in mock)
@@ -4408,7 +4571,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"position", {x, y, z, 0.0}},
               {"homed_axes", homed},
               {"axis_minimum", {0.0, 0.0, 0.0, 0.0}},
-              {"axis_maximum", {235.0, 235.0, 250.0, 0.0}},
+              {"axis_maximum",
+               {persona_axis_maximum(printer_type_)[0], persona_axis_maximum(printer_type_)[1],
+                persona_axis_maximum(printer_type_)[2], 0.0}},
               {"kinematics", discovery_.hardware().kinematics()}}},
             {"gcode_move",
              {{"gcode_position", {x, y, z, 0.0}}, // Commanded position (same as toolhead in mock)

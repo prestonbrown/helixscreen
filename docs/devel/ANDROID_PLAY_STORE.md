@@ -291,8 +291,6 @@ To test the full upload path without touching production, point the action at a 
 
 ## Related docs
 
-- `docs/plans/2026-04-07-android-play-store-design.md` — original design spec
-- `docs/plans/2026-04-07-android-play-store-plan.md` — implementation plan (code fixes)
 - `docs/user/PRIVACY_POLICY.md` — privacy policy text (to be published at helixscreen.org/privacy)
 - `scripts/generate-upload-keystore.sh` — one-time upload keystore generation
 - `scripts/generate-whatsnew.sh` — per-release whatsnew extraction from CHANGELOG.md

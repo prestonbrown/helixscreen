@@ -71,6 +71,7 @@ using MethodHandler = std::function<bool(MoonrakerClientMock* self, const json& 
  * - server.files.metascan
  * - server.files.get_file
  * - server.files.delete
+ * - server.files.delete_file
  * - server.files.move
  * - server.files.copy
  * - server.files.post_directory

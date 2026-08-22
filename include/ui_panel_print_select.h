@@ -223,6 +223,8 @@ inline char* thumbnail_subject_value(char* buffer) {
     return (buffer && buffer[0] != '\0') ? buffer : nullptr;
 }
 
+struct PrintSelectPanelTestAccess; // test-only friend (tests/test_helpers/)
+
 /**
  * @brief Print file selection panel with card/list views
  *
@@ -559,6 +561,8 @@ class PrintSelectPanel : public PanelBase {
     void hide_delete_confirmation();
 
   private:
+    friend struct PrintSelectPanelTestAccess;
+
     // Single unified remap entry point. Builds the picker UNIFORMLY for every
     // backend (tool_info from preflight checks, slots from AmsState) and shows
     // the one shared remap_modal_. Called by on_preflight_remap(), the detail

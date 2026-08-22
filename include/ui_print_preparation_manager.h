@@ -581,6 +581,13 @@ class PrintPreparationManager {
     /// never armed one".
     bool armed_at_start_ = false;
 
+    /// When the pre-start gcode RPC was sent. The preparing-job guard above
+    /// cannot catch a late response to a cancelled print: the job can still
+    /// be armed when klippy finally flushes a backed-up request (K1C capture
+    /// 2026-08-20: the ack arrived 370s later, at cancel time, and relaunched
+    /// the print). A pre-start block takes seconds; one that old is stale.
+    std::chrono::steady_clock::time_point pre_start_sent_at_{};
+
     void continue_print_start(const std::string& filename,
                               const std::vector<gcode::OperationType>& ops_to_disable,
                               NavigateToStatusCallback on_navigate_to_status,

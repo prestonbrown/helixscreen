@@ -66,7 +66,7 @@ setup() {
 #
 # Excluded paths are legitimately historical or out-of-scope:
 #   CHANGELOG.md          - records the old name as part of release history
-#   docs/superpowers/     - archived planning docs
+#   docs/superpowers/     - local working space, never committed
 #   src/generated/        - generated code (regenerated from templates)
 #   lib/                  - vendored submodules (LVGL, libhv, etc.)
 #   */translations/       - translation catalogs (mirror upstream wording)

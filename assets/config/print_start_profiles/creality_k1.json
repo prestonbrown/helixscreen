@@ -2,6 +2,7 @@
   "name": "Creality K1",
   "description": "Print start patterns for Creality K1 series (K1, K1C, K1 SE, K1 Max) with Creality firmware CX_ macros",
   "progress_mode": "weighted",
+  "position_signals": true,
   "signal_formats": [
     {
       "prefix": "print prepared",

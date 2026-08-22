@@ -1922,7 +1922,7 @@ bool Application::init_panel_subjects() {
     helix::AbortManager::instance().init(m_moonraker->api(), &get_printer_state());
 
     // Spaghetti / failed-print detection
-    // (see docs/devel/plans/2026-06-15-spaghetti-detection-source.md)
+    // (see docs/devel/printers/SNAPMAKER_U1_SUPPORT.md, defect_detection)
     // Must happen after MoonrakerClient + PrinterState exist (above).
     {
         auto u1 = std::make_unique<helix::detection::U1StockSource>(&get_printer_state());

@@ -332,5 +332,3 @@ asserted without a display.
 
 - `docs/devel/PRINT_STATE_MACHINE.md` — print lifecycle states the controller observes
 - `docs/devel/MACROS_PANEL.md`, `docs/devel/STANDARD_MACROS_SPEC.md` — `StandardMacros` slots that gate the buttons
-- `docs/superpowers/specs/2026-06-11-control-buttons-home-widget-design.md` — original design spec
-- `docs/superpowers/plans/2026-06-11-control-buttons-home-widget.md` — implementation plan

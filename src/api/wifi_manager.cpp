@@ -220,7 +220,7 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
         // std::system_error(resource_deadlock_would_occur). Defer the swap to
         // the main/UI thread via UpdateQueue so the init thread can unwind
         // before stop() joins it. The shared instance is owned by
-        // g_shared_wifi_manager for the life of the process, but tests build
+        // the never-freed global holder for the life of the process, but tests build
         // their own on the stack, so the swap is routed through the guard rather
         // than relying on that (#1165).
         async_lifetime_.defer("WiFiManager::fallback_to_wpa_supplicant", [this, silent]() {
@@ -1014,11 +1014,16 @@ void WiFiManager::handle_disconnected(const std::string& event_data) {
     // on). Without it the queued lambda can never resolve to a live manager
     // anyway — and skipping the enqueue matters concretely: backend_->stop()
     // in the destructor fires this same DISCONNECTED path synchronously,
-    // with scan_timer_ already torn down and self_ never set in tests that
-    // construct WiFiManager directly (self_ is singleton-only), so an
-    // unconditional enqueue there outlives the test with nothing left to
-    // drain it — an UpdateQueue isolation leak.
-    if (self_) {
+    // with scan_timer_ already torn down and self_ either never set (tests that
+    // construct WiFiManager directly) or already expired (the weak self-
+    // reference goes flat the moment refcount hits zero), so an unconditional
+    // enqueue there outlives the test with nothing left to drain it — an
+    // UpdateQueue isolation leak.
+    // std::weak_ptr::expired(), not LifetimeToken::expired(), so there is no
+    // TOCTOU on `this`: the backend thread running this handler is joined by
+    // backend_->stop() before ~WiFiManager returns, and the member access the
+    // gate sees is inside the queued lambda's weak_self.lock() on the main thread.
+    if (!self_.expired()) { // L081_OK: std::weak_ptr expiry, not a LifetimeToken
         std::weak_ptr<WiFiManager> weak_self = self_;
         helix::ui::queue_update("WiFiManager::handle_disconnected(scan_scheduler)", [weak_self]() {
             if (auto manager = weak_self.lock()) {
@@ -1277,9 +1282,24 @@ void WiFiManager::notify_state_observers() {
 // Shared Singleton Instance
 // ============================================================================
 
-// Global shared WiFiManager instance
-// Using static local ensures thread-safe lazy initialization (C++11 guarantee)
-static std::shared_ptr<WiFiManager> g_shared_wifi_manager;
+// Global shared WiFiManager instance.
+//
+// DELIBERATELY NEVER DESTROYED. The holder is heap-allocated and never freed, so
+// the manager it owns outlives static destruction instead of racing it. A plain
+// static shared_ptr would release its last use from __run_exit_handlers, running
+// ~WiFiManager -> backend_->stop() -> spdlog::info() after spdlog's own static
+// sinks have been destroyed: a use-after-free that segfaults inside
+// sink::should_log(). The manager is process-lifetime state that the app never
+// tears down on purpose, so leaking it at exit is the intended trade -- the same
+// reason the destructor reports through fprintf rather than spdlog.
+//
+// This is NOT a licence for the class to leak generally: a WiFiManager built by
+// anyone else (every test fixture, for one) is still owned by its caller and
+// destroyed normally, which is what self_ being a weak_ptr buys.
+static std::shared_ptr<WiFiManager>& shared_wifi_manager() {
+    static auto* holder = new std::shared_ptr<WiFiManager>();
+    return *holder;
+}
 static std::mutex g_wifi_manager_mutex;
 
 namespace helix {
@@ -1287,16 +1307,17 @@ namespace helix {
 std::shared_ptr<WiFiManager> get_wifi_manager() {
     std::lock_guard<std::mutex> lock(g_wifi_manager_mutex);
 
-    if (!g_shared_wifi_manager) {
+    auto& instance = shared_wifi_manager();
+    if (!instance) {
         spdlog::debug("[WiFiManager] Creating global instance");
         // Use silent=true for global instance since it's used for passive status monitoring
         // (e.g., home panel WiFi icon). Avoids modal popup when WiFi hardware is unavailable
         // on development machines or when WiFi is simply turned off.
-        g_shared_wifi_manager = std::make_shared<WiFiManager>(/*silent=*/true);
-        g_shared_wifi_manager->init_self_reference(g_shared_wifi_manager);
+        instance = std::make_shared<WiFiManager>(/*silent=*/true);
+        instance->init_self_reference(instance);
     }
 
-    return g_shared_wifi_manager;
+    return instance;
 }
 
 } // namespace helix

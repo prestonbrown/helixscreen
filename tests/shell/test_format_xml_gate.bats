@@ -21,8 +21,11 @@
 # This is advisory in quality-checks.sh by deliberate choice (EXIT_CODE=1 is commented
 # out there — XML wrapping is a style preference). Genuine malformed XML is still a hard
 # failure via the separate xmllint validation pass, so "advisory" here does not mean
-# broken XML gets through. These tests pin the script's exit codes regardless of how the
-# hook chooses to act on them.
+# broken XML gets through. Under --auto-fix (the pre-commit path) it now repairs and
+# re-stages instead of only warning: purely advisory left a hole, since the last test in
+# this file checks the WHOLE tree and fails hard, so one file sailing past the warning
+# turned the shell suite red on main. These tests pin the script's exit codes regardless
+# of how the hook chooses to act on them.
 
 FORMATTER="scripts/format-xml.py"
 PY=".venv/bin/python"
@@ -151,4 +154,54 @@ write_and_run() {
     run bash -c "$PY $FORMATTER --check \$(find ui_xml -name '*.xml' | sort)"
     [ "$status" -eq 0 ]
     [[ "$output" != *"could not be processed"* ]]
+}
+
+# --- 5. the pre-commit auto-fix must not sweep held-back work ---------------------
+#
+# Structural checks on qc_phase2's XML branch in scripts/quality-checks.sh. They pin the
+# ORDER the logic depends on, which is the part that is easy to get wrong and impossible
+# to see in review: `git add` stages the whole working-tree file, so re-staging a
+# partially staged file commits hunks its author deliberately held back.
+
+@test "auto-fix records pre-existing unstaged work BEFORE reformatting" {
+    # The reformat makes every file differ from the index, so a dirty-check run AFTER it
+    # cannot tell "author held this back" from "the formatter just touched it" — it
+    # reports every file as partially staged and re-stages nothing. Written the wrong way
+    # round first; this pins the order.
+    run bash -c "grep -n 'XML_PRE_DIRTY=\"\"' scripts/quality-checks.sh | head -1 | cut -d: -f1"
+    [ "$status" -eq 0 ]
+    pre_line="$output"
+    run bash -c "grep -n 'format-xml.py \$XML_FILES' scripts/quality-checks.sh | head -1 | cut -d: -f1"
+    [ "$status" -eq 0 ]
+    fmt_line="$output"
+    [ -n "$pre_line" ] && [ -n "$fmt_line" ]
+    [ "$pre_line" -lt "$fmt_line" ]
+}
+
+@test "auto-fix decides re-staging from the recorded set, not a live git diff" {
+    # A live `git diff` at decision time is the same bug in a different dress.
+    run bash -c "sed -n '/XML_RESTAGE=\"\"; XML_HELD=\"\"/,/^          done/p' scripts/quality-checks.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"XML_PRE_DIRTY"* ]]
+    [[ "$output" != *"git diff"* ]]
+}
+
+@test "auto-fix only ever re-stages under --staged-only" {
+    # Outside pre-commit there is no commit to protect, and `git add` from a plain
+    # `make format`-style run would stage files the user never asked to stage.
+    #
+    # The guard must sit BETWEEN the reformat and the re-stage. Checking merely for
+    # "some STAGED_ONLY line earlier in the file" is not enough — the pre-dirty scan
+    # above has one too, so deleting this guard would still look satisfied.
+    run awk '
+        /XML_FIXED=\$\(/                     { fmt = NR }
+        /if \[ "\$STAGED_ONLY" = true \]; then/ { if (fmt && !add) guard = NR }
+        /git add \$XML_RESTAGE/               { add = NR }
+        END {
+            if (!add)                 { print "MISSING re-stage"; exit }
+            if (!fmt)                 { print "MISSING reformat"; exit }
+            print (guard && fmt < guard && guard < add) ? "guarded" : "UNGUARDED"
+        }' scripts/quality-checks.sh
+    [ "$status" -eq 0 ]
+    [ "$output" = "guarded" ]
 }

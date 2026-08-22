@@ -3,7 +3,9 @@
 This directory holds **public, vendor-neutral specifications** that describe
 conventions HelixScreen participates in alongside other tools. They are
 written for third-party adopters (firmware vendors, slicers, scales,
-spool-tracking tools), not as HelixScreen implementation docs.
+spool-tracking tools), not as HelixScreen implementation docs. In-flight
+design work does not live here — `docs/devel/plans/` is the home for that;
+this directory is published conventions only.
 
 ## Current specs
 

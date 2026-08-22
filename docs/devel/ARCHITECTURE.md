@@ -35,7 +35,7 @@ graph TB
             PANELS["6 root panels"]
             OVERLAYS["~60 overlay classes"]
             MODALS["41 modal XMLs"]
-            XMLW["ui_xml/*.xml<br/>~230 top-level + ~100 components"]
+            XMLW["ui_xml/*.xml<br/>232 top-level + 96 components"]
         end
         subgraph State["State Layer"]
             PS["PrinterState<br/>get_printer_state()<br/>13 domains, ~120 subjects"]
@@ -105,6 +105,23 @@ graph TB
     PLG --> MA
 ```
 
+## Design Philosophy
+
+HelixScreen is a **local touchscreen** UI — users are physically present at the printer. This fundamentally differs from web UIs (Mainsail/Fluidd) designed for remote monitoring.
+
+**We prioritize:**
+- Tactile controls optimized for touch
+- At-a-glance information for the user standing at the machine
+- Calibration workflows (PID, Z-offset, screws tilt, input shaper)
+- Real-time tuning (speed, flow, firmware retraction)
+
+**Lower priority for this form factor:**
+- Job queue (requires manual print removal between jobs)
+- System stats (CPU/memory) — not diagnosing remote issues
+- Remote access/monitoring features
+
+Don't copy features from web UIs just because "competitors have it" — evaluate whether it makes sense for a local touchscreen.
+
 ## Pick your subsystem
 
 | I want to... | Read |
@@ -133,7 +150,7 @@ New UI code is declarative, class-based, and token-styled: no
 show/hide or `lv_label_set_text()` (subject bindings instead), no C++ styling
 with hex literals (design tokens instead), and vendor knowledge stays behind
 one capability module instead of leaking into generic code. The full rule
-table with the sanctioned exceptions lives in the root `CLAUDE.md`; chapter 01
+table with the sanctioned exceptions lives in the root [`CLAUDE.md`](../../CLAUDE.md); chapter 01
 explains why the engine makes these rules cheap to follow, and chapter 15 maps
 the remaining imperative-UI debt and the ratchet gate that keeps it shrinking.
 

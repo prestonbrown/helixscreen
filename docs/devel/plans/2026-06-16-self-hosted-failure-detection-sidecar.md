@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-16
 **Status:** PARKED / deferred — strategic feasibility captured, not scheduled. Un-parking criteria in §9.
-**Relation to shipped work:** Builds on the `DetectionSource` abstraction shipped for the Snapmaker U1 (`docs/devel/plans/2026-06-15-spaghetti-detection-source.md`). That adapter consumes a detector someone else runs. This doc is about HelixScreen **running its own detector** on printers whose stock AI is closed/unobservable.
+**Relation to shipped work:** Builds on the `DetectionSource` abstraction shipped for the Snapmaker U1 (`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § `defect_detection`). That adapter consumes a detector someone else runs. This doc is about HelixScreen **running its own detector** on printers whose stock AI is closed/unobservable.
 
 ---
 
@@ -97,7 +97,7 @@ Revisit if any of:
 - Overlap with Obico — risk of reinventing a mature tool for marginal differentiated value.
 
 ## References
-- Shipped U1 adapter: `docs/devel/plans/2026-06-15-spaghetti-detection-source.md`, `2026-06-15-spaghetti-detection-plan.md`.
+- Shipped U1 adapter: `docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § `defect_detection`.
 - Device evidence: K1C `/usr/bin/cx_ai_middleware`, `/etc/init.d/S70cx_ai_middleware`, `/usr/data/creality/userdata/config/user_print_refer.json`; K2 `klippy/extras/load_ai.py`.
 - Obico (open detector + `moonraker-obico`): https://www.obico.io
 - Creality "edge AI" framing: https://wiki.creality.com/en/k1-flagship-series/k1-max/quick-start-guide/ai-feature-description

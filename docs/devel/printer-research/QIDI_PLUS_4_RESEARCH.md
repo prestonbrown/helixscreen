@@ -395,7 +395,7 @@ Given the data above, a `qidi-plus4` entry in `printer_database.json` should cov
 
 ### Blocked on test hardware (for later)
 
-7. Native `AmsBackendQidi` protocol implementation — still blocked, as noted in `FILAMENT_MANAGEMENT.md`.
+7. Native `AmsBackendQidi` write-path validation on real hardware — implemented (`FILAMENT_BACKEND_QIDI_BOX.md`), field-verified through logs only (#1030).
 8. Red/green LED color previews in the slot UI when backend is QIDI Box — current preview assumes RGB, and blue will read as "off" on real hardware.
 9. RFID MIFARE Classic readout path when using stock QIDI firmware (not Happy Hare).
 
@@ -406,5 +406,5 @@ Given the data above, a `qidi-plus4` entry in `printer_database.json` should cov
 - Upstream Happy Hare QIDI MMU config: [moggieuk/Happy-Hare](https://github.com/moggieuk/Happy-Hare) (`config/mmu_hardware.cfg` QIDI vendor sections)
 - QIDI Plus 4 product page: [qidi3d.com](https://qidi3d.com/)
 - Kalico Klipper fork: [kalico.gg](https://kalico.gg/)
-- [`FILAMENT_MANAGEMENT.md` § QIDI Box](../FILAMENT_MANAGEMENT.md#qidi-box-qidi-plus4--q2--max4)
+- [`FILAMENT_BACKEND_QIDI_BOX.md` § QIDI Box](../FILAMENT_BACKEND_QIDI_BOX.md#qidi-box-qidi-plus4--q2--max4)
 - [`QIDI_SUPPORT.md`](../printers/QIDI_SUPPORT.md) for platform/installation side

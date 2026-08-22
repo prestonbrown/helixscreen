@@ -55,8 +55,8 @@ def _short_socket_path(path: Path) -> tuple[Path, str | None]:
 # wherever that local file happened to have animations_enabled=false — on a
 # fresh checkout without one (or one that had simply never had the setting
 # toggled), goldens captured mid cross-fade at ~100% pixel diff (main went
-# red over exactly this, see
-# docs/devel/specs/2026-07-25-helixctl-ui-test-harness-design.md).
+# red over exactly this, see "Golden corpus scope" in
+# docs/devel/UI_TESTING.md).
 #
 # Every key below is something the 8 committed goldens are actually
 # sensitive to — not accumulated state. Anything not listed here falls

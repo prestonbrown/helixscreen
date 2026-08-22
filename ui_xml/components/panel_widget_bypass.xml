@@ -19,8 +19,8 @@
     <icon name="bypass_icon_off" src="arrow_left_right" size="md" variant="muted" clickable="false" event_bubble="true">
       <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="1"/>
     </icon>
-    <icon name="bypass_icon_on" src="source_branch" size="md" variant="success" clickable="false"
-          event_bubble="true" hidden="true">
+    <icon name="bypass_icon_on"
+          src="source_branch" size="md" variant="success" clickable="false" event_bubble="true" hidden="true">
       <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="0"/>
     </icon>
 

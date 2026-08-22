@@ -81,6 +81,12 @@ Full details on code standards, commit style, and PR expectations:
 
 ---
 
+## Plans and specs
+
+In-flight design docs live in [docs/devel/plans/](docs/devel/plans/) — working scaffolding, deleted in the same change that ships the work. Don't commit plans anywhere else, and don't resurrect shipped ones; git history is the archive (full convention: [docs/CLAUDE.md](docs/CLAUDE.md)).
+
+---
+
 ## Things that will get your PR bounced
 
 These are non-negotiable. They're in place because violations have caused real crashes, real user-visible regressions, or real contributor onboarding pain.

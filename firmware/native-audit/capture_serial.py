@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Raw serial capture for the K-Touch audit builds. idf.py monitor is not
-# usable over the CH340 (see ESP32_NATIVE_AUDIT.md traps) — this pulses RTS
+# usable over the CH340 (see docs/devel/plans/ESP32_NATIVE_AUDIT.md traps) — this pulses RTS
 # for a programmatic reset, then streams the boot log for --seconds.
 #
 # Usage: capture_serial.py [--port /dev/ttyUSB0] [--seconds 40] [--out file]

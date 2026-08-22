@@ -220,7 +220,9 @@ translations:
   Auto-poll for weight updates: Auto-poll for weight updates
   Auto-probe or manually check screw heights: Auto-probe or manually check screw heights
   Auto-render video: Auto-render video
-  Auto-uninstall only works on local Moonraker: Auto-uninstall only works on local Moonraker
+  'Auto-tuning Shapers...': 'Auto-tuning Shapers...'
+  Auto-uninstall only works on local Moonraker: Auto-uninstall only works on local
+    Moonraker
   Automatic: Automatic
   Automatic Heater Control Calibration: Automatic Heater Control Calibration
   Automatic LED Control: Automatic LED Control
@@ -251,8 +253,10 @@ translations:
   Bed Level: Bed Level
   Bed Leveling: Bed Leveling
   Bed Mesh: Bed Mesh
+  'Bed Mesh Complete': 'Bed Mesh Complete'
   Bed Mesh Render: Bed Mesh Render
   Bed Mesh...: Bed Mesh...
+  Bed Meshing...: Bed Meshing...
   Bed Moves: Bed Moves
   Bed Screw Adjustment: Bed Screw Adjustment
   Bed Screw Results: Bed Screw Results
@@ -262,6 +266,7 @@ translations:
   Bed Temperature: Bed Temperature
   Bed is Level!: Bed is Level!
   Bed mesh operation timed out: Bed mesh operation timed out
+  'Bed mesh...': 'Bed mesh...'
   Bed target set to {}°C: Bed target set to {}°C
   Bed temp must be 0-200°C: Bed temp must be 0-200°C
   Bed warming timed out: Bed warming timed out
@@ -352,6 +357,8 @@ translations:
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate input
   Calibrate, tune jitter and scroll feel: Calibrate, tune jitter and scroll feel
   Calibrated: Calibrated
+  'Calibrating Probe...': 'Calibrating Probe...'
+  'Calibrating bed mesh...': 'Calibrating bed mesh...'
   Calibrating {} axis...: Calibrating {} axis...
   Calibrating...: Calibrating...
   Calibration & Tools: Calibration & Tools
@@ -436,6 +443,7 @@ translations:
   Checking: Checking
   Checking Spoolman server...: Checking Spoolman server...
   Checking accelerometer...: Checking accelerometer...
+  'Checking extruders...': 'Checking extruders...'
   Checking filament...: Checking filament...
   Checking for plugin...: Checking for plugin...
   Checking for webcam...: Checking for webcam...
@@ -458,6 +466,7 @@ translations:
   Clean Brush: Clean Brush
   Clean Nozzle: Clean Nozzle
   Cleaning Nozzle...: Cleaning Nozzle...
+  'Cleaning nozzle...': 'Cleaning nozzle...'
   Clear: Clear
   Clear All: Clear All
   Clear All Events: Clear All Events
@@ -571,6 +580,7 @@ translations:
   Cooling: Cooling
   Cooling Tube Length: Cooling Tube Length
   Cooling Tube Retraction: Cooling Tube Retraction
+  'Cooling for probing...': 'Cooling for probing...'
   Copied to clipboard!: Copied to clipboard!
   Copy Command: Copy Command
   Copy failed - use SSH manually: Copy failed - use SSH manually
@@ -603,6 +613,7 @@ translations:
   Create a 4-6 digit security PIN: Create a 4-6 digit security PIN
   Create backup of %s before applying: Create backup of %s before applying
   Create video when print completes: Create video when print completes
+  'Creating bed mesh...': 'Creating bed mesh...'
   Creating spool...: Creating spool...
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
   Current / Target: Current / Target
@@ -662,6 +673,7 @@ translations:
   Deploy: Deploy
   Describe the issue (optional): Describe the issue (optional)
   Detailed: Detailed
+  'Detecting plate...': 'Detecting plate...'
   Detecting printer type...: Detecting printer type...
   Detecting...: Detecting...
   Detection Length: Detection Length
@@ -845,6 +857,7 @@ translations:
   Extruder distances and sensor configuration: Extruder distances and sensor configuration
   Extruder heats automatically based on material: Extruder heats automatically based on material
   Extruder to Nozzle: Extruder to Nozzle
+  'Extruding prime line...': 'Extruding prime line...'
   FAILED: FAILED
   FILAMENTS: FILAMENTS
   FILTERS: FILTERS
@@ -1005,6 +1018,7 @@ translations:
   Fine: Fine
   Fine-Tune: Fine-Tune
   Finish: Finish
+  'Finishing clean...': 'Finishing clean...'
   Finishing up...: Finishing up...
   Firmware Restart: Firmware Restart
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Firmware reports no bypass. Enable if you feed filament straight to the extruder
@@ -1018,6 +1032,7 @@ translations:
   Flow Compensation: Flow Compensation
   Flow Rate: Flow Rate
   Flowguard: Flowguard
+  'Flushing Filament...': 'Flushing Filament...'
   Flying Toasters: Flying Toasters
   Follow active tool: Follow active tool
   Follow graph screen: Follow graph screen
@@ -1104,7 +1119,13 @@ translations:
   Heating: Heating
   Heating (%d°C below minimum): Heating (%d°C below minimum)
   Heating Bed...: Heating Bed...
+  'Heating Chamber...': 'Heating Chamber...'
   Heating Nozzle...: Heating Nozzle...
+  'Heating bed to $1°C...': 'Heating bed to $1°C...'
+  'Heating bed...': 'Heating bed...'
+  'Heating chamber...': 'Heating chamber...'
+  'Heating nozzle to $1°C...': 'Heating nozzle to $1°C...'
+  'Heating nozzle...': 'Heating nozzle...'
   Heating to %d°C... %.0f°C: Heating to %d°C... %.0f°C
   Heating to {}°C before {}...: Heating to {}°C before {}...
   Heating to {}°C for {}...: Heating to {}°C for {}...
@@ -1135,6 +1156,7 @@ translations:
   Homing Y...: Homing Y...
   Homing Z...: Homing Z...
   Homing all axes...: Homing all axes...
+  'Homing axes...': 'Homing axes...'
   'Homing failed: ': 'Homing failed: '
   'Homing failed: {}': 'Homing failed: {}'
   Homing first...: Homing first...
@@ -1182,6 +1204,7 @@ translations:
   Info: Info
   Initial speed for filament unloading: Initial speed for filament unloading
   Initialized: Initialized
+  'Initializing print...': 'Initializing print...'
   Initializing...: Initializing...
   Initiate blade change procedure: Initiate blade change procedure
   Input: Input
@@ -1189,12 +1212,14 @@ translations:
   Input Shaper Help: Input Shaper Help
   Input Shaping: Input Shaping
   Input shaper calibration sensors: Input shaper calibration sensors
+  'Input shaper calibration...': 'Input shaper calibration...'
   Input shaper settings applied!: Input shaper settings applied!
   Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.: Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.
   Input shaping reduces vibration artifacts (ringing) in your prints.: Input shaping reduces vibration artifacts (ringing) in your prints.
   'Input: ': 'Input: '
   InputShaper: InputShaper
   Insert filament before resuming: Insert filament before resuming
+  'Inspecting bed...': 'Inspecting bed...'
   Install: Install
   Install HelixPrint Plugin: Install HelixPrint Plugin
   Install Older Version?: Install Older Version?
@@ -1621,6 +1646,7 @@ translations:
   Nozzle Temperature: Nozzle Temperature
   Nozzle Temperatures: Nozzle Temperatures
   Nozzle Temps: Nozzle Temps
+  'Nozzle clean complete': 'Nozzle clean complete'
   Nozzle did not reach {}°C — {} cancelled: Nozzle did not reach {}°C — {} cancelled
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   Nozzle target set to {}°C: Nozzle target set to {}°C
@@ -1761,15 +1787,19 @@ translations:
   Power Devices: Power Devices
   Power off the printer or screen: Power off the printer or screen
   'Pre-print command failed: {}': 'Pre-print command failed: {}'
+  'Pre-print homing...': 'Pre-print homing...'
   Preheat: Preheat
   Preheat Macro: Preheat Macro
   Preheat PLA: Preheat PLA
   Preheat cancelled: Preheat cancelled
   'Preheat: T{} + bed set': 'Preheat: T{} + bed set'
   'Preheat: all {} tools + bed set': 'Preheat: all {} tools + bed set'
+  'Prepared': 'Prepared'
   Preparing: Preparing
   Preparing Print: Preparing Print
   Preparing Print...: Preparing Print...
+  'Preparing to Print...': 'Preparing to Print...'
+  'Preparing to clean...': 'Preparing to clean...'
   Preparing...: Preparing...
   Preset: Preset
   'Preset ID: {}': 'Preset ID: {}'
@@ -1781,6 +1811,7 @@ translations:
   Previous: Previous
   Price: Price
   Primary: Primary
+  'Priming nozzle...': 'Priming nozzle...'
   Priming...: Priming...
   Print: Print
   Print Anyway: Print Anyway
@@ -1806,9 +1837,11 @@ translations:
   Print Tuning: Print Tuning
   Print Was Terminated: Print Was Terminated
   Print cancelled: Print cancelled
+  'Print complete': 'Print complete'
   Print did not start: Print did not start
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Print
     didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X})
+  'Print ending...': 'Print ending...'
   Print error: Print error
   Print failed: Print failed
   Print issue detected: Print issue detected
@@ -1870,9 +1903,12 @@ translations:
   Probe Speed: Probe Speed
   Probe controls, accuracy test, and settings: Probe controls, accuracy test, and settings
   Probing Bed Mesh: Probing Bed Mesh
+  'Probing Bed Mesh...': 'Probing Bed Mesh...'
   Probing Bed Screws...: Probing Bed Screws...
   Probing Bed...: Probing Bed...
   Probing Failed: Probing Failed
+  'Probing Z...': 'Probing Z...'
+  'Checking Bed Mesh...': 'Checking Bed Mesh...'
   Probing point {} of {}: Probing point {} of {}
   Probing... ({} points): Probing... ({} points)
   Proceed: Proceed
@@ -1965,6 +2001,7 @@ translations:
   Refresh Interval: Refresh Interval
   Refresh RFID: Refresh RFID
   Relative vibration: Relative vibration
+  'Reheating...': 'Reheating...'
   Release all stepper motors. Position will be lost.: Release all stepper motors.
     Position will be lost.
   Remaining (g): Remaining (g)
@@ -1986,6 +2023,7 @@ translations:
   Render Now: Render Now
   Rendering timelapse...: Rendering timelapse...
   Replay Welcome Tour: Replay Welcome Tour
+  'Replenishing filament...': 'Replenishing filament...'
   Report saved to crash_report.txt: Report saved to crash_report.txt
   Reprint: Reprint
   Reprint Last: Reprint Last
@@ -2041,6 +2079,7 @@ translations:
   Resume interrupted print?: Resume interrupted print?
   Resume macro not configured: Resume macro not configured
   Resume preparation failed: Resume preparation failed
+  'Resuming print...': 'Resuming print...'
   Resuming...: Resuming...
   Retract: Retract
   Retract Distance: Retract Distance
@@ -2329,6 +2368,8 @@ translations:
   Starting Print...: Starting Print...
   Starting download...: Starting download...
   Starting measurement...: Starting measurement...
+  'Starting nozzle clean...': 'Starting nozzle clean...'
+  'Starting print...': 'Starting print...'
   Starting...: Starting...
   Startup Brightness: Startup Brightness
   Startup, auto-control, and macro devices: Startup, auto-control, and macro devices
@@ -2655,6 +2696,7 @@ translations:
   Use printer type to select image: Use printer type to select image
   VM Peak: VM Peak
   VM Size: VM Size
+  'Validating bed mesh...': 'Validating bed mesh...'
   Value must be between {:.0f} and {:.0f}: Value must be between {:.0f} and {:.0f}
   Values must not be negative: Values must not be negative
   Velocity and acceleration limits: Velocity and acceleration limits
@@ -2665,6 +2707,7 @@ translations:
   Verify: Verify
   Verifying SHA256 checksum...: Verifying SHA256 checksum...
   Verifying download...: Verifying download...
+  'Verifying file...': 'Verifying file...'
   Verifying timelapse plugin...: Verifying timelapse plugin...
   Verifying...: Verifying...
   Version: Version

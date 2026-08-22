@@ -405,6 +405,10 @@ class MoonrakerManager {
     SubjectLifetime m_print_bed_target_fallback_lifetime;
     ObserverGuard m_print_bed_target_fallback_observer;
     ObserverGuard m_print_ext_target_fallback_observer;
+    /// Toolhead position observers feeding the print-start collector's
+    /// silent-window inference (one guard per axis subject; the callback
+    /// reads all three coherently).
+    ObserverGuard m_print_position_observers[3];
     // Pre-print completion observers. The hand-off to the printing phase is
     // gated on the REAL first layer (print_stats.info.current_layer >= 1) — see
     // should_complete_preprint(). The layer observer is the primary signal; the

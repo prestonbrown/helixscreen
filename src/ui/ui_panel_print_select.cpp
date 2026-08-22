@@ -2121,7 +2121,17 @@ void PrintSelectPanel::hide_detail_view() {
     detail_view_open_ = false;
 
     if (detail_view_) {
-        detail_view_->hide();
+        // hide() pops the overlay via go_back(), and its only guard is
+        // overlay_root_ existing — which setup() creates eagerly. Calling it
+        // when the overlay was never pushed (a long-press delete never opens
+        // the detail view) pops panel_stack_.back() instead: for a main-panel
+        // stack that is this panel itself, and go_back()'s empty-stack
+        // fallback lands on Home. is_visible() is driven by NavigationManager
+        // push/pop, the same gate on_deactivate() uses for its rebuild-path
+        // close.
+        if (detail_view_->is_visible()) {
+            detail_view_->hide();
+        }
     }
 }
 

@@ -22,14 +22,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BINARY = Path(os.environ.get("HELIX_UI_BINARY", str(REPO_ROOT / "build" / "bin" / "helix-screen")))
 
 # moonraker_client_mock_files.cpp's scan_mock_gcode_files() + server.files.list
-# mock report each fixture's REAL on-disk mtime via stat() — and the
-# print-select panel shows the 10 most-recently-modified of the 15 files here.
-# Git checkout doesn't preserve original commit timestamps, so without this,
-# which 10 files show (and their order) varies by checkout/clone/machine —
-# print-select's golden was never reproducible on a fresh clone by
-# construction, not flaky. Newest first, matching the order the committed
-# golden was captured under; anything past the 10th doesn't appear in the
-# panel so its relative order among the remaining 5 doesn't matter.
+# mock report each fixture's REAL on-disk mtime via stat(), and print-select
+# sorts on it. Git checkout doesn't preserve original commit timestamps, so
+# without this, which files land on the first screen (and their order) varies
+# by checkout/clone/machine — print-select's golden was never reproducible
+# on a fresh clone by construction, not flaky. Newest first, matching the
+# order the committed golden was captured under.
+#
+# Pinning fixes the ORDER, not the COUNT. The card view renders every file in
+# a scrolling 4-across grid, so adding a fixture here can add a row and shorten
+# the scrollbar thumb even when it sorts last and no card is visibly different
+# — a ~200px golden diff confined to the scrollbar column. Adding or removing
+# any file in this list means regenerating the print-select golden:
+#   pytest 'tests/ui/test_screens.py::test_screen_matches_golden[print-select]' \
+#       --accept-goldens
 _TEST_GCODE_DIR = REPO_ROOT / "assets" / "test_gcodes"
 _TEST_GCODE_MTIME_ORDER = [
     "xyz-10mm-calibration-cube.gcode",
@@ -47,6 +53,12 @@ _TEST_GCODE_MTIME_ORDER = [
     "Night Spirit_v1_2_og.gcode",
     "Low poly vase v1.1 flat top.gcode",
     "ECC_0.4_stand_PLA0.2_2h42m.gcode",
+    # Added by 6ba20a707 as extra mock gcode; nothing references them by name.
+    # Pinned oldest so they sort onto the last row rather than displacing the
+    # cards the golden was captured under. Moving either up is a deliberate
+    # golden update.
+    "eiffel_final_PLA_2h42m.gcode",
+    "2022-big-ben-by-miniworld3d_ABS_36m21s.gcode",
 ]
 
 
@@ -61,6 +73,19 @@ def _pin_test_gcode_mtimes():
     mtime (only content), so this is safe to run unconditionally rather than
     gating it on which test actually needs print-select.
     """
+    # An unpinned .gcode keeps its checkout mtime, which is newer than every
+    # pinned one, so it silently takes card 0 and print-select tests fail on a
+    # card-identity assertion that says nothing about the real cause. Fail here
+    # instead, naming the file and the fix.
+    on_disk = {p.name for p in _TEST_GCODE_DIR.glob("*.gcode")}
+    unpinned = sorted(on_disk - set(_TEST_GCODE_MTIME_ORDER))
+    if unpinned:
+        raise AssertionError(
+            f"unpinned gcode fixture(s) in assets/test_gcodes: {unpinned}. "
+            "Add each to _TEST_GCODE_MTIME_ORDER above - at the END to keep it out "
+            "of print-select's visible top 10, or higher up as a deliberate golden "
+            "update. Left unpinned it sorts newest and displaces card 0.")
+
     base = 1_700_000_000  # arbitrary fixed epoch; only the relative order matters
     for i, name in enumerate(reversed(_TEST_GCODE_MTIME_ORDER)):
         path = _TEST_GCODE_DIR / name

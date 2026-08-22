@@ -647,24 +647,39 @@ namespace {
 } // namespace
 
 bool FilamentSensorManager::has_real_runout() const {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    // Snapshot the sensors that report no filament, then release mutex_ before
+    // asking AmsState anything. AmsState calls into this class from under its own
+    // recursive lock, so taking its lock from inside ours closes an ABBA cycle
+    // (TSan: lock-order-inversion). Only the snapshot needs our lock; the runout
+    // decision below is pure reads over that snapshot.
+    struct Candidate {
+        std::string sensor_name;
+        FilamentSensorRole role;
+    };
+    std::vector<Candidate> candidates;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    if (!master_enabled_) {
-        return false;
+        if (!master_enabled_) {
+            return false;
+        }
+
+        for (const auto& sensor : sensors_) {
+            if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
+                continue;
+            }
+
+            auto it = states_.find(sensor.klipper_name);
+            if (it == states_.end() || !it->second.available || it->second.filament_detected) {
+                continue; // sensor present and filament detected -> not a runout
+            }
+            candidates.push_back({sensor.sensor_name, sensor.role});
+        }
     }
 
     AmsBackend* backend = AmsState::instance().get_backend();
 
-    for (const auto& sensor : sensors_) {
-        if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
-            continue;
-        }
-
-        auto it = states_.find(sensor.klipper_name);
-        if (it == states_.end() || !it->second.available || it->second.filament_detected) {
-            continue; // sensor present and filament detected -> not a runout
-        }
-
+    for (const auto& sensor : candidates) {
         // This sensor reports no filament. Decide whether it is a real runout.
         // If it maps to an AMS lane and the backend says that lane is EMPTY /
         // not-present, it is an intentionally-empty lane, not a runout.
@@ -889,6 +904,30 @@ void FilamentSensorManager::update_from_status(const json& status) {
     StateChangeCallback callback_copy;
     bool any_changed = false;
 
+    // Read AMS state BEFORE taking mutex_. AmsState notifies this class from under
+    // its own recursive lock (sync_from_backend -> on_bypass_active_changed), so
+    // acquiring AmsState's lock from inside ours closes an ABBA cycle that TSan
+    // reports as a potential deadlock. These are whole-printer advisory flags, not
+    // per-sensor, and our lock never protected AmsState's state anyway.
+    const bool ams_active = AmsState::instance().is_filament_operation_active();
+    // Peeked, never consumed - the idle runout modal owns the one shot.
+    const bool post_unload_grace = AmsState::instance().post_unload_runout_grace_armed();
+    // AD5X-IFS auto-unloads filament back into the IFS between prints. The head
+    // sensor going empty when the printer is idle is firmware behaviour, not a
+    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side, not
+    // merely "not PRINTING": a head-empty during a pre-print block is not the
+    // firmware's idle auto-unload and must not be swallowed.
+    bool ad5x_idle_unload = false;
+    if (auto* backend = AmsState::instance().get_backend()) {
+        if (backend->get_type() == AmsType::AD5X_IFS) {
+            const auto lifecycle = static_cast<PrintState>(
+                lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+            if (!job_holds_machine(lifecycle)) {
+                ad5x_idle_unload = true;
+            }
+        }
+    }
+
     // Phase 1: Update state under lock, collect notifications
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -981,28 +1020,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 notif.old_state = old_state;
                 notif.new_state = state;
                 notif.role = sensor.role;
-                // Suppress toasts during startup grace period, wizard setup,
-                // and active AMS filament operations (load/unload moves filament
-                // past sensors intentionally, generating spurious triggers)
-                bool ams_active = AmsState::instance().is_filament_operation_active();
-                // AD5X-IFS auto-unloads filament back into the IFS between prints.
-                // The head sensor going empty when the printer is idle is firmware
-                // behaviour, not a user-facing event. The runout role is preserved
-                // so in-print events still fire.
-                bool ad5x_idle_unload = false;
-                if (auto* backend = AmsState::instance().get_backend()) {
-                    if (backend->get_type() == AmsType::AD5X_IFS) {
-                        // "Between prints" is the lifecycle's Idle/terminal
-                        // side, not merely "not PRINTING". A head-empty during a
-                        // pre-print block is not the firmware's idle auto-unload
-                        // and must not be swallowed.
-                        const auto lifecycle = static_cast<PrintState>(
-                            lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
-                        if (!job_holds_machine(lifecycle)) {
-                            ad5x_idle_unload = true;
-                        }
-                    }
-                }
+                // Toasts are suppressed during the startup grace period, wizard
+                // setup, and active AMS filament operations (load/unload moves
+                // filament past sensors intentionally, generating spurious
+                // triggers). ams_active and ad5x_idle_unload were read above,
+                // before the lock. The runout role is preserved either way, so
+                // in-print events still fire.
                 // An unload the user asked for ends by dragging filament off the
                 // sensor, and that edge lands seconds AFTER the action returns to
                 // IDLE — so ams_active above is already false by then and cannot
@@ -1013,9 +1036,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // window is still news, and the manual-pull prompt that fires on
                 // this same edge (ui_manual_pull_prompt.cpp) is a separate,
                 // deliberately-armed INFO and is untouched here.
-                const bool post_unload_removal =
-                    !state.filament_detected &&
-                    AmsState::instance().post_unload_runout_grace_armed();
+                const bool post_unload_removal = !state.filament_detected && post_unload_grace;
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
                                      !ad5x_idle_unload && !post_unload_removal && master_enabled_ &&
                                      sensor.enabled && sensor.role != FilamentSensorRole::NONE;

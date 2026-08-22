@@ -2,7 +2,6 @@
 
 Status: **Phases 0a-4c complete** - merged in v0.99.115; only Phase 5 (the rename) remains open, see the Phase tracker
 Branch: `fix/preparing-job-lifecycle` (Phase 0 only) → own branch for Phases 1-4
-Predecessor: [2026-08-18-preparing-job-lifecycle.md](2026-08-18-preparing-job-lifecycle.md)
 
 > **Resuming after a context break?** Read "Phase tracker" and "How to resume"
 > at the bottom first. Every phase has explicit exit criteria; do not start one

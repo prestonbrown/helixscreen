@@ -16,6 +16,17 @@
          the widget is pressed. Radius included so a use site needs exactly one
          child element; an inline style_radius on the site overrides it. -->
     <style name="press_wash" bg_color="#primary" bg_opa="30%" radius="#border_radius"/>
+    <!-- The translucent metadata strip that rides at the bottom of a g-code
+         preview card. Print status stacks it as a flex sibling under the art;
+         the file detail view floats it over the art with align="bottom_mid".
+         The PLACEMENT differs and stays inline at each site - this is only the
+         shared look, so the two strips cannot drift apart visually.
+         Vertical padding is deliberately NOT here: status pads space_md both
+         ways, detail needs 16 on top (its translate_y="-12" pulls the rounded
+         corners under the clip, and pad_top must exceed that magnitude or the
+         filename is cut off) and space_sm at the bottom. -->
+    <style name="metadata_strip"
+           bg_opa="160" radius="#border_radius" pad_left="#space_sm" pad_right="#space_sm" pad_gap="#space_xs"/>
   </styles>
   <!-- Registration requires a <view>; nothing ever instantiates this
        component, so an empty lv_obj keeps it harmless. -->

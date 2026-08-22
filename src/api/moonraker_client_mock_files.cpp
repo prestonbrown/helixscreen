@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -452,6 +453,54 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
         } else if (error_cb) {
             MoonrakerError err =
                 MoonrakerError::validation_error("server.files.delete", "Missing path parameter");
+            error_cb(err);
+        }
+        return true;
+    };
+
+    // server.files.delete_file - Delete a file
+    //
+    // What MoonrakerFileAPI::delete_file() sends (the delete flow the print
+    // select panel drives). The mock's gcodes root is backed by TEST_GCODE_DIR
+    // on disk, so removing the file there IS the virtual-FS mutation — the
+    // next get_directory scan no longer reports it. A path that names nothing
+    // on disk is an error, like real Moonraker's 404.
+    registry["server.files.delete_file"] =
+        [](MoonrakerClientMock* self, const json& params,
+           std::function<void(const json&)> success_cb,
+           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        (void)self;
+        std::string path;
+        if (params.contains("path")) {
+            path = params["path"].get<std::string>();
+        }
+        if (path.empty()) {
+            if (error_cb) {
+                MoonrakerError err = MoonrakerError::validation_error("server.files.delete_file",
+                                                                      "Missing path parameter");
+                error_cb(err);
+            }
+            return true;
+        }
+
+        // Callers embed the registered root ("gcodes/foo.gcode"); the mock's
+        // gcodes tree lives in TEST_GCODE_DIR.
+        std::string relative = path;
+        const std::string root_prefix = "gcodes/";
+        if (relative.rfind(root_prefix, 0) == 0) {
+            relative = relative.substr(root_prefix.length());
+        }
+        const std::string disk_path = std::string(TEST_GCODE_DIR) + "/" + relative;
+
+        spdlog::info("[MoonrakerClientMock] Mock delete_file: {}", path);
+        if (std::remove(disk_path.c_str()) == 0) {
+            if (success_cb) {
+                json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
+                success_cb(response);
+            }
+        } else if (error_cb) {
+            MoonrakerError err = MoonrakerError::file_not_found("server.files.delete_file",
+                                                                "File not found: " + path);
             error_cb(err);
         }
         return true;

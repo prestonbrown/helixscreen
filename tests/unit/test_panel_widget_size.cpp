@@ -11,7 +11,6 @@
  * is wired to the band, but shifts both sides of the comparison together if
  * the band itself is miscalibrated — it cannot catch an off-by-one in the
  * band. This file drives the bands from the independently measured tier table
- * (`.superpowers/sdd/2026-08-05-grid-metrics-followups/span-pixel-table.md`)
  * instead: real per-tier cell/span pixel extents, truncated the same way
  * `grid_track_extent()` truncates them at runtime
  * (`static_cast<int>(float)`, i.e. floor for these always-positive values).

@@ -182,6 +182,12 @@ $(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP
 		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) [objects] -o $@ $(LDFLAGS)"; \
 		exit 1; \
 	}
+	@# Record the optional subsystems this binary actually contains, beside it.
+	@# `make deploy-*` runs as a SEPARATE make invocation with no PLATFORM_TARGET,
+	@# so it re-derives ENABLE_REMOTE_CONTROL as the native default (yes) and
+	@# cannot see what the cross build chose. The stamp carries that across, and
+	@# the deploy targets use it to turn the matching runtime switch on.
+	$(Q)printf 'remote_control=%s\n' "$(ENABLE_REMOTE_CONTROL)" > $(BIN_DIR)/.build-features
 
 # Collect all .d dependency files for proper header tracking
 # These are generated during compilation with -MMD -MP flags

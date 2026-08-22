@@ -27,11 +27,12 @@ class MacroManagerTestFixture {
     MacroManagerTestFixture() : state_(), api_(client_, state_), manager_(api_, hardware_) {}
 
     void set_helix_macros_installed() {
-        // Simulate printer with Helix macros (v2.0+)
+        // Simulate printer with the current Helix macro pack installed
         json objects = json::array(
             {"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED", "gcode_macro HELIX_RESET",
              "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-             "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro _HELIX_STATE", "bed_mesh"});
+             "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT",
+             "gcode_macro _HELIX_STATE", "bed_mesh"});
         hardware_.parse_objects(objects);
     }
 
@@ -88,6 +89,20 @@ TEST_CASE_METHOD(MacroManagerTestFixture,
     set_helix_macros_installed();
 
     REQUIRE(manager_.get_status() == MacroInstallStatus::INSTALLED);
+}
+
+TEST_CASE_METHOD(MacroManagerTestFixture,
+                 "MacroManager - get_status returns OUTDATED for a pre-unload v2.0 install",
+                 "[config][status]") {
+    // v2.0.0 pack: has HELIX_READY but predates HELIX_UNLOAD_FILAMENT, so the
+    // presence ladder infers 2.0.0 and the version compare flags it.
+    json objects =
+        json::array({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
+                     "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+                     "gcode_macro _HELIX_STATE"});
+    hardware_.parse_objects(objects);
+
+    REQUIRE(manager_.get_status() == MacroInstallStatus::OUTDATED);
 }
 
 // ============================================================================
@@ -154,8 +169,8 @@ TEST_CASE("MacroManager - get_macro_content includes conditional operations", "[
 TEST_CASE("MacroManager - get_macro_names returns expected macros", "[config][content]") {
     auto names = MacroManager::get_macro_names();
 
-    // v2.0 has 14 public macros (excluding _HELIX_STATE which starts with _)
-    REQUIRE(names.size() == 14);
+    // v2.1 has 15 public macros (excluding _HELIX_STATE which starts with _)
+    REQUIRE(names.size() == 15);
 
     // Core signals
     REQUIRE(std::find(names.begin(), names.end(), "HELIX_READY") != names.end());
@@ -166,6 +181,7 @@ TEST_CASE("MacroManager - get_macro_names returns expected macros", "[config][co
     REQUIRE(std::find(names.begin(), names.end(), "HELIX_START_PRINT") != names.end());
     REQUIRE(std::find(names.begin(), names.end(), "HELIX_CLEAN_NOZZLE") != names.end());
     REQUIRE(std::find(names.begin(), names.end(), "HELIX_BED_MESH_IF_NEEDED") != names.end());
+    REQUIRE(std::find(names.begin(), names.end(), "HELIX_UNLOAD_FILAMENT") != names.end());
 
     // Phase tracking (spot check a few)
     REQUIRE(std::find(names.begin(), names.end(), "HELIX_PHASE_HOMING") != names.end());

@@ -27,7 +27,7 @@ When given autonomous control, Claude works independently to improve HelixScreen
 - Code cleanup and consistency
 - Adding missing tests
 - Fixing obvious bugs
-- Implementing features from ROADMAP.md
+- Implementing features from labeled GitHub issues
 
 **Ask first**:
 - New architectural patterns

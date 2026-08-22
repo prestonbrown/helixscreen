@@ -79,6 +79,9 @@ Bed mesh visualization, screws tilt adjust, input shaper resonance testing, Z-of
 
 ![Bed Mesh](../images/screenshot-bed-mesh-panel.png)
 
+### [Touch Calibration](guide/touch-calibration.md)
+Fix taps that land in the wrong spot — run the calibration wizard from Settings, force it on any touchscreen, or recalibrate from the command line.
+
 ### [Settings](guide/settings.md)
 Display, theme, sound, LED, network, sensors, touch calibration, hardware issues, safety, machine limits, factory reset, help & support (debug bundles, Discord, docs), and About sub-overlay (version info, updates, branding, contributors).
 

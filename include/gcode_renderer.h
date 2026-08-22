@@ -27,8 +27,6 @@
  * 3. Project: 3D world coordinates → 2D screen coordinates
  * 4. Clip: Clip lines to viewport bounds
  * 5. Draw: Use lv_draw_line() with style
- *
- * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
 namespace helix {

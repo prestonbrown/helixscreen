@@ -3,6 +3,8 @@
   "description": "Print start patterns for Creality K2 series (K2, K2 Pro, K2 Plus) with CFS",
   "progress_mode": "weighted",
   "adaptive_meshing": true,
+  "position_signals": true,
+  "cfs_signals": true,
   "signal_formats": [],
   "response_patterns": [
     {
@@ -24,7 +26,7 @@
       "weight": 20
     },
     {
-      "pattern": "M109|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
+      "pattern": "M109|TEMPERATURE_WAIT SENSOR=extruder|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
       "phase": "HEATING_NOZZLE",
       "message": "Heating Nozzle...",
       "weight": 20
@@ -42,7 +44,7 @@
       "weight": 10
     },
     {
-      "pattern": "BOX_MATERIAL_FLUSH|BOX_MATERIAL_CHANGE_FLUSH|M8200.*F|flush_temp:|flush_len:|flush_volume:",
+      "pattern": "BOX_MATERIAL_FLUSH|BOX_MATERIAL_CHANGE_FLUSH|BOX_GO_TO_EXTRUDE_POS|M8200.*F|flush_temp:|flush_len:|flush_volume:",
       "phase": "PURGING",
       "message": "Flushing Filament...",
       "weight": 5

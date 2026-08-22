@@ -9,7 +9,7 @@ argument-hint: "[plan-doc-path or project-name] [--defaults]"
 
 ### 1. LOCATE
 - Path provided → use directly
-- Else search `docs/plans/` then `~/.claude/plans/`
+- Else search `docs/devel/plans/` then `~/.claude/plans/`
 - **NOT FOUND** → STOP. AskUserQuestion for path.
 
 ### 2. READ

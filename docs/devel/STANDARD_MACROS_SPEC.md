@@ -29,7 +29,13 @@ The Standard Macros system provides a unified registry that maps semantic operat
 | Slot | Purpose | Auto-Detect Patterns | HELIX Fallback |
 |------|---------|---------------------|----------------|
 | `load_filament` | Load filament | LOAD_FILAMENT, M701 | — |
-| `unload_filament` | Unload filament | UNLOAD_FILAMENT, M702 | — |
+| `unload_filament` | Unload filament | UNLOAD_FILAMENT, M702, **HELIX_UNLOAD_FILAMENT**, QUIT_MATERIAL | HELIX_UNLOAD_FILAMENT |
+
+> **Unload ordering note:** `QUIT_MATERIAL` (Creality K1 family) is matched
+> LAST and deliberately below `HELIX_UNLOAD_FILAMENT`: the stock macro purges
+> ~100mm forward and retracts only ~62mm — it clears the melt zone for
+> manually-cut filament rather than unloading. A printer's own
+> `UNLOAD_FILAMENT`/`UNLOAD_MATERIAL`/`M702` always outrank the override.
 | `purge` | Purge/prime | PURGE, PURGE_LINE, PRIME_LINE, PURGE_FILAMENT, LINE_PURGE | — |
 | `pause` | Pause print | PAUSE, M601 | — |
 | `resume` | Resume print | RESUME, M602 | — |

@@ -72,8 +72,6 @@ extern "C" {
  *   lv_obj_t* viewer = ui_gcode_viewer_create(parent);
  *   ui_gcode_viewer_load_file(viewer, "/path/to/file.gcode");
  * @endcode
- *
- * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
 /**

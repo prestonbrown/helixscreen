@@ -22,7 +22,7 @@
 #   build/assets/images/prerendered/*.bin        (splash)
 #   build/assets/images/printers/prerendered/*.bin (printers)
 #
-# See: docs/PRE_RENDERED_IMAGES.md
+# See: docs/devel/PRE_RENDERED_IMAGES.md
 
 PRERENDERED_DIR := $(BUILD_DIR)/assets/images/prerendered
 PRERENDERED_PRINTERS_DIR := $(BUILD_DIR)/assets/images/printers/prerendered

@@ -85,6 +85,26 @@ usage() {
 # compile fails it with missing headers, and re-linking mid-compile is no better.
 LIB_NON_SUBMODULE_ITEMS=("tuibox.h" "mdns")
 
+# Submodules that get a PRIVATE checkout per worktree instead of a symlink.
+#
+# lib/helix-xml is ours (prestonbrown/helix-xml) and CLAUDE.md says to edit it
+# directly rather than carry a patch — which makes a symlink actively wrong:
+# every worktree would be editing the MAIN tree's submodule working tree, so two
+# branches could not hold different engine versions, and an edit made here would
+# surface as dirt in main's `git status` for another session to sweep up.
+# Cloning it costs ~2.6 MB and a couple of seconds, against the ~GB and minutes
+# that make symlinking lvgl/libhv worthwhile. A real checkout is also what git
+# expects, so these need no --unlink/--relink dance.
+LIB_PRIVATE_SUBMODULES=("lib/helix-xml")
+
+is_private_submodule() {
+    local candidate="$1" p
+    for p in "${LIB_PRIVATE_SUBMODULES[@]}"; do
+        [[ "$p" == "$candidate" ]] && return 0
+    done
+    return 1
+}
+
 # Copy a build artifact into the worktree as cheaply as the filesystem allows,
 # preserving mtime — make's up-to-date decisions depend on it.
 #   macOS/APFS:  cp -c            -> clonefile(2), instant, zero disk until diverged
@@ -98,9 +118,16 @@ clone_file() {
     touch -r "$src" "$dst"
 }
 
+# Symlinked submodules only. A private checkout is a normal submodule as far as
+# git is concerned, so including it here would have --unlink replace a real
+# checkout (possibly holding uncommitted engine work) with an empty directory.
 lib_submodule_paths() {
+    local path
     git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path \
-        | grep "^submodule\." | awk '{print $2}' | grep "^lib/"
+        | grep "^submodule\." | awk '{print $2}' | grep "^lib/" \
+    | while read -r path; do
+        is_private_submodule "$path" || echo "$path"
+    done
 }
 
 # Replace symlinks with what git expects: an empty directory for a submodule
@@ -318,6 +345,10 @@ link_lib_from_main() {
         MAIN_SUBMOD="$MAIN_TREE/$submod"
         WORKTREE_SUBMOD="$WORKTREE_PATH/$submod"
 
+        if is_private_submodule "$submod"; then
+            continue
+        fi
+
         if [[ -L "$WORKTREE_SUBMOD" ]]; then
             echo -e "  $submod: ${GREEN}already symlinked${RESET}"
         elif [[ -d "$WORKTREE_SUBMOD" ]]; then
@@ -346,6 +377,43 @@ link_lib_from_main() {
                 ln -s "$MAIN_ITEM" "$WORKTREE_ITEM"
                 echo -e "  lib/$item: ${GREEN}symlinked${RESET}"
             fi
+        fi
+    done
+
+    checkout_private_submodules
+}
+
+# Give each private submodule its own working tree at the commit this branch
+# points at. The gitdir lands under .git/worktrees/<name>/modules/, so the
+# checkout is independent of the main tree's and of every other worktree's, and
+# `git submodule status` reports it clean. origin stays the public GitHub remote,
+# so committing and pushing from in here works exactly as it does in main.
+checkout_private_submodules() {
+    local submod
+    for submod in "${LIB_PRIVATE_SUBMODULES[@]}"; do
+        [[ -e "$MAIN_TREE/$submod/.git" ]] || continue
+        if [[ -L "$WORKTREE_PATH/$submod" ]]; then
+            rm "$WORKTREE_PATH/$submod"
+        fi
+        if [[ -e "$WORKTREE_PATH/$submod/.git" ]]; then
+            echo -e "  $submod: ${GREEN}already a private checkout${RESET}"
+            continue
+        fi
+        echo -e "  $submod: ${CYAN}private checkout (ours — edited directly, not patched)${RESET}"
+        if ! git -C "$WORKTREE_PATH" submodule update --init "$submod" >/dev/null 2>&1; then
+            echo -e "  $submod: ${YELLOW}checkout failed${RESET}"
+            # Only a partial clone may be swept: anything with a .git returned
+            # above, and a directory holding files but no .git is something a
+            # person put there, not ours to delete.
+            if [[ -d "$WORKTREE_PATH/$submod" ]] \
+               && [[ -n "$(ls -A "$WORKTREE_PATH/$submod" 2>/dev/null)" ]]; then
+                echo -e "  ${RED}$submod has content but is not a checkout — leaving it alone.${RESET}"
+                echo -e "  ${YELLOW}Resolve by hand, then re-run with --setup-only.${RESET}"
+                continue
+            fi
+            echo -e "  ${YELLOW}falling back to a symlink — edits here will land in the MAIN tree's submodule${RESET}"
+            rmdir "$WORKTREE_PATH/$submod" 2>/dev/null || true
+            ln -s "$MAIN_TREE/$submod" "$WORKTREE_PATH/$submod"
         fi
     done
 }

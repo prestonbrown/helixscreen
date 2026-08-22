@@ -40,7 +40,12 @@ struct SlotPatterns {
 // clang-format off
 const std::vector<SlotPatterns> DETECTION_PATTERNS = {
     {StandardMacroSlot::LoadFilament,   {"LOAD_FILAMENT", "LOAD_MATERIAL", "M701"}},
-    {StandardMacroSlot::UnloadFilament, {"UNLOAD_FILAMENT", "UNLOAD_MATERIAL", "QUIT_MATERIAL", "M702"}},
+    // HELIX_UNLOAD_FILAMENT (from our macro pack) deliberately outranks
+    // Creality's QUIT_MATERIAL — that stock macro purges filament forward and
+    // retracts only part of it (a melt-zone clearer for manually-cut
+    // filament), not a true unload. A printer's own native unload macros and
+    // the MMU M702 keep priority over the override.
+    {StandardMacroSlot::UnloadFilament, {"UNLOAD_FILAMENT", "UNLOAD_MATERIAL", "M702", "HELIX_UNLOAD_FILAMENT", "QUIT_MATERIAL"}},
     {StandardMacroSlot::Purge,          {"PURGE", "PURGE_LINE", "PRIME_LINE", "PURGE_FILAMENT", "LINE_PURGE"}},
     {StandardMacroSlot::Pause,          {"PAUSE", "M601"}},
     {StandardMacroSlot::Resume,         {"RESUME", "M602"}},
@@ -61,7 +66,7 @@ const std::vector<SlotPatterns> DETECTION_PATTERNS = {
 // clang-format off
 const std::map<StandardMacroSlot, std::string> FALLBACK_MACROS = {
     {StandardMacroSlot::LoadFilament,   ""},
-    {StandardMacroSlot::UnloadFilament, ""},
+    {StandardMacroSlot::UnloadFilament, "HELIX_UNLOAD_FILAMENT"},
     {StandardMacroSlot::Purge,          ""},
     {StandardMacroSlot::Pause,          ""},
     {StandardMacroSlot::Resume,         ""},

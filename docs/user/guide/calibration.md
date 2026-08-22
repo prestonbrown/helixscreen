@@ -66,6 +66,12 @@ Assisted manual bed leveling:
 - **Yellow**: Minor adjustment needed
 - **Red**: Significant adjustment needed
 
+### Sharing the Results
+
+Next to **Done** and **Re-probe** in the results view, a **share button** (QR icon) opens a card with every screw's name, probed height, and adjustment spelled out, plus a QR code alongside. The QR encodes exactly the same results as plain text — scan it with any phone camera and the numbers appear there, ready to paste into your notes or a forum post. A printer has no clipboard to copy from, so the QR is how the values leave the screen.
+
+The reference screw is labeled **base** (it is the one everything else is measured against), and a screw needing no adjustment shows `--`.
+
 ---
 
 ## Input Shaper

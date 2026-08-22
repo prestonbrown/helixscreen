@@ -52,6 +52,18 @@ Choose how bed mesh data is visualized: Auto, 3D View, or 2D Heatmap.
 
 ## Display
 
+### Screen Rotation
+
+Turn the picture to match how the panel is physically mounted: **Normal**, **90° Clockwise**, **180° Upside Down**, or **270° Clockwise**. The row sits at the top of the Display section, so someone facing a sideways screen reaches it without scrolling.
+
+Changing the rotation applies the next time HelixScreen starts — when you pick a new value, HelixScreen offers to restart right away, and re-selecting the current rotation changes nothing. Touch input follows the new orientation automatically. The row is hidden on the desktop simulator, where you rotate the window from your operating system instead.
+
+> If taps land in the wrong places after rotating, that is a touch-calibration question, not a rotation one — see the [Touch Calibration guide](../touch-calibration.md).
+
+### Dark Mode
+
+Switch between light and dark themes. Disabled when the active theme doesn't support both modes.
+
 ### UI Scale
 
 How big the interface is drawn. The dropdown offers **Automatic**, then 100% through 200%.
@@ -62,15 +74,38 @@ Pick an explicit percentage if the result is not to your taste, or if HelixScree
 
 **The new size appears after you restart HelixScreen.** Fonts and layout are worked out once, while the screen is being set up, so the change cannot be applied to a running interface. Nothing is lost by waiting — the setting is saved as soon as you pick it.
 
-### Dark Mode
-
-Switch between light and dark themes. Disabled when the active theme doesn't support both modes.
-
 ### Theme Colors
 
 Open the theme explorer to browse, preview, and apply color themes.
 
 When you open **Theme Colors**, the theme explorer shows a **Theme Preset** dropdown, a live preview of sample cards, buttons, inputs, and status colors, and — for themes that ship both a light and a dark palette — a **Dark Mode** toggle. Pick a preset and tap **Apply** to switch to it.
+
+### Built-in Themes
+
+Eighteen themes ship in the box, listed alphabetically in the Theme Preset dropdown and previewed live as you scroll through them. Every theme has a dark palette; all but the four marked **dark only** also carry a matching light palette, so the Dark Mode toggle works with them.
+
+| Theme | Character | Modes |
+|-------|-----------|-------|
+| **Ayu** | Warm gold accent with coral errors on slate surfaces | Light + dark |
+| **Catppuccin** | Soft pastels, gentle lavender surfaces | Light + dark |
+| **ChatGPT** | Understated greys with green/red status colours | Light + dark |
+| **Cupertino** | Apple-style system colours on near-black | Light + dark |
+| **Dracula** | Violet on deep slate with bright green highlights | Dark only |
+| **Everforest** | Muted forest green and clay tones | Light + dark |
+| **Gruvbox** | Warm retro earth tones — amber, olive, brick | Light + dark |
+| **Hazard** | Safety-vest yellow, warning orange and danger red on powder-black, with sharp corners and brass seams | Dark only |
+| **HelixScreen** | The house palette — balanced blue on charcoal | Light + dark |
+| **Kanagawa** | Soft wave-blue and gold on deep indigo | Light + dark |
+| **Material Design** | Google-material blues and greens on grey | Light + dark |
+| **Midnight** | Near-black navy, dim and low-glare | Dark only |
+| **Nord** | The default — arctic blues and frost tones | Light + dark |
+| **One Dark** | The Atom editor look — blue and green on charcoal | Light + dark |
+| **Rose Pine** | Muted rose, iris and pine on soft charcoal | Light + dark |
+| **Solarized** | The classic muted scheme — restrained accents on deep teal | Light + dark |
+| **Tokyo Night** | City-at-night blues with pastel highlights | Light + dark |
+| **Yami** | Vivid blue on deep grey, high contrast | Dark only |
+
+Applying a theme takes effect immediately everywhere — no restart needed. The [theme editor](#editing-a-custom-theme) can recolor any of them, and **Save As New** keeps the original untouched.
 
 ### Editing a Custom Theme
 

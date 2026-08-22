@@ -32,6 +32,7 @@
 #include "moonraker_event_routing.h"
 #include "power_device_state.h"
 #include "sensor_state.h"
+#include "unit_conversions.h"
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "moonraker_api_mock.h"
@@ -83,14 +84,26 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
     // reported identity on every launch. Strictly env-gated: zero behavior
     // change when HELIX_MOCK_PRINTER is unset.
     if (config && std::getenv("HELIX_MOCK_PRINTER")) {
+        const std::string mock_printer = std::getenv("HELIX_MOCK_PRINTER");
         const std::string type_path = config->df() + helix::wizard::PRINTER_TYPE;
-        const std::string prev = config->get<std::string>(type_path, "");
-        if (!prev.empty()) {
-            config->set<std::string>(type_path, "");
+        // The k1 persona's detection identity is not complete enough to clear
+        // the auto-save bar (shared chamber sensor + generic volume score it
+        // as a Qidi at 73%), so name the capture machine directly: the
+        // persona's printer type is part of what the env var declares.
+        if (mock_printer == "k1") {
+            config->set<std::string>(type_path, "Creality K1C");
             config->save();
-            spdlog::info("[MoonrakerManager] HELIX_MOCK_PRINTER set — cleared saved "
-                         "printer type '{}' so mock identity re-detects this launch",
-                         prev);
+            spdlog::info("[MoonrakerManager] HELIX_MOCK_PRINTER=k1 — saved printer type "
+                         "'Creality K1C' (persona identity doesn't clear the detection bar)");
+        } else {
+            const std::string prev = config->get<std::string>(type_path, "");
+            if (!prev.empty()) {
+                config->set<std::string>(type_path, "");
+                config->save();
+                spdlog::info("[MoonrakerManager] HELIX_MOCK_PRINTER set — cleared saved "
+                             "printer type '{}' so mock identity re-detects this launch",
+                             prev);
+            }
         }
     }
 
@@ -140,6 +153,9 @@ void MoonrakerManager::shutdown() {
     m_preparing_epoch_observer.release();
     m_print_bed_target_fallback_observer.release();
     m_print_ext_target_fallback_observer.release();
+    for (auto& guard : m_print_position_observers) {
+        guard.release();
+    }
     m_print_layer_observer.release();
     m_print_duration_observer.release();
 
@@ -401,6 +417,19 @@ void MoonrakerManager::create_client(const RuntimeConfig& runtime_config) {
             }
             spdlog::info("[MoonrakerManager] HELIX_MOCK_AUTO_PRINT set — mock will "
                          "auto-start a print on connect");
+        }
+
+        // HELIX_MOCK_REPLAY=<script.json> — replay a captured print-start
+        // sequence (klippy + app log extraction) through the mock's real
+        // dispatch paths so the full observer chain runs against captured
+        // data. Combine with --sim-speed to fast-forward; position/gcode
+        // events fire at capture timing divided by the speedup.
+        const char* replay_env = std::getenv("HELIX_MOCK_REPLAY");
+        if (replay_env && replay_env[0]) {
+            if (mock->arm_event_replay(replay_env)) {
+                spdlog::info("[MoonrakerManager] HELIX_MOCK_REPLAY armed — capture replay "
+                             "starts on connect");
+            }
         }
 
         // Disable MMU if AMS is explicitly disabled via CLI or env var
@@ -679,6 +708,31 @@ void MoonrakerManager::init_print_start_collector() {
         }
     }
 
+    // Bed-mesh presence verdicts feed the collector: a mesh cleared during
+    // nozzle cleaning marks the start of leveling work that Creality-class
+    // firmware does not echo to gcode_response. The observer fires on the
+    // WebSocket thread; the weak_ptr keeps it safe across printer switches
+    // (init_print_start_collector re-runs and replaces the collector).
+    // Mesh probe-area bounds ride the same updates — they anchor the
+    // position classifier's zones, and reading them here runs on the same
+    // thread, ordered after the update_bed_mesh() write they come from.
+    if (m_api) {
+        std::weak_ptr<PrintStartCollector> collector_ref = m_print_start_collector;
+        MoonrakerAPI* api = m_api.get();
+        m_api->set_bed_mesh_presence_observer([api, collector_ref](bool present) {
+            if (auto collector = collector_ref.lock()) {
+                collector->note_bed_mesh_presence(present);
+                if (auto* mesh = api->advanced().get_active_bed_mesh()) {
+                    if (mesh->mesh_max[0] > mesh->mesh_min[0] &&
+                        mesh->mesh_max[1] > mesh->mesh_min[1]) {
+                        collector->note_mesh_bounds(mesh->mesh_min[0], mesh->mesh_max[0],
+                                                    mesh->mesh_min[1], mesh->mesh_max[1]);
+                    }
+                }
+            }
+        });
+    }
+
     // Store shared_ptr in a static for the lambda captures
     // This avoids the capturing lambda issue with ObserverGuard
     static std::weak_ptr<PrintStartCollector> s_collector;
@@ -955,6 +1009,32 @@ void MoonrakerManager::init_print_start_collector() {
     m_print_bed_target_fallback_observer.set_alive_token(m_print_bed_target_fallback_lifetime);
     m_print_ext_target_fallback_observer = ObserverGuard(
         get_printer_state().get_active_extruder_target_subject(), fallback_cb, nullptr);
+
+    // Toolhead position feeds the collector's silent-window inference
+    // ("Probing Z..." / "Checking Bed Mesh..." / sweep → bed mesh). The
+    // subjects fire on the main thread (queued status updates), only while
+    // the toolhead moves; the collector gates on its profile and drops
+    // duplicates. One guard per axis — each callback reads the coherent
+    // triple, and near-identical repeat calls are deduped downstream.
+    auto position_cb = [](lv_observer_t*, lv_subject_t*) {
+        auto collector = s_collector.lock();
+        if (collector && collector->is_active()) {
+            auto& state = get_printer_state();
+            collector->note_position_sample(
+                static_cast<float>(
+                    helix::units::from_centimm(lv_subject_get_int(state.get_position_x_subject()))),
+                static_cast<float>(
+                    helix::units::from_centimm(lv_subject_get_int(state.get_position_y_subject()))),
+                static_cast<float>(helix::units::from_centimm(
+                    lv_subject_get_int(state.get_position_z_subject()))));
+        }
+    };
+    m_print_position_observers[0] =
+        ObserverGuard(get_printer_state().get_position_x_subject(), position_cb, nullptr);
+    m_print_position_observers[1] =
+        ObserverGuard(get_printer_state().get_position_y_subject(), position_cb, nullptr);
+    m_print_position_observers[2] =
+        ObserverGuard(get_printer_state().get_position_z_subject(), position_cb, nullptr);
 
     spdlog::debug("[MoonrakerManager] Print start collector initialized");
 }

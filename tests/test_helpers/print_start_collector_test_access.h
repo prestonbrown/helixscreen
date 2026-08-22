@@ -66,4 +66,45 @@ class PrintStartCollectorTestAccess {
     static void relabel_heating_phase(PrintStartCollector& c, helix::PrintStartPhase resolved) {
         c.relabel_heating_phase(resolved);
     }
+
+    /// Run one private ETA publish (update_eta_display is timer-driven in
+    /// production). Does NOT run check_fallback_completion — tests call that
+    /// public method separately to control exactly when weights recompute.
+    static void run_eta_update(PrintStartCollector& c) {
+        c.update_eta_display();
+    }
+
+    /// Drop all predictor history so compute_predicted_weights() takes the
+    /// theoretical-durations path (matches a first print / empty bucket).
+    /// start() reloads history from Config, so call this AFTER start().
+    static void clear_prediction_history(PrintStartCollector& c) {
+        c.predictor_.load_entries({}, 0, helix::PreprintWindow::Unknown);
+    }
+
+    /// Read the counted mesh probes (the "N" in the displayed "N / M").
+    static int get_mesh_probe_current(PrintStartCollector& c) {
+        std::lock_guard<std::mutex> lock(c.state_mutex_);
+        return c.mesh_probe_current_;
+    }
+
+    /// Set the monotonic anchor directly. Production sets it on every ETA
+    /// publish; a test uses this to model a prior low estimate without
+    /// replaying the whole ease-down that produced it.
+    static void set_last_remaining(PrintStartCollector& c, int seconds) {
+        std::lock_guard<std::mutex> lock(c.state_mutex_);
+        c.last_remaining_ = seconds;
+    }
+
+    /// Read the monotonic anchor.
+    static int get_last_remaining(PrintStartCollector& c) {
+        std::lock_guard<std::mutex> lock(c.state_mutex_);
+        return c.last_remaining_;
+    }
+
+    /// Inject predictor history (deterministic per-phase durations) instead of
+    /// relying on the theoretical-duration path.
+    static void load_prediction_entries(PrintStartCollector& c,
+                                        std::vector<helix::PreprintEntry> entries) {
+        c.predictor_.load_entries(entries, helix::StartCondition::COLD);
+    }
 };

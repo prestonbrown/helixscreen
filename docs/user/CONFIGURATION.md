@@ -28,6 +28,7 @@ Complete reference for HelixScreen configuration options.
 - [Cache Settings](#cache-settings)
 - [Streaming Settings](#streaming-settings)
 - [Safety Settings](#safety-settings)
+- [Notification Settings](#notification-settings)
 - [Filament Settings](#filament-settings)
 - [Filament Sensor Settings](#filament-sensor-settings)
 - [Security Settings](#security-settings)
@@ -149,7 +150,7 @@ When multiple printers are configured, the config file uses a versioned schema w
 
 Each printer entry contains all printer-specific settings (connection details, hardware selections, LED config, filament sensors, etc.). Device-level settings like WiFi and display preferences remain at the root level and are shared across all printers.
 
-> **Note:** You don't need to edit the config file manually — use the Settings > Printers UI to add and manage printers. The config file is shown here for reference.
+> **Note:** You don't need to edit the config file manually — use the Settings > Hardware & Devices > Printers UI to add and manage printers. The config file is shown here for reference.
 
 ---
 
@@ -194,7 +195,7 @@ Each printer entry contains all printer-specific settings (connection details, h
 - `1` — **Notification**: Brief toast message at the top of the screen
 - `2` — **Alert**: Full-screen modal with print stats (duration, layers, filament used) and confetti for successful prints
 
-Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Print Complete Alert** and select from the dropdown.
+Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Safety & Notifications > Print Completion Alert** and select from the dropdown.
 
 ### `disable_sound`
 **Type:** boolean
@@ -274,18 +275,19 @@ Located in the `theme` section:
 | 4 | Dracula |
 | 5 | Everforest |
 | 6 | Gruvbox |
-| 7 | HelixScreen |
-| 8 | Kanagawa |
-| 9 | Material Design |
-| 10 | Midnight |
-| 11 | Nord (default) |
-| 12 | One Dark |
-| 13 | Rose Pine |
-| 14 | Solarized |
-| 15 | Tokyo Night |
-| 16 | Yami |
+| 7 | Hazard |
+| 8 | HelixScreen |
+| 9 | Kanagawa |
+| 10 | Material Design |
+| 11 | Midnight |
+| 12 | Nord (default) |
+| 13 | One Dark |
+| 14 | Rose Pine |
+| 15 | Solarized |
+| 16 | Tokyo Night |
+| 17 | Yami |
 
-> **Tip:** You can also browse and apply themes visually in **Settings > Appearance > Display Settings > Theme Colors**.
+> **Tip:** You can also browse and apply themes visually in **Settings > Display & Sound > Theme Colors**.
 
 ---
 
@@ -373,7 +375,7 @@ Located in the `display` section:
 ### `theme`
 **Type:** string
 **Default:** `"nord"`
-**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index does not. **Requires restart to take effect.** Easiest to change via **Settings > Appearance > Display Settings > Theme Colors**, which writes this value for you.
+**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Display & Sound > Theme Colors**, which writes this value for you.
 
 ### `layout`
 **Type:** string
@@ -387,7 +389,7 @@ Located in the `display` section:
 **Type:** integer
 **Default:** `0`
 **Values:** `0`, `90`, `180`, `270`
-**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match.
+**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match. Change via **Settings > Display & Sound > Screen Rotation** (applies after restart).
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
@@ -612,7 +614,7 @@ Matches LVGL's native default of 10.
 **Example:** `["002c:261a"]`
 **Description:** USB input devices that HelixScreen ignores entirely for keyboard and barcode-scanner input. Each entry is a `"vid:pid"` pair of lowercase 4-digit hex IDs. Use this when a USB barcode scanner enumerates as a plain HID keyboard and HelixScreen keeps claiming it — for example when an external tool like `afc-spool-scan` needs exclusive access to the scanner. A blacklisted device is skipped by both the persistent keyboard binding and the in-app scan overlay, but still appears in the Barcode Scanner settings device list so you can identify it.
 
-**Finding a device's VID:PID:** Open **Settings > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
+**Finding a device's VID:PID:** Open **Settings > Hardware & Devices > Spoolman > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
 
 ### `jitter_threshold`
 **Type:** integer
@@ -948,7 +950,7 @@ If your printer has a chamber heater, bed fans, or recirculation fans that shoul
 
 Multi-line G-code is separated by `\n`. You can also reference a Klipper macro by name (e.g., `"cooldown": "MY_COOLDOWN_MACRO"`).
 
-Configured via **Settings > Printer > Macro Buttons**, or by editing `settings.json` directly.
+Configured via **Settings > Printing > Macro Buttons**, or by editing `settings.json` directly.
 
 ---
 
@@ -1038,14 +1040,14 @@ Located in the `standard_macros` section. These pick which built-in actions appe
 **Type:** string
 **Default:** `"clean_nozzle"` (button 1), `"bed_level"` (button 2), `""` (buttons 3 and 4)
 **Values:** `"clean_nozzle"`, `"bed_level"`, `"heat_soak"`, `"purge"`, `"bed_mesh"`, or `""` (empty = hide the button)
-**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printer > Macro Buttons** rather than by editing JSON.
+**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printing > Macro Buttons** rather than by editing JSON.
 
 ### `load_filament`, `unload_filament`, `purge`, `pause`, `resume`, `cancel`, `bed_mesh`, `bed_level`, `clean_nozzle`, `heat_soak`
 **Type:** string
 **Default:** `""` (empty = use auto-detection)
 **Description:** Overrides which macro HelixScreen runs for each standard action. An empty
 string means "auto-detect from your Klipper config"; a macro name pins that slot to your
-choice. Written by **Settings > Printer > Macro Buttons**, which is the easier way to set them
+choice. Written by **Settings > Printing > Macro Buttons**, which is the easier way to set them
 because it lists the macros your printer actually defines.
 
 ```json
@@ -1427,6 +1429,26 @@ Located in the `safety` section:
 
 ---
 
+## Notification Settings
+
+Located in the `notifications` section:
+
+```json
+{
+  "notifications": {
+    "min_toast_severity": 0
+  }
+}
+```
+
+### `min_toast_severity`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (all toasts), `1` (warnings & errors), `2` (errors only)
+**Description:** The lowest notification level allowed to interrupt with a toast. Below-the-line notifications still land in the notification history; full-screen error dialogs always show. Change via **Settings > Safety & Notifications > On-screen Alerts**.
+
+---
+
 ## Filament Settings
 
 Located in the `filament` section:
@@ -1616,7 +1638,7 @@ Located in the `printers` section:
 ### `telemetry_enabled`
 **Type:** boolean
 **Default:** `false`
-**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > Telemetry**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
+**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > System > Share Usage Data**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
 
 ---
 
@@ -1954,7 +1976,6 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_GCODE_MODE` | Override G-code render mode (`3D` or `2D`, exact case-sensitive; unset = Auto, any other value = 2D) |
 | `HELIX_GCODE_STREAMING` | Override G-code streaming mode |
 | `HELIX_FORCE_STREAMING` | Force streaming for all file operations (`1` to enable) |
-| `HELIX_HOT_RELOAD` | Override XML hot reload default (`0` force off, `1` force on). Defaults ON for native builds, OFF for device release builds. |
 
 **Example in service file:**
 ```ini

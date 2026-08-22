@@ -725,7 +725,7 @@ test-summary: test-build
 	@echo -n "  "; $(TEST_BIN) --list-tests 2>&1 | grep -c "^  " || echo "0"
 
 # Generate timing report for major test categories
-# Updates docs/TEST_TIMING.md with current timings
+# Updates /tmp/test_timing.md with current timings
 test-timing-report: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Generating test timing report...$(RESET)"
 	@echo "| Tag | Tests | Time |" > /tmp/test_timing.md
@@ -737,7 +737,7 @@ test-timing-report: test-build
 		echo "| [\$$tag] | $$count | - |" >> /tmp/test_timing.md; \
 	done
 	@cat /tmp/test_timing.md
-	$(ECHO) "$(GREEN)See docs/TEST_TIMING.md for full documentation$(RESET)"
+	$(ECHO) "$(GREEN)See /tmp/test_timing.md for full documentation$(RESET)"
 
 # ============================================================================
 # Slow Test Candidates (>500ms) - Tag with [slow] incrementally

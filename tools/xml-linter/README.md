@@ -1,6 +1,6 @@
 # Helix-XML Linter
 
-A schema-driven XML linter for helix-xml — HelixScreen's declarative XML UI system, forked from LVGL's XML engine before v9.5 removed it from core (see `docs/devel/LVGL_XML_SITUATION.md`).
+A schema-driven XML linter for helix-xml — HelixScreen's declarative XML UI system, forked from LVGL's XML engine before v9.5 removed it from core (see `docs/devel/HELIX_XML_FORK.md`).
 
 > **Origin:** Vendored from [GhostTypes/helix-xml-linter](https://github.com/GhostTypes/helix-xml-linter) @ `2124093` (2026-05-03) under MIT license. Adapted for in-tree use in helixscreen; further development happens here.
 

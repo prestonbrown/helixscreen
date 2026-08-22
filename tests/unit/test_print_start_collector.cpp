@@ -540,6 +540,8 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
 #include "print_start_profile.h"
+#include "thermal_rate_model.h"
+#include "translation_loader.h"
 
 using namespace helix;
 using namespace helix::ui;
@@ -1911,6 +1913,174 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
 }
 
 // ============================================================================
+// ============================================================================
+// ETA RE-BASELINE TESTS
+//
+// Reproduced from the K1C capture of 2026-08-19: monitoring started before the
+// firmware set heater targets, so the first ETA publish anchored on a
+// target-less provisional estimate (215s). Real targets arrived one second
+// later and the recompute said 469s — but the strict monotonic guard clamped
+// every subsequent publish back down to 215s for the entire 369s prep. The
+// anchor must re-baseline when the weights' inputs change, not just when time
+// passes.
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "ETA rises when heater targets arrive after monitoring started",
+                 "[print][collector][eta]") {
+    // Ambient temps, no targets yet (START_PRINT hasn't issued M104/M140).
+    set_all_temps(250, 0, 500, 0);
+    collector().start();
+    collector().enable_fallbacks();
+    // Empty history bucket (first print with this window/temp class) and a
+    // learned-rate heater so the recomputed durations are realistic.
+    PrintStartCollectorTestAccess::clear_prediction_history(collector());
+    auto& rates = ThermalRateManager::instance();
+    rates.get_model("extruder").set_default_rate(1.0f);
+    rates.get_model("heater_bed").set_default_rate(1.0f);
+    drain_async_updates();
+
+    // start() publishes the provisional estimate immediately.
+    const int provisional = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(provisional > 0);
+
+    // Heater targets land (K1C CX_ROUGH_G28 stage: nozzle to probe temp, bed
+    // to print temp) and the subject observer path runs the recompute.
+    set_all_temps(250, 550, 500, 1300);
+    collector().check_fallback_completion();
+    drain_async_updates();
+
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+
+    const int corrected = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(corrected > provisional);
+
+    // The corrected estimate is the new anchor: without further input changes
+    // remaining must not creep back up on later ticks.
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+    const int settled = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(settled <= corrected);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "ETA re-baselines when nozzle target rises in stages", "[print][collector][eta]") {
+    // K1C heats the nozzle to ~130°C for probing, then to print temp. The
+    // second stage is a genuine new input: the recompute (and the anchor
+    // release) must fire on a substantial target RISE, not only on 0→positive.
+    set_all_temps(250, 550, 500, 1300);
+    collector().start();
+    collector().enable_fallbacks();
+    PrintStartCollectorTestAccess::clear_prediction_history(collector());
+    auto& rates = ThermalRateManager::instance();
+    rates.get_model("extruder").set_default_rate(1.0f);
+    rates.get_model("heater_bed").set_default_rate(1.0f);
+    drain_async_updates();
+    collector().check_fallback_completion();
+    drain_async_updates();
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+    const int probe_stage = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(probe_stage > 0);
+
+    // Firmware raises the nozzle to print temp; nozzle temp is still well
+    // below it, so the heating phase keeps real weight.
+    set_all_temps(250, 550, 500, 2200);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+
+    const int print_stage = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(print_stage > probe_stage);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Remaining keeps unfinished heating work after the phase marker passes",
+                 "[print][collector][eta]") {
+    // K1C capture 2026-08-20: heater targets land first, homing starts while
+    // the bed is at 29 of 55C, and both heating phases' durations vanished
+    // from the estimate the moment their markers passed - the countdown dove
+    // to 205s of a 378s prep and the bar jumped to ~45% twenty seconds in.
+    // A heating phase is done when its TARGET IS REACHED, not when the next
+    // phase's marker arrives.
+    set_all_temps(250, 550, 290, 550); // nozzle 25/55C, bed 29/55C
+    collector().start();
+    collector().enable_fallbacks();
+
+    // Deterministic history: heating phases carry 90s each, mesh 120s.
+    helix::PreprintEntry e;
+    e.total_seconds = 300;
+    e.timestamp = 1000;
+    e.temp_bucket = 1;
+    e.phase_durations = {{static_cast<int>(PrintStartPhase::HEATING_NOZZLE), 90},
+                         {static_cast<int>(PrintStartPhase::HEATING_BED), 90},
+                         {static_cast<int>(PrintStartPhase::HOMING), 15},
+                         {static_cast<int>(PrintStartPhase::BED_MESH), 120}};
+    PrintStartCollectorTestAccess::load_prediction_entries(collector(), {e});
+    auto& rates = ThermalRateManager::instance();
+    rates.get_model("extruder").set_default_rate(1.0f);
+    rates.get_model("heater_bed").set_default_rate(1.0f);
+    drain_async_updates();
+
+    // The chain passes heating and lands in HOMING while both heaters are
+    // still mid-climb (bed at 29 of 55C).
+    send_gcode_response("M190"); // HEATING_BED marker
+    send_gcode_response("M109"); // HEATING_NOZZLE marker
+    send_gcode_response("G28");  // HOMING begins - heaters still running
+
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+
+    // With bed 26C short at ~1s/C the unfinished heating work is ~26s of the
+    // bed phase alone; the estimate must still hold most of the prep. The old
+    // behavior dropped both 90s heating phases as "completed".
+    const int remaining = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(remaining > 150);
+
+    // And the bar (total - remaining) must not front-load: 20s into a 300s
+    // prep it has no business showing a third.
+    const int progress = lv_subject_get_int(state().get_print_start_progress_subject());
+    REQUIRE(progress < 30);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Entering a phase releases the monotonic countdown anchor",
+                 "[print][collector][eta]") {
+    // K1C capture 2026-08-20: the countdown eased to 39s during the pre-mesh
+    // probes, BED_MESH entered with 124s predicted, and the strict monotonic
+    // guard pinned the display at 39s for the entire mesh (the collector
+    // logged "Monotonic bias: suppressed 39s->103s, overrun=15.3%"). A new
+    // phase is a genuine re-assessment of the remaining work, not noise.
+    set_all_temps(250, 550, 500, 550);
+    collector().start();
+    collector().enable_fallbacks();
+
+    helix::PreprintEntry e;
+    e.total_seconds = 240;
+    e.timestamp = 1000;
+    e.temp_bucket = 1;
+    e.phase_durations = {{static_cast<int>(PrintStartPhase::HOMING), 15},
+                         {static_cast<int>(PrintStartPhase::BED_MESH), 124}};
+    PrintStartCollectorTestAccess::load_prediction_entries(collector(), {e});
+    drain_async_updates();
+
+    // Model the eased-down pre-mesh floor directly.
+    PrintStartCollectorTestAccess::set_last_remaining(collector(), 39);
+    send_gcode_response("BED_MESH_CALIBRATE");
+
+    // The phase transition must have released the anchor...
+    REQUIRE(PrintStartCollectorTestAccess::get_last_remaining(collector()) == 0);
+
+    // ...so the mesh's 124s publish instead of clamping to 39.
+    PrintStartCollectorTestAccess::run_eta_update(collector());
+    drain_async_updates();
+    const int remaining = lv_subject_get_int(state().get_preprint_remaining_subject());
+    REQUIRE(remaining > 100);
+}
+
+// ============================================================================
 // ADAPTIVE TIMEOUT TESTS
 //
 // Tests for the adaptive timeout behavior introduced to prevent premature
@@ -2210,12 +2380,36 @@ TEST_CASE("PreprintPredictor has_predictions reflects actual entries", "[print][
 
 // ============================================================================
 // K2/CFS-specific gcode tag stream — folded in from the deleted
-// PrintPhaseTracker. Universal printers fall through these matchers.
+// PrintPhaseTracker. Opted-in profiles (cfs_signals) consume these matchers;
+// every other printer falls through them.
 // ============================================================================
 
-TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
-                 "K2 purge percent (fraction form) drives PURGING progress",
+/**
+ * @brief The K2 tag stream run under the profile that declares it
+ *
+ * creality_k2.json sets cfs_signals, which is what admits the purge-percent
+ * and box-load tag matchers. The base sequential fixture's forge_x profile
+ * deliberately does not.
+ */
+class K2TagStreamFixture : public PrintStartCollectorSequentialFixture {
+  public:
+    K2TagStreamFixture() {
+        auto profile = PrintStartProfile::load("creality_k2");
+        REQUIRE(profile != nullptr);
+        have_k2_profile_ = profile->name().find("K2") != std::string::npos;
+        if (have_k2_profile_) {
+            collector().set_profile(std::move(profile));
+        }
+    }
+
+    bool have_k2_profile_ = false;
+};
+
+TEST_CASE_METHOD(K2TagStreamFixture, "K2 purge percent (fraction form) drives PURGING progress",
                  "[print][collector][k2]") {
+    if (!have_k2_profile_) {
+        SKIP("creality_k2.json not available");
+    }
     collector().start();
     drain_async_updates();
 
@@ -2231,9 +2425,12 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_progress() == 95);
 }
 
-TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+TEST_CASE_METHOD(K2TagStreamFixture,
                  "K2 purge percent (legacy integer form) drives PURGING progress",
                  "[print][collector][k2]") {
+    if (!have_k2_profile_) {
+        SKIP("creality_k2.json not available");
+    }
     collector().start();
     drain_async_updates();
 
@@ -2243,9 +2440,12 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_progress() == 75);
 }
 
-TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
+TEST_CASE_METHOD(K2TagStreamFixture,
                  "CFS box cut sensor detected enters INITIALIZING with Loading Filament",
                  "[print][collector][k2][cfs]") {
+    if (!have_k2_profile_) {
+        SKIP("creality_k2.json not available");
+    }
     collector().start();
     drain_async_updates();
 
@@ -2254,9 +2454,11 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_message().find("Loading Filament") != std::string::npos);
 }
 
-TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
-                 "Stock Klipper purge-line text falls through K2 matcher",
+TEST_CASE_METHOD(K2TagStreamFixture, "Stock Klipper purge-line text falls through K2 matcher",
                  "[print][collector][k2]") {
+    if (!have_k2_profile_) {
+        SKIP("creality_k2.json not available");
+    }
     collector().start();
     drain_async_updates();
 
@@ -2972,6 +3174,210 @@ TEST_CASE_METHOD(K2PrintStartReplayFixture,
 }
 
 // ============================================================================
+// K1C replay: probe lines are mesh data, not phase patterns
+// ============================================================================
+
+/**
+ * @brief Replay a real K1C PRINT_START through the collector
+ *
+ * Verbatim from klippy.log of the 2026-08-19 print Bed_Mesh_Test_Layer_PLA,
+ * in the order Moonraker forwarded it. The K1 firmware's interesting phases
+ * (PRTouch homing, accurate G28, the CHECK_BED_MESH corner validation) echo
+ * nothing to gcode_response, so the stream is sparse: two nozzle-wipe
+ * markers, a long silent gap, then one "probe at" line per mesh point, then
+ * the draw-line heater markers. The pre-mesh buffer's 5-distinct-point
+ * threshold is what carries the collector from CLEANING into BED_MESH.
+ */
+class K1CPrintStartReplayFixture : public PrintStartCollectorHeaterFixture {
+  public:
+    K1CPrintStartReplayFixture() {
+        auto profile = PrintStartProfile::load("creality_k1");
+        REQUIRE(profile != nullptr);
+        have_profile_ = profile->name().find("K1") != std::string::npos;
+        collector().set_profile(std::move(profile));
+        // configfile.settings.bed_mesh.probe_count = 5x5 — what the real
+        // printer answered to the entry-time objects.query (the live mesh is
+        // cleared at print start, so probe_count is the source, not
+        // probed_matrix).
+        client().set_config_bed_mesh_probe_count(5, 5);
+    }
+
+    bool have_profile_ = false;
+
+    void settle() {
+        drain_async_updates();
+        drain_async_updates();
+    }
+
+    /// One K1C probe line — a single sample per point, no z_compensation twin.
+    void point(double x, double y) {
+        char buf[120];
+        std::snprintf(buf, sizeof(buf), "// probe at %.3f,%.3f is z=0.160594", x, y);
+        send_gcode_response(buf);
+    }
+};
+
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "PrintStartCollector: K1C mesh sweep keeps its denominator",
+                 "[print][collector][k1c][integration]") {
+    if (!have_profile_) {
+        SKIP("creality_k1.json not available");
+    }
+    collector().start();
+    settle();
+    collector().enable_fallbacks();
+
+    // 19:24:47 — START_PRINT's full-prep branch announces itself.
+    send_gcode_response("// not prepare.");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // 19:25:34 — the nozzle wipe markers; the last forwarded signal before
+    // ~3 minutes of firmware silence.
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.213906");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] end_pos[2]:3.246250");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // 19:28:09 — CHECK_BED_MESH failed its corner validation, so the firmware
+    // re-meshes: one probe line per point over a 5x5 grid. The first five
+    // distinct points cross the pre-mesh entry threshold.
+    const double c[] = {5.0, 57.5, 110.0, 162.5, 215.0};
+    for (double x : c) {
+        point(x, 5.0);
+    }
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 25);
+
+    // The rest of the sweep. Every line here used to re-match the profile's
+    // BED_MESH pattern and reset the counters, losing the denominator.
+    for (double y : {57.5, 110.0, 162.5, 215.0}) {
+        for (double x : c) {
+            point(x, y);
+            settle();
+            REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 25);
+        }
+    }
+    // 25 points counted, denominator intact, message carries both.
+    REQUIRE(get_current_message() == "Bed Mesh (25/25)");
+
+    // 19:31:01 — draw line + final heat. The can_break_flag markers close it out.
+    send_gcode_response("// can_break_flag = 0");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
+    send_gcode_response("// can_break_flag is 3");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "K2 purge-percent and box tags are ignored without cfs_signals",
+                 "[print][collector][k2][negative]") {
+    // The creality_k1 profile does not declare cfs_signals: on a K1/K1C the
+    // tag stream never appears, and these matchers must not fire on lines
+    // that merely happen to contain their vocabulary.
+    collector().start();
+    settle();
+
+    send_gcode_response("// num: 0, velocity: 575.000000, percent 0.500000");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    send_gcode_response("// [box] cut sensor detected");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+    REQUIRE(get_current_message().find("Loading Filament") == std::string::npos);
+}
+
+/**
+ * The K1C's longest display dead-zone is the stretch between the nozzle-wipe
+ * markers and the first mesh probe line: accurate Z homing and the bed-mesh
+ * corner validation run there, and the firmware echoes none of it to
+ * gcode_response (2026-08-19, ~3 minutes stuck on "Cleaning Nozzle...").
+ *
+ * What the printer DOES emit is a bed_mesh status flap: klippy reports the
+ * loaded profile, then clears it, when the probing sequence begins. A mesh
+ * that disappears while the collector is in CLEANING is the start of that
+ * silent meshing work, so the display moves to "Bed Meshing..." — with the
+ * probe denominator already sized from the entry-time query. The same clear
+ * arriving BEFORE the nozzle clean is the rough G28's own mesh clear and
+ * carries no phase information.
+ */
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "PrintStartCollector: bed-mesh clear during cleaning enters Bed Meshing",
+                 "[print][collector][k1c][bedmesh-flap]") {
+    collector().start();
+    settle();
+    collector().enable_fallbacks();
+
+    send_gcode_response("// not prepare.");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // Rough G28: mesh reported, then cleared — before any clean marker, so
+    // it must not move the phase.
+    collector().note_bed_mesh_presence(true);
+    collector().note_bed_mesh_presence(false);
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
+
+    // Nozzle wipe markers put the display in CLEANING.
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.213906");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // Mesh re-reported mid-sequence: presence alone changes nothing.
+    collector().note_bed_mesh_presence(true);
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // Accurate G28 clears it — leveling work begins, display follows.
+    collector().note_bed_mesh_presence(false);
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Meshing...");
+
+    // Mesh probes now count against the denominator the entry query fetched.
+    const double c[] = {5.0, 57.5, 110.0, 162.5, 215.0};
+    for (double x : c) {
+        point(x, 5.0);
+    }
+    settle();
+    REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 25);
+    REQUIRE(get_current_message() == "Bed Meshing (5/25)");
+}
+
+/**
+ * Profile "message" strings are English tags like every other translatable
+ * string, but they reach the display raw from the profile JSON — a German
+ * user saw "Cleaning Nozzle..." straight through the whole pre-print. They
+ * now pass through lv_tr() at match time, so the tag resolves through the
+ * loaded pack like the built-in labels do.
+ */
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "PrintStartCollector: profile phase messages translate",
+                 "[print][collector][i18n]") {
+    helix::ui::ensure_translation_loaded("de");
+    lv_translation_set_language("de");
+
+    collector().start();
+    settle();
+    collector().enable_fallbacks();
+
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.213906");
+    settle();
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+    REQUIRE(get_current_message() == "Düse reinigen...");
+
+    send_gcode_response("// x_axes: xyz");
+    settle();
+    REQUIRE(get_current_message() == "Referenzfahrt...");
+}
+
+// ============================================================================
 // Timeout must key on quiet, not on elapsed time
 // ============================================================================
 
@@ -3073,4 +3479,108 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "A probe line counts as pre-p
     drain_async_updates();
 
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+}
+
+// ============================================================================
+// POSITION TELEMETRY INTEGRATION — silent-window refinement, end to end.
+// Coordinates below are the real K1C capture values (mesh 5..215, wipe strip
+// beyond Y=215, centre probes at ~(110,110), corner validation at the mesh
+// corners, sweep rows marching X at constant Y).
+// ============================================================================
+
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "Position samples refine the silent window's status line",
+                 "[print][collector][k1c][position]") {
+    if (!have_profile_) {
+        SKIP("creality_k1.json not available");
+    }
+    collector().start();
+    settle();
+    collector().enable_fallbacks();
+    collector().note_mesh_bounds(5.0f, 215.0f, 5.0f, 215.0f);
+
+    // The console marker that enters CLEANING — then the firmware goes quiet
+    // (no forwarded markers for the Z probes / corner validation / sweep).
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.1676562");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // Centre Z probes: hover-and-dip at the mesh centre.
+    collector().note_position_sample(114.1f, 103.7f, 6.0f);
+    collector().note_position_sample(114.1f, 103.7f, 0.0f);
+    collector().note_position_sample(110.7f, 110.9f, 6.0f);
+    collector().note_position_sample(110.7f, 110.9f, 0.0f);
+    drain_async_updates();
+    REQUIRE(get_current_message() == "Probing Z...");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING); // message-only
+
+    // Corner validation tour: three distinct mesh corners.
+    collector().note_position_sample(5.0f, 5.0f, 5.0f);
+    collector().note_position_sample(5.0f, 215.0f, 5.0f);
+    collector().note_position_sample(215.0f, 215.0f, 5.0f);
+    drain_async_updates();
+    REQUIRE(get_current_message() == "Checking Bed Mesh...");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // Sweep march promotes the phase (same edge the bed-mesh flap produces).
+    collector().note_position_sample(57.5f, 5.0f, 3.0f);
+    collector().note_position_sample(110.0f, 5.0f, 3.0f);
+    collector().note_position_sample(162.5f, 5.0f, 3.0f);
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed Meshing...");
+}
+
+TEST_CASE_METHOD(K1CPrintStartReplayFixture,
+                 "Buffered pre-mesh probes are credited when the sweep march promotes BED_MESH",
+                 "[print][collector][k1c][position]") {
+    // K1C capture 2026-08-20: the two front-row probes arrived before the
+    // position classifier's sweep-march verdict, were buffered ("Pre-mesh
+    // probe point 1/5 (buffering)"), and were then DISCARDED when the march
+    // promoted BED_MESH - the displayed count lagged the physical taps by 2
+    // for the whole mesh.
+    if (!have_profile_) {
+        SKIP("creality_k1.json not available");
+    }
+    collector().start();
+    settle();
+    collector().enable_fallbacks();
+    collector().note_mesh_bounds(5.0f, 215.0f, 5.0f, 215.0f);
+    send_gcode_response("// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.1676562");
+    REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
+
+    // Two front-row probe lines buffer below the console entry threshold.
+    point(110.0, 5.0);
+    point(130.0, 5.0);
+    settle();
+    REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 0);
+
+    // The sweep march promotes BED_MESH from position telemetry.
+    collector().note_position_sample(110.0f, 5.0f, 3.0f);
+    collector().note_position_sample(130.0f, 5.0f, 3.0f);
+    collector().note_position_sample(150.0f, 5.0f, 3.0f);
+    collector().note_position_sample(170.0f, 5.0f, 3.0f);
+    drain_async_updates();
+
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    // The buffered front row is the sweep's first points.
+    REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 2);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Position samples ignored without profile position_signals",
+                 "[print][collector][position]") {
+    // Default profile has no position_signals — the inference must stay off.
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+    collector().note_mesh_bounds(5.0f, 215.0f, 5.0f, 215.0f);
+
+    const std::string before = get_current_message();
+
+    collector().note_position_sample(114.1f, 103.7f, 6.0f);
+    collector().note_position_sample(110.7f, 110.9f, 0.0f);
+    collector().note_position_sample(110.7f, 110.9f, 0.0f);
+    drain_async_updates();
+
+    CHECK(get_current_message() == before);
 }

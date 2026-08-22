@@ -1,0 +1,5346 @@
+{
+ "source": "K1C klippy.log capture 2026-08-19 (/tmp/k1c-capture)",
+ "clock": "klippy time; helix app log runs +1h ahead of this",
+ "windows": {
+  "prefetch_a": {
+   "description": "pre-fix print A: full START_PRINT chain, check_bed_mesh re-meshed",
+   "samples": [
+    {
+     "t": "18:25:12.424",
+     "f": 2400.0,
+     "x": 102.754,
+     "y": 103.465,
+     "z": 0.0
+    },
+    {
+     "t": "18:25:14.588",
+     "f": 300.0,
+     "x": 102.754,
+     "y": 103.465,
+     "z": 0.0
+    },
+    {
+     "t": "18:25:19.321",
+     "f": 600.0,
+     "x": 102.754,
+     "y": 103.465,
+     "z": 6.0
+    },
+    {
+     "t": "18:25:22.005",
+     "f": 600.0,
+     "x": 102.754,
+     "y": 103.465,
+     "z": 6.0
+    },
+    {
+     "t": "18:25:24.640",
+     "f": 600.0,
+     "x": 102.754,
+     "y": 103.465,
+     "z": 6.0
+    },
+    {
+     "t": "18:25:27.080",
+     "f": 12000.0,
+     "x": 87.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "18:25:34.132",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "18:25:39.079",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.046
+    },
+    {
+     "t": "18:25:51.333",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.246
+    },
+    {
+     "t": "18:25:51.842",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 4.246
+    },
+    {
+     "t": "18:25:52.253",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:52.965",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:52.970",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:52.973",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:53.003",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:53.005",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:53.007",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:54.852",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:54.854",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:54.856",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:54.884",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:54.886",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:54.887",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:56.738",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:56.740",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:56.742",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:56.773",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:56.775",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:56.778",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:58.619",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:58.622",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:58.625",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:58.658",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:25:58.660",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:25:58.663",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:26:00.516",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:26:00.518",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:26:00.521",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:26:00.549",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:26:00.551",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:26:00.553",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:26:02.400",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.246
+    },
+    {
+     "t": "18:26:02.815",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.046
+    },
+    {
+     "t": "18:27:00.050",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.246
+    },
+    {
+     "t": "18:27:00.559",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 4.246
+    },
+    {
+     "t": "18:27:00.971",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:01.681",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:27:01.684",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:01.686",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:02.722",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:27:02.724",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:02.726",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:03.764",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.475,
+     "z": 2.514
+    },
+    {
+     "t": "18:27:03.766",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:03.768",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.975,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:04.808",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:04.811",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 221.475,
+     "z": 2.546
+    },
+    {
+     "t": "18:27:05.223",
+     "f": 36000.0,
+     "x": 92.0,
+     "y": 221.475,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:06.200",
+     "f": 2400.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 0.0
+    },
+    {
+     "t": "18:27:10.712",
+     "f": 300.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 0.0
+    },
+    {
+     "t": "18:27:13.784",
+     "f": 600.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:16.451",
+     "f": 600.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:19.019",
+     "f": 600.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:20.037",
+     "f": 300.0,
+     "x": 114.223,
+     "y": 115.073,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:20.039",
+     "f": 2400.0,
+     "x": 109.877,
+     "y": 109.697,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:20.709",
+     "f": 300.0,
+     "x": 109.877,
+     "y": 109.697,
+     "z": 6.0
+    },
+    {
+     "t": "18:27:31.019",
+     "f": 300.0,
+     "x": 109.877,
+     "y": 109.697,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:37.304",
+     "f": 300.0,
+     "x": 109.877,
+     "y": 109.697,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:37.611",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:44.746",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:52.394",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "18:27:59.998",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "18:28:07.357",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.167
+    },
+    {
+     "t": "18:28:09.189",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.167
+    },
+    {
+     "t": "18:28:15.082",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 5.0,
+     "z": 3.207
+    },
+    {
+     "t": "18:28:20.646",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 5.0,
+     "z": 3.247
+    },
+    {
+     "t": "18:28:26.211",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 5.0,
+     "z": 3.287
+    },
+    {
+     "t": "18:28:31.798",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 3.326
+    },
+    {
+     "t": "18:28:37.331",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.233
+    },
+    {
+     "t": "18:28:38.284",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.233
+    },
+    {
+     "t": "18:28:44.174",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 57.5,
+     "z": 3.203
+    },
+    {
+     "t": "18:28:49.716",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 57.5,
+     "z": 3.172
+    },
+    {
+     "t": "18:28:55.264",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 57.5,
+     "z": 3.142
+    },
+    {
+     "t": "18:29:00.824",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 57.5,
+     "z": 3.112
+    },
+    {
+     "t": "18:29:06.318",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 3.057
+    },
+    {
+     "t": "18:29:07.279",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 3.057
+    },
+    {
+     "t": "18:29:13.131",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 110.0,
+     "z": 3.077
+    },
+    {
+     "t": "18:29:18.645",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 3.098
+    },
+    {
+     "t": "18:29:24.177",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 110.0,
+     "z": 3.119
+    },
+    {
+     "t": "18:29:29.744",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 110.0,
+     "z": 3.14
+    },
+    {
+     "t": "18:29:35.282",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 3.047
+    },
+    {
+     "t": "18:29:36.241",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 3.047
+    },
+    {
+     "t": "18:29:42.153",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 162.5,
+     "z": 3.035
+    },
+    {
+     "t": "18:29:47.740",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 162.5,
+     "z": 3.024
+    },
+    {
+     "t": "18:29:53.300",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 162.5,
+     "z": 3.013
+    },
+    {
+     "t": "18:29:58.887",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 162.5,
+     "z": 3.001
+    },
+    {
+     "t": "18:30:04.398",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.946
+    },
+    {
+     "t": "18:30:05.350",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.946
+    },
+    {
+     "t": "18:30:11.271",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 215.0,
+     "z": 2.948
+    },
+    {
+     "t": "18:30:16.871",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 215.0,
+     "z": 2.95
+    },
+    {
+     "t": "18:30:22.473",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 215.0,
+     "z": 2.952
+    },
+    {
+     "t": "18:30:28.073",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 2.954
+    },
+    {
+     "t": "18:30:33.589",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 3.098
+    },
+    {
+     "t": "18:30:39.663",
+     "f": 300.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    },
+    {
+     "t": "18:30:41.383",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    }
+   ],
+   "events": [
+    {
+     "t": "18:24:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:47,260 [root] [gcode:respond_info:301] not prepare."
+    },
+    {
+     "t": "18:24:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:47,267 [root] [gcode:respond_info:301] wait temp end"
+    },
+    {
+     "t": "18:24:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:47,309 [root] [gcode:respond_info:301] x_axes is NULL"
+    },
+    {
+     "t": "18:24:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:47,334 [root] [gcode:respond_info:301] move xy"
+    },
+    {
+     "t": "18:24:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:47,958 [root] [statistics:generate_stats:68] Stats 6250621.3: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:24:50",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:50,960 [root] [statistics:generate_stats:68] Stats 6250624.3: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:24:53",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:53,960 [root] [statistics:generate_stats:68] Stats 6250627.3: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:24:56",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:56,961 [root] [statistics:generate_stats:68] Stats 6250630.3: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:24:59",
+     "kind": "marker",
+     "text": "2026-08-19 18:24:59,962 [root] [statistics:generate_stats:68] Stats 6250633.4: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:25:02",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:02,961 [root] [statistics:generate_stats:68] Stats 6250636.4: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:25:05",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:05,964 [root] [statistics:generate_stats:68] Stats 6250639.4: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:25:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:07,785 [root] [gcode:respond_info:301] x_park = -104.5"
+    },
+    {
+     "t": "18:25:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:07,789 [root] [gcode:respond_info:301] y_park = 104.5"
+    },
+    {
+     "t": "18:25:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:07,798 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start run_G28_Z(False)..."
+    },
+    {
+     "t": "18:25:08",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:08,964 [root] [statistics:generate_stats:68] Stats 6250642.4: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:25:11",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:11,966 [root] [statistics:generate_stats:68] Stats 6250645.4: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:25:14",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:14,966 [root] [statistics:generate_stats:68] Stats 6250648.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:16",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:16,244 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:25:16",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:16,251 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "18:25:17",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:17,968 [root] [statistics:generate_stats:68] Stats 6250651.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:20",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:20,345 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:25:20",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:20,349 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "18:25:20",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:20,966 [root] [statistics:generate_stats:68] Stats 6250654.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:25:23",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:23,023 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:25:23",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:23,027 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "18:25:23",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:23,966 [root] [statistics:generate_stats:68] Stats 6250657.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:26",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:26,808 [root] [gcode:respond_info:301] Run Current: 0.56A Hold Current: 0.56A"
+    },
+    {
+     "t": "18:25:26",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:26,967 [root] [statistics:generate_stats:68] Stats 6250660.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:27,063 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start clear_nozzle_quick(), hot_min_temp=130.00"
+    },
+    {
+     "t": "18:25:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:27,079 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Src Pos Probe..."
+    },
+    {
+     "t": "18:25:29",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:29,968 [root] [statistics:generate_stats:68] Stats 6250663.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:32",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:32,969 [root] [statistics:generate_stats:68] Stats 6250666.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:34",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:34,130 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] src_pos[2]:3.2139062499999866"
+    },
+    {
+     "t": "18:25:34",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:34,131 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start End Pos Probe..."
+    },
+    {
+     "t": "18:25:35",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:35,972 [root] [statistics:generate_stats:68] Stats 6250669.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:38",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:38,971 [root] [statistics:generate_stats:68] Stats 6250672.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:39,076 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] end_pos[2]:3.246250000000014"
+    },
+    {
+     "t": "18:25:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:39,078 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] move to start position..."
+    },
+    {
+     "t": "18:25:41",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:41,971 [root] [statistics:generate_stats:68] Stats 6250675.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:44",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:44,974 [root] [statistics:generate_stats:68] Stats 6250678.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:47,976 [root] [statistics:generate_stats:68] Stats 6250681.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:50",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:50,973 [root] [statistics:generate_stats:68] Stats 6250684.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:25:52",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:52,964 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 1"
+    },
+    {
+     "t": "18:25:53",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:53,973 [root] [statistics:generate_stats:68] Stats 6250687.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:25:56",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:56,974 [root] [statistics:generate_stats:68] Stats 6250690.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:25:59",
+     "kind": "marker",
+     "text": "2026-08-19 18:25:59,975 [root] [statistics:generate_stats:68] Stats 6250693.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:26:02",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:02,977 [root] [statistics:generate_stats:68] Stats 6250696.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:26:05",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:05,980 [root] [statistics:generate_stats:68] Stats 6250699.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:26:08",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:08,980 [root] [statistics:generate_stats:68] Stats 6250702.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:11",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:11,980 [root] [statistics:generate_stats:68] Stats 6250705.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:14",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:14,983 [root] [statistics:generate_stats:68] Stats 6250708.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:17",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:17,983 [root] [statistics:generate_stats:68] Stats 6250711.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:20",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:20,984 [root] [statistics:generate_stats:68] Stats 6250714.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:23",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:23,984 [root] [statistics:generate_stats:68] Stats 6250717.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:26",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:26,985 [root] [statistics:generate_stats:68] Stats 6250720.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:29",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:29,986 [root] [statistics:generate_stats:68] Stats 6250723.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:32",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:32,986 [root] [statistics:generate_stats:68] Stats 6250726.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:35",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:35,987 [root] [statistics:generate_stats:68] Stats 6250729.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:38",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:38,987 [root] [statistics:generate_stats:68] Stats 6250732.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:41",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:41,988 [root] [statistics:generate_stats:68] Stats 6250735.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:44",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:44,989 [root] [statistics:generate_stats:68] Stats 6250738.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:47",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:47,989 [root] [statistics:generate_stats:68] Stats 6250741.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:50",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:50,990 [root] [statistics:generate_stats:68] Stats 6250744.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:53",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:53,991 [root] [statistics:generate_stats:68] Stats 6250747.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:56",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:56,990 [root] [statistics:generate_stats:68] Stats 6250750.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:26:59",
+     "kind": "marker",
+     "text": "2026-08-19 18:26:59,992 [root] [statistics:generate_stats:68] Stats 6250753.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:00,049 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Cool Down The Noz..."
+    },
+    {
+     "t": "18:27:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:00,050 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 2"
+    },
+    {
+     "t": "18:27:02",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:02,992 [root] [statistics:generate_stats:68] Stats 6250756.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:05",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:05,877 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start run_G28_Z(True)..."
+    },
+    {
+     "t": "18:27:05",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:05,993 [root] [statistics:generate_stats:68] Stats 6250759.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:08",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:08,995 [root] [statistics:generate_stats:68] Stats 6250762.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:11",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:11,996 [root] [statistics:generate_stats:68] Stats 6250765.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:12",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:12,366 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:27:12",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:12,371 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "18:27:14",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:14,809 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:27:14",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:14,814 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "18:27:14",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:14,998 [root] [statistics:generate_stats:68] Stats 6250768.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:17",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:17,375 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "18:27:17",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:17,379 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "18:27:17",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:17,998 [root] [statistics:generate_stats:68] Stats 6250771.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:20",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:20,036 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Precision Probe, index=0..."
+    },
+    {
+     "t": "18:27:21",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:21,002 [root] [statistics:generate_stats:68] Stats 6250774.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:24",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:24,002 [root] [statistics:generate_stats:68] Stats 6250777.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:27,008 [root] [statistics:generate_stats:68] Stats 6250780.4: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:27:30",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:30,012 [root] [statistics:generate_stats:68] Stats 6250783.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:31",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:31,018 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Result Check Probe..."
+    },
+    {
+     "t": "18:27:33",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:33,012 [root] [statistics:generate_stats:68] Stats 6250786.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:36",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:36,013 [root] [statistics:generate_stats:68] Stats 6250789.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:37",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:37,300 [root] [gcode:<lambda>:140] [CK_BED_MESH] Start check_bed_mesh(True)..."
+    },
+    {
+     "t": "18:27:37",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:37,302 [root] [gcode:<lambda>:140] [CK_BED_MESH] Start probe_ready()..."
+    },
+    {
+     "t": "18:27:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:39,014 [root] [statistics:generate_stats:68] Stats 6250792.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:42",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:42,015 [root] [statistics:generate_stats:68] Stats 6250795.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:45",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:45,015 [root] [statistics:generate_stats:68] Stats 6250798.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:48",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:48,016 [root] [statistics:generate_stats:68] Stats 6250801.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:51",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:51,017 [root] [statistics:generate_stats:68] Stats 6250804.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:54",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:54,016 [root] [statistics:generate_stats:68] Stats 6250807.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:27:57",
+     "kind": "marker",
+     "text": "2026-08-19 18:27:57,017 [root] [statistics:generate_stats:68] Stats 6250810.4: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:00,091 [root] [statistics:generate_stats:68] Stats 6250813.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:03",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:03,092 [root] [statistics:generate_stats:68] Stats 6250816.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:06",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:06,095 [root] [statistics:generate_stats:68] Stats 6250819.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,348 [root] [gcode:<lambda>:140] [CK_BED_MESH] P0 = [x=5.00, y=5.00, mest_z=-0.19, probe_z=0.17, err_"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,349 [root] [gcode:<lambda>:140] [CK_BED_MESH] P1 = [x=5.00, y=215.00, mest_z=-0.41, probe_z=-0.05, e"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,350 [root] [gcode:<lambda>:140] [CK_BED_MESH] P2 = [x=215.00, y=215.00, mest_z=-0.41, probe_z=-0.05,"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,350 [root] [gcode:<lambda>:140] [CK_BED_MESH] P3 = [x=215.00, y=5.00, mest_z=-0.01, probe_z=0.33, er"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,353 [root] [gcode:<lambda>:140] [CK_BED_MESH] Now Version=307, Cfg Version=307"
+    },
+    {
+     "t": "18:28:07",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:07,353 [root] [gcode:<lambda>:140] [DEBUG] check_bed_mesh: Due to the great change of the hot bed or ve"
+    },
+    {
+     "t": "18:28:09",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:09,094 [root] [statistics:generate_stats:68] Stats 6250822.5: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:28:12",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:12,095 [root] [statistics:generate_stats:68] Stats 6250825.5: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:28:15.076",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 5.0,
+     "z": 0.160594
+    },
+    {
+     "t": "18:28:15",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:15,122 [root] [statistics:generate_stats:68] Stats 6250828.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:18",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:18,124 [root] [statistics:generate_stats:68] Stats 6250831.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:20.639",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 5.0,
+     "z": 0.084344
+    },
+    {
+     "t": "18:28:21",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:21,124 [root] [statistics:generate_stats:68] Stats 6250834.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:24",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:24,125 [root] [statistics:generate_stats:68] Stats 6250837.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:26.207",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 5.0,
+     "z": 0.100594
+    },
+    {
+     "t": "18:28:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:27,126 [root] [statistics:generate_stats:68] Stats 6250840.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:30",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:30,126 [root] [statistics:generate_stats:68] Stats 6250843.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:31.794",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 5.0,
+     "z": 0.143406
+    },
+    {
+     "t": "18:28:33",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:33,127 [root] [statistics:generate_stats:68] Stats 6250846.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:36",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:36,127 [root] [statistics:generate_stats:68] Stats 6250849.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:37.325",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 5.0,
+     "z": 0.277719
+    },
+    {
+     "t": "18:28:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:39,129 [root] [statistics:generate_stats:68] Stats 6250852.5: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:28:42",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:42,129 [root] [statistics:generate_stats:68] Stats 6250855.5: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:28:44.170",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 57.5,
+     "z": 0.20425
+    },
+    {
+     "t": "18:28:45",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:45,134 [root] [statistics:generate_stats:68] Stats 6250858.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:48",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:48,131 [root] [statistics:generate_stats:68] Stats 6250861.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:49.706",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 57.5,
+     "z": 0.138
+    },
+    {
+     "t": "18:28:51",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:51,132 [root] [statistics:generate_stats:68] Stats 6250864.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:54",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:54,133 [root] [statistics:generate_stats:68] Stats 6250867.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:28:55.257",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 57.5,
+     "z": 0.081332
+    },
+    {
+     "t": "18:28:57",
+     "kind": "marker",
+     "text": "2026-08-19 18:28:57,133 [root] [statistics:generate_stats:68] Stats 6250870.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:00,134 [root] [statistics:generate_stats:68] Stats 6250873.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:00.815",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 57.5,
+     "z": 0.049656
+    },
+    {
+     "t": "18:29:03",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:03,136 [root] [statistics:generate_stats:68] Stats 6250876.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:06",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:06,142 [root] [statistics:generate_stats:68] Stats 6250879.5: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:06.314",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 57.5,
+     "z": 0.121688
+    },
+    {
+     "t": "18:29:09",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:09,141 [root] [statistics:generate_stats:68] Stats 6250882.5: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:29:12",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:12,180 [root] [statistics:generate_stats:68] Stats 6250885.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:29:13.126",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 110.0,
+     "z": 0.113236
+    },
+    {
+     "t": "18:29:15",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:15,177 [root] [statistics:generate_stats:68] Stats 6250888.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:18",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:18,177 [root] [statistics:generate_stats:68] Stats 6250891.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:18.641",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 110.0,
+     "z": 0.02075
+    },
+    {
+     "t": "18:29:21",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:21,178 [root] [statistics:generate_stats:68] Stats 6250894.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:24.172",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 110.0,
+     "z": 0.061281
+    },
+    {
+     "t": "18:29:24",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:24,218 [root] [statistics:generate_stats:68] Stats 6250897.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:27,219 [root] [statistics:generate_stats:68] Stats 6250900.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:29.731",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 110.0,
+     "z": 0.025562
+    },
+    {
+     "t": "18:29:30",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:30,220 [root] [statistics:generate_stats:68] Stats 6250903.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:33",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:33,220 [root] [statistics:generate_stats:68] Stats 6250906.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:35.271",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 110.0,
+     "z": 0.078594
+    },
+    {
+     "t": "18:29:36",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:36,221 [root] [statistics:generate_stats:68] Stats 6250909.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:39,222 [root] [statistics:generate_stats:68] Stats 6250912.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:29:42.150",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 162.5,
+     "z": -0.020614
+    },
+    {
+     "t": "18:29:42",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:42,222 [root] [statistics:generate_stats:68] Stats 6250915.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:29:45",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:45,222 [root] [statistics:generate_stats:68] Stats 6250918.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:47.736",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 162.5,
+     "z": -0.092812
+    },
+    {
+     "t": "18:29:48",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:48,223 [root] [statistics:generate_stats:68] Stats 6250921.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:51",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:51,224 [root] [statistics:generate_stats:68] Stats 6250924.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:53.295",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 162.5,
+     "z": -0.084125
+    },
+    {
+     "t": "18:29:54",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:54,225 [root] [statistics:generate_stats:68] Stats 6250927.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:57",
+     "kind": "marker",
+     "text": "2026-08-19 18:29:57,225 [root] [statistics:generate_stats:68] Stats 6250930.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:29:58.883",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 162.5,
+     "z": -0.096531
+    },
+    {
+     "t": "18:30:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:00,227 [root] [statistics:generate_stats:68] Stats 6250933.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:03",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:03,227 [root] [statistics:generate_stats:68] Stats 6250936.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:04.392",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 162.5,
+     "z": -0.024
+    },
+    {
+     "t": "18:30:06",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:06,228 [root] [statistics:generate_stats:68] Stats 6250939.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:09",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:09,229 [root] [statistics:generate_stats:68] Stats 6250942.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:30:11.267",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 215.0,
+     "z": -0.0865
+    },
+    {
+     "t": "18:30:12",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:12,237 [root] [statistics:generate_stats:68] Stats 6250945.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:30:15",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:15,236 [root] [statistics:generate_stats:68] Stats 6250948.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:16.868",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 215.0,
+     "z": -0.210594
+    },
+    {
+     "t": "18:30:18",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:18,240 [root] [statistics:generate_stats:68] Stats 6250951.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:21",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:21,239 [root] [statistics:generate_stats:68] Stats 6250954.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:22.468",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 215.0,
+     "z": -0.200412
+    },
+    {
+     "t": "18:30:24",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:24,241 [root] [statistics:generate_stats:68] Stats 6250957.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:27",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:27,242 [root] [statistics:generate_stats:68] Stats 6250960.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:28.067",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 215.0,
+     "z": -0.207844
+    },
+    {
+     "t": "18:30:30",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:30,245 [root] [statistics:generate_stats:68] Stats 6250963.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:33",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:33,246 [root] [statistics:generate_stats:68] Stats 6250966.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:36",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:36,246 [root] [statistics:generate_stats:68] Stats 6250969.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:39,246 [root] [statistics:generate_stats:68] Stats 6250972.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:39,655 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] Before=[[5.0, 5.0, 0.16059374999992082], ["
+    },
+    {
+     "t": "18:30:39",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:39,662 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] After=[[5.0, 5.0, 0.22059374999992082], [5"
+    },
+    {
+     "t": "18:30:41.387",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 215.0,
+     "z": -0.003969
+    },
+    {
+     "t": "18:30:41",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:41,843 [root] [configfile:cmd_CXSAVE_CONFIG:461] SAVE_CONFIG to '/usr/data/printer_data/config/printer."
+    },
+    {
+     "t": "18:30:41",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:41,863 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "18:30:41",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:41,865 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "18:30:42",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:42,247 [root] [statistics:generate_stats:68] Stats 6250975.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "18:30:45",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:45,246 [root] [statistics:generate_stats:68] Stats 6250978.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:30:48",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:48,248 [root] [statistics:generate_stats:68] Stats 6250981.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "18:30:51",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:51,248 [root] [statistics:generate_stats:68] Stats 6250984.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:30:54",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:54,249 [root] [statistics:generate_stats:68] Stats 6250987.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:30:57",
+     "kind": "marker",
+     "text": "2026-08-19 18:30:57,250 [root] [statistics:generate_stats:68] Stats 6250990.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "18:31:00",
+     "kind": "marker",
+     "text": "2026-08-19 18:31:00,253 [root] [statistics:generate_stats:68] Stats 6250993.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    }
+   ]
+  },
+  "prefetch_d": {
+   "description": "pre-fix print D: full START_PRINT chain, check_bed_mesh re-meshed",
+   "samples": [
+    {
+     "t": "20:38:40.412",
+     "f": 2400.0,
+     "x": 116.703,
+     "y": 103.398,
+     "z": 0.0
+    },
+    {
+     "t": "20:38:42.476",
+     "f": 300.0,
+     "x": 116.703,
+     "y": 103.398,
+     "z": 0.0
+    },
+    {
+     "t": "20:39:09.810",
+     "f": 600.0,
+     "x": 116.703,
+     "y": 103.398,
+     "z": 6.0
+    },
+    {
+     "t": "20:39:12.479",
+     "f": 600.0,
+     "x": 116.703,
+     "y": 103.398,
+     "z": 6.0
+    },
+    {
+     "t": "20:39:15.136",
+     "f": 600.0,
+     "x": 116.703,
+     "y": 103.398,
+     "z": 6.0
+    },
+    {
+     "t": "20:39:17.590",
+     "f": 12000.0,
+     "x": 87.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "20:39:24.733",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "20:39:29.721",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.12
+    },
+    {
+     "t": "20:39:41.875",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.32
+    },
+    {
+     "t": "20:39:42.384",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 4.32
+    },
+    {
+     "t": "20:39:42.797",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:43.510",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:43.511",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:43.514",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:43.544",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:43.546",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:43.548",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:45.398",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:45.400",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:45.403",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:45.437",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:45.440",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:45.443",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:47.287",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:47.292",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:47.297",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:47.328",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:47.330",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:47.332",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:49.180",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:49.182",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:49.183",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:49.215",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:49.218",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:49.223",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:51.070",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:51.072",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:51.074",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:51.107",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:39:51.109",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:51.111",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:39:52.961",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.32
+    },
+    {
+     "t": "20:39:53.376",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.12
+    },
+    {
+     "t": "20:40:48.803",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.32
+    },
+    {
+     "t": "20:40:49.312",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 4.32
+    },
+    {
+     "t": "20:40:49.725",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:50.438",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:40:50.441",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:50.443",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:51.489",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:40:51.491",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:51.492",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:52.534",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 224.323,
+     "z": 2.541
+    },
+    {
+     "t": "20:40:52.536",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:52.539",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 223.823,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:53.579",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:53.580",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 220.323,
+     "z": 2.62
+    },
+    {
+     "t": "20:40:53.990",
+     "f": 36000.0,
+     "x": 92.0,
+     "y": 220.323,
+     "z": 5.0
+    },
+    {
+     "t": "20:40:54.963",
+     "f": 2400.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 0.0
+    },
+    {
+     "t": "20:40:59.678",
+     "f": 300.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 0.0
+    },
+    {
+     "t": "20:41:02.749",
+     "f": 600.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:05.464",
+     "f": 600.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:08.143",
+     "f": 600.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:09.167",
+     "f": 300.0,
+     "x": 115.22,
+     "y": 104.192,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:09.170",
+     "f": 2400.0,
+     "x": 110.708,
+     "y": 110.932,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:09.828",
+     "f": 300.0,
+     "x": 110.708,
+     "y": 110.932,
+     "z": 6.0
+    },
+    {
+     "t": "20:41:25.480",
+     "f": 300.0,
+     "x": 110.708,
+     "y": 110.932,
+     "z": 5.0
+    },
+    {
+     "t": "20:41:31.786",
+     "f": 300.0,
+     "x": 110.708,
+     "y": 110.932,
+     "z": 5.0
+    },
+    {
+     "t": "20:41:32.092",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "20:41:39.280",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "20:41:46.947",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "20:41:54.588",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "20:42:02.061",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.067
+    },
+    {
+     "t": "20:42:03.888",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.067
+    },
+    {
+     "t": "20:42:09.794",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 5.0,
+     "z": 3.112
+    },
+    {
+     "t": "20:42:15.350",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 5.0,
+     "z": 3.158
+    },
+    {
+     "t": "20:42:20.903",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 5.0,
+     "z": 3.203
+    },
+    {
+     "t": "20:42:26.476",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 3.248
+    },
+    {
+     "t": "20:42:37.369",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.18
+    },
+    {
+     "t": "20:42:38.324",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.18
+    },
+    {
+     "t": "20:42:44.179",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 57.5,
+     "z": 3.141
+    },
+    {
+     "t": "20:42:49.717",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 57.5,
+     "z": 3.101
+    },
+    {
+     "t": "20:42:55.297",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 57.5,
+     "z": 3.061
+    },
+    {
+     "t": "20:43:00.828",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 57.5,
+     "z": 3.021
+    },
+    {
+     "t": "20:43:06.309",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 2.976
+    },
+    {
+     "t": "20:43:07.269",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 2.976
+    },
+    {
+     "t": "20:43:13.095",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 110.0,
+     "z": 3.01
+    },
+    {
+     "t": "20:43:18.612",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 3.044
+    },
+    {
+     "t": "20:43:24.186",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 110.0,
+     "z": 3.078
+    },
+    {
+     "t": "20:43:29.752",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 110.0,
+     "z": 3.112
+    },
+    {
+     "t": "20:43:35.287",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 3.044
+    },
+    {
+     "t": "20:43:36.242",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 3.044
+    },
+    {
+     "t": "20:43:42.200",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 162.5,
+     "z": 3.016
+    },
+    {
+     "t": "20:43:47.796",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 162.5,
+     "z": 2.987
+    },
+    {
+     "t": "20:43:53.386",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 162.5,
+     "z": 2.959
+    },
+    {
+     "t": "20:43:58.931",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 162.5,
+     "z": 2.93
+    },
+    {
+     "t": "20:44:04.427",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.885
+    },
+    {
+     "t": "20:44:05.387",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.885
+    },
+    {
+     "t": "20:44:11.314",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 215.0,
+     "z": 2.908
+    },
+    {
+     "t": "20:44:16.891",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 215.0,
+     "z": 2.931
+    },
+    {
+     "t": "20:44:22.496",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 215.0,
+     "z": 2.953
+    },
+    {
+     "t": "20:44:28.141",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 2.976
+    },
+    {
+     "t": "20:44:33.727",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 3.044
+    },
+    {
+     "t": "20:44:39.786",
+     "f": 300.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    },
+    {
+     "t": "20:44:41.510",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    }
+   ],
+   "events": [
+    {
+     "t": "20:38:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:19,201 [root] [statistics:generate_stats:68] Stats 6258632.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:38:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:19,303 [root] [gcode:respond_info:301] not prepare."
+    },
+    {
+     "t": "20:38:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:19,306 [root] [gcode:respond_info:301] wait temp end"
+    },
+    {
+     "t": "20:38:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:19,348 [root] [gcode:respond_info:301] x_axes is NULL"
+    },
+    {
+     "t": "20:38:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:19,376 [root] [gcode:respond_info:301] move xy"
+    },
+    {
+     "t": "20:38:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:22,197 [root] [statistics:generate_stats:68] Stats 6258635.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:38:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:25,090 [root] [webhooks:_handle_query:530] _handle_query objects/subscribe:{'webhooks': None, 'configfi"
+    },
+    {
+     "t": "20:38:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:25,196 [root] [statistics:generate_stats:68] Stats 6258638.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "20:38:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:25,240 [root] [webhooks:_handle_query:554] _handle_query after complete.wait:{'eventtime': 6258638.6522"
+    },
+    {
+     "t": "20:38:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:28,199 [root] [statistics:generate_stats:68] Stats 6258641.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:38:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:31,201 [root] [statistics:generate_stats:68] Stats 6258644.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:38:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:34,201 [root] [statistics:generate_stats:68] Stats 6258647.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:38:35",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:35,757 [root] [gcode:respond_info:301] x_park = -104.5"
+    },
+    {
+     "t": "20:38:35",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:35,759 [root] [gcode:respond_info:301] y_park = 104.5"
+    },
+    {
+     "t": "20:38:35",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:35,766 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start run_G28_Z(False)..."
+    },
+    {
+     "t": "20:38:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:37,201 [root] [statistics:generate_stats:68] Stats 6258650.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:38:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:40,201 [root] [statistics:generate_stats:68] Stats 6258653.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:38:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:43,202 [root] [statistics:generate_stats:68] Stats 6258656.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:38:44",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:44,139 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:38:44",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:44,146 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "20:38:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:46,203 [root] [statistics:generate_stats:68] Stats 6258659.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:38:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:49,202 [root] [statistics:generate_stats:68] Stats 6258662.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:38:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:52,202 [root] [statistics:generate_stats:68] Stats 6258665.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:38:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:55,204 [root] [statistics:generate_stats:68] Stats 6258668.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:38:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:38:58,205 [root] [statistics:generate_stats:68] Stats 6258671.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:01,205 [root] [statistics:generate_stats:68] Stats 6258674.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:04,205 [root] [statistics:generate_stats:68] Stats 6258677.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:07,205 [root] [statistics:generate_stats:68] Stats 6258680.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:10,207 [root] [statistics:generate_stats:68] Stats 6258683.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:10,835 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:39:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:10,844 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "20:39:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:13,206 [root] [statistics:generate_stats:68] Stats 6258686.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:13,496 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:39:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:13,504 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "20:39:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:16,239 [root] [statistics:generate_stats:68] Stats 6258689.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:17",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:17,314 [root] [gcode:respond_info:301] Run Current: 0.56A Hold Current: 0.56A"
+    },
+    {
+     "t": "20:39:17",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:17,569 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start clear_nozzle_quick(), hot_min_temp=130.00"
+    },
+    {
+     "t": "20:39:17",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:17,589 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Src Pos Probe..."
+    },
+    {
+     "t": "20:39:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:19,239 [root] [statistics:generate_stats:68] Stats 6258692.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:22,240 [root] [statistics:generate_stats:68] Stats 6258695.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:24",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:24,731 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] src_pos[2]:3.241249999999701"
+    },
+    {
+     "t": "20:39:24",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:24,732 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start End Pos Probe..."
+    },
+    {
+     "t": "20:39:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:25,240 [root] [statistics:generate_stats:68] Stats 6258698.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:28,240 [root] [statistics:generate_stats:68] Stats 6258701.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:29",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:29,715 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] end_pos[2]:3.3195312500000003"
+    },
+    {
+     "t": "20:39:29",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:29,720 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] move to start position..."
+    },
+    {
+     "t": "20:39:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:31,240 [root] [statistics:generate_stats:68] Stats 6258704.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:34,243 [root] [statistics:generate_stats:68] Stats 6258707.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:37,240 [root] [statistics:generate_stats:68] Stats 6258710.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:40,242 [root] [statistics:generate_stats:68] Stats 6258713.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:43,242 [root] [statistics:generate_stats:68] Stats 6258716.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:43,508 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 1"
+    },
+    {
+     "t": "20:39:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:46,242 [root] [statistics:generate_stats:68] Stats 6258719.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:39:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:49,260 [root] [statistics:generate_stats:68] Stats 6258722.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:39:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:52,259 [root] [statistics:generate_stats:68] Stats 6258725.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:39:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:55,260 [root] [statistics:generate_stats:68] Stats 6258728.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:39:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:39:58,260 [root] [statistics:generate_stats:68] Stats 6258731.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:01,261 [root] [statistics:generate_stats:68] Stats 6258734.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:04,262 [root] [statistics:generate_stats:68] Stats 6258737.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:07,263 [root] [statistics:generate_stats:68] Stats 6258740.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:10,263 [root] [statistics:generate_stats:68] Stats 6258743.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:13,264 [root] [statistics:generate_stats:68] Stats 6258746.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:16,265 [root] [statistics:generate_stats:68] Stats 6258749.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:19,267 [root] [statistics:generate_stats:68] Stats 6258752.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:22,267 [root] [statistics:generate_stats:68] Stats 6258755.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:25,270 [root] [statistics:generate_stats:68] Stats 6258758.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:28,271 [root] [statistics:generate_stats:68] Stats 6258761.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:31,279 [root] [statistics:generate_stats:68] Stats 6258764.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:34,281 [root] [statistics:generate_stats:68] Stats 6258767.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:37,282 [root] [statistics:generate_stats:68] Stats 6258770.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:40,282 [root] [statistics:generate_stats:68] Stats 6258773.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:43,282 [root] [statistics:generate_stats:68] Stats 6258776.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:46,284 [root] [statistics:generate_stats:68] Stats 6258779.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:48",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:48,801 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Cool Down The Noz..."
+    },
+    {
+     "t": "20:40:48",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:48,802 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 2"
+    },
+    {
+     "t": "20:40:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:49,283 [root] [statistics:generate_stats:68] Stats 6258782.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:52,284 [root] [statistics:generate_stats:68] Stats 6258785.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:40:54",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:54,639 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start run_G28_Z(True)..."
+    },
+    {
+     "t": "20:40:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:55,285 [root] [statistics:generate_stats:68] Stats 6258788.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:40:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:40:58,286 [root] [statistics:generate_stats:68] Stats 6258791.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:01,286 [root] [statistics:generate_stats:68] Stats 6258794.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:01,339 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:41:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:01,344 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "20:41:03",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:03,780 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:41:03",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:03,787 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "20:41:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:04,287 [root] [statistics:generate_stats:68] Stats 6258797.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:41:06",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:06,487 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "20:41:06",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:06,490 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "20:41:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:07,288 [root] [statistics:generate_stats:68] Stats 6258800.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:41:09",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:09,166 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Precision Probe, index=0..."
+    },
+    {
+     "t": "20:41:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:10,288 [root] [statistics:generate_stats:68] Stats 6258803.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:13,290 [root] [statistics:generate_stats:68] Stats 6258806.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:41:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:16,290 [root] [statistics:generate_stats:68] Stats 6258809.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:41:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:19,290 [root] [statistics:generate_stats:68] Stats 6258812.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:22,291 [root] [statistics:generate_stats:68] Stats 6258815.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:25,292 [root] [statistics:generate_stats:68] Stats 6258818.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:25,479 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Result Check Probe..."
+    },
+    {
+     "t": "20:41:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:28,293 [root] [statistics:generate_stats:68] Stats 6258821.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:31,294 [root] [statistics:generate_stats:68] Stats 6258824.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:31,781 [root] [gcode:<lambda>:140] [CK_BED_MESH] Start check_bed_mesh(True)..."
+    },
+    {
+     "t": "20:41:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:31,782 [root] [gcode:<lambda>:140] [CK_BED_MESH] Start probe_ready()..."
+    },
+    {
+     "t": "20:41:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:34,294 [root] [statistics:generate_stats:68] Stats 6258827.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:37,295 [root] [statistics:generate_stats:68] Stats 6258830.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:40,296 [root] [statistics:generate_stats:68] Stats 6258833.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:43,297 [root] [statistics:generate_stats:68] Stats 6258836.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:46,299 [root] [statistics:generate_stats:68] Stats 6258839.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:49,298 [root] [statistics:generate_stats:68] Stats 6258842.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:52,302 [root] [statistics:generate_stats:68] Stats 6258845.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:55,301 [root] [statistics:generate_stats:68] Stats 6258848.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:41:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:41:58,301 [root] [statistics:generate_stats:68] Stats 6258851.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:01,301 [root] [statistics:generate_stats:68] Stats 6258854.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,044 [root] [gcode:<lambda>:140] [CK_BED_MESH] P0 = [x=5.00, y=5.00, mest_z=-0.08, probe_z=0.07, err_"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,046 [root] [gcode:<lambda>:140] [CK_BED_MESH] P1 = [x=5.00, y=215.00, mest_z=-0.37, probe_z=-0.12, e"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,048 [root] [gcode:<lambda>:140] [CK_BED_MESH] P2 = [x=215.00, y=215.00, mest_z=-0.31, probe_z=-0.02,"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,052 [root] [gcode:<lambda>:140] [CK_BED_MESH] P3 = [x=215.00, y=5.00, mest_z=0.04, probe_z=0.25, err"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,054 [root] [gcode:<lambda>:140] [CK_BED_MESH] Now Version=307, Cfg Version=307"
+    },
+    {
+     "t": "20:42:02",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:02,055 [root] [gcode:<lambda>:140] [DEBUG] check_bed_mesh: Due to the great change of the hot bed or ve"
+    },
+    {
+     "t": "20:42:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:04,303 [root] [statistics:generate_stats:68] Stats 6258857.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:42:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:07,303 [root] [statistics:generate_stats:68] Stats 6258860.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:42:09.789",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 5.0,
+     "z": 0.041219
+    },
+    {
+     "t": "20:42:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:10,305 [root] [statistics:generate_stats:68] Stats 6258863.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:13,309 [root] [statistics:generate_stats:68] Stats 6258866.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:15.344",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 5.0,
+     "z": 0.018094
+    },
+    {
+     "t": "20:42:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:16,310 [root] [statistics:generate_stats:68] Stats 6258869.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:19,310 [root] [statistics:generate_stats:68] Stats 6258872.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:20.898",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 5.0,
+     "z": 0.037787
+    },
+    {
+     "t": "20:42:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:22,311 [root] [statistics:generate_stats:68] Stats 6258875.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:25,312 [root] [statistics:generate_stats:68] Stats 6258878.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:26.470",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 5.0,
+     "z": 0.126906
+    },
+    {
+     "t": "20:42:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:28,312 [root] [statistics:generate_stats:68] Stats 6258881.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:31,312 [root] [statistics:generate_stats:68] Stats 6258884.7: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:34,318 [root] [statistics:generate_stats:68] Stats 6258887.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:37,317 [root] [statistics:generate_stats:68] Stats 6258890.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:37.365",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 5.0,
+     "z": 0.190813
+    },
+    {
+     "t": "20:42:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:40,318 [root] [statistics:generate_stats:68] Stats 6258893.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:43,318 [root] [statistics:generate_stats:68] Stats 6258896.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:44.175",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 57.5,
+     "z": 0.150625
+    },
+    {
+     "t": "20:42:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:46,319 [root] [statistics:generate_stats:68] Stats 6258899.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:49,320 [root] [statistics:generate_stats:68] Stats 6258902.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:49.715",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 57.5,
+     "z": 0.05725
+    },
+    {
+     "t": "20:42:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:52,322 [root] [statistics:generate_stats:68] Stats 6258905.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:55.287",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 57.5,
+     "z": 0.020815
+    },
+    {
+     "t": "20:42:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:55,336 [root] [statistics:generate_stats:68] Stats 6258908.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:42:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:42:58,341 [root] [statistics:generate_stats:68] Stats 6258911.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:00.824",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 57.5,
+     "z": 0.01333
+    },
+    {
+     "t": "20:43:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:01,339 [root] [statistics:generate_stats:68] Stats 6258914.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:04,343 [root] [statistics:generate_stats:68] Stats 6258917.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:06.305",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 57.5,
+     "z": 0.050972
+    },
+    {
+     "t": "20:43:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:07,337 [root] [statistics:generate_stats:68] Stats 6258920.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:10,372 [root] [statistics:generate_stats:68] Stats 6258923.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:43:13.092",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 110.0,
+     "z": 0.082009
+    },
+    {
+     "t": "20:43:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:13,369 [root] [statistics:generate_stats:68] Stats 6258926.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:16,370 [root] [statistics:generate_stats:68] Stats 6258929.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:18.607",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 110.0,
+     "z": 0.062656
+    },
+    {
+     "t": "20:43:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:19,370 [root] [statistics:generate_stats:68] Stats 6258932.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:22,371 [root] [statistics:generate_stats:68] Stats 6258935.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:24.180",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 110.0,
+     "z": 0.030875
+    },
+    {
+     "t": "20:43:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:25,373 [root] [statistics:generate_stats:68] Stats 6258938.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:28,374 [root] [statistics:generate_stats:68] Stats 6258941.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:29.748",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 110.0,
+     "z": -0.008065
+    },
+    {
+     "t": "20:43:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:31,374 [root] [statistics:generate_stats:68] Stats 6258944.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:34,375 [root] [statistics:generate_stats:68] Stats 6258947.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:35.283",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 110.0,
+     "z": 0.082937
+    },
+    {
+     "t": "20:43:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:37,376 [root] [statistics:generate_stats:68] Stats 6258950.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:40,378 [root] [statistics:generate_stats:68] Stats 6258953.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:43:42.197",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 162.5,
+     "z": -0.034906
+    },
+    {
+     "t": "20:43:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:43,382 [root] [statistics:generate_stats:68] Stats 6258956.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:46,382 [root] [statistics:generate_stats:68] Stats 6258959.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:47.788",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 162.5,
+     "z": -0.123063
+    },
+    {
+     "t": "20:43:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:49,382 [root] [statistics:generate_stats:68] Stats 6258962.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:52,400 [root] [statistics:generate_stats:68] Stats 6258965.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:53.379",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 162.5,
+     "z": -0.103781
+    },
+    {
+     "t": "20:43:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:55,395 [root] [statistics:generate_stats:68] Stats 6258968.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:43:58,395 [root] [statistics:generate_stats:68] Stats 6258971.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:43:58.927",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 162.5,
+     "z": -0.14225
+    },
+    {
+     "t": "20:44:01",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:01,396 [root] [statistics:generate_stats:68] Stats 6258974.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:04",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:04,396 [root] [statistics:generate_stats:68] Stats 6258977.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:04.422",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 162.5,
+     "z": -0.061094
+    },
+    {
+     "t": "20:44:07",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:07,397 [root] [statistics:generate_stats:68] Stats 6258980.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:10",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:10,398 [root] [statistics:generate_stats:68] Stats 6258983.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:44:11.307",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 215.0,
+     "z": -0.17125
+    },
+    {
+     "t": "20:44:13",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:13,400 [root] [statistics:generate_stats:68] Stats 6258986.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:16",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:16,398 [root] [statistics:generate_stats:68] Stats 6258989.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:16.882",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 215.0,
+     "z": -0.208449
+    },
+    {
+     "t": "20:44:19",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:19,400 [root] [statistics:generate_stats:68] Stats 6258992.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:22",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:22,400 [root] [statistics:generate_stats:68] Stats 6258995.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:22.494",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 215.0,
+     "z": -0.261869
+    },
+    {
+     "t": "20:44:25",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:25,400 [root] [statistics:generate_stats:68] Stats 6258998.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:28.139",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 215.0,
+     "z": -0.247781
+    },
+    {
+     "t": "20:44:28",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:28,401 [root] [statistics:generate_stats:68] Stats 6259001.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:31",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:31,402 [root] [statistics:generate_stats:68] Stats 6259004.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:34",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:34,403 [root] [statistics:generate_stats:68] Stats 6259007.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:37",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:37,403 [root] [statistics:generate_stats:68] Stats 6259010.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:39",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:39,777 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] Before=[[5.0, 5.0, 0.04121875000000008], ["
+    },
+    {
+     "t": "20:44:39",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:39,785 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] After=[[5.0, 5.0, 0.10121875000000008], [5"
+    },
+    {
+     "t": "20:44:40",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:40,405 [root] [statistics:generate_stats:68] Stats 6259013.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:41.512",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 215.0,
+     "z": -0.047437
+    },
+    {
+     "t": "20:44:41",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:41,965 [root] [configfile:cmd_CXSAVE_CONFIG:461] SAVE_CONFIG to '/usr/data/printer_data/config/printer."
+    },
+    {
+     "t": "20:44:41",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:41,978 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "20:44:41",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:41,981 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "20:44:43",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:43,405 [root] [statistics:generate_stats:68] Stats 6259016.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:46",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:46,406 [root] [statistics:generate_stats:68] Stats 6259019.8: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "20:44:49",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:49,406 [root] [statistics:generate_stats:68] Stats 6259022.8: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:44:52",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:52,407 [root] [statistics:generate_stats:68] Stats 6259025.8: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:44:55",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:55,407 [root] [statistics:generate_stats:68] Stats 6259028.8: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "20:44:58",
+     "kind": "marker",
+     "text": "2026-08-19 20:44:58,408 [root] [statistics:generate_stats:68] Stats 6259031.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "20:45:00",
+     "kind": "marker",
+     "text": "2026-08-19 20:45:00,102 [root] [gcode:respond_info:301] can_break_flag = 0"
+    }
+   ]
+  },
+  "flowrate": {
+   "description": "post-fix flowrate print: pre-start gcode block (CX_ROUGH_G28..PRINT_PREPARED)",
+   "samples": [
+    {
+     "t": "22:18:37.468",
+     "f": 2400.0,
+     "x": 114.138,
+     "y": 103.688,
+     "z": 0.0
+    },
+    {
+     "t": "22:18:39.429",
+     "f": 300.0,
+     "x": 114.138,
+     "y": 103.688,
+     "z": 0.0
+    },
+    {
+     "t": "22:19:06.796",
+     "f": 600.0,
+     "x": 114.138,
+     "y": 103.688,
+     "z": 6.0
+    },
+    {
+     "t": "22:19:09.429",
+     "f": 600.0,
+     "x": 114.138,
+     "y": 103.688,
+     "z": 6.0
+    },
+    {
+     "t": "22:19:11.981",
+     "f": 600.0,
+     "x": 114.138,
+     "y": 103.688,
+     "z": 6.0
+    },
+    {
+     "t": "22:19:14.321",
+     "f": 12000.0,
+     "x": 87.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "22:19:21.438",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 6.0
+    },
+    {
+     "t": "22:19:26.415",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.012
+    },
+    {
+     "t": "22:19:38.880",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.212
+    },
+    {
+     "t": "22:19:39.388",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 4.212
+    },
+    {
+     "t": "22:19:39.802",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:40.514",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:40.518",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:40.522",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:40.557",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:40.559",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:40.561",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:42.306",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:42.308",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:42.310",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:42.343",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:42.347",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:42.350",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:44.092",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:44.095",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:44.097",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:44.130",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:44.134",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:44.136",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:45.880",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:45.882",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:45.884",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:45.913",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:45.915",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:45.917",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:47.665",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:47.668",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:47.670",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:47.699",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:19:47.701",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:47.703",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:19:49.457",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.212
+    },
+    {
+     "t": "22:19:49.870",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 3.012
+    },
+    {
+     "t": "22:20:43.979",
+     "f": 12000.0,
+     "x": 133.0,
+     "y": 225.0,
+     "z": 4.212
+    },
+    {
+     "t": "22:20:44.490",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 4.212
+    },
+    {
+     "t": "22:20:44.904",
+     "f": 300.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:45.621",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:20:45.624",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:45.626",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:46.673",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:20:46.675",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:46.677",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:47.722",
+     "f": 6000.0,
+     "x": 92.0,
+     "y": 225.045,
+     "z": 2.468
+    },
+    {
+     "t": "22:20:47.723",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:47.725",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 224.545,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:48.764",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 225.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:48.768",
+     "f": 6000.0,
+     "x": 128.0,
+     "y": 221.045,
+     "z": 2.512
+    },
+    {
+     "t": "22:20:49.181",
+     "f": 36000.0,
+     "x": 92.0,
+     "y": 221.045,
+     "z": 5.0
+    },
+    {
+     "t": "22:20:50.166",
+     "f": 2400.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 0.0
+    },
+    {
+     "t": "22:20:54.479",
+     "f": 300.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 0.0
+    },
+    {
+     "t": "22:20:57.595",
+     "f": 600.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:00.165",
+     "f": 600.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:02.726",
+     "f": 600.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:03.643",
+     "f": 300.0,
+     "x": 105.034,
+     "y": 117.059,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:03.645",
+     "f": 2400.0,
+     "x": 110.26,
+     "y": 109.963,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:04.303",
+     "f": 300.0,
+     "x": 110.26,
+     "y": 109.963,
+     "z": 6.0
+    },
+    {
+     "t": "22:21:14.515",
+     "f": 300.0,
+     "x": 110.26,
+     "y": 109.963,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:20.804",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:22.285",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:23.626",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:23.932",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:29.654",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:37.217",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:44.821",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 5.0
+    },
+    {
+     "t": "22:21:52.270",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.026
+    },
+    {
+     "t": "22:21:54.086",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 5.0,
+     "z": 3.026
+    },
+    {
+     "t": "22:21:59.955",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 5.0,
+     "z": 3.069
+    },
+    {
+     "t": "22:22:05.546",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 5.0,
+     "z": 3.111
+    },
+    {
+     "t": "22:22:11.091",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 5.0,
+     "z": 3.153
+    },
+    {
+     "t": "22:22:16.661",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 5.0,
+     "z": 3.196
+    },
+    {
+     "t": "22:22:22.191",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.125
+    },
+    {
+     "t": "22:22:23.146",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 57.5,
+     "z": 3.125
+    },
+    {
+     "t": "22:22:29.006",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 57.5,
+     "z": 3.089
+    },
+    {
+     "t": "22:22:34.515",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 57.5,
+     "z": 3.053
+    },
+    {
+     "t": "22:22:40.041",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 57.5,
+     "z": 3.017
+    },
+    {
+     "t": "22:22:45.543",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 57.5,
+     "z": 2.981
+    },
+    {
+     "t": "22:22:51.011",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 2.935
+    },
+    {
+     "t": "22:22:51.975",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 110.0,
+     "z": 2.935
+    },
+    {
+     "t": "22:22:57.798",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 110.0,
+     "z": 2.965
+    },
+    {
+     "t": "22:23:03.311",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 2.995
+    },
+    {
+     "t": "22:23:08.850",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 110.0,
+     "z": 3.025
+    },
+    {
+     "t": "22:23:14.410",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 110.0,
+     "z": 3.055
+    },
+    {
+     "t": "22:23:19.927",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 2.985
+    },
+    {
+     "t": "22:23:20.885",
+     "f": 300.0,
+     "x": 215.0,
+     "y": 162.5,
+     "z": 2.985
+    },
+    {
+     "t": "22:23:26.781",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 162.5,
+     "z": 2.961
+    },
+    {
+     "t": "22:23:32.329",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 162.5,
+     "z": 2.938
+    },
+    {
+     "t": "22:23:37.880",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 162.5,
+     "z": 2.914
+    },
+    {
+     "t": "22:23:43.424",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 162.5,
+     "z": 2.89
+    },
+    {
+     "t": "22:23:48.896",
+     "f": 12000.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.845
+    },
+    {
+     "t": "22:23:49.845",
+     "f": 300.0,
+     "x": 5.0,
+     "y": 215.0,
+     "z": 2.845
+    },
+    {
+     "t": "22:23:55.722",
+     "f": 12000.0,
+     "x": 57.5,
+     "y": 215.0,
+     "z": 2.862
+    },
+    {
+     "t": "22:24:01.290",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 215.0,
+     "z": 2.88
+    },
+    {
+     "t": "22:24:06.886",
+     "f": 12000.0,
+     "x": 162.5,
+     "y": 215.0,
+     "z": 2.897
+    },
+    {
+     "t": "22:24:12.501",
+     "f": 12000.0,
+     "x": 215.0,
+     "y": 215.0,
+     "z": 2.915
+    },
+    {
+     "t": "22:24:18.011",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 2.995
+    },
+    {
+     "t": "22:24:24.081",
+     "f": 300.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    },
+    {
+     "t": "22:24:25.804",
+     "f": 12000.0,
+     "x": 110.0,
+     "y": 110.0,
+     "z": 10.0
+    }
+   ],
+   "events": [
+    {
+     "t": "22:18:16",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:16,586 [root] [gcode:respond_info:301] x_axes is NULL"
+    },
+    {
+     "t": "22:18:16",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:16,638 [root] [gcode:respond_info:301] move xy"
+    },
+    {
+     "t": "22:18:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:18,092 [root] [statistics:generate_stats:68] Stats 6264631.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:21,094 [root] [statistics:generate_stats:68] Stats 6264634.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:24,096 [root] [statistics:generate_stats:68] Stats 6264637.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:27,097 [root] [statistics:generate_stats:68] Stats 6264640.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:30,097 [root] [statistics:generate_stats:68] Stats 6264643.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:32",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:32,799 [root] [gcode:respond_info:301] x_park = -104.5"
+    },
+    {
+     "t": "22:18:32",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:32,804 [root] [gcode:respond_info:301] y_park = 104.5"
+    },
+    {
+     "t": "22:18:32",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:32,838 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start run_G28_Z(False)..."
+    },
+    {
+     "t": "22:18:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:33,097 [root] [statistics:generate_stats:68] Stats 6264646.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:36,099 [root] [statistics:generate_stats:68] Stats 6264649.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:39,098 [root] [statistics:generate_stats:68] Stats 6264652.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:41",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:41,082 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:18:41",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:41,090 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "22:18:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:42,101 [root] [statistics:generate_stats:68] Stats 6264655.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:45,099 [root] [statistics:generate_stats:68] Stats 6264658.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:18:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:48,101 [root] [statistics:generate_stats:68] Stats 6264661.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:51,101 [root] [statistics:generate_stats:68] Stats 6264664.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:54,104 [root] [statistics:generate_stats:68] Stats 6264667.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:18:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:18:57,104 [root] [statistics:generate_stats:68] Stats 6264670.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:00,106 [root] [statistics:generate_stats:68] Stats 6264673.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:19:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:03,109 [root] [statistics:generate_stats:68] Stats 6264676.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:06,110 [root] [statistics:generate_stats:68] Stats 6264679.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:07",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:07,722 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:19:07",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:07,730 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "22:19:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:09,111 [root] [statistics:generate_stats:68] Stats 6264682.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:10",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:10,347 [root] [homing:cmd_G28:343] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:19:10",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:10,352 [root] [homing:cmd_G28:343] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "22:19:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:12,110 [root] [statistics:generate_stats:68] Stats 6264685.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:14",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:14,051 [root] [gcode:respond_info:301] Run Current: 0.56A Hold Current: 0.56A"
+    },
+    {
+     "t": "22:19:14",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:14,306 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start clear_nozzle_quick(), hot_min_temp=130.00"
+    },
+    {
+     "t": "22:19:14",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:14,320 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Src Pos Probe..."
+    },
+    {
+     "t": "22:19:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:15,111 [root] [statistics:generate_stats:68] Stats 6264688.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:19:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:18,111 [root] [statistics:generate_stats:68] Stats 6264691.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:19:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:21,112 [root] [statistics:generate_stats:68] Stats 6264694.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:19:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:21,436 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] src_pos[2]:3.1676562499998298"
+    },
+    {
+     "t": "22:19:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:21,437 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start End Pos Probe..."
+    },
+    {
+     "t": "22:19:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:24,112 [root] [statistics:generate_stats:68] Stats 6264697.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:26",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:26,413 [root] [gcode:respond_info:301] [CLEAR_NOZZLE_QUICK] end_pos[2]:3.212499999999858"
+    },
+    {
+     "t": "22:19:26",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:26,414 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] move to start position..."
+    },
+    {
+     "t": "22:19:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:27,113 [root] [statistics:generate_stats:68] Stats 6264700.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:30,113 [root] [statistics:generate_stats:68] Stats 6264703.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:19:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:33,114 [root] [statistics:generate_stats:68] Stats 6264706.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:19:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:36,115 [root] [statistics:generate_stats:68] Stats 6264709.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:19:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:39,117 [root] [statistics:generate_stats:68] Stats 6264712.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:40",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:40,513 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 1"
+    },
+    {
+     "t": "22:19:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:42,118 [root] [statistics:generate_stats:68] Stats 6264715.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:45,119 [root] [statistics:generate_stats:68] Stats 6264718.6: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:19:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:48,123 [root] [statistics:generate_stats:68] Stats 6264721.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:19:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:51,124 [root] [statistics:generate_stats:68] Stats 6264724.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:19:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:54,125 [root] [statistics:generate_stats:68] Stats 6264727.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:19:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:19:57,123 [root] [statistics:generate_stats:68] Stats 6264730.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:00,123 [root] [statistics:generate_stats:68] Stats 6264733.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:03,125 [root] [statistics:generate_stats:68] Stats 6264736.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:06,125 [root] [statistics:generate_stats:68] Stats 6264739.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:09,127 [root] [statistics:generate_stats:68] Stats 6264742.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:12,127 [root] [statistics:generate_stats:68] Stats 6264745.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:15,128 [root] [statistics:generate_stats:68] Stats 6264748.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:18,130 [root] [statistics:generate_stats:68] Stats 6264751.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:21,131 [root] [statistics:generate_stats:68] Stats 6264754.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:24,132 [root] [statistics:generate_stats:68] Stats 6264757.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:27,134 [root] [statistics:generate_stats:68] Stats 6264760.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:30,135 [root] [statistics:generate_stats:68] Stats 6264763.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:33,136 [root] [statistics:generate_stats:68] Stats 6264766.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:36,135 [root] [statistics:generate_stats:68] Stats 6264769.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:39,136 [root] [statistics:generate_stats:68] Stats 6264772.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:42,136 [root] [statistics:generate_stats:68] Stats 6264775.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:43",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:43,977 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Cool Down The Noz..."
+    },
+    {
+     "t": "22:20:43",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:43,978 [root] [gcode:<lambda>:140] [CLEAR_NOZZLE_QUICK] Start Clear The Noz... 2"
+    },
+    {
+     "t": "22:20:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:45,136 [root] [statistics:generate_stats:68] Stats 6264778.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:48,137 [root] [statistics:generate_stats:68] Stats 6264781.6: gcodein=0  mcu: mcu_awake=0.003 mcu_task_"
+    },
+    {
+     "t": "22:20:49",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:49,837 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start run_G28_Z(True)..."
+    },
+    {
+     "t": "22:20:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:51,137 [root] [statistics:generate_stats:68] Stats 6264784.6: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:20:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:54,138 [root] [statistics:generate_stats:68] Stats 6264787.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:56",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:56,138 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=0, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:20:56",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:56,145 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=0..."
+    },
+    {
+     "t": "22:20:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:57,139 [root] [statistics:generate_stats:68] Stats 6264790.6: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:20:58",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:58,522 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=1, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:20:58",
+     "kind": "marker",
+     "text": "2026-08-19 22:20:58,526 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=1..."
+    },
+    {
+     "t": "22:21:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:00,182 [root] [statistics:generate_stats:68] Stats 6264793.7: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:21:01",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:01,084 [root] [gcode:<lambda>:140] [RUN_G28_Z] use_tri_times=2, use_tri_z_down_spd=2.50, use_tri_hftr_c"
+    },
+    {
+     "t": "22:21:01",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:01,090 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Coarse Probe, Test Index=2..."
+    },
+    {
+     "t": "22:21:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:03,180 [root] [statistics:generate_stats:68] Stats 6264796.7: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:21:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:03,642 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Precision Probe, index=0..."
+    },
+    {
+     "t": "22:21:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:06,181 [root] [statistics:generate_stats:68] Stats 6264799.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:09,182 [root] [statistics:generate_stats:68] Stats 6264802.7: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:21:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:12,183 [root] [statistics:generate_stats:68] Stats 6264805.7: gcodein=0  mcu: mcu_awake=0.006 mcu_task_"
+    },
+    {
+     "t": "22:21:14",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:14,514 [root] [gcode:<lambda>:140] [RUN_G28_Z] Start Result Check Probe..."
+    },
+    {
+     "t": "22:21:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:15,184 [root] [statistics:generate_stats:68] Stats 6264808.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:18,184 [root] [statistics:generate_stats:68] Stats 6264811.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:21,184 [root] [statistics:generate_stats:68] Stats 6264814.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:24,185 [root] [statistics:generate_stats:68] Stats 6264817.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:27,186 [root] [statistics:generate_stats:68] Stats 6264820.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:30,187 [root] [statistics:generate_stats:68] Stats 6264823.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:33,188 [root] [statistics:generate_stats:68] Stats 6264826.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:36,188 [root] [statistics:generate_stats:68] Stats 6264829.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:39,190 [root] [statistics:generate_stats:68] Stats 6264832.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:42,189 [root] [statistics:generate_stats:68] Stats 6264835.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:45,189 [root] [statistics:generate_stats:68] Stats 6264838.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:48,190 [root] [statistics:generate_stats:68] Stats 6264841.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:21:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:51,190 [root] [statistics:generate_stats:68] Stats 6264844.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:54,193 [root] [statistics:generate_stats:68] Stats 6264847.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:21:57,224 [root] [statistics:generate_stats:68] Stats 6264850.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:21:59.950",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 5.0,
+     "z": 0.016781
+    },
+    {
+     "t": "22:22:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:00,222 [root] [statistics:generate_stats:68] Stats 6264853.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:03,223 [root] [statistics:generate_stats:68] Stats 6264856.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:05.542",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 5.0,
+     "z": -0.005531
+    },
+    {
+     "t": "22:22:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:06,224 [root] [statistics:generate_stats:68] Stats 6264859.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:09,225 [root] [statistics:generate_stats:68] Stats 6264862.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:11.087",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 5.0,
+     "z": 0.034977
+    },
+    {
+     "t": "22:22:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:12,226 [root] [statistics:generate_stats:68] Stats 6264865.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:15,226 [root] [statistics:generate_stats:68] Stats 6264868.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:16.651",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 5.0,
+     "z": 0.042844
+    },
+    {
+     "t": "22:22:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:18,229 [root] [statistics:generate_stats:68] Stats 6264871.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:21,229 [root] [statistics:generate_stats:68] Stats 6264874.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:22.181",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 5.0,
+     "z": 0.169906
+    },
+    {
+     "t": "22:22:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:24,229 [root] [statistics:generate_stats:68] Stats 6264877.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:27,229 [root] [statistics:generate_stats:68] Stats 6264880.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:29.002",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 57.5,
+     "z": 0.159844
+    },
+    {
+     "t": "22:22:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:30,231 [root] [statistics:generate_stats:68] Stats 6264883.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:33,231 [root] [statistics:generate_stats:68] Stats 6264886.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:34.506",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 57.5,
+     "z": 0.06998
+    },
+    {
+     "t": "22:22:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:36,233 [root] [statistics:generate_stats:68] Stats 6264889.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:39,232 [root] [statistics:generate_stats:68] Stats 6264892.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:40.034",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 57.5,
+     "z": -0.013875
+    },
+    {
+     "t": "22:22:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:42,234 [root] [statistics:generate_stats:68] Stats 6264895.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:45,236 [root] [statistics:generate_stats:68] Stats 6264898.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:45.540",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 57.5,
+     "z": 0.000281
+    },
+    {
+     "t": "22:22:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:48,238 [root] [statistics:generate_stats:68] Stats 6264901.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:22:51.007",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 57.5,
+     "z": 0.057009
+    },
+    {
+     "t": "22:22:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:51,237 [root] [statistics:generate_stats:68] Stats 6264904.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:54,241 [root] [statistics:generate_stats:68] Stats 6264907.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:22:57,239 [root] [statistics:generate_stats:68] Stats 6264910.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:22:57.795",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 110.0,
+     "z": 0.031491
+    },
+    {
+     "t": "22:23:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:00,237 [root] [statistics:generate_stats:68] Stats 6264913.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:03,237 [root] [statistics:generate_stats:68] Stats 6264916.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:03.304",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 110.0,
+     "z": -0.004219
+    },
+    {
+     "t": "22:23:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:06,240 [root] [statistics:generate_stats:68] Stats 6264919.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:08.846",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 110.0,
+     "z": -0.027708
+    },
+    {
+     "t": "22:23:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:09,240 [root] [statistics:generate_stats:68] Stats 6264922.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:12,241 [root] [statistics:generate_stats:68] Stats 6264925.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:14.406",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 110.0,
+     "z": -0.018054
+    },
+    {
+     "t": "22:23:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:15,243 [root] [statistics:generate_stats:68] Stats 6264928.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:18,244 [root] [statistics:generate_stats:68] Stats 6264931.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:19.924",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 110.0,
+     "z": 0.020469
+    },
+    {
+     "t": "22:23:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:21,245 [root] [statistics:generate_stats:68] Stats 6264934.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:24,245 [root] [statistics:generate_stats:68] Stats 6264937.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:26.772",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 162.5,
+     "z": -0.055625
+    },
+    {
+     "t": "22:23:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:27,246 [root] [statistics:generate_stats:68] Stats 6264940.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:30,248 [root] [statistics:generate_stats:68] Stats 6264943.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:32.323",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 162.5,
+     "z": -0.151031
+    },
+    {
+     "t": "22:23:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:33,248 [root] [statistics:generate_stats:68] Stats 6264946.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:36,249 [root] [statistics:generate_stats:68] Stats 6264949.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:37.876",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 162.5,
+     "z": -0.132625
+    },
+    {
+     "t": "22:23:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:39,249 [root] [statistics:generate_stats:68] Stats 6264952.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:42",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:42,250 [root] [statistics:generate_stats:68] Stats 6264955.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:43.419",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 162.5,
+     "z": -0.152094
+    },
+    {
+     "t": "22:23:45",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:45,251 [root] [statistics:generate_stats:68] Stats 6264958.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:48",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:48,252 [root] [statistics:generate_stats:68] Stats 6264961.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:23:48.890",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 162.5,
+     "z": -0.07625
+    },
+    {
+     "t": "22:23:51",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:51,253 [root] [statistics:generate_stats:68] Stats 6264964.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:54",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:54,254 [root] [statistics:generate_stats:68] Stats 6264967.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:23:55.718",
+     "kind": "probe_result",
+     "x": 5.0,
+     "y": 215.0,
+     "z": -0.206406
+    },
+    {
+     "t": "22:23:57",
+     "kind": "marker",
+     "text": "2026-08-19 22:23:57,254 [root] [statistics:generate_stats:68] Stats 6264970.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:00",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:00,255 [root] [statistics:generate_stats:68] Stats 6264973.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:01.286",
+     "kind": "probe_result",
+     "x": 57.5,
+     "y": 215.0,
+     "z": -0.235031
+    },
+    {
+     "t": "22:24:03",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:03,255 [root] [statistics:generate_stats:68] Stats 6264976.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:06",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:06,256 [root] [statistics:generate_stats:68] Stats 6264979.7: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:24:06.880",
+     "kind": "probe_result",
+     "x": 110.0,
+     "y": 215.0,
+     "z": -0.275156
+    },
+    {
+     "t": "22:24:09",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:09,257 [root] [statistics:generate_stats:68] Stats 6264982.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:12",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:12,257 [root] [statistics:generate_stats:68] Stats 6264985.7: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:12.496",
+     "kind": "probe_result",
+     "x": 162.5,
+     "y": 215.0,
+     "z": -0.252858
+    },
+    {
+     "t": "22:24:15",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:15,285 [root] [statistics:generate_stats:68] Stats 6264988.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:24:18",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:18,284 [root] [statistics:generate_stats:68] Stats 6264991.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:24:21",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:21,303 [root] [statistics:generate_stats:68] Stats 6264994.8: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:24,073 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] Before=[[5.0, 5.0, 0.016781250000199144], "
+    },
+    {
+     "t": "22:24:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:24,080 [root] [homing:probing_move:294] [BED_MESH_POST_PROC] After=[[5.0, 5.0, 0.10448958333370223], [5"
+    },
+    {
+     "t": "22:24:24",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:24,302 [root] [statistics:generate_stats:68] Stats 6264997.8: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:24:25.808",
+     "kind": "probe_result",
+     "x": 215.0,
+     "y": 215.0,
+     "z": -0.051056
+    },
+    {
+     "t": "22:24:27",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:27,709 [root] [statistics:generate_stats:68] Stats 6265001.2: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    },
+    {
+     "t": "22:24:28",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:28,175 [root] [gcode:respond_info:301] wait temp end"
+    },
+    {
+     "t": "22:24:28",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:28,201 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "22:24:28",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:28,204 [root] [gcode:respond_info:301] x_axes: xyz"
+    },
+    {
+     "t": "22:24:30",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:30,709 [root] [statistics:generate_stats:68] Stats 6265004.2: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:33",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:33,709 [root] [statistics:generate_stats:68] Stats 6265007.2: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:36",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:36,709 [root] [statistics:generate_stats:68] Stats 6265010.2: gcodein=0  mcu: mcu_awake=0.005 mcu_task_"
+    },
+    {
+     "t": "22:24:39",
+     "kind": "marker",
+     "text": "2026-08-19 22:24:39,713 [root] [statistics:generate_stats:68] Stats 6265013.2: gcodein=0  mcu: mcu_awake=0.004 mcu_task_"
+    }
+   ]
+  }
+ }
+}

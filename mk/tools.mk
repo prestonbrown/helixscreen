@@ -270,3 +270,26 @@ regen-tokens:
 	$(ECHO) "$(BLUE)[GEN]$(RESET) regenerating src/generated/theme_token_table.cpp"
 	$(Q)python3 scripts/gen_theme_tokens.py
 	$(ECHO) "$(GREEN)✓ token table regenerated — commit src/generated/theme_token_table.cpp if it changed$(RESET)"
+
+# ==============================================================================
+# Architecture-guide file links (Python)
+# ==============================================================================
+# The guide's backticked citations (`src/printer/printer_state.cpp:622`) are the
+# source of truth; the markdown link around each one is derived from that text on
+# every run. Write plain backticks, run this, commit. A renamed file is fixed in
+# one place — the citation — and every link follows.
+#
+# Targets:
+#   make regen-doc-links     — rewrite docs/devel/ARCHITECTURE.md and
+#                              docs/devel/architecture/*.md in place
+#   make check-doc-links     — report-only; what quality-checks.sh runs
+
+.PHONY: regen-doc-links check-doc-links
+
+regen-doc-links:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) linking architecture-guide citations"
+	$(Q)python3 scripts/gen_doc_links.py
+	$(ECHO) "$(GREEN)✓ doc links regenerated — commit the guide if it changed$(RESET)"
+
+check-doc-links:
+	$(Q)python3 scripts/gen_doc_links.py --check

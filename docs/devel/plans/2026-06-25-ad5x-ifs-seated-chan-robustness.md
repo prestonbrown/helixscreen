@@ -19,7 +19,7 @@
 >
 > Verify predicates and line numbers against current code before acting on anything here.
 
-Follow-up to **`2026-06-15-ad5x-ifs-status-seated-slot.md`**, which introduced `IFS_STATUS`
+Follow-up to the 2026-06-15 AD5X IFS status seated-slot plan, which introduced `IFS_STATUS`
 `Chan` as the seated-channel authority (shipped as Bug-1 fix `4520e1e23`, in v0.99.84).
 That plan's line 76–79 flagged "field confirmation REQUIRED": run `IFS_STATUS` loaded+idle and
 after unload. **This is that confirmation.** It verifies Bug 1 is fixed and falsifies the

@@ -1,7 +1,7 @@
 # BTT K-Touch Hardware Recon
 
 **Date:** 2026-07-13
-**Context:** Phase 1c target hardware for the ESP32 display program (`docs/devel/specs/2026-06-10-esp32-display-device-design.md`). BigTreeTech's K-Touch is the concrete product behind the "BTT interest" noted in that spec. Findings below are from hands-on probing of a physical unit plus BTT's published firmware/repos.
+**Context:** Phase 1c target hardware for the ESP32 display program (`docs/devel/plans/2026-06-10-esp32-display-device-design.md`). BigTreeTech's K-Touch is the concrete product behind the "BTT interest" noted in that spec. Findings below are from hands-on probing of a physical unit plus BTT's published firmware/repos.
 
 ## Confirmed by probing the physical unit (esptool over USB-C/CH340)
 

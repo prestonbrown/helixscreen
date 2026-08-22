@@ -324,7 +324,7 @@ Verified against two real slices: a single-color file with `enable_pressure_adva
 
 ## 480x320 Display Considerations
 
-The U1's 480x320 display uses the TINY layout preset. This is the smallest resolution HelixScreen supports, and several UI panels have known layout issues at this size. See the [480x320 UI Audit](../480x320_UI_AUDIT.md) for a panel-by-panel breakdown. Key issues:
+The U1's 480x320 display uses the TINY layout preset. This is the smallest resolution HelixScreen supports, and several UI panels have known layout issues at this size. Key issues:
 
 - **Navbar icons clipped** at screen edges
 - **Controls panel** labels overlapping, z-offset value wrapping
@@ -450,7 +450,7 @@ Likely redundant with `print_stats.state` for most purposes.
 
 ### `defect_detection` — Print defect detection (NOT SUBSCRIBED)
 
-AI-based print defect detection system. Not subscribed because it's not directly relevant to AMS/filament management.
+AI-based print defect detection system. The status object itself is not subscribed — HelixScreen consumes detection through `print_stats.exception` instead: on a confirmed defect (custom `exception` sub-object, `code: 2` = spaghetti/noodle) the firmware pauses the print itself, and `U1StockSource` → `DetectionManager` (`include/detection_manager.h`) surfaces it as the response surface — spaghetti modal, defer-to-source policy, master toggle + per-source policy in Settings. Capability is gated by probing `printer.objects.list` for `defect_detection` after the WebSocket connects (probing at init would latch false forever).
 
 | Field | Example | Notes |
 |-------|---------|-------|
@@ -515,4 +515,3 @@ We welcome additional testers with Snapmaker U1 hardware — **especially anyone
 - **[Snapmaker/u1-moonraker](https://github.com/Snapmaker/u1-moonraker)** -- Open source Moonraker fork
 - **[Snapmaker/u1-fluidd](https://github.com/Snapmaker/u1-fluidd)** -- Open source Fluidd fork
 - **[paxx12/u1-firmware-tools](https://github.com/paxx12/u1-firmware-tools)** -- Firmware unpack/repack tools
-- **[480x320 UI Audit](../480x320_UI_AUDIT.md)** -- Panel-by-panel breakdown of layout issues at this resolution

@@ -107,9 +107,3 @@ docker run --rm --user $(id -u):$(id -g) \
 # Inspect
 find build/ad5m-br-staging/opt/helixscreen -maxdepth 2 -type d | sort
 ```
-
-## Upstream integration (Phase 2 — separate plan)
-
-See `docs/superpowers/specs/2026-04-20-ad5m-kmod-native-variant-design.md` §
-"Phase 2: kmod variant wiring" for the buildroot package, variant defconfig,
-and overlay we'll submit to xblax/flashforge_ad5m_klipper_mod.

@@ -1189,7 +1189,7 @@ This is common on devices where the touch controller is mounted at a different o
 
 HelixScreen automatically detects swapped touch axes during calibration and corrects them. Just recalibrate:
 ```bash
-# Settings > System > Recalibrate Touch
+# Settings > System > Touch & Input > Touch Calibration
 ```
 
 **2. Manual axis swap (fallback):**
@@ -1593,7 +1593,7 @@ ps aux | grep helix-screen
 | Cause | Fix |
 |-------|-----|
 | Debug mode in production | Remove `-vv`/`-vvv` from service, don't use `--test` |
-| Animations on slow hardware | Settings → Display → disable Animations |
+| Animations on slow hardware | Settings → Display & Sound → disable Animations |
 | Too many G-code files | Large directories with thumbnails use more RAM |
 | Other processes hogging CPU | Check `top` for culprits |
 | Swapping to SD card | Reduce memory usage or add swap to USB |
@@ -1654,7 +1654,7 @@ max_job_count: 100
 
 **Solutions:**
 
-**First, figure out which situation you're in.** What did you install, and what is HelixScreen running on? If a device-specific preset package doesn't match the machine (or its screen), that's the cause — detection never ran. Install the HelixScreen package built for your hardware, or use the [remote screen setup](../INSTALL.md#remote-screen-setup-run-on-a-separate-device) on a Pi/PC/tablet pointed at your printer's Moonraker — generic installs run full auto-detection.
+**First, figure out which situation you're in.** What did you install, and what is HelixScreen running on? If a device-specific preset package doesn't match the machine (or its screen), that's the cause — detection never ran. Install the HelixScreen package built for your hardware, or use the [remote screen setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) on a Pi/PC/tablet pointed at your printer's Moonraker — generic installs run full auto-detection.
 
 **If the saved model is wrong (generic install), correct it in Printer Manager — nothing gets wiped:**
 

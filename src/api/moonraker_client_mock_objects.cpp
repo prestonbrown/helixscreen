@@ -326,6 +326,13 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json chamber_sections = chamber_heater_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(chamber_sections);
                 status_obj["configfile"]["config"].merge_patch(chamber_sections);
+
+                // [bed_mesh] probe_count — the print-start collector's
+                // entry-time query reads this to size the mesh denominator.
+                if (const auto* probe_count = self->config_bed_mesh_probe_count()) {
+                    status_obj["configfile"]["settings"]["bed_mesh"] = {
+                        {"probe_count", json::array({probe_count->first, probe_count->second})}};
+                }
             }
 
             // toolhead (for get_machine_limits)

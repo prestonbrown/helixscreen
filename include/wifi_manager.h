@@ -321,9 +321,12 @@ class WiFiManager {
     /// guard's own dtor covers it (#1165).
     helix::AsyncLifetimeGuard async_lifetime_;
 
-    // Self-reference for async callback safety
-    // Weak pointers in async callbacks can safely check if manager still exists
-    std::shared_ptr<WiFiManager> self_;
+    // Self-reference for async callback safety: the source a callback copies a
+    // weak_ptr from so it can check whether the manager still exists. NON-OWNING
+    // by necessity -- an owning self-reference is a cycle nothing can break, so
+    // ~WiFiManager never runs and the backend threads it stops there stay live
+    // for the life of the process.
+    std::weak_ptr<WiFiManager> self_;
 
     // Guards the callback/flag state below, which is read on the libhv backend
     // thread (handle_scan_complete / handle_connected / handle_disconnected /

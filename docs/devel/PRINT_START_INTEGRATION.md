@@ -177,6 +177,25 @@ When `helix_macros.cfg` is installed, these macros are available:
 
 HelixScreen can analyze your `PRINT_START` macro to detect which operations can be toggled from the print details panel. This allows you to skip bed mesh, QGL, etc. on a per-print basis.
 
+### Stock-printer toggles (pre-start gcode)
+
+On printers whose stock firmware has no toggleable `PRINT_START` parameters, HelixScreen drives the operation itself: the print details toggle dispatches a **pre-start gcode block** to the printer before the job starts, and only then calls `start_print`. The block runs under a 20-minute ceiling with a busy→idle wait, so long operations (a full bed mesh) survive.
+
+This is how the shipped "Auto Bed Mesh" toggle works on the Creality K2 Plus / K2 Pro and K1C. The gcode comes from the printer's entry in `assets/config/printer_database.json` (`pre_print_options` → `strategy: pre_start_gcode`):
+
+| Token | Substitutes |
+|-------|-------------|
+| `{file}` | Filename being printed |
+| `{bed_temp}` / `{extruder_temp}` | Job temperatures from the file's **own** `START_PRINT` line (slicer metadata is wrong on multi-material files); `0` when the file carries none |
+| `{value}` | `1` when the toggle is on, `0` when off |
+| `{?ext}…{/?}` | Segment emitted only when the extruder temperature is known - for firmwares whose commands reject a literal `EXTRUDER_TEMP=0` (Creality K1's Python `get_float(minval=...)` raises). `BED_TEMP=0` needs no marker: the firmware accepts it, and an unheated bed is a real configuration |
+
+An option with `emit_when_disabled: false` has no "off" gcode at all: unchecking it sends nothing and the firmware's own default sequence runs.
+
+**K1C specifics.** The K1 firmware's `START_PRINT` runs its full preparation chain whenever its `prepare` variable is 0 (homing, nozzle wipe, accurate Z homing, then `CX_PRINT_LEVELING_CALIBRATE`). That command is a 4-corner bed check - it re-meshes the whole bed only when ≥2 corners drift beyond tolerance, and the whole decision is internal: none of it reaches the gcode console. The shipped toggle front-runs exactly what Creality's own app sends - heat, home, nozzle wipe, accurate home, `BED_MESH_CALIBRATE`, then `PRINT_PREPARED` (which makes the file's `START_PRINT` skip its now-redundant chain) - so one preparation pass runs, at print temperature, with a guaranteed mesh.
+
+Only the K1C entries use this. The K1, K1 Max, and K1 SE entries still map `bed_mesh` to the legacy `PREPARE` macro-param, deliberately: their stock firmware ships a different `START_PRINT` (the older K1 macro branches on `custom_macro.leveling_calibration` instead of `prepare`), so the same front-run sequence is unverified there. Convert them only after capturing a real print start from each model.
+
 ### Parameter Semantics
 
 HelixScreen recognizes two styles of parameter control:
@@ -295,8 +314,21 @@ Profiles are JSON files in `assets/config/print_start_profiles/`. Each profile c
 - **Signal formats**: Exact prefix + value matching for structured firmware output
 - **Response patterns**: Regex patterns for G-code console parsing
 - **Progress mode**: `sequential` (known firmware) or `weighted` (generic heuristics)
+- **`cfs_signals`**: Opt in to Creality's tag-stream matchers (purge `percent` lines, `[box]` CFS load events). The vocabulary is vendor-specific; without the flag, lines that merely contain `percent` plus `num:` never hijack the phase into PURGING.
+- **`adaptive_meshing`**: The bed-mesh sweep is trimmed to the object, so a configured `probe_count` overstates the sweep (see PRINT_START_PROFILES.md).
+- **`position_signals`**: Opt in to toolhead-position inference for the silent window (below).
 
-For developer details on creating profiles for new printers, see [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md).
+Profile `message` strings are English translation tags and resolve through the loaded language pack like the built-in labels.
+
+### Silent-phase signals
+
+Some firmwares run whole preparation steps without echoing anything to the gcode console (Creality K1: accurate Z homing, the bed-mesh corner check, and the mesh sweep are ~3 minutes of silence). Three non-console signals fill the gap:
+
+- **Bed-mesh status flap** - klippy reports the loaded mesh, then clears it, when probing begins. A mesh that disappears while the display shows "Cleaning Nozzle" moves it to "Bed Meshing..." (the probe denominator is fetched at that point).
+- **"probe at X,Y is z=Z" lines** - counted as mesh points once enough distinct points confirm a sweep is underway; they never fall through to the pattern matcher, so a profile's BED_MESH pattern cannot re-announce the phase and reset the counters mid-sweep.
+- **Toolhead position inference** (`position_signals`, K1 family today) - Klipper keeps pushing `toolhead.position` through the silence. The collector classifies the stream geometrically against the bed-mesh probe area (`PrintStartPositionClassifier`, `tests/unit/test_print_start_position_classifier.cpp` replays real captures): repeated Z descents near the mesh centre read as **"Probing Z..."**, touches at ≥3 distinct mesh corners as **"Checking Bed Mesh..."**, and a monotonic row march as the mesh sweep (BED_MESH entry, same edge as the flap). These refine the message without touching the phase or its progress weight - real console markers always outrank them.
+
+For developer details on creating profiles for new printers, see [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md); for the whole observer system - sources, threading, tests - see [PRINT_START_OBSERVERS.md](PRINT_START_OBSERVERS.md).
 
 ### Phase Detection
 

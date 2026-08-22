@@ -589,6 +589,9 @@ src/system/m300_sound_backend.cpp
 #     the whole object is needed. Deps (PreprintPredictor, ThermalRateModel,
 #     Config, PrinterDetector) are all already in this manifest.
 src/print/print_start_collector.cpp
+#   print_start_position_classifier.cpp: pure-logic member of the print-start
+#     collector (KEPT above); no subjects, threads, or platform deps.
+src/print/print_start_position_classifier.cpp
 #   print_start_profile.cpp: PrintStartProfile::load() is called directly from
 #     moonraker_manager.cpp (KEPT) AND from print_start_collector.cpp. JSON-profile
 #     loader; only dep is data_root_resolver.cpp (already in this manifest).

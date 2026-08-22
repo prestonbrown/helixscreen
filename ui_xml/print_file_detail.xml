@@ -63,10 +63,11 @@
                cut off at the clip — 16px gives 4px breathing room above the 12px
                font on micro. -->
             <lv_obj name="detail_metadata_overlay"
-                    width="100%" height="content" style_bg_opa="160" style_radius="#border_radius"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="16"
-                    style_pad_bottom="#space_sm" style_pad_gap="#space_xs" style_translate_y="-12" flex_flow="column"
-                    scrollable="false">
+                    width="100%" height="content" style_pad_top="16" style_pad_bottom="#space_sm"
+                    style_translate_y="-12" flex_flow="column" scrollable="false">
+              <!-- Translucency, radius, side padding and row gap come from the
+                   shared style - same strip as print status, different placement. -->
+              <style name="styles.metadata_strip"/>
               <!-- Filename with reactive binding - scrolls if too long for single line -->
               <!-- Uses selected_display_filename (without .gcode extension) for cleaner UI -->
               <text_body name="detail_filename_label"

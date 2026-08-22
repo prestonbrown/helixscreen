@@ -73,8 +73,8 @@ extern "C" {
  * - Scientific heat-map color mapping (purple → blue → cyan → yellow → red)
  *
  * Based on GuppyScreen's bed mesh visualization with adaptations for
- * HelixScreen architecture. See docs/GUPPYSCREEN_BEDMESH_ANALYSIS.md for
- * algorithm details.
+ * HelixScreen architecture. See docs/devel/BED_MESH_RENDERING_INTERNALS.md
+ * for algorithm details.
  *
  * Performance target: 20×20 mesh at 30+ FPS on embedded hardware
  * Rendering complexity: O(n log n) for sorting + O(pixels) for rasterization

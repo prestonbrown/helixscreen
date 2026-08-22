@@ -154,9 +154,11 @@
     <lv_obj name="metadata_clip" width="100%" height="content" style_radius="0" style_pad_all="0" scrollable="false">
       <!-- Inner overlay with semi-transparent background and rounded corners -->
       <lv_obj name="metadata_overlay"
-              width="100%" height="content" align="bottom_mid" style_bg_opa="160" style_radius="#border_radius"
-              style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_md"
-              style_pad_bottom="#space_md" style_pad_gap="#space_xs" flex_flow="column" scrollable="false">
+              width="100%" height="content" align="bottom_mid" style_pad_top="#space_md" style_pad_bottom="#space_md"
+              flex_flow="column" scrollable="false">
+        <!-- Translucency, radius, side padding and row gap come from the shared
+             style so this strip and the file detail view's cannot drift apart. -->
+        <style name="styles.metadata_strip"/>
         <!-- Print Progress Bar (invisible during pre-print operations, but keeps layout space) -->
         <progress_bar name="print_progress" bind_value="print_progress_display">
           <bind_style name="invisible" subject="preparing_visible" ref_value="1"/>

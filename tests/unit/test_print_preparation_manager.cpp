@@ -35,6 +35,18 @@ class PrintPreparationManagerTestAccess {
                                  const std::string& file_path) {
         m.modify_and_print(file_path, {}, {}, nullptr);
     }
+    /// Age the pre-start send timestamp. Production stamps it when the
+    /// pre-start gcode RPC leaves; a test models a backed-up ack by winding
+    /// it back past the staleness bound.
+    static void set_pre_start_sent_ago(helix::ui::PrintPreparationManager& m,
+                                       std::chrono::seconds ago) {
+        m.pre_start_sent_at_ = std::chrono::steady_clock::now() - ago;
+    }
+    /// Drive the shared continuation every pre-start path funnels through.
+    static void continue_print_start(helix::ui::PrintPreparationManager& m, const std::string& file,
+                                     helix::ui::PrintCompletionCallback on_completion) {
+        m.continue_print_start(file, {}, nullptr, on_completion);
+    }
 };
 
 #include "../mocks/mock_websocket_server.h"
@@ -3258,4 +3270,38 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE_FALSE(state.has_preparing_job());
     REQUIRE(lv_subject_get_int(state.get_print_in_progress_subject()) == 0);
     REQUIRE(state.last_preparing_exit() == helix::PreparingExit::Failed);
+}
+
+// ============================================================================
+// STALE PRE-START ACK GUARD
+// ============================================================================
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: stale pre-start ack does not relaunch a print",
+                 "[preparation][stale]") {
+    // K1C capture 2026-08-20: klippy's gcode response path backed up behind
+    // the prep chain, so the pre-start ack arrived 370s after the send - at
+    // cancel time - and the success continuation relaunched the print the
+    // user had just cancelled. A pre-start block takes seconds; an
+    // continuation hearing back minutes later must drop the start intent.
+    std::atomic<int> starts{0};
+    server_->clear_handlers();
+    server_->on_method("printer.print.start", [&](const json&) -> json {
+        starts++;
+        return json{{"result", "ok"}};
+    });
+
+    PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::minutes(4));
+
+    bool completed = false;
+    bool success = true;
+    helix::ui::PrintCompletionCallback cb = [&](bool ok, const std::string&) {
+        completed = true;
+        success = ok;
+    };
+    PrintPreparationManagerTestAccess::continue_print_start(manager_, "test.gcode", cb);
+
+    REQUIRE(completed);
+    REQUIRE_FALSE(success);
+    REQUIRE(starts.load() == 0);
 }

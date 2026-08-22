@@ -21,8 +21,6 @@
  * - World space: +X right, +Y front, +Z up (print bed at Z=0)
  * - Camera space: Looking down at print bed from angle
  * - Screen space: Origin at top-left, +X right, +Y down
- *
- * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
 namespace helix {

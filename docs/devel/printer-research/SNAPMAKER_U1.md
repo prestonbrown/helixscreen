@@ -126,9 +126,10 @@ The snapmaker-u1 target is deliberately excluded from `release-all` and `package
 It will not build in GitHub Actions until a workflow job is explicitly added to `.github/workflows/release.yml`.
 
 ### 480x320 Display (may be wrong resolution)
-See [480x320 UI Audit](480x320_UI_AUDIT.md) for a panel-by-panel breakdown of what works
+See the 480x320 Display Considerations section of
+[SNAPMAKER_U1_SUPPORT.md](../printers/SNAPMAKER_U1_SUPPORT.md) for a summary of what works
 and what needs fixing at this resolution. If the actual display is 800x480 or 1024x600,
-this audit may not apply and a new breakpoint/layout target would be needed.
+those notes may not apply and a new breakpoint/layout target would be needed.
 
 ---
 

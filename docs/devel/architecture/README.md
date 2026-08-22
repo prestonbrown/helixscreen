@@ -33,3 +33,16 @@ Part III — The UI layer: 08, 09, 10
 Part IV — Platform & services: 11, 12, 13, 14
 Appendix: 15 — Known debt
 Added after the series was numbered (no renumbering): 16 — G-code pipeline
+
+## Editing a chapter
+
+Cite files the way the chapters already do — a backticked path, optionally with a
+line: `` `src/printer/printer_state.cpp:622` ``. Do not write the markdown link
+yourself. `make regen-doc-links` wraps every citation in a link to the file (and
+line) it names, re-deriving the URL from the citation text on each run, so a
+renamed file is fixed in one place and every link follows. [`quality-checks.sh`](../../../scripts/quality-checks.sh)
+fails the commit if a chapter is out of date with the generator.
+
+The citation is also what keeps the chapters honest: [`check_doc_refs.py`](../../../scripts/check_doc_refs.py) proves
+the path resolves, the line is inside the file, and the symbol named beside a
+cite still sits within five lines of it. Write the citation, run the generator.

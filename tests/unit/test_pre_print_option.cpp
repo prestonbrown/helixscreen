@@ -342,6 +342,50 @@ TEST_CASE("render_pre_start_gcode renders unknown temperatures as zero",
     CHECK(render_pre_start_gcode(*opt, true) == "M BED_TEMP=0 EXTRUDER_TEMP=0");
 }
 
+TEST_CASE("render_pre_start_gcode {?ext} segment emits only with a known extruder temp",
+          "[pre_print_option][render]") {
+    // Creality K1 firmware reads CX_ROUGH_G28's extruder temperature through
+    // Python get_float(minval=180), which rejects EXTRUDER_TEMP=0 as out of
+    // range — an unknown extruder temp must omit the parameter entirely (the
+    // firmware then applies its own default), unlike the Jinja-guarded K2
+    // macros whose `(params.EXTRUDER_TEMP|float)` test treats 0 as unset.
+    // The bed parameter carries no marker: get_float(minval=0) accepts it,
+    // and a bed target of 0 is a real cold-bed configuration that must pass
+    // through rather than read as "unknown".
+    json j = {{"id", "bed_mesh"},
+              {"strategy", "pre_start_gcode"},
+              {"gcode_template",
+               "CX_ROUGH_G28{?ext} EXTRUDER_TEMP={extruder_temp}{/?} BED_TEMP={bed_temp}\n"
+               "CX_NOZZLE_CLEAR"}};
+    auto opt = parse_pre_print_option(j);
+    REQUIRE(opt.has_value());
+
+    SECTION("extruder temp known keeps the segment") {
+        PreStartGcodeContext ctx;
+        ctx.filename = "part.gcode";
+        ctx.bed_temp = 55;
+        ctx.extruder_temp = 220;
+        CHECK(render_pre_start_gcode(*opt, true, ctx) ==
+              "CX_ROUGH_G28 EXTRUDER_TEMP=220 BED_TEMP=55\nCX_NOZZLE_CLEAR");
+    }
+    SECTION("unknown extruder temp drops only the parameter") {
+        CHECK(render_pre_start_gcode(*opt, true) == "CX_ROUGH_G28 BED_TEMP=0\nCX_NOZZLE_CLEAR");
+    }
+    SECTION("known bed with unknown extruder keeps the bed value") {
+        PreStartGcodeContext ctx;
+        ctx.bed_temp = 55;
+        CHECK(render_pre_start_gcode(*opt, true, ctx) ==
+              "CX_ROUGH_G28 BED_TEMP=55\nCX_NOZZLE_CLEAR");
+    }
+    SECTION("cold bed with known extruder passes the zero through") {
+        PreStartGcodeContext ctx;
+        ctx.bed_temp = 0;
+        ctx.extruder_temp = 220;
+        CHECK(render_pre_start_gcode(*opt, true, ctx) ==
+              "CX_ROUGH_G28 EXTRUDER_TEMP=220 BED_TEMP=0\nCX_NOZZLE_CLEAR");
+    }
+}
+
 TEST_CASE("render_pre_start_gcode leaves {file} empty when no filename is supplied",
           "[pre_print_option][render]") {
     json j = {{"id", "bed_mesh"},

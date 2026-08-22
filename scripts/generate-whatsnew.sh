@@ -11,11 +11,12 @@
 #
 #   1. An explicit `<!-- whatsnew ... -->` block inside the version's CHANGELOG
 #      section. Used verbatim. This is the intended path: CHANGELOG prose is
-#      written for people reading the repo, while What's New is read by a user
-#      in the Play Store with a 500-char budget, and mechanically summarizing
-#      one into the other is lossy by construction. An over-length block is a
-#      hard error rather than a silent truncation — hand-authored text that
-#      does not fit should be edited by its author, not chopped by a script.
+#      user-facing (docs/devel/CHANGELOG_STYLE.md), and What's New is that same
+#      audience at a 500-char budget - a hand-picked distillation, because a
+#      full release section does not fit and mechanical summarization is lossy
+#      by construction. An over-length block is a hard error rather than a
+#      silent truncation: hand-authored text that does not fit should be
+#      edited by its author, not chopped by a script.
 #
 #   2. Failing that, the section body with markdown stripped, truncated on a
 #      sentence boundary. A fallback, not the design: it produces whatever the

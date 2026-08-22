@@ -26,7 +26,7 @@
 # They are build artifacts and should NOT be committed to the repository.
 # Use 'make gen-images' to generate as part of the build process.
 #
-# See: docs/PRE_RENDERED_IMAGES.md for full documentation
+# See: docs/devel/PRE_RENDERED_IMAGES.md for full documentation
 
 set -e
 

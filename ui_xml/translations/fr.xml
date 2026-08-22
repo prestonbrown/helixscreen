@@ -213,6 +213,7 @@
   <translation tag="Auto-poll for weight updates" fr="Interrogation auto des mises à jour de poids"/>
   <translation tag="Auto-probe or manually check screw heights" fr="Palpage auto ou vérification manuelle des hauteurs de vis"/>
   <translation tag="Auto-render video" fr="Rendu vidéo automatique"/>
+  <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" fr="La désinstallation automatique ne fonctionne que sur Moonraker local"/>
   <translation tag="Automatic" fr="Automatique"/>
   <translation tag="Automatic Heater Control Calibration" fr="Calibration automatique du chauffage"/>
@@ -244,8 +245,10 @@
   <translation tag="Bed Level" fr="Niveau du plateau"/>
   <translation tag="Bed Leveling" fr="Mise à niveau du plateau"/>
   <translation tag="Bed Mesh" fr="Maillage du plateau"/>
+  <translation tag="Bed Mesh Complete"/>
   <translation tag="Bed Mesh Render" fr="Rendu du maillage du plateau"/>
   <translation tag="Bed Mesh..." fr="Maillage du plateau..."/>
+  <translation tag="Bed Meshing..."/>
   <translation tag="Bed Moves" fr="Le lit bouge"/>
   <translation tag="Bed Screw Adjustment" fr="Ajustement des vis du plateau"/>
   <translation tag="Bed Screw Results" fr="Résultats des vis du plateau"/>
@@ -255,6 +258,7 @@
   <translation tag="Bed Temperature" fr="Température du plateau"/>
   <translation tag="Bed is Level!" fr="Le plateau est niveau !"/>
   <translation tag="Bed mesh operation timed out" fr="Maillage du plateau — délai dépassé"/>
+  <translation tag="Bed mesh..."/>
   <translation tag="Bed target set to {}°C" fr="Cible plateau réglée à {}°C"/>
   <translation tag="Bed temp must be 0-200°C" fr="La température du plateau doit être entre 0 et 200°C"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
@@ -344,6 +348,8 @@
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
   <translation tag="Calibrate, tune jitter and scroll feel" fr="Calibrer, ajuster les tremblements et le défilement"/>
   <translation tag="Calibrated" fr="Calibré"/>
+  <translation tag="Calibrating Probe..."/>
+  <translation tag="Calibrating bed mesh..."/>
   <translation tag="Calibrating {} axis..." fr="Calibration de l&apos;axe {}..."/>
   <translation tag="Calibrating..." fr="Calibration..."/>
   <translation tag="Calibration &amp; Tools" fr="Calibration et outils"/>
@@ -426,8 +432,10 @@
   <translation tag="Check the filament path and try again." fr="Vérifiez le chemin du filament et réessayez."/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" fr="Vérifiez la puissance de votre chauffage (généralement 40-60W pour les hotends)"/>
   <translation tag="Checking" fr="Vérification"/>
+  <translation tag="Checking Bed Mesh..."/>
   <translation tag="Checking Spoolman server..." fr="Vérification du serveur Spoolman..."/>
   <translation tag="Checking accelerometer..." fr="Vérification de l&apos;accéléromètre..."/>
+  <translation tag="Checking extruders..."/>
   <translation tag="Checking filament..." fr="Vérification du filament..."/>
   <translation tag="Checking for plugin..." fr="Recherche du plugin..."/>
   <translation tag="Checking for webcam..." fr="Recherche dune webcam..."/>
@@ -449,6 +457,7 @@
   <translation tag="Clean Brush" fr="Nettoyer la brosse"/>
   <translation tag="Clean Nozzle" fr="Nettoyer la buse"/>
   <translation tag="Cleaning Nozzle..." fr="Nettoyage de la buse..."/>
+  <translation tag="Cleaning nozzle..."/>
   <translation tag="Clear" fr="Effacer"/>
   <translation tag="Clear All" fr="Tout effacer"/>
   <translation tag="Clear All Events" fr="Effacer tous les événements"/>
@@ -560,6 +569,7 @@
   <translation tag="Cooling" fr="Refroidissement"/>
   <translation tag="Cooling Tube Length" fr="Longueur du tube de refroidissement"/>
   <translation tag="Cooling Tube Retraction" fr="Rétraction du tube de refroidissement"/>
+  <translation tag="Cooling for probing..."/>
   <translation tag="Copied to clipboard!" fr="Copié dans le presse-papiers !"/>
   <translation tag="Copy Command" fr="Copier la commande"/>
   <translation tag="Copy failed - use SSH manually" fr="Copie échouée - utilisez SSH manuellement"/>
@@ -591,6 +601,7 @@
   <translation tag="Create a 4-6 digit security PIN" fr="Créez un PIN de sécurité de 4 à 6 chiffres"/>
   <translation tag="Create backup of %s before applying" fr="Créer une sauvegarde de %s avant d&apos;appliquer"/>
   <translation tag="Create video when print completes" fr="Créer une vidéo à la fin de l&apos;impression"/>
+  <translation tag="Creating bed mesh..."/>
   <translation tag="Creating spool..." fr="Création de la bobine..."/>
   <translation tag="Critical hardware missing: {}" fr="Matériel critique manquant : {}"/>
   <translation tag="Current / Target" fr="Actuel / Cible"/>
@@ -650,6 +661,7 @@
   <translation tag="Deploy" fr="Déployer"/>
   <translation tag="Describe the issue (optional)" fr="Décrivez le problème (optionnel)"/>
   <translation tag="Detailed" fr="Détaillé"/>
+  <translation tag="Detecting plate..."/>
   <translation tag="Detecting printer type..." fr="Détection du type d&apos;imprimante..."/>
   <translation tag="Detecting..." fr="Détection..."/>
   <translation tag="Detection Length" fr="Longueur de détection"/>
@@ -833,6 +845,7 @@
   <translation tag="Extruder distances and sensor configuration" fr="Distances d&apos;extrudeur et configuration des capteurs"/>
   <translation tag="Extruder heats automatically based on material" fr="L&apos;extrudeur chauffe automatiquement selon le matériau"/>
   <translation tag="Extruder to Nozzle" fr="Extrudeur à la buse"/>
+  <translation tag="Extruding prime line..."/>
   <translation tag="FAILED" fr="ÉCHOUÉ"/>
   <translation tag="FILAMENTS" fr="FILAMENTS"/>
   <translation tag="FILTERS" fr="FILTRES"/>
@@ -989,6 +1002,7 @@
   <translation tag="Fine" fr="Fin"/>
   <translation tag="Fine-Tune" fr="Réglage fin"/>
   <translation tag="Finish" fr="Terminer"/>
+  <translation tag="Finishing clean..."/>
   <translation tag="Finishing up..." fr="Finalisation..."/>
   <translation tag="Firmware Restart" fr="Redémarrage firmware"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" fr="Le firmware ne signale aucun bypass. Activez cette option si vous alimentez l&apos;extrudeur directement en filament"/>
@@ -1002,6 +1016,7 @@
   <translation tag="Flow Compensation" fr="Compensation de débit"/>
   <translation tag="Flow Rate" fr="Débit"/>
   <translation tag="Flowguard" fr="Flowguard"/>
+  <translation tag="Flushing Filament..."/>
   <translation tag="Flying Toasters" fr="Flying Toasters"/>
   <translation tag="Follow active tool" fr="Suivre l&apos;outil actif"/>
   <translation tag="Follow graph screen" fr="Suivre l&apos;écran du graphique"/>
@@ -1075,7 +1090,13 @@
   <translation tag="Heating" fr="Chauffage"/>
   <translation tag="Heating (%d°C below minimum)" fr="Chauffe (%d°C sous le minimum)"/>
   <translation tag="Heating Bed..." fr="Chauffe du plateau..."/>
+  <translation tag="Heating Chamber..."/>
   <translation tag="Heating Nozzle..." fr="Chauffe de la buse..."/>
+  <translation tag="Heating bed to $1°C..."/>
+  <translation tag="Heating bed..."/>
+  <translation tag="Heating chamber..."/>
+  <translation tag="Heating nozzle to $1°C..."/>
+  <translation tag="Heating nozzle..."/>
   <translation tag="Heating to %d°C... %.0f°C" fr="Chauffe à %d°C... %.0f°C"/>
   <translation tag="Heating to {}°C before {}..." fr="Chauffe à {}°C avant {}..."/>
   <translation tag="Heating to {}°C for {}..." fr="Chauffe à {}°C pendant {}..."/>
@@ -1106,6 +1127,7 @@
   <translation tag="Homing Y..." fr="Référence Y..."/>
   <translation tag="Homing Z..." fr="Référence Z..."/>
   <translation tag="Homing all axes..." fr="Référence de tous les axes..."/>
+  <translation tag="Homing axes..."/>
   <translation tag="Homing failed: " fr="Échec de la prise dorigine : "/>
   <translation tag="Homing failed: {}" fr="Échec de la référence : {}"/>
   <translation tag="Homing first..." fr="Référence en cours..."/>
@@ -1152,6 +1174,7 @@
   <translation tag="Info" fr="Info"/>
   <translation tag="Initial speed for filament unloading" fr="Vitesse initiale pour le déchargement du filament"/>
   <translation tag="Initialized" fr="Initialisé"/>
+  <translation tag="Initializing print..."/>
   <translation tag="Initializing..." fr="Initialisation..."/>
   <translation tag="Initiate blade change procedure" fr="Lancer la procédure de changement de lame"/>
   <translation tag="Input" fr="Entrée"/>
@@ -1159,12 +1182,14 @@
   <translation tag="Input Shaper Help" fr="Aide Input Shaper"/>
   <translation tag="Input Shaping" fr="Input Shaping"/>
   <translation tag="Input shaper calibration sensors" fr="Capteurs de calibration Input Shaper"/>
+  <translation tag="Input shaper calibration..."/>
   <translation tag="Input shaper settings applied!" fr="Paramètres Input Shaper appliqués !"/>
   <translation tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." fr="L&apos;Input Shaping réduit les artefacts d&apos;ondulation et de ghosting causés par les vibrations de l&apos;imprimante pendant les mouvements rapides."/>
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." fr="L&apos;Input Shaping réduit les artefacts de vibration (ondulations) dans vos impressions."/>
   <translation tag="Input: " fr="Entrée : "/>
   <translation tag="InputShaper" fr="InputShaper"/>
   <translation tag="Insert filament before resuming" fr="Insérez le filament avant de reprendre"/>
+  <translation tag="Inspecting bed..."/>
   <translation tag="Install" fr="Installer"/>
   <translation tag="Install HelixPrint Plugin" fr="Installer le plugin HelixPrint"/>
   <translation tag="Install Older Version?" fr="Installer une version plus ancienne ?"/>
@@ -1582,6 +1607,7 @@
   <translation tag="Nozzle Temperature" fr="Température de la buse"/>
   <translation tag="Nozzle Temperatures" fr="Températures des buses"/>
   <translation tag="Nozzle Temps" fr="Temp. des buses"/>
+  <translation tag="Nozzle clean complete"/>
   <translation tag="Nozzle did not reach {}°C — {} cancelled" fr="La buse n&apos;a pas atteint {}°C — {} annulé"/>
   <translation tag="Nozzle min cannot exceed max" fr="Le minimum de la buse ne peut pas dépasser le maximum"/>
   <translation tag="Nozzle target set to {}°C" fr="Cible buse réglée à {}°C"/>
@@ -1721,15 +1747,19 @@
   <translation tag="Power Devices" fr="Appareils électriques"/>
   <translation tag="Power off the printer or screen" fr="Éteindre l&apos;imprimante ou l&apos;écran"/>
   <translation tag="Pre-print command failed: {}" fr="Échec de la commande pré-impression : {}"/>
+  <translation tag="Pre-print homing..."/>
   <translation tag="Preheat" fr="Préchauffage"/>
   <translation tag="Preheat Macro" fr="Macro de préchauffage"/>
   <translation tag="Preheat PLA" fr="Préchauffer PLA"/>
   <translation tag="Preheat cancelled" fr="Préchauffage annulé"/>
   <translation tag="Preheat: T{} + bed set" fr="Préchauffage : T{} + plateau réglé"/>
   <translation tag="Preheat: all {} tools + bed set" fr="Préchauffage : tous les {} outils + plateau réglé"/>
+  <translation tag="Prepared"/>
   <translation tag="Preparing" fr="Préparation"/>
   <translation tag="Preparing Print" fr="Préparation de l&apos;impression"/>
   <translation tag="Preparing Print..." fr="Préparation de l&apos;impression..."/>
+  <translation tag="Preparing to Print..."/>
+  <translation tag="Preparing to clean..."/>
   <translation tag="Preparing..." fr="Préparation..."/>
   <translation tag="Preset" fr="Préréglage"/>
   <translation tag="Preset ID: {}" fr="ID du préréglage : {}"/>
@@ -1741,6 +1771,7 @@
   <translation tag="Previous" fr="Précédent"/>
   <translation tag="Price" fr="Prix"/>
   <translation tag="Primary" fr="Principal"/>
+  <translation tag="Priming nozzle..."/>
   <translation tag="Priming..." fr="Amorçage..."/>
   <translation tag="Print" fr="Imprimer"/>
   <translation tag="Print Anyway" fr="Imprimer quand même"/>
@@ -1766,8 +1797,10 @@
   <translation tag="Print Tuning" fr="Réglage de l&apos;impression"/>
   <translation tag="Print Was Terminated" fr="L&apos;impression a été interrompue"/>
   <translation tag="Print cancelled" fr="Impression annulée"/>
+  <translation tag="Print complete"/>
   <translation tag="Print did not start" fr="L&apos;impression n&apos;a pas démarré"/>
   <translation tag="Print didn&apos;t start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X})" fr="Limpression na pas démarré — limprimante est peut-être occupée ou hors ligne (sondages B3={}, état=0x{:02X}, erreur=0x{:02X})"/>
+  <translation tag="Print ending..."/>
   <translation tag="Print error" fr="Erreur dimpression"/>
   <translation tag="Print failed" fr="Impression échouée"/>
   <translation tag="Print issue detected" fr="Problème d&apos;impression détecté"/>
@@ -1829,9 +1862,11 @@
   <translation tag="Probe Speed" fr="Vitesse de palpage"/>
   <translation tag="Probe controls, accuracy test, and settings" fr="Commandes de sonde, test de précision et paramètres"/>
   <translation tag="Probing Bed Mesh" fr="Palpage du maillage du plateau"/>
+  <translation tag="Probing Bed Mesh..."/>
   <translation tag="Probing Bed Screws..." fr="Palpage des vis du plateau..."/>
   <translation tag="Probing Bed..." fr="Palpage du plateau..."/>
   <translation tag="Probing Failed" fr="Palpage échoué"/>
+  <translation tag="Probing Z..."/>
   <translation tag="Probing point {} of {}" fr="Point de palpage {} sur {}"/>
   <translation tag="Probing... ({} points)" fr="Palpage... ({} points)"/>
   <translation tag="Proceed" fr="Continuer"/>
@@ -1916,6 +1951,7 @@
   <translation tag="Refresh" fr="Rafraîchir"/>
   <translation tag="Refresh Interval" fr="Intervalle de rafraîchissement"/>
   <translation tag="Refresh RFID" fr="Actualiser le RFID"/>
+  <translation tag="Reheating..."/>
   <translation tag="Relative vibration" fr="Vibration relative"/>
   <translation tag="Release all stepper motors. Position will be lost." fr="Relâcher tous les moteurs pas à pas. La position sera perdue."/>
   <translation tag="Remaining (g)" fr="Restant (g)"/>
@@ -1937,6 +1973,7 @@
   <translation tag="Render Now" fr="Rendre maintenant"/>
   <translation tag="Rendering timelapse..." fr="Rendu du timelapse..."/>
   <translation tag="Replay Welcome Tour" fr="Rejouer la visite de bienvenue"/>
+  <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" fr="Rapport enregistré dans crash_report.txt"/>
   <translation tag="Reprint" fr="Réimprimer"/>
   <translation tag="Reprint Last" fr="Réimprimer la dernière"/>
@@ -1992,6 +2029,7 @@
   <translation tag="Resume interrupted print?" fr="Reprendre l&apos;impression interrompue ?"/>
   <translation tag="Resume macro not configured" fr="Macro de reprise non configurée"/>
   <translation tag="Resume preparation failed" fr="Échec de la préparation à la reprise"/>
+  <translation tag="Resuming print..."/>
   <translation tag="Resuming..." fr="Reprise en cours..."/>
   <translation tag="Retract" fr="Rétracter"/>
   <translation tag="Retract Distance" fr="Distance de rétraction"/>
@@ -2276,6 +2314,8 @@
   <translation tag="Starting Print..." fr="Démarrage de l&apos;impression..."/>
   <translation tag="Starting download..." fr="Démarrage du téléchargement..."/>
   <translation tag="Starting measurement..." fr="Démarrage de la mesure..."/>
+  <translation tag="Starting nozzle clean..."/>
+  <translation tag="Starting print..."/>
   <translation tag="Starting..." fr="Démarrage..."/>
   <translation tag="Startup Brightness" fr="Luminosité au démarrage"/>
   <translation tag="Startup, auto-control, and macro devices" fr="Démarrage, contrôle auto et appareils macro"/>
@@ -2587,6 +2627,7 @@
   <translation tag="Use printer type to select image" fr="Utiliser le type d&apos;imprimante pour sélectionner l&apos;image"/>
   <translation tag="VM Peak" fr="Pic de mémoire virtuelle"/>
   <translation tag="VM Size" fr="Taille de la mémoire virtuelle"/>
+  <translation tag="Validating bed mesh..."/>
   <translation tag="Value must be between {:.0f} and {:.0f}" fr="La valeur doit être entre {:.0f} et {:.0f}"/>
   <translation tag="Values must not be negative" fr="Les valeurs ne doivent pas être négatives"/>
   <translation tag="Velocity and acceleration limits" fr="Limites de vitesse et d&apos;accélération"/>
@@ -2597,6 +2638,7 @@
   <translation tag="Verify" fr="Vérifier"/>
   <translation tag="Verifying SHA256 checksum..." fr="Vérification de la somme de contrôle SHA256..."/>
   <translation tag="Verifying download..." fr="Vérification du téléchargement..."/>
+  <translation tag="Verifying file..."/>
   <translation tag="Verifying timelapse plugin..." fr="Vérification du plugin timelapse..."/>
   <translation tag="Verifying..." fr="Vérification..."/>
   <translation tag="Version" fr="Version"/>

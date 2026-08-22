@@ -309,10 +309,11 @@ Three subjects carry prediction data from the collector to the UI:
             style_text_color="#text_muted"/>
 ```
 
-**Print status panel** (`print_status_panel.xml`): Shows ETA in the progress overlay:
+**Print status panel** (`ui_xml/components/print_status_preview_card.xml`, shared by
+the landscape and portrait layouts): Shows ETA in the preparing overlay:
 ```xml
 <text_small name="preparing_eta" bind_text="print_start_time_left"
-            style_text_color="#overlay_text" style_text_opa="180"/>
+            style_text_color="#text" style_text_opa="180"/>
 ```
 
 ### PrintStatusPanel Observer Integration

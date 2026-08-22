@@ -213,6 +213,7 @@
   <translation tag="Auto-poll for weight updates" ja="重量更新の自動ポーリング"/>
   <translation tag="Auto-probe or manually check screw heights" ja="自動プローブまたは手動でネジの高さを確認"/>
   <translation tag="Auto-render video" ja="動画を自動レンダリング"/>
+  <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" ja="自動アンインストールはローカルの Moonraker でのみ動作します"/>
   <translation tag="Automatic" ja="自動"/>
   <translation tag="Automatic Heater Control Calibration" ja="自動ヒーター制御キャリブレーション"/>
@@ -244,8 +245,10 @@
   <translation tag="Bed Level" ja="ベッドレベル"/>
   <translation tag="Bed Leveling" ja="ベッドレベリング"/>
   <translation tag="Bed Mesh" ja="ベッドメッシュ"/>
+  <translation tag="Bed Mesh Complete"/>
   <translation tag="Bed Mesh Render" ja="ベッドメッシュ描画"/>
   <translation tag="Bed Mesh..." ja="ベッドメッシュ..."/>
+  <translation tag="Bed Meshing..."/>
   <translation tag="Bed Moves" ja="ベッド移動"/>
   <translation tag="Bed Screw Adjustment" ja="ベッドネジ調整"/>
   <translation tag="Bed Screw Results" ja="ベッドネジ結果"/>
@@ -255,6 +258,7 @@
   <translation tag="Bed Temperature" ja="ベッド温度"/>
   <translation tag="Bed is Level!" ja="ベッドが水平です！"/>
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
+  <translation tag="Bed mesh..."/>
   <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
   <translation tag="Bed temp must be 0-200°C" ja="ベッド温度は 0〜200°C にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
@@ -344,6 +348,8 @@
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrate, tune jitter and scroll feel" ja="キャリブレーション、ジッターとスクロール感度の調整"/>
   <translation tag="Calibrated" ja="キャリブレーション済み"/>
+  <translation tag="Calibrating Probe..."/>
+  <translation tag="Calibrating bed mesh..."/>
   <translation tag="Calibrating {} axis..." ja="{} 軸をキャリブレーション中..."/>
   <translation tag="Calibrating..." ja="キャリブレーション中..."/>
   <translation tag="Calibration &amp; Tools" ja="キャリブレーションとツール"/>
@@ -426,8 +432,10 @@
   <translation tag="Check the filament path and try again." ja="フィラメント経路を確認して、もう一度お試しください。"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" ja="ヒーターの定格を確認してください（ホットエンドは通常40〜60W）"/>
   <translation tag="Checking" ja="確認中"/>
+  <translation tag="Checking Bed Mesh..."/>
   <translation tag="Checking Spoolman server..." ja="Spoolman サーバーを確認中..."/>
   <translation tag="Checking accelerometer..." ja="加速度センサーを確認中..."/>
+  <translation tag="Checking extruders..."/>
   <translation tag="Checking filament..." ja="フィラメントを確認中..."/>
   <translation tag="Checking for plugin..." ja="プラグインを確認中..."/>
   <translation tag="Checking for webcam..." ja="ウェブカメラを確認中..."/>
@@ -449,6 +457,7 @@
   <translation tag="Clean Brush" ja="ブラシを清掃"/>
   <translation tag="Clean Nozzle" ja="ノズル清掃"/>
   <translation tag="Cleaning Nozzle..." ja="ノズル清掃中..."/>
+  <translation tag="Cleaning nozzle..."/>
   <translation tag="Clear" ja="クリア"/>
   <translation tag="Clear All" ja="すべてクリア"/>
   <translation tag="Clear All Events" ja="すべてのイベントをクリア"/>
@@ -560,6 +569,7 @@
   <translation tag="Cooling" ja="冷却中"/>
   <translation tag="Cooling Tube Length" ja="冷却チューブ長"/>
   <translation tag="Cooling Tube Retraction" ja="冷却チューブの引き戻し"/>
+  <translation tag="Cooling for probing..."/>
   <translation tag="Copied to clipboard!" ja="クリップボードにコピーしました！"/>
   <translation tag="Copy Command" ja="コマンドをコピー"/>
   <translation tag="Copy failed - use SSH manually" ja="コピー失敗 - SSHを手動で使用してください"/>
@@ -591,6 +601,7 @@
   <translation tag="Create a 4-6 digit security PIN" ja="4〜6桁のセキュリティ PIN を作成"/>
   <translation tag="Create backup of %s before applying" ja="適用前に %s のバックアップを作成"/>
   <translation tag="Create video when print completes" ja="印刷完了時に動画を作成"/>
+  <translation tag="Creating bed mesh..."/>
   <translation tag="Creating spool..." ja="スプールを作成中..."/>
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
@@ -650,6 +661,7 @@
   <translation tag="Deploy" ja="展開"/>
   <translation tag="Describe the issue (optional)" ja="問題の詳細（任意）"/>
   <translation tag="Detailed" ja="詳細"/>
+  <translation tag="Detecting plate..."/>
   <translation tag="Detecting printer type..." ja="プリンタータイプを検出中..."/>
   <translation tag="Detecting..." ja="検出中..."/>
   <translation tag="Detection Length" ja="検出長"/>
@@ -833,6 +845,7 @@
   <translation tag="Extruder distances and sensor configuration" ja="エクストルーダー距離とセンサー設定"/>
   <translation tag="Extruder heats automatically based on material" ja="素材に基づいてエクストルーダーが自動加熱"/>
   <translation tag="Extruder to Nozzle" ja="エクストルーダーからノズルまで"/>
+  <translation tag="Extruding prime line..."/>
   <translation tag="FAILED" ja="失敗"/>
   <translation tag="FILAMENTS" ja="フィラメント"/>
   <translation tag="FILTERS" ja="フィルター"/>
@@ -989,6 +1002,7 @@
   <translation tag="Fine" ja="微動"/>
   <translation tag="Fine-Tune" ja="微調整"/>
   <translation tag="Finish" ja="完了"/>
+  <translation tag="Finishing clean..."/>
   <translation tag="Finishing up..." ja="完了中..."/>
   <translation tag="Firmware Restart" ja="ファームウェア再起動"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ja="ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください"/>
@@ -1002,6 +1016,7 @@
   <translation tag="Flow Compensation" ja="フロー補正"/>
   <translation tag="Flow Rate" ja="フローレート"/>
   <translation tag="Flowguard" ja="フローガード"/>
+  <translation tag="Flushing Filament..."/>
   <translation tag="Flying Toasters" ja="フライングトースター"/>
   <translation tag="Follow active tool" ja="アクティブツールに追従"/>
   <translation tag="Follow graph screen" ja="グラフ画面に追従"/>
@@ -1075,7 +1090,13 @@
   <translation tag="Heating" ja="加熱中"/>
   <translation tag="Heating (%d°C below minimum)" ja="&quot;加熱中（最低温度より%d°C低い）&quot;"/>
   <translation tag="Heating Bed..." ja="ベッド加熱中..."/>
+  <translation tag="Heating Chamber..."/>
   <translation tag="Heating Nozzle..." ja="ノズル加熱中..."/>
+  <translation tag="Heating bed to $1°C..."/>
+  <translation tag="Heating bed..."/>
+  <translation tag="Heating chamber..."/>
+  <translation tag="Heating nozzle to $1°C..."/>
+  <translation tag="Heating nozzle..."/>
   <translation tag="Heating to %d°C... %.0f°C" ja="%d°Cに加熱中... %.0f°C"/>
   <translation tag="Heating to {}°C before {}..." ja="{}°Cに加熱中（{}の前）..."/>
   <translation tag="Heating to {}°C for {}..." ja="{}°Cに加熱中（{}）..."/>
@@ -1106,6 +1127,7 @@
   <translation tag="Homing Y..." ja="Y軸をホーミング中..."/>
   <translation tag="Homing Z..." ja="Z軸をホーミング中..."/>
   <translation tag="Homing all axes..." ja="全軸をホーミング中..."/>
+  <translation tag="Homing axes..."/>
   <translation tag="Homing failed: " ja="ホーミングに失敗: "/>
   <translation tag="Homing failed: {}" ja="ホーミングに失敗しました: {}"/>
   <translation tag="Homing first..." ja="ホーミング中..."/>
@@ -1152,6 +1174,7 @@
   <translation tag="Info" ja="情報"/>
   <translation tag="Initial speed for filament unloading" ja="フィラメントアンロードの初速"/>
   <translation tag="Initialized" ja="初期化済み"/>
+  <translation tag="Initializing print..."/>
   <translation tag="Initializing..." ja="初期化中..."/>
   <translation tag="Initiate blade change procedure" ja="ブレード交換手順を開始"/>
   <translation tag="Input" ja="入力"/>
@@ -1159,12 +1182,14 @@
   <translation tag="Input Shaper Help" ja="入力シェーパーヘルプ"/>
   <translation tag="Input Shaping" ja="インプットシェーピング"/>
   <translation tag="Input shaper calibration sensors" ja="インプットシェーパーキャリブレーションセンサー"/>
+  <translation tag="Input shaper calibration..."/>
   <translation tag="Input shaper settings applied!" ja="インプットシェーパー設定が適用されました！"/>
   <translation tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." ja="インプットシェーピングは高速移動時のプリンター振動によるリンギングやゴーストのアーティファクトを軽減します。"/>
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." ja="インプットシェーピングは印刷物の振動アーティファクト（リンギング）を軽減します。"/>
   <translation tag="Input: " ja="入力: "/>
   <translation tag="InputShaper" ja="InputShaper"/>
   <translation tag="Insert filament before resuming" ja="再開前にフィラメントを挿入してください"/>
+  <translation tag="Inspecting bed..."/>
   <translation tag="Install" ja="インストール"/>
   <translation tag="Install HelixPrint Plugin" ja="HelixPrint プラグインをインストール"/>
   <translation tag="Install Older Version?" ja="以前のバージョンをインストールしますか？"/>
@@ -1582,6 +1607,7 @@
   <translation tag="Nozzle Temperature" ja="ノズル温度"/>
   <translation tag="Nozzle Temperatures" ja="ノズル温度"/>
   <translation tag="Nozzle Temps" ja="ノズル温度"/>
+  <translation tag="Nozzle clean complete"/>
   <translation tag="Nozzle did not reach {}°C — {} cancelled" ja="ノズルが{}°Cに達しませんでした — {}を中止しました"/>
   <translation tag="Nozzle min cannot exceed max" ja="ノズル温度の最小値は最大値を超えられません"/>
   <translation tag="Nozzle target set to {}°C" ja="ノズル目標温度を {}°C に設定しました"/>
@@ -1721,15 +1747,19 @@
   <translation tag="Power Devices" ja="電源デバイス"/>
   <translation tag="Power off the printer or screen" ja="プリンターまたは画面の電源をオフにします"/>
   <translation tag="Pre-print command failed: {}" ja="印刷前コマンドに失敗しました: {}"/>
+  <translation tag="Pre-print homing..."/>
   <translation tag="Preheat" ja="予熱"/>
   <translation tag="Preheat Macro" ja="予熱マクロ"/>
   <translation tag="Preheat PLA" ja="PLA 予熱"/>
   <translation tag="Preheat cancelled" ja="予熱がキャンセルされました"/>
   <translation tag="Preheat: T{} + bed set" ja="予熱: T{} + ベッド設定済み"/>
   <translation tag="Preheat: all {} tools + bed set" ja="予熱: 全 {} ツール + ベッド設定済み"/>
+  <translation tag="Prepared"/>
   <translation tag="Preparing" ja="準備中"/>
   <translation tag="Preparing Print" ja="印刷準備中"/>
   <translation tag="Preparing Print..." ja="印刷準備中..."/>
+  <translation tag="Preparing to Print..."/>
+  <translation tag="Preparing to clean..."/>
   <translation tag="Preparing..." ja="準備中..."/>
   <translation tag="Preset" ja="プリセット"/>
   <translation tag="Preset ID: {}" ja="プリセット ID: {}"/>
@@ -1741,6 +1771,7 @@
   <translation tag="Previous" ja="前回"/>
   <translation tag="Price" ja="価格"/>
   <translation tag="Primary" ja="プライマリ"/>
+  <translation tag="Priming nozzle..."/>
   <translation tag="Priming..." ja="プライミング中..."/>
   <translation tag="Print" ja="印刷"/>
   <translation tag="Print Anyway" ja="それでも印刷"/>
@@ -1766,8 +1797,10 @@
   <translation tag="Print Tuning" ja="印刷チューニング"/>
   <translation tag="Print Was Terminated" ja="印刷が中止されました"/>
   <translation tag="Print cancelled" ja="印刷がキャンセルされました"/>
+  <translation tag="Print complete"/>
   <translation tag="Print did not start" ja="印刷は開始されませんでした"/>
   <translation tag="Print didn&apos;t start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X})" ja="印刷が開始されませんでした — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})"/>
+  <translation tag="Print ending..."/>
   <translation tag="Print error" ja="印刷エラー"/>
   <translation tag="Print failed" ja="印刷失敗"/>
   <translation tag="Print issue detected" ja="印刷の問題を検出しました"/>
@@ -1829,9 +1862,11 @@
   <translation tag="Probe Speed" ja="プローブ速度"/>
   <translation tag="Probe controls, accuracy test, and settings" ja="プローブコントロール、精度テスト、設定"/>
   <translation tag="Probing Bed Mesh" ja="ベッドメッシュをプローブ中"/>
+  <translation tag="Probing Bed Mesh..."/>
   <translation tag="Probing Bed Screws..." ja="ベッドネジをプローブ中..."/>
   <translation tag="Probing Bed..." ja="ベッドをプローブ中..."/>
   <translation tag="Probing Failed" ja="プローブ失敗"/>
+  <translation tag="Probing Z..."/>
   <translation tag="Probing point {} of {}" ja="プローブ点 {} / {}"/>
   <translation tag="Probing... ({} points)" ja="プローブ中... ({} 点)"/>
   <translation tag="Proceed" ja="続行"/>
@@ -1916,6 +1951,7 @@
   <translation tag="Refresh" ja="更新"/>
   <translation tag="Refresh Interval" ja="更新間隔"/>
   <translation tag="Refresh RFID" ja="RFIDを再読み込み"/>
+  <translation tag="Reheating..."/>
   <translation tag="Relative vibration" ja="相対振動"/>
   <translation tag="Release all stepper motors. Position will be lost." ja="すべてのステッピングモーターを解放します。位置情報は失われます。"/>
   <translation tag="Remaining (g)" ja="残量 (g)"/>
@@ -1937,6 +1973,7 @@
   <translation tag="Render Now" ja="今すぐレンダリング"/>
   <translation tag="Rendering timelapse..." ja="タイムラプスをレンダリング中..."/>
   <translation tag="Replay Welcome Tour" ja="ウェルカムツアーを再生"/>
+  <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" ja="crash_report.txt にレポートを保存しました"/>
   <translation tag="Reprint" ja="再印刷"/>
   <translation tag="Reprint Last" ja="前回を再印刷"/>
@@ -1992,6 +2029,7 @@
   <translation tag="Resume interrupted print?" ja="中断した印刷を再開しますか？"/>
   <translation tag="Resume macro not configured" ja="再開マクロが未設定です"/>
   <translation tag="Resume preparation failed" ja="再開準備に失敗しました"/>
+  <translation tag="Resuming print..."/>
   <translation tag="Resuming..." ja="再開中..."/>
   <translation tag="Retract" ja="引き戻し"/>
   <translation tag="Retract Distance" ja="リトラクト距離"/>
@@ -2276,6 +2314,8 @@
   <translation tag="Starting Print..." ja="印刷開始中..."/>
   <translation tag="Starting download..." ja="ダウンロードを開始中..."/>
   <translation tag="Starting measurement..." ja="測定を開始中..."/>
+  <translation tag="Starting nozzle clean..."/>
+  <translation tag="Starting print..."/>
   <translation tag="Starting..." ja="開始中..."/>
   <translation tag="Startup Brightness" ja="起動時の明るさ"/>
   <translation tag="Startup, auto-control, and macro devices" ja="起動、自動制御、マクロデバイス"/>
@@ -2587,6 +2627,7 @@
   <translation tag="Use printer type to select image" ja="プリンタータイプで画像を選択"/>
   <translation tag="VM Peak" ja="VM ピーク"/>
   <translation tag="VM Size" ja="VM サイズ"/>
+  <translation tag="Validating bed mesh..."/>
   <translation tag="Value must be between {:.0f} and {:.0f}" ja="値は {:.0f} から {:.0f} の間で入力してください"/>
   <translation tag="Values must not be negative" ja="値は負の数にできません"/>
   <translation tag="Velocity and acceleration limits" ja="速度と加速度の制限"/>
@@ -2597,6 +2638,7 @@
   <translation tag="Verify" ja="確認"/>
   <translation tag="Verifying SHA256 checksum..." ja="SHA256 チェックサムを検証中..."/>
   <translation tag="Verifying download..." ja="ダウンロードを検証中..."/>
+  <translation tag="Verifying file..."/>
   <translation tag="Verifying timelapse plugin..." ja="タイムラプスプラグインを確認中..."/>
   <translation tag="Verifying..." ja="検証中..."/>
   <translation tag="Version" ja="バージョン"/>

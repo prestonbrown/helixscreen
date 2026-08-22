@@ -191,7 +191,13 @@ bool PrintStartProfile::try_match_pattern(const std::string& line, MatchResult& 
         std::smatch match;
         if (std::regex_search(line, match, rp.pattern)) {
             result.phase = rp.phase;
-            result.message = substitute_captures(rp.message_template, match);
+            // Translate the TEMPLATE, then substitute captures into the
+            // translated text. Doing it the other way round looks up the
+            // substituted string ("Heating bed to 60°C...") as the key, which
+            // never matches — the keys are the literal $1 templates — so
+            // capture-bearing messages would stay English in every locale.
+            result.message =
+                substitute_captures(std::string(lv_tr(rp.message_template.c_str())), match);
             result.progress = rp.weight; // Caller interprets based on progress_mode
             spdlog::trace("[PrintStartProfile] Pattern match: '{}' -> phase={}, msg='{}'", line,
                           static_cast<int>(result.phase), result.message);
@@ -230,6 +236,16 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     // Adaptive bed-mesh probing (optional, defaults to false)
     if (j.contains("adaptive_meshing") && j["adaptive_meshing"].is_boolean()) {
         adaptive_meshing_ = j["adaptive_meshing"].get<bool>();
+    }
+
+    // Creality tag stream in gcode_response (optional, defaults to false)
+    if (j.contains("cfs_signals") && j["cfs_signals"].is_boolean()) {
+        cfs_signals_ = j["cfs_signals"].get<bool>();
+    }
+
+    // Silent-window position inference (optional, defaults to false)
+    if (j.contains("position_signals") && j["position_signals"].is_boolean()) {
+        position_signals_ = j["position_signals"].get<bool>();
     }
 
     // Progress mode (optional, defaults to weighted)

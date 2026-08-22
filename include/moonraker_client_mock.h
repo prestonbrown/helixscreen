@@ -17,6 +17,8 @@
 #include <thread>
 #include <vector>
 
+#include "hv/json.hpp"
+
 // Forward declaration for shared state
 class MockPrinterState;
 
@@ -143,6 +145,25 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return Current speedup multiplier (1.0 = real-time)
      */
     double get_simulation_speedup() const;
+
+    /**
+     * @brief Arm a capture replay through the real dispatch paths
+     *
+     * Parses a replay script (see tests/fixtures/k1c_flowrate_replay.json for
+     * the format and the extractor that produced it) and, once connect()
+     * completes its initial state, walks its timed events through
+     * dispatch_method_callback("notify_gcode_response") and
+     * dispatch_status_update() — the same entry points the live WebSocket
+     * uses. Bed-mesh payloads traverse parse_incoming_bed_mesh and the real
+     * MoonrakerAPI callback chain, so manager wiring and observers are
+     * exercised exactly as on a printer. Event times are divided by the
+     * simulation speedup.
+     *
+     * @param json_path Path to the replay script; parsed immediately so a
+     *                  malformed script fails fast. Returns false and logs
+     *                  if it cannot be read or parsed.
+     */
+    bool arm_event_replay(const std::string& json_path);
 
     /**
      * @brief Get current print simulation phase
@@ -783,6 +804,23 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return !active_bed_mesh_.probed_matrix.empty();
     }
 
+    /**
+     * @brief Serve configfile.settings.bed_mesh.probe_count from objects.query
+     *
+     * Mirrors what a printer with a configured [bed_mesh] section answers —
+     * the print-start collector's entry-time query reads it to size the mesh
+     * point denominator. Unset by default so existing tests see the same
+     * objects.query responses as before.
+     */
+    void set_config_bed_mesh_probe_count(int first, int second) {
+        config_bed_mesh_probe_count_ = std::make_pair(first, second);
+    }
+
+    /// The configured probe_count pair, or nullptr when unset.
+    [[nodiscard]] const std::pair<int, int>* config_bed_mesh_probe_count() const {
+        return config_bed_mesh_probe_count_ ? &*config_bed_mesh_probe_count_ : nullptr;
+    }
+
     // ========================================================================
     // Test Helpers - Public dispatch for test injection
     // ========================================================================
@@ -1195,6 +1233,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Mock bed mesh storage (Client no longer stores this; mock simulates it)
     BedMeshProfile active_bed_mesh_;
+
+    /// configfile.settings.bed_mesh.probe_count to serve from objects.query
+    /// when set via set_config_bed_mesh_probe_count(); unset = absent.
+    std::optional<std::pair<int, int>> config_bed_mesh_probe_count_;
     std::vector<std::string> bed_mesh_profiles_;
     std::map<std::string, BedMeshProfile> stored_bed_mesh_profiles_; // Actual mesh data per profile
 
@@ -1482,6 +1524,24 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::function<void()> free_payload;
     };
     std::vector<CalibrationTimer> calibration_timers_;
+
+    // Capture replay (arm_event_replay): timed events walked through the real
+    // dispatch paths once connect() finishes its initial state.
+    struct ReplayEvent {
+        uint64_t t_ms = 0;
+        bool is_gcode = false;
+        std::string line;       // gcode_response text (with // prefix)
+        std::string object;     // status object name
+        nlohmann::json payload; // status payload
+    };
+    std::vector<ReplayEvent> replay_events_;
+    size_t replay_next_ = 0;
+    lv_timer_t* replay_timer_ = nullptr;
+    std::chrono::steady_clock::time_point replay_start_{};
+
+    void start_replay_timer();
+    void pump_replay();
+    void fire_replay_event(const ReplayEvent& event);
 };
 
 // ============================================================================

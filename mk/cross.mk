@@ -483,7 +483,7 @@ else ifeq ($(PLATFORM_TARGET),k2)
     #
     # The K2 root filesystem is glibc 2.29, NOT musl — but we ship a FULLY
     # STATIC binary built with the Bootlin musl toolchain, so it runs regardless
-    # of the device libc. See docs/printer-research/CREALITY_K2_PLUS_RESEARCH.md.
+    # of the device libc. See docs/devel/printer-research/CREALITY_K2_PLUS_RESEARCH.md.
     CROSS_COMPILE ?= arm-buildroot-linux-musleabihf-
     TARGET_ARCH := armv7-a
     TARGET_TRIPLE := arm-buildroot-linux-musleabihf
@@ -928,6 +928,25 @@ else
 DOCKER_WORKTREE_MOUNT :=
 endif
 
+# Build provenance. The same mount boundary hides the git metadata: a worktree's
+# .git is a FILE reading "gitdir: $(MAIN)/.git/worktrees/<name>", and that path
+# is not under $(PWD), so git cannot resolve HEAD inside the container.
+# scripts/gen-git-hash.sh fell back to "unknown" and the deployed binary could
+# not say which commit produced it — silently, because the build still succeeds.
+# Resolve it on the host, where git always works, and hand it to the container.
+# Recursive '=' so a native build never pays for the git call.
+# $(or) short-circuits, so an inherited HELIX_GIT_HASH (mk/remote.mk sets it over
+# ssh; a release pipeline can too) skips the git call entirely — which matters
+# because the build host may have no .git at all.
+HELIX_GIT_HASH_HOST = $(or $(HELIX_GIT_HASH),$(shell git -c safe.directory='*' rev-parse --short HEAD 2>/dev/null))
+DOCKER_GIT_HASH_ENV = $(if $(HELIX_GIT_HASH_HOST),-e HELIX_GIT_HASH=$(HELIX_GIT_HASH_HOST))
+
+# Everything a container needs from the host beyond -v "$(PWD)":/src. Every
+# `docker run` below must pass this — tests/shell/test_build_provenance.bats
+# fails the build if one does not, so a new platform target cannot regress
+# provenance or worktree support by omission.
+DOCKER_HOST_CONTEXT = $(DOCKER_WORKTREE_MOUNT) $(DOCKER_GIT_HASH_ENV)
+
 # Direct cross-compilation (requires toolchain installed)
 pi:
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Raspberry Pi (aarch64)...$(RESET)"
@@ -1051,7 +1070,7 @@ pi-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
 		make PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1066,7 +1085,7 @@ pi-asan-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi-asan)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi-asan) helixscreen/toolchain-pi \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi-asan) helixscreen/toolchain-pi \
 		make PLATFORM_TARGET=pi SANITIZE=address SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1077,7 +1096,7 @@ pi-fbdev-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi-fbdev)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi-fbdev) helixscreen/toolchain-pi \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi-fbdev) helixscreen/toolchain-pi \
 		make PLATFORM_TARGET=pi-fbdev SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1088,7 +1107,7 @@ pi-all-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi; \
 	fi
 	$(call ensure-ccache-dir,pi)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi) helixscreen/toolchain-pi \
 		make PLATFORM_TARGET=pi-both SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1099,7 +1118,7 @@ pi32-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
 		make PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1114,7 +1133,7 @@ pi32-asan-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32-asan)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi32-asan) helixscreen/toolchain-pi32 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi32-asan) helixscreen/toolchain-pi32 \
 		make PLATFORM_TARGET=pi32 SANITIZE=address SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1125,7 +1144,7 @@ pi32-fbdev-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32-fbdev)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi32-fbdev) helixscreen/toolchain-pi32 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi32-fbdev) helixscreen/toolchain-pi32 \
 		make PLATFORM_TARGET=pi32-fbdev SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1136,7 +1155,7 @@ pi32-all-docker: ensure-docker
 		$(MAKE) docker-toolchain-pi32; \
 	fi
 	$(call ensure-ccache-dir,pi32)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,pi32) helixscreen/toolchain-pi32 \
 		make PLATFORM_TARGET=pi32-both SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1147,7 +1166,7 @@ ad5m-docker: ensure-docker
 		$(MAKE) docker-toolchain-ad5m; \
 	fi
 	$(call ensure-ccache-dir,ad5m)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,ad5m) helixscreen/toolchain-ad5m \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,ad5m) helixscreen/toolchain-ad5m \
 		make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/ad5m/certs
@@ -1163,7 +1182,7 @@ ad5x-docker: ensure-docker
 		$(MAKE) docker-toolchain-ad5x; \
 	fi
 	$(call ensure-ccache-dir,ad5x)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,ad5x) helixscreen/toolchain-ad5x \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,ad5x) helixscreen/toolchain-ad5x \
 		make PLATFORM_TARGET=ad5x SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/ad5x/certs
@@ -1182,7 +1201,7 @@ cc1-docker: ensure-docker
 	@# Pass PLATFORM_TARGET=cc1 so cross.mk sets HELIX_LANG for the generator.
 	@$(MAKE) --no-print-directory PLATFORM_TARGET=cc1 $(TRANS_XML)
 	$(call ensure-ccache-dir,cc1)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,cc1) helixscreen/toolchain-cc1 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,cc1) helixscreen/toolchain-cc1 \
 		make PLATFORM_TARGET=cc1 SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/cc1/certs
@@ -1205,7 +1224,7 @@ mips-docker: ensure-docker
 	fi
 	$(call ensure-ccache-dir,k1)
 	# Do not inherit host jobserver flags into containerized make.
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -e MAKEFLAGS= -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,k1) helixscreen/toolchain-k1 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -e MAKEFLAGS= -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,k1) helixscreen/toolchain-k1 \
 		make PLATFORM_TARGET=mips SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/mips/certs
@@ -1224,7 +1243,7 @@ k1-dynamic-docker: ensure-docker
 		$(MAKE) docker-toolchain-k1-dynamic; \
 	fi
 	$(call ensure-ccache-dir,k1-dynamic)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,k1-dynamic) helixscreen/toolchain-k1-dynamic \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,k1-dynamic) helixscreen/toolchain-k1-dynamic \
 		make PLATFORM_TARGET=k1-dynamic SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1235,7 +1254,7 @@ k2-docker: ensure-docker
 		$(MAKE) docker-toolchain-k2; \
 	fi
 	$(call ensure-ccache-dir,k2)
-	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,k2) helixscreen/toolchain-k2 \
+	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,k2) helixscreen/toolchain-k2 \
 		make PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1251,7 +1270,7 @@ ustreamer-k2: ensure-docker
 		echo "$(YELLOW)Docker image not found. Building toolchain first...$(RESET)"; \
 		$(MAKE) docker-toolchain-k2; \
 	fi
-	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src -e FORCE_REBUILD="$(FORCE_REBUILD)" helixscreen/toolchain-k2 \
+	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src -e FORCE_REBUILD="$(FORCE_REBUILD)" helixscreen/toolchain-k2 \
 		bash scripts/ustreamer/build-ustreamer-k2.sh
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1262,7 +1281,7 @@ snapmaker-u1-docker: ensure-docker
 		$(MAKE) docker-toolchain-snapmaker-u1; \
 	fi
 	$(call ensure-ccache-dir,snapmaker-u1)
-	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,snapmaker-u1) helixscreen/toolchain-snapmaker-u1 \
+	$(Q)scripts/cross-compile-lock.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,snapmaker-u1) helixscreen/toolchain-snapmaker-u1 \
 		make PLATFORM_TARGET=snapmaker-u1 SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@# Extract CA certificates from Docker image for HTTPS verification on device
 	@mkdir -p build/snapmaker-u1/certs
@@ -1278,7 +1297,7 @@ x86-docker: ensure-docker
 		$(MAKE) docker-toolchain-x86; \
 	fi
 	$(call ensure-ccache-dir,x86)
-	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
+	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
 		make PLATFORM_TARGET=x86 SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1289,7 +1308,7 @@ x86-fbdev-docker: ensure-docker
 		$(MAKE) docker-toolchain-x86; \
 	fi
 	$(call ensure-ccache-dir,x86-fbdev)
-	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,x86-fbdev) helixscreen/toolchain-x86 \
+	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,x86-fbdev) helixscreen/toolchain-x86 \
 		make PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1300,7 +1319,7 @@ x86-all-docker: ensure-docker
 		$(MAKE) docker-toolchain-x86; \
 	fi
 	$(call ensure-ccache-dir,x86)
-	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_WORKTREE_MOUNT) -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
+	$(Q)scripts/cross-compile-lock.sh docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,x86) helixscreen/toolchain-x86 \
 		make PLATFORM_TARGET=x86-both SKIP_OPTIONAL_DEPS=1 $(if $(ENABLE_REMOTE_CONTROL),ENABLE_REMOTE_CONTROL=$(ENABLE_REMOTE_CONTROL)) -j$(NPROC_DOCKER_RUN)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
@@ -1524,6 +1543,32 @@ DEPLOY_ASSET_DIRS := ui_xml assets config moonraker-plugin
 
 # Common deploy recipe (called with: $(call deploy-common,SSH_TARGET,DEPLOY_DIR,BIN_DIR))
 # Usage: $(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
+# Turn on the runtime switches that match what the binary being deployed
+# actually contains.
+#
+# ENABLE_REMOTE_CONTROL is a BUILD flag and defaults to no for every cross
+# target, so a device binary only has the ctl server compiled in when a
+# developer asked for it explicitly. Having it compiled in and left off is not a
+# state anyone wants: the server still only listens under --remote, and the
+# SysV/systemd units exec helix-launcher.sh with no arguments, so without
+# HELIX_REMOTE_CONTROL=1 in the device's helixscreen.env the flag silently buys
+# nothing and diagnosing the printer means walking to it. `make deploy-*` is a
+# separate make invocation with no PLATFORM_TARGET, so it cannot re-derive the
+# build's choice — $(BIN_DIR)/.build-features, written by the link rule in
+# mk/rules.mk, carries it across.
+#
+# Opt back out with HELIX_REMOTE_CONTROL=0 in the device env file; the key is
+# only rewritten when the value differs, so that choice sticks across redeploys.
+#
+#   $(1) ssh target   $(2) device deploy dir   $(3) host bin dir just deployed
+define sync-device-features
+	@if [ "$$(sed -n 's/^remote_control=//p' $(3)/.build-features 2>/dev/null)" = "yes" ]; then \
+		echo "$(DIM)Binary has the remote-control server — enabling it on the device...$(RESET)"; \
+		scripts/device-env-set.sh "$(1)" "$(2)/config/helixscreen.env" HELIX_REMOTE_CONTROL 1; \
+		echo "$(DIM)  drive it: ssh $(1) 'cd $(2) && ./bin/helix-screen ctl navigate settings'$(RESET)"; \
+	fi
+endef
+
 define deploy-common
 	@echo "$(CYAN)Deploying HelixScreen to $(1):$(2)...$(RESET)"
 	@# Generate pre-rendered splash images if missing (all small-display platforms use the same files)
@@ -1573,6 +1618,7 @@ define deploy-common
 	@# Fix ownership - rsync preserves macOS uid:gid which prevents writes on target
 	@echo "$(DIM)Fixing file ownership...$(RESET)"
 	@ssh $(1) "if [ \$$(id -u) -ne 0 ]; then sudo chown -R \$$(id -u):\$$(id -g) $(2); else chown -R \$$(id -u):\$$(id -g) $(2)/config 2>/dev/null || true; fi"
+	$(call sync-device-features,$(1),$(2),$(3))
 endef
 
 # =============================================================================
@@ -1721,6 +1767,7 @@ deploy-pi32-bin:
 	rsync -avzz --progress build/pi32/bin/helix-screen build/pi32/bin/helix-splash $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/bin/
 	@if [ -f build/pi32/bin/helix-watchdog ]; then rsync -avzz build/pi32/bin/helix-watchdog $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/bin/; fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi32/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
 	@ssh $(PI_SSH_TARGET) "sudo systemctl restart helixscreen 2>/dev/null" \
 		|| ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./bin/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
@@ -1866,6 +1913,7 @@ deploy-ad5m:
 			fi; \
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(AD5M_SSH_TARGET),$(AD5M_DEPLOY_DIR),build/ad5m/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
 	ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
@@ -1926,6 +1974,7 @@ deploy-ad5m-legacy:
 			fi; \
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(AD5M_SSH_TARGET),$(AD5M_DEPLOY_DIR),build/ad5m/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
 	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
@@ -1948,6 +1997,7 @@ deploy-ad5m-bin:
 	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/
 	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/; fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(AD5M_SSH_TARGET),$(AD5M_DEPLOY_DIR),build/ad5m/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
 	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
@@ -2033,6 +2083,7 @@ deploy-cc1:
 		cat build/cc1/certs/ca-certificates.crt | ssh $(CC1_SSH_TARGET) "cat > $(CC1_DEPLOY_DIR)/certs/ca-certificates.crt"; \
 	fi
 	@echo "$(GREEN)✓ Deployed to $(CC1_HOST):$(CC1_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(CC1_SSH_TARGET),$(CC1_DEPLOY_DIR),build/cc1/bin)
 	@echo "$(CYAN)Starting helix-screen on $(CC1_HOST)...$(RESET)"
 	ssh $(CC1_SSH_TARGET) "if [ -x $(CC1_INIT_SCRIPT) ]; then $(CC1_INIT_SCRIPT) start; else cd $(CC1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 & fi"
 	@echo "$(GREEN)✓ helix-screen started$(RESET)"
@@ -2057,6 +2108,7 @@ deploy-cc1-bin:
 		cat build/cc1/bin/helix-watchdog | ssh $(CC1_SSH_TARGET) "cat > $(CC1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(CC1_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(CC1_SSH_TARGET),$(CC1_DEPLOY_DIR),build/cc1/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(CC1_HOST)...$(RESET)"
 	ssh $(CC1_SSH_TARGET) "if [ -x $(CC1_INIT_SCRIPT) ]; then $(CC1_INIT_SCRIPT) start; else cd $(CC1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 & fi"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
@@ -2152,6 +2204,7 @@ deploy-snapmaker-u1-bin:
 	scp build/snapmaker-u1/bin/helix-screen $(SNAPMAKER_U1_SSH_TARGET):$(SNAPMAKER_U1_DEPLOY_DIR)/bin/
 	ssh $(SNAPMAKER_U1_SSH_TARGET) "chmod +x $(SNAPMAKER_U1_DEPLOY_DIR)/bin/helix-screen"
 	@echo "$(GREEN)✓ Binary deployed$(RESET)"
+	$(call sync-device-features,$(SNAPMAKER_U1_SSH_TARGET),$(SNAPMAKER_U1_DEPLOY_DIR),build/snapmaker-u1/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(SNAPMAKER_U1_HOST)...$(RESET)"
 	ssh $(SNAPMAKER_U1_SSH_TARGET) "$(SNAPMAKER_U1_DEPLOY_DIR)/config/helixscreen.init restart"
 
@@ -2230,6 +2283,7 @@ deploy-k1:
 		sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"$(K1_DEPLOY_DIR)\"|" $$DEST && \
 		echo "Init script installed at $$DEST"'
 	@echo "$(GREEN)✓ Deployed to $(K1_HOST):$(K1_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/mips/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST)...$(RESET)"
 	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
@@ -2254,6 +2308,7 @@ deploy-k1-bin:
 		cat build/mips/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/mips/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(K1_HOST)...$(RESET)"
 	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
@@ -2313,6 +2368,7 @@ deploy-k1-dynamic:
 		COPYFILE_DISABLE=1 tar -cf - -C build/assets/images/printers prerendered | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR)/assets/images/printers && tar -xof -"; \
 	fi
 	@echo "$(GREEN)✓ Deployed to $(K1_HOST):$(K1_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST)...$(RESET)"
 	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
@@ -2337,6 +2393,7 @@ deploy-k1-dynamic-bin:
 		cat build/k1-dynamic/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(K1_HOST)...$(RESET)"
 	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
@@ -2453,6 +2510,7 @@ deploy-k2:
 			echo "Created /opt/helixscreen symlink"; \
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(K2_HOST):$(K2_DEPLOY_DIR)$(RESET)"
+	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K2_HOST)...$(RESET)"
 	ssh $(K2_SSH_TARGET) "cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
@@ -2476,6 +2534,7 @@ deploy-k2-bin:
 		cat build/k2/bin/helix-watchdog | ssh $(K2_SSH_TARGET) "cat > $(K2_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K2_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
 	@echo "$(CYAN)Restarting helix-screen on $(K2_HOST)...$(RESET)"
 	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"

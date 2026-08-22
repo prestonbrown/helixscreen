@@ -808,6 +808,19 @@ The name defaults to "My Printer" if left empty. It's saved to your config file 
 
 > **Tip:** You can also set the name directly in the config file under the `printer_name` key — see [Configuration Reference](../CONFIGURATION.md#name).
 
+### Correcting the Printer Model
+
+Directly below the printer name, the **model row** shows the model HelixScreen has recorded for this printer — or nothing at all, when detection could not identify it with confidence. Tap the row to change it:
+
+1. Tap the **printer image** on the Home Panel to open the Printer Manager
+2. Tap the **model row** (marked with a pencil icon)
+3. Pick the model that matches your printer from the list
+4. The overlay closes and the choice is saved immediately
+
+The list is filtered to your printer's motion type, the same way the setup wizard filters it. Picking a model loads that printer's known behaviour — the print macros HelixScreen calls, which fans it treats as part cooling versus hotend, and how its calibration flows behave.
+
+**When you need this:** automatic detection declines to guess when the evidence is inconclusive, and on printers that look identical over the network it can settle on the wrong sibling. Correcting the model here fixes both cases — no need to delete the printer and run setup again. Detection will not overwrite a model you chose yourself.
+
 ### Changing the Printer Image
 
 1. Tap the **printer image** on the Home Panel to open the Printer Manager

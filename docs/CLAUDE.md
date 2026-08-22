@@ -10,7 +10,8 @@
 | Find XML widget docs | `devel/LVGL9_XML_GUIDE.md` |
 | Understand modal patterns | `devel/MODAL_SYSTEM.md` |
 | Check a feature's architecture | `devel/ARCHITECTURE.md` → the right chapter in `devel/architecture/` |
-| See what's planned/complete | `devel/ROADMAP.md` |
+| See what's planned/complete | [GitHub issues](https://github.com/prestonbrown/helixscreen/issues) |
+| Find in-flight plans/specs | `devel/plans/` — point-in-time working docs, deleted when the work ships |
 | Update the doc index | `README.md` + this file + relevant `CLAUDE.md` |
 
 ## Writing Documentation
@@ -22,3 +23,7 @@
 - No SPDX headers on docs (only on source code)
 - Keep code examples real — pull from actual files, don't invent
 - When adding new docs, update: this file, `README.md`, and `devel/CLAUDE.md` or `user/CLAUDE.md`
+
+## Plans and Specs
+
+Plans and specs live in `docs/devel/plans/` while work is in flight (`YYYY-MM-DD-<topic>-design.md` for designs, `YYYY-MM-DD-<topic>.md` for plans). They are scaffolding, not documentation: when work ships, durable knowledge lands where it belongs - code, the feature's devel doc, an architecture chapter - and the plan file is deleted in the same change. Abandoned and superseded plans are deleted too. Git history is the archive. `docs/superpowers/` and `.superpowers/` are local working space, never committed, never force-added.

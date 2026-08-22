@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ground truth: U1 stock fw print_stats.exception={...,code:2(noodle),...} + state=paused
-// on a spaghetti fire; code 2 unique vs runout(0). See
-// docs/devel/plans/2026-06-15-spaghetti-detection-source.md.
+// on a spaghetti fire; code 2 unique vs runout(0). See defect_detection in
+// docs/devel/printers/SNAPMAKER_U1_SUPPORT.md.
 #include "u1_stock_detection_source.h"
 
 #include "observer_factory.h"

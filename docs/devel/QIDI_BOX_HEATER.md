@@ -329,7 +329,7 @@ If firmware behavior differs from what is documented here, adjust the command st
 - `officiall_filas_list.cfg` format (INI; `[filaN]` + `[colordict]` + `[vendor_list]`) — see "Filas List Format" above.
 - No discrete single-slot eject command in stock config.
 
-Still unconfirmed (needs the user's device dumps — see plan `plans/2026-06-16-qidi-box-stock-path-destub.md` §4):
+Still unconfirmed (needs the user's device dumps):
 
 - **Where per-slot filament type/color is persisted.** `box1.cfg` has no `SAVE_VARIABLE` for it; suspected `box_rfid.so` state or another saved-variable namespace. Need a `save_variables` dump (and a before/after when a slot's filament is set in QIDI's own UI).
 - **Whether `enable_box` is set on Camden's box** (the likely cause of load doing nothing) and what the `value_t<n>` → slot mapping is.

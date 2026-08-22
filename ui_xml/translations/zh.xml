@@ -213,6 +213,7 @@
   <translation tag="Auto-poll for weight updates" zh="自动轮询重量更新"/>
   <translation tag="Auto-probe or manually check screw heights" zh="自动探测或手动检查螺丝高度"/>
   <translation tag="Auto-render video" zh="自动渲染视频"/>
+  <translation tag="Auto-tuning Shapers..."/>
   <translation tag="Auto-uninstall only works on local Moonraker" zh="自动卸载仅适用于本地 Moonraker"/>
   <translation tag="Automatic" zh="自动"/>
   <translation tag="Automatic Heater Control Calibration" zh="自动加热控制校准"/>
@@ -244,8 +245,10 @@
   <translation tag="Bed Level" zh="热床调平"/>
   <translation tag="Bed Leveling" zh="热床调平"/>
   <translation tag="Bed Mesh" zh="热床网格"/>
+  <translation tag="Bed Mesh Complete"/>
   <translation tag="Bed Mesh Render" zh="热床网格渲染"/>
   <translation tag="Bed Mesh..." zh="热床网格..."/>
+  <translation tag="Bed Meshing..."/>
   <translation tag="Bed Moves" zh="热床移动"/>
   <translation tag="Bed Screw Adjustment" zh="热床螺丝调整"/>
   <translation tag="Bed Screw Results" zh="热床螺丝结果"/>
@@ -255,6 +258,7 @@
   <translation tag="Bed Temperature" zh="热床温度"/>
   <translation tag="Bed is Level!" zh="热床已水平！"/>
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
+  <translation tag="Bed mesh..."/>
   <translation tag="Bed target set to {}°C" zh="热床目标已设为 {}°C"/>
   <translation tag="Bed temp must be 0-200°C" zh="热床温度必须为 0-200°C"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
@@ -344,6 +348,8 @@
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
   <translation tag="Calibrated" zh="已校准"/>
+  <translation tag="Calibrating Probe..."/>
+  <translation tag="Calibrating bed mesh..."/>
   <translation tag="Calibrating {} axis..." zh="正在校准 {} 轴..."/>
   <translation tag="Calibrating..." zh="正在校准..."/>
   <translation tag="Calibration &amp; Tools" zh="校准与工具"/>
@@ -426,8 +432,10 @@
   <translation tag="Check the filament path and try again." zh="检查耗材路径并重试。"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" zh="检查加热器功率（热端通常为 40-60W）"/>
   <translation tag="Checking" zh="检查中"/>
+  <translation tag="Checking Bed Mesh..."/>
   <translation tag="Checking Spoolman server..." zh="正在检查 Spoolman 服务器..."/>
   <translation tag="Checking accelerometer..." zh="正在检查加速度计..."/>
+  <translation tag="Checking extruders..."/>
   <translation tag="Checking filament..." zh="正在检查耗材……"/>
   <translation tag="Checking for plugin..." zh="正在检查插件..."/>
   <translation tag="Checking for webcam..." zh="正在检查摄像头..."/>
@@ -449,6 +457,7 @@
   <translation tag="Clean Brush" zh="清洁刷子"/>
   <translation tag="Clean Nozzle" zh="清洁喷嘴"/>
   <translation tag="Cleaning Nozzle..." zh="正在清洁喷嘴..."/>
+  <translation tag="Cleaning nozzle..."/>
   <translation tag="Clear" zh="清除"/>
   <translation tag="Clear All" zh="全部清除"/>
   <translation tag="Clear All Events" zh="清除所有事件"/>
@@ -560,6 +569,7 @@
   <translation tag="Cooling" zh="冷却中"/>
   <translation tag="Cooling Tube Length" zh="冷却管长度"/>
   <translation tag="Cooling Tube Retraction" zh="冷却管回抽"/>
+  <translation tag="Cooling for probing..."/>
   <translation tag="Copied to clipboard!" zh="已复制到剪贴板！"/>
   <translation tag="Copy Command" zh="复制命令"/>
   <translation tag="Copy failed - use SSH manually" zh="复制失败 - 请手动使用 SSH"/>
@@ -591,6 +601,7 @@
   <translation tag="Create a 4-6 digit security PIN" zh="创建 4-6 位安全 PIN"/>
   <translation tag="Create backup of %s before applying" zh="应用前创建 %s 的备份"/>
   <translation tag="Create video when print completes" zh="打印完成时创建视频"/>
+  <translation tag="Creating bed mesh..."/>
   <translation tag="Creating spool..." zh="正在创建料盘…"/>
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
@@ -650,6 +661,7 @@
   <translation tag="Deploy" zh="部署"/>
   <translation tag="Describe the issue (optional)" zh="描述问题（可选）"/>
   <translation tag="Detailed" zh="详细"/>
+  <translation tag="Detecting plate..."/>
   <translation tag="Detecting printer type..." zh="正在检测打印机类型..."/>
   <translation tag="Detecting..." zh="正在检测..."/>
   <translation tag="Detection Length" zh="检测长度"/>
@@ -833,6 +845,7 @@
   <translation tag="Extruder distances and sensor configuration" zh="挤出机距离与传感器配置"/>
   <translation tag="Extruder heats automatically based on material" zh="挤出机根据材料自动加热"/>
   <translation tag="Extruder to Nozzle" zh="挤出机至喷嘴"/>
+  <translation tag="Extruding prime line..."/>
   <translation tag="FAILED" zh="失败"/>
   <translation tag="FILAMENTS" zh="耗材"/>
   <translation tag="FILTERS" zh="筛选"/>
@@ -989,6 +1002,7 @@
   <translation tag="Fine" zh="细调"/>
   <translation tag="Fine-Tune" zh="微调"/>
   <translation tag="Finish" zh="完成"/>
+  <translation tag="Finishing clean..."/>
   <translation tag="Finishing up..." zh="即将完成..."/>
   <translation tag="Firmware Restart" zh="固件重启"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" zh="固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项"/>
@@ -1002,6 +1016,7 @@
   <translation tag="Flow Compensation" zh="流量补偿"/>
   <translation tag="Flow Rate" zh="流量"/>
   <translation tag="Flowguard" zh="流量保护"/>
+  <translation tag="Flushing Filament..."/>
   <translation tag="Flying Toasters" zh="飞行烤面包机"/>
   <translation tag="Follow active tool" zh="跟随当前工具"/>
   <translation tag="Follow graph screen" zh="跟随图表屏幕"/>
@@ -1075,7 +1090,13 @@
   <translation tag="Heating" zh="加热中"/>
   <translation tag="Heating (%d°C below minimum)" zh="加热中（低于最低温度 %d°C）"/>
   <translation tag="Heating Bed..." zh="正在加热热床..."/>
+  <translation tag="Heating Chamber..."/>
   <translation tag="Heating Nozzle..." zh="正在加热喷嘴..."/>
+  <translation tag="Heating bed to $1°C..."/>
+  <translation tag="Heating bed..."/>
+  <translation tag="Heating chamber..."/>
+  <translation tag="Heating nozzle to $1°C..."/>
+  <translation tag="Heating nozzle..."/>
   <translation tag="Heating to %d°C... %.0f°C" zh="加热至 %d°C... %.0f°C"/>
   <translation tag="Heating to {}°C before {}..." zh="正在加热至{}°C，然后{}..."/>
   <translation tag="Heating to {}°C for {}..." zh="正在加热至{}°C，持续{}..."/>
@@ -1106,6 +1127,7 @@
   <translation tag="Homing Y..." zh="正在归位 Y..."/>
   <translation tag="Homing Z..." zh="正在归位 Z..."/>
   <translation tag="Homing all axes..." zh="正在归位所有轴..."/>
+  <translation tag="Homing axes..."/>
   <translation tag="Homing failed: " zh="回零失败: "/>
   <translation tag="Homing failed: {}" zh="归位失败: {}"/>
   <translation tag="Homing first..." zh="正在先归位..."/>
@@ -1152,6 +1174,7 @@
   <translation tag="Info" zh="信息"/>
   <translation tag="Initial speed for filament unloading" zh="耗材卸载的初始速度"/>
   <translation tag="Initialized" zh="已初始化"/>
+  <translation tag="Initializing print..."/>
   <translation tag="Initializing..." zh="初始化中..."/>
   <translation tag="Initiate blade change procedure" zh="启动刀片更换流程"/>
   <translation tag="Input" zh="输入"/>
@@ -1159,12 +1182,14 @@
   <translation tag="Input Shaper Help" zh="输入整形器帮助"/>
   <translation tag="Input Shaping" zh="输入整形"/>
   <translation tag="Input shaper calibration sensors" zh="输入整形器校准传感器"/>
+  <translation tag="Input shaper calibration..."/>
   <translation tag="Input shaper settings applied!" zh="输入整形器设置已应用！"/>
   <translation tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." zh="输入整形可减少快速移动时打印机振动引起的振纹和残影。"/>
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." zh="输入整形可减少打印件中的振动伪影（振纹）。"/>
   <translation tag="Input: " zh="输入: "/>
   <translation tag="InputShaper" zh="InputShaper"/>
   <translation tag="Insert filament before resuming" zh="恢复前请插入耗材"/>
+  <translation tag="Inspecting bed..."/>
   <translation tag="Install" zh="安装"/>
   <translation tag="Install HelixPrint Plugin" zh="安装 HelixPrint 插件"/>
   <translation tag="Install Older Version?" zh="要安装旧版本吗？"/>
@@ -1582,6 +1607,7 @@
   <translation tag="Nozzle Temperature" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperatures" zh="喷嘴温度"/>
   <translation tag="Nozzle Temps" zh="喷嘴温度"/>
+  <translation tag="Nozzle clean complete"/>
   <translation tag="Nozzle did not reach {}°C — {} cancelled" zh="喷嘴未达到 {}°C — {} 已取消"/>
   <translation tag="Nozzle min cannot exceed max" zh="喷嘴最低温度不能超过最高温度"/>
   <translation tag="Nozzle target set to {}°C" zh="喷嘴目标已设为 {}°C"/>
@@ -1721,15 +1747,19 @@
   <translation tag="Power Devices" zh="电源设备"/>
   <translation tag="Power off the printer or screen" zh="关闭打印机或屏幕电源"/>
   <translation tag="Pre-print command failed: {}" zh="打印前命令失败: {}"/>
+  <translation tag="Pre-print homing..."/>
   <translation tag="Preheat" zh="预热"/>
   <translation tag="Preheat Macro" zh="预热宏"/>
   <translation tag="Preheat PLA" zh="预热 PLA"/>
   <translation tag="Preheat cancelled" zh="预热已取消"/>
   <translation tag="Preheat: T{} + bed set" zh="预热: T{} + 热床已设置"/>
   <translation tag="Preheat: all {} tools + bed set" zh="预热: 全部 {} 工具 + 热床已设置"/>
+  <translation tag="Prepared"/>
   <translation tag="Preparing" zh="准备中"/>
   <translation tag="Preparing Print" zh="准备打印"/>
   <translation tag="Preparing Print..." zh="正在准备打印..."/>
+  <translation tag="Preparing to Print..."/>
+  <translation tag="Preparing to clean..."/>
   <translation tag="Preparing..." zh="正在准备..."/>
   <translation tag="Preset" zh="预设"/>
   <translation tag="Preset ID: {}" zh="预设 ID: {}"/>
@@ -1741,6 +1771,7 @@
   <translation tag="Previous" zh="上一步"/>
   <translation tag="Price" zh="价格"/>
   <translation tag="Primary" zh="主要"/>
+  <translation tag="Priming nozzle..."/>
   <translation tag="Priming..." zh="正在预挤..."/>
   <translation tag="Print" zh="打印"/>
   <translation tag="Print Anyway" zh="仍要打印"/>
@@ -1766,8 +1797,10 @@
   <translation tag="Print Tuning" zh="打印调优"/>
   <translation tag="Print Was Terminated" zh="打印已终止"/>
   <translation tag="Print cancelled" zh="打印已取消"/>
+  <translation tag="Print complete"/>
   <translation tag="Print did not start" zh="打印未启动"/>
   <translation tag="Print didn&apos;t start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X})" zh="打印未开始 — 打印机可能繁忙或离线 (B3 polls={}, status=0x{:02X}, error=0x{:02X})"/>
+  <translation tag="Print ending..."/>
   <translation tag="Print error" zh="打印错误"/>
   <translation tag="Print failed" zh="打印失败"/>
   <translation tag="Print issue detected" zh="检测到打印问题"/>
@@ -1829,9 +1862,11 @@
   <translation tag="Probe Speed" zh="探针速度"/>
   <translation tag="Probe controls, accuracy test, and settings" zh="探针控制、精度测试和设置"/>
   <translation tag="Probing Bed Mesh" zh="正在探测热床网格"/>
+  <translation tag="Probing Bed Mesh..."/>
   <translation tag="Probing Bed Screws..." zh="正在探测热床螺丝..."/>
   <translation tag="Probing Bed..." zh="正在探测热床..."/>
   <translation tag="Probing Failed" zh="探测失败"/>
+  <translation tag="Probing Z..."/>
   <translation tag="Probing point {} of {}" zh="探测点 {} / {}"/>
   <translation tag="Probing... ({} points)" zh="探测中...（{} 个点）"/>
   <translation tag="Proceed" zh="继续"/>
@@ -1916,6 +1951,7 @@
   <translation tag="Refresh" zh="刷新"/>
   <translation tag="Refresh Interval" zh="刷新间隔"/>
   <translation tag="Refresh RFID" zh="刷新 RFID"/>
+  <translation tag="Reheating..."/>
   <translation tag="Relative vibration" zh="相对振动"/>
   <translation tag="Release all stepper motors. Position will be lost." zh="释放所有步进电机。位置信息将丢失。"/>
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
@@ -1937,6 +1973,7 @@
   <translation tag="Render Now" zh="立即渲染"/>
   <translation tag="Rendering timelapse..." zh="正在渲染延时摄影..."/>
   <translation tag="Replay Welcome Tour" zh="重播欢迎漫游"/>
+  <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" zh="报告已保存到 crash_report.txt"/>
   <translation tag="Reprint" zh="重新打印"/>
   <translation tag="Reprint Last" zh="重印上次"/>
@@ -1992,6 +2029,7 @@
   <translation tag="Resume interrupted print?" zh="恢复中断的打印？"/>
   <translation tag="Resume macro not configured" zh="恢复宏未配置"/>
   <translation tag="Resume preparation failed" zh="恢复准备失败"/>
+  <translation tag="Resuming print..."/>
   <translation tag="Resuming..." zh="恢复中..."/>
   <translation tag="Retract" zh="回抽"/>
   <translation tag="Retract Distance" zh="回抽距离"/>
@@ -2276,6 +2314,8 @@
   <translation tag="Starting Print..." zh="正在启动打印..."/>
   <translation tag="Starting download..." zh="正在开始下载..."/>
   <translation tag="Starting measurement..." zh="正在开始测量..."/>
+  <translation tag="Starting nozzle clean..."/>
+  <translation tag="Starting print..."/>
   <translation tag="Starting..." zh="正在启动..."/>
   <translation tag="Startup Brightness" zh="启动亮度"/>
   <translation tag="Startup, auto-control, and macro devices" zh="启动、自动控制和宏设备"/>
@@ -2587,6 +2627,7 @@
   <translation tag="Use printer type to select image" zh="使用打印机类型选择图片"/>
   <translation tag="VM Peak" zh="虚拟内存峰值"/>
   <translation tag="VM Size" zh="虚拟内存大小"/>
+  <translation tag="Validating bed mesh..."/>
   <translation tag="Value must be between {:.0f} and {:.0f}" zh="值必须在 {:.0f} 到 {:.0f} 之间"/>
   <translation tag="Values must not be negative" zh="值不能为负数"/>
   <translation tag="Velocity and acceleration limits" zh="速度和加速度限制"/>
@@ -2597,6 +2638,7 @@
   <translation tag="Verify" zh="验证"/>
   <translation tag="Verifying SHA256 checksum..." zh="正在验证 SHA256 校验和..."/>
   <translation tag="Verifying download..." zh="正在验证下载..."/>
+  <translation tag="Verifying file..."/>
   <translation tag="Verifying timelapse plugin..." zh="正在验证延时摄影插件..."/>
   <translation tag="Verifying..." zh="验证中..."/>
   <translation tag="Version" zh="版本"/>

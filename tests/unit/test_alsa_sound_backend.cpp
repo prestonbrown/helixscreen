@@ -202,3 +202,36 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
 }
 
 #endif // HELIX_HAS_ALSA
+
+// ============================================================================
+// Short sounds vs the ALSA start threshold (prestonbrown/helixscreen#1337)
+//
+// start_threshold is set to (buffer_size - period_size), derived from the
+// NEGOTIATED buffer. Real hardware returned 1024/8192 where we asked for
+// 256/2048, making the threshold 7168 frames = 162.5 ms at 44.1 kHz. Most UI
+// sounds are shorter than that, so the stream never leaves PREPARED. Draining
+// a PREPARED stream is a no-op, and the prepare() on the next resume discards
+// the queue - the sound is silently swallowed. The park path must therefore
+// start such a stream before draining it.
+// ============================================================================
+
+TEST_CASE("ALSASoundBackend: queued-but-unstarted stream is started before drain",
+          "[sound][alsa]") {
+    // PREPARED with audio queued is exactly the short-sound case: drain alone
+    // would discard it.
+    CHECK(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_PREPARED, true));
+}
+
+TEST_CASE("ALSASoundBackend: nothing queued needs no start before drain", "[sound][alsa]") {
+    // PREPARED with an empty queue: starting would only risk an immediate
+    // underrun, and there is nothing to play out.
+    CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_PREPARED, false));
+}
+
+TEST_CASE("ALSASoundBackend: an already-running stream is not restarted", "[sound][alsa]") {
+    // A sound long enough to cross the threshold already started; drain plays
+    // its tail out on its own. Restarting a RUNNING stream is an error.
+    CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_RUNNING, true));
+    CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_XRUN, true));
+    CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_SETUP, true));
+}

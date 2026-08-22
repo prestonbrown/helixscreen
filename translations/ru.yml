@@ -114,7 +114,6 @@ translations:
   AFC reset complete: Сброс AFC завершён
   AFC reset failed: Ошибка сброса AFC
   AFC retracts filament from the toolhead at end of print: AFC выгружает филамент из печатающей головки по завершении печати
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: ''
   AI detection: AI-детекция
   ALL DEVICES: ВСЕ УСТРОЙСТВА
   AMS: AMS
@@ -221,7 +220,9 @@ translations:
   Auto-poll for weight updates: Автоопрос обновлений веса
   Auto-probe or manually check screw heights: Автозондирование или ручная проверка высоты винтов
   Auto-render video: Автоматический рендер видео
-  Auto-uninstall only works on local Moonraker: Автоудаление работает только с локальным Moonraker
+  'Auto-tuning Shapers...': ''
+  Auto-uninstall only works on local Moonraker: Автоудаление работает только с локальным
+    Moonraker
   Automatic: Автоматический
   Automatic Heater Control Calibration: Автоматическая калибровка нагревателя
   Automatic LED Control: Автоматическое управление LED
@@ -252,8 +253,10 @@ translations:
   Bed Level: Уровень стола
   Bed Leveling: Выравнивание стола
   Bed Mesh: Сетка стола
+  'Bed Mesh Complete': ''
   Bed Mesh Render: Рендер сетки стола
   Bed Mesh...: Сетка стола...
+  Bed Meshing...: ''
   Bed Moves: Стол движется
   Bed Screw Adjustment: Регулировка винтов стола
   Bed Screw Results: Результаты по винтам стола
@@ -263,6 +266,7 @@ translations:
   Bed Temperature: Температура стола
   Bed is Level!: Стол выровнен!
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
+  'Bed mesh...': ''
   Bed target set to {}°C: Целевая температура стола {}°C
   Bed temp must be 0-200°C: Температура стола должна быть 0-200°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
@@ -353,7 +357,9 @@ translations:
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для точного ввода
   Calibrate, tune jitter and scroll feel: Калибровка, настройка дрожания и поведения прокрутки
   Calibrated: Откалиброван
-  Calibrating {} axis...: Калибровка оси {}...
+  'Calibrating Probe...': ''
+  'Calibrating bed mesh...': ''
+  Calibrating {} axis...: 'Калибровка оси {}...'
   Calibrating...: Калибровка...
   Calibration & Tools: Калибровка и инструменты
   Calibration Complete!: Калибровка завершена!
@@ -437,6 +443,7 @@ translations:
   Checking: Проверка
   Checking Spoolman server...: Проверка сервера Spoolman...
   Checking accelerometer...: Проверка акселерометра...
+  'Checking extruders...': ''
   Checking filament...: Проверка филамента...
   Checking for plugin...: Поиск плагина...
   Checking for webcam...: Проверка веб-камеры...
@@ -459,6 +466,7 @@ translations:
   Clean Brush: Очистить щётку
   Clean Nozzle: Очистить сопло
   Cleaning Nozzle...: Очистка сопла...
+  'Cleaning nozzle...': ''
   Clear: Очистить
   Clear All: Очистить всё
   Clear All Events: Очистить все события
@@ -570,8 +578,9 @@ translations:
   Cool Down: Охладить
   Cool nozzle after filament ops: Остужать сопло после операций с филаментом
   Cooling: Охлаждение
-  Cooling Tube Length: Длина трубки охлаждения
-  Cooling Tube Retraction: Ретракция в трубке охлаждения
+  Cooling Tube Length: 'Длина трубки охлаждения'
+  Cooling Tube Retraction: 'Ретракция в трубке охлаждения'
+  'Cooling for probing...': ''
   Copied to clipboard!: Скопировано в буфер обмена!
   Copy Command: Копировать команду
   Copy failed - use SSH manually: Ошибка копирования - используйте SSH вручную
@@ -604,6 +613,7 @@ translations:
   Create a 4-6 digit security PIN: Создайте PIN-код из 4-6 цифр
   Create backup of %s before applying: Создать резервную копию %s перед применением
   Create video when print completes: Создать видео после завершения печати
+  'Creating bed mesh...': ''
   Creating spool...: Создание катушки...
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
   Current / Target: Текущая / Цель
@@ -663,6 +673,7 @@ translations:
   Deploy: Развернуть
   Describe the issue (optional): Опишите проблему (необязательно)
   Detailed: Подробно
+  'Detecting plate...': ''
   Detecting printer type...: Определение типа принтера...
   Detecting...: Обнаружение...
   Detection Length: Длина обнаружения
@@ -842,10 +853,12 @@ translations:
   Extruder Load Speed: Скорость загрузки экструдера
   Extruder MPC Calibration: Калибровка MPC экструдера
   Extruder PID Tuning: Настройка PID экструдера
-  Extruder Unload Speed: Скорость выгрузки экструдера
-  Extruder distances and sensor configuration: Расстояния экструдера и настройка датчиков
-  Extruder heats automatically based on material: Экструдер нагревается автоматически в зависимости от материала
-  Extruder to Nozzle: Экструдер до сопла
+  Extruder Unload Speed: 'Скорость выгрузки экструдера'
+  Extruder distances and sensor configuration: 'Расстояния экструдера и настройка датчиков'
+  Extruder heats automatically based on material: Экструдер нагревается автоматически
+    в зависимости от материала
+  Extruder to Nozzle: 'Экструдер до сопла'
+  'Extruding prime line...': ''
   FAILED: ОШИБКА
   FILAMENTS: ФИЛАМЕНТЫ
   FILTERS: ФИЛЬТРЫ
@@ -1006,6 +1019,7 @@ translations:
   Fine: Точно
   Fine-Tune: Тонкая настройка
   Finish: Завершить
+  'Finishing clean...': ''
   Finishing up...: Завершение...
   Firmware Restart: Перезапуск прошивки
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер.
@@ -1019,6 +1033,7 @@ translations:
   Flow Compensation: Компенсация потока
   Flow Rate: Множитель потока
   Flowguard: Flowguard
+  'Flushing Filament...': ''
   Flying Toasters: Летающие тостеры
   Follow active tool: Следовать активному инструменту
   Follow graph screen: Следовать экрану графика
@@ -1105,7 +1120,13 @@ translations:
   Heating: Нагрев
   Heating (%d°C below minimum): Нагрев (%d°C ниже минимума)
   Heating Bed...: Нагрев стола...
+  'Heating Chamber...': ''
   Heating Nozzle...: Нагрев сопла...
+  'Heating bed to $1°C...': ''
+  'Heating bed...': ''
+  'Heating chamber...': ''
+  'Heating nozzle to $1°C...': ''
+  'Heating nozzle...': ''
   Heating to %d°C... %.0f°C: Нагрев до %d°C... %.0f°C
   Heating to {}°C before {}...: Нагрев до {}°C перед «{}»...
   Heating to {}°C for {}...: Нагрев до {}°C в течение {}...
@@ -1136,6 +1157,7 @@ translations:
   Homing Y...: Парковка Y...
   Homing Z...: Парковка Z...
   Homing all axes...: Парковка всех осей...
+  'Homing axes...': ''
   'Homing failed: ': 'Парковка не удалась: '
   'Homing failed: {}': 'Ошибка парковки: {}'
   Homing first...: Парковка...
@@ -1183,6 +1205,7 @@ translations:
   Info: Инфо
   Initial speed for filament unloading: Начальная скорость выгрузки филамента
   Initialized: Инициализировано
+  'Initializing print...': ''
   Initializing...: Инициализация...
   Initiate blade change procedure: Начать процедуру замены лезвия
   Input: Ввод
@@ -1190,12 +1213,14 @@ translations:
   Input Shaper Help: Справка по Input Shaper
   Input Shaping: Компенсация вибраций
   Input shaper calibration sensors: Датчики калибровки Input Shaper'а
+  'Input shaper calibration...': ''
   Input shaper settings applied!: Настройки компенсатора вибраций применены!
   Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.: Компенсация вибраций уменьшает артефакты звона и двоения, вызванные вибрациями принтера при быстрых перемещениях.
   Input shaping reduces vibration artifacts (ringing) in your prints.: Input Shaper уменьшает артефакты вибрации (эхо) в ваших отпечатках.
   'Input: ': 'Вход: '
   InputShaper: InputShaper
   Insert filament before resuming: Вставьте филамент перед возобновлением
+  'Inspecting bed...': ''
   Install: Установить
   Install HelixPrint Plugin: Установить плагин HelixPrint
   Install Older Version?: Установить более старую версию?
@@ -1239,7 +1264,6 @@ translations:
   Keep Navigation Bar: Сохранить панель навигации
   Keep Printing: Продолжить печать
   Keep Required: Оставить обязательным
-  Keep Spool Info on Eject: ''
   Keep current: Оставить текущую
   Keep Spool Info on Eject: Сохранять данные катушки при извлечении
   Keep the bypass spool visible when bypass is off: Показывать катушку байпаса, даже когда байпас выключен
@@ -1623,6 +1647,7 @@ translations:
   Nozzle Temperature: Температура сопла
   Nozzle Temperatures: Температуры сопел
   Nozzle Temps: Темп. сопел
+  'Nozzle clean complete': ''
   Nozzle did not reach {}°C — {} cancelled: Сопло не нагрелось до {}°C — «{}» отменено
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
   Nozzle target set to {}°C: Целевая температура сопла {}°C
@@ -1763,15 +1788,19 @@ translations:
   Power Devices: Устройства питания
   Power off the printer or screen: Выключить принтер или экран
   'Pre-print command failed: {}': 'Ошибка команды перед печатью: {}'
-  Preheat: Преднагрев
+  'Pre-print homing...': ''
+  Preheat: 'Преднагрев'
   Preheat Macro: Макрос преднагрева
   Preheat PLA: Преднагрев PLA
   Preheat cancelled: Предварительный нагрев отменён
   'Preheat: T{} + bed set': 'Преднагрев: T{} + стол заданы'
   'Preheat: all {} tools + bed set': 'Преднагрев: все {} инструменты + стол заданы'
+  'Prepared': ''
   Preparing: Подготовка
   Preparing Print: Подготовка печати
   Preparing Print...: Подготовка печати...
+  'Preparing to Print...': ''
+  'Preparing to clean...': ''
   Preparing...: Подготовка...
   Preset: Пресет
   'Preset ID: {}': 'ID пресета: {}'
@@ -1783,6 +1812,7 @@ translations:
   Previous: Прежняя
   Price: Цена
   Primary: Основной
+  'Priming nozzle...': ''
   Priming...: Грунтование...
   Print: Печать
   Print Anyway: Всё равно печатать
@@ -1809,9 +1839,11 @@ translations:
   Print Was Terminated: Печать была прекращена
   Print cancelled: Печать отменена
   Print did not start: Печать не началась
+  'Print complete': ''
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Печать
     не началась — принтер может быть занят или не в сети (опросы B3={}, статус=0x{:02X},
     ошибка=0x{:02X})
+  'Print ending...': ''
   Print error: Ошибка печати
   Print failed: Печать не удалась
   Print issue detected: Обнаружена проблема печати
@@ -1873,11 +1905,14 @@ translations:
   Probe Speed: Скорость зонда
   Probe controls, accuracy test, and settings: Управление датчиком, тест точности и настройки
   Probing Bed Mesh: Зондирование сетки стола
+  'Probing Bed Mesh...': ''
   Probing Bed Screws...: Проверка винтов стола...
   Probing Bed...: Зондирование стола...
   Probing Failed: Ошибка зондирования
-  Probing point {} of {}: Точка замера {} из {}
-  Probing... ({} points): Замер... ({} точек)
+  'Probing Z...': ''
+  'Checking Bed Mesh...': ''
+  Probing point {} of {}: 'Точка замера {} из {}'
+  Probing... ({} points): 'Замер... ({} точек)'
   Proceed: Продолжить
   Processing...: Обработка...
   Profile deleted: Профиль удалён
@@ -1968,6 +2003,7 @@ translations:
   Refresh Interval: Интервал обновления
   Refresh RFID: 'Обновить RFID'
   Relative vibration: Относительная вибрация
+  'Reheating...': ''
   Release all stepper motors. Position will be lost.: Отпустить все шаговые моторы.
     Позиция будет потеряна.
   Remaining (g): Осталось (г)
@@ -1989,6 +2025,7 @@ translations:
   Render Now: Отрендерить сейчас
   Rendering timelapse...: Рендеринг таймлапса...
   Replay Welcome Tour: Повторить приветственный тур
+  'Replenishing filament...': ''
   Report saved to crash_report.txt: Отчёт сохранён в crash_report.txt
   Reprint: Повторить печать
   Reprint Last: Перепечатать последнюю
@@ -2044,6 +2081,7 @@ translations:
   Resume interrupted print?: Продолжить прерванную печать?
   Resume macro not configured: Макрос возобновления не настроен
   Resume preparation failed: Не удалось подготовиться к возобновлению
+  'Resuming print...': ''
   Resuming...: Возобновление...
   Retract: Ретракция
   Retract Distance: Расстояние ретракта
@@ -2332,6 +2370,8 @@ translations:
   Starting Print...: Запуск печати...
   Starting download...: Начало загрузки...
   Starting measurement...: Запуск измерения...
+  'Starting nozzle clean...': ''
+  'Starting print...': ''
   Starting...: Запуск...
   Startup Brightness: Яркость при запуске
   Startup, auto-control, and macro devices: Запуск, автоуправление и макро-устройства
@@ -2517,22 +2557,6 @@ translations:
   : Будут собраны системная информация, логи, настройки и данные принтера для диагностики. Пароли и конфиденциальные данные включены не будут.
   This will immediately halt all printer operations. The printer will require a restart to resume.: Это немедленно остановит все операции принтера. Для продолжения потребуется перезапуск.
   This will remove all custom pages and restore the default widget layout.: Все пользовательские страницы будут удалены, и будет восстановлен макет виджетов по умолчанию.
-  ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
-  : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения
-    конфигурации. Принтер ненадолго отключится.
-  ? This will apply the Z-offset to your probe and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
-  : Z-offset будет применён к вашему зонду, и Klipper перезапустится для сохранения
-    конфигурации. Принтер ненадолго отключится.
-  ? This will collect system info, logs, settings, and printer data to help diagnose
-    issues. No passwords or sensitive data will be included.
-  : Будут собраны системная информация, логи, настройки и данные принтера для диагностики.
-    Пароли и конфиденциальные данные включены не будут.
-  This will immediately halt all printer operations. The printer will require a restart to resume.: Это
-    немедленно остановит все операции принтера. Для продолжения потребуется перезапуск.
-  This will remove all custom pages and restore the default widget layout.: Все пользовательские
-    страницы будут удалены, и будет восстановлен макет виджетов по умолчанию.
   This will remove all entries from the display.: Это удалит все записи с экрана.
   This will remove the Spoolman configuration from Moonraker and restart the service.: Конфигурация Spoolman будет удалена из Moonraker, и сервис будет перезапущен.
   This will reset all settings to defaults. This action cannot be undone.: Это сбросит все настройки к значениям по умолчанию. Это действие нельзя отменить.
@@ -2683,6 +2707,7 @@ translations:
   Use printer type to select image: Использовать тип принтера для выбора изображения
   VM Peak: Пик VM
   VM Size: Размер VM
+  'Validating bed mesh...': ''
   Value must be between {:.0f} and {:.0f}: Значение должно быть от {:.0f} до {:.0f}
   Values must not be negative: Значения не должны быть отрицательными
   Velocity and acceleration limits: Ограничения скорости и ускорения
@@ -2693,6 +2718,7 @@ translations:
   Verify: Проверить
   Verifying SHA256 checksum...: Проверка контрольной суммы SHA256...
   Verifying download...: Проверка загрузки...
+  'Verifying file...': ''
   Verifying timelapse plugin...: Проверка плагина таймлапса...
   Verifying...: Проверка...
   Version: Версия
@@ -2865,9 +2891,7 @@ translations:
   nozzle: сопло
   of: из
   'off': выкл
-  Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
-  AI detection: AI-детекция
   prints: печатей
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора

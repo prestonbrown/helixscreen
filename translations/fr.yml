@@ -115,7 +115,6 @@ translations:
   AFC reset complete: Réinitialisation AFC terminée
   AFC reset failed: Échec de la réinitialisation AFC
   AFC retracts filament from the toolhead at end of print: AFC rétracte le filament de la tête d'outil à la fin de l'impression
-  AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: ''
   AI detection: Détection AI
   ALL DEVICES: TOUS LES APPAREILS
   AMS: AMS
@@ -222,7 +221,9 @@ translations:
   Auto-poll for weight updates: Interrogation auto des mises à jour de poids
   Auto-probe or manually check screw heights: Palpage auto ou vérification manuelle des hauteurs de vis
   Auto-render video: Rendu vidéo automatique
-  Auto-uninstall only works on local Moonraker: La désinstallation automatique ne fonctionne que sur Moonraker local
+  'Auto-tuning Shapers...': ''
+  Auto-uninstall only works on local Moonraker: La désinstallation automatique ne
+    fonctionne que sur Moonraker local
   Automatic: Automatique
   Automatic Heater Control Calibration: Calibration automatique du chauffage
   Automatic LED Control: Contrôle LED automatique
@@ -253,8 +254,10 @@ translations:
   Bed Level: Niveau du plateau
   Bed Leveling: Mise à niveau du plateau
   Bed Mesh: Maillage du plateau
+  'Bed Mesh Complete': ''
   Bed Mesh Render: Rendu du maillage du plateau
   Bed Mesh...: Maillage du plateau...
+  Bed Meshing...: ''
   Bed Moves: Le lit bouge
   Bed Screw Adjustment: Ajustement des vis du plateau
   Bed Screw Results: Résultats des vis du plateau
@@ -264,6 +267,7 @@ translations:
   Bed Temperature: Température du plateau
   Bed is Level!: Le plateau est niveau !
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
+  'Bed mesh...': ''
   Bed target set to {}°C: Cible plateau réglée à {}°C
   Bed temp must be 0-200°C: La température du plateau doit être entre 0 et 200°C
   Bed warming timed out: Préchauffage du plateau — délai dépassé
@@ -354,7 +358,9 @@ translations:
   Calibrate your touchscreen for accurate input: Calibrer votre écran tactile pour une saisie précise
   Calibrate, tune jitter and scroll feel: Calibrer, ajuster les tremblements et le défilement
   Calibrated: Calibré
-  Calibrating {} axis...: Calibration de l'axe {}...
+  'Calibrating Probe...': ''
+  'Calibrating bed mesh...': ''
+  Calibrating {} axis...: 'Calibration de l''axe {}...'
   Calibrating...: Calibration...
   Calibration & Tools: Calibration et outils
   Calibration Complete!: Calibration terminée !
@@ -438,6 +444,7 @@ translations:
   Checking: Vérification
   Checking Spoolman server...: Vérification du serveur Spoolman...
   Checking accelerometer...: Vérification de l'accéléromètre...
+  'Checking extruders...': ''
   Checking filament...: Vérification du filament...
   Checking for plugin...: Recherche du plugin...
   Checking for webcam...: Recherche dune webcam...
@@ -460,6 +467,7 @@ translations:
   Clean Brush: Nettoyer la brosse
   Clean Nozzle: Nettoyer la buse
   Cleaning Nozzle...: Nettoyage de la buse...
+  'Cleaning nozzle...': ''
   Clear: Effacer
   Clear All: Tout effacer
   Clear All Events: Effacer tous les événements
@@ -571,8 +579,9 @@ translations:
   Cool Down: Refroidir
   Cool nozzle after filament ops: Refroidir la buse après opérations filament
   Cooling: Refroidissement
-  Cooling Tube Length: Longueur du tube de refroidissement
-  Cooling Tube Retraction: Rétraction du tube de refroidissement
+  Cooling Tube Length: 'Longueur du tube de refroidissement'
+  Cooling Tube Retraction: 'Rétraction du tube de refroidissement'
+  'Cooling for probing...': ''
   Copied to clipboard!: Copié dans le presse-papiers !
   Copy Command: Copier la commande
   Copy failed - use SSH manually: Copie échouée - utilisez SSH manuellement
@@ -605,6 +614,7 @@ translations:
   Create a 4-6 digit security PIN: Créez un PIN de sécurité de 4 à 6 chiffres
   Create backup of %s before applying: Créer une sauvegarde de %s avant d'appliquer
   Create video when print completes: Créer une vidéo à la fin de l'impression
+  'Creating bed mesh...': ''
   Creating spool...: Création de la bobine...
   'Critical hardware missing: {}': 'Matériel critique manquant : {}'
   Current / Target: Actuel / Cible
@@ -664,6 +674,7 @@ translations:
   Deploy: Déployer
   Describe the issue (optional): Décrivez le problème (optionnel)
   Detailed: Détaillé
+  'Detecting plate...': ''
   Detecting printer type...: Détection du type d'imprimante...
   Detecting...: Détection...
   Detection Length: Longueur de détection
@@ -843,10 +854,12 @@ translations:
   Extruder Load Speed: Vitesse de chargement de l'extrudeur
   Extruder MPC Calibration: Calibration MPC de l'extrudeuse
   Extruder PID Tuning: Réglage PID de l'extrudeur
-  Extruder Unload Speed: Vitesse de déchargement de l'extrudeur
-  Extruder distances and sensor configuration: Distances d'extrudeur et configuration des capteurs
-  Extruder heats automatically based on material: L'extrudeur chauffe automatiquement selon le matériau
-  Extruder to Nozzle: Extrudeur à la buse
+  Extruder Unload Speed: 'Vitesse de déchargement de l''extrudeur'
+  Extruder distances and sensor configuration: 'Distances d''extrudeur et configuration des capteurs'
+  Extruder heats automatically based on material: L'extrudeur chauffe automatiquement
+    selon le matériau
+  Extruder to Nozzle: 'Extrudeur à la buse'
+  'Extruding prime line...': ''
   FAILED: ÉCHOUÉ
   FILAMENTS: FILAMENTS
   FILTERS: FILTRES
@@ -1007,6 +1020,7 @@ translations:
   Fine: Fin
   Fine-Tune: Réglage fin
   Finish: Terminer
+  'Finishing clean...': ''
   Finishing up...: Finalisation...
   Firmware Restart: Redémarrage firmware
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Le firmware ne signale aucun bypass. Activez cette option si vous alimentez l'extrudeur directement en filament
@@ -1020,6 +1034,7 @@ translations:
   Flow Compensation: Compensation de débit
   Flow Rate: Débit
   Flowguard: Flowguard
+  'Flushing Filament...': ''
   Flying Toasters: Flying Toasters
   Follow active tool: Suivre l'outil actif
   Follow graph screen: Suivre l'écran du graphique
@@ -1106,7 +1121,13 @@ translations:
   Heating: Chauffage
   Heating (%d°C below minimum): Chauffe (%d°C sous le minimum)
   Heating Bed...: Chauffe du plateau...
+  'Heating Chamber...': ''
   Heating Nozzle...: Chauffe de la buse...
+  'Heating bed to $1°C...': ''
+  'Heating bed...': ''
+  'Heating chamber...': ''
+  'Heating nozzle to $1°C...': ''
+  'Heating nozzle...': ''
   Heating to %d°C... %.0f°C: Chauffe à %d°C... %.0f°C
   Heating to {}°C before {}...: Chauffe à {}°C avant {}...
   Heating to {}°C for {}...: Chauffe à {}°C pendant {}...
@@ -1137,6 +1158,7 @@ translations:
   Homing Y...: Référence Y...
   Homing Z...: Référence Z...
   Homing all axes...: Référence de tous les axes...
+  'Homing axes...': ''
   'Homing failed: ': 'Échec de la prise dorigine : '
   'Homing failed: {}': 'Échec de la référence : {}'
   Homing first...: Référence en cours...
@@ -1184,6 +1206,7 @@ translations:
   Info: Info
   Initial speed for filament unloading: Vitesse initiale pour le déchargement du filament
   Initialized: Initialisé
+  'Initializing print...': ''
   Initializing...: Initialisation...
   Initiate blade change procedure: Lancer la procédure de changement de lame
   Input: Entrée
@@ -1191,12 +1214,14 @@ translations:
   Input Shaper Help: Aide Input Shaper
   Input Shaping: Input Shaping
   Input shaper calibration sensors: Capteurs de calibration Input Shaper
+  'Input shaper calibration...': ''
   Input shaper settings applied!: Paramètres Input Shaper appliqués !
   Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements.: L'Input Shaping réduit les artefacts d'ondulation et de ghosting causés par les vibrations de l'imprimante pendant les mouvements rapides.
   Input shaping reduces vibration artifacts (ringing) in your prints.: L'Input Shaping réduit les artefacts de vibration (ondulations) dans vos impressions.
   'Input: ': 'Entrée : '
   InputShaper: InputShaper
   Insert filament before resuming: Insérez le filament avant de reprendre
+  'Inspecting bed...': ''
   Install: Installer
   Install HelixPrint Plugin: Installer le plugin HelixPrint
   Install Older Version?: Installer une version plus ancienne ?
@@ -1240,7 +1265,6 @@ translations:
   Keep Navigation Bar: Conserver la barre de navigation
   Keep Printing: Continuer l'impression
   Keep Required: Garder obligatoire
-  Keep Spool Info on Eject: ''
   Keep current: Garder l'actuel
   Keep Spool Info on Eject: Garder les informations de bobine lors de l'éjection
   Keep the bypass spool visible when bypass is off: Garder la bobine de bypass visible lorsque le bypass est désactivé
@@ -1624,6 +1648,7 @@ translations:
   Nozzle Temperature: Température de la buse
   Nozzle Temperatures: Températures des buses
   Nozzle Temps: Temp. des buses
+  'Nozzle clean complete': ''
   Nozzle did not reach {}°C — {} cancelled: La buse n'a pas atteint {}°C — {} annulé
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
   Nozzle target set to {}°C: Cible buse réglée à {}°C
@@ -1764,15 +1789,20 @@ translations:
   Power Devices: Appareils électriques
   Power off the printer or screen: Éteindre l'imprimante ou l'écran
   'Pre-print command failed: {}': 'Échec de la commande pré-impression : {}'
-  Preheat: Préchauffage
+  'Pre-print homing...': ''
+  Preheat: 'Préchauffage'
   Preheat Macro: Macro de préchauffage
   Preheat PLA: Préchauffer PLA
   Preheat cancelled: Préchauffage annulé
   'Preheat: T{} + bed set': 'Préchauffage : T{} + plateau réglé'
-  'Preheat: all {} tools + bed set': 'Préchauffage : tous les {} outils + plateau réglé'
+  'Preheat: all {} tools + bed set': 'Préchauffage : tous les {} outils + plateau
+    réglé'
+  'Prepared': ''
   Preparing: Préparation
   Preparing Print: Préparation de l'impression
   Preparing Print...: Préparation de l'impression...
+  'Preparing to Print...': ''
+  'Preparing to clean...': ''
   Preparing...: Préparation...
   Preset: Préréglage
   'Preset ID: {}': 'ID du préréglage : {}'
@@ -1784,6 +1814,7 @@ translations:
   Previous: Précédent
   Price: Prix
   Primary: Principal
+  'Priming nozzle...': ''
   Priming...: Amorçage...
   Print: Imprimer
   Print Anyway: Imprimer quand même
@@ -1810,9 +1841,11 @@ translations:
   Print Was Terminated: L'impression a été interrompue
   Print cancelled: Impression annulée
   Print did not start: L'impression n'a pas démarré
+  'Print complete': ''
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Limpression
     na pas démarré — limprimante est peut-être occupée ou hors ligne (sondages B3={},
     état=0x{:02X}, erreur=0x{:02X})
+  'Print ending...': ''
   Print error: Erreur dimpression
   Print failed: Impression échouée
   Print issue detected: Problème d'impression détecté
@@ -1874,11 +1907,14 @@ translations:
   Probe Speed: Vitesse de palpage
   Probe controls, accuracy test, and settings: Commandes de sonde, test de précision et paramètres
   Probing Bed Mesh: Palpage du maillage du plateau
+  'Probing Bed Mesh...': ''
   Probing Bed Screws...: Palpage des vis du plateau...
   Probing Bed...: Palpage du plateau...
   Probing Failed: Palpage échoué
-  Probing point {} of {}: Point de palpage {} sur {}
-  Probing... ({} points): Palpage... ({} points)
+  'Probing Z...': ''
+  'Checking Bed Mesh...': ''
+  Probing point {} of {}: 'Point de palpage {} sur {}'
+  Probing... ({} points): 'Palpage... ({} points)'
   Proceed: Continuer
   Processing...: Traitement...
   Profile deleted: Profil supprimé
@@ -1969,6 +2005,7 @@ translations:
   Refresh Interval: Intervalle de rafraîchissement
   Refresh RFID: 'Actualiser le RFID'
   Relative vibration: Vibration relative
+  'Reheating...': ''
   Release all stepper motors. Position will be lost.: Relâcher tous les moteurs pas
     à pas. La position sera perdue.
   Remaining (g): Restant (g)
@@ -1990,6 +2027,7 @@ translations:
   Render Now: Rendre maintenant
   Rendering timelapse...: Rendu du timelapse...
   Replay Welcome Tour: Rejouer la visite de bienvenue
+  'Replenishing filament...': ''
   Report saved to crash_report.txt: Rapport enregistré dans crash_report.txt
   Reprint: Réimprimer
   Reprint Last: Réimprimer la dernière
@@ -2045,6 +2083,7 @@ translations:
   Resume interrupted print?: Reprendre l'impression interrompue ?
   Resume macro not configured: Macro de reprise non configurée
   Resume preparation failed: Échec de la préparation à la reprise
+  'Resuming print...': ''
   Resuming...: Reprise en cours...
   Retract: Rétracter
   Retract Distance: Distance de rétraction
@@ -2333,6 +2372,8 @@ translations:
   Starting Print...: Démarrage de l'impression...
   Starting download...: Démarrage du téléchargement...
   Starting measurement...: Démarrage de la mesure...
+  'Starting nozzle clean...': ''
+  'Starting print...': ''
   Starting...: Démarrage...
   Startup Brightness: Luminosité au démarrage
   Startup, auto-control, and macro devices: Démarrage, contrôle auto et appareils macro
@@ -2527,33 +2568,6 @@ translations:
   This will remove the Spoolman configuration from Moonraker and restart the service.: Cela supprimera la configuration Spoolman de Moonraker et redémarrera le service.
   This will reset all settings to defaults. This action cannot be undone.: Cela réinitialisera tous les paramètres par défaut. Cette action ne peut pas être annulée.
   This will restart Klipper firmware. Any active operations will be interrupted.: Le firmware Klipper sera redémarré. Les opérations actives seront interrompues.
-  ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
-  : Cela appliquera le Z-offset à votre butée et redémarrera Klipper pour enregistrer
-    la configuration. L'imprimante se déconnectera brièvement.
-  ? This will apply the Z-offset to your probe and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
-  : Cela appliquera le Z-offset à votre sonde et redémarrera Klipper pour enregistrer
-    la configuration. L'imprimante se déconnectera brièvement.
-  ? This will collect system info, logs, settings, and printer data to help diagnose
-    issues. No passwords or sensitive data will be included.
-  : Cela collectera les infos système, journaux, paramètres et données de l'imprimante
-    pour aider à diagnostiquer les problèmes. Aucun mot de passe ni donnée sensible
-    ne sera inclus.
-  This will immediately halt all printer operations. The printer will require a restart to resume.: Cela
-    arrêtera immédiatement toutes les opérations de l'imprimante. L'imprimante nécessitera
-    un redémarrage pour reprendre.
-  This will remove all custom pages and restore the default widget layout.: Toutes
-    les pages personnalisées seront supprimées et la disposition des widgets par défaut
-    sera restaurée.
-  This will remove all entries from the display.: Cela supprimera toutes les entrées
-    de l'affichage.
-  This will remove the Spoolman configuration from Moonraker and restart the service.: Cela
-    supprimera la configuration Spoolman de Moonraker et redémarrera le service.
-  This will reset all settings to defaults. This action cannot be undone.: Cela réinitialisera
-    tous les paramètres par défaut. Cette action ne peut pas être annulée.
-  This will restart Klipper firmware. Any active operations will be interrupted.: Le
-    firmware Klipper sera redémarré. Les opérations actives seront interrompues.
   This will restart Klipper.: Cela redémarrera Klipper.
   Thorough: Approfondi
   Thumbnail Only: Miniature uniquement
@@ -2700,6 +2714,7 @@ translations:
   Use printer type to select image: Utiliser le type d'imprimante pour sélectionner l'image
   VM Peak: Pic de mémoire virtuelle
   VM Size: Taille de la mémoire virtuelle
+  'Validating bed mesh...': ''
   Value must be between {:.0f} and {:.0f}: La valeur doit être entre {:.0f} et {:.0f}
   Values must not be negative: Les valeurs ne doivent pas être négatives
   Velocity and acceleration limits: Limites de vitesse et d'accélération
@@ -2710,6 +2725,7 @@ translations:
   Verify: Vérifier
   Verifying SHA256 checksum...: Vérification de la somme de contrôle SHA256...
   Verifying download...: Vérification du téléchargement...
+  'Verifying file...': ''
   Verifying timelapse plugin...: Vérification du plugin timelapse...
   Verifying...: Vérification...
   Version: Version
@@ -2882,9 +2898,7 @@ translations:
   nozzle: buse
   of: de
   'off': éteint
-  Monitor for print abnormalities (K2 Plus camera-based): Surveiller les anomalies d'impression (caméra K2 Plus)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Le paramètre remember_spool d'AFC retient les informations de bobine dans le firmware ; il prime sur cette option
-  AI detection: Détection AI
   prints: impressions
   remaining: restant
   remaining before clog detection triggers: restant avant le déclenchement de la détection de bouchon
