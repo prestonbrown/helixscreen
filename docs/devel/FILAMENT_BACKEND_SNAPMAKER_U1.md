@@ -11,11 +11,14 @@ identify per channel via RFID (`filament_detect.info`). Platform context:
 
 ## Snapmaker U1 (SnapSwap)
 
-> **Status: drafted from source; hardware verification pending.** The read path, the
-> `AUTO_FEEDING` load/unload commands, and the runout-resume chain are recorded in code
-> comments as verified live on a physical U1 (firmware 20260608, #991); the rest of this
-> document has not been exercised against the rig (192.168.30.103). Treat every claim
-> here as source-derived until the banner above comes off.
+> **Status: drafted from source; hardware verification pending.** Code comments record
+> the `AUTO_FEEDING` load/unload commands and pause classification as verified live on a
+> physical U1 (firmware 20260608, #991), and the 39 `channel_state` values were captured
+> live from that firmware. The RFID read path below is code-verified line-by-line but not
+> against physical tags, and the resume-after-runout chain is **not field-tested**
+> end-to-end. The rest of this document has not been exercised against the rig
+> (192.168.30.103). Treat every claim here as source-derived until the banner above comes
+> off.
 
 ### Hardware and Topology
 
@@ -96,6 +99,12 @@ of eight known literals ("Basic", "Matte", "SnapSpeed", "Silk", "Support", "HF",
 "95A HF"); a free-form user `spool_name` is never round-tripped to firmware as a
 SUB_TYPE (`ams_backend_snapmaker.cpp:38-48`, `860-869`).
 
+Every row above is code-verified against `parse_rfid_info()` and the apply loop
+(`ams_backend_snapmaker.cpp:990-1045`, `1171-1204`): tag identity rides
+`filament_detect.info[ch].CARD_UID`, and a `MAIN_TYPE == "NONE"` tag skips the field
+apply while its UID is still captured for swap detection (`:1173-1182`). Physical reads
+from real RFID spools remain rig-pending; code-verified is not field-verified.
+
 ### Commands the Backend Emits
 
 | Command / call | Used for |
@@ -172,8 +181,11 @@ With runout latched, the backend drives
 `INNER_RESUME` auto-feed is gated on `extruders_used`, which stays false mid-print, so a
 plain RESUME re-pauses immediately. The chain heats, feeds, and flushes (~86 s measured;
 150 s timeout, silent send), raises an info toast for the wait, and hands control back so
-the caller dispatches RESUME; `on_ready` always fires on the main thread. Recorded in the
-source as verified live on a physical U1 (#991).
+the caller dispatches RESUME; `on_ready` always fires on the main thread. What is
+recorded as live-verified (#991) is the `AUTO_FEEDING` command itself - it blocks until
+`load_finish`, is idempotent, and the ~86 s figure was measured live
+(`ams_backend_snapmaker.cpp:653-666`, `:722-724`). The full chain - runout pause ->
+runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 
 Related capability flags: `recovers_filament_on_resume() = true` (Resume re-feeds, so
 the runout dialog presents Resume as primary) and
@@ -196,6 +208,19 @@ so the config must land before `PRINT_START`. `requires_preprint_send() = true` 
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
 empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:222-229`,
 `src/ui/ui_print_start_controller.cpp:315-332`).
+
+Send ordering is guaranteed on our side of the wire. Both start paths gate on
+`requires_preprint_send()` and hand the real start step to
+`send_snapmaker_preprint_then()` as its completion continuation, then `return` - the
+start cannot fire first (`src/ui/ui_print_start_controller.cpp:323-337`, reprint
+`:454-471`). The built gcode goes out as a single `printer.gcode.script` JSON-RPC with a
+15 s timeout (`:355-404`, dispatched at `src/api/moonraker_api_controls.cpp:426`); the
+print-start request is issued only from that request's success callback, and an error or
+timeout aborts with a modal so the print never starts half-configured (`:388-403`). The
+upload/prep window that follows only widens the gap. What this does NOT settle is
+firmware-side: whether the ack means `print_task_config` is already mutated - and stays
+mutated - by the time the baked `PRINT_START` block executes. That stays in the config
+doc's "Still UNCERTAIN" list.
 
 `build_preprint_gcode(tools_used, remap)` is pure (no API access; unit-tested directly):
 one `SET_PRINT_EXTRUDER_MAP` per user remap entry, then one
@@ -268,12 +293,25 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
 
 1. **Hardware verification** on the U1 rig (192.168.30.103) — the banner on this doc.
    Everything above is source-derived; the code comments' live-verified markers
-   (#991, firmware 20260608) cover the load/unload/resume commands and the
-   channel_state latch, not the full read path or the pre-print send timing.
+   (#991, firmware 20260608) cover the `AUTO_FEEDING` load/unload commands and pause
+   classification, not the RFID read path, the resume-after-runout chain, or the
+   pre-print send timing.
 2. `is_stuck_motion_sensor_runout()` has no caller — revive when a verifiable
-   "filament at the gear" signal exists (`ams_backend_snapmaker.cpp:560-568`).
-3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` (lands and persists
-   before the baked `PRINT_START` block runs) is unverified live — flagged in
+   "filament at the gear" signal exists (`ams_backend_snapmaker.cpp:560-584`). Checked
+   2026-08-21: the status model carries **no dedicated feeder/gear-presence field** -
+   the three presence signals are `filament_detect.state` (per channel),
+   `filament_feed` per-extruder `filament_detected` (port), and the per-tool motion
+   sensor. The code's own candidate is `filament_feed.channel_state`: `load_finish`
+   (fed to nozzle) vs `preload_finish` (firmware assist stops short of the gear) -
+   both already parsed into the channel-state machine
+   (`ams_backend_snapmaker.cpp:134-137`, `:560-567`). What is missing is rig
+   confirmation that the state reliably means "filament at the gear" before the gate
+   is revived.
+3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` is unverified live.
+   Code-side ordering is established (see Pre-Print Remap above): the print-start
+   request is issued only after the config gcode's JSON-RPC ack. Still open,
+   firmware-side: whether the ack means the config is mutated and persists by the time
+   the baked `PRINT_START` block runs — flagged in
    [SNAPMAKER_U1_PRINT_TASK_CONFIG.md](SNAPMAKER_U1_PRINT_TASK_CONFIG.md) § "Still
    UNCERTAIN".
 4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h:162-169`
