@@ -19,6 +19,7 @@
  */
 
 #include "app_globals.h"
+#include "platform_info.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -55,31 +56,67 @@ TEST_CASE("helix_parse_truthy_env rejects falsy and empty values", "[update][ext
     CHECK_FALSE(helix_parse_truthy_env("   "));
 }
 
-TEST_CASE("compute_updates_externally_managed gates on the explicit flag only",
+TEST_CASE("compute_updates_externally_managed: explicit flag beats the platform default",
           "[update][external]") {
-    // Arg: (disable_auto_updates)
+    // Args: (disable_auto_updates, platform_default)
 
-    // Explicit HELIX_DISABLE_AUTO_UPDATES (firmware-facing flag) is truthy.
-    CHECK(compute_updates_externally_managed("1"));
-    CHECK(compute_updates_externally_managed("true"));
-    CHECK(compute_updates_externally_managed("yes"));
-    CHECK(compute_updates_externally_managed("on"));
+    // Truthy flag suppresses, whatever the platform would have said.
+    CHECK(compute_updates_externally_managed("1", false));
+    CHECK(compute_updates_externally_managed("true", false));
+    CHECK(compute_updates_externally_managed("yes", false));
+    CHECK(compute_updates_externally_managed("on", false));
 
-    // A falsy explicit opt-out does not force the managed state.
-    CHECK_FALSE(compute_updates_externally_managed("0"));
-    CHECK_FALSE(compute_updates_externally_managed("no"));
-    CHECK_FALSE(compute_updates_externally_managed("false"));
+    // Falsy flag FORCE-ENABLES self-update even where the platform defaults to
+    // managed. This is the dev-box escape hatch on the Snapmaker U1 — without it,
+    // a platform default would be unoverridable without a rebuild.
+    CHECK_FALSE(compute_updates_externally_managed("0", true));
+    CHECK_FALSE(compute_updates_externally_managed("no", true));
+    CHECK_FALSE(compute_updates_externally_managed("false", true));
 
-    // Nothing set → normal self-managed install.
-    CHECK_FALSE(compute_updates_externally_managed(nullptr));
-    CHECK_FALSE(compute_updates_externally_managed(""));
+    // Unset (null or empty) defers to the platform, in both directions. An empty
+    // string must read as unset, not as falsy — helixscreen.env can export an
+    // empty value, and treating that as an explicit "no" would silently re-enable
+    // self-update on a firmware-managed box.
+    CHECK(compute_updates_externally_managed(nullptr, true));
+    CHECK(compute_updates_externally_managed("", true));
+    CHECK_FALSE(compute_updates_externally_managed(nullptr, false));
+    CHECK_FALSE(compute_updates_externally_managed("", false));
+
+    // Blank is ABSENT, not falsy. helixscreen.env values routinely carry a stray
+    // space, and reading an all-whitespace value as an explicit "no" would flip a
+    // firmware-managed install back to self-updating without anyone asking.
+    CHECK(compute_updates_externally_managed(" ", true));
+    CHECK(compute_updates_externally_managed("   ", true));
+    CHECK(compute_updates_externally_managed("\t", true));
+    CHECK_FALSE(compute_updates_externally_managed(" ", false));
+
+    // A real value still parses with its surrounding whitespace trimmed.
+    CHECK(compute_updates_externally_managed(" 1 ", false));
+    CHECK_FALSE(compute_updates_externally_managed(" 0 ", true));
+}
+
+TEST_CASE("platform_defaults_to_external_updates drives the unset case",
+          "[update][external][platform]") {
+    // The platform answer is what a real U1 build supplies. Exercise both arms
+    // through the override so this holds on every build host.
+    helix::set_external_updates_default_override(1);
+    CHECK(helix::platform_defaults_to_external_updates());
+    CHECK(compute_updates_externally_managed(nullptr,
+                                             helix::platform_defaults_to_external_updates()));
+
+    helix::set_external_updates_default_override(0);
+    CHECK_FALSE(helix::platform_defaults_to_external_updates());
+    CHECK_FALSE(compute_updates_externally_managed(nullptr,
+                                                   helix::platform_defaults_to_external_updates()));
+
+    helix::set_external_updates_default_override(-1);
 }
 
 TEST_CASE("updates_externally_managed reflects the environment (cached)", "[update][external]") {
     // The value is cached process-wide, so we assert it agrees with the pure
     // predicate over the current env rather than trying to flip it mid-process.
-    const bool expected =
-        compute_updates_externally_managed(std::getenv("HELIX_DISABLE_AUTO_UPDATES"));
+    const bool expected = compute_updates_externally_managed(
+        std::getenv("HELIX_DISABLE_AUTO_UPDATES"), helix::platform_defaults_to_external_updates());
     CHECK(updates_externally_managed() == expected);
     // Stable across calls (proves the cache doesn't re-read differently).
     CHECK(updates_externally_managed() == updates_externally_managed());

@@ -119,6 +119,22 @@ reenable_previous_ui() {
     found_ui=false
     restored_xorg=false
 
+    # Platform-specific restores live in uninstall.sh's restore_previous_ui_platform()
+    # and cover what the generic scanning below cannot: COSMOS sibling UIs, the
+    # Snapmaker U1 stock binary + /oem/.debug, AD5M zmod, and the Creality `app`
+    # launcher. They were reachable only through uninstall(), which install.sh calls
+    # but THIS bundle does not — its main() calls this function instead. So the
+    # uninstaller users actually run silently restored nothing on those platforms.
+    # Run it FIRST; the scanning below is the fallback for platforms it does not know.
+    if type restore_previous_ui_platform >/dev/null 2>&1; then
+        restore_previous_ui_platform "$platform"
+        if [ -n "$HELIX_RESTORED_UI" ]; then
+            log_success "Re-enabled: $HELIX_RESTORED_UI"
+            found_ui=true
+        fi
+        [ -n "$HELIX_RESTORED_XORG" ] && restored_xorg=true
+    fi
+
     # For ForgeX firmware, do comprehensive cleanup and restore
     if [ "$AD5M_FIRMWARE" = "forge_x" ]; then
         uninstall_forgex

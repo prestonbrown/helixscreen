@@ -8666,145 +8666,19 @@ undo_seeded_settings() {
 
 # Uninstall HelixScreen
 # Args: platform (optional)
-uninstall() {
-    local platform=${1:-}
-
-    log_info "Uninstalling HelixScreen..."
-
-    # Drop sentinel BEFORE any destructive work.  helixscreen-update.service
-    # checks for it and refuses to fire while uninstall is running, closing
-    # the race where Moonraker's path unit could re-trigger a restart between
-    # stop_service and rm -rf.  Swept at the end by clean_helix_state_dirs;
-    # the trap covers the abort case so a stuck sentinel can't silently block
-    # future update.service firings.
-    # Chained with the scratch-dir cleanup main.sh arms: a trap REPLACES the
-    # previous handler for a signal, and install.sh bundles both modules, so
-    # setting only the sweep here would disarm cleanup on the --uninstall path.
-    trap '_sweep_uninstalling_sentinel; type cleanup_on_success >/dev/null 2>&1 && cleanup_on_success' EXIT INT TERM
-    _drop_uninstalling_sentinel
-
-    # Remove the [update_manager helixscreen] section FIRST, before any files
-    # disappear.  If Moonraker auto-refreshes (or someone clicks "Update" in
-    # Mainsail mid-uninstall), having the section gone before we start
-    # dismantling files prevents a re-extract from racing us.  Moonraker's
-    # in-memory updater object survives until Moonraker is reloaded, but
-    # type:web only extracts on explicit user trigger so the on-disk edit is
-    # the effective fix; no moonraker restart needed.
-    if type remove_update_manager_section >/dev/null 2>&1; then
-        remove_update_manager_section || true
-    fi
-
-    # Drop the service-allowlist entry the install added. Nothing else prunes
-    # moonraker.asvc, so skipping this leaves helixscreen listed forever.
-    if type remove_moonraker_asvc >/dev/null 2>&1; then
-        local _asvc_conf
-        _asvc_conf=$(find_moonraker_conf 2>/dev/null || true)
-        [ -n "$_asvc_conf" ] && remove_moonraker_asvc "$_asvc_conf" || true
-    fi
-
-    # Detect init system first
-    detect_init_system
-
-    if [ "$INIT_SYSTEM" = "systemd" ]; then
-        # Stop and disable systemd service
-        $SUDO systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-        $SUDO systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-        $SUDO rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
-        # Remove update watcher units (mainsail#2444 workaround)
-        $SUDO systemctl stop helixscreen-update.path 2>/dev/null || true
-        $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
-        $SUDO rm -f /etc/systemd/system/helixscreen-update.path
-        $SUDO rm -f /etc/systemd/system/helixscreen-update.service
-        # Remove permission rules (udev, polkit)
-        $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
-        $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla
-        $SUDO rm -f /etc/polkit-1/rules.d/49-helixscreen-network.rules
-        $SUDO rm -f /etc/polkit-1/rules.d/50-helixscreen-network.rules
-        $SUDO systemctl daemon-reload
-    else
-        # Stop and remove SysV init scripts (check all possible locations)
-        local removed_procd_shim=false
-        for init_script in $HELIX_INIT_SCRIPTS; do
-            if [ -f "$init_script" ]; then
-                log_info "Stopping and removing $init_script..."
-                $SUDO "$init_script" stop 2>/dev/null || true
-                # K2 procd shim: only call disable if this is actually a
-                # rc.common-style script. CC1 installs a plain SysV script
-                # at the same /etc/init.d/helixscreen path, and CC1's BusyBox
-                # rejects `head -1` (only supports `head -n 1`), so we use
-                # awk for the shebang check (portable across all BusyBox
-                # variants we ship to). Also CC1 has no /etc/rc.common, so
-                # the first guard short-circuits anyway.
-                if [ "$init_script" = "/etc/init.d/helixscreen" ] && \
-                   [ -x /etc/rc.common ] && \
-                   awk 'NR==1 {exit !/\/etc\/rc\.common/}' "$init_script" 2>/dev/null; then
-                    $SUDO "$init_script" disable 2>/dev/null || true
-                    removed_procd_shim=true
-                fi
-                $SUDO rm -f "$init_script"
-            fi
-        done
-        # Belt-and-suspenders cleanup of rc.d symlinks, but only if we actually
-        # removed a procd shim (avoid touching /etc/rc.d on platforms that
-        # don't use the procd boot iterator).
-        if [ "$removed_procd_shim" = "true" ]; then
-            $SUDO rm -f /etc/rc.d/S99helixscreen /etc/rc.d/K01helixscreen 2>/dev/null || true
-        fi
-    fi
-
-    # Kill any remaining processes (watchdog first to prevent crash dialog flash)
-    # shellcheck disable=SC2086
-    kill_process_by_name $HELIX_PROCESSES || true
-
-    # Clean up PID files and log file
-    $SUDO rm -f /var/run/helixscreen.pid 2>/dev/null || true
-    $SUDO rm -f /var/run/helix-splash.pid 2>/dev/null || true
-    rm -f /tmp/helixscreen.log 2>/dev/null || true
-
-    # K2 ustreamer camera teardown (#camera): stop/disable/remove the ustreamer
-    # service + binary and restore Moonraker's stock webcam list. Must run BEFORE
-    # reenable_disabled_services (which chmod +x's the stock WebRTC init scripts
-    # back) and BEFORE $INSTALL_DIR is removed (the .webcams_backup.json and
-    # .camera_migrated marker live in $INSTALL_DIR/config). No-op off K2.
-    if type uninstall_camera_k2 >/dev/null 2>&1; then
-        uninstall_camera_k2 "$platform" || true
-    fi
-
-    # Re-enable services from state file (before removing install dir)
-    reenable_disabled_services
-
-    # Revert per-printer Klipper includes (#986) — strip the [include] line from
-    # printer.cfg and remove the copied snippet. Must run before $INSTALL_DIR
-    # (which holds the .klipper_includes state file) is removed.
-    undo_klipper_includes
-
-    # Acknowledge per-printer settings seeding (#986) — log which defaults were
-    # seeded (they remain in settings.json by design) and remove the marker.
-    # Must run before $INSTALL_DIR (which holds the .seeded_settings state file)
-    # is removed.
-    undo_seeded_settings
-
-    # Remove installation (check all possible locations)
-    local removed_dir=""
-    for install_dir in $HELIX_INSTALL_DIRS; do
-        if [ -d "$install_dir" ]; then
-            $SUDO rm -rf "$install_dir"
-            log_success "Removed ${install_dir}"
-            removed_dir="$install_dir"
-            # Also remove the updater repo clone if present
-            if [ -d "${install_dir}-repo" ]; then
-                $SUDO rm -rf "${install_dir}-repo"
-                log_success "Removed ${install_dir}-repo"
-            fi
-        fi
-    done
-
-    if [ -z "$removed_dir" ]; then
-        log_warn "No HelixScreen installation found"
-    fi
-
-    # Re-enable the previous UI based on firmware
-    log_info "Re-enabling previous screen UI..."
+# Restore whatever screen UI HelixScreen displaced at install time, for the
+# platform passed in $1. Split out of uninstall() so the STANDALONE uninstaller can
+# reach it too. `install.sh --uninstall` calls uninstall() and always could;
+# bundle-uninstaller.sh builds its own main() around reenable_previous_ui() instead,
+# so every platform branch below — COSMOS, Snapmaker U1, AD5M zmod, Creality app —
+# was unreachable from the uninstall.sh that ships into the install dir. On a U1 that
+# left /usr/bin/gui non-executable and /oem/.debug set: no bootable stock UI and the
+# firmware's overlay-wipe disabled for good.
+#
+# Communicates results through HELIX_RESTORED_UI / HELIX_RESTORED_XORG rather
+# than a return value, because callers need both.
+restore_previous_ui_platform() {
+    local platform="${1:-}"
     local restored_ui=""
     local restored_xorg=""
 
@@ -8948,6 +8822,153 @@ uninstall() {
             $SUDO rm -f /oem/.debug 2>/dev/null || true
         fi
     fi
+
+    HELIX_RESTORED_UI="$restored_ui"
+    HELIX_RESTORED_XORG="$restored_xorg"
+}
+
+uninstall() {
+    local platform=${1:-}
+
+    log_info "Uninstalling HelixScreen..."
+
+    # Drop sentinel BEFORE any destructive work.  helixscreen-update.service
+    # checks for it and refuses to fire while uninstall is running, closing
+    # the race where Moonraker's path unit could re-trigger a restart between
+    # stop_service and rm -rf.  Swept at the end by clean_helix_state_dirs;
+    # the trap covers the abort case so a stuck sentinel can't silently block
+    # future update.service firings.
+    # Chained with the scratch-dir cleanup main.sh arms: a trap REPLACES the
+    # previous handler for a signal, and install.sh bundles both modules, so
+    # setting only the sweep here would disarm cleanup on the --uninstall path.
+    trap '_sweep_uninstalling_sentinel; type cleanup_on_success >/dev/null 2>&1 && cleanup_on_success' EXIT INT TERM
+    _drop_uninstalling_sentinel
+
+    # Remove the [update_manager helixscreen] section FIRST, before any files
+    # disappear.  If Moonraker auto-refreshes (or someone clicks "Update" in
+    # Mainsail mid-uninstall), having the section gone before we start
+    # dismantling files prevents a re-extract from racing us.  Moonraker's
+    # in-memory updater object survives until Moonraker is reloaded, but
+    # type:web only extracts on explicit user trigger so the on-disk edit is
+    # the effective fix; no moonraker restart needed.
+    if type remove_update_manager_section >/dev/null 2>&1; then
+        remove_update_manager_section || true
+    fi
+
+    # Drop the service-allowlist entry the install added. Nothing else prunes
+    # moonraker.asvc, so skipping this leaves helixscreen listed forever.
+    if type remove_moonraker_asvc >/dev/null 2>&1; then
+        local _asvc_conf
+        _asvc_conf=$(find_moonraker_conf 2>/dev/null || true)
+        [ -n "$_asvc_conf" ] && remove_moonraker_asvc "$_asvc_conf" || true
+    fi
+
+    # Detect init system first
+    detect_init_system
+
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        # Stop and disable systemd service
+        $SUDO systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        $SUDO systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+        $SUDO rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+        # Remove update watcher units (mainsail#2444 workaround)
+        $SUDO systemctl stop helixscreen-update.path 2>/dev/null || true
+        $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
+        $SUDO rm -f /etc/systemd/system/helixscreen-update.path
+        $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+        # Remove permission rules (udev, polkit)
+        $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
+        $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla
+        $SUDO rm -f /etc/polkit-1/rules.d/49-helixscreen-network.rules
+        $SUDO rm -f /etc/polkit-1/rules.d/50-helixscreen-network.rules
+        $SUDO systemctl daemon-reload
+    else
+        # Stop and remove SysV init scripts (check all possible locations)
+        local removed_procd_shim=false
+        for init_script in $HELIX_INIT_SCRIPTS; do
+            if [ -f "$init_script" ]; then
+                log_info "Stopping and removing $init_script..."
+                $SUDO "$init_script" stop 2>/dev/null || true
+                # K2 procd shim: only call disable if this is actually a
+                # rc.common-style script. CC1 installs a plain SysV script
+                # at the same /etc/init.d/helixscreen path, and CC1's BusyBox
+                # rejects `head -1` (only supports `head -n 1`), so we use
+                # awk for the shebang check (portable across all BusyBox
+                # variants we ship to). Also CC1 has no /etc/rc.common, so
+                # the first guard short-circuits anyway.
+                if [ "$init_script" = "/etc/init.d/helixscreen" ] && \
+                   [ -x /etc/rc.common ] && \
+                   awk 'NR==1 {exit !/\/etc\/rc\.common/}' "$init_script" 2>/dev/null; then
+                    $SUDO "$init_script" disable 2>/dev/null || true
+                    removed_procd_shim=true
+                fi
+                $SUDO rm -f "$init_script"
+            fi
+        done
+        # Belt-and-suspenders cleanup of rc.d symlinks, but only if we actually
+        # removed a procd shim (avoid touching /etc/rc.d on platforms that
+        # don't use the procd boot iterator).
+        if [ "$removed_procd_shim" = "true" ]; then
+            $SUDO rm -f /etc/rc.d/S99helixscreen /etc/rc.d/K01helixscreen 2>/dev/null || true
+        fi
+    fi
+
+    # Kill any remaining processes (watchdog first to prevent crash dialog flash)
+    # shellcheck disable=SC2086
+    kill_process_by_name $HELIX_PROCESSES || true
+
+    # Clean up PID files and log file
+    $SUDO rm -f /var/run/helixscreen.pid 2>/dev/null || true
+    $SUDO rm -f /var/run/helix-splash.pid 2>/dev/null || true
+    rm -f /tmp/helixscreen.log 2>/dev/null || true
+
+    # K2 ustreamer camera teardown (#camera): stop/disable/remove the ustreamer
+    # service + binary and restore Moonraker's stock webcam list. Must run BEFORE
+    # reenable_disabled_services (which chmod +x's the stock WebRTC init scripts
+    # back) and BEFORE $INSTALL_DIR is removed (the .webcams_backup.json and
+    # .camera_migrated marker live in $INSTALL_DIR/config). No-op off K2.
+    if type uninstall_camera_k2 >/dev/null 2>&1; then
+        uninstall_camera_k2 "$platform" || true
+    fi
+
+    # Re-enable services from state file (before removing install dir)
+    reenable_disabled_services
+
+    # Revert per-printer Klipper includes (#986) — strip the [include] line from
+    # printer.cfg and remove the copied snippet. Must run before $INSTALL_DIR
+    # (which holds the .klipper_includes state file) is removed.
+    undo_klipper_includes
+
+    # Acknowledge per-printer settings seeding (#986) — log which defaults were
+    # seeded (they remain in settings.json by design) and remove the marker.
+    # Must run before $INSTALL_DIR (which holds the .seeded_settings state file)
+    # is removed.
+    undo_seeded_settings
+
+    # Remove installation (check all possible locations)
+    local removed_dir=""
+    for install_dir in $HELIX_INSTALL_DIRS; do
+        if [ -d "$install_dir" ]; then
+            $SUDO rm -rf "$install_dir"
+            log_success "Removed ${install_dir}"
+            removed_dir="$install_dir"
+            # Also remove the updater repo clone if present
+            if [ -d "${install_dir}-repo" ]; then
+                $SUDO rm -rf "${install_dir}-repo"
+                log_success "Removed ${install_dir}-repo"
+            fi
+        fi
+    done
+
+    if [ -z "$removed_dir" ]; then
+        log_warn "No HelixScreen installation found"
+    fi
+
+    # Re-enable the previous UI based on firmware
+    log_info "Re-enabling previous screen UI..."
+    restore_previous_ui_platform "$platform"
+    local restored_ui="$HELIX_RESTORED_UI"
+    local restored_xorg="$HELIX_RESTORED_XORG"
 
     # Clean up helixscreen cache directories
     for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do

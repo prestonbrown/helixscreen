@@ -75,8 +75,30 @@ The two underlying reasons, and the notice each raises:
 
 | Reason | Predicate | UI notice |
 |--------|-----------|-----------|
-| Firmware owns updates | `updates_externally_managed()` — the `HELIX_DISABLE_AUTO_UPDATES` env flag, nothing else | "Managed by your firmware" |
+| Firmware owns updates | `updates_externally_managed()` — the `HELIX_DISABLE_AUTO_UPDATES` env flag, else the platform default | "Managed by your firmware" |
 | Self-update can't physically apply | `!self_update_supported()` | "Updates aren't available on this installation" |
+
+### Who decides `updates_externally_managed()`
+
+`HELIX_DISABLE_AUTO_UPDATES` decides it **in either direction** when set to a value that
+parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
+`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which is the
+single place any platform is named.
+
+Today that default is true only for the **Snapmaker U1**. PAXX Extended Firmware ships
+HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
+`/oem/apps/helixscreen` via `extended-pkg`; self-updating there rewrites a package the
+firmware believes it owns. Suppression previously depended entirely on the firmware hook
+exporting the flag, which it does not — their lmd hook (<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh) exports `HELIX_DATA_DIR`,
+`HELIX_SUPERVISED`, `HELIX_DRM_DEVICE`, `HELIX_CACHE_DIR`, `HELIX_CONFIG_DIR` and
+`HELIX_REMOTE_SCREEN_FB0`, and nothing else. Every U1 install therefore checked for updates
+and raised the update modal.
+
+The falsy arm is the dev-box escape hatch: `HELIX_DISABLE_AUTO_UPDATES=0` turns self-update
+back on where the platform defaults it off, from the CLI or a deploy script, without a
+rebuild. An **empty** value reads as unset rather than falsy, because `helixscreen.env` can
+export one and treating that as an explicit "no" would silently re-enable self-update on a
+firmware-managed box.
 
 ESP32 stubs both predicates constant-true (`helixapp_platform_stubs.cpp`): OTA is the only
 update route there, so the settings UI hides its update affordances entirely.
