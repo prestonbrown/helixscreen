@@ -4203,7 +4203,8 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             // Check idle timeout (only when not printing)
             auto now = std::chrono::steady_clock::now();
             auto elapsed =
-                std::chrono::duration_cast<std::chrono::seconds>(now - last_activity_time_).count();
+                std::chrono::duration_cast<std::chrono::seconds>(now - last_activity_time_.load())
+                    .count();
 
             if (!idle_timeout_triggered_.load() &&
                 elapsed >= static_cast<int64_t>(idle_timeout_seconds_.load())) {
