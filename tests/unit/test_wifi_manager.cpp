@@ -130,6 +130,17 @@ struct MockWifiGuard {
         cfg->use_real_wifi = false;
     }
     ~MockWifiGuard() {
+        // Drain BEFORE restoring the config, for the same reason
+        // WiFiManagerTestFixture drains in its destructor body: starting a
+        // backend fires READY, whose handler defers a
+        // WiFiManager::reassert_stored_radio_state closure. Tests that take the
+        // global manager hold it through this guard alone rather than through
+        // the fixture, so without this the closure is still queued when the test
+        // ends and lands on whichever test drains next (#1166 ratchet). Draining
+        // first also runs it while the mock backend is still selected, which is
+        // the world it was queued under.
+        helix::ui::UpdateQueue::instance().drain();
+
         auto* cfg = get_runtime_config();
         cfg->test_mode = prev_test_mode;
         cfg->use_real_wifi = prev_use_real_wifi;
