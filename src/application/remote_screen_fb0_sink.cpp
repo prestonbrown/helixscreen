@@ -211,15 +211,19 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
         return;
     }
 
-    // Hard OOB guard on the SOURCE. We do not own px_map and cannot query its
-    // size, but LVGL's draw buffer is at least (src_stride * disp_h) bytes. Any
-    // read within that bound is safe; anything beyond means our area/stride view
-    // disagrees with the renderer, so skip rather than risk a segfault (which on
-    // the render thread would wedge the UI -> watchdog kill).
+    // Hard OOB guard on the SOURCE. When the producer told us how many bytes are
+    // readable at px_map, that length is authoritative. Otherwise fall back to
+    // inferring the bound as (src_stride * disp_h) — which only holds while the
+    // render buffer really is display-sized, so a frame beyond it means our
+    // area/stride view disagrees with the renderer. Either way, skip rather than
+    // risk a segfault (which on the render thread would wedge the UI -> watchdog
+    // kill).
     const size_t src_stride = f.src_stride;
     const size_t src_row_bytes = static_cast<size_t>(w) * static_cast<size_t>(src_bpp);
     const int32_t bound_h = f.disp_h > 0 ? f.disp_h : fb_h_;
-    const size_t src_bound = src_stride * static_cast<size_t>(bound_h);
+    const size_t src_bound =
+        f.px_map_len > 0 ? f.px_map_len : src_stride * static_cast<size_t>(bound_h);
+    // One-past-end byte offset of the last pixel the blit will read.
     const size_t last_src = static_cast<size_t>(y2) * src_stride +
                             static_cast<size_t>(x2 + 1) * static_cast<size_t>(src_bpp);
     if (src_row_bytes > src_stride || last_src > src_bound) {
@@ -227,9 +231,11 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
             oob_warned_ = true;
             spdlog::warn(
                 "[RemoteScreen] frame out of source bounds "
-                "(src_row_bytes={} src_stride={} last_src={} bound={}) — skipping mirror",
+                "(src_row_bytes={} src_stride={} last_src={} bound={} px_map_len={}) — "
+                "skipping mirror",
                 static_cast<unsigned long>(src_row_bytes), static_cast<unsigned long>(src_stride),
-                static_cast<unsigned long>(last_src), static_cast<unsigned long>(src_bound));
+                static_cast<unsigned long>(last_src), static_cast<unsigned long>(src_bound),
+                static_cast<unsigned long>(f.px_map_len));
         }
         return;
     }
