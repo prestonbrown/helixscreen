@@ -30,6 +30,7 @@
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
 #include "printer_state.h"
+#include "temperature_service.h"
 #include "theme_manager.h"
 
 #include <string>
@@ -71,30 +72,33 @@ static std::string label_text_of(lv_obj_t* obj) {
     return t ? std::string(t) : std::string();
 }
 
-// controls_panel's bind_text/bind_value/bind_style targets (controls_pos_*,
-// controls_*_status, controls_fan_pct, *_homed) are owned by ControlsPanel, not
-// by PrinterState, so XMLTestFixture does not register them. Build the real
-// panel object and let it publish its own subjects: binding against subjects the
-// test invented would assert only that lv_xml resolves a name, not that the
-// panel and its XML agree on one.
+// Panels own most of the subjects their XML binds to - controls_pos_*,
+// controls_*_status and *_homed belong to ControlsPanel; nozzle_status /
+// bed_status belong to TemperatureService - so XMLTestFixture does not register
+// them. Build the real owner and let it publish: binding against subjects the
+// test invented would prove only that lv_xml resolves a name, not that the
+// owner and its XML agree on one.
 //
-// The ctor is trivial (no setup(), no XML); deinit_subjects() in the destructor
+// Both ctors are trivial (no setup(), no XML). deinit_subjects() on the way out
 // keeps the global XML subject registry from carrying dangling pointers into the
 // next test.
-class ControlsPanelSubjects {
+template <typename Owner> class SubjectOwner {
   public:
-    explicit ControlsPanelSubjects(PrinterState& st) : panel_(st, nullptr) {
-        panel_.init_subjects();
+    explicit SubjectOwner(PrinterState& st) : owner_(st, nullptr) {
+        owner_.init_subjects();
     }
-    ~ControlsPanelSubjects() {
-        panel_.deinit_subjects();
+    ~SubjectOwner() {
+        owner_.deinit_subjects();
     }
-    ControlsPanelSubjects(const ControlsPanelSubjects&) = delete;
-    ControlsPanelSubjects& operator=(const ControlsPanelSubjects&) = delete;
+    SubjectOwner(const SubjectOwner&) = delete;
+    SubjectOwner& operator=(const SubjectOwner&) = delete;
 
   private:
-    ControlsPanel panel_;
+    Owner owner_;
 };
+
+using ControlsPanelSubjects = SubjectOwner<ControlsPanel>;
+using TemperatureSubjects = SubjectOwner<TemperatureService>;
 
 // controls_panel binds every homing button's background through two bind_style
 // rules (see the <consts> block at the top of controls_panel.xml):
@@ -200,23 +204,25 @@ TEST_CASE_METHOD(XMLTestFixture, "temp_display: target shows -- when heater off 
     REQUIRE(ui_temp_display_get_target(temp) == 0);
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_panel: temp_display shows current temperature",
+TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_panel: nozzle_temp_display shows current temperature",
                  "[ui][temp_panel][bind_current][.xml_required]") {
-    SKIP("Requires nozzle_status subject registration - implement when subject is available");
+    // Nozzle and bed panels are mirror images of each other, so the failure that
+    // matters is a crossed pair: nozzle_temp_display reading bed_temp renders a
+    // perfectly plausible number and nothing warns. Seed the two heaters apart
+    // and assert the nozzle shows its own.
+    set_xml_subject("extruder_temp", 2150);
+    set_xml_subject("extruder_target", 2400);
+    set_xml_subject("bed_temp", 550);
 
-    // Test implementation ready - uncomment when all subjects are registered:
-    // REQUIRE(register_component("temp_display"));
-    // REQUIRE(register_component("header_bar"));
-    // REQUIRE(register_component("overlay_panel"));
-    // REQUIRE(register_component("nozzle_temp_panel"));
-    // lv_subject_set_int(state().get_active_extruder_temp_subject(), 20000);
-    // lv_obj_t* panel = create_component("nozzle_temp_panel");
-    // REQUIRE(panel != nullptr);
-    // process_lvgl(100);
-    // lv_obj_t* temp_display = UITest::find_by_name(panel, "nozzle_temp_display");
-    // REQUIRE(temp_display != nullptr);
-    // int displayed_current = ui_temp_display_get_current(temp_display);
-    // REQUIRE(displayed_current == 200); // 20000 decidegrees = 200C
+    REQUIRE(register_component("nozzle_temp_panel"));
+    lv_obj_t* panel = create_component("nozzle_temp_panel");
+    lv_obj_t* disp = require_named(panel, "nozzle_temp_display");
+    REQUIRE(ui_temp_display_is_valid(disp));
+    CHECK(ui_temp_display_get_current(disp) == 215);
+    CHECK(ui_temp_display_get_target(disp) == 240);
+
+    set_xml_subject("extruder_temp", 1800);
+    CHECK(ui_temp_display_get_current(disp) == 180);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "temp_display: binds to bed temperature subjects",
@@ -453,19 +459,51 @@ TEST_CASE_METHOD(MoonrakerTestFixture,
 // NOZZLE/BED TEMP PANEL STATUS BINDING TESTS (SKIP - needs nozzle_status subject)
 // =============================================================================
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "nozzle_temp_panel: status_message binding updates text",
+TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_panel: status_message binds nozzle_status",
                  "[ui][temp_panel][bind_text][.xml_required]") {
-    SKIP("Requires nozzle_status subject registration - implement when subject is available");
+    // Both panels name the label "status_message"; only the subject behind it
+    // differs, which is exactly the pair a copy-paste edit crosses.
+    TemperatureSubjects temps(state());
+    set_xml_subject_str("nozzle_status", "Heating");
+
+    REQUIRE(register_component("nozzle_temp_panel"));
+    lv_obj_t* panel = create_component("nozzle_temp_panel");
+    CHECK(label_text_of(require_named(panel, "status_message")) == "Heating");
+
+    set_xml_subject_str("nozzle_status", "At target");
+    CHECK(label_text_of(require_named(panel, "status_message")) == "At target");
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "bed_temp_panel: temp_display shows target temperature",
+TEST_CASE_METHOD(XMLTestFixture, "bed_temp_panel: bed_temp_display shows target temperature",
                  "[ui][temp_panel][bind_target][.xml_required]") {
-    SKIP("Requires full bed_temp_panel test - similar to nozzle tests above");
+    set_xml_subject("bed_temp", 550);
+    set_xml_subject("bed_target", 600);
+    set_xml_subject("extruder_temp", 2150);
+
+    REQUIRE(register_component("bed_temp_panel"));
+    lv_obj_t* panel = create_component("bed_temp_panel");
+    lv_obj_t* disp = require_named(panel, "bed_temp_display");
+    REQUIRE(ui_temp_display_is_valid(disp));
+    CHECK(ui_temp_display_get_target(disp) == 60);
+    CHECK(ui_temp_display_get_current(disp) == 55);
+
+    set_xml_subject("bed_target", 700);
+    CHECK(ui_temp_display_get_target(disp) == 70);
 }
 
-TEST_CASE_METHOD(MoonrakerTestFixture, "bed_temp_panel: status_message binding updates text",
+TEST_CASE_METHOD(XMLTestFixture, "bed_temp_panel: status_message binds bed_status",
                  "[ui][temp_panel][bind_text][.xml_required]") {
-    SKIP("Requires bed_status subject registration - implement when subject is available");
+    // Both panels name the label "status_message"; only the subject behind it
+    // differs, which is exactly the pair a copy-paste edit crosses.
+    TemperatureSubjects temps(state());
+    set_xml_subject_str("bed_status", "Heating");
+
+    REQUIRE(register_component("bed_temp_panel"));
+    lv_obj_t* panel = create_component("bed_temp_panel");
+    CHECK(label_text_of(require_named(panel, "status_message")) == "Heating");
+
+    set_xml_subject_str("bed_status", "At target");
+    CHECK(label_text_of(require_named(panel, "status_message")) == "At target");
 }
 
 // =============================================================================
@@ -501,11 +539,6 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp
     REQUIRE(ui_temp_display_is_valid(disp));
     CHECK(ui_temp_display_get_current(disp) == 60);
     CHECK(ui_temp_display_get_target(disp) == 65);
-
-    // Nozzle and bed must not share a subject - a nozzle publish leaves the bed
-    // display alone.
-    set_xml_subject("extruder_temp", 2500);
-    CHECK(ui_temp_display_get_current(disp) == 60);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: nozzle_status binding updates status text",

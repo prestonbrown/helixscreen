@@ -208,6 +208,15 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_event_cb(nullptr, "on_nozzle_custom_clicked", xml_test_noop_event_callback);
     // Bed temp panel callbacks
     lv_xml_register_event_cb(nullptr, "on_bed_custom_clicked", xml_test_noop_event_callback);
+    // Shared preset-button handler on both temp panels.
+    lv_xml_register_event_cb(nullptr, "on_heater_preset_clicked", xml_test_noop_event_callback);
+
+    // nozzle_temp_panel / bed_temp_panel are `<view extends="overlay_panel">` and
+    // draw the heater glyph with <nozzle_icon>. An unregistered dependency makes
+    // the whole component fail to parse, so without these two the panels create
+    // as nullptr and every binding test against them fails on a bare nullptr.
+    lv_xml_register_component_from_file("A:ui_xml/overlay_panel.xml");
+    lv_xml_register_component_from_file("A:ui_xml/components/nozzle_icon.xml");
 
     // Register widgets needed by favorite_macro_config_modal
     ui_dialog_register();

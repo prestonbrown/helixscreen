@@ -1570,6 +1570,35 @@ fi
 
 echo ""
 
+SECTION_START=$(date +%s)
+echo -n "🔌 Checking orphan subjects (registered, never read)..."
+
+if [ -f "scripts/check_orphan_subjects.py" ]; then
+  # Ratcheting baseline. The XML linter already rejects a bind_* naming a subject
+  # nobody registers; this is the other direction — a subject that is registered
+  # and kept current but read by neither an XML binding nor a C++ observer. It
+  # renders nothing and costs every update that writes it. Usually what a binding
+  # leaves behind when its widget is deleted or renamed.
+  if python3 scripts/check_orphan_subjects.py --max-allowed 16 --summary >/tmp/orphan_subjects.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/orphan_subjects.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/orphan_subjects.out
+    echo "   Run: python3 scripts/check_orphan_subjects.py --list"
+    echo "   Bind it in XML, read it from C++, or delete it."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_orphan_subjects.py not found — skipping"
+fi
+
+echo ""
+
 if [ -f "scripts/check_raw_this_queue_update.py" ]; then
   # The ratchet has reached zero (#1165) — every queue_update() in src/ now routes
   # through an AsyncLifetimeGuard, so this is a hard gate, not a baseline.
