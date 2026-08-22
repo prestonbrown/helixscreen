@@ -57,9 +57,15 @@
         </lv_obj>
         <event_cb trigger="clicked" callback="on_about_version_clicked"/>
       </ui_button>
-      <!-- Update Channel (gated by beta_features) -->
+      <!-- Update Channel (beta_features, and only where checking is possible).
+           show_update_settings is part of the condition because a firmware-managed
+           install has no channel to pick: on_channel_changed() re-checks, and
+           check_for_updates() short-circuits there, so the dropdown would persist a
+           setting nothing reads and sit directly above "Managed by your firmware".
+           ONE expression rather than two stacked bind_flag_if_eq — see the note on
+           container_install_update below for why stacking silently loses. -->
       <lv_obj name="container_update_channel" width="100%" style_pad_all="0">
-        <bind_flag_if_eq subject="show_beta_features" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="show_beta_features eq 1 and show_update_settings eq 1" flag="hidden" invert="true"/>
         <setting_dropdown_row name="row_update_channel"
                               label="Update Channel" label_tag="Update Channel" icon="swap_vertical"
                               options="Stable&#10;Beta&#10;Dev" options_tag="Stable&#10;Beta&#10;Dev"
