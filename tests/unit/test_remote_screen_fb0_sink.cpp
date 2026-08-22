@@ -368,3 +368,74 @@ TEST_CASE("Fb0MailboxSink: failed start leaves an inactive no-op sink", "[remote
     sink.stop();
     REQUIRE_FALSE(sink.wants_frames());
 }
+
+TEST_CASE("Fb0MailboxSink: frame past px_map_len is skipped even when the inferred bound allows it",
+          "[remote_screen][fb0]") {
+    std::string path = make_temp_fb();
+
+    Fb0MailboxSink sink(path);
+    sink.configure_geometry(FB_W, FB_H, FB_STRIDE, 32);
+    REQUIRE(sink.start());
+
+    // The renderer only produced a 100-row buffer (e.g. a fallback backend after
+    // DRM init failed), but the frame still reports the full 320-row display. The
+    // inferred bound (src_stride * disp_h = 614400) therefore does NOT catch the
+    // over-read; only the declared px_map_len does.
+    constexpr int32_t REAL_ROWS = 100;
+    const size_t real_len = static_cast<size_t>(FB_STRIDE) * REAL_ROWS; // 192000
+
+    // Backing allocation is deliberately larger than the declared length so the
+    // pre-fix behaviour reads valid-but-wrong memory instead of crashing the
+    // test run. 0xAB marks anything that gets mirrored.
+    std::vector<uint8_t> src(FB_SIZE, 0xAB);
+
+    RemoteScreenFrame f = make_frame(src.data(), 0, 200, FB_W - 1, 219, FB_STRIDE);
+    f.px_map_len = real_len;
+    // Sanity: this frame passes the stride*disp_h inference but not the real length.
+    const size_t last_src = static_cast<size_t>(219) * FB_STRIDE + static_cast<size_t>(FB_W) * 4;
+    REQUIRE(last_src < static_cast<size_t>(FB_STRIDE) * FB_H);
+    REQUIRE(last_src > real_len);
+
+    sink.on_frame(f);
+    sink.stop();
+
+    std::vector<uint8_t> fb = read_file(path);
+    REQUIRE(fb.size() == FB_SIZE);
+    // Nothing mirrored: the fb0 file is still all zeros.
+    const size_t row200 = static_cast<size_t>(200) * FB_STRIDE;
+    REQUIRE(fb[row200 + 0] == 0x00);
+    REQUIRE(fb[row200 + 1] == 0x00);
+    const size_t row219 = static_cast<size_t>(219) * FB_STRIDE + static_cast<size_t>(479) * 4;
+    REQUIRE(fb[row219 + 0] == 0x00);
+    REQUIRE(fb[0] == 0x00);
+
+    ::unlink(path.c_str());
+}
+
+TEST_CASE("Fb0MailboxSink: frame inside px_map_len still mirrors", "[remote_screen][fb0]") {
+    std::string path = make_temp_fb();
+
+    Fb0MailboxSink sink(path);
+    sink.configure_geometry(FB_W, FB_H, FB_STRIDE, 32);
+    REQUIRE(sink.start());
+
+    // Same short 100-row buffer, but the dirty rect lives inside it — the guard
+    // must not reject a frame the declared length covers.
+    constexpr int32_t REAL_ROWS = 100;
+    std::vector<uint8_t> src(FB_SIZE, 0);
+    fill_bgra_rect(src, FB_STRIDE, 0, 10, FB_W - 1, 41, 0x00, 0xFF, 0x00, 0xFF); // green
+
+    RemoteScreenFrame f = make_frame(src.data(), 0, 10, FB_W - 1, 41, FB_STRIDE);
+    f.px_map_len = static_cast<size_t>(FB_STRIDE) * REAL_ROWS;
+    sink.on_frame(f);
+    sink.stop();
+
+    std::vector<uint8_t> fb = read_file(path);
+    REQUIRE(fb.size() == FB_SIZE);
+    const size_t off = static_cast<size_t>(20) * FB_STRIDE + static_cast<size_t>(240) * 4;
+    REQUIRE(fb[off + 0] == 0x00);
+    REQUIRE(fb[off + 1] == 0xFF);
+    REQUIRE(fb[off + 2] == 0x00);
+
+    ::unlink(path.c_str());
+}

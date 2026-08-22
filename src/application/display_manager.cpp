@@ -2146,6 +2146,14 @@ void DisplayManager::install_color_transform_hook() {
                 f.src_stride = (dbuf && dbuf->header.stride > 0)
                                    ? static_cast<uint32_t>(dbuf->header.stride)
                                    : lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
+                // Hand the sink the real readable length so it never has to guess
+                // one from stride * disp_h. Only claim it when px_map IS the active
+                // draw buffer: with screen rotation (and any other backend that
+                // flushes from a scratch buffer) px_map belongs to a different
+                // allocation whose size we do not know, and 0 tells the sink so.
+                if (dbuf && dbuf->data == px_map && dbuf->data_size > 0) {
+                    f.px_map_len = static_cast<size_t>(dbuf->data_size);
+                }
                 // Map the LVGL render format to our LVGL-independent sink enum.
                 // The U1 DRM dumb buffer is RGB565 (16bpp); desktop/other paths
                 // are ARGB8888/XRGB8888 (32bpp, BGRA in memory).
