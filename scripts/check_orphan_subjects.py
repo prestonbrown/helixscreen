@@ -34,6 +34,10 @@
 #   - Names composed at runtime — XML `${...}` splices and C++ that builds the
 #     name with a format/concat. Neither side can be matched statically, so a
 #     registration whose name is not a plain literal is skipped entirely.
+#   - Subjects fetched by name and then read through the resulting pointer. The
+#     literal sits on the lv_xml_get_subject() line and the read is the NEXT
+#     statement, so the window around a read site extends backwards as well as
+#     forwards (see READ_WINDOW).
 #   - Any registration carrying `// SUBJECT_OK: <reason>`. clang-format wraps
 #     these calls freely, so the annotation is honoured anywhere in the two lines
 #     following the name as well as on it.
@@ -73,6 +77,14 @@ IDENT_RE = re.compile(r'[a-z_][a-z_0-9]*')
 # just as observe_*() does, they just do it from C++ instead of from XML.
 READ_SITE_RE = re.compile(
     r'(?:observe_[a-z_]+|lv_subject_add_observer\w*|lv_subject_get_\w+|lv_\w+_bind_\w+)\s*[(<]')
+# How far either side of a read site to look for the subject's name or member.
+# The window is SYMMETRIC because the name routinely precedes the read: fetching
+# a subject by name and reading it on the next line —
+#     lv_subject_t* on = lv_xml_get_subject(nullptr, "chamber_filter_fan_on");
+#     tc->set_chamber_filter_fan(!on || lv_subject_get_int(on) != 1);
+# — puts the literal ABOVE the lv_subject_get_* match. A forward-only window
+# missed every read of that shape and reported a live subject as an orphan.
+READ_WINDOW = 400
 IDENT_TOKEN_RE = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
 ALLOW_RE = re.compile(r'//\s*SUBJECT_OK:')
 
@@ -139,7 +151,7 @@ def collect_read_text(root: pathlib.Path) -> str:
                 continue
             text = path.read_text(errors="ignore")
             for m in READ_SITE_RE.finditer(text):
-                chunks.append(text[m.start():m.start() + 400])
+                chunks.append(text[max(0, m.start() - READ_WINDOW):m.start() + READ_WINDOW])
     return "\n".join(chunks)
 
 
