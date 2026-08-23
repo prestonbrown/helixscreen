@@ -308,11 +308,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
         lv_obj_t* data_col = h.child("detailed_data_col");
         REQUIRE(data_col != nullptr);
-        REQUIRE(lv_obj_get_child_count(data_col) == 4);
-        // Filament label is the last of detailed_data_col's four children
-        // (filename, layer, time, filament) — it carries no name= in
-        // print_status_detailed_active.xml, so position is the only handle.
-        lv_obj_t* filament_label = lv_obj_get_child(data_col, 3);
+        REQUIRE(lv_obj_get_child_count(data_col) == 3); // layer, time, filament
+        lv_obj_t* filament_label = h.child("detailed_filament_text");
         REQUIRE(filament_label != nullptr);
 
         h.widget().on_print_state_changed_for_test(PrintState::Printing);
