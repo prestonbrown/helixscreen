@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if HELIX_HAS_SNAPMAKER
 
 #include "ams_backend_snapmaker.h"
 
@@ -2039,3 +2040,5 @@ std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
     }
     return out;
 }
+
+#endif // HELIX_HAS_SNAPMAKER

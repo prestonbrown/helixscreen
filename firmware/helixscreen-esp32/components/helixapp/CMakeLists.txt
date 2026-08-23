@@ -116,6 +116,13 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_HAS_LABEL_PRINTER=0
     HELIX_HAS_CFS=1
     HELIX_HAS_IFS=1
+    # Set explicitly, not left undefined: an undefined macro makes
+    # `#if HELIX_HAS_ACE` evaluate to 0, which would silently drop these
+    # backends from ESP32 as a side effect of adding the gates. 1 preserves
+    # existing ESP32 behaviour; flipping any to 0 is a separate size call.
+    HELIX_HAS_ACE=1
+    HELIX_HAS_QIDI=1
+    HELIX_HAS_SNAPMAKER=1
     HELIX_HAS_SOUND=0
     HELIX_ENABLE_SCREENSAVER=0
     HELIX_RELEASE_BUILD)

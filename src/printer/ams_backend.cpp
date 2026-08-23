@@ -17,9 +17,15 @@
 #if HELIX_HAS_CFS
 #include "ams_backend_cfs.h"
 #endif
+#if HELIX_HAS_ACE
 #include "ams_backend_ace.h"
+#endif
+#if HELIX_HAS_QIDI
 #include "ams_backend_qidi.h"
+#endif
+#if HELIX_HAS_SNAPMAKER
 #include "ams_backend_snapmaker.h"
+#endif
 #include "ams_backend_toolchanger.h"
 #include "filament_database.h"
 #include "filament_variants.h"
@@ -562,7 +568,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
 #endif
 
     case AmsType::ACE:
-#ifdef HELIX_ENABLE_MOCKS
+#if HELIX_HAS_ACE && defined(HELIX_ENABLE_MOCKS)
         spdlog::warn("[AMS Backend] ACE detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(config->mock_ams_gate_count);
 #else
@@ -598,7 +604,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
 #endif
 
     case AmsType::SNAPMAKER:
-#ifdef HELIX_ENABLE_MOCKS
+#if HELIX_HAS_SNAPMAKER && defined(HELIX_ENABLE_MOCKS)
         spdlog::warn("[AMS Backend] Snapmaker detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(config->mock_ams_gate_count);
 #else
@@ -607,7 +613,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
 #endif
 
     case AmsType::QIDI_BOX:
-#ifdef HELIX_ENABLE_MOCKS
+#if HELIX_HAS_QIDI && defined(HELIX_ENABLE_MOCKS)
         spdlog::warn("[AMS Backend] QIDI Box detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(config->mock_ams_gate_count);
 #else
@@ -648,6 +654,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonraker
         return std::make_unique<AmsBackendAfc>(api, client);
 
     case AmsType::ACE:
+#if HELIX_HAS_ACE
         if (!api || !client) {
             spdlog::error("[AMS Backend] ACE requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
@@ -658,6 +665,10 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonraker
         }
         spdlog::debug("[AMS Backend] Creating ACE backend");
         return std::make_unique<AmsBackendAce>(api, client);
+#else
+        spdlog::info("[AMS Backend] ACE support not compiled in");
+        return nullptr;
+#endif
 
     case AmsType::TOOL_CHANGER:
         if (!api || !client) {
@@ -699,20 +710,30 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonraker
 #endif
 
     case AmsType::SNAPMAKER:
+#if HELIX_HAS_SNAPMAKER
         if (!api || !client) {
             spdlog::error("[AMS Backend] Snapmaker requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating Snapmaker SnapSwap backend");
         return std::make_unique<AmsBackendSnapmaker>(api, client);
+#else
+        spdlog::info("[AMS Backend] Snapmaker support not compiled in");
+        return nullptr;
+#endif
 
     case AmsType::QIDI_BOX:
+#if HELIX_HAS_QIDI
         if (!api || !client) {
             spdlog::error("[AMS Backend] QIDI Box requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating QIDI Box backend (stub)");
         return std::make_unique<AmsBackendQidi>(api, client);
+#else
+        spdlog::info("[AMS Backend] QIDI Box support not compiled in");
+        return nullptr;
+#endif
 
     case AmsType::NONE:
     default:

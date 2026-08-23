@@ -1013,6 +1013,15 @@ CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AU
 HELIX_HAS_LABEL_PRINTER ?= 1
 HELIX_HAS_CFS ?= 1
 HELIX_HAS_IFS ?= 1
+# Vendor filament systems that are physically tied to one printer family. A
+# device build for printer X cannot meet vendor Y's hardware, so Y is dead
+# weight there. Kept ON for the generic hosts (pi/x86/native), which drive an
+# arbitrary printer over the network. AFC and Happy Hare are deliberately NOT
+# gated: both are user-installable Klipper add-ons that can appear on any
+# printer, so no platform can rule them out.
+HELIX_HAS_ACE ?= 1
+HELIX_HAS_QIDI ?= 1
+HELIX_HAS_SNAPMAKER ?= 1
 # Compile-out gates for the 2D gcode renderer and the bed-mesh 3D renderer —
 # code AND their big runtime buffers (ESP32-class targets set these to 0).
 HELIX_HAS_GCODE_VIEWER ?= 1
@@ -1027,6 +1036,9 @@ HELIX_HAS_TIMELAPSE_VIEWER ?= 1
 CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
             -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
+            -DHELIX_HAS_ACE=$(HELIX_HAS_ACE) \
+            -DHELIX_HAS_QIDI=$(HELIX_HAS_QIDI) \
+            -DHELIX_HAS_SNAPMAKER=$(HELIX_HAS_SNAPMAKER) \
             -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
             -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
             -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
