@@ -56,18 +56,15 @@ TEST_CASE("dragonbreath status drives diagnostics subjects", "[chamber][subjects
 
     CHECK(lv_subject_get_int(ts.get_chamber_heater_fault_subject()) == 1);
     CHECK(lv_subject_get_int(ts.get_chamber_heater_inhibited_subject()) == 0);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_fault_reason_subject())) ==
-          "ptc_overtemp");
     // The UI-facing subject carries the TRANSLATED phrase for the classified
-    // kind — the vendor code ("ptc_overtemp") never binds.
+    // kind; the vendor code ("ptc_overtemp") is log-only and has no subject.
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_fault_reason_text_subject())) ==
           std::string(lv_tr("Heater over-temperature")));
-    CHECK(lv_subject_get_int(ts.get_chamber_heater_externally_controlled_subject()) == 0);
-    // 106.2°C → decidegrees
-    CHECK(lv_subject_get_int(ts.get_chamber_heater_element_temp_subject()) == 1062);
-    CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_percent_subject()) == 100);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_reason_subject())) ==
-          "purge");
+    // 106.2°C → canonical decimal-drop rule (whole degrees at/above 100)
+    CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject())) ==
+          "106°C");
+    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_percent_text_subject())) ==
+          "100%");
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
     // Capabilities are set by PrinterState::set_hardware in production; unit-level here:
     CHECK(ts.chamber_diagnostics_object() == "dragonbreath");
@@ -125,11 +122,10 @@ TEST_CASE("absent diagnostics objects in a delta frame keep last values", "[cham
     ts.update_from_status({{"heater_generic dragonbreath", {{"temperature", 26.1}}}});
 
     CHECK(lv_subject_get_int(ts.get_chamber_heater_fault_subject()) == 1);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_fault_reason_subject())) ==
-          "ptc_overtemp");
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_fault_reason_text_subject())) ==
           std::string(lv_tr("Heater over-temperature")));
-    CHECK(lv_subject_get_int(ts.get_chamber_heater_element_temp_subject()) == 1062);
+    CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject())) ==
+          "106°C");
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
 }
 
@@ -161,7 +157,8 @@ TEST_CASE("diagnostics objects are ignored without a configured source", "[chamb
     ts.update_from_status(faulted_diagnostics_status());
 
     CHECK(lv_subject_get_int(ts.get_chamber_heater_fault_subject()) == 0);
-    CHECK(lv_subject_get_int(ts.get_chamber_heater_element_temp_subject()) == -1);
+    CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject())) ==
+          "--");
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == -1);
     CHECK(ts.chamber_diagnostics_object().empty());
 }
@@ -173,10 +170,9 @@ TEST_CASE("chamber diagnostics subjects are XML-registered", "[chamber][xml][str
     ts.init_subjects(true); // register_xml=true: full production path
 
     for (const char* name :
-         {"chamber_heater_fault", "chamber_heater_inhibited", "chamber_heater_fault_reason",
-          "chamber_heater_fault_reason_text", "chamber_heater_externally_controlled",
-          "chamber_heater_element_temp", "chamber_filter_fan_percent", "chamber_filter_fan_reason",
-          "chamber_filter_fan_on", "chamber_filter_fan_icon"}) {
+         {"chamber_heater_fault", "chamber_heater_inhibited", "chamber_heater_fault_reason_text",
+          "chamber_heater_element_temp_text", "chamber_filter_fan_percent_text",
+          "chamber_filter_fan_on", "chamber_filter_fan_on_text", "chamber_filter_fan_icon"}) {
         CAPTURE(name);
         REQUIRE(lv_xml_get_subject(nullptr, name) != nullptr);
     }
@@ -262,7 +258,8 @@ TEST_CASE("set_hardware wires diagnostics only when the resolved heater is the d
         // End-to-end: a diagnostics frame through the full status path lands.
         state.update_from_status(faulted_diagnostics_status());
         CHECK(lv_subject_get_int(ts.get_chamber_heater_fault_subject()) == 1);
-        CHECK(lv_subject_get_int(ts.get_chamber_heater_element_temp_subject()) == 1062);
+        CHECK(std::string(lv_subject_get_string(
+                  ts.get_chamber_heater_element_temp_text_subject())) == "106°C");
     }
 
     SECTION("manual override to a different heater detaches diagnostics") {
@@ -277,7 +274,8 @@ TEST_CASE("set_hardware wires diagnostics only when the resolved heater is the d
         // The frame is ignored — subjects keep their defaults.
         state.update_from_status(faulted_diagnostics_status());
         CHECK(lv_subject_get_int(ts.get_chamber_heater_fault_subject()) == 0);
-        CHECK(lv_subject_get_int(ts.get_chamber_heater_element_temp_subject()) == -1);
+        CHECK(std::string(lv_subject_get_string(
+                  ts.get_chamber_heater_element_temp_text_subject())) == "--");
         CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == -1);
     }
 

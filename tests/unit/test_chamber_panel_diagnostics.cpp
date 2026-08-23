@@ -147,7 +147,6 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         set_xml_int("chamber_heater_fault", 1);
         set_xml_int("chamber_heater_inhibited", 0);
         // Raw vendor code stays log-only; the banner binds the translated kind.
-        set_xml_string("chamber_heater_fault_reason", "ptc_overtemp");
         set_xml_string("chamber_heater_fault_reason_text", lv_tr("Heater over-temperature"));
         set_xml_string("chamber_heater_element_temp_text", "106°C");
         set_xml_string("chamber_filter_fan_percent_text", "100%");

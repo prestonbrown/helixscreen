@@ -90,20 +90,10 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     chamber_heater_fault_lifetime_ = std::make_shared<bool>(true);
     INIT_SUBJECT_INT(chamber_heater_inhibited, 0, subjects_, register_xml);
     chamber_heater_inhibited_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_STRING(chamber_heater_fault_reason, "", subjects_, register_xml);
-    chamber_heater_fault_reason_lifetime_ = std::make_shared<bool>(true);
     // Translated UI text derived from the backend's generic FaultReason kind —
     // vendor codes die at the backend border and only surface in logs.
     INIT_SUBJECT_STRING(chamber_heater_fault_reason_text, "", subjects_, register_xml);
     chamber_heater_fault_reason_text_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_INT(chamber_heater_externally_controlled, 0, subjects_, register_xml);
-    chamber_heater_externally_controlled_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_INT(chamber_heater_element_temp, -1, subjects_, register_xml);
-    chamber_heater_element_temp_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_INT(chamber_filter_fan_percent, -1, subjects_, register_xml);
-    chamber_filter_fan_percent_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_STRING(chamber_filter_fan_reason, "", subjects_, register_xml);
-    chamber_filter_fan_reason_lifetime_ = std::make_shared<bool>(true);
     INIT_SUBJECT_INT(chamber_filter_fan_on, -1, subjects_, register_xml);
     chamber_filter_fan_on_lifetime_ = std::make_shared<bool>(true);
     // Display strings written alongside the raw ints — XML has no deci/percent
@@ -165,24 +155,9 @@ void PrinterTemperatureState::deinit_subjects() {
     if (chamber_heater_inhibited_lifetime_)
         *chamber_heater_inhibited_lifetime_ = false;
     chamber_heater_inhibited_lifetime_.reset();
-    if (chamber_heater_fault_reason_lifetime_)
-        *chamber_heater_fault_reason_lifetime_ = false;
-    chamber_heater_fault_reason_lifetime_.reset();
     if (chamber_heater_fault_reason_text_lifetime_)
         *chamber_heater_fault_reason_text_lifetime_ = false;
     chamber_heater_fault_reason_text_lifetime_.reset();
-    if (chamber_heater_externally_controlled_lifetime_)
-        *chamber_heater_externally_controlled_lifetime_ = false;
-    chamber_heater_externally_controlled_lifetime_.reset();
-    if (chamber_heater_element_temp_lifetime_)
-        *chamber_heater_element_temp_lifetime_ = false;
-    chamber_heater_element_temp_lifetime_.reset();
-    if (chamber_filter_fan_percent_lifetime_)
-        *chamber_filter_fan_percent_lifetime_ = false;
-    chamber_filter_fan_percent_lifetime_.reset();
-    if (chamber_filter_fan_reason_lifetime_)
-        *chamber_filter_fan_reason_lifetime_ = false;
-    chamber_filter_fan_reason_lifetime_.reset();
     if (chamber_filter_fan_on_lifetime_)
         *chamber_filter_fan_on_lifetime_ = false;
     chamber_filter_fan_on_lifetime_.reset();
@@ -242,33 +217,10 @@ void PrinterTemperatureState::register_xml_subjects() {
     lv_xml_register_subject(nullptr, "chamber_mode", &chamber_mode_);
     lv_xml_register_subject(nullptr, "chamber_heater_fault", &chamber_heater_fault_);
     lv_xml_register_subject(nullptr, "chamber_heater_inhibited", &chamber_heater_inhibited_);
-    // The six machine-readable chamber-diagnostics subjects below are XML-facing
-    // surface that no widget binds directly: chamber_diagnostics_card.xml binds their
-    // formatted *_text / *_icon twins, and test_chamber_diagnostics_subjects.cpp asserts
-    // each raw name resolves through lv_xml_get_subject(). Static analysis sees a
-    // registration with no reader, hence the markers.
-    lv_xml_register_subject(nullptr,
-                            "chamber_heater_fault_reason", // SUBJECT_OK: fault kind behind
-                                                           // chamber_heater_fault_reason_text
-                            &chamber_heater_fault_reason_);
     lv_xml_register_subject(nullptr, "chamber_heater_fault_reason_text",
                             &chamber_heater_fault_reason_text_);
-    lv_xml_register_subject(
-        nullptr, "chamber_heater_externally_controlled", // SUBJECT_OK: drives the card's controller
-                                                         // row via its text twin
-        &chamber_heater_externally_controlled_);
-    lv_xml_register_subject(nullptr, "chamber_heater_element_temp",
-                            &chamber_heater_element_temp_); // SUBJECT_OK: PTC temperature behind
-                                                            // chamber_heater_element_temp_text
-    lv_xml_register_subject(
-        nullptr, "chamber_filter_fan_percent",
-        &chamber_filter_fan_percent_); // SUBJECT_OK: behind chamber_filter_fan_percent_text
-    lv_xml_register_subject(
-        nullptr, "chamber_filter_fan_reason",
-        &chamber_filter_fan_reason_); // SUBJECT_OK: behind the card's fan-reason text
-    lv_xml_register_subject(
-        nullptr, "chamber_filter_fan_on",
-        &chamber_filter_fan_on_); // SUBJECT_OK: also read by name in temperature_service.cpp
+    // on_chamber_filter_fan_clicked() reads this one by name to compute the toggle.
+    lv_xml_register_subject(nullptr, "chamber_filter_fan_on", &chamber_filter_fan_on_);
     lv_xml_register_subject(nullptr, "chamber_heater_element_temp_text",
                             &chamber_heater_element_temp_text_);
     lv_xml_register_subject(nullptr, "chamber_filter_fan_percent_text",
@@ -596,7 +548,6 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             if (auto d = backend->parse_diagnostics(status[chamber_diagnostics_object_])) {
                 lv_subject_set_int(&chamber_heater_fault_, d->fault ? 1 : 0);
                 lv_subject_set_int(&chamber_heater_inhibited_, d->inhibited ? 1 : 0);
-                lv_subject_copy_string(&chamber_heater_fault_reason_, d->fault_reason.c_str());
                 lv_subject_copy_string(&chamber_heater_fault_reason_text_,
                                        chamber_fault_reason_text(d->fault_reason_kind));
                 if (!d->fault_reason.empty()) {
@@ -605,12 +556,6 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                         "[PrinterTemperatureState] Chamber heater fault: backend={} reason={}",
                         backend->id(), d->fault_reason);
                 }
-                lv_subject_set_int(&chamber_heater_externally_controlled_,
-                                   d->externally_controlled ? 1 : 0);
-                lv_subject_set_int(&chamber_heater_element_temp_,
-                                   std::isnan(d->element_temp_c)
-                                       ? -1
-                                       : helix::units::to_decidegrees(d->element_temp_c));
                 if (std::isnan(d->element_temp_c)) {
                     lv_subject_copy_string(&chamber_heater_element_temp_text_, "--");
                 } else {
@@ -624,12 +569,10 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                     lv_subject_copy_string(&chamber_heater_element_temp_text_,
                                            chamber_heater_element_temp_text_buf_);
                 }
-                lv_subject_set_int(&chamber_filter_fan_percent_, d->filter_fan_percent);
                 lv_subject_copy_string(&chamber_filter_fan_percent_text_,
                                        d->filter_fan_percent < 0
                                            ? "--"
                                            : fmt::format("{}%", d->filter_fan_percent).c_str());
-                lv_subject_copy_string(&chamber_filter_fan_reason_, d->filter_fan_reason.c_str());
             }
         }
     }

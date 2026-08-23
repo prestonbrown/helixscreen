@@ -216,14 +216,6 @@ class PrinterTemperatureState {
         lifetime = chamber_heater_inhibited_lifetime_;
         return &chamber_heater_inhibited_;
     }
-    /// Fault reason string ("" when none)
-    lv_subject_t* get_chamber_heater_fault_reason_subject() {
-        return &chamber_heater_fault_reason_;
-    }
-    lv_subject_t* get_chamber_heater_fault_reason_subject(SubjectLifetime& lifetime) {
-        lifetime = chamber_heater_fault_reason_lifetime_;
-        return &chamber_heater_fault_reason_;
-    }
     /// Translated fault reason for the UI ("" when none) — derived from the
     /// backend's generic FaultReason kind; the raw vendor code never binds.
     lv_subject_t* get_chamber_heater_fault_reason_text_subject() {
@@ -232,38 +224,6 @@ class PrinterTemperatureState {
     lv_subject_t* get_chamber_heater_fault_reason_text_subject(SubjectLifetime& lifetime) {
         lifetime = chamber_heater_fault_reason_text_lifetime_;
         return &chamber_heater_fault_reason_text_;
-    }
-    /// Another controller (device web UI, physical button) drives the heater (0/1)
-    lv_subject_t* get_chamber_heater_externally_controlled_subject() {
-        return &chamber_heater_externally_controlled_;
-    }
-    lv_subject_t* get_chamber_heater_externally_controlled_subject(SubjectLifetime& lifetime) {
-        lifetime = chamber_heater_externally_controlled_lifetime_;
-        return &chamber_heater_externally_controlled_;
-    }
-    /// Heating-element temp (decidegrees, -1 unknown)
-    lv_subject_t* get_chamber_heater_element_temp_subject() {
-        return &chamber_heater_element_temp_;
-    }
-    lv_subject_t* get_chamber_heater_element_temp_subject(SubjectLifetime& lifetime) {
-        lifetime = chamber_heater_element_temp_lifetime_;
-        return &chamber_heater_element_temp_;
-    }
-    /// Filter fan speed percent (-1 unknown)
-    lv_subject_t* get_chamber_filter_fan_percent_subject() {
-        return &chamber_filter_fan_percent_;
-    }
-    lv_subject_t* get_chamber_filter_fan_percent_subject(SubjectLifetime& lifetime) {
-        lifetime = chamber_filter_fan_percent_lifetime_;
-        return &chamber_filter_fan_percent_;
-    }
-    /// Filter fan state reason string ("" when none)
-    lv_subject_t* get_chamber_filter_fan_reason_subject() {
-        return &chamber_filter_fan_reason_;
-    }
-    lv_subject_t* get_chamber_filter_fan_reason_subject(SubjectLifetime& lifetime) {
-        lifetime = chamber_filter_fan_reason_lifetime_;
-        return &chamber_filter_fan_reason_;
     }
     /// Filter fan running state (-1 unknown, 0 off, 1 on)
     lv_subject_t* get_chamber_filter_fan_on_subject() {
@@ -480,34 +440,22 @@ class PrinterTemperatureState {
 
     // Chamber-heater diagnostics (backend-provided, issue #1290). Absent
     // objects in a delta status frame = no news: subjects keep last values.
-    lv_subject_t chamber_heater_fault_{};        ///< XML: 0/1
-    lv_subject_t chamber_heater_inhibited_{};    ///< XML: 0/1
-    lv_subject_t chamber_heater_fault_reason_{}; ///< XML: raw vendor code, "" when none (logs only)
-    lv_subject_t chamber_heater_fault_reason_text_{};     ///< XML: translated reason, "" when none
-    lv_subject_t chamber_heater_externally_controlled_{}; ///< XML: 0/1
-    lv_subject_t chamber_heater_element_temp_{};          ///< XML: decidegrees, -1 unknown
-    lv_subject_t chamber_filter_fan_percent_{};           ///< XML: -1 unknown
-    lv_subject_t chamber_filter_fan_reason_{};            ///< XML: string, "" when none
-    lv_subject_t chamber_filter_fan_on_{};                ///< XML: -1 unknown / 0 / 1
-    lv_subject_t chamber_heater_element_temp_text_{};     ///< XML: display string ("--"/"106.2°C")
-    lv_subject_t chamber_filter_fan_percent_text_{};      ///< XML: display string ("--"/"100%")
-    lv_subject_t chamber_filter_fan_on_text_{};           ///< XML: translated toggle label
-    lv_subject_t chamber_filter_fan_icon_{}; ///< XML: toggle icon name ("fan"/"fan_off")
-    char chamber_heater_fault_reason_buf_[64] = {};
+    lv_subject_t chamber_heater_fault_{};             ///< XML: 0/1
+    lv_subject_t chamber_heater_inhibited_{};         ///< XML: 0/1
+    lv_subject_t chamber_heater_fault_reason_text_{}; ///< XML: translated reason, "" when none
+    lv_subject_t chamber_filter_fan_on_{};            ///< XML: -1 unknown / 0 / 1
+    lv_subject_t chamber_heater_element_temp_text_{}; ///< XML: display string ("--"/"106.2°C")
+    lv_subject_t chamber_filter_fan_percent_text_{};  ///< XML: display string ("--"/"100%")
+    lv_subject_t chamber_filter_fan_on_text_{};       ///< XML: translated toggle label
+    lv_subject_t chamber_filter_fan_icon_{};          ///< XML: toggle icon name ("fan"/"fan_off")
     char chamber_heater_fault_reason_text_buf_[64] = {};
-    char chamber_filter_fan_reason_buf_[64] = {};
     char chamber_heater_element_temp_text_buf_[32] = {};
     char chamber_filter_fan_percent_text_buf_[32] = {};
     char chamber_filter_fan_on_text_buf_[64] = {};
     char chamber_filter_fan_icon_buf_[16] = {};
     SubjectLifetime chamber_heater_fault_lifetime_;
     SubjectLifetime chamber_heater_inhibited_lifetime_;
-    SubjectLifetime chamber_heater_fault_reason_lifetime_;
     SubjectLifetime chamber_heater_fault_reason_text_lifetime_;
-    SubjectLifetime chamber_heater_externally_controlled_lifetime_;
-    SubjectLifetime chamber_heater_element_temp_lifetime_;
-    SubjectLifetime chamber_filter_fan_percent_lifetime_;
-    SubjectLifetime chamber_filter_fan_reason_lifetime_;
     SubjectLifetime chamber_filter_fan_on_lifetime_;
     SubjectLifetime chamber_heater_element_temp_text_lifetime_;
     SubjectLifetime chamber_filter_fan_percent_text_lifetime_;
