@@ -526,6 +526,27 @@ class PrinterDetector {
      */
     static std::string screws_tilt_direction_override();
 
+    /**
+     * @brief Resolve a stored printer type name to the name the database uses now.
+     *
+     * The saved type is a display name, not a stable id, so renaming an entry
+     * orphans every config written under the old name: detection returns the
+     * new name, the stored one never matches again, and the user is told their
+     * correctly-identified printer is set up wrong. Four entries have been
+     * renamed in place so far (voron_0_1, flashforge_ad5m_pro, and both
+     * zerog_nebula_*), and the database is user-updatable, so this is not a
+     * closed set that a one-off migration could cover.
+     *
+     * Entries list their former names in "aliases". A name that is a current
+     * entry name is returned untouched; a name that matches some entry's alias
+     * resolves to that entry's current name; anything else (a custom rig, a
+     * type from a newer database) is returned unchanged.
+     *
+     * @param printer_name Stored type name, possibly from an older database
+     * @return The current database name for the same printer, or the input
+     */
+    static std::string canonical_type_name(const std::string& printer_name);
+
     /// Minimum detection confidence before the saved-vs-detected type warning
     /// may be offered. Matches the wizard's override threshold.
     static constexpr int MISMATCH_MIN_CONFIDENCE = 70;

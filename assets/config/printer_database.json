@@ -222,6 +222,9 @@
     {
       "id": "flashforge_ad5m_pro",
       "name": "FlashForge Adventurer 5M Pro",
+      "aliases": [
+        "FlashForge AD5M Pro"
+      ],
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m-pro.png",
       "preset": "ad5m_pro",
@@ -624,6 +627,9 @@
     {
       "id": "voron_0_1",
       "name": "Voron 0.2",
+      "aliases": [
+        "Voron 0.1"
+      ],
       "manufacturer": "Voron",
       "image": "voron-v0.png",
       "heuristics": [
@@ -5948,6 +5954,9 @@
     {
       "id": "zerog_nebula_255",
       "name": "Zero G Mercury One.1 Nebula",
+      "aliases": [
+        "Zero G Nebula 255"
+      ],
       "manufacturer": "Zero G",
       "image": "zerog-nebula.png",
       "heuristics": [
@@ -5994,6 +6003,9 @@
     {
       "id": "zerog_nebula_370",
       "name": "Zero G Mercury One.1 Plus Nebula",
+      "aliases": [
+        "Zero G Nebula 370"
+      ],
       "manufacturer": "Zero G",
       "image": "zerog-nebula-370.png",
       "heuristics": [
