@@ -161,13 +161,23 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
     // src x dst combinations are handled in the blit loop below.
     const int dst_bpp = fb_bpp_ / 8;
 
-    // px_map points to the DRAW-BUFFER ORIGIN (0,0), NOT the dirty-area origin.
-    // In LVGL direct/full render mode, lv_refr.c's call_flush_cb passes
-    // layer->draw_buf->data unchanged and only offsets the *area*. So a dirty
-    // rect's pixels live at the rect's ABSOLUTE coordinates within px_map, and
-    // must be read at the same (x,y) they are written to in fb0. Reading
-    // row-relative from px_map[0] copies the buffer's top-left corner to every
-    // rect — which ghosts the nav bar / header across the screen (#1031 doubling).
+    // The source origin — the display coordinate of px_map's pixel (0,0) — is
+    // declared by the producer, because it differs by LVGL render mode:
+    //
+    //   DIRECT/FULL: px_map is the whole display buffer, so a dirty rect's
+    //     pixels live at their ABSOLUTE coordinates. Reading row-relative from
+    //     px_map[0] would copy the buffer's top-left corner to every rect,
+    //     ghosting the nav bar / header across the screen (#1031 doubling).
+    //     The producer leaves px_map_x/px_map_y at 0 and absolute == relative.
+    //
+    //   PARTIAL (the fbdev fallback, taken when DRM init fails): lv_refr.c
+    //     reshapes the draw buffer to the dirty area and flushes from its own
+    //     origin, so the rect's pixels start at row 0 / column 0. The producer
+    //     sets px_map_x/px_map_y to the area's top-left. Indexing absolutely
+    //     here read the wrong row for rects inside the buffer's line window and
+    //     tripped the bounds guard for rects below it (#1334).
+    //
+    // Subtracting the origin covers both: it is a no-op in direct/full mode.
     int32_t x1 = f.x1;
     int32_t y1 = f.y1;
     int32_t x2 = f.x2;
@@ -190,9 +200,9 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
         return;
     }
 
-    // Clamp the dirty rect into the fb0 mapping. Source and destination share the
-    // same coordinate system (px_map is buffer-origin), so no source skip is
-    // needed — clamped x1/y1/x2/y2 index both.
+    // Clamp the dirty rect into the fb0 mapping. The clamped rect is in display
+    // coordinates; the source offsets below convert it into px_map's own frame
+    // by subtracting px_map_x/px_map_y.
     if (x1 < 0) {
         x1 = 0;
     }
@@ -220,12 +230,28 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
     // kill).
     const size_t src_stride = f.src_stride;
     const size_t src_row_bytes = static_cast<size_t>(w) * static_cast<size_t>(src_bpp);
+    // Source coordinates of the clamped rect, relative to px_map's origin.
+    const int32_t src_x1 = x1 - f.px_map_x;
+    const int32_t src_y1 = y1 - f.px_map_y;
+    const int32_t src_x2 = x2 - f.px_map_x;
+    const int32_t src_y2 = y2 - f.px_map_y;
+    // A rect that starts before the source origin cannot be served from this
+    // buffer at all — skip rather than index negatively.
+    if (src_x1 < 0 || src_y1 < 0) {
+        if (!oob_warned_) {
+            oob_warned_ = true;
+            spdlog::warn("[RemoteScreen] frame starts before the source origin "
+                         "(rect=({},{}) px_map_origin=({},{})) — skipping mirror",
+                         x1, y1, f.px_map_x, f.px_map_y);
+        }
+        return;
+    }
     const int32_t bound_h = f.disp_h > 0 ? f.disp_h : fb_h_;
     const size_t src_bound =
         f.px_map_len > 0 ? f.px_map_len : src_stride * static_cast<size_t>(bound_h);
     // One-past-end byte offset of the last pixel the blit will read.
-    const size_t last_src = static_cast<size_t>(y2) * src_stride +
-                            static_cast<size_t>(x2 + 1) * static_cast<size_t>(src_bpp);
+    const size_t last_src = static_cast<size_t>(src_y2) * src_stride +
+                            static_cast<size_t>(src_x2 + 1) * static_cast<size_t>(src_bpp);
     if (src_row_bytes > src_stride || last_src > src_bound) {
         if (!oob_warned_) {
             oob_warned_ = true;
@@ -244,9 +270,9 @@ void Fb0MailboxSink::on_frame(const RemoteScreenFrame& f) {
         const int32_t abs_y = y1 + row;
         const size_t dst_off = static_cast<size_t>(abs_y) * fb_stride_ +
                                static_cast<size_t>(x1) * static_cast<size_t>(dst_bpp);
-        // Same absolute (x1, abs_y) into the buffer-origin source.
-        const size_t src_off = static_cast<size_t>(abs_y) * src_stride +
-                               static_cast<size_t>(x1) * static_cast<size_t>(src_bpp);
+        // Same pixel, expressed relative to px_map's own origin.
+        const size_t src_off = static_cast<size_t>(abs_y - f.px_map_y) * src_stride +
+                               static_cast<size_t>(src_x1) * static_cast<size_t>(src_bpp);
         uint8_t* dst = map_ + dst_off;
         const uint8_t* src = f.px_map + src_off;
 

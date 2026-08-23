@@ -9,14 +9,23 @@
  * (480x320, stride 1920, 32bpp = 614400 bytes). The fbdev ioctls fail on a
  * regular file, so start() falls back to configure_geometry().
  *
- * CRITICAL contract: px_map is the DRAW-BUFFER ORIGIN (0,0), not the dirty-area
- * origin (LVGL direct/full render mode). A dirty rect's pixels live at the
- * rect's ABSOLUTE coordinates within px_map. So the source buffers here are
- * FULL-framebuffer sized, with content painted at the area's position — and a
- * dedicated test asserts a partial rect copies ITS content, not the buffer's
- * top-left corner (the #1031 ghosting regression).
+ * CRITICAL contract: where px_map's pixel (0,0) sits is declared by the
+ * producer in px_map_x/px_map_y, because it differs by LVGL render mode.
+ *
+ *   DIRECT/FULL (SDL, DRM): px_map is the whole display buffer and a dirty
+ *     rect's pixels live at their ABSOLUTE coordinates, so px_map_x/y are 0.
+ *     The source buffers in those tests are FULL-framebuffer sized with content
+ *     painted at the area's position, and a dedicated test asserts a partial
+ *     rect copies ITS content, not the buffer's top-left corner (the #1031
+ *     ghosting regression).
+ *
+ *   PARTIAL (the fbdev fallback): the draw buffer is reshaped to the dirty area
+ *     and flushed from its own origin, so the rect starts at row 0 / column 0
+ *     and px_map_x/y carry the area's top-left (#1334).
  */
 
+#include "../lvgl_test_fixture.h"
+#include "lvgl/lvgl.h"
 #include "remote_screen_fb0_sink.h"
 #include "remote_screen_sink.h"
 
@@ -438,4 +447,265 @@ TEST_CASE("Fb0MailboxSink: frame inside px_map_len still mirrors", "[remote_scre
     REQUIRE(fb[off + 2] == 0x00);
 
     ::unlink(path.c_str());
+}
+
+// ---------------------------------------------------------------------------
+// PARTIAL render mode: px_map is the AREA origin, not the buffer origin.
+//
+// lv_conf.h sets LV_LINUX_FBDEV_RENDER_MODE = PARTIAL with BUFFER_SIZE 60, so
+// the fbdev fallback (taken when DRM init fails) renders into a 60-line buffer.
+// lv_refr.c:897 reshapes buf_act to the dirty area's w/h with the area's own
+// stride, and flushes layer->draw_buf->data — so the rect's pixels start at
+// row 0, column 0 of px_map, NOT at their absolute display coordinates.
+// px_map_x/px_map_y carry that origin so the blit can index relative to it.
+// ---------------------------------------------------------------------------
+
+// An area-origin frame: px_map holds ONLY the dirty rect, tightly strided.
+namespace {
+RemoteScreenFrame make_partial_frame(const uint8_t* px, int32_t x1, int32_t y1, int32_t x2,
+                                     int32_t y2, size_t px_map_len) {
+    RemoteScreenFrame f = make_frame(px, x1, y1, x2, y2, static_cast<uint32_t>((x2 - x1 + 1) * 4));
+    f.px_map_x = x1; // px_map's (0,0) IS the area's top-left
+    f.px_map_y = y1;
+    f.px_map_len = px_map_len;
+    return f;
+}
+} // namespace
+
+TEST_CASE("Fb0MailboxSink: PARTIAL source is read from the rect's own origin, not absolute coords",
+          "[remote_screen][fb0]") {
+    std::string path = make_temp_fb();
+
+    Fb0MailboxSink sink(path);
+    sink.configure_geometry(FB_W, FB_H, FB_STRIDE, 32);
+    REQUIRE(sink.start());
+
+    // Rect (100,10)-(131,41): 32x32, area stride 128. The real U1 allocation is
+    // 480*4*60 = 115200 and stays that size (reshape only rewrites the header),
+    // so absolute indexing stays INSIDE px_map_len here and silently reads the
+    // wrong row rather than tripping the bounds guard.
+    constexpr int32_t X1 = 100, Y1 = 10, X2 = 131, Y2 = 41;
+    constexpr uint32_t A_STRIDE = 32 * 4;
+    constexpr size_t ALLOC = static_cast<size_t>(FB_W) * 4 * 60; // 115200
+
+    // Row r of the AREA is tagged G = r, so mirroring the wrong source row is
+    // detectable per row rather than as a single wrong colour.
+    std::vector<uint8_t> src(ALLOC, 0x00);
+    for (int r = 0; r < 32; ++r) {
+        for (int c = 0; c < 32; ++c) {
+            size_t o = static_cast<size_t>(r) * A_STRIDE + static_cast<size_t>(c) * 4;
+            src[o + 0] = 0x00;                    // B
+            src[o + 1] = static_cast<uint8_t>(r); // G <- row marker
+            src[o + 2] = 0x00;                    // R
+            src[o + 3] = 0xFF;                    // A
+        }
+    }
+
+    sink.on_frame(make_partial_frame(src.data(), X1, Y1, X2, Y2, ALLOC));
+    sink.stop();
+
+    std::vector<uint8_t> fb = read_file(path);
+    REQUIRE(fb.size() == FB_SIZE);
+
+    // fb0 row (Y1 + r) must carry area row r's marker. Under absolute indexing
+    // the source offset is Y1*A_STRIDE + X1*4 = 1680, i.e. area row 13 — in
+    // bounds, wrong pixels.
+    for (int r = 0; r < 32; ++r) {
+        const size_t off = static_cast<size_t>(Y1 + r) * FB_STRIDE + static_cast<size_t>(X1) * 4;
+        INFO("area row " << r << " -> fb row " << (Y1 + r));
+        REQUIRE(fb[off + 1] == static_cast<uint8_t>(r));
+        REQUIRE(fb[off + 3] == 0xFF);
+    }
+
+    ::unlink(path.c_str());
+}
+
+TEST_CASE("Fb0MailboxSink: PARTIAL rect below the buffer's line window still mirrors",
+          "[remote_screen][fb0]") {
+    std::string path = make_temp_fb();
+
+    Fb0MailboxSink sink(path);
+    sink.configure_geometry(FB_W, FB_H, FB_STRIDE, 32);
+    REQUIRE(sink.start());
+
+    // A rect at y=200 with a 32-row area-origin buffer. Absolute indexing runs
+    // 200*128 + 100*4 = 26000 past a 4096-byte source, so the bounds guard
+    // skips the mirror entirely — the silent half of the bug (oob_warned_ is
+    // one-shot, so it is one warning and then permanent silence).
+    constexpr int32_t X1 = 100, Y1 = 200, X2 = 131, Y2 = 231;
+    constexpr uint32_t A_STRIDE = 32 * 4;
+    constexpr size_t ALLOC = static_cast<size_t>(A_STRIDE) * 32; // 4096
+
+    std::vector<uint8_t> src(ALLOC);
+    for (size_t i = 0; i < ALLOC; i += 4) {
+        src[i + 0] = 0x00;
+        src[i + 1] = 0xFF; // green
+        src[i + 2] = 0x00;
+        src[i + 3] = 0xFF;
+    }
+
+    sink.on_frame(make_partial_frame(src.data(), X1, Y1, X2, Y2, ALLOC));
+    sink.stop();
+
+    std::vector<uint8_t> fb = read_file(path);
+    REQUIRE(fb.size() == FB_SIZE);
+
+    for (int r = Y1; r <= Y2; ++r) {
+        const size_t off = static_cast<size_t>(r) * FB_STRIDE + static_cast<size_t>(X1) * 4;
+        INFO("row " << r);
+        REQUIRE(fb[off + 1] == 0xFF); // green mirrored, not skipped
+    }
+
+    ::unlink(path.c_str());
+}
+
+TEST_CASE("Fb0MailboxSink: rect starting before the source origin is skipped",
+          "[remote_screen][fb0]") {
+    std::string path = make_temp_fb();
+
+    Fb0MailboxSink sink(path);
+    sink.configure_geometry(FB_W, FB_H, FB_STRIDE, 32);
+    REQUIRE(sink.start());
+
+    // A malformed frame whose declared source origin sits to the right of / below
+    // the rect it describes. Indexing relative to that origin would go negative,
+    // so the blit must skip rather than read backwards out of the allocation.
+    constexpr uint32_t A_STRIDE = 32 * 4;
+    constexpr size_t ALLOC = static_cast<size_t>(A_STRIDE) * 32;
+    std::vector<uint8_t> src(ALLOC, 0xAB);
+
+    RemoteScreenFrame f = make_partial_frame(src.data(), 100, 50, 131, 81, ALLOC);
+    f.px_map_x = 200; // origin right of the rect  -> src_x1 = -100
+    f.px_map_y = 60;  // origin below the rect     -> src_y1 = -10
+    sink.on_frame(f);
+    sink.stop();
+
+    std::vector<uint8_t> fb = read_file(path);
+    REQUIRE(fb.size() == FB_SIZE);
+    // Nothing mirrored: the marker byte never reaches fb0.
+    for (int r = 50; r <= 81; ++r) {
+        const size_t off = static_cast<size_t>(r) * FB_STRIDE + static_cast<size_t>(100) * 4;
+        INFO("row " << r);
+        REQUIRE(fb[off + 0] == 0x00);
+    }
+
+    ::unlink(path.c_str());
+}
+
+// ---------------------------------------------------------------------------
+// The LVGL contract that px_map_x/px_map_y exist to carry.
+//
+// The sink cannot see the render mode; it trusts the producer's declared source
+// origin. That declaration is only correct if LVGL really does flush PARTIAL
+// mode from a buffer reshaped to the dirty area. This drives real LVGL and
+// asserts it, so the assumption behind the #1334 fix cannot rot silently — the
+// fbdev fallback path has no desktop equivalent (SDL is DIRECT), so nothing
+// else in the suite would notice if LVGL changed here.
+// ---------------------------------------------------------------------------
+namespace {
+
+struct FlushRecord {
+    const uint8_t* px_map;
+    const uint8_t* buf_act_data;
+    int32_t x1, y1, x2, y2;
+    int32_t hdr_w, hdr_h;
+    uint32_t hdr_stride;
+};
+
+std::vector<FlushRecord>& flush_log() {
+    static std::vector<FlushRecord> v;
+    return v;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "LVGL PARTIAL mode flushes from the dirty area's own origin",
+                 "[remote_screen][fb0][lvgl]") {
+    constexpr int32_t W = 480, H = 320;
+    constexpr int32_t BAND = 40; // draw buffer is BAND lines tall, not H
+
+    flush_log().clear();
+
+    lv_display_t* prev_default = lv_display_get_default();
+    lv_display_t* disp = lv_display_create(W, H);
+    REQUIRE(disp != nullptr);
+    // Make ours default BEFORE creating the screen: lv_obj_create(nullptr)
+    // attaches the new screen to whatever display is default at that moment.
+    lv_display_set_default(disp);
+    const lv_color_format_t cf = lv_display_get_color_format(disp);
+    static std::vector<uint8_t> buf(static_cast<size_t>(lv_draw_buf_width_to_stride(W, cf)) * BAND +
+                                    1024);
+    lv_display_set_buffers(disp, buf.data(), nullptr, static_cast<uint32_t>(buf.size()),
+                           LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_flush_cb(disp, [](lv_display_t* d, const lv_area_t* area, uint8_t* px_map) {
+        lv_draw_buf_t* dbuf = lv_display_get_buf_active(d);
+        flush_log().push_back(FlushRecord{px_map, dbuf ? dbuf->data : nullptr, area->x1, area->y1,
+                                          area->x2, area->y2, dbuf ? (int32_t)dbuf->header.w : -1,
+                                          dbuf ? (int32_t)dbuf->header.h : -1,
+                                          dbuf ? dbuf->header.stride : 0});
+        lv_display_flush_ready(d);
+    });
+
+    // Real content so the refresh is a genuine multi-band render rather than a
+    // single cleared area.
+    lv_obj_t* scr = lv_obj_create(nullptr);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0000FF), 0);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(scr, 0, 0);
+    lv_obj_set_style_pad_all(scr, 0, 0);
+
+    lv_obj_t* rect = lv_obj_create(scr);
+    lv_obj_remove_style_all(rect);
+    lv_obj_set_pos(rect, 100, 50);
+    lv_obj_set_size(rect, 32, 32);
+    lv_obj_set_style_bg_color(rect, lv_color_hex(0xFF0000), 0);
+    lv_obj_set_style_bg_opa(rect, LV_OPA_COVER, 0);
+
+    lv_screen_load(scr);
+    lv_obj_update_layout(scr);
+    lv_refr_now(disp);
+
+    REQUIRE_FALSE(flush_log().empty());
+
+    // (1) px_map IS the active draw buffer's origin, and (2) that buffer is
+    // reshaped to the dirty area — so the area's pixels start at row 0.
+    for (const auto& r : flush_log()) {
+        INFO("area (" << r.x1 << "," << r.y1 << ")-(" << r.x2 << "," << r.y2 << ")");
+        REQUIRE(r.px_map == r.buf_act_data);
+        REQUIRE(r.hdr_w == r.x2 - r.x1 + 1);
+        REQUIRE(r.hdr_h == r.y2 - r.y1 + 1);
+        REQUIRE(r.hdr_stride == lv_draw_buf_width_to_stride(r.hdr_w, cf));
+        // The band is narrower than the display, which is the whole point.
+        REQUIRE(r.hdr_h <= BAND);
+    }
+
+    // (3) The consequence that matters for the blit: a pixel's ABSOLUTE offset
+    // does not exist in these buffers. For every band below the first, indexing
+    // the band's own last row absolutely runs past the allocation — which is
+    // precisely how the pre-#1334 sink read off the end of a 60-line draw
+    // buffer, and why the offset must be taken relative to the area origin.
+    //
+    // Deliberately geometry, not rendered pixels: this pins the buffer contract
+    // the sink depends on, and stays green across unrelated LVGL style/draw
+    // changes that would make a colour probe brittle.
+    const uint32_t px = (cf == LV_COLOR_FORMAT_RGB565) ? 2u : 4u;
+    int bands_below_first = 0;
+    for (const auto& r : flush_log()) {
+        if (r.y1 == 0) {
+            continue;
+        }
+        ++bands_below_first;
+        const size_t band_bytes = static_cast<size_t>(r.hdr_stride) * r.hdr_h;
+        const int32_t last_row = r.y2;
+        const size_t rel_off = static_cast<size_t>(last_row - r.y1) * r.hdr_stride;
+        const size_t abs_off = static_cast<size_t>(last_row) * r.hdr_stride;
+        INFO("band y" << r.y1 << ".." << r.y2);
+        REQUIRE(rel_off + static_cast<size_t>(r.hdr_w) * px <= band_bytes);
+        REQUIRE(abs_off >= band_bytes);
+    }
+    REQUIRE(bands_below_first > 0);
+
+    lv_display_set_default(prev_default);
+    lv_display_delete(disp);
+    flush_log().clear();
 }
