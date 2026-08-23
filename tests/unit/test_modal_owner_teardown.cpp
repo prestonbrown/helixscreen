@@ -301,22 +301,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Static show/hide still tears a modal down",
     CHECK(Modal::get_top() == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "rebuild_top still rebuilds a statically shown modal",
+TEST_CASE_METHOD(LVGLUITestFixture, "rebuild_top hides a statically shown modal too",
                  "[modal][1230]") {
     lv_obj_t* original = Modal::show(TEST_COMPONENT);
     REQUIRE(original != nullptr);
 
-    CHECK(Modal::rebuild_top());
+    // A re-show cannot carry the runtime attrs or the post-show button wiring
+    // the static factories attach, so hot reload closes the dialog rather than
+    // bringing back a mislabelled, inert copy.
+    CHECK_FALSE(Modal::rebuild_top());
     process_lvgl(50);
 
-    lv_obj_t* rebuilt = Modal::get_top();
-    REQUIRE(rebuilt != nullptr);
-    CHECK(rebuilt != original);
-    CHECK(ModalStack::instance().top_component_name() == TEST_COMPONENT);
+    CHECK(Modal::get_top() == nullptr);
+    CHECK(ModalStack::instance().stack_empty());
+}
 
-    // Exactly one entry survived the rebuild: hiding it once empties the stack.
-    Modal::hide(rebuilt);
+// The concrete failure the hide policy replaces: a confirmation dialog carries
+// its title/message as runtime attrs and its button callbacks as post-show
+// event handlers, so a rebuild produced labels reading LVGL's default "Text"
+// over buttons that no longer did anything.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "rebuild_top does not resurrect a confirmation dialog with default label text",
+                 "[modal][1230]") {
+    // modal_configure() no-ops without these, leaving the captions at defaults;
+    // the app does this at startup. Idempotent — warns and returns if already up.
+    helix::ui::modal_init_subjects();
+
+    lv_obj_t* dialog = helix::ui::modal_show_confirmation(
+        "Printer type mismatch", "This printer looks like something else.", ModalSeverity::Warning,
+        "Re-identify", nullptr, nullptr, nullptr, "Keep current");
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* title = lv_obj_find_by_name(dialog, "dialog_title");
+    REQUIRE(title != nullptr);
+    REQUIRE(std::string(lv_label_get_text(title)) == "Printer type mismatch");
+
+    CHECK_FALSE(Modal::rebuild_top());
     process_lvgl(50);
+
+    // Closed outright — no second dialog left standing to read "Text".
+    CHECK(Modal::get_top() == nullptr);
     CHECK(ModalStack::instance().stack_empty());
 }
 

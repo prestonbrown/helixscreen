@@ -721,10 +721,21 @@ bool Modal::rebuild_top() {
         return false;
     }
 
-    // An instance-backed modal cannot be rebuilt from XML alone: re-showing it
-    // through the static factory produces a bare copy with no on_show()
-    // population and no button wiring, i.e. a dialog whose buttons do nothing.
-    // Hide it instead and let the owner re-show it when it needs to.
+    // No modal can be faithfully rebuilt from its XML alone, so hot reload
+    // closes the top one instead of resurrecting a broken copy.
+    //
+    // An instance-backed modal loses on_show() population and its button
+    // wiring. A statically shown one loses just as much: modal_show_confirmation
+    // and modal_show_alert pass title/message as runtime attrs to lv_xml_create
+    // and then attach their button callbacks with lv_obj_add_event_cb, and
+    // neither survives a re-show. The result looked convincing and was inert -
+    // resolve_params found no value for $title/$message and left the labels at
+    // LVGL's default label text, so the dialog came back reading "Text"/"Text"
+    // with dead buttons. The remaining static modals populate inputs after show
+    // or cache the dialog handle in a member the rebuild would dangle.
+    //
+    // Re-opening the dialog is one interaction; a zombie that lies about its
+    // contents is not worth the convenience.
     if (Modal* owner = stack.owner_for(dialog)) {
         spdlog::info("[Modal::rebuild_top] Modal '{}' is instance-backed - hiding instead of "
                      "rebuilding",
@@ -733,10 +744,11 @@ bool Modal::rebuild_top() {
         return false;
     }
 
-    spdlog::info("[Modal::rebuild_top] Rebuilding modal '{}'", name);
+    spdlog::info("[Modal::rebuild_top] Modal '{}' cannot be rebuilt from XML (runtime attrs and "
+                 "post-show wiring are not recoverable) - hiding instead",
+                 name);
     Modal::hide(dialog);
-    lv_obj_t* new_dialog = Modal::show(name.c_str());
-    return new_dialog != nullptr;
+    return false;
 }
 
 // ============================================================================
