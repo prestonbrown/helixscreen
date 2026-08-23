@@ -2743,8 +2743,13 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
         spdlog::debug("[Application] Type mismatch check skipped: already prompted this session");
         return;
     }
-    if (std::getenv("HELIX_MOCK_PRINTER")) {
-        // mock clears the saved type each launch (moonraker_manager.cpp)
+    if (get_runtime_config()->should_mock_moonraker()) {
+        // A mock printer's identity is whatever the persona declares, so a
+        // mismatch against the saved type says nothing about real hardware.
+        // Gate on the runtime-config predicate, not on HELIX_MOCK_PRINTER:
+        // plain --test runs the mock client without that env var ever being
+        // set, so the old getenv check let every --test launch open the
+        // prompt against whatever type settings-test.json happened to carry.
         spdlog::debug("[Application] Type mismatch check skipped: mock printer");
         return;
     }
@@ -2754,9 +2759,27 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     }
 
     auto* cfg = Config::get_instance();
-    const std::string saved = cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
-    const std::string flag =
-        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "");
+    const std::string stored = cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+
+    // The saved type is a display name, so an entry renamed in the printer
+    // database orphans every config written under the old one and detection
+    // then contradicts a type that was never wrong. Resolve through the
+    // database's alias list and heal the stored value, otherwise the stale
+    // name keeps missing every other name-keyed lookup too (image, preset,
+    // pre-print profile) long after this prompt is dismissed.
+    const std::string saved = PrinterDetector::canonical_type_name(stored);
+    if (saved != stored) {
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, saved);
+        if (!cfg->save()) {
+            spdlog::warn("[Application] Failed to persist renamed printer type '{}' -> '{}'",
+                         stored, saved);
+        }
+    }
+
+    // Canonicalised too: a dismissal recorded under the pre-rename name still
+    // answers for the same printer.
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
 
     auto detected = PrinterDetector::auto_detect(hardware);
     const auto decision = detected.detected()
