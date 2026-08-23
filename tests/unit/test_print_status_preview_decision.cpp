@@ -141,3 +141,54 @@ TEST_CASE("Preview decision: desired empty does nothing", "[print_status][previe
         REQUIRE_FALSE(a.load_gcode);
     }
 }
+
+// --- Stale geometry must leave the screen immediately -----------------------
+//
+// Reloading is not the same as clearing. The gcode load is deliberately
+// deferred (5s while the printer is still preparing, to avoid a memory spike),
+// and until it lands the viewer keeps rendering whatever it already holds. On a
+// new print that is the PREVIOUS print's model, so the user watches the wrong
+// object for the whole deferral. The decision therefore has to say "drop this
+// now" separately from "fetch that later".
+
+TEST_CASE("Preview decision: viewer holding another print's geometry is cleared",
+          "[print_status][preview]") {
+    PreviewAction a = decide_preview_action("old.gcode", "old.gcode", "new.gcode",
+                                            /*thumb_src*/ true, /*gcode_content*/ true,
+                                            /*want_viewer*/ true);
+    REQUIRE(a.clear_gcode);
+    REQUIRE(a.load_gcode); // still reloads, just not while showing the old model
+}
+
+TEST_CASE("Preview decision: clearing is not gated on wanting the viewer",
+          "[print_status][preview]") {
+    // want_viewer only decides whether to FETCH. Stale geometry is wrong on
+    // screen either way, so gating the clear on it would leave the previous
+    // print visible exactly when we had decided not to replace it.
+    PreviewAction a = decide_preview_action("old.gcode", "old.gcode", "new.gcode", true, true,
+                                            /*want_viewer*/ false);
+    REQUIRE(a.clear_gcode);
+    REQUIRE_FALSE(a.load_gcode);
+}
+
+TEST_CASE("Preview decision: current geometry is never cleared", "[print_status][preview]") {
+    // The viewer already holds the desired print. Clearing here would blank a
+    // correct render and force a needless reload.
+    PreviewAction a =
+        decide_preview_action("cur.gcode", "cur.gcode", "cur.gcode", true, true, true);
+    REQUIRE_FALSE(a.clear_gcode);
+}
+
+TEST_CASE("Preview decision: an empty viewer has nothing to clear", "[print_status][preview]") {
+    PreviewAction a =
+        decide_preview_action("", "", "new.gcode", false, /*gcode_content*/ false, true);
+    REQUIRE_FALSE(a.clear_gcode);
+}
+
+TEST_CASE("Preview decision: the finished-print freeze is preserved", "[print_status][preview]") {
+    // After a print ends the display is deliberately frozen on its final frame
+    // until a new print starts. desired == "" must not trigger a clear, or the
+    // completed print's model vanishes out from under the user.
+    PreviewAction a = decide_preview_action("done.gcode", "done.gcode", "", true, true, true);
+    REQUIRE_FALSE(a.clear_gcode);
+}

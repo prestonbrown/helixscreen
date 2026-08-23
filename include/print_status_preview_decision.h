@@ -14,8 +14,12 @@ namespace helix::ui {
  * viewer (3D/2D geometry) are reconciled separately.
  */
 struct PreviewAction {
-    bool load_thumbnail;
-    bool load_gcode;
+    bool load_thumbnail = false;
+    bool load_gcode = false;
+    /// The viewer currently renders a DIFFERENT file's geometry and must drop it
+    /// now. Separate from load_gcode because the reload is deferred: until it
+    /// lands the viewer keeps rendering whatever it already holds.
+    bool clear_gcode = false;
 };
 
 /**
@@ -44,13 +48,14 @@ struct PreviewAction {
  * @param gcode_has_content Does the gcode viewer currently hold geometry.
  * @param want_viewer       Lifecycle wants the 3D/2D viewer for the current
  *                          print state (independent of the render-mode setting).
- * @return Which resources to (re)load.
+ * @return Which resources to (re)load, and whether the viewer must drop
+ *         geometry it holds for a different file before that happens.
  */
 inline PreviewAction decide_preview_action(const std::string& thumbnail_displayed_file,
                                            const std::string& gcode_displayed_file,
                                            const std::string& desired_file, bool thumbnail_has_src,
                                            bool gcode_has_content, bool want_viewer) {
-    PreviewAction action{false, false};
+    PreviewAction action{};
 
     // Nothing to show: no print selected. Leave widgets untouched.
     if (desired_file.empty()) {
@@ -69,6 +74,17 @@ inline PreviewAction decide_preview_action(const std::string& thumbnail_displaye
     // whenever its displayed file differs from desired or the widget is blank.
     if (thumbnail_mismatch || !thumbnail_has_src) {
         action.load_thumbnail = true;
+    }
+
+    // Stale geometry leaves the screen NOW, which is a different question from
+    // when to fetch its replacement. The gcode load is deliberately deferred
+    // (seconds, while the printer is still preparing, to avoid a memory spike)
+    // and the viewer goes on rendering what it holds in the meantime — so on a
+    // new print the PREVIOUS print's model stays on screen for the whole
+    // deferral. Not gated on want_viewer: the wrong model is wrong on screen
+    // whether or not we intend to replace it.
+    if (gcode_has_content && gcode_mismatch) {
+        action.clear_gcode = true;
     }
 
     // Gcode geometry (re)loads whenever the lifecycle wants the viewer and the
