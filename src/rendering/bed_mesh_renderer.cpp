@@ -417,7 +417,7 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer, 
     // LVGL will clip this to the dirty region during partial redraws
     lv_draw_rect_dsc_t bg_dsc;
     lv_draw_rect_dsc_init(&bg_dsc);
-    bg_dsc.bg_color = theme_manager_get_color("graph_bg");
+    bg_dsc.bg_color = theme_manager_get_color("screen_bg");
     bg_dsc.bg_opa = LV_OPA_COVER;
     lv_draw_rect(layer, &bg_dsc, clip_area);
 
