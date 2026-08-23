@@ -362,51 +362,50 @@ void TempGraphWidget::build_default_config() {
     // Enumerate discovered extruders so multi-tool printers (Snapmaker U1,
     // toolchangers) get all nozzles enabled by default rather than just the
     // legacy single "extruder" entry.
+    // One running index across nozzles, bed, chamber and aux sensors, so no two
+    // series can land on the same palette slot. Bed and chamber used to carry
+    // literal copies of slots 1 and 2, which collided with the second nozzle's
+    // color on a multi-extruder machine.
+    int color_idx = 0;
+
     const auto& exts = get_printer_state().temperature_state().extruders();
     if (exts.empty()) {
         // Pre-discovery / single-extruder fallback
-        sensors.push_back({{"name", "extruder"}, {"enabled", true}, {"color", 0xFF4444}});
+        sensors.push_back({{"name", "extruder"},
+                           {"enabled", true},
+                           {"color", temp_graph_series_hex(color_idx++)}});
     } else {
         std::vector<std::string> extruder_names;
         extruder_names.reserve(exts.size());
         for (const auto& [name, _] : exts)
             extruder_names.push_back(name);
         std::sort(extruder_names.begin(), extruder_names.end());
-        int ext_color_idx = 0;
         for (const auto& name : extruder_names) {
-            lv_color_t c = TEMP_GRAPH_SERIES_COLORS[ext_color_idx % TEMP_GRAPH_PALETTE_SIZE];
-            uint32_t color_hex = (static_cast<uint32_t>(c.red) << 16) |
-                                 (static_cast<uint32_t>(c.green) << 8) |
-                                 static_cast<uint32_t>(c.blue);
-            sensors.push_back({{"name", name}, {"enabled", true}, {"color", color_hex}});
-            ++ext_color_idx;
+            sensors.push_back(
+                {{"name", name}, {"enabled", true}, {"color", temp_graph_series_hex(color_idx++)}});
         }
     }
-    sensors.push_back({{"name", "heater_bed"}, {"enabled", true}, {"color", 0x88C0D0}});
+    sensors.push_back(
+        {{"name", "heater_bed"}, {"enabled", true}, {"color", temp_graph_series_hex(color_idx++)}});
 
     // Check for chamber
     lv_subject_t* chamber_gate = lv_xml_get_subject(nullptr, "printer_has_chamber");
     if (chamber_gate && lv_subject_get_int(chamber_gate) != 0) {
-        sensors.push_back({{"name", "chamber"}, {"enabled", false}, {"color", 0xA3BE8C}});
+        sensors.push_back({{"name", "chamber"},
+                           {"enabled", false},
+                           {"color", temp_graph_series_hex(color_idx++)}});
     }
 
     // Add discovered auxiliary sensors (disabled by default)
-    int color_idx = static_cast<int>(sensors.size()); // Start after nozzles/bed/chamber colors
     auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
     auto discovered = sensor_mgr.get_sensors_sorted();
     for (const auto& sensor : discovered) {
         if (!sensor.enabled)
             continue;
-        uint32_t color_hex = 0;
-        lv_color_t c = TEMP_GRAPH_SERIES_COLORS[color_idx % TEMP_GRAPH_PALETTE_SIZE];
-        color_hex = (static_cast<uint32_t>(c.red) << 16) | (static_cast<uint32_t>(c.green) << 8) |
-                    static_cast<uint32_t>(c.blue);
-        color_idx++;
-
         sensors.push_back({
             {"name", sensor.klipper_name},
             {"enabled", false},
-            {"color", color_hex},
+            {"color", temp_graph_series_hex(color_idx++)},
         });
     }
 

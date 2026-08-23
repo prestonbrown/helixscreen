@@ -89,6 +89,14 @@ const lv_color_t TEMP_GRAPH_SERIES_COLORS[TEMP_GRAPH_PALETTE_SIZE] = {
     lv_color_hex(0xBF616A), // Dark red / nord11
 };
 
+uint32_t temp_graph_series_hex(int index) {
+    const int slot =
+        ((index % TEMP_GRAPH_PALETTE_SIZE) + TEMP_GRAPH_PALETTE_SIZE) % TEMP_GRAPH_PALETTE_SIZE;
+    const lv_color_t c = TEMP_GRAPH_SERIES_COLORS[slot];
+    return (static_cast<uint32_t>(c.red) << 16) | (static_cast<uint32_t>(c.green) << 8) |
+           static_cast<uint32_t>(c.blue);
+}
+
 // ============================================================================
 // Construction / Destruction
 // ============================================================================
