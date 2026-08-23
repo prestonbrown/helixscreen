@@ -4595,6 +4595,54 @@ TEST_CASE("should_warn_type_mismatch table", "[detector][mismatch]") {
 }
 
 // ============================================================================
+// Renamed Database Entries
+// ============================================================================
+
+TEST_CASE("canonical_type_name resolves former database names", "[detector][mismatch]") {
+    using PD = PrinterDetector;
+
+    SECTION("a name the database still publishes is returned untouched") {
+        REQUIRE(PD::canonical_type_name("Voron Trident") == "Voron Trident");
+        REQUIRE(PD::canonical_type_name("Voron 0.2") == "Voron 0.2");
+    }
+    SECTION("every recorded rename resolves to the current name") {
+        REQUIRE(PD::canonical_type_name("Voron 0.1") == "Voron 0.2");
+        REQUIRE(PD::canonical_type_name("FlashForge AD5M Pro") == "FlashForge Adventurer 5M Pro");
+        REQUIRE(PD::canonical_type_name("Zero G Nebula 255") == "Zero G Mercury One.1 Nebula");
+        REQUIRE(PD::canonical_type_name("Zero G Nebula 370") == "Zero G Mercury One.1 Plus Nebula");
+    }
+    SECTION("unknown and empty names pass through unchanged") {
+        REQUIRE(PD::canonical_type_name("") == "");
+        REQUIRE(PD::canonical_type_name("Custom/Other") == "Custom/Other");
+        REQUIRE(PD::canonical_type_name("Some Rig That Is Not In The Database") ==
+                "Some Rig That Is Not In The Database");
+    }
+}
+
+// The bug this closes: a config written before the entry was renamed detects
+// correctly and is still told it is set up as the wrong printer.
+TEST_CASE("a renamed entry does not warn once the saved name is canonicalised",
+          "[detector][mismatch]") {
+    using PD = PrinterDetector;
+    const std::string none;
+    const std::string legacy = "Voron 0.1";
+    const std::string current = "Voron 0.2";
+
+    // Raw comparison — what shipped before the alias lookup, and why the
+    // prompt fired at 100% confidence on a printer that was never mis-set.
+    REQUIRE(PD::should_warn_type_mismatch(legacy, current, 100, none));
+
+    // Through the resolver, the same pair is the same printer.
+    REQUIRE_FALSE(
+        PD::should_warn_type_mismatch(PD::canonical_type_name(legacy), current, 100, none));
+
+    // A genuine mismatch still warns after canonicalisation — the resolver
+    // must not swallow real disagreement.
+    REQUIRE(
+        PD::should_warn_type_mismatch(PD::canonical_type_name(legacy), "Voron Trident", 100, none));
+}
+
+// ============================================================================
 // LED Heuristic Exclusivity (#1284)
 // ============================================================================
 

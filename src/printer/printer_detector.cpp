@@ -1930,6 +1930,51 @@ const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
     return "unknown";
 }
 
+std::string PrinterDetector::canonical_type_name(const std::string& printer_name) {
+    if (printer_name.empty()) {
+        return printer_name;
+    }
+
+    if (!g_database.load() || !g_database.data.contains("printers") ||
+        !g_database.data["printers"].is_array()) {
+        // No database is not an error here — without one there is nothing to
+        // rename against, and the caller's own name is the best answer.
+        return printer_name;
+    }
+
+    const auto& printers = g_database.data["printers"];
+
+    // Current names win outright. Checked in a separate pass so an entry that
+    // still publishes a name another entry lists as a former one cannot be
+    // rewritten out from under itself.
+    for (const auto& printer : printers) {
+        if (printer.value("name", "") == printer_name) {
+            return printer_name;
+        }
+    }
+
+    for (const auto& printer : printers) {
+        auto aliases = printer.find("aliases");
+        if (aliases == printer.end() || !aliases->is_array()) {
+            continue;
+        }
+        for (const auto& alias : *aliases) {
+            if (alias.is_string() && alias.get<std::string>() == printer_name) {
+                std::string current = printer.value("name", "");
+                if (current.empty()) {
+                    continue;
+                }
+                spdlog::info("[PrinterDetector] Printer type '{}' was renamed to '{}' — "
+                             "resolving to the current name",
+                             printer_name, current);
+                return current;
+            }
+        }
+    }
+
+    return printer_name;
+}
+
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,

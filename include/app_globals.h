@@ -384,22 +384,29 @@ std::string app_get_config_dir();
 bool helix_parse_truthy_env(const char* value);
 
 // Pure predicate behind updates_externally_managed(), split out for testing so
-// the env input can be exercised without mutating the process env.
-// True only when the explicit HELIX_DISABLE_AUTO_UPDATES flag is truthy. No
-// environment inference: the update gate keys solely off this firmware-facing
-// flag. A future change will instead derive the state from whether self-update
-// can physically write the install tree.
-bool compute_updates_externally_managed(const char* disable_auto_updates);
+// both inputs can be exercised without mutating the process env or the platform.
+//
+// HELIX_DISABLE_AUTO_UPDATES wins in EITHER direction when set to a value that
+// parses: truthy suppresses, falsy force-enables. Unset falls back to
+// `platform_default`, which is helix::platform_defaults_to_external_updates().
+//
+// The falsy arm is not symmetry for its own sake — it is how a dev box on a
+// platform that defaults to managed turns self-update back on, from the CLI or a
+// deploy script, without a rebuild.
+//
+// This used to be the flag alone, defaulting to self-managed everywhere. On the
+// Snapmaker U1 that meant firmware-managed installs self-updated over a package
+// the firmware owns, because the firmware hook never set the flag (it exports
+// HELIX_DATA_DIR/HELIX_SUPERVISED and nothing else).
+bool compute_updates_externally_managed(const char* disable_auto_updates, bool platform_default);
 
 // Returns true when software updates are owned by the device firmware, in which
 // case HelixScreen must NOT run its in-app self-update: the periodic auto-check
 // is suppressed and manual check/download entry points short-circuit.
 //
-// Managed state is true ONLY when the explicit HELIX_DISABLE_AUTO_UPDATES flag
-// is truthy. No other environment variable participates — a firmware-managed
-// install must set this flag. A future change will derive the state from whether
-// self-update can physically write the install tree. Read once and cached (like
-// app_get_install_root()).
+// Explicit HELIX_DISABLE_AUTO_UPDATES wins either way; otherwise the platform
+// default applies (see helix::platform_defaults_to_external_updates(), which owns
+// the list). Read once and cached (like app_get_install_root()).
 bool updates_externally_managed();
 
 // Can this process obtain root for the install swap? True when already euid 0,

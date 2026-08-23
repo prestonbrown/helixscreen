@@ -7,6 +7,7 @@
 #include "ui_update_queue.h"
 
 #include "lib/lvgl/src/misc/lv_timer_private.h"
+#include "platform_info.h"
 #include "spdlog/spdlog.h"
 #include "test_helpers/update_queue_test_access.h"
 
@@ -900,13 +901,31 @@ bool helix_parse_truthy_env(const char* value) {
     return v == "1" || v == "true" || v == "yes" || v == "on";
 }
 
-bool compute_updates_externally_managed(const char* disable_auto_updates) {
-    return helix_parse_truthy_env(disable_auto_updates);
+bool compute_updates_externally_managed(const char* disable_auto_updates, bool platform_default) {
+    // An explicit flag decides it, in either direction. helix_parse_truthy_env()
+    // only answers "is this truthy", which cannot distinguish "0" from unset, so
+    // presence is tested separately and a falsy value force-enables self-update
+    // where the platform would otherwise default it off.
+    //
+    // Blank counts as ABSENT, not as falsy. helixscreen.env values routinely carry
+    // a stray space (which is why parsing trims), and an all-whitespace value read
+    // as an explicit "no" would silently switch self-update back on for a
+    // firmware-managed install — the exact failure this predicate exists to stop.
+    if (disable_auto_updates) {
+        const char* p = disable_auto_updates;
+        while (*p && std::isspace(static_cast<unsigned char>(*p))) {
+            ++p;
+        }
+        if (*p != '\0') {
+            return helix_parse_truthy_env(disable_auto_updates);
+        }
+    }
+    return platform_default;
 }
 
 bool updates_externally_managed() {
-    static const bool cached =
-        compute_updates_externally_managed(std::getenv("HELIX_DISABLE_AUTO_UPDATES"));
+    static const bool cached = compute_updates_externally_managed(
+        std::getenv("HELIX_DISABLE_AUTO_UPDATES"), helix::platform_defaults_to_external_updates());
     return cached;
 }
 

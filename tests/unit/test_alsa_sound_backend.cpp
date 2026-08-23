@@ -201,8 +201,6 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
     backend.shutdown();
 }
 
-#endif // HELIX_HAS_ALSA
-
 // ============================================================================
 // Short sounds vs the ALSA start threshold (prestonbrown/helixscreen#1337)
 //
@@ -235,3 +233,5 @@ TEST_CASE("ALSASoundBackend: an already-running stream is not restarted", "[soun
     CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_XRUN, true));
     CHECK_FALSE(ALSASoundBackend::needs_start_before_drain(SND_PCM_STATE_SETUP, true));
 }
+
+#endif // HELIX_HAS_ALSA

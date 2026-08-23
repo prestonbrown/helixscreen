@@ -310,7 +310,6 @@ class PrintStatusWidget : public PanelWidget {
     static inline bool visibility_subjects_initialized_ = false;
 
     // Detailed-layout subjects (static inline — shared across all widget instances)
-    static inline lv_subject_t layout_mode_subject_{};      // 0=library, 1=detailed (user pref)
     static inline lv_subject_t layout_effective_subject_{}; // after width gating
     // Combined gate: (width band == wide) AND (filament_used > 0). Avoids the
     // phantom-row gap when filament hasn't started extruding yet.

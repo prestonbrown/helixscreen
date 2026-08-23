@@ -1292,8 +1292,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> relative_mode_{false}; // G90=absolute (false), G91=relative (true)
     std::atomic<bool> motors_enabled_{true}; // Track motor enable state for idle_timeout
 
-    // Idle timeout simulation
-    std::chrono::steady_clock::time_point last_activity_time_;
+    // Idle timeout simulation.
+    // Atomic because reset_idle_timeout() writes it from whichever thread drove
+    // the activity while temperature_simulation_loop() reads it on the sim
+    // thread; the siblings below were already atomic and this one was missed.
+    std::atomic<std::chrono::steady_clock::time_point> last_activity_time_;
     std::atomic<bool> idle_timeout_triggered_{false};
     std::atomic<uint32_t> idle_timeout_seconds_{600}; // Default 10 minutes
 

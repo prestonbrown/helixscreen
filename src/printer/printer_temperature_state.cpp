@@ -242,15 +242,33 @@ void PrinterTemperatureState::register_xml_subjects() {
     lv_xml_register_subject(nullptr, "chamber_mode", &chamber_mode_);
     lv_xml_register_subject(nullptr, "chamber_heater_fault", &chamber_heater_fault_);
     lv_xml_register_subject(nullptr, "chamber_heater_inhibited", &chamber_heater_inhibited_);
-    lv_xml_register_subject(nullptr, "chamber_heater_fault_reason", &chamber_heater_fault_reason_);
+    // The six machine-readable chamber-diagnostics subjects below are XML-facing
+    // surface that no widget binds directly: chamber_diagnostics_card.xml binds their
+    // formatted *_text / *_icon twins, and test_chamber_diagnostics_subjects.cpp asserts
+    // each raw name resolves through lv_xml_get_subject(). Static analysis sees a
+    // registration with no reader, hence the markers.
+    lv_xml_register_subject(nullptr,
+                            "chamber_heater_fault_reason", // SUBJECT_OK: fault kind behind
+                                                           // chamber_heater_fault_reason_text
+                            &chamber_heater_fault_reason_);
     lv_xml_register_subject(nullptr, "chamber_heater_fault_reason_text",
                             &chamber_heater_fault_reason_text_);
-    lv_xml_register_subject(nullptr, "chamber_heater_externally_controlled",
-                            &chamber_heater_externally_controlled_);
-    lv_xml_register_subject(nullptr, "chamber_heater_element_temp", &chamber_heater_element_temp_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_percent", &chamber_filter_fan_percent_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_reason", &chamber_filter_fan_reason_);
-    lv_xml_register_subject(nullptr, "chamber_filter_fan_on", &chamber_filter_fan_on_);
+    lv_xml_register_subject(
+        nullptr, "chamber_heater_externally_controlled", // SUBJECT_OK: drives the card's controller
+                                                         // row via its text twin
+        &chamber_heater_externally_controlled_);
+    lv_xml_register_subject(nullptr, "chamber_heater_element_temp",
+                            &chamber_heater_element_temp_); // SUBJECT_OK: PTC temperature behind
+                                                            // chamber_heater_element_temp_text
+    lv_xml_register_subject(
+        nullptr, "chamber_filter_fan_percent",
+        &chamber_filter_fan_percent_); // SUBJECT_OK: behind chamber_filter_fan_percent_text
+    lv_xml_register_subject(
+        nullptr, "chamber_filter_fan_reason",
+        &chamber_filter_fan_reason_); // SUBJECT_OK: behind the card's fan-reason text
+    lv_xml_register_subject(
+        nullptr, "chamber_filter_fan_on",
+        &chamber_filter_fan_on_); // SUBJECT_OK: also read by name in temperature_service.cpp
     lv_xml_register_subject(nullptr, "chamber_heater_element_temp_text",
                             &chamber_heater_element_temp_text_);
     lv_xml_register_subject(nullptr, "chamber_filter_fan_percent_text",

@@ -188,10 +188,10 @@ Read in this order; about 30 minutes total.
 4. [`src/application/application.cpp:1637`](../../../src/application/application.cpp#L1637) — `init_theme()`: note [`globals.xml`](../../../ui_xml/globals.xml) registered *before* `theme_manager_init()` and why.
 5. [`src/xml_registration.cpp:300`](../../../src/xml_registration.cpp#L300) — `register_xml_components()`: responsive consts → semantic widgets → callbacks → XML files; the `boot_yield` cadence note at `:290`.
 6. [`src/application/subject_initializer.cpp:225`](../../../src/application/subject_initializer.cpp#L225) — `init_core_and_state()`: the dependency phases, and the NavigationManager-registers-last comment.
-7. [`src/application/application.cpp:3610`](../../../src/application/application.cpp#L3610) — `connect_moonraker()`: when it connects, what Safe Mode skips, where `start_auto_send` lands.
+7. [`src/application/application.cpp:3633`](../../../src/application/application.cpp#L3633) — `connect_moonraker()`: when it connects, what Safe Mode skips, where `start_auto_send` lands.
 8. [`src/application/application.cpp:2000`](../../../src/application/application.cpp#L2000) — `init_ui()`: the timed `lv_xml_create`, navbar wiring, `PanelFactory` handoff.
-9. [`src/application/application.cpp:3998`](../../../src/application/application.cpp#L3998) — `main_loop()`: read only the splash-handoff and 11s-failsafe blocks (`:4141`–`:4192`); chapter 02 owns the rest.
-10. [`src/application/application.cpp:5017`](../../../src/application/application.cpp#L5017) — `shutdown()`: walk the ladder against the "How it works" list; the long comments at `:5160` and `:5194` are the two UAF post-mortems.
+9. [`src/application/application.cpp:4021`](../../../src/application/application.cpp#L4021) — `main_loop()`: read only the splash-handoff and 11s-failsafe blocks (`:4141`–`:4192`); chapter 02 owns the rest.
+10. [`src/application/application.cpp:5040`](../../../src/application/application.cpp#L5040) — `shutdown()`: walk the ladder against the "How it works" list; the long comments at `:5160` and `:5194` are the two UAF post-mortems.
 11. [`src/application/display_manager.cpp:630`](../../../src/application/display_manager.cpp#L630) — `DisplayManager::shutdown()`: `lv_deinit()` → `lv_xml_deinit()` and the style-ownership comment above them.
 12. [`src/application/static_subject_registry.cpp:67`](../../../src/application/static_subject_registry.cpp#L67) — `deinit_all()`: 25 lines; the detached-copy/reverse-iteration trick.
 13. [`src/helix_watchdog.cpp:1099`](../../../src/helix_watchdog.cpp#L1099) — `run_watchdog()`: fork/supervise loop, exit-code translation at `:1221`, crash-loop branch at `:1336`.

@@ -125,10 +125,11 @@ void PrintStatusWidget::init_static_subjects() {
     visibility_subjects_initialized_ = true;
 
     // Detailed-layout subjects
-    lv_subject_init_int(&layout_mode_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_layout_mode", &layout_mode_subject_);
     lv_subject_init_int(&layout_effective_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_layout_effective", &layout_effective_subject_);
+    // Observed through layout_effective_subject_for_test() by
+    // tests/unit/test_print_status_widget_layout_gate.cpp, the width-gating guard.
+    lv_xml_register_subject(nullptr, "print_status_layout_effective",
+                            &layout_effective_subject_); // SUBJECT_OK: read by the layout-gate test
     lv_subject_init_int(&show_filament_active_subject_, 0);
     lv_xml_register_subject(nullptr, "print_status_show_filament_active",
                             &show_filament_active_subject_);
@@ -151,13 +152,13 @@ void PrintStatusWidget::init_static_subjects() {
     // Default to tier 2 (8px) — matches the previous hardcoded medium thickness
     // until the arc lays out and C++ publishes the diameter-derived tier.
     lv_subject_init_int(&arc_thickness_tier_subject_, 2);
-    lv_xml_register_subject(nullptr, "print_status_arc_thickness_tier",
-                            &arc_thickness_tier_subject_);
+    lv_xml_register_subject( // SUBJECT_OK: attach_progress_arc() publishes into this by
+                             // pointer and helix_progress_arc.xml bind_styles read it
+        nullptr, "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
     detailed_subjects_initialized_ = true;
 
     StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetSubjects", []() {
         if (detailed_subjects_initialized_ && lv_is_initialized()) {
-            lv_subject_deinit(&layout_mode_subject_);
             lv_subject_deinit(&layout_effective_subject_);
             lv_subject_deinit(&show_filament_active_subject_);
             lv_subject_deinit(&multi_tool_subject_);
@@ -547,7 +548,6 @@ void PrintStatusWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int wi
 
     // Derive layout_effective: detailed only when user opted in AND width clears the normal floor
     int user_pref = (layout_style_ == "detailed") ? 1 : 0;
-    lv_subject_set_int(&layout_mode_subject_, user_pref);
     int effective = (user_pref == 1 && width_band >= 1) ? 1 : 0;
     lv_subject_set_int(&layout_effective_subject_, effective);
     // Combined gate: only show the filament line at the wide band AND when actual
@@ -1473,7 +1473,6 @@ void PrintStatusWidget::ConfigurePicker::apply_state() {
 void PrintStatusWidget::ConfigurePicker::select_layout(const char* style) {
     owner_.layout_style_ = style;
     owner_.config_["layout_style"] = style;
-    lv_subject_set_int(&layout_mode_subject_, std::string_view(style) == "detailed" ? 1 : 0);
     apply_state();
     // Apply to the live widget immediately so the user sees the swap behind the picker overlay.
     owner_.update_idle_compact_mode();

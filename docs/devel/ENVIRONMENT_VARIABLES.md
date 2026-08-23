@@ -1581,16 +1581,23 @@ Declare that updates are managed externally, suppressing HelixScreen's in-app up
 
 | Property | Value |
 |----------|-------|
-| **Values** | Truthy: `1`, `true`, `yes`, `on` — case-insensitive, surrounding whitespace trimmed. Anything else is false. |
-| **Default** | Unset — in-app updates enabled |
-| **File** | `src/app_globals.cpp` (`updates_externally_managed()`) |
+| **Values** | Truthy: `1`, `true`, `yes`, `on`. Falsy: `0`, `false`, `no`, `off`. Case-insensitive, surrounding whitespace trimmed. |
+| **Default** | Unset — defers to the platform (see below) |
+| **File** | `src/app_globals.cpp` (`updates_externally_managed()`), `src/system/platform_info.cpp` (the platform default) |
 
 ```bash
-# In helixscreen.env on a vendor image:
+# In helixscreen.env on a vendor image — suppress in-app updates:
 HELIX_DISABLE_AUTO_UPDATES=1
+
+# On a dev box whose platform defaults to managed — force self-update back ON:
+HELIX_DISABLE_AUTO_UPDATES=0
 ```
 
-**Explicit opt-out only** — nothing else sets this implicitly. The result is cached in a function-local static on first call, so changing the environment mid-process has no effect.
+**Set, it decides in either direction; unset, the platform does.** A truthy value suppresses and a falsy value force-enables, which is how a dev box overrides a platform that defaults to managed without a rebuild. An **empty** value counts as unset, not as falsy — `helixscreen.env` can export one, and reading it as an explicit "no" would silently re-enable self-update on a firmware-managed box.
+
+The platform default lives in `helix::platform_defaults_to_external_updates()` (`include/platform_info.h`), the single place any platform is named. It is currently true only for the **Snapmaker U1**, where PAXX Extended Firmware ships HelixScreen as a pinned, sha256-verified `extended-pkg` package in `/oem/apps/helixscreen` — self-updating there overwrites a package the firmware owns. The firmware hook exports `HELIX_DATA_DIR`/`HELIX_SUPERVISED` and friends but never this flag, so keying suppression on the flag alone left every U1 install checking for updates and raising the update modal.
+
+The result is cached in a function-local static on first call, so changing the environment mid-process has no effect.
 
 In-app updates are suppressed when *either* this flag is truthy *or* self-update is physically impossible (`self_update_supported()` tests write permission on the install root's parent, since the update renames the root). The whitespace trim exists because `helixscreen.env` values routinely carry a stray trailing space.
 

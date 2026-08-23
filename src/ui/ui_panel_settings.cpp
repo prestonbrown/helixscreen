@@ -380,10 +380,6 @@ void SettingsPanel::init_subjects() {
     subjects_.register_subject(&updates_unavailable_subject_);
     lv_xml_register_subject(nullptr, "updates_unavailable", &updates_unavailable_subject_);
 
-    lv_subject_init_int(&show_backlight_settings_subject_, on_android ? 0 : 1);
-    subjects_.register_subject(&show_backlight_settings_subject_);
-    lv_xml_register_subject(nullptr, "show_backlight_settings", &show_backlight_settings_subject_);
-
     // Touch calibration status - show "Calibrated" or "Not calibrated" in row description
     Config* config = Config::get_instance();
     bool is_calibrated =
