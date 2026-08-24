@@ -404,7 +404,8 @@ via sshpass works).
 
 **get_status() patch validated on-rig** (upstream handoff candidate; the mod
 source has no public git — these files ship only in zmod release tarballs, so
-the patch is handed to ghzserg directly). Patch adds `get_status()` to
+the patch is handed to ghzserg directly; **filed 2026-08-24 as
+ghzserg/zmod#699** with the patch inline, from Preston's account). Patch adds `get_status()` to
 `zmod_ifs` + `zmod_color` (extras install as symlinks from
 `klippy/extras/` to `/usr/data/config/mod/.shell/`; deploy = replace the .shell
 targets; backups `/usr/data/*.pre-getstatus.bak`). After a real reboot:
