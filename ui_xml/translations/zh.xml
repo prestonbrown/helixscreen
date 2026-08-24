@@ -466,6 +466,8 @@
   <translation tag="Clog Detection" zh="堵料检测"/>
   <translation tag="Clog detection" zh="堵料检测"/>
   <translation tag="Close" zh="关闭"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" zh="更近"/>
   <translation tag="Closer = more squish | Farther = less squish" zh="更近 = 更多挤压 | 更远 = 更少挤压"/>
   <translation tag="Coarse" zh="粗调"/>
@@ -945,11 +947,13 @@
   <translation tag="Farther" zh="更远"/>
   <translation tag="Features: " zh="特性: "/>
   <translation tag="Feed Assist" zh="送料辅助"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前料仓送入耗材"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Filament" zh="耗材"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" zh="检测到耗材"/>
   <translation tag="Filament Environment" zh="耗材环境"/>
   <translation tag="Filament Grade Mismatch" zh="耗材等级不匹配"/>
@@ -964,6 +968,7 @@
   <translation tag="Filament clog/flow detection meter" zh="耗材堵塞／流量检测仪表"/>
   <translation tag="Filament deleted" zh="耗材已删除"/>
   <translation tag="Filament diameter sensors for flow compensation" zh="耗材直径传感器用于流量补偿"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." zh="耗材已脱离工具头。请将剩余部分拉出。"/>
   <translation tag="Filament is loose" zh="耗材松弛"/>
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
@@ -1044,6 +1049,7 @@
   <translation tag="Good Accuracy" zh="精度良好"/>
   <translation tag="Got it" zh="知道了"/>
   <translation tag="Gray" zh="灰色"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" zh="指南与参考"/>
   <translation tag="H" zh="头"/>
   <translation tag="HOST" zh="主机"/>
@@ -1379,6 +1385,7 @@
   <translation tag="Manual Bed Leveling" zh="手动热床调平"/>
   <translation tag="Manual Feed" zh="手动送料"/>
   <translation tag="Manual Retract" zh="手动回抽"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" zh="按匹配材料映射最接近的颜色"/>
   <translation tag="Marginal" zh="偏高"/>
   <translation tag="Master volume level" zh="主音量"/>
@@ -1627,6 +1634,8 @@
   <translation tag="Open G-code command console" zh="打开 G-code 命令控制台"/>
   <translation tag="Open LED color and brightness controls" zh="打开 LED 颜色与亮度控制"/>
   <translation tag="Open Source Licenses" zh="开源许可证"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operations" zh="操作"/>
   <translation tag="Optimize Your Printing" zh="优化您的打印"/>
@@ -1949,6 +1958,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" zh="相对振动"/>
   <translation tag="Release all stepper motors. Position will be lost." zh="释放所有步进电机。位置信息将丢失。"/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
   <translation tag="Remaining Weight (g)" zh="剩余重量（克）"/>
   <translation tag="Remap Tool" zh="重映射工具"/>
@@ -2665,6 +2676,8 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." zh="启用时仅运行宏。禁用时先设置温度，然后运行宏。"/>
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." zh="开始打印时，您可以选择是否运行 %s。如果您最近已经执行过或希望对打印准备过程有更多控制，这样可以节省时间。"/>
   <translation tag="Where UI sounds play" zh="界面声音的播放位置"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" zh="白色"/>
   <translation tag="Wi-Fi and ethernet connection status" zh="Wi-Fi 与以太网连接状态"/>
   <translation tag="WiFi" zh="WiFi"/>

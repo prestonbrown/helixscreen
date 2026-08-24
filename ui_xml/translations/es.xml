@@ -466,6 +466,8 @@
   <translation tag="Clog Detection" es="Detección de obstrucción"/>
   <translation tag="Clog detection" es="Detección de obstrucción"/>
   <translation tag="Close" es="Cerrar"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" es="Más cerca"/>
   <translation tag="Closer = more squish | Farther = less squish" es="Más cerca = más aplastamiento | Más lejos = menos aplastamiento"/>
   <translation tag="Coarse" es="Grueso"/>
@@ -945,11 +947,13 @@
   <translation tag="Farther" es="Más lejos"/>
   <translation tag="Features: " es="Características: "/>
   <translation tag="Feed Assist" es="Asistencia de alimentación"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" es="Alimentar filamento"/>
   <translation tag="Feed filament directly to extruder" es="Alimentar filamento directamente al extrusor"/>
   <translation tag="Feed filament from current slot" es="Alimentar filamento desde la ranura actual"/>
   <translation tag="Feeding filament forward" es="Avanzando filamento"/>
   <translation tag="Filament" es="Filamento"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" es="Filamento Detectado"/>
   <translation tag="Filament Environment" es="Entorno del filamento"/>
   <translation tag="Filament Grade Mismatch" es="El grado del filamento no coincide"/>
@@ -964,6 +968,7 @@
   <translation tag="Filament clog/flow detection meter" es="Medidor de detección de atasco/flujo de filamento"/>
   <translation tag="Filament deleted" es="Filamento eliminado"/>
   <translation tag="Filament diameter sensors for flow compensation" es="Sensores de diámetro de filamento para compensación de flujo"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." es="El filamento ya salió del cabezal. Tire de él hasta sacarlo por completo."/>
   <translation tag="Filament is loose" es="El filamento está suelto"/>
   <translation tag="Filament is pulling tight" es="El filamento está tirando tenso"/>
@@ -1044,6 +1049,7 @@
   <translation tag="Good Accuracy" es="Buena Precisión"/>
   <translation tag="Got it" es="Entendido"/>
   <translation tag="Gray" es="Gris"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" es="Guías y referencia"/>
   <translation tag="H" es="H"/>
   <translation tag="HOST" es="Host"/>
@@ -1379,6 +1385,7 @@
   <translation tag="Manual Bed Leveling" es="Nivelación Manual de Cama"/>
   <translation tag="Manual Feed" es="Alimentación manual"/>
   <translation tag="Manual Retract" es="Retracción manual"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" es="Asignar a colores más cercanos con material compatible"/>
   <translation tag="Marginal" es="Marginal"/>
   <translation tag="Master volume level" es="Nivel de volumen principal"/>
@@ -1627,6 +1634,8 @@
   <translation tag="Open G-code command console" es="Abrir la consola de comandos G-code"/>
   <translation tag="Open LED color and brightness controls" es="Abrir los controles de color y brillo LED"/>
   <translation tag="Open Source Licenses" es="Licencias de código abierto"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Operation already in progress" es="Operación ya en curso"/>
   <translation tag="Operations" es="Operaciones"/>
   <translation tag="Optimize Your Printing" es="Optimice su Impresión"/>
@@ -1949,6 +1958,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" es="Vibración relativa"/>
   <translation tag="Release all stepper motors. Position will be lost." es="Liberar todos los motores paso a paso. Se perderá la posición."/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" es="Restante (g)"/>
   <translation tag="Remaining Weight (g)" es="Peso Restante (g)"/>
   <translation tag="Remap Tool" es="Reasignar Herramienta"/>
@@ -2665,6 +2676,8 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." es="Cuando está activado, solo se ejecuta el macro. Cuando está desactivado, primero se establecen las temperaturas y luego se ejecuta el macro."/>
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." es="Al iniciar una impresión, podrá elegir si ejecutar %s. Esto ahorra tiempo cuando ya lo ha hecho recientemente o desea más control sobre la preparación de su impresión."/>
   <translation tag="Where UI sounds play" es="Dónde se reproducen los sonidos de la interfaz"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" es="Blanco"/>
   <translation tag="Wi-Fi and ethernet connection status" es="Estado de conexión Wi-Fi y ethernet"/>
   <translation tag="WiFi" es="WiFi"/>

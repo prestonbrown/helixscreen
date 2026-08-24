@@ -84,11 +84,11 @@ Eighteen themes ship in the box, listed alphabetically in the Theme Preset dropd
 | **Everforest** | Muted forest green and clay tones | Light + dark |
 | **Gruvbox** | Warm retro earth tones — amber, olive, brick | Light + dark |
 | **Hazard** | Safety-vest yellow, warning orange and danger red on powder-black, with sharp corners and brass seams | Dark only |
-| **HelixScreen** | The house palette — balanced blue on charcoal | Light + dark |
+| **HelixScreen** | The default — the house palette, balanced blue on charcoal | Light + dark |
 | **Kanagawa** | Soft wave-blue and gold on deep indigo | Light + dark |
 | **Material Design** | Google-material blues and greens on grey | Light + dark |
 | **Midnight** | Near-black navy, dim and low-glare | Dark only |
-| **Nord** | The default — arctic blues and frost tones | Light + dark |
+| **Nord** | Arctic blues and frost tones | Light + dark |
 | **One Dark** | The Atom editor look — blue and green on charcoal | Light + dark |
 | **Rose Pine** | Muted rose, iris and pine on soft charcoal | Light + dark |
 | **Solarized** | The classic muted scheme — restrained accents on deep teal | Light + dark |

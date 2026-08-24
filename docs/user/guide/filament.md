@@ -407,6 +407,74 @@ The U1 tracks filament with a motion sensor per tool. When a runout fires mid-pr
 
 ---
 
+## MedusaHC (Hotend Changer)
+
+MedusaHC swaps only the **hot end** — heater, thermistor and fan — rather than a whole
+toolhead. It runs on top of klipper-toolchanger, so HelixScreen shows it as a tool changer
+with **parallel** topology: each tool is its own independent path, with no hub or selector.
+
+You don't need to configure anything. HelixScreen recognises a MedusaHC automatically when
+your Klipper config has both a tool changer and MedusaHC's own dock sensors.
+
+### Which tool is mounted
+
+MedusaHC has a sensor at each dock, and HelixScreen trusts those sensors over what the
+toolchanger *thinks* it picked up. That matters after a failed or partial pickup: the
+toolchanger will still report the tool it was told to fetch, while the docks know it never
+arrived.
+
+If the sensors can't agree on what's on the head, HelixScreen shows an error rather than
+guessing. That state is deliberately not shown as "no tool" — starting a tool change from
+an unknown position risks driving the carriage into a dock. Clear it by running a tool
+change or your printer's error-recovery macro from the console.
+
+### The filament feeder
+
+Because only the hot end travels, the filament is held by a servo gripper on the frame
+instead of by the moving toolhead. You'll find **Open feeder** and **Close feeder** under
+the AMS panel's **Settings** button, in Device Operations.
+
+Use **Open feeder** to release the filament when you're clearing a jam or loading a fresh
+spool by hand, then **Close feeder** to grip it again.
+
+> **Note:** These are refused while a print is running. The gripper is the only thing
+> holding your filament — releasing it mid-print drops the strand and ruins the job.
+
+HelixScreen picks the right macro for your setup automatically, whether you're on the
+original MedusaHC config or the newer Python controller.
+
+If your setup uses different macro names — you've renamed them, or you're part-way through
+migrating to the Python controller — you can choose them yourself. In the same Device
+Operations screen, **Open feeder macro** and **Close feeder macro** list the macros found
+on your printer. Leave them on **auto** to keep HelixScreen's automatic choice, which also
+means you'll pick up the newer commands for free if you migrate later.
+
+### Tool mapping
+
+Tool mapping works the same as on any klipper-toolchanger machine — see
+[Tool Mapping](#tool-mapping) above. You can point a G-code tool number at a different
+physical tool, which is useful when a slicer project expects a different tool order than
+your machine is loaded with.
+
+### What HelixScreen remembers per tool
+
+Your printer reports nothing about the filament in each hot end — no material, no colour,
+no brand. So whatever you set in HelixScreen *is* the record, and it's kept for you:
+material, colour, brand, spool name, and remaining weight, per tool.
+
+That survives restarts and reconnects. It's stored on your printer via Moonraker rather
+than only on the screen, and it uses the same records Mainsail writes, so spools you've
+assigned there should show up here and vice versa.
+
+One consequence worth knowing: nothing on a tool changer can detect that you physically
+swapped a spool, so HelixScreen keeps showing what you last told it until you change it.
+Edit the slot when you switch filament.
+
+> **Note:** Like other tool changers, MedusaHC has no Unload, Bypass, Endless Spool or
+> dryer controls — each tool is its own path, and those apply to shared-path AMS hardware.
+
+---
+
 ## Spoolman Integration
 
 Spoolman is an optional filament-inventory server. Once it's connected, the AMS panel shows saved spool data on each slot and lets you assign spools straight from your inventory:

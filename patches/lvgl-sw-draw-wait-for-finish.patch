@@ -1,8 +1,7 @@
 diff --git a/src/draw/sw/lv_draw_sw.c b/src/draw/sw/lv_draw_sw.c
-index efca2bdc7..2931e4740 100644
 --- a/src/draw/sw/lv_draw_sw.c
 +++ b/src/draw/sw/lv_draw_sw.c
-@@ -55,6 +55,9 @@ static void execute_drawing(lv_draw_task_t * t);
+@@ -55,6 +55,9 @@
  static int32_t dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer);
  static int32_t evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task);
  static int32_t lv_draw_sw_delete(lv_draw_unit_t * draw_unit);
@@ -12,7 +11,7 @@ index efca2bdc7..2931e4740 100644
  #if LV_USE_PARALLEL_DRAW_DEBUG
      static void parallel_debug_draw(lv_draw_task_t * t, uint32_t idx);
  #endif
-@@ -83,6 +86,9 @@ void lv_draw_sw_init(void)
+@@ -83,6 +86,9 @@
      draw_sw_unit->base_unit.dispatch_cb = dispatch;
      draw_sw_unit->base_unit.evaluate_cb = evaluate;
      draw_sw_unit->base_unit.delete_cb = LV_USE_OS ? lv_draw_sw_delete : NULL;
@@ -22,7 +21,7 @@ index efca2bdc7..2931e4740 100644
  #if LV_USE_DRAW_ARM2D_SYNC
      draw_sw_unit->base_unit.name = "SW_ARM2D";
  #else
-@@ -123,6 +129,31 @@ void lv_draw_sw_deinit(void)
+@@ -123,6 +129,31 @@
  #endif
  }
  
@@ -54,25 +53,51 @@ index efca2bdc7..2931e4740 100644
  static int32_t lv_draw_sw_delete(lv_draw_unit_t * draw_unit)
  {
  #if LV_USE_OS
-@@ -367,6 +398,10 @@ static void render_thread_cb(void * ptr)
+@@ -295,7 +326,7 @@
+         /*Take the task*/
+         all_idle = false;
+         taken_cnt++;
+-        t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
++        LV_DRAW_TASK_STATE_SET(t, LV_DRAW_TASK_STATE_IN_PROGRESS);
+         thread_dsc->task_act = t;
+ 
+         /*Let the render thread work*/
+@@ -326,11 +357,11 @@
+         return LV_DRAW_UNIT_IDLE;  /*Couldn't start rendering*/
+     }
+ 
+-    t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
++    LV_DRAW_TASK_STATE_SET(t, LV_DRAW_TASK_STATE_IN_PROGRESS);
+     draw_sw_unit->task_act = t;
+ 
+     execute_drawing(t);
+-    draw_sw_unit->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
++    LV_DRAW_TASK_STATE_SET(draw_sw_unit->task_act, LV_DRAW_TASK_STATE_FINISHED);
+     draw_sw_unit->task_act = NULL;
+ 
+     /*The draw unit is free now. Request a new dispatching as it can get a new task*/
+@@ -367,7 +398,12 @@
  #if LV_USE_PARALLEL_DRAW_DEBUG
          parallel_debug_draw(thread_dsc->task_act, thread_dsc->idx);
  #endif
-+        /* Release barrier: publish all pixel writes from execute_drawing() before
-+         * the main thread can observe FINISHED and free the layer buffer. volatile
-+         * alone is not a hardware barrier on weak-memory targets (ARM64). */
-+        __atomic_thread_fence(__ATOMIC_RELEASE);
-         thread_dsc->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
+-        thread_dsc->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
++        /* Release store: publishes every pixel write execute_drawing() made before
++         * the dispatching thread can observe FINISHED and free the task and its
++         * layer buffer. The ordering must ride on the flag itself - volatile is
++         * neither atomic nor ordered, and a standalone fence pair creates no
++         * happens-before edge that the memory model, or TSan, recognises. */
++        LV_DRAW_TASK_STATE_SET(thread_dsc->task_act, LV_DRAW_TASK_STATE_FINISHED);
          thread_dsc->task_act = NULL;
  
-@@ -384,6 +419,14 @@ static void render_thread_cb(void * ptr)
+         /*The draw unit is free now. Request a new dispatching as it can get a new task*/
+@@ -384,6 +420,14 @@
  static void execute_drawing(lv_draw_task_t * t)
  {
      LV_PROFILER_DRAW_BEGIN;
 +
 +    if(t->draw_dsc == NULL) {
 +        LV_LOG_ERROR("draw task %p has NULL draw_dsc (type=%d, state=%d) — likely use-after-free",
-+                     (void *)t, t->type, t->state);
++                     (void *)t, t->type, (int)LV_DRAW_TASK_STATE_GET(t));
 +        LV_PROFILER_DRAW_END;
 +        return;
 +    }

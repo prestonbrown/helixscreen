@@ -642,7 +642,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "LVGL PARTIAL mode flushes from the dirty area
         flush_log().push_back(FlushRecord{px_map, dbuf ? dbuf->data : nullptr, area->x1, area->y1,
                                           area->x2, area->y2, dbuf ? (int32_t)dbuf->header.w : -1,
                                           dbuf ? (int32_t)dbuf->header.h : -1,
-                                          dbuf ? dbuf->header.stride : 0});
+                                          dbuf ? (uint32_t)dbuf->header.stride : 0u});
         lv_display_flush_ready(d);
     });
 

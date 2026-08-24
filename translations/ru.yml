@@ -526,6 +526,8 @@ translations:
   Clog Detection: Обнаружение засора
   Clog detection: Обнаружение засора
   Close: Закрыть
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: Ближе
   Closer = more squish | Farther = less squish: Ближе = больше сжатие | Дальше = меньше
     сжатие
@@ -1044,11 +1046,13 @@ translations:
   Farther: Дальше
   'Features: ': 'Функции: '
   Feed Assist: 'Помощь подачи'
+  Feed assist and debug tools: ''
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
   Feeding filament forward: Подача филамента вперёд
   Filament: Филамент
+  Filament Control: ''
   Filament Detected: Филамент обнаружен
   Filament Environment: Среда хранения филамента
   Filament Grade Mismatch: Несоответствие марки филамента
@@ -1064,6 +1068,7 @@ translations:
   Filament deleted: Филамент удалён
   Filament diameter sensors for flow compensation: Датчики диаметра филамента для
     компенсации потока
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: Филамент вышел из печатающей головки. Вытяните его до конца.
   Filament is loose: Филамент ослаблен
   Filament is pulling tight: Филамент натянут
@@ -1149,6 +1154,7 @@ translations:
   Good Accuracy: Хорошая точность
   Got it: Понятно
   Gray: Серый
+  Grip the filament: ''
   Guides and reference: Руководства и справка
   H: Х
   HOST: Хост
@@ -1534,6 +1540,7 @@ translations:
   Manual Bed Leveling: Ручное выравнивание стола
   Manual Feed: 'Ручная подача'
   Manual Retract: 'Ручная ретракция'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: Подобрать ближайшие цвета с подходящим
     материалом
   Marginal: Допустимо
@@ -1797,6 +1804,8 @@ translations:
   Open G-code command console: 'Открыть консоль команд G-code'
   Open LED color and brightness controls: 'Открыть управление цветом и яркостью LED'
   Open Source Licenses: Лицензии с открытым кодом
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: Операция уже выполняется
   Operations: Операции
   Optimize Your Printing: Оптимизируйте вашу печать
@@ -2154,6 +2163,8 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Отпустить все шаговые моторы.
     Позиция будет потеряна.
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): Осталось (г)
   Remaining Weight (g): Оставшийся вес (г)
   Remap Tool: Переназначить инструмент
@@ -2998,6 +3009,8 @@ translations:
   : При запуске печати вы сможете выбрать, запускать ли %s. Это экономит время, если
     вы уже делали это недавно или хотите больше контроля над подготовкой печати.
   Where UI sounds play: Где воспроизводятся звуки интерфейса
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: Белый
   Wi-Fi and ethernet connection status: 'Состояние подключения Wi-Fi и Ethernet'
   WiFi: WiFi

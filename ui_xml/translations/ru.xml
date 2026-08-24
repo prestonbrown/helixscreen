@@ -466,6 +466,8 @@
   <translation tag="Clog Detection" ru="Обнаружение засора"/>
   <translation tag="Clog detection" ru="Обнаружение засора"/>
   <translation tag="Close" ru="Закрыть"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" ru="Ближе"/>
   <translation tag="Closer = more squish | Farther = less squish" ru="Ближе = больше сжатие | Дальше = меньше сжатие"/>
   <translation tag="Coarse" ru="Грубо"/>
@@ -945,11 +947,13 @@
   <translation tag="Farther" ru="Дальше"/>
   <translation tag="Features: " ru="Функции: "/>
   <translation tag="Feed Assist" ru="Помощь подачи"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" ru="Подать филамент"/>
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Filament" ru="Филамент"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" ru="Филамент обнаружен"/>
   <translation tag="Filament Environment" ru="Среда хранения филамента"/>
   <translation tag="Filament Grade Mismatch" ru="Несоответствие марки филамента"/>
@@ -964,6 +968,7 @@
   <translation tag="Filament clog/flow detection meter" ru="Индикатор засора/потока филамента"/>
   <translation tag="Filament deleted" ru="Филамент удалён"/>
   <translation tag="Filament diameter sensors for flow compensation" ru="Датчики диаметра филамента для компенсации потока"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." ru="Филамент вышел из печатающей головки. Вытяните его до конца."/>
   <translation tag="Filament is loose" ru="Филамент ослаблен"/>
   <translation tag="Filament is pulling tight" ru="Филамент натянут"/>
@@ -1044,6 +1049,7 @@
   <translation tag="Good Accuracy" ru="Хорошая точность"/>
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" ru="Руководства и справка"/>
   <translation tag="H" ru="Х"/>
   <translation tag="HOST" ru="Хост"/>
@@ -1379,6 +1385,7 @@
   <translation tag="Manual Bed Leveling" ru="Ручное выравнивание стола"/>
   <translation tag="Manual Feed" ru="Ручная подача"/>
   <translation tag="Manual Retract" ru="Ручная ретракция"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" ru="Подобрать ближайшие цвета с подходящим материалом"/>
   <translation tag="Marginal" ru="Допустимо"/>
   <translation tag="Master volume level" ru="Основной уровень громкости"/>
@@ -1627,6 +1634,8 @@
   <translation tag="Open G-code command console" ru="Открыть консоль команд G-code"/>
   <translation tag="Open LED color and brightness controls" ru="Открыть управление цветом и яркостью LED"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operations" ru="Операции"/>
   <translation tag="Optimize Your Printing" ru="Оптимизируйте вашу печать"/>
@@ -1949,6 +1958,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" ru="Относительная вибрация"/>
   <translation tag="Release all stepper motors. Position will be lost." ru="Отпустить все шаговые моторы. Позиция будет потеряна."/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
   <translation tag="Remaining Weight (g)" ru="Оставшийся вес (г)"/>
   <translation tag="Remap Tool" ru="Переназначить инструмент"/>
@@ -2665,6 +2676,8 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." ru="Когда включено, запускается только макрос. Когда выключено, сначала задаются температуры, затем запускается макрос."/>
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." ru="При запуске печати вы сможете выбрать, запускать ли %s. Это экономит время, если вы уже делали это недавно или хотите больше контроля над подготовкой печати."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" ru="Белый"/>
   <translation tag="Wi-Fi and ethernet connection status" ru="Состояние подключения Wi-Fi и Ethernet"/>
   <translation tag="WiFi" ru="WiFi"/>

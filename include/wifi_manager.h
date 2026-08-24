@@ -454,7 +454,9 @@ class WiFiManager {
     // `this` access) so the async path can hand it to a deferred callback
     // without tying that callback's safety to the manager's lifetime.
     // Main-thread only — NOTIFY_ERROR builds widgets.
-    static void report_radio_result(bool enabled, const WiFiError& result);
+    // has_wired_fallback is computed by the caller (which still holds a live
+    // `this`) so this stays free of member access.
+    static void report_radio_result(bool enabled, const WiFiError& result, bool has_wired_fallback);
 
     // Barrier for set_enabled_async() workers. The worker runs on an
     // HttpExecutor thread and dereferences `this` (backend_) for the whole of

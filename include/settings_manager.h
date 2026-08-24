@@ -146,6 +146,18 @@ class SettingsManager {
     /** @brief Set chamber sensor assignment and persist */
     void set_chamber_sensor_assignment(const std::string& value);
 
+    /** @brief Get the tool-changer feeder OPEN macro ("auto" = detected default) */
+    std::string get_feeder_open_macro() const;
+
+    /** @brief Set the tool-changer feeder OPEN macro and persist */
+    void set_feeder_open_macro(const std::string& value);
+
+    /** @brief Get the tool-changer feeder CLOSE macro ("auto" = detected default) */
+    std::string get_feeder_close_macro() const;
+
+    /** @brief Set the tool-changer feeder CLOSE macro and persist */
+    void set_feeder_close_macro(const std::string& value);
+
     /** @brief Z movement style subject (integer: 0=Auto, 1=Bed Moves, 2=Nozzle Moves) */
     lv_subject_t* subject_z_movement_style() {
         return &z_movement_style_subject_;
@@ -565,30 +577,32 @@ class SettingsManager {
     SubjectManager subjects_;
 
     // LVGL subjects — only those owned by SettingsManager
-    lv_subject_t led_enabled_subject_;
-    lv_subject_t z_movement_style_subject_;
-    lv_subject_t extrude_speed_subject_;
-    lv_subject_t qidi_eject_distance_subject_;
-    lv_subject_t qidi_eject_velocity_subject_;
-    lv_subject_t toolhead_style_subject_;
-    lv_subject_t show_printer_switcher_subject_;
-    lv_subject_t show_widget_labels_subject_;
-    lv_subject_t auto_color_map_subject_;
-    lv_subject_t afc_unload_after_print_subject_;
-    lv_subject_t ams_always_show_bypass_spool_subject_;
-    lv_subject_t ams_keep_spool_info_on_eject_subject_;
-    lv_subject_t ams_force_bypass_controls_subject_;
-    lv_subject_t filament_auto_cooldown_subject_;
-    lv_subject_t console_filter_temps_subject_;
-    lv_subject_t console_filter_firmware_noise_subject_;
-    lv_subject_t detection_enabled_subject_;
-    lv_subject_t detection_policy_u1_subject_;
+    lv_subject_t led_enabled_subject_{};
+    lv_subject_t z_movement_style_subject_{};
+    lv_subject_t extrude_speed_subject_{};
+    lv_subject_t qidi_eject_distance_subject_{};
+    lv_subject_t qidi_eject_velocity_subject_{};
+    lv_subject_t toolhead_style_subject_{};
+    lv_subject_t show_printer_switcher_subject_{};
+    lv_subject_t show_widget_labels_subject_{};
+    lv_subject_t auto_color_map_subject_{};
+    lv_subject_t afc_unload_after_print_subject_{};
+    lv_subject_t ams_always_show_bypass_spool_subject_{};
+    lv_subject_t ams_keep_spool_info_on_eject_subject_{};
+    lv_subject_t ams_force_bypass_controls_subject_{};
+    lv_subject_t filament_auto_cooldown_subject_{};
+    lv_subject_t console_filter_temps_subject_{};
+    lv_subject_t console_filter_firmware_noise_subject_{};
+    lv_subject_t detection_enabled_subject_{};
+    lv_subject_t detection_policy_u1_subject_{};
 
     // External references
     IMoonrakerClient* moonraker_client_ = nullptr;
 
     // Chamber assignment settings (plain strings, no LVGL subjects needed)
     std::string chamber_heater_assignment_{"auto"};
+    std::string feeder_open_macro_{"auto"};
+    std::string feeder_close_macro_{"auto"};
     std::string chamber_sensor_assignment_{"auto"};
 
     // Scanner device selection (plain strings, no LVGL subjects needed)

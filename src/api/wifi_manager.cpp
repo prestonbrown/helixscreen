@@ -674,7 +674,8 @@ WiFiError WiFiManager::apply_radio_enabled(bool enabled) {
     return backend_->set_radio_enabled(enabled);
 }
 
-void WiFiManager::report_radio_result(bool enabled, const WiFiError& result) {
+void WiFiManager::report_radio_result(bool enabled, const WiFiError& result,
+                                      bool has_wired_fallback) {
     if (result.success()) {
         spdlog::debug("[WiFiManager] WiFi radio {}", enabled ? "enabled" : "disabled");
         return;
@@ -684,10 +685,14 @@ void WiFiManager::report_radio_result(bool enabled, const WiFiError& result) {
     // backend just can't reach wpa_supplicant's control socket; the
     // radio is not actually off. Don't surface a hard error toast for
     // an unmanageable-but-up link (helixscreen#1059).
-    if (os_link_up()) {
-        spdlog::debug("[WiFiManager] Radio {} failed but OS link is up "
-                      "(system-managed) — suppressing user error: {}",
-                      enabled ? "enable" : "disable",
+    // Same reasoning for a wired path: on a printer whose Ethernet is carrying
+    // the connection, the radio genuinely may not come up (the driver refuses to
+    // raise the interface), but the user has working networking and a modal that
+    // says only "Failed to enable WiFi" is alarming and unactionable.
+    if (os_link_up() || has_wired_fallback) {
+        spdlog::debug("[WiFiManager] Radio {} failed but a network path is up "
+                      "({}) — suppressing user error: {}",
+                      enabled ? "enable" : "disable", os_link_up() ? "wireless" : "wired",
                       result.user_msg.empty() ? result.technical_msg : result.user_msg);
     } else {
         NOTIFY_ERROR("Failed to {} WiFi: {}", enabled ? "enable" : "disable",
@@ -708,7 +713,7 @@ bool WiFiManager::set_enabled(bool enabled) {
     }
 
     WiFiError result = apply_radio_enabled(enabled);
-    report_radio_result(enabled, result);
+    report_radio_result(enabled, result, has_non_wifi_fallback());
     return result.success();
 }
 
@@ -748,38 +753,40 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
     // Route through HttpExecutor::fast() (bounded 4-worker pool) rather than a
     // detached std::thread — per-call spawns fail with pthread EAGAIN under
     // thread exhaustion on memory-constrained ARM devices (#724).
-    helix::http::HttpExecutor::fast().submit(
-        [this, enabled, token, mgr_token, cb = std::move(on_complete)]() mutable {
-            // `this` is valid for the whole body: ~WiFiManager blocks on
-            // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
-            // single member.
-            WiFiError result = apply_radio_enabled(enabled);
-            const bool success = result.success();
-            const bool actual = backend_->is_running() && backend_->is_radio_enabled();
+    helix::http::HttpExecutor::fast().submit([this, enabled, token, mgr_token,
+                                              cb = std::move(on_complete)]() mutable {
+        // `this` is valid for the whole body: ~WiFiManager blocks on
+        // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
+        // single member.
+        WiFiError result = apply_radio_enabled(enabled);
+        const bool success = result.success();
+        const bool actual = backend_->is_running() && backend_->is_radio_enabled();
 
-            // Neither deferred body dereferences `this`: report_radio_result is
-            // static, and the caller's lambda carries its own captures. That keeps
-            // both safe even if the manager is destroyed between here and the next
-            // UpdateQueue tick.
-            mgr_token.defer("WiFiManager::report_radio_result",
-                            [enabled, result]() { report_radio_result(enabled, result); });
-            if (cb) {
-                token.defer("WiFiManager::set_enabled_async",
-                            [cb = std::move(cb), success, actual]() { cb(success, actual); });
-            }
-
-            {
-                // Notify under the lock, not after it. wait_for_radio_ops() wakes
-                // as soon as the count reaches zero, and ~WiFiManager() destroys
-                // radio_op_cv_ right after it returns -- which would be while this
-                // thread was still inside notify_all(). Holding the mutex across
-                // the notify keeps the waiter blocked on reacquiring it until we
-                // are done touching the condition variable.
-                std::lock_guard<std::mutex> lock(radio_op_mutex_);
-                --radio_ops_inflight_;
-                radio_op_cv_.notify_all();
-            }
+        // Neither deferred body dereferences `this`: report_radio_result is
+        // static, and the caller's lambda carries its own captures. That keeps
+        // both safe even if the manager is destroyed between here and the next
+        // UpdateQueue tick.
+        const bool wired_fallback = has_non_wifi_fallback();
+        mgr_token.defer("WiFiManager::report_radio_result", [enabled, result, wired_fallback]() {
+            report_radio_result(enabled, result, wired_fallback);
         });
+        if (cb) {
+            token.defer("WiFiManager::set_enabled_async",
+                        [cb = std::move(cb), success, actual]() { cb(success, actual); });
+        }
+
+        {
+            // Notify under the lock, not after it. wait_for_radio_ops() wakes
+            // as soon as the count reaches zero, and ~WiFiManager() destroys
+            // radio_op_cv_ right after it returns -- which would be while this
+            // thread was still inside notify_all(). Holding the mutex across
+            // the notify keeps the waiter blocked on reacquiring it until we
+            // are done touching the condition variable.
+            std::lock_guard<std::mutex> lock(radio_op_mutex_);
+            --radio_ops_inflight_;
+            radio_op_cv_.notify_all();
+        }
+    });
 }
 
 void WiFiManager::wait_for_radio_ops() {

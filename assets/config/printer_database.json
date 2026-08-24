@@ -6048,6 +6048,52 @@
           "reason": "Chamber temperature sensor (enclosed Nebula)"
         }
       ]
+    },
+    {
+      "id": "duender_medusahc",
+      "name": "Duender (MedusaHC)",
+      "manufacturer": "Irbis3D",
+      "image": "generic-corexy.png",
+      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. MedusaHC is klipper-toolchanger plus its own pin_watch extra, so the AMS resolves to Tool Changer and AmsBackendToolChanger drives it. Scored on pin_watch and hostname ONLY: toolchanger/tool_count/corexy describe any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one.",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "pin_watch",
+          "confidence": 92,
+          "reason": "MedusaHC ships its own pin_watch.py extra (not a stock Klipper module)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "medusa",
+          "confidence": 85,
+          "reason": "Hostname contains 'medusa'"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "toolchanger",
+          "confidence": 20,
+          "reason": "Corroboration only: klipper-toolchanger drives the swap, but every toolchanger CoreXY has this. pin_watch is the discriminator"
+        }
+      ]
+    },
+    {
+      "id": "duender",
+      "name": "Duender",
+      "manufacturer": "Irbis3D",
+      "image": "generic-corexy.png",
+      "notes": "Ender-3 to CoreXY conversion (Irbis3D/Duender). The project ships no Klipper config, so a bare Duender has nothing in printer.objects.list that distinguishes it from any other CoreXY. Deliberately carries no object/kinematics heuristics: a 'corexy' match here would compete with the Voron and RatRig entries on every one of their machines. Hostname only, plus the wizard's manual pick.",
+      "heuristics": [
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "duender",
+          "confidence": 80,
+          "reason": "Hostname contains 'duender'"
+        }
+      ]
     }
   ]
 }

@@ -299,7 +299,7 @@ See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) sect
 
 1. Go to **Settings** → **Display & Sound**
 2. Tap **Theme Colors** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
+3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen (default), Kanagawa, Material Design, Midnight, Nord, One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
 4. Toggle dark/light mode
 5. Customize individual colors if desired - changes are saved to `config/themes/`
 

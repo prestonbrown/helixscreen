@@ -381,8 +381,112 @@ rig's current state (post config-reload, main LAN, 2026-08-24):
 | HTTP POST macro | 0.0 s (immediate) | 14 ms over 75 s |
 
 Baseline RTT was 4-7 ms throughout. Nothing approaches a 40 s wedge on either
-transport. If the original repro was real, the trigger is state-dependent
-(candidate differences: IOT segment, first-boot calibration window, macros with
-large `respond_info` payloads — `IFS_STATUS` follow-up testing). Treat the
-40 s wedge as **unconfirmed on current firmware state**, not as an operating
-assumption.
+transport. The `IFS_STATUS` follow-up (the large-`respond_info` macro our IFS
+backend polls) was also clean: worst 10 ms over WS, 8 ms during the HTTP phase.
+Treat the 40 s wedge as **unconfirmed on current firmware state**, not as an
+operating assumption. Probable root cause of the original report: the commissioning
+observations were made over the **wifi path (192.168.30.254), which drops ~21.7%
+of packets** (ethernet: 0%) — tens of seconds of TCP retransmit stall on a lossy
+link presents exactly like a "wedged" Moonraker. Same failure family as the
+IOT-segment SSH banner stall: segment, not printer.
+
+### Restart mechanics + get_status patch validation (2026-08-24)
+
+**Moonraker's `POST /printer/restart` returns `{"result":"ok"}` but does NOT
+restart klippy on this rig** — klippy is PPID 1 (orphaned by the FlashForge boot
+chain, not Moonraker-supervised) and continues running with old bytecode.
+The only verified restart is a full `reboot` over SSH (a few seconds of grace,
+then ~40 s down, klippy ready ~40 s later; verify by PID change — 1664 → 1669 —
+never by the endpoint response). Also: `python3 -m py_compile` **writes
+`__pycache__` itself**, so pyc mtimes after your own compile prove nothing about
+what klippy imported. Post-reboot, SSH key auth was dropped (password `root`
+via sshpass works).
+
+**get_status() patch validated on-rig** (upstream handoff candidate; the mod
+source has no public git — these files ship only in zmod release tarballs, so
+the patch is handed to ghzserg directly; **filed 2026-08-24 as
+ghzserg/zmod#699** with the patch inline, from Preston's account). Patch adds `get_status()` to
+`zmod_ifs` + `zmod_color` (extras install as symlinks from
+`klippy/extras/` to `/usr/data/config/mod/.shell/`; deploy = replace the .shell
+targets; backups `/usr/data/*.pre-getstatus.bak`). After a real reboot:
+`objects/list` includes both; `objects/query` returns full live status
+(`zmod_ifs`: available/color_limit/RawData/State/Ports/Silk/Chan/Insert/
+NeedInsert/Stall/stall_state; `zmod_color`: ifs/display/color_limit/
+valid_types/extruder_sensor/channel/slots[]); `objects/subscribe` delivers
+correct initial snapshots and Moonraker's diff-based updates behave (no frames
+on an idle rig — expected). 40 s soak at 4 Hz subscription: zero errors. The
+patch also fixes an upstream boot-window bug: `IfsData.__init__` wrote
+`LastResponseRaw` while `get_values()` reads `lastResponseRaw`, so `IFS_STATUS`
+raised `AttributeError` before the first F13 poll on stock 1.7.2. Note: a ZMOD
+update overwrites these files; the rig carries the patch until then.
+
+**Because of this patch, the rig answers capability questions that NO user's
+printer answers** (`zmod_ifs`/`zmod_color` in `objects/list`, queryable status
+where stock returns nothing). Any capability claim verified on this rig MUST be
+checked in BOTH states - patched, and restored from the `.pre-getstatus.bak`
+backups - before it becomes a claim about AD5X behavior. A finding that passes
+only on this box is a patched-rig artifact and will fail for every real owner.
+This matters doubly for the IFS tool-mapping echo question, where our shipped
+finding is that AD5X does NOT echo the mapping - the patch could silently
+invert that. **Executed 2026-08-24 for the three core claims** - with stock
+extras restored (md5-verified pristine, fresh boot), auto-detection still
+matched and persisted `FlashForge Adventurer 5X`, the ZMOD z-offset provider
+still activated (`[ZOffset] Enabling firmware z-offset persistence (ZMOD)`),
+and the AD5X IFS backend still created and started. All three hold on stock;
+the patched state was then restored (md5-verified, fresh boot, objects live).
+The tool-mapping echo question has NOT yet been dual-state checked - it needs
+loaded spools to test meaningfully.
+
+### HelixScreen end-to-end on the rig (2026-08-24)
+
+Desktop build (SDL dummy, isolated `HELIX_CONFIG_DIR`, pinned `--remote-socket`)
+against the live printer — the first time AD5X support has run on real hardware:
+
+- **Auto-detection works**: with the printer type unset, the heuristic chain
+  matched and persisted `FlashForge Adventurer 5X` (zmod_ifs sensors, hostname
+  `flashforge`, `SET_EXTRUDER_SLOT`, `temperature_sensor weightValue`, mips).
+- **ZMOD z-offset provider activates on hardware**: `[ZOffset] Enabling firmware
+  z-offset persistence (ZMOD)` at discovery.
+- **AD5X IFS backend runs live**: backend created + subscribed, slots 0-3
+  initialized, head-sensor events flowing, the `Adventurer5M.json` +
+  `GET_ZCOLOR SILENT=1` color-truth path executing, remote-Moonraker upload-path
+  distinction applied.
+- **Resilience exercised for free**: the rig rebooted mid-session (cause
+  unresolved — see below); the app's retry loop reconnected, auto-closed the
+  Connection Failed modal, re-ran discovery, and re-initialized the IFS backend.
+- Six minutes of logs, four warn/error lines, all benign (isolated-config
+  backup path, stale seeded sensor config, expected `Method not found` for
+  plugins this Moonraker lacks). The rig's gcodes dir contains a bare `.3mf`
+  (`FlashForge-TestModel-01.3mf`) that Moonraker cannot metascan — our
+  thumbnail fallback chain degrades gracefully.
+- Desktop runs log to **syslog** (not stdout): read via
+  `journalctl --user | grep <pid>`.
+- The rig rebooted several times this session; only two were this validation's
+  (fresh-import restarts). The rest were **other agents working the shared rig
+  concurrently** — initially misread here as unexplained reboots. The AD5X rig is
+  a shared test device: coordinate reboots/state changes across sessions, and
+  treat any unexpected rig state change as a peer's action before suspecting
+  the hardware. Note also: the on-rig helix-screen is a peer session's
+  `feat/ad5x-oobe` build of 0.99.115 (original at
+  `bin/helix-screen.0.99.107.bak`), not stock — verify which build produced any
+  on-rig UI evidence. The full 2026-08-24 reboot/outage timeline reconciles as
+  peer actions: 12:21 + 12:47 = this validation's reboots, 12:33 = Preston's
+  bench power-cycle, ~12:36 = a peer's helix-screen service restart.
+- **The "unreachable while the screen kept rendering" event is SOLVED, and it
+  was not a driver or hardware fault**: wlan0 (rtl8821cu) was administratively
+  down the entire time (and does not come back with `ip link set wlan0 up` as
+  root), so eth0 (stmmaceth) was the only live interface — and it was holding
+  an address from a manual one-shot `udhcpc -n -q` with no renewal daemon.
+  When that lease expired, eth0 kept carrier and silently lost its address:
+  the box stayed up and rendering, unreachable from the network. The
+  post-reboot state runs the firmware's own persistent
+  `/sbin/udhcpc -i eth0 -p /var/run/udhcpc.pid`, which is why it has been
+  stable since. **Durable fix worth doing: a DHCP reservation or static IP for
+  this rig** — multiple agents drive it remotely and any manual network
+  bring-up is a silent time bomb. Never use one-shot DHCP flags on it.
+- **ZMOD config bug that surfaces in our error UI**: `base_display_off.cfg:68`
+  hardcodes `BED_MESH_PROFILE LOAD=auto`, but this printer's saved profile is
+  `MESH_DATA` — every `DISPLAY_OFF` (i.e. every boot, via the display-handoff
+  chain) throws two gcode errors that land in the on-device error UI. This is
+  the source of the "bed_mesh: Unknown profile [auto]" lines in klippy startup
+  logs; it is not a missing-profile condition on our side.
