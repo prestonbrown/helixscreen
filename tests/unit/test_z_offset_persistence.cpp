@@ -47,6 +47,11 @@ json zmod_frame(const json& gcode_offsets) {
     return json{{"save_variables", json{{"variables", json{{"gcode_offsets", gcode_offsets}}}}}};
 }
 
+/// A Forge-X-shaped mod_params frame.
+json forge_x_frame(const json& z_offset) {
+    return json{{"mod_params", json{{"variables", json{{"z_offset", z_offset}}}}}};
+}
+
 } // namespace
 
 // ============================================================================
@@ -79,6 +84,43 @@ TEST_CASE("z-offset persistence: detection is case-insensitive", "[zoffset][pers
     PrinterDiscovery hw = printer_with_macros({"save_zmod_data"});
 
     CHECK(helix::zoffset::firmware_persists_z_offset(hw));
+}
+
+TEST_CASE("z-offset persistence: Forge-X is detected by its macro", "[zoffset][persistence]") {
+    // The Adventurer 5M/Pro mod registers SET_MOD and mirrors its store into
+    // the mod_params status object; its migration path removes SAVE_ZMOD_DATA,
+    // so the two signatures do not coexist on a healthy install.
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD"});
+
+    CHECK(helix::zoffset::firmware_persists_z_offset(hw));
+    CHECK(contains(helix::zoffset::required_status_objects(hw), "mod_params"));
+    CHECK(helix::zoffset::persistence_enable_gcode(hw) == "SET_MOD PARAM=\"load_zoffset\" VALUE=1");
+    CHECK(helix::zoffset::persistence_provider_name(hw) == "Forge-X");
+}
+
+TEST_CASE("z-offset persistence: ZMOD wins when both macros are present",
+          "[zoffset][persistence]") {
+    // Table order is match priority. No real printer exposes both, but a
+    // half-migrated box might, and it must resolve to exactly one row.
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD", "SAVE_ZMOD_DATA"});
+
+    CHECK(helix::zoffset::firmware_persists_z_offset(hw));
+    CHECK(helix::zoffset::persistence_provider_name(hw) == "ZMOD");
+    CHECK(helix::zoffset::persistence_enable_gcode(hw) == "SAVE_ZMOD_DATA LOAD_ZOFFSET=1");
+    CHECK(contains(helix::zoffset::required_status_objects(hw), "save_variables"));
+    CHECK_FALSE(contains(helix::zoffset::required_status_objects(hw), "mod_params"));
+}
+
+TEST_CASE("z-offset persistence: a near-miss macro detects nothing", "[zoffset][persistence]") {
+    // has_macro() is exact: the mod's own SET_MOD_PARAM shares the prefix and
+    // must not trip the Forge-X row. Unknown firmware still means no provider,
+    // no subscription, no enable command.
+    PrinterDiscovery hw = printer_with_macros({"SET_MOD_PARAM"});
+
+    CHECK_FALSE(helix::zoffset::firmware_persists_z_offset(hw));
+    CHECK(helix::zoffset::required_status_objects(hw).empty());
+    CHECK(helix::zoffset::persistence_enable_gcode(hw).empty());
+    CHECK(helix::zoffset::persistence_provider_name(hw).empty());
 }
 
 // ============================================================================
@@ -152,6 +194,41 @@ TEST_CASE("z-offset persistence: rejects malformed stored values", "[zoffset][pe
     // variables not an object.
     CHECK_FALSE(read_persisted_offset_microns(json{{"save_variables", json{{"variables", "nope"}}}})
                     .has_value());
+}
+
+TEST_CASE("z-offset persistence: Forge-X reads z_offset as microns", "[zoffset][persistence]") {
+    using helix::zoffset::read_persisted_offset_microns;
+
+    auto result = read_persisted_offset_microns(forge_x_frame(-0.15));
+    REQUIRE(result.has_value());
+    CHECK(*result == -150);
+
+    // Stored zero is present, not absent - same contract as ZMOD.
+    auto zero = read_persisted_offset_microns(forge_x_frame(0.0));
+    REQUIRE(zero.has_value());
+    CHECK(*zero == 0);
+
+    // The stored value accumulates relative deltas here too, so round rather
+    // than truncate.
+    auto accumulated = read_persisted_offset_microns(forge_x_frame(-0.1499999));
+    REQUIRE(accumulated.has_value());
+    CHECK(*accumulated == -150);
+}
+
+TEST_CASE("z-offset persistence: Forge-X frames without the value mean no news",
+          "[zoffset][persistence]") {
+    using helix::zoffset::read_persisted_offset_microns;
+
+    // variables carries every mod param, so sibling keys are the norm.
+    CHECK_FALSE(read_persisted_offset_microns(
+                    json{{"mod_params", json{{"variables", json{{"load_zoffset", 1}}}}}})
+                    .has_value());
+    // Not written until the first SET_GCODE_OFFSET Z=.
+    CHECK_FALSE(read_persisted_offset_microns(forge_x_frame(nullptr)).has_value());
+    // Stored as a string rather than a number.
+    CHECK_FALSE(read_persisted_offset_microns(forge_x_frame("-0.15")).has_value());
+    // Subscribed but variables not delivered yet.
+    CHECK_FALSE(read_persisted_offset_microns(json{{"mod_params", json::object()}}).has_value());
 }
 
 // ============================================================================

@@ -66,9 +66,38 @@ std::optional<int> read_zmod(const nlohmann::json& status) {
     return static_cast<int>(std::lround(z->get<double>() * 1000.0));
 }
 
+// --- Forge-X (FlashForge Adventurer 5M / Pro mod) ----------------------------
+//
+// The mod's klippy plugin keeps its parameters - z-offset among them - in its
+// own INI store, not klipper's save_variables, and mirrors them into the
+// `mod_params` status object. Its SET_GCODE_OFFSET override persists every
+// offset the user dials in; print start re-applies the stored one only when
+// the load_zoffset param is on, hence the enable command.
+std::optional<int> read_forge_x(const nlohmann::json& status) {
+    const nlohmann::json* variables = nested_object(status, "mod_params", "variables");
+    if (!variables) {
+        return std::nullopt;
+    }
+    auto z = variables->find("z_offset");
+    if (z == variables->end() || !z->is_number()) {
+        // Not written until the firmware's first SET_GCODE_OFFSET Z=.
+        return std::nullopt;
+    }
+    // Same accumulate-and-round treatment as ZMOD: the stored value is the sum
+    // of relative Z_ADJUST deltas, so a nominal -0.150 arrives as -0.1499999.
+    return static_cast<int>(std::lround(z->get<double>() * 1000.0));
+}
+
 const std::vector<Provider>& providers() {
+    // Row order is match priority: a box exposing two firmwares' macros
+    // resolves to the first hit.
     static const std::vector<Provider> table = {
         {"ZMOD", "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1", &read_zmod},
+        {"Forge-X",
+         "SET_MOD",
+         {"mod_params"},
+         "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
+         &read_forge_x},
     };
     return table;
 }
