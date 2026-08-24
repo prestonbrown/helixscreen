@@ -44,13 +44,18 @@ class PluckDetector {
     static constexpr float ONSET_LOOKBACK_MS = 20.0f;
     /// Peak-to-pre-strike RMS ratio a pluck must clear.
     ///
-    /// Measured across every 10-sample window phase of a batch period, on all
-    /// six real captures that clear the energy gate: 26.1-71.4. A steady tone
-    /// reads 1.1 and an envelope that grows across the window reads 1.2. The
-    /// figure is quoted across phases deliberately - an earlier revision
-    /// anchored this ratio to the loudest segment rather than to the strike
-    /// and read 34-46 at the single phase its harness happened to exercise,
-    /// while dropping to 1.16 at phases that harness never presented.
+    /// Measured by the exhaustive alignment sweep in
+    /// test_belt_listen_session.cpp - every one of the 340 window alignments
+    /// in a batch period, for each of the five captures that clear the energy
+    /// gate: 21.35 - 58.99. A steady tone reads 1.1 and an envelope that grows
+    /// across the window reads 1.2.
+    ///
+    /// The range is quoted across every alignment, not a sample of them,
+    /// because this constant has twice been justified by figures that were
+    /// artifacts of which alignments a harness happened to present: 34-46 from
+    /// a single fixed phase, then 26.1-71.4 from nine sampled ones. The floor
+    /// is what states the margin, and it is the number a sampled sweep gets
+    /// wrong.
     static constexpr float MIN_ONSET_RISE = 3.0f;
     /// Sub-windows the post-onset envelope is split into.
     static constexpr int DECAY_SEGMENTS = 4;
@@ -116,6 +121,16 @@ class PluckDetector {
     /// a random draw somewhere inside the event, so an onset located this way
     /// can sit tens of samples past a thump's true leading edge.
     static size_t find_onset(const AccelSample* samples, size_t count);
+
+    /// The measured peak-to-pre-strike RMS ratio - the quantity
+    /// MIN_ONSET_RISE is a threshold on. Exposed so a test can measure the
+    /// margin a real capture actually has, rather than only whether it passed.
+    ///
+    /// Returns 0 when the rise cannot be judged (window too short, or the
+    /// strike landed before the window kept any pre-strike samples), and
+    /// infinity when the 10 ms before the strike was exactly silent.
+    [[nodiscard]] static float onset_rise(const AccelSample* samples, size_t count,
+                                          float sample_rate);
 
     /// True if energy jumps from the pre-strike level to the peak within a few
     /// milliseconds.

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace helix::calibration {
 
@@ -87,19 +88,19 @@ size_t PluckDetector::find_onset(const AccelSample* samples, size_t count) {
     return onset;
 }
 
-bool PluckDetector::has_sharp_onset(const AccelSample* samples, size_t count, float sample_rate) {
+float PluckDetector::onset_rise(const AccelSample* samples, size_t count, float sample_rate) {
     if (samples == nullptr || sample_rate <= 0.0f) {
-        return false;
+        return 0.0f;
     }
 
     const size_t segment = static_cast<size_t>(sample_rate * ENVELOPE_SEGMENT_MS / 1000.0f);
     const size_t lookback = static_cast<size_t>(ONSET_LOOKBACK_MS / ENVELOPE_SEGMENT_MS);
     if (segment == 0 || lookback == 0) {
-        return false;
+        return 0.0f;
     }
     const size_t segments = count / segment;
     if (segments <= lookback) {
-        return false;
+        return 0.0f;
     }
 
     // The baseline is anchored to the STRIKE, not to the loudest segment. On a
@@ -115,7 +116,7 @@ bool PluckDetector::has_sharp_onset(const AccelSample* samples, size_t count, fl
         // here, as it does in has_pluck_decay(): by this point the ring-down
         // has largely passed and its spectrum has little belt tone left in it
         // either, so the window is not worth measuring on any evidence.
-        return false;
+        return 0.0f;
     }
 
     float peak_rms = 0.0f;
@@ -127,9 +128,13 @@ bool PluckDetector::has_sharp_onset(const AccelSample* samples, size_t count, fl
     if (before <= 0.0f) {
         // Rising out of exact silence is an unbounded rise, not an unknown one.
         // Only reachable with synthetic input - a real sensor always has a floor.
-        return peak_rms > 0.0f;
+        return peak_rms > 0.0f ? std::numeric_limits<float>::infinity() : 0.0f;
     }
-    return peak_rms / before >= MIN_ONSET_RISE;
+    return peak_rms / before;
+}
+
+bool PluckDetector::has_sharp_onset(const AccelSample* samples, size_t count, float sample_rate) {
+    return onset_rise(samples, count, sample_rate) >= MIN_ONSET_RISE;
 }
 
 bool PluckDetector::ringdown_ready(const AccelSample* samples, size_t count, float sample_rate) {

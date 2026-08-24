@@ -67,6 +67,7 @@ float fixture_rate(const std::vector<AccelSample>& s) {
 
 /// The fixtures' measured rate, near enough for synthesised buffers.
 constexpr float kRate = 3091.0f;
+
 /// The live detection window the gate and the shape checks run on.
 constexpr size_t kWindow = 2048;
 
@@ -117,11 +118,20 @@ std::vector<AccelSample> plucked(size_t count, size_t onset, float f0, float amp
 /// series. This is the hard case for the tool - a door closing, or the
 /// toolhead settling after a park - and only the spectrum can tell it apart.
 ///
-/// The leading sample is a full-scale deflection, which is what makes it an
-/// impact rather than a ramp. Without it find_onset() lands wherever the
-/// loudest random draw happens to fall, typically tens of samples into the
-/// burst, and the rise is then measured against a reference already inside
-/// the event.
+/// The leading edge is a single full-scale sample. At 3091 Hz one sample is
+/// 0.32 ms, which is longer than the rise time of a real impact - a door
+/// latch, or a toolhead settling - so this is the correctly band-limited
+/// representation of one, not a delta chosen for convenience.
+///
+/// A raised-cosine attack over 1 ms was tried instead, to make find_onset()
+/// locate the edge rather than be handed it. It does not work: for broadband
+/// energy the loudest SAMPLE is a random draw, and with a finite rise it lands
+/// tens of samples inside the burst (measured: 62), so the reference ends up
+/// inside the event and the thump fails the temporal checks. That would lose
+/// what this fixture exists for - being the case only the SPECTRUM can reject,
+/// which is what makes the harmonic-concentration mutation meaningful.
+/// find_onset() is exercised against a plucked string, which is what it is
+/// for, by "find_onset locates the strike, not the loudest ring-down sample".
 std::vector<AccelSample> noise_burst(size_t count, size_t onset, float amp, float hiss_amp) {
     Hiss rng;
     auto out = hiss_bed(count, hiss_amp, rng);

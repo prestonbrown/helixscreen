@@ -8,6 +8,7 @@
 
 #include "../../include/belt_listen_session.h"
 #include "../../include/belt_stream_client.h"
+#include "../../include/pitch_estimator.h"
 #include "belt_test_signals.h"
 
 #include <algorithm>
@@ -115,6 +116,7 @@ using helix::calibration::test::Hiss;
 using helix::calibration::test::hiss_bed;
 
 constexpr float kRate = 3091.0f;
+
 /// Long enough to learn a floor from, trigger on, and ride out one cooldown.
 constexpr size_t kQuietLead = 4096;
 constexpr size_t kBody = 8192;
@@ -147,9 +149,8 @@ std::vector<AccelSample> swelling_stream(float freq, float amp) {
 }
 
 /// Quiet, then a sharp broadband thump that decays like a pluck but has no
-/// harmonic series in it. The leading sample is a full-scale deflection, so
-/// this really is an impact and really does clear the temporal checks - see
-/// noise_burst() in test_pluck_detector.cpp.
+/// harmonic series in it - see noise_burst() in test_pluck_detector.cpp for
+/// why its leading edge is a single full-scale sample.
 std::vector<AccelSample> thump_stream(float amp) {
     Hiss rng;
     auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
@@ -470,21 +471,34 @@ TEST_CASE("a genuine decaying harmonic series is still accepted", "[belt][listen
     CHECK(s.median_hz() == Catch::Approx(99.0f).margin(4.0f));
 }
 
-TEST_CASE("every accept-case capture is measured at every window phase", "[belt][listen][golden]") {
-    // THE regression guard, and the reason it is swept across phases.
+TEST_CASE("every accept-case capture is measured at every window alignment",
+          "[belt][listen][golden]") {
+    // THE regression guard, and the reason it is exhaustive rather than sampled.
     //
-    // A single lead-in tests a single alignment between the strike and the
-    // 340-sample batch grid. The live stream produces every alignment, and the
-    // shape checks turned out to be sensitive to which one: an earlier
-    // revision anchored has_sharp_onset()'s reference to the loudest envelope
-    // segment rather than to the strike, and the same capture then measured a
-    // rise of 1.16 at one phase and 36.4 at the next, against a threshold of
-    // 3. A fixed-lead-in guard cannot see that, and did not.
+    // A lead-in fixes the alignment between the strike and the 340-sample batch
+    // grid. The live stream produces every alignment, and the checks have twice
+    // turned out to be sensitive to which one:
+    //
+    //   - anchoring has_sharp_onset() at the loudest envelope segment instead
+    //     of at the strike made the same capture read a rise of 1.16 at one
+    //     alignment and 36.4 at the next, against a threshold of 3. A
+    //     single-lead-in guard could not see it.
+    //   - MIN_HARMONIC_CONCENTRATION at 0.30 rejected b_belt_82hz_3, the
+    //     strongest capture in the set, at leads 2304-2312 and nowhere else. A
+    //     nine-point sampled guard stepped straight over that band (2300, then
+    //     2342) and could not see it either.
+    //
+    // Sampling is what let both through, so this sweeps all 340 alignments. It
+    // costs a few seconds; the alternative has now twice been a wrong number
+    // shipped to a user.
     //
     // The lead-in starts at DETECTION_WINDOW_SAMPLES so the window is already
     // full when the strike arrives, which is the production condition: the
     // window fills within a second of the stream starting, and the user plucks
     // long after that.
+    float band_lo = 0.0f, band_hi = 0.0f;
+    REQUIRE(search_window_for_span(SPAN_MM, &band_lo, &band_hi));
+
     struct Expect {
         const char* name;
         float hz;
@@ -495,10 +509,12 @@ TEST_CASE("every accept-case capture is measured at every window phase", "[belt]
         const auto fx = load_fixture(e.name);
         size_t measured = 0;
         size_t phases = 0;
+        float worst_concentration = 1.0f;
+        size_t worst_lead = 0;
 
         constexpr size_t kBatch = 340;
         for (size_t lead = BeltListenSession::DETECTION_WINDOW_SAMPLES;
-             lead < BeltListenSession::DETECTION_WINDOW_SAMPLES + kBatch; lead += 42) {
+             lead < BeltListenSession::DETECTION_WINDOW_SAMPLES + kBatch; ++lead) {
             ++phases;
             auto live = splice_live_window(fx, lead);
 
@@ -507,18 +523,36 @@ TEST_CASE("every accept-case capture is measured at every window phase", "[belt]
                 s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
             stream_through(s, live);
 
-            INFO("fixture " << e.name << " lead-in " << lead);
-            if (s.accepted_count() >= 1) {
-                ++measured;
-                // Every measurement produced has to be right. A sweep that
-                // raised the count by admitting wrong numbers would be worse
-                // than the miss it papered over.
+            if (s.accepted_count() == 0) {
+                continue;
+            }
+            ++measured;
+            // Every measurement produced has to be right. A sweep that raised
+            // the count by admitting wrong numbers would be worse than the
+            // miss it papered over.
+            if (std::abs(s.median_hz() - e.hz) > 6.0f) {
+                INFO("fixture " << e.name << " lead-in " << lead << " read " << s.median_hz());
                 CHECK(s.median_hz() == Catch::Approx(e.hz).margin(6.0f));
+            }
+
+            // Read back the concentration push() actually computed, from the
+            // spectrum and the frequency it settled on. This is the margin on
+            // MIN_HARMONIC_CONCENTRATION, and it is the quantity that had none
+            // left: asserting the accept/reject outcome alone would let the
+            // margin erode silently until the next alignment sweep trips.
+            const float c = harmonic_concentration(s.last_spectrum(), s.median_hz(),
+                                                   DEFAULT_HARMONICS, band_lo, &s.quiet_spectrum());
+            if (c < worst_concentration) {
+                worst_concentration = c;
+                worst_lead = lead;
             }
         }
 
-        INFO("fixture " << e.name << " measured at " << measured << " of " << phases << " phases");
+        INFO("fixture " << e.name << " measured at " << measured << " of " << phases
+                        << " alignments; worst concentration " << worst_concentration
+                        << " at lead-in " << worst_lead);
         CHECK(measured == phases);
+        CHECK(worst_concentration >= MIN_HARMONIC_CONCENTRATION);
     }
 }
 
@@ -561,6 +595,90 @@ TEST_CASE("the below-gate capture is still rejected", "[belt][listen][golden]") 
     stream_through(s, live);
 
     CHECK(s.accepted_count() == 0);
+}
+
+/// The reference machine's situation, end to end: a fan running the whole
+/// time, a structural gantry mode that dominates the broadband energy, and a
+/// comparatively small belt tone.
+///
+/// The proportions are what make it reproducible. The fan is in the quiet
+/// window too, so it raises the learned noise floor - which means a strike can
+/// only clear the 9x gate on energy that is NOT in the search window. On the
+/// reference machine that energy is the structural mode (roughly 38-58 Hz,
+/// moving with toolhead position, and the loudest thing in the capture), and
+/// with it out of the way the fan and the belt are comparable inside the
+/// window. Without a dominant structural mode this case cannot be built at
+/// all: a fan loud enough to outscore the belt also lifts the floor past what
+/// the belt can clear.
+std::vector<AccelSample> fan_and_pluck_stream(float fan_hz, float fan_amp, float belt_hz,
+                                              float belt_amp, float structural_amp) {
+    static const float fan_profile[4] = {1.0f, 0.5f, 0.3f, 0.2f};
+    static const float belt_profile[4] = {0.708f, 1.0f, 0.200f, 0.224f};
+    constexpr float kStructuralHz = 45.0f;
+
+    Hiss rng;
+    auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
+    for (size_t i = 0; i < out.size(); ++i) {
+        const float t = out[i].time;
+        float fan = 0.0f;
+        for (int h = 0; h < 4; ++h) {
+            fan += fan_profile[h] * std::sin(2.0f * static_cast<float>(M_PI) * fan_hz *
+                                             static_cast<float>(h + 1) * t);
+        }
+        out[i].x += fan_amp * fan;
+        if (i < kQuietLead) {
+            continue;
+        }
+        const float decay = std::exp(-static_cast<float>(i - kQuietLead) / kRate / 0.20f);
+        float belt = 0.0f;
+        for (int h = 0; h < 4; ++h) {
+            belt += belt_profile[h] * std::sin(2.0f * static_cast<float>(M_PI) * belt_hz *
+                                               static_cast<float>(h + 1) * t);
+        }
+        out[i].x += belt_amp * decay * belt;
+        out[i].x +=
+            structural_amp * decay * std::sin(2.0f * static_cast<float>(M_PI) * kStructuralHz * t);
+    }
+    return out;
+}
+
+TEST_CASE("a fan running through the whole session does not become the answer", "[belt][listen]") {
+    // The only end-to-end evidence that the quiet spectrum is wired through
+    // push(). test_pitch_estimator.cpp proves the discount works on a spectrum;
+    // this proves the session learns it from the same buffer it learns its
+    // floor from, and hands it to both the estimator and the concentration
+    // check. With a broadband quiet bed no fixture-based session test reaches
+    // BACKGROUND_PROMINENCE_TOLERANCE at all, so without this the discount is
+    // inert everywhere else in this file.
+    //
+    // 115 Hz is the reference machine's measured background peak. It sits
+    // inside the 77-165 Hz search window and outscores the belt, which is what
+    // produced an evening of confident, wrong, mutually contradictory readings.
+    auto buf = fan_and_pluck_stream(115.0f, 120.0f, 99.0f, 120.0f, 4000.0f);
+    BeltListenSession s(SPAN_MM, kRate);
+    listen(s, buf);
+
+    // The fan is genuinely prominent in what the session learned, or nothing
+    // below means anything.
+    REQUIRE(s.quiet_spectrum().valid());
+    INFO("prominence at 115 Hz " << s.quiet_spectrum().prominence_at(115.0f));
+    CHECK(s.quiet_spectrum().prominence_at(115.0f) > BACKGROUND_PROMINENCE_TOLERANCE);
+    CHECK(s.quiet_spectrum().weight_at(115.0f) < 1.0f);
+
+    REQUIRE(s.accepted_count() >= 1);
+    INFO("session median " << s.median_hz());
+    CHECK(s.median_hz() == Catch::Approx(99.0f).margin(4.0f));
+
+    // The teeth: score the very spectrum the session analysed WITHOUT the quiet
+    // window, and it returns the fan. Same PSD, two scorings, opposite answers -
+    // so this cannot pass by the fan simply being too quiet to matter.
+    float lo = 0.0f, hi = 0.0f;
+    REQUIRE(search_window_for_span(SPAN_MM, &lo, &hi));
+    REQUIRE_FALSE(s.last_spectrum().empty());
+    const auto blind = estimate_pitch(s.last_spectrum(), lo, hi, DEFAULT_HARMONICS, nullptr);
+    REQUIRE(blind.valid);
+    INFO("blind estimate " << blind.frequency_hz);
+    CHECK(blind.frequency_hz == Catch::Approx(115.0f).margin(4.0f));
 }
 
 TEST_CASE("learn_noise_floor learns the quiet spectrum as well as the floor", "[belt][listen]") {

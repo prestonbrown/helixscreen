@@ -84,13 +84,23 @@ inline constexpr float BIN_MATCH_FRACTION = 0.02f;
 inline constexpr float HARMONIC_MATCH_BINS = 2.0f;
 
 /// Fraction of in-band energy that must sit on a candidate's harmonic series
-/// for the event to have been a pluck at all.
+/// for the event to have been a pluck at all. A thump, a door, or a stepper
+/// cogging spreads its energy; a plucked string does not.
 ///
-/// Measured through the live path on tests/fixtures/belt_plucks/: 0.345-0.443
-/// for the real captures, against 0.095-0.242 for a decaying broadband noise
-/// burst over 40 seeds. A thump, a door, or a stepper cogging spreads its
-/// energy; a plucked string does not.
-inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.30f;
+/// Both sides measured through the live path in the same harness - the
+/// exhaustive alignment sweep in test_belt_listen_session.cpp, every one of
+/// the 340 window alignments in a batch period, for each of the five captures
+/// that clear the energy gate:
+///
+///   real captures      0.2965 - 0.4879   (floor: b_belt_82hz_3, leads 2304-2312)
+///   broadband thump    up to 0.2138      (worst of 200 seeds)
+///
+/// 0.25 sits between them with about 16% of headroom either side. That is the
+/// narrowest margin of any constant in this file, and it is set by real data
+/// rather than chosen: the corridor is only 0.083 wide. An earlier 0.30
+/// rejected b_belt_82hz_3 - the STRONGEST capture in the set - at nine
+/// alignments, on a measurement that was correct at 82.0 Hz.
+inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.25f;
 
 /**
  * @brief The spectrum of a window captured while the machine was still
