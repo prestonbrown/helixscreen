@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/scoped_test_mode.h"
 #include "runtime_config.h"
 
 #include <cstring>
@@ -161,6 +162,11 @@ TEST_CASE("TestConfig production mode ignores real flags", "[test_config]") {
 }
 
 TEST_CASE("Command-line argument parsing", "[test_config]") {
+    // These cases parse CLI flags straight onto the process-global RuntimeConfig.
+    // Constructed with the current value, the guard changes nothing on entry and
+    // puts the flag back on exit, including when a REQUIRE throws (#1287).
+    ScopedTestMode restore_test_mode(get_runtime_config()->test_mode);
+
     SECTION("No arguments - production mode") {
         REQUIRE(parse_test_args({}) == true);
         RuntimeConfig* cfg = get_runtime_config();
@@ -236,6 +242,11 @@ TEST_CASE("Command-line argument parsing", "[test_config]") {
 }
 
 TEST_CASE("TestConfig accessor functions", "[test_config]") {
+    // These cases parse CLI flags straight onto the process-global RuntimeConfig.
+    // Constructed with the current value, the guard changes nothing on entry and
+    // puts the flag back on exit, including when a REQUIRE throws (#1287).
+    ScopedTestMode restore_test_mode(get_runtime_config()->test_mode);
+
     SECTION("get_runtime_config returns pointer") {
         RuntimeConfig* cfg = get_runtime_config();
         REQUIRE(cfg != nullptr);

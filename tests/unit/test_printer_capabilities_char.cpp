@@ -32,6 +32,7 @@
  */
 
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_test_mode.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_discovery.h"
@@ -56,8 +57,10 @@ static lv_subject_t* get_subject_by_name(const char* name) {
 TEST_CASE("Capabilities characterization: set_hardware updates capability subjects",
           "[characterization][capabilities][hardware]") {
     lv_init_safe();
-    // Enable test mode so beta-gated features (timelapse) are available
-    get_runtime_config()->test_mode = true;
+    // Enable test mode so beta-gated features (timelapse) are available. Scoped:
+    // leaving it set changed should_mock_*() for every later test in the process
+    // and failed four tool_state/tool_switcher cases (#1287).
+    ScopedTestMode scoped_test_mode;
 
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
