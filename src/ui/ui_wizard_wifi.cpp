@@ -12,6 +12,7 @@
 #include "ui_utils.h"
 
 #include "config.h"
+#include "data_root_resolver.h"
 #include "ethernet_manager.h"
 #include "log_redact.h"
 #include "lvgl/lvgl.h"
@@ -882,7 +883,8 @@ lv_obj_t* WizardWifiStep::create(lv_obj_t* parent) {
     // Register wifi_network_item component first
     static bool network_item_registered = false;
     if (!network_item_registered) {
-        lv_xml_register_component_from_file("A:ui_xml/wifi_network_item.xml");
+        lv_xml_register_component_from_file(
+            helix::asset_component_uri("ui_xml/wifi_network_item.xml").c_str());
         network_item_registered = true;
         spdlog::debug("[{}] Registered wifi_network_item component", get_name());
     }
@@ -1079,6 +1081,11 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
     spdlog::debug("[{}] Showing password modal for SSID: {}", get_name(),
                   helix::redact::ssid(ssid));
 
+    // Reset connecting state — the shared modal hides the password form and the Connect
+    // button while wifi_connecting is 1, so a previous attempt left latched would open
+    // this modal straight into the spinner with nothing to type into.
+    lv_subject_set_int(&wifi_connecting_, 0);
+
     const char* attrs[] = {"ssid", ssid, NULL};
     password_modal_ = helix::ui::modal_show("wifi_password_modal", attrs);
 
@@ -1115,13 +1122,16 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
 }
 
 void WizardWifiStep::hide_password_modal() {
-    if (!password_modal_)
-        return;
+    if (password_modal_) {
+        spdlog::debug("[{}] Hiding password modal", get_name());
 
-    spdlog::debug("[{}] Hiding password modal", get_name());
+        helix::ui::modal_hide(password_modal_);
+        password_modal_ = nullptr;
+    }
 
-    helix::ui::modal_hide(password_modal_);
-    password_modal_ = nullptr;
+    // Reset connecting state unconditionally: the modal is gone either way, and leaving
+    // the subject at 1 would open the next one in the spinner state.
+    lv_subject_set_int(&wifi_connecting_, 0);
 }
 
 // ============================================================================

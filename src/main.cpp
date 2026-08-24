@@ -43,6 +43,26 @@ static void log_fatal(const char* msg) {
     fflush(stderr);
 }
 
+// SDL's video and audio subsystems are independent: SDL_VIDEODRIVER=dummy
+// selects the no-op video driver, but SDL still opens the real audio device
+// (PulseAudio/PipeWire/ALSA) and audibly beeps through the desktop speakers.
+// That is pure spam for a headless run driven by `helix-screen ctl` — the
+// whole point of going headless is to NOT interact with the user. When the
+// caller asked for the dummy video driver, also steer SDL's audio toward the
+// dummy driver so headless stays headless. Mirrors the
+// ForceDummyAudioDriver static initializer in tests/helix_test_fixture.cpp.
+// overwrite=0 lets a developer opt back into a real audio driver by
+// exporting SDL_AUDIODRIVER themselves. Must run before SoundManager
+// initializes — SDL picks its audio driver when SDL_InitSubSystem(AUDIO)
+// first runs (inside SDLSoundBackend::initialize()), which is well after
+// main() starts.
+static void silence_audio_if_headless() {
+    const char* video = std::getenv("SDL_VIDEODRIVER");
+    if (video && std::strcmp(video, "dummy") == 0) {
+        ::setenv("SDL_AUDIODRIVER", "dummy", /*overwrite=*/0);
+    }
+}
+
 // Called by std::terminate() — covers uncaught exceptions, joinable thread
 // destruction, and other fatal C++ runtime errors. Logs what we can before
 // the default terminate handler calls abort() (which triggers crash_handler).
@@ -107,6 +127,10 @@ int main(int argc, char** argv) {
         return helix::remote_client_main(argc - 1, argv + 1);
     }
 #endif
+
+    // Before any subsystem that can touch SDL audio. With overwrite=0, this
+    // only fires when the caller didn't pick an audio driver themselves.
+    silence_audio_if_headless();
 
     // Record the main thread id before any thread that uses LifetimeToken
     // can spawn. The bg-thread expired() detector compares against this.

@@ -3,6 +3,7 @@
 
 #include "gcode_geometry_builder.h"
 #include "gcode_parser.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "../catch_amalgamated.hpp"
@@ -1118,11 +1119,11 @@ TEST_CASE("prepare_interleaved_buffers data matches manual expansion",
 
     // Manually expand the first strip and compare against the packed layout.
     const auto& strip = geom.strips[0];
-    static constexpr int kTriIndices[6] = {0, 1, 2, 1, 3, 2};
+    static constexpr int TRI_INDICES[6] = {0, 1, 2, 1, 3, 2};
     const auto* packed = reinterpret_cast<const PackedVertex*>(buf.data.data());
 
     for (int ti = 0; ti < 6; ++ti) {
-        const auto& vert = geom.vertices[strip[static_cast<size_t>(kTriIndices[ti])]];
+        const auto& vert = geom.vertices[strip[static_cast<size_t>(TRI_INDICES[ti])]];
         glm::vec3 pos = geom.quantization.dequantize_vec3(vert.position);
 
         // Color is per-strip, not per-vertex.
@@ -1234,8 +1235,8 @@ TEST_CASE("Geometry Builder: affine dequantization matches the matrix fold",
     q.calculate_scale(bbox);
 
     const float inv = 1.0f / q.scale_factor;
-    const glm::mat4 dequant = glm::translate(glm::mat4(1.0f), q.min_bounds) *
-                              glm::scale(glm::mat4(1.0f), glm::vec3(inv));
+    const glm::mat4 dequant =
+        glm::translate(glm::mat4(1.0f), q.min_bounds) * glm::scale(glm::mat4(1.0f), glm::vec3(inv));
 
     for (const glm::vec3& p : {glm::vec3{12.5f, -30.0f, 0.0f}, glm::vec3{100.0f, 20.0f, 125.0f},
                                glm::vec3{212.5f, 170.0f, 250.0f}}) {

@@ -222,6 +222,9 @@
     {
       "id": "flashforge_ad5m_pro",
       "name": "FlashForge Adventurer 5M Pro",
+      "aliases": [
+        "FlashForge AD5M Pro"
+      ],
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m-pro.png",
       "preset": "ad5m_pro",
@@ -253,8 +256,8 @@
           "type": "led_match",
           "field": "leds",
           "pattern": "chamber_l",
-          "confidence": 100,
-          "reason": "LED chamber light/led (AD5M Pro exclusive)"
+          "confidence": 55,
+          "reason": "Chamber light LED (corroborating only - 'chamber_light' is a generic name custom rigs use too; with max bonus it stays under the 70% high-confidence bar)"
         },
         {
           "type": "sensor_match",
@@ -360,8 +363,8 @@
           "type": "led_match",
           "field": "leds",
           "pattern": "chamber_l",
-          "confidence": 100,
-          "reason": "LED chamber light/led (AD5M Pro exclusive - matches stock 'chamber_light' and ForgeX 'chamber_led')"
+          "confidence": 55,
+          "reason": "Chamber light LED (corroborating only - matches stock 'chamber_light' and ForgeX 'chamber_led', but custom rigs use those names too; with max bonus it stays under the 70% high-confidence bar)"
         },
         {
           "type": "macro_match",
@@ -627,6 +630,9 @@
     {
       "id": "voron_0_1",
       "name": "Voron 0.2",
+      "aliases": [
+        "Voron 0.1"
+      ],
       "manufacturer": "Voron",
       "image": "voron-v0.png",
       "heuristics": [
@@ -1286,19 +1292,17 @@
             "category": "mechanical",
             "order": 10,
             "default_enabled": true,
-            "strategy": "macro_param",
-            "param_name": "PREPARE",
-            "enable_value": "0",
-            "skip_value": "1",
-            "default_value": "0"
+            "strategy": "pre_start_gcode",
+            "gcode_template": "BED_MESH_CALIBRATE_START_PRINT GCODE_FILE='{file}' BED_TEMP={bed_temp} EXTRUDER_TEMP={extruder_temp}",
+            "emit_when_disabled": false
           },
           {
             "id": "ai_detect",
             "category": "monitoring",
             "order": 10,
             "default_enabled": false,
-            "label_key": "pre_print_option.ai_detect.label",
-            "description_key": "pre_print_option.ai_detect.description",
+            "label_key": "AI detection",
+            "description_key": "Monitor for print abnormalities (K2 Plus camera-based)",
             "strategy": "pre_start_gcode",
             "gcode_template": "LOAD_AI_RUN SWITCH={value}",
             "requires_macro": "LOAD_AI_RUN"
@@ -1393,7 +1397,13 @@
           "confidence": 55,
           "reason": "Build volume ~350mm (K2 Plus size)"
         }
-      ]
+      ],
+      "_print_start_default_phases_comment": "Measured on a K2 Plus 2026-08-18 (three captured prints): three homing rail rounds ~15s; nozzle wipe plus both BOX_NOZZLE_CLEAN passes ~60s; the bed-mesh toggle is optional (emit_when_disabled: false) and its check-passed validation runs ~6s - a failed check re-meshes (67-pt adaptive) and the prediction history learns that after the first such print. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 15,
+        "CLEANING": 60,
+        "BED_MESH": 10
+      }
     },
     {
       "id": "creality_k2_pro",
@@ -1431,19 +1441,17 @@
             "category": "mechanical",
             "order": 10,
             "default_enabled": true,
-            "strategy": "macro_param",
-            "param_name": "PREPARE",
-            "enable_value": "0",
-            "skip_value": "1",
-            "default_value": "0"
+            "strategy": "pre_start_gcode",
+            "gcode_template": "BED_MESH_CALIBRATE_START_PRINT GCODE_FILE='{file}' BED_TEMP={bed_temp} EXTRUDER_TEMP={extruder_temp}",
+            "emit_when_disabled": false
           },
           {
             "id": "ai_detect",
             "category": "monitoring",
             "order": 10,
             "default_enabled": false,
-            "label_key": "pre_print_option.ai_detect.label",
-            "description_key": "pre_print_option.ai_detect.description",
+            "label_key": "AI detection",
+            "description_key": "Monitor for print abnormalities (K2 Plus camera-based)",
             "strategy": "pre_start_gcode",
             "gcode_template": "LOAD_AI_RUN SWITCH={value}",
             "requires_macro": "LOAD_AI_RUN"
@@ -1538,7 +1546,13 @@
           "confidence": 55,
           "reason": "Build volume ~300mm (K2 Pro size)"
         }
-      ]
+      ],
+      "_print_start_default_phases_comment": "Measured on a K2 Plus 2026-08-18 (three captured prints): three homing rail rounds ~15s; nozzle wipe plus both BOX_NOZZLE_CLEAN passes ~60s; the bed-mesh toggle is optional (emit_when_disabled: false) and its check-passed validation runs ~6s - a failed check re-meshes (67-pt adaptive) and the prediction history learns that after the first such print. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 15,
+        "CLEANING": 60,
+        "BED_MESH": 10
+      }
     },
     {
       "id": "creality_k1c",
@@ -1549,20 +1563,23 @@
       "probe_type": "prtouch_v2",
       "preset": "k1c",
       "print_start_profile": "creality_k1",
+      "_print_start_default_phases_comment": "Measured on a K1C 2026-08-19 (flowrate print, full prep chain): homing via CX_ROUGH_G28 ran 60s vs the 30s generic default; the nozzle wipe (CLEAR_NOZZLE_QUICK rounds) ran ~85s; a check-passed mesh (4-corner validation + 25-point sweep at 5.5s/point) ran 123s. Heating phases are omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 60,
+        "CLEANING": 85,
+        "BED_MESH": 125
+      },
       "pre_print_options": {
         "macro_name": "START_PRINT",
-        "setup_gcode": "PRINT_PREPARED",
         "options": [
           {
             "id": "bed_mesh",
             "category": "mechanical",
             "order": 10,
             "default_enabled": true,
-            "strategy": "macro_param",
-            "param_name": "PREPARE",
-            "enable_value": "0",
-            "skip_value": "1",
-            "default_value": "0"
+            "strategy": "pre_start_gcode",
+            "gcode_template": "CX_ROUGH_G28{?ext} EXTRUDER_TEMP={extruder_temp}{/?} BED_TEMP={bed_temp}\nCX_NOZZLE_CLEAR\nACCURATE_G28\nBED_MESH_CALIBRATE\nPRINT_PREPARED",
+            "emit_when_disabled": false
           }
         ]
       },
@@ -1620,20 +1637,23 @@
       "probe_type": "prtouch_v2",
       "preset": "k1c",
       "print_start_profile": "creality_k1",
+      "_print_start_default_phases_comment": "Measured on a K1C 2026-08-19 (flowrate print, full prep chain): homing via CX_ROUGH_G28 ran 60s vs the 30s generic default; the nozzle wipe (CLEAR_NOZZLE_QUICK rounds) ran ~85s; a check-passed mesh (4-corner validation + 25-point sweep at 5.5s/point) ran 123s. Heating phases are omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 60,
+        "CLEANING": 85,
+        "BED_MESH": 125
+      },
       "pre_print_options": {
         "macro_name": "START_PRINT",
-        "setup_gcode": "PRINT_PREPARED",
         "options": [
           {
             "id": "bed_mesh",
             "category": "mechanical",
             "order": 10,
             "default_enabled": true,
-            "strategy": "macro_param",
-            "param_name": "PREPARE",
-            "enable_value": "0",
-            "skip_value": "1",
-            "default_value": "0"
+            "strategy": "pre_start_gcode",
+            "gcode_template": "CX_ROUGH_G28{?ext} EXTRUDER_TEMP={extruder_temp}{/?} BED_TEMP={bed_temp}\nCX_NOZZLE_CLEAR\nACCURATE_G28\nBED_MESH_CALIBRATE\nPRINT_PREPARED",
+            "emit_when_disabled": false
           }
         ]
       },
@@ -1830,7 +1850,7 @@
       "id": "creality_ender_3_v3",
       "name": "Creality Ender-3 V3",
       "manufacturer": "Creality",
-      "image": "creality-ender-3-v3.png",
+      "image": "creality-ender-3.png",
       "display": {
         "resolution": "800x480",
         "touch_controller": "tsc2007",
@@ -1960,7 +1980,7 @@
       "id": "creality_ender_3_s1",
       "name": "Creality Ender-3 S1",
       "manufacturer": "Creality",
-      "image": "creality-ender-3-s1.png",
+      "image": "creality-ender-3.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2223,6 +2243,7 @@
       "name": "Elegoo Centauri Carbon",
       "manufacturer": "Elegoo",
       "image": "elegoo-centauri-carbon.png",
+      "preset": "cc1",
       "calibration": {
         "bed_mesh_gcode": "MOVE_TO_TRAY\nM140 S60\nM104 S220\nM109 S220\nM190 S60\nM729\nG28\nM400\nLOAD_CELL_SAVE_TARE\nG4 P2000\nBED_MESH_CALIBRATE_WITH_WIPE\nBED_MESH_PROFILE SAVE={profile}"
       },
@@ -2363,7 +2384,7 @@
       "id": "elegoo_neptune_4_pro",
       "name": "Elegoo Neptune 4 Pro",
       "manufacturer": "Elegoo",
-      "image": "elegoo-neptune-4-pro.png",
+      "image": "elegoo-neptune-4.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2427,7 +2448,7 @@
       "id": "elegoo_neptune_4_plus",
       "name": "Elegoo Neptune 4 Plus",
       "manufacturer": "Elegoo",
-      "image": "elegoo-neptune-4-plus.png",
+      "image": "elegoo-neptune-4.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2473,7 +2494,7 @@
       "id": "elegoo_neptune_4_max",
       "name": "Elegoo Neptune 4 Max",
       "manufacturer": "Elegoo",
-      "image": "elegoo-neptune-4-max.png",
+      "image": "elegoo-neptune-4.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2516,52 +2537,6 @@
       ]
     },
     {
-      "id": "kingroon_kp3s_pro_v2",
-      "name": "Kingroon KP3S Pro V2",
-      "manufacturer": "Kingroon",
-      "image": "kingroon-kp3s-pro-v2.png",
-      "heuristics": [
-        {
-          "type": "kinematics_match",
-          "field": "kinematics",
-          "pattern": "cartesian",
-          "confidence": 40,
-          "reason": "Cartesian kinematics (bedslinger)"
-        },
-        {
-          "type": "object_exists",
-          "field": "printer_objects",
-          "pattern": "adxl345",
-          "confidence": 60,
-          "reason": "ADXL345 accelerometer (built-in input shaper)"
-        },
-        {
-          "type": "build_volume_range",
-          "field": "bed_mesh",
-          "min_x": 180,
-          "max_x": 220,
-          "min_y": 180,
-          "max_y": 220,
-          "confidence": 50,
-          "reason": "Build volume ~200mm (KP3S Pro V2 size)"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "kingroon",
-          "confidence": 85,
-          "reason": "Hostname contains 'kingroon'"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "kp3s",
-          "confidence": 90,
-          "reason": "Hostname contains 'kp3s'"
-        }
-      ]
-    },
-    {
       "id": "kingroon_klp1",
       "name": "Kingroon KLP1",
       "manufacturer": "Kingroon",
@@ -2594,45 +2569,6 @@
           "pattern": "klp1",
           "confidence": 95,
           "reason": "Hostname contains 'klp1'"
-        }
-      ]
-    },
-    {
-      "id": "kingroon_kp5l",
-      "name": "Kingroon KP5L",
-      "manufacturer": "Kingroon",
-      "image": "kingroon-kp5l.png",
-      "heuristics": [
-        {
-          "type": "kinematics_match",
-          "field": "kinematics",
-          "pattern": "cartesian",
-          "confidence": 40,
-          "reason": "Cartesian kinematics (bedslinger)"
-        },
-        {
-          "type": "build_volume_range",
-          "field": "bed_mesh",
-          "min_x": 280,
-          "max_x": 320,
-          "min_y": 280,
-          "max_y": 320,
-          "confidence": 50,
-          "reason": "Build volume ~300mm (KP5L size)"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "kingroon",
-          "confidence": 85,
-          "reason": "Hostname contains 'kingroon'"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "kp5l",
-          "confidence": 95,
-          "reason": "Hostname contains 'kp5l'"
         }
       ]
     },
@@ -3374,7 +3310,7 @@
       "id": "flsun_v400",
       "name": "FLSUN V400",
       "manufacturer": "FLSUN",
-      "image": "flsun-v400.png",
+      "image": "flsun-delta.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3427,7 +3363,7 @@
       "id": "flsun_sr",
       "name": "FLSUN Super Racer",
       "manufacturer": "FLSUN",
-      "image": "flsun-sr.png",
+      "image": "flsun-delta.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4123,7 +4059,7 @@
           "max_x": 520,
           "min_y": 480,
           "max_y": 520,
-          "confidence": 97,
+          "confidence": 55,
           "reason": "Build volume ~500x500mm (SV08 Max size)"
         },
         {
@@ -4320,7 +4256,7 @@
       "id": "sovol_sv06_plus",
       "name": "Sovol SV06 Plus",
       "manufacturer": "Sovol",
-      "image": "sovol-sv06-plus.png",
+      "image": "sovol-sv06.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5202,7 +5138,7 @@
       "id": "artillery_sidewinder_x2",
       "name": "Artillery Sidewinder X2",
       "manufacturer": "Artillery",
-      "image": "artillery-sidewinder-x2.png",
+      "image": "artillery-genius-pro.png",
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5281,6 +5217,7 @@
       "name": "Artillery M1 Pro",
       "manufacturer": "Artillery",
       "image": "artillery-m1-pro.png",
+      "preset": "artillery-m1-pro",
       "print_start_profile": "artillery_m1",
       "z_offset_calibration_strategy": "firmware_managed",
       "heuristics": [
@@ -5508,7 +5445,7 @@
       "id": "kamp_user",
       "name": "KAMP (Adaptive Meshing)",
       "manufacturer": "Generic",
-      "image": "generic-klipper.png",
+      "image": "generic-corexy.png",
       "show_in_list": false,
       "note": "Klipper Adaptive Meshing & Purging macros detected - suggests advanced Klipper user",
       "heuristics": [
@@ -5539,7 +5476,7 @@
       "id": "klippain_shaketune",
       "name": "Klippain Shake&Tune",
       "manufacturer": "Generic",
-      "image": "generic-klipper.png",
+      "image": "generic-corexy.png",
       "show_in_list": false,
       "note": "Klippain Shake&Tune input shaper calibration macros detected",
       "heuristics": [
@@ -5570,7 +5507,7 @@
       "id": "ercf_mmu",
       "name": "ERCF/Happy Hare MMU",
       "manufacturer": "Generic",
-      "image": "generic-klipper.png",
+      "image": "generic-corexy.png",
       "show_in_list": false,
       "note": "Enraged Rabbit or Happy Hare multi-material unit detected",
       "heuristics": [
@@ -5608,7 +5545,7 @@
       "id": "klicky_probe",
       "name": "Klicky Probe User",
       "manufacturer": "Generic",
-      "image": "generic-klipper.png",
+      "image": "generic-corexy.png",
       "show_in_list": false,
       "note": "Klicky probe macros detected - common Voron modification",
       "heuristics": [
@@ -5639,7 +5576,7 @@
       "id": "ellis_print_tuning",
       "name": "Ellis Print Tuning",
       "manufacturer": "Generic",
-      "image": "generic-klipper.png",
+      "image": "generic-corexy.png",
       "show_in_list": false,
       "note": "Ellis tuning guide macros detected - advanced calibration setup",
       "heuristics": [
@@ -5663,44 +5600,6 @@
           "pattern": "PRESSURE_ADVANCE_CALIBRATION",
           "confidence": 80,
           "reason": "Pressure advance calibration macro"
-        }
-      ]
-    },
-    {
-      "id": "bambu_klipper",
-      "name": "Bambu Lab (Klipper)",
-      "manufacturer": "Bambu Lab",
-      "image": "bambu-lab.png",
-      "show_in_list": false,
-      "note": "Bambu Lab printer running custom Klipper firmware (rare custom mod)",
-      "heuristics": [
-        {
-          "type": "macro_match",
-          "field": "printer_objects",
-          "pattern": "BAMBU_",
-          "confidence": 95,
-          "reason": "Bambu Lab macro prefix detected"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "bambu",
-          "confidence": 85,
-          "reason": "Hostname contains 'bambu'"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "x1c",
-          "confidence": 90,
-          "reason": "Hostname suggests X1 Carbon"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "p1",
-          "confidence": 85,
-          "reason": "Hostname suggests P1 series"
         }
       ]
     },
@@ -6058,6 +5957,9 @@
     {
       "id": "zerog_nebula_255",
       "name": "Zero G Mercury One.1 Nebula",
+      "aliases": [
+        "Zero G Nebula 255"
+      ],
       "manufacturer": "Zero G",
       "image": "zerog-nebula.png",
       "heuristics": [
@@ -6104,6 +6006,9 @@
     {
       "id": "zerog_nebula_370",
       "name": "Zero G Mercury One.1 Plus Nebula",
+      "aliases": [
+        "Zero G Nebula 370"
+      ],
       "manufacturer": "Zero G",
       "image": "zerog-nebula-370.png",
       "heuristics": [

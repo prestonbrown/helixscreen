@@ -31,11 +31,13 @@
 
 using helix::ui::AmsCall;
 using helix::ui::BackendCaps;
+using helix::ui::EXTERNAL_SPOOL_SLOT;
 using helix::ui::FilamentOpPlan;
 using helix::ui::FilamentRefusal;
 using helix::ui::FilamentTier;
 using helix::ui::plan_load;
 using helix::ui::plan_unload;
+using helix::ui::unload_needs_manual_pull;
 
 namespace {
 
@@ -55,13 +57,17 @@ struct PanelOutcome {
     /// every refusal — a refused op must leave the buttons live.
     bool guard_armed = false;
     bool navigated_to_ams = false;
+    /// arm_manual_pull_prompt() ran — the "pull it out by hand" watch. Only for
+    /// an unload with no lane to retract into, and never on a refusal.
+    bool armed_manual_pull = false;
     std::string toast; ///< the msgid handed to NOTIFY_*, empty when none
 };
 
 /// Mirror of FilamentPanel::execute_load() from the plan onward.
 PanelOutcome panel_execute_load(const AmsSystemInfo& sys, const BackendCaps& caps, int target_slot,
-                                bool macro_available) {
-    const FilamentOpPlan plan = plan_load(sys, caps, target_slot, macro_available);
+                                bool macro_available, bool macro_user_configured = false) {
+    const FilamentOpPlan plan =
+        plan_load(sys, caps, target_slot, macro_available, macro_user_configured);
     PanelOutcome out;
 
     switch (plan.tier) {
@@ -99,9 +105,15 @@ PanelOutcome panel_execute_load(const AmsSystemInfo& sys, const BackendCaps& cap
 
 /// Mirror of FilamentPanel::execute_unload() from the plan onward.
 PanelOutcome panel_execute_unload(const BackendCaps& caps, int target_slot, bool target_is_loaded,
-                                  bool macro_available) {
-    const FilamentOpPlan plan = plan_unload(caps, target_slot, target_is_loaded, macro_available);
+                                  bool macro_available, bool macro_user_configured = false) {
+    const FilamentOpPlan plan =
+        plan_unload(caps, target_slot, target_is_loaded, macro_available, macro_user_configured);
     PanelOutcome out;
+
+    // Mirrors the arm site, which sits between the plan and the switch so it
+    // covers every dispatching tier at once and no refusal.
+    out.armed_manual_pull = plan.tier != FilamentTier::Refused &&
+                            helix::ui::unload_needs_manual_pull(caps.present, target_slot);
 
     switch (plan.tier) {
     case FilamentTier::AmsBackend:
@@ -348,4 +360,58 @@ TEST_CASE("Unload with no backend falls through macro then raw gcode",
                                                 /*target_is_loaded=*/false,
                                                 /*macro_available=*/false);
     CHECK(without.arm == Arm::RawGcode);
+}
+
+// =============================================================================
+// Unload — the manual-pull prompt
+// =============================================================================
+
+TEST_CASE("Unloading the bypass spool arms the manual-pull prompt",
+          "[filament][dispatch][wiring][bypass]") {
+    // The bypass spool has no lane to be reeled back into, so the unload ends
+    // with filament above the extruder and the user holding nothing. The panel
+    // arms the prompt at dispatch; the toolhead sensor (or op completion) fires
+    // it. Without this the operation just "succeeds" with filament still in the
+    // machine and no instruction.
+    auto out = panel_execute_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/true,
+                                    /*macro_available=*/true);
+    CHECK(out.arm == Arm::Backend);
+    CHECK(out.arg == EXTERNAL_SPOOL_SLOT);
+    CHECK(out.armed_manual_pull);
+}
+
+TEST_CASE("Unloading an AMS lane arms no manual-pull prompt",
+          "[filament][dispatch][wiring][bypass]") {
+    // The lane reels its own filament back. Prompting here would fire on every
+    // ordinary unload, which is how a helpful toast turns into noise.
+    auto out = panel_execute_unload(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/true,
+                                    /*macro_available=*/true);
+    REQUIRE(out.arm == Arm::Backend);
+    CHECK_FALSE(out.armed_manual_pull);
+}
+
+TEST_CASE("A backend-less unload arms the prompt on every tier",
+          "[filament][dispatch][wiring][bypass]") {
+    // No AMS at all: the spool sits on a holder and feeds the toolhead directly,
+    // so both the macro and the raw-gcode fallback leave the same manual job.
+    BackendCaps none{};
+
+    auto via_macro = panel_execute_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
+                                          /*macro_available=*/true);
+    REQUIRE(via_macro.arm == Arm::Macro);
+    CHECK(via_macro.armed_manual_pull);
+
+    auto via_gcode = panel_execute_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
+                                          /*macro_available=*/false);
+    REQUIRE(via_gcode.arm == Arm::RawGcode);
+    CHECK(via_gcode.armed_manual_pull);
+}
+
+TEST_CASE("A refused unload arms nothing", "[filament][dispatch][wiring][bypass]") {
+    // Nothing was dispatched, so nothing will ever complete to disarm it. An arm
+    // here would sit waiting for the next unrelated toolhead-sensor edge.
+    auto out = panel_execute_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/false,
+                                    /*macro_available=*/true);
+    REQUIRE(out.arm == Arm::Refused);
+    CHECK_FALSE(out.armed_manual_pull);
 }

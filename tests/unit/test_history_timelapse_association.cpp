@@ -17,17 +17,17 @@
  * all four extensions and is the single source of truth for this.
  */
 
-#include "../test_fixtures.h"
-#include "../test_helpers/history_list_panel_test_access.h"
-
-#include "moonraker_types.h"
-#include "print_history_data.h"
 #include "ui_panel_history_list.h"
 
-#include "../catch_amalgamated.hpp"
+#include "../test_fixtures.h"
+#include "../test_helpers/history_list_panel_test_access.h"
+#include "moonraker_types.h"
+#include "print_history_data.h"
 
 #include <string>
 #include <vector>
+
+#include "../catch_amalgamated.hpp"
 
 using helix::ui::HistoryListPanelTestAccess;
 
@@ -64,9 +64,9 @@ TEST_CASE_METHOD(XMLTestFixture, "History timelapse association handles every gc
     HistoryListPanel panel;
 
     HistoryListPanelTestAccess::set_jobs(panel, {
-                                                    job("classic.gcode"),  // control: worked before
-                                                    job("benchy.3mf"),     // 3MF job
-                                                    job("PART.GCODE"),     // uppercase extension
+                                                    job("classic.gcode"), // control: worked before
+                                                    job("benchy.3mf"),    // 3MF job
+                                                    job("PART.GCODE"),    // uppercase extension
                                                     job("sub/dir/tower.gco"), // .gco + subdirectory
                                                     job("bracket.g"),         // bare .g
                                                 });

@@ -111,10 +111,10 @@ void init_subjects() {
     // Slot-indexed names on purpose. The old material-named subjects
     // ("filament_preset_pla_name") implied slot 0 was always PLA, which is
     // exactly the assumption this module exists to remove.
-    static constexpr const char* kNameSubjects[PRESET_COUNT] = {
+    static constexpr const char* NAME_SUBJECTS[PRESET_COUNT] = {
         "preset_material_0_name", "preset_material_1_name", "preset_material_2_name",
         "preset_material_3_name"};
-    static constexpr const char* kTempSubjects[PRESET_COUNT] = {
+    static constexpr const char* TEMP_SUBJECTS[PRESET_COUNT] = {
         "preset_material_0_temps", "preset_material_1_temps", "preset_material_2_temps",
         "preset_material_3_temps"};
 
@@ -124,15 +124,15 @@ void init_subjects() {
 
         lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
                                s.name_bufs[i].size(), s.name_bufs[i].data());
-        lv_xml_register_subject(nullptr, kNameSubjects[i], &s.name_subjects[i]);
+        lv_xml_register_subject(nullptr, NAME_SUBJECTS[i], &s.name_subjects[i]);
         SubjectDebugRegistry::instance().register_subject(
-            &s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+            &s.name_subjects[i], NAME_SUBJECTS[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
         lv_subject_init_string(&s.temp_subjects[i], s.temp_bufs[i].data(), nullptr,
                                s.temp_bufs[i].size(), s.temp_bufs[i].data());
-        lv_xml_register_subject(nullptr, kTempSubjects[i], &s.temp_subjects[i]);
+        lv_xml_register_subject(nullptr, TEMP_SUBJECTS[i], &s.temp_subjects[i]);
         SubjectDebugRegistry::instance().register_subject(
-            &s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+            &s.temp_subjects[i], TEMP_SUBJECTS[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
     }
 
     lv_subject_init_int(&s.count_subject, PRESET_COUNT);

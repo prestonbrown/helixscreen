@@ -38,13 +38,13 @@ crash_handler.cpp                  CrashReporter                    CrashReportM
 
 ### Relationship to TelemetryManager
 
-CrashReporter is **independent** of TelemetryManager. Both read `crash.txt`, but CrashReporter runs first and calls `consume_crash_file()` to delete it. TelemetryManager's `check_previous_crash()` then finds no file and silently skips. This means crash reports are sent even when telemetry is disabled.
+CrashReporter is **independent** of TelemetryManager. Both read crash.txt, but CrashReporter runs first and calls `consume_crash_file()` to delete it. TelemetryManager's `check_previous_crash()` then finds no file and silently skips. This means crash reports are sent even when telemetry is disabled.
 
 ---
 
 ## Crash File Format
 
-Written by `crash_handler::install()` signal handler (async-signal-safe). Located at `config/crash.txt`:
+Written by `crash_handler::install()` signal handler (async-signal-safe). Located at `~/helixscreen/config/crash.txt`:
 
 ```
 signal:11
@@ -305,7 +305,7 @@ make test-run                              # All tests
 ./build/bin/helix-screen --test --mock-crash -vv
 ```
 
-The `--mock-crash` flag writes a synthetic `crash.txt` with a fake SIGSEGV before crash detection runs. Requires `--test` mode. This lets you test the full UI flow without actually crashing.
+The `--mock-crash` flag writes a synthetic crash.txt with a fake SIGSEGV before crash detection runs. Requires `--test` mode. This lets you test the full UI flow without actually crashing.
 
 ### Test Coverage
 

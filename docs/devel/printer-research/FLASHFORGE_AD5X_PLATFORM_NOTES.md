@@ -98,22 +98,45 @@ cat /usr/data/.mod/.zmod/srv/helixscreen/config/settings.json
 
 ## Log Locations
 
+Two distinct streams — do not conflate them. `/opt/config` is a bind-mount of
+the durable mod config dir, so every file below has two path spellings plus a
+third view from inside the chroot.
+
 | Source | Path |
 |--------|------|
-| helix-screen | `/opt/config/mod_data/log/helixscreen.log` |
-| (same, alt views) | `/usr/data/config/mod_data/log/helixscreen.log` |
-| (same, in chroot) | `/usr/data/.mod/.zmod/opt/config/mod_data/log/helixscreen.log` |
+| **helix-screen app log** (spdlog rotating file sink) | `/opt/config/mod_data/log/helix.log` |
+| (same, alt views) | `/usr/data/config/mod_data/log/helix.log`, `/usr/data/.mod/.zmod/opt/config/mod_data/log/helix.log` |
+| **Launcher stream** (`[helix-launcher]` echoes + crash/glibc stderr) | `/opt/config/mod_data/log/helixscreen.log` |
+| (same, alt views) | `/usr/data/config/mod_data/log/helixscreen.log`, `/usr/data/.mod/.zmod/opt/config/mod_data/log/helixscreen.log` |
 | Klipper | `/usr/data/printer_data/logs/klippy.log` |
 | System (syslog) | `/var/log/messages` |
 | Kernel | `dmesg` |
 
-The `helixscreen.env` does NOT set `HELIX_CONFIG_DIR` and uses default
-`HELIX_LOG_LEVEL=info`. `HELIX_LOG_FILE=/tmp/helixscreen.log` is
-**commented out** — the live log lives at the ZMOD path above instead,
-written via the auto-detected file logger when no journal/syslog is wired.
-The `log_collector` cascade already includes the ZMOD paths
-(`fix(logs): include ZMOD AD5X mod_data paths in log-tail cascade`,
-commit `785f142d2`).
+The launcher stream exists because ghzserg's `/etc/init.d/S80helixscreen`
+hardcodes `LOGFILE="/opt/config/mod_data/log/helixscreen.log"` and redirects the
+launcher subshell `>> "$LOGFILE" 2>&1`. It carries **only** the wrapper's own
+output. The app log is not in it: making stdout a regular file is exactly the
+case `should_add_console()` refuses to attach a console sink for (see
+`include/logging_init.h`), since a console sink there would double-log every
+line into the same file the structured sink writes.
+
+The app log's path is set by `platform_pre_start` in
+`assets/config/platform/hooks-ad5m-zmod.sh` (`HELIX_LOG_DEST=file` +
+`HELIX_LOG_FILE`), which is also the AD5X hook. It lives under `/opt/config`
+rather than `/data` because ZMOD's `TAR_CONFIG` archiver collects
+`/opt/config/ /usr/prog/config/ /usr/data/logs/ /usr/prog/app_startup.sh
+/tmp/*.txt` on AD5X and `/opt/config/ /data/logFiles/ /tmp/*.txt` on AD5M —
+`/data/helixscreen/` is in neither, so an app log written there never reached a
+support archive (issue #1249). Auto-detection is **not** what puts the log in a
+file: `detect_best_target()` returns `Syslog` on Linux and never `File`, so
+without the hook's `HELIX_LOG_DEST=file` the app log goes to `/var/log/messages`.
+
+The `helixscreen.env` does NOT set `HELIX_CONFIG_DIR`, and both
+`HELIX_LOG_LEVEL` and `HELIX_LOG_FILE=/tmp/helixscreen.log` ship **commented
+out** (`config/helixscreen.env`) — there is no default `HELIX_LOG_LEVEL=info`;
+unset means the normal precedence applies (`settings.json` `/log_level`, else
+`warn`). The `log_collector` cascade includes both ZMOD filenames under both
+path spellings (`src/system/log_collector.cpp`).
 
 ## ZMOD Display Lifecycle (CRITICAL — affects helix stability)
 
@@ -227,8 +250,7 @@ The `core file size = 0` means **no automatic core dumps** for crash analysis
 - Vendor toolchain naming: `mips-linux-gnu-gcc`
 - Build flag: `-DHELIX_PLATFORM_AD5X`
 - Release asset: `helixscreen-ad5x.zip` (per `release_info.json`)
-- Manifest currently omits the `.zip` for K1/AD5X — see ROADMAP
-  "K1/AD5X zip workaround", revert by 1.0
+- Manifest currently omits the `.zip` for K1/AD5X — revert by 1.0
 
 ## Installer Caveats
 

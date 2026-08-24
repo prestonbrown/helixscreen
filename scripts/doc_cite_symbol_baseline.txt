@@ -1,0 +1,5 @@
+# Symbol-cite drift accepted during calibration. doc:line keys; shrink, never grow.
+# Started EMPTY at calibration: every finding the first run produced was real
+# drift and was re-pinned rather than baselined (the .115 docs sweep + the same
+# day's re-pin pass). A new key here means someone chose not to fix a drift -
+# say why in the commit.

@@ -31,6 +31,8 @@
     <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
     <prop name="action_button_2_callback" type="string" default=""/>
     <prop name="hide_action_button_2" type="string" default="true"/>
+    <!-- Dedicated E-Stop spacer, forwarded to header_bar. Empty default = hidden. -->
+    <prop name="estop_visible_subject" type="string" default=""/>
     <prop name="back_button_callback" type="string" default="on_header_back_clicked"/>
     <!-- Optional header badge, forwarded to header_bar. Hidden unless
          title_badge_subject is supplied and resolves to 1. -->
@@ -79,7 +81,7 @@
                 action_button_2_bg_color="$action_button_2_bg_color"
                 action_button_2_callback="$action_button_2_callback" hide_action_button_2="$hide_action_button_2"
                 title_badge_image="$title_badge_image" title_badge_subject="$title_badge_subject"
-                back_button_callback="$back_button_callback"/>
+                estop_visible_subject="$estop_visible_subject" back_button_callback="$back_button_callback"/>
     <!-- Panel-specific overlay_content and children go here -->
   </view>
 </component>

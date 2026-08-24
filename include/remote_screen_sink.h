@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace helix {
@@ -35,14 +36,37 @@ enum class RemoteScreenPixelFormat {
  */
 struct RemoteScreenFrame {
     const uint8_t* px_map = nullptr; ///< Source pixels for this dirty area.
-    int32_t x1 = 0;                  ///< Inclusive left of the dirty area.
-    int32_t y1 = 0;                  ///< Inclusive top of the dirty area.
-    int32_t x2 = 0;                  ///< Inclusive right of the dirty area.
-    int32_t y2 = 0;                  ///< Inclusive bottom of the dirty area.
-    int32_t disp_w = 0;              ///< Full display horizontal resolution.
-    int32_t disp_h = 0;              ///< Full display vertical resolution.
-    int color_format = 0;            ///< lv_color_format_t as int (raw, for logging).
-    uint32_t src_stride = 0;         ///< Bytes per row of `px_map`.
+    /**
+     * Readable bytes at `px_map`, or 0 when the producer cannot determine it.
+     *
+     * A sink MUST NOT read past `px_map + px_map_len`. Zero means "unknown", and
+     * a sink then has to infer a bound from `src_stride` and `disp_h` — an
+     * inference that is wrong whenever the render buffer is smaller than the
+     * display (e.g. a fallback backend after DRM init fails), which is how a
+     * mirror blit ends up reading off the end of the draw buffer.
+     */
+    size_t px_map_len = 0;
+    /**
+     * Display coordinates of `px_map`'s pixel (0,0) — the source origin.
+     *
+     * (0,0) in LVGL's DIRECT/FULL render modes, where `px_map` is the whole
+     * display buffer and a dirty rect's pixels sit at their absolute
+     * coordinates. In PARTIAL mode the draw buffer is reshaped to the dirty
+     * area itself (`lv_refr.c` `layer_reshape_draw_buf`) and flushed from its
+     * own origin, so the rect's pixels start at row 0 / column 0 and the
+     * producer sets these to the area's top-left. A sink must index the
+     * source relative to this, not absolutely.
+     */
+    int32_t px_map_x = 0;
+    int32_t px_map_y = 0;
+    int32_t x1 = 0;          ///< Inclusive left of the dirty area.
+    int32_t y1 = 0;          ///< Inclusive top of the dirty area.
+    int32_t x2 = 0;          ///< Inclusive right of the dirty area.
+    int32_t y2 = 0;          ///< Inclusive bottom of the dirty area.
+    int32_t disp_w = 0;      ///< Full display horizontal resolution.
+    int32_t disp_h = 0;      ///< Full display vertical resolution.
+    int color_format = 0;    ///< lv_color_format_t as int (raw, for logging).
+    uint32_t src_stride = 0; ///< Bytes per row of `px_map`.
     RemoteScreenPixelFormat src_format =
         RemoteScreenPixelFormat::Unknown; ///< Pixel layout of px_map.
 };

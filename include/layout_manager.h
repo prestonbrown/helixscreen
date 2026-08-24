@@ -51,6 +51,13 @@ class LayoutManager {
     static bool is_variant_dir(const std::string& dir);
     bool is_standard() const;
 
+    /// True after init() has resolved type_ (from dims or override). Callers
+    /// that run before Phase 8b (e.g. theme_manager_init) need to know whether
+    /// type() holds a real answer or the default-constructed STANDARD.
+    bool is_initialized() const {
+        return initialized_;
+    }
+
     /// Variant directories to search for a layout override, most specific
     /// first. The base (ui_xml/, and the top-level "anchors" table in
     /// default_layout.json) is always the final fallback and is not included

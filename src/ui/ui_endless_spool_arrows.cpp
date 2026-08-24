@@ -276,6 +276,19 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
     // - y_route = near top of widget (routing lines are at top)
     int32_t y_bottom = y_off + height - 2; // Bottom edge with small margin
 
+    // Highest route line that still leaves room for the arrowhead below it. An
+    // N-member group now projects to N arrows (a ring, see
+    // endless_spool_backup_edges), all of them overlapping, so a wide group can
+    // ask for more height levels than the canvas has. Unclamped, y_route walks
+    // past y_bottom and the "vertical" segments draw inverted, outside the
+    // widget. Clamping stacks the deepest connections on one shared line
+    // instead - crowded, but inside the canvas and readable.
+    const int32_t max_route_y = y_bottom - ARROW_SIZE - 2;
+    const int max_height_level =
+        max_route_y > y_off + BASE_HEIGHT_OFFSET
+            ? static_cast<int>((max_route_y - (y_off + BASE_HEIGHT_OFFSET)) / HEIGHT_STEP)
+            : 0;
+
     // Draw each connection
     for (const auto& conn : connections) {
         int32_t src_x = get_slot_center_x(conn.source, data->slot_count, data->slot_width,
@@ -286,7 +299,8 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
         // Route height based on height_level
         // Higher levels = closer to top of widget = lower Y value
         // Level 0 is closest to bottom (slots), higher levels stack upward
-        int32_t y_route = y_off + BASE_HEIGHT_OFFSET + conn.height_level * HEIGHT_STEP;
+        const int level = std::min(conn.height_level, max_height_level);
+        int32_t y_route = y_off + BASE_HEIGHT_OFFSET + level * HEIGHT_STEP;
 
         draw_routed_arrow(layer, src_x, dst_x, y_bottom, y_route, data->arrow_color,
                           data->line_width);

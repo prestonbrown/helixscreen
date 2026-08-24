@@ -158,6 +158,16 @@ class DisplayBackendFbdev : public DisplayBackend {
         return needs_calibration_;
     }
 
+    /**
+     * @brief Whether the manual Settings entry point should be offered
+     *
+     * True for any real touch panel, including the capacitive ones that
+     * needs_touch_calibration() deliberately skips.
+     */
+    bool supports_touch_calibration() const override {
+        return supports_calibration_;
+    }
+
     void set_splash_active(bool active) override {
         splash_active_ = active;
     }
@@ -196,8 +206,10 @@ class DisplayBackendFbdev : public DisplayBackend {
     /// stale/corrupted — bundle LG9X482B) to decide whether to install.
     bool calibration_wrapper_installed_ = false;
 
-    /// Whether the detected touch device needs calibration (false for USB HID)
+    /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
+    /// Offer the manual Settings entry point (any real touch panel)
+    bool supports_calibration_ = false;
 
     /// TTY file descriptor for KDSETMODE console suppression (-1 = not acquired)
     int tty_fd_ = -1;

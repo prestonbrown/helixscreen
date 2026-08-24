@@ -25,6 +25,46 @@ enum class PrintState {
 };
 
 /**
+ * @brief Derive the UI-level print state from the printer's job state and phase
+ *
+ * The single definition of this mapping. A live pre-print phase outranks the
+ * job state, which is what makes Preparing reachable while print_stats still
+ * holds a previous job's terminal state (a host-side pre-start block runs
+ * before the printer is handed the job at all).
+ *
+ * @param job_state    Moonraker's print_stats.state
+ * @param start_phase  Pre-print phase, 0 when none is running
+ */
+PrintState derive_print_state(helix::PrintJobState job_state, int start_phase);
+
+/**
+ * @brief Does a job own the machine right now?
+ *
+ * True for `Preparing`, `Printing` and `Paused`: the states in which a print job
+ * is entitled to move the toolhead, and therefore the states in which nothing
+ * else may. This is the question the ~60 open-coded `PRINTING || PAUSED`
+ * comparisons are all trying to ask, and the reason they get it wrong is that
+ * `PrintJobState` cannot express `Preparing` - a job the app has committed to
+ * but the printer has not reported yet.
+ *
+ * Ask this instead of comparing the raw job state whenever the decision is
+ * "would acting now fight the printer for the toolhead": motion and extrusion
+ * guards, filament operations, tool changes, cooldowns, anything that emits
+ * G-code of its own.
+ *
+ * @warning Not a substitute for switching on the lifecycle when a caller must
+ *          distinguish `Paused`. `ams_subscription_backend.cpp` deliberately
+ *          ALLOWS a filament op on a paused print when the backend does not
+ *          self-home, because then no firmware macro can hide a `G28`. This
+ *          predicate is a convenience over the lifecycle, never a replacement
+ *          for it.
+ */
+constexpr bool job_holds_machine(PrintState state) {
+    return state == PrintState::Preparing || state == PrintState::Printing ||
+           state == PrintState::Paused;
+}
+
+/**
  * @brief Result of a state transition attempt
  *
  * Carries all the information the UI layer needs to react to a state change
@@ -38,7 +78,6 @@ struct StateChangeResult {
     bool should_freeze_complete = false;
     bool should_animate_cancelled = false;
     bool should_animate_error = false;
-    bool clear_gcode_loaded = false;
 
     PrintState old_state = PrintState::Idle;
     PrintState new_state = PrintState::Idle;
@@ -67,9 +106,22 @@ class PrintLifecycleState {
      *
      * Maps PrintJobState + PrintOutcome to the internal PrintState enum and
      * computes all transition side-effects.
+     *
+     * @param start_phase The LIVE pre-print phase, so this derives the same
+     *        answer as `PrinterPrintState::publish_lifecycle_state()` does for
+     *        the `print_lifecycle` subject. It used to hard-code 0 on the
+     *        reasoning that `on_start_phase_changed()` owned that axis, which is
+     *        false: a job-state change arriving while a phase is live must still
+     *        let the phase outrank it, exactly as `derive_print_state()` says.
+     *        Hard-coding 0 made this object disagree with the published subject
+     *        for the whole of a pre-print window - `Printing` instead of
+     *        `Preparing` on a firmware-side `PRINT_START`, and `Complete`
+     *        instead of `Preparing` when a host-side block runs after a finished
+     *        job. Defaulted to 0 so the phase-less unit tests, which exercise
+     *        this axis deliberately, keep reading as written.
      */
     StateChangeResult on_job_state_changed(helix::PrintJobState job_state,
-                                           helix::PrintOutcome outcome);
+                                           helix::PrintOutcome outcome, int start_phase = 0);
 
     /**
      * @brief Update print progress percentage

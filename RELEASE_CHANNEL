@@ -1,0 +1,22 @@
+stable
+
+# Which update channel a tagged release from THIS branch publishes to.
+# Read by scripts/release-channel.sh, which drives .github/workflows/release.yml.
+# Valid values: stable, beta, dev
+#
+#   stable -> stable          full GitHub release, triggers the docs deploy
+#   beta   -> beta + dev      GitHub prerelease; the devel track
+#   dev    -> dev             GitHub prerelease; bleeding edge only
+#
+# This is declared per-branch rather than derived from the tag string because
+# helix::version::Version discards prerelease suffixes (include/version.h), so
+# tags like v1.1.0-dev1 and v1.1.0-dev2 compare EQUAL and the in-app updater
+# stops offering devel builds after the first install. Declaring the channel
+# here lets the devel track use plain monotonic versions (1.1.0, 1.1.1, ...)
+# without those tags landing on the stable channel.
+#
+# NOTE: main still says `stable` because it is still the only release line.
+# When the release/1.0 maintenance branch is cut, flip this to `beta` on main
+# in the SAME change that creates release/1.0 (which keeps `stable`). Flipping
+# it before that branch exists would leave the stable fleet with no further
+# updates.

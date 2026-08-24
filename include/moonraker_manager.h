@@ -12,7 +12,6 @@
 #include "runtime_config.h"
 
 #include <atomic>
-#include <chrono>
 #include <memory>
 #include <queue>
 
@@ -21,8 +20,9 @@ namespace helix {
 class Config;
 }
 namespace helix {
+class IMoonrakerClient;
 class MoonrakerClient;
-}
+} // namespace helix
 class MoonrakerAPI;
 namespace helix {
 class PrinterState;
@@ -61,6 +61,10 @@ class MacroModificationManager;
  */
 class MoonrakerManager {
   public:
+    // Out-of-line on purpose: the class holds unique_ptr members of
+    // forward-declared types (e.g. MacroModificationManager), and a defaulted
+    // constructor here would instantiate in every TU that constructs the
+    // manager, requiring those types to be complete there.
     MoonrakerManager();
     ~MoonrakerManager();
 
@@ -117,7 +121,7 @@ class MoonrakerManager {
     /**
      * @brief Get the Moonraker client
      */
-    helix::MoonrakerClient* client() const {
+    helix::IMoonrakerClient* client() const {
         return m_client.get();
     }
 
@@ -142,6 +146,17 @@ class MoonrakerManager {
     void init_print_start_collector();
 
     /**
+     * @brief The pre-print detection collector, if one exists yet
+     *
+     * Exposed so the code that dispatches a host-side pre-start block can tell
+     * the collector that the block is part of the measured window. Returns null
+     * before init or after shutdown; callers must check.
+     */
+    [[nodiscard]] std::shared_ptr<PrintStartCollector> print_start_collector() const {
+        return m_print_start_collector;
+    }
+
+    /**
      * @brief Determine if print start collector should be started
      *
      * Helper function for testing mid-print detection logic.
@@ -160,6 +175,9 @@ class MoonrakerManager {
                                                     int current_progress,
                                                     bool is_initial_transition,
                                                     int current_print_duration = 0) {
+        // RAW_PRINT_STATE_OK: the collector arms on the PRINTER accepting the
+        // job. On the lifecycle the transition would be Idle -> Preparing, which
+        // is the window the collector exists to measure, not its end.
         // Only start on TRANSITION to PRINTING from non-printing state
         bool was_not_printing = (prev_state != helix::PrintJobState::PRINTING &&
                                  prev_state != helix::PrintJobState::PAUSED);
@@ -211,6 +229,55 @@ class MoonrakerManager {
             return false;
         }
         return true;
+    }
+
+    /**
+     * @brief Decide whether a non-printing state should tear the collector down
+     *
+     * A print we initiated ourselves reaches PRINTING via a transient hop: the
+     * printer leaves the previous job's terminal state, passes through STANDBY,
+     * and only then reports PRINTING. The teardown must not fire on that hop, or
+     * a collector armed at commit is stopped on the way into the very print it
+     * was armed for.
+     *
+     * PRINTING and PAUSED never tear it down: PRINT_START runs inside the job,
+     * so the collector has to survive the handoff and finish on its own phase
+     * detection.
+     *
+     * @param new_state         The state just reported
+     * @param has_preparing_job Whether a job is currently being prepared
+     */
+    static inline bool should_stop_print_collector(helix::PrintJobState new_state,
+                                                   bool has_preparing_job) {
+        // RAW_PRINT_STATE_OK: teardown mirrors the arming predicate above; the
+        // preparing axis is carried by the separate has_preparing_job argument
+        // so the two questions stay independent.
+        if (new_state == helix::PrintJobState::PRINTING ||
+            new_state == helix::PrintJobState::PAUSED) {
+            return false;
+        }
+        return !has_preparing_job;
+    }
+
+    /**
+     * @brief Decide whether retiring a preparing job should stop the collector
+     *
+     * The collector is armed at COMMIT, so every way a preparing job can end has
+     * to answer this. `Confirmed` is the one that must NOT stop it: the printer
+     * took the job and PRINT_START runs inside it, so the collector has to
+     * survive the handoff and finish on its own phase detection. Every other
+     * exit - Failed, Cancelled, TimedOut, Superseded - means no print is coming.
+     *
+     * Reading the job state is what separates them without needing the reason:
+     * only a Confirmed retirement leaves the printer PRINTING or PAUSED.
+     *
+     * This is not merely tidy-up. A collector left armed keeps parsing gcode
+     * responses, so the next command the user runs by hand - a home from the
+     * Motion panel - is read as a pre-print phase, which re-raises the
+     * "Preparing Print" overlay and greys the controls they are using.
+     */
+    static inline bool should_stop_collector_on_retirement(helix::PrintJobState job_state) {
+        return should_stop_print_collector(job_state, /*has_preparing_job=*/false);
     }
 
     /**
@@ -323,7 +390,7 @@ class MoonrakerManager {
     void present_event(const MoonrakerEvent& evt);
 
     // Owned resources
-    std::unique_ptr<helix::MoonrakerClient> m_client;
+    std::unique_ptr<helix::IMoonrakerClient> m_client;
     std::unique_ptr<MoonrakerAPI> m_api;
 
     // Thread-safe notification queue
@@ -332,11 +399,16 @@ class MoonrakerManager {
 
     // Print start collector (monitors PRINT_START macro progress)
     std::shared_ptr<PrintStartCollector> m_print_start_collector;
+    ObserverGuard m_preparing_epoch_observer;
     ObserverGuard m_print_start_observer;
     ObserverGuard m_print_start_phase_observer;
     SubjectLifetime m_print_bed_target_fallback_lifetime;
     ObserverGuard m_print_bed_target_fallback_observer;
     ObserverGuard m_print_ext_target_fallback_observer;
+    /// Toolhead position observers feeding the print-start collector's
+    /// silent-window inference (one guard per axis subject; the callback
+    /// reads all three coherently).
+    ObserverGuard m_print_position_observers[3];
     // Pre-print completion observers. The hand-off to the printing phase is
     // gated on the REAL first layer (print_stats.info.current_layer >= 1) — see
     // should_complete_preprint(). The layer observer is the primary signal; the
@@ -356,6 +428,14 @@ class MoonrakerManager {
     /// Owned here because its lifetime must match the mock client's, and the
     /// HTTP base URL it publishes is consumed by connect().
     std::unique_ptr<helix::MockHttpFileServer> m_mock_http;
+
+    /// Non-owning alias for m_client under its concrete type, recorded by
+    /// create_client(). MoonrakerAPIMock still takes a concrete
+    /// helix::MoonrakerClient&, and this is how create_api() gets one without a
+    /// dynamic_cast (the firmware builds -fno-rtti). Only meaningful on non-ESP
+    /// builds, which is the only place HELIX_ENABLE_MOCKS is ever defined, and
+    /// there m_client is always a helix::MoonrakerClient or a subclass of one.
+    helix::MoonrakerClient* m_concrete_client = nullptr;
 #endif
 
     // Destruction flag for async callback safety [L012]
@@ -366,9 +446,6 @@ class MoonrakerManager {
     // libhv event-loop thread (#1219). Invalidated in shutdown() alongside
     // m_alive.
     helix::AsyncLifetimeGuard lifetime_;
-
-    // Startup time for suppressing initial notifications (Klipper ready toast)
-    std::chrono::steady_clock::time_point m_startup_time;
 
     bool m_initialized = false;
 };

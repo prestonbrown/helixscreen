@@ -6,6 +6,7 @@
 #include "printer_temperature_state.h"
 #include "unit_conversions.h"
 
+#include <cmath>
 #include <cstddef>
 #include <string>
 
@@ -75,6 +76,33 @@ inline float deci_to_degrees_f(int deci) {
  */
 inline int degrees_to_deci(int degrees) {
     return helix::units::to_decidegrees(static_cast<double>(degrees));
+}
+
+/**
+ * @brief Snap a reading to the precision the UI actually renders it at.
+ *
+ * format_temp_number() prints one decimal below 100°C and whole degrees at or
+ * above it, so at 219.6°C the card reads "220" while the raw value is still
+ * 2196. Anything that classifies the reading — the heating color, the
+ * Off/Heating/Ready/Cooling status word, the heater icon tint — must classify
+ * THIS value, or the number and the word beside it can disagree: 222.9 against a
+ * 220 target renders "223 / 220" yet truncates to 222, which is inside the
+ * at-temp band and paints a green "Ready".
+ *
+ * The rounding matches printf's `%.0f` (half to even), so it is the same value
+ * the label prints rather than an approximation of it. Below 100°C the decimal
+ * is still on screen, so the reading is already exact and passes through.
+ *
+ * @param deci Temperature in decidegrees
+ * @return The same temperature in decidegrees, snapped to displayed precision
+ */
+inline int displayed_deci(int deci) {
+    // Mirrors format_temp_number()'s `temp >= 100.0f` switch; 1000 decidegrees
+    // is exactly 100.0°C, so the two thresholds cannot drift apart.
+    if (deci < 1000) {
+        return deci;
+    }
+    return static_cast<int>(std::nearbyint(deci / 10.0)) * 10;
 }
 
 // ============================================================================
@@ -180,9 +208,27 @@ char* format_temperature_pair(int current, int target, char* buffer, size_t buff
 char* format_target_or_off(int target, char* buffer, size_t buffer_size);
 
 /**
+ * @brief Format a temperature as a number with the compact-wide rule
+ *
+ * Formats the bare number (no unit suffix) with one decimal place, dropping the
+ * decimal when the integer portion is 3 digits or more (>= 100): "60.5", "211".
+ * This is the shared rule behind format_temperature_f / format_temperature_pair_f;
+ * widgets that render their own unit/label structure (e.g. a separate "°C" label)
+ * call this directly so the decimal-drop behaviour stays consistent everywhere.
+ *
+ * @param temp Temperature in degrees (float)
+ * @param buffer Output buffer
+ * @param buffer_size Size of buffer (recommended: 16)
+ * @return Pointer to buffer for chaining convenience
+ */
+char* format_temp_number(float temp, char* buffer, size_t buffer_size);
+
+/**
  * @brief Format a temperature value with one decimal place
  *
- * Formats as "210.5°C" for precision display (graphs, PID tuning).
+ * Formats as "210.5°C" for precision display (graphs, PID tuning). When the integer
+ * portion is 3 digits or more (>= 100), the decimal is dropped (e.g. "211°C") to keep
+ * wide values compact.
  *
  * @param temp Temperature in degrees (float)
  * @param buffer Output buffer
@@ -194,7 +240,8 @@ char* format_temperature_f(float temp, char* buffer, size_t buffer_size);
 /**
  * @brief Format a float current/target temperature pair
  *
- * Formats as "210.5 / 215.0°C" or "180.5 / —°C" when target is 0.
+ * Formats as "210.5 / 215.0°C" or "180.5 / —°C" when target is 0. Each value drops its
+ * decimal when the integer portion is 3 digits or more (>= 100).
  *
  * @param current Current temperature in degrees (float)
  * @param target Target temperature in degrees (float, 0 = heater off)
@@ -223,6 +270,9 @@ char* format_temperature_range(int min_temp, int max_temp, char* buffer, size_t 
 
 /** Default tolerance for "at temperature" state detection (±degrees) */
 constexpr int DEFAULT_AT_TEMP_TOLERANCE = 2;
+
+/** The same tolerance for callers that classify in decidegrees. */
+constexpr int DEFAULT_AT_TEMP_TOLERANCE_DECI = DEFAULT_AT_TEMP_TOLERANCE * 10;
 
 /**
  * @brief Thermal state of a heater, shared by every consumer of the 4-state logic.

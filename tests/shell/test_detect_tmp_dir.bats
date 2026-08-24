@@ -198,3 +198,87 @@ echo '/dev/sda1   1048576  0  512000  0% /'
     [[ "$output" == *"REPRO_OK"* ]]   # reproduced the bundle mkdir-on-read-only-/tmp failure
     [[ "$output" == *"FIX_OK"* ]]     # sibling staging dir + real extraction succeeded
 }
+
+# ===========================================================================
+# TMP_DIR_PREFERRED — platform-declared staging root
+#
+# On the K2 both /opt (INSTALL_DIR's parent) and /usr/data sit on a 240MB
+# overlay, while the 27.5GB user partition is mounted at /mnt/UDISK. Staging a
+# 60MB archive on the overlay is what filled it. set_install_paths declares the
+# right root for the platform; detect_tmp_dir must honour it ahead of the
+# generic sibling candidate.
+# ===========================================================================
+
+@test "detect_tmp_dir: TMP_DIR_PREFERRED wins over the INSTALL_DIR sibling" {
+    local big parent fake_install
+    big="$(mktemp -d "$BATS_TEST_TMPDIR/udisk.XXXXXX")"
+    parent="$(mktemp -d "$BATS_TEST_TMPDIR/overlay.XXXXXX")"
+    fake_install="$parent/helixscreen"
+    mkdir -p "$fake_install"
+
+    export INSTALL_DIR="$fake_install"
+    export TMP_DIR_PREFERRED="$big/helixscreen-install"
+    export TMP_DIR=""
+
+    detect_tmp_dir
+
+    [ "$TMP_DIR" = "$big/helixscreen-install" ]
+}
+
+@test "detect_tmp_dir: unset TMP_DIR_PREFERRED keeps the sibling behaviour" {
+    local parent fake_install
+    parent="$(mktemp -d "$BATS_TEST_TMPDIR/parent2.XXXXXX")"
+    fake_install="$parent/helixscreen"
+    mkdir -p "$fake_install"
+
+    export INSTALL_DIR="$fake_install"
+    unset TMP_DIR_PREFERRED
+    export TMP_DIR=""
+
+    detect_tmp_dir
+
+    [ "$TMP_DIR" = "$parent/.helixscreen-install" ]
+}
+
+@test "detect_tmp_dir: TMP_DIR_PREFERRED on a missing parent falls through" {
+    # A platform may declare a root that this particular unit does not have.
+    # That must degrade to the normal probe, not abort the install.
+    local parent fake_install
+    parent="$(mktemp -d "$BATS_TEST_TMPDIR/parent3.XXXXXX")"
+    fake_install="$parent/helixscreen"
+    mkdir -p "$fake_install"
+
+    export INSTALL_DIR="$fake_install"
+    export TMP_DIR_PREFERRED="$BATS_TEST_TMPDIR/no/such/mount/helixscreen-install"
+    export TMP_DIR=""
+
+    detect_tmp_dir
+
+    [ "$TMP_DIR" = "$parent/.helixscreen-install" ]
+}
+
+@test "detect_tmp_dir: TMP_DIR_PREFERRED is still name-guarded" {
+    # The chosen dir gets rm -rf'd on exit. A platform declaring a bare
+    # mountpoint must never be accepted verbatim — that is the /mnt/UDISK
+    # incident shape.
+    local big
+    big="$(mktemp -d "$BATS_TEST_TMPDIR/udisk2.XXXXXX")"
+
+    export INSTALL_DIR="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$INSTALL_DIR"
+    export TMP_DIR_PREFERRED="$big"
+    export TMP_DIR=""
+
+    detect_tmp_dir
+
+    # Must NOT have accepted the bare directory as the scratch dir.
+    [ "$TMP_DIR" != "$big" ]
+}
+
+@test "k2 declares /mnt/UDISK as its staging root" {
+    # /opt and /usr/data are the 240MB overlay on this box; /mnt/UDISK is the
+    # 27.5GB user partition.
+    run bash -c "grep -A 20 '\"k2\"' '$WORKTREE_ROOT/scripts/lib/installer/platform.sh' | grep TMP_DIR_PREFERRED"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q '/mnt/UDISK'
+}

@@ -1,0 +1,54 @@
+diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv_linux_drm.c
+--- a/src/drivers/display/drm/lv_linux_drm.c
++++ b/src/drivers/display/drm/lv_linux_drm.c
+@@ -3,6 +3,18 @@
+  *
+  */
+ 
++/* DRM hands out dumb-buffer mmap offsets from DRM_FILE_PAGE_OFFSET_START, which
++ * is 4 GiB, so every offset returned by DRM_IOCTL_MODE_MAP_DUMB is above 2^32.
++ * mmap() takes an off_t, and on 32-bit userspace that is 32 bits wide unless
++ * large-file support is requested, which silently truncates the offset and makes
++ * the mmap fail. Ask for a 64-bit off_t before any system header is pulled in:
++ * glibc then redirects mmap() to mmap64(), while musl and 64-bit targets already
++ * have a 64-bit off_t and see this as a no-op. Must stay above the first
++ * #include - features.h latches the value on first inclusion. */
++#ifndef _FILE_OFFSET_BITS
++    #define _FILE_OFFSET_BITS 64
++#endif
++
+ /*********************
+  *      INCLUDES
+  *********************/
+@@ -50,7 +62,7 @@
+ typedef struct {
+     uint32_t handle;
+     uint32_t pitch;
+-    uint32_t offset;
++    uint64_t offset; /* DRM map offsets start at 4 GiB, so 32 bits is not enough */
+     unsigned long int size;
+     uint8_t * map;
+     uint32_t fb_handle;
+@@ -899,9 +911,11 @@
+     }
+ 
+     buf->offset = mreq.offset;
+-    LV_LOG_INFO("size %lu pitch %u offset %u", buf->size, buf->pitch, buf->offset);
++    LV_LOG_INFO("size %lu pitch %u offset 0x%" PRIx64, buf->size, buf->pitch, buf->offset);
+ 
+-    /* perform actual memory mapping */
++    /* perform actual memory mapping. mreq.offset is a __u64 above 4 GiB; off_t must
++     * be wide enough to carry it or the mapping fails with EINVAL. */
++    _Static_assert(sizeof(off_t) == 8, "off_t must be 64-bit: DRM mmap offsets exceed 2^32");
+     buf->map = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, drm_dev->fd, mreq.offset);
+     if(buf->map == MAP_FAILED) {
+         LV_LOG_ERROR("mmap fail");
+@@ -967,7 +981,7 @@
+     offsets[0] = buf->offset = gbm_bo_get_offset(gbm_bo, 0);
+     buf->size = h * buf->pitch;
+ 
+-    LV_LOG_INFO("Created GBM BO of size: %lu pitch: %u offset: %u",
++    LV_LOG_INFO("Created GBM BO of size: %lu pitch: %u offset: %" PRIu64,
+                 buf->size, buf->pitch, buf->offset);
+ 
+     prime_fd = gbm_bo_get_fd_for_plane(gbm_bo, 0);

@@ -20,13 +20,13 @@ void ScanScheduler::on_scan_complete(size_t result_count, bool connected) {
 
     if (unchanged) {
         unchanged_streak_++;
-        interval_ms_ = std::min(interval_ms_ + kBaseIntervalMs, kMaxIntervalMs);
+        interval_ms_ = std::min(interval_ms_ + BASE_INTERVAL_MS, MAX_INTERVAL_MS);
         if (connected && unchanged_streak_ >= 2) {
             suppressed_ = true;
         }
     } else {
         unchanged_streak_ = 0;
-        interval_ms_ = kBaseIntervalMs;
+        interval_ms_ = BASE_INTERVAL_MS;
         // Deliberately does NOT clear suppressed_ — only on_user_refresh()
         // and on_disconnected() do that. In practice this branch can only
         // run while suppressed if a caller forced a scan through despite
@@ -40,7 +40,7 @@ void ScanScheduler::on_scan_complete(size_t result_count, bool connected) {
 void ScanScheduler::on_scan_failed() {
     // Deliberately touches nothing but the outstanding flag. In particular
     // interval_ms_ is left exactly as it was — not grown (a failure isn't
-    // evidence of a stable environment) and not reset to kBaseIntervalMs
+    // evidence of a stable environment) and not reset to BASE_INTERVAL_MS
     // either (a failure isn't evidence the environment changed). Whatever
     // cadence was in effect before the failed attempt is still the best
     // guess for the next one.
@@ -50,13 +50,13 @@ void ScanScheduler::on_scan_failed() {
 void ScanScheduler::on_user_refresh() {
     suppressed_ = false;
     unchanged_streak_ = 0;
-    interval_ms_ = kBaseIntervalMs;
+    interval_ms_ = BASE_INTERVAL_MS;
 }
 
 void ScanScheduler::on_disconnected() {
     suppressed_ = false;
     unchanged_streak_ = 0;
-    interval_ms_ = kBaseIntervalMs;
+    interval_ms_ = BASE_INTERVAL_MS;
 }
 
 bool ScanScheduler::should_trigger() const {

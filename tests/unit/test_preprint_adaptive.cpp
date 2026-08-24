@@ -47,6 +47,8 @@ class PrePrintOptionsRendererTestAccess {
 };
 } // namespace helix::ui
 
+#include "ui_update_queue.h"
+
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "pre_print_option.h"
@@ -130,8 +132,19 @@ bool has_param_name(const std::vector<std::pair<std::string, std::string>>& para
 
 // Configure an existing manager against a synthetic option set + provider.
 // (PrintPreparationManager is non-movable, so we configure in place.)
+//
+// `has_plugin` decides whether the adaptive params can be DELIVERED: emitting
+// them rewrites the START_PRINT call in the file, which needs the HelixPrint
+// plugin (or a pre-start mechanism — see the setup_gcode case below). Default
+// true so the emission tests state the params' content, not their gating.
 void configure_manager(PrintPreparationManager& manager, PrinterState& ps, PrePrintOptionSet set,
-                       MockOptionState& state) {
+                       MockOptionState& state, bool has_plugin = true) {
+    // set_helix_plugin_installed() defers through UpdateQueue (it also refreshes
+    // composite visibility subjects), so the subject is unchanged until the queue
+    // runs. Without this drain service_has_helix_plugin() still reads -1 and every
+    // plugin-present case silently tests the plugin-absent path.
+    ps.set_helix_plugin_installed(has_plugin);
+    helix::ui::UpdateQueue::instance().drain();
     PrinterStateTestAccess::set_option_set(ps, std::move(set));
     manager.set_dependencies(nullptr, &ps);
     manager.set_option_state_provider(state.provider());
@@ -246,6 +259,89 @@ TEST_CASE_METHOD(HelixTestFixture,
     // Even with adaptive available, a DISABLED bed mesh must not run — no ADAPTIVE.
     PrintPreparationManager manager;
     configure_manager(manager, ps, make_bed_mesh_set("ADAPTIVE", /*active=*/true), state);
+    auto params = PrintPreparationManagerTestAccess::get_skip_params(manager);
+
+    REQUIRE(has_param(params, "SKIP_LEVELING", "1"));
+    REQUIRE_FALSE(has_param_name(params, "ADAPTIVE"));
+}
+
+// ============================================================================
+// Deliverability gate (#1269): the adaptive pair is the ONLY emission that
+// fires on ENABLED, so it has no plugin-gated toggle hiding it the way every
+// DISABLED emitter does. Emitting params that cannot be written into the file
+// made start_print() drop them and warn on EVERY print, for the default state,
+// with no visible control that could stop it.
+// ============================================================================
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrePrint adaptive: no plugin and no pre-start mechanism emits nothing",
+                 "[adaptive][preprint][1269]") {
+    lv_init_safe();
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    MockOptionState state;
+    state.enable("bed_mesh");
+
+    // The #1269 Voron: adaptive-capable PRINT_START, bed mesh ENABLED (default),
+    // no HelixPrint plugin, no setup_gcode. The rewrite that would carry these
+    // params cannot happen, so collecting them only produces a warning.
+    PrintPreparationManager manager;
+    configure_manager(manager, ps, make_bed_mesh_set("ADAPTIVE", /*active=*/true), state,
+                      /*has_plugin=*/false);
+    auto params = PrintPreparationManagerTestAccess::get_skip_params(manager);
+
+    REQUIRE_FALSE(has_param_name(params, "ADAPTIVE"));
+    REQUIRE_FALSE(has_param_name(params, "SKIP_LEVELING"));
+    // Empty is the whole point: start_print() only reaches the capability check
+    // (and its warning) when the skip-param list is non-empty.
+    REQUIRE(params.empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrePrint adaptive: printer setup_gcode delivers params without the plugin",
+                 "[adaptive][preprint][1269]") {
+    lv_init_safe();
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    MockOptionState state;
+    state.enable("bed_mesh");
+
+    // K1/K1C shape: a printer-level setup_gcode (PRINT_PREPARED) carries the
+    // intent instead of a file rewrite, and it is TRIGGERED by the skip-param
+    // list being non-empty. Suppressing the emit here would silently disarm it,
+    // so the plugin-absent gate must not reach this printer.
+    PrePrintOptionSet set = make_bed_mesh_set("ADAPTIVE", /*active=*/true);
+    set.setup_gcode = "PRINT_PREPARED";
+
+    PrintPreparationManager manager;
+    configure_manager(manager, ps, std::move(set), state, /*has_plugin=*/false);
+    auto params = PrintPreparationManagerTestAccess::get_skip_params(manager);
+
+    REQUIRE(has_param(params, "SKIP_LEVELING", "0"));
+    REQUIRE(has_param(params, "ADAPTIVE", "1"));
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrePrint adaptive: disabled still emits its skip param without the plugin",
+                 "[adaptive][preprint][1269]") {
+    lv_init_safe();
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    MockOptionState state;
+    state.disable("bed_mesh");
+
+    // The gate is scoped to the adaptive ENABLED emit only. An explicit DISABLE
+    // is a choice the user made and must still be collected — start_print()
+    // warning that it cannot honor it is correct behavior there, not noise.
+    PrintPreparationManager manager;
+    configure_manager(manager, ps, make_bed_mesh_set("ADAPTIVE", /*active=*/true), state,
+                      /*has_plugin=*/false);
     auto params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
     REQUIRE(has_param(params, "SKIP_LEVELING", "1"));

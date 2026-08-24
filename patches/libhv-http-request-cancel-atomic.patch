@@ -1,0 +1,42 @@
+diff --git a/http/HttpMessage.h b/http/HttpMessage.h
+index 55e5c62..8de087a 100644
+--- a/http/HttpMessage.h
++++ b/http/HttpMessage.h
+@@ -36,6 +36,7 @@
+ #include <string>
+ #include <map>
+ #include <functional>
++#include <atomic>
+ 
+ #include "hexport.h"
+ #include "hbase.h"
+@@ -385,7 +386,15 @@ public:
+     uint32_t            retry_delay;    // unit: ms
+     unsigned            redirect: 1;
+     unsigned            proxy   : 1;
+-    unsigned            cancel  : 1;
++    // PATCH NOTE(helixscreen): `cancel` is set from OTHER threads while the
++    // request is in flight — e.g. CameraStream::stop() cancels the streaming
++    // MJPEG request from the UI thread while the worker runs
++    // requests::request() on it. As a bitfield it shared its word with
++    // redirect/proxy, so Cancel() raced ParseUrl()'s unsynchronized
++    // read-modify-write of the neighbouring bits (ThreadSanitizer:
++    // heap word race in HttpRequest::Cancel). A dedicated atomic keeps the
++    // cross-thread flag safe without disturbing the bitfields.
++    std::atomic<int>    cancel{0};
+ 
+     HttpRequest();
+ 
+@@ -462,8 +471,10 @@ public:
+         retry_count = count;
+         retry_delay = delay;
+     }
+-    void Cancel() { cancel = 1; }
+-    bool IsCanceled() { return cancel == 1; }
++    // PATCH NOTE(helixscreen): relaxed is sufficient — cancellation is a
++    // one-way hint; the reader only needs to eventually observe it.
++    void Cancel() { cancel.store(1, std::memory_order_relaxed); }
++    bool IsCanceled() { return cancel.load(std::memory_order_relaxed) == 1; }
+ 
+     // Range: bytes=0-4095
+     void SetRange(long from = 0, long to = -1);

@@ -82,6 +82,53 @@ headless_socket() {
     grep -qi "software renderer" "$log"
 }
 
+@test "SDL_VIDEODRIVER=dummy silences audio (no beeps under ctl)" {
+    # SDL's video and audio subsystems are independent: SDL_VIDEODRIVER=dummy
+    # alone still opens the real PulseAudio/PipeWire/ALSA device and audibly
+    # beeps through the desktop speakers — pure spam for a headless run.
+    # main()'s silence_audio_if_headless() forces SDL_AUDIODRIVER=dummy so a
+    # headless run stays headless. The visible signal is the driver name in
+    # the [SDLSound] init log; without the override it would be 'pulseaudio'
+    # or 'pipewire' on a dev box.
+    require_binary
+    local log="$BATS_TEST_TMPDIR/audio.log"
+
+    # -u SDL_AUDIODRIVER: make sure the test isn't polluted by the dev box's
+    # own audio driver setting. HELIX_CONFIG_DIR isolates the instance lock.
+    run env -u SDL_AUDIODRIVER SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" \
+        --test -vv --remote-socket "$(headless_socket)"
+    printf '%s\n' "$output" > "$log"
+
+    # If SDL audio initialized at all, it must be on the dummy driver.
+    # (On a CI runner with no SDL audio at all, SDLSoundBackend::initialize()
+    # fails and SoundManager falls through to ALSA/PWM/none — the line is
+    # absent and the assertion is vacuously satisfied.)
+    if grep -q "SDLSound" "$log"; then
+        grep -q "driver 'dummy'" "$log"
+    fi
+}
+
+@test "explicit SDL_AUDIODRIVER is respected under SDL_VIDEODRIVER=dummy" {
+    # overwrite=0 in main()'s setenv: a developer who wants to debug audio
+    # under a headless window exports SDL_AUDIODRIVER themselves and that
+    # wins. We assert that the binary does NOT overwrite it with 'dummy'.
+    # Use a real but unlikely-to-be-default value; we can't guarantee the
+    # box has pulseaudio/pipewire, but 'alsa' is part of SDL's stock list
+    # and selecting it via env still gets passed through to SDL_Init.
+    require_binary
+    local log="$BATS_TEST_TMPDIR/audio-explicit.log"
+
+    run env SDL_AUDIODRIVER=alsa SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" \
+        --test -vv --remote-socket "$(headless_socket)"
+    printf '%s\n' "$output" > "$log"
+
+    # Driver name should be 'alsa' if SDL audio came up at all — never
+    # silently overridden to 'dummy'.
+    if grep -q "SDLSound" "$log"; then
+        ! grep -q "driver 'dummy'" "$log"
+    fi
+}
+
 @test "headless instance can be driven via ctl and capture a screenshot" {
     require_binary
     local sock shot

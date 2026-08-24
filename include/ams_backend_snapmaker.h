@@ -67,7 +67,7 @@ struct SnapmakerRfidInfo {
 
 class AmsBackendSnapmaker : public AmsSubscriptionBackend {
   public:
-    AmsBackendSnapmaker(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~AmsBackendSnapmaker() override;
 

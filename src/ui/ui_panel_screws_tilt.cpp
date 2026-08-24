@@ -11,8 +11,8 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
@@ -37,8 +37,8 @@ static lv_subject_t s_screws_tilt_state;
 
 // Forward declarations
 static void on_screws_tilt_row_clicked(lv_event_t* e);
-MoonrakerClient* get_moonraker_client();
-MoonrakerAPI* get_moonraker_api();
+IMoonrakerClient* get_moonraker_client();
+IMoonrakerAPI* get_moonraker_api();
 
 ScrewsTiltPanel& get_global_screws_tilt_panel() {
     if (!s_screws_tilt_panel) {
@@ -88,8 +88,8 @@ static void on_screws_tilt_row_clicked(lv_event_t* e) {
         }
 
         // Set client and API before creating UI
-        MoonrakerClient* client = get_moonraker_client();
-        MoonrakerAPI* api = get_moonraker_api();
+        IMoonrakerClient* client = get_moonraker_client();
+        IMoonrakerAPI* api = get_moonraker_api();
         panel.set_client(client, api);
 
         // Create the overlay UI

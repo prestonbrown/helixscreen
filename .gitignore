@@ -13,6 +13,12 @@ lib/sdl2/build/
 node_modules/
 package-lock.json
 
+# ...except the Cloudflare Worker packages, whose lockfiles CI needs. The
+# Server Tests workflow runs `npm ci`, which requires a committed lockfile and
+# installs the exact same tree every run. Without these, a floating transitive
+# dependency can turn CI red overnight with no code change.
+!server/*/package-lock.json
+
 # Python virtual environment
 .venv/
 
@@ -76,7 +82,6 @@ IMPLEMENTATION_PLAN.md
 .claude/*.lock
 .claude/projects/
 .claude/worktrees/
-.claude-recall/.gitignore
 
 # OpenCode local state
 .opencode/state/
@@ -124,6 +129,25 @@ assets/fonts/NotoSansCJK*.otf
 config/helixconfig.json.voronv2
 
 # ============================================================================
+# Signing Material — NEVER commit any of this
+# ============================================================================
+# The Android upload keystore lives at ~/.android-keystore/ and reaches CI as
+# the ANDROID_KEYSTORE_BASE64 secret; nothing signing-related belongs in the
+# tree. Committing one means rotating the key, and for the upload key that
+# means asking Google to reset it. The Play service-account JSON is worse: it
+# can push arbitrary code to production.
+*.jks
+*.keystore
+*.p12
+*.pfx
+# Google Play service account (PLAY_SERVICE_ACCOUNT_JSON), under the names the
+# Cloud Console and the docs hand out.
+service-account*.json
+play-service-account*.json
+play-store-credentials*.json
+google-play-*.json
+
+# ============================================================================
 # Telemetry Analytics (local data pulled from R2)
 # ============================================================================
 .telemetry-data/
@@ -133,6 +157,7 @@ config/crash.txt
 config/crash_*.txt
 config/crash_history.json
 config/tool_spools.json
+config/filament_slot_overrides.json
 config/.crash_restart_count
 config/.helix-screen.lock
 .superpowers/

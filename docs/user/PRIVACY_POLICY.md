@@ -206,7 +206,7 @@ After the retention period, raw events are permanently deleted. Aggregated data 
 
 ### 9.1 Right to Withdraw Consent
 
-You may withdraw consent at any time by navigating to **Settings > Telemetry** and disabling the **Share Usage Data** toggle. When disabled:
+You may withdraw consent at any time by navigating to **Settings > System > Share Usage Data** and disabling the toggle. When disabled:
 
 - No new events are recorded
 - No queued events are transmitted
@@ -214,7 +214,7 @@ You may withdraw consent at any time by navigating to **Settings > Telemetry** a
 
 ### 9.2 Right to Erasure of Local Data
 
-You may delete all locally queued telemetry events by navigating to **Settings > Telemetry > View Telemetry Data** and tapping **Clear All Events**. This permanently removes all pending events from your device.
+You may delete all locally queued telemetry events by navigating to **Settings > System > Share Usage Data > View Telemetry Data** and tapping **Clear All Events**. This permanently removes all pending events from your device.
 
 ### 9.3 Server-Side Data and Article 11
 
@@ -228,7 +228,7 @@ If you have concerns, you may:
 
 ### 9.4 Right to Information
 
-You can inspect the exact data queued for transmission at any time via **Settings > Telemetry > View Telemetry Data**. The raw JSON shown is identical to what would be sent to the server.
+You can inspect the exact data queued for transmission at any time via **Settings > System > Share Usage Data > View Telemetry Data**. The raw JSON shown is identical to what would be sent to the server.
 
 ### 9.5 Right to Lodge a Complaint
 
@@ -261,7 +261,7 @@ HelixScreen is open-source software. The complete telemetry implementation is av
 - **Telemetry manager**: `src/system/telemetry_manager.cpp`
 - **Crash handler**: `src/system/crash_handler.cpp`
 - **Unit tests**: `tests/unit/test_telemetry_manager.cpp`
-- **User documentation**: `docs/TELEMETRY.md`
+- **User documentation**: `docs/user/TELEMETRY.md`
 
 You are welcome to audit the source code to verify that the telemetry system behaves exactly as described in this policy.
 

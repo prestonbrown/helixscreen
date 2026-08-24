@@ -42,7 +42,7 @@ namespace {
 
 // Closed port on loopback: connect() fails fast with RST, so the reconnect
 // chain cycles quickly instead of waiting on a SYN timeout.
-constexpr const char* kDeadUrl = "ws://127.0.0.1:19998/websocket";
+constexpr const char* DEAD_URL = "ws://127.0.0.1:19998/websocket";
 
 struct LoopClient {
     LoopClient() : loop_(std::make_shared<hv::EventLoopThread>()) {
@@ -76,7 +76,7 @@ TEST_CASE("A never-opened WebSocket escalates to CONNECTION_FAILED",
     // Production default is 60s; shorten so the test does not sit through it.
     c.client_->set_initial_connect_failure_timeout(200);
 
-    c.client_->connect(kDeadUrl, []() {}, []() {});
+    c.client_->connect(DEAD_URL, []() {}, []() {});
 
     // Poll rather than sleep a fixed span: the reconnect cadence is libhv's.
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
@@ -105,6 +105,14 @@ TEST_CASE("A never-opened WebSocket escalates to CONNECTION_FAILED",
     // reporter had a stale host in settings and no surface anywhere told them
     // which address the app was dialing.
     CHECK(failure_message.find("19998") != std::string::npos);
+
+    // DEAD_URL is loopback, i.e. the printer HelixScreen is running on. Telling
+    // that user to "check that the printer is powered on and that this address
+    // is correct" is advice they cannot act on — the screen in their hand proves
+    // the printer is up, and 127.0.0.1 is not wrong. AD5X bundles TAU4PW4H /
+    // 865DXBQ7 are two boots of exactly this, with Moonraker simply not running.
+    CHECK(failure_message.find("this printer") != std::string::npos);
+    CHECK(failure_message.find("address is correct") == std::string::npos);
 
     // FAILED (not DISCONNECTED) is what PrinterStatusIcon renders as an error.
     CHECK(c.client_->get_connection_state() == ConnectionState::FAILED);

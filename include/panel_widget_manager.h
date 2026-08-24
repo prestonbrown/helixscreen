@@ -5,14 +5,14 @@
 
 #include "ui_observer_guard.h"
 
+#include "helix_type_tag.h"
 #include "panel_widget_config.h"
 
-#include <any>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
-#include <typeindex>
 #include <unordered_map>
 #include <vector>
 
@@ -35,24 +35,32 @@ class PanelWidgetManager {
     static PanelWidgetManager& instance();
 
     // -- Shared resources --
-    // Type-erased storage. Widgets request shared objects by type.
+    // Type-erased storage keyed by helix::type_tag<T>() rather than typeid, so this
+    // header compiles under -fno-rtti (ESP32 firmware). The stored void* is always
+    // the T* the caller named at registration: the tag is the key, so a slot can only
+    // ever be written by register_shared_resource<T> and read by shared_resource<T>
+    // for the same T. That makes the static_cast<T*> on retrieval exact - it is the
+    // reverse of the static_pointer_cast<void> below, not a cross-hierarchy guess.
+    // Registration under a base/interface type is still the caller's choice (see
+    // subject_initializer.cpp registering IMoonrakerAPI); the pointer is converted to
+    // the base at the call site, before erasure, so both ends agree on T.
     template <typename T> void register_shared_resource(std::shared_ptr<T> resource) {
-        shared_resources_[std::type_index(typeid(T))] = std::move(resource);
+        shared_resources_[type_tag<T>()] = std::static_pointer_cast<void>(std::move(resource));
     }
 
     /// Register a non-owning raw pointer as a shared resource.
     /// The caller is responsible for ensuring the pointed-to object outlives usage.
     template <typename T> void register_shared_resource(T* raw) {
         // Wrap in a no-op-deleter shared_ptr so retrieval path stays uniform.
-        shared_resources_[std::type_index(typeid(T))] = std::shared_ptr<T>(raw, [](T*) {});
+        shared_resources_[type_tag<T>()] =
+            std::shared_ptr<void>(static_cast<void*>(raw), [](void*) {});
     }
 
     template <typename T> T* shared_resource() const {
-        auto it = shared_resources_.find(std::type_index(typeid(T)));
+        auto it = shared_resources_.find(type_tag<T>());
         if (it == shared_resources_.end())
             return nullptr;
-        auto ptr = std::any_cast<std::shared_ptr<T>>(&it->second);
-        return ptr ? ptr->get() : nullptr;
+        return static_cast<T*>(it->second.get());
     }
 
     void clear_shared_resources();
@@ -108,6 +116,12 @@ class PanelWidgetManager {
     /// Main-thread only — no synchronization on the cache maps.
     void clear_all_panel_configs();
 
+    /// Move grid_descriptors_ entries matching `prefix` (empty = all) into
+    /// retired_grid_descriptors_ instead of freeing them — the clear paths have
+    /// no container handle to unstyle, and LVGL's grid style still holds the raw
+    /// dsc pointers. See retired_grid_descriptors_ for the lifetime contract.
+    void retire_grid_descriptors_matching(const std::string& prefix);
+
     /// Get the PanelWidgetConfig for a panel (creates if needed).
     class PanelWidgetConfig& get_widget_config(const std::string& panel_id);
 
@@ -121,7 +135,8 @@ class PanelWidgetManager {
 
     bool widget_subjects_initialized_ = false;
     bool populating_ = false;
-    std::unordered_map<std::type_index, std::any> shared_resources_;
+    /// Keyed by helix::type_tag<T>(); values are the erased T* (see the accessors above).
+    std::unordered_map<std::size_t, std::shared_ptr<void>> shared_resources_;
     std::unordered_map<std::string, RebuildCallback> rebuild_callbacks_;
 
     /// Per-panel gate observers that trigger widget rebuilds on hardware changes
@@ -158,6 +173,17 @@ class PanelWidgetManager {
         std::vector<int32_t> row_dsc;
     };
     std::unordered_map<std::string, GridDescriptors> grid_descriptors_;
+
+    /// Descriptor arrays dropped by clear_panel_config()/clear_all_panel_configs().
+    /// LVGL's grid style stores the raw dsc pointers WITHOUT copying them, and the
+    /// clear paths have no handle to the container(s) to unstyle, so freeing the
+    /// vectors on the spot leaves every still-existing grid reading freed memory
+    /// (heap-use-after-free in grid_count_tracks via GridEditMode::current_metrics,
+    /// 2026-08-17 nightly). Keyed by the original cache key: a populate_page() for
+    /// that key re-points the container's style, which is the first moment the old
+    /// array is provably unreferenced, and that is exactly when the entry is
+    /// dropped. Bounded by the same panel×page count as grid_descriptors_ itself.
+    std::unordered_map<std::string, GridDescriptors> retired_grid_descriptors_;
 
     /// Track current widget configuration per panel to detect no-op rebuilds.
     /// When populate_widgets() is called and the ordered list of widget IDs

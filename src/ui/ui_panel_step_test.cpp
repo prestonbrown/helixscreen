@@ -34,9 +34,9 @@ static const int HORIZONTAL_STEP_COUNT = sizeof(HORIZONTAL_STEPS) / sizeof(HORIZ
 // CONSTRUCTOR
 // ============================================================================
 
-StepTestPanel::StepTestPanel(PrinterState& printer_state, MoonrakerAPI* api)
+StepTestPanel::StepTestPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    // StepTestPanel doesn't use PrinterState or MoonrakerAPI, but we accept
+    // StepTestPanel doesn't use PrinterState or IMoonrakerAPI, but we accept
     // them for interface consistency with other panels
 }
 

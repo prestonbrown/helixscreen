@@ -27,8 +27,20 @@
             height="content" scrollable="false" clickable="false" event_bubble="true" flex_flow="row"
             style_flex_main_place="center" style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_xs"
             style_bg_opa="0" style_border_width="0">
-      <lv_image name="unit_logo" width="#ams_logo_size" height="#ams_logo_size" inner_align="contain"/>
-      <text_body name="unit_name" text="Unit" translation_tag="Unit"/>
+      <!-- The logo is the first thing to go when the cards are width-starved: on a
+           5-unit rig it costs ~28px of a ~102px card, and the unit's NAME is what
+           the row is for. No inline hidden="" here - an inline attr would outrank
+           the binding. -->
+      <lv_image name="unit_logo" width="#ams_logo_size" height="#ams_logo_size" inner_align="contain">
+        <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
+      </lv_image>
+      <!-- width="1"+flex_grow so the label is sized by the row rather than by its
+           own content: a name longer than the card used to size to content, overflow
+           the centered row, and get clipped at BOTH ends ("HTLF Claymore 1" read as
+           "TLF Claym"). long_mode="dots" needs a bounded width to do anything. -->
+      <text_body name="unit_name"
+                 width="1" height="#ams_unit_name_h" text="Unit" translation_tag="Unit" flex_grow="1" long_mode="dots"
+                 style_text_align="center"/>
     </lv_obj>
     <!-- Body row: slot content on the left, environment/dryer indicator on the right.
          Keeping the indicator in the row (not stacked below) prevents it from growing

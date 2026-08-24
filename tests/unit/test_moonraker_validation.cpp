@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../../src/api/moonraker_api_internal.h"
+#include "filament_database.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -166,6 +167,121 @@ TEST_CASE("is_safe_identifier() rejects dangerous identifiers",
 
 TEST_CASE("is_safe_identifier() rejects empty identifier", "[moonraker_validation][identifier]") {
     REQUIRE(is_safe_identifier("") == false);
+}
+
+// ============================================================================
+// is_safe_material_param() / gcode_param_value() Tests
+// ============================================================================
+//
+// SET_MATERIAL (AFC) and MMU_GATE_MAP (Happy Hare) used to gate the material on
+// is_safe_gcode_param() -> is_safe_identifier(), whose charset is [A-Za-z0-9_ ].
+// That rejected `PLA+` — which HelixScreen itself offers from
+// filament_database.h — so every spool save silently dropped the material and
+// still reported success (bundle XGVDYEB5).
+
+TEST_CASE("is_safe_material_param() accepts real material names",
+          "[moonraker_validation][material]") {
+    SECTION("plain names") {
+        REQUIRE(is_safe_material_param("PLA") == true);
+        REQUIRE(is_safe_material_param("ABS") == true);
+        REQUIRE(is_safe_material_param("PETG") == true);
+    }
+
+    SECTION("plus suffix — the reported failure") {
+        REQUIRE(is_safe_material_param("PLA+") == true);
+        REQUIRE(is_safe_material_param("ABS+") == true);
+        REQUIRE(is_safe_material_param("ASA+") == true);
+    }
+
+    SECTION("hyphenated fibre-filled grades") {
+        REQUIRE(is_safe_material_param("PA6-CF") == true);
+        REQUIRE(is_safe_material_param("PETG-CF") == true);
+        REQUIRE(is_safe_material_param("PC-ABS") == true);
+        REQUIRE(is_safe_material_param("PLA-GF") == true);
+    }
+
+    SECTION("multi-word names") {
+        REQUIRE(is_safe_material_param("Silk PLA") == true);
+        REQUIRE(is_safe_material_param("Matte PLA") == true);
+    }
+
+    SECTION("remaining allowed punctuation") {
+        REQUIRE(is_safe_material_param("PLA 1.75") == true);
+        REQUIRE(is_safe_material_param("PA (dry)") == true);
+        REQUIRE(is_safe_material_param("PC/ABS") == true);
+        REQUIRE(is_safe_material_param("wood_fill") == true);
+    }
+}
+
+TEST_CASE("is_safe_material_param() rejects G-code injection vectors",
+          "[moonraker_validation][material][security]") {
+    SECTION("semicolon (Klipper comment — truncates the command)") {
+        REQUIRE(is_safe_material_param("PLA;G28") == false);
+    }
+
+    SECTION("newline (splits a gcode script into two commands)") {
+        REQUIRE(is_safe_material_param("PLA\nG28") == false);
+    }
+
+    SECTION("carriage return") {
+        REQUIRE(is_safe_material_param("PLA\rG28") == false);
+    }
+
+    SECTION("hash (Klipper's other comment character)") {
+        REQUIRE(is_safe_material_param("PLA#1") == false);
+    }
+
+    SECTION("asterisk (checksum separator)") {
+        REQUIRE(is_safe_material_param("PLA*42") == false);
+    }
+
+    SECTION("quote and backslash — would escape gcode_param_value()'s quoting") {
+        REQUIRE(is_safe_material_param("PLA\" EXTRUDE=1 X=\"") == false);
+        REQUIRE(is_safe_material_param("PLA\\") == false);
+        REQUIRE(is_safe_material_param("PLA'") == false);
+    }
+
+    SECTION("equals (would forge a second parameter)") {
+        REQUIRE(is_safe_material_param("PLA LANE=lane2") == false);
+    }
+
+    SECTION("tabs and other control characters") {
+        REQUIRE(is_safe_material_param("PLA\tG28") == false);
+        REQUIRE(is_safe_material_param(std::string("PLA\0G28", 7)) == false);
+    }
+
+    SECTION("non-ASCII bytes") {
+        REQUIRE(is_safe_material_param("Grün") == false);
+    }
+}
+
+TEST_CASE("is_safe_material_param() rejects empty material", "[moonraker_validation][material]") {
+    REQUIRE(is_safe_material_param("") == false);
+}
+
+TEST_CASE("is_safe_material_param() accepts every material HelixScreen offers",
+          "[moonraker_validation][material]") {
+    // The bug class, not just the one reported instance: any name the filament
+    // database offers must survive the validator that persists it, or picking it
+    // in the UI silently writes nothing.
+    for (size_t i = 0; i < filament::MATERIAL_COUNT; ++i) {
+        INFO("material: " << filament::MATERIALS[i].name);
+        REQUIRE(is_safe_material_param(filament::MATERIALS[i].name) == true);
+    }
+}
+
+TEST_CASE("gcode_param_value() quotes only what Klipper would tokenize",
+          "[moonraker_validation][material]") {
+    SECTION("values without whitespace go out unchanged") {
+        REQUIRE(gcode_param_value("PLA") == "PLA");
+        REQUIRE(gcode_param_value("PLA+") == "PLA+");
+        REQUIRE(gcode_param_value("PA6-CF") == "PA6-CF");
+    }
+
+    SECTION("values with whitespace are quoted so shlex keeps them as one token") {
+        REQUIRE(gcode_param_value("Silk PLA") == "\"Silk PLA\"");
+        REQUIRE(gcode_param_value("Matte PLA") == "\"Matte PLA\"");
+    }
 }
 
 // ============================================================================

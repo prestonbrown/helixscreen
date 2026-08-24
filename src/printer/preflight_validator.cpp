@@ -34,8 +34,22 @@ static const AvailableSlot* find_slot(int slot_index, const std::vector<Availabl
 
 PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& tools,
                                              const std::vector<AvailableSlot>& slots,
-                                             const std::vector<ToolMapping>& mapping) {
+                                             const std::vector<ToolMapping>& mapping,
+                                             bool bypass_active) {
     PreflightResult out;
+
+    // Bypass / external spool: the filament reaching the nozzle does not come from
+    // any slot, so nothing in `slots` can satisfy a tool and every check would
+    // report EmptySlot. The gcode still names T0, so without this the user gets a
+    // "T0 has no filament loaded — this print will run out." block that no
+    // configuration can clear, because bypass is deliberately not a slot in
+    // AmsState::collect_available_slots().
+    //
+    // Suppresses the material advisory too, not just the block: the seated lane's
+    // material describes filament that is not being printed with.
+    if (bypass_active) {
+        return out;
+    }
 
     // No multi-material/AMS system: an empty slot list means there is no AMS
     // hardware at all (a present AMS always reports one slot per physical bay,

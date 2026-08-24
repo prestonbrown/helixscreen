@@ -223,6 +223,17 @@ ToolTopology identity_topo() {
 
 } // namespace
 
+// Drive print state through the REAL input. These panels and managers gate on
+// print_lifecycle, which PrinterPrintState publishes from update_from_status()
+// alongside print_state_enum. Writing the enum subject by hand leaves the
+// lifecycle stale, so the code under test never re-gates and the assertion fails
+// as if the production guard were missing. Production cannot desync the two:
+// printer_print_state.cpp has exactly one writer of print_state_enum_ and
+// publish_lifecycle_state() is the next statement.
+static void set_wire_state(helix::PrinterState& st, const char* wire) {
+    st.update_from_status(nlohmann::json{{"print_stats", {{"state", wire}}}});
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "BoxTurtle: execute_load targets the SELECTED tool, not current_slot",
                  "[filament][op_slot][panel]") {
@@ -371,8 +382,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
     REQUIRE_FALSE(cd.has_pending_timer()); // clean baseline
 
-    lv_subject_set_int(state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::STANDBY));
+    set_wire_state(state(), "standby");
 
     TA::restore_heater_after_preheat(*h.panel);
     process_lvgl(30); // observer/schedule hops -> queued timer creation
@@ -394,13 +404,45 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
     REQUIRE_FALSE(cd.has_pending_timer());
 
-    lv_subject_set_int(state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::PRINTING));
+    set_wire_state(state(), "printing");
 
     TA::restore_heater_after_preheat(*h.panel);
     process_lvgl(30);
 
     CHECK_FALSE(cd.has_pending_timer()); // a print manages its own heat
+
+    cd.cancel();
+    process_lvgl(10);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Bug C: restore_heater_after_preheat does NOT schedule while PREPARING",
+                 "[filament][op_slot][panel][print_guard]") {
+    // print_stats reads standby for the whole of a host-side pre-start block, so
+    // the old PRINTING||PAUSED test scheduled a cooldown that the block's own
+    // heating would immediately undo - and then fight.
+    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
+
+    auto& cd = PostOpCooldownManager::instance();
+    cd.init();
+    cd.cancel();
+    process_lvgl(10);
+    REQUIRE_FALSE(cd.has_pending_timer());
+
+    set_wire_state(state(), "standby");
+    state().set_print_start_state(helix::PrintStartPhase::BED_MESH, "", 0);
+    process_lvgl(10);
+
+    TA::restore_heater_after_preheat(*h.panel);
+    process_lvgl(30);
+    CHECK_FALSE(cd.has_pending_timer());
+
+    // The block ending hands the behaviour back, so the guard cannot latch.
+    state().set_print_start_state(helix::PrintStartPhase::IDLE, "", 0);
+    process_lvgl(10);
+    TA::restore_heater_after_preheat(*h.panel);
+    process_lvgl(30);
+    CHECK(cd.has_pending_timer());
 
     cd.cancel();
     process_lvgl(10);
@@ -417,8 +459,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.select_tool(0); // slot 0 is NOT loaded (only slot 3 is) -> load proceeds
 
-    lv_subject_set_int(state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::STANDBY));
+    set_wire_state(state(), "standby");
 
     auto& cd = PostOpCooldownManager::instance();
     cd.init();
@@ -490,8 +531,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Post-op cooldown: disabled in settings sche
     process_lvgl(10);
     REQUIRE_FALSE(cd.has_pending_timer());
 
-    lv_subject_set_int(state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::STANDBY));
+    set_wire_state(state(), "standby");
 
     TA::restore_heater_after_preheat(*h.panel);
     process_lvgl(30);
@@ -519,8 +559,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
     REQUIRE_FALSE(cd.has_pending_timer());
 
-    lv_subject_set_int(state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::STANDBY));
+    set_wire_state(state(), "standby");
 
     TA::restore_heater_after_preheat(*h.panel);
 
@@ -547,10 +586,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // tapped a still-lit Load, and got "Cannot run filament operation while
 // printing" from the backend guard (bundle JX2FVRB9).
 //
-// The panel watches print_state_enum, NOT the derived print_active subject:
-// PRINTING -> PAUSED is a gating edge now (a pause UNGATES the buttons on every
-// backend but AD5X) and print_active reads 1 across both, so it never fires on
-// that transition.
+// The panel watches print_lifecycle. It needs PRINTING -> PAUSED as a gating edge
+// (a pause UNGATES the buttons on every backend but AD5X, and print_active reads 1
+// across both so it never fires there) AND it needs Idle -> Preparing, which the
+// raw print_state_enum does not move on at all - the gate refuses during a
+// host-side pre-print block, and the enum still says standby for its whole
+// duration.
 //
 // Mutation check: drop `print_blocks_op` from the compute_op_button_gating()
 // call in update_filament_op_buttons(), OR delete the print-state observer
@@ -563,8 +604,27 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(s != nullptr);
         return lv_subject_get_int(s);
     };
-    auto set_job_state = [this](helix::PrintJobState s) {
-        lv_subject_set_int(state().get_print_state_enum_subject(), static_cast<int>(s));
+    auto set_job_state = [this](helix::PrintJobState st) {
+        const char* wire = "standby";
+        switch (st) {
+        case helix::PrintJobState::PRINTING:
+            wire = "printing";
+            break;
+        case helix::PrintJobState::PAUSED:
+            wire = "paused";
+            break;
+        default:
+            break;
+        }
+        set_wire_state(state(), wire);
+        process_lvgl(10);
+    };
+
+    // A host-side pre-print block: print_stats still reads standby while the
+    // pre-start G-code homes and probes. Raising the phase is what makes the
+    // lifecycle Preparing.
+    auto set_preprint_phase = [this](helix::PrintStartPhase phase) {
+        state().set_print_start_state(phase, "", 0);
         process_lvgl(10);
     };
 
@@ -598,6 +658,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(read("filament_load_disabled") == 1);
     CHECK(read("filament_unload_disabled") == 1);
     h.mock->self_homes_ = false;
+
+    // A host-side pre-print block owns the toolhead just as a running print does,
+    // and print_stats cannot say so — this is the window the migration to the
+    // lifecycle exists to cover. Unload must be refused here even though the wire
+    // still reads standby.
+    set_job_state(helix::PrintJobState::STANDBY);
+    set_preprint_phase(helix::PrintStartPhase::BED_MESH);
+    CHECK(read("filament_load_disabled") == 1);
+    CHECK(read("filament_unload_disabled") == 1);
+    set_preprint_phase(helix::PrintStartPhase::IDLE);
 
     // Cancelling/finishing the print hands the buttons back.
     set_job_state(helix::PrintJobState::STANDBY);

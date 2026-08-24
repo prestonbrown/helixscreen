@@ -388,6 +388,37 @@ TEST_CASE("eta_clock_time produces clock time from remaining seconds", "[format_
     }
 }
 
+// =============================================================================
+// Second-resolution time formatting (helix::ui)
+// =============================================================================
+
+TEST_CASE("format_time_with_seconds matches format_time plus seconds", "[format][time]") {
+    struct tm t {};
+    t.tm_hour = 14;
+    t.tm_min = 32;
+    t.tm_sec = 6;
+
+    const std::string with_sec = helix::ui::format_time_with_seconds(&t);
+    const std::string without = helix::ui::format_time(&t);
+
+    // Same 12H/24H shape, one extra :SS field.
+    CHECK(with_sec.find(":06") != std::string::npos);
+    CHECK(with_sec.size() == without.size() + 3);
+}
+
+TEST_CASE("format_time_with_seconds zero-pads seconds", "[format][time]") {
+    struct tm t {};
+    t.tm_hour = 9;
+    t.tm_min = 5;
+    t.tm_sec = 3;
+    CHECK(helix::ui::format_time_with_seconds(&t).find(":03") != std::string::npos);
+}
+
+TEST_CASE("format_time_with_seconds is null-safe", "[format][time]") {
+    // Matches format_time()'s null behavior, not empty() — see format_utils.h.
+    CHECK(helix::ui::format_time_with_seconds(nullptr) == helix::format::UNAVAILABLE);
+}
+
 TEST_CASE("eta_clock_time formats 24-hour clock when use_24h is true", "[format_utils][eta]") {
     SECTION("30 minutes remaining from 14:00 gives 14:30") {
         auto eta = eta_clock_time(30 * 60, make_ref_time(14, 0), true);

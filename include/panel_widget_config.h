@@ -41,7 +41,7 @@ struct PageConfig {
 };
 
 /// Soft cap on maximum number of pages
-static constexpr size_t kMaxPages = 8;
+static constexpr size_t MAX_PAGES = 8;
 
 class PanelWidgetConfig {
   public:
@@ -146,6 +146,17 @@ class PanelWidgetConfig {
 
     /// Search ALL pages for a widget with this ID
     bool is_enabled(const std::string& id) const;
+
+    /// True when this widget is enabled AND holds a grid cell on some page.
+    ///
+    /// Not the same question as is_enabled(): an entry can be enabled at
+    /// (-1,-1) — the setup wizard enables without a position, a hardware gate
+    /// can open after the grid filled, and PanelWidgetManager's GridFull
+    /// eviction drops the position rather than the entry so the widget can
+    /// come back on its own. Such a widget is configured but on no dashboard,
+    /// so anything asking "is it already on the grid" (the widget catalog)
+    /// must ask this, not is_enabled().
+    bool is_placed(const std::string& id) const;
 
     /// Get per-widget config for a given widget ID (searches all pages)
     nlohmann::json get_widget_config(const std::string& id) const;

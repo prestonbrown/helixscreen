@@ -57,6 +57,15 @@ class SoundBackend {
         return false;
     }
 
+    /// Whether this backend emits sound through the printer rather than through
+    /// host audio hardware, and so is only usable while a Moonraker client is
+    /// connected (M300 only). SoundManager drops such a backend when the client
+    /// is cleared. A capability query rather than a dynamic_cast to the concrete
+    /// backend, because the firmware builds -fno-rtti.
+    virtual bool needs_moonraker_client() const {
+        return false;
+    }
+
     /// Set the active waveform type (only called if supports_waveforms() is true)
     virtual void set_waveform(Waveform /* w */) {}
 
@@ -103,6 +112,17 @@ class SoundBackend {
     virtual float min_tick_ms() const {
         return 1.0f;
     }
+
+    /// Suspend audio output when no voice is active. The sequencer calls this
+    /// when it goes idle so backends that run a continuous render callback
+    /// (SDL on Android) stop their device instead of streaming silence — which
+    /// keeps the host AudioTrack churning and spamming the log (#1253).
+    /// Default: no-op (backends with no always-on device are unaffected).
+    virtual void suspend() {}
+
+    /// Resume audio output on the next note. Pairs with suspend(); the sequencer
+    /// calls this when transitioning idle -> active.
+    virtual void resume() {}
 
     /// Whether this backend supports direct audio rendering via set_render_source.
     /// Backends with real audio output (SDL, ALSA) return true.

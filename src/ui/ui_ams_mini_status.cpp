@@ -44,24 +44,49 @@ static constexpr int32_t MAX_BAR_WIDTH_PX = 16;
 static constexpr int32_t BAR_BORDER_RADIUS_PX = 8;
 
 /**
+ * Smallest spool graphic the wide view will draw (px).
+ *
+ * A floor on a vector drawing, not on type: below roughly this size the spool
+ * rings and the lane badge stop reading as a spool at all, whatever the tier's
+ * font ladder is doing. Deliberately not derived from a spacing or font token -
+ * see min_spool_cell_w() for what IS derived from it.
+ */
+static constexpr int MIN_SPOOL_IMG_PX = 24;
+
+/**
+ * Largest spool graphic the wide view will draw (px).
+ *
+ * The spool is otherwise sized to the row (`avail_h - 4`), and a home-widget
+ * row can be tall; past this the graphic dominates the cell and crowds the text
+ * column for no added legibility. Left flat on purpose: the row height it caps
+ * already scales with the grid, and the only token in the same shape
+ * (ams_slot_spool_size, the full AMS panel's spool) runs 48/48/48/64/80/80/80,
+ * so adopting it would shrink the graphic on the three cramped tiers and grow
+ * it on the rest for reasons unrelated to fitting anything.
+ */
+static constexpr int MAX_SPOOL_IMG_PX = 56;
+
+/**
  * Minimum width of one spool cell in the wide spool view (px), and the divisor
  * used to derive how many spool cells fit across a row:
- * visible = (avail_w + gap) / (MIN_SPOOL_W + gap).
+ * visible = (avail_w + gap) / (min_spool_cell_w(...) + gap).
  *
- * Replaces the old "one spool cell per grid column" rule (visible = colspan:
- * 2 across at 2x, 4 at 4x), which cannot survive Plan 2's square-cell grid
- * halving today's cell width. Chosen empirically against the span2/span4
- * pixel table measured across all eight home-grid tiers
- * (.superpowers/sdd/2026-08-05-grid-metrics-followups/span-pixel-table.md):
- * no single constant reproduces every tier's count exactly, since narrow
- * low-density tiers (Micro/Tiny/Small, ~65-70px column cells) and wide
- * high-density tiers (Medium/Large/XLarge, ~107-134px column cells) pull in
- * opposite directions. 60 reproduces today's count exactly on Micro, Tiny,
- * and Small (the tightest, most common tiers) and on the roomier tiers shows
- * MORE, smaller spools than before -- never fewer -- consistent with this
- * migration's low-side bias elsewhere.
+ * Derived rather than chosen: a cell is [spool graphic][gap][text column], so
+ * the narrowest useful cell is the smallest spool that still reads as a spool,
+ * plus the badge slack create_spool_visual() adds around it, plus the gap, plus
+ * enough room for the widest material string actually about to be drawn.
+ *
+ * Deriving it is what keeps the two halves of the layout consistent. They were
+ * two independent constants before - a flat 60px divisor here and a flat 34px
+ * text reservation below - so on tiers where font_small is 16-26px rather than
+ * the ~12px they were calibrated against, the divisor packed in cells too
+ * narrow for the reservation the same function then tried to honor. The cell
+ * won, the reservation lost, and LV_LABEL_LONG_WRAP broke "PLA" into one glyph
+ * per line. Sharing one `min_text` makes that disagreement unrepresentable.
  */
-static constexpr int MIN_SPOOL_W = 60;
+static int min_spool_cell_w(int min_text, int gap) {
+    return MIN_SPOOL_IMG_PX + ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX + gap + min_text;
+}
 
 // ============================================================================
 // Per-widget user data
@@ -183,7 +208,7 @@ struct AmsMiniStatusData {
     int unit_count = 0;       // Number of AMS units (0 or 1 = single row, 2+ = stacked rows)
     UnitRowInfo unit_rows[8]; // Max 8 units
 
-    // Render mode selection (BAR for narrow, SPOOL for width_px >= W_NORMAL)
+    // Render mode selection (BAR for narrow, SPOOL for width_px >= w_normal())
     AmsMiniMode mode = AmsMiniMode::BAR;
 
     // Child objects
@@ -205,6 +230,10 @@ struct AmsMiniStatusData {
     int rendered_width_px = -1;
     bool rendered_3d = true;
     int rendered_height = -1;
+    // Measured width of the widest material label at the last render. Not
+    // implied by any of the above: a breakpoint change moves font_small (and so
+    // every cell's text column) without moving width_px or the row height.
+    int rendered_min_text = -1;
 
     // Auto-binding observer (observe AmsState slots_version subject)
     // Uses ObserverGuard for RAII lifecycle management
@@ -586,7 +615,63 @@ static void rebuild_bars(AmsMiniStatusData* data) {
 }
 
 /**
- * @brief Render the wide spool view (width_px >= W_NORMAL).
+ * @brief The string a spool cell draws in its material label.
+ *
+ * Shared by the width measurement below and the render loop, so what the layout
+ * reserves room for cannot drift from what actually gets drawn.
+ */
+static const char* spool_material_text(const SpoolCellData& cd) {
+    if (!cd.present && !cd.assigned) {
+        // Unassigned empty lane: name its purpose instead of showing "--",
+        // matching the ams_slot material label (translated; "Empty" is UI copy,
+        // not a material name).
+        return lv_tr("Empty");
+    }
+    return cd.material.empty() ? "--" : cd.material.c_str(); // material: no i18n
+}
+
+/**
+ * @brief Width of the widest material label this render is about to draw, in
+ * the font it will be drawn in.
+ *
+ * This is the number the text column has to be at least as wide as, and it is
+ * measured rather than assumed for two reasons: the label uses font_small,
+ * which runs 10/11/12/16/18/20/26px across the tiers, and the strings vary
+ * ("PLA", "PETG-CF", a translated "Empty"). The flat 34px this replaces was
+ * right for the ~12px rung and about half of what "PLA" needs at 26px, which is
+ * how the label ended up wrapping one glyph per line on the roomy tiers.
+ *
+ * Letter and line spacing are read off @p sc: both are inherited text styles
+ * and the cells set neither, so the labels will be laid out with exactly these
+ * values.
+ *
+ * @return 0 when there is nothing to draw. If the font token cannot be
+ *         resolved (a theme that never initialized), falls back to the old flat
+ *         34px rather than 0 - a wrong reservation still lays out, a zero one
+ *         packs unreadable cells.
+ */
+static int measure_widest_material(const AmsMiniStatusData* data, lv_obj_t* sc) {
+    if (!data || data->spool_cells.empty())
+        return 0;
+    const lv_font_t* font = theme_manager_get_font("font_small");
+    if (!font || !sc)
+        return 34;
+
+    const int32_t letter_space = lv_obj_get_style_text_letter_space(sc, LV_PART_MAIN);
+    const int32_t line_space = lv_obj_get_style_text_line_space(sc, LV_PART_MAIN);
+    int widest = 0;
+    for (const auto& cd : data->spool_cells) {
+        lv_point_t size;
+        lv_text_get_size(&size, spool_material_text(cd), font, letter_space, line_space,
+                         LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (size.x > widest)
+            widest = static_cast<int>(size.x);
+    }
+    return widest;
+}
+
+/**
+ * @brief Render the wide spool view (width_px >= w_normal()).
  *
  * Lazily creates the horizontally-scrollable spool container, then renders one
  * cell per entry in data->spool_cells (spool graphic with lane badge, material
@@ -647,39 +732,57 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     if (avail_w <= 0)
         avail_w = data->width_px; // before layout resolves
     int gap = theme_manager_get_spacing("space_xxs");
-    // How many spool cells fit across the row at MIN_SPOOL_W each, capped to
+    // The widest material string this render will draw, in the font that will
+    // draw it. Both the cell count and the text reservation below come from it,
+    // so the divisor and the reservation cannot disagree the way two
+    // independently-chosen constants did.
+    const int min_text = measure_widest_material(data, sc);
+    const int min_cell = min_spool_cell_w(min_text, gap);
+    // How many spool cells fit across the row at min_cell each, capped to
     // the actual number of slots so a wide, sparsely-filled widget doesn't
     // reserve blank trailing columns for spools that don't exist.
-    int visible = (avail_w + gap) / (MIN_SPOOL_W + gap);
+    int visible = (avail_w + gap) / (min_cell + gap);
     visible = std::clamp(visible, 1, std::max(1, data->slot_count));
     // -2px safety so sub-pixel rounding can't tip the row into a spurious scrollbar
     // (a real scrollbar still appears when there are MORE than `visible` spools).
     int cell_px = (avail_w - (visible - 1) * gap - 2) / visible;
-    if (cell_px < MIN_SPOOL_W)
-        cell_px = MIN_SPOOL_W;
+    if (cell_px < min_cell)
+        cell_px = min_cell;
+    // What create_spool_visual() adds around the graphic for the lane badge, so
+    // the wrap object is this much wider than the spool size asked for.
+    const int badge_margin = ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX;
     int spool_size = avail_h - 4; // square spool fits the row height
-    if (spool_size > 56)
-        spool_size = 56;
-    // Reserve a readable text column from the cell, shrinking the spool if needed.
+    if (spool_size > MAX_SPOOL_IMG_PX)
+        spool_size = MAX_SPOOL_IMG_PX;
+    // Reserve the measured text column from the cell, shrinking the spool if needed.
     // text_w is the EXACT leftover, so a cell's content == cell_px: the material/
     // percent never overflow (no chopped text, no scrollbar), and long names wrap
     // within text_w instead of being clipped.
-    const int min_text = 34;
-    if (spool_size > cell_px - 8 - gap - min_text)
-        spool_size = cell_px - 8 - gap - min_text;
-    if (spool_size < 24)
-        spool_size = 24;
-    int text_w = cell_px - (spool_size + 8) - gap;
-    if (text_w < 20)
-        text_w = 20;
+    if (spool_size > cell_px - badge_margin - gap - min_text)
+        spool_size = cell_px - badge_margin - gap - min_text;
+    if (spool_size < MIN_SPOOL_IMG_PX)
+        spool_size = MIN_SPOOL_IMG_PX;
+    int text_w = cell_px - (spool_size + badge_margin) - gap;
+    // Defensive only, and derived rather than flat: cell_px is floored at
+    // min_cell, which IS MIN_SPOOL_IMG_PX + badge_margin + gap + min_text, so
+    // the subtraction above already leaves min_text on the tightest cell there
+    // is. Clamping to min_text keeps that a guarantee instead of a coincidence
+    // the way a flat 20 did.
+    if (text_w < min_text)
+        text_w = min_text;
 
     // Dirty-check: the render is fully determined by the cell data, available
-    // width, and spool style. If none changed since the last real render and
-    // the cells already exist on screen, skip the costly clean+recreate (and
-    // its transient 2x canvas-memory peak). The container was un-hidden above, so
-    // a bar->spool switch with identical data still shows the existing cells.
+    // width, the spool style, and the measured text width. If none changed
+    // since the last real render and the cells already exist on screen, skip
+    // the costly clean+recreate (and its transient 2x canvas-memory peak). The
+    // container was un-hidden above, so a bar->spool switch with identical data
+    // still shows the existing cells.
+    //
+    // min_text is in the signature because it is a render input the other four
+    // do not cover: a breakpoint change moves font_small without necessarily
+    // moving width_px or avail_h, and that alone re-sizes every cell.
     bool unchanged = (data->rendered_width_px == data->width_px) && (data->rendered_3d == cur_3d) &&
-                     (data->rendered_height == avail_h) &&
+                     (data->rendered_height == avail_h) && (data->rendered_min_text == min_text) &&
                      (data->rendered_cells == data->spool_cells) &&
                      (lv_obj_get_child_count(sc) > 0);
     if (unchanged)
@@ -696,6 +799,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         data->rendered_cells.clear();
         data->rendered_width_px = -1;
         data->rendered_height = -1;
+        data->rendered_min_text = -1;
         return;
     }
     lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
@@ -765,16 +869,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         lv_label_set_long_mode(mat, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         lv_obj_add_flag(mat, LV_OBJ_FLAG_EVENT_BUBBLE);
-        if (!cd.present && !cd.assigned) {
-            // Unassigned empty lane: name its purpose instead of showing "--",
-            // matching the ams_slot material label (translated; "Empty" is UI
-            // copy, not a material name).
-            lv_label_set_text(mat, lv_tr("Empty"));
-        } else {
-            lv_label_set_text(mat,
-                              cd.material.empty() ? "--"
-                                                  : cd.material.c_str()); // material: no i18n
-        }
+        // Same helper measure_widest_material() sized text_w from, so the
+        // string drawn here is the one the column was reserved for.
+        lv_label_set_text(mat, spool_material_text(cd));
         const lv_font_t* fs = theme_manager_get_font("font_small");
         if (fs)
             lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
@@ -808,12 +905,13 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     data->rendered_width_px = data->width_px;
     data->rendered_3d = cur_3d;
     data->rendered_height = avail_h;
+    data->rendered_min_text = min_text;
 }
 
 /**
  * @brief Render dispatcher: select bar vs. spool mode by physical width.
  *
- * width_px >= W_NORMAL (the same "has room for two columns" threshold every
+ * width_px >= w_normal() (the same "has room for two columns" threshold every
  * other home widget migrated to) selects the wide spool view; otherwise the
  * narrow bar view. The inactive mode's container is hidden so only one is
  * visible at a time.
@@ -822,7 +920,7 @@ static void rebuild(AmsMiniStatusData* data) {
     if (!data)
         return;
     data->mode =
-        (data->width_px >= helix::widget_size::W_NORMAL) ? AmsMiniMode::SPOOL : AmsMiniMode::BAR;
+        (data->width_px >= helix::widget_size::w_normal()) ? AmsMiniMode::SPOOL : AmsMiniMode::BAR;
     if (data->mode == AmsMiniMode::SPOOL) {
         if (data->bars_container)
             lv_obj_add_flag(data->bars_container, LV_OBJ_FLAG_HIDDEN);

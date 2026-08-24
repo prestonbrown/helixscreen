@@ -4,6 +4,7 @@
 #include "prerendered_images.h"
 
 #include "app_globals.h"
+#include "data_root_resolver.h"
 #include "lvgl_image_writer.h"
 #include "stb_image.h"
 #include "stb_image_resize.h"
@@ -11,6 +12,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -19,7 +21,17 @@
 namespace helix {
 
 bool prerendered_exists(const std::string& path) {
-    return std::filesystem::exists(path);
+    // Callers pass a relative "assets/images/..." path. Resolve it against the
+    // asset root so the check works on firmware (bundle mounted at /assets ->
+    // /assets/assets/images/...); identity on desktop (asset_root ".").
+    //
+    // error_code overload, NOT exists(p): an existence probe must never throw.
+    // The throwing overload only maps ENOENT/ENOTDIR to "not found"; the ESP32
+    // VFS reports missing frogfs paths as ENODATA, which std::filesystem treats
+    // as an error — on firmware exists(p) throws filesystem_error for every
+    // miss, and the escaping exception blanked the home-panel printer image.
+    std::error_code ec;
+    return std::filesystem::exists(asset_path(path), ec);
 }
 
 const char* get_splash_size_name(int screen_width) {
@@ -82,7 +94,7 @@ std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, 
 
     if (prerendered_exists(path)) {
         spdlog::debug("[Prerendered] Using 3D splash: {}", path);
-        return "A:" + path;
+        return asset_component_uri(path);
     }
 
     // Fallback: try base "tiny" if tiny_alt not found (backward compat)
@@ -92,7 +104,7 @@ std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, 
         path += "-tiny.bin";
         if (prerendered_exists(path)) {
             spdlog::debug("[Prerendered] Using 3D splash (tiny fallback): {}", path);
-            return "A:" + path;
+            return asset_component_uri(path);
         }
     }
 
@@ -111,11 +123,11 @@ std::string get_prerendered_splash_path(int screen_width) {
 
     if (prerendered_exists(path)) {
         spdlog::debug("[Prerendered] Using splash: {}", path);
-        return "A:" + path;
+        return asset_component_uri(path);
     }
 
     spdlog::debug("[Prerendered] Splash fallback to PNG ({}px screen)", screen_width);
-    return "A:assets/images/helixscreen-logo.png";
+    return asset_component_uri("assets/images/helixscreen-logo.png");
 }
 
 int get_printer_image_size(int screen_width) {
@@ -136,14 +148,14 @@ std::string get_prerendered_printer_path(const std::string& printer_name, int sc
 
     if (prerendered_exists(path)) {
         spdlog::debug("[Prerendered] Using printer image: {}", path);
-        return "A:" + path;
+        return asset_component_uri(path);
     }
 
     // Fall back to original PNG, but verify it exists
     std::string png_path = "assets/images/printers/" + printer_name + ".png";
     if (prerendered_exists(png_path)) {
         spdlog::trace("[Prerendered] Printer {} fallback to PNG (no {}px)", printer_name, size);
-        return "A:" + png_path;
+        return asset_component_uri(png_path);
     }
 
     // Neither prerendered nor PNG exists — fall back to generic
@@ -151,9 +163,9 @@ std::string get_prerendered_printer_path(const std::string& printer_name, int sc
     std::string generic_bin =
         "assets/images/printers/prerendered/generic-corexy-" + std::to_string(size) + ".bin";
     if (prerendered_exists(generic_bin)) {
-        return "A:" + generic_bin;
+        return asset_component_uri(generic_bin);
     }
-    return "A:assets/images/printers/generic-corexy.png";
+    return asset_component_uri("assets/images/printers/generic-corexy.png");
 }
 
 // =========================================================================
@@ -182,6 +194,43 @@ static std::string extract_source_basename(const std::string& source_image_path)
     return p.stem().string();
 }
 
+namespace {
+
+/// Full-resolution PNG that a prerendered path was rendered from, or "" if the path
+/// is not a shipped prerendered image (a user's custom image, say).
+/// "…/printers/prerendered/creality-k1c-300.bin" -> "…/printers/creality-k1c.png"
+std::string png_source_for_prerendered(const std::string& fs_path) {
+    auto prerendered_pos = fs_path.find("/prerendered/");
+    if (prerendered_pos == std::string::npos) {
+        return {};
+    }
+    std::string name = std::filesystem::path(fs_path).stem().string();
+    auto dash = name.rfind('-'); // strip the size suffix
+    if (dash == std::string::npos) {
+        return {};
+    }
+    return fs_path.substr(0, prerendered_pos + 1) + name.substr(0, dash) + ".png";
+}
+
+/// Pixel size encoded in a prerendered filename ("…-300.bin" -> 300), or 0 when the
+/// path is not a prerendered image. Read from the name rather than the file header
+/// so the decision can be made before opening anything.
+int prerendered_tier_size(const std::string& fs_path) {
+    if (fs_path.find("/prerendered/") == std::string::npos) {
+        return 0;
+    }
+    std::string name = std::filesystem::path(fs_path).stem().string();
+    auto dash = name.rfind('-');
+    if (dash == std::string::npos) {
+        return 0;
+    }
+    int size = 0;
+    auto [_, ec] = std::from_chars(name.data() + dash + 1, name.data() + name.size(), size);
+    return ec == std::errc() ? size : 0;
+}
+
+} // namespace
+
 std::string get_cached_printer_image_path(const std::string& source_image_path, int width,
                                           int height) {
     std::string cache_dir = get_printer_image_cache_dir();
@@ -196,6 +245,24 @@ bool generate_cached_printer_image(const std::string& source_image_path, int wid
     std::string fs_path = source_image_path;
     if (fs_path.size() >= 2 && fs_path[0] == 'A' && fs_path[1] == ':') {
         fs_path = fs_path.substr(2);
+    }
+
+    // Upscaling from the prerendered tier would bake blur into the cache, which is
+    // then kept forever. The tiers are 150px and 300px, but the widget can be much
+    // larger than either: on a 1024x600 display the home printer image resolves to
+    // roughly 667x455, so the 300px tier gets enlarged ~2.2x, and at 1280x720 it is
+    // worse. The full-resolution PNG is shipped alongside every prerendered image
+    // and is typically 1600-2500px, so when the request is bigger than the tier,
+    // resizing from the PNG costs one extra decode ONCE per widget size and gives a
+    // genuinely sharp result instead of a permanently soft one. Downscaling from
+    // the tier is still preferred (it is smaller and already the right colours).
+    std::error_code png_ec;
+    if (std::string png = png_source_for_prerendered(fs_path);
+        !png.empty() && std::max(width, height) > prerendered_tier_size(fs_path) &&
+        std::filesystem::exists(png, png_ec)) {
+        spdlog::debug("[PrinterCache] {}x{} exceeds the prerendered tier; sourcing from {}", width,
+                      height, png);
+        fs_path = png;
     }
 
     // Determine source format from extension
@@ -234,19 +301,9 @@ bool generate_cached_printer_image(const std::string& source_image_path, int wid
         if (file_size < expected_bytes) {
             // File is smaller than expected — likely compressed (RLE/LZ4).
             // Fall back to original PNG if available.
-            std::string png_fallback = fs_path;
-            // Convert prerendered path to PNG: printers/prerendered/name-300.bin →
-            // printers/name.png
-            auto prerendered_pos = png_fallback.find("/prerendered/");
-            if (prerendered_pos != std::string::npos) {
-                std::string dir = png_fallback.substr(0, prerendered_pos + 1);
-                std::string name = std::filesystem::path(fs_path).stem().string();
-                // Strip size suffix: "creality-k1c-300" → "creality-k1c"
-                auto dash = name.rfind('-');
-                if (dash != std::string::npos) {
-                    name = name.substr(0, dash);
-                }
-                png_fallback = dir + name + ".png";
+            std::string png_fallback = png_source_for_prerendered(fs_path);
+            if (png_fallback.empty()) {
+                png_fallback = fs_path;
             }
 
             spdlog::debug("[PrinterCache] .bin may be compressed ({}B < {}B expected), "

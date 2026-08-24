@@ -9,20 +9,20 @@
 // has the known PrintStatusPanel-style lifetime hazard, so we validate the
 // subject-driving logic (the panel's sole responsibility) instead.
 
-#include "../lvgl_test_fixture.h"
-
-#include "config.h"
-#include "macro_edit_logic.h"
-#include "settings_manager.h"
 #include "ui_panel_macros.h"
 #include "ui_update_queue.h"
 
-#include "../catch_amalgamated.hpp"
+#include "../lvgl_test_fixture.h"
+#include "config.h"
+#include "macro_edit_logic.h"
+#include "settings_manager.h"
 
 #include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix::macros;
 
@@ -95,8 +95,7 @@ static size_t index_of(MacrosPanel& p, const std::string& name) {
 // Pure decision logic (no LVGL, no singletons)
 // ===========================================================================
 
-TEST_CASE("seed hides exactly the _-prefixed macros when key absent",
-          "[macros][editmode]") {
+TEST_CASE("seed hides exactly the _-prefixed macros when key absent", "[macros][editmode]") {
     std::vector<std::string> all = {"CLEAN_NOZZLE", "LOAD", "_HOME_Z", "_CALIBRATE", "PRINT_START"};
     auto hidden = compute_effective_hidden(all, /*key_exists=*/false, /*saved=*/{});
     REQUIRE(hidden.size() == 2);
@@ -105,8 +104,7 @@ TEST_CASE("seed hides exactly the _-prefixed macros when key absent",
     REQUIRE(hidden.count("CLEAN_NOZZLE") == 0);
 }
 
-TEST_CASE("saved set is authoritative once the key exists (even if empty)",
-          "[macros][editmode]") {
+TEST_CASE("saved set is authoritative once the key exists (even if empty)", "[macros][editmode]") {
     std::vector<std::string> all = {"CLEAN_NOZZLE", "_HOME_Z"};
     // Key exists but the saved set is empty -> nothing hidden (user un-hid _*).
     auto none = compute_effective_hidden(all, /*key_exists=*/true, /*saved=*/{});
@@ -118,16 +116,14 @@ TEST_CASE("saved set is authoritative once the key exists (even if empty)",
     REQUIRE(some.count("_HOME_Z") == 0);
 }
 
-TEST_CASE("normal-mode visible filter excludes hidden, keeps order",
-          "[macros][editmode]") {
+TEST_CASE("normal-mode visible filter excludes hidden, keeps order", "[macros][editmode]") {
     std::vector<std::string> all = {"A", "B", "C", "D"};
     std::set<std::string> hidden = {"B", "D"};
     auto vis = filter_visible(all, hidden);
     REQUIRE(vis == std::vector<std::string>{"A", "C"});
 }
 
-TEST_CASE("per-row values: normal mode shows desc/chevron per macro facts",
-          "[macros][editmode]") {
+TEST_CASE("per-row values: normal mode shows desc/chevron per macro facts", "[macros][editmode]") {
     // Normal mode, has description, takes params -> desc + chevron shown.
     auto a = compute_row_values(/*edit=*/false, /*hidden=*/false, /*has_desc=*/true,
                                 /*no_params=*/false);

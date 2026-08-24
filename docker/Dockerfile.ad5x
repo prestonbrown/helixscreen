@@ -41,6 +41,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ccache \
     && rm -rf /var/lib/apt/lists/*
 
+# Hardened download wrapper. A bare `wget -q` gives up on a DNS failure in ~24 ms
+# and on a refused connection in ~4 ms, without retrying either, which is how a
+# valid zlib URL failed the v0.99.111 cc1 release build 52 ms in. See fetch.sh.
+COPY fetch.sh /usr/local/bin/fetch
+
 RUN mkdir /opt/mipsel-zmod-ad5x
 WORKDIR /opt/mipsel-zmod-ad5x
 # Toolchain: Buildroot GCC 13.3.0 for MIPS32r5 (glibc 2.40)
@@ -49,7 +54,7 @@ WORKDIR /opt/mipsel-zmod-ad5x
 RUN TOOLCHAIN_NAME="mipsel-zmod-ad5x.tar.gz" && \
     TOOLCHAIN_SHA256="e492d11f9e8a87c60b01f1221294d9ab72ec47e9c1f970be936e48d18c36156e" && \
     echo "Downloading ${TOOLCHAIN_NAME}..." && \
-    wget -q "https://github.com/prestonbrown/helixscreen/releases/download/toolchains/${TOOLCHAIN_NAME}" && \
+    fetch "https://github.com/prestonbrown/helixscreen/releases/download/toolchains/${TOOLCHAIN_NAME}" && \
     echo "${TOOLCHAIN_SHA256}  ${TOOLCHAIN_NAME}" | sha256sum -c - && \
     tar xzf "${TOOLCHAIN_NAME}" && \
     rm "${TOOLCHAIN_NAME}"

@@ -86,7 +86,7 @@
  * @brief Define a global panel instance for PanelBase-derived panels
  *
  * This variant is for panels that inherit from PanelBase and require
- * PrinterState& and MoonrakerAPI* constructor arguments.
+ * PrinterState& and IMoonrakerAPI* constructor arguments.
  *
  * @param PanelClass The class name (e.g., HomePanel)
  * @param name The short name used in the getter function (e.g., home -> get_global_home_panel)

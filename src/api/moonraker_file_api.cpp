@@ -14,14 +14,65 @@
 using namespace moonraker_internal;
 
 // ============================================================================
+// Root List Parsing (pure — unit-tested against real K1/K2 payloads)
+// ============================================================================
+
+namespace helix {
+
+std::vector<FileRoot> parse_file_roots(const json& response) {
+    std::vector<FileRoot> roots;
+
+    const json* list = nullptr;
+    if (response.is_array()) {
+        list = &response;
+    } else if (response.is_object() && response.contains("result") &&
+               response["result"].is_array()) {
+        list = &response["result"];
+    }
+    if (!list)
+        return roots;
+
+    for (const auto& entry : *list) {
+        if (!entry.is_object())
+            continue;
+        FileRoot r;
+        if (entry.contains("name") && entry["name"].is_string())
+            r.name = entry["name"].get<std::string>();
+        if (entry.contains("path") && entry["path"].is_string())
+            r.path = entry["path"].get<std::string>();
+        if (entry.contains("permissions") && entry["permissions"].is_string())
+            r.permissions = entry["permissions"].get<std::string>();
+        // A root with no name cannot be asked for, and one with no path cannot be
+        // compared against a config path. Either way it tells us nothing.
+        if (r.name.empty() || r.path.empty())
+            continue;
+        roots.push_back(std::move(r));
+    }
+    return roots;
+}
+
+} // namespace helix
+
+// ============================================================================
 // MoonrakerFileAPI Implementation
 // ============================================================================
 
-MoonrakerFileAPI::MoonrakerFileAPI(helix::MoonrakerClient& client) : client_(client) {}
+MoonrakerFileAPI::MoonrakerFileAPI(helix::IMoonrakerClient& client) : client_(client) {}
 
 // ============================================================================
 // File Management Operations
 // ============================================================================
+
+void MoonrakerFileAPI::get_file_roots(FileRootsCallback on_success, ErrorCallback on_error) {
+    client_.send_jsonrpc(
+        "server.files.roots", json::object(),
+        [on_success](json response) {
+            // parse_file_roots() never throws — an unexpected shape yields an empty
+            // list, which callers already have to handle (older forks omit the call).
+            on_success(helix::parse_file_roots(response));
+        },
+        on_error);
+}
 
 void MoonrakerFileAPI::list_files(const std::string& root, const std::string& path, bool recursive,
                                   FileListCallback on_success, ErrorCallback on_error) {

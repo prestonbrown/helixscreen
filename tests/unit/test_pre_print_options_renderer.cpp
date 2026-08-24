@@ -116,7 +116,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: single-category se
     REQUIRE(lv_obj_get_child_count(container) == 1);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: multi-category set emits flat row list",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PrePrintOptionsRenderer: multi-category set emits flat row list",
                  "[print_file_detail][pre_print_options]") {
     PrePrintOptionsRenderer renderer;
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -283,6 +284,36 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(renderer.get_switch("ai_detect") != nullptr);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PrePrintOptionsRenderer: DB option labels are English text, not semantic keys",
+                 "[print_file_detail][pre_print_options][i18n]") {
+    // English loads NO translation pack (translation_loader.cpp skips
+    // kIdentityLocale), so lv_tr(key) returns the key unchanged — in tests
+    // and in the English UI alike. A label_key holding a semantic key such
+    // as "pre_print_option.ai_detect.label" therefore renders the raw dotted
+    // identifier to the user (v0.99.114 regression class; the timelapse twin
+    // is covered in test_has_any_preprint_options.cpp against the C++
+    // synthesis). This reads the REAL printer_database.json entry so a
+    // semantic key reintroduced in the DB fails here.
+    auto k2set = PrinterDetector::get_pre_print_option_set("Creality K2 Plus");
+    const PrePrintOption* ai = k2set.find("ai_detect");
+    REQUIRE(ai != nullptr);
+    REQUIRE_FALSE(ai->label_key.empty());
+
+    // A semantic key is unmistakable: dotted identifier. English option text
+    // ("AI detection") never contains one.
+    INFO("label_key: " << ai->label_key);
+    REQUIRE(ai->label_key.find('.') == std::string::npos);
+
+    // And through the renderer's own lookup the label is human text.
+    PrePrintOptionsRenderer renderer;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    renderer.populate(container, k2set, nullptr, nullptr);
+    lv_obj_t* label = lv_obj_find_by_name(renderer.get_row("ai_detect"), "label");
+    REQUIRE(label != nullptr);
+    REQUIRE(std::string(lv_label_get_text(label)) == "AI detection");
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: label_key wins over humanize_id",
                  "[print_file_detail][pre_print_options][label]") {
     // When `label_key` is present, the renderer must look it up via lv_tr
@@ -347,7 +378,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: label_key wins ove
     REQUIRE(unkeyed_text == "AI Detect");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: clear() drops rows and resets subjects",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PrePrintOptionsRenderer: clear() drops rows and resets subjects",
                  "[print_file_detail][pre_print_options]") {
     PrePrintOptionsRenderer renderer;
     lv_obj_t* container = lv_obj_create(test_screen());

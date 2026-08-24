@@ -56,8 +56,6 @@ for c in sorted(chars):
 PYEOF
 )
 
-NEEDED_COUNT=$(echo "$NEEDED" | wc -l | tr -d ' ')
-
 # Compare against the codepoint manifest written by regen_text_fonts.sh, which
 # records exactly the glyph set baked into the runtime CJK .bin files
 # (assets/fonts/cjk/*.bin). The CJK runtime is those .bin files — NOT the .c
@@ -71,8 +69,6 @@ fi
 
 # Normalize manifest to the same "0xXXXX" form NEEDED uses (lowercase, no blanks)
 COMPILED=$(grep -oE '0x[0-9a-fA-F]+' "$MANIFEST" | tr 'A-F' 'a-f' | sort -u)
-
-COMPILED_COUNT=$(echo "$COMPILED" | grep -c . | tr -d ' ')
 
 # Find characters needed but not compiled
 MISSING=$(comm -23 <(echo "$NEEDED" | sort) <(echo "$COMPILED" | sort))

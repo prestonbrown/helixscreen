@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "detection_manager.h"
 
-#include "moonraker_client.h"
+#include "i_moonraker_client.h"
 #include "u1_stock_detection_source.h"
 
 #include <spdlog/spdlog.h>
@@ -15,7 +15,7 @@ DetectionManager& DetectionManager::instance() {
     return s_instance;
 }
 
-void DetectionManager::init(helix::MoonrakerClient* client, helix::PrinterState* state) {
+void DetectionManager::init(helix::IMoonrakerClient* client, helix::PrinterState* state) {
     client_ = client;
     state_ = state;
     // Do NOT probe here: init() runs during Application::init_panel_subjects, before
@@ -92,10 +92,12 @@ static bool objects_have_defect_detection(const json& objects) {
 void DetectionManager::apply_capability(bool has_defect_detection) {
     spdlog::info("DetectionManager: defect_detection capability = {}", has_defect_detection);
     for (const auto& src : sources_) {
-        if (src && src->id() == "u1_stock") {
-            if (auto* u1 = dynamic_cast<U1StockSource*>(src.get())) {
-                u1->set_capable(has_defect_detection);
-            }
+        // id() is the source's unique registration key — one id names exactly
+        // one concrete DetectionSource — so the match already establishes the
+        // type and static_cast is equivalent to the dynamic_cast this replaces.
+        // Needed because the firmware builds -fno-rtti.
+        if (src && src->id() == U1StockSource::SOURCE_ID) {
+            static_cast<U1StockSource*>(src.get())->set_capable(has_defect_detection);
         }
     }
 }

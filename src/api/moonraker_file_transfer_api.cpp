@@ -24,7 +24,7 @@ using namespace moonraker_internal;
 // MoonrakerFileTransferAPI — Constructor / Destructor
 // ============================================================================
 
-MoonrakerFileTransferAPI::MoonrakerFileTransferAPI(helix::MoonrakerClient& client,
+MoonrakerFileTransferAPI::MoonrakerFileTransferAPI(helix::IMoonrakerClient& client,
                                                    const std::string& http_base_url)
     : client_(client), http_base_url_(http_base_url) {}
 
@@ -118,6 +118,59 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
         }
 
         spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})",
+                      resp->body.size(), path, static_cast<int>(resp->status_code));
+
+        if (on_success) {
+            on_success(resp->body);
+        }
+    });
+}
+
+void MoonrakerFileTransferAPI::download_file_tail(const std::string& root, const std::string& path,
+                                                  size_t max_bytes, StringCallback on_success,
+                                                  ErrorCallback on_error) {
+    if (reject_invalid_path(path, "download_file_tail", on_error))
+        return;
+
+    if (http_base_url_.empty()) {
+        spdlog::error(
+            "[Moonraker API] HTTP base URL not configured - call set_http_base_url first");
+        report_connection_error(on_error, "download_file_tail", "HTTP base URL not configured");
+        return;
+    }
+
+    if (max_bytes == 0) {
+        // A zero-length suffix range is not expressible ("bytes=-0" is invalid)
+        // and asking for nothing is a caller bug, not a transfer to attempt.
+        report_connection_error(on_error, "download_file_tail", "max_bytes must be non-zero");
+        return;
+    }
+
+    std::string encoded_path = HUrl::escape(path, "/.-_");
+    std::string url = http_base_url_ + "/server/files/" + root + "/" + encoded_path;
+
+    spdlog::debug("[Moonraker API] Tail download (last {} bytes): {}", max_bytes, url);
+
+    helix::http::HttpExecutor::slow().submit([url, path, max_bytes, on_success, on_error]() {
+        auto req = std::make_shared<HttpRequest>();
+        req->method = HTTP_GET;
+        req->url = url;
+        req->timeout = 30;
+
+        // Suffix range: "bytes=-N" means the LAST N bytes, and is the only form
+        // that does not require knowing the file length up front.
+        req->SetHeader("Range", "bytes=-" + std::to_string(max_bytes));
+
+        auto resp = requests::request(req);
+
+        // 206 is the expected answer. 200 means the server ignored Range and
+        // sent everything — wasteful but still correct content, so accept it
+        // rather than failing a request whose data did arrive.
+        if (!handle_http_response(resp, "download_file_tail", on_error, {200, 206})) {
+            return;
+        }
+
+        spdlog::debug("[Moonraker API] Tail download: {} bytes from {} (status {})",
                       resp->body.size(), path, static_cast<int>(resp->status_code));
 
         if (on_success) {

@@ -15,7 +15,7 @@
 #include <vector>
 
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 }
 
 namespace helix {
@@ -52,7 +52,7 @@ class SoundManager {
     SoundManager& operator=(const SoundManager&) = delete;
 
     /// Set Moonraker client for M300 backend
-    void set_moonraker_client(MoonrakerClient* client);
+    void set_moonraker_client(IMoonrakerClient* client);
 
     /// Auto-detect backend, load theme, start sequencer.
     /// Only considers host-side audio backends (SDL/ALSA/PWM). The M300
@@ -160,7 +160,7 @@ class SoundManager {
     /// Check if a sound name is a UI sound (affected by ui_sounds_enabled)
     static bool is_ui_sound(const std::string& name);
 
-    MoonrakerClient* client_ = nullptr;
+    IMoonrakerClient* client_ = nullptr;
     std::unique_ptr<SoundSequencer> sequencer_;
     std::shared_ptr<SoundBackend> backend_;
     SoundTheme current_theme_;

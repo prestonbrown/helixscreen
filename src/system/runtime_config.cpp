@@ -103,6 +103,51 @@ bool RuntimeConfig::hot_reload_enabled() {
     return enabled;
 }
 
+namespace {
+
+/// Whether this backend surfaces its own runout fault, and therefore owns the
+/// runout surface for the printer it is on.
+///
+/// The rule, and it is one rule for both channels of the error architecture
+/// (docs/devel/FILAMENT_MANAGEMENT.md § "Two error channels"): **exactly one
+/// surface per printer**. A backend that raises its own event — AFC and Happy
+/// Hare through classify_error(), AD5X IFS through current_error(), CFS through
+/// classify_error() as of #1250 — already tells the user what happened, with
+/// recovery buttons derived from live hardware state. The generic
+/// sensor-driven modal must stand down for those, or a runout on a config where
+/// an AMS lane sensor does carry a FilamentSensorRole produces two dialogs.
+///
+/// A backend that raises nothing owns nothing. ACE and QIDI Box implement none
+/// of the three hooks, so suppressing the generic modal for them (which the old
+/// blanket "is it hub topology" test did) left those users with no runout
+/// notification at all. That is the case this function narrows.
+///
+/// Keyed on AmsType rather than a virtual because the answer is "does this class
+/// override an error hook", which the class cannot usefully answer about itself
+/// without a second flag to keep in sync. Adding a backend that overrides
+/// classify_error() or current_error() means adding it here — the switch has no
+/// `default:` precisely so `-Wswitch` names this function when AmsType grows a
+/// value. Should one slip through anyway, the fallthrough is false, i.e. keep
+/// the generic modal: a redundant dialog beats silence about a real runout.
+bool backend_owns_runout_surface(AmsType type) {
+    switch (type) {
+    case AmsType::HAPPY_HARE: // classify_error()
+    case AmsType::AFC:        // classify_error() + current_error()
+    case AmsType::AD5X_IFS:   // current_error() (unattended-runout detector)
+    case AmsType::CFS:        // classify_error() (auto-refill give-up messages)
+        return true;
+    case AmsType::ACE:
+    case AmsType::QIDI_BOX:
+    case AmsType::TOOL_CHANGER:
+    case AmsType::SNAPMAKER:
+    case AmsType::NONE:
+        return false;
+    }
+    return false;
+}
+
+} // namespace
+
 bool RuntimeConfig::should_show_runout_modal() const {
     // If explicitly forced via env var, always show
     if (std::getenv("HELIX_FORCE_RUNOUT_MODAL") != nullptr) {
@@ -131,11 +176,25 @@ bool RuntimeConfig::should_show_runout_modal() const {
 
         // Hub-topology AMS (Happy Hare, AFC, ACE, AD5X IFS, CFS, QIDI Box):
         // bypass_active=1: external spool (show modal - toolhead sensor matters)
-        // bypass_active=0: AMS managing filament (suppress - runout during swaps normal)
+        // bypass_active=0: AMS managing filament, so the toolhead sensor going
+        //   empty mid-swap is normal and the generic modal would be false
+        //   guidance. Suppressed — but ONLY for a backend that raises its own
+        //   runout fault instead, so the user still hears about a real one.
+        //   A backend with no error hook of its own would otherwise be silenced
+        //   with nothing put in its place (#1250).
         int bypass_active = lv_subject_get_int(ams.get_bypass_active_subject());
         if (bypass_active == 0) {
-            spdlog::debug("[RuntimeConfig] Suppressing runout modal - AMS managing filament");
-            return false;
+            auto* backend = ams.get_backend(0);
+            const AmsType type = backend ? backend->get_type() : AmsType::NONE;
+            if (backend_owns_runout_surface(type)) {
+                spdlog::debug("[RuntimeConfig] Suppressing runout modal - {} raises its own "
+                              "runout fault",
+                              ams_type_to_string(type));
+                return false;
+            }
+            spdlog::debug("[RuntimeConfig] {} has no runout fault of its own - showing modal",
+                          ams_type_to_string(type));
+            return true;
         }
         spdlog::debug("[RuntimeConfig] AMS bypass active - showing runout modal");
     }

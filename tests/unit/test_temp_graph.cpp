@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../../include/temp_graph_internal.h"
 #include "../../include/theme_manager.h"
 #include "../../include/ui_temp_graph.h"
 #include "../ui_test_utils.h"
@@ -1165,11 +1166,6 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: clear_series zeroes targe
 #include <utility>
 #include <vector>
 
-// Forward declaration of the function under test (defined in ui_temp_graph.cpp).
-namespace helix::temp_graph_internal {
-std::vector<std::pair<int, int>> segment_target_buf(const int16_t* buf, int count);
-}
-
 TEST_CASE("segment_target_buf: empty input yields no segments", "[temp_graph][target_history]") {
     auto segs = helix::temp_graph_internal::segment_target_buf(nullptr, 0);
     REQUIRE(segs.empty());
@@ -1222,11 +1218,6 @@ TEST_CASE("segment_target_buf: negative values treated as gaps too",
 // means "draw a line from buffer index a to index b"; the union of these pairs
 // is geometrically identical to connecting every consecutive sample.
 // ============================================================================
-
-// Forward declaration of the function under test (defined in ui_temp_graph.cpp).
-namespace helix::temp_graph_internal {
-std::vector<std::pair<int, int>> coalesce_target_runs(const int16_t* buf, int first, int second);
-}
 
 TEST_CASE("coalesce_target_runs: fewer than two points yields nothing",
           "[temp_graph][target_history]") {

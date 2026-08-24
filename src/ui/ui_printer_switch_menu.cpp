@@ -16,7 +16,6 @@
 namespace helix::ui {
 
 // Static member initialization
-PrinterSwitchMenu* PrinterSwitchMenu::s_active_instance_ = nullptr;
 bool PrinterSwitchMenu::s_callbacks_registered_ = false;
 
 // ============================================================================
@@ -32,7 +31,8 @@ void PrinterSwitchMenu::show(lv_obj_t* parent, lv_obj_t* near_widget) {
     pt.y = lv_obj_get_y(near_widget) + lv_obj_get_height(near_widget) / 2;
     set_click_point(pt);
 
-    s_active_instance_ = this;
+    // show_near_widget() also claims the active-menu slot the static callbacks
+    // resolve through.
     show_near_widget(parent, 0, near_widget);
 
     spdlog::debug("[PrinterSwitchMenu] Shown");
@@ -165,7 +165,6 @@ void PrinterSwitchMenu::handle_add_printer() {
 
 void PrinterSwitchMenu::dispatch_switch_action(MenuAction action, const std::string& printer_id) {
     auto callback = switch_callback_;
-    s_active_instance_ = nullptr;
     hide(); // Safe: uses lv_obj_delete_async internally
 
     if (callback) {
@@ -183,7 +182,6 @@ void PrinterSwitchMenu::register_callbacks() {
     }
 
     register_xml_callbacks({
-        {"printer_switch_backdrop_cb", on_backdrop_cb},
         {"printer_switch_add_cb", on_add_printer_cb},
     });
 
@@ -196,17 +194,11 @@ void PrinterSwitchMenu::register_callbacks() {
 // ============================================================================
 
 PrinterSwitchMenu* PrinterSwitchMenu::get_active_instance() {
-    if (!s_active_instance_) {
+    auto* self = ContextMenu::active_as<PrinterSwitchMenu>();
+    if (!self) {
         spdlog::warn("[PrinterSwitchMenu] No active instance for event");
     }
-    return s_active_instance_;
-}
-
-void PrinterSwitchMenu::on_backdrop_cb(lv_event_t* /*e*/) {
-    auto* self = get_active_instance();
-    if (self) {
-        self->on_backdrop_clicked();
-    }
+    return self;
 }
 
 void PrinterSwitchMenu::on_add_printer_cb(lv_event_t* /*e*/) {

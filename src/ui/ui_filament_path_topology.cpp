@@ -652,15 +652,15 @@ void build_linear_hub_merge_fan(const RenderCtx& ctx, LinearHubFrame& f) {
         int32_t start_y = data->slot_has_prep_sensor[i] ? (f.prep_y + f.sensor_r) : f.prep_y;
         fan_in[i] = {(float)g.slot_x[i], (float)start_y};
     }
-    constexpr int32_t kTargetEntrySpacing = 22;
-    constexpr int32_t kEntryMargin = 8;
+    constexpr int32_t TARGET_ENTRY_SPACING = 22;
+    constexpr int32_t ENTRY_MARGIN = 8;
     int32_t want_w =
-        (fan_n > 1) ? (fan_n - 1) * kTargetEntrySpacing + 2 * kEntryMargin : data->theme.hub_width;
+        (fan_n > 1) ? (fan_n - 1) * TARGET_ENTRY_SPACING + 2 * ENTRY_MARGIN : data->theme.hub_width;
     int32_t slot_span = (data->slot_count > 1) ? (g.slot_x[data->slot_count - 1] - g.slot_x[0])
                                                : data->theme.hub_width;
     f.hub_box_w = LV_CLAMP(want_w, data->theme.hub_width, LV_MAX(data->theme.hub_width, slot_span));
     pg::build_merge_fan(fan_in, fan_n, (float)f.center_x, (float)hub_top, (float)f.hub_box_w,
-                        (float)kEntryMargin, /*fillet_r=*/8.0f, /*max_slope=*/1.2f, f.hub_fan);
+                        (float)ENTRY_MARGIN, /*fillet_r=*/8.0f, /*max_slope=*/1.2f, f.hub_fan);
     for (int i = 0; i < fan_n; i++)
         f.hub_dot_xs[i] = (int32_t)lroundf(f.hub_fan[i].pts[2].x);
 }

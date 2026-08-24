@@ -26,33 +26,40 @@ static const char* print_state_name(PrintState s) {
     return "Unknown";
 }
 
-StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState job_state,
-                                                            helix::PrintOutcome /* outcome */) {
-    // Map PrintJobState to PrintState
-    PrintState new_state;
-    switch (job_state) {
-    case helix::PrintJobState::STANDBY:
-        new_state = PrintState::Idle;
-        break;
-    case helix::PrintJobState::PRINTING:
-        new_state = PrintState::Printing;
-        break;
-    case helix::PrintJobState::PAUSED:
-        new_state = PrintState::Paused;
-        break;
-    case helix::PrintJobState::COMPLETE:
-        new_state = PrintState::Complete;
-        break;
-    case helix::PrintJobState::CANCELLED:
-        new_state = PrintState::Cancelled;
-        break;
-    case helix::PrintJobState::ERROR:
-        new_state = PrintState::Error;
-        break;
-    default:
-        new_state = PrintState::Idle;
-        break;
+// RAW_PRINT_STATE_OK: whole function. This is the mapping itself - the single
+// place the wire becomes the lifecycle. Every other consumer reads the result.
+PrintState derive_print_state(helix::PrintJobState job_state, int start_phase) {
+    // A pause is user-visible and must not be masked by a phase left set when
+    // the printer stopped mid-PRINT_START (runout during the purge line, M600).
+    // Everything else yields to a live phase.
+    if (start_phase != 0 && job_state != helix::PrintJobState::PAUSED) {
+        return PrintState::Preparing;
     }
+    switch (job_state) {
+    case helix::PrintJobState::PRINTING:
+        return PrintState::Printing;
+    case helix::PrintJobState::PAUSED:
+        return PrintState::Paused;
+    case helix::PrintJobState::COMPLETE:
+        return PrintState::Complete;
+    case helix::PrintJobState::CANCELLED:
+        return PrintState::Cancelled;
+    case helix::PrintJobState::ERROR:
+        return PrintState::Error;
+    case helix::PrintJobState::STANDBY:
+    default:
+        return PrintState::Idle;
+    }
+}
+
+StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState job_state,
+                                                            helix::PrintOutcome /* outcome */,
+                                                            int start_phase) {
+    // Same function, same inputs as publish_lifecycle_state() - so this object
+    // and the print_lifecycle subject agree by construction rather than by
+    // coincidence. A live phase outranks the job state; that is the whole point
+    // of derive_print_state() and it applies here too.
+    PrintState new_state = derive_print_state(job_state, start_phase);
 
     if (new_state == current_state_) {
         spdlog::trace("[PrintLifecycleState] state unchanged: {}", print_state_name(new_state));
@@ -72,10 +79,13 @@ StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState
     // through Complete/Cancelled/Error so the user can see final state.
     bool print_ended = going_idle;
 
-    bool should_reset_progress_bar =
+    // A fresh entry into Printing - i.e. not the resume half of a pause cycle.
+    // Both per-job resets below key off this one condition; they stay separate
+    // fields because they answer different consumer questions and may diverge.
+    const bool entering_print_fresh =
         (new_state == PrintState::Printing && current_state_ != PrintState::Paused);
-    bool should_clear_excluded_objects =
-        (new_state == PrintState::Printing && current_state_ != PrintState::Paused);
+    bool should_reset_progress_bar = entering_print_fresh;
+    bool should_clear_excluded_objects = entering_print_fresh;
     bool should_freeze_complete = (new_state == PrintState::Complete);
     bool should_animate_cancelled = (new_state == PrintState::Cancelled);
     bool should_animate_error = (new_state == PrintState::Error);
@@ -122,7 +132,6 @@ StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState
     result.should_freeze_complete = should_freeze_complete;
     result.should_animate_cancelled = should_animate_cancelled;
     result.should_animate_error = should_animate_error;
-    result.clear_gcode_loaded = clear_gcode_loaded;
     result.old_state = old_state;
     result.new_state = new_state;
     result.should_show_viewer = should_show_viewer;
@@ -176,9 +185,12 @@ bool PrintLifecycleState::on_time_left_changed(int seconds, helix::PrintOutcome 
 
 bool PrintLifecycleState::on_start_phase_changed(int phase,
                                                  helix::PrintJobState current_job_state) {
-    bool preparing = (phase != 0);
+    const PrintState derived = derive_print_state(current_job_state, phase);
 
-    if (preparing) {
+    if (derived == PrintState::Preparing) {
+        if (current_state_ == PrintState::Preparing) {
+            return false; // already there; phase detail is carried separately
+        }
         spdlog::debug("[PrintLifecycleState] entering Preparing (phase={})", phase);
         current_state_ = PrintState::Preparing;
         preprint_elapsed_seconds_ = 0;
@@ -187,18 +199,7 @@ bool PrintLifecycleState::on_start_phase_changed(int phase,
     }
 
     if (current_state_ == PrintState::Preparing) {
-        // Restore state from current job state
-        switch (current_job_state) {
-        case helix::PrintJobState::PRINTING:
-            current_state_ = PrintState::Printing;
-            break;
-        case helix::PrintJobState::PAUSED:
-            current_state_ = PrintState::Paused;
-            break;
-        default:
-            current_state_ = PrintState::Idle;
-            break;
-        }
+        current_state_ = derived;
         spdlog::debug("[PrintLifecycleState] exiting Preparing -> {}",
                       print_state_name(current_state_));
         return true;

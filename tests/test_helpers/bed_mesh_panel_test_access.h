@@ -31,6 +31,12 @@ struct BedMeshPanelTestAccess {
         return p.wire_canvas_and_content(overlay_content);
     }
 
+    /// Drives the private SAVE_CONFIG initiation so the expected-restart flow
+    /// tests can exercise it without the panel's full XML UI.
+    static void save_config(BedMeshPanel& p) {
+        p.execute_save_config();
+    }
+
     /// The SIZE_CHANGED handler wire_canvas_and_content() installs on
     /// overlay_content, so a test can assert whether it is still registered.
     /// Its user_data is the panel, so a registration outliving the panel is a

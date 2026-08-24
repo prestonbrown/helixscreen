@@ -40,6 +40,15 @@ class AmsBackendMock : public AmsBackend {
     void stop() override;
     [[nodiscard]] bool is_running() const override;
 
+    // Guarded to match the base declaration: ESP32 compiles this class for the
+    // CONFIG_HELIX_MOCK_PRINTER build but never defines HELIX_ENABLE_MOCKS, so
+    // there is no base virtual to override there.
+#ifdef HELIX_ENABLE_MOCKS
+    [[nodiscard]] AmsBackendMock* as_mock() override {
+        return this;
+    }
+#endif
+
     // Mock-only: receiver for MoonrakerClientMock's active-gcode-tool
     // notifications. Wired up by MoonrakerManager when both mocks are live.
     // Production AMS backends get equivalent state from real Klipper via
@@ -155,6 +164,10 @@ class AmsBackendMock : public AmsBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
+    /// nullopt until the "unaccounted" scenario runs; then true — the mock
+    /// cannot observe a toolhead, so only the staged scenario answers.
+    [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+
     // Environment sensors
     [[nodiscard]] bool has_environment_sensors() const override;
 
@@ -163,12 +176,16 @@ class AmsBackendMock : public AmsBackend {
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     AmsError stop_drying(int unit = 0) override;
 
-    // Endless spool
+    // Endless spool. The mock keeps its edges in the SlotRegistry, so its config
+    // is the same one-liner AFC uses. reset_endless_spool() is NOT overridden -
+    // the base's clear-every-slot loop is exactly the behaviour the mock wants,
+    // and its absence is why the mock used to advertise editable=true while
+    // returning NOT_SUPPORTED from reset.
+    /// @note Takes `mutex_`; callers must NOT hold it.
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
-    [[nodiscard]] std::vector<helix::printer::EndlessSpoolConfig>
-    get_endless_spool_config() const override;
-    AmsError set_endless_spool_backup(int slot_index, int backup_slot) override;
+    /// @note Takes `mutex_`; callers must NOT hold it.
+    [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
 
     // Tool mapping
     [[nodiscard]] helix::printer::ToolMappingCapabilities
@@ -399,6 +416,22 @@ class AmsBackendMock : public AmsBackend {
     void set_multi_unit_mode(bool enabled);
 
     /**
+     * @brief Enable the multi-unit torture profile (HELIX_MOCK_AMS=torture).
+     *
+     * Five units / 16 lanes / 4 Klipper extruders, modelled on a user rig
+     * captured 2026-08-16: Box Turtle + Claymore both feed e0, ViViD + EMU both
+     * feed e3, and a 2-tool Toolchanger sits between them. Two lanes are
+     * deliberately unmapped and the AFC tool aliases are neither dense nor
+     * unit-ordered.
+     *
+     * This is the only profile whose unit-card row overflows its container, so
+     * it is the only way to exercise the overview's card-row scrolling, its
+     * off-canvas connector clamping, and shared-nozzle hub placement. Every
+     * other profile tops out at 3 units, which always fit.
+     */
+    void set_torture_mode(bool enabled);
+
+    /**
      * @brief Check if multi-unit mode is active
      */
     [[nodiscard]] bool is_multi_unit_mode() const;
@@ -481,15 +514,17 @@ class AmsBackendMock : public AmsBackend {
      * @brief Set whether endless spool is supported
      * @param supported true to enable endless spool support
      *
-     * When disabled, get_endless_spool_capabilities() returns supported=false.
+     * When disabled, get_endless_spool_capabilities() reports
+     * EndlessSpoolAvailability::Unsupported.
      */
     void set_endless_spool_supported(bool supported);
 
     /**
      * @brief Set whether endless spool configuration is editable
-     * @param editable true for AFC-style (editable), false for Happy Hare-style (read-only)
+     * @param editable true for AFC-style (PerSlot), false for read-only
      *
-     * When editable=false, set_endless_spool_backup() returns NOT_SUPPORTED.
+     * When editable=false, set_endless_spool_backup() and reset_endless_spool()
+     * are refused by the base with the FirmwareManaged restriction.
      */
     void set_endless_spool_editable(bool editable);
 
@@ -541,9 +576,20 @@ class AmsBackendMock : public AmsBackend {
      * before they can be applied. This stores the scenario name and applies
      * it at the end of start().
      *
-     * @param scenario One of: "idle", "loading", "error", "bypass"
+     * @param scenario One of: "idle", "loading", "error", "bypass", "unaccounted"
      */
     void set_initial_state_scenario(const std::string& scenario);
+
+  protected:
+    /**
+     * @brief "Transport" for the mock: write the edge straight to the registry.
+     *
+     * Every guard the mock used to carry (support, editability, both ranges,
+     * self-backup) now lives in AmsBackend::set_endless_spool_backup().
+     *
+     * @note Takes `mutex_`; the base calls this with no lock held.
+     */
+    AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
 
   private:
     /**
@@ -712,6 +758,7 @@ class AmsBackendMock : public AmsBackend {
     bool vivid_mixed_mode_ = false;      ///< Simulate 2x BoxTurtle + 1x ViViD
     bool ifs_mode_ = false;              ///< Simulate AD5X IFS (4 slots, LINEAR)
     bool htlf_toolchanger_mode_ = false; ///< Simulate HTLF + Toolchanger mixed topology
+    bool torture_mode_ = false;          ///< Simulate 5 units / 16 lanes / 4 shared extruders
     bool snapmaker_mode_ = false; ///< Simulate Snapmaker U1 (4 slots, PARALLEL, non-editable)
     std::vector<PathTopology> unit_topologies_; ///< Per-unit topology storage
 
@@ -732,6 +779,7 @@ class AmsBackendMock : public AmsBackend {
     std::string initial_state_scenario_;
     std::thread scenario_thread_; ///< Thread for deferred loading/bypass scenario
     std::atomic<bool> scenario_thread_running_{false}; ///< Guards against double-join
+    bool mock_toolhead_unaccounted_ = false; ///< "unaccounted" scenario staged (gate input)
 
     // Test override for native-tracking capability. False in production; tests
     // flip this to exercise the FilamentConsumptionTracker gating path.

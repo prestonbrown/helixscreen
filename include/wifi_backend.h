@@ -282,6 +282,18 @@ class WifiBackend {
     }
 
     /**
+     * @brief Whether this is the NetworkManager (nmcli) backend
+     *
+     * WiFiManager needs it to decide whether an INIT_FAILED is recoverable by
+     * falling back to wpa_supplicant — only the NM backend has that fallback.
+     * A virtual query rather than a `dynamic_cast` to the concrete backend,
+     * because the firmware builds -fno-rtti.
+     */
+    virtual bool is_network_manager() const {
+        return false;
+    }
+
+    /**
      * @brief Initialize and start the WiFi backend
      *
      * Establishes connection to underlying WiFi system (wpa_supplicant, mock, etc.)
@@ -517,3 +529,12 @@ class WifiBackend {
   protected:
     bool silent_ = false; ///< When true, suppress error modals on startup
 };
+
+namespace helix {
+/**
+ * Platform-provided backend factory for embedded targets. NOT defined in
+ * the desktop build — the ESP32 firmware tree implements it against
+ * esp_wifi (WifiBackend::create() calls it when ESP_PLATFORM is defined).
+ */
+std::unique_ptr<WifiBackend> create_platform_wifi_backend(bool silent);
+} // namespace helix

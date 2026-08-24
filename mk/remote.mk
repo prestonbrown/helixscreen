@@ -151,6 +151,15 @@ remote-clean:
 # Remote Build Targets
 # =============================================================================
 
+# remote-sync deliberately excludes .git (submodule .gitignore files would drop
+# files the cross build needs), so NOTHING on the build host can resolve HEAD and
+# every remote build stamped HELIX_GIT_HASH "unknown" — the binary you then flash
+# cannot say which commit produced it. Resolve it here, where the checkout is,
+# and carry it in the environment: scripts/gen-git-hash.sh prefers it over its own
+# lookup, and mk/cross.mk forwards it into the toolchain container.
+REMOTE_GIT_HASH = $(shell git -c safe.directory='*' rev-parse --short HEAD 2>/dev/null)
+REMOTE_MAKE_ENV = $(if $(REMOTE_GIT_HASH),HELIX_GIT_HASH=$(REMOTE_GIT_HASH) )
+
 .PHONY: remote-pi remote-ad5m remote-native remote-all
 
 # Build for Raspberry Pi on remote host
@@ -158,7 +167,7 @@ remote-clean:
 remote-pi: remote-sync
 	@echo "$(CYAN)$(BOLD)Building Pi target on $(REMOTE_HOST)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && make pi-docker" || exit $$?; \
+	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && $(REMOTE_MAKE_ENV)make pi-docker" || exit $$?; \
 	END_TIME=$$(date +%s); \
 	ELAPSED=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)✓ Remote build completed in $${ELAPSED}s$(RESET)"
@@ -169,7 +178,7 @@ remote-pi: remote-sync
 remote-ad5m: remote-sync
 	@echo "$(CYAN)$(BOLD)Building AD5M target on $(REMOTE_HOST)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && make ad5m-docker" || exit $$?; \
+	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && $(REMOTE_MAKE_ENV)make ad5m-docker" || exit $$?; \
 	END_TIME=$$(date +%s); \
 	ELAPSED=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)✓ Remote build completed in $${ELAPSED}s$(RESET)"
@@ -180,7 +189,7 @@ remote-ad5m: remote-sync
 remote-native: remote-sync
 	@echo "$(CYAN)$(BOLD)Building native Linux on $(REMOTE_HOST)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && make -j" || exit $$?; \
+	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && $(REMOTE_MAKE_ENV)make -j" || exit $$?; \
 	END_TIME=$$(date +%s); \
 	ELAPSED=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)✓ Remote build completed in $${ELAPSED}s$(RESET)"
@@ -191,7 +200,7 @@ remote-native: remote-sync
 remote-all: remote-sync
 	@echo "$(CYAN)$(BOLD)Building ALL targets on $(REMOTE_HOST)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && make pi-docker ad5m-docker -j2" || exit $$?; \
+	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && $(REMOTE_MAKE_ENV)make pi-docker ad5m-docker -j2" || exit $$?; \
 	END_TIME=$$(date +%s); \
 	ELAPSED=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)✓ Remote builds completed in $${ELAPSED}s$(RESET)"

@@ -8,9 +8,13 @@
  *
  * ui_breakpoint classifies the cramped-axis *tier* and cannot answer "is this
  * portrait" -- 480x800 and 800x480 can land on the same tier. This subject is
- * the missing piece: 1 for any portrait class, 0 otherwise, derived from the
- * same detect_layout_type()/is_portrait_layout() pair compute_overlay_widths()
- * already uses in theme_manager.cpp.
+ * the missing piece: 1 for any portrait class, 0 otherwise.
+ *
+ * Two sources, in priority order (#1255):
+ *   1. LayoutManager::type() once initialized -- override-aware, so a --layout
+ *      override and the XML that branches on ui_is_portrait agree.
+ *   2. detect_layout_type() of the live display -- the startup seed and the
+ *      fallback before LayoutManager (Phase 8b) is constructed.
  *
  * The name is pinned exactly -- "ui_is_portrait" is the API XML depends on, and
  * a typo there fails silently at the cond= site, the worst failure mode
@@ -25,6 +29,22 @@
 
 #include "../catch_amalgamated.hpp"
 
+// Resets LayoutManager between tests so a prior init()/set_override() cannot
+// leak into the fallback-path cases. Identical body to the friend class in
+// test_layout_manager.cpp / test_grid_layout.cpp — Catch2 amalgamated builds
+// compile each TU separately, no ODR conflict.
+class LayoutManagerTestAccess {
+  public:
+    static void reset(helix::LayoutManager& lm) {
+        lm.type_ = helix::LayoutType::STANDARD;
+        lm.name_ = "standard";
+        lm.override_name_.clear();
+        lm.initialized_ = false;
+        lm.width_ = 0;
+        lm.height_ = 0;
+    }
+};
+
 namespace {
 
 /// Bufferless display: the axis accessors only read the resolution.
@@ -38,14 +58,26 @@ int subject_value(const char* name) {
     return lv_subject_get_int(s);
 }
 
-/// Puts the fixture's display geometry back on the way out -- see the identical
-/// helper (and its comment) in test_vertical_breakpoint_subject.cpp. theme_manager
-/// writes into a SHARED XML scope, so leaving a test display registered leaks its
-/// geometry into every later test in the binary.
+/// Puts the fixture's display geometry and LayoutManager back on the way out --
+/// see the identical helper (and its comment) in
+/// test_vertical_breakpoint_subject.cpp. theme_manager writes into a SHARED XML
+/// scope, so leaving a test display registered leaks its geometry into every
+/// later test in the binary; an init'd LayoutManager likewise leaks its type.
+///
+/// The constructor reset is just as important as the destructor one:
+/// LayoutManager is a singleton shared across every test file in this binary,
+/// and cases in test_layout_manager.cpp / test_grid_layout.cpp leave it init'd.
+/// Without resetting on entry, the fallback-path tests see a stale type instead
+/// of detect_layout_type().
 struct RestoreDisplayConsts {
     lv_display_t* prev = lv_display_get_default();
 
+    RestoreDisplayConsts() {
+        LayoutManagerTestAccess::reset(helix::LayoutManager::instance());
+    }
+
     ~RestoreDisplayConsts() {
+        LayoutManagerTestAccess::reset(helix::LayoutManager::instance());
         if (prev != nullptr) {
             lv_display_set_default(prev);
             theme_manager_refresh_layout_constants(prev);
@@ -63,7 +95,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_is_portrait is registered under its exact n
     REQUIRE(s != nullptr);
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "ui_is_portrait tracks is_portrait_layout(detect_layout_type())",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "ui_is_portrait fallback: tracks detect_layout_type() before LayoutManager init",
                  "[theme][layout][is-portrait-subject]") {
     RestoreDisplayConsts restore;
 
@@ -73,7 +106,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_is_portrait tracks is_portrait_layout(detec
     };
     // A spread across landscape and portrait classes, including a pair that
     // shares a ui_breakpoint tier (800x480 vs 480x800) to prove this subject
-    // answers a question ui_breakpoint cannot.
+    // answers a question ui_breakpoint cannot. LayoutManager is NOT init'd here,
+    // so theme_manager_refresh_orientation() falls back to detect_layout_type().
     const Case cases[] = {
         {800, 480}, {480, 800}, {1024, 600}, {480, 272}, {272, 480}, {320, 1480}, {1480, 320},
     };
@@ -141,4 +175,68 @@ TEST_CASE_METHOD(XMLTestFixture, "rotation republishes ui_is_portrait",
     theme_manager_refresh_layout_constants(wide);
     CHECK(subject_value("ui_is_portrait") == 0);
     lv_display_delete(wide);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "ui_is_portrait follows LayoutManager override, not physical geometry",
+                 "[theme][layout][is-portrait-subject][1255]") {
+    // The #1255 contract: once LayoutManager is initialized, ui_is_portrait
+    // tracks is_portrait_layout(LayoutManager::type()) so a --layout override
+    // and the XML branching on ui_is_portrait agree. The divergence this fixes:
+    // --layout=portrait on landscape hardware left C++ visual decisions seeing
+    // portrait while XML stayed landscape.
+    RestoreDisplayConsts restore;
+
+    auto& lm = helix::LayoutManager::instance();
+
+    // --layout=portrait on 800x480 (landscape) hardware.
+    lm.set_override("portrait");
+    lm.init(800, 480);
+    REQUIRE(lm.type() == helix::LayoutType::PORTRAIT);
+
+    lv_display_t* landscape = make_test_display(800, 480);
+    theme_manager_refresh_orientation();
+    CHECK(subject_value("ui_is_portrait") == 1);
+
+    // The override wins even if a refresh runs with the physical display.
+    theme_manager_refresh_layout_constants(landscape);
+    CHECK(subject_value("ui_is_portrait") == 1);
+    lv_display_delete(landscape);
+
+    // --layout=standard (auto) on the same hardware snaps back to landscape.
+    LayoutManagerTestAccess::reset(lm);
+    lm.init(800, 480);
+    REQUIRE(lm.type() == helix::LayoutType::STANDARD);
+
+    lv_display_t* landscape2 = make_test_display(800, 480);
+    theme_manager_refresh_orientation();
+    CHECK(subject_value("ui_is_portrait") == 0);
+    lv_display_delete(landscape2);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "ui_is_portrait override is reactive across set_override + refresh",
+                 "[theme][layout][is-portrait-subject][1255]") {
+    // The override can change at runtime (config flip). A refresh must republish
+    // the new orientation so <if cond="ui_is_portrait eq 1"> rebuilds.
+    RestoreDisplayConsts restore;
+
+    auto& lm = helix::LayoutManager::instance();
+
+    // Landscape hardware: a portrait override must still win.
+    lm.init(1024, 600);
+    theme_manager_refresh_orientation();
+    CHECK(subject_value("ui_is_portrait") == 0);
+
+    // Flip to portrait override mid-session.
+    lm.set_override("portrait");
+    lm.init(1024, 600);
+    theme_manager_refresh_orientation();
+    CHECK(subject_value("ui_is_portrait") == 1);
+
+    // And back.
+    LayoutManagerTestAccess::reset(lm);
+    lm.init(1024, 600);
+    theme_manager_refresh_orientation();
+    CHECK(subject_value("ui_is_portrait") == 0);
 }

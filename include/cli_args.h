@@ -72,7 +72,7 @@ struct CliArgs {
                         // "ultrawide", "portrait", "micro", "tiny", etc.)
 
     // Moonraker override (for testing/development)
-    std::string moonraker_url; // --moonraker: override config URL (e.g., ws://192.168.1.112:7125)
+    std::string moonraker_url; // --moonraker: override config URL (e.g., ws://192.168.1.100:7125)
 
     // Headless one-shot: detect printer via Moonraker REST and print JSON verdict, then exit.
     bool detect_printer = false;

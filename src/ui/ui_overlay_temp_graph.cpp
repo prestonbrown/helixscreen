@@ -16,6 +16,7 @@
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "static_panel_registry.h"
+#include "temp_graph_tooltip.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_sensor_types.h"
@@ -25,6 +26,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <utility>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -76,6 +78,24 @@ struct VisibilitySnapshot {
 };
 std::optional<VisibilitySnapshot> s_visibility_snapshot;
 
+/**
+ * The user's chip toggles, remembered across a deactivate/reactivate cycle.
+ *
+ * This cannot live on the overlay: on_deactivate() clears series_ (and
+ * suspend_active() calls on_deactivate() when the app backgrounds), so by the
+ * time on_activate() runs again there is no per-series state left to read a
+ * previous visibility off. Tagged with the printer AND the mode the toggles
+ * were made in — a different printer, or opening the overlay as the Bed view
+ * after toggling chips in the Nozzle view, falls back to that mode's defaults
+ * rather than restoring a selection that was never about this view.
+ */
+struct VisibilityOverride {
+    std::string printer_name;
+    int mode = -1;
+    std::vector<std::pair<std::string, bool>> per_series;
+};
+std::optional<VisibilityOverride> s_visibility_override;
+
 std::string current_printer_name() {
     auto* subj = ::get_printer_state().get_active_printer_name_subject();
     if (!subj)
@@ -118,7 +138,13 @@ TempGraphOverlay::~TempGraphOverlay() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void TempGraphOverlay::init_subjects() {
-    init_subjects_guarded([]() {});
+    init_subjects_guarded([this]() {
+        // mode_ is set by open() before this first runs; seeding the subject
+        // with the current value avoids a transient wrong-mode frame between
+        // XML create and the first lv_subject_set_int in open().
+        UI_MANAGED_SUBJECT_INT(mode_subject_, static_cast<int>(mode_), "temp_graph_mode",
+                               subjects_);
+    });
 }
 
 void TempGraphOverlay::register_callbacks() {
@@ -136,7 +162,6 @@ lv_obj_t* TempGraphOverlay::create(lv_obj_t* parent) {
     bed_strip_ = lv_obj_find_by_name(overlay_root_, "bed_control_strip");
     chamber_strip_ = lv_obj_find_by_name(overlay_root_, "chamber_control_strip");
     extruder_selector_row_ = lv_obj_find_by_name(overlay_root_, "extruder_selector_row");
-    graph_outer_ = lv_obj_find_by_name(overlay_root_, "graph_outer_container");
 
     return overlay_root_;
 }
@@ -156,7 +181,6 @@ void TempGraphOverlay::on_activate() {
     bed_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Bed);
     chamber_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber);
 
-    // Discover series metadata (populates series_ with display info)
     discover_series();
 
     // Build TempGraphSeriesSpec vector from discovered series
@@ -179,7 +203,8 @@ void TempGraphOverlay::on_activate() {
         }
 
         helix::TempGraphControllerConfig cfg;
-        // Default point_count (1200 = 20 min) — overlay is the detailed full-screen view
+        // Default point_count (UI_TEMP_GRAPH_DEFAULT_POINTS = 400 points at one
+        // per 3 s = a 20 min window) — the overlay is the detailed full-screen view
         cfg.axis_size = "sm";
         cfg.initial_features = TEMP_GRAPH_FEATURE_LINES | TEMP_GRAPH_FEATURE_TARGET_LINES |
                                TEMP_GRAPH_FEATURE_Y_AXIS | TEMP_GRAPH_FEATURE_X_AXIS |
@@ -193,6 +218,14 @@ void TempGraphOverlay::on_activate() {
         }
     }
 
+    // Tap-to-caption is opt-in per graph instance (temp_graph_tooltip.h): only
+    // this full-screen overlay enables it. The home-panel mini graph already
+    // uses a tap to OPEN this overlay (temp_graph_widget.cpp), so enabling the
+    // tooltip there would collide with that gesture.
+    if (controller_ && controller_->is_valid()) {
+        ui_temp_graph_set_tooltip_enabled(controller_->graph(), true);
+    }
+
     // Map series IDs back from controller
     if (controller_ && controller_->is_valid()) {
         for (auto& s : series_) {
@@ -200,8 +233,26 @@ void TempGraphOverlay::on_activate() {
         }
     }
 
-    // Apply mode-specific visibility and chips (every activation)
+    // Visibility: lay down this mode's defaults, then re-apply the user's chip
+    // toggles over the top when they were made on this printer in this mode.
+    // Order matters — the defaults establish a baseline for any series that
+    // appeared since the toggles were recorded (a sensor discovered late, a
+    // second tool), and the override only touches names it actually knows.
     apply_default_visibility();
+    if (s_visibility_override && s_visibility_override->mode == static_cast<int>(mode_) &&
+        s_visibility_override->printer_name == current_printer_name()) {
+        for (auto& s : series_) {
+            for (const auto& [name, vis] : s_visibility_override->per_series) {
+                if (name == s.klipper_name) {
+                    s.visible = vis;
+                    break;
+                }
+            }
+        }
+        publish_visibility_snapshot();
+        spdlog::debug("[TempGraphOverlay] Restored {} saved chip toggles",
+                      s_visibility_override->per_series.size());
+    }
     create_chips();
     configure_control_strip();
 
@@ -218,6 +269,12 @@ void TempGraphOverlay::on_deactivate() {
     nozzle_icon_binder_.unbind();
     bed_icon_binder_.unbind();
     chamber_icon_binder_.unbind();
+
+    // Clear any pinned caption before the controller (and its graph) are torn
+    // down below.
+    if (controller_ && controller_->is_valid()) {
+        helix::temp_graph_internal::temp_graph_tooltip_clear(controller_->graph());
+    }
 
     // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
@@ -261,6 +318,15 @@ void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen) {
 
         NavigationManager::instance().register_overlay_instance(cached_overlay_, this, true);
         spdlog::info("[TempGraphOverlay] Overlay created");
+    }
+
+    // Sync the declarative mode subject on every open. Idempotent on the first
+    // open (init_subjects already seeded it with mode_), but necessary for
+    // subsequent opens where the caller chose a different mode than last time.
+    // XML bindings (strip visibility via bind_flag_if_not_eq, graph_outer width
+    // via temp_graph_full_width subject_expr) refire and reflow the overlay.
+    if (are_subjects_initialized()) {
+        lv_subject_set_int(&mode_subject_, static_cast<int>(mode_));
     }
 
     if (cached_overlay_) {
@@ -519,6 +585,18 @@ void TempGraphOverlay::toggle_series_visibility(size_t series_idx) {
     update_chip_style(series_idx);
     publish_visibility_snapshot();
 
+    // Persist the whole toggle set outside the overlay. on_deactivate() clears
+    // series_, so without this the next activation — including the one that
+    // resuming from background performs — has nothing to restore from.
+    VisibilityOverride ov;
+    ov.printer_name = current_printer_name();
+    ov.mode = static_cast<int>(mode_);
+    ov.per_series.reserve(series_.size());
+    for (const auto& si : series_) {
+        ov.per_series.emplace_back(si.klipper_name, si.visible);
+    }
+    s_visibility_override = std::move(ov);
+
     spdlog::debug("[TempGraphOverlay] {} series '{}' (idx={})", s.visible ? "Showed" : "Hid",
                   s.display_name, series_idx);
 }
@@ -539,26 +617,13 @@ void TempGraphOverlay::update_chip_style(size_t series_idx) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void TempGraphOverlay::configure_control_strip() {
-    // Hide all strips first
-    if (nozzle_strip_)
-        lv_obj_add_flag(nozzle_strip_, LV_OBJ_FLAG_HIDDEN);
-    if (bed_strip_)
-        lv_obj_add_flag(bed_strip_, LV_OBJ_FLAG_HIDDEN);
-    if (chamber_strip_)
-        lv_obj_add_flag(chamber_strip_, LV_OBJ_FLAG_HIDDEN);
+    // DECLARATIVE: strip visibility and graph_outer width are driven from XML
+    // by the temp_graph_mode subject (bind_flag_if_not_eq per strip; graph width
+    // via the temp_graph_full_width subject_expr + orthogonal bind_style_if
+    // pairs on graph_outer_container). This function is now the DATA half only:
+    // preset values, callback user_data, and the chamber-async-clamp that can't
+    // move to XML because it depends on the fetched chamber max_temp.
 
-    if (mode_ == Mode::GraphOnly) {
-        // Graph takes full width — no right column
-        if (graph_outer_)
-            lv_obj_set_width(graph_outer_, lv_pct(100));
-        return;
-    }
-
-    // Graph gets 66% width with control column visible
-    if (graph_outer_)
-        lv_obj_set_width(graph_outer_, lv_pct(66));
-
-    // Determine which strip to show and heater type
     helix::HeaterType heater_type;
     if (!mode_to_heater_type(mode_, heater_type))
         return;
@@ -580,7 +645,6 @@ void TempGraphOverlay::configure_control_strip() {
 
     if (!active_strip)
         return;
-    lv_obj_remove_flag(active_strip, LV_OBJ_FLAG_HIDDEN);
 
     // Get preset config from TemperatureService
     if (!temp_control_panel_)
@@ -616,10 +680,10 @@ void TempGraphOverlay::configure_control_strip() {
         helix::TemperatureController* c = temp_control_panel_->controller();
         if (c)
             c->ensure_limits(helix::HeaterType::Chamber);
-        static const char* kChamberPresetNames[MAX_PRESETS] = {
+        static const char* CHAMBER_PRESET_NAMES[MAX_PRESETS] = {
             "chamber_preset_off", "chamber_preset_1", "chamber_preset_2", "chamber_preset_3"};
         for (int i = 0; i < MAX_PRESETS; ++i) {
-            lv_obj_t* btn = lv_obj_find_by_name(active_strip, kChamberPresetNames[i]);
+            lv_obj_t* btn = lv_obj_find_by_name(active_strip, CHAMBER_PRESET_NAMES[i]);
             if (!btn) {
                 continue;
             }

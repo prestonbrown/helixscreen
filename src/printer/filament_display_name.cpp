@@ -3,6 +3,8 @@
 
 #include "filament_display_name.h"
 
+#include "operation_patterns.h"
+
 #include <cctype>
 #include <initializer_list>
 
@@ -66,24 +68,6 @@ bool contains_word(const std::string& haystack, const std::string& needle) {
         const size_t end = i + needle.size();
         const bool right_boundary = (end == haystack.size()) || !is_word_char(haystack[end]);
         if (left_boundary && right_boundary) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/// Case-insensitive substring search, no boundary requirement.
-bool contains_ci(const std::string& haystack, const std::string& needle) {
-    if (needle.empty() || needle.size() > haystack.size()) {
-        return false;
-    }
-    const size_t last = haystack.size() - needle.size();
-    for (size_t i = 0; i <= last; ++i) {
-        size_t j = 0;
-        while (j < needle.size() && ascii_lower(haystack[i + j]) == ascii_lower(needle[j])) {
-            ++j;
-        }
-        if (j == needle.size()) {
             return true;
         }
     }
@@ -174,8 +158,8 @@ std::string compose_filament_label(std::string_view brand, std::string_view name
     return label;
 }
 
-std::string resolve_filament_label(const SlotInfo& slot, const SpoolIdentity* identity,
-                                   std::string_view color_fallback, std::string_view last_resort) {
+FilamentLabelParts resolve_filament_label_parts(const SlotInfo& slot, const SpoolIdentity* identity,
+                                                std::string_view color_fallback) {
     // A record carrying only ids or a color hex cannot name anything, so it is
     // indistinguishable from a cache miss here.
     const SpoolIdentity* id = (identity != nullptr && identity->valid()) ? identity : nullptr;
@@ -188,12 +172,18 @@ std::string resolve_filament_label(const SlotInfo& slot, const SpoolIdentity* id
     // firmware by apply_overrides) wins field by field; the Spoolman identity
     // fills only the gaps. color_fallback is the algorithmic color name, which
     // names nothing about the filament and so sits below every real name.
-    const std::string brand = first_non_blank({slot.brand, id_vendor});
-    const std::string material = first_non_blank({slot.material, id_material});
-    const std::string name =
-        first_non_blank({slot.spool_name, id_name, slot.color_name, color_fallback});
+    FilamentLabelParts parts;
+    parts.brand = first_non_blank({slot.brand, id_vendor});
+    parts.material = first_non_blank({slot.material, id_material});
+    parts.name = first_non_blank({slot.spool_name, id_name, slot.color_name, color_fallback});
+    return parts;
+}
 
-    std::string label = compose_filament_label(brand, name, material);
+std::string resolve_filament_label(const SlotInfo& slot, const SpoolIdentity* identity,
+                                   std::string_view color_fallback, std::string_view last_resort) {
+    const FilamentLabelParts parts = resolve_filament_label_parts(slot, identity, color_fallback);
+
+    std::string label = compose_filament_label(parts.brand, parts.name, parts.material);
     if (label.empty()) {
         label = normalize_ws(last_resort);
     }

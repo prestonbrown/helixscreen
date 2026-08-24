@@ -10,8 +10,8 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "moonraker_job_api.h"
 #include "printer_state.h"
 #include "standard_macros.h"
@@ -30,7 +30,7 @@ namespace {
 /// per show, freed in exactly one of on_restart_confirm / on_restart_cancel.
 struct RestartCtx {
     lv_obj_t* modal = nullptr;
-    MoonrakerAPI* api = nullptr;
+    IMoonrakerAPI* api = nullptr;
     std::string filename;
     std::string log_prefix;
     std::function<void()> on_failure;
@@ -64,7 +64,7 @@ void on_restart_confirm(lv_event_t* e) {
         modal_hide(ctx->modal);
         ctx->modal = nullptr;
     }
-    MoonrakerAPI* api = ctx->api;
+    IMoonrakerAPI* api = ctx->api;
     std::string filename = std::move(ctx->filename);
     std::string log_prefix = std::move(ctx->log_prefix);
     std::function<void()> on_failure = std::move(ctx->on_failure);
@@ -129,7 +129,7 @@ void on_restart_confirm(lv_event_t* e) {
 
 } // namespace
 
-void show_restart_required_modal(MoonrakerAPI* api, const std::string& filename,
+void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
                                  std::string log_prefix, std::function<void()> on_failure) {
     auto* ctx = new RestartCtx{};
     ctx->api = api;
@@ -162,7 +162,7 @@ void show_restart_required_modal(MoonrakerAPI* api, const std::string& filename,
     }
 }
 
-void dispatch_prepared_resume(MoonrakerAPI* api, std::string log_prefix,
+void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
                               std::function<void()> on_failure) {
     if (!api) {
         spdlog::warn("{} dispatch_prepared_resume: api is null", log_prefix);

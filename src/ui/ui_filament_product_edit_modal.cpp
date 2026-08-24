@@ -23,14 +23,14 @@ using helix::printer::FilamentCatalog;
 namespace {
 
 // Built-in catalog search paths, mirroring filament_catalog.cpp's private
-// kBuiltinPaths. Used only to answer "is this id shipped?" for the secondary
+// BUILTIN_PATHS. Used only to answer "is this id shipped?" for the secondary
 // button label (Delete vs Restore Defaults); the resolved values themselves
 // come from FilamentCatalog::load_full().
-const char* kBuiltinPaths[] = {"assets/filaments.json", "../assets/filaments.json",
+const char* BUILTIN_PATHS[] = {"assets/filaments.json", "../assets/filaments.json",
                                "/opt/helixscreen/assets/filaments.json"};
 
 std::string first_existing_builtin() {
-    for (const char* p : kBuiltinPaths) {
+    for (const char* p : BUILTIN_PATHS) {
         std::ifstream f(p);
         if (f.is_open())
             return p;

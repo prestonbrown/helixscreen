@@ -1690,3 +1690,92 @@ TEST_CASE("PrinterDiscovery: Happy Hare takes priority over QIDI Box",
     // QIDI slot counter must NOT increment when Happy Hare claims the slot.
     REQUIRE(discovery.qidi_box_slot_count() == 0);
 }
+
+// ============================================================================
+// Build Volume from configfile.settings
+// ============================================================================
+//
+// PrinterDetector reads discovery.build_volume(), and 63 of the 94 printer
+// database entries carry a build_volume_range heuristic. The only other writer
+// of the field is the safety-limits fetch, which is kicked off from the
+// discovery-complete handler — i.e. after detection has already run. These
+// tests pin the parse that fills it during discovery instead.
+
+TEST_CASE("PrinterDiscovery: build volume parsed from configfile.settings steppers",
+          "[printer_discovery][build_volume]") {
+    helix::PrinterDiscovery discovery;
+
+    // Nothing has been parsed yet: the field starts empty, which is exactly the
+    // state detection used to see on every in-app run.
+    REQUIRE(discovery.build_volume().x_max == 0.0f);
+    REQUIRE(discovery.build_volume().y_max == 0.0f);
+
+    json settings = {{"printer", {{"kinematics", "corexy"}}},
+                     {"stepper_x", {{"position_min", 0.0}, {"position_max", 350.0}}},
+                     {"stepper_y", {{"position_min", 0.0}, {"position_max", 350.0}}},
+                     {"stepper_z", {{"position_min", 0.0}, {"position_max", 340.0}}}};
+
+    REQUIRE(discovery.parse_build_volume(settings));
+    REQUIRE(discovery.build_volume().x_min == 0.0f);
+    REQUIRE(discovery.build_volume().x_max == 350.0f);
+    REQUIRE(discovery.build_volume().y_min == 0.0f);
+    REQUIRE(discovery.build_volume().y_max == 350.0f);
+    REQUIRE(discovery.build_volume().z_max == 340.0f);
+}
+
+TEST_CASE("PrinterDiscovery: build volume keeps negative axis minimums",
+          "[printer_discovery][build_volume]") {
+    // Voron-style configs park X/Y off the bed, so position_min is negative.
+    // The span, not the max alone, is what build_volume_range windows compare.
+    helix::PrinterDiscovery discovery;
+    json settings = {{"stepper_x", {{"position_min", -5.0}, {"position_max", 355.0}}},
+                     {"stepper_y", {{"position_min", -2.5}, {"position_max", 357.5}}}};
+
+    REQUIRE(discovery.parse_build_volume(settings));
+    REQUIRE(discovery.build_volume().x_min == -5.0f);
+    REQUIRE(discovery.build_volume().y_min == -2.5f);
+    REQUIRE(discovery.build_volume().x_max == 355.0f);
+}
+
+TEST_CASE("PrinterDiscovery: build volume rejects unusable payloads",
+          "[printer_discovery][build_volume]") {
+    SECTION("Non-object settings is ignored") {
+        helix::PrinterDiscovery discovery;
+        REQUIRE_FALSE(discovery.parse_build_volume(json("not an object")));
+        REQUIRE(discovery.build_volume().x_max == 0.0f);
+    }
+
+    SECTION("Settings with no stepper sections is ignored") {
+        helix::PrinterDiscovery discovery;
+        json settings = {{"printer", {{"kinematics", "cartesian"}}}};
+        REQUIRE_FALSE(discovery.parse_build_volume(settings));
+        REQUIRE(discovery.build_volume().x_max == 0.0f);
+    }
+
+    SECTION("Null position values do not throw and are skipped") {
+        helix::PrinterDiscovery discovery;
+        json settings = {{"stepper_x", {{"position_min", nullptr}, {"position_max", nullptr}}},
+                         {"stepper_y", {{"position_max", nullptr}}}};
+        REQUIRE_NOTHROW(discovery.parse_build_volume(settings));
+        REQUIRE_FALSE(discovery.parse_build_volume(settings));
+        REQUIRE(discovery.build_volume().x_max == 0.0f);
+    }
+
+    SECTION("An all-zero extent is not stored") {
+        // Scoring a zero-sized volume against every printer's window is worse
+        // than having no volume at all, so the setter is left untouched.
+        helix::PrinterDiscovery discovery;
+        json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 0.0}}},
+                         {"stepper_y", {{"position_min", 0.0}, {"position_max", 0.0}}}};
+        REQUIRE_FALSE(discovery.parse_build_volume(settings));
+        REQUIRE(discovery.build_volume().x_max == 0.0f);
+    }
+
+    SECTION("A partial config with only X still stores what it found") {
+        helix::PrinterDiscovery discovery;
+        json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 180.0}}}};
+        REQUIRE(discovery.parse_build_volume(settings));
+        REQUIRE(discovery.build_volume().x_max == 180.0f);
+        REQUIRE(discovery.build_volume().y_max == 0.0f);
+    }
+}

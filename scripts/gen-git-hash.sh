@@ -25,8 +25,19 @@ mkdir -p "$OUTDIR"
 
 # Matches the Makefile's previous fallback: a source tarball or a build outside
 # a git checkout reports "unknown" rather than failing.
+#
+# HELIX_GIT_HASH overrides the git lookup entirely. This is how a cross build
+# gets a real hash: the compile runs inside a container that bind-mounts only
+# the source tree, and a git WORKTREE's .git is a *file* pointing at
+# $MAIN/.git/worktrees/<name> — a path outside the mount. git therefore fails
+# in the container and every worktree cross build silently stamped "unknown",
+# leaving on-device evidence unattributable. mk/cross.mk resolves the hash on
+# the host, where git always works, and passes it in with -e. Same escape hatch
+# serves a packager building from an exported tarball with a known sha.
 hash="unknown"
-if command -v git >/dev/null 2>&1 && git -c safe.directory='*' rev-parse --git-dir >/dev/null 2>&1; then
+if [ -n "${HELIX_GIT_HASH:-}" ]; then
+    hash="$HELIX_GIT_HASH"
+elif command -v git >/dev/null 2>&1 && git -c safe.directory='*' rev-parse --git-dir >/dev/null 2>&1; then
     hash="$(git -c safe.directory='*' rev-parse --short HEAD 2>/dev/null || echo unknown)"
 fi
 

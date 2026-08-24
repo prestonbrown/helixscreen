@@ -1,6 +1,23 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Print-tune feature tokens.
+
+  Own file rather than <consts> inside print_tune_panel.xml: both the base panel
+  and ui_xml/portrait/print_tune_panel.xml reference these, so parking them in
+  one of the two consumers would be the backward-coupling ams_tokens.xml warns
+  about.
+
+  Both tokens are HORIZONTAL, so they resolve from the cramped axis with no
+  entry in VERTICAL_AXIS_TOKENS — see docs/devel/UI_CONTRIBUTOR_GUIDE.md
+  § "Adding New Tokens". In portrait the cramped axis IS the width, which is
+  exactly the axis these two need to track.
+
+  theme_manager scans every file in ui_xml/ for responsive px tokens and
+  registers the bare base name per current breakpoint, so any component can
+  reference #z_tune_indicator_w regardless of which file declares the tiers.
+-->
 <component>
   <consts>
     <!-- Nozzle-over-bed indicator width. It draws proportionally (tick spacing

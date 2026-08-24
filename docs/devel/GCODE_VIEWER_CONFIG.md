@@ -1,6 +1,10 @@
 # G-code Viewer Configuration
 
+Configuration knobs for the G-code viewer. For the pipeline these settings sit inside — render-mode selection and precedence, streaming vs full parse, downloads and caches — see [the G-code pipeline chapter](architecture/16-gcode-pipeline.md); for runtime env overrides (`HELIX_GCODE_MODE`, `HELIX_GCODE_STREAMING`) see [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
 ## Shading Model
+
+> **Status note (v0.99.115):** this key is currently **inert**. It is written into the config defaults (`src/system/config.cpp` — default `"phong"`) and the settings template, but no code reads it: the GLES renderer always renders per-pixel Phong with a camera-following light (`src/rendering/gcode_gles_renderer.cpp`), and `set_smooth_shading()` is an uncalled stub. Editing `shading_model` in `settings.json` has no effect on the current build. The section below is kept as the reference for what the values mean, for whenever the switch is wired up again.
 
 The G-code 3D viewer supports three shading models for rendering extrusion paths. Configure via `settings.json`:
 
@@ -38,9 +42,9 @@ The current diamond cross-section implementation uses separate vertices for each
 
 ### Configuration Location
 
-- **Template**: `config/settings.json.template`
-- **Runtime**: Config loaded from path specified at startup (typically `/tmp/settings.json` in development)
-- **Code**: Setting is read during G-code viewer initialization
+- **Template**: `config/settings.json.template` (note: the template ships `"smooth"` while the code default in `src/system/config.cpp` is `"phong"` — an unrelated template inconsistency)
+- **Runtime**: the config directory's `settings.json` (on device `~/helixscreen/config/`; `--test` runs use `settings-test.json` from the same directory)
+- **Code**: defaults are seeded in `src/system/config.cpp`
 
 ### Example
 

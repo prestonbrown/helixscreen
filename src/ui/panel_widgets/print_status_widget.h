@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_context_menu.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_job_queue_modal.h"
 #include "ui_observer_guard.h"
@@ -10,14 +11,21 @@
 
 #include "async_lifetime_guard.h"
 #include "panel_widget.h"
+#if defined(HELIX_PLATFORM_ESP32)
+#include "esp_psram_thumbnail.h"
+#endif
 #include "print_history_manager.h"
+#include "print_lifecycle_state.h" // PrintState, job_holds_machine
+#include "printer_temperature_state.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace helix {
 
@@ -38,8 +46,35 @@ class PrintStatusWidget : public PanelWidget {
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
+    /// Factory-registration key. Exposed so callers scanning a heterogeneous
+    /// widget list can match on id() and static_cast, instead of dynamic_cast —
+    /// the firmware builds -fno-rtti.
+    static constexpr const char* WIDGET_ID = "print_status";
+
+    /// One row of the nozzle-tool picker: what it reads, and the Klipper
+    /// extruder object it pins the temperature display to.
+    struct NozzleToolOption {
+        std::string label;
+        std::string extruder_name;
+    };
+
+    /// The nozzle rows the picker should offer, ordered by extruder index.
+    ///
+    /// Sourced from the extruders PrinterTemperatureState actually discovered,
+    /// never from a tool count: an AMS expands ToolState's tool list to one
+    /// entry per filament slot, so deriving names from that count offered
+    /// "extruder1".."extruder15" on a 4-port AD5X with one hotend - names no
+    /// Klipper object answers to, every one of which the formatter then refused.
+    [[nodiscard]] static std::vector<NozzleToolOption> build_nozzle_tool_options(
+        const std::unordered_map<std::string, helix::ExtruderInfo>& extruders);
+
+    /// Adopt a nozzle pin from the picker. Returns false when the formatter
+    /// cannot bind the named extruder, in which case the widget records the
+    /// "auto" fallback it actually applied rather than the rejected name.
+    bool apply_nozzle_tool_override(const std::string& tool_key);
+
     const char* id() const override {
-        return "print_status";
+        return WIDGET_ID;
     }
 
     // Configuration
@@ -61,15 +96,9 @@ class PrintStatusWidget : public PanelWidget {
     static void library_recent_cb(lv_event_t* e);
     static void library_queue_cb(lv_event_t* e);
 
-    /// Configure picker callback
-    static void print_status_picker_backdrop_cb(lv_event_t* e);
-
     /// XML event callbacks — layout selector in configure picker
     static void print_status_layout_library_cb(lv_event_t* e);
     static void print_status_layout_detailed_cb(lv_event_t* e);
-
-    /// XML event callback — backdrop dismiss for nozzle picker
-    static void print_status_nozzle_picker_backdrop_cb(lv_event_t* e);
 
     /// XML event callback — chevron tap on nozzle temp opens tool picker
     static void print_status_nozzle_chevron_cb(lv_event_t* e);
@@ -100,6 +129,9 @@ class PrintStatusWidget : public PanelWidget {
     const std::string& nozzle_tool_override_for_test() const {
         return nozzle_tool_override_;
     }
+    const nlohmann::json& config_for_test() const {
+        return config_;
+    }
     static lv_subject_t* layout_effective_subject_for_test() {
         return &layout_effective_subject_;
     }
@@ -110,7 +142,7 @@ class PrintStatusWidget : public PanelWidget {
         return &view_subject_;
     }
     // Test-only — drive on_print_state_changed without a real PrinterState change.
-    void on_print_state_changed_for_test(PrintJobState state) {
+    void on_print_state_changed_for_test(PrintState state) {
         on_print_state_changed(state);
     }
     // Test-only — destroy the singleton formatter regardless of refcount. Used
@@ -150,6 +182,80 @@ class PrintStatusWidget : public PanelWidget {
     }
 
   private:
+    /// Layout selector plus the Show Sections checkbox list, raised from edit
+    /// mode. Every control applies live, so both the Done button and a tap on
+    /// the backdrop commit the card rather than discarding it.
+    class ConfigurePicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(ConfigurePicker)
+
+      public:
+        explicit ConfigurePicker(PrintStatusWidget& owner) : owner_(owner) {}
+
+        /// Adopt a layout style, repaint the selector and apply it to the live
+        /// widget behind the card. Driven by the two XML layout buttons.
+        void select_layout(const char* style);
+
+        /// Read the checkbox rows back into the widget's config, save, and apply
+        /// the new visibility. Idempotent, so every toggle can call it.
+        void apply_state();
+
+      protected:
+        const char* xml_component_name() const override {
+            return "print_status_configure_picker";
+        }
+        /// 30% of the screen, clamped so the option rows stay readable on a 480px
+        /// panel and the card does not sprawl on a 1024px one.
+        CardWidth card_width() const override {
+            return {30, 160, 240};
+        }
+        void on_created(lv_obj_t* backdrop) override;
+        /// A tap outside the card commits the toggles and re-gates the widget.
+        /// on_close_clicked() inherits this, so Done takes the same path.
+        void on_backdrop_clicked() override;
+
+      private:
+        /// Paint the selected layout button with the primary accent and hide the
+        /// Show Sections group in Detailed mode. Visuals only - no checkbox read,
+        /// no save, so opening the card cannot rewrite the config.
+        void apply_visuals();
+
+        PrintStatusWidget& owner_;
+    };
+
+    /// Single-select list of the printer's tools, raised by a tap on the nozzle
+    /// readout in the detailed-active footer. Picking a row pins the temperature
+    /// display to that tool; a tap outside it chooses nothing.
+    class NozzleToolPicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(NozzleToolPicker)
+
+      public:
+        explicit NozzleToolPicker(PrintStatusWidget& owner) : owner_(owner) {}
+
+      protected:
+        const char* xml_component_name() const override {
+            return "print_status_nozzle_tool_picker";
+        }
+        /// The card is width="content" in XML but its option_list is width="100%",
+        /// which cannot resolve against a still-empty content area (L082). The base
+        /// applies this policy before on_created() builds the rows, so they size
+        /// against a real width instead of collapsing to zero.
+        CardWidth card_width() const override {
+            return {30, 160, 240};
+        }
+        void on_created(lv_obj_t* backdrop) override;
+
+      private:
+        /// What a row needs to act on a tap: which tool it names, and the picker
+        /// that owns it. Heap-allocated per row, hung off the row's user_data and
+        /// freed by that row's own LV_EVENT_DELETE handler.
+        struct RowPayload {
+            NozzleToolPicker* picker;
+            std::string tool_key;
+        };
+
+        PrintStatusWidget& owner_;
+    };
+
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
@@ -199,7 +305,6 @@ class PrintStatusWidget : public PanelWidget {
     static inline bool visibility_subjects_initialized_ = false;
 
     // Detailed-layout subjects (static inline — shared across all widget instances)
-    static inline lv_subject_t layout_mode_subject_{};      // 0=library, 1=detailed (user pref)
     static inline lv_subject_t layout_effective_subject_{}; // after width gating
     // Combined gate: (width band == wide) AND (filament_used > 0). Avoids the
     // phantom-row gap when filament hasn't started extruding yet.
@@ -208,6 +313,10 @@ class PrintStatusWidget : public PanelWidget {
     // Resolved thumbnail path for the detailed-idle hero; written by
     // reset_print_card_to_idle alongside the lv_image_set_src calls on the
     // Library-mode thumbs, so all three idle thumbnails share the same source.
+    // The initializer here is never observed — init_static_subjects()
+    // overwrites the buffer with the asset-root-resolved benchy path before
+    // lv_subject_init_string publishes it. A static array needs a constant
+    // initializer, so the accessor cannot be called from this line.
     static inline char idle_thumb_path_buf_[512] = "A:assets/images/benchy_thumbnail_white.png";
     static inline lv_subject_t idle_thumb_path_subject_{};
     // Single subject driving visibility of all five card-body siblings:
@@ -221,11 +330,11 @@ class PrintStatusWidget : public PanelWidget {
     static inline bool detailed_subjects_initialized_ = false;
 
     // Compact mode and state tracking
-    bool is_active_ = false; // PRINTING or PAUSED (drives view_subject_)
+    bool is_active_ = false; // job_holds_machine() (drives view_subject_)
     bool is_compact_ = false;
     bool is_column_ = false;
     bool last_print_available_ = false;
-    // Cached granted pixel size, for picker-dismiss re-gating (dismiss_configure_picker
+    // Cached granted pixel size, for picker-dismiss re-gating (regate_after_configure
     // re-runs on_size_changed after a layout_style change, and needs the widget's last
     // known real size — colspan/rowspan are no longer read).
     int last_width_px_ = 0;
@@ -237,6 +346,14 @@ class PrintStatusWidget : public PanelWidget {
     // Observers (RAII cleanup via ObserverGuard)
     ObserverGuard print_state_observer_;
     ObserverGuard print_thumbnail_path_observer_;
+#if defined(HELIX_PLATFORM_ESP32)
+    ObserverGuard print_psram_thumb_observer_; ///< Ditto, via the PSRAM generation counter
+    /// PSRAM-resident thumbnail currently shown in print_card_active_thumb_.
+    /// There is no cache file on this platform, so this shared_ptr is what keeps
+    /// the image src's buffer alive. Main-thread only (its destructor drops the
+    /// LVGL image cache entry).
+    std::shared_ptr<helix::ui::EspPsramThumbnail> esp_thumbnail_;
+#endif
     ObserverGuard filament_runout_observer_;
     ObserverGuard job_queue_count_observer_;
     ObserverGuard connection_observer_;
@@ -307,8 +424,7 @@ class PrintStatusWidget : public PanelWidget {
         SubjectManager subjects_;
 
         // Buffers backing string subjects
-        char progress_pct_buf_[8];      // "100%"
-        char layer_text_buf_[32];       // "Layer 9999 / 9999"
+        char layer_text_buf_[64];       // "Layer ~9999 / 9999 (123.4mm)", translated
         char time_text_buf_[40];        // "12h 34m / 99h 99m"
         char filament_text_buf_[32];    // "1234.5m / 9999.9m"
         char nozzle_text_buf_[32];      // "265 / 270°C" — kept for tool_override test
@@ -318,7 +434,6 @@ class PrintStatusWidget : public PanelWidget {
         char idle_meta_buf_[64]; // "12.4m filament • 4h 12m"
 
         // String + int subjects (XML-registered)
-        lv_subject_t progress_pct_subject_;
         lv_subject_t layer_text_subject_;
         lv_subject_t time_text_subject_;
         lv_subject_t filament_text_subject_;
@@ -336,7 +451,6 @@ class PrintStatusWidget : public PanelWidget {
         lv_subject_t idle_has_last_subject_;
 
         // Print-state observers (wired in constructor, RAII cleanup via ObserverGuard)
-        ObserverGuard progress_observer_;
         ObserverGuard layer_current_observer_;
         ObserverGuard layer_total_observer_;
         ObserverGuard elapsed_observer_;
@@ -352,10 +466,12 @@ class PrintStatusWidget : public PanelWidget {
         ObserverGuard nozzle_temp_observer_;
         ObserverGuard nozzle_target_observer_;
 
-        ObserverGuard tool_count_observer_;
+        /// Bound to ToolState's tools_version subject, not tool_count: the badge
+        /// gate counts extruders, and a spool/status refresh can change the
+        /// extruder mapping without moving the tool count.
+        ObserverGuard tools_version_observer_;
         ObserverGuard active_tool_observer_;
 
-        void update_progress_pct();
         void update_layer_text();
         void update_time_text();
         void update_filament_text();
@@ -378,8 +494,16 @@ class PrintStatusWidget : public PanelWidget {
     /// filename invalidates the cached render instead of being served forever.
     [[nodiscard]] time_t get_last_print_source_modified() const;
     void handle_print_card_clicked();
-    void on_print_state_changed(PrintJobState state);
+    void on_print_state_changed(PrintState state);
     void on_print_thumbnail_path_changed(const char* path);
+#if defined(HELIX_PLATFORM_ESP32)
+    /// Pull the current PSRAM thumbnail from PrinterState, hold a reference,
+    /// and point print_card_active_thumb_ at its descriptor. Main thread only;
+    /// no-op when the widget is unattached or nothing has been fetched yet.
+    /// Called from the generation observer AND from attach(), because widget
+    /// instances are recycled and a fresh attach must re-apply the image.
+    void apply_esp_psram_thumbnail();
+#endif
     void reset_print_card_to_idle();
     // Publish one resolved idle thumbnail everywhere it is shown: the two
     // imperative Library-mode thumbs and idle_thumb_path_subject_, which the
@@ -438,27 +562,22 @@ class PrintStatusWidget : public PanelWidget {
     bool show_recent_prints_ = true;
     bool show_job_queue_ = true;
 
-    // Configure picker
-    lv_obj_t* picker_backdrop_ = nullptr;
     void show_configure_picker();
-    void dismiss_configure_picker();
     void apply_visibility_config();
     void recompute_actions_visibility();
-    void apply_picker_state();
-    // Idempotent visual feedback only — paints the selected layout button
-    // primary, hides Show Sections in Detailed mode. No checkbox read, no save.
-    void apply_picker_visuals();
+    // Re-run width gating against the last granted size, so a layout_style change
+    // made in the configure picker reaches the visible widget the moment the card
+    // closes.
+    void regate_after_configure();
     // Recompute the view subject from (is_active_, layout_style_, is_compact_).
     // Drives bind_flag_if_not_eq on the five card-body siblings.
     void update_view_subject();
 
-    static PrintStatusWidget* s_active_picker_;
-
-    // Nozzle tool picker
-    lv_obj_t* nozzle_picker_backdrop_ = nullptr;
     void show_nozzle_tool_picker(lv_obj_t* anchor);
-    void dismiss_nozzle_tool_picker();
-    static PrintStatusWidget* s_active_nozzle_picker_;
+
+    // The two context menus this widget raises
+    ConfigurePicker configure_picker_{*this};
+    NozzleToolPicker nozzle_picker_{*this};
 };
 
 } // namespace helix

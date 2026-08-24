@@ -31,8 +31,20 @@ class PrintStatsWidget : public PanelWidget {
     void update_stats();
     void handle_clicked();
 
+    /// Ask Moonraker for its server-computed lifetime totals.
+    ///
+    /// The cached job list is capped (PrintHistoryManager::fetch(limit)), so it
+    /// cannot answer "all time" on a printer with a longer history. Same source
+    /// HistoryDashboardPanel uses for its ALL_TIME filter.
+    void fetch_lifetime_totals();
+
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
+
+    /// Server-computed lifetime totals; only meaningful once valid_ is set.
+    PrintHistoryTotals lifetime_totals_{};
+    bool lifetime_totals_valid_ = false;
+    bool lifetime_totals_in_flight_ = false;
 
     helix::HistoryChangedCallback history_observer_;
     helix::AsyncLifetimeGuard lifetime_;

@@ -15,14 +15,20 @@
  * These tests FAIL if the protective code is removed.
  */
 
+#include "ui_bypass_toggle_controller.h"
 #include "ui_observer_guard.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
+#include "app_globals.h"
 #include "observer_factory.h"
+#include "printer_state.h"
 
 #include <atomic>
+#include <memory>
 
 #include "../catch_amalgamated.hpp"
 
@@ -220,13 +226,16 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLTestFixture, "Observer cleanup: cleanup resets all pending state",
                  "[observer_cleanup][crash_hardening]") {
-    // Simulates AmsOperationSidebar::cleanup() resetting pending_bypass_enable_,
-    // pending_load_slot_, etc.
+    // Simulates AmsOperationSidebar::cleanup() resetting the bypass toggle's
+    // pending chain, pending_load_slot_, etc. The bypass state now lives in
+    // the shared BypassToggleController, so the simulated sidebar owns one
+    // and its cleanup() cancels it through the same call the real sidebar
+    // makes.
     struct SidebarLike {
         bool active_ = false;
         lv_obj_t* root_ = nullptr;
         ObserverGuard obs_;
-        bool pending_bypass_ = false;
+        helix::ui::BypassToggleController bypass_toggle_;
         int pending_slot_ = -1;
         int prev_action_ = 0;
 
@@ -234,16 +243,35 @@ TEST_CASE_METHOD(LVGLTestFixture, "Observer cleanup: cleanup resets all pending 
             active_ = false;
             root_ = nullptr;
             obs_.reset();
-            pending_bypass_ = false;
+            bypass_toggle_.cancel_pending();
             pending_slot_ = -1;
             prev_action_ = 0;
         }
     };
 
+    // Arm the controller's pending chain the real way — a loaded slot plus a
+    // STANDBY toggle is the only path that sets pending_enable(). The
+    // controller resolves its backend through AmsState, so the mock must be
+    // installed there (same idiom as test_bypass_toggle_controller.cpp).
+    get_printer_state().init_subjects(false);
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto owned = std::make_unique<AmsBackendMock>(4);
+    AmsBackendMock* backend = owned.get();
+    backend->set_operation_delay(0);
+    ams.set_backend(std::move(owned));
+    REQUIRE(backend->start());
+    lv_subject_set_int(get_printer_state().get_print_state_enum_subject(),
+                       static_cast<int>(helix::PrintJobState::STANDBY));
+    REQUIRE(backend->load_filament(0).result == AmsResult::SUCCESS);
+    backend->wait_for_operation_thread();
+    drain();
+
     SidebarLike sidebar;
     sidebar.active_ = true;
     sidebar.root_ = lv_obj_create(test_screen());
-    sidebar.pending_bypass_ = true;
+    sidebar.bypass_toggle_.toggle();
+    REQUIRE(sidebar.bypass_toggle_.pending_enable());
     sidebar.pending_slot_ = 3;
     sidebar.prev_action_ = 5;
 
@@ -251,9 +279,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "Observer cleanup: cleanup resets all pending 
 
     REQUIRE(sidebar.active_ == false);
     REQUIRE(sidebar.root_ == nullptr);
-    REQUIRE(sidebar.pending_bypass_ == false);
+    REQUIRE_FALSE(sidebar.bypass_toggle_.pending_enable());
     REQUIRE(sidebar.pending_slot_ == -1);
     REQUIRE(sidebar.prev_action_ == 0);
+
+    // Detach the mock without leaving the unload's op thread in flight.
+    backend->wait_for_operation_thread();
+    drain();
+    ams.set_backend(nullptr);
 }
 
 // ============================================================================

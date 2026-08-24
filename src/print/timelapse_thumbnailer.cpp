@@ -39,10 +39,6 @@ bool is_video_file(const std::string& filename) {
     return ext == ".mp4" || ext == ".mkv" || ext == ".avi";
 }
 
-bool is_local_host(const std::string& host) {
-    return host == "127.0.0.1" || host == "localhost" || host == "::1";
-}
-
 std::vector<std::string> build_player_args(const std::string& player,
                                            const std::string& file_path) {
     if (player == "mpv") {

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Endless-spool status line: will a runout switch to a backup spool, and if not,
+  why not.
+
+  Entirely subject-driven — AmsState::sync_endless_spool_from_backend() writes
+  ams_endless_state (helix::printer::EndlessSpoolStatusKind) and ams_endless_text
+  (the translated sentence), so this component needs no C++ of its own and can be
+  dropped into any panel or menu that has room for one line.
+
+  State 0 (Hidden) is the "this printer has no such mechanism" case, and is the
+  only state with nothing truthful to say — hence bind_flag_if_eq rather than a
+  structural <if>: the subtree is one icon and one label, so building it and
+  hiding it is cheaper than rebuilding it on every backend swap.
+
+  The text may carry an embedded newline (the restriction reason on its own
+  line), which is why the label is long_mode="wrap" and the row is height="content".
+  That is also what keeps the long German/French/Portuguese/Russian restriction
+  strings from clipping at 480x272 — they gain a second line instead of a
+  truncated first one.
+-->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false" clickable="false"
+        flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start">
+    <bind_flag_if_eq subject="ams_endless_state" flag="hidden" ref_value="0"/>
+    <icon src="infinity" size="xs" variant="secondary"/>
+    <text_small name="endless_status_text"
+                bind_text="ams_endless_text" flex_grow="1" long_mode="wrap" style_text_color="#text_muted"/>
+  </view>
+</component>

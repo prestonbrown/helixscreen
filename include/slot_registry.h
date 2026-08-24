@@ -95,14 +95,49 @@ class SlotRegistry {
     int unit_for_slot(int global_index) const;
 
     // === Tool mapping ===
+
+    /**
+     * @brief Who wrote a tool mapping — us, or the printer.
+     *
+     * The registry is written from two directions that look identical once
+     * stored: a backend's set_tool_mapping() updates it OPTIMISTICALLY before
+     * the gcode is even sent, and the subscription parser updates it from what
+     * the firmware actually reports. A reader comparing tool_map() against an
+     * expected value therefore cannot tell "the printer confirmed this" from
+     * "we asked for this and may have been refused" — which is exactly how a
+     * restore that Klipper rejected looked successful (#1270).
+     *
+     * Firmware writes bump firmware_mapping_generation(); optimistic ones do
+     * not. A caller that needs proof records the generation before sending and
+     * waits for it to advance.
+     */
+    enum class MappingSource {
+        Optimistic, ///< Our own intent, not yet confirmed by the printer
+        Firmware,   ///< Parsed from what the printer reported
+    };
+
     int tool_for_slot(int global_index) const;
     int slot_for_tool(int tool_number) const;
-    void set_tool_mapping(int global_index, int tool_number);
+    void set_tool_mapping(int global_index, int tool_number,
+                          MappingSource source = MappingSource::Optimistic);
+
+    /**
+     * @brief Monotonic count of FIRMWARE-sourced mapping writes.
+     *
+     * Advances only when the printer tells us a mapping, never when we write
+     * our own intent. Never resets except with the registry itself, so a
+     * caller can hold a value across an async round trip and compare.
+     */
+    [[nodiscard]] uint64_t firmware_mapping_generation() const;
     /// Clear a slot's tool mapping (mark unmapped). Also clears the reverse map
     /// entry if it still points at this slot. set_tool_mapping() rejects negative
     /// tool numbers, so this is the primitive for resetting to unmapped.
     void clear_tool_mapping(int global_index);
-    void set_tool_map(const std::vector<int>& tool_to_slot);
+    /// Bulk replace of the whole forward map. Same source semantics as
+    /// set_tool_mapping(): Happy Hare's ttg_map arrives this way, as one
+    /// authoritative array per subscription update rather than per-slot deltas.
+    void set_tool_map(const std::vector<int>& tool_to_slot,
+                      MappingSource source = MappingSource::Optimistic);
     /// Forward map: tool_map()[tool] = global slot index, -1 for an unmapped
     /// tool. This is the exact vector build_system_info() copies into
     /// AmsSystemInfo::tool_to_slot_map; exposed on its own so a caller that only
@@ -112,6 +147,11 @@ class SlotRegistry {
     // === Endless spool ===
     int backup_for_slot(int global_index) const;
     void set_backup(int global_index, int backup_slot);
+    /// Every slot's backup edge in one vector: `backup_edges()[slot]` is that
+    /// slot's backup, or -1. Feed it to
+    /// helix::printer::endless_spool_config_from_edges() - that pair is what
+    /// replaced the identical build-a-config loop AFC and the mock each carried.
+    std::vector<int> backup_edges() const;
 
     // === Snapshot ===
     AmsSystemInfo build_system_info() const;
@@ -126,6 +166,7 @@ class SlotRegistry {
     std::vector<int> tool_to_slot_;
     std::vector<RegistryUnit> units_;
     bool initialized_ = false;
+    uint64_t firmware_mapping_generation_ = 0;
 
     void rebuild_reverse_maps();
 };

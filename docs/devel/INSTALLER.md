@@ -127,10 +127,10 @@ The `main()` function orchestrates this sequence:
 7. **Platform configuration** -- ForgeX: display mode, screen.sh patching, logged wrapper
 8. **Stop competing UIs** -- GuppyScreen, KlipperScreen, Xorg, stock FlashForge UI
 9. **Download release** -- R2 CDN primary (`releases.helixscreen.org`), GitHub Releases fallback
-10. **Extract with atomic swap** -- Validates ELF architecture, backs up config, `mv` old to `.old`, rollback on failure
+10. **Extract with atomic swap** -- Validates ELF architecture, backs up config, `mv` old to `.old`, re-checks free space when the swap crosses filesystems, rollback on failure
 11. **Platform hooks** -- Deploys `hooks-{platform}.sh` to `$INSTALL_DIR/platform/hooks.sh`
 12. **Install service** -- systemd unit or SysV init script (templated with `@@HELIX_USER@@`, etc.)
-13. **Moonraker integration** -- Adds `[update_manager helixscreen]` section, writes `release_info.json`
+13. **Moonraker integration** -- Adds `[update_manager helixscreen]` section, writes release_info.json
 14. **KIAUH extension** -- Auto-installs if KIAUH detected. `main.sh` calls `install_kiauh_extension` (honoring a `--skip-kiauh-registration` flag), as described in the "How the Extension Gets Installed" section below.
 15. **Install-time printer detection** -- Tier-1 model fingerprint, falling back to Tier-2 Moonraker detection with a B/C confidence gate. Seeds device defaults (and, when confident, a full preset) into `settings.json` before first launch. See [Install-Time Printer Detection](#install-time-printer-detection) below.
 16. **Config symlink** -- `printer_data/config/helixscreen` symlink for Mainsail/Fluidd access
@@ -242,9 +242,52 @@ The `extract_release()` function in `release.sh` implements a safe upgrade path:
 1. Extract archive to a temp directory
 2. Validate the `helix-screen` binary exists and has correct ELF architecture
 3. Move existing `$INSTALL_DIR` to `$INSTALL_DIR.old`
-4. Move extracted content to `$INSTALL_DIR`
-5. Restore user config from backup
-6. If step 4 fails, automatically roll back from `.old`
+4. Re-check free space when the staging and install directories sit on different filesystems (`_check_swap_space`)
+5. Move extracted content to `$INSTALL_DIR`
+6. Restore user config from backup
+7. If step 5 fails, automatically roll back from `.old`
+
+**Cross-filesystem free-space re-check.** Step 4 exists because a `mv` within one
+filesystem is a rename and needs no space, but across filesystems it is a
+copy-then-delete that needs the whole tree's worth — and the staging dir is
+routinely on a different partition now (the K2 stages on `/mnt/UDISK` and installs
+to `/opt`, a ~240MB overlay). The earlier sizing pass measures *before* the old
+install is moved aside, and its tight path then relocates the old install
+off-partition assuming the freed space suffices — false whenever the new tree is
+materially larger than the old one. `_check_swap_space()` re-measures against
+real free space after the move-aside, so an impossible copy fails having written
+nothing instead of dying half-way through with ENOSPC. Refusal is not a partial
+state: `_restore_install_backup()` puts the previous install back first, then the
+installer exits. Pinned by `tests/shell/test_install_swap_space.bats`.
+
+### Archive Ownership
+
+An installed tree must never carry the build machine's uid/gid. Two independent
+guarantees, because either one alone leaves a hole:
+
+**Packaging** — every release tarball is created with `$(TAR_OWNER_FLAGS)`
+(`mk/cross.mk`), which zeroes owner and group. A bare `tar -czvf` stamps each entry with
+whatever uid built it: 1001 on the GitHub Actions runner, 1000 on a local build host. The
+flag spelling is probed once, because GNU tar wants `--owner=0 --group=0` and bsdtar wants
+`--uid 0 --gid 0`, neither accepts the other's, and releases are packaged on both. The
+`.zip` artifacts need nothing — neither `unzip` nor Python's `zipfile` restores ownership.
+
+**Extraction** — every `tar` extract passes **`-o`** ("don't restore user:group"). Root
+extracts with `--same-owner` by default on both GNU and BusyBox tar, so without this an
+install lands owned by a uid with no `/etc/passwd` entry on the printer. This is not
+redundant with the packaging fix: archives published before it still carry the old ids.
+
+> `-o` is the **only** portable spelling. BusyBox documents `-o` but has no
+> `--no-same-owner` long option, so the long form fails extraction outright on every
+> Creality box. GNU tar accepts `-o` as an alias for `--no-same-owner` when extracting.
+> Verified on BusyBox 1.29.3 (AD5M), 1.31.1 (K1), 1.33.2 (K2), 1.36.1 (CC1, U1).
+
+**Repair** — `fix_install_ownership()` normalises the whole tree, including on root-run
+platforms (ad5m/ad5x/k1/k2/cc1/u1), which it used to skip entirely. That is what heals
+installs made before the above landed; a measured K2 had 890 of 915 files owned by uid 1001.
+
+The `deploy-*` targets extract with `-o` on the device for the same reason — a dev deploy
+was a second way for the build host's uid to reach a printer.
 
 ### `NoNewPrivileges` and Self-Update on Pi (systemd)
 
@@ -289,11 +332,44 @@ sudo rm -rf ~/helixscreen.old
 |---------|-------|
 | **Detection** | `/etc/os-release` contains Debian/Raspbian, or `/home/pi`, `/home/biqu`, `/home/mks` exists |
 | **32/64-bit** | `getconf LONG_BIT` determines userspace bitness (64-bit kernel with 32-bit userspace is common) |
-| **Install dir** | Auto-detected based on Klipper ecosystem: `~/helixscreen` if klipper/moonraker/printer_data found, else `/opt/helixscreen` |
+| **Install dir** | Auto-detected — see the cascade below. `~/helixscreen` in every case with a non-root service user; `/opt/helixscreen` only for root installs |
 | **Klipper user** | Detected via systemd service owner, process table, printer_data scan, or well-known users (biqu, pi, mks) |
 | **Init system** | systemd (service template with `@@HELIX_USER@@` substitution) |
 | **Runtime deps** | `libdrm2`, `libinput10` installed via apt |
 | **Config symlink** | `~/printer_data/config/helixscreen` -> `$INSTALL_DIR/config` for web UI access |
+
+#### Pi install-directory cascade
+
+`detect_pi_install_dir()` in `scripts/lib/installer/platform.sh`, first match wins:
+
+| # | Condition | Result |
+|---|-----------|--------|
+| 1 | `INSTALL_DIR` set by the user | that path, after `validate_install_dir` |
+| 2 | An install already on disk (`<dir>/bin/helix-screen` exists) | that path |
+| 3 | `~/klipper` or `~/moonraker` exists | `$KLIPPER_HOME/helixscreen` |
+| 4 | `~/printer_data` exists | `$KLIPPER_HOME/helixscreen` |
+| 5 | `moonraker.service` is active | `$KLIPPER_HOME/helixscreen` |
+| 6 | Non-root service user whose home they own | `$KLIPPER_HOME/helixscreen` |
+| 7 | Otherwise (root installs) | `/opt/helixscreen` |
+
+Rule 2 exists because the cascade's answer is not stable across releases: a box that
+matched one branch on first install can match a different one later, and moving the
+install would orphan the old tree and the config inside it. An install on disk always
+wins over a fresh decision.
+
+Rule 6 exists because of how an update applies. `install.sh` prefers renaming the
+install root (`mv <root> <root>.old; mv <new> <root>`), and rename mutates the
+**parent's** directory entries — so it is the parent that has to be writable by the
+service user. `/opt` is root-owned and the service runs unprivileged, which leaves only
+the in-place fallback: delete the root's contents, then move the new ones in. That path
+works and is kept, but it deletes before it moves, so an interruption leaves a partial
+tree (#970). Escalation does not rescue it either: `helixscreen.service` sets
+`NoNewPrivileges=true`, so `sudo` fails from the app and from the `install.sh` it forks.
+
+Rule 6's shape is the standalone display: a Pi driving a panel with Klipper and
+Moonraker on another host, so rules 3-5 all miss. Before rule 6 existed those boxes
+landed on `/opt/helixscreen` and were the only layout depending on the in-place path.
+See `UPDATE_SYSTEM.md` for how `self_update_supported()` reads the resulting tree.
 
 ### FlashForge Adventurer 5M -- Forge-X Firmware (`ad5m`, `forge_x`)
 
@@ -310,7 +386,7 @@ sudo rm -rf ~/helixscreen.old
 - **Display mode**: Sets `variables.cfg` display to `GUPPY` mode (required for backlight)
 - **GuppyScreen disable**: `chmod -x` on `/opt/config/mod/.root/S80guppyscreen`
 - **tslib disable**: `chmod -x` on `/opt/config/mod/.root/S35tslib`
-- **Stock UI disable**: Comments out `ffstartup-arm` in `/opt/auto_run.sh`
+- **Stock UI disable**: Comments out `ffstartup-arm` in /opt/auto_run.sh
 - **screen.sh backlight patch**: Blocks non-100 backlight changes when HelixScreen active (allows S99root init cycle)
 - **screen.sh drawing patch**: Skips `draw_splash`, `draw_loading`, `boot_message` when HelixScreen active
 - **logged wrapper**: Wraps `/opt/config/mod/.bin/exec/logged` to strip `--send-to-screen` flag (prevents direct framebuffer writes)
@@ -415,7 +491,7 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
        config/.disabled_services
    ```
 
-2. **`release_info.json`** written to `$INSTALL_DIR/` -- Moonraker `type:web` needs this to detect the installed version
+2. **release_info.json** written to `$INSTALL_DIR/` -- Moonraker `type:web` needs this to detect the installed version
 
 3. **`moonraker.asvc`** -- HelixScreen added to Moonraker's service allowlist so it can restart the service after updates
 
@@ -479,7 +555,7 @@ The uninstaller reads this file and reverses each action (systemd enable, chmod 
 
 Downloads go through `releases.helixscreen.org` (Cloudflare R2 bucket):
 
-1. Fetch `stable/manifest.json` for latest version and per-platform download URLs
+1. Fetch stable/manifest.json for latest version and per-platform download URLs
 2. Download the platform-specific archive from R2
 
 ### GitHub Releases (Fallback)
@@ -508,7 +584,7 @@ This prevents installing a Pi binary on AD5M or vice versa.
 
 ## Shell Test Infrastructure (bats)
 
-The installer has **1149 test cases** across **71 bats files**, making it one of the most thoroughly tested shell installer systems for 3D printer firmware.
+The installer has on the order of **2000 test cases** across **100+ bats files**, making it one of the most thoroughly tested shell installer systems for 3D printer firmware.
 
 ### Running Tests
 
@@ -536,7 +612,7 @@ bats --verbose-run tests/shell/test_platform_detection.bats
 | `test_download_validation.bats` | Archive validation, HTTPS capability |
 | `test_r2_installer.bats` | R2 CDN manifest parsing, fallback to GitHub |
 | `test_extract_release.bats` | Extraction, atomic swap, rollback |
-| `test_release_packaging_make.bats` / `_artifacts.bats` | Release archive structure |
+| `test_release_packaging_make.bats` / `test_release_packaging_artifacts.bats` | Release archive structure |
 | `test_service_install.bats` | systemd/SysV service installation |
 | `test_service_template.bats` | Service template placeholder substitution |
 | `test_moonraker_config.bats` | update_manager section add/remove/migrate |
@@ -555,10 +631,10 @@ bats --verbose-run tests/shell/test_platform_detection.bats
 | `test_no_echo_ansi.bats` | No raw ANSI in echo (BusyBox compat) |
 | `test_code_lint.bats` | Shell code quality checks |
 | `test_symbol_ci.bats` / `test_symbol_makefile.bats` | Debug symbol extraction for crash reporting |
-| `test_telemetry_pull_args.bats` / `_download.bats` | Telemetry data pull scripts |
+| `test_telemetry_pull_args.bats` / `test_telemetry_pull_download.bats` | Telemetry data pull scripts |
 | `test_resolve_backtrace.bats` | Backtrace symbol resolution |
 
-_The table above is a representative subset; the suite has 71 bats files in `tests/shell/`._
+_The table above is a representative subset; the suite has well over 100 bats files in `tests/shell/`._
 
 ### Test Helpers
 
@@ -636,18 +712,18 @@ elif [ "$platform" = "myplatform" ]; then
 
 ### Step 3: Platform Hooks (Optional)
 
-If the platform needs runtime hooks (pre-start/post-start behavior), create `config/platform/hooks-myplatform.sh` in the release package and add the mapping in `install_platform_hooks()` in the bundled installer.
+If the platform needs runtime hooks (pre-start/post-start behavior), create config/platform/hooks-myplatform.sh in the release package and add the mapping in `install_platform_hooks()` in the bundled installer.
 
 ### Step 4: Firmware-Specific Module (Optional)
 
-For platforms with complex setup (like ForgeX), create a dedicated module `lib/installer/myplatform.sh`:
+For platforms with complex setup (like ForgeX), create a dedicated module lib/installer/myplatform.sh:
 - Add source guard
 - Implement install-time and uninstall-time functions
 - Source it in `install-dev.sh` and add to the `bundle-installer.sh` module list
 
 ### Step 5: Tests
 
-Create `tests/shell/test_myplatform.bats` covering:
+Create tests/shell/test_myplatform.bats covering:
 - Platform detection (positive and negative cases)
 - Install path configuration
 - Any firmware-specific patching
@@ -694,7 +770,29 @@ ssh root@printer-ip "sh /data/install.sh --local /data/helixscreen-ad5m.zip"
 
 **Cause**: Temp directory ran out of space during extraction.
 
-**Fix**: The installer tries multiple temp locations (`/data/`, `/mnt/data/`, `/var/tmp/`, `/tmp/`), picking the first with 100MB+ free. Override with `TMP_DIR=` env var.
+**Fix**: The installer tries multiple temp locations, picking the first with 100MB+ free.
+The order is: a platform-declared staging root (`TMP_DIR_PREFERRED`, set by
+`set_install_paths` -- the K2 declares `/mnt/UDISK/helixscreen-install`, since both `/opt`
+and `/usr/data` are on its ~240MB root overlay), then a sibling of `INSTALL_DIR`, then
+`$HOME`, then `/user-resource/`, `/data/`, `/mnt/data/`, `/usr/data/`, `/var/tmp/`, `/tmp/`.
+Override with the `TMP_DIR=` env var.
+
+Whatever wins is `rm -rf`'d when the installer exits, so every candidate -- including a
+platform-declared one -- goes through the same name guard: the final path component must
+contain `helixscreen-install`. The scratch dir is removed on **any** exit (EXIT/INT/TERM),
+not just the success path; the older `ERR`-only trap was a bash extension that silently did
+nothing under the ash/dash shells the embedded platforms run, which leaked the full download.
+
+That trap only ever cleans the **current** run's scratch dir. Directories leaked by
+*previous* installs are reclaimed separately: `cleanup_stale_cache_dirs()`
+(`scripts/lib/installer/release.sh`) removes the paths a platform declares in
+`STALE_CACHE_DIRS` — on the K2, the old `/usr/data/helixscreen/cache` thumbnail/gcode
+location (the app now caches on `/mnt/UDISK`), plus installer scratch dirs like
+`/usr/data/helixscreen-install` and `/opt/.helixscreen-install` left behind by pre-EXIT-trap
+installers (one unit held a 60MB archive for two months). It runs after the service starts,
+never touches the scratch dir this run is staging into, and applies the same shape of name
+guard: a declared path is only removed when its final component is exactly `cache` or names
+an installer scratch dir — never a top-level directory (the K2 `/mnt/UDISK` wipe incident).
 
 ### ForgeX: Screen flickers or goes blank after install
 
@@ -704,10 +802,10 @@ ssh root@printer-ip "sh /data/install.sh --local /data/helixscreen-ad5m.zip"
 
 ### Moonraker update_manager not working
 
-**Cause**: Missing `release_info.json`, wrong section type, or service not in `moonraker.asvc`.
+**Cause**: Missing release_info.json, wrong section type, or service not in `moonraker.asvc`.
 
 **Fix**:
-1. Check `release_info.json` exists in install dir
+1. Check release_info.json exists in install dir
 2. Verify section is `type: web` (the updater migrates away from `git_repo`/`zip`)
 3. Ensure `helixscreen` is in `printer_data/moonraker.asvc`
 4. Restart Moonraker: `systemctl restart moonraker`

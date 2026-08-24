@@ -87,8 +87,7 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource ignores manual pause (no defect 
     REQUIRE(fired == 0);
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "U1StockSource fires once per pause edge",
-                 "[detection][u1]") {
+TEST_CASE_METHOD(XMLTestFixture, "U1StockSource fires once per pause edge", "[detection][u1]") {
     helix::detection::U1StockSource src(&state());
     src.set_capable(true);
     int fired = 0;

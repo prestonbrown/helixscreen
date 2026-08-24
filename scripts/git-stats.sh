@@ -27,10 +27,8 @@ else
 fi
 
 # Colors for terminal output (using $'...' for portable escape interpretation)
-RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[1;33m'
-BLUE=$'\033[0;34m'
 PURPLE=$'\033[0;35m'
 CYAN=$'\033[0;36m'
 BOLD=$'\033[1m'
@@ -61,7 +59,8 @@ print_two_columns_files() {
         local left_line="${left_lines[$i]:-}"
         local right_line="${right_lines[$i]:-}"
         # Strip ANSI codes for length calculation
-        local left_plain=$(echo "$left_line" | sed 's/\x1b\[[0-9;]*m//g')
+        local left_plain
+        left_plain=$(echo "$left_line" | sed 's/\x1b\[[0-9;]*m//g')
         local left_len=${#left_plain}
         local padding=$((COL_WIDTH - left_len))
         [[ $padding -lt 0 ]] && padding=0
@@ -81,7 +80,7 @@ REPO_NAME=$(basename "$REPO_ROOT")
 
 # Temp files
 TMP_DIR=$(mktemp -d)
-trap "rm -rf $TMP_DIR" EXIT
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 echo "${CYAN}${BOLD}Analyzing git history for ${REPO_NAME}...${NC}"
 
@@ -117,7 +116,7 @@ ACTIVE_DAYS=$(wc -l < "$TMP_DIR/active_days.txt" | tr -d ' ')
 
 # Session analysis
 cut -d'|' -f2 "$TMP_DIR/commits.txt" | sort -n > "$TMP_DIR/timestamps.txt"
-read sessions avg_min total_hrs <<< $(python3 << PYEOF
+read sessions avg_min total_hrs <<< "$(python3 << PYEOF
 import sys
 with open("$TMP_DIR/timestamps.txt") as f:
     times = [int(line.strip()) for line in f if line.strip()]
@@ -145,7 +144,7 @@ avg_session_min = int((total_coded / sessions) / 60) if sessions > 0 else 0
 total_hours = int(total_coded / 3600)
 print(f"{sessions} {avg_session_min} {total_hours}")
 PYEOF
-)
+)"
 # Ensure session variables have defaults if read failed (sessions min 1 for division)
 sessions=${sessions:-1}
 avg_min=${avg_min:-0}
@@ -513,13 +512,12 @@ echo ""
 # ============================================================================
 
 # Generate VERTICAL activity chart for a time period
-# $1 = period name (for display)
+# $1 = period name (unused; callers pass it positionally)
 # $2 = git --since argument
 # $3 = max height (default 8)
 # $4 = grouping: "month" | "week" (default "week")
 # $5 = expected_items (for centering) - optional
 generate_vertical_chart() {
-    local period_name=$1
     local since_date=$2
     local max_height=${3:-8}
     local grouping=${4:-"week"}

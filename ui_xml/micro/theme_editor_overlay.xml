@@ -2,6 +2,12 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- MICRO OVERRIDE of ui_xml/theme_editor_overlay.xml for 480x272 displays -->
+<!-- Divergences from standard:
+     - Uses #overlay_width_transient (vs default width)
+     - Action buttons (Reset/Save As/Save) pinned OUTSIDE scroll area at bottom
+       (standard has them inside the scroller)
+     - Tighter padding: #space_sm/#space_xs (vs #space_md)
+-->
 <component>
   <view name="theme_editor_overlay"
         extends="overlay_panel" title="Edit Theme Colors" title_tag="Edit Theme Colors" bg_color="#screen_bg">

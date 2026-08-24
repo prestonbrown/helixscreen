@@ -57,7 +57,7 @@ This directory contains research documentation on various 3D printers for HelixS
 | **IFS** | Filament switcher | 4 | Serial | Needs investigation |
 | **SnapSwap** | Toolchanger | 4 | Unknown | Needs open source |
 | **Happy Hare** | MMU | Configurable | Klipper module | **AmsBackendHappyHare** |
-| **AFC** | MMU | Configurable | Klipper module | **AmsBackendAFC** |
+| **AFC** | MMU | Configurable | Klipper module | **AmsBackendAfc** |
 
 ## Research Documents
 

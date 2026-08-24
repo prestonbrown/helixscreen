@@ -1,6 +1,25 @@
 # AD5X native ZMOD IFS: `Chan` seated-authority robustness (v2)
 
-Follow-up to **`2026-06-15-ad5x-ifs-status-seated-slot.md`**, which introduced `IFS_STATUS`
+> ⚠️ **Historical record (verified 2026-08-09) - not instructions. Status: PARTIALLY SHIPPED.**
+> The "## Status" section at the bottom still says "Implementation not started"; that is stale.
+>
+> - **Fix 1 shipped, but by a different mechanism than prescribed.** There is no
+>   `pending_cold_op_slot_`. What shipped is a head-gate on the *switch* sensor plus
+>   `clear_seated_if_ejected_locked()`. **Do not implement the `head_filament_` gate this plan
+>   prescribes** - see the correction under Fix 1.
+> - **Fix 2 shipped.** `persisted_seated_slot_` + `persist_seated_slot_locked()` +
+>   `seated_resolved_since_boot_` in `src/printer/ams_backend_ad5x_ifs.cpp`, persisted to the
+>   Moonraker `lane_data` DB rather than `SettingsManager`.
+> - **Fix 3 shipped.** `PURGING_TIMEOUT_SECONDS = 240` (`include/ams_backend_ad5x_ifs.h`),
+>   selected in `check_action_timeout()`, and `action_start_time_` reset on
+>   `ifs_motion_sensor` activity during `PURGING`.
+> - **Fix 4 did NOT ship.** There is no single "Unload current filament" affordance. Fix 2
+>   made the common case moot, but the residual still exists: head loaded, `Chan == 0`, and
+>   *nothing persisted* leaves `slot_unloads_to_toolhead()` true for every slot.
+>
+> Verify predicates and line numbers against current code before acting on anything here.
+
+Follow-up to the 2026-06-15 AD5X IFS status seated-slot plan, which introduced `IFS_STATUS`
 `Chan` as the seated-channel authority (shipped as Bug-1 fix `4520e1e23`, in v0.99.84).
 That plan's line 76–79 flagged "field confirmation REQUIRED": run `IFS_STATUS` loaded+idle and
 after unload. **This is that confirmation.** It verifies Bug 1 is fixed and falsifies the
@@ -65,6 +84,34 @@ self-induced**:
   `-1` (or leave persisted value, see Fix 2) rather than trust it.
 - Keep the clean-load path intact (load completes + head true → `Chan` is the seated lane).
 
+> ⚠️ **Correction (2026-08-09) - the second bullet is wrong and would clear a genuinely
+> seated lane.** `head_filament_` is written by **two** branches of
+> `handle_status_update()` (`src/printer/ams_backend_ad5x_ifs.cpp`): the motion sensor
+> (`filament_motion_sensor` / `zmod_ifs_motion_sensor ifs_motion_sensor`) and the switch
+> sensor (`filament_switch_sensor` / `zmod_ifs_switch_sensor head_switch_sensor`), both via
+> `parse_head_sensor()`. The **motion** sensor reports false whenever filament is not
+> *moving*, which is the normal state of a lane that is loaded and idle. So
+> `head_filament_ == false` is not evidence of an empty head, and a rule that clears
+> `seated_chan_` on it drops the seated lane during ordinary idle polling.
+>
+> What shipped instead is a latch of the switch sensor's own authority, kept separate from the
+> conflated `head_filament_`:
+>
+> ```cpp
+> const bool head_empty_authoritative = head_switch_seen_ && !head_switch_present_;
+> ```
+>
+> Only that rejects a sticky `FFMInfo.channel` / `Chan`. On motion-only firmware that
+> publishes no switch, `head_switch_seen_` stays false and the gate never fires, so those
+> printers keep the old adopt-the-channel behaviour rather than losing the seated lane. See
+> the `head_filament_` / `head_switch_seen_` / `head_switch_present_` member comments in
+> `include/ams_backend_ad5x_ifs.h`, and the uses in
+> `AmsBackendAd5xIfs::apply_zcolor_result()` and `log_seated_state_locked()`.
+>
+> The self-pollution half of Fix 1 shipped as `clear_seated_if_ejected_locked()` (zero the
+> seated pointer and `FFMInfo.channel` when they name the just-ejected lane), not as an
+> in-flight `pending_cold_op_slot_` window.
+
 ### Fix 2 — Persist last-known seated slot across restart (RC2 + cold-boot floor)
 - On a confirmed clean load (head true + `Chan>0`), persist `{seated_slot, material, color}`
   via `SettingsManager` (per-printer).
@@ -119,5 +166,8 @@ single "Unload current filament" action rather than offering Unload on every lan
   budget — raza616's 3 min is whole-op, not purge-only.
 
 ## Status
-Confirmed/diagnosed from CGR6C7PA + xlsx. Implementation not started. MAJOR / critical-path
-(AMS) — worktree + test-first.
+Confirmed/diagnosed from CGR6C7PA + xlsx. MAJOR / critical-path (AMS) - worktree + test-first.
+
+**Updated 2026-08-09:** "Implementation not started" was true when written and is no longer.
+Fixes 1 (by a different mechanism), 2 and 3 are in `main`; Fix 4 is not. See the banner at the
+top of this file for the per-fix evidence.

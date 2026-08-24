@@ -77,6 +77,26 @@ class TempGraphWidget : public PanelWidget {
     /// has drifted and a rebuild is needed (follow mode only).
     std::string current_visibility_signature() const;
 
+    /// Tear down and rebuild the controller against the current config_,
+    /// snapshotting the container pointers first (detach() nulls them).
+    /// Shared by apply_config_save() and the discovery rebuild.
+    void rebuild_in_place();
+
+    /// Queue a discovery-driven rebuild for the next LVGL async slot.
+    ///
+    /// Never rebuilds inline: the observer callback runs inside an UpdateQueue
+    /// batch, and TempGraphController::detach() drains that same queue —
+    /// re-entrant process_pending is the #732 crash. lv_async_call runs from
+    /// lv_timer_handler, outside the batch.
+    void schedule_discovery_rebuild();
+
+    /// lv_async_call trampoline for schedule_discovery_rebuild().
+    static void discovery_rebuild_async(void* self);
+
+    /// Cancel a queued discovery rebuild. Must run from both detach() and the
+    /// destructor, or the async fires on a freed `this`.
+    void cancel_discovery_rebuild();
+
     std::string instance_id_;
     nlohmann::json config_;
 
@@ -93,6 +113,14 @@ class TempGraphWidget : public PanelWidget {
     /// Signature applied during the most recent attach(); compared in
     /// on_activate() to decide whether to rebuild.
     std::string applied_visibility_signature_;
+
+    /// Rebuilds the series list when discovery adds extruders the config has
+    /// never seen. A widget attached at app startup (before the WebSocket
+    /// connects) otherwise renders with no nozzle series until the next launch.
+    ObserverGuard extruder_version_observer_;
+
+    /// Coalesces repeated version bumps into a single queued rebuild.
+    bool discovery_rebuild_pending_ = false;
 
     /// Modal for sensor toggle + color picker configuration
     class TempGraphConfigModal : public Modal {

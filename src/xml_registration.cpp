@@ -12,6 +12,7 @@
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_confetti.h"
+#include "ui_context_menu.h"
 #include "ui_event_safety.h"
 #include "ui_fan_dial.h"
 #include "ui_fonts.h"
@@ -35,6 +36,7 @@
 #include "ui_text_input.h"
 #include "ui_z_offset_indicator.h"
 
+#include "boot_yield.h"
 #include "layout_manager.h"
 #include "page_scroll_auto_inject.h"
 #include "static_subject_registry.h"
@@ -286,10 +288,26 @@ static void register_xml(const char* filename) {
     if (lv_xml_register_component_from_file(path.c_str()) != LV_RESULT_OK) {
         spdlog::error("[XML Registration] Failed to register: {}", path);
     }
+    // Registering ~300 component templates back-to-back (each a frogfs
+    // decompress + expat parse) is a multi-second stretch that starves the idle
+    // task on ESP; yield every few components so the Task WDT never fires.
+    // No-op on desktop (see boot_yield.h).
+    static int s_reg_count = 0;
+    if ((++s_reg_count & 0x0F) == 0) {
+        HELIX_BOOT_YIELD();
+    }
 }
 
 void register_xml_components() {
     spdlog::trace("[XML Registration] Registering XML components...");
+
+    // Shared cross-file styles (ui_xml/styles.xml), referenced from any XML as
+    // <style name="styles.<name>"/>. Must live here, not in init_theme() with
+    // globals.xml: this function runs AFTER theme_manager_init() registered the
+    // theme constants, and a style's #const values resolve at registration time
+    // (globals.xml is parsed before theme init, so a theme-token style there
+    // registers empty). Registered first so every component below can use it.
+    register_xml("styles.xml");
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
@@ -323,6 +341,16 @@ void register_xml_components() {
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",
                              [](lv_event_t*) { get_global_home_panel().open_widget_catalog(); });
+
+    // Backdrop tap and close/Done for every context menu — one pair, routed through
+    // ContextMenu::active(), rather than a callback per menu.
+    helix::ui::ContextMenu::register_shared_callbacks();
+    // <context_menu_backdrop> shared dimmed backdrop root. Every context menu
+    // extends it, so it must be registered before any of them.
+    register_xml("components/context_menu_backdrop.xml");
+    // <context_menu_card> the card every context menu nests inside that backdrop:
+    // elevated panel, title + close/Done header, and the rule under it.
+    register_xml("components/context_menu_card.xml");
     lv_subject_init_int(&s_noop_subject, 0);
     lv_xml_register_subject(nullptr, "", &s_noop_subject);
     s_noop_subject_initialized = true;
@@ -392,6 +420,12 @@ void register_xml_components() {
     // include/ui_progress_arc.h for the C++ companion (attach_progress_arc).
     register_xml("components/helix_progress_arc.xml");
     register_xml("components/perf_metric_row.xml");
+    // G-code preview stack (thumbnail / 2D / 3D) shared by print status and the
+    // file detail view, and the whole print-status preview card shared by the
+    // landscape and portrait status layouts. Registered here, ahead of both
+    // consumers, because a component must exist before the file that nests it.
+    register_xml("components/preview_stack.xml");
+    register_xml("components/print_status_preview_card.xml");
     register_xml("header_bar.xml");
     register_xml("overlay_backdrop.xml");
     register_xml("overlay_panel.xml");
@@ -468,6 +502,10 @@ void register_xml_components() {
     register_xml("components/filament_slot_picker_row.xml");
     register_xml("components/filament_mapping_tool_row.xml");
     register_xml("components/compact_toggle_row.xml");
+    // Endless-spool status line. Registered here, ahead of filament_panel.xml,
+    // because the AMS panel registers itself lazily and would otherwise be the
+    // only consumer guaranteed to find it.
+    register_xml("components/ams_endless_status.xml");
     register_xml("print_file_detail.xml");
 
     // Panel widget components (dynamic instantiation from PanelWidgetConfig)
@@ -489,6 +527,7 @@ void register_xml_components() {
     register_xml("components/panel_widget_humidity.xml");
     register_xml("components/panel_widget_width_sensor.xml");
     register_xml("components/panel_widget_filament.xml");
+    register_xml("components/panel_widget_bypass.xml");
     register_xml("components/panel_widget_thermistor.xml");
     register_xml("components/panel_widget_thermistor_carousel.xml");
     register_xml("components/panel_widget_temp_graph.xml");
@@ -527,6 +566,8 @@ void register_xml_components() {
     register_xml("components/buffer_status_modal.xml");
     register_xml("job_queue_modal.xml");
     register_xml("fan_picker.xml");
+    register_xml("fan_stack_picker.xml");
+    register_xml("tool_switcher_picker.xml");
     register_xml("thermistor_sensor_picker.xml");
     register_xml("thermistor_configure_picker.xml");
     register_xml("print_status_configure_picker.xml");
@@ -696,6 +737,7 @@ void register_xml_components() {
     register_xml("touch_calibration_overlay.xml");
     register_xml("printer_image_list_item.xml");
     register_xml("printer_image_overlay.xml");
+    register_xml("printer_type_overlay.xml");
     register_xml("hidden_network_modal.xml");
     register_xml("network_test_modal.xml");
     register_xml("wifi_network_item.xml");

@@ -45,6 +45,20 @@ class PrintStatusPanelTestAccess {
         return panel.cached_thumbnail_path_;
     }
 
+    /// The panel's own copy of the thumbnail source override. Distinct from the
+    /// media manager's: both go stale independently (#1339).
+    static const std::string& thumbnail_source(const PrintStatusPanel& panel) {
+        return panel.thumbnail_source_filename_;
+    }
+
+    static const std::string& current_print_filename(const PrintStatusPanel& panel) {
+        return panel.current_print_filename_;
+    }
+
+    static void set_filename(PrintStatusPanel& panel, const char* filename) {
+        panel.set_filename(filename);
+    }
+
     static lv_obj_t* thumbnail_widget(const PrintStatusPanel& panel) {
         return panel.print_thumbnail_;
     }

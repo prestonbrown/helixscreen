@@ -11,7 +11,9 @@
  * utility functions used by the split moonraker_api_*.cpp implementation files.
  */
 
-#include "hv/HttpMessage.h"
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "hv/HttpMessage.h" // HttpResponse — only the REST/HTTP sub-APIs use it
+#endif
 #include "moonraker_api.h"
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
@@ -105,6 +107,79 @@ inline bool is_safe_object_name(const std::string& str) {
             return false;
         }
     });
+}
+
+/**
+ * @brief Validate that a filament material name is safe as a G-code parameter value.
+ *
+ * Material names carry punctuation that `is_safe_identifier()` rejects. `PLA+`, `PA6-CF`,
+ * `PETG-CF`, `PC-ABS`, `Silk PLA` all ship in our own filament database
+ * (`include/filament_database.h`), so gating SET_MATERIAL / MMU_GATE_MAP on the identifier
+ * charset made the app offer materials its own persistence layer refused to send: the save
+ * dropped the material, logged a warning nobody reads, and reported success.
+ *
+ * Allows: alphanumeric, `+ - _ . ( ) /` and space. Rejects everything else, which keeps the
+ * injection vectors closed: `\n\r` (Moonraker runs a `printer.gcode.script` body line by
+ * line, so a newline is the one real multi-command vector), `;` and `#` (Klipper's comment
+ * characters — they silently truncate the rest of the command), `*` (checksum separator),
+ * quote and backslash (both are meaningful to the `shlex` pass described below, so letting
+ * them through would let a value escape its own quoting), `=`, control characters, and
+ * non-ASCII bytes.
+ *
+ * Space is allowed because `Silk PLA` and `Matte PLA` are in that same database — but Klipper
+ * tokenizes extended-command arguments on whitespace, so callers MUST render the value
+ * through `gcode_param_value()` rather than interpolating it raw.
+ */
+inline bool is_safe_material_param(const std::string& str) {
+    if (str.empty()) {
+        return false;
+    }
+
+    return std::all_of(str.begin(), str.end(), [](char c) {
+        auto byte = static_cast<unsigned char>(c);
+        if (byte > 0x7F) {
+            return false;
+        }
+        if (std::isalnum(byte)) {
+            return true;
+        }
+        switch (c) {
+        case '+':
+        case '-':
+        case '_':
+        case '.':
+        case '(':
+        case ')':
+        case '/':
+        case ' ':
+            return true;
+        default:
+            return false;
+        }
+    });
+}
+
+/**
+ * @brief Render an already-validated value as a G-code parameter value.
+ *
+ * Klipper parses the arguments of an extended command (anything not a bare `G`/`M` code —
+ * SET_MATERIAL and MMU_GATE_MAP both qualify) with `shlex` in POSIX mode with
+ * `whitespace_split`, then splits each token on its first `=`. So `MATERIAL=Silk PLA` arrives
+ * as two tokens, the second of which has no `=` at all, and Klipper answers "Malformed
+ * command" — the value never reaches the firmware. Quoting it makes shlex yield the one token
+ * `MATERIAL=Silk PLA`, with the quotes stripped before the firmware sees it.
+ *
+ * Only values containing whitespace are quoted, so every value that works today goes out on
+ * the wire byte-for-byte unchanged.
+ *
+ * @pre The value has passed a validator that rejects `"` and `\`. Without that this would be
+ *      an injection point rather than a fix.
+ */
+inline std::string gcode_param_value(const std::string& value) {
+    if (value.find_first_of(" \t") == std::string::npos) {
+        return value;
+    }
+    return "\"" + value + "\"";
 }
 
 /**
@@ -557,6 +632,7 @@ inline MoonrakerErrorType http_status_to_error_type(int status_code) {
  * @param expected Expected HTTP status code (default: 200)
  * @return true if response is valid and has expected status, false otherwise
  */
+#if !defined(HELIX_PLATFORM_ESP32) // HTTP response handlers — REST/HTTP sub-APIs only
 inline bool handle_http_response(const std::shared_ptr<HttpResponse>& resp, std::string_view method,
                                  const MoonrakerAPI::ErrorCallback& on_error, int expected = 200) {
     if (!resp) {
@@ -607,6 +683,7 @@ inline bool handle_http_response(const std::shared_ptr<HttpResponse>& resp, std:
     report_error(on_error, type, method, message, resp->status_code);
     return false;
 }
+#endif // !HELIX_PLATFORM_ESP32
 
 // ============================================================================
 // JSON EXTRACTION HELPERS

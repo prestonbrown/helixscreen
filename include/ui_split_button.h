@@ -53,6 +53,14 @@ typedef struct _lv_obj_t lv_obj_t;
 void ui_split_button_init();
 
 /**
+ * @brief Drop the memoized icon_font_sm lookup so the next split button re-reads it
+ *
+ * Same process-lifetime cache as ui_button; see
+ * ui_button_invalidate_icon_font_cache().
+ */
+void ui_split_button_invalidate_icon_font_cache();
+
+/**
  * @brief Set the dropdown options
  * @param sb The ui_split_button widget
  * @param options Newline-separated option strings

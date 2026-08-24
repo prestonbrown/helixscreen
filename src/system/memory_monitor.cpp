@@ -139,6 +139,61 @@ void MemoryMonitor::set_warning_callback(WarningCallback cb) {
     warning_callback_ = std::move(cb);
 }
 
+void MemoryMonitor::set_hang_callback(HangCallback cb) {
+    std::lock_guard<std::mutex> lock(callback_mutex_);
+    hang_callback_ = std::move(cb);
+}
+
+void MemoryMonitor::set_hang_threshold_ms(uint32_t ms) {
+    hang_threshold_ms_.store(ms, std::memory_order_relaxed);
+    spdlog::debug("[MemoryMonitor] Main-loop hang threshold set to {}ms{}", ms,
+                  ms == 0 ? " (detection disabled)" : "");
+}
+
+uint32_t MemoryMonitor::hang_threshold_ms() const {
+    return hang_threshold_ms_.load(std::memory_order_relaxed);
+}
+
+void MemoryMonitor::check_main_loop_liveness() {
+    // Unarmed means the main loop has not run a single iteration yet, so there
+    // is no baseline to call stale. Startup is slow enough on the weaker boards
+    // (~8s of XML parsing on AD5M) that measuring before then would only ever
+    // produce false positives.
+    if (!MainLoopHeartbeat::armed()) {
+        return;
+    }
+
+    hang_detector_.set_threshold_ms(hang_threshold_ms_.load(std::memory_order_relaxed));
+
+    const auto now_ms =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::steady_clock::now().time_since_epoch())
+                                  .count());
+
+    const uint32_t stalled_ms = hang_detector_.sample(MainLoopHeartbeat::count(), now_ms);
+    if (stalled_ms == 0) {
+        return;
+    }
+
+    // Deliberately not spdlog::debug: by definition nobody is watching a screen
+    // that has stopped responding, so this has to survive at the default level
+    // to be in the log the user eventually ships us.
+    spdlog::error("[MemoryMonitor] UI main loop has not ticked in {}ms — the touchscreen is "
+                  "unresponsive (heartbeat stuck at {})",
+                  stalled_ms, MainLoopHeartbeat::count());
+
+    HangCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        cb = hang_callback_;
+    }
+    // Invoked outside the lock: the callback reports telemetry and may one day
+    // abort the process, and neither wants this mutex held.
+    if (cb) {
+        cb(stalled_ms);
+    }
+}
+
 MemoryMonitor::PressureResponderId
 MemoryMonitor::add_pressure_responder(std::function<void(MemoryPressureLevel)> cb) {
     std::lock_guard<std::mutex> lock(callback_mutex_);
@@ -504,6 +559,11 @@ void MemoryMonitor::monitor_loop() {
 
         // Evaluate pressure thresholds
         evaluate_thresholds(stats);
+
+        // Liveness runs on the same cadence. It is checked here rather than from
+        // its own thread because only a background thread can observe a wedged
+        // UI thread at all, and this one already wakes on the right interval.
+        check_main_loop_liveness();
 
         // Deep sample every 6th tick (30s at 5s interval): record RSS for growth tracking
         ++deep_sample_counter_;

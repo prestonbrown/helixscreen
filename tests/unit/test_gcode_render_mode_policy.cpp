@@ -17,7 +17,10 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::GcodeViewerRenderMode;
+using helix::gcode_viewer::decide_preview_mode;
 using helix::gcode_viewer::decide_render_mode;
+using helix::gcode_viewer::PreviewModeSource;
+using helix::gcode_viewer::RENDER_MODE_THUMBNAIL_ONLY;
 using helix::gcode_viewer::RenderModeReason;
 
 TEST_CASE("Render mode: unset env auto-detects", "[gcode_viewer][render_mode]") {
@@ -76,4 +79,49 @@ TEST_CASE("Render mode: unset and empty are different answers", "[gcode_viewer][
     // empty) override and lands on 2D.
     CHECK(decide_render_mode(nullptr, true).mode == GcodeViewerRenderMode::Auto);
     CHECK(decide_render_mode("", true).mode == GcodeViewerRenderMode::Layer2D);
+}
+
+// ============================================================================
+// PREVIEW LADDER — shared by every G-code preview card
+// ============================================================================
+
+TEST_CASE("decide_preview_mode - command line outranks everything", "[gcode][render_mode]") {
+    // --render-2d must win even with the env var set and a conflicting setting.
+    auto d = decide_preview_mode(/*cmdline=*/2, /*env_set=*/true, /*settings=*/1);
+    REQUIRE(d.source == PreviewModeSource::CommandLine);
+    REQUIRE(d.apply);
+    REQUIRE(d.mode == GcodeViewerRenderMode::Layer2D);
+}
+
+TEST_CASE("decide_preview_mode - env var suppresses the settings tier", "[gcode][render_mode]") {
+    // HELIX_GCODE_MODE was already applied at widget creation. Re-applying would
+    // be a no-op that hides which tier actually won, so apply is false — but the
+    // settings tier must still not get a look in.
+    auto d = decide_preview_mode(-1, /*env_set=*/true, /*settings=*/2);
+    REQUIRE(d.source == PreviewModeSource::Environment);
+    REQUIRE_FALSE(d.apply);
+}
+
+TEST_CASE("decide_preview_mode - falls through to the saved setting", "[gcode][render_mode]") {
+    auto d = decide_preview_mode(-1, false, /*settings=*/1);
+    REQUIRE(d.source == PreviewModeSource::Settings);
+    REQUIRE(d.apply);
+    REQUIRE(d.mode == GcodeViewerRenderMode::Render3D);
+}
+
+TEST_CASE("decide_preview_mode - Thumbnail Only leaves the viewer alone", "[gcode][render_mode]") {
+    // Setting 3 means the viewer is never shown; touching its mode would spin up
+    // a renderer for nothing.
+    auto d = decide_preview_mode(-1, false, RENDER_MODE_THUMBNAIL_ONLY);
+    REQUIRE(d.source == PreviewModeSource::ThumbnailOnly);
+    REQUIRE_FALSE(d.apply);
+}
+
+TEST_CASE("decide_preview_mode - Thumbnail Only still yields to the command line",
+          "[gcode][render_mode]") {
+    // Non-vacuity guard: a ladder that checked thumbnail-only first would pass
+    // the case above while breaking --render-2d on a thumbnail-only install.
+    auto d = decide_preview_mode(/*cmdline=*/2, false, RENDER_MODE_THUMBNAIL_ONLY);
+    REQUIRE(d.source == PreviewModeSource::CommandLine);
+    REQUIRE(d.apply);
 }

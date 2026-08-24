@@ -16,9 +16,9 @@ struct AxisMove {
     // Mixed-magnitude float cancellation can leave ~1e-17 residue in an
     // accumulated delta; treat anything below this as zero so a near-null move
     // (which would serialize in scientific notation) never flushes.
-    static constexpr double kEpsilonMm = 1e-6;
+    static constexpr double EPSILON_MM = 1e-6;
     bool any() const {
-        return std::abs(dx) > kEpsilonMm || std::abs(dy) > kEpsilonMm || std::abs(dz) > kEpsilonMm;
+        return std::abs(dx) > EPSILON_MM || std::abs(dy) > EPSILON_MM || std::abs(dz) > EPSILON_MM;
     }
 };
 

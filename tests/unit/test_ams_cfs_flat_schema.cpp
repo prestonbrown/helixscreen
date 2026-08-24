@@ -183,6 +183,69 @@ TEST_CASE("CFS flat schema: unit and slot topology", "[ams][cfs][flat]") {
     }
 }
 
+TEST_CASE("CFS flat schema: loaded_slot vs the external entry", "[ams][cfs][flat]") {
+    // loaded_slot indexes the payload's slots[] — which includes the external
+    // entry that the unit's bay vector does not. The bay and external cases
+    // must land in different places: bay N maps straight through, external
+    // maps to the -2 bypass sentinel (box.py's own convention: the snapshot
+    // builder assigns loaded = external_slot when the toolhead sensor detects
+    // filament no box lane owns).
+    json box = make_flat_box_json();
+
+    SECTION("bay index maps straight through") {
+        box["loaded_slot"] = 2;
+        auto info = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(info.current_slot == 2);
+        REQUIRE(info.current_tool == 2);
+    }
+
+    SECTION("external index maps to the -2 bypass sentinel") {
+        box["loaded_slot"] = 4;
+        auto info = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(info.current_slot == -2);
+        REQUIRE(info.current_tool == -2);
+    }
+
+    SECTION("nothing loaded stays -1") {
+        box["loaded_slot"] = -1;
+        auto info = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(info.current_slot == -1);
+    }
+
+    SECTION("out-of-range index that is not the external entry stays -1") {
+        box["loaded_slot"] = 99;
+        auto info = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(info.current_slot == -1);
+    }
+
+    SECTION("external entry moved with box_count is still recognized") {
+        // external_slot = max_physical_slot + 1 in box.py, so a 2-unit box
+        // (8 bays, indices 0..7) puts the holder at index 8 — read from the
+        // payload, never recomputed from this machine's bay count.
+        json two_units = make_flat_box_json();
+        json& slots = two_units["slots"];
+        for (int i = 4; i < 8; ++i) {
+            slots.insert(slots.begin() + i, json{{"brand", ""},
+                                                 {"color", ""},
+                                                 {"external", false},
+                                                 {"index", i},
+                                                 {"loaded", false},
+                                                 {"material", ""},
+                                                 {"name", ""},
+                                                 {"present", false},
+                                                 {"rfid_percent", nullptr},
+                                                 {"rfid_reserve", ""},
+                                                 {"spoolman_id", nullptr}});
+        }
+        slots[8]["index"] = 8;
+        slots[8]["external"] = true;
+        two_units["loaded_slot"] = 8;
+        auto info = AmsBackendCfs::parse_box_status(two_units);
+        REQUIRE(info.units[0].slot_count == 8);
+        REQUIRE(info.current_slot == -2);
+    }
+}
+
 TEST_CASE("CFS flat schema: per-slot filament data", "[ams][cfs][flat]") {
     auto info = AmsBackendCfs::parse_box_status(make_flat_box_json());
     REQUIRE(info.units.size() == 1);
@@ -529,5 +592,6 @@ TEST_CASE("CFS stock schema still parses after the flat split", "[ams][cfs][flat
     REQUIRE(info.units[0].environment->humidity_pct == 48.0f);
     REQUIRE(info.units[0].slots[0].color_rgb == 0x000000);
     REQUIRE(info.units[0].slots[1].color_rgb == 0xFFFFFF);
-    REQUIRE(info.supports_endless_spool == true);
+    // The fork spells the ENABLE bit runout_swap_enabled.
+    REQUIRE(info.endless_spool_enabled == true);
 }

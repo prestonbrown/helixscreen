@@ -85,9 +85,28 @@ class PanelFactory {
     static lv_obj_t* create_overlay(lv_obj_t* screen, const char* component_name,
                                     const char* display_name);
 
+    /**
+     * @brief Build a panel that was deferred at boot (ESP32 first-navigation).
+     *
+     * Instantiates PANEL_NAMES[panel_id] into the panel container, runs its
+     * setup(), and registers the widget + instance with NavigationManager. Paints
+     * a loading state before the (multi-second) create. Registered as
+     * NavigationManager's deferred_panel_builder on ESP; a no-op on other
+     * platforms (all panels are built eagerly by setup_panels).
+     */
+    void build_deferred_panel(int panel_id);
+
   private:
+    // Wire one of the six main panels: get_global_*_panel().setup(widget, screen)
+    // + register the instance with NavigationManager. Used by the ESP eager-home
+    // path and by build_deferred_panel; the desktop setup_panels() body is
+    // unchanged and does not call this.
+    void setup_one_panel(int panel_id);
+
     std::array<lv_obj_t*, UI_PANEL_COUNT> m_panels = {};
     lv_obj_t* m_print_status_panel = nullptr;
+    lv_obj_t* m_panel_container = nullptr; // for deferred panel creation (ESP)
+    lv_obj_t* m_screen = nullptr;          // setup() target for deferred panels (ESP)
 };
 
 } // namespace helix

@@ -89,7 +89,7 @@ class MacrosPanel : public OverlayBase {
     // === Edit-mode model ===
     /**
      * @brief Refresh all_macros_ from the discovered hardware (sorted, incl.
-     * `_`-prefixed). No-op when no MoonrakerAPI is available (leaves the
+     * `_`-prefixed). No-op when no IMoonrakerAPI is available (leaves the
      * current list intact — used for both mock and reconnect timing).
      */
     void refresh_macros();

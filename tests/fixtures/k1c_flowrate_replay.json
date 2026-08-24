@@ -1,0 +1,1838 @@
+{
+ "description": "K1C flowrate print 2026-08-19: pre-start gcode block (CX_ROUGH_G28 EXTRUDER_TEMP=220 BED_TEMP=55, CX_NOZZLE_CLEAR, ACCURATE_G28, BED_MESH_CALIBRATE, PRINT_PREPARED). Extracted from the klippy.log + helix app log capture in /tmp/k1c-capture (clocks: app = klippy + 1h).",
+ "config_probe_count": [
+  5,
+  5
+ ],
+ "events": [
+  {
+   "t": 0,
+   "type": "status",
+   "object": "print_stats",
+   "payload": {
+    "state": "printing",
+    "filename": "flowrate_0_PLA_36m5s.gcode",
+    "print_duration": 0.0,
+    "progress": 0.0
+   }
+  },
+  {
+   "t": 0,
+   "type": "gcode_response",
+   "line": "// x_axes is NULL"
+  },
+  {
+   "t": 52,
+   "type": "gcode_response",
+   "line": "// move xy"
+  },
+  {
+   "t": 900,
+   "type": "status",
+   "object": "extruder",
+   "payload": {
+    "temperature": 27.0,
+    "target": 130.0
+   }
+  },
+  {
+   "t": 950,
+   "type": "status",
+   "object": "heater_bed",
+   "payload": {
+    "temperature": 26.0,
+    "target": 55.0
+   }
+  },
+  {
+   "t": 16213,
+   "type": "gcode_response",
+   "line": "// x_park = -104.5 "
+  },
+  {
+   "t": 16218,
+   "type": "gcode_response",
+   "line": "// y_park = 104.5 "
+  },
+  {
+   "t": 17251,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": null,
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": null
+   }
+  },
+  {
+   "t": 20882,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     114.138,
+     103.688,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 22843,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     114.138,
+     103.688,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 50210,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     114.138,
+     103.688,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 52843,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     114.138,
+     103.688,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 55395,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     114.138,
+     103.688,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 57465,
+   "type": "gcode_response",
+   "line": "// Run Current: 0.56A Hold Current: 0.56A"
+  },
+  {
+   "t": 57735,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     87.0,
+     225.0,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 64850,
+   "type": "gcode_response",
+   "line": "// [CLEAR_NOZZLE_QUICK] src_pos[2]:3.1676562499998298"
+  },
+  {
+   "t": 64852,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 69827,
+   "type": "gcode_response",
+   "line": "// [CLEAR_NOZZLE_QUICK] end_pos[2]:3.212499999999858"
+  },
+  {
+   "t": 69829,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     3.012,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 73166,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": "default",
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": [
+     [
+      -0.083781,
+      -0.106906,
+      -0.087213,
+      0.001906,
+      0.065813
+     ],
+     [
+      -0.074028,
+      -0.11167,
+      -0.104185,
+      -0.06775,
+      0.025625
+     ],
+     [
+      -0.042991,
+      -0.062344,
+      -0.094125,
+      -0.133065,
+      -0.042063
+     ],
+     [
+      -0.186094,
+      -0.26725,
+      -0.228781,
+      -0.248063,
+      -0.159906
+     ],
+     [
+      -0.29625,
+      -0.333449,
+      -0.386869,
+      -0.372781,
+      -0.232437
+     ]
+    ]
+   }
+  },
+  {
+   "t": 74399,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": null,
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": null
+   }
+  },
+  {
+   "t": 82294,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     4.212,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 82802,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     4.212,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83216,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83928,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83932,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83936,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83971,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83973,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 83975,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85720,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85722,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85724,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85757,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85761,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 85764,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87506,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87509,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87511,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87544,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87548,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 87550,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89294,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89296,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89298,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89327,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89329,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 89331,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91079,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91082,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91084,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91113,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91115,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 91117,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 92871,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     3.212,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 93284,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     3.012,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 147393,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     133.0,
+     225.0,
+     4.212,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 147904,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     4.212,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 148318,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 149035,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 149038,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 149040,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 150087,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 150089,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 150091,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 151136,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     225.045,
+     2.468,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 151137,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 151139,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     224.545,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 152178,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     225.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 152182,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     128.0,
+     221.045,
+     2.512,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 152595,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     92.0,
+     221.045,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 153580,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 157893,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 161009,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 163579,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 166140,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 167057,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     105.034,
+     117.059,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 167059,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.26,
+     109.963,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 167717,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.26,
+     109.963,
+     6.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 169956,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": "default",
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": [
+     [
+      -0.083781,
+      -0.106906,
+      -0.087213,
+      0.001906,
+      0.065813
+     ],
+     [
+      -0.074028,
+      -0.11167,
+      -0.104185,
+      -0.06775,
+      0.025625
+     ],
+     [
+      -0.042991,
+      -0.062344,
+      -0.094125,
+      -0.133065,
+      -0.042063
+     ],
+     [
+      -0.186094,
+      -0.26725,
+      -0.228781,
+      -0.248063,
+      -0.159906
+     ],
+     [
+      -0.29625,
+      -0.333449,
+      -0.386869,
+      -0.372781,
+      -0.232437
+     ]
+    ]
+   }
+  },
+  {
+   "t": 170254,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": null,
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": null
+   }
+  },
+  {
+   "t": 177929,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.26,
+     109.963,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 184218,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 185699,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 187040,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 187346,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 193068,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     215.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 200631,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     215.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 208235,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     5.0,
+     5.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 215684,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     3.026,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 217500,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     5.0,
+     3.026,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 223364,
+   "type": "gcode_response",
+   "line": "// probe at 5.000,5.000 is z=0.016781"
+  },
+  {
+   "t": 223369,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     57.5,
+     5.0,
+     3.069,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 228956,
+   "type": "gcode_response",
+   "line": "// probe at 57.500,5.000 is z=-0.005531"
+  },
+  {
+   "t": 228960,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     5.0,
+     3.111,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 234501,
+   "type": "gcode_response",
+   "line": "// probe at 110.000,5.000 is z=0.034977"
+  },
+  {
+   "t": 234505,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     162.5,
+     5.0,
+     3.153,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 240065,
+   "type": "gcode_response",
+   "line": "// probe at 162.500,5.000 is z=0.042844"
+  },
+  {
+   "t": 240075,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     5.0,
+     3.196,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 245595,
+   "type": "gcode_response",
+   "line": "// probe at 215.000,5.000 is z=0.169906"
+  },
+  {
+   "t": 245605,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     57.5,
+     3.125,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 246560,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     57.5,
+     3.125,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 252416,
+   "type": "gcode_response",
+   "line": "// probe at 215.000,57.500 is z=0.159844"
+  },
+  {
+   "t": 252420,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     162.5,
+     57.5,
+     3.089,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 257920,
+   "type": "gcode_response",
+   "line": "// probe at 162.500,57.500 is z=0.069980"
+  },
+  {
+   "t": 257929,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     57.5,
+     3.053,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 263448,
+   "type": "gcode_response",
+   "line": "// probe at 110.000,57.500 is z=-0.013875"
+  },
+  {
+   "t": 263455,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     57.5,
+     57.5,
+     3.017,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 268954,
+   "type": "gcode_response",
+   "line": "// probe at 57.500,57.500 is z=0.000281"
+  },
+  {
+   "t": 268957,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     57.5,
+     2.981,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 274421,
+   "type": "gcode_response",
+   "line": "// probe at 5.000,57.500 is z=0.057009"
+  },
+  {
+   "t": 274425,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     110.0,
+     2.935,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 275389,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     110.0,
+     2.935,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 281209,
+   "type": "gcode_response",
+   "line": "// probe at 5.000,110.000 is z=0.031491"
+  },
+  {
+   "t": 281212,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     57.5,
+     110.0,
+     2.965,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 286718,
+   "type": "gcode_response",
+   "line": "// probe at 57.500,110.000 is z=-0.004219"
+  },
+  {
+   "t": 286725,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     110.0,
+     2.995,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 292260,
+   "type": "gcode_response",
+   "line": "// probe at 110.000,110.000 is z=-0.027708"
+  },
+  {
+   "t": 292264,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     162.5,
+     110.0,
+     3.025,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 297820,
+   "type": "gcode_response",
+   "line": "// probe at 162.500,110.000 is z=-0.018054"
+  },
+  {
+   "t": 297824,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     110.0,
+     3.055,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 303338,
+   "type": "gcode_response",
+   "line": "// probe at 215.000,110.000 is z=0.020469"
+  },
+  {
+   "t": 303341,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     162.5,
+     2.985,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 304299,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     162.5,
+     2.985,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 310186,
+   "type": "gcode_response",
+   "line": "// probe at 215.000,162.500 is z=-0.055625"
+  },
+  {
+   "t": 310195,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     162.5,
+     162.5,
+     2.961,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 315737,
+   "type": "gcode_response",
+   "line": "// probe at 162.500,162.500 is z=-0.151031"
+  },
+  {
+   "t": 315743,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     162.5,
+     2.938,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 321290,
+   "type": "gcode_response",
+   "line": "// probe at 110.000,162.500 is z=-0.132625"
+  },
+  {
+   "t": 321294,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     57.5,
+     162.5,
+     2.914,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 326833,
+   "type": "gcode_response",
+   "line": "// probe at 57.500,162.500 is z=-0.152094"
+  },
+  {
+   "t": 326838,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     162.5,
+     2.89,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 330000,
+   "type": "status",
+   "object": "extruder",
+   "payload": {
+    "temperature": 129.0,
+    "target": 220.0
+   }
+  },
+  {
+   "t": 332304,
+   "type": "gcode_response",
+   "line": "// probe at 5.000,162.500 is z=-0.076250"
+  },
+  {
+   "t": 332310,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     215.0,
+     2.845,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 333259,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     5.0,
+     215.0,
+     2.845,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 339132,
+   "type": "gcode_response",
+   "line": "// probe at 5.000,215.000 is z=-0.206406"
+  },
+  {
+   "t": 339136,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     57.5,
+     215.0,
+     2.862,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 344700,
+   "type": "gcode_response",
+   "line": "// probe at 57.500,215.000 is z=-0.235031"
+  },
+  {
+   "t": 344704,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     215.0,
+     2.88,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 350294,
+   "type": "gcode_response",
+   "line": "// probe at 110.000,215.000 is z=-0.275156"
+  },
+  {
+   "t": 350300,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     162.5,
+     215.0,
+     2.897,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 355910,
+   "type": "gcode_response",
+   "line": "// probe at 162.500,215.000 is z=-0.252858"
+  },
+  {
+   "t": 355915,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     215.0,
+     215.0,
+     2.915,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 361425,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     110.0,
+     2.995,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 367495,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     110.0,
+     10.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 369218,
+   "type": "status",
+   "object": "toolhead",
+   "payload": {
+    "position": [
+     110.0,
+     110.0,
+     10.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "t": 369222,
+   "type": "gcode_response",
+   "line": "// probe at 215.000,215.000 is z=-0.051056"
+  },
+  {
+   "t": 369258,
+   "type": "gcode_response",
+   "line": "// Mesh Bed Leveling Complete"
+  },
+  {
+   "t": 369286,
+   "type": "gcode_response",
+   "line": "// Bed Mesh state has been saved to profile [default]"
+  },
+  {
+   "t": 369290,
+   "type": "gcode_response",
+   "line": "// print prepared"
+  },
+  {
+   "t": 371589,
+   "type": "gcode_response",
+   "line": "// wait temp end"
+  },
+  {
+   "t": 371615,
+   "type": "gcode_response",
+   "line": "// x_axes: xyz "
+  },
+  {
+   "t": 371618,
+   "type": "gcode_response",
+   "line": "// x_axes: xyz "
+  },
+  {
+   "t": 386120,
+   "type": "status",
+   "object": "bed_mesh",
+   "payload": {
+    "profile_name": "default",
+    "mesh_min": [
+     5.0,
+     5.0
+    ],
+    "mesh_max": [
+     215.0,
+     215.0
+    ],
+    "probed_matrix": [
+     [
+      -0.083781,
+      -0.106906,
+      -0.087213,
+      0.001906,
+      0.065813
+     ],
+     [
+      -0.074028,
+      -0.11167,
+      -0.104185,
+      -0.06775,
+      0.025625
+     ],
+     [
+      -0.042991,
+      -0.062344,
+      -0.094125,
+      -0.133065,
+      -0.042063
+     ],
+     [
+      -0.186094,
+      -0.26725,
+      -0.228781,
+      -0.248063,
+      -0.159906
+     ],
+     [
+      -0.29625,
+      -0.333449,
+      -0.386869,
+      -0.372781,
+      -0.232437
+     ]
+    ]
+   }
+  }
+ ]
+}

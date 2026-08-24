@@ -41,9 +41,14 @@ static void safe_deferred_delete(lv_obj_t* obj) {
 // Drag visual constants
 static constexpr int PREVIEW_BORDER_WIDTH = 3;
 
-// Resize edge detection: 18px inside + 18px outside the widget edge = 36px total
-static constexpr int EDGE_HIT_INWARD = 18;
-static constexpr int EDGE_HIT_MARGIN = 18;
+// Resize edge detection. The grab band extends this far both inward and outward
+// from a widget edge, and is derived from the grid's cell size in
+// edge_hit_band_for_cell() so the target scales with the panel. The fallback
+// applies before a grid exists, when no cell size is known.
+static constexpr int EDGE_HIT_FALLBACK = 18;
+static constexpr int EDGE_HIT_MIN = 14;
+static constexpr int EDGE_HIT_MAX = 32;
+static constexpr float EDGE_HIT_CELL_DIVISOR = 6.0f;
 
 // disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
 using helix::ui::disable_widget_clicks_recursive;
@@ -51,6 +56,21 @@ using helix::ui::disable_widget_clicks_recursive;
 GridEditMode::~GridEditMode() {
     if (active_) {
         exit();
+    }
+    // Unconditional, not just when active_: the snap animation's completion
+    // callback holds a raw `this`, and Application::shutdown() only reaches
+    // lv_anim_delete_all() after the owning panel has been destroyed.
+    cancel_snap_animation();
+}
+
+void GridEditMode::cancel_snap_animation() {
+    // Drop our handle BEFORE cancelling. lv_anim_delete() runs the animation's
+    // deleted_cb synchronously and that callback writes this same member, so
+    // the order keeps it from racing us back to a stale value.
+    lv_obj_t* target = snap_anim_preview_;
+    snap_anim_preview_ = nullptr;
+    if (target && lv_is_initialized()) {
+        lv_anim_delete(target, nullptr);
     }
 }
 
@@ -102,6 +122,10 @@ void GridEditMode::exit() {
     }
     dragging_ = false;
     resizing_ = false;
+    // Before config_ is nulled below: the snap animation's completion callback
+    // dereferences it unconditionally, and the deferred rebuild scheduled here
+    // is what destroys the widget that animation is driving.
+    cancel_snap_animation();
     drag_cfg_idx_ = -1;
     drag_orig_col_ = -1;
     drag_orig_row_ = -1;
@@ -232,23 +256,20 @@ void GridEditMode::handle_click(lv_event_t* /*e*/) {
     } else {
         // Before deselecting, check if the click is within the edge resize zone
         // of the currently selected widget. If so, keep the selection — the user
-        // is clicking in the outer 18px margin to start a resize drag.
+        // is clicking in the outer grab band to start a resize drag.
         bool in_edge_zone = false;
         if (selected_) {
             lv_area_t sel_area;
             lv_obj_get_coords(selected_, &sel_area);
-            if (point.x >= sel_area.x1 - EDGE_HIT_MARGIN &&
-                point.x <= sel_area.x2 + EDGE_HIT_MARGIN &&
-                point.y >= sel_area.y1 - EDGE_HIT_MARGIN &&
-                point.y <= sel_area.y2 + EDGE_HIT_MARGIN) {
+            if (press_owns_widget(point, sel_area)) {
                 in_edge_zone = true;
-                spdlog::debug("[GridEditMode] handle_click: no widget at ({},{}) but within "
+                spdlog::trace("[GridEditMode] handle_click: no widget at ({},{}) but within "
                               "edge zone of selected widget — keeping selection",
                               point.x, point.y);
             }
         }
         if (!in_edge_zone) {
-            spdlog::debug("[GridEditMode] handle_click: no widget at ({},{}) — {} children checked",
+            spdlog::trace("[GridEditMode] handle_click: no widget at ({},{}) — {} children checked",
                           point.x, point.y, child_count);
             select_widget(nullptr);
         }
@@ -278,7 +299,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     int widget_w = lv_area_get_width(&widget_area);
     int widget_h = lv_area_get_height(&widget_area);
 
-    spdlog::debug("[GridEditMode] Chrome coords: widget_screen=({},{})→({},{}) "
+    spdlog::trace("[GridEditMode] Chrome coords: widget_screen=({},{})→({},{}) "
                   "container_screen=({},{}) pad=({},{}) rel=({},{}) size={}x{}",
                   widget_area.x1, widget_area.y1, widget_area.x2, widget_area.y2, container_area.x1,
                   container_area.y1, pad_left, pad_top, rel_x1, rel_y1, widget_w, widget_h);
@@ -390,7 +411,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_anim_set_exec_cb(&anim, [](void* obj, int32_t val) {
             auto* overlay = static_cast<lv_obj_t*>(obj);
             // Only pulse the first 8 children (corner brackets), skip edge bars
-            uint32_t count = std::min(lv_obj_get_child_count(overlay), 8u);
+            uint32_t count = std::min<uint32_t>(lv_obj_get_child_count(overlay), 8u);
             for (uint32_t i = 0; i < count; ++i) {
                 lv_obj_t* child = lv_obj_get_child(overlay, static_cast<int32_t>(i));
                 lv_obj_set_style_bg_opa(child, static_cast<lv_opa_t>(val), 0);
@@ -509,7 +530,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     lv_obj_update_layout(selection_overlay_);
     lv_area_t overlay_area;
     lv_obj_get_coords(selection_overlay_, &overlay_area);
-    spdlog::debug("[GridEditMode] Chrome verify: overlay_screen=({},{})→({},{}) "
+    spdlog::trace("[GridEditMode] Chrome verify: overlay_screen=({},{})→({},{}) "
                   "widget_screen=({},{})→({},{}) delta=({},{})",
                   overlay_area.x1, overlay_area.y1, overlay_area.x2, overlay_area.y2,
                   widget_area.x1, widget_area.y1, widget_area.x2, widget_area.y2,
@@ -868,23 +889,38 @@ std::pair<int, int> GridEditMode::clamp_span(const std::string& widget_id, int d
 // Resize helpers
 // ---------------------------------------------------------------------------
 
+int GridEditMode::edge_hit_band_for_cell(float cell_px) {
+    if (!(cell_px > 0.0f)) {
+        return EDGE_HIT_FALLBACK;
+    }
+    return std::clamp(static_cast<int>(cell_px / EDGE_HIT_CELL_DIVISOR), EDGE_HIT_MIN,
+                      EDGE_HIT_MAX);
+}
+
+int GridEditMode::edge_hit_band() const {
+    helix::CellMetrics m = current_metrics();
+    return edge_hit_band_for_cell(std::min(m.cell_w, m.cell_h));
+}
+
+bool GridEditMode::press_owns_widget(lv_point_t origin, const lv_area_t& area) const {
+    const int band = edge_hit_band();
+    return origin.x >= area.x1 - band && origin.x <= area.x2 + band && origin.y >= area.y1 - band &&
+           origin.y <= area.y2 + band;
+}
+
 GridEditMode::ResizeEdge GridEditMode::detect_resize_edge(int px, int py,
                                                           const lv_area_t& widget_area) const {
-    // Check proximity to each edge (INWARD inside, OUTWARD outside)
-    bool near_right =
-        (px >= widget_area.x2 - EDGE_HIT_INWARD && px <= widget_area.x2 + EDGE_HIT_MARGIN);
-    bool near_left =
-        (px >= widget_area.x1 - EDGE_HIT_MARGIN && px <= widget_area.x1 + EDGE_HIT_INWARD);
-    bool near_bottom =
-        (py >= widget_area.y2 - EDGE_HIT_INWARD && py <= widget_area.y2 + EDGE_HIT_MARGIN);
-    bool near_top =
-        (py >= widget_area.y1 - EDGE_HIT_MARGIN && py <= widget_area.y1 + EDGE_HIT_INWARD);
+    const int band = edge_hit_band();
+
+    // Check proximity to each edge (band reaches equally inside and outside)
+    bool near_right = (px >= widget_area.x2 - band && px <= widget_area.x2 + band);
+    bool near_left = (px >= widget_area.x1 - band && px <= widget_area.x1 + band);
+    bool near_bottom = (py >= widget_area.y2 - band && py <= widget_area.y2 + band);
+    bool near_top = (py >= widget_area.y1 - band && py <= widget_area.y1 + band);
 
     // Must be within widget bounds on the perpendicular axis (with outward tolerance)
-    bool within_x =
-        (px >= widget_area.x1 - EDGE_HIT_MARGIN && px <= widget_area.x2 + EDGE_HIT_MARGIN);
-    bool within_y =
-        (py >= widget_area.y1 - EDGE_HIT_MARGIN && py <= widget_area.y2 + EDGE_HIT_MARGIN);
+    bool within_x = (px >= widget_area.x1 - band && px <= widget_area.x2 + band);
+    bool within_y = (py >= widget_area.y1 - band && py <= widget_area.y2 + band);
 
     // Collect candidate edges with their perpendicular distance
     struct Candidate {
@@ -1078,14 +1114,11 @@ void GridEditMode::handle_pressing(lv_event_t* e) {
     }
 
     // If already selected but pressing on a different widget, re-select.
-    // Keep selection if the press is within the edge resize zone (18px margin).
+    // Keep selection if the press is within the edge resize grab band.
     if (!drag_pending_ && selected_) {
         lv_area_t sel_area;
         lv_obj_get_coords(selected_, &sel_area);
-        bool outside_edge_zone =
-            (pt.x < sel_area.x1 - EDGE_HIT_MARGIN || pt.x > sel_area.x2 + EDGE_HIT_MARGIN ||
-             pt.y < sel_area.y1 - EDGE_HIT_MARGIN || pt.y > sel_area.y2 + EDGE_HIT_MARGIN);
-        if (outside_edge_zone) {
+        if (!press_owns_widget(pt, sel_area)) {
             handle_click(e);
         }
         if (selected_) {
@@ -1133,7 +1166,7 @@ void GridEditMode::handle_drag_start(lv_event_t* /*e*/) {
         return;
     }
 
-    // Verify pointer is on the selected widget
+    // Verify the gesture started on the selected widget.
     lv_indev_t* indev = lv_indev_active();
     if (!indev) {
         spdlog::debug("[GridEditMode] handle_drag_start: no active indev");
@@ -1144,13 +1177,17 @@ void GridEditMode::handle_drag_start(lv_event_t* /*e*/) {
 
     lv_area_t sel_area;
     lv_obj_get_coords(selected_, &sel_area);
-    spdlog::debug("[GridEditMode] handle_drag_start: point=({},{}) sel=({},{})→({},{}) margin={}",
-                  point.x, point.y, sel_area.x1, sel_area.y1, sel_area.x2, sel_area.y2,
-                  EDGE_HIT_MARGIN);
-    if (point.x < sel_area.x1 - EDGE_HIT_MARGIN || point.x > sel_area.x2 + EDGE_HIT_MARGIN ||
-        point.y < sel_area.y1 - EDGE_HIT_MARGIN || point.y > sel_area.y2 + EDGE_HIT_MARGIN) {
-        spdlog::debug("[GridEditMode] handle_drag_start: point not on selected widget");
-        return; // Long-press not on selected widget
+    spdlog::debug("[GridEditMode] handle_drag_start: origin=({},{}) point=({},{}) "
+                  "sel=({},{})→({},{}) band={}",
+                  press_origin_.x, press_origin_.y, point.x, point.y, sel_area.x1, sel_area.y1,
+                  sel_area.x2, sel_area.y2, edge_hit_band());
+    // Anchored at the press origin, not the live pointer: a resize that grows the
+    // widget drags away from it, so by the time the drag threshold is met the
+    // pointer is legitimately off-widget. Testing the live pointer here rejects
+    // exactly the gestures the edge classification below is meant to catch.
+    if (!press_owns_widget(press_origin_, sel_area)) {
+        spdlog::debug("[GridEditMode] handle_drag_start: press did not start on selected widget");
+        return;
     }
 
     // Look up config entry for the selected widget
@@ -1599,16 +1636,16 @@ void GridEditMode::handle_resize_move(lv_event_t* /*e*/) {
 
     switch (resize_edge_) {
     case ResizeEdge::Right:
-        preview_x2 = std::clamp(point.x, preview_x1 + min_w, content_area.x2);
+        preview_x2 = std::clamp<int32_t>(point.x, preview_x1 + min_w, content_area.x2);
         break;
     case ResizeEdge::Left:
-        preview_x1 = std::clamp(point.x, content_area.x1, preview_x2 - min_w);
+        preview_x1 = std::clamp<int32_t>(point.x, content_area.x1, preview_x2 - min_w);
         break;
     case ResizeEdge::Bottom:
-        preview_y2 = std::clamp(point.y, preview_y1 + min_h, content_area.y2);
+        preview_y2 = std::clamp<int32_t>(point.y, preview_y1 + min_h, content_area.y2);
         break;
     case ResizeEdge::Top:
-        preview_y1 = std::clamp(point.y, content_area.y1, preview_y2 - min_h);
+        preview_y1 = std::clamp<int32_t>(point.y, content_area.y1, preview_y2 - min_h);
         break;
     case ResizeEdge::None:
         return;
@@ -1686,7 +1723,7 @@ void GridEditMode::handle_resize_move(lv_event_t* /*e*/) {
     // Grid-snapped preview (shows where widget will land on release)
     update_snap_preview(result.col, result.row, result.colspan, result.rowspan, valid);
 
-    spdlog::debug("[GridEditMode] Resize preview: px=({},{} {}x{}) → grid ({},{} {}x{}) valid={}",
+    spdlog::trace("[GridEditMode] Resize preview: px=({},{} {}x{}) → grid ({},{} {}x{}) valid={}",
                   px, py, pw, ph, result.col, result.row, result.colspan, result.rowspan, valid);
 }
 
@@ -1928,15 +1965,15 @@ void GridEditMode::commit_resize_with_snap(const ResizeResult& result) {
     // the animation is still in flight (the preview is a container child).
     if (resize_preview_ && DisplaySettingsManager::instance().get_animations_enabled()) {
         struct SnapData {
-            lv_obj_t* preview;
             int target_x, target_y, target_w, target_h;
             int start_x, start_y, start_w, start_h;
             GridEditMode* self;
             std::string resized_id;
         };
 
+        lv_obj_t* preview = resize_preview_;
+
         auto* data = new SnapData();
-        data->preview = resize_preview_;
         data->target_x = target_x;
         data->target_y = target_y;
         data->target_w = target_w;
@@ -1950,27 +1987,50 @@ void GridEditMode::commit_resize_with_snap(const ResizeResult& result) {
 
         lv_anim_t anim;
         lv_anim_init(&anim);
-        lv_anim_set_var(&anim, data);
+        // `var` must be the widget being animated, not the heap context.
+        // lv_obj_destructor cancels animations by `var == obj`
+        // (lib/lvgl/src/core/lv_obj.c), so an animation keyed on anything else
+        // keeps running — and keeps writing — after its target is freed. The
+        // context rides along in user_data, which custom_exec_cb can reach
+        // because it receives the lv_anim_t rather than the bare var.
+        lv_anim_set_var(&anim, preview);
+        lv_anim_set_user_data(&anim, data);
         lv_anim_set_values(&anim, 0, 255);
         lv_anim_set_duration(&anim, 150);
         lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-        lv_anim_set_exec_cb(&anim, [](void* var, int32_t val) {
-            auto* d = static_cast<SnapData*>(var);
+        lv_anim_set_custom_exec_cb(&anim, [](lv_anim_t* a, int32_t val) {
+            auto* d = static_cast<SnapData*>(a->user_data);
+            auto* obj = static_cast<lv_obj_t*>(a->var);
             int t = val; // 0..255
             int x = d->start_x + (d->target_x - d->start_x) * t / 255;
             int y = d->start_y + (d->target_y - d->start_y) * t / 255;
             int w = d->start_w + (d->target_w - d->start_w) * t / 255;
             int h = d->start_h + (d->target_h - d->start_h) * t / 255;
-            lv_obj_set_pos(d->preview, x, y);
-            lv_obj_set_size(d->preview, w, h);
+            lv_obj_set_pos(obj, x, y);
+            lv_obj_set_size(obj, w, h);
+        });
+        // Frees SnapData on EVERY exit path. anim_completed_handler() and
+        // remove_anim() both call deleted_cb (lib/lvgl/src/misc/lv_anim.c), so
+        // this covers normal completion, cancel_snap_animation(), the widget's
+        // own destructor, and Application::shutdown()'s lv_anim_delete_all().
+        // completed_cb runs first and must not free it.
+        lv_anim_set_deleted_cb(&anim, [](lv_anim_t* a) {
+            auto* d = static_cast<SnapData*>(a->user_data);
+            if (!d) {
+                return;
+            }
+            if (d->self && d->self->snap_anim_preview_ == a->var) {
+                d->self->snap_anim_preview_ = nullptr;
+            }
+            delete d;
         });
         lv_anim_set_completed_cb(&anim, [](lv_anim_t* a) {
-            auto* d = static_cast<SnapData*>(a->var);
+            auto* d = static_cast<SnapData*>(a->user_data);
             auto* self = d->self;
             std::string rid = std::move(d->resized_id);
             // Preview will be destroyed by the rebuild (it's a container child).
-            // No need to manually delete it.
-            delete d;
+            // No need to manually delete it. SnapData is freed by deleted_cb,
+            // which LVGL calls immediately after this returns.
             // Now safe to rebuild — animation is complete
             self->selected_ = nullptr;
             self->selection_overlay_ = nullptr;
@@ -2003,8 +2063,12 @@ void GridEditMode::commit_resize_with_snap(const ResizeResult& result) {
             });
         });
         lv_anim_start(&anim);
+        snap_anim_preview_ = preview;
 
-        resize_preview_ = nullptr; // Ownership transferred to animation
+        // The animation drives the preview from here on; snap_anim_preview_ is
+        // the handle now. The widget itself stays owned by the container and
+        // dies with the rebuild.
+        resize_preview_ = nullptr;
     } else {
         // No animation: clean up and rebuild immediately
         helix::ui::safe_delete_deferred(resize_preview_);
@@ -2401,6 +2465,36 @@ void GridEditMode::place_widget_from_catalog(const std::string& widget_id) {
     // Enable the widget in config with the computed grid position.
     // Find the entry by ID — it should exist as disabled.
     auto& mutable_entries = config_->page_entries_mut(static_cast<size_t>(page_index_));
+
+    // The catalog offers a widget when it holds no cell on ANY page
+    // (PanelWidgetConfig::is_placed), so the entry it refers to may live on a
+    // different page than the one being edited — disabled, or enabled at
+    // (-1,-1) after a GridFull eviction or a wizard enable. Placing it here has
+    // to MOVE that entry: two entries with one ID would render the widget on
+    // two pages, and delete_entry() only ever removes the first of them.
+    // Erasing from another page cannot invalidate mutable_entries — pages_
+    // itself is not resized.
+    nlohmann::json carried_config;
+    for (size_t p = 0; p < config_->page_count(); ++p) {
+        if (p == static_cast<size_t>(page_index_)) {
+            continue;
+        }
+        auto& other_entries = config_->page_entries_mut(p);
+        auto it =
+            std::find_if(other_entries.begin(), other_entries.end(),
+                         [&widget_id](const PanelWidgetEntry& e) { return e.id == widget_id; });
+        if (it == other_entries.end()) {
+            continue;
+        }
+        // Per-widget settings belong to the widget, not to the page it sat on.
+        if (carried_config.empty()) {
+            carried_config = it->config;
+        }
+        spdlog::info("[GridEditMode] Moving '{}' from page {} to page {}", widget_id, p,
+                     page_index_);
+        other_entries.erase(it);
+    }
+
     bool found = false;
     for (auto& entry : mutable_entries) {
         if (entry.id == widget_id) {
@@ -2409,6 +2503,9 @@ void GridEditMode::place_widget_from_catalog(const std::string& widget_id) {
             entry.row = place_row;
             entry.colspan = colspan;
             entry.rowspan = rowspan;
+            if (entry.config.empty() && !carried_config.empty()) {
+                entry.config = carried_config;
+            }
             found = true;
             break;
         }
@@ -2418,7 +2515,8 @@ void GridEditMode::place_widget_from_catalog(const std::string& widget_id) {
         // Widget not in this page's entries — add a new entry.
         // This happens for multi-instance widgets (user-created) and for any widget
         // being placed on a non-default page (pages beyond page 0 start empty).
-        mutable_entries.push_back({widget_id, true, {}, place_col, place_row, colspan, rowspan});
+        mutable_entries.push_back(
+            {widget_id, true, carried_config, place_col, place_row, colspan, rowspan});
         spdlog::info("[GridEditMode] Created new entry '{}' on page {}", widget_id, page_index_);
     }
 

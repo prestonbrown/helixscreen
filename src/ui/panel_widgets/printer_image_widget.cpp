@@ -28,8 +28,6 @@
 // Subjects owned by PrinterImageWidget module — created before XML bindings resolve
 static lv_subject_t s_printer_type_subject;
 static char s_printer_type_buffer[64];
-static lv_subject_t s_printer_host_subject;
-static char s_printer_host_buffer[64];
 static lv_subject_t s_printer_info_visible;
 static bool s_subjects_initialized = false;
 
@@ -46,11 +44,6 @@ static void printer_image_widget_init_subjects() {
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
     // String subject for hostname/IP
-    lv_subject_init_string(&s_printer_host_subject, s_printer_host_buffer, nullptr,
-                           sizeof(s_printer_host_buffer), "");
-    lv_xml_register_subject(nullptr, "printer_host_text", &s_printer_host_subject);
-    SubjectDebugRegistry::instance().register_subject(&s_printer_host_subject, "printer_host_text",
-                                                      LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
     // Integer subject: 0=hidden, 1=visible
     lv_subject_init_int(&s_printer_info_visible, 0);
@@ -64,7 +57,6 @@ static void printer_image_widget_init_subjects() {
     StaticSubjectRegistry::instance().register_deinit("PrinterImageWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
             lv_subject_deinit(&s_printer_info_visible);
-            lv_subject_deinit(&s_printer_host_subject);
             lv_subject_deinit(&s_printer_type_subject);
             s_subjects_initialized = false;
             spdlog::trace("[PrinterImageWidget] Subjects deinitialized");
@@ -180,7 +172,6 @@ void PrinterImageWidget::reload_from_config() {
     lv_subject_copy_string(&s_printer_type_subject, display_name.c_str());
 
     if (!host.empty() && host != "127.0.0.1" && host != "localhost") {
-        lv_subject_copy_string(&s_printer_host_subject, host.c_str());
     }
 
     lv_subject_set_int(&s_printer_info_visible, 1);
@@ -297,7 +288,10 @@ void PrinterImageWidget::check_or_generate_cache() {
     // Check if a cached .bin exists at exact widget dimensions
     std::string cache_path = helix::get_cached_printer_image_path(current_source_path_, w, h);
 
-    if (std::filesystem::exists(cache_path)) {
+    // error_code overload: the ESP32 VFS reports missing paths as ENODATA,
+    // which the throwing exists(p) treats as an error, not "not found".
+    std::error_code cache_ec;
+    if (std::filesystem::exists(cache_path, cache_ec)) {
         // Cache hit — load directly, no scaling needed
         std::string lvgl_path = "A:" + cache_path;
         lv_image_set_src(img, lvgl_path.c_str());

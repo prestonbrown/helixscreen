@@ -470,19 +470,50 @@ EOF
     grep -q "$INSTALL_DIR" "$chown_log"
 }
 
-@test "fix_install_ownership: root user is a no-op" {
+# Root-run platforms (ad5m/ad5x/k1/k2/cc1/u1) used to be skipped entirely, so
+# nothing ever normalised the numeric uid/gid that root's --same-owner extract
+# restored out of the release tarball.  A K2 install measured 890 of 915 files
+# owned by uid 1001, which has no /etc/passwd entry on that box.  The root case
+# must now chown to root:root so existing bad installs heal on the next update.
+@test "fix_install_ownership: root user normalises the tree to root:root" {
     KLIPPER_USER="root"
+    mkdir -p "$INSTALL_DIR/config"
     local chown_log="$BATS_TEST_TMPDIR/chown_log"
     mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
 
     fix_install_ownership
 
-    # chown should NOT have been called
-    [ ! -f "$chown_log" ]
+    [ -f "$chown_log" ]
+    grep -q "root:root" "$chown_log"
+    grep -q "$INSTALL_DIR" "$chown_log"
+}
+
+@test "fix_install_ownership: root repair follows no symlinks out of INSTALL_DIR" {
+    KLIPPER_USER="root"
+    mkdir -p "$INSTALL_DIR/config"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    fix_install_ownership
+
+    # -h keeps chown on the symlink itself rather than its target, which may
+    # live outside INSTALL_DIR (printer_data config symlinks do exactly that).
+    grep -q -- "-Rh" "$chown_log"
 }
 
 @test "fix_install_ownership: empty KLIPPER_USER is a no-op" {
     KLIPPER_USER=""
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    fix_install_ownership
+
+    [ ! -f "$chown_log" ]
+}
+
+@test "fix_install_ownership: missing INSTALL_DIR is a no-op even for root" {
+    KLIPPER_USER="root"
+    INSTALL_DIR="$BATS_TEST_TMPDIR/definitely/not/here"
     local chown_log="$BATS_TEST_TMPDIR/chown_log"
     mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
 

@@ -4,7 +4,6 @@
 # Service installation and management (systemd and SysV)
 #
 # Reads: INIT_SYSTEM, INSTALL_DIR, INIT_SCRIPT_DEST, SERVICE_NAME, SUDO
-# Writes: CLEANUP_SERVICE
 
 # Source guard
 [ -n "${_HELIX_SERVICE_SOURCED:-}" ] && return 0
@@ -104,7 +103,7 @@ install_procd_shim_k2() {
         log_error "K2 procd shim source missing: $shim_src"
         log_error "The release package may be incomplete."
         log_error "Recovery: re-run the installer to download a fresh copy:"
-        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | bash"
+        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         return 1
     fi
 
@@ -159,7 +158,7 @@ install_service_snapmaker_u1() {
         log_error "Snapmaker U1 autostart script not found at ${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh"
         log_error "The release package may be incomplete."
         log_error "Recovery: re-run the installer to download a fresh copy:"
-        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | bash"
+        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         exit 1
     fi
 }
@@ -174,7 +173,6 @@ install_service_systemd() {
     if _is_self_update; then
         log_info "Skipping main service file install (self-update; preserving customizations)"
         update_watcher_if_stale
-        CLEANUP_SERVICE=true
         return 0
     fi
 
@@ -187,7 +185,7 @@ install_service_systemd() {
         log_error "Service file not found: $service_src"
         log_error "The release package may be incomplete."
         log_error "Recovery: re-run the installer to download a fresh copy:"
-        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | bash"
+        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         exit 1
     fi
 
@@ -198,7 +196,6 @@ install_service_systemd() {
     if _has_no_new_privs; then
         if [ -f "$service_dest" ]; then
             log_info "Skipping service reinstall (NoNewPrivileges; already installed)"
-            CLEANUP_SERVICE=true
             return 0
         fi
         log_error "Service not installed and NoNewPrivileges prevents installation"
@@ -232,7 +229,6 @@ install_service_systemd() {
     # Workaround for mainsail-crew/mainsail#2444: type: web lacks managed_services
     install_update_watcher_systemd
 
-    CLEANUP_SERVICE=true
     log_success "Installed systemd service"
 }
 
@@ -349,7 +345,6 @@ install_service_sysv() {
     if _is_self_update; then
         log_info "Skipping init script install (self-update; already installed)"
         _migrate_init_script_hooks_path
-        CLEANUP_SERVICE=true
         return 0
     fi
 
@@ -361,7 +356,7 @@ install_service_sysv() {
         log_error "Init script not found: $init_src"
         log_error "The release package may be incomplete."
         log_error "Recovery: re-run the installer to download a fresh copy:"
-        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | bash"
+        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         exit 1
     fi
 
@@ -373,7 +368,6 @@ install_service_sysv() {
     # This is important for Klipper Mod which uses a different path
     _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST"
 
-    CLEANUP_SERVICE=true
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }
 
@@ -415,7 +409,7 @@ start_service_snapmaker_u1() {
         log_error "Init script not found or not executable: $init_src"
         log_error "The release package may be incomplete."
         log_error "Recovery: re-run the installer to download a fresh copy:"
-        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | bash"
+        log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         exit 1
     fi
 
@@ -435,8 +429,8 @@ start_service_snapmaker_u1() {
     fi
 
     # Wait for service to start (may be slow on embedded hardware)
-    local i
-    for i in 1 2 3 4 5; do
+    local _
+    for _ in 1 2 3 4 5; do
         sleep 1
         if pidof helix-screen >/dev/null 2>&1; then
             log_success "HelixScreen is running!"
@@ -480,8 +474,8 @@ start_service_systemd() {
     fi
 
     # Wait for service to start (may be slow on embedded hardware)
-    local i
-    for i in 1 2 3 4 5; do
+    local _
+    for _ in 1 2 3 4 5; do
         sleep 1
         if systemctl is-active --quiet "$SERVICE_NAME"; then
             log_success "HelixScreen is running!"
@@ -524,8 +518,8 @@ start_service_sysv() {
     fi
 
     # Wait for service to start (may be slow on embedded hardware)
-    local i
-    for i in 1 2 3 4 5; do
+    local _
+    for _ in 1 2 3 4 5; do
         sleep 1
         if $SUDO "$INIT_SCRIPT_DEST" status >/dev/null 2>&1; then
             log_success "HelixScreen is running!"
@@ -573,15 +567,24 @@ deploy_platform_hooks() {
 fix_install_ownership() {
     local user="${KLIPPER_USER:-}"
     local group="${KLIPPER_GROUP:-$user}"
-    if [ -n "$user" ] && [ "$user" != "root" ] && [ -d "$INSTALL_DIR" ]; then
-        log_info "Setting ownership to ${user}:${group}..."
-        # Try without sudo first: during self-update under NoNewPrivileges,
-        # sudo is blocked but files are already user-owned so chown succeeds
-        # without it (or is a no-op).  Fall back to sudo for fresh installs
-        # where root may own the directory.
-        chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || \
-            $SUDO chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || true
-    fi
+
+    [ -n "$user" ] || return 0
+    [ -d "$INSTALL_DIR" ] || return 0
+
+    # Root-run platforms (ad5m/ad5x/k1/k2/cc1/u1) still need normalising, and
+    # used to be skipped entirely.  Root's tar extract restores the uid/gid
+    # baked into the release archive, so the tree ends up owned by the build
+    # machine's numeric ids — a measured K2 had 890 of 915 files owned by uid
+    # 1001, which has no /etc/passwd entry there.  The extract now passes -o so
+    # fresh installs land as root, and this repairs installs made before that.
+    log_info "Setting ownership to ${user}:${group}..."
+
+    # Try without sudo first: during self-update under NoNewPrivileges,
+    # sudo is blocked but files are already user-owned so chown succeeds
+    # without it (or is a no-op).  Fall back to sudo for fresh installs
+    # where root may own the directory.
+    chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || \
+        $SUDO chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || true
 }
 
 # Stop service for update

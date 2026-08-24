@@ -2,6 +2,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Unified temperature card: nozzle + bed + optional chamber rows -->
 <component>
+  <styles>
+    <!-- Icon-to-label gap: wider on tiny breakpoint (labels hidden/cramped, icons
+         too close), tighter once the layout has room. Duplicated verbatim in
+         controls_panel.xml rather than shared via globals.xml: globals.xml is
+         registered before theme_manager_init publishes the space_* consts, so a
+         style defined there resolves #space_xs to nothing. -->
+    <style name="temp_row_gap_standard" pad_column="#space_xs"/>
+    <style name="temp_row_gap_tiny" pad_column="#space_md"/>
+  </styles>
   <view name="temp_card_unified"
         extends="ui_card" width="100%" height="content" style_radius="#border_radius" flex_flow="column"
         style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_left="#space_md" style_pad_right="#space_md"

@@ -29,6 +29,7 @@
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "system/helix_paths.h"
@@ -376,10 +377,11 @@ void populate_release_urls_from_manifest(const json& platform_asset,
     }
 }
 
-/// Which half of in_app_updates_suppressed() actually fired. The two causes need
+/// Which half of update_install_suppressed() actually fired. The two causes need
 /// completely different follow-up — one is a deliberate firmware opt-out, the
 /// other is a machine that cannot apply the swap — and a support report often has
-/// nothing but this log line to go on. Only call when suppressed.
+/// nothing but this log line to go on. Only call when installing is suppressed;
+/// the check gate has one cause and names it inline.
 const char* suppression_reason() {
     if (updates_externally_managed()) {
         return "firmware-managed (HELIX_DISABLE_AUTO_UPDATES is set)";
@@ -574,7 +576,7 @@ int extract_tar_member(const std::string& tarball_path, const std::string& extra
 /// python3 snippet: extract argv[2] from zip argv[1] into argv[3], restoring the
 /// member's unix mode bits (zipfile.extract() drops them) and forcing the exec
 /// bit on bin/* and *.sh so an extracted installer or binary is runnable.
-constexpr const char* kPyExtractScript =
+constexpr const char* PY_EXTRACT_SCRIPT =
     "import os, stat, sys, zipfile\n"
     "zip_path, member, destdir = sys.argv[1], sys.argv[2], sys.argv[3]\n"
     "try:\n"
@@ -632,6 +634,28 @@ std::string strip_ansi_codes(const std::string& s) {
 }
 
 } // anonymous namespace
+
+// ============================================================================
+// Channel Version Comparison
+// ============================================================================
+
+// Deliberately at global scope, not in the anonymous namespace above with
+// is_update_available(): this one is declared in the header and exercised
+// directly by tests/unit/test_update_checker.cpp. (is_update_available() has
+// internal linkage, which is why that test file carries its own copy of it.)
+ChannelVersionRelation compare_channel_version(const std::string& installed,
+                                               const std::string& channel_version) {
+    auto current = helix::version::parse_version(installed);
+    auto served = helix::version::parse_version(channel_version);
+
+    if (!current || !served) {
+        return ChannelVersionRelation::Unknown;
+    }
+    if (*served == *current) {
+        return ChannelVersionRelation::Same;
+    }
+    return *served > *current ? ChannelVersionRelation::Newer : ChannelVersionRelation::Older;
+}
 
 // ============================================================================
 // Singleton Instance
@@ -902,11 +926,11 @@ std::string UpdateChecker::compute_update_staging_dir(const std::string& tarball
     // ALWAYS a dot-prefixed subdir — never the bare dir. TMP_DIR is rm -rf'd on
     // installer cleanup; handing it a bare mount/install dir would wipe live
     // data (past incident wiped a device partition passed as TMP_DIR).
-    static constexpr const char* kStagingName = ".helix-update-staging";
+    static constexpr const char* STAGING_NAME = ".helix-update-staging";
     if (base == "/") {
-        return std::string("/") + kStagingName;
+        return std::string("/") + STAGING_NAME;
     }
-    return base + "/" + kStagingName;
+    return base + "/" + STAGING_NAME;
 }
 
 std::string UpdateChecker::get_download_path(DownloadPathDiag* diag,
@@ -1212,15 +1236,18 @@ void UpdateChecker::start_download() {
     // read-only / non-writable install tree can't be swapped at all. Never
     // self-download/install in either case — it would fight the firmware's setup
     // or fail the atomic directory rename.
-    if (in_app_updates_suppressed()) {
-        spdlog::info("[UpdateChecker] Update skipped: in-app updates are suppressed - {}",
+    if (update_install_suppressed()) {
+        spdlog::info("[UpdateChecker] Download skipped: installing is suppressed - {}",
                      suppression_reason());
         return;
     }
 
-    // Safety: refuse download while printing
-    auto job_state = get_printer_state().get_print_job_state();
-    if (job_state == PrintJobState::PRINTING || job_state == PrintJobState::PAUSED) {
+    // Safety: refuse download while a job owns the machine. Preparing counts —
+    // a user who just committed to a print should not have the CPU and network
+    // pulled out from under the pre-start block.
+    const auto lifecycle = static_cast<PrintState>(
+        lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+    if (job_holds_machine(lifecycle)) {
         spdlog::warn("[UpdateChecker] Cannot download update while printing");
         report_download_status(DownloadStatus::Error, 0,
                                lv_tr("Error: Cannot update while printing"),
@@ -1533,7 +1560,7 @@ int UpdateChecker::extract_zip_member(const std::string& zip_path, const std::st
 
     const std::string py_bin = find_tool_path("python3");
     if (!py_bin.empty()) {
-        return safe_exec({py_bin, "-c", kPyExtractScript, zip_path, member, extract_dir});
+        return safe_exec({py_bin, "-c", PY_EXTRACT_SCRIPT, zip_path, member, extract_dir});
     }
 
     spdlog::error("[UpdateChecker] No unzip binary and no python3 — cannot extract '{}'", member);
@@ -1550,7 +1577,7 @@ UpdateChecker::ZipIntegrity UpdateChecker::verify_zip_integrity(const std::strin
         // Code 2 matters on the AD5M, whose python3.7 is built without zlib:
         // ZipFile() raises "Compression requires the (missing) zlib module" for
         // a deflated release zip, which must NOT be read as corruption.
-        static constexpr const char* kTestScript =
+        static constexpr const char* TEST_SCRIPT =
             "import sys\n"
             "try:\n"
             "    import zipfile, zlib\n"
@@ -1563,7 +1590,7 @@ UpdateChecker::ZipIntegrity UpdateChecker::verify_zip_integrity(const std::strin
             "    sys.exit(2)\n"
             "except Exception:\n"
             "    sys.exit(1)\n";
-        int ret = safe_exec({py_bin, "-c", kTestScript, zip_path});
+        int ret = safe_exec({py_bin, "-c", TEST_SCRIPT, zip_path});
         if (ret == 0) {
             return ZipIntegrity::Ok;
         }
@@ -1819,17 +1846,18 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // own child processes, all writing during the install window.  5 MB is
     // ~10× the log's worst case and leaves enough room that "passed the
     // probe" means the FS is genuinely healthy, not marginal.
-    constexpr uint64_t kMinInstallLogFreeBytes = 5 * 1024 * 1024; // 5 MB
+    constexpr uint64_t MIN_INSTALL_LOG_FREE_BYTES = 5 * 1024 * 1024; // 5 MB
 
     std::string install_log = "/var/log/helixscreen-install.log";
     {
-        auto probe = helix::system::probe_log_path_writable(install_log, kMinInstallLogFreeBytes);
+        auto probe =
+            helix::system::probe_log_path_writable(install_log, MIN_INSTALL_LOG_FREE_BYTES);
         if (!probe.ok) {
             const std::string fallback = tarball_path + ".install.log";
             flog_warn("[UpdateChecker] {} not writable ({}), falling back to {}", install_log,
                       probe.error, fallback);
             install_log = fallback;
-            probe = helix::system::probe_log_path_writable(install_log, kMinInstallLogFreeBytes);
+            probe = helix::system::probe_log_path_writable(install_log, MIN_INSTALL_LOG_FREE_BYTES);
             if (!probe.ok) {
                 flog_error("[UpdateChecker] fallback log {} also not writable ({}); "
                            "install.sh stdout/stderr will be lost",
@@ -2328,13 +2356,13 @@ void UpdateChecker::check_for_updates(Callback callback) {
         return;
     }
 
-    // Firmware-managed devices own updates externally, and a non-writable install
-    // tree can't be updated in place — never check remotely in either case. Gating
-    // this top-level entry covers both manual and auto-check callers so no
-    // download/install path can ever proceed.
-    if (in_app_updates_suppressed()) {
-        spdlog::info("[UpdateChecker] Update skipped: in-app updates are suppressed - {}",
-                     suppression_reason());
+    // Firmware-managed devices own updates externally, so looking is pointless
+    // there. Everything else checks, INCLUDING a tree we cannot write: the check
+    // is a manifest fetch and touches no files, and reporting the available
+    // version is what lets a user on a non-updatable install know to re-run the
+    // installer. start_download() is where applying is refused.
+    if (update_checks_suppressed()) {
+        spdlog::info("[UpdateChecker] Check skipped: updates are firmware-managed");
         return;
     }
 
@@ -2472,6 +2500,26 @@ void UpdateChecker::clear_cache() {
     spdlog::debug("[UpdateChecker] Cache cleared");
 }
 
+void UpdateChecker::on_channel_changed() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        cached_info_.reset();
+        error_message_.clear();
+        status_ = Status::Idle;
+        // Clearing the rate-limit clock is what makes the check below actually
+        // go out. "Checked recently" only implies "the answer is still valid"
+        // while the question is unchanged, and the channel IS the question.
+        last_check_time_ = {};
+    }
+
+    // Off-thread readers (the debug bundle's update section) cannot consult
+    // Config themselves; re-snapshot before the worker starts.
+    refresh_config_snapshot();
+
+    spdlog::info("[UpdateChecker] Update channel changed, re-checking");
+    check_for_updates();
+}
+
 // ============================================================================
 // Worker Thread
 // ============================================================================
@@ -2530,14 +2578,34 @@ void UpdateChecker::do_check() {
         std::string current_version = HELIX_VERSION;
         spdlog::debug("[UpdateChecker] Current: {}, Latest: {}", current_version, info.version);
 
-        if (is_update_available(current_version, info.version)) {
+        switch (compare_channel_version(current_version, info.version)) {
+        case ChannelVersionRelation::Newer:
+            info.is_downgrade = false;
             spdlog::info("[UpdateChecker] Update available: {} -> {}", current_version,
                          info.version);
             report_result(Status::UpdateAvailable, info, "");
-        } else {
+            break;
+
+        case ChannelVersionRelation::Older:
+            // The selected channel is behind this install — almost always
+            // because the user just moved from a faster channel back to a
+            // slower one. Offer it, or they are stranded on the old channel's
+            // build with the check reporting "up to date" forever. Flagged so
+            // the auto-check never raises this unprompted and the install path
+            // asks first.
+            info.is_downgrade = true;
+            spdlog::info("[UpdateChecker] Channel is behind: {} -> {} (downgrade offered)",
+                         current_version, info.version);
+            report_result(Status::UpdateAvailable, info, "");
+            break;
+
+        case ChannelVersionRelation::Same:
+        case ChannelVersionRelation::Unknown:
+        default:
             spdlog::info("[UpdateChecker] Already up to date ({})", current_version);
             // Pass info even for UpToDate so callbacks (e.g., --release-notes) can access it
             report_result(Status::UpToDate, info, "");
+            break;
         }
 
         spdlog::debug("[UpdateChecker] Worker thread finished");
@@ -2560,6 +2628,20 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
         return UpdateChannel::Stable;
     }
     int channel = config->get<int>("/update/channel", 0);
+
+    // /update/channel persists independently of /beta_features, but the dropdown
+    // that sets it is gated on show_beta_features (about_settings_overlay.xml).
+    // A user who unlocks beta with the 7-tap easter egg, picks Dev, then re-locks
+    // keeps fetching from the arbitrary /update/dev_url with the dropdown hidden
+    // and no route back to Stable. Clamp the EFFECTIVE channel here rather than
+    // rewriting the stored value, so re-unlocking beta restores the channel the
+    // user actually picked instead of silently resetting it to Stable.
+    if (channel != 0 && !config->is_beta_features_enabled()) {
+        spdlog::info("[UpdateChecker] Channel {} needs beta features (disabled) — using stable",
+                     channel);
+        return UpdateChannel::Stable;
+    }
+
     switch (channel) {
     case 1:
         return UpdateChannel::Beta;
@@ -2641,6 +2723,8 @@ std::string UpdateChecker::get_platform_key() {
     return "snapmaker-u1";
 #elif defined(HELIX_PLATFORM_PI32)
     return "pi32";
+#elif defined(HELIX_PLATFORM_ESP32)
+    return "esp32";
 #else
     return "pi";
 #endif
@@ -2667,6 +2751,8 @@ std::string UpdateChecker::get_platform_display_name(const std::string& key) {
         return "Elegoo Centauri Carbon";
     if (key == "snapmaker-u1")
         return "Snapmaker U1";
+    if (key == "esp32")
+        return "BTT K-Touch";
     return key;
 }
 
@@ -2731,18 +2817,44 @@ void UpdateChecker::dismiss_current_version() {
 // ============================================================================
 
 void UpdateChecker::start_auto_check() {
-    // Firmware-managed devices own updates externally, and a non-writable install
-    // tree can't be updated in place — never schedule the periodic auto-check timer
-    // in either case, so the "update available" notification path can never fire.
-    if (in_app_updates_suppressed()) {
-        spdlog::info("[UpdateChecker] Auto-check disabled: in-app updates are suppressed - {}",
-                     suppression_reason());
+    // Firmware-managed devices own updates externally — nothing to schedule. A
+    // non-writable install tree still auto-checks: the notification tells the user
+    // a newer version exists, which on that layout is the only prompt they will
+    // ever get to go re-run the installer.
+    if (update_checks_suppressed()) {
+        spdlog::info("[UpdateChecker] Auto-check disabled: updates are firmware-managed");
         return;
     }
 
     if (auto_check_timer_) {
         spdlog::debug("[UpdateChecker] Auto-check timer already running");
         return;
+    }
+
+    // A machine that can check but cannot install. Report it: this state shipped
+    // in v0.99.96 and was found in v0.99.113 only because one user kept pushing on
+    // Discord — in aggregate it would have shown as a cohort of installs that
+    // never once fetched a manifest. Emitted here rather than from init() because
+    // TelemetryManager::init() runs after UpdateChecker::init() (application.cpp),
+    // and after the auto_check_timer_ guard so a Moonraker reconnect does not
+    // re-send it. Firmware-managed installs returned above and are not reported:
+    // that is a deliberate configuration, not a fault.
+    //
+    // The context is a SHAPE, not a path. install_root embeds a username and
+    // record_error()'s contract is pre-defined strings only; which of the two
+    // writability terms was missing is the whole diagnostic value anyway.
+    if (update_install_suppressed()) {
+        const std::string root = app_get_install_root();
+        const std::string parent = root.empty() ? std::string() : helix::paths::dirname(root);
+        TelemetryManager::instance().record_error(
+            "updates", "install_suppressed",
+            fmt::format("parent_writable={},root_writable={},escalate={}",
+                        !parent.empty() && helix::paths::probe_writable(parent) ? 1 : 0,
+                        !root.empty() && helix::paths::probe_writable(root) ? 1 : 0,
+                        root_escalation_available() ? 1 : 0));
+        spdlog::warn("[UpdateChecker] Install is not self-updatable ({}); checking anyway so the "
+                     "user can be told to re-run the installer",
+                     suppression_reason());
     }
 
     spdlog::info("[UpdateChecker] Starting auto-check (15s initial delay, 24h periodic)");
@@ -2762,6 +2874,16 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
+                // Never raise a downgrade unprompted. It is only actionable
+                // because the user chose this channel; interrupting them with
+                // "go back to an older build" is noise at best, and a transient
+                // bad manifest would push it to the whole fleet at once.
+                if (info->is_downgrade) {
+                    spdlog::info("[UpdateChecker] Auto-check: {} is a downgrade, not notifying",
+                                 info->version);
+                    return;
+                }
+
                 // Skip if version is dismissed
                 if (self->is_version_dismissed(info->version)) {
                     spdlog::info("[UpdateChecker] Auto-check: version {} is dismissed",
@@ -2769,9 +2891,10 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
-                // Skip if printer is printing or paused
-                auto job_state = get_printer_state().get_print_job_state();
-                if (job_state == PrintJobState::PRINTING || job_state == PrintJobState::PAUSED) {
+                // Skip while a job owns the machine, Preparing included.
+                const auto lifecycle = static_cast<PrintState>(
+                    lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+                if (job_holds_machine(lifecycle)) {
                     spdlog::info("[UpdateChecker] Auto-check: skipping notification during print");
                     return;
                 }
@@ -3163,7 +3286,11 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                 lv_subject_set_int(&status_subject_, static_cast<int>(status));
 
                 if (status == Status::UpdateAvailable && info) {
-                    snprintf(version_text_buf_, sizeof(version_text_buf_), lv_tr("v%s available"),
+                    // A downgrade is not "available" in the usual sense — say
+                    // what it actually does, so the row does not read as a
+                    // routine update when the channel is behind this install.
+                    snprintf(version_text_buf_, sizeof(version_text_buf_),
+                             info->is_downgrade ? lv_tr("Switch to v%s") : lv_tr("v%s available"),
                              info->version.c_str());
                     lv_subject_copy_string(&version_text_subject_, version_text_buf_);
                     lv_subject_copy_string(&new_version_subject_, info->version.c_str());

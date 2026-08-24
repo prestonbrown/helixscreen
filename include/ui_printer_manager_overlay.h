@@ -182,8 +182,10 @@ class PrinterManagerOverlay : public OverlayBase {
 
     // Action row callbacks
     static void change_printer_image_clicked_cb(lv_event_t* e);
+    static void change_printer_model_clicked_cb(lv_event_t* e);
     static void pm_manage_printers_clicked_cb(lv_event_t* e);
     void handle_change_printer_image_clicked();
+    void handle_change_printer_model_clicked();
     void handle_manage_printers_clicked();
 };
 

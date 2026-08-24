@@ -1,0 +1,44 @@
+# Phase 0 audit baseline — same board facts as firmware/ktouch-probe, plus:
+# -Os (the link-size measurement), C++ exceptions (the app uses try/catch;
+# size cost is part of the report), malloc-into-PSRAM for LVGL's CLIB allocator.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=0
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
+
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+
+# LVGL is configured with LV_USE_OS=LV_OS_PTHREAD (unchanged from the repo
+# lv_conf.h) — exercised deliberately: ESP-IDF pthreads are the porting seam
+# the app's std::thread usage rides on.
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=8192
+
+# Corruption hunt: poison heap blocks and abort at the corrupting write's detection
+CONFIG_HEAP_POISONING_COMPREHENSIVE=y
+
+# XML parse (expat) recursion needs a real stack; IDF main-task default is 3584B
+# and the overflow corrupts the internal heap's TLSF control (canaries stay intact).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=32768
+CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
+
+# Task 3: app core uses dynamic_cast/typeid (sound backends, panel_widget_manager);
+# RTTI cost measured in the audit report.
+CONFIG_COMPILER_CXX_RTTI=y
+
+# No TLS in the audit; the default cert bundle costs ~636KB rodata.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n

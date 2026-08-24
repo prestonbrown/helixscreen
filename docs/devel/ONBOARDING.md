@@ -3,10 +3,60 @@
 HelixScreen is an LVGL 9.5 touchscreen UI for Klipper 3D printers. This guide gets
 a new contributor from a fresh checkout to a first change.
 
+You should have arrived here from [CONTRIBUTING.md](../../CONTRIBUTING.md). The
+path continues: **here** (environment + build + mental model) →
+[YOUR_FIRST_CONTRIBUTION.md](YOUR_FIRST_CONTRIBUTION.md) (walkthrough of a real
+contribution) → [the architecture guide](architecture/README.md) (pick your
+subsystem).
+
 ## Prerequisites
 
 - A working C++ toolchain and `make` (the build is a pure Makefile — no CMake/Ninja).
 - The repository cloned locally: https://github.com/prestonbrown/helixscreen
+- After cloning, initialize the submodules — a fresh clone is missing
+  `lib/helix-xml/` (the XML UI engine) and the other dependencies:
+
+```bash
+git submodule update --init --recursive
+```
+
+## Environment Setup
+
+### macOS (Homebrew)
+```bash
+brew install cmake bear imagemagick python3 node shellcheck bats-core
+npm install         # lv_font_conv and lv_img_conv
+make venv-setup     # Python venv with pypng/lz4
+```
+**Minimum:** macOS 10.15 (Catalina) for CoreWLAN/CoreLocation WiFi APIs.
+
+### Debian/Ubuntu
+```bash
+sudo apt install cmake bear imagemagick python3 python3-venv clang make npm \
+    shellcheck bats libnl-3-dev libnl-genl-3-dev libssl-dev
+npm install && make venv-setup
+```
+
+### Fedora/RHEL
+```bash
+sudo dnf install cmake bear ImageMagick python3 clang make npm \
+    ShellCheck bats libnl3-devel openssl-devel
+npm install && make venv-setup
+```
+
+### Dependencies
+
+| Category | Components | Notes |
+|----------|------------|-------|
+| **Required** | clang, cmake 3.16+, make, python3, node/npm | Core build tools |
+| **Auto-built** | SDL2, spdlog, libhv | Built from submodules if not system-installed |
+| **Always submodule** | lvgl | Project-specific patches required |
+| **Optional** | bear, imagemagick, shellcheck, bats-core | IDE support, screenshots, shell linting/testing |
+
+```bash
+make check-deps      # Check what's missing
+make install-deps    # Auto-install (interactive)
+```
 
 ## Build & Run
 
@@ -35,12 +85,26 @@ Note: `make -j` builds only `helix-screen`, not the tests. Run `make test` befor
 ### XML changes need no rebuild
 
 `ui_xml/*.xml` is loaded at runtime. Edit the XML, then relaunch the binary to see
-the change — no `make` needed. For live editing without restarting, set
-`HELIX_HOT_RELOAD=1` and the running app re-registers components within ~500ms of a save.
+the change — no `make` needed. Hot reload is ON by default for native builds: with
+the app running, saving an XML file re-registers the component and rebuilds the
+active panel/overlay/modal in place within ~500ms. (Override with
+`HELIX_HOT_RELOAD=0`/`1` — see [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).)
 
-### Screenshots
+### Screenshots and driving the UI
 
-Press `S` in the UI, or run `./scripts/screenshot.sh helix-screen output-name [panel]`.
+Press `S` in the UI, or run `./scripts/screenshot.sh helix-screen output-name [token]`.
+To remote-control a running instance — navigate, click widgets, read exact widget
+text/geometry, bring up any panel — use `helix-screen ctl`. See
+[HELIXCTL.md](HELIXCTL.md).
+
+## The 15-minute mental model
+
+Before your first change, get the whole-app picture: one pattern everywhere —
+**XML → Subjects → C++** — plus a map of the subsystems and a "pick your
+subsystem" table. It lives in one place, the router:
+
+→ **[ARCHITECTURE.md](ARCHITECTURE.md)** — the 15-minute model, routing into the
+15-chapter [architecture guide](architecture/README.md).
 
 ## Workflow Tips
 
@@ -48,27 +112,22 @@ Press `S` in the UI, or run `./scripts/screenshot.sh helix-screen output-name [p
   `lv_obj_add_event_cb`, no imperative visibility, design tokens instead of hardcoded
   colors/spacing, etc.) are strict and easy to violate if you're coming from
   imperative LVGL.
-- **Use worktrees when work might collide.** If your task touches a lot of files or
-  you want to keep compiling in parallel with another branch, spin up a worktree:
-  `scripts/setup-worktree.sh feature/my-branch`. Not every task needs one, but for
-  anything sprawling it's the smart default.
+- **Use worktrees for multi-file or risky work.** When a worktree is warranted —
+  and when it isn't — is decided in [DEVELOPMENT.md](DEVELOPMENT.md) § "Worktrees"
+  (`scripts/setup-worktree.sh feature/my-branch`).
 - **Start fresh per task.** Keep unrelated bugs/features in separate sessions rather
   than letting one session sprawl across a whole day of work.
 
-## Where to Look Next
+## Next
 
-- `CLAUDE.md` (repo root) — the always-load rules: build commands, declarative-UI
-  rules, threading/lifecycle safety, design tokens, where things live.
-- `docs/devel/CLAUDE.md` — full developer-doc index by topic.
-- `docs/devel/UI_CONTRIBUTOR_GUIDE.md` — start here for UI/layout work: breakpoints,
-  tokens, colors, widgets, layout overrides.
-- `docs/devel/YOUR_FIRST_CONTRIBUTION.md` — annotated walkthrough of a real settings
-  overlay, plus a pattern tour for bigger features.
-- `docs/devel/BUILD_SYSTEM.md` — Makefile internals, make targets, cross-compilation.
-
-## A Good First Task
-
-Browse the [open issues](https://github.com/prestonbrown/helixscreen/issues) and pick
-one that looks approachable. Debug/fix work is a fast way to get familiar with the
-codebase and its patterns — no specific ticket required, just find something you can
-reproduce and investigate.
+- **Ready to write code?** → [YOUR_FIRST_CONTRIBUTION.md](YOUR_FIRST_CONTRIBUTION.md)
+  — an annotated walkthrough of a real settings overlay, plus a pattern tour for
+  bigger features.
+- **Rather explore by subsystem?** → [architecture/README.md](architecture/README.md)
+  — the "I want to work on..." index into the 15-chapter architecture guide.
+- **Looking for an issue?** Browse the [open issues](https://github.com/prestonbrown/helixscreen/issues)
+  and pick one that looks approachable. Debug/fix work is a fast way to get familiar
+  with the codebase and its patterns — no specific ticket required, just find
+  something you can reproduce and investigate.
+- **Daily-workflow reference** (run flags, logging, config, IDE setup):
+  → [DEVELOPMENT.md](DEVELOPMENT.md).

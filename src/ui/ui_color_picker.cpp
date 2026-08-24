@@ -19,7 +19,7 @@ namespace helix {
 static const struct {
     uint32_t hex;
     const char* name;
-} kSpecialColorNames[] = {
+} SPECIAL_COLOR_NAMES[] = {
     {0xD4AF37, "Gold"},  {0xCD7F32, "Bronze"}, {0x8B4513, "Wood"},
     {0xE8E8FF, "Clear"}, {0xC0C0C0, "Silver"}, {0xE0D5C7, "Marble"},
     {0xFF7043, "Coral"}, {0x1A237E, "Navy"},   {0xBCAAA4, "Taupe"},
@@ -27,7 +27,7 @@ static const struct {
 
 std::string get_color_name_from_hex(uint32_t rgb) {
     // Check for special preset names first
-    for (const auto& entry : kSpecialColorNames) {
+    for (const auto& entry : SPECIAL_COLOR_NAMES) {
         if (entry.hex == rgb) {
             return entry.name;
         }
@@ -551,7 +551,7 @@ void ColorPicker::switch_tab(bool show_custom) {
     }
 
     // Style active tab as a filled segmented-control pill; matches the
-    // purge_btn_selected pattern (primary fill / text-on-primary).
+    // extrude_length_btn_selected pattern (primary fill / text-on-primary).
     const auto primary = theme_manager_get_color("primary");
     const auto text = theme_manager_get_color("text");
     const auto text_muted = theme_manager_get_color("text_muted");

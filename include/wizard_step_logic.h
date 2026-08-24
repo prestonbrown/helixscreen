@@ -23,7 +23,7 @@ WizardPresetPlan wizard_preset_plan(bool has_preset, int printer_count);
 
 /// Config key (appended to Config::df()) recording that the top-level "preset"
 /// marker was written by a wizard run that had not finished yet.
-inline constexpr const char* kWizardPresetProvisional = "preset_provisional";
+inline constexpr const char* WIZARD_PRESET_PROVISIONAL = "preset_provisional";
 
 /// Whether a persisted preset marker is allowed to collapse the wizard's
 /// printer-identify + hardware steps.
@@ -41,7 +41,7 @@ inline constexpr const char* kWizardPresetProvisional = "preset_provisional";
 /// redirect keeps working unchanged.
 ///
 /// @param preset_marker    Config::has_preset() — a preset name is persisted
-/// @param provisional      kWizardPresetProvisional is set for this printer
+/// @param provisional      WIZARD_PRESET_PROVISIONAL is set for this printer
 /// @param wizard_completed The active printer finished its wizard
 /// @param applied_this_session The wizard applied the preset in this process
 bool wizard_preset_is_authoritative(bool preset_marker, bool provisional, bool wizard_completed,
@@ -60,10 +60,10 @@ void wizard_reset_preset_session_state();
 /// finished without ever reaching Klipper, so the hardware pickers had nothing
 /// to offer and hardware/expected was never populated.
 ///
-/// Per-printer from the start, alongside `preset` and kWizardPresetProvisional.
+/// Per-printer from the start, alongside `preset` and WIZARD_PRESET_PROVISIONAL.
 /// A root-level flag would make a second printer inherit — or clear — the first
 /// one's debt (#1162 for the preset marker; the same trap).
-inline constexpr const char* kWizardHardwareSetupDeferred = "hardware_setup_deferred";
+inline constexpr const char* WIZARD_HARDWARE_SETUP_DEFERRED = "hardware_setup_deferred";
 
 /// Whether a finishing wizard run owes its expected-hardware snapshot to a
 /// later boot.
@@ -86,7 +86,7 @@ class Config;
 
 /// Record (or settle) the deferred-snapshot debt for @p config's ACTIVE printer.
 ///
-/// Writes kWizardHardwareSetupDeferred under Config::df() when the finishing run
+/// Writes WIZARD_HARDWARE_SETUP_DEFERRED under Config::df() when the finishing run
 /// owes a snapshot, and clears a debt an earlier Klipper-down run recorded when
 /// it does not — a `--wizard` re-run that reaches Klipper settles it. Does not
 /// save; the caller batches this with its other completion writes.

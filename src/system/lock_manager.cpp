@@ -31,8 +31,8 @@ bool LockManager::has_pin() const {
 }
 
 bool LockManager::set_pin(const std::string& pin) {
-    if (static_cast<int>(pin.length()) < kMinPinLength ||
-        static_cast<int>(pin.length()) > kMaxPinLength) {
+    if (static_cast<int>(pin.length()) < MIN_PIN_LENGTH ||
+        static_cast<int>(pin.length()) > MAX_PIN_LENGTH) {
         return false;
     }
     if (!std::all_of(pin.begin(), pin.end(), ::isdigit)) {

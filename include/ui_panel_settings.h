@@ -41,9 +41,9 @@ class SettingsPanel : public PanelBase {
      * @brief Construct SettingsPanel with injected dependencies
      *
      * @param printer_state Reference to PrinterState
-     * @param api Pointer to MoonrakerAPI
+     * @param api Pointer to IMoonrakerAPI
      */
-    SettingsPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    SettingsPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     ~SettingsPanel() override;
 
@@ -142,7 +142,6 @@ class SettingsPanel : public PanelBase {
     // neutral "updates aren't available" notice, mutually exclusive with the
     // firmware-managed notice above.
     lv_subject_t updates_unavailable_subject_;
-    lv_subject_t show_backlight_settings_subject_;
 
     // Touch calibration status subject
     lv_subject_t touch_cal_status_subject_;

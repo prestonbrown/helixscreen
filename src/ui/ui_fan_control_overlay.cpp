@@ -18,8 +18,8 @@
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "ui/fan_spin_animation.h"
 
@@ -473,7 +473,7 @@ void FanControlOverlay::send_fan_speed(const std::string& object_name, int speed
     // for the Moonraker round-trip confirmation.
     printer_state_.update_fan_speed(object_name, static_cast<double>(speed_percent) / 100.0);
 
-    // MoonrakerAPI::set_fan_speed expects:
+    // IMoonrakerAPI::set_fan_speed expects:
     // - "fan" for part cooling fan (uses M106)
     // - Fan name for generic fans (uses SET_FAN_SPEED)
     api_->set_fan_speed(

@@ -118,9 +118,9 @@ std::vector<float> PerformanceState::read_history(const std::string& name) const
     const auto& ring = it->second;
     std::vector<float> out;
     out.reserve(ring.fill);
-    std::size_t start = (ring.fill == kHistorySamples) ? ring.head : 0;
+    std::size_t start = (ring.fill == HISTORY_SAMPLES) ? ring.head : 0;
     for (std::size_t i = 0; i < ring.fill; ++i) {
-        out.push_back(ring.data[(start + i) % kHistorySamples]);
+        out.push_back(ring.data[(start + i) % HISTORY_SAMPLES]);
     }
     return out;
 }
@@ -287,8 +287,8 @@ void PerformanceState::push_history(const std::string& key, float value) {
     std::lock_guard<std::mutex> lk(history_mu_);
     auto& ring = history_[key];
     ring.data[ring.head] = value;
-    ring.head = (ring.head + 1) % kHistorySamples;
-    if (ring.fill < kHistorySamples)
+    ring.head = (ring.head + 1) % HISTORY_SAMPLES;
+    if (ring.fill < HISTORY_SAMPLES)
         ++ring.fill;
 }
 

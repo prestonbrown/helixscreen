@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_gradient.h"
 
 #include "bed_mesh_renderer.h" // For BED_MESH_COLOR_COMPRESSION constant
@@ -128,3 +130,5 @@ bed_mesh_rgb_t bed_mesh_gradient_lerp_color(bed_mesh_rgb_t a, bed_mesh_rgb_t b, 
     result.b = static_cast<uint8_t>(a.b + t * (b.b - a.b));
     return result;
 }
+
+#endif // HELIX_HAS_BED_MESH_3D

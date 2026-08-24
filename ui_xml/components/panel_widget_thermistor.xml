@@ -7,11 +7,14 @@
         style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center" clickable="true">
     <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
     <event_cb trigger="clicked" callback="thermistor_clicked_cb"/>
-    <!-- Top row: icon + temperature -->
+    <!-- Top row: icon + temperature. Tighter gap than the sibling widgets use:
+         a sensor reading can hit 7 glyphs ("110.0°C"), and at 1x1 the icon plus
+         that string spends the whole 115px cell width at the medium breakpoint. -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="center"
-            style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-      <icon name="thermistor_icon" src="thermometer" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+            style_flex_cross_place="center" style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
+      <icon name="thermistor_icon"
+            src="thermometer" size="#icon_size" variant="secondary" clickable="false" event_bubble="true"/>
       <text_body name="thermistor_temp" text="--°C" clickable="false" event_bubble="true"/>
     </lv_obj>
     <!-- Sensor name label -->

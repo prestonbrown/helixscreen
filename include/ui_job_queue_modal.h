@@ -9,6 +9,7 @@
 #include <string>
 
 struct JobQueueEntry;
+class JobQueueModalTestAccess;
 
 namespace helix {
 
@@ -19,6 +20,8 @@ namespace helix {
  * queue start/pause toggle. Populated dynamically from JobQueueState.
  */
 class JobQueueModal : public Modal {
+    friend class ::JobQueueModalTestAccess;
+
   public:
     JobQueueModal();
     ~JobQueueModal() override;

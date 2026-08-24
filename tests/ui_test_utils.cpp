@@ -7,6 +7,7 @@
 #include "ui_update_queue.h"
 
 #include "lib/lvgl/src/misc/lv_timer_private.h"
+#include "platform_info.h"
 #include "spdlog/spdlog.h"
 #include "test_helpers/update_queue_test_access.h"
 
@@ -455,6 +456,9 @@ int count_children_with_marker(lv_obj_t* parent, const char* marker) {
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
+#ifdef HELIX_ENABLE_MOCKS
+#include "moonraker_client_mock.h"
+#endif
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
@@ -463,27 +467,50 @@ int count_children_with_marker(lv_obj_t* parent, const char* marker) {
 // Defaults to nullptr (most UI tests don't touch Moonraker); tests that exercise
 // real callback routing can swap in a MoonrakerClientMock via
 // set_moonraker_client() and restore it in their dtor.
-static helix::MoonrakerClient* g_test_moonraker_client = nullptr;
+static helix::IMoonrakerClient* g_test_moonraker_client = nullptr;
 
-MoonrakerClient* get_moonraker_client() {
+#ifdef HELIX_ENABLE_MOCKS
+// Mirrors app_globals.cpp: the same pointer under its concrete mock type, so
+// consumers reaching for the mock-only API don't have to downcast the
+// interface. A test that hands a MoonrakerClientMock to code which subscribes
+// to simulator notifications must publish it here too.
+static MoonrakerClientMock* g_test_moonraker_client_mock = nullptr;
+#endif
+
+IMoonrakerClient* get_moonraker_client() {
     return g_test_moonraker_client;
 }
 
-void set_moonraker_client(MoonrakerClient* client) {
+void set_moonraker_client(IMoonrakerClient* client) {
     g_test_moonraker_client = client;
+#ifdef HELIX_ENABLE_MOCKS
+    if (static_cast<IMoonrakerClient*>(g_test_moonraker_client_mock) != client) {
+        g_test_moonraker_client_mock = nullptr;
+    }
+#endif
 }
+
+#ifdef HELIX_ENABLE_MOCKS
+MoonrakerClientMock* get_moonraker_client_mock() {
+    return g_test_moonraker_client_mock;
+}
+
+void set_moonraker_client_mock(MoonrakerClientMock* client) {
+    g_test_moonraker_client_mock = client;
+}
+#endif
 
 // Settable for the same reason as the client above: code under test reaches the
 // API through this global, so a test that needs it to answer installs its own and
 // restores the previous value in a dtor. Defaults to nullptr, which is what every
 // test that does not care has always seen.
-static MoonrakerAPI* g_test_moonraker_api = nullptr;
+static IMoonrakerAPI* g_test_moonraker_api = nullptr;
 
-MoonrakerAPI* get_moonraker_api() {
+IMoonrakerAPI* get_moonraker_api() {
     return g_test_moonraker_api;
 }
 
-void set_moonraker_api(MoonrakerAPI* api) {
+void set_moonraker_api(IMoonrakerAPI* api) {
     g_test_moonraker_api = api;
 }
 
@@ -501,6 +528,7 @@ helix::TemperatureController* get_temperature_controller() {
 namespace {
 std::function<void(const std::string&)> g_test_warning_hook;
 std::function<void(const std::string&)> g_test_error_hook;
+std::function<void(const std::string&)> g_test_info_hook;
 } // namespace
 
 namespace helix {
@@ -510,6 +538,9 @@ void set_test_notification_warning_hook(std::function<void(const std::string&)> 
 }
 void set_test_notification_error_hook(std::function<void(const std::string&)> hook) {
     g_test_error_hook = std::move(hook);
+}
+void set_test_notification_info_hook(std::function<void(const std::string&)> hook) {
+    g_test_info_hook = std::move(hook);
 }
 } // namespace ui
 } // namespace helix
@@ -521,11 +552,17 @@ void ui_notification_init() {
 
 void ui_notification_info(const char* message) {
     spdlog::debug("[Test Stub] ui_notification_info: {}", message ? message : "(null)");
+    if (g_test_info_hook) {
+        g_test_info_hook(message ? message : "");
+    }
 }
 
 void ui_notification_info(const char* title, const char* message) {
     spdlog::debug("[Test Stub] ui_notification_info: {} - {}", title ? title : "(null)",
                   message ? message : "(null)");
+    if (g_test_info_hook) {
+        g_test_info_hook(message ? message : "");
+    }
 }
 
 void ui_notification_info_with_action(const char* title, const char* message, const char* action) {
@@ -566,6 +603,19 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
     }
 }
 
+// Feeds the same hook as ui_notification_error: to a test asserting WHAT was
+// surfaced, a printer fault is an error notification. What it cannot reproduce
+// is the real function's call to helix::ui::track_fault_modal() — no modal is
+// built here at all. Coverage of the sweep therefore drives the registry
+// directly (test_fault_modal_dismiss.cpp), which is the linked, real code.
+void ui_notification_printer_fault(const char* title, const char* message) {
+    spdlog::debug("[Test Stub] ui_notification_printer_fault: {} - {}", title ? title : "(null)",
+                  message ? message : "(null)");
+    if (g_test_error_hook) {
+        g_test_error_hook(message ? message : "");
+    }
+}
+
 // The two-line variants hand the hook the SAME text the toast renders, joined,
 // so a test can assert that the suggestion actually reached the user instead of
 // only that the message did. Matches ui_notification.cpp's history-row join.
@@ -597,6 +647,20 @@ void ui_notification_warning_with_detail(const char* message, const char* detail
 // Stub ToastManager class for tests
 #include "ui_toast_manager.h"
 
+// Fed by the ToastManager stub below, for tests asserting on direct
+// ToastManager::show() calls. See set_test_toast_hook in the header.
+static std::function<void(ToastSeverity, const std::string&)> g_test_toast_hook;
+
+namespace helix {
+namespace ui {
+
+void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&)> hook) {
+    g_test_toast_hook = std::move(hook);
+}
+
+} // namespace ui
+} // namespace helix
+
 // Stub ToastManager class for tests
 // The real ToastManager is excluded from test build, so we need a stub singleton
 static ToastManager* s_test_toast_manager_instance = nullptr;
@@ -617,29 +681,35 @@ void ToastManager::init() {
 }
 
 void ToastManager::show(ToastSeverity severity, const char* message, uint32_t duration_ms) {
-    (void)severity;
     (void)duration_ms;
     spdlog::debug("[Test Stub] ToastManager::show: {}", message ? message : "(null)");
+    if (g_test_toast_hook) {
+        g_test_toast_hook(severity, message ? message : "");
+    }
 }
 
 void ToastManager::show_with_detail(ToastSeverity severity, const char* message, const char* detail,
                                     uint32_t duration_ms) {
-    (void)severity;
     (void)duration_ms;
-    spdlog::debug("[Test Stub] ToastManager::show_with_detail: {} | {}",
-                  message ? message : "(null)", detail ? detail : "");
+    const std::string joined = join_detail(message, detail);
+    spdlog::debug("[Test Stub] ToastManager::show_with_detail: {}", joined);
+    if (g_test_toast_hook) {
+        g_test_toast_hook(severity, joined);
+    }
 }
 
 void ToastManager::show_with_action(ToastSeverity severity, const char* message,
                                     const char* action_text,
                                     toast_action_callback_t action_callback, void* user_data,
                                     uint32_t duration_ms) {
-    (void)severity;
     (void)action_text;
     (void)action_callback;
     (void)user_data;
     (void)duration_ms;
     spdlog::debug("[Test Stub] ToastManager::show_with_action: {}", message ? message : "(null)");
+    if (g_test_toast_hook) {
+        g_test_toast_hook(severity, message ? message : "");
+    }
 }
 
 void ToastManager::hide() {
@@ -830,18 +900,43 @@ bool helix_parse_truthy_env(const char* value) {
     return v == "1" || v == "true" || v == "yes" || v == "on";
 }
 
-bool compute_updates_externally_managed(const char* disable_auto_updates) {
-    return helix_parse_truthy_env(disable_auto_updates);
+bool compute_updates_externally_managed(const char* disable_auto_updates, bool platform_default) {
+    // An explicit flag decides it, in either direction. helix_parse_truthy_env()
+    // only answers "is this truthy", which cannot distinguish "0" from unset, so
+    // presence is tested separately and a falsy value force-enables self-update
+    // where the platform would otherwise default it off.
+    //
+    // Blank counts as ABSENT, not as falsy. helixscreen.env values routinely carry
+    // a stray space (which is why parsing trims), and an all-whitespace value read
+    // as an explicit "no" would silently switch self-update back on for a
+    // firmware-managed install — the exact failure this predicate exists to stop.
+    if (disable_auto_updates) {
+        const char* p = disable_auto_updates;
+        while (*p && std::isspace(static_cast<unsigned char>(*p))) {
+            ++p;
+        }
+        if (*p != '\0') {
+            return helix_parse_truthy_env(disable_auto_updates);
+        }
+    }
+    return platform_default;
 }
 
 bool updates_externally_managed() {
-    static const bool cached =
-        compute_updates_externally_managed(std::getenv("HELIX_DISABLE_AUTO_UPDATES"));
+    static const bool cached = compute_updates_externally_managed(
+        std::getenv("HELIX_DISABLE_AUTO_UPDATES"), helix::platform_defaults_to_external_updates());
     return cached;
 }
 
 // Mirror of src/app_globals.cpp compute_self_update_supported / self_update_supported /
-// in_app_updates_suppressed (app_globals.o is excluded from the test link).
+// update_install_suppressed / update_checks_suppressed (app_globals.o is
+// excluded from the test link).
+//
+// Keep the branch structure identical to the original, comments aside. A mirror that
+// drifts turns the tests below into a test of this file: the parent-only version of
+// this predicate was a false negative that hid the updater on every /opt install, and
+// nothing here would have noticed, because the assertions would have been passing
+// against the same wrong logic.
 #include "system/helix_paths.h"
 
 #include <unistd.h> // geteuid
@@ -850,11 +945,14 @@ bool compute_self_update_supported(const std::string& install_root, bool can_esc
         return true;
     }
     const std::string parent = std::filesystem::path(install_root).parent_path().string();
+    if (!parent.empty() && helix::paths::is_writable_dir(parent)) {
+        return true; // atomic swap
+    }
     if (parent.empty()) {
         return true;
     }
-    if (helix::paths::is_writable_dir(parent)) {
-        return true;
+    if (helix::paths::is_writable_dir(install_root)) {
+        return true; // in-place replacement
     }
     return can_escalate;
 }
@@ -878,12 +976,16 @@ bool self_update_supported() {
     return cached;
 }
 
-bool compute_in_app_updates_suppressed(bool externally_managed, bool self_update_ok) {
+bool compute_update_install_suppressed(bool externally_managed, bool self_update_ok) {
     return externally_managed || !self_update_ok;
 }
 
-bool in_app_updates_suppressed() {
-    return compute_in_app_updates_suppressed(updates_externally_managed(), self_update_supported());
+bool update_install_suppressed() {
+    return compute_update_install_suppressed(updates_externally_managed(), self_update_supported());
+}
+
+bool update_checks_suppressed() {
+    return updates_externally_managed();
 }
 
 // Stubs for the manager accessors in app_globals.h. Each getter reads a file-static
@@ -957,9 +1059,12 @@ void app_store_argv(int /*argc*/, char** /*argv*/) {
 // but don't need real network/hardware connections.
 
 // Stub for app_globals_init_subjects (creates test notification + edit mode subjects)
+#include "platform_info.h"
+
 static lv_subject_t s_test_notification_subject;
 static lv_subject_t s_test_home_edit_mode_subject;
 static lv_subject_t s_test_wizard_active_subject;
+static lv_subject_t s_test_host_power_supported_subject;
 static bool s_test_notification_subject_initialized = false;
 
 void app_globals_init_subjects() {
@@ -968,6 +1073,14 @@ void app_globals_init_subjects() {
         lv_subject_init_int(&s_test_home_edit_mode_subject, 0);
         lv_subject_init_int(&s_test_wizard_active_subject, 0);
         s_test_notification_subject_initialized = true;
+        // Mirrors the real seeding in app_globals.cpp — the rule itself lives
+        // in helix::platform_host_power_supported() (real code, linked here).
+        lv_subject_init_int(&s_test_host_power_supported_subject,
+                            helix::platform_host_power_supported() ? 1 : 0);
+        if (!lv_xml_get_subject(nullptr, "platform_host_power_supported")) {
+            lv_xml_register_subject(nullptr, "platform_host_power_supported",
+                                    &s_test_host_power_supported_subject);
+        }
         spdlog::debug("[Test Stub] app_globals_init_subjects: subjects initialized");
     }
 }
@@ -977,6 +1090,7 @@ void app_globals_deinit_subjects() {
         lv_subject_deinit(&s_test_notification_subject);
         lv_subject_deinit(&s_test_home_edit_mode_subject);
         lv_subject_deinit(&s_test_wizard_active_subject);
+        lv_subject_deinit(&s_test_host_power_supported_subject);
         s_test_notification_subject_initialized = false;
         spdlog::debug("[Test Stub] app_globals_deinit_subjects: subjects deinitialized");
     }

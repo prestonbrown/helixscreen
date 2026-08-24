@@ -314,8 +314,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::PrinterState ps;
     LedControlOverlayTestAccess access(ps);
 
-    REQUIRE(access.targets_for(LedBackendType::NATIVE) ==
-            std::vector<std::string>{"neopixel rgb"});
+    REQUIRE(access.targets_for(LedBackendType::NATIVE) == std::vector<std::string>{"neopixel rgb"});
     REQUIRE(access.targets_for(LedBackendType::OUTPUT_PIN) ==
             std::vector<std::string>{"output_pin enclosure"});
 
@@ -345,8 +344,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::PrinterState ps;
     LedControlOverlayTestAccess access(ps);
 
-    REQUIRE(access.targets_for(LedBackendType::NATIVE) ==
-            std::vector<std::string>{"neopixel rgb"});
+    REQUIRE(access.targets_for(LedBackendType::NATIVE) == std::vector<std::string>{"neopixel rgb"});
     // ...and the output_pin path never picks up the native strip.
     REQUIRE(access.targets_for(LedBackendType::OUTPUT_PIN) ==
             std::vector<std::string>{"output_pin enclosure"});

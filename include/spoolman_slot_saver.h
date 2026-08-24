@@ -12,7 +12,7 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -73,9 +73,9 @@ class SpoolmanSlotSaver {
 
     /**
      * @brief Construct a SpoolmanSlotSaver
-     * @param api MoonrakerAPI instance for Spoolman API calls
+     * @param api IMoonrakerAPI instance for Spoolman API calls
      */
-    explicit SpoolmanSlotSaver(MoonrakerAPI* api);
+    explicit SpoolmanSlotSaver(IMoonrakerAPI* api);
 
     /**
      * @brief Compare two SlotInfo structs and detect what changed
@@ -207,7 +207,7 @@ class SpoolmanSlotSaver {
                        ErrorCallback on_error);
 
   private:
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     /**
      * @brief Convert uint32_t RGB to hex string like "FF0000" (no # prefix)

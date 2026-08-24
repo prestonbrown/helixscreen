@@ -11,14 +11,14 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 // Test-only accessor (declared in the test TU), forward-declared here so the
 // friend grant below can name it explicitly.
 struct GcodeNarrationRouterTestAccess;
 
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 
 /// Pure: extract the command name from Klipper's `Unknown command:"X"` response
 /// (prefix already stripped), nullopt for anything else.
@@ -52,7 +52,7 @@ class MoonrakerClient;
 /// must outlive this router.
 class GcodeNarrationRouter {
   public:
-    GcodeNarrationRouter(MoonrakerAPI* api, MoonrakerClient* client);
+    GcodeNarrationRouter(IMoonrakerAPI* api, IMoonrakerClient* client);
     ~GcodeNarrationRouter();
 
     GcodeNarrationRouter(const GcodeNarrationRouter&) = delete;
@@ -72,8 +72,8 @@ class GcodeNarrationRouter {
     /// AmsState::set_narration_phase write is thread-safe.
     void process_line(const std::string& line);
 
-    MoonrakerAPI* api_;
-    MoonrakerClient* client_;
+    IMoonrakerAPI* api_;
+    IMoonrakerClient* client_;
 
     /// Narration bodies that mentioned the active backend but matched no phase,
     /// deduped so the drift hint logs once per distinct line. The step bar fails

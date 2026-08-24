@@ -24,6 +24,9 @@ setup() {
     INSTALL_DIR="/opt/helixscreen"
     TMP_DIR="/tmp/helixscreen-install"
     _USER_INSTALL_DIR=""
+    # Empty by default so the existing-install probe cannot see a real install on
+    # the machine running the suite. Tests that exercise it set their own list.
+    _HELIX_KNOWN_INSTALL_DIRS=""
 
     # Source common.sh + platform.sh (skip source guards by unsetting them).
     # common.sh owns validate_install_dir/validate_tmp_dir, which platform.sh
@@ -95,6 +98,116 @@ setup() {
 
     detect_pi_install_dir
     [ "$INSTALL_DIR" = "/opt/helixscreen" ]
+}
+
+# --- Parent-writability tests ---
+#
+# An update applies by renaming the install root ("mv <root> <root>.old; mv <new>
+# <root>"), which mutates the PARENT's directory entries — so the parent is what
+# needs to be writable by the service user. /opt is root-owned and the service
+# runs unprivileged, which leaves only install.sh's in-place fallback: delete the
+# root's contents, then move the new ones in. That works, but it deletes before it
+# moves. A home-owned parent keeps the atomic path available.
+
+@test "no ecosystem but a non-root service user → home, not /opt" {
+    KLIPPER_USER="$(id -un)"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/testuser"
+    mkdir -p "$KLIPPER_HOME"
+    mock_command_fail "systemctl"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "$KLIPPER_HOME/helixscreen" ]
+}
+
+@test "no ecosystem and a root service user → /opt/helixscreen" {
+    # root owns /opt, so the atomic swap is available there anyway. This is the
+    # embedded shape and must not move.
+    KLIPPER_USER="root"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/root"
+    mkdir -p "$KLIPPER_HOME"
+    mock_command_fail "systemctl"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "/opt/helixscreen" ]
+}
+
+@test "home not owned by the service user → /opt/helixscreen" {
+    # The point of the home branch is a parent the SERVICE USER can rename in.
+    # A home that exists but belongs to someone else buys nothing.
+    KLIPPER_USER="somebodyelse"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/somebodyelse"
+    mkdir -p "$KLIPPER_HOME"
+    mock_command_fail "systemctl"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "/opt/helixscreen" ]
+}
+
+# --- Existing-install tests ---
+
+@test "an existing install pins the location" {
+    # Relocating an install the user already has orphans the old tree and the
+    # config in it. Whatever the cascade would pick, an install already on disk
+    # wins.
+    KLIPPER_USER="$(id -un)"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/testuser"
+    mkdir -p "$KLIPPER_HOME/klipper"
+
+    local existing="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$existing/bin"
+    touch "$existing/bin/helix-screen"
+    chmod +x "$existing/bin/helix-screen"
+    _HELIX_KNOWN_INSTALL_DIRS="$existing"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "$existing" ]
+}
+
+@test "an ecosystem install outranks a stale install elsewhere" {
+    KLIPPER_USER="$(id -un)"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/testuser"
+    mkdir -p "$KLIPPER_HOME/helixscreen/bin"
+    touch "$KLIPPER_HOME/helixscreen/bin/helix-screen"
+    chmod +x "$KLIPPER_HOME/helixscreen/bin/helix-screen"
+
+    local stale="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$stale/bin"
+    touch "$stale/bin/helix-screen"
+    chmod +x "$stale/bin/helix-screen"
+    _HELIX_KNOWN_INSTALL_DIRS="$stale"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "$KLIPPER_HOME/helixscreen" ]
+}
+
+@test "an empty leftover directory is not an existing install" {
+    # Uninstall leaves the directory behind on some platforms. Only the binary
+    # makes it an install.
+    KLIPPER_USER="$(id -un)"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/testuser"
+    mkdir -p "$KLIPPER_HOME"
+    mock_command_fail "systemctl"
+
+    local leftover="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$leftover/config"
+    _HELIX_KNOWN_INSTALL_DIRS="$leftover"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "$KLIPPER_HOME/helixscreen" ]
+}
+
+@test "a user override still outranks an existing install" {
+    local existing="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$existing/bin"
+    touch "$existing/bin/helix-screen"
+    chmod +x "$existing/bin/helix-screen"
+    _HELIX_KNOWN_INSTALL_DIRS="$existing"
+
+    _USER_INSTALL_DIR="/custom/path/helixscreen"
+    INSTALL_DIR="/custom/path/helixscreen"
+
+    detect_pi_install_dir
+    [ "$INSTALL_DIR" = "/custom/path/helixscreen" ]
 }
 
 # --- Override tests ---

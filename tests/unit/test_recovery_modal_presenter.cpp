@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/recovery_modal_presenter_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "app_constants.h"
@@ -17,31 +18,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-// White-box accessor (declared friend in recovery_modal_presenter.h) — avoids
-// adding _for_testing() methods to the production class ([L065]/[L088]).
-struct RecoveryModalPresenterTestAccess {
-    /// The body of the modal's gcode callback. present()'s lambda forwards to
-    /// this and does nothing else, so calling it is the button tap.
-    static void tap(helix::ui::RecoveryModalPresenter& p, const std::string& gcode) {
-        p.on_recovery_tapped(gcode);
-    }
-    static bool preheating(const helix::ui::RecoveryModalPresenter& p) {
-        return p.preheat_timer_ != nullptr;
-    }
-    /// Shrink the nozzle-reaches-target budget so the give-up path is reachable
-    /// without running 300s of LVGL ticks.
-    static void set_preheat_budget_ms(helix::ui::RecoveryModalPresenter& p, uint32_t ms) {
-        p.preheat_budget_ms_ = ms;
-    }
-    /// The action set currently wired to the on-screen modal. present() assigns
-    /// this only when it does NOT dedup, so it is the observable that
-    /// distinguishes "replaced" from "suppressed".
-    static const std::vector<helix::RecoveryAction>&
-    active_actions(const helix::ui::RecoveryModalPresenter& p) {
-        return p.active_actions_;
-    }
-};
 
 namespace {
 

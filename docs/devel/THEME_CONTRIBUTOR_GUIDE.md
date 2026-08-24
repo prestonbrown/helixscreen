@@ -242,7 +242,7 @@ Themes get bounced when they:
 ## Contributing your theme
 
 1. **Put the final JSON in `assets/config/themes/defaults/`** in the repo.
-2. **Filename is the theme's kebab-cased name** — `my-cool-theme.json`, not `MyCoolTheme.json`.
+2. **Filename is the theme's kebab-cased name** — my-cool-theme.json, not MyCoolTheme.json.
 3. **Take screenshots** of your theme on at least three panels — home, settings, print status. These go in the PR description.
 4. **Open a PR** on `prestonbrown/helixscreen` with `feat(theme): add <theme name>` as the commit subject.
 5. **Mention the inspiration** if it's a port of an existing palette (Ayu, Catppuccin, Gruvbox, etc.) so the PR review can verify any attribution requirements.

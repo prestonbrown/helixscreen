@@ -57,9 +57,15 @@
         </lv_obj>
         <event_cb trigger="clicked" callback="on_about_version_clicked"/>
       </ui_button>
-      <!-- Update Channel (gated by beta_features) -->
+      <!-- Update Channel (beta_features, and only where checking is possible).
+           show_update_settings is part of the condition because a firmware-managed
+           install has no channel to pick: on_channel_changed() re-checks, and
+           check_for_updates() short-circuits there, so the dropdown would persist a
+           setting nothing reads and sit directly above "Managed by your firmware".
+           ONE expression rather than two stacked bind_flag_if_eq — see the note on
+           container_install_update below for why stacking silently loses. -->
       <lv_obj name="container_update_channel" width="100%" style_pad_all="0">
-        <bind_flag_if_eq subject="show_beta_features" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="show_beta_features eq 1 and show_update_settings eq 1" flag="hidden" invert="true"/>
         <setting_dropdown_row name="row_update_channel"
                               label="Update Channel" label_tag="Update Channel" icon="swap_vertical"
                               options="Stable&#10;Beta&#10;Dev" options_tag="Stable&#10;Beta&#10;Dev"
@@ -74,10 +80,18 @@
                             bind_description="update_version_text" description_min_bp="0"
                             callback="on_about_check_updates_clicked"/>
       </lv_obj>
-      <!-- Install Update (visible only when update available) -->
+      <!-- Install Update (visible only when an update is available AND this
+           install can actually apply one — updates_unavailable means it cannot,
+           in which case the notice below carries the instructions instead) -->
       <lv_obj name="container_install_update" width="100%" style_pad_all="0">
-        <bind_flag_if_eq subject="show_update_settings" flag="hidden" ref_value="0"/>
-        <bind_flag_if_not_eq subject="update_status" flag="hidden" ref_value="2"/>
+        <!-- ONE expression, not three stacked bind_flag_if_eq. Each of those
+             installs its own observer that writes the same `hidden` flag, so
+             whichever fires last wins and the other two are advisory: with three
+             of them the row reappeared on a non-updatable install as soon as
+             update_status reached 2. See LVGL9_XML_GUIDE.md, "Expression
+             Conditionals". -->
+        <bind_flag_if cond="show_update_settings eq 1 and updates_unavailable eq 0 and update_status eq 2"
+                      flag="hidden" invert="true"/>
         <setting_action_row name="row_install_update"
                             label="Install Update" label_tag="Install Update" icon="download" description=""
                             description_tag="" callback="on_about_install_update_clicked"/>
@@ -91,17 +105,23 @@
           <text_muted name="value" text="Managed by your firmware" translation_tag="Managed by your firmware"/>
         </setting_info_row>
       </lv_obj>
-      <!-- Updates-unavailable notice (replaces the check/install controls when a
-           self-update is physically impossible — the install tree isn't writable —
-           and updates are NOT firmware-managed) -->
+      <!-- Cannot-install notice. Sits ALONGSIDE "Check for Updates" rather than
+           replacing it: this install can still see that a new version exists, it
+           just cannot apply one itself, so the row says what to do instead of
+           saying nothing. Shown when the install tree isn't writable and updates
+           are NOT firmware-managed. -->
       <lv_obj name="container_updates_unavailable" width="100%" style_pad_all="0" scrollable="false">
         <bind_flag_if_eq subject="updates_unavailable" flag="hidden" ref_value="0"/>
-        <setting_info_row name="row_updates_unavailable"
-                          label="Software Updates" label_tag="Software Updates" icon="info_outline">
-          <text_muted name="value"
-                      text="Updates aren't available on this installation."
-                      translation_tag="Updates aren't available on this installation."/>
-        </setting_info_row>
+        <!-- An action row, not an info row: the whole point is that the user can
+             still act, and the modal behind it carries the command and a QR to
+             the docs. A row that only states the problem is the dead end this
+             replaces. description_min_bp="0" keeps the line on 480x272, where it
+             is the only thing telling them what to do. -->
+        <setting_action_row name="row_updates_unavailable"
+                            label="Software Updates" label_tag="Software Updates" icon="console"
+                            description="Not available here. Update from a terminal."
+                            description_tag="Not available here. Update from a terminal." description_min_bp="0"
+                            callback="on_about_updates_unavailable_clicked"/>
       </lv_obj>
       <!-- Klipper Version -->
       <setting_info_row name="row_klipper" label="Klipper" label_tag="Klipper" icon="toy_brick_outline">

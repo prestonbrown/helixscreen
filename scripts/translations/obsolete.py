@@ -22,9 +22,9 @@ from .yaml_manager import (
 )
 
 # Trees that can reference a translation key. `assets` matters because
-# printer_database.json stores tags like pre_print_option.ai_detect.label as
-# data; `include` matters because headers hold label text the extractor's
-# src-only scan never saw.
+# printer_database.json stores tags (e.g. "AI detection") as data; `include`
+# matters because headers hold label text the extractor's src-only scan never
+# saw.
 REFERENCE_DIRS = ("src", "include", "ui_xml", "assets", "config", "tests", "lib/helix-xml")
 
 REFERENCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".inc", ".xml", ".json", ".yml", ".yaml"}
@@ -39,6 +39,11 @@ _XML_TEXT_RE = re.compile(r">([^<>\n]+)<")
 
 # Escapes that appear in C/JSON literals; keys are stored unescaped in YAML.
 _UNESCAPE = {r"\"": '"', r"\\": "\\", r"\t": "\t"}
+
+# A RUN of adjacent C string literals ("a" "b" "c"), separated only by
+# whitespace/comments-free spacing. Matches single literals too; the consumer
+# only keeps the joined form when it is longer than the first piece.
+_ADJACENT_LITERALS_RE = re.compile(r'"(?:[^"\\\n]|\\.)*"(?:\s*"(?:[^"\\\n]|\\.)*")+')
 
 
 def _unescape(text: str) -> str:
@@ -97,6 +102,20 @@ def collect_referenced_strings(
             else:
                 for m in _C_LITERAL_RE.finditer(content):
                     found.add(_unescape(m.group(1)))
+                # C++ concatenates adjacent literals: "foo " "bar" is the
+                # single string "foo bar" at compile time. clang-format wraps
+                # long literals this way, so a long key's reference must be
+                # matched in joined form too (tour bodies in
+                # src/ui/tour/tour_steps.cpp). Adding joins only widens the
+                # candidate set — consistent with the recall-oriented design:
+                # a false reference leaves a stale entry, a missed one deletes
+                # a string users see.
+                if path.suffix in {".c", ".cpp", ".h", ".hpp", ".inc"}:
+                    for m in _ADJACENT_LITERALS_RE.finditer(content):
+                        pieces = _C_LITERAL_RE.findall(m.group(0))
+                        joined = "".join(pieces)
+                        if len(joined) > len(pieces[0]):
+                            found.add(_unescape(joined))
 
     return found
 
@@ -267,18 +286,38 @@ def delete_obsolete_keys(
 
         raw = yaml_path.read_text(encoding="utf-8").splitlines(keepends=True)
         spans = _entry_spans(translations, len(raw))
-        # Remove each entry's lines bottom-up so earlier deletes don't shift
-        # the indices of later ones. Absorb any source comment above the key.
+        # Collect the lines to drop as a SET, then splice once.
+        #
+        # Deleting each span bottom-up looks safe but is not, because the spans
+        # OVERLAP. An entry's span runs to the next entry's start line, so a
+        # `# Source:` comment sitting between two entries falls inside the
+        # earlier entry's span -- and _absorb_leading_comments then pulls that
+        # same line into the later entry's span too. Two deletions then claim
+        # one line, the second `del` runs against a list the first already
+        # shortened, and it over-reaches by exactly that many lines, silently
+        # taking whatever live key follows. Deleting the adjacent obsolete keys
+        # `0h` and `0m` destroyed the live key between the next pair, and the
+        # count still reported 2. A set of indices cannot double-count, so
+        # overlap becomes harmless and order stops mattering.
+        #
         # Count spliced entries rather than matched ones: _entry_spans needs
         # ruamel's line numbers, and under plain PyYAML it returns nothing, so
         # counting matches reported a full delete for a file left untouched.
-        for key in sorted(to_delete, key=lambda k: spans.get(k, (-1,))[0], reverse=True):
+        drop: Set[int] = set()
+        for key in to_delete:
             if key not in spans:
                 continue
             start, end = spans[key]
             start = _absorb_leading_comments(raw, start)
-            del raw[start:end]
+            # A trailing comment run documents the NEXT entry, so it is not this
+            # entry's to remove -- leaving it keeps a surviving neighbour's
+            # `# Source:` line attached to it.
+            while end - 1 > start and raw[end - 1].lstrip().startswith("#"):
+                end -= 1
+            drop.update(range(start, end))
             deleted += 1
+        if drop:
+            raw = [line for i, line in enumerate(raw) if i not in drop]
         yaml_path.write_text("".join(raw), encoding="utf-8")
 
     return deleted

@@ -63,9 +63,9 @@ class ControlsPanel : public PanelBase {
      * @brief Construct ControlsPanel with injected dependencies
      *
      * @param printer_state Reference to helix::PrinterState
-     * @param api Pointer to MoonrakerAPI (may be nullptr)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr)
      */
-    ControlsPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    ControlsPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     ~ControlsPanel() override;
 
@@ -210,9 +210,19 @@ class ControlsPanel : public PanelBase {
     lv_subject_t fan_pct_subject_{};
     uint32_t last_fan_slider_input_ = 0; // Tick of last slider interaction (suppression window)
 
-    // Macro button subjects for declarative binding
+    // Macro button subjects for declarative binding.
+    //
+    // Two independent gates, because a macro button has three states, not two:
+    //   *_visible   0 = nothing is assigned to this slot, do not render it
+    //   *_available 0 = rendered but not usable — the slot resolves to a macro
+    //                   the connected printer does not define
+    // A slot the user configured against a macro this printer lacks stays
+    // visible and goes disabled, so the button that stopped working is still
+    // where they left it instead of silently vanishing.
     lv_subject_t macro_1_visible_{};
     lv_subject_t macro_2_visible_{};
+    lv_subject_t macro_1_available_{};
+    lv_subject_t macro_2_available_{};
     lv_subject_t macro_1_name_{};
     lv_subject_t macro_2_name_{};
     char macro_1_name_buf_[64] = {};
@@ -244,6 +254,7 @@ class ControlsPanel : public PanelBase {
 
     /// @brief Temperature observer bundle (nozzle + bed temps)
     helix::ui::TemperatureObserverBundle<ControlsPanel> temp_observers_;
+    ObserverGuard macros_version_observer_; // Macro slot resolution changed
     ObserverGuard fan_observer_;
     ObserverGuard fans_version_observer_;      // Multi-fan list changes
     ObserverGuard temp_sensor_count_observer_; // Temp sensor list changes
@@ -376,6 +387,11 @@ class ControlsPanel : public PanelBase {
     char controls_z_offset_buf_[16] = {};
     lv_subject_t controls_z_offset_subject_{};
     ObserverGuard gcode_z_offset_observer_;
+    // ZMOD zeroes the live offset outside a print, so the row has to re-pick its
+    // source when either the persisted value or the print state changes.
+    ObserverGuard persisted_z_offset_observer_;
+    ObserverGuard persisted_z_offset_valid_observer_;
+    ObserverGuard z_offset_print_active_observer_;
 
     //
     // === Speed/Flow Override Subjects ===
@@ -396,6 +412,8 @@ class ControlsPanel : public PanelBase {
     std::optional<StandardMacroSlot> macro_4_slot_;
     lv_subject_t macro_3_visible_{};
     lv_subject_t macro_4_visible_{};
+    lv_subject_t macro_3_available_{};
+    lv_subject_t macro_4_available_{};
     lv_subject_t macro_3_name_{};
     lv_subject_t macro_4_name_{};
     char macro_3_name_buf_[64] = {};
@@ -492,12 +510,13 @@ class ControlsPanel : public PanelBase {
      * @param macros Reference to StandardMacros instance
      * @param slot Optional slot for this button (nullopt = hide)
      * @param visible_subject Subject controlling visibility binding
+     * @param available_subject Subject controlling the disabled-state binding
      * @param name_subject Subject controlling label text binding
      * @param button_num Button number for debug logging (1-4)
      */
     void update_macro_button(StandardMacros& macros, const std::optional<StandardMacroSlot>& slot,
-                             lv_subject_t& visible_subject, lv_subject_t& name_subject,
-                             int button_num);
+                             lv_subject_t& visible_subject, lv_subject_t& available_subject,
+                             lv_subject_t& name_subject, int button_num);
 
     //
     // === Speed/Flow Override Handlers ===
@@ -515,7 +534,12 @@ class ControlsPanel : public PanelBase {
     //
 
     void handle_zoffset_tune(); ///< Open Print Tune overlay for live Z-offset tuning
-    void update_controls_z_offset_display(int offset_microns);
+    /// Reformat the Z-offset row from whichever reading is currently truthful.
+    /// Takes no value: the choice between Klipper's live offset and the
+    /// firmware-persisted one depends on three subjects, so every caller would
+    /// otherwise have to repeat the selection. See
+    /// helix::zoffset::displayed_z_offset_microns().
+    void update_controls_z_offset_display();
 
     //
     // === Fan Slider Handler ===

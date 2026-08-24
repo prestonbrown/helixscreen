@@ -156,7 +156,8 @@ TEST_CASE("MoonrakerError::json_rpc_error sets JSON_RPC type, message, method, o
 
     SECTION("details payload is carried through") {
         json payload = {{"result", "failed"}, {"code", 5}};
-        auto err = MoonrakerError::json_rpc_error("some.method", "Server returned failure", payload);
+        auto err =
+            MoonrakerError::json_rpc_error("some.method", "Server returned failure", payload);
         CHECK(err.type == MoonrakerErrorType::JSON_RPC_ERROR);
         CHECK(err.details == payload);
     }
@@ -178,7 +179,8 @@ TEST_CASE("MoonrakerError::connection_lost preserves the default message and all
     }
 
     SECTION("explicit message overrides the default") {
-        auto err = MoonrakerError::connection_lost("get_power_devices", "Not connected to Moonraker");
+        auto err =
+            MoonrakerError::connection_lost("get_power_devices", "Not connected to Moonraker");
         CHECK(err.type == MoonrakerErrorType::CONNECTION_LOST);
         CHECK(err.method == "get_power_devices");
         CHECK(err.message == "Not connected to Moonraker");

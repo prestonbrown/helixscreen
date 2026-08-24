@@ -32,8 +32,12 @@ static const FontMapping REGULAR_FONTS[] = {
     {&noto_sans_18, "noto_sans_cjk_18.bin"},
     {&noto_sans_20, "noto_sans_cjk_20.bin"},
     {&noto_sans_24, "noto_sans_cjk_24.bin"},
+#if HELIX_MAX_FONT_TIER >= 3
     {&noto_sans_26, "noto_sans_cjk_26.bin"},
+#endif
+#if HELIX_MAX_FONT_TIER >= 4
     {&noto_sans_28, "noto_sans_cjk_28.bin"},
+#endif
 #if HELIX_MAX_FONT_TIER >= 5
     {&noto_sans_32, "noto_sans_cjk_32.bin"},
 #endif
@@ -61,9 +65,15 @@ static const FontMapping LIGHT_FONTS[] = {
     {&noto_sans_light_10, "noto_sans_cjk_light_10.bin"},
     {&noto_sans_light_11, "noto_sans_cjk_light_11.bin"},
     {&noto_sans_light_12, "noto_sans_cjk_light_12.bin"},
+#if HELIX_MAX_FONT_TIER >= 4
     {&noto_sans_light_14, "noto_sans_cjk_light_14.bin"},
+#endif
+#if HELIX_MAX_FONT_TIER >= 3
     {&noto_sans_light_16, "noto_sans_cjk_light_16.bin"},
+#endif
+#if HELIX_MAX_FONT_TIER >= 4
     {&noto_sans_light_18, "noto_sans_cjk_light_18.bin"},
+#endif
 #if HELIX_MAX_FONT_TIER >= 5
     {&noto_sans_light_20, "noto_sans_cjk_light_20.bin"},
 #endif

@@ -17,7 +17,8 @@ RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::stri
                                         const json& params,
                                         std::function<void(const json&)> success_cb,
                                         std::function<void(const MoonrakerError&)> error_cb,
-                                        uint32_t timeout_ms, bool silent) {
+                                        uint32_t timeout_ms, bool silent,
+                                        std::optional<rpc_error_policy::CallerIntent> intent) {
     // Atomically fetch and increment to avoid race condition in concurrent calls
     // Note: request_id_ starts at 0, but we increment FIRST, so actual IDs start at 1
     // This ensures we never return 0 (INVALID_REQUEST_ID) for a valid request
@@ -31,7 +32,13 @@ RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::stri
     request.error_callback = error_cb;
     request.timestamp = std::chrono::steady_clock::now();
     request.timeout_ms = (timeout_ms > 0) ? timeout_ms : default_request_timeout_ms_;
-    request.silent = silent;
+    // Callers that know their own intent state it; everyone else gets it inferred
+    // from the two signals available here. The inference treats "supplied an
+    // error_cb" as "will report this itself", which holds for the direct
+    // send_jsonrpc callers — non-gcode RPCs whose errors reach the user through
+    // no other channel. The gcode paths, which DO have Klipper's `!!` broadcast
+    // as a second channel, pass their intent explicitly instead.
+    request.intent = intent.value_or(rpc_error_policy::CallerIntent{silent, error_cb != nullptr});
 
     // Register request — check queue capacity first
     bool queue_full = false;
@@ -160,7 +167,7 @@ bool MoonrakerRequestTracker::route_response(
     std::function<void(const MoonrakerError&)> error_cb;
     std::string method_name;
     bool has_error = false;
-    bool is_silent = false;
+    rpc_error_policy::CallerIntent request_intent;
     bool found = false;
     MoonrakerError error;
 
@@ -171,7 +178,7 @@ bool MoonrakerRequestTracker::route_response(
             found = true;
             PendingRequest& request = it->second;
             method_name = request.method;
-            is_silent = request.silent;
+            request_intent = request.intent;
 
             // Check for JSON-RPC error. Only the *classification* happens here —
             // parsing the error payload is deliberately deferred until after the
@@ -204,14 +211,19 @@ bool MoonrakerRequestTracker::route_response(
         // Check if error toasts should be suppressed (e.g., during shutdown)
         bool suppress_toast = suppress_error_toast && suppress_error_toast();
 
-        // A caller that supplies its own error_cb is handling the error UI
-        // itself — exactly like a silent request. Emitting the generic
-        // "Printer command failed" toast on top would double-report a single
-        // Klipper rejection (the K2 chamber key69 produced three stacked
-        // toasts). Only surface the generic fallback when nobody else will.
-        bool caller_handles_ui = is_silent || (error_cb != nullptr);
+        // Who reports this error is one decision with one implementation —
+        // helix::rpc_error_policy::decide(), shared with the mock's inline gcode
+        // path and the gcode APIs that build the intent. Emitting the generic
+        // "Printer command failed" toast on top of a caller's own report would
+        // double-report a single Klipper rejection (the K2 chamber key69
+        // produced three stacked toasts).
+        const rpc_error_policy::Decision d = rpc_error_policy::decide(
+            request_intent, rpc_error_policy::RequestFacts{
+                                /*has_broadcast_channel=*/
+                                rpc_error_policy::method_has_broadcast_channel(method_name),
+                                /*suppress_all=*/suppress_toast});
 
-        if (!caller_handles_ui && !suppress_toast) {
+        if (d.emit_generic_toast) {
             spdlog::error("[Request Tracker] Request {} failed: {}", method_name, error.message);
 
             // Emit RPC error event only when no caller will surface it
@@ -224,14 +236,19 @@ bool MoonrakerRequestTracker::route_response(
         } else {
             spdlog::debug("[Request Tracker] Request {} failed; caller handles UI: {}", method_name,
                           error.message);
-            // Caller (silent or with its own error_cb) will surface this. Record
-            // the exact Klipper-supplied error so the GcodeError `!!` broadcast
-            // for the same root cause (which arrives through a different
-            // transport channel) can suppress its independent toast —
-            // see include/rpc_error_correlation.h.
-            if (error_cb) {
-                helix::rpc_error_correlation::record_caller_handled(error.message);
-            }
+        }
+
+        // Record the exact Klipper-supplied error whenever someone is definitely
+        // reporting it — the caller's own UI, or the generic fallback just
+        // emitted above — so the GcodeError `!!` broadcast for the same root
+        // cause (which arrives through a different transport channel) suppresses
+        // its independent toast; see include/rpc_error_correlation.h. Deliberately
+        // outside the branches above: the policy authorises recording alongside
+        // the generic toast, not only alongside a caller's own report. A merely
+        // `silent` caller records nothing — nothing was shown, so the `!!` copy
+        // is the user's only remaining signal.
+        if (d.record_for_dedup) {
+            helix::rpc_error_correlation::record_caller_handled(error.message);
         }
 
         if (error_cb) {
@@ -323,7 +340,7 @@ void MoonrakerRequestTracker::check_timeouts(
                 TimeoutInfo info;
                 info.method_name = request.method;
                 info.timeout_ms = request.timeout_ms;
-                info.silent = request.silent;
+                info.silent = request.intent.silent;
 
                 // Capture error callback in lambda if present
                 if (request.error_callback) {
@@ -376,9 +393,18 @@ void MoonrakerRequestTracker::check_timeouts(
     // reach at ~3.5 h of mostly nothing (bundle 3Q2GB74K). So the debug line
     // additionally requires the oldest request to have aged past
     // PENDING_LOG_MIN_AGE_MS — below that the queue is working, not stuck. The
-    // warn path is unaffected: a 30 s request always logs.
+    // warn path is unaffected: a request past its warn age always logs.
+    //
+    // The warn age is per-method, because "old" is not one number. A blocking
+    // G-code script is bounded by the macro it is running, not by the network:
+    // an AFC toolchange over a 2 m bowden takes over a minute of perfectly
+    // healthy waiting, which at 30 s made the tracker the single loudest thing
+    // in an AFC user's log (77 warnings in one bundle, every one of them normal).
     if (pending_count > 0) {
-        const bool warn = oldest_age_ms > 30000;
+        const uint32_t warn_age = oldest_method == "printer.gcode.script"
+                                      ? PENDING_WARN_AGE_GCODE_MS
+                                      : PENDING_WARN_AGE_MS;
+        const bool warn = oldest_age_ms > warn_age;
         const auto now = std::chrono::steady_clock::now();
         const bool signature_changed = pending_count != last_logged_pending_count_ ||
                                        oldest_method != last_logged_oldest_method_ ||

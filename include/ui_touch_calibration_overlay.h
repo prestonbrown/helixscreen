@@ -371,6 +371,8 @@ class TouchCalibrationOverlay : public OverlayBase {
     /// after that, so this is roughly a 1.4s hold — far longer than the taps
     /// calibration collects, and short enough to find by leaning on the screen.
     static constexpr int HOLD_ABORT_REPEATS = 10;
+
+    friend class TouchCalibrationOverlayTestAccess;
 };
 
 // ============================================================================

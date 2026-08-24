@@ -45,3 +45,6 @@
 [submodule "lib/helix-xml"]
 	path = lib/helix-xml
 	url = https://github.com/prestonbrown/helix-xml.git
+[submodule "lib/libjpeg-turbo"]
+	path = lib/libjpeg-turbo
+	url = https://github.com/libjpeg-turbo/libjpeg-turbo.git

@@ -161,10 +161,9 @@ TEST_CASE("ams_draw::fill_percent_from_slot clamps to min_pct", "[ams_draw][fill
 }
 
 TEST_CASE("ams_draw::fill_percent_from_slot returns -1 for no-data slot", "[ams_draw][fill]") {
-    // Rewritten: the old contract returned 100 (FULL) for a weightless slot,
-    // which made every backend without weights render full. A present slot with
-    // no weights AND no filament metadata now has no fill data → -1 (caller
-    // skips) instead of a phantom full bar.
+    // A present slot with no weights AND no filament metadata has no fill data
+    // at all → -1, so the caller skips instead of painting a phantom bar. This
+    // is distinct from the metadata-only case above, which does draw (full).
     SlotInfo slot;
     slot.status = SlotStatus::AVAILABLE; // present, but no weights, no metadata
     slot.remaining_weight_g = -1.0f;
@@ -172,17 +171,17 @@ TEST_CASE("ams_draw::fill_percent_from_slot returns -1 for no-data slot", "[ams_
     REQUIRE(ams_draw::fill_percent_from_slot(slot) == -1);
 }
 
-TEST_CASE("ams_draw::fill_percent_from_slot metadata-only falls back to 50",
-          "[ams_draw][fill]") {
-    // Present + material set but no usable weights → 50% fallback (#1071).
+TEST_CASE("ams_draw::fill_percent_from_slot metadata-only falls back to full", "[ams_draw][fill]") {
+    // Present + material set but no usable weights → full. A lane outside
+    // Spoolman, or a backend that reports no weights, draws as a full spool
+    // rather than an indeterminate half one.
     SlotInfo slot;
     slot.status = SlotStatus::AVAILABLE;
     slot.material = "PLA";
-    REQUIRE(ams_draw::fill_percent_from_slot(slot) == 50);
+    REQUIRE(ams_draw::fill_percent_from_slot(slot) == 100);
 }
 
-TEST_CASE("ams_draw::fill_percent_from_slot empty lane renders empty",
-          "[ams_draw][fill]") {
+TEST_CASE("ams_draw::fill_percent_from_slot empty lane renders empty", "[ams_draw][fill]") {
     // Not-present lane → 0 ratio, clamped up to min_pct (matches prior behavior
     // for a 0% present slot; style_slot_bar gates the bar on is_present anyway).
     SlotInfo slot;

@@ -23,7 +23,7 @@ namespace helix {
  * column instead is what lets the floor demand MORE than the current leftover,
  * which is the only way a floor can mean anything.
  */
-inline constexpr int32_t kBedMeshPortraitCanvasMinPct = 35;
+inline constexpr int32_t BED_MESH_PORTRAIT_CANVAS_MIN_PCT = 35;
 
 /**
  * @brief Height for the portrait bed mesh canvas, or 0 for "cannot decide".
@@ -48,7 +48,7 @@ inline constexpr int32_t kBedMeshPortraitCanvasMinPct = 35;
  *                 column_h minus the info card, profiles list, and gaps.
  * @param column_h Height of the WHOLE stacked column, before anything else in
  *                 it is subtracted. This is what the floor is a share of — see
- *                 kBedMeshPortraitCanvasMinPct for why `avail_h` cannot be used
+ *                 BED_MESH_PORTRAIT_CANVAS_MIN_PCT for why `avail_h` cannot be used
  *                 here. Passing avail_h in this slot recreates the dead floor;
  *                 the two parameters are not interchangeable.
  * @return Height in px, or 0 when any input is non-positive (the caller has
@@ -67,7 +67,7 @@ constexpr int32_t bed_mesh_portrait_canvas_height(int32_t band_w, int32_t avail_
     // card / profiles list — that is what makes it a floor rather than a
     // no-op. It is still capped at `square`: see the ceiling-vs-floor note
     // above for why the cap must never be lifted.
-    const int32_t floor_h = column_h * kBedMeshPortraitCanvasMinPct / 100;
+    const int32_t floor_h = column_h * BED_MESH_PORTRAIT_CANVAS_MIN_PCT / 100;
     const int32_t effective_floor = (floor_h < square) ? floor_h : square;
     return (fitted < effective_floor) ? effective_floor : fitted;
 }

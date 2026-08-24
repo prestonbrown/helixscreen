@@ -43,7 +43,7 @@ struct FilamentConsumptionTrackerTestAccess {
     /// print_state_enum_ subject (useful when the test sets up fixtures before
     /// the aggregate observer fires).
     static void force_print_state(PrintJobState s) {
-        FilamentConsumptionTracker::instance().on_print_state_changed(static_cast<int>(s));
+        FilamentConsumptionTracker::instance().on_print_state_changed(s);
     }
 
     /// Invoke the per-extruder handler directly — lets routing tests verify

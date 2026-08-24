@@ -556,13 +556,13 @@ int main(int argc, char** argv) {
     lv_obj_t* splash_widget = create_splash_ui(screen, width, height, dark_mode, use_fade);
     (void)splash_widget; // Used by animation, no need to track
 
-    // Version number in lower-right corner (subtle, theme-aware)
+    // Version number in upper-left corner (subtle, theme-aware)
     lv_obj_t* version_label = lv_label_create(screen);
     lv_label_set_text(version_label, "v" HELIX_VERSION);
     lv_obj_set_style_text_color(
         version_label, dark_mode ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_text_opa(version_label, LV_OPA_40, LV_PART_MAIN);
-    lv_obj_align(version_label, LV_ALIGN_BOTTOM_RIGHT, -8, -6);
+    lv_obj_align(version_label, LV_ALIGN_TOP_LEFT, 8, 6);
     (void)version_label;
 
     // Boot-status line (e.g. "Starting Klipper… 40s"), centered near the bottom.

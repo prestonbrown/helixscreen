@@ -18,10 +18,13 @@
 
 #include "ams_bypass_policy.h"
 #include "app_globals.h"
+#include "data_root_resolver.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_sensor_manager.h"
+#include "helix_psram_attr.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -88,7 +91,9 @@ std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int b
 } // namespace
 
 AmsState& AmsState::instance() {
-    static AmsState instance;
+    // ~9.5KB singleton: relocate to PSRAM on ESP to reclaim internal DRAM (it's
+    // app-state, first touched at runtime, never DMA/ISR). No-op elsewhere.
+    static HELIX_PSRAM_BSS AmsState instance;
     return instance;
 }
 
@@ -118,50 +123,50 @@ const char* AmsState::get_logo_path(const std::string& type_name) {
 
     // Map system names to logo paths
     // Note: All logos are 64x64 white-on-transparent PNGs
-    static const std::unordered_map<std::string, const char*> logo_map = {
+    static const std::unordered_map<std::string, std::string> logo_map = {
         // AFC (Armored Turtle) - has its own logo
-        {"afc", "A:assets/images/ams/afc_64.png"},
-        {"box turtle", "A:assets/images/ams/box_turtle_64.png"},
-        {"box_turtle", "A:assets/images/ams/box_turtle_64.png"},
-        {"boxturtle", "A:assets/images/ams/box_turtle_64.png"},
+        {"afc", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"box turtle", asset_component_uri("assets/images/ams/box_turtle_64.png")},
+        {"box_turtle", asset_component_uri("assets/images/ams/box_turtle_64.png")},
+        {"boxturtle", asset_component_uri("assets/images/ams/box_turtle_64.png")},
 
         // Happy Hare - generic firmware, has its own logo
-        {"happy hare", "A:assets/images/ams/happy_hare_64.png"},
-        {"happy_hare", "A:assets/images/ams/happy_hare_64.png"},
-        {"happyhare", "A:assets/images/ams/happy_hare_64.png"},
+        {"happy hare", asset_component_uri("assets/images/ams/happy_hare_64.png")},
+        {"happy_hare", asset_component_uri("assets/images/ams/happy_hare_64.png")},
+        {"happyhare", asset_component_uri("assets/images/ams/happy_hare_64.png")},
 
         // Specific hardware types (when detected or configured)
-        {"ercf", "A:assets/images/ams/ercf_64.png"},
-        {"3ms", "A:assets/images/ams/3ms_64.png"},
-        {"tradrack", "A:assets/images/ams/tradrack_64.png"},
-        {"mmx", "A:assets/images/ams/mmx_64.png"},
-        {"night owl", "A:assets/images/ams/night_owl_64.png"},
-        {"night_owl", "A:assets/images/ams/night_owl_64.png"},
-        {"nightowl", "A:assets/images/ams/night_owl_64.png"},
-        {"quattro box", "A:assets/images/ams/quattro_box_64.png"},
-        {"quattro_box", "A:assets/images/ams/quattro_box_64.png"},
-        {"quattrobox", "A:assets/images/ams/quattro_box_64.png"},
-        {"btt vivid", "A:assets/images/ams/btt_vivid_64.png"},
-        {"btt_vivid", "A:assets/images/ams/btt_vivid_64.png"},
-        {"bttvivid", "A:assets/images/ams/btt_vivid_64.png"},
-        {"vivid", "A:assets/images/ams/btt_vivid_64.png"},
-        {"kms", "A:assets/images/ams/kms_64.png"},
+        {"ercf", asset_component_uri("assets/images/ams/ercf_64.png")},
+        {"3ms", asset_component_uri("assets/images/ams/3ms_64.png")},
+        {"tradrack", asset_component_uri("assets/images/ams/tradrack_64.png")},
+        {"mmx", asset_component_uri("assets/images/ams/mmx_64.png")},
+        {"night owl", asset_component_uri("assets/images/ams/night_owl_64.png")},
+        {"night_owl", asset_component_uri("assets/images/ams/night_owl_64.png")},
+        {"nightowl", asset_component_uri("assets/images/ams/night_owl_64.png")},
+        {"quattro box", asset_component_uri("assets/images/ams/quattro_box_64.png")},
+        {"quattro_box", asset_component_uri("assets/images/ams/quattro_box_64.png")},
+        {"quattrobox", asset_component_uri("assets/images/ams/quattro_box_64.png")},
+        {"btt vivid", asset_component_uri("assets/images/ams/btt_vivid_64.png")},
+        {"btt_vivid", asset_component_uri("assets/images/ams/btt_vivid_64.png")},
+        {"bttvivid", asset_component_uri("assets/images/ams/btt_vivid_64.png")},
+        {"vivid", asset_component_uri("assets/images/ams/btt_vivid_64.png")},
+        {"kms", asset_component_uri("assets/images/ams/kms_64.png")},
 
         // AFC unit types with no artwork of their own (Claymore is new in AFC
         // v1.2.0; the rest predate it). They fall back to the AFC mark:
         // wrong-but-related beats a blank slot, and the alternative is
         // silently rendering nothing.
-        {"htlf", "A:assets/images/ams/afc_64.png"},
-        {"open ams", "A:assets/images/ams/afc_64.png"},
-        {"open_ams", "A:assets/images/ams/afc_64.png"},
-        {"openams", "A:assets/images/ams/afc_64.png"},
-        {"claymore", "A:assets/images/ams/afc_64.png"},
-        {"emu", "A:assets/images/ams/afc_64.png"},
+        {"htlf", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"open ams", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"open_ams", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"openams", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"claymore", asset_component_uri("assets/images/ams/afc_64.png")},
+        {"emu", asset_component_uri("assets/images/ams/afc_64.png")},
     };
 
     auto it = logo_map.find(lower_name);
     if (it != logo_map.end()) {
-        return it->second;
+        return it->second.c_str();
     }
 
     // AFC names a unit by type AND instance — "Box_Turtle Turtle_1" — so the
@@ -173,7 +178,7 @@ const char* AmsState::get_logo_path(const std::string& type_name) {
     if (space_pos != std::string::npos && space_pos > 0) {
         it = logo_map.find(lower_name.substr(0, space_pos));
         if (it != logo_map.end()) {
-            return it->second;
+            return it->second.c_str();
         }
     }
     return nullptr;
@@ -234,6 +239,7 @@ void AmsState::init_subjects(bool register_xml) {
 
     // Backend selector subjects
     INIT_SUBJECT_INT(backend_count, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_data_revision, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(active_backend, 0, subjects_, register_xml);
 
     // System-level subjects
@@ -270,6 +276,16 @@ void AmsState::init_subjects(bool register_xml) {
         subjects_.register_subject(&external_spool_color_);
         if (register_xml)
             lv_xml_register_subject(nullptr, "ams_external_spool_color", &external_spool_color_);
+
+        // Material string flavor — same source, string subject idiom as
+        // ams_system_name_ (own buffer, nullptr prev_buf).
+        lv_subject_init_string(&external_spool_material_, external_spool_material_buf_, nullptr,
+                               sizeof(external_spool_material_buf_),
+                               ext_spool.has_value() ? ext_spool->material.c_str() : "");
+        subjects_.register_subject(&external_spool_material_);
+        if (register_xml)
+            lv_xml_register_subject(nullptr, "ams_external_spool_material",
+                                    &external_spool_material_);
     }
 
     lv_subject_init_int(&supports_bypass_, 0);
@@ -277,6 +293,7 @@ void AmsState::init_subjects(bool register_xml) {
     if (register_xml)
         lv_xml_register_subject(nullptr, "ams_supports_bypass", &supports_bypass_);
     INIT_SUBJECT_INT(ams_slot_count, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_cards_compact, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(slots_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(tool_map_version, 0, subjects_, register_xml);
     // Default 1 (present) so non-auto-feed / unknown backends never gate Resume (#991).
@@ -304,6 +321,18 @@ void AmsState::init_subjects(bool register_xml) {
         lv_xml_register_subject(nullptr, "ams_system_logo", &ams_system_logo_);
 
     INIT_SUBJECT_STRING(ams_current_tool_text, "---", subjects_, register_xml);
+
+    // Endless-spool status. Starts Hidden with no text so a printer whose
+    // backend never reports the feature renders nothing rather than flashing a
+    // default sentence before the first sync.
+    INIT_SUBJECT_INT(ams_endless_state,
+                     static_cast<int>(helix::printer::EndlessSpoolStatusKind::Hidden), subjects_,
+                     register_xml);
+    lv_subject_init_string(&ams_endless_text_, ams_endless_text_buf_, nullptr,
+                           sizeof(ams_endless_text_buf_), "");
+    subjects_.register_subject(&ams_endless_text_);
+    if (register_xml)
+        lv_xml_register_subject(nullptr, "ams_endless_text", &ams_endless_text_);
 
     // Tool change progress subjects
     INIT_SUBJECT_INT(toolchange_visible, 0, subjects_, register_xml);
@@ -520,6 +549,21 @@ void AmsState::init_subjects(bool register_xml) {
         }
     }
 
+    // Always-off placeholders for units past MAX_UNITS. A rig with more units
+    // than we allocate subjects for still gets a card per unit; its environment
+    // indicator binds these, so the badge stays hidden instead of the parser
+    // warning once per binding about names nothing registered.
+    lv_subject_init_int(&env_ind_off_flag_, 0);
+    subjects_.register_subject(&env_ind_off_flag_);
+    if (register_xml)
+        lv_xml_register_subject(nullptr, ENV_IND_OFF_FLAG_SUBJECT, &env_ind_off_flag_);
+
+    lv_subject_init_string(&env_ind_off_text_, env_ind_off_text_buf_, nullptr,
+                           ENV_IND_TEXT_BUF_SIZE, "");
+    subjects_.register_subject(&env_ind_off_text_);
+    if (register_xml)
+        lv_xml_register_subject(nullptr, ENV_IND_OFF_TEXT_SUBJECT, &env_ind_off_text_);
+
     // Detail-view env indicator mirror subjects.
     lv_subject_init_string(&env_ind_detail_temp_text_, env_ind_detail_temp_text_buf_, nullptr,
                            ENV_IND_TEXT_BUF_SIZE, "---");
@@ -605,6 +649,8 @@ void AmsState::install_print_state_observer() {
     // subjects (e.g. between tests).
     print_state_observer_.reset();
     auto lifetime = get_printer_state().get_static_print_subjects_lifetime();
+    // RAW_PRINT_STATE_OK: subscribes to the WIRE deliberately - recompute_action_detail()
+    // labels what the printer reports, and reads the same subject.
     print_state_observer_ = helix::ui::observe_int_sync<AmsState>(
         get_printer_state().get_print_state_enum_subject(), this,
         [](AmsState* self, int /*print_state*/) { self->recompute_action_detail(); }, lifetime);
@@ -634,7 +680,7 @@ void AmsState::deinit_subjects() {
     // drain notifies a freed observer list (#1165, #1146).
     async_lifetime_.invalidate();
 
-    // Clear dangling API pointer — the MoonrakerAPI is destroyed during teardown
+    // Clear dangling API pointer — the IMoonrakerAPI is destroyed during teardown
     // before AmsState re-initializes. Without this, sync_from_backend() would
     // dereference a freed pointer on the next init_subjects() cycle.
     api_ = nullptr;
@@ -656,12 +702,12 @@ void AmsState::deinit_subjects() {
 }
 
 void AmsState::init_backend_from_hardware(const helix::PrinterDiscovery& hardware,
-                                          MoonrakerAPI* api, MoonrakerClient* client) {
+                                          IMoonrakerAPI* api, IMoonrakerClient* client) {
     init_backends_from_hardware(hardware, api, client);
 }
 
 void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardware,
-                                           MoonrakerAPI* api, MoonrakerClient* client) {
+                                           IMoonrakerAPI* api, IMoonrakerClient* client) {
     const auto& systems = hardware.detected_ams_systems();
     if (systems.empty()) {
         spdlog::debug("[AMS State] No AMS systems detected, skipping");
@@ -812,6 +858,18 @@ void AmsState::clear_backends() {
     }
     backends_.clear();
 
+    // The runout edge state describes a specific backend's flag history. A new
+    // backend's first sample must re-seed rather than read as a transition.
+    prev_backend_runout_ = false;
+    runout_edge_armed_ = false;
+    runout_prev_paused_ = false;
+    runout_level_seeded_ = false;
+    // Same reasoning for the post-unload grace: it was armed for a removal on
+    // the backend going away, and nothing the next one reports can be that.
+    post_unload_runout_grace_ = false;
+    post_unload_runout_grace_at_ = {};
+    saw_unload_in_op_ = false;
+
     // Drop AMS-derived tool topology so the UI doesn't show stale tool pills
     // between backend disappearance and the next reconnect's init_tools().
     helix::ToolState::instance().clear_ams_topology();
@@ -871,6 +929,16 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     return slots;
 }
 
+bool AmsState::any_bypass_active() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    for (const auto& backend : backends_) {
+        if (backend && backend->is_bypass_active()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 AmsBackend* AmsState::get_backend() const {
     return get_backend(0);
 }
@@ -894,7 +962,7 @@ bool AmsState::is_available() const {
     return primary && primary->get_type() != AmsType::NONE;
 }
 
-void AmsState::set_moonraker_api(MoonrakerAPI* api) {
+void AmsState::set_moonraker_api(IMoonrakerAPI* api) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     api_ = api;
     last_synced_spoolman_id_ = 0; // Reset tracking on API change
@@ -1052,6 +1120,35 @@ lv_subject_t* AmsState::get_env_ind_drying_text_subject(int unit_index) {
         return nullptr;
     }
     return &env_ind_drying_text_[unit_index];
+}
+
+AmsState::EnvIndicatorSubjectNames AmsState::env_indicator_subject_names(int unit_index) {
+    EnvIndicatorSubjectNames names;
+
+    if (unit_index < 0 || unit_index >= MAX_UNITS) {
+        names.temp_text = ENV_IND_OFF_TEXT_SUBJECT;
+        names.humidity_text = ENV_IND_OFF_TEXT_SUBJECT;
+        names.drying_text = ENV_IND_OFF_TEXT_SUBJECT;
+        names.humidity_status = ENV_IND_OFF_FLAG_SUBJECT;
+        names.humidity_visible = ENV_IND_OFF_FLAG_SUBJECT;
+        names.visible = ENV_IND_OFF_FLAG_SUBJECT;
+        names.drying_active = ENV_IND_OFF_FLAG_SUBJECT;
+        return names;
+    }
+
+    auto expand = [unit_index](const char* suffix) {
+        char buf[48];
+        snprintf(buf, sizeof(buf), "ams_env_ind_%d_%s", unit_index, suffix);
+        return std::string(buf);
+    };
+    names.temp_text = expand("temp_text");
+    names.humidity_text = expand("humidity_text");
+    names.humidity_status = expand("humidity_status");
+    names.humidity_visible = expand("humidity_visible");
+    names.visible = expand("visible");
+    names.drying_active = expand("drying_active");
+    names.drying_text = expand("drying_text");
+    return names;
 }
 
 lv_subject_t* AmsState::get_slot_color_subject(int backend_index, int slot_index) {
@@ -1262,6 +1359,32 @@ void AmsState::sync_from_backend() {
         lv_subject_set_int(&ams_type_, new_type);
     }
     int new_action = static_cast<int>(info.action);
+    // One-shot runout grace. An unload ends with the filament deliberately
+    // dragged off the toolhead sensor, and that empty reading is the operation
+    // working, not a runout — but is_filament_operation_active() only covers
+    // the window while the action is still running. Measured on a K2 Plus:
+    // the script completed at 12:03:02 and the sensor cleared at 12:03:12, ten
+    // seconds after the guard had closed, so the idle runout modal fired on a
+    // deliberate unload.
+    //
+    // Tracked across the whole operation rather than off an UNLOADING -> IDLE
+    // edge, because apply_synthesized_action_locked() overwrites the action
+    // with a sub-phase as physical signals arrive: that K2 unload actually
+    // ended CUTTING -> IDLE, which such an edge would have missed entirely.
+    {
+        const auto action = static_cast<AmsAction>(new_action);
+        const auto prev = static_cast<AmsAction>(lv_subject_get_int(&ams_action_));
+        if (action == AmsAction::UNLOADING) {
+            saw_unload_in_op_ = true;
+        }
+        if (action == AmsAction::IDLE && prev != AmsAction::IDLE) {
+            post_unload_runout_grace_ = saw_unload_in_op_;
+            if (post_unload_runout_grace_) {
+                post_unload_runout_grace_at_ = std::chrono::steady_clock::now();
+            }
+            saw_unload_in_op_ = false;
+        }
+    }
     if (lv_subject_get_int(&ams_action_) != new_action) {
         spdlog::debug("[AmsState] sync_from_backend: action changed to {} ({})", new_action,
                       ams_action_to_string(info.action));
@@ -1332,18 +1455,119 @@ void AmsState::sync_from_backend() {
         lv_subject_set_int(&filament_loaded_, new_loaded);
     }
 
-    // Gate the runout indicator on a paused print. The firmware asserts
-    // filament_useup at pre-load print-start too, so only treat it as a runout
-    // when the print is actually paused (a CFS runout pauses; pre-load does not).
-    // Box state polls sub-second, so this stays fresh without observing print state.
-    bool paused = get_printer_state().get_print_job_state() == PrintJobState::PAUSED;
-    int new_runout = (info.filament_runout && paused) ? 1 : 0;
+    // The runout indicator needs an EDGE, not a level, plus a paused print.
+    //
+    // `AmsSystemInfo::filament_runout` is a sticky latch on the CFS: it mirrors
+    // `box.filament_useup`, which BoxAction::send_data sets when the box reports
+    // the spool used up and which ONLY BoxAction::extruder_extrude clears, on a
+    // successful extrude. It is not print-scoped and nothing resets it when a job
+    // ends. A live K2 Plus read `filament_useup: 1` at `print_stats.state:
+    // standby`. Level-and-paused therefore lit the warning icon on ANY unrelated
+    // pause afterwards — a user pause, an M600, a CFS fault pausing via
+    // BoxError.handle_event — for a runout that may have been days earlier.
+    //
+    // Requiring a false->true transition witnessed while the job was PRINTING or
+    // PAUSED fixes that without needing per-backend knowledge, and is correct for
+    // AD5X IFS too: its detector only ever raises the flag while paused, which is
+    // one of the two states that arm the edge here. The cost is the same one
+    // AmsBackendAd5xIfs::evaluate_runout_locked() already accepts deliberately —
+    // a printer that boots into a job already paused on a runout reports nothing,
+    // because we witnessed no transition.
+    // RAW_PRINT_STATE_OK: the edge must be witnessed while the printer is
+    // actually running the job. Arming it during Preparing would light the
+    // warning for a latch raised before any material moved.
+    const PrintJobState job_state = get_printer_state().get_print_job_state();
+    const bool paused = job_state == PrintJobState::PAUSED;
+    const bool job_running = paused || job_state == PrintJobState::PRINTING;
+
+    if (!runout_level_seeded_) {
+        // Seed only; a flag that was already set before we started watching
+        // describes no transition of ours.
+        prev_backend_runout_ = info.filament_runout;
+        runout_level_seeded_ = true;
+    } else if (info.filament_runout && !prev_backend_runout_) {
+        runout_edge_armed_ = job_running;
+    } else if (!info.filament_runout) {
+        // Backend withdrew the flag: the fault is over regardless of print state.
+        runout_edge_armed_ = false;
+    }
+    prev_backend_runout_ = info.filament_runout;
+
+    // End of episode. Two ways out, and neither can be simplified to "not
+    // paused": the arm is normally made while PRINTING, one status frame before
+    // the firmware's pause lands, so disarming on !paused would throw away every
+    // real runout before it could be shown.
+    //   - the job stopped running at all (STANDBY / COMPLETE / CANCELLED)
+    //   - the job left PAUSED, i.e. the user resumed or cancelled
+    // The second is what the sticky latch makes necessary: on the CFS the level
+    // can stay true forever, so leaving PAUSED is the only evidence that the
+    // runout was dealt with.
+    if (!job_running || (runout_prev_paused_ && !paused)) {
+        runout_edge_armed_ = false;
+    }
+    runout_prev_paused_ = paused;
+
+    int new_runout = (runout_edge_armed_ && info.filament_runout && paused) ? 1 : 0;
     if (lv_subject_get_int(&filament_runout_) != new_runout) {
+        spdlog::debug("[AmsState] filament runout indicator -> {} (level={}, armed={}, paused={})",
+                      new_runout, info.filament_runout, runout_edge_armed_, paused);
         lv_subject_set_int(&filament_runout_, new_runout);
     }
-    int new_bypass = info.current_slot == -2 ? 1 : 0;
+    // The one bypass truth: the backend's own is_bypass_active(), the same
+    // predicate BypassToggleController branches on when the user taps. This
+    // subject used to be derived independently from current_slot == -2, so with
+    // a declaration latched and the filament pulled the switch rendered
+    // unchecked while a tap took the DISABLE path — "turn it on" answered
+    // "Bypass disabled", and the pre-print gate meanwhile acted on a bypass the
+    // user could not see or clear. Display and action now read one value.
+    // Filament back at the toolhead retires the grace: it was armed for the
+    // removal this unload caused, and anything after a reload is a new event.
+    if (info.filament_loaded && post_unload_runout_grace_) {
+        post_unload_runout_grace_ = false;
+        spdlog::debug("[AmsState] Post-unload runout grace retired — filament loaded again");
+    }
+
+    const int new_bypass = backend->is_bypass_active() ? 1 : 0;
     if (lv_subject_get_int(&bypass_active_) != new_bypass) {
+        spdlog::debug("[AmsState] bypass -> {}", new_bypass);
         lv_subject_set_int(&bypass_active_, new_bypass);
+    }
+
+    // Engaging bypass changes nothing about any slot, so the per-slot delta scan
+    // in sync_slots_from_backend() never bumps slots_version. The pre-print
+    // filament check keys on bypass (PreflightValidator) and slots_version is its
+    // ONLY refresh trigger, so without this the cached result goes stale: engage
+    // bypass while a file's detail view is already open and the false
+    // "T0 has no filament loaded" block still fires on Print.
+    //
+    // Still tracked off any_bypass_active() rather than the bypass_active_
+    // subject above, but for a different reason now that both read
+    // is_bypass_active(): the subject reports backend 0 only, while this walks
+    // every backend, and the pre-print check it refreshes is whole-printer.
+    const bool bypass_now = any_bypass_active();
+    if (bypass_now != last_bypass_active_) {
+        last_bypass_active_ = bypass_now;
+        spdlog::debug("[AmsState] Bypass -> {}, bumping slots_version for the pre-print check",
+                      bypass_now);
+        bump_slots_version();
+        // Notification only — the bypass⇄sensor policy (arm/restore runout
+        // sensors at the firmware level) lives entirely in
+        // FilamentSensorManager, the sensor abstraction layer.
+        FilamentSensorManager::instance().on_bypass_active_changed(bypass_now);
+
+        // Publish the external spool as an extra lane_data entry for slicer
+        // sync (OrcaSlicer) when bypass engages. Capability question via the
+        // backend virtual — only backends that own a lane_data mirror and
+        // support bypass answer; AmsState names no system.
+        if (bypass_now) {
+            const auto spool = get_external_spool_info();
+            for (auto& backend : backends_) {
+                if (backend) {
+                    backend->publish_external_spool_lane(spool.has_value() ? &spool.value()
+                                                                           : nullptr);
+                }
+            }
+        }
     }
     int new_supports_bypass = helix::bypass_available_for(info.supports_bypass) ? 1 : 0;
     if (lv_subject_get_int(&supports_bypass_) != new_supports_bypass) {
@@ -1356,6 +1580,8 @@ void AmsState::sync_from_backend() {
     if (lv_subject_get_int(&external_spool_color_) != new_ext_color) {
         lv_subject_set_int(&external_spool_color_, new_ext_color);
     }
+    lv_subject_copy_string(&external_spool_material_,
+                           ext_spool.has_value() ? ext_spool->material.c_str() : "");
     if (lv_subject_get_int(&ams_slot_count_) != info.total_slots) {
         lv_subject_set_int(&ams_slot_count_, info.total_slots);
     }
@@ -1750,6 +1976,10 @@ void AmsState::sync_from_backend() {
     // Sync "Currently Loaded" display subjects (pass info to avoid re-fetching)
     sync_current_loaded_from_backend(info);
 
+    // Sync the endless-spool status line (backend-neutral; every backend answers
+    // the same capability question)
+    sync_endless_spool_from_backend(backend);
+
     spdlog::trace("[AMS State] Synced from backend - type={}, slots={}, action={}, segment={}",
                   ams_type_to_string(info.type), info.total_slots,
                   ams_action_to_string(info.action),
@@ -1850,6 +2080,13 @@ void AmsState::on_backend_event(int backend_index, const std::string& event,
                 } else {
                     AmsState::instance().update_slot_for_backend(backend_index, slot_index);
                 }
+
+                // Wake anything watching for backend data to land. Bumped AFTER
+                // the sync so an observer that re-reads backend state sees the
+                // synced values, not the previous ones. Main thread already (we
+                // are inside the queue_update body), so the subject write is safe.
+                auto* rev = AmsState::instance().get_ams_data_revision_subject();
+                lv_subject_set_int(rev, lv_subject_get_int(rev) + 1);
             });
     };
 
@@ -1883,6 +2120,30 @@ void AmsState::on_backend_event(int backend_index, const std::string& event,
         // User intervention needed
         queue_sync(true, -1);
         spdlog::warn("[AMS State] Attention required - {}", data);
+    }
+}
+
+void AmsState::sync_endless_spool_from_backend(AmsBackend* backend) {
+    using helix::printer::EndlessSpoolStatus;
+    using helix::printer::EndlessSpoolStatusKind;
+
+    // Capabilities take the backend's own mutex_, which is the lock order
+    // sync_from_backend() already established with get_system_info().
+    EndlessSpoolStatus status;
+    if (backend != nullptr) {
+        status = helix::printer::endless_spool_status(backend->get_endless_spool_capabilities());
+    }
+
+    const int kind = static_cast<int>(status.kind);
+    if (lv_subject_get_int(&ams_endless_state_) != kind) {
+        spdlog::debug("[AmsState] endless spool status -> kind={} text='{}'", kind, status.text);
+        lv_subject_set_int(&ams_endless_state_, kind);
+    }
+    // The kind can hold while the sentence changes (a CFS box that keeps
+    // auto-refill on but gains a restriction reason), so the text is compared
+    // independently rather than gated on the kind having moved.
+    if (strcmp(lv_subject_get_string(&ams_endless_text_), status.text.c_str()) != 0) {
+        lv_subject_copy_string(&ams_endless_text_, status.text.c_str());
     }
 }
 
@@ -2288,6 +2549,11 @@ void AmsState::recompute_action_detail() {
     } else if (action != AmsAction::IDLE) {
         new_detail = lv_tr(ams_action_to_string(action));
     } else {
+        // RAW_PRINT_STATE_OK: a label for what the printer reports. A
+        // "Preparing" arm would read better during a pre-print block, but there
+        // is no such translation key yet and this is the lowest-priority
+        // fallback in the chain - the AmsAction string wins whenever the AMS is
+        // doing anything at all.
         auto print_state = static_cast<PrintJobState>(
             lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
         switch (print_state) {
@@ -2401,6 +2667,32 @@ void AmsState::set_active_tool_port_present(bool present) {
     });
 }
 
+bool AmsState::consume_post_unload_runout_grace() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!post_unload_runout_grace_) {
+        return false;
+    }
+    post_unload_runout_grace_ = false;
+    const auto age = std::chrono::steady_clock::now() - post_unload_runout_grace_at_;
+    if (age >= POST_UNLOAD_RUNOUT_GRACE) {
+        spdlog::debug("[AmsState] Post-unload runout grace expired unused after {}s",
+                      std::chrono::duration_cast<std::chrono::seconds>(age).count());
+        return false;
+    }
+    return true;
+}
+
+bool AmsState::post_unload_runout_grace_armed() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!post_unload_runout_grace_) {
+        return false;
+    }
+    // Deliberately does NOT clear on expiry: only the consumer spends the shot,
+    // so a peek that also disarmed would be a second consumer by another name.
+    return (std::chrono::steady_clock::now() - post_unload_runout_grace_at_) <
+           POST_UNLOAD_RUNOUT_GRACE;
+}
+
 bool AmsState::is_filament_operation_active() {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto action = static_cast<AmsAction>(lv_subject_get_int(&ams_action_));
@@ -2456,36 +2748,6 @@ void AmsState::set_current_loaded_defaults() {
     if (lv_subject_get_int(&current_color_) != 0x505050) {
         lv_subject_set_int(&current_color_, 0x505050);
     }
-}
-
-void AmsState::sync_active_spool_after_edit(int slot_index, int spoolman_id) {
-    if (!api_ || spoolman_id <= 0)
-        return;
-
-    int current_slot = lv_subject_get_int(&current_slot_);
-    if (slot_index != current_slot)
-        return;
-
-    // Skip direct Spoolman API call when the backend manages active spool
-    // natively (e.g., AFC sends SET_SPOOL_ID gcode which triggers AFC to call
-    // spoolman_set_active_spool on its own). Calling Spoolman directly here
-    // would bypass AFC, causing the Spoolman widget to update but not AFC's
-    // internal state (issue #644).
-    AmsBackend* backend = get_backend();
-    if (backend && backend->manages_active_spool()) {
-        spdlog::debug("[AmsState] Skipping direct Spoolman sync for slot {} — backend manages "
-                      "active spool natively",
-                      slot_index);
-        return;
-    }
-
-    spdlog::info("[AmsState] Edited slot {} is loaded, syncing active Spoolman spool to {}",
-                 slot_index, spoolman_id);
-    api_->spoolman().set_active_spool(
-        spoolman_id, []() {},
-        [](const MoonrakerError& err) {
-            spdlog::warn("[AmsState] Failed to set active spool: {}", err.message);
-        });
 }
 
 void AmsState::sync_current_loaded_from_backend() {
@@ -2802,6 +3064,9 @@ void AmsState::notify_external_spool_changed(const SlotInfo& info) {
         lv_subject_set_int(&external_spool_color_, new_color ^ 1);
     }
     lv_subject_set_int(&external_spool_color_, new_color);
+    // Material string reflector — copy_string only notifies on change, and
+    // color observers re-read full spool info anyway, so no force-fire needed.
+    lv_subject_copy_string(&external_spool_material_, info.material.c_str());
 }
 
 void AmsState::clear_external_spool_info() {
@@ -2814,4 +3079,157 @@ void AmsState::clear_external_spool_info() {
         lv_subject_set_int(&external_spool_color_, 1);
     }
     lv_subject_set_int(&external_spool_color_, 0);
+    lv_subject_copy_string(&external_spool_material_, "");
+}
+
+// ============================================================================
+// Slot edit commit (single authority for spool assignment changes)
+// ============================================================================
+
+AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
+                                    const SlotInfo& info) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    AmsBackend* backend = get_backend();
+    if (!backend) {
+        return AmsError(AmsResult::NO_AMS_DETECTED, "no AMS backend",
+                        lv_tr("Multi-Filament System not available"));
+    }
+
+    // S1 — server-side active spool (fire-and-forget, warn on failure)
+    if (api_) {
+        if (info.spoolman_id > 0) {
+            api_->spoolman().set_active_spool(
+                info.spoolman_id, []() {},
+                [](const MoonrakerError& err) {
+                    spdlog::warn("[AmsState] Failed to set active spool: {}", err.message);
+                });
+        } else if (original.spoolman_id > 0) {
+            api_->spoolman().set_active_spool(
+                0, []() {},
+                [](const MoonrakerError& err) {
+                    spdlog::warn("[AmsState] Failed to clear active spool: {}", err.message);
+                });
+        }
+    }
+
+    // S6 — stale identity otherwise survives until a server 404
+    if (original.spoolman_id > 0 && original.spoolman_id != info.spoolman_id) {
+        SpoolmanManager::invalidate_identity(original.spoolman_id);
+    }
+
+    // S3 — backend slot info + firmware gcode
+    AmsError err = backend->set_slot_info(slot_index, info);
+    if (!err.success()) {
+        return err;
+    }
+
+    // S4 + S7
+    sync_from_backend();
+    return err;
+}
+
+void AmsState::apply_external_spool_store(const SlotInfo& info) {
+    // S5 + S7 — same emptiness predicate as the FilamentPanel completion arm
+    if (info.spoolman_id > 0 || !info.material.empty()) {
+        set_external_spool_info(info);
+    } else {
+        clear_external_spool_info();
+    }
+
+    // Keep the slicer-sync lane (OrcaSlicer lane_data mirror) fresh on every
+    // identity change — same capability dispatch as the bypass-engage hook.
+    for (auto& backend : backends_) {
+        if (backend) {
+            backend->publish_external_spool_lane(&info);
+        }
+    }
+}
+
+void AmsState::invalidate_stale_external_identity(const SlotInfo& info) {
+    // S6 — stale identity otherwise survives until a server 404
+    const int previous_id = get_external_spool_info().value_or(SlotInfo{}).spoolman_id;
+    if (previous_id > 0 && previous_id != info.spoolman_id) {
+        SpoolmanManager::invalidate_identity(previous_id);
+    }
+}
+
+void AmsState::commit_external_spool_edit(const SlotInfo& info) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    // S1 — match the server active spool to what we are committing
+    if (api_) {
+        if (info.spoolman_id > 0) {
+            api_->spoolman().set_active_spool(
+                info.spoolman_id, []() {},
+                [](const MoonrakerError& err) {
+                    spdlog::warn("[AmsState] Failed to set active spool: {}", err.message);
+                });
+        } else if (get_external_spool_info().value_or(SlotInfo{}).spoolman_id > 0) {
+            // Committing a manual entry (id=0, material set) over a linked
+            // spool intentionally clears the server link — the UI no longer
+            // shows that spool as in use, so the server must not either.
+            api_->spoolman().set_active_spool(
+                0, []() {},
+                [](const MoonrakerError& err) {
+                    spdlog::warn("[AmsState] Failed to clear active spool: {}", err.message);
+                });
+        }
+    }
+
+    invalidate_stale_external_identity(info);
+
+    // S5 + S7
+    apply_external_spool_store(info);
+}
+
+void AmsState::commit_external_spool_edit(const SlotInfo& info, std::function<void()> on_committed,
+                                          std::function<void(const MoonrakerError& err)> on_error) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    invalidate_stale_external_identity(info);
+
+    if (api_ && info.spoolman_id > 0) {
+        // Server-first: the store subset waits for the server round-trip. The
+        // API callbacks fire on a background thread, so both the store write
+        // and the caller's completion are marshalled to the main thread.
+        api_->spoolman().set_active_spool(
+            info.spoolman_id,
+            [info, on_committed = std::move(on_committed)]() {
+                helix::ui::queue_update("AmsState::commit_external_spool_edit",
+                                        [info, on_committed]() {
+                                            if (s_shutdown_flag.load(std::memory_order_acquire)) {
+                                                return;
+                                            }
+                                            AmsState::instance().apply_external_spool_store(info);
+                                            if (on_committed) {
+                                                on_committed();
+                                            }
+                                        });
+            },
+            [on_error = std::move(on_error)](const MoonrakerError& err) {
+                helix::ui::queue_update("AmsState::commit_external_spool_edit", [on_error, err]() {
+                    if (on_error) {
+                        on_error(err);
+                    }
+                });
+            });
+        return;
+    }
+
+    // Manual entry or clear: no server identity gates the store write. The
+    // clear arm (replacing a linked spool with an empty record) still tells
+    // the server, fire-and-forget, exactly like the sync commit.
+    if (api_ && info.spoolman_id == 0 &&
+        get_external_spool_info().value_or(SlotInfo{}).spoolman_id > 0) {
+        api_->spoolman().set_active_spool(
+            0, []() {},
+            [](const MoonrakerError& err) {
+                spdlog::warn("[AmsState] Failed to clear active spool: {}", err.message);
+            });
+    }
+
+    apply_external_spool_store(info);
+    if (on_committed) {
+        on_committed();
+    }
 }

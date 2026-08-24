@@ -19,9 +19,14 @@
  * Both channels arrive within the same WebSocket transport window because
  * Klipper emits them from the same gcode dispatcher call. Without dedup the
  * user sees two toasts for one event. With dedup we record the message on the
- * RPC path when the caller has explicitly opted in to handle the error UI
- * (via `silent=true` / `suppress_auto_toast`), and the `!!` handler skips
+ * RPC path when someone is definitely reporting the rejection — the caller's
+ * own error UI, or the tracker's generic fallback — and the `!!` handler skips
  * toasting messages that match exactly within a short causal window.
+ *
+ * `silent` alone does NOT record. It means "no automatic toast from us", not
+ * "the user has been told"; recording on it would mute the `!!` copy for a
+ * failure nobody ever saw. The decision lives in one place —
+ * helix::rpc_error_policy::decide(), see include/rpc_error_policy.h.
  *
  * The window is intentionally narrow (1.5 s) because the two channels are
  * causally tied — Moonraker forwards both within milliseconds typically. The

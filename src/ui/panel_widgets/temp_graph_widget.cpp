@@ -7,7 +7,9 @@
 
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
@@ -43,6 +45,9 @@ TempGraphWidget::TempGraphWidget(const std::string& instance_id) : instance_id_(
 }
 
 TempGraphWidget::~TempGraphWidget() {
+    // Unconditional: detach() nulls widget_obj_, so gating the cancel on it
+    // would leave a queued async pointing at this object after a detach.
+    cancel_discovery_rebuild();
     if (widget_obj_) {
         detach();
     }
@@ -97,18 +102,38 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // immediately after attach() returns, in the same synchronous loop
     // iteration and before any paint (panel_widget_manager.cpp:862-868), so
     // this seed only lives for the width of that one function call.
-    constexpr int kSeedWidthPx = 233;
-    constexpr int kSeedHeightPx = 230;
+    constexpr int SEED_WIDTH_PX = 233;
+    constexpr int SEED_HEIGHT_PX = 230;
 
     TempGraphControllerConfig ctrl_config;
     ctrl_config.point_count = 300; // 5-minute window at 1Hz (matches mini graph)
     ctrl_config.axis_size = "xs";
-    ctrl_config.initial_features = features_for_size(kSeedWidthPx, kSeedHeightPx);
+    ctrl_config.initial_features = features_for_size(SEED_WIDTH_PX, SEED_HEIGHT_PX);
     // Uses default TempGraphScaleParams (same as mini graph and overlay)
     ctrl_config.series = build_series_from_config();
     applied_visibility_signature_ = current_visibility_signature();
 
     controller_ = std::make_unique<TempGraphController>(widget_obj_, std::move(ctrl_config));
+
+    // Discovery lands after the WebSocket connects, which is later than the
+    // startup attach of a dashboard widget. When it adds extruders this config
+    // has never seen, the series list itself is short a curve — the controller's
+    // own discovery retry only re-resolves series that already exist. Capture
+    // the current version so the immediate registration callback is a no-op.
+    {
+        auto& ps = get_printer_state();
+        if (auto* version_subj = ps.get_extruder_version_subject()) {
+            int initial_version = lv_subject_get_int(version_subj);
+            extruder_version_observer_ = helix::ui::observe_int_sync<TempGraphWidget>(
+                version_subj, this,
+                [initial_version](TempGraphWidget* self, int version) {
+                    if (version == initial_version)
+                        return; // Series were built against this version already
+                    self->schedule_discovery_rebuild();
+                },
+                ps.get_subjects_lifetime());
+        }
+    }
 
     // Match container bg to card (chart styling handled by controller)
     if (controller_ && controller_->is_valid()) {
@@ -116,11 +141,13 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         lv_obj_set_style_bg_opa(widget_obj_, LV_OPA_COVER, 0);
     }
 
-    spdlog::debug("[TempGraphWidget] Attached '{}' (seed {}x{}px)", instance_id_, kSeedWidthPx,
-                  kSeedHeightPx);
+    spdlog::debug("[TempGraphWidget] Attached '{}' (seed {}x{}px)", instance_id_, SEED_WIDTH_PX,
+                  SEED_HEIGHT_PX);
 }
 
 void TempGraphWidget::detach() {
+    cancel_discovery_rebuild();
+    extruder_version_observer_.reset();
     controller_.reset();
 
     if (widget_obj_) {
@@ -149,28 +176,69 @@ void TempGraphWidget::on_activate() {
     if (current_visibility_signature() == applied_visibility_signature_)
         return;
 
-    auto* saved_widget = widget_obj_;
-    auto* saved_parent = parent_screen_;
-    detach();
-    attach(saved_widget, saved_parent);
+    rebuild_in_place();
 }
 
 void TempGraphWidget::on_deactivate() {}
 
-void TempGraphWidget::apply_config_save(const nlohmann::json& new_config) {
-    config_ = new_config;
-    save_widget_config(config_);
-    // Snapshot the *current* widget pointers (panel rebuild between modal-open
-    // and save can free the originals; detach() then nulls these members).
+void TempGraphWidget::rebuild_in_place() {
+    // Snapshot the *current* widget pointers before detach() nulls them. They
+    // can also have been freed underneath us (a panel rebuild between
+    // modal-open and save — bundle RP293UCW), hence the validity check.
     auto* current_widget = widget_obj_;
     auto* current_parent = parent_screen_;
     detach();
     if (!current_widget || !lv_obj_is_valid(current_widget)) {
-        spdlog::warn("[TempGraphWidget] '{}' save: widget container gone, skipping reattach",
+        spdlog::warn("[TempGraphWidget] '{}' rebuild: widget container gone, skipping reattach",
                      instance_id_);
         return;
     }
     attach(current_widget, current_parent);
+}
+
+void TempGraphWidget::apply_config_save(const nlohmann::json& new_config) {
+    config_ = new_config;
+    save_widget_config(config_);
+    rebuild_in_place();
+}
+
+void TempGraphWidget::schedule_discovery_rebuild() {
+    if (discovery_rebuild_pending_) {
+        return; // Already queued — collapse the burst into one rebuild
+    }
+    discovery_rebuild_pending_ = true;
+    lv_async_call(discovery_rebuild_async, this);
+}
+
+void TempGraphWidget::cancel_discovery_rebuild() {
+    if (discovery_rebuild_pending_) {
+        if (lv_is_initialized()) {
+            lv_async_call_cancel(discovery_rebuild_async, this);
+        }
+        discovery_rebuild_pending_ = false;
+    }
+}
+
+void TempGraphWidget::discovery_rebuild_async(void* self) {
+    auto* widget = static_cast<TempGraphWidget*>(self);
+    widget->discovery_rebuild_pending_ = false;
+
+    if (!widget->widget_obj_) {
+        return; // Detached while queued
+    }
+
+    // Only rebuild when discovery actually added a curve we do not have. A bare
+    // version bump (rediscovery of the same tools) must not tear the graph down
+    // and throw away its trace — the controller re-resolves those subjects on
+    // its own.
+    if (!merge_discovered_extruders(widget->config_, true)) {
+        return;
+    }
+
+    widget->save_widget_config(widget->config_);
+    spdlog::info("[TempGraphWidget] '{}' rebuilding: discovery added extruders",
+                 widget->instance_id_);
+    widget->rebuild_in_place();
 }
 
 bool TempGraphWidget::on_edit_configure() {
@@ -291,51 +359,50 @@ void TempGraphWidget::build_default_config() {
     // Enumerate discovered extruders so multi-tool printers (Snapmaker U1,
     // toolchangers) get all nozzles enabled by default rather than just the
     // legacy single "extruder" entry.
+    // One running index across nozzles, bed, chamber and aux sensors, so no two
+    // series can land on the same palette slot. Bed and chamber used to carry
+    // literal copies of slots 1 and 2, which collided with the second nozzle's
+    // color on a multi-extruder machine.
+    int color_idx = 0;
+
     const auto& exts = get_printer_state().temperature_state().extruders();
     if (exts.empty()) {
         // Pre-discovery / single-extruder fallback
-        sensors.push_back({{"name", "extruder"}, {"enabled", true}, {"color", 0xFF4444}});
+        sensors.push_back({{"name", "extruder"},
+                           {"enabled", true},
+                           {"color", temp_graph_series_hex(color_idx++)}});
     } else {
         std::vector<std::string> extruder_names;
         extruder_names.reserve(exts.size());
         for (const auto& [name, _] : exts)
             extruder_names.push_back(name);
         std::sort(extruder_names.begin(), extruder_names.end());
-        int ext_color_idx = 0;
         for (const auto& name : extruder_names) {
-            lv_color_t c = TEMP_GRAPH_SERIES_COLORS[ext_color_idx % TEMP_GRAPH_PALETTE_SIZE];
-            uint32_t color_hex = (static_cast<uint32_t>(c.red) << 16) |
-                                 (static_cast<uint32_t>(c.green) << 8) |
-                                 static_cast<uint32_t>(c.blue);
-            sensors.push_back({{"name", name}, {"enabled", true}, {"color", color_hex}});
-            ++ext_color_idx;
+            sensors.push_back(
+                {{"name", name}, {"enabled", true}, {"color", temp_graph_series_hex(color_idx++)}});
         }
     }
-    sensors.push_back({{"name", "heater_bed"}, {"enabled", true}, {"color", 0x88C0D0}});
+    sensors.push_back(
+        {{"name", "heater_bed"}, {"enabled", true}, {"color", temp_graph_series_hex(color_idx++)}});
 
     // Check for chamber
     lv_subject_t* chamber_gate = lv_xml_get_subject(nullptr, "printer_has_chamber");
     if (chamber_gate && lv_subject_get_int(chamber_gate) != 0) {
-        sensors.push_back({{"name", "chamber"}, {"enabled", false}, {"color", 0xA3BE8C}});
+        sensors.push_back({{"name", "chamber"},
+                           {"enabled", false},
+                           {"color", temp_graph_series_hex(color_idx++)}});
     }
 
     // Add discovered auxiliary sensors (disabled by default)
-    int color_idx = static_cast<int>(sensors.size()); // Start after nozzles/bed/chamber colors
     auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
     auto discovered = sensor_mgr.get_sensors_sorted();
     for (const auto& sensor : discovered) {
         if (!sensor.enabled)
             continue;
-        uint32_t color_hex = 0;
-        lv_color_t c = TEMP_GRAPH_SERIES_COLORS[color_idx % TEMP_GRAPH_PALETTE_SIZE];
-        color_hex = (static_cast<uint32_t>(c.red) << 16) | (static_cast<uint32_t>(c.green) << 8) |
-                    static_cast<uint32_t>(c.blue);
-        color_idx++;
-
         sensors.push_back({
             {"name", sensor.klipper_name},
             {"enabled", false},
-            {"color", color_hex},
+            {"color", temp_graph_series_hex(color_idx++)},
         });
     }
 
@@ -432,9 +499,7 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
     // Extruders: defer to PrinterTemperatureState which already produces
     // "Nozzle" (single) / "Nozzle 1", "Nozzle 2", ... (multi). Keeps the
     // chip row, graph legend, and config modal aligned on one source of truth.
-    if (klipper_name == "extruder" ||
-        (klipper_name.size() > 8 && klipper_name.rfind("extruder", 0) == 0 &&
-         std::isdigit(static_cast<unsigned char>(klipper_name[8])))) {
+    if (const auto tool_number = tool_number_for_extruder(klipper_name)) {
         const auto& exts = get_printer_state().temperature_state().extruders();
         auto it = exts.find(klipper_name);
         if (it != exts.end() && !it->second.display_name.empty()) {
@@ -443,10 +508,9 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
         // Fallback when extruders haven't been discovered yet: derive a
         // best-effort number from the klipper suffix. "extruder" -> "Nozzle 1",
         // "extruderN" -> "Nozzle N+1".
-        if (klipper_name == "extruder")
+        if (*tool_number == 0)
             return lv_tr("Nozzle");
-        return std::string(lv_tr("Nozzle")) + " " +
-               std::to_string(std::atoi(klipper_name.c_str() + 8) + 1);
+        return std::string(lv_tr("Nozzle")) + " " + std::to_string(*tool_number + 1);
     }
     if (klipper_name == "heater_bed")
         return lv_tr("Bed");
@@ -542,11 +606,7 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     // left them.
     {
         auto& arr = config_["sensors"];
-        auto is_extruder_name = [](const std::string& n) {
-            return n == "extruder" || (n.size() > 8 && n.rfind("extruder", 0) == 0 &&
-                                       std::isdigit(static_cast<unsigned char>(n[8])));
-        };
-        auto entry_is_extruder = [&](const nlohmann::json& entry) {
+        auto entry_is_extruder = [](const nlohmann::json& entry) {
             return entry.contains("name") && entry["name"].is_string() &&
                    is_extruder_name(entry["name"].get<std::string>());
         };

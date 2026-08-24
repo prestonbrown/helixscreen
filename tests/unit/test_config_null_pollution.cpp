@@ -16,12 +16,14 @@
 //      garbage, folding any real legacy /led values into the active printer
 //      first (Work items 3/4).
 
+#include "../helix_test_fixture.h"
+#include "../test_helpers/config_test_access.h"
 #include "config.h"
 #include "hardware_validator.h"
-#include "printer_discovery.h"
-#include "settings_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
+#include "printer_discovery.h"
+#include "settings_manager.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -30,8 +32,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-#include "../helix_test_fixture.h"
-#include "../test_helpers/config_test_access.h"
 
 namespace fs = std::filesystem;
 using namespace helix;
@@ -41,8 +41,7 @@ namespace {
 /// Collect JSON-pointer paths of every null leaf in the document.
 /// Nulls nested inside arrays are reported too — the assertion is "no nulls
 /// anywhere", which is stricter than what the migration itself removes.
-void collect_null_leaves(const json& node, const std::string& path,
-                         std::vector<std::string>& out) {
+void collect_null_leaves(const json& node, const std::string& path, std::vector<std::string>& out) {
     if (node.is_null()) {
         out.push_back(path.empty() ? "/" : path);
         return;
@@ -67,20 +66,19 @@ std::vector<std::string> null_leaves(const json& doc) {
 /// The exact polluted shape reported in #1129 (values trimmed to the garbage
 /// plus enough real settings to prove they survive).
 json polluted_v19_config() {
-    return json{
-        {"config_version", 19},
-        {"active_printer_id", "voronv2"},
-        {"brightness", 80},
-        {"led", {{"auto_state", {{"enabled", nullptr}}}, {"selected_strips", nullptr}}},
-        {"printer", {{"leds", {{"startup_brightness", nullptr}}}}},
-        {"printers",
-         {{"voronv2",
-           {{"moonraker_host", "192.168.1.112"},
-            {"leds",
-             {{"selected_strips", json::array({"neopixel case_lights"})},
-              {"auto_state", {{"mappings", nullptr}}}}},
-            {"probe_sensors", {{"sensors", nullptr}}},
-            {"width_sensors", nullptr}}}}}};
+    return json{{"config_version", 19},
+                {"active_printer_id", "voronv2"},
+                {"brightness", 80},
+                {"led", {{"auto_state", {{"enabled", nullptr}}}, {"selected_strips", nullptr}}},
+                {"printer", {{"leds", {{"startup_brightness", nullptr}}}}},
+                {"printers",
+                 {{"voronv2",
+                   {{"moonraker_host", "192.168.1.112"},
+                    {"leds",
+                     {{"selected_strips", json::array({"neopixel case_lights"})},
+                      {"auto_state", {{"mappings", nullptr}}}}},
+                    {"probe_sensors", {{"sensors", nullptr}}},
+                    {"width_sensors", nullptr}}}}}};
 }
 
 class ConfigPollutionFixture : public HelixTestFixture {
@@ -355,21 +353,19 @@ TEST_CASE_METHOD(ConfigPollutionFixture, "Config migration v20: real settings su
 TEST_CASE_METHOD(ConfigPollutionFixture,
                  "Config migration v20: folds real legacy /led values into the active printer",
                  "[config][migration][pollution]") {
-    json macro = {{"name", "Migration Macro"},
-                  {"type", "toggle"},
-                  {"toggle_macro", "MIGRATE_TOGGLE"}};
-    json v19 = {
-        {"config_version", 19},
-        {"active_printer_id", "voronv2"},
-        {"led",
-         {{"selected_strips", json::array({"neopixel legacy_light"})},
-          {"last_color", "#AA5500"},
-          {"last_brightness", 55},
-          {"color_presets", json::array({"#FF0000", "#00FF00"})},
-          {"macro_devices", json::array({macro})},
-          {"auto_state",
-           {{"enabled", true}, {"mappings", {{"printing", {{"action", "color"}}}}}}}}},
-        {"printers", {{"voronv2", {{"moonraker_host", "192.168.1.112"}}}}}};
+    json macro = {
+        {"name", "Migration Macro"}, {"type", "toggle"}, {"toggle_macro", "MIGRATE_TOGGLE"}};
+    json v19 = {{"config_version", 19},
+                {"active_printer_id", "voronv2"},
+                {"led",
+                 {{"selected_strips", json::array({"neopixel legacy_light"})},
+                  {"last_color", "#AA5500"},
+                  {"last_brightness", 55},
+                  {"color_presets", json::array({"#FF0000", "#00FF00"})},
+                  {"macro_devices", json::array({macro})},
+                  {"auto_state",
+                   {{"enabled", true}, {"mappings", {{"printing", {{"action", "color"}}}}}}}}},
+                {"printers", {{"voronv2", {{"moonraker_host", "192.168.1.112"}}}}}};
     write_and_init(v19);
 
     REQUIRE_FALSE(config.exists("/led"));
@@ -414,8 +410,7 @@ TEST_CASE_METHOD(ConfigPollutionFixture,
         {"active_printer_id", "voronv2"},
         {"led", {{"selected_strips", json::array({"neopixel legacy_light"})}}},
         {"printers",
-         {{"voronv2",
-           {{"leds", {{"selected_strips", json::array({"neopixel case_lights"})}}}}}}}};
+         {{"voronv2", {{"leds", {{"selected_strips", json::array({"neopixel case_lights"})}}}}}}}};
     write_and_init(v19);
 
     REQUIRE_FALSE(config.exists("/led"));
@@ -423,9 +418,10 @@ TEST_CASE_METHOD(ConfigPollutionFixture,
             std::vector<std::string>{"neopixel case_lights"});
 }
 
-TEST_CASE_METHOD(ConfigPollutionFixture,
-                 "Config migration v20: a null-valued fold target does not swallow the legacy value",
-                 "[config][migration][pollution]") {
+TEST_CASE_METHOD(
+    ConfigPollutionFixture,
+    "Config migration v20: a null-valued fold target does not swallow the legacy value",
+    "[config][migration][pollution]") {
     // The exact shape main leaves behind. LedController::load_config() probed
     // leds/last_color, leds/last_white, leds/color_presets, leds/macro_devices,
     // leds/led_on_at_start and leds/startup_brightness through Config::get_json(),
@@ -532,9 +528,10 @@ TEST_CASE_METHOD(ConfigPollutionFixture,
     SECTION("a value-free /led is still erased") {
         // The pollution-only case the migration exists for: no target, but nothing
         // worth keeping either. Erasing is correct here.
-        json v19 = {{"config_version", 19},
-                    {"active_printer_id", "ghost"},
-                    {"led", {{"selected_strips", nullptr}, {"auto_state", {{"enabled", nullptr}}}}}};
+        json v19 = {
+            {"config_version", 19},
+            {"active_printer_id", "ghost"},
+            {"led", {{"selected_strips", nullptr}, {"auto_state", {{"enabled", nullptr}}}}}};
         write_and_init(v19);
 
         INFO("post-migration config: " << ConfigTestAccess::data(config).dump(2));

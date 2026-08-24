@@ -6,7 +6,7 @@
 #include "ui_nav_manager.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
 
@@ -28,7 +28,7 @@ RetractionSettingsOverlay& get_global_retraction_settings() {
     return *g_retraction_settings;
 }
 
-void init_global_retraction_settings(MoonrakerAPI* api) {
+void init_global_retraction_settings(IMoonrakerAPI* api) {
     if (g_retraction_settings) {
         spdlog::warn(
             "[Retraction Settings] RetractionSettingsOverlay already initialized, skipping");
@@ -45,7 +45,7 @@ void init_global_retraction_settings(MoonrakerAPI* api) {
     spdlog::trace("[Retraction Settings] RetractionSettingsOverlay initialized");
 }
 
-RetractionSettingsOverlay::RetractionSettingsOverlay(MoonrakerAPI* api) : api_(api) {
+RetractionSettingsOverlay::RetractionSettingsOverlay(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[{}] Constructor", get_name());
 }
 

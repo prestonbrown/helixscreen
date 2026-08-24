@@ -219,13 +219,13 @@ std::vector<std::string> SensorState::energy_sensor_ids() const {
     return ids;
 }
 
-void SensorState::subscribe(MoonrakerAPI& api) {
+void SensorState::subscribe(IMoonrakerAPI& api) {
     api.register_method_callback("notify_sensor_update", "sensor_state",
                                  [this](const nlohmann::json& msg) { on_sensor_update(msg); });
     spdlog::debug("[SensorState] Subscribed to notify_sensor_update");
 }
 
-void SensorState::unsubscribe(MoonrakerAPI& api) {
+void SensorState::unsubscribe(IMoonrakerAPI& api) {
     api.unregister_method_callback("notify_sensor_update", "sensor_state");
     deinit_subjects();
     spdlog::debug("[SensorState] Unsubscribed and cleaned up");

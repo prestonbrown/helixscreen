@@ -16,6 +16,7 @@
 
 #include <array>
 #include <climits>
+#include <cmath>
 #include <glm/glm.hpp>
 #include <limits>
 #include <map>
@@ -24,6 +25,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace helix {
@@ -71,6 +73,45 @@ struct AABB {
         return min.x > max.x || min.y > max.y || min.z > max.z;
     }
 
+    /**
+     * @brief Copy with every axis pair ordered so min <= max.
+     *
+     * A box assembled field-by-field from independently tracked sources (the
+     * streaming index's stats, slicer metadata) can arrive with one axis
+     * inverted while the others hold good data. Every consumer gates on
+     * is_empty(), which is a single OR across all three axes, so one bad axis
+     * silently discards the two that were fine — the 2D auto-fit falls back to
+     * scale 1.0 about the world origin and the 3D camera declines to move.
+     *
+     * Axes that were never written keep their sentinel (±inf from this struct,
+     * or the float max/lowest pair the index stats use) and stay inverted:
+     * they carry no extent to order, and fabricating a span from the sentinels
+     * would turn "no geometry" into a plausible-looking box.
+     */
+    AABB normalized() const {
+        AABB out = *this;
+        order_axis(out.min.x, out.max.x);
+        order_axis(out.min.y, out.max.y);
+        order_axis(out.min.z, out.max.z);
+        return out;
+    }
+
+  private:
+    /// Swap one axis pair into order, unless either side is still a sentinel.
+    static void order_axis(float& lo, float& hi) {
+        if (lo <= hi) {
+            return;
+        }
+        if (!std::isfinite(lo) || !std::isfinite(hi)) {
+            return;
+        }
+        if (lo >= std::numeric_limits<float>::max() || hi <= std::numeric_limits<float>::lowest()) {
+            return;
+        }
+        std::swap(lo, hi);
+    }
+
+  public:
     /// 8 corners of the box. Order: bits 0/1/2 of the index select max for x/y/z.
     std::array<glm::vec3, 8> corners() const {
         return {{
@@ -830,12 +871,20 @@ GCodeHeaderMetadata extract_header_metadata_from_content(const std::string& cont
  *     ignored, and `Tn` appearing inside a comment is ignored.
  *
  * @param content G-code content (a whole file, or any line-complete chunk).
+ * @param early_exit_full_set When non-empty, scanning stops as soon as the
+ *        seen set covers it (`seen ⊇ early_exit_full_set`). Soundness:
+ *        callers pass the full slicer palette {0..N-1}; tools at indices
+ *        >= palette size are already dropped by every downstream consumer
+ *        (get_used_tool_info() filters to palette indices), so a missed
+ *        beyond-palette tool is invisible. Empty set => scan whole content
+ *        (back-compat).
  * @return Distinct tool indices seen. Unlike ParsedGCodeFile::tools_used_indices,
  *         this does NOT inject {0} for single-extruder files with only a color
  *         palette (it has no palette knowledge); callers needing that convention
  *         should fall back to {0} when this returns an empty set and tools exist.
  */
-std::set<int> scan_tools_used_from_content(const std::string& content);
+std::set<int> scan_tools_used_from_content(const std::string& content,
+                                           std::set<int> early_exit_full_set = {});
 
 /**
  * @brief Streaming, memory-safe variant of scan_tools_used_from_content() that
@@ -846,9 +895,17 @@ std::set<int> scan_tools_used_from_content(const std::string& content);
  * into a std::string on constrained devices.
  *
  * @param filepath Path to a local G-code file.
+ * @param early_exit_full_set When non-empty, scanning stops as soon as the
+ *        seen set covers it (`seen ⊇ early_exit_full_set`). Soundness:
+ *        callers pass the full slicer palette {0..N-1}; tools at indices
+ *        >= palette size are already dropped by every downstream consumer
+ *        (get_used_tool_info() filters to palette indices), so a missed
+ *        beyond-palette tool is invisible. Empty set => scan whole file
+ *        (back-compat).
  * @return Distinct tool indices seen (empty if the file can't be opened).
  */
-std::set<int> scan_tools_used_from_file(const std::string& filepath);
+std::set<int> scan_tools_used_from_file(const std::string& filepath,
+                                        std::set<int> early_exit_full_set = {});
 
 } // namespace gcode
 } // namespace helix

@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -51,7 +51,7 @@ class FavoriteMacroConfigModal : public Modal {
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
     void select_skip_param(bool enabled);
-    MoonrakerAPI* get_api() const;
+    IMoonrakerAPI* get_api() const;
 
     std::string widget_id_;
     std::string panel_id_;

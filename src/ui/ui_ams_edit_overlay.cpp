@@ -31,7 +31,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_toast_manager.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
@@ -54,7 +54,7 @@ bool AmsEditOverlay::callbacks_registered_ = false;
 // Fire-and-forget: notify Moonraker of the active spool so other clients
 // (Mainsail, Fluidd) see the change and filament tracking works.
 // Pass 0 to clear the active spool (unlink).
-static void sync_active_spool(MoonrakerAPI* api, int spool_id) {
+static void sync_active_spool(IMoonrakerAPI* api, int spool_id) {
     spdlog::info("[AmsEditOverlay] Syncing active spool to {} on server", spool_id);
     api->spoolman().set_active_spool(
         spool_id,
@@ -103,7 +103,7 @@ lv_obj_t* AmsEditOverlay::find_widget(const char* name) const {
 // ============================================================================
 
 bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotInfo& initial_info,
-                                   MoonrakerAPI* api, CompletionCallback on_complete,
+                                   IMoonrakerAPI* api, CompletionCallback on_complete,
                                    bool open_on_picker) {
     // A previous widget tree may have died with its screen (display rebuild,
     // test teardown) without the destroy-on-close path running — drop the
@@ -158,7 +158,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
 
     // Reset per-session view state HERE (covered-safe — on_deactivate must not
     // touch it, since it also fires when the QR scanner merely covers us).
-    set_view(open_on_picker ? kViewSpoolPicker : kViewOverview);
+    set_view(open_on_picker ? VIEW_SPOOL_PICKER : VIEW_OVERVIEW);
     if (open_on_picker) {
         populate_picker();
     }
@@ -366,7 +366,7 @@ void AmsEditOverlay::init_subjects() {
                                sizeof(remaining_pct_buf_), "\xE2\x80\x94");
         subjects_.register_subject(&remaining_pct_subject_);
 
-        // View state (kViewOverview..kViewColor) - registered globally
+        // View state (VIEW_OVERVIEW..VIEW_COLOR) - registered globally
         UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "ams_edit_view", subjects_);
 
         // Picker state (0=loading, 1=empty, 2=content) - registered globally
@@ -425,7 +425,7 @@ void AmsEditOverlay::set_view(int view) {
     // Header Save is visible on the overview AND the spool-edit view (where it
     // finishes the whole edit and closes). The picker and color views hide it.
     lv_subject_set_int(&save_hidden_subject_,
-                       (view == kViewOverview || view == kViewSpoolEdit) ? 0 : 1);
+                       (view == VIEW_OVERVIEW || view == VIEW_SPOOL_EDIT) ? 0 : 1);
     // Refresh the enabled/disabled gate for the new view: spool-edit forces it
     // enabled (edits live in widgets, not yet staged); the overview keeps the
     // is_dirty() gating. update_sync_button_state() reads the view subject we
@@ -444,7 +444,7 @@ void AmsEditOverlay::switch_to_picker() {
     // selection returns to the overview for review, so drop the picker-entry
     // one-tap-commit shortcut (task #13).
     opened_on_picker_ = false;
-    set_view(kViewSpoolPicker);
+    set_view(VIEW_SPOOL_PICKER);
     populate_picker();
 }
 
@@ -452,7 +452,7 @@ void AmsEditOverlay::switch_to_form() {
     if (!subjects_initialized_) {
         return;
     }
-    set_view(kViewOverview);
+    set_view(VIEW_OVERVIEW);
     spdlog::debug("[AmsEditOverlay] Switched to form view");
 }
 
@@ -718,13 +718,13 @@ void AmsEditOverlay::repopulate() {
     // on_activate() refreshes it.
     const int view = lv_subject_get_int(&view_mode_subject_);
     switch (view) {
-    case kViewSpoolPicker:
+    case VIEW_SPOOL_PICKER:
         populate_picker();
         break;
-    case kViewSpoolEdit:
+    case VIEW_SPOOL_EDIT:
         populate_spool_edit_view();
         break;
-    case kViewColor:
+    case VIEW_COLOR:
         // Reached from spool-edit, which stays built underneath it.
         populate_spool_edit_view();
         populate_color_view();
@@ -789,7 +789,7 @@ void AmsEditOverlay::enter_spool_edit() {
     // hidden flag to `label_printer_configured` in ams_edit_overlay.xml, so
     // pairing a printer while this view is open reveals the button live.
 
-    set_view(kViewSpoolEdit);
+    set_view(VIEW_SPOOL_EDIT);
 
     // Managed slots: refresh logistics from Spoolman (fresh data on view entry
     // rather than trusting cached_spools_ — review §3). Untracked slots, and
@@ -1213,6 +1213,7 @@ void AmsEditOverlay::on_detail_field_changed_cb(lv_event_t* e) {
 }
 
 void AmsEditOverlay::handle_scan_qr() {
+#if HELIX_HAS_CAMERA
     spdlog::info("[AmsEditOverlay] Scan QR requested for slot {}", slot_index_);
 
     // The scanner overlay pushes ON TOP of the editor (spec §13.5). Our
@@ -1255,6 +1256,9 @@ void AmsEditOverlay::handle_scan_qr() {
             // to do — session state was never torn down.
             spdlog::debug("[AmsEditOverlay] QR scan cancelled - editor resumes");
         });
+#else
+    spdlog::debug("[AmsEditOverlay] Scan QR unavailable (no camera) for slot {}", slot_index_);
+#endif // HELIX_HAS_CAMERA
 }
 
 #if HELIX_HAS_LABEL_PRINTER
@@ -1320,11 +1324,18 @@ void AmsEditOverlay::update_spoolman_button_state() {
     // lone Change Filament button centered.
     lv_obj_t* scan_btn = find_widget("btn_scan_qr_code");
     if (scan_btn) {
+#if defined(HELIX_PLATFORM_ESP32)
+        // No camera on the v1 Core+AMS cut — Scan QR has no offline analogue,
+        // so keep it hidden regardless of Spoolman availability.
+        lv_obj_add_flag(scan_btn, LV_OBJ_FLAG_HIDDEN);
+        (void)has_spoolman;
+#else
         if (has_spoolman) {
             lv_obj_remove_flag(scan_btn, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(scan_btn, LV_OBJ_FLAG_HIDDEN);
         }
+#endif
     }
 }
 
@@ -1559,7 +1570,7 @@ void AmsEditOverlay::update_sync_button_state() {
     // can't see them. Overview: dirty-gated (replaces the modal's Save/Close text
     // morph). Reads (never writes) the view subject.
     const int view = lv_subject_get_int(&view_mode_subject_);
-    const bool disabled = (view == kViewSpoolEdit) ? false : !is_dirty();
+    const bool disabled = (view == VIEW_SPOOL_EDIT) ? false : !is_dirty();
     lv_subject_set_int(&save_disabled_subject_, disabled ? 1 : 0);
 }
 
@@ -1571,7 +1582,7 @@ void AmsEditOverlay::open_color_view() {
         custom_color_ = 0x808080;
     }
     populate_color_view();
-    set_view(kViewColor);
+    set_view(VIEW_COLOR);
     spdlog::debug("[AmsEditOverlay] Color view opened (returns to spool-edit)");
 }
 
@@ -1602,7 +1613,7 @@ void AmsEditOverlay::apply_color(uint32_t rgb) {
     if (preview) {
         helix::ui::apply_swatch_color(preview, rgb, {});
     }
-    set_view(kViewSpoolEdit);
+    set_view(VIEW_SPOOL_EDIT);
 }
 
 void AmsEditOverlay::handle_color_swatch(lv_obj_t* swatch) {
@@ -1706,21 +1717,21 @@ void AmsEditOverlay::close_editor(bool saved) {
 void AmsEditOverlay::handle_back() {
     int view = lv_subject_get_int(&view_mode_subject_);
     switch (view) {
-    case kViewSpoolPicker:
+    case VIEW_SPOOL_PICKER:
         switch_to_form();
         break;
-    case kViewSpoolEdit:
+    case VIEW_SPOOL_EDIT:
         // Leave without applying (Save is the apply path)
         details_selector_.detach();
         details_selector_.clear_catalog();
         switch_to_form();
         break;
-    case kViewColor:
+    case VIEW_COLOR:
         // Leave without applying; the color view is only reachable from
         // spool-edit, so it always pops back there.
-        set_view(kViewSpoolEdit);
+        set_view(VIEW_SPOOL_EDIT);
         break;
-    case kViewOverview:
+    case VIEW_OVERVIEW:
     default:
         // Back on the overview = Cancel: discard changes, close (spec §13.3)
         spdlog::debug("[AmsEditOverlay] Back on overview - cancelling");
@@ -1760,7 +1771,7 @@ void AmsEditOverlay::handle_save() {
     // view's identity/color/logistics edits first (may go async for a tracked
     // slot's two-PATCH), then the apply path routes into commit_and_close().
     // Validation failure keeps the user on the view.
-    if (lv_subject_get_int(&view_mode_subject_) == kViewSpoolEdit) {
+    if (lv_subject_get_int(&view_mode_subject_) == VIEW_SPOOL_EDIT) {
         handle_spool_edit_save(/*finish=*/true);
         return;
     }
@@ -1774,24 +1785,15 @@ void AmsEditOverlay::commit_and_close() {
         api_ = get_moonraker_api();
     }
 
-    // Sync active spool with Moonraker on every save (idempotent POST; see
-    // Phase-1 notes). Skipped for the new-spool-on-save path (id still 0);
-    // that case re-syncs from the create callback in do_spoolman_save().
-    if (api_ && working_info_.spoolman_id > 0) {
-        sync_active_spool(api_, working_info_.spoolman_id);
-    } else if (api_ && original_info_.spoolman_id > 0 && working_info_.spoolman_id == 0) {
-        // Unassignment: propagate 0 so Moonraker clears its active spool.
-        sync_active_spool(api_, 0);
-    }
-
     // Switching the linked spool (A>0 -> B>0, or 0 -> B>0) is a pure RELINK, not
     // an edit of the linked spool's record. The newly linked spool already owns
     // its identity/weight in Spoolman, so there is nothing to confirm and nothing
     // to PATCH — prompting to "update the linked spool anyway" or repointing a
-    // spool here would corrupt the wrong record (task #16). The new active spool
-    // was already registered by sync_active_spool() above; commit the link
-    // locally and close. Unlink (working id == 0) is intentionally NOT treated as
-    // a relink — it falls through to the existing new-spool / local-close logic.
+    // spool here would corrupt the wrong record (task #16). The completion
+    // consumer's commit_slot_edit()/commit_external_spool_edit() call registers
+    // the new active spool server-side; commit the link locally and close.
+    // Unlink (working id == 0) is intentionally NOT treated as a relink — it
+    // falls through to the existing new-spool / local-close logic.
     const bool relinked_to_existing_spool =
         working_info_.spoolman_id > 0 && working_info_.spoolman_id != original_info_.spoolman_id;
     if (relinked_to_existing_spool) {
@@ -1857,10 +1859,12 @@ void AmsEditOverlay::do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent inten
                             if (result.new_vendor_id != 0) {
                                 working_info_.spoolman_vendor_id = result.new_vendor_id;
                             }
-                            // The early sync_active_spool() above was skipped because
-                            // spoolman_id was 0 on both sides (creation hadn't happened
-                            // yet). Notify Moonraker now so Mainsail/Fluidd show the
-                            // new spool as active and filament tracking starts.
+                            // Deliberate async exception to "the commit owns
+                            // the active-spool sync": a newly created spool's
+                            // id only exists HERE, after the completion
+                            // consumer already ran with id 0. Notify Moonraker
+                            // now so Mainsail/Fluidd show the new spool as
+                            // active and filament tracking starts.
                             if (result.created_new_spool && result.new_spool_id != 0 && api_) {
                                 sync_active_spool(api_, result.new_spool_id);
                             }
@@ -1951,7 +1955,7 @@ void AmsEditOverlay::on_identity_cancel_cb(lv_event_t* /*e*/) {
     // reattach_details_selector()'s doc comment for why). Abort leaves the
     // user ON the spool-edit view, so revive the selector or the vendor/
     // type/product picker goes dead.
-    if (lv_subject_get_int(&overlay.view_mode_subject_) == kViewSpoolEdit) {
+    if (lv_subject_get_int(&overlay.view_mode_subject_) == VIEW_SPOOL_EDIT) {
         overlay.reattach_details_selector();
     }
 }
@@ -2043,7 +2047,7 @@ void AmsEditOverlay::maybe_merge_spoolman_vendors() {
             tok.defer("AmsEditOverlay::merge_spoolman_vendors_apply",
                       [this, names = std::move(names)]() mutable {
                           // Only meaningful while the spool-edit view is still up.
-                          if (lv_subject_get_int(&view_mode_subject_) != kViewSpoolEdit) {
+                          if (lv_subject_get_int(&view_mode_subject_) != VIEW_SPOOL_EDIT) {
                               return;
                           }
                           details_selector_.set_additional_vendors(std::move(names));

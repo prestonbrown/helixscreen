@@ -144,7 +144,7 @@ helix::PromptData make_prompt(const std::string& title, int n_buttons) {
 //    lv_mem_core_clib.c) that leaves lv_mem_monitor_t zeroed — free_size would
 //    read 0 on both samples and the check would pass against any leak
 //    whatsoever. The number comes from the C allocator instead. Treat it as a
-//    coarse backstop: see kHeapGrowthLimitBytes for the measured noise.
+//    coarse backstop: see HEAP_GROWTH_LIMIT_BYTES for the measured noise.
 size_t heap_bytes() {
 #if defined(__APPLE__)
     return static_cast<size_t>(mstats().bytes_used);
@@ -182,7 +182,7 @@ size_t heap_bytes() {
 // The exact detector is the widget census below; this is only the backstop for
 // a leak that is not an lv_obj. If you are hunting a byte-level regression, run
 // the file under ASan (see the header comment) rather than tightening this.
-constexpr long kHeapGrowthLimitBytes = 8L * 1024L * 1024L;
+constexpr long HEAP_GROWTH_LIMIT_BYTES = 8L * 1024L * 1024L;
 
 void require_no_heap_growth(size_t before, size_t after, const char* what) {
     if (before == 0 || after == 0) {
@@ -191,10 +191,10 @@ void require_no_heap_growth(size_t before, size_t after, const char* what) {
     }
     const long delta = static_cast<long>(after) - static_cast<long>(before);
     spdlog::info("[action_prompt-stress/{}] heap delta {} bytes (limit {})", what, delta,
-                 kHeapGrowthLimitBytes);
+                 HEAP_GROWTH_LIMIT_BYTES);
     INFO("heap grew " << delta << " bytes across the " << what << " burst (limit "
-                      << kHeapGrowthLimitBytes << ")");
-    REQUIRE(delta < kHeapGrowthLimitBytes);
+                      << HEAP_GROWTH_LIMIT_BYTES << ")");
+    REQUIRE(delta < HEAP_GROWTH_LIMIT_BYTES);
 }
 
 uint32_t count_descendants(lv_obj_t* obj) {
@@ -249,6 +249,22 @@ class ActionPromptStressFixture : public LVGLUITestFixture {
         helix::DisplaySettingsManager::instance().set_animations_enabled(false);
 
         modal_.set_gcode_callback([](const std::string&) { /* no-op */ });
+
+        // Settle the tree BEFORE any test takes its baseline. Every check here
+        // is a delta, so the starting sample has to come from a quiet tree.
+        // safe_delete_deferred_raw() reparents to lv_layer_top() and only then
+        // calls lv_obj_delete_async(), so an earlier test in the same process
+        // that returned with deletes still queued leaves that debris sitting on
+        // the top layer — inside the census. Our own process_lvgl() then drains
+        // it mid-run, and the post-run census lands BELOW the baseline, failing
+        // as if this modal had over-deleted. Catch2 shuffles test order, so
+        // which run trips it depends on the seed.
+        //
+        // Loop because a drained callback can queue more work.
+        for (int i = 0; i < 5; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(20);
+        }
     }
 
     ~ActionPromptStressFixture() override {

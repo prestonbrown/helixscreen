@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "logging_init.h"
 
+#include <spdlog/pattern_formatter.h>
+
 #ifndef HELIX_WATCHDOG
 #include "hv/hlog.h"
 #endif
@@ -163,10 +165,32 @@ LogTarget g_effective_target = LogTarget::Auto;
 std::string g_effective_file_path;
 
 // Process-global handle to the in-memory ring-buffer sink. Installed on every
-// platform by init() and read by tail_ring_buffer() (debug-bundle log_tail).
-// Rebuilt on each init() — a shared_ptr so a logger swap never frees it out
-// from under a concurrent tail read. Null in the watchdog build / before init.
+// platform by init_early() (and by init() for the watchdog build, which has no
+// early phase) and read by tail_ring_buffer() (debug-bundle log_tail). Rebuilt
+// on each init() that does not follow an init_early() — a shared_ptr so a logger
+// swap never frees it out from under a concurrent tail read. Null before init.
 std::shared_ptr<MonotonicRingSink> g_ring_sink;
+
+// True between init_early() and the init() that takes over its ring sink.
+//
+// init() ADOPTS that sink instead of building a new one, so everything logged
+// during startup Phase 2 — Config load and its corrupt/restore diagnostics — is
+// still in the buffer the debug bundle reads. Bundle XGVDYEB5 is what this
+// exists for: a user-visible "settings were corrupted, restored from backup"
+// toast, and not one line of the config trail anywhere in a 20,000-line
+// log_tail, because the early logger had no ring and init() then replaced it.
+//
+// Cleared on adoption, so any LATER init() rebuilds the ring exactly as before.
+// Production calls init() once (Application::init_logging, helix_watchdog), so
+// nothing real re-enters; tests re-initialize the logger constantly and rely on
+// each init() handing them a clean buffer.
+bool g_early_ring_unadopted = false;
+
+// Level of the console sink init_early() installs, and the level the early ring
+// falls back to when HELIX_BUNDLE_LOG_DEBUG=0 declines debug capture. Also the
+// production default log level, so an early line that clears this floor would
+// have been kept by the full logger too.
+constexpr spdlog::level::level_enum EARLY_CONSOLE_LEVEL = spdlog::level::warn;
 
 // The user-configured level the persistent sinks run at (the logger floor may
 // be lower so the ring captures debug). Recorded for the bundle's log_meta.
@@ -177,15 +201,15 @@ spdlog::level::level_enum g_effective_log_level = spdlog::level::warn;
 // is the historical fixed size, kept as the floor so the smallest boards (AD5M
 // at ~107 MB) keep exactly what they had: ~2000 lines ≈ 300 KB at typical line
 // lengths. Tunable in both directions via HELIX_LOG_RING_LINES.
-constexpr size_t kMinRingLines = 2000;
+constexpr size_t MIN_RING_LINES = 2000;
 
 /// Upper bound: past a few thousand lines a bundle reader is scrolling, not
 /// diagnosing, and the memory stops paying for itself.
-constexpr size_t kMaxRingLines = 20000;
+constexpr size_t MAX_RING_LINES = 20000;
 
 /// ~150 bytes per retained line (≈119 bytes of text plus std::string overhead,
 /// measured against real AD5X bundles), so 16 lines/MB budgets ~0.24% of RAM.
-constexpr size_t kRingLinesPerMb = 16;
+constexpr size_t RING_LINES_PER_MB = 16;
 
 size_t resolve_ring_capacity() {
     // Explicit override always wins — a constrained board can pin it down and a
@@ -326,10 +350,35 @@ void add_system_sink(std::vector<spdlog::sink_ptr>& sinks, LogTarget target,
                 max_files = static_cast<size_t>(v);
             }
         }
-        auto sink =
-            std::make_shared<spdlog::sinks::rotating_file_sink_mt>(path, max_bytes, max_files);
-        sink->set_formatter(make_formatter(SinkKind::File));
-        sinks.push_back(std::move(sink));
+        try {
+            auto sink =
+                std::make_shared<spdlog::sinks::rotating_file_sink_mt>(path, max_bytes, max_files);
+            sink->set_formatter(make_formatter(SinkKind::File));
+            sinks.push_back(std::move(sink));
+        } catch (const spdlog::spdlog_ex& e) {
+            // rotating_file_sink_mt THROWS when the path cannot be opened —
+            // missing parent directory, read-only mount, full flash. That
+            // exception used to propagate out of init() and out of
+            // Application::run(), so a bad HELIX_LOG_FILE took the whole UI
+            // down. Logging is never worth refusing to boot over: degrade to
+            // whatever this platform would have picked on its own and say so.
+            // Matters now that platform hooks steer the log at firmware-owned
+            // directories that may not exist on every variant (#1249).
+            LogTarget fallback = detect_best_target();
+            spdlog::warn("[Logging] Cannot open log file '{}' ({}); falling back to {}", path,
+                         e.what(), log_target_name(fallback));
+            // Guard the recursion: detect_best_target() never returns File
+            // today, but a future platform branch that did would loop forever.
+            if (fallback != LogTarget::File) {
+                add_system_sink(sinks, fallback, "");
+            }
+            // Keep effective_destination()/effective_log_file_path() honest —
+            // the crash reporter and debug-bundle collector read the latter to
+            // find the live log, and a path with no sink behind it would send
+            // them at a file that does not exist.
+            g_effective_target = fallback;
+            g_effective_file_path.clear();
+        }
         break;
     }
 #ifdef HELIX_PLATFORM_ANDROID
@@ -419,8 +468,8 @@ bool is_clock_step(double wall_delta_s, double mono_delta_s) {
     // adjtime() slews at most ~500 ppm, so over any interval the honest
     // wall-vs-monotonic disagreement stays under 0.05% of the interval. One
     // full second is orders of magnitude beyond that and cannot be slew.
-    constexpr double kStepThresholdSeconds = 1.0;
-    return std::fabs(wall_delta_s - mono_delta_s) > kStepThresholdSeconds;
+    constexpr double STEP_THRESHOLD_SECONDS = 1.0;
+    return std::fabs(wall_delta_s - mono_delta_s) > STEP_THRESHOLD_SECONDS;
 }
 
 std::unique_ptr<spdlog::formatter> make_formatter(SinkKind kind) {
@@ -445,13 +494,43 @@ void init_early() {
     {
         auto console = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         console->set_formatter(make_formatter(SinkKind::Console));
+        // Pinned explicitly, because the logger floor below now drops to debug
+        // for the ring's sake and a sink's own default level is trace. Without
+        // this the early console would start echoing debug to stdout — which a
+        // daemonized launch redirects straight into the journal or log file.
+        console->set_level(EARLY_CONSOLE_LEVEL);
         sinks.push_back(std::move(console));
     }
+
+    // Ring-buffer sink, installed HERE rather than waiting for init(). Startup
+    // Phase 2 (Config load, corrupt-settings restore, backup recovery) runs
+    // entirely before init(), so without a ring at this point those lines exist
+    // in no artifact a user can send us — see g_early_ring_unadopted.
+    //
+    // resolve_ring_capacity() is safe this early: it reads HELIX_LOG_RING_LINES
+    // and /proc/meminfo, neither of which needs Config. Cost is one extra
+    // PlatformCapabilities::detect() at startup, not extra memory — init()
+    // adopts this sink instead of allocating a second one.
+    //
+    // Level split mirrors init(): the ring gets debug, the console stays at
+    // EARLY_CONSOLE_LEVEL, and the logger floor is the more verbose of the two
+    // because spdlog gates at the logger before any sink sees a message. When
+    // HELIX_BUNDLE_LOG_DEBUG=0 declines debug capture there is no configured
+    // level to fall back to yet, so the ring matches the console — which leaves
+    // the early logger behaving exactly as it did before this sink existed.
+    const spdlog::level::level_enum ring_level =
+        ring_captures_debug() ? spdlog::level::debug : EARLY_CONSOLE_LEVEL;
+    g_ring_sink = std::make_shared<MonotonicRingSink>(resolve_ring_capacity());
+    g_ring_sink->set_formatter(make_formatter(SinkKind::File));
+    g_ring_sink->set_level(ring_level);
+    g_early_ring_unadopted = true;
+    sinks.push_back(g_ring_sink);
+
 #ifndef HELIX_WATCHDOG
     sinks.push_back(crash_error_log_sink());
 #endif
     auto logger = std::make_shared<spdlog::logger>("helix", sinks.begin(), sinks.end());
-    logger->set_level(spdlog::level::warn);
+    logger->set_level(std::min(EARLY_CONSOLE_LEVEL, ring_level));
     spdlog::set_default_logger(logger);
 }
 
@@ -563,7 +642,8 @@ void init(const LogConfig& config) {
         }
     }
 
-    // In-memory ring-buffer sink — installed on ALL platforms. This is the
+    // In-memory ring-buffer sink — installed on ALL platforms, adopted from
+    // init_early() when there is one to adopt (see below). This is the
     // authoritative source for the debug bundle's log_tail: always the live
     // process, always fresh, and (by default) always carrying DEBUG even when
     // the persistent sinks run at WARN. On syslog-target devices (AD5X/AD5M)
@@ -578,8 +658,18 @@ void init(const LogConfig& config) {
     // value; HELIX_BUNDLE_LOG_DEBUG=0 reverts the ring to the configured level.
     const spdlog::level::level_enum ring_level =
         ring_captures_debug() ? spdlog::level::debug : config.level;
-    g_ring_sink = std::make_shared<MonotonicRingSink>(resolve_ring_capacity());
-    g_ring_sink->set_formatter(make_formatter(SinkKind::File));
+    if (g_early_ring_unadopted) {
+        // Carry init_early()'s buffer forward rather than replacing it, so the
+        // Phase-2 config trail is still there when a bundle is collected. Same
+        // sink instance, so set_runtime_level()'s identity check against
+        // g_ring_sink and tail_ring_buffer()'s shared_ptr copy both still hold.
+        // Its formatter is already the File one; leaving it in place also keeps
+        // the clock-step detector's memory continuous across the handoff.
+        g_early_ring_unadopted = false;
+    } else {
+        g_ring_sink = std::make_shared<MonotonicRingSink>(resolve_ring_capacity());
+        g_ring_sink->set_formatter(make_formatter(SinkKind::File));
+    }
     g_ring_sink->set_level(ring_level);
     sinks.push_back(g_ring_sink);
 
@@ -632,10 +722,10 @@ size_t ring_capacity_for_ram(size_t total_ram_mb) {
     // total_ram_mb == 0 means detection failed (non-Linux, unreadable
     // /proc/meminfo); fall back to the historical size rather than guessing.
     if (total_ram_mb == 0) {
-        return kMinRingLines;
+        return MIN_RING_LINES;
     }
-    const size_t scaled = total_ram_mb * kRingLinesPerMb;
-    return std::clamp(scaled, kMinRingLines, kMaxRingLines);
+    const size_t scaled = total_ram_mb * RING_LINES_PER_MB;
+    return std::clamp(scaled, MIN_RING_LINES, MAX_RING_LINES);
 }
 
 LogTarget parse_log_target(const std::string& str) {
@@ -724,6 +814,52 @@ const char* log_target_name(LogTarget target) {
         return "android";
     }
     return "unknown";
+}
+
+bool is_valid_log_target(const std::string& str) {
+    return str == "auto" || str == "journal" || str == "syslog" || str == "file" ||
+           str == "console";
+}
+
+const char* log_target_accepted_values() {
+    return "auto, journal, syslog, file, console";
+}
+
+bool is_valid_log_level(const std::string& str) {
+    return str == "trace" || str == "debug" || str == "info" || str == "warn" || str == "error" ||
+           str == "critical" || str == "off";
+}
+
+const char* log_level_accepted_values() {
+    return "trace, debug, info, warn, error, critical, off";
+}
+
+std::string log_env_override(const char* var_name, bool (*validate)(const std::string&),
+                             const char* accepted_values) {
+    const char* raw = std::getenv(var_name);
+    if (raw == nullptr || raw[0] == '\0') {
+        return {};
+    }
+    std::string value(raw);
+    if (validate != nullptr && !validate(value)) {
+        // init_early() has already installed a console logger at warn, so this
+        // is visible even though the real sinks are not built yet.
+        spdlog::warn("[Logging] Ignoring invalid {}='{}' (accepted: {})", var_name, value,
+                     accepted_values != nullptr ? accepted_values : "");
+        return {};
+    }
+    return value;
+}
+
+std::string resolve_log_setting(const std::string& cli_value, const std::string& env_value,
+                                const std::string& config_value) {
+    if (!cli_value.empty()) {
+        return cli_value;
+    }
+    if (!env_value.empty()) {
+        return env_value;
+    }
+    return config_value;
 }
 
 spdlog::level::level_enum parse_level(const std::string& str,

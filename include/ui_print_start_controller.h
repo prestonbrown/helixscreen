@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
 #include "filament_mapper.h"
+#include "print_start_checks.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -22,7 +23,7 @@
 namespace helix {
 class PrinterState;
 }
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct PrintFileData;
 class PrintStartControllerTestAccess; // test-only friend (global scope)
 
@@ -34,8 +35,8 @@ class PrintSelectDetailView;
  * @brief Controller for print initiation workflow
  *
  * Handles the print start process including:
- * - Filament availability warnings (runout sensor)
- * - AMS color matching validation
+ * - Ordered pre-print gate pipeline (insufficient spool weight, filament
+ *   presence, color/material matching) driven by run_gates_from()
  * - Actual print start via PrintPreparationManager
  *
  * This controller does NOT own the file selection state or the detail view.
@@ -58,9 +59,9 @@ class PrintStartController {
      * @brief Construct controller with required dependencies
      *
      * @param printer_state Reference to PrinterState for capability queries
-     * @param api Pointer to MoonrakerAPI (may be nullptr initially)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr initially)
      */
-    PrintStartController(PrinterState& printer_state, MoonrakerAPI* api);
+    PrintStartController(PrinterState& printer_state, IMoonrakerAPI* api);
     ~PrintStartController();
 
     // Non-copyable
@@ -70,7 +71,7 @@ class PrintStartController {
     /**
      * @brief Set the API (can be null initially, set later)
      */
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     /**
      * @brief Set the detail view for prep manager access
@@ -95,12 +96,10 @@ class PrintStartController {
     /**
      * @brief Initiate print workflow
      *
-     * Entry point for starting a print. Performs checks:
-     * 1. Printer state validation (not already printing)
-     * 2. Filament runout sensor check (warns if no filament)
-     * 3. AMS color match check (warns on mismatches)
-     *
-     * If all checks pass (or user confirms warnings), executes the print.
+     * Entry point for starting a print: startup grace-period guard, button
+     * park, and the can_start_new_print() state guard, then the ordered gate
+     * pipeline (run_gates_from). Each gate that warns shows ONE dialog; the
+     * dialog drives continuation (proceed resumes at the next gate).
      */
     void initiate();
 
@@ -163,15 +162,16 @@ class PrintStartController {
     }
 
   private:
-    // Test-only access to the private pre-print filament gate (issue 1: shared
-    // auto-unload suppression on both initiate() and the insufficient path).
+    // Test-only access to the gate-pipeline runner (toy-gate injection and
+    // dialog introspection).
     friend class ::PrintStartControllerTestAccess;
 
     /**
      * @brief Execute the actual print start
      *
-     * Called directly when no warning needed, or after user confirms warning dialog.
-     * Delegates to PrintPreparationManager for file operations and Moonraker API calls.
+     * Called when the gate pipeline runs off the end (all gates passed or the
+     * user confirmed every warning). Delegates to PrintPreparationManager for
+     * file operations and Moonraker API calls.
      */
     void execute_print_start();
 
@@ -199,95 +199,26 @@ class PrintStartController {
                                       std::function<void()> on_done,
                                       std::function<void()> on_abort);
 
-    /**
-     * @brief Show filament warning dialog
-     *
-     * Called when the pre-print filament check finds no filament. User can
-     * proceed or cancel. @p message overrides the default body text — used to
-     * name the specific tool(s)/lane(s) that are empty (AMS lane-truth path).
-     * Empty -> the generic "runout sensor indicates no filament" text (non-AMS).
-     */
-    void show_filament_warning(const std::string& message = "");
+    /// Ordered gate pipeline. Runs gates[index..], shows ONE modal at the
+    /// first non-Pass verdict; proceed resumes at the next index with a
+    /// freshly gathered context. All-Pass falls through to
+    /// execute_print_start().
+    void run_gates_from(size_t index);
 
-    /**
-     * @brief Required tools whose AMS lane is genuinely empty (lane truth).
-     *
-     * Scopes the pre-print filament check to the tools the print actually uses
-     * (detail_view_->get_tools_used()) and the effective tool→slot remap
-     * (detail_view_->get_effective_remap()), consulting the AMS backend's
-     * authoritative per-slot presence via
-     * FilamentSensorManager::find_empty_required_lanes(). Returns {} when no AMS
-     * backend manages filament (caller falls back to the aggregate sensor
-     * check). @return (tool_index, slot_index) pairs.
-     */
-    std::vector<std::pair<int, int>> find_empty_required_lanes();
+    /// Snapshot every input a gate may read (single source of truth — gates
+    /// never fetch singletons themselves). Gathered per pipeline entry so a
+    /// resume re-reads live state, matching the old chain's fresh-fetch
+    /// continuations.
+    [[nodiscard]] helix::PrintStartContext gather_print_start_context() const;
 
-    /// Build the named-tool/lane warning body for show_filament_warning().
-    std::string build_empty_lane_message(const std::vector<std::pair<int, int>>& empty) const;
-
-    /**
-     * @brief Shared pre-print filament-present gate (issue 1).
-     *
-     * Single source of truth for both initiate() and the insufficient-filament
-     * Proceed continuation, so they behave identically:
-     *   1. Backends that auto-unload after a print (AD5X IFS) leave the extruder
-     *      empty by design → suppress the warning entirely.
-     *   2. When an AMS backend manages filament, scope the check to the print's
-     *      tools using lane truth (find_empty_required_lanes) and warn naming the
-     *      offending tool/lane.
-     *   3. Otherwise (non-AMS) fall back to the aggregate runout-sensor check.
-     *
-     * @return true if a warning dialog was shown (caller must return — the
-     *         dialog drives continuation); false to proceed to the next check.
-     */
-    bool check_required_filament_present();
-
-    /// Check FilamentMapper results for unresolved tools (replaces raw color comparison)
-    std::vector<int> find_unresolved_tools();
-
-    /// Show improved mismatch warning with color names and slot context
-    void show_color_mismatch_warning(const std::vector<int>& unresolved_tools,
-                                     const std::vector<helix::GcodeToolInfo>& tool_info);
-
-    /// Per-tool material mismatch detail for the warning dialog
-    struct MaterialMismatchDetail {
-        int tool_index;
-        std::string expected_material;
-        std::string loaded_material;
-        int expected_nozzle_min = 0;
-        int expected_nozzle_max = 0;
-        int expected_bed_temp = 0;
-        int loaded_nozzle_min = 0;
-        int loaded_nozzle_max = 0;
-        int loaded_bed_temp = 0;
-    };
-
-    /// Find material mismatches for both AMS and non-AMS printers
-    std::vector<MaterialMismatchDetail> find_material_mismatches();
-
-    /// Show detailed material mismatch warning with temperature info
-    void show_material_mismatch_warning(const std::vector<MaterialMismatchDetail>& mismatches);
-
-    /// Continue the initiate() flow after the unresolved-tools check passes
-    void continue_after_unresolved_check();
-
-    /// Show warning when the assigned external spool doesn't have enough
-    /// filament for the predicted print weight.
-    void show_insufficient_filament_warning(float needed_g, float remaining_g);
-
-    // Static callbacks for LVGL modal
-    static void on_filament_warning_proceed_static(lv_event_t* e);
-    static void on_filament_warning_cancel_static(lv_event_t* e);
-    static void on_color_mismatch_proceed_static(lv_event_t* e);
-    static void on_color_mismatch_cancel_static(lv_event_t* e);
-    static void on_material_mismatch_proceed_static(lv_event_t* e);
-    static void on_material_mismatch_cancel_static(lv_event_t* e);
-    static void on_insufficient_filament_proceed_static(lv_event_t* e);
-    static void on_insufficient_filament_cancel_static(lv_event_t* e);
+    void on_gate_proceed();
+    void on_gate_cancel();
+    static void on_gate_proceed_static(lv_event_t* e);
+    static void on_gate_cancel_static(lv_event_t* e);
 
     // === Dependencies ===
     PrinterState& printer_state_;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     PrintSelectDetailView* detail_view_ = nullptr;
     lv_subject_t* can_print_subject_ = nullptr;
 
@@ -302,11 +233,10 @@ class PrintStartController {
     std::vector<std::string> filament_colors_;
     std::string thumbnail_path_; ///< Pre-extracted thumbnail for USB/embedded files
 
-    // === Modal References ===
-    lv_obj_t* filament_warning_modal_ = nullptr;
-    lv_obj_t* color_mismatch_modal_ = nullptr;
-    lv_obj_t* material_mismatch_modal_ = nullptr;
-    lv_obj_t* insufficient_filament_modal_ = nullptr;
+    // === Gate Pipeline State ===
+    std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
+    size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
+    lv_obj_t* print_gate_modal_ = nullptr;         ///< the ONE gate dialog handle
 
     // === Callbacks ===
     PrintStartedCallback on_print_started_;
@@ -323,6 +253,15 @@ class PrintStartController {
 
     // Observer for print state changes (to restore mapping on print end)
     ObserverGuard print_state_observer_;
+
+    // Observer for klippy state, armed only while a restore is deferred waiting
+    // for Klipper to come back (see observe_klippy_state_for_restore).
+    ObserverGuard klippy_state_observer_;
+
+    // Armed only between sending a restore and the firmware confirming it.
+    ObserverGuard ams_data_observer_;
+    bool awaiting_restore_confirmation_ = false;
+    uint64_t restore_generation_at_send_ = 0;
 
     // === Filament Remap Methods ===
     /// Snapshot current firmware mapping, send remap commands, return true if remaps were sent
@@ -352,6 +291,37 @@ class PrintStartController {
 
     /// Set up observer for print state to auto-restore mapping
     void observe_print_state_for_restore();
+
+    /**
+     * @brief Wait for Klipper to become READY, then retry a deferred restore.
+     *
+     * restore_filament_mapping() refuses to spend the snapshot on a halted
+     * Klipper because the backends cannot report the refusal (#1270). This is
+     * what makes that deferral resolve on its own — without it the snapshot
+     * would sit until the next app start, the only other thing that replays
+     * pending_remap.json. Idempotent: a second deferral does not stack observers.
+     */
+    void observe_klippy_state_for_restore();
+
+    /**
+     * @brief Clear the restore snapshot and the on-disk recovery record.
+     *
+     * The single place both the confirmed path and the can't-confirm fallback
+     * converge on, so the snapshot and pending_remap.json can never be cleared
+     * by one and not the other.
+     */
+    void finish_restore();
+
+    /// Observe AmsState's data-revision tick while awaiting firmware confirmation.
+    void observe_ams_data_for_confirmation();
+
+    /**
+     * @brief Re-check whether the firmware has confirmed the restore.
+     *
+     * Cheap and idempotent — the revision tick it hangs off is deliberately
+     * coarse and fires for our own optimistic writes too.
+     */
+    void check_restore_confirmed();
 
     // === Crash Recovery Persistence ===
     /// Save remap state to disk so it survives app restart

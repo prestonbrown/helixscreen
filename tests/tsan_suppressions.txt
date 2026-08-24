@@ -6,3 +6,55 @@
 # but pthread_mutex_init completes before the mutex is usable, so this is safe.
 race:lv_thread_sync_init
 race:lv_thread_sync_signal
+
+# libhv event-loop teardown: do NOT try to suppress this one - it cannot work.
+#
+# hloop_free() -> hio_free() -> hio_close() closes fds other loop threads have
+# touched. TSan starts to report it and then trips an assertion inside itself:
+#
+#   ThreadSanitizer: CHECK failed: sanitizer_common.h:494 "((i)) < ((size_))"
+#     (0xffffffff, ...)
+#     __tsan::ScopedReportBase::AddLocation -> ReportRace -> FdClose -> close
+#     hio_close -> hio_free -> hloop_free -> hv::EventLoop::run
+#
+# That aborts the process before Catch2 prints a summary, so the job fails with
+# no result at all - 3 of 5 runs, and both runs of the merged tree.
+#
+# `race:hio_close` / `race:hio_free` / `race:hloop_free` were tried here and had
+# ZERO effect: byte-identical output, same abort point. AddLocation runs while
+# TSan is CONSTRUCTING the report, before suppression matching, so no race: entry
+# can head it off. The failing index is 0xffffffff, i.e. kInvalidTid - TSan
+# looking up the thread that created an fd and getting an invalid one. That is a
+# sanitizer bug (clang 14, jammy's default), not something this file can reach.
+#
+# Newer clang was tried and does NOT help: clang-15 reproduces it identically,
+# same kInvalidTid, only the assert's line number moves (494 -> 511). Blinding
+# TSan for the teardown with __tsan_ignore_thread_begin/end around
+# hloop_cleanup() does not gate the fd path either (1 clean run in 4), and
+# having our mocks let libhv bind its own listen fd instead of handing one over
+# changed nothing.
+#
+# What does work is sharding, so `make test-tsan` now runs Catch2 shards: the
+# abort needs a loop from an earlier test to tear down during a later one, and
+# separate processes break that pairing. Measured 0 aborts across 32 shards
+# against 3 in 4 unsharded runs. See prestonbrown/helixscreen#1293.
+
+# spdlog default-logger swap while background threads log.
+#
+# Several tests swap the process-global default logger mid-run to capture output:
+# test_keyboard_password_logging.cpp via helix::logging::init() for a clean ring
+# buffer, and test_split_button.cpp's SplitButtonLogCapture via
+# spdlog::set_default_logger() directly. Meanwhile the shared HttpExecutor pool
+# logs from its own threads, and spdlog::default_logger_raw() reads that pointer
+# without the registry mutex by design - it is the documented fast path - so
+# swapping the default logger while other threads log races by construction.
+#
+# Suppressed rather than fixed because production never does it: logging is
+# initialised once during startup before any thread exists (Application's
+# init_early), and the watchdog does the same in its own process.
+#
+# Scoped to the registry setter rather than to any one caller: the first attempt
+# named helix::logging::init and silenced only that test, leaving the identical
+# race from SplitButtonLogCapture reporting. Races elsewhere in spdlog still
+# report.
+race:spdlog::details::registry::set_default_logger

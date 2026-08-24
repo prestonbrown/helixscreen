@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Home bypass toggle tile. Gated on ams_supports_bypass by the registry
+     row (panel_widget_registry.cpp). Tap toggles bypass through the shared
+     BypassToggleController; the tile itself only renders state. -->
+<component>
+  <view name="panel_widget_bypass"
+        extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
+        style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xxs" clickable="true">
+    <event_cb trigger="clicked" callback="bypass_widget_clicked_cb"/>
+    <!-- Whole tile dims + refuses while a job owns the toolhead. Same derived
+         subject binding as controls_panel.xml's Save Z-Offset button; the
+         controller still enforces the guard on every toggle(). -->
+    <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+
+    <!-- State-swapped icon pair: OFF = the Device-Ops bypass-row glyph,
+         ON = the filament-path bypass-node glyph. -->
+    <icon name="bypass_icon_off" src="arrow_left_right" size="md" variant="muted" clickable="false" event_bubble="true">
+      <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="1"/>
+    </icon>
+    <icon name="bypass_icon_on"
+          src="source_branch" size="md" variant="success" clickable="false" event_bubble="true" hidden="true">
+      <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="0"/>
+    </icon>
+
+    <text_tiny text="Bypass"
+               translation_tag="Bypass" style_text_color="#text_muted" style_text_align="center" clickable="false"
+               event_bubble="true">
+      <bind_flag_if_eq subject="show_widget_labels" flag="hidden" ref_value="0"/>
+    </text_tiny>
+
+    <!-- Active detail: external spool color dot + material, only while
+         engaged. Color dot via bind_style_if cannot take a *dynamic* color
+         (styles are static), so the dot's bg color is bound by the widget
+         class in attach() (DECLARATIVE_OK'd); the material name stays
+         declarative via the text subject. Dot uses the token-dot idiom from
+         filament_slot_picker_row.xml (#space_xs + radius 9999 = circle). -->
+    <lv_obj name="bypass_active_row"
+            width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+            style_flex_cross_place="center" style_pad_gap="#space_xxs" scrollable="false" clickable="false"
+            event_bubble="true" hidden="true">
+      <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="0"/>
+      <lv_obj name="bypass_color_dot"
+              width="#space_xs" height="#space_xs" style_radius="9999" style_bg_opa="255" style_bg_color="#text_muted"
+              scrollable="false" clickable="false"/>
+      <text_tiny name="bypass_material_label"
+                 bind_text="ams_external_spool_material" long_mode="dots" style_text_color="#text_muted"
+                 clickable="false" flex_grow="1"/>
+    </lv_obj>
+  </view>
+</component>

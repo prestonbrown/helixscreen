@@ -97,8 +97,21 @@ NON_VALUE_ACCESSOR_RE = re.compile(
 
 OPT_OUT_RE = re.compile(r"//\s*PII_OK\b")
 
-SCAN_DIRS = ("src", "include")
+SCAN_DIRS = ("src", "include", "firmware")
 SCAN_SUFFIXES = (".cpp", ".cc", ".h", ".hpp", ".mm")
+
+# firmware/native-audit is the Phase 0 ESP32 feasibility audit - self-described
+# throwaway scaffolding kept only so the experiment can be reproduced. Its
+# `overrides/` are frozen June 2026 snapshots of src/ files, so they predate
+# fixes that have since landed upstream (the MAC redaction in
+# ui_settings_label_printer.cpp among them). Re-fixing a frozen snapshot would
+# defeat the point of freezing it, and none of it ships.
+EXCLUDE_PREFIXES = ("firmware/native-audit/",)
+
+
+def is_excluded(path) -> bool:
+    posix = str(path).replace("\\", "/")
+    return posix.startswith(EXCLUDE_PREFIXES)
 
 
 def strip_noise(text: str) -> str:
@@ -279,7 +292,7 @@ def iter_targets(explicit: list[str]) -> Iterable[Path]:
     if explicit:
         for f in explicit:
             p = Path(f)
-            if p.suffix in SCAN_SUFFIXES and p.is_file():
+            if p.suffix in SCAN_SUFFIXES and p.is_file() and not is_excluded(p):
                 yield p
         return
     for d in SCAN_DIRS:
@@ -287,7 +300,9 @@ def iter_targets(explicit: list[str]) -> Iterable[Path]:
         if not root.is_dir():
             continue
         for suffix in SCAN_SUFFIXES:
-            yield from root.rglob(f"*{suffix}")
+            for p in root.rglob(f"*{suffix}"):
+                if not is_excluded(p):
+                    yield p
 
 
 def staged_files() -> list[str]:

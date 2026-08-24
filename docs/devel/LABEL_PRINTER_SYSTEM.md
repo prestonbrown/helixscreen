@@ -1,6 +1,6 @@
 # Label Printer System
 
-HelixScreen supports printing spool labels to thermal label printers via three transports (USB, Network, Bluetooth) and six printer protocol families (Brother QL, Phomemo, Niimbot, MakeID/Wewin, IPP). The IPP backend also supports printing on sheets of Avery-style labels using standard inkjet/laser printers.
+HelixScreen supports printing spool labels to thermal label printers via three transports (USB, Network, Bluetooth) and six printer protocol families (Brother QL, Brother PT, Phomemo, Niimbot, MakeID/Wewin, IPP). The IPP backend also supports printing on sheets of Avery-style labels using standard inkjet/laser printers.
 
 ## Architecture Overview
 

@@ -23,6 +23,8 @@
 #include <sstream>
 
 #ifdef __ANDROID__
+#include "system/android_jni.h"
+
 #include <SDL.h>
 #include <jni.h>
 #endif
@@ -129,8 +131,8 @@ bool heap_snapshot_age_is_plausible(long age_ms, int uptime_sec) {
     }
     // uptime is truncated to whole seconds, so allow a couple of seconds of
     // slack before calling an age impossible.
-    constexpr long kSlackMs = 2000;
-    return age_ms <= static_cast<long>(uptime_sec) * 1000 + kSlackMs;
+    constexpr long SLACK_MS = 2000;
+    return age_ms <= static_cast<long>(uptime_sec) * 1000 + SLACK_MS;
 }
 
 CrashReporter& CrashReporter::instance() {
@@ -923,10 +925,13 @@ static std::pair<int, std::string> android_https_post(const std::string& url,
         return {0, "JNI env unavailable"};
     }
 
-    jclass cls = env->FindClass("org/helixscreen/app/HelixActivity");
+    // Cached global ref owned by helix_activity_class() — never released here.
+    // The one caller reaches this from the main thread (send_with_bundle is
+    // marshaled back via token.defer), but the sole reason it works is that
+    // FindClass() needs Java frames on the stack; moving the send onto the
+    // bundle worker would silently turn every report into an HTTP 0.
+    jclass cls = helix::android::helix_activity_class(env);
     if (!cls) {
-        spdlog::error("[CrashReporter] Failed to find HelixActivity class");
-        env->ExceptionClear();
         return {0, "HelixActivity class not found"};
     }
 
@@ -936,7 +941,6 @@ static std::pair<int, std::string> android_https_post(const std::string& url,
         "Ljava/lang/String;");
     if (!method) {
         spdlog::error("[CrashReporter] Failed to find httpsPost method");
-        env->DeleteLocalRef(cls);
         env->ExceptionClear();
         return {0, "httpsPost method not found"};
     }
@@ -955,7 +959,6 @@ static std::pair<int, std::string> android_https_post(const std::string& url,
             env->DeleteLocalRef(j_ua);
         if (j_key)
             env->DeleteLocalRef(j_key);
-        env->DeleteLocalRef(cls);
         env->ExceptionClear();
         return {0, "JNI string allocation failed"};
     }
@@ -967,7 +970,6 @@ static std::pair<int, std::string> android_https_post(const std::string& url,
     env->DeleteLocalRef(j_body);
     env->DeleteLocalRef(j_ua);
     env->DeleteLocalRef(j_key);
-    env->DeleteLocalRef(cls);
 
     if (!j_result || env->ExceptionCheck()) {
         env->ExceptionClear();

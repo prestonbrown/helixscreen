@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_geometry.h"
 
 #include "bed_mesh_coordinate_transform.h"
@@ -297,3 +299,5 @@ void sort_quads_by_depth(std::vector<bed_mesh_quad_3d_t>& quads) {
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

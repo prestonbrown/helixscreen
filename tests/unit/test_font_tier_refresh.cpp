@@ -21,8 +21,11 @@
  */
 
 #include "ui_breakpoint.h"
+#include "ui_button.h"
+#include "ui_icon.h"
 #include "ui_switch.h"
 
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "asset_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -132,6 +135,76 @@ TEST_CASE_METHOD(XMLTestFixture, "Refresh moves the font tokens, not just the px
     // Put the token table back where the rest of the suite expects it.
     theme_manager_refresh_layout_constants(disp);
     CHECK(token("font_body") == "noto_sans_18");
+}
+
+// ============================================================================
+// Same shape again — the <icon> widget memoizes icon_font_* per size
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Icon faces follow a runtime breakpoint change",
+                 "[ui_icon][theme][fonts][1210]") {
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+
+    const char* attrs[] = {"src", "home", "size", "sm", nullptr};
+    const char* btn_attrs[] = {"text", "Home", "icon", "home", nullptr};
+
+    /// The face a <ui_button icon="..."> put on its icon child, which resolves
+    /// icon_font_sm through a second, independent process-lifetime cache.
+    auto button_icon_face = [&](lv_obj_t* parent) {
+        lv_obj_t* btn = static_cast<lv_obj_t*>(lv_xml_create(parent, "ui_button", btn_attrs));
+        REQUIRE(btn != nullptr);
+        lv_obj_t* icon = ui_button_get_icon(btn);
+        REQUIRE(icon != nullptr);
+        const lv_font_t* f = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
+        lv_obj_delete(btn);
+        return f;
+    };
+
+    // ui_icon caches the resolved face per size for the life of the process, so
+    // whichever test in this binary built the first size="sm" icon decided this
+    // one too until the refresh started invalidating the cache. That made the
+    // widget content-fit sweep pass alone and fail in a shard: it measures every
+    // home widget at eight resolutions in one process, and the icons kept
+    // whatever face the first geometry to run happened to pin.
+    const lv_font_t* micro_face = nullptr;
+    {
+        ScopedResolution micro(disp, 480, 272);
+        theme_manager_refresh_layout_constants(disp);
+        CHECK(token("icon_font_sm") == "mdi_icons_16");
+
+        lv_obj_t* icon = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "icon", attrs));
+        REQUIRE(icon != nullptr);
+        micro_face = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
+        REQUIRE(micro_face != nullptr);
+        CHECK(micro_face == lv_xml_get_font(nullptr, "mdi_icons_16"));
+        lv_obj_delete(icon);
+
+        CHECK(button_icon_face(test_screen()) == lv_xml_get_font(nullptr, "mdi_icons_16"));
+    }
+
+    {
+        ScopedResolution xlarge(disp, 800, 1024);
+        theme_manager_refresh_layout_constants(disp);
+        CHECK(token("icon_font_sm") == "mdi_icons_32");
+
+        lv_obj_t* icon = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "icon", attrs));
+        REQUIRE(icon != nullptr);
+        const lv_font_t* xlarge_face = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
+        REQUIRE(xlarge_face != nullptr);
+
+        // The token moved, so the glyphs must have moved with it: an icon still
+        // drawn in the 16px face is 8px narrower than the box built around it.
+        CHECK(xlarge_face != micro_face);
+        CHECK(xlarge_face == lv_xml_get_font(nullptr, "mdi_icons_32"));
+        CHECK(lv_font_get_line_height(xlarge_face) > lv_font_get_line_height(micro_face));
+        lv_obj_delete(icon);
+
+        CHECK(button_icon_face(test_screen()) == lv_xml_get_font(nullptr, "mdi_icons_32"));
+    }
+
+    // Put the token table back where the rest of the suite expects it.
+    theme_manager_refresh_layout_constants(disp);
 }
 
 // ============================================================================

@@ -44,7 +44,7 @@ TEST_CASE("Floor share is vacuous when column_h == avail_h", "[bed-mesh][portrai
     // not evidence the floor does anything; see the next test for that.
     const int32_t avail = 300;
     const int32_t h = bed_mesh_portrait_canvas_height(480, avail, avail);
-    CHECK(h >= avail * kBedMeshPortraitCanvasMinPct / 100);
+    CHECK(h >= avail * BED_MESH_PORTRAIT_CANVAS_MIN_PCT / 100);
 }
 
 TEST_CASE("Floor actually binds when the column is mostly consumed elsewhere",

@@ -13,6 +13,12 @@
 // non-wrapping row (flex grow=1) so they all fit on ONE line. With <= 3 regular
 // buttons the legacy content-sized row_wrap behaviour is kept byte-for-byte.
 //
+// The count alone is not the rule, though. An equal-width row splits the
+// container evenly, so it only holds while the labels fit their share: a
+// preheat macro offering seven "PLA 220/60" presets gets a few dozen pixels per
+// cell and clips every label. Those fall back to row_wrap and take the lines
+// they need. The invariant these tests defend is that no label is ever clipped.
+//
 // Tagged [ui_integration] (NOT hidden) — it shows real widgets and forces a
 // real LVGL layout pass, which is the only way the wrap actually manifests.
 
@@ -135,6 +141,104 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     int32_t w_long = lv_obj_get_width(btns[1]);
     INFO("w(OK)=" << w_ok << " w(Retry the whole operation)=" << w_long);
     REQUIRE(w_long > w_ok);
+
+    modal_.hide();
+}
+
+// ----------------------------------------------------------------------------
+// The real AFC calibration prompt: four short lane buttons plus a longer
+// "Calibrate All". Whichever layout the fit check picks, no label may be
+// clipped — that is the invariant, not the row count.
+// ----------------------------------------------------------------------------
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: AFC calibration buttons are never clipped",
+                 "[action_prompt][layout][ui_integration]") {
+    // Mirrors src/printer/ams_backend_mock.cpp's simulated AFC_CALIBRATION prompt.
+    helix::PromptData data;
+    data.title = "AFC Calibration";
+    data.text_lines.push_back("Select a lane to calibrate, or calibrate all lanes.");
+    for (int i = 1; i <= 4; ++i) {
+        data.buttons.push_back({"Lane " + std::to_string(i),
+                                "AFC_CALIBRATION LANE=lane" + std::to_string(i), "primary", "",
+                                false, -1});
+    }
+    data.buttons.push_back({"Calibrate All", "AFC_CALIBRATION ALL=1", "secondary", "", false, -1});
+    data.buttons.push_back({"Cancel", "AFC_CALIBRATION CANCEL=1", "error", "", true, -1});
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    lv_obj_update_layout(test_screen());
+    if (lv_obj_t* dialog = modal_.dialog()) {
+        lv_obj_update_layout(dialog);
+    }
+
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 6); // 5 regular + 1 footer
+
+    // Every regular button must be able to show its label in full.
+    for (size_t i = 0; i < 5; ++i) {
+        lv_obj_t* label = lv_obj_get_child(btns[i], 0);
+        REQUIRE(label != nullptr);
+        INFO("button[" << i << "] \"" << data.buttons[i].label << "\" width="
+                       << lv_obj_get_width(btns[i]) << " label width=" << lv_obj_get_width(label));
+        REQUIRE(lv_obj_get_width(btns[i]) >= lv_obj_get_width(label));
+    }
+
+    modal_.hide();
+}
+
+// ----------------------------------------------------------------------------
+// Many buttons with labels too long to share one row must WRAP, not clip.
+//
+// The >= 4 rule above is a button *count* test, but the property that actually
+// matters is whether the labels fit. A preheat macro that emits 7 material
+// presets ("PLA 220/60" ...) gets ~40px per equal-width cell on a 480px card,
+// so every label is clipped to a couple of glyphs. Wrapping is the correct
+// answer once the row genuinely cannot hold them.
+// ----------------------------------------------------------------------------
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: long labels wrap onto multiple rows instead of clipping",
+                 "[action_prompt][layout][ui_integration]") {
+    helix::PromptData data;
+    data.title = "Preheat for Load";
+    data.text_lines.push_back("Preheat filament and choose a material");
+    for (const char* label : {"PLA 220/60", "PETG 240/80", "ABS 250/100", "ASA 260/100",
+                              "TPU 230/50", "PC 280/110", "Nylon 260/80"}) {
+        data.buttons.push_back(
+            {label, std::string("SET_MATERIAL M=") + label, "primary", "", false, -1});
+    }
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    lv_obj_update_layout(test_screen());
+    if (lv_obj_t* dialog = modal_.dialog()) {
+        lv_obj_update_layout(dialog);
+    }
+
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 7);
+
+    // The property under test: every button is wide enough to actually show its
+    // label. Under the equal-width single-row layout each cell is far narrower
+    // than its text, which is exactly the reported clipping.
+    for (size_t i = 0; i < btns.size(); ++i) {
+        lv_obj_t* label = lv_obj_get_child(btns[i], 0);
+        REQUIRE(label != nullptr);
+        int32_t w_btn = lv_obj_get_width(btns[i]);
+        int32_t w_lbl = lv_obj_get_width(label);
+        INFO("button[" << i << "] \"" << data.buttons[i].label << "\" width=" << w_btn
+                       << " label width=" << w_lbl);
+        REQUIRE(w_btn >= w_lbl);
+    }
+
+    // Not fitting on one row is the direct consequence: they must occupy at
+    // least two distinct rows rather than being squeezed into one.
+    int32_t y0 = lv_obj_get_y(btns[0]);
+    bool any_wrapped = false;
+    for (size_t i = 1; i < btns.size(); ++i) {
+        if (std::abs(lv_obj_get_y(btns[i]) - y0) > 4) {
+            any_wrapped = true;
+        }
+    }
+    REQUIRE(any_wrapped);
 
     modal_.hide();
 }

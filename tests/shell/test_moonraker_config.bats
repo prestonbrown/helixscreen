@@ -392,6 +392,10 @@ NET_DEPLOY_NO_ASSET='class NetDeploy(AppDeploy):
     rm -f "$INSTALL_DIR/bin/helix-screen"
     fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
     fake_non_buildroot_os_release
+    # system_updates_unavailable() is os-release OR no-package-manager, so the
+    # package-manager probe has to be pinned too — otherwise a host without apt
+    # (macOS, a slim CI container) takes the second term and edits the conf.
+    fake_os_package_manager_present
     mock_command_script "systemctl" 'exit 0'
 
     local before
@@ -660,35 +664,62 @@ BINEOF
     [ -f "$restart_called" ]
 }
 
-@test "restart_moonraker: no systemctl, SysV init script exists uses init script" {
-    # Make systemctl fail on is-active so it falls to the elif for SysV
-    mock_command_script "systemctl" '
-        case "$*" in
-            *is-active*) exit 1 ;;
-            *) exit 1 ;;
-        esac
-    '
+# Helper: drop a fake Moonraker init script named $1 into an overridable
+# /etc/init.d and point HELIX_INITD_DIR at it. Sets STAGED_MOONRAKER_MARKER to
+# the path the script touches when asked to restart.
+#
+# Call this directly, NOT via $(...) — a command substitution runs it in a
+# subshell, so the export would be discarded and the test would silently
+# exercise the real /etc/init.d instead.
+stage_sysv_moonraker() {
+    local name="$1"
+    local initd="$BATS_TEST_TMPDIR/etc/init.d"
 
-    local init_script="$BATS_TEST_TMPDIR/etc/init.d/S56moonraker_service"
-    local restart_called="$BATS_TEST_TMPDIR/moonraker_sysv_restart"
-    mkdir -p "$(dirname "$init_script")"
-    cat > "$init_script" << MOONEOF
+    STAGED_MOONRAKER_MARKER="$BATS_TEST_TMPDIR/moonraker_restarted_${name}"
+
+    mkdir -p "$initd"
+    cat > "${initd}/${name}" << MOONEOF
 #!/bin/sh
 case "\$1" in
-    restart) touch "$restart_called" ;;
+    restart) touch "$STAGED_MOONRAKER_MARKER" ;;
 esac
 MOONEOF
-    chmod +x "$init_script"
+    chmod +x "${initd}/${name}"
+    export HELIX_INITD_DIR="$initd"
+}
 
-    # The function checks /etc/init.d/S56moonraker_service which is a fixed path.
-    # We can only test this if we can write to /etc/init.d.
-    if [ ! -d "/etc/init.d" ] || [ ! -w "/etc/init.d" ]; then
-        skip "Cannot create /etc/init.d/S56moonraker_service (hardcoded path, need writable /etc/init.d)"
-    fi
+@test "restart_moonraker: no systemctl, SysV S56 script is used (K1/Simple AF)" {
+    mock_command_script "systemctl" 'exit 1'
+    stage_sysv_moonraker "S56moonraker_service"
 
     restart_moonraker
-    # If we got here, check the call was made
-    [ -f "$restart_called" ]
+
+    [ -f "$STAGED_MOONRAKER_MARKER" ]
+}
+
+@test "restart_moonraker: no systemctl, plain init.d/moonraker is used (CC1/COSMOS)" {
+    # The CC1 has no systemctl and no S56moonraker_service — its script is
+    # /etc/init.d/moonraker. Before this was handled, restart_moonraker fell off
+    # the end silently, so the installer's moonraker.conf edit did not take
+    # effect until the user happened to reboot.
+    mock_command_script "systemctl" 'exit 1'
+    stage_sysv_moonraker "moonraker"
+
+    restart_moonraker
+
+    [ -f "$STAGED_MOONRAKER_MARKER" ]
+}
+
+@test "restart_moonraker: warns and succeeds when no restart mechanism exists" {
+    mock_command_script "systemctl" 'exit 1'
+    export HELIX_INITD_DIR="$BATS_TEST_TMPDIR/etc/init.d-empty"
+    mkdir -p "$HELIX_INITD_DIR"
+
+    run restart_moonraker
+
+    # Must not abort the install, and must tell the user to restart by hand
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"manual"* || "$output" == *"manually"* ]]
 }
 
 # =============================================================================
@@ -757,6 +788,62 @@ CONF
     ! grep -q '# Added by HelixScreen installer' "$conf"
 }
 
+# The removal used to delete two comment lines by literal pattern while the
+# generator wrote five, so every install/uninstall cycle orphaned the other
+# three. Verified on a CC1: after install, uninstall, install, the
+# mainsail#2444 line appeared twice in moonraker.conf.
+@test "remove_update_manager_section: removes the whole generated comment block" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+
+    add_update_manager_section "$conf"
+    remove_update_manager_section
+
+    # Every line the generator emits must be gone, not just the two that
+    # were named explicitly.
+    refute grep -q 'HelixScreen Update Manager' "$conf"
+    refute grep -q 'Added by HelixScreen installer' "$conf"
+    refute grep -q 'type: web is used instead of type: zip' "$conf"
+    refute grep -q 'mainsail#2444' "$conf"
+    refute grep -q 'A systemd path unit handles service restart' "$conf"
+}
+
+# The real-world symptom: residue accumulates across cycles.
+@test "remove_update_manager_section: add/remove round-trip restores the file exactly" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+
+    cp "$conf" "$BATS_TEST_TMPDIR/original.conf"
+
+    # Three full cycles: any per-cycle residue compounds and shows up here.
+    add_update_manager_section "$conf"
+    remove_update_manager_section
+    add_update_manager_section "$conf"
+    remove_update_manager_section
+    add_update_manager_section "$conf"
+    remove_update_manager_section
+
+    diff -u "$BATS_TEST_TMPDIR/original.conf" "$conf"
+}
+
+@test "remove_update_manager_section: leaves an unrelated preceding comment alone" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+
+    printf '\n# operator note: do not delete this\n' >> "$conf"
+    add_update_manager_section "$conf"
+    remove_update_manager_section
+
+    grep -q '# operator note: do not delete this' "$conf"
+    refute grep -q '^\[update_manager helixscreen\]' "$conf"
+}
+
 # =============================================================================
 # ensure_moonraker_asvc
 # =============================================================================
@@ -822,6 +909,85 @@ CONF
     grep -q '^helixscreen$' "$printer_data/moonraker.asvc"
     # Original entry still there
     grep -q '^helixscreen-old$' "$printer_data/moonraker.asvc"
+}
+
+# =============================================================================
+# remove_moonraker_asvc
+#
+# ensure_moonraker_asvc had no removal counterpart, so uninstall left
+# helixscreen in the allowlist forever (observed on a CC1 running COSMOS).
+# =============================================================================
+
+@test "remove_moonraker_asvc: removes the helixscreen entry" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+
+    local printer_data
+    printer_data="$(dirname "$(dirname "$conf")")"
+    printf "klipper\nmoonraker\nhelixscreen\n" > "$printer_data/moonraker.asvc"
+
+    remove_moonraker_asvc "$conf"
+
+    refute grep -q '^helixscreen$' "$printer_data/moonraker.asvc"
+    # Everything else survives
+    grep -q '^klipper$' "$printer_data/moonraker.asvc"
+    grep -q '^moonraker$' "$printer_data/moonraker.asvc"
+}
+
+@test "remove_moonraker_asvc: add/remove round-trip restores the file exactly" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+
+    local printer_data
+    printer_data="$(dirname "$(dirname "$conf")")"
+    printf "klipper\nmoonraker\nKlipperScreen\n" > "$printer_data/moonraker.asvc"
+    cp "$printer_data/moonraker.asvc" "$BATS_TEST_TMPDIR/original.asvc"
+
+    ensure_moonraker_asvc "$conf"
+    remove_moonraker_asvc "$conf"
+
+    diff -u "$BATS_TEST_TMPDIR/original.asvc" "$printer_data/moonraker.asvc"
+}
+
+@test "remove_moonraker_asvc: does not touch partial-name entries" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+
+    local printer_data
+    printer_data="$(dirname "$(dirname "$conf")")"
+    printf "klipper\nhelixscreen-old\nhelixscreen\n" > "$printer_data/moonraker.asvc"
+
+    remove_moonraker_asvc "$conf"
+
+    refute grep -q '^helixscreen$' "$printer_data/moonraker.asvc"
+    grep -q '^helixscreen-old$' "$printer_data/moonraker.asvc"
+}
+
+@test "remove_moonraker_asvc: no asvc file returns 0" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+
+    run remove_moonraker_asvc "$conf"
+    [ "$status" -eq 0 ]
+}
+
+@test "remove_moonraker_asvc: entry absent is a no-op returning 0" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+
+    local printer_data
+    printer_data="$(dirname "$(dirname "$conf")")"
+    printf "klipper\nmoonraker\n" > "$printer_data/moonraker.asvc"
+    cp "$printer_data/moonraker.asvc" "$BATS_TEST_TMPDIR/original.asvc"
+
+    run remove_moonraker_asvc "$conf"
+    [ "$status" -eq 0 ]
+    diff -u "$BATS_TEST_TMPDIR/original.asvc" "$printer_data/moonraker.asvc"
 }
 
 # =============================================================================
@@ -1008,6 +1174,35 @@ OSR
     export OS_RELEASE_FILE="$osr"
 }
 
+# Helper: os-release with an arbitrary ID that is neither buildroot nor debian.
+# COSMOS (CC1) has no os-release at all; the K2 Plus reports ID="openwrt".
+fake_os_release_with_id() {
+    local osr="$BATS_TEST_TMPDIR/etc/os-release"
+    mkdir -p "$(dirname "$osr")"
+    printf 'ID="%s"\n' "$1" > "$osr"
+    export OS_RELEASE_FILE="$osr"
+}
+
+# Helper: no /etc/os-release on disk at all. This is the real CC1/COSMOS
+# (Yocto/poky) shape — the file is absent, so any grep-based distro probe
+# fails on the [ -f ] test before it ever looks at the contents.
+fake_absent_os_release() {
+    export OS_RELEASE_FILE="$BATS_TEST_TMPDIR/etc/os-release-does-not-exist"
+    rm -f "$OS_RELEASE_FILE"
+}
+
+# Helper: firmware with no OS package manager (CC1, K1, K2, U1 — none have apt).
+fake_no_os_package_manager() {
+    export OS_PACKAGE_MANAGER_CMDS="helix-no-such-package-manager"
+}
+
+# Helper: a distro that does have a working package manager (Pi/Debian/Armbian).
+# Pinned explicitly rather than relying on the machine running the suite having
+# apt — CI containers may not, and that would silently flip these tests.
+fake_os_package_manager_present() {
+    export OS_PACKAGE_MANAGER_CMDS="sh"
+}
+
 @test "disable_system_updates_on_buildroot: adds bare section + key on buildroot" {
     local conf
     conf=$(setup_moonraker_home)
@@ -1112,6 +1307,10 @@ CONF
     conf=$(setup_moonraker_home)
     create_moonraker_conf_with_helix "$conf"
     fake_non_buildroot_os_release
+    # Not buildroot is only half the predicate: system_updates_unavailable()
+    # also fires when no package manager is on PATH, so pin that too rather
+    # than inheriting whatever the host running the suite happens to have.
+    fake_os_package_manager_present
 
     local before
     before=$(cat "$conf")
@@ -1129,6 +1328,92 @@ CONF
     fake_buildroot_os_release
     run disable_system_updates_on_buildroot "/nonexistent/moonraker.conf"
     [ "$status" -eq 0 ]
+}
+
+# -----------------------------------------------------------------------------
+# Firmware with no OS package manager, but not identifying as buildroot.
+#
+# Moonraker's PackageDeploy tries PackageKit over DBus, then falls back to the
+# apt CLI and nothing else (system_deploy.py _get_fallback_provider: "Currently
+# only the API Fallback provider is available"). With neither, it emits four
+# permanent warnings into Mainsail/Fluidd: three "Unable to find DBus PolKit
+# Interface" plus "Unable to initialize System Update Provider for
+# distribution". Verified on a live CC1.
+#
+# The buildroot string check misses two shipped platforms:
+#   CC1  (COSMOS/Yocto) — no /etc/os-release at all
+#   K2+  (OpenWrt)      — ID="openwrt"
+# -----------------------------------------------------------------------------
+
+@test "disable_system_updates: fires when os-release is absent (CC1/COSMOS)" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    fake_absent_os_release
+    fake_no_os_package_manager
+
+    disable_system_updates_on_buildroot "$conf"
+
+    grep -qE '^\[update_manager\][[:space:]]*$' "$conf"
+    grep -q '^enable_system_updates: False' "$conf"
+    # Our one-click updater section must survive untouched
+    grep -q '^\[update_manager helixscreen\]' "$conf"
+}
+
+@test "disable_system_updates: fires on OpenWrt with no package manager (K2 Plus)" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    fake_os_release_with_id "openwrt"
+    fake_no_os_package_manager
+
+    disable_system_updates_on_buildroot "$conf"
+
+    grep -qE '^\[update_manager\][[:space:]]*$' "$conf"
+    grep -q '^enable_system_updates: False' "$conf"
+}
+
+@test "disable_system_updates: fires on Yocto/poky with no package manager" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    fake_os_release_with_id "poky"
+    fake_no_os_package_manager
+
+    disable_system_updates_on_buildroot "$conf"
+
+    grep -q '^enable_system_updates: False' "$conf"
+}
+
+@test "disable_system_updates: no-op on Debian where apt actually works" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    fake_non_buildroot_os_release
+    fake_os_package_manager_present
+
+    local before
+    before=$(cat "$conf")
+
+    disable_system_updates_on_buildroot "$conf"
+
+    # OS updates work on a Pi/Debian host — leave them enabled
+    [ "$(cat "$conf")" = "$before" ]
+    refute grep -q 'enable_system_updates' "$conf"
+    [ ! -f "${conf}.bak.helixscreen" ]
+}
+
+@test "disable_system_updates: still fires on buildroot even if apt exists" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    fake_buildroot_os_release
+    fake_os_package_manager_present
+
+    disable_system_updates_on_buildroot "$conf"
+
+    # Preserves the pre-existing buildroot behaviour regardless of the new probe
+    grep -q '^enable_system_updates: False' "$conf"
 }
 
 @test "configure_moonraker_updates: buildroot adds enable_system_updates: False" {
@@ -1156,6 +1441,9 @@ CONF
     MOONRAKER_CONF_PATHS="$conf"
     rm -f "$INSTALL_DIR/bin/helix-screen"
     fake_non_buildroot_os_release
+    # The no-package-manager term of system_updates_unavailable() would fire on
+    # its own on a host without apt, so pin the probe as well as the os-release.
+    fake_os_package_manager_present
     mock_command_script "systemctl" 'exit 0'
 
     configure_moonraker_updates "pi"
@@ -1180,6 +1468,11 @@ path: /usr/data/helixscreen
 CONF
     MOONRAKER_CONF_PATHS="$conf"
     rm -f "$INSTALL_DIR/bin/helix-screen"
+    # "Unchanged" only holds where system_updates_unavailable() is false, which
+    # needs BOTH a non-buildroot os-release and a package manager on PATH. Left
+    # to the ambient host this passes on Debian CI and fails anywhere without apt.
+    fake_non_buildroot_os_release
+    fake_os_package_manager_present
 
     local original_content
     original_content=$(cat "$conf")

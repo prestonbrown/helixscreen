@@ -75,6 +75,15 @@ Usage:
   check_hardcoded_pixels.py --summary          # per-rule counts
   check_hardcoded_pixels.py --list             # every site, file:line
   check_hardcoded_pixels.py --rule xml-pad     # one rule only
+  check_hardcoded_pixels.py --staged-only      # post-commit tree (pre-commit hook)
+
+--staged-only is NOT "only staged files". It scans the tree the commit WILL
+create (index content for staged paths, HEAD for the rest), built via
+`git write-tree`. The ratchet baseline is a whole-tree count, so the check has
+to see a whole tree; --staged-only makes that tree the would-be-committed one
+rather than the dirty working one, so another session's unstaged WIP cannot
+make a clean commit fail. The pre-commit hook (quality-checks.sh) passes this
+flag; CI and manual runs use the default whole-working-tree scan.
 """
 
 from __future__ import annotations
@@ -237,11 +246,7 @@ def blank_comments(text: str) -> str:
     return re.sub(r"<!--.*?-->", blank, text, flags=re.S)
 
 
-def scan_xml(path: Path, rel: str, tokens: dict[int, list[str]]) -> list[tuple]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []
+def scan_xml(text: str, rel: str, tokens: dict[int, list[str]]) -> list[tuple]:
     lines = text.split("\n")
     scan = blank_comments(text)
     hits = []
@@ -283,11 +288,7 @@ def scan_xml(path: Path, rel: str, tokens: dict[int, list[str]]) -> list[tuple]:
     return hits
 
 
-def scan_cpp(path: Path, rel: str) -> list[tuple]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []
+def scan_cpp(text: str, rel: str) -> list[tuple]:
     lines = text.split("\n")
     hits = []
     for m in CPP_PAD_RE.finditer(text):
@@ -302,40 +303,108 @@ def scan_cpp(path: Path, rel: str) -> list[tuple]:
     return hits
 
 
-def collect(args, root: Path) -> list[tuple[Path, str]]:
+def _git_text(args: list[str], root: Path) -> str:
+    """Run git in root, return stdout (text). Never raises."""
+    return subprocess.run(["git", "-C", str(root)] + args,
+                          capture_output=True, text=True, check=False).stdout
+
+
+def _catfile_batch(root: Path, revs: list[str], rels: list[str]):
+    """Yield (rel, text) for each blob rev via one `git cat-file --batch`.
+
+    The byte-count header makes this robust to newlines/binary in content; the
+    streaming form (one process for every rev) is ~8x faster than spawning a
+    `git show` per file (0.2s vs 1.5s for ~1000 files — benchmarked).
+    """
+    proc = subprocess.Popen(
+        ["git", "-C", str(root), "cat-file", "--batch"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    try:
+        for rev, rel in zip(revs, rels):
+            assert proc.stdin is not None and proc.stdout is not None
+            proc.stdin.write((rev + "\n").encode())
+            proc.stdin.flush()
+            header = proc.stdout.readline().decode("utf-8", "replace").split()
+            # "<sha> blob <size>" — skip "missing" / non-blob (submodule) entries.
+            if len(header) < 3 or header[1] != "blob":
+                continue
+            size = int(header[2])
+            content = proc.stdout.read(size)
+            proc.stdout.read(1)  # trailing newline after each blob
+            try:
+                yield (rel, content.decode("utf-8"))
+            except UnicodeDecodeError:
+                continue
+    finally:
+        if proc.stdin is not None:
+            proc.stdin.close()
+        proc.wait()
+
+
+def _in_scope(rel: str) -> bool:
+    """True if rel is a file the gate scans — mirrors the default scan's dirs.
+
+    Default mode globs ui_xml/**/*.xml and src/**/*.{cpp,cc}; the post-commit
+    mode (ls-tree) sees the whole tree, so it must apply the same scoping or it
+    would count tests/, firmware/, tools/ and inflate the ratchet.
+    """
+    if any(part in SKIP_PARTS for part in Path(rel).parts):
+        return False
+    if rel.endswith(".xml"):
+        return rel.startswith("ui_xml/")
+    if rel.endswith(CPP_EXTS):
+        return rel.startswith("src/")
+    return False
+
+
+def collect(args, root: Path):
+    """Yield (rel, text) for every file to scan, content already sourced.
+
+    Three modes:
+      - positional file args: read each from the working tree (fixtures, ad-hoc).
+      - --staged-only: the POST-COMMIT TREE — `git write-tree` builds the tree
+        the commit WILL create (index applied over HEAD), so unstaged WIP from
+        another session never counts. Reading blobs via `git cat-file --batch`
+        keeps it fast (one process). This is what the pre-commit hook needs: the
+        ratchet baseline is a whole-tree count, so the check must see a whole
+        tree, just the would-be-committed one rather than the dirty working one.
+      - default: the whole working tree (CI, manual runs against a clean checkout).
+    """
     if args.files:
-        out = []
         for f in args.files:
-            p = Path(f)
-            out.append((p, str(p)))
-        return out
+            try:
+                yield (str(f), Path(f).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+        return
 
     if args.staged_only:
-        res = subprocess.run(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-            capture_output=True, text=True, check=False)
-        out = []
-        for f in res.stdout.split():
-            p = Path(f)
-            if any(part in SKIP_PARTS for part in p.parts):
-                continue
-            if f.endswith(".xml") or f.endswith(CPP_EXTS):
-                out.append((root / f, f))
-        return out
+        # The tree this commit will produce: index content for staged paths,
+        # HEAD for everything else. `git write-tree` materialises it as one tree
+        # object; ls-tree lists its files; cat-file --batch streams their blobs.
+        tree = _git_text(["write-tree"], root).strip()
+        if not tree:
+            return  # not a git repo / empty index — nothing to check
+        rels = [f for f in _git_text(
+            ["ls-tree", "-r", "--name-only", tree], root).split("\n") if f and _in_scope(f)]
+        yield from _catfile_batch(root, [f"{tree}:{r}" for r in rels], rels)
+        return
 
-    out = []
+    # Default: whole working tree.
     patterns = [(d, "*.xml") for d in XML_DIRS]
     patterns += [(d, f"*{ext}") for d in CPP_DIRS for ext in CPP_EXTS]
     for d, glob in patterns:
         for p in sorted((root / d).rglob(glob)):
-            rel_path = p.relative_to(root)
+            rel = p.relative_to(root).as_posix()
             # Test the RELATIVE path: the repo itself may live under a directory
             # named in SKIP_PARTS (every git worktree lives under .worktrees/),
             # which would make an absolute-path test skip the entire tree.
-            if any(part in SKIP_PARTS for part in rel_path.parts):
+            if any(part in SKIP_PARTS for part in Path(rel).parts):
                 continue
-            out.append((p, rel_path.as_posix()))
-    return out
+            try:
+                yield (rel, p.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
 
 
 def main() -> int:
@@ -347,21 +416,24 @@ def main() -> int:
     ap.add_argument("--summary", action="store_true", help="Per-rule counts only")
     ap.add_argument("--list", action="store_true", help="Print every site")
     ap.add_argument("--rule", choices=RULES, help="Restrict to one rule")
-    ap.add_argument("--staged-only", action="store_true", help="Check only staged files")
+    ap.add_argument("--staged-only", action="store_true",
+                    help="Scan the post-commit tree (index + HEAD), not the "
+                         "dirty working tree — what the pre-commit hook uses so "
+                         "unstaged WIP from another session cannot trip the ratchet")
     args = ap.parse_args()
 
     root = repo_root()
     tokens = load_token_values(root)
 
     hits: list[tuple] = []
-    for path, rel in collect(args, root):
+    for rel, text in collect(args, root):
         if rel in EXEMPT_FILES or Path(rel).name in {
                 Path(e).name for e in EXEMPT_FILES}:
             continue
         if rel.endswith(".xml"):
-            hits += scan_xml(path, rel, tokens)
+            hits += scan_xml(text, rel, tokens)
         elif rel.endswith(CPP_EXTS):
-            hits += scan_cpp(path, rel)
+            hits += scan_cpp(text, rel)
 
     if args.rule:
         hits = [h for h in hits if h[2] == args.rule]

@@ -186,6 +186,23 @@ TEST_CASE("timelapse pre-print default reflects global enabled=false (#1094)",
     REQUIRE(tl->default_enabled == false);
 }
 
+TEST_CASE("timelapse pre-print label is English text, not a semantic i18n key",
+          "[printer_state][preprint][timelapse][i18n]") {
+    // English registers no translation pack (translation_loader.cpp skips
+    // kIdentityLocale), so lv_tr(key) returns the key itself in the English
+    // UI. A label_key like "pre_print_option.timelapse.label" therefore
+    // renders as the raw dotted identifier on the toggle row — the v0.99.114
+    // regression. Keys must be their own English text.
+    lv_init_safe();
+    PrinterState& state = fresh_state();
+
+    state.set_timelapse_available(true);
+
+    const PrePrintOption* tl = find_timelapse_option(state);
+    REQUIRE(tl != nullptr);
+    REQUIRE(tl->label_key == "Timelapse");
+}
+
 TEST_CASE("has_any_preprint_options: simplified expression equivalent to old per-op OR",
           "[printer_state][composite_visibility][aggregate][equivalence]") {
     // The old code computed five (plugin && has_X) products and ORed them

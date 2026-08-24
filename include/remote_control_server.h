@@ -160,6 +160,13 @@ class RemoteControlServer {
     // Read a widget's text (label/textarea/dropdown), descending into a
     // composite (e.g. a button) to find the first text-bearing descendant.
     nlohmann::json handle_text(const nlohmann::json& params);
+    nlohmann::json handle_set_text(const nlohmann::json& params);
+
+    // Read a widget's LVGL states (checked/disabled/focused/pressed) and the
+    // hidden/clickable/scrollable flags. Descends a composite row to its
+    // value-control the same way click/set_value do, so `state <row>` reports
+    // on what those commands would act.
+    nlohmann::json handle_state(const nlohmann::json& params);
 
     // Synthetic pointer: drives LVGL's real input pipeline so gestures
     // (long-press, drag, slide-to-select, scroll-vs-tap) are testable. Widget-level
@@ -167,6 +174,10 @@ class RemoteControlServer {
     nlohmann::json handle_pointer_press(const nlohmann::json& params);
     nlohmann::json handle_pointer_move(const nlohmann::json& params);
     nlohmann::json handle_pointer_release(const nlohmann::json& params);
+    /// Press, hold past the long-press threshold, and release, all without
+    /// returning to the client. See the comment on the implementation for why the
+    /// hold cannot live in the caller's shell.
+    nlohmann::json handle_pointer_long_press(const nlohmann::json& params);
 
     /// Apply a synthetic pointer state on the UI thread, then block (on the calling
     /// transport thread) until LVGL has sampled the device, so callers can sequence

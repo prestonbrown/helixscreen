@@ -10,10 +10,12 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "pause_cause.h"
 #include "post_op_cooldown_manager.h"
+#include "settings_manager.h"
 #include "snapmaker_resume.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -22,6 +24,7 @@
 #include <lvgl.h>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -32,11 +35,11 @@ namespace {
 // #991 post-runout SET_PRINT_FILAMENT_CONFIG re-assert must only treat
 // spool_name as a SUB_TYPE when it matches one of these — a single source of
 // truth for "is this a real product line?".
-constexpr std::array<std::string_view, 8> kKnownSubTypes = {
+constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
     "Basic", "Matte", "SnapSpeed", "Silk", "Support", "HF", "95A", "95A HF"};
 
 [[nodiscard]] bool is_known_subtype(const std::string& s) {
-    for (const auto& st : kKnownSubTypes) {
+    for (const auto& st : KNOWN_SUB_TYPES) {
         if (s == st) {
             return true;
         }
@@ -114,7 +117,7 @@ struct ChannelStateInfo {
     // directly off the reference table. Unknown/future states fall through to
     // the prefix/suffix heuristic below so we degrade gracefully rather than
     // silently mis-classify.
-    static const std::unordered_map<std::string, ChannelStateInfo> kTable = [] {
+    static const std::unordered_map<std::string, ChannelStateInfo> TABLE = [] {
         std::unordered_map<std::string, ChannelStateInfo> m;
         auto add = [&](const char* s, ChannelStateInfo info) { m.emplace(s, info); };
         constexpr auto LOAD = AmsAction::LOADING;
@@ -171,8 +174,8 @@ struct ChannelStateInfo {
         return m;
     }();
 
-    auto it = kTable.find(state);
-    if (it != kTable.end()) {
+    auto it = TABLE.find(state);
+    if (it != TABLE.end()) {
         return it->second;
     }
 
@@ -228,12 +231,11 @@ struct ChannelStateInfo {
 // Construction
 // ============================================================================
 
-AmsBackendSnapmaker::AmsBackendSnapmaker(MoonrakerAPI* api, helix::MoonrakerClient* client)
+AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
     // Initialize system info
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap";
-    system_info_.supports_endless_spool = false;
     system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
@@ -663,9 +665,9 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
     // neutered FEED_AUTO and whose SET_PRINT_FILAMENT_CONFIG / manual extrude were
     // both unnecessary (INNER_RESUME restores config; AUTO_FEEDING does the heat).
     if (!api_) {
-        spdlog::warn("{} prepare_for_resume: MoonrakerAPI unavailable", backend_log_tag());
+        spdlog::warn("{} prepare_for_resume: IMoonrakerAPI unavailable", backend_log_tag());
         if (on_ready) {
-            on_ready(AmsErrorHelper::not_connected("MoonrakerAPI unavailable"));
+            on_ready(AmsErrorHelper::not_connected("IMoonrakerAPI unavailable"));
         }
         return;
     }
@@ -686,11 +688,11 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
 
     auto tok = lifetime_.token();
     const char* tag = backend_log_tag();
-    MoonrakerAPI* api_ptr = api_;
+    IMoonrakerAPI* api_ptr = api_;
     api_ptr->execute_gcode(
         chain,
         [this, tok, on_ready, tag, slot]() mutable {
-            // MoonrakerAPI callbacks fire on the libhv WebSocket thread; defer to
+            // IMoonrakerAPI callbacks fire on the libhv WebSocket thread; defer to
             // main so on_ready (and the backstop arm) run on the UI thread.
             tok.defer("AmsBackendSnapmaker::prepare_for_resume.ok",
                       [this, cb = std::move(on_ready), tag, slot]() {
@@ -1062,6 +1064,11 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
     // Set when the active-tool port-present flag changed this parse (#991), so
     // we publish to AmsState exactly once after releasing the mutex.
     bool port_present_changed = false;
+    // Lanes that reached "unload_finish" this parse. Same deferral rule as
+    // port_present_changed: collected under mutex_, published to AmsState after
+    // it is released, because reaching into AmsState while holding ours inverts
+    // the order add_backend() acquires them in.
+    std::vector<int> unloaded_lanes;
 
     // Per-slot UID observed THIS parse. Empty string means no RFID info in
     // this notification (incremental update, or slot not included). Only
@@ -1119,14 +1126,10 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             const auto& th = status["toolhead"];
             if (th.contains("extruder") && th["extruder"].is_string()) {
                 auto ext_name = th["extruder"].get<std::string>();
-                // "extruder" = 0, "extruder1" = 1, etc.
-                if (ext_name == "extruder") {
-                    active = 0;
-                } else if (ext_name.size() > 8 && ext_name.rfind("extruder", 0) == 0) {
-                    try {
-                        active = std::stoi(ext_name.substr(8));
-                    } catch (...) {
-                    }
+                // "extruder" = 0, "extruder1" = 1, etc. An unparseable name
+                // leaves whatever the per-extruder state loop above decided.
+                if (const auto tool_number = helix::tool_number_for_extruder(ext_name)) {
+                    active = *tool_number;
                 }
                 has_extruder_data = true;
             }
@@ -1400,11 +1403,14 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                                     }
                                 }
                                 if (state == "unload_finish") {
-                                    // Record the just-unloaded lane so
-                                    // FilamentSensorManager suppresses the runout
-                                    // modal during the grace window when the user is
-                                    // EXPECTED to pull filament out of this lane.
-                                    AmsState::instance().mark_slot_unloaded(i);
+                                    // Deferred to after the lock for the same
+                                    // reason emit_event is: this reaches into
+                                    // AmsState, which takes its own mutex, while
+                                    // AmsState::add_backend() takes that mutex
+                                    // first and then ours via set_event_callback().
+                                    // Calling it here closed the cycle and TSan
+                                    // reported the deadlock (nightly, 2026-08-16).
+                                    unloaded_lanes.push_back(i);
                                 }
                                 // preload_finish is terminal-for-latch but does NOT
                                 // end the op: a lane already at preload_finish that
@@ -1685,6 +1691,13 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
         AmsState::instance().set_active_tool_port_present(last_published_port_present_ != 0);
     }
 
+    // Record the just-unloaded lanes so FilamentSensorManager suppresses the
+    // runout modal during the grace window when the user is EXPECTED to pull
+    // filament out of the lane.
+    for (int lane : unloaded_lanes) {
+        AmsState::instance().mark_slot_unloaded(lane);
+    }
+
     if (changed) {
         emit_event(EVENT_STATE_CHANGED);
     }
@@ -1698,40 +1711,45 @@ void AmsBackendSnapmaker::apply_overrides(SlotInfo& slot, int slot_index) {
     // Every caller of apply_overrides runs under mutex_ (handle_status_update's
     // tail, set_slot_info's lock block). overrides_ writers also hold mutex_,
     // so the map read here is implicitly lock-protected. Zero-cost hash miss
-    // when the slot has no override — safe in the hot parse path.
+    // when the slot has no override — safe in the hot parse path. The whole
+    // spec §5 policy + the re-bind/eject rules live in
+    // helix::ams::merge_override — the single implementation every backend
+    // shares. Rule 1 (re-bind) is NOT gated by the capability: it can fire
+    // on any backend whose firmware reports a positive spool id disagreeing
+    // with the override (AFC, Happy Hare, flat-schema CFS). Snapmaker
+    // firmware never reports one, so Rule 1 cannot fire here today — but
+    // that is a fact about this firmware, not what the capability gates.
+    // Rule 2 (eject) IS what printer_reports_spool_ids() gates (base false
+    // here: 0 is Snapmaker's everyday reading, never an eject), and the
+    // erase branch is correct tomorrow if a firmware ever starts reporting
+    // ids.
     auto it = overrides_.find(slot_index);
     if (it == overrides_.end()) {
         return;
     }
-    const auto& o = it->second;
-    // Merge policy — same as AD5X IFS. Override wins only when the override
-    // field carries a real value; defaults fall through to firmware.
-    if (!o.brand.empty())
-        slot.brand = o.brand;
-    if (!o.spool_name.empty())
-        slot.spool_name = o.spool_name;
-    if (o.spoolman_id > 0)
-        slot.spoolman_id = o.spoolman_id;
-    if (o.spoolman_vendor_id > 0)
-        slot.spoolman_vendor_id = o.spoolman_vendor_id;
-    if (o.remaining_weight_g >= 0.0f)
-        slot.remaining_weight_g = o.remaining_weight_g;
-    if (o.total_weight_g >= 0.0f)
-        slot.total_weight_g = o.total_weight_g;
-    if (o.color_set)
-        slot.color_rgb = o.color_rgb;
-    if (!o.color_name.empty())
-        slot.color_name = o.color_name;
-    if (!o.material.empty())
-        slot.material = o.material;
-    // Catalog product identity — same "override wins only when it carries a
-    // real value" rule as the strings above. Firmware never populates these
-    // (no AMS protocol has a notion of a branded product id), so a non-empty
-    // value here is always a user pick and always wins.
-    if (!o.catalog_id.empty())
-        slot.catalog_id = o.catalog_id;
-    if (!o.product_name.empty())
-        slot.product_name = o.product_name;
+    helix::ams::MergeOptions opts;
+    opts.printer_reports_spool_ids = printer_reports_spool_ids();
+    opts.keep_spool_info_on_eject =
+        helix::SettingsManager::instance().get_ams_keep_spool_info_on_eject();
+    // Own-write echo suppression (SlotFingerprintTracker::expect()
+    // semantics): Rule 1 must not read an in-flight stale firmware id as an
+    // external re-bind. Snapmaker never writes firmware ids, so this is
+    // always {0, 0} today — the call keeps one shape across backends.
+    const auto [own_old_id, own_new_id] = own_write_expectation(slot_index, slot.spoolman_id);
+    opts.suppress_rebind_firmware_old_id = own_old_id;
+    opts.suppress_rebind_firmware_new_id = own_new_id;
+    const auto result = helix::ams::merge_override(slot, it->second, opts);
+    if (result.cleared_rebind || result.cleared_eject) {
+        overrides_.erase(it);
+        if (override_store_) {
+            const std::string tag = backend_log_tag();
+            override_store_->clear_async(slot_index, [tag, slot_index](bool ok, std::string err) {
+                if (!ok) {
+                    spdlog::warn("{} clear_async failed for slot {}: {}", tag, slot_index, err);
+                }
+            });
+        }
+    }
 }
 
 void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_index,

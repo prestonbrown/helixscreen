@@ -120,18 +120,19 @@ std::string plr_read_creality_recovery_filename();
 // --- Wire constants -------------------------------------------------------
 
 /// Snapmaker fork gcode.
-inline constexpr const char* kSnapmakerResumeGcode = "SDCARD_PRINT_PL_RESTORE";
-inline constexpr const char* kSnapmakerDiscardGcode = "SDCARD_PRINT_PL_CLEAR_ENV";
+inline constexpr const char* SNAPMAKER_RESUME_GCODE = "SDCARD_PRINT_PL_RESTORE";
+inline constexpr const char* SNAPMAKER_DISCARD_GCODE = "SDCARD_PRINT_PL_CLEAR_ENV";
 
 /// Creality fork. The detect endpoint is a Klipper webhook that Moonraker
 /// auto-registers as a JSON-RPC method (klippy_connection.py re-exports every
 /// non-reserved endpoint). It is SIDE-EFFECTFUL — call at most once per
 /// connection, only while print_stats.state == "standby". Never poll it.
-inline constexpr const char* kCrealityDetectRpc = "printer.pause_resume.check_continue_print_state";
-inline constexpr const char* kCrealityDiscardRpc = "printer.pause_resume.cancel_continue_print";
+inline constexpr const char* CREALITY_DETECT_RPC =
+    "printer.pause_resume.check_continue_print_state";
+inline constexpr const char* CREALITY_DISCARD_RPC = "printer.pause_resume.cancel_continue_print";
 
 /// Sidecar holding the interrupted job's path, relative to the data root.
-inline constexpr const char* kCrealitySidecarRelPath =
+inline constexpr const char* CREALITY_SIDECAR_REL_PATH =
     "creality/userdata/config/print_file_name.json";
 
 } // namespace helix

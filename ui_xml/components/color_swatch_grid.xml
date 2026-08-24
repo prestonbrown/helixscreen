@@ -2,6 +2,8 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: 0x prefix for literal hex colors (# triggers constant lookup) -->
+<!-- Flat 30-swatch preset color grid (row_wrap). Parameterized callback so
+     multiple hosts can consume it. Colors mirror the ColorPicker presets. -->
 <component>
   <api>
     <!-- Required: each host names its own click handler. No default on purpose —

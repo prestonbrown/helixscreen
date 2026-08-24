@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
@@ -20,7 +21,7 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 } // namespace helix
 
 /**
@@ -38,7 +39,7 @@ class MoonrakerClient;
  *       []() { ... },
  *       [](const auto& err) { ... });
  */
-class MoonrakerJobAPI {
+class MoonrakerJobAPI : public IJobAPI {
   public:
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
@@ -52,7 +53,7 @@ class MoonrakerJobAPI {
      *
      * @param client MoonrakerClient instance (must remain valid during API lifetime)
      */
-    explicit MoonrakerJobAPI(helix::MoonrakerClient& client);
+    explicit MoonrakerJobAPI(helix::IMoonrakerClient& client);
     virtual ~MoonrakerJobAPI() = default;
 
     // ========================================================================
@@ -67,7 +68,7 @@ class MoonrakerJobAPI {
      * @param on_error Error callback
      */
     void start_print(const std::string& filename, SuccessCallback on_success,
-                     ErrorCallback on_error);
+                     ErrorCallback on_error) override;
 
     /**
      * @brief Start printing modified G-code via helix_print plugin (v2.0 API)
@@ -89,10 +90,10 @@ class MoonrakerJobAPI {
      * @param on_success Callback with print result
      * @param on_error Error callback
      */
-    virtual void start_modified_print(const std::string& original_filename,
-                                      const std::string& temp_file_path,
-                                      const std::vector<std::string>& modifications,
-                                      ModifiedPrintCallback on_success, ErrorCallback on_error);
+    void start_modified_print(const std::string& original_filename,
+                              const std::string& temp_file_path,
+                              const std::vector<std::string>& modifications,
+                              ModifiedPrintCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Check if helix_print plugin is available
@@ -103,7 +104,7 @@ class MoonrakerJobAPI {
      * @param on_result Callback with availability (true if plugin detected)
      * @param on_error Error callback (also means plugin not available)
      */
-    virtual void check_helix_plugin(BoolCallback on_result, ErrorCallback on_error);
+    void check_helix_plugin(BoolCallback on_result, ErrorCallback on_error) override;
 
     /**
      * @brief Pause the current print
@@ -111,7 +112,7 @@ class MoonrakerJobAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void pause_print(SuccessCallback on_success, ErrorCallback on_error);
+    void pause_print(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Resume a paused print
@@ -119,7 +120,7 @@ class MoonrakerJobAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void resume_print(SuccessCallback on_success, ErrorCallback on_error);
+    void resume_print(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Cancel the current print
@@ -127,8 +128,8 @@ class MoonrakerJobAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void cancel_print(SuccessCallback on_success, ErrorCallback on_error);
+    void cancel_print(SuccessCallback on_success, ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
 };

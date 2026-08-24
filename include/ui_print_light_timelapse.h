@@ -11,7 +11,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
 class PrinterState;
 }
@@ -56,9 +56,9 @@ class PrintLightTimelapseControls {
 
     /**
      * @brief Set the Moonraker API for sending commands
-     * @param api Pointer to MoonrakerAPI (can be nullptr for mock mode)
+     * @param api Pointer to IMoonrakerAPI (can be nullptr for mock mode)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -127,7 +127,7 @@ class PrintLightTimelapseControls {
     // === Dependencies ===
     //
 
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     //
     // === Subject Management ===

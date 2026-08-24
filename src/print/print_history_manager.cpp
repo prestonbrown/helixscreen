@@ -5,8 +5,9 @@
 
 #include "ui_update_queue.h"
 
-#include "moonraker_api.h"
-#include "moonraker_client.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
+#include "json_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -18,16 +19,17 @@ using namespace helix;
 // Construction / Destruction
 // ============================================================================
 
-PrintHistoryManager::PrintHistoryManager(MoonrakerAPI* api, MoonrakerClient* client)
+PrintHistoryManager::PrintHistoryManager(IMoonrakerAPI* api, IMoonrakerClient* client)
     : api_(api), client_(client) {
     spdlog::debug("[HistoryManager] Created");
     subscribe_to_notifications();
 }
 
 PrintHistoryManager::~PrintHistoryManager() {
-    // Unregister notification callback
+    // Unregister notification callbacks
     if (client_) {
         client_->unregister_method_callback("notify_history_changed", "PrintHistoryManager");
+        client_->unregister_method_callback("notify_filelist_changed", "PrintHistoryManager");
     }
 }
 
@@ -50,7 +52,13 @@ void PrintHistoryManager::fetch(int limit) {
     // in the BG-thread callbacks below.
     bool expected = false;
     if (!is_fetching_.compare_exchange_strong(expected, true)) {
-        spdlog::debug("[HistoryManager] Fetch already in progress, ignoring");
+        // The in-flight request was issued before this one, so its response
+        // cannot describe whatever just changed. Queue a single re-issue rather
+        // than dropping the request outright: deleting several files in a row
+        // otherwise leaves the cache one delete behind until the next
+        // notification happens to arrive.
+        refetch_pending_.store(true);
+        spdlog::debug("[HistoryManager] Fetch already in progress, queuing one refetch");
         return;
     }
 
@@ -81,6 +89,18 @@ void PrintHistoryManager::fetch(int limit) {
             (void)token;
             spdlog::warn("[HistoryManager] Failed to fetch history: {}", error.message);
         });
+}
+
+const PrintHistoryJob* PrintHistoryManager::get_newest_existing_job() const {
+    if (!is_loaded_) {
+        return nullptr;
+    }
+    for (const auto& job : cached_jobs_) {
+        if (job.exists) {
+            return &job;
+        }
+    }
+    return nullptr;
 }
 
 void PrintHistoryManager::invalidate() {
@@ -125,6 +145,14 @@ void PrintHistoryManager::on_history_fetched(std::vector<PrintHistoryJob>&& jobs
     // is_fetching_ was cleared on the BG thread before this defer was posted.
 
     notify_observers();
+
+    // A change landed while this request was in flight; its response predates
+    // that change, so go around once more. Bounded: the flag is cleared before
+    // the re-issue, so it only repeats while changes keep arriving.
+    if (refetch_pending_.exchange(false)) {
+        spdlog::debug("[HistoryManager] Re-fetching (history changed mid-flight)");
+        fetch();
+    }
 }
 
 void PrintHistoryManager::build_filename_stats() {
@@ -197,6 +225,16 @@ void PrintHistoryManager::notify_observers() {
     }
 }
 
+bool PrintHistoryManager::filelist_action_affects_history(const std::string& action) {
+    // notify_filelist_changed fires for every file operation, including uploads
+    // and Moonraker's own metadata scans (an AFC printer rewrites
+    // AFC/AFC.var.unit on every SET_* command). Only the actions that can make
+    // a job's file stop being where history says it is invalidate the cached
+    // `exists` flags; everything else must not cost a history round-trip.
+    return action == "delete_file" || action == "delete_dir" || action == "move_file" ||
+           action == "move_dir";
+}
+
 void PrintHistoryManager::subscribe_to_notifications() {
     if (!client_) {
         return;
@@ -213,6 +251,38 @@ void PrintHistoryManager::subscribe_to_notifications() {
         [this, token](const nlohmann::json& /*data*/) {
             spdlog::debug("[HistoryManager] Received notify_history_changed");
             token.defer("PrintHistoryManager::notify_history_changed", [this]() {
+                invalidate();
+                fetch();
+            });
+        });
+
+    // Deleting or moving a gcode file fires notify_filelist_changed, never
+    // notify_history_changed - Moonraker emits the latter only when a job is
+    // added or history is cleared. Without this the cache keeps serving a job
+    // whose file is gone, which the Print Status idle tile then offers as
+    // "Reprint Last". Covers our own deletes and external ones alike (Mainsail,
+    // Fluidd, OrcaSlicer).
+    client_->register_method_callback(
+        "notify_filelist_changed", "PrintHistoryManager",
+        [this, token](const nlohmann::json& data) {
+            // bg thread: parse into a plain string only, no member access.
+            // Moonraker can send null/missing fields, so probe before reading.
+            std::string action;
+            const auto params_it = data.find("params");
+            if (params_it != data.end() && params_it->is_array() && !params_it->empty()) {
+                const nlohmann::json& p = (*params_it)[0];
+                if (p.is_object()) {
+                    action = helix::json_util::safe_string(p, "action");
+                }
+            }
+            if (!filelist_action_affects_history(action)) {
+                return;
+            }
+            spdlog::debug("[HistoryManager] filelist action '{}' invalidates history", action);
+            token.defer("PrintHistoryManager::notify_filelist_changed", [this]() {
+                // invalidate() first: fetch() is not gated on is_loaded_, but
+                // every consumer that checks is_loaded_ before reading must see
+                // the cache as stale until the refetch lands.
                 invalidate();
                 fetch();
             });

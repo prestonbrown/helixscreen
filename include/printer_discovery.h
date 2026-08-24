@@ -56,6 +56,20 @@ class PrinterDiscovery {
             return;
         }
 
+        // Keep the raw list. Detection's object_exists / macro_match /
+        // macro_exclude heuristics read printer_objects(), which 73 of the 94
+        // database entries depend on, so a caller that parses an object list
+        // and never calls set_printer_objects() would score blind against the
+        // strongest signals in the database. The discovery sequence still calls
+        // the setter afterwards with the same strings, which is an idempotent
+        // overwrite rather than a second copy.
+        printer_objects_.reserve(objects.size());
+        for (const auto& obj : objects) {
+            if (obj.is_string()) {
+                printer_objects_.push_back(obj.template get<std::string>());
+            }
+        }
+
         // AFC_stepper names collected separately — only used as lane source when
         // no AFC_lane objects exist (Box Turtle compat). Vivid uses AFC_stepper for
         // motor components (drive/selector), not lanes.
@@ -76,8 +90,8 @@ class PrinterDiscovery {
         int best_chamber_sensor_conf = 0;
         int best_chamber_cooling_fan_conf = 0;
 
-        constexpr int kChamberHeaterGenericWeight = 2;  // settable heater — preferred
-        constexpr int kChamberTemperatureFanWeight = 1; // fan — only wins if no heater_generic
+        constexpr int CHAMBER_HEATER_GENERIC_WEIGHT = 2;  // settable heater — preferred
+        constexpr int CHAMBER_TEMPERATURE_FAN_WEIGHT = 1; // fan — only wins if no heater_generic
 
         // Promote the current object to the best chamber heater if its keyword
         // confidence (plus object-type tiebreak) exceeds the running best.
@@ -154,7 +168,7 @@ class PrinterDiscovery {
             else if (name.rfind("heater_generic ", 0) == 0) {
                 heaters_.push_back(name);
                 std::string heater_name = name.substr(15); // Remove "heater_generic " prefix
-                try_set_chamber_heater(name, heater_name, kChamberHeaterGenericWeight);
+                try_set_chamber_heater(name, heater_name, CHAMBER_HEATER_GENERIC_WEIGHT);
             }
             // ================================================================
             // Sensors: temperature_sensor, temperature_fan (dual-purpose)
@@ -171,7 +185,7 @@ class PrinterDiscovery {
                 sensors_.push_back(name);
                 fans_.push_back(name);                  // Also add to fans for control
                 std::string fan_name = name.substr(16); // Remove "temperature_fan " prefix
-                try_set_chamber_heater(name, fan_name, kChamberTemperatureFanWeight);
+                try_set_chamber_heater(name, fan_name, CHAMBER_TEMPERATURE_FAN_WEIGHT);
                 try_set_chamber_cooling_fan(name, fan_name);
             }
             // TMC stepper drivers with built-in temperature (tmc2240, tmc5160)
@@ -634,6 +648,58 @@ class PrinterDiscovery {
                 spdlog::debug("[PrinterDiscovery] screws_tilt_adjust detected from config");
             }
         }
+    }
+
+    /**
+     * @brief Derive the build volume from the configfile [stepper_*] sections
+     *
+     * The X/Y travel limits and the Z height are the most discriminating
+     * evidence PrinterDetector has: 63 of the 94 database entries carry a
+     * build_volume_range heuristic. configfile.settings reports the resolved
+     * value for every stepper key, so this is available as soon as the
+     * configfile query returns — long before the safety-limits fetch that is
+     * the other writer of this field.
+     *
+     * Every field is presence-checked: Klipper emits nulls for keys a printer
+     * does not define, and a bare .get<float>() on one throws type_error.302.
+     *
+     * @param settings JSON object from a configfile.settings response
+     * @return true when a usable X or Y extent was found and stored
+     */
+    bool parse_build_volume(const nlohmann::json& settings) {
+        if (!settings.is_object()) {
+            return false;
+        }
+
+        BuildVolume volume{};
+        auto read = [&settings](const char* section, const char* field, float& out) {
+            const auto s = settings.find(section);
+            if (s == settings.end() || !s->is_object()) {
+                return;
+            }
+            const auto f = s->find(field);
+            if (f != s->end() && f->is_number()) {
+                out = f->get<float>();
+            }
+        };
+        read("stepper_x", "position_min", volume.x_min);
+        read("stepper_x", "position_max", volume.x_max);
+        read("stepper_y", "position_min", volume.y_min);
+        read("stepper_y", "position_max", volume.y_max);
+        read("stepper_z", "position_max", volume.z_max);
+
+        // An all-zero volume is worse than none: build_volume_range heuristics
+        // would score it against every printer's window. Only a real extent is
+        // worth storing.
+        if (volume.x_max <= 0.0f && volume.y_max <= 0.0f) {
+            return false;
+        }
+
+        build_volume_ = volume;
+        spdlog::debug("[PrinterDiscovery] Build volume from config: X[{:.0f},{:.0f}] "
+                      "Y[{:.0f},{:.0f}] Z[0,{:.0f}]",
+                      volume.x_min, volume.x_max, volume.y_min, volume.y_max, volume.z_max);
+        return true;
     }
 
     /**
@@ -1292,10 +1358,10 @@ class PrinterDiscovery {
 
         // Air-quality penalty: names carrying a gas/particulate/humidity token
         // describe air quality, not chamber temperature.
-        static const char* const kAirQualityTokens[] = {
+        static const char* const AIR_QUALITY_TOKENS[] = {
             "TVOC", "VOC",  "CO2",  "GAS",         "HUMIDITY", "IAQ",
             "AQI",  "PM25", "PM10", "PARTICULATE", "PRESSURE"};
-        for (const char* tok : kAirQualityTokens) {
+        for (const char* tok : AIR_QUALITY_TOKENS) {
             if (has_standalone_token(upper, tok)) {
                 score -= 40;
                 break;
@@ -1449,9 +1515,9 @@ class PrinterDiscovery {
 } // namespace helix
 
 // Forward declarations for init_subsystems_from_hardware (global scope)
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 }
 
 namespace helix {
@@ -1463,10 +1529,10 @@ namespace helix {
  * based on discovered hardware.
  *
  * @param hardware Hardware discovery results
- * @param api MoonrakerAPI instance
+ * @param api IMoonrakerAPI instance
  * @param client MoonrakerClient instance
  */
-void init_subsystems_from_hardware(const PrinterDiscovery& hardware, MoonrakerAPI* api,
-                                   MoonrakerClient* client);
+void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,
+                                   IMoonrakerClient* client);
 
 } // namespace helix

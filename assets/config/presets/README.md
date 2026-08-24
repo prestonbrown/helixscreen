@@ -11,6 +11,8 @@ For supported platforms (like AD5M and Snapmaker U1), the preset is baked into t
 
 The preset sets `wizard_completed: false` so the abbreviated wizard runs on first boot. The `preset` field triggers **preset mode**, which skips all hardware configuration steps since the answers are already known.
 
+The tarball is only one of the two ways a preset gets applied. The other is detection: `PrinterDetector` reads the `preset` field off the matched `printer_database.json` entry, so a preset that no database entry names is unreachable by every install route except its own factory tarball. **Every preset file must be named by a `"preset": "<name>"` key on some `printer_database.json` entry**, with two exceptions — `<base>_zmod.json` firmware variants, which `apply_preset_with_variants()` derives from the base preset's name at runtime, and reference configs that carry no `preset` key of their own. `tests/unit/test_preset_database_links.cpp` enforces this in both directions.
+
 ## Available Presets
 
 | File | Platform | Notes |
@@ -18,8 +20,8 @@ The preset sets `wizard_completed: false` so the abbreviated wizard runs on firs
 | `ad5m.json` | Flashforge Adventurer 5M / 5M Pro | Touch calibration, hardware mappings, ForgeX macros |
 | `ad5x.json` | Flashforge Adventurer 5X | Same hardware as AD5M, different display settings |
 | `cc1.json` | Elegoo Centauri Carbon (COSMOS firmware) | Factory white-balance calibration (per-channel panel gain), hardware mappings, load-cell probe, Moonraker on port 80 |
-| `artillery-m1-pro.json` | Artillery M1 Pro | Touch calibration, hardware mappings, sound disabled (CPU overload) |
-| `voron-v2-afc.json` | Voron V2 with AFC | Reference config, not auto-baked |
+| `artillery-m1-pro.json` | Artillery M1 Pro | Network-detected. Touch calibration, hardware mappings, sound disabled (CPU overload) |
+| `voron-v2-afc.json` | Voron V2 with AFC | Reference config, not auto-baked. Carries no `preset` key and is deliberately unlinked: its 15-sensor BoxTurtle filament block and machine-specific snapshot describe one rig, not the Voron 2.4 model |
 | `qidi_q2.json` | Qidi Q2 + QIDI Box (Happy Hare) | Network-detected (applied by the wizard, not baked); hardware mappings + Happy Hare filament-sensor roles |
 | `qidi_max4.json` | Qidi Max 4 | Network-detected. Stock hardware mappings from the default/optimized Max 4 config repos; QIDI Box handled by the QIDI Box backend |
 | `anycubic_kobra_2_pro.json` | Anycubic Kobra 2 Pro (Rinkhals) | Network-detected. Conservative: heaters/sensors only — fan/LED/filament-sensor object names unverified (no on-device build yet) |

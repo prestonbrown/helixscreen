@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_render_thread.h"
 
 #include <spdlog/spdlog.h>
@@ -184,23 +186,23 @@ void BedMeshRenderThread::render_loop() {
             last_render_time_ms_.store(elapsed_ms);
 
             // Track frame times for adaptive quality degradation
-            recent_frame_times_[frame_count_ % kFrameHistorySize] = elapsed_ms;
+            recent_frame_times_[frame_count_ % FRAME_HISTORY_SIZE] = elapsed_ms;
             frame_count_++;
 
             if (frame_count_ >= 3) {
-                int count = std::min(frame_count_, kFrameHistorySize);
+                int count = std::min(frame_count_, FRAME_HISTORY_SIZE);
                 float avg = 0.0f;
                 for (int i = 0; i < count; i++) {
                     avg += recent_frame_times_[i];
                 }
                 avg /= static_cast<float>(count);
 
-                if (!degraded_mode_ && avg > kDegradeThresholdMs) {
+                if (!degraded_mode_ && avg > DEGRADE_THRESHOLD_MS) {
                     degraded_mode_ = true;
                     bed_mesh_renderer_set_dragging(renderer_, true);
                     spdlog::info(
                         "[BedMeshRenderThread] Degrading to solid-color mode (avg {:.0f}ms)", avg);
-                } else if (degraded_mode_ && avg < kRestoreThresholdMs) {
+                } else if (degraded_mode_ && avg < RESTORE_THRESHOLD_MS) {
                     degraded_mode_ = false;
                     bed_mesh_renderer_set_dragging(renderer_, false);
                     spdlog::info("[BedMeshRenderThread] Restored gradient mode (avg {:.0f}ms)",
@@ -234,3 +236,5 @@ void BedMeshRenderThread::render_loop() {
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

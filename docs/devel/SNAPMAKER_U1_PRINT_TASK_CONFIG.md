@@ -4,7 +4,7 @@
 > **Correction note.** Earlier HelixScreen research wrongly concluded that the Snapmaker U1
 > has *no* native runtime filament-remap mechanism and that remapping a print to a different
 > physical head "requires rewriting the gcode." **That is false.** The U1's firmware ships a
-> Klipper extra, `print_task_config.py`, that registers ~14 gcode commands the stock Snapmaker
+> Klipper extra, print_task_config.py, that registers ~14 gcode commands the stock Snapmaker
 > screen used for exactly this: per-slot filament metadata, **logical→physical extruder
 > remapping** (`SET_PRINT_EXTRUDER_MAP`), and **per-head "used" gating** (`SET_PRINT_USED_EXTRUDERS`)
 > that the print macros consult to decide whether to auto-feed a head. This document is the
@@ -13,11 +13,11 @@
 > slicer-baked print macros.
 
 **Sources read for this document**
-- `/home/lava/klipper/klippy/extras/print_task_config.py` (1351 lines — the extra itself)
+- /home/lava/klipper/klippy/extras/print_task_config.py (1351 lines — the extra itself)
 - Live device, read-only: SSH `root@192.168.30.103` + Moonraker `http://192.168.30.103:7125`
 - `/usr/bin/gui` (stock UI binary) — `strings` for exact command format strings
 - Klipper config macros via `printer/objects/query?configfile=settings`
-- `/home/lava/klipper/klippy/toolhead.py` + `kinematics/extruder.py` (Tn routing)
+- /home/lava/klipper/klippy/toolhead.py + kinematics/extruder.py (Tn routing)
 - A real Orca-sliced file: `/home/lava/printer_data/gcodes/lid_PLA_6m28s.gcode`
 
 ---
@@ -33,7 +33,7 @@ All commands are registered in `PrintTaskConfig.__init__` (lines 111–137). Con
 | `GET_PRINT_EXTRUDER_MAP` | *(none)* | Dump `Tn -> Tm` map table to console | No |
 | `SET_PRINT_FILAMENT_CONFIG` | `CONFIG_EXTRUDER=<0..3>` + filament fields (below) | Set per-physical-head filament vendor/type/color | No (but rejects official RFID unless `FORCE=1`) |
 | `GET_PRINT_TASK_CONFIG` | *(none)* | Dump the entire `print_task_config` dict | No |
-| `SAVE_CURRENT_PRINT_TASK_CONFIG` | *(none)* | Persist current config to `print_task.json` | No |
+| `SAVE_CURRENT_PRINT_TASK_CONFIG` | *(none)* | Persist current config to print_task.json | No |
 | `RESET_PRINT_TASK_CONFIG` | *(none)* | Reset whole config to defaults + persist | No |
 | `LOAD_PRINT_TASK_CONFIG` | *(none)* | Reload config from disk | No |
 | `SET_PRINT_PREFERENCES` | many flags (below) | Bed-level / flow-calib / timelapse / replenish / entangle prefs | Partially (id 531, code 16) |
@@ -138,7 +138,7 @@ FILAMENT_USED_G  FILAMENT_USED_MM
   i.e. any logical tool with nonzero filament usage marks its **mapped physical head** as used.
 - Enforces a nozzle-diameter match per used head (code 14) and a flow-calibrate-allowed check (code 18).
 - Rejected during `printing`/`paused` (code 16; otherwise code 17 on generic error).
-- Persists both `print_task.json` and `print_task_2.json`.
+- Persists both print_task.json and print_task_2.json.
 
 ### 1.6 Internal / runout commands
 - `INNER_CHECK_AND_RELOAD_FILAMENT_INFO EXTRUDER=<0..3> IS_RUNOUT=<0/1>` — on runout, restores the
@@ -182,7 +182,7 @@ pause uses `id=523, code=39`. These ids match the U1 exception-object scheme doc
 | `end_led_turn_off`, `end_unload_filament[4]` | prefs | end-of-print actions |
 | `reprint_info` | dict | snapshot of `{extruder_map_table, extruders_used, flow_*, time_lapse, bed_level, end_unload}` for re-print |
 
-A second file `print_task_2.json` (`DEFAULT_PRINT_TASK_CONFIG_2`) holds **per-logical-tool gcode params**
+A second file print_task_2.json (`DEFAULT_PRINT_TASK_CONFIG_2`) holds **per-logical-tool gcode params**
 (`nozzle_temp[32]`, `nozzle_diameter[32]`, `filament_used_g[32]`, etc.) used for validation in
 `SET_PRINT_TASK_PARAMETERS`.
 
@@ -201,7 +201,7 @@ Moonraker `printer/objects/query?print_task_config`), which is exactly what the 
 ### 3.1 How `Tn` resolves to a physical head
 Two distinct paths:
 
-**`T0`–`T3` (physical-range tool commands).** Registered by `kinematics/extruder.py` as each extruder's
+**`T0`–`T3` (physical-range tool commands).** Registered by kinematics/extruder.py as each extruder's
 `gcode_id`, dispatching to `cmd_SWITCH_EXTRUDER_ADVANCED`:
 ```python
 def cmd_SWITCH_EXTRUDER_ADVANCED(self, gcmd):
@@ -221,7 +221,7 @@ selects physical head 2 directly, bypassing the map. **The Snapmaker print macro
 preheat emits `M104 ... T{i} A0`).
 
 **`T4`–`T31` (extended/logical tool commands).** These are *macros* — each is literally
-`SWITCH_OF_EXTENDED_EXTRUDER INDEX=n`. Implemented in `toolhead.py`:
+`SWITCH_OF_EXTENDED_EXTRUDER INDEX=n`. Implemented in toolhead.py:
 ```python
 def cmd_SWITCH_OF_EXTENDED_EXTRUDER(self, gcmd):
     index = gcmd.get_int('INDEX')                                  # 4..31
@@ -311,7 +311,7 @@ executes the baked block. This is consistent with the code (the commands are rej
 
 ## 4. How the Stock Screen Sequenced It
 
-The orchestration lives in the **local UI binary `/usr/bin/gui`**, not in `snapmakercloud.py` (grep of the
+The orchestration lives in the **local UI binary `/usr/bin/gui`**, not in snapmakercloud.py (grep of the
 cloud component for `extruder_map` / `used_extruder` / `MAP_EXTRUDER` returns nothing — the cloud submits
 tasks, the local gui issues the gcode). Exact format strings extracted from `/usr/bin/gui`:
 

@@ -35,7 +35,7 @@ namespace helix::label {
 
 /// SPP (Serial Port Profile) UUID-16 — used for SDP channel lookup on
 /// classic Bluetooth printers that expose an RFCOMM service record.
-constexpr uint16_t kSppUuid16 = 0x1101;
+constexpr uint16_t SPP_UUID16 = 0x1101;
 
 /// Resolve the RFCOMM channel for a label printer MAC.
 /// Consults LabelPrinterSettingsManager cache; on miss runs SDP and caches

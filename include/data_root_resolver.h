@@ -59,6 +59,44 @@ std::string get_user_config_dir();
 std::string get_data_dir();
 
 /**
+ * @brief Root directory containing ui_xml/ and assets/
+ *
+ * Defaults to "." — byte-compatible with the historical CWD assumption
+ * (Application chdir()s into the data root at startup, so relative paths
+ * already resolve). Embedded targets with no working directory (ESP-IDF
+ * VFS has none — every relative path fails there) call
+ * set_asset_root("/littlefs") before any UI/theme init.
+ *
+ * Same thread-safety caveats as get_user_config_dir(): set once during
+ * single-threaded startup, read-only afterwards.
+ */
+const std::string& asset_root();
+
+/** @brief Override the asset root (empty string resets to "."). */
+void set_asset_root(const std::string& root);
+
+/**
+ * @brief Join a relative asset path onto asset_root()
+ *
+ * Identity when the root is "." (desktop: asset_path("ui_xml") == "ui_xml",
+ * keeping every existing path byte-identical); prefix-joined otherwise
+ * ("/littlefs/ui_xml").
+ */
+std::string asset_path(const std::string& relpath);
+
+/**
+ * @brief LVGL "A:" URI for registering a bundled XML component/asset
+ *
+ * Returns "A:" + asset_path(relpath). Use this instead of a hardcoded
+ * "A:ui_xml/..." literal when calling lv_xml_register_component_from_file (or any
+ * lv_fs open): the literal is only correct when asset_root is "." (desktop), and
+ * silently fails on firmware where the bundle is mounted at "/assets"
+ * ("A:ui_xml/..." → missing file; the correct path is "A:/assets/ui_xml/...").
+ * Byte-identical to the old literal on desktop.
+ */
+std::string asset_component_uri(const std::string& relpath);
+
+/**
  * @brief Build a writable path under the user-config directory
  *
  * Returns get_user_config_dir() + "/" + relpath, with any trailing slash

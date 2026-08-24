@@ -12,6 +12,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_panel_settings.h" // get_global_settings_panel() owns the restart prompt
 #include "ui_sound_preview_overlay.h"
 #include "ui_theme_editor_overlay.h"
 #include "ui_toast_manager.h"
@@ -65,7 +66,6 @@ DisplaySoundSettingsOverlay::~DisplaySoundSettingsOverlay() {
     if (subjects_initialized_ && lv_is_initialized()) {
         lv_subject_deinit(&brightness_value_subject_);
         lv_subject_deinit(&theme_apply_disabled_subject_);
-        lv_subject_deinit(&volume_value_subject_);
     }
     spdlog::trace("[{}] Destroyed", get_name());
 }
@@ -89,12 +89,6 @@ void DisplaySoundSettingsOverlay::init_subjects() {
     lv_subject_init_int(&theme_apply_disabled_subject_, 1);
     lv_xml_register_subject(nullptr, "theme_apply_disabled", &theme_apply_disabled_subject_);
 
-    // Volume value subject for label binding
-    snprintf(volume_value_buf_, sizeof(volume_value_buf_), "80%%");
-    lv_subject_init_string(&volume_value_subject_, volume_value_buf_, nullptr,
-                           sizeof(volume_value_buf_), volume_value_buf_);
-    lv_xml_register_subject(nullptr, "volume_value", &volume_value_subject_);
-
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
 }
@@ -110,6 +104,7 @@ void DisplaySoundSettingsOverlay::register_callbacks() {
         {"on_keep_navbar_changed", on_keep_navbar_changed},
 
         // Display
+        {"on_display_rotation_changed", on_display_rotation_changed},
         {"on_dark_mode_changed", on_dark_mode_changed},
         {"on_brightness_changed", on_brightness_changed},
         {"on_brightness_commit", on_brightness_commit},
@@ -211,6 +206,7 @@ void DisplaySoundSettingsOverlay::on_activate() {
     init_animations_toggle();
 
     // Display
+    init_display_rotation_dropdown();
     init_brightness_controls();
     init_dim_dropdown();
     init_sleep_dropdown();
@@ -325,6 +321,22 @@ void DisplaySoundSettingsOverlay::init_animations_toggle() {
 // ============================================================================
 // DISPLAY INIT METHODS
 // ============================================================================
+
+void DisplaySoundSettingsOverlay::init_display_rotation_dropdown() {
+    if (!overlay_root_)
+        return;
+
+    lv_obj_t* row = lv_obj_find_by_name(overlay_root_, "row_display_rotation");
+    lv_obj_t* dropdown = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+    if (dropdown) {
+        int degrees = DisplaySettingsManager::instance().get_display_rotation();
+        int index = DisplaySettingsManager::rotation_degrees_to_index(degrees);
+        lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
+
+        spdlog::debug("[{}] Screen rotation dropdown initialized to index {} ({}°)", get_name(),
+                      index, degrees);
+    }
+}
 
 void DisplaySoundSettingsOverlay::init_brightness_controls() {
     if (!overlay_root_)
@@ -479,7 +491,6 @@ void DisplaySoundSettingsOverlay::init_volume_slider() {
         lv_slider_set_value(slider, volume, LV_ANIM_OFF);
 
         helix::format::format_percent(volume, volume_value_buf_, sizeof(volume_value_buf_));
-        lv_subject_copy_string(&volume_value_subject_, volume_value_buf_);
 
         lv_obj_add_event_cb(slider, on_volume_released, LV_EVENT_RELEASED, nullptr);
 
@@ -534,10 +545,11 @@ void DisplaySoundSettingsOverlay::init_audio_device_dropdown() {
     if (!container)
         return;
 
-    // Only meaningful with the runtime-selectable ALSA backend. Hide the whole
-    // row otherwise (matches the screensaver/tracker capability-gating in this file).
+    // Visibility is driven declaratively by the compound cond on
+    // container_audio_device (sounds_enabled OR audio_device_available). On
+    // non-ALSA backends the row is hidden by the binding, so there is nothing
+    // to populate — just return.
     if (!SoundManager::instance().has_alsa_backend()) {
-        lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -636,6 +648,18 @@ void DisplaySoundSettingsOverlay::handle_keep_navbar_changed(bool enabled) {
 // ============================================================================
 // DISPLAY EVENT HANDLERS
 // ============================================================================
+
+void DisplaySoundSettingsOverlay::handle_display_rotation_changed(int index) {
+    int degrees = DisplaySettingsManager::index_to_rotation_degrees(index);
+    spdlog::info("[{}] Screen rotation changed: index {} = {}°", get_name(), index, degrees);
+
+    // The rotation is read once, by DisplayManager at startup, and LVGL screens
+    // never re-rotate afterwards. Only prompt when the applied value actually
+    // moved - re-picking the current one needs no restart.
+    if (DisplaySettingsManager::instance().set_display_rotation(degrees)) {
+        get_global_settings_panel().show_restart_prompt();
+    }
+}
 
 void DisplaySoundSettingsOverlay::handle_dark_mode_changed(bool enabled) {
     spdlog::info("[{}] Dark mode toggled: {}", get_name(), enabled ? "ON" : "OFF");
@@ -995,7 +1019,6 @@ void DisplaySoundSettingsOverlay::handle_volume_changed(int value) {
     AudioSettingsManager::instance().preview_volume(value);
 
     helix::format::format_percent(value, volume_value_buf_, sizeof(volume_value_buf_));
-    lv_subject_copy_string(&volume_value_subject_, volume_value_buf_);
 
     if (overlay_root_) {
         lv_obj_t* volume_row = lv_obj_find_by_name(overlay_root_, "row_volume");
@@ -1102,6 +1125,14 @@ void DisplaySoundSettingsOverlay::on_keep_navbar_changed(lv_event_t* e) {
 // ============================================================================
 // STATIC CALLBACKS - DISPLAY
 // ============================================================================
+
+void DisplaySoundSettingsOverlay::on_display_rotation_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[DisplaySoundSettingsOverlay] on_display_rotation_changed");
+    auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
+    get_display_sound_settings_overlay().handle_display_rotation_changed(index);
+    LVGL_SAFE_EVENT_CB_END();
+}
 
 void DisplaySoundSettingsOverlay::on_dark_mode_changed(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[DisplaySoundSettingsOverlay] on_dark_mode_changed");

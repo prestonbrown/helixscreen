@@ -19,9 +19,9 @@
 #include <memory>
 #endif
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(HELIX_PLATFORM_ESP32)
 #include <arpa/inet.h>
-#include <ifaddrs.h>
+#include <ifaddrs.h> // no ifaddrs on newlib (ESP-IDF)
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif
@@ -93,7 +93,7 @@ std::vector<std::string> proc_wireless_ifaces(const std::string& proc_root) {
 // Only meaningful against the live kernel socket table, so callers gate this
 // on probing the real sysfs root.
 bool iface_has_global_ipv4([[maybe_unused]] const std::string& iface) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(HELIX_PLATFORM_ESP32)
     return false;
 #else
     ifaddrs* ifap = nullptr;

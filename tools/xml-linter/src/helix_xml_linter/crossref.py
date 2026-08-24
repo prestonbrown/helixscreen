@@ -73,8 +73,11 @@ class ProjectRegistry:
     component_view_names: dict[str, str] = field(default_factory=dict)
     # component tag (from filename stem) -> extends widget name
 
-    component_params: dict[str, set[str]] = field(default_factory=dict)
-    # component tag -> set of param/prop names accepted by the component
+    component_params: dict[str, dict[str, str]] = field(default_factory=dict)
+    # component tag -> {prop name -> declared type ("string", "bool", "int", ...)}.
+    # A component's <api> prop declaration overrides the base widget's schema
+    # for that attribute (e.g. setting_toggle_row's `disabled` is a subject
+    # name, shadowing lv_obj's boolean of the same name).
 
     @classmethod
     def from_files(cls, paths: list[Path]) -> ProjectRegistry:
@@ -97,7 +100,7 @@ class ProjectRegistry:
             if comp_tag in self.component_params:
                 self.component_params[comp_tag] |= params
             else:
-                self.component_params[comp_tag] = set(params)
+                self.component_params[comp_tag] = dict(params)
 
 
 @dataclass
@@ -400,15 +403,16 @@ def _collect_registry_from_file(path: Path) -> ProjectRegistry:
     # For component files, register the filename stem as a custom widget
     if is_component:
         component_tag = path.stem
-        prop_names: set[str] = set()
+        prop_types: dict[str, str] = {}
 
-        # Collect <prop> names from <api> section
+        # Collect <prop> names+types from <api> section (type defaults to
+        # "string", matching the runtime's prop resolution)
         for elem in elements:
             if elem.tag == "prop" and elem.parent_tag == "api" and "name" in elem.attributes:
-                prop_names.add(elem.attributes["name"])
+                prop_types[elem.attributes["name"]] = elem.attributes.get("type", "string")
 
-        if prop_names:
-            registry.component_params[component_tag] = prop_names
+        if prop_types:
+            registry.component_params[component_tag] = prop_types
 
         # Find the primary <view> (direct child of <component>) with an extends attr
         for elem in elements:

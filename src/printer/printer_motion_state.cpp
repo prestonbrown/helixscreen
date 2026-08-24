@@ -11,6 +11,7 @@
 
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
+#include "z_offset_persistence.h"
 
 #include <spdlog/spdlog.h>
 
@@ -51,6 +52,10 @@ void PrinterMotionState::init_subjects(bool register_xml) {
                      register_xml); // Z-offset in microns from homing_origin[2]
     INIT_SUBJECT_INT(pending_z_offset_delta, 0, subjects_,
                      register_xml); // Accumulated adjustment during print
+    INIT_SUBJECT_INT(persisted_z_offset, 0, subjects_,
+                     register_xml); // ZMOD save_variables.gcode_offsets.z, microns
+    INIT_SUBJECT_INT(persisted_z_offset_valid, 0, subjects_,
+                     register_xml); // 1 once the firmware has told us a stored offset
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterMotionState] Subjects initialized successfully");
@@ -195,6 +200,19 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             }
         }
     }
+    // Firmware-persisted z-offset. Only assign when this frame actually carries
+    // one: the carrying status object is delta-only, so the very next gcode_move
+    // frame omits it and must not blank what we already know.
+    if (auto persisted = zoffset::read_persisted_offset_microns(status)) {
+        if (lv_subject_get_int(&persisted_z_offset_) != *persisted) {
+            lv_subject_set_int(&persisted_z_offset_, *persisted);
+            spdlog::debug("[PrinterMotionState] Persisted Z-offset: {}um", *persisted);
+        }
+        if (lv_subject_get_int(&persisted_z_offset_valid_) != 1) {
+            lv_subject_set_int(&persisted_z_offset_valid_, 1);
+        }
+    }
+
     // Update motion_report data (live extruder velocity)
     if (status.contains("motion_report")) {
         const auto& mr = status["motion_report"];

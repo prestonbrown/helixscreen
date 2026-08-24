@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include <spdlog/pattern_formatter.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
@@ -133,12 +132,17 @@ std::unique_ptr<spdlog::formatter> make_formatter(SinkKind kind);
 /**
  * @brief Log destination targets
  *
- * On Linux, the system will auto-detect the best available target:
- * - Journal (systemd) if /run/systemd/journal/socket exists
- * - Syslog as fallback
- * - File as final fallback
+ * `Auto` is resolved by detect_best_target():
+ * - Android build → Android (logcat)
+ * - Linux with HELIX_HAS_SYSTEMD and /run/systemd/journal/socket → Journal
+ * - Any other Linux → Syslog
+ * - macOS/other → Console
  *
- * On macOS, only Console and File are available.
+ * Auto NEVER resolves to File, on any platform. The file sink is only reached
+ * by asking for it — `--log-dest=file`, `HELIX_LOG_DEST=file`, or `/log_dest`
+ * in settings.json — which is what every embedded platform hook does, since
+ * "syslog" on a BusyBox box is an in-memory ring that dies with the reboot you
+ * are trying to diagnose.
  */
 enum class LogTarget {
     Auto,    ///< Detect best available (default)
@@ -154,12 +158,19 @@ enum class LogTarget {
  */
 struct LogConfig {
     spdlog::level::level_enum level = spdlog::level::warn;
-    bool enable_console =
-        true; ///< Enable console sink (only attached when target is Console or stdout is a TTY)
+    bool enable_console = true;         ///< Master switch: false vetoes the console sink outright.
+                                        ///< true only makes it eligible — should_add_console()
+                                        ///< decides, and for a Journal/Syslog/File target that
+                                        ///< still needs a TTY, force_console + a pipe, or
+                                        ///< test_mode.
     LogTarget target = LogTarget::Auto; ///< System log destination
     std::string file_path;              ///< Override file path (empty = auto)
-    bool force_console = false;         ///< Attach console sink even when stdout is not a TTY
-                                        ///< (set when the user explicitly passed -v/--log-level)
+    bool force_console = false;         ///< Widen the console gate to a PIPE as well as a TTY
+                                        ///< (set when the user explicitly passed -v/--log-level,
+                                        ///< or HELIX_LOG_LEVEL). Deliberately does NOT cover a
+                                        ///< regular file or socket — those are the daemon
+                                        ///< redirect, where a console sink double-logs into the
+                                        ///< very file the system sink is writing.
     bool test_mode = false;             ///< Running under --test: always attach the console sink.
                                         ///< Sourced from RuntimeConfig by the CALLER, not read
                                         ///< here: logging_init.o is linked into the watchdog
@@ -254,9 +265,15 @@ bool should_add_console(LogTarget effective_target, bool enable_console, bool fo
 /**
  * @brief Initialize minimal logging for early startup
  *
- * Sets up a basic console logger at WARN level. Call this FIRST in main()
- * before any log calls. The full init() can reconfigure later with user
- * preferences from CLI args and config files.
+ * Sets up a console logger at WARN level plus the debug-bundle ring sink. Call
+ * this FIRST in main() before any log calls. The full init() can reconfigure
+ * later with user preferences from CLI args and config files.
+ *
+ * The ring is installed here, not in init(), because config load runs between
+ * the two: its diagnostics (corrupt settings, restore-from-backup, parse
+ * failures) are logged while only this logger exists, and a bundle collected
+ * later has to be able to show them. init() takes over this same sink instance
+ * rather than building a new one, so nothing logged here is discarded.
  */
 void init_early();
 
@@ -305,6 +322,67 @@ LogTarget parse_log_target(const std::string& str);
  * @return Human-readable name (e.g., "journal", "syslog")
  */
 const char* log_target_name(LogTarget target);
+
+/**
+ * @brief Is `str` an accepted log-destination spelling?
+ *
+ * parse_log_target() cannot answer this — it maps anything unrecognized onto
+ * Auto, which is a legal value, so a typo is indistinguishable from a
+ * deliberate "auto". Callers that must REJECT a bad value (the `--log-dest`
+ * parser, the `HELIX_LOG_DEST` reader) need this predicate instead.
+ *
+ * Deliberately excludes "android": it is a build-target detail chosen by
+ * detect_best_target(), never something a user selects.
+ */
+bool is_valid_log_target(const std::string& str);
+
+/// Comma-separated accepted values for is_valid_log_target(), for error text.
+const char* log_target_accepted_values();
+
+/**
+ * @brief Is `str` an accepted log-level spelling?
+ *
+ * Same rationale as is_valid_log_target(): parse_level() falls back to a
+ * default rather than reporting failure. Narrower than parse_level(), which
+ * also tolerates the "warning" alias — the user-facing surfaces accept only
+ * the canonical spellings so the two lists cannot drift apart silently.
+ */
+bool is_valid_log_level(const std::string& str);
+
+/// Comma-separated accepted values for is_valid_log_level(), for error text.
+const char* log_level_accepted_values();
+
+/**
+ * @brief Read a HELIX_LOG_* environment variable, validating it
+ *
+ * The launcher translates HELIX_LOG_DEST / HELIX_LOG_FILE / HELIX_LOG_LEVEL
+ * into --log-dest / --log-file / --log-level, but it is not always in the
+ * picture — systemd units, a direct exec, and forked init scripts start the
+ * binary themselves. Application::init_logging() reads the variables through
+ * this so they work either way (#1249).
+ *
+ * A value the validator rejects is DROPPED with a warning, never fatal: unlike
+ * a CLI typo (which the user sees immediately and can retry), a typo in
+ * helixscreen.env would otherwise turn every boot of an appliance into a
+ * crash-loop. The caller falls through to the next precedence level.
+ *
+ * @param var_name        Environment variable to read
+ * @param validate        Predicate, or nullptr to accept any non-empty value
+ * @param accepted_values Text listed in the warning when validate rejects
+ * @return The value, or "" when unset, empty, or rejected
+ */
+std::string log_env_override(const char* var_name, bool (*validate)(const std::string&),
+                             const char* accepted_values);
+
+/**
+ * @brief First non-empty of CLI flag, env var, config value
+ *
+ * The one place the CLI > env > config order for logging settings is written
+ * down. Pure, so the precedence itself is unit-testable without a process
+ * environment or a Config instance.
+ */
+std::string resolve_log_setting(const std::string& cli_value, const std::string& env_value,
+                                const std::string& config_value);
 
 /**
  * @brief Human-readable description of the currently-active log destination

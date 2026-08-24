@@ -10,7 +10,7 @@
 
 #include <memory>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 class PrinterState;
@@ -20,7 +20,7 @@ namespace helix {
 
 class LedWidget : public PanelWidget {
   public:
-    LedWidget(PrinterState& printer_state, MoonrakerAPI* api);
+    LedWidget(PrinterState& printer_state, IMoonrakerAPI* api);
     ~LedWidget() override;
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
@@ -34,7 +34,7 @@ class LedWidget : public PanelWidget {
 
   private:
     PrinterState& printer_state_;
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;

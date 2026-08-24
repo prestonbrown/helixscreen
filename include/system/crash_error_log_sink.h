@@ -36,10 +36,10 @@ class CrashErrorLogSink : public spdlog::sinks::base_sink<std::mutex> {
   private:
     CrashErrorLogSink();
 
-    static constexpr unsigned int kCap = crash_handler::kErrorLogRingCapacity;
-    static constexpr unsigned int kLen = crash_handler::kErrorLogEntryLen;
+    static constexpr unsigned int CAP = crash_handler::ERROR_LOG_RING_CAPACITY;
+    static constexpr unsigned int LEN = crash_handler::ERROR_LOG_ENTRY_LEN;
 
-    char ring_[kCap][kLen] = {};
+    char ring_[CAP][LEN] = {};
     // Written only under base_sink's mutex; read racily (by design) by the
     // signal handler. Not atomic — torn reads are tolerated, see class doc.
     unsigned int next_ = 0;

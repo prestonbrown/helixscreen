@@ -31,7 +31,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
-#include "../lvgl_test_fixture.h"
+#include "../busy_guard_fixture.h"
 
 #include <chrono>
 
@@ -42,59 +42,15 @@ using namespace helix;
 namespace {
 
 /// A macro/filament op — non-discretionary, so execute_gcode stamps it.
-constexpr const char* kMacro = "UNLOAD_FILAMENT";
+constexpr const char* MACRO = "UNLOAD_FILAMENT";
 /// A benign discretionary command — never stamped, and the thing that used to
 /// trigger the spurious toast.
-constexpr const char* kDiscretionary = "M106 S128";
+constexpr const char* DISCRETIONARY = "M106 S128";
 
-class MacroActivityFixture : public LVGLTestFixture {
+class MacroActivityFixture : public helix::BusyGuardFixture {
   public:
-    MacroActivityFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
-        state.init_subjects(false);
-        // ORDERING IS LOAD-BEARING: klippy subjects initialize to SHUTDOWN, so
-        // this call is a transition that resets the volatile subjects. It must
-        // come before idle_timeout is set or the reset wipes it and the test
-        // silently exercises the non-busy path (see test_led_controller.cpp).
-        state.set_klippy_state_sync(KlippyState::READY);
-        // Default to idle/standby: nothing blocking, so sends reach the client.
-        set_print_state(PrintJobState::STANDBY);
-        set_idle_printing(false);
-        mock_client.connect("ws://mock/websocket", []() {}, []() {});
-        api = std::make_unique<MoonrakerAPI>(mock_client, state);
-    }
-
-    ~MacroActivityFixture() override {
-        mock_client.stop_temperature_simulation();
-        mock_client.disconnect();
-        api.reset();
-    }
-
-    void set_print_state(PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
-    }
-    void set_idle_printing(bool on) {
-        lv_subject_set_int(state.get_idle_timeout_printing_subject(), on ? 1 : 0);
-    }
-
-    /// Make an external blocking op (calibration / console macro) look active.
-    void begin_blocking_episode() {
-        set_print_state(PrintJobState::STANDBY);
-        set_idle_printing(true);
-    }
-
-    /**
-     * recently_active(now) is `inflight_ > 0 || (now - last_done_ < kGraceWindow)`
-     * (plus the in-flight age ceiling). Passing a `now` just past the grace
-     * window retires the second term, collapsing the call to a pure
-     * `inflight_ > 0` read — the ceiling is 10 minutes, far beyond this offset,
-     * so it stays satisfied. AppMacroActivity exposes no inflight getter; this
-     * is the supported way to isolate the counter (same idiom as
-     * test_motion_activity_pairing.cpp).
-     */
     bool macro_inflight() {
-        return state.app_macro_activity().recently_active(AppMacroActivity::clock::now() +
-                                                          AppMacroActivity::kGraceWindow +
-                                                          std::chrono::seconds(1));
+        return helix::activity_inflight(state.app_macro_activity());
     }
 
     /**
@@ -106,32 +62,10 @@ class MacroActivityFixture : public LVGLTestFixture {
         return state.app_macro_activity().recently_active();
     }
 
-    /**
-     * Exact inflight count, using the only read the public API allows: the
-     * far-future call is a pure `inflight_ > 0`, so retiring the counter one
-     * note_done() at a time and counting the steps yields the exact value.
-     * Destructive — call it last in a test.
-     */
+    /// Destructive — call it last in a test.
     int drain_inflight() {
-        int n = 0;
-        while (macro_inflight() && n < 100) {
-            state.app_macro_activity().note_done();
-            ++n;
-        }
-        return n;
+        return helix::drain_activity_inflight(state.app_macro_activity());
     }
-
-    void error_cb(const MoonrakerError& err) {
-        error_called = true;
-        captured_error = err;
-    }
-
-    MoonrakerClientMock mock_client;
-    PrinterState state;
-    std::unique_ptr<MoonrakerAPI> api;
-
-    bool error_called = false;
-    MoonrakerError captured_error;
 };
 
 } // namespace
@@ -148,7 +82,7 @@ TEST_CASE_METHOD(MacroActivityFixture,
     // ...` — installs no settle here, so note_sent() runs and note_done() never
     // does. The counter sticks at 1 and the busy toast is suppressed for the
     // rest of the session, silently, exactly like #1129.
-    api->execute_gcode(kMacro, nullptr, nullptr);
+    api->execute_gcode(MACRO, nullptr, nullptr);
 
     REQUIRE(mock_client.last_send_method() == "printer.gcode.script");
 
@@ -164,7 +98,7 @@ TEST_CASE_METHOD(MacroActivityFixture,
                  "[busy_guard][1206][mock]") {
     bool success_called = false;
     api->execute_gcode(
-        kMacro, [&success_called]() { success_called = true; },
+        MACRO, [&success_called]() { success_called = true; },
         [this](const MoonrakerError& err) { error_cb(err); });
 
     REQUIRE(success_called);
@@ -179,11 +113,11 @@ TEST_CASE_METHOD(MacroActivityFixture, "execute_gcode balances the macro counter
                  "[busy_guard][1206][mock]") {
     // Force the RPC to fail after the stamp: the error wrapper owes the same
     // single note_done() the success wrapper does, or the count leaks upward.
-    mock_client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "forced RPC failure", kMacro);
+    mock_client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "forced RPC failure", MACRO);
 
     bool success_called = false;
     api->execute_gcode(
-        kMacro, [&success_called]() { success_called = true; },
+        MACRO, [&success_called]() { success_called = true; },
         [this](const MoonrakerError& err) { error_cb(err); });
 
     REQUIRE(error_called);
@@ -202,7 +136,7 @@ TEST_CASE_METHOD(MacroActivityFixture, "execute_gcode stamps exactly one note_do
     state.app_macro_activity().note_sent();
     state.app_macro_activity().note_sent();
 
-    api->execute_gcode(kMacro, nullptr, [this](const MoonrakerError& err) { error_cb(err); });
+    api->execute_gcode(MACRO, nullptr, [this](const MoonrakerError& err) { error_cb(err); });
 
     CHECK_FALSE(error_called);
     CHECK(drain_inflight() == 2);
@@ -218,7 +152,7 @@ TEST_CASE_METHOD(MacroActivityFixture, "execute_gcode does not stamp when klippy
     // there would leak forever — nothing acks a send that was never made.
     state.set_klippy_state_sync(KlippyState::SHUTDOWN);
 
-    api->execute_gcode(kMacro, nullptr, [this](const MoonrakerError& err) { error_cb(err); });
+    api->execute_gcode(MACRO, nullptr, [this](const MoonrakerError& err) { error_cb(err); });
 
     REQUIRE(error_called);
     CHECK(captured_error.type == MoonrakerErrorType::NOT_READY);
@@ -237,7 +171,7 @@ TEST_CASE_METHOD(MacroActivityFixture, "execute_gcode never stamps discretionary
     // note_done_fired().
     bool success_called = false;
     api->execute_gcode(
-        kDiscretionary, [&success_called]() { success_called = true; },
+        DISCRETIONARY, [&success_called]() { success_called = true; },
         [this](const MoonrakerError& err) { error_cb(err); });
 
     REQUIRE(success_called);
@@ -264,7 +198,7 @@ TEST_CASE_METHOD(MacroActivityFixture,
     // keep refusing during a filament op (#1108). Only the toast changes.
     REQUIRE(state.is_external_blocking_operation_active());
 
-    api->execute_gcode(kDiscretionary, nullptr, nullptr);
+    api->execute_gcode(DISCRETIONARY, nullptr, nullptr);
 
     // The latch must still be claimable: suppression short-circuits BEFORE
     // claim_busy_queue_toast(), so a genuinely external op later in the same
@@ -285,14 +219,14 @@ TEST_CASE_METHOD(MacroActivityFixture,
     // soon as the script is accepted) but idle_timeout.state lags behind, so the
     // very next discretionary command still sees a blocking op. Without the
     // grace window the toast would fire in exactly that gap.
-    api->execute_gcode(kMacro, nullptr, nullptr);
+    api->execute_gcode(MACRO, nullptr, nullptr);
     REQUIRE(macro_note_done_fired()); // settled, and inside the grace window
     REQUIRE_FALSE(macro_inflight());
 
     begin_blocking_episode();
     REQUIRE(state.is_external_blocking_operation_active());
 
-    api->execute_gcode(kDiscretionary, nullptr, nullptr);
+    api->execute_gcode(DISCRETIONARY, nullptr, nullptr);
 
     CHECK(state.claim_busy_queue_toast());
 }
@@ -308,7 +242,7 @@ TEST_CASE_METHOD(MacroActivityFixture,
     REQUIRE(state.is_external_blocking_operation_active());
     REQUIRE_FALSE(macro_note_done_fired());
 
-    api->execute_gcode(kDiscretionary, nullptr, nullptr);
+    api->execute_gcode(DISCRETIONARY, nullptr, nullptr);
 
     // The toast consumed the once-per-episode latch, so it is no longer
     // claimable.
@@ -328,7 +262,7 @@ TEST_CASE_METHOD(MacroActivityFixture,
 // would suppress the busy toast for the whole session — the #1129 wedge, moved
 // to a new counter.
 //
-// kMaxInflightAge bounds that: once even the NEWEST send is older than the
+// MAX_INFLIGHT_AGE bounds that: once even the NEWEST send is older than the
 // ceiling, the counter is treated as stuck rather than busy.
 
 TEST_CASE_METHOD(MacroActivityFixture,
@@ -336,11 +270,11 @@ TEST_CASE_METHOD(MacroActivityFixture,
                  "[busy_guard][1206][mock]") {
     // force_next_gcode_dropped_response() is the mock's simulation of exactly
     // the real hazard: Klipper runs the gcode, but NEITHER callback ever fires.
-    mock_client.force_next_gcode_dropped_response(kMacro);
+    mock_client.force_next_gcode_dropped_response(MACRO);
 
     bool success_called = false;
     api->execute_gcode(
-        kMacro, [&success_called]() { success_called = true; },
+        MACRO, [&success_called]() { success_called = true; },
         [this](const MoonrakerError& err) { error_cb(err); });
 
     // The send happened; the response did not.
@@ -353,10 +287,10 @@ TEST_CASE_METHOD(MacroActivityFixture,
     const auto now = AppMacroActivity::clock::now();
     REQUIRE(state.app_macro_activity().recently_active(now));
 
-    // The ceiling releases it. Asserted symbolically against kMaxInflightAge so
+    // The ceiling releases it. Asserted symbolically against MAX_INFLIGHT_AGE so
     // the test tracks the constant rather than pinning today's value.
-    CHECK_FALSE(state.app_macro_activity().recently_active(now + AppMacroActivity::kMaxInflightAge +
-                                                           std::chrono::minutes(1)));
+    CHECK_FALSE(state.app_macro_activity().recently_active(
+        now + AppMacroActivity::MAX_INFLIGHT_AGE + std::chrono::minutes(1)));
 
     // ...and it was exactly one leaked stamp, not more. Destructive; last.
     CHECK(drain_inflight() == 1);
@@ -369,8 +303,8 @@ TEST_CASE_METHOD(MacroActivityFixture, "the in-flight ceiling does not expire ea
     // the release test above while silently disabling #1206 suppression
     // entirely — every legitimately in-flight macro would read inactive and the
     // spurious toast would come straight back.
-    mock_client.force_next_gcode_dropped_response(kMacro);
-    api->execute_gcode(kMacro, nullptr, nullptr);
+    mock_client.force_next_gcode_dropped_response(MACRO);
+    api->execute_gcode(MACRO, nullptr, nullptr);
 
     // CHECK, not REQUIRE: a stubbed ceiling breaks this too, and aborting here
     // would stop the near-ceiling assertion below — the one that actually pins
@@ -381,7 +315,7 @@ TEST_CASE_METHOD(MacroActivityFixture, "the in-flight ceiling does not expire ea
     // One minute short of the ceiling, an outstanding send is still active.
     // A five-minute macro (MACRO_TIMEOUT_MS / AMS_OPERATION_TIMEOUT_MS) sits
     // well inside this window.
-    CHECK(state.app_macro_activity().recently_active(now + AppMacroActivity::kMaxInflightAge -
+    CHECK(state.app_macro_activity().recently_active(now + AppMacroActivity::MAX_INFLIGHT_AGE -
                                                      std::chrono::minutes(1)));
 
     CHECK(drain_inflight() == 1);
@@ -396,18 +330,18 @@ TEST_CASE_METHOD(MacroActivityFixture,
     // The production toast decision calls recently_active() with the default
     // `now`, which a test cannot fast-forward — so instead of waiting out the
     // wall clock, plant the stamp with an aged timestamp. This is precisely the
-    // state the wedge in the two tests above reaches once kMaxInflightAge has
+    // state the wedge in the two tests above reaches once MAX_INFLIGHT_AGE has
     // elapsed: inflight_ == 1, no note_done() ever, newest send older than the
     // ceiling.
     state.app_macro_activity().note_sent(AppMacroActivity::clock::now() -
-                                         AppMacroActivity::kMaxInflightAge -
+                                         AppMacroActivity::MAX_INFLIGHT_AGE -
                                          std::chrono::minutes(1));
     REQUIRE_FALSE(state.app_macro_activity().recently_active());
 
     begin_blocking_episode();
     REQUIRE(state.is_external_blocking_operation_active());
 
-    api->execute_gcode(kDiscretionary, nullptr, nullptr);
+    api->execute_gcode(DISCRETIONARY, nullptr, nullptr);
 
     // Suppression is off, so the toast fired and consumed the once-per-episode
     // latch — normal #1108 behaviour is fully restored despite the leak.

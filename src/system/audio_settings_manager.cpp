@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "sound_manager.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
 
@@ -49,6 +50,12 @@ void AudioSettingsManager::init_subjects() {
     int completion_mode = config->get<int>("/completion_alert", 2);
     completion_mode = std::max(0, std::min(2, completion_mode));
     UI_MANAGED_SUBJECT_INT(completion_alert_subject_, completion_mode, "settings_completion_alert",
+                           subjects_);
+
+    // Whether an ALSA backend with device selection is active (0/1). Seeded to
+    // 0 here because SoundManager has not picked its backend yet at subject-init
+    // time; refresh_audio_device_available() sets the real value once it has.
+    UI_MANAGED_SUBJECT_INT(audio_device_available_subject_, 0, "settings_audio_device_available",
                            subjects_);
 
     subjects_initialized_ = true;
@@ -172,4 +179,12 @@ void AudioSettingsManager::set_completion_alert_mode(CompletionAlertMode mode) {
     Config* config = Config::get_instance();
     config->set<int>("/completion_alert", val);
     config->save();
+}
+
+void AudioSettingsManager::refresh_audio_device_available() {
+    if (!subjects_initialized_)
+        return;
+    int available = SoundManager::instance().has_alsa_backend() ? 1 : 0;
+    spdlog::info("[AudioSettingsManager] audio_device_available={}", available);
+    lv_subject_set_int(&audio_device_available_subject_, available);
 }

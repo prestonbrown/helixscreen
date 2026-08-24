@@ -155,7 +155,8 @@ git log {last_tag}..HEAD --format="%h %s" --no-merges
 
 ### Draft changelog entry
 
-Read `CHANGELOG.md` to match its exact style. The format is Keep a Changelog:
+Follow `docs/devel/CHANGELOG_STYLE.md` for separator, issue links, voice, and entry
+shapes (daily vs milestone). The skeleton is Keep a Changelog:
 
 ```markdown
 ## [X.Y.Z] - YYYY-MM-DD
@@ -176,7 +177,7 @@ Rules for writing the changelog:
 - **Omit** noise: refactors with no user impact, CI-only changes, typo fixes, test-only changes
 - **Categorize** using conventional commit types: `feat:` → Added, `fix:` → Fixed, `refactor:/perf:/build:` → Changed, `docs:` → Changed (only if user-visible)
 - Only include categories that have entries (don't add empty sections)
-- If this is a significant release (minor or major bump), add a short prose summary paragraph before the categories (matching the style of existing entries like 0.9.3 and 0.9.2)
+- If this is a significant release (minor or major bump), use the milestone shape from `docs/devel/CHANGELOG_STYLE.md`: intro paragraph naming the release's role, bold sub-group headers inside categories, and a `<!-- whatsnew -->` block
 
 ### Show draft to user
 

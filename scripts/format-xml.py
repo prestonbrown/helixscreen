@@ -12,7 +12,9 @@ Formats LVGL XML component files with:
 - Preservation of blank lines between logical sections
 
 Generator-owned XML (see GENERATED_DIRS) is skipped - those files are rewritten by
-`make`, so formatting them only makes the tree go dirty on the next build.
+`make`, so formatting them only makes the tree go dirty on the next build. XML that
+belongs to another toolchain (see FOREIGN_DIRS) is skipped too - it is not LVGL
+component XML and does not follow this style.
 
 Usage:
     ./scripts/format-xml.py ui_xml/*.xml           # Format files in-place
@@ -39,6 +41,35 @@ except ImportError:
 LINE_WIDTH = 120
 INDENT = "  "  # 2 spaces
 
+# LVGL state selectors are written `style_bg_opa:checked="0"`. Every XML parser reads
+# that colon as a namespace prefix and rejects the file ("Namespace prefix style_bg_opa
+# for checked is not defined"), so filament_panel, input_shaper_panel and
+# theme_editor_overlay were unformattable and silently drifted. Swap the colon for a
+# sentinel before parsing and swap it back on the way out.
+#
+# The sentinel MUST be made of XML NameChars. A pretty separator like U+2999 is not one,
+# and the parser then trips over the sentinel instead of the colon, reporting the far more
+# confusing "Specification mandates value for attribute style_bg_opa".
+#
+# The pattern only fires in attribute-name position (whitespace, name, colon, name, `=`,
+# quote), so colons inside values and text are untouched: `href="http://x"`, `t="9:30"`
+# and `<p>see: this</p>` all survive a round trip.
+STATE_COLON_SENTINEL = "__LVGL_STATE_COLON__"
+STATE_COLON_RE = re.compile(r'(\s)([A-Za-z_][\w.-]*):([A-Za-z_][\w.-]*)(\s*=\s*["\'])')
+
+
+def _escape_state_colons(content: str) -> str:
+    """Hide LVGL state-selector colons from the XML parser."""
+    return STATE_COLON_RE.sub(
+        lambda m: f"{m.group(1)}{m.group(2)}{STATE_COLON_SENTINEL}{m.group(3)}{m.group(4)}",
+        content,
+    )
+
+
+def _unescape_state_colons(content: str) -> str:
+    """Restore LVGL state-selector colons after formatting."""
+    return content.replace(STATE_COLON_SENTINEL, ":")
+
 # Directories whose XML is written by a generator, not by hand. Formatting these
 # starts a fight nobody wins: `make` regenerates them on every build (mk/translations.mk
 # -> generate_translations.py), which strips the wrapping this script adds, so a
@@ -48,14 +79,33 @@ INDENT = "  "  # 2 spaces
 # of the three call sites (mk/format.mk format + format-staged, quality-checks.sh).
 GENERATED_DIRS = ("ui_xml/translations",)
 
+# XML that is not an LVGL component file and does not answer to this formatter's
+# house style. android/ holds AndroidManifest.xml and res/values/*.xml, which the
+# Android toolchain (AAPT, Android Studio, AGP's manifest merger) owns and formats
+# by its own conventions; reflowing them to 2-space/120-col LVGL style produces
+# churn in files nobody reads through an LVGL lens. `make format` and the
+# non-staged check only walk ui_xml/, so these are reachable only through the
+# staged-file paths (mk/format.mk format-staged, quality-checks.sh --staged-only),
+# which feed in every staged *.xml in the repo. format-staged FORMATS and re-stages
+# what it is given, so without this the pre-commit hook would silently rewrite a
+# manifest as a side effect of an unrelated commit.
+FOREIGN_DIRS = ("android",)
 
-def is_generated(filepath: Path) -> bool:
-    """True if filepath lives under a generator-owned directory."""
+
+def _under(filepath: Path, dirs: tuple) -> bool:
     posix = filepath.as_posix()
     return any(
-        posix == d or posix.startswith(d + "/") or f"/{d}/" in posix
-        for d in GENERATED_DIRS
+        posix == d or posix.startswith(d + "/") or f"/{d}/" in posix for d in dirs
     )
+
+
+def is_skipped(filepath: Path) -> Optional[str]:
+    """Reason this file is not ours to format, or None if it is."""
+    if _under(filepath, GENERATED_DIRS):
+        return "generated"
+    if _under(filepath, FOREIGN_DIRS):
+        return "not LVGL XML"
+    return None
 
 # Attributes that should come first (in order)
 PRIORITY_ATTRS = ["name", "extends", "width", "height"]
@@ -261,6 +311,16 @@ def format_xml_file(content: str) -> str:
     # Preprocess to fix common issues
     content = preprocess_xml(content)
 
+    # Hide LVGL state-selector colons; restored just before returning. The sentinel is
+    # rejected up front rather than silently mangled, since a file that already contains
+    # it would round-trip into a colon it never had.
+    if STATE_COLON_SENTINEL in content:
+        raise ValueError(
+            f"file contains the reserved sentinel {STATE_COLON_SENTINEL!r}; "
+            "rename that attribute or change STATE_COLON_SENTINEL"
+        )
+    content = _escape_state_colons(content)
+
     # Parse the XML while preserving comments and whitespace (for blank line detection)
     parser = etree.XMLParser(remove_blank_text=False, remove_comments=False)
     try:
@@ -273,14 +333,29 @@ def format_xml_file(content: str) -> str:
 
     # Get the original file to extract leading comments (before root element)
     # This preserves copyright and license comments
+    # A multi-line comment must be carried across lines: its opening line
+    # starts with "<!--" but does not close, so testing both delimiters on one
+    # line sent it to the root-element break below, deleting the comment AND
+    # cutting the prolog scan short. Continuation lines keep their original
+    # indentation — these comments are mostly aligned state tables.
     content_lines = content.split("\n")
+    in_comment = False
     for line in content_lines:
         stripped = line.strip()
-        if stripped.startswith("<!--") and stripped.endswith("-->"):
-            lines.append(stripped)
+        if in_comment:
+            lines.append(line.rstrip())
+            if "-->" in stripped:
+                in_comment = False
+            continue
+        if stripped.startswith("<!--"):
+            if stripped.endswith("-->"):
+                lines.append(stripped)
+            else:
+                lines.append(line.rstrip())
+                in_comment = True
         elif stripped.startswith("<?xml"):
             continue  # Skip XML declaration, we add our own
-        elif stripped.startswith("<") and not stripped.startswith("<!--"):
+        elif stripped.startswith("<"):
             break  # Hit the root element
 
     # Format the root element and all children
@@ -288,34 +363,40 @@ def format_xml_file(content: str) -> str:
     lines.extend(root_lines)
 
     # Ensure trailing newline
-    return "\n".join(lines) + "\n"
+    return _unescape_state_colons("\n".join(lines) + "\n")
 
 
 def process_file(
     filepath: Path, check_only: bool = False, show_diff: bool = False
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, Optional[str], bool]:
     """
     Process a single XML file.
 
     Returns:
-        (needs_formatting, diff_output)
+        (needs_formatting, diff_output, failed)
         - needs_formatting: True if file needs formatting
         - diff_output: Diff string if show_diff=True, else None
+        - failed: True if the file could not be read or parsed
+
+    `failed` exists because a file this script cannot parse is not a formatted file.
+    Both outcomes used to return (False, None), so main() counted an unreadable file as
+    clean and --check printed "All files properly formatted" and exited 0 for a file it
+    never looked at. That is how the three LVGL state-selector layouts drifted unnoticed.
     """
     try:
         original = filepath.read_text(encoding="utf-8")
     except Exception as e:
         print(f"Error reading {filepath}: {e}", file=sys.stderr)
-        return False, None
+        return False, None, True
 
     try:
         formatted = format_xml_file(original)
     except ValueError as e:
         print(f"Error formatting {filepath}: {e}", file=sys.stderr)
-        return False, None
+        return False, None, True
 
     if original == formatted:
-        return False, None
+        return False, None, False
 
     # File needs formatting
     if show_diff:
@@ -334,7 +415,7 @@ def process_file(
     if not check_only:
         filepath.write_text(formatted, encoding="utf-8")
 
-    return True, diff_output
+    return True, diff_output, False
 
 
 def main():
@@ -369,14 +450,19 @@ def main():
             print(f"Skipping non-XML file: {filepath}", file=sys.stderr)
             continue
 
-        if is_generated(filepath):
+        skip_reason = is_skipped(filepath)
+        if skip_reason:
             if not args.quiet:
-                print(f"Skipping generated file: {filepath}", file=sys.stderr)
+                print(f"Skipping {skip_reason} file: {filepath}", file=sys.stderr)
             continue
 
-        needs_format, diff_output = process_file(
+        needs_format, diff_output, failed = process_file(
             filepath, check_only=args.check, show_diff=args.diff
         )
+
+        if failed:
+            errors += 1
+            continue
 
         if needs_format:
             files_needing_format.append(filepath)
@@ -390,13 +476,16 @@ def main():
 
     # Summary
     if not args.quiet:
+        if errors:
+            print(f"\n{errors} file(s) could not be processed", file=sys.stderr)
         if args.check:
             if files_needing_format:
                 print(
                     f"\n{len(files_needing_format)} file(s) need formatting",
                     file=sys.stderr,
                 )
-            else:
+            elif not errors:
+                # Only claim a clean bill of health for files actually parsed.
                 print("All files properly formatted")
 
     # Exit code: 1 if any files needed formatting (for --check mode)

@@ -80,37 +80,80 @@ function with **no LVGL dependency** — which makes it trivially unit-testable
 enum class PendingAction : int { None = 0, Pausing = 1, Resuming = 2 };
 
 struct ControlButtonView {
-    const char* primary_icon  = kControlIconPause;  // MDI glyph pointer
+    const char* primary_icon  = CONTROL_ICON_PAUSE;  // MDI glyph pointer
     const char* primary_label = "Pause";            // English; caller runs lv_tr()
     bool        primary_enabled = false;
     bool        stop_enabled    = false;
+    bool        stop_retires_preparing = false;      // Stop cancels the start, not the print
 };
 
-ControlButtonView compute_control_button_view(helix::PrintJobState state,
-                                              PendingAction pending,
-                                              bool pause_available,
-                                              bool resume_available,
-                                              bool cancel_available);
+struct ControlButtonInputs {
+    helix::PrintJobState job_state = helix::PrintJobState::STANDBY;
+    PrintState lifecycle = PrintState::Idle;
+    bool has_preparing_job = false;
+    PendingAction pending = PendingAction::None;
+    bool pause_available = false;
+    bool resume_available = false;
+    bool cancel_available = false;
+};
+
+ControlButtonView compute_control_button_view(const ControlButtonInputs& in);
 ```
+
+The inputs are a struct rather than positional parameters because the row is
+gated on **two** axes - the printer's job state and the UI lifecycle - and a
+defaulted trailing bool is exactly the shape that silently drops a dimension at
+one call site.
 
 Logic:
 
 ```cpp
-const bool active  = (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED);
-const bool slot_ok = (state == PrintJobState::PAUSED) ? resume_available : pause_available;
+const bool printer_has_the_job = (in.job_state == PrintJobState::PRINTING ||
+                                  in.job_state == PrintJobState::PAUSED);
+const bool preparing = (in.lifecycle == PrintState::Preparing);
 
-v.primary_enabled = active && pending == PendingAction::None && slot_ok;
-v.stop_enabled    = active && cancel_available;
+v.stop_retires_preparing = in.has_preparing_job && !printer_has_the_job;
+v.stop_enabled = v.stop_retires_preparing || (printer_has_the_job && in.cancel_available);
 
-switch (pending) {
-case PendingAction::Pausing:  v.primary_icon = kControlIconHourglass; v.primary_label = "Pausing...";  break;
-case PendingAction::Resuming: v.primary_icon = kControlIconHourglass; v.primary_label = "Resuming..."; break;
+const bool slot_ok = (in.job_state == PrintJobState::PAUSED) ? in.resume_available
+                                                             : in.pause_available;
+v.primary_enabled = printer_has_the_job && !preparing &&
+                    in.pending == PendingAction::None && slot_ok;
+
+switch (in.pending) {
+case PendingAction::Pausing:  v.primary_icon = CONTROL_ICON_HOURGLASS; v.primary_label = "Pausing...";  break;
+case PendingAction::Resuming: v.primary_icon = CONTROL_ICON_HOURGLASS; v.primary_label = "Resuming..."; break;
 case PendingAction::None:
-    if (state == PrintJobState::PAUSED) { v.primary_icon = kControlIconPlay;  v.primary_label = "Resume"; }
-    else                                { v.primary_icon = kControlIconPause; v.primary_label = "Pause";  }
+    if (in.job_state == PrintJobState::PAUSED) { v.primary_icon = CONTROL_ICON_PLAY;  v.primary_label = "Resume"; }
+    else                                       { v.primary_icon = CONTROL_ICON_PAUSE; v.primary_label = "Pause";  }
     break;
 }
 ```
+
+### Why the lifecycle is an input (#798)
+
+Affordance is a function of `PrintState` alone. It must not depend on whether
+pre-print work runs **in front of** the job (a host-side forced bed mesh, where
+`print_stats` still describes the previous job for minutes) or **inside**
+Klipper's `PRINT_START` (where the job state already reads `printing`). The user
+gets the same controls either way; only the mechanism differs, and that is hidden.
+
+Keying on `job_state` alone could not express this, and the two architectures
+diverged in opposite directions:
+
+| | Host-side pre-print | Firmware-side pre-print |
+|---|---|---|
+| Job state | STANDBY / COMPLETE | PRINTING |
+| **Pause, before** | disabled (incidentally) | **enabled - sent PAUSE mid-macro** |
+| **Cancel, before** | **disabled - the retire path was unreachable** | enabled |
+| Pause, now | disabled | disabled |
+| Cancel, now | enabled, retires the preparing job | enabled, routes to `AbortManager` |
+
+`stop_retires_preparing` is computed here rather than at the call site so the
+button's enablement and the handler's routing cannot disagree about which
+mechanism applies. `CANCEL_PRINT` sent to an idle printer is worse than useless:
+`AbortManager` reads the terminal state as proof the cancel succeeded while the
+queued `start_print` still fires.
 
 Inputs → outputs at a glance:
 
@@ -121,7 +164,7 @@ Inputs → outputs at a glance:
   available — this prevents re-triggering while an RPC is in flight, and shows
   the hourglass + transitional label.
 
-Icon constants: `kControlIconPause`, `kControlIconPlay`, `kControlIconHourglass`
+Icon constants: `CONTROL_ICON_PAUSE`, `CONTROL_ICON_PLAY`, `CONTROL_ICON_HOURGLASS`
 (MDI glyphs, defined in `print_control_view.h`).
 
 ---
@@ -273,5 +316,3 @@ asserted without a display.
 
 - `docs/devel/PRINT_STATE_MACHINE.md` — print lifecycle states the controller observes
 - `docs/devel/MACROS_PANEL.md`, `docs/devel/STANDARD_MACROS_SPEC.md` — `StandardMacros` slots that gate the buttons
-- `docs/superpowers/specs/2026-06-11-control-buttons-home-widget-design.md` — original design spec
-- `docs/superpowers/plans/2026-06-11-control-buttons-home-widget.md` — implementation plan

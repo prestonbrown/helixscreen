@@ -25,7 +25,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
-#include "../lvgl_test_fixture.h"
+#include "../busy_guard_fixture.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -33,47 +33,7 @@ using namespace helix;
 
 namespace {
 
-class BusyGuardApiFixture : public LVGLTestFixture {
-  public:
-    BusyGuardApiFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
-        state.init_subjects(false);
-        // execute_gcode()'s klippy-halted gate would otherwise reject everything:
-        // subjects initialize to SHUTDOWN until a real state update arrives.
-        state.set_klippy_state_sync(KlippyState::READY);
-        // Default to idle/standby: nothing blocking.
-        set_print_state(PrintJobState::STANDBY);
-        mock_client.connect("ws://mock/websocket", []() {}, []() {});
-        api = std::make_unique<MoonrakerAPI>(mock_client, state);
-    }
-
-    ~BusyGuardApiFixture() override {
-        mock_client.stop_temperature_simulation();
-        mock_client.disconnect();
-        api.reset();
-    }
-
-    void set_print_state(PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
-    }
-    void set_idle_printing(bool on) {
-        lv_subject_set_int(state.get_idle_timeout_printing_subject(), on ? 1 : 0);
-    }
-    void set_manual_probe(bool on) {
-        lv_subject_set_int(state.get_manual_probe_active_subject(), on ? 1 : 0);
-    }
-
-    void error_cb(const MoonrakerError& err) {
-        error_called = true;
-        captured_error = err;
-    }
-
-    MoonrakerClientMock mock_client;
-    PrinterState state;
-    std::unique_ptr<MoonrakerAPI> api;
-
-    bool error_called = false;
-    MoonrakerError captured_error;
-};
+class BusyGuardApiFixture : public helix::BusyGuardFixture {};
 
 } // namespace
 

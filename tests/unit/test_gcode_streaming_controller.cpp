@@ -205,6 +205,13 @@ TEST_CASE("GCodeStreamingController cache management", "[gcode][streaming]") {
         controller.get_layer_segments(1);
         REQUIRE(controller.get_cache_memory_usage() > 0);
 
+        // get_layer_segments() schedules a prefetch of the neighbouring layers on
+        // the worker thread, and clear_cache() does not quiesce it. Without this
+        // sync the worker's next cache_.get_or_load() can land between the clear
+        // and the assert below, leaving usage non-zero. Same reason the prefetch
+        // sections further down sync before asserting.
+        controller.wait_for_prefetch_idle();
+
         controller.clear_cache();
         REQUIRE(controller.get_cache_memory_usage() == 0);
     }

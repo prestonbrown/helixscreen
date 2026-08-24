@@ -40,12 +40,12 @@ void markdown_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
         lv_markdown_set_text(md_widget, "");
         return;
     }
-    constexpr size_t kMarkdownMaxBytes = 256 * 1024;
+    constexpr size_t MARKDOWN_MAX_BYTES = 256 * 1024;
     size_t len = strlen(text);
-    if (len > kMarkdownMaxBytes) {
+    if (len > MARKDOWN_MAX_BYTES) {
         spdlog::warn("[ui_markdown] Truncating oversized markdown ({} bytes > {} cap)", len,
-                     kMarkdownMaxBytes);
-        std::string truncated(text, kMarkdownMaxBytes);
+                     MARKDOWN_MAX_BYTES);
+        std::string truncated(text, MARKDOWN_MAX_BYTES);
         lv_markdown_set_text(md_widget, truncated.c_str());
         return;
     }

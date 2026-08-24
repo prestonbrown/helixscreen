@@ -30,14 +30,14 @@ namespace {
 ///
 /// Module state rather than heap user_data on purpose: the modal is one-shot and
 /// exclusive (only one recovery prompt can exist), the two buttons already carry
-/// the borrowed MoonrakerAPI* as their user_data, and a backdrop/ESC dismissal
+/// the borrowed IMoonrakerAPI* as their user_data, and a backdrop/ESC dismissal
 /// fires NEITHER handler — so any per-show heap context would leak on that path.
 /// A by-value plan whose std::strings own their storage sidesteps both problems
 /// and keeps the resume authorization frozen at offer time.
 // DECLARATIVE_OK: modal action payload, not UI state — nothing to bind a subject to.
 PlrRecoveryPlan g_active_plan;
 
-// Both button handlers receive the borrowed MoonrakerAPI* via user_data. The
+// Both button handlers receive the borrowed IMoonrakerAPI* via user_data. The
 // gcode error callback may arrive on the libhv WebSocket thread, so the coded
 // message is extracted on that thread (pure string work) and the toast is
 // bounced onto the main thread via queue_update — never capture widgets or
@@ -54,7 +54,7 @@ PlrRecoveryPlan g_active_plan;
 //
 // log_tag must be a string LITERAL: it is captured by pointer into a callback
 // that outlives this frame. Never pass plan.resume_gcode.c_str().
-void run_recovery_gcode(MoonrakerAPI* api, const std::string& gcode, const char* fail_fmt_tr,
+void run_recovery_gcode(IMoonrakerAPI* api, const std::string& gcode, const char* fail_fmt_tr,
                         const char* log_tag) {
     api->execute_gcode(
         gcode, [log_tag]() { spdlog::info("[PLR] {} accepted by firmware", log_tag); },
@@ -82,7 +82,7 @@ void report_action_error(const MoonrakerError& err, const char* fail_fmt_tr, con
 
 void on_plr_resume(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PLR] on_plr_resume");
-    auto* api = static_cast<MoonrakerAPI*>(lv_event_get_user_data(e));
+    auto* api = static_cast<IMoonrakerAPI*>(lv_event_get_user_data(e));
     Modal::hide(Modal::get_top());
     if (!api) {
         spdlog::error("[PLR] resume: api is null");
@@ -105,7 +105,7 @@ void on_plr_resume(lv_event_t* e) {
 
 void on_plr_discard(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PLR] on_plr_discard");
-    auto* api = static_cast<MoonrakerAPI*>(lv_event_get_user_data(e));
+    auto* api = static_cast<IMoonrakerAPI*>(lv_event_get_user_data(e));
     Modal::hide(Modal::get_top());
     if (!api) {
         spdlog::error("[PLR] discard: api is null");
@@ -155,7 +155,7 @@ PlrPromptStrings plr_prompt_strings(PlrBackendType backend, const PlrPromptStrin
     return backend == PlrBackendType::CREALITY ? creality : standard;
 }
 
-void show_plr_recovery_prompt(MoonrakerAPI* api, const helix::PlrRecoveryPlan& plan) {
+void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& plan) {
     if (!api) {
         spdlog::warn("[PLR] show_plr_recovery_prompt: api is null — skipping");
         return;

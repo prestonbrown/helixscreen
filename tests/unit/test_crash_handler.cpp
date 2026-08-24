@@ -601,8 +601,15 @@ TEST_CASE_METHOD(CrashTestFixture,
 // Skipped under ASan/TSan/Valgrind: those intercept the double free and
 // terminate the child themselves, so glibc never runs and our handler never
 // sees the signal.
+//
+// Both spellings of each guard are required. __SANITIZE_ADDRESS__ and
+// __SANITIZE_THREAD__ are GCC's; clang defines neither and answers only
+// __has_feature. The sanitizer CI jobs build with clang, so the thread half
+// went unguarded and this test ran under TSan, where the child exits 99 instead
+// of aborting — a red nightly for a test that was supposed to be compiled out.
 #if !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) &&                             \
-    !(defined(__has_feature) && __has_feature(address_sanitizer))
+    !(defined(__has_feature) && __has_feature(address_sanitizer)) &&                               \
+    !(defined(__has_feature) && __has_feature(thread_sanitizer))
 TEST_CASE_METHOD(CrashTestFixture,
                  "Crash: real glibc heap-corruption abort reason reaches the crash file",
                  "[telemetry][crash][subprocess][960]") {
@@ -629,6 +636,22 @@ TEST_CASE_METHOD(CrashTestFixture,
         // call outright, so the child sails past and _exit(99)s — verified,
         // that is exactly how this test first failed. volatile forces both
         // calls to reach glibc.
+        // Announce the corruption before causing it. glibc's message lands on
+        // stderr in the middle of an otherwise-passing suite log, where it reads
+        // as genuine heap corruption in the test binary — it has already sent one
+        // reader off investigating a non-bug. This marker is the only thing that
+        // distinguishes "the test worked" from "something is badly wrong".
+        //
+        // write(2), not fprintf: this is a forked child of a multithreaded
+        // process, so stdio locks may be held by threads that do not exist here,
+        // and glibc writes its own message straight to fd 2 — sharing the raw fd
+        // is what keeps the two lines in order.
+        static const char kMarker[] =
+            "[test] DELIBERATE double free follows (test_crash_handler.cpp) - "
+            "glibc's abort message below is the expected result, not a defect\n";
+        ssize_t marker_rc = write(STDERR_FILENO, kMarker, sizeof(kMarker) - 1);
+        (void)marker_rc;
+
         void* volatile p = malloc(64);
         free(const_cast<void*>(p));
         free(const_cast<void*>(p)); // NOLINT — deliberate corruption, this is the test
@@ -1261,7 +1284,7 @@ TEST_CASE("Crash: breadcrumb ring keeps the newest 256 entries on wraparound",
           "[telemetry][crash]") {
     // Drain the ring first — static state leaks across test cases. Writing
     // ring-size drain entries pushes any residual application breadcrumbs out.
-    // Ring size: src/system/crash_handler.cpp kBreadcrumbRingSize = 256.
+    // Ring size: src/system/crash_handler.cpp BREADCRUMB_RING_SIZE = 256.
     for (int i = 0; i < 256; ++i) {
         crash_handler::breadcrumb::note("drain", "drain");
     }
@@ -1295,7 +1318,7 @@ TEST_CASE("Crash: breadcrumb ring keeps the newest 256 entries on wraparound",
 
 TEST_CASE("Crash: breadcrumb category/subject are truncated with null terminator",
           "[telemetry][crash]") {
-    // Ring size: src/system/crash_handler.cpp kBreadcrumbRingSize = 256.
+    // Ring size: src/system/crash_handler.cpp BREADCRUMB_RING_SIZE = 256.
     for (int i = 0; i < 256; ++i) {
         crash_handler::breadcrumb::note("drain", "drain");
     }

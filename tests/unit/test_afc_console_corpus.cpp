@@ -97,10 +97,10 @@ void check_prefixed(const AmsBackendAfc& afc, const CorpusCase& c) {
 // LOAD_SWAP template order, needed to turn a phase id into the step index the
 // router publishes: heat,cut,unload,feed,poop,brush,kick,load. (brush precedes
 // kick because AFC's wipe runs before the kick as well as after it.)
-constexpr int kStepUnload = 2;
-constexpr int kStepFeed = 3;
-constexpr int kStepPoop = 4;
-constexpr int kStepLoad = 7;
+constexpr int STEP_UNLOAD = 2;
+constexpr int STEP_FEED = 3;
+constexpr int STEP_POOP = 4;
+constexpr int STEP_LOAD = 7;
 
 void reset_step_baseline() {
     AmsState::instance().init_subjects(true);
@@ -249,10 +249,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "bare AFC narration reaches the step bar",
     reset_step_baseline();
     GcodeNarrationRouter router(nullptr, nullptr);
 
-    CHECK(step_isolated(router, "Loading lane3") == kStepFeed);
-    CHECK(step_isolated(router, "lane3 is now loaded in toolhead t:0") == kStepLoad);
-    CHECK(step_isolated(router, "Unloading lane1") == kStepUnload);
-    CHECK(step_isolated(router, "Lane lane1 unload done t:0") == kStepUnload);
+    CHECK(step_isolated(router, "Loading lane3") == STEP_FEED);
+    CHECK(step_isolated(router, "lane3 is now loaded in toolhead t:0") == STEP_LOAD);
+    CHECK(step_isolated(router, "Unloading lane1") == STEP_UNLOAD);
+    CHECK(step_isolated(router, "Lane lane1 unload done t:0") == STEP_UNLOAD);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "console noise never moves the step bar",
@@ -286,7 +286,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an unknown-command response never advances th
 
     // A real purge line on the same channel still works — the guard is specific
     // to the unknown-command shape, not a blanket mute.
-    CHECK(step_after(router, "// AFC_Poop: Move To Purge Location") == kStepPoop);
+    CHECK(step_after(router, "// AFC_Poop: Move To Purge Location") == STEP_POOP);
 }
 
 TEST_CASE("parse_unknown_command extracts the missing command", "[afc][narration][corpus]") {

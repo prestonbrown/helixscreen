@@ -4,7 +4,9 @@
 #include "cli_args.h"
 
 #include "app_globals.h"
+#include "config.h"
 #include "helix_version.h"
+#include "logging_init.h"
 #include "runtime_config.h"
 #include "theme_manager.h"
 
@@ -62,7 +64,10 @@ void print_test_mode_banner() {
     if (config.disable_mock_ams)
         printf("  Mock AMS DISABLED (runout modal enabled)\n");
 
-    printf("  Config: %s\n", RuntimeConfig::TEST_CONFIG_PATH);
+    // Resolved, not the raw constant: with HELIX_CONFIG_DIR set the app reads
+    // and writes the override path, and a banner naming config/ instead sends
+    // you editing a file the run never touches.
+    printf("  Config: %s\n", Config::resolve_path(RuntimeConfig::TEST_CONFIG_PATH).c_str());
 
     printf("\n");
 }
@@ -120,7 +125,7 @@ static void print_help(const char* program_name) {
     printf("  --debug-subjects     Enable verbose subject debugging with stack traces\n");
     printf("  --debug-touches      Draw ripple effects at each touch point for debugging\n");
     printf("  --no-sound           Disable all sound output (prevents audio backend init)\n");
-    printf("  --moonraker <url>    Override Moonraker URL (e.g., ws://192.168.1.112:7125)\n");
+    printf("  --moonraker <url>    Override Moonraker URL (e.g., ws://192.168.1.100:7125)\n");
     printf("  --detect-printer     Detect printer via Moonraker REST, print JSON, exit\n");
     printf("                       (use with --host/--port; default 127.0.0.1:7125)\n");
     printf("  --remote             Enable remote control server (auto in --test mode)\n");
@@ -129,6 +134,8 @@ static void print_help(const char* program_name) {
     printf("  --remote-http-bind <h>  HTTP bind host (default 127.0.0.1; implies http)\n");
     printf("  --remote-http-port <n>  HTTP port (default 7130; implies http)\n");
     printf("  --rotate <degrees>   Display rotation: 0, 90, 180, 270\n");
+    printf("  --render-2d          Force the G-code viewer to the 2D layer renderer\n");
+    printf("  --render-3d          Force the G-code viewer to the 3D GLES renderer\n");
     printf("  --layout <type>      Override auto-detected layout (auto, standard, ultrawide, "
            "portrait, micro, micro-portrait, tiny, tiny-portrait)\n");
     printf("  -h, --help           Show this help message\n");
@@ -154,8 +161,6 @@ static void print_help(const char* program_name) {
     printf("  --gcode-el <deg>     Set camera elevation angle (degrees)\n");
     printf("  --gcode-zoom <n>     Set camera zoom level (positive number)\n");
     printf("  --gcode-debug-colors Enable per-face debug coloring\n");
-    printf("  --render-2d          Force 2D layer renderer (fast, no 3D)\n");
-    printf("  --render-3d          Force 3D GLES renderer\n");
     printf("\nScreen sizes:\n");
     printf("  micro    = %dx%d\n", UI_SCREEN_MICRO_W, UI_SCREEN_MICRO_H);
     printf("  tiny     = %dx%d\n", UI_SCREEN_TINY_W, UI_SCREEN_TINY_H);
@@ -666,11 +671,11 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                 return false;
             }
             g_log_dest_cli = value;
-            if (g_log_dest_cli != "auto" && g_log_dest_cli != "journal" &&
-                g_log_dest_cli != "syslog" && g_log_dest_cli != "file" &&
-                g_log_dest_cli != "console") {
+            // Shared with the HELIX_LOG_DEST reader in Application::init_logging()
+            // so the accepted set cannot drift between the flag and the env var.
+            if (!helix::logging::is_valid_log_target(g_log_dest_cli)) {
                 printf("Error: invalid --log-dest value: %s\n", g_log_dest_cli.c_str());
-                printf("Valid values: auto, journal, syslog, file, console\n");
+                printf("Valid values: %s\n", helix::logging::log_target_accepted_values());
                 return false;
             }
         } else if (strcmp(argv[i], "--log-file") == 0 || strncmp(argv[i], "--log-file=", 11) == 0) {
@@ -694,12 +699,10 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                 return false;
             }
             g_log_level_cli = value;
-            if (g_log_level_cli != "trace" && g_log_level_cli != "debug" &&
-                g_log_level_cli != "info" && g_log_level_cli != "warn" &&
-                g_log_level_cli != "error" && g_log_level_cli != "critical" &&
-                g_log_level_cli != "off") {
+            // Shared with the HELIX_LOG_LEVEL reader in Application::init_logging().
+            if (!helix::logging::is_valid_log_level(g_log_level_cli)) {
                 printf("Error: invalid --log-level value: %s\n", g_log_level_cli.c_str());
-                printf("Valid values: trace, debug, info, warn, error, critical, off\n");
+                printf("Valid values: %s\n", helix::logging::log_level_accepted_values());
                 return false;
             }
         }

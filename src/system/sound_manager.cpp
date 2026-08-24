@@ -6,8 +6,8 @@
 #include "audio_settings_manager.h"
 #include "config.h"
 #include "data_root_resolver.h"
+#include "i_moonraker_client.h"
 #include "m300_sound_backend.h"
-#include "moonraker_client.h"
 #include "pwm_sound_backend.h"
 #include "runtime_config.h"
 #include "sound_backend.h"
@@ -46,7 +46,7 @@ SoundManager& SoundManager::instance() {
     return instance;
 }
 
-void SoundManager::set_moonraker_client(MoonrakerClient* client) {
+void SoundManager::set_moonraker_client(IMoonrakerClient* client) {
     client_ = client;
     spdlog::debug("[SoundManager] Moonraker client set: {}", client ? "connected" : "nullptr");
 
@@ -55,7 +55,7 @@ void SoundManager::set_moonraker_client(MoonrakerClient* client) {
     // will reinstall via try_install_m300_backend() only if appropriate —
     // otherwise we'd carry M300 over to a new printer that has no beeper,
     // resurrecting the "!! Unknown command:M300" feedback loop.
-    if (!client && backend_ && dynamic_cast<M300SoundBackend*>(backend_.get())) {
+    if (!client && backend_ && backend_->needs_moonraker_client()) {
         spdlog::info("[SoundManager] Dropping M300 backend (client cleared)");
         if (sequencer_) {
             sequencer_->shutdown();
@@ -411,13 +411,21 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     }
 #endif
 
-    // Try PWM sysfs backend (AD5M buzzer)
+#ifdef HELIX_HAS_PWM_SOUND
+    // PWM sysfs buzzer. Gated per-platform, NOT probed everywhere: the probe is
+    // "does /sys/class/pwm/pwmchip0 exist", which is true on boards that have a
+    // PWM controller and no buzzer on it. A CC1 has 8 channels there and no
+    // beeper wired to any of them, so an ungated probe means exporting and
+    // driving a channel that belongs to something else -- its backlight is a
+    // platform device on the same controller. Only enable this where the buzzer
+    // is known to exist (AD5M/AD5X).
     auto pwm_backend = std::make_shared<PWMSoundBackend>();
     if (pwm_backend->initialize()) {
         spdlog::info("[SoundManager] Using PWM sysfs backend ({})", pwm_backend->channel_path());
         return pwm_backend;
     }
     spdlog::debug("[SoundManager] PWM sysfs not available, falling back");
+#endif
 
     spdlog::debug("[SoundManager] No host audio backend available");
     return nullptr;

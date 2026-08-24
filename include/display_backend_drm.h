@@ -121,6 +121,9 @@ class DisplayBackendDRM : public DisplayBackend {
     bool needs_touch_calibration() const override {
         return needs_calibration_;
     }
+    bool supports_touch_calibration() const override {
+        return supports_calibration_;
+    }
     void disable_affine_calibration() override;
     void enable_affine_calibration() override;
     void clear_calibration() override;
@@ -150,7 +153,10 @@ class DisplayBackendDRM : public DisplayBackend {
     /// calibration updates never re-probe the indev's user_data (which can be
     /// stale/corrupted — bundle LG9X482B) to decide whether to install.
     bool calibration_wrapper_installed_ = false;
+    /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
+    /// Offer the manual Settings entry point (any real touch panel)
+    bool supports_calibration_ = false;
     int screen_width_ = 0;
     int screen_height_ = 0;
     bool size_was_explicit_ = false;

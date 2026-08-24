@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Full-screen backdrop overlay - tap to dismiss -->
+  <view name="fan_stack_picker" extends="context_menu_backdrop">
+    <!-- Card positioned and height-capped by ContextMenu. The icon grid below
+         applies live, so Done commits nothing - it is the way out that does not
+         need the backdrop. The title grows so a long one ellipsizes rather than
+         pushing Done off the row. -->
+    <context_menu_card title="Configure Fan Widget"
+                       title_tag="Configure Fan Widget" title_grow="1" title_long_mode="dots" close_icon="check"
+                       close_text="Done" close_text_tag="Done" pad_gap="#space_xs">
+      <text_small text="Display Mode" translation_tag="Display Mode" clickable="false" event_bubble="true"/>
+      <!-- Mode rows populated dynamically by C++ -->
+      <lv_obj name="mode_list"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" scrollable="false"
+              clickable="false"/>
+      <lv_obj width="100%"
+              height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"
+              clickable="false" event_bubble="true"/>
+      <text_small text="Icon" translation_tag="Icon" clickable="false" event_bubble="true"/>
+      <!-- Icon cells populated dynamically by C++ -->
+      <lv_obj name="icon_grid"
+              width="100%" height="content" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="#space_xxs"
+              scrollable="false" clickable="false"/>
+    </context_menu_card>
+  </view>
+</component>

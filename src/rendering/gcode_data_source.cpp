@@ -1,6 +1,22 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// FileDataSource addresses gcode by uint64_t offset, but fseeko/ftello carry an
+// off_t, which is 32 bits on our 32-bit targets (pi32, ad5m, cc1, k1) unless
+// large-file support is requested. The request cannot live in this file: every
+// app source is compiled with -include include/lvgl_pch.h, so the system headers
+// are read before the first line here and the value is already latched. It comes
+// from a target-specific -D_FILE_OFFSET_BITS=64 on this object in mk/rules.mk
+// instead, which glibc turns into fseeko64/ftello64; musl and 64-bit targets
+// already have a 64-bit off_t and are unaffected. The static_assert below fails
+// the build if that rule is ever dropped.
+//
+// The wider off_t stays inside this translation unit: it appears nowhere in
+// gcode_data_source.h and only as a local cast in read_range(). Verified on
+// armhf by diffing the object's symbol table with and without the define - the
+// only changes are fopen/fseeko/ftello gaining their 64 suffix; no mangled name
+// moves, so nothing off_t-typed crosses a TU boundary.
+
 #include "gcode_data_source.h"
 
 #include "memory_monitor.h"
@@ -60,7 +76,9 @@ std::vector<char> GCodeDataSource::read_all() {
 FileDataSource::FileDataSource(const std::string& filepath) : filepath_(filepath) {
     file_ = std::fopen(filepath.c_str(), "rb");
     if (file_) {
-        // Get file size using 64-bit safe fseeko/ftello (handles > 2GB on 32-bit ARM)
+        // 64-bit off_t (see the top of this file), so a file above 2 GB reports
+        // its true size on 32-bit ARM instead of ftello returning -1.
+        static_assert(sizeof(off_t) == 8, "off_t must be 64-bit: see mk/rules.mk LFS override");
         fseeko(file_, 0, SEEK_END);
         size_ = static_cast<uint64_t>(ftello(file_));
         fseeko(file_, 0, SEEK_SET);
@@ -110,7 +128,8 @@ std::vector<char> FileDataSource::read_range(uint64_t offset, uint32_t length) {
 
     std::vector<char> buffer(available);
 
-    // Seek using 64-bit safe fseeko (handles files > 2GB on 32-bit ARM)
+    // off_t is 64-bit here (see the top of this file), so the cast keeps the full
+    // offset on 32-bit ARM instead of truncating past 2 GB.
     if (fseeko(file_, static_cast<off_t>(offset), SEEK_SET) != 0) {
         spdlog::error("[FileDataSource] Seek failed at offset {}", offset);
         return {};

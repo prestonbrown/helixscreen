@@ -28,6 +28,7 @@ Complete reference for HelixScreen configuration options.
 - [Cache Settings](#cache-settings)
 - [Streaming Settings](#streaming-settings)
 - [Safety Settings](#safety-settings)
+- [Notification Settings](#notification-settings)
 - [Filament Settings](#filament-settings)
 - [Filament Sensor Settings](#filament-sensor-settings)
 - [Security Settings](#security-settings)
@@ -146,7 +147,7 @@ When multiple printers are configured, the config file uses a versioned schema (
 
 Each printer entry contains all printer-specific settings (connection details, hardware selections, LED config, filament sensors, etc.). Device-level settings like WiFi and display preferences remain at the root level and are shared across all printers.
 
-> **Note:** You don't need to edit the config file manually — use the Settings > Printers UI to add and manage printers. The config file is shown here for reference.
+> **Note:** You don't need to edit the config file manually — use the Settings > Hardware & Devices > Printers UI to add and manage printers. The config file is shown here for reference.
 
 ---
 
@@ -191,7 +192,7 @@ Each printer entry contains all printer-specific settings (connection details, h
 - `1` — **Notification**: Brief toast message at the top of the screen
 - `2` — **Alert**: Full-screen modal with print stats (duration, layers, filament used) and confetti for successful prints
 
-Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Print Complete Alert** and select from the dropdown.
+Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Safety & Notifications > Print Completion Alert** and select from the dropdown.
 
 ### `disable_sound`
 **Type:** boolean
@@ -271,18 +272,19 @@ Located in the `theme` section:
 | 4 | Dracula |
 | 5 | Everforest |
 | 6 | Gruvbox |
-| 7 | HelixScreen |
-| 8 | Kanagawa |
-| 9 | Material Design |
-| 10 | Midnight |
-| 11 | Nord (default) |
-| 12 | One Dark |
-| 13 | Rose Pine |
-| 14 | Solarized |
-| 15 | Tokyo Night |
-| 16 | Yami |
+| 7 | Hazard |
+| 8 | HelixScreen |
+| 9 | Kanagawa |
+| 10 | Material Design |
+| 11 | Midnight |
+| 12 | Nord (default) |
+| 13 | One Dark |
+| 14 | Rose Pine |
+| 15 | Solarized |
+| 16 | Tokyo Night |
+| 17 | Yami |
 
-> **Tip:** You can also browse and apply themes visually in **Settings > Appearance > Display Settings > Theme Colors**.
+> **Tip:** You can also browse and apply themes visually in **Settings > Display & Sound > Theme Colors**.
 
 ---
 
@@ -369,7 +371,7 @@ Located in the `display` section:
 ### `theme`
 **Type:** string
 **Default:** `"nord"`
-**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Appearance > Display Settings > Theme Colors**, which writes this value for you.
+**Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Display & Sound > Theme Colors**, which writes this value for you.
 
 ### `layout`
 **Type:** string
@@ -383,7 +385,7 @@ Located in the `display` section:
 **Type:** integer
 **Default:** `0`
 **Values:** `0`, `90`, `180`, `270`
-**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match.
+**Description:** Rotate the entire display by the specified degrees. Touch coordinates are automatically adjusted to match. Change via **Settings > Display & Sound > Screen Rotation** (applies after restart).
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
@@ -430,14 +432,19 @@ Auto-detection finds the first device with dumb buffer support and a connected d
 
 ### `gcode_render_mode`
 **Type:** integer
-**Default:** `2`
-**Values:** `0` (Auto/2D), `1` (3D GLES), `2` (2D Layer)
-**Description:** G-code visualization mode:
-- `0` - Auto (currently uses 2D)
-- `1` - 3D GLES-accelerated view
-- `2` - 2D Layer view (default, recommended)
+**Default:** `0`
+**Values:** `0` (Auto), `1` (3D View), `2` (2D Layers), `3` (Thumbnail Only)
+**Description:** G-code visualization mode for the active print:
+- `0` - Auto: interactive 3D on hardware with a working GLES renderer, 2D layers everywhere else (also the mode HelixScreen drops to if 3D has to bail mid-print)
+- `1` - 3D View: interactive 3D rendering of the toolpath
+- `2` - 2D Layers: flat per-layer view, lighter on the GPU than 3D
+- `3` - Thumbnail Only: shows just the slicer-embedded thumbnail, no live toolpath rendering - the lightest option
 
-Can also be overridden via `HELIX_GCODE_MODE` env var (`3D` or `2D`).
+Adjustable from the UI at **Settings > Printing > G-code Preview**.
+
+The mode can be overridden per launch without touching settings. Precedence is command line > `HELIX_GCODE_MODE` env var > this setting:
+- `helix-screen --render-2d` forces 2D Layers and `--render-3d` forces 3D View for that session. Launching with `--render-2d` is the quick way to force 2D on hardware that struggles with 3D rendering.
+- `HELIX_GCODE_MODE=3D` (or `2D`) - only those exact, case-sensitive values are honored; anything else falls back to 2D, and leaving it unset means Auto.
 
 ### `gcode_3d_enabled`
 **Type:** boolean
@@ -514,9 +521,11 @@ Located in the `input` section:
   "input": {
     "scroll_throw": 25,
     "scroll_limit": 10,
+    "long_press_time": 500,
     "jitter_threshold": 5,
     "scroll_guard": false,
     "scroll_guard_cooldown_ms": 80,
+    "home_edit_mode_enabled": true,
     "touch_device": "",
     "device_blacklist": [],
     "force_calibration": false,
@@ -525,7 +534,7 @@ Located in the `input` section:
       "a": 1.0,
       "b": 0.0,
       "c": 0.0,
-      "d": 0.0,
+      "d": 1.0,
       "e": 1.0,
       "f": 0.0
     }
@@ -554,6 +563,17 @@ Located in the `input` section:
 
 Matches LVGL's native default of 10.
 
+### `long_press_time`
+**Type:** integer
+**Default:** `500`
+**Range:** `300` - `1500` (UI-clamped)
+**Description:** How long (in milliseconds) a finger must hold before a press registers as a long-press. Governs every long-press in the app — home-screen Edit Mode entry, file-card delete, macro edit mode, and others. Raise this if long-press actions trigger when a finger simply rests on the glass (common on a tablet lying flat). Applied live — no restart needed.
+
+### `home_edit_mode_enabled`
+**Type:** boolean
+**Default:** `true`
+**Description:** Whether a long-press on the home grid enters Edit Mode (the drag-and-drop layout editor). When `false`, the long-press is suppressed entirely. Turn off if Edit Mode triggers by accident and you don't need to rearrange widgets, or pair with a higher `long_press_time` to make accidental entry harder while keeping the feature available. Applied live — no restart needed.
+
 ### `touch_device`
 **Type:** string
 **Default:** `""` (auto-detect)
@@ -566,7 +586,7 @@ Matches LVGL's native default of 10.
 **Example:** `["002c:261a"]`
 **Description:** USB input devices that HelixScreen ignores entirely for keyboard and barcode-scanner input. Each entry is a `"vid:pid"` pair of lowercase 4-digit hex IDs. Use this when a USB barcode scanner enumerates as a plain HID keyboard and HelixScreen keeps claiming it — for example when an external tool like `afc-spool-scan` needs exclusive access to the scanner. A blacklisted device is skipped by both the persistent keyboard binding and the in-app scan overlay, but still appears in the Barcode Scanner settings device list so you can identify it.
 
-**Finding a device's VID:PID:** Open **Settings > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
+**Finding a device's VID:PID:** Open **Settings > Hardware & Devices > Spoolman > Barcode Scanner** — the device list shows each device's VID:PID. Alternatively, run `lsusb` over SSH and read the ID pair after `ID` (e.g. `ID 002c:261a`). See [Sharing a scanner with another tool](guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist) for the full walkthrough.
 
 ### `jitter_threshold`
 **Type:** integer
@@ -593,7 +613,7 @@ Can also be overridden with the `HELIX_TOUCH_JITTER` environment variable.
 ### `force_calibration`
 **Type:** boolean
 **Default:** `false`
-**Description:** Force touch calibration on next startup, even if the device doesn't normally require it. After successful calibration, this flag is automatically cleared. Useful when touch input is inaccurate but HelixScreen doesn't show the calibration option in Settings.
+**Description:** Force the calibration wizard to run on next startup, even if the device doesn't normally require it. After successful calibration, this flag is automatically cleared. Mainly useful when touch is too far off to reach Settings at all — the Settings entry point itself is offered for any touchscreen, so you rarely need this just to find the option.
 
 ---
 
@@ -657,7 +677,7 @@ Located in the `printer` section:
   "printer": {
     "name": "Unnamed Printer",
     "type": "Unknown",
-    "moonraker_host": "192.168.1.112",
+    "moonraker_host": "192.168.1.100",
     "moonraker_port": 7125,
     "moonraker_api_key": false,
     "heaters": {
@@ -896,7 +916,7 @@ If your printer has a chamber heater, bed fans, or recirculation fans that shoul
 
 Multi-line G-code is separated by `\n`. You can also reference a Klipper macro by name (e.g., `"cooldown": "MY_COOLDOWN_MACRO"`).
 
-Configured via **Settings > Printer > Macro Buttons**, or by editing `settings.json` directly.
+Configured via **Settings > Printing > Macro Buttons**, or by editing `settings.json` directly.
 
 ---
 
@@ -907,7 +927,7 @@ Connection settings are in the `printer` section:
 ```json
 {
   "printer": {
-    "moonraker_host": "192.168.1.112",
+    "moonraker_host": "192.168.1.100",
     "moonraker_port": 7125,
     "moonraker_api_key": false,
     "moonraker_connection_timeout_ms": 10000,
@@ -922,7 +942,7 @@ Connection settings are in the `printer` section:
 
 ### `moonraker_host`
 **Type:** string
-**Default:** `"192.168.1.112"` (template default, usually `"localhost"`)
+**Default:** `"127.0.0.1"` (the value in `config/settings.json.template`)
 **Description:** Moonraker hostname or IP address.
 
 ### `moonraker_port`
@@ -986,7 +1006,28 @@ Located in the `standard_macros` section. These pick which built-in actions appe
 **Type:** string
 **Default:** `"clean_nozzle"` (button 1), `"bed_level"` (button 2), `""` (buttons 3 and 4)
 **Values:** `"clean_nozzle"`, `"bed_level"`, `"heat_soak"`, `"purge"`, `"bed_mesh"`, or `""` (empty = hide the button)
-**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printer > Macro Buttons** rather than by editing JSON.
+**Description:** Assigns a built-in action to each of the four Controls-panel quick buttons. An empty string hides that button. The action runs the matching macro on your printer (auto-detected from your Klipper config). Configured most easily via **Settings > Printing > Macro Buttons** rather than by editing JSON.
+
+### `load_filament`, `unload_filament`, `purge`, `pause`, `resume`, `cancel`, `bed_mesh`, `bed_level`, `clean_nozzle`, `heat_soak`
+**Type:** string
+**Default:** `""` (empty = use auto-detection)
+**Description:** Overrides which macro HelixScreen runs for each standard action. An empty
+string means "auto-detect from your Klipper config"; a macro name pins that slot to your
+choice. Written by **Settings > Printing > Macro Buttons**, which is the easier way to set them
+because it lists the macros your printer actually defines.
+
+```json
+{
+  "standard_macros": {
+    "unload_filament": "MY_UNLOAD_ROUTINE"
+  }
+}
+```
+
+On a printer with a multi-filament system, `load_filament` and `unload_filament` also decide
+*who* performs the operation. Left empty, the filament system does it. Set to a macro, your
+macro does it instead and the filament system's own handling is skipped for that operation —
+see [Customizing which macro runs](guide/filament.md#customizing-which-macro-runs).
 
 > **Note:** This is separate from `printer.default_macros`, which customizes the Load/Unload/cooldown/custom-macro buttons elsewhere in the UI. See [Printer Settings › default_macros](#printer-settings).
 
@@ -1081,6 +1122,51 @@ Located in the `ams` section:
 - `3d` - Bambu-style pseudo-3D canvas with gradients
 - `flat` - Simple concentric rings
 
+### Per-printer AMS settings
+
+The remaining AMS settings are **per printer**, so they live under the printer's own section rather than the top-level `ams` block:
+
+```json
+{
+  "printers": {
+    "default": {
+      "ams": {
+        "force_bypass_controls": false,
+        "always_show_bypass_spool": false,
+        "keep_spool_info_on_eject": true,
+        "afc_unload_after_print": false
+      }
+    }
+  }
+}
+```
+
+All four have UI equivalents in **Settings > Hardware & Devices > Multi-Filament System Management** - edit them there rather than by hand.
+
+#### `force_bypass_controls`
+**Type:** boolean
+**Default:** `false`
+**Description:** Show the bypass controls and the external spool on the filament path even when the firmware reports no bypass position. Applies to Anycubic ACE Pro, Snapmaker U1, tool changers, QIDI Box, and Happy Hare configs where `[mmu_machine] has_bypass` is `0`. The matching UI row is hidden whenever the firmware *does* report a bypass - including the Creality CFS, whose bypass always works.
+
+On Happy Hare, `MMU_SELECT_BYPASS` ignores `has_bypass` and works either way, so this setting makes the bypass usable on `mmu_vendor: Other` setups and on uncalibrated type-A selectors. On the other systems there is no bypass command to send: the Bypass toggle reports that the operation is not supported, and the setting controls only whether the external spool is displayed and tracked.
+
+See [Filament → When Bypass Doesn't Appear](guide/filament.md#when-bypass-doesnt-appear).
+
+#### `always_show_bypass_spool`
+**Type:** boolean
+**Default:** `false`
+**Description:** Keep the external spool visible on the filament path while bypass is disengaged. Applies to AFC systems (Box Turtle, OpenAMS) only, which publish a virtual bypass sensor whether or not one is physically wired; without this, the node is drawn only while bypass is actually engaged.
+
+#### `keep_spool_info_on_eject`
+**Type:** boolean
+**Default:** `true`
+**Description:** Keep a lane's spool details after it empties, so reloading the same spool after maintenance needs no re-selection. Turn it off to start fresh whenever a lane empties. Applies only to spools selected in HelixScreen; a spool assigned elsewhere (such as Mainsail) clears with the lane. To have every assigned spool remembered no matter where it was picked, use the firmware's own retention instead (AFC: `remember_spool` in AFC.cfg) - HelixScreen follows the spool the firmware reports. When that firmware retention covers every lane, it takes precedence and the matching toggle shows as disabled. The toggle (**Keep Spool Info on Eject**, in the AMS Management overlay) is shown only on systems whose firmware tracks spool ids per lane (AFC, Happy Hare); systems that detect spool swaps by tag always refresh on a swap regardless of this setting.
+
+#### `afc_unload_after_print`
+**Type:** boolean
+**Default:** `false`
+**Description:** On AFC systems, retract filament back to its lane when a print finishes.
+
 ---
 
 ## Panel Widget Settings
@@ -1132,11 +1218,13 @@ Located under the `panel_widgets` key, grouped by panel ID. The Home panel uses 
 Each widget object has:
 
 - `id` — Widget identifier (see table below)
-- `enabled` — Whether the widget is shown (`true`/`false`)
-- `col` — Grid column position (0-based, left to right)
-- `row` — Grid row position (0-based, top to bottom)
+- `enabled` - Whether the widget is shown (`true`/`false`). A widget with `enabled: false` sits in the Widget Catalog waiting for you to add it back
+- `col` - Grid column position (0-based, left to right). `-1` means "no position yet"
+- `row` - Grid row position (0-based, top to bottom). `-1` means "no position yet"
 - `colspan` — Number of columns the widget spans
 - `rowspan` — Number of rows the widget spans
+
+> **What `col: -1` / `row: -1` means.** The widget is switched on but has nowhere to sit right now, usually because the grid was full when HelixScreen last laid out the page. It is *not* disabled: as soon as a cell frees up - you remove another widget, unplug the hardware another widget needed, or view the same layout on a screen with a bigger grid - it places itself again automatically. You do not need to re-add it from the catalog.
 - `config` — (optional) Per-widget settings object. Currently used by `temp_stack` and `fan_stack` for display mode:
   - `display_mode` — `"stack"` (default) or `"carousel"`. Stack shows compact rows; carousel shows swipeable full-size pages. Toggle via long-press on the widget.
 
@@ -1257,6 +1345,26 @@ Located in the `safety` section:
 **Default:** `30`
 **Options:** `15`, `30`, `60`, `120`
 **Description:** How long to wait (in seconds) after sending a cancel before escalating to emergency stop. Only applies when `cancel_escalation_enabled` is `true`.
+
+---
+
+## Notification Settings
+
+Located in the `notifications` section:
+
+```json
+{
+  "notifications": {
+    "min_toast_severity": 0
+  }
+}
+```
+
+### `min_toast_severity`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (all toasts), `1` (warnings & errors), `2` (errors only)
+**Description:** The lowest notification level allowed to interrupt with a toast. Below-the-line notifications still land in the notification history; full-screen error dialogs always show. Change via **Settings > Safety & Notifications > On-screen Alerts**.
 
 ---
 
@@ -1449,7 +1557,7 @@ Located in the `printers` section:
 ### `telemetry_enabled`
 **Type:** boolean
 **Default:** `false`
-**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > Telemetry**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
+**Description:** Enables anonymous usage telemetry. This is a top-level key (not nested in a section). **OFF by default — you must opt in**, either during the setup wizard or via **Settings > System > Share Usage Data**. While `false`, nothing is collected, queued, or transmitted. For a full breakdown of exactly what is and isn't collected, and how the data is anonymized, see the [Telemetry](TELEMETRY.md) documentation.
 
 ---
 
@@ -1676,7 +1784,7 @@ HelixScreen accepts command-line options for overriding configuration and debugg
 
 | Option | Description |
 |--------|-------------|
-| `--moonraker <url>` | Override Moonraker URL (e.g., `ws://192.168.1.112:7125`) |
+| `--moonraker <url>` | Override Moonraker URL (e.g., `ws://192.168.1.100:7125`) |
 
 ### Logging Options
 
@@ -1751,10 +1859,9 @@ These can be set in the systemd service file or before running the binary:
 | Variable | Description |
 |----------|-------------|
 | `HELIX_THEME` | Override theme (e.g., `dracula`, `nord`, `gruvbox`) |
-| `HELIX_GCODE_MODE` | Override G-code render mode (`3D` or `2D`) |
+| `HELIX_GCODE_MODE` | Override G-code render mode (`3D` or `2D`, exact case-sensitive; unset = Auto, any other value = 2D) |
 | `HELIX_GCODE_STREAMING` | Override G-code streaming mode |
 | `HELIX_FORCE_STREAMING` | Force streaming for all file operations (`1` to enable) |
-| `HELIX_HOT_RELOAD` | Override XML hot reload default (`0` force off, `1` force on). Defaults ON for native builds, OFF for device release builds. |
 
 **Example in service file:**
 ```ini

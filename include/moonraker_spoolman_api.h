@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "spoolman_types.h"
 
@@ -21,7 +22,7 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 } // namespace helix
 
 // Forward declare json
@@ -50,7 +51,7 @@ SpoolInfo parse_spool_info(const nlohmann::json& spool_json);
  *       [](const auto& spools) { ... },
  *       [](const auto& err) { ... });
  */
-class MoonrakerSpoolmanAPI {
+class MoonrakerSpoolmanAPI : public ISpoolmanAPI {
   public:
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
@@ -60,7 +61,7 @@ class MoonrakerSpoolmanAPI {
      *
      * @param client MoonrakerClient instance (must remain valid during API lifetime)
      */
-    explicit MoonrakerSpoolmanAPI(helix::MoonrakerClient& client);
+    explicit MoonrakerSpoolmanAPI(helix::IMoonrakerClient& client);
     virtual ~MoonrakerSpoolmanAPI() = default;
 
     // ========================================================================
@@ -73,9 +74,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called with (connected, active_spool_id)
      * @param on_error Called on failure
      */
-    virtual void
-    get_spoolman_status(std::function<void(bool connected, int active_spool_id)> on_success,
-                        ErrorCallback on_error, bool silent = false);
+    void get_spoolman_status(std::function<void(bool connected, int active_spool_id)> on_success,
+                             ErrorCallback on_error, bool silent = false) override;
 
     /**
      * @brief Get list of spools from Spoolman
@@ -83,7 +83,7 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called with spool list
      * @param on_error Called on failure
      */
-    virtual void get_spoolman_spools(helix::SpoolListCallback on_success, ErrorCallback on_error);
+    void get_spoolman_spools(helix::SpoolListCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Get a single spool's details by ID
@@ -92,8 +92,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called with spool info (empty optional if not found)
      * @param on_error Called on failure
      */
-    virtual void get_spoolman_spool(int spool_id, helix::SpoolCallback on_success,
-                                    ErrorCallback on_error, bool silent = false);
+    void get_spoolman_spool(int spool_id, helix::SpoolCallback on_success, ErrorCallback on_error,
+                            bool silent = false) override;
 
     /**
      * @brief Set the active spool for filament tracking
@@ -102,7 +102,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called when spool is set
      * @param on_error Called on failure
      */
-    virtual void set_active_spool(int spool_id, SuccessCallback on_success, ErrorCallback on_error);
+    void set_active_spool(int spool_id, SuccessCallback on_success,
+                          ErrorCallback on_error) override;
 
     /**
      * @brief Get usage history for a spool
@@ -111,10 +112,10 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called with usage records
      * @param on_error Called on failure
      */
-    virtual void
+    void
     get_spool_usage_history(int spool_id,
                             std::function<void(const std::vector<FilamentUsageRecord>&)> on_success,
-                            ErrorCallback on_error);
+                            ErrorCallback on_error) override;
 
     // ========================================================================
     // Spool Update Operations
@@ -128,8 +129,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called when update succeeds
      * @param on_error Called on failure
      */
-    virtual void update_spoolman_spool_weight(int spool_id, double remaining_weight_g,
-                                              SuccessCallback on_success, ErrorCallback on_error);
+    void update_spoolman_spool_weight(int spool_id, double remaining_weight_g,
+                                      SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Update a spool's properties in Spoolman
@@ -139,8 +140,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called when update succeeds
      * @param on_error Called on failure
      */
-    virtual void update_spoolman_spool(int spool_id, const nlohmann::json& spool_data,
-                                       SuccessCallback on_success, ErrorCallback on_error);
+    void update_spoolman_spool(int spool_id, const nlohmann::json& spool_data,
+                               SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Update a filament definition in Spoolman
@@ -152,8 +153,8 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called when update succeeds
      * @param on_error Called on failure
      */
-    virtual void update_spoolman_filament(int filament_id, const nlohmann::json& filament_data,
-                                          SuccessCallback on_success, ErrorCallback on_error);
+    void update_spoolman_filament(int filament_id, const nlohmann::json& filament_data,
+                                  SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Update a filament's color in Spoolman
@@ -165,8 +166,9 @@ class MoonrakerSpoolmanAPI {
      * @param on_success Called when update succeeds
      * @param on_error Called on failure
      */
-    virtual void update_spoolman_filament_color(int filament_id, const std::string& color_hex,
-                                                SuccessCallback on_success, ErrorCallback on_error);
+    void update_spoolman_filament_color(int filament_id, const std::string& color_hex,
+                                        SuccessCallback on_success,
+                                        ErrorCallback on_error) override;
 
     // ========================================================================
     // Vendor & Filament Operations
@@ -175,19 +177,20 @@ class MoonrakerSpoolmanAPI {
     /**
      * @brief Get list of vendors from Spoolman
      */
-    virtual void get_spoolman_vendors(helix::VendorListCallback on_success, ErrorCallback on_error);
+    void get_spoolman_vendors(helix::VendorListCallback on_success,
+                              ErrorCallback on_error) override;
 
     /**
      * @brief Get list of filaments from Spoolman
      */
-    virtual void get_spoolman_filaments(helix::FilamentListCallback on_success,
-                                        ErrorCallback on_error);
+    void get_spoolman_filaments(helix::FilamentListCallback on_success,
+                                ErrorCallback on_error) override;
 
     /**
      * @brief Get list of filaments from Spoolman filtered by vendor ID
      */
-    virtual void get_spoolman_filaments(int vendor_id, helix::FilamentListCallback on_success,
-                                        ErrorCallback on_error);
+    void get_spoolman_filaments(int vendor_id, helix::FilamentListCallback on_success,
+                                ErrorCallback on_error) override;
 
     // ========================================================================
     // CRUD Operations
@@ -196,41 +199,41 @@ class MoonrakerSpoolmanAPI {
     /**
      * @brief Create a new vendor in Spoolman
      */
-    virtual void create_spoolman_vendor(const nlohmann::json& vendor_data,
-                                        helix::VendorCreateCallback on_success,
-                                        ErrorCallback on_error);
+    void create_spoolman_vendor(const nlohmann::json& vendor_data,
+                                helix::VendorCreateCallback on_success,
+                                ErrorCallback on_error) override;
 
     /**
      * @brief Create a new filament in Spoolman
      */
-    virtual void create_spoolman_filament(const nlohmann::json& filament_data,
-                                          helix::FilamentCreateCallback on_success,
-                                          ErrorCallback on_error);
+    void create_spoolman_filament(const nlohmann::json& filament_data,
+                                  helix::FilamentCreateCallback on_success,
+                                  ErrorCallback on_error) override;
 
     /**
      * @brief Create a new spool in Spoolman
      */
-    virtual void create_spoolman_spool(const nlohmann::json& spool_data,
-                                       helix::SpoolCreateCallback on_success,
-                                       ErrorCallback on_error);
+    void create_spoolman_spool(const nlohmann::json& spool_data,
+                               helix::SpoolCreateCallback on_success,
+                               ErrorCallback on_error) override;
 
     /**
      * @brief Delete a spool from Spoolman
      */
-    virtual void delete_spoolman_spool(int spool_id, SuccessCallback on_success,
-                                       ErrorCallback on_error);
+    void delete_spoolman_spool(int spool_id, SuccessCallback on_success,
+                               ErrorCallback on_error) override;
 
     /**
      * @brief Delete a vendor from Spoolman
      */
-    virtual void delete_spoolman_vendor(int vendor_id, SuccessCallback on_success,
-                                        ErrorCallback on_error);
+    void delete_spoolman_vendor(int vendor_id, SuccessCallback on_success,
+                                ErrorCallback on_error) override;
 
     /**
      * @brief Delete a filament from Spoolman
      */
-    virtual void delete_spoolman_filament(int filament_id, SuccessCallback on_success,
-                                          ErrorCallback on_error);
+    void delete_spoolman_filament(int filament_id, SuccessCallback on_success,
+                                  ErrorCallback on_error) override;
 
     // ========================================================================
     // External Database Operations (SpoolmanDB)
@@ -239,16 +242,16 @@ class MoonrakerSpoolmanAPI {
     /**
      * @brief Get list of vendors from SpoolmanDB (external database)
      */
-    virtual void get_spoolman_external_vendors(helix::VendorListCallback on_success,
-                                               ErrorCallback on_error);
+    void get_spoolman_external_vendors(helix::VendorListCallback on_success,
+                                       ErrorCallback on_error) override;
 
     /**
      * @brief Get list of filaments from SpoolmanDB filtered by vendor name
      */
-    virtual void get_spoolman_external_filaments(const std::string& vendor_name,
-                                                 helix::FilamentListCallback on_success,
-                                                 ErrorCallback on_error);
+    void get_spoolman_external_filaments(const std::string& vendor_name,
+                                         helix::FilamentListCallback on_success,
+                                         ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
 };

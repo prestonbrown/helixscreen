@@ -179,7 +179,11 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
             parse_spool_color(spool.color_hex, theme_manager_get_color("text_muted"));
         ui_spool_canvas_set_color(rw.canvas, color);
 
-        float fill_level = static_cast<float>(spool.remaining_percent()) / 100.0f;
+        // remaining_percent() reports 0 for an unweighed spool, which is honest for
+        // the percent label but would draw the spool empty. Weightless draws full.
+        float fill_level = (spool.initial_weight_g > 0)
+                               ? static_cast<float>(spool.remaining_percent()) / 100.0f
+                               : 1.0f;
         ui_spool_canvas_set_fill_level(rw.canvas, fill_level);
         ui_spool_canvas_redraw(rw.canvas);
     }

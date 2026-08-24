@@ -556,3 +556,100 @@ TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file integrates with
 
     TearDown();
 }
+
+// ============================================================================
+// Device-level display/input seeding is scoped to on-device installs
+//
+// A preset's top-level "display" and "input" blocks describe the PRINTER'S OWN
+// PANEL — rotation, white balance, the touch calibration matrix. They are only
+// correct when HelixScreen is the thing driving that panel. A separate host (a
+// Pi with its own touchscreen, a desktop) that merely talks to the printer over
+// the network must not inherit them.
+// ============================================================================
+
+/// TEST-NET-1 (RFC 5737). Guaranteed never assigned to a real interface, so
+/// is_moonraker_on_same_host()'s getifaddrs() scan can't accidentally match it
+/// on whatever machine CI runs on.
+static constexpr const char* REMOTE_TEST_HOST = "192.0.2.10";
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file skips device display/input for a remote printer",
+                 "[config][preset][device-scope]") {
+    SetUp();
+
+    // HelixScreen is running somewhere else and talking to this printer over the
+    // network — e.g. a Pi with its own touchscreen that detected a Centauri Carbon.
+    printer_data()["moonraker_host"] = REMOTE_TEST_HOST;
+
+    json preset = {
+        {"printer", {{"heaters", {{"bed", "heater_bed"}}}}},
+        {"display", {{"rotate", 270}, {"rotation_probed", true}, {"r_gain", 90}}},
+        {"input",
+         {{"jitter_threshold", 7}, {"calibration", {{"valid", true}, {"a", 1.66}, {"e", 1.76}}}}}};
+    write_preset("remote_preset", preset);
+
+    REQUIRE(config.apply_preset_file("remote_preset") == true);
+
+    // The printer's own hardware still merges — that block is about the printer.
+    REQUIRE(printer_data()["heaters"]["bed"] == "heater_bed");
+
+    // The host's screen is untouched: no rotation, no probe suppression, no gains.
+    REQUIRE_FALSE(data()["display"].contains("rotate"));
+    REQUIRE_FALSE(data()["display"].contains("rotation_probed"));
+    REQUIRE_FALSE(data()["display"].contains("r_gain"));
+    // Keys the host already had survive.
+    REQUIRE(data()["display"]["animations_enabled"] == false);
+
+    // Touch calibration from a foreign panel would make this screen unusable.
+    REQUIRE(config.get<bool>("/input/calibration/valid", false) == false);
+    REQUIRE_FALSE(data().contains("input"));
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file seeds device display/input for a loopback printer",
+                 "[config][preset][device-scope]") {
+    SetUp();
+
+    // On-device install (K1, CC1, AD5M, ...): Moonraker is on this same box, so the
+    // preset's panel settings ARE this panel's settings.
+    printer_data()["moonraker_host"] = "127.0.0.1";
+
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}},
+                   {"display", {{"rotate", 270}, {"rotation_probed", true}}},
+                   {"input", {{"jitter_threshold", 7}}}};
+    write_preset("device_preset", preset);
+
+    REQUIRE(config.apply_preset_file("device_preset") == true);
+
+    REQUIRE(data()["display"]["rotate"] == 270);
+    REQUIRE(data()["display"]["rotation_probed"] == true);
+    REQUIRE(data()["display"]["animations_enabled"] == false); // preserved
+    REQUIRE(config.get<int>("/input/jitter_threshold", 0) == 7);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file seeds device display/input when no host is set yet",
+                 "[config][preset][device-scope]") {
+    SetUp();
+
+    // The factory tarball bakes a preset straight into settings.json and no preset
+    // file carries moonraker_host, so first boot on a K1/K2/U1 can reach the merge
+    // with the key entirely absent. That MUST still seed the panel — an unset host
+    // means "nobody has told us about a remote printer", not "we are remote".
+    printer_data().erase("moonraker_host");
+
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}},
+                   {"display", {{"rotate", 270}, {"rotation_probed", true}}}};
+    write_preset("factory_preset", preset);
+
+    REQUIRE(config.apply_preset_file("factory_preset") == true);
+
+    REQUIRE(data()["display"]["rotate"] == 270);
+    REQUIRE(data()["display"]["rotation_probed"] == true);
+
+    TearDown();
+}

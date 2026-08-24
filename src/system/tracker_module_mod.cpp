@@ -18,7 +18,7 @@ namespace helix::audio {
 // 12 notes per octave: C C# D D# E F F# G G# A A# B
 // ---------------------------------------------------------------------------
 // clang-format off
-static const uint16_t kAmigaPeriods[] = {
+static const uint16_t AMIGA_PERIODS[] = {
     // Octave 0 (notes 1-12)
     1712, 1616, 1525, 1440, 1357, 1281, 1209, 1141, 1077, 1017,  960,  907,
     // Octave 1 (notes 13-24)
@@ -36,8 +36,8 @@ static const uint16_t kAmigaPeriods[] = {
 };
 // clang-format on
 
-static constexpr int kNumPeriodEntries =
-    static_cast<int>(sizeof(kAmigaPeriods) / sizeof(kAmigaPeriods[0]));
+static constexpr int NUM_PERIOD_ENTRIES =
+    static_cast<int>(sizeof(AMIGA_PERIODS) / sizeof(AMIGA_PERIODS[0]));
 
 /// Find the nearest note number (1-based) for an Amiga period value.
 /// Returns 0 if the period is 0 or out of range.
@@ -49,9 +49,9 @@ static uint8_t period_to_note(uint16_t period) {
     int best_idx = -1;
     uint16_t best_diff = 0xFFFF;
 
-    for (int i = 0; i < kNumPeriodEntries; ++i) {
+    for (int i = 0; i < NUM_PERIOD_ENTRIES; ++i) {
         uint16_t diff =
-            (period > kAmigaPeriods[i]) ? (period - kAmigaPeriods[i]) : (kAmigaPeriods[i] - period);
+            (period > AMIGA_PERIODS[i]) ? (period - AMIGA_PERIODS[i]) : (AMIGA_PERIODS[i] - period);
         if (diff < best_diff) {
             best_diff = diff;
             best_idx = i;
@@ -65,9 +65,9 @@ static uint8_t period_to_note(uint16_t period) {
 }
 
 uint16_t TrackerModule::note_to_period(uint8_t note) {
-    if (note == 0 || note > kNumPeriodEntries)
+    if (note == 0 || note > NUM_PERIOD_ENTRIES)
         return 0;
-    return kAmigaPeriods[note - 1];
+    return AMIGA_PERIODS[note - 1];
 }
 
 // ---------------------------------------------------------------------------
@@ -84,27 +84,27 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     //   1080..1083: magic ("M.K.", "4CHN", etc.)
     //   1084+   : pattern data
 
-    static constexpr size_t kMinSize = 1084;
-    static constexpr size_t kNumInstruments = 31;
-    static constexpr size_t kInstrumentSize = 30;
-    static constexpr size_t kOrderTableOffset = 952;
-    static constexpr size_t kOrderTableSize = 128;
-    static constexpr size_t kMagicOffset = 1080;
-    static constexpr size_t kPatternDataOffset = 1084;
-    static constexpr size_t kRowsPerPattern = 64;
-    static constexpr size_t kChannels = 4;
-    static constexpr size_t kBytesPerCell = 4;
-    static constexpr size_t kBytesPerRow = kChannels * kBytesPerCell;
-    static constexpr size_t kBytesPerPattern = kRowsPerPattern * kBytesPerRow;
+    static constexpr size_t MIN_SIZE = 1084;
+    static constexpr size_t NUM_INSTRUMENTS = 31;
+    static constexpr size_t INSTRUMENT_SIZE = 30;
+    static constexpr size_t ORDER_TABLE_OFFSET = 952;
+    static constexpr size_t ORDER_TABLE_SIZE = 128;
+    static constexpr size_t MAGIC_OFFSET = 1080;
+    static constexpr size_t PATTERN_DATA_OFFSET = 1084;
+    static constexpr size_t ROWS_PER_PATTERN = 64;
+    static constexpr size_t CHANNELS = 4;
+    static constexpr size_t BYTES_PER_CELL = 4;
+    static constexpr size_t BYTES_PER_ROW = CHANNELS * BYTES_PER_CELL;
+    static constexpr size_t BYTES_PER_PATTERN = ROWS_PER_PATTERN * BYTES_PER_ROW;
 
-    if (size < kMinSize) {
-        spdlog::debug("tracker: MOD too small ({} bytes, need {})", size, kMinSize);
+    if (size < MIN_SIZE) {
+        spdlog::debug("tracker: MOD too small ({} bytes, need {})", size, MIN_SIZE);
         return std::nullopt;
     }
 
     // Verify magic
     // Common magics: "M.K.", "4CHN", "6CHN", "8CHN", "FLT4", "FLT8"
-    const char* magic = reinterpret_cast<const char*>(data + kMagicOffset);
+    const char* magic = reinterpret_cast<const char*>(data + MAGIC_OFFSET);
     bool valid_magic = (magic[0] == 'M' && magic[1] == '.' && magic[2] == 'K' && magic[3] == '.') ||
                        (magic[0] == '4' && magic[1] == 'C' && magic[2] == 'H' && magic[3] == 'N') ||
                        (magic[0] == '6' && magic[1] == 'C' && magic[2] == 'H' && magic[3] == 'N') ||
@@ -124,7 +124,7 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     }
 
     TrackerModule mod;
-    mod.rows_per_pattern = kRowsPerPattern;
+    mod.rows_per_pattern = ROWS_PER_PATTERN;
 
     // Parse song length and order table
     uint8_t song_length = data[950];
@@ -139,21 +139,21 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
 
     // Determine how many patterns are referenced
     uint8_t max_pattern = 0;
-    mod.order.resize(kOrderTableSize);
-    for (size_t i = 0; i < kOrderTableSize; ++i) {
-        uint8_t pat = data[kOrderTableOffset + i];
+    mod.order.resize(ORDER_TABLE_SIZE);
+    for (size_t i = 0; i < ORDER_TABLE_SIZE; ++i) {
+        uint8_t pat = data[ORDER_TABLE_OFFSET + i];
         mod.order[i] = pat;
         if (i < song_length && pat > max_pattern)
             max_pattern = pat;
     }
 
     size_t num_patterns = static_cast<size_t>(max_pattern) + 1;
-    size_t pattern_data_end = kPatternDataOffset + num_patterns * kBytesPerPattern;
+    size_t pattern_data_end = PATTERN_DATA_OFFSET + num_patterns * BYTES_PER_PATTERN;
     if (pattern_data_end > size) {
         spdlog::warn("tracker: MOD pattern data extends past end of buffer ({} > {})",
                      pattern_data_end, size);
         // Clamp to what we actually have
-        num_patterns = (size - kPatternDataOffset) / kBytesPerPattern;
+        num_patterns = (size - PATTERN_DATA_OFFSET) / BYTES_PER_PATTERN;
         if (num_patterns == 0) {
             spdlog::warn("tracker: MOD has no complete patterns");
             return std::nullopt;
@@ -164,13 +164,13 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     mod.patterns.resize(num_patterns);
     for (size_t p = 0; p < num_patterns; ++p) {
         auto& pat = mod.patterns[p];
-        pat.resize(kRowsPerPattern * kChannels);
+        pat.resize(ROWS_PER_PATTERN * CHANNELS);
 
-        size_t pat_offset = kPatternDataOffset + p * kBytesPerPattern;
+        size_t pat_offset = PATTERN_DATA_OFFSET + p * BYTES_PER_PATTERN;
         bool truncated = false;
-        for (size_t row = 0; row < kRowsPerPattern && !truncated; ++row) {
-            for (size_t ch = 0; ch < kChannels; ++ch) {
-                size_t cell_offset = pat_offset + row * kBytesPerRow + ch * kBytesPerCell;
+        for (size_t row = 0; row < ROWS_PER_PATTERN && !truncated; ++row) {
+            for (size_t ch = 0; ch < CHANNELS; ++ch) {
+                size_t cell_offset = pat_offset + row * BYTES_PER_ROW + ch * BYTES_PER_CELL;
                 if (cell_offset + 3 >= size) {
                     spdlog::warn("[TrackerModule] MOD truncated at pattern {} row {} ch {}", p, row,
                                  ch);
@@ -188,7 +188,7 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
                 uint8_t effect = b2 & 0x0F;
                 uint8_t effect_data = b3;
 
-                TrackerNote& note = pat[row * kChannels + ch];
+                TrackerNote& note = pat[row * CHANNELS + ch];
                 note.note = period_to_note(period);
                 note.period = period;
                 note.instrument = instrument;
@@ -209,12 +209,12 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     //   28..29 : loop length in words
 
     // Amiga PAL clock for C4 rate calculation
-    static constexpr double kAmigaPalClock = 3546895.0;
-    static constexpr double kC4Period = 428.0; // period for C-4
+    static constexpr double AMIGA_PAL_CLOCK = 3546895.0;
+    static constexpr double C4_PERIOD = 428.0; // period for C-4
 
     // Finetune period multipliers (ProTracker finetune table)
     // Finetune -8..+7 corresponds to slight period adjustments
-    static constexpr double kFinetuneMultiplier[] = {
+    static constexpr double FINETUNE_MULTIPLIER[] = {
         // 0    1       2       3       4       5       6       7
         1.0000,
         0.9930,
@@ -243,11 +243,11 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
         uint16_t loop_length_words;
     };
 
-    std::vector<InstrumentHeader> inst_headers(kNumInstruments);
-    mod.instruments.resize(kNumInstruments);
+    std::vector<InstrumentHeader> inst_headers(NUM_INSTRUMENTS);
+    mod.instruments.resize(NUM_INSTRUMENTS);
 
-    for (size_t i = 0; i < kNumInstruments; ++i) {
-        size_t inst_offset = 20 + i * kInstrumentSize;
+    for (size_t i = 0; i < NUM_INSTRUMENTS; ++i) {
+        size_t inst_offset = 20 + i * INSTRUMENT_SIZE;
         if (inst_offset + 29 >= size)
             break;
 
@@ -272,8 +272,8 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
 
         // Compute C4 playback rate adjusted for finetune
         int ft_idx = (hdr.finetune >= 0) ? hdr.finetune : (hdr.finetune + 16);
-        double adjusted_period = kC4Period * kFinetuneMultiplier[ft_idx];
-        inst.c4_rate = static_cast<uint16_t>(kAmigaPalClock / adjusted_period);
+        double adjusted_period = C4_PERIOD * FINETUNE_MULTIPLIER[ft_idx];
+        inst.c4_rate = static_cast<uint16_t>(AMIGA_PAL_CLOCK / adjusted_period);
 
         inst.loop_start = static_cast<uint32_t>(hdr.loop_start_words) * 2;
         uint32_t loop_len_bytes = static_cast<uint32_t>(hdr.loop_length_words) * 2;
@@ -282,8 +282,8 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     }
 
     // Extract PCM sample data — located after all pattern data
-    size_t sample_data_offset = kPatternDataOffset + num_patterns * kBytesPerPattern;
-    for (size_t i = 0; i < kNumInstruments; ++i) {
+    size_t sample_data_offset = PATTERN_DATA_OFFSET + num_patterns * BYTES_PER_PATTERN;
+    for (size_t i = 0; i < NUM_INSTRUMENTS; ++i) {
         const auto& hdr = inst_headers[i];
         size_t sample_bytes = static_cast<size_t>(hdr.sample_length_words) * 2;
         if (sample_bytes == 0)

@@ -73,8 +73,8 @@ class LockManager {
     bool auto_lock_ = false;
     bool subjects_initialized_ = false;
 
-    static constexpr int kMinPinLength = 4;
-    static constexpr int kMaxPinLength = 6;
+    static constexpr int MIN_PIN_LENGTH = 4;
+    static constexpr int MAX_PIN_LENGTH = 6;
 };
 
 } // namespace helix

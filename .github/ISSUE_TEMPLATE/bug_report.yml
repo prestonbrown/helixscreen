@@ -162,11 +162,29 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: debug_bundle
+    attributes:
+      label: Debug bundle share code
+      description: >-
+        The fastest way to give us logs, and the only one that works on a
+        touchscreen printer. On the printer: Settings → Help & About → Upload
+        Debug Bundle. It uploads recent logs plus printer/system details and
+        shows a short share code — paste that here. The bundle carries
+        DEBUG-level logs straight from memory, so you do not need to reproduce
+        the problem with special flags first.
+      placeholder: "the code shown after the upload finishes"
+    validations:
+      required: false
+
   - type: textarea
     id: logs
     attributes:
-      label: Logs
-      description: "Run with `helix-screen -vv` and paste relevant output. Wrap in a code block."
+      label: Logs (only if you cannot upload a bundle)
+      description: >-
+        Desktop or SSH users only. Run `helix-screen -vv | tee helix.log` and
+        paste the relevant output. On a printer, prefer the share code above —
+        see docs/user/TROUBLESHOOTING.md for the per-platform log paths.
       render: shell
     validations:
       required: false

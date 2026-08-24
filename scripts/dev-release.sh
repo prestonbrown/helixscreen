@@ -67,6 +67,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# A local dev build must never overwrite a user-facing channel manifest. Both
+# stable and beta are served to real fleets, and the in-app updater only ever
+# moves forward -- a hand-built manifest landing there strands every client on
+# whatever version it declares.
+case "$CHANNEL" in
+    stable|beta)
+        echo -e "${RED}Error: refusing to publish a dev build to the '${CHANNEL}' channel.${NC}" >&2
+        echo "       stable and beta are published by .github/workflows/release.yml from a" >&2
+        echo "       tagged commit, so the version and artifacts are reproducible." >&2
+        echo "       Use --channel dev, or a scratch prefix." >&2
+        exit 1
+        ;;
+esac
+
 # Check required tools
 if ! command -v aws &> /dev/null; then
     echo -e "${RED}Error: aws CLI not found. Please install it first.${NC}" >&2

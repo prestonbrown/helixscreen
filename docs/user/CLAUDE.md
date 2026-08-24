@@ -9,7 +9,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 - Screenshots are better than descriptions
 - Never reference source files, class names, or internal architecture
 - Config examples should be copy-pasteable
-- When mentioning settings, show the exact path in the UI (e.g., "Settings > Advanced > Beta Features")
+- When mentioning settings, show the exact path in the UI (e.g., "Settings > System > Touch & Input")
 - Test all instructions on a clean install before publishing
 
 ## User Docs Index
@@ -22,7 +22,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/creality-k1c-setup.md` | End-to-end K1/K1C/K1 Max setup: root access, Simple AF / Guilouz firmware, HelixScreen install, updating, firmware upgrade path |
 | `guide/home-panel.md` | Home dashboard, printer manager, custom images |
 | `guide/printing.md` | File selection, printing, tune overlay, Z-offset |
-| `guide/print-monitoring.md` | Pre-print filament check (empty-slot block), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
+| `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs |
 | `guide/motion.md` | Jog pad, homing, distance increments, E-stop |
 | `guide/filament.md` | Extrusion, AMS, CFS, Spoolman, dryer control |
@@ -41,6 +41,11 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/touch-input.md` | Touch calibration, debug viz, jitter filter, scroll engage distance, scroll guard |
 | `guide/settings/help-about.md` | Debug bundles, Discord, docs, version, updates, print hours |
 | `guide/settings/led-settings.md` | LED strip selection, auto-state, macro devices, setup guides |
+| `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, per-fan renaming |
+| `guide/sensors.md` | Filament and motion sensors with per-sensor role assignment, read-only sensor types, chamber heater/sensor mapping |
+| `guide/security.md` | PIN screen lock, auto-lock tied to display sleep, lock-screen keypad, what a factory reset clears |
+| `guide/camera.md` | Webcam viewing via the home widget and fullscreen viewer, rotation/flip, stream status, performance throttling |
+| `guide/print-history.md` | History dashboard with time-range statistics and trend charts, searchable job list, per-job details, reprinting |
 | `guide/advanced.md` | Console, macros, power, history, timelapse |
 | `guide/beta-features.md` | Beta activation, feature list, update channels |
 | `guide/tips.md` | Workflow tips, troubleshooting, panel reference |

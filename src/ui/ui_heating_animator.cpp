@@ -64,7 +64,11 @@ void HeatingIconAnimator::attach(lv_obj_t* icon) {
     lv_subject_t* theme_subject = theme_manager_get_changed_subject();
     if (theme_subject) {
         theme_observer_ = ObserverGuard(theme_subject, theme_change_cb, this);
-        spdlog::debug("[HeatingIconAnimator] Attached to icon with theme observer");
+        // trace, not debug: attach/detach pairs fire on every panel rebuild and
+        // pushed ~1400 lines through a 20k-line bundle ring with nothing ever
+        // diagnosed from them. The no-theme-subject branch below stays at debug —
+        // that one is abnormal.
+        spdlog::trace("[HeatingIconAnimator] Attached to icon with theme observer");
     } else {
         spdlog::debug("[HeatingIconAnimator] Attached to icon (no theme subject found)");
     }
@@ -91,7 +95,7 @@ void HeatingIconAnimator::detach() {
 
     // ObserverGuard::reset() removes the observer from the subject
     theme_observer_.reset();
-    spdlog::debug("[HeatingIconAnimator] Detached");
+    spdlog::trace("[HeatingIconAnimator] Detached");
 }
 
 void HeatingIconAnimator::update(int current_temp, int target_temp, helix::ChamberMode mode) {
@@ -102,12 +106,14 @@ void HeatingIconAnimator::update(int current_temp, int target_temp, helix::Chamb
     current_temp_ = current_temp;
     target_temp_ = target_temp;
 
-    // Same classifier the temperature label uses, in decidegrees. mode defaults
-    // to Heating, which classify_heat_state_with_mode() passes straight through
-    // to classify_heat_state() — a no-op for nozzle/bed. Only the chamber ever
+    // Same classifier the temperature label uses, in decidegrees, and against
+    // the same displayed_deci() reading — the icon sits beside the number, so it
+    // has to agree with what that number rounded to. mode defaults to Heating,
+    // which classify_heat_state_with_mode() passes straight through to
+    // classify_heat_state() — a no-op for nozzle/bed. Only the chamber ever
     // passes Off/Maintaining.
     State new_state = helix::ui::temperature::classify_heat_state_with_mode(
-        current_temp, target_temp, mode, TEMP_TOLERANCE);
+        helix::ui::temperature::displayed_deci(current_temp), target_temp, mode, TEMP_TOLERANCE);
 
     if (new_state != state_) {
         state_ = new_state;
@@ -212,7 +218,7 @@ void HeatingIconAnimator::theme_change_cb(lv_observer_t* observer, lv_subject_t*
     (void)subject;
     auto* animator = static_cast<HeatingIconAnimator*>(lv_observer_get_user_data(observer));
     if (animator) {
-        spdlog::debug("[HeatingIconAnimator] Theme changed, refreshing colors");
+        spdlog::trace("[HeatingIconAnimator] Theme changed, refreshing colors");
         animator->refresh_theme();
     }
 }

@@ -9,6 +9,8 @@
 
 #include <string>
 
+class PlrOfferControllerTestAccess;
+
 namespace helix::ui {
 
 /// App-lifetime controller that offers the power-loss-recovery prompt at
@@ -49,6 +51,8 @@ namespace helix::ui {
 /// genuine thread crossing is the probe response (a JSON-RPC callback on the
 /// WebSocket thread), which is wrapped in lifetime_.bg_cb().
 class PlrOfferController {
+    friend class ::PlrOfferControllerTestAccess;
+
   public:
     PlrOfferController();
     ~PlrOfferController() = default;
@@ -70,7 +74,7 @@ class PlrOfferController {
 
     /// Fire the Creality probe at most once per connection, and only from
     /// STANDBY. See the header warning on
-    /// MoonrakerAPI::check_continue_print_state — this call has side effects.
+    /// IMoonrakerAPI::check_continue_print_state — this call has side effects.
     void probe_creality_once();
     void on_creality_detect_result(const helix::PlrDetectResult& result);
 

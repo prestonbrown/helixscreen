@@ -12,6 +12,7 @@
 
 #include "ui_temperature_utils.h"
 
+#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
@@ -175,8 +176,7 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
     std::vector<std::string> extruder_names;
     for (const auto& name : heaters) {
         // Accept "extruder" and "extruderN" (digit suffix), reject "extruder_stepper" etc.
-        if (name == "extruder" ||
-            (name.size() > 8 && name.rfind("extruder", 0) == 0 && std::isdigit(name[8]))) {
+        if (is_extruder_name(name)) {
             extruder_names.push_back(name);
         }
     }
@@ -409,7 +409,15 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                 }
             }
 
-            if (chamber.contains("target") && chamber["target"].is_number()) {
+            // A temperature_fan's target is a cooling threshold, not a heating
+            // command: Klipper always reports its configured target_temp (40.0 on
+            // the K1C) even at speed 0. Wherever discovery resolves a
+            // temperature_fan into the heater slot (no heater_generic exists),
+            // that target flows through the cooling-fan branch below instead and
+            // is neutralized by the resting-target comparison in
+            // chamber_effective_setpoint().
+            if (chamber_heater_name_.rfind("temperature_fan ", 0) != 0 &&
+                chamber.contains("target") && chamber["target"].is_number()) {
                 int target_deci = helix::units::json_to_decidegrees(chamber, "target");
                 if (lv_subject_get_int(&chamber_target_) != target_deci) {
                     lv_subject_set_int(&chamber_target_, target_deci);

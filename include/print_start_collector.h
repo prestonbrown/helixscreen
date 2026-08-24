@@ -4,8 +4,9 @@
 #pragma once
 
 #include "bed_mesh_probe_parser.h"
-#include "moonraker_client.h"
+#include "i_moonraker_client.h"
 #include "preprint_predictor.h"
+#include "print_start_position_classifier.h"
 #include "print_start_profile.h"
 #include "printer_state.h"
 #include "thermal_rate_model.h"
@@ -44,10 +45,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
   public:
     /**
      * @brief Construct a PrintStartCollector
-     * @param client helix::MoonrakerClient for registering callbacks
+     * @param client helix::IMoonrakerClient for registering callbacks
      * @param state helix::PrinterState to update with phase progress
      */
-    PrintStartCollector(helix::MoonrakerClient& client, helix::PrinterState& state);
+    PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
 
     ~PrintStartCollector();
 
@@ -62,6 +63,19 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * parsing G-code output for phase detection patterns.
      */
     void start();
+
+    /**
+     * @brief Declare that a host-side pre-start block is part of this window
+     *
+     * Called when HelixScreen dispatches blocking pre-start gcode in front of
+     * the job (a forced bed mesh, a printer setup macro). That work sits inside
+     * the measured window, which on some printers is several minutes, so its
+     * timings must not be averaged with printer-edge measurements.
+     *
+     * Safe to call after start(): it re-filters the loaded history in place.
+     * Idempotent.
+     */
+    void note_host_side_pre_start();
 
     /**
      * @brief Stop monitoring
@@ -179,6 +193,48 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     void note_priming();
 
     /**
+     * @brief Record the printer's live bed-mesh presence
+     *
+     * Fed from the bed_mesh status stream. A mesh that disappears while the
+     * collector is in CLEANING marks the start of leveling work (accurate Z
+     * probing, bed-mesh corner validation) that Creality-class firmwares do
+     * not echo to gcode_response — the display moves to BED_MESH ("Bed
+     * Leveling...") instead of sitting on "Cleaning Nozzle..." through the
+     * whole silent window. Mesh clears arriving before CLEANING are the
+     * rough G28's own clear and carry no phase information.
+     *
+     * Thread-safe: called from the WebSocket background thread.
+     */
+    void note_bed_mesh_presence(bool present);
+
+    /**
+     * @brief Record the bed-mesh probe-area bounds (gcode mm)
+     *
+     * Fed from the same bed_mesh status updates as note_bed_mesh_presence().
+     * The bounds anchor the position classifier's geometric zones: Z-probing
+     * happens at the mesh centre, corner validation at the mesh corners, and
+     * the K1-class wipe strip sits beyond mesh_max at the bed rear. Until
+     * bounds arrive the classifier withholds all verdicts.
+     *
+     * Thread-safe: called from the WebSocket background thread.
+     */
+    void note_mesh_bounds(float x_min, float x_max, float y_min, float y_max);
+
+    /**
+     * @brief Feed one toolhead position sample (gcode mm)
+     *
+     * Fed from the toolhead.position subjects (subscribed already). When the
+     * profile declares position_signals and the console has gone silent, the
+     * inferred activity refines the status line: centre probes →
+     * "Probing Z...", corner tour → "Checking Bed Mesh...", sweep march →
+     * BED_MESH entry. Real gcode_response signals always win — this only
+     * fills silence.
+     *
+     * Thread-safe: observers fire on the main thread (queued subject sets).
+     */
+    void note_position_sample(float x_mm, float y_mm, float z_mm);
+
+    /**
      * @brief Set the print start profile for pattern/signal matching
      *
      * Must be called before start(). Ignored if the collector is active.
@@ -226,6 +282,11 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void check_phase_patterns(const std::string& line);
 
+    /// Record that the printer said something about its pre-print. Feeds the
+    /// quiet gate on every timeout branch. Takes state_mutex_ itself, so do not
+    /// call it while already holding the lock.
+    void note_activity();
+
     /**
      * @brief Check for HELIX:PHASE:* signals from plugin/macros
      *
@@ -249,6 +310,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      *
      * Mapped onto the existing PrintStartPhase enum (PURGING, INITIALIZING)
      * so the legacy `preparing_overlay` UI binds without change.
+     *
+     * Only consulted when the active profile declares cfs_signals — the
+     * vocabulary is vendor-specific and must not fire on another printer's
+     * coincidental "percent" plus "num:" output.
      *
      * @return true if a K2/CFS signal was detected and handled
      */
@@ -320,7 +385,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     }
 
     // Dependencies
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
     helix::PrinterState& state_;
 
     // Registration state
@@ -339,6 +404,16 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     int max_sequential_progress_ = 0; // Monotonic progress guard for sequential mode
     std::chrono::steady_clock::time_point printing_state_start_;
 
+    /// When the printer last said anything about its pre-print: a profile
+    /// pattern matched, a probe line arrived, or the phase advanced.
+    ///
+    /// The timeouts key off THIS, not off elapsed-since-start. A pre-print that
+    /// is still narrating itself is not stuck however long it runs, and keying
+    /// off elapsed time made the collector give up mid-sequence on any printer
+    /// that meshes after heating — which then skipped the prediction save and
+    /// froze the estimate that set the deadline in the first place.
+    std::chrono::steady_clock::time_point last_activity_time_;
+
     // Profile for signal/pattern matching (set via set_profile() or loaded by start())
     std::shared_ptr<PrintStartProfile> profile_;
 
@@ -350,8 +425,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // Fallback detection constants
     static constexpr auto FALLBACK_TIMEOUT =
         std::chrono::seconds(300); ///< Last resort when no predictions
+    /// Ungated final backstop. Every other timeout also requires the printer to
+    /// have gone quiet; this one fires regardless, so a firmware that chatters
+    /// forever still leaves Preparing. Must therefore sit above the longest
+    /// legitimate pre-print: the K2 Plus runs ~1140s (heat, ~390s mesh, purge),
+    /// and a cold-start ASA soak pushes that further.
     static constexpr auto ABSOLUTE_MAX_TIMEOUT =
-        std::chrono::seconds(900); ///< Hard ceiling (stuck detection)
+        std::chrono::seconds(1800); ///< Hard ceiling (stuck detection)
+    /// How long the printer must say nothing before a timeout may complete the
+    /// pre-print. Longer than the gap between mesh probe points on a slow bed
+    /// (the K2 spends ~5s per point, ~3s on a manual sweep) with margin for a
+    /// heat-soak step that emits nothing at all.
+    static constexpr auto PREPRINT_QUIET_TIMEOUT = std::chrono::seconds(90);
     static constexpr float ADAPTIVE_TIMEOUT_MARGIN =
         1.5f; ///< Multiply predicted total for adaptive timeout
     static constexpr float ABSOLUTE_TIMEOUT_MARGIN =
@@ -370,6 +455,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     std::map<int, std::chrono::steady_clock::time_point> phase_enter_times_;
     helix::PreprintPredictor predictor_;
     int loaded_temp_bucket_{0};
+    /// Which window this run is measuring. Defaults to PrinterEdge: an
+    /// externally started print never announces a host-side block, and neither
+    /// does a screen-started print on a printer that runs none.
+    helix::PreprintWindow window_{helix::PreprintWindow::PrinterEdge};
 
     // Duration-proportional progress weights (protected by state_mutex_)
     std::map<int, float> predicted_phase_weights_; ///< Phase -> fraction of total (0.0-1.0)
@@ -390,18 +479,14 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // progress and per-probe time extrapolation for ETA.
     int mesh_probe_current_ = 0;
     int mesh_probe_total_ = 0;
-    int mesh_probe_fallback_count_ = 0; ///< Unique probe POINTS (not samples) counted from fallback
     std::chrono::steady_clock::time_point mesh_first_probe_time_;
     std::chrono::steady_clock::time_point mesh_last_probe_time_;
     float mesh_seconds_per_probe_ = 0.0f; ///< Running average from observed probe intervals
 
-    // Dedupe state: Klipper's `samples: N` config emits N consecutive "probe at X,Y"
-    // lines at the same position. We count unique (x,y) positions as "points", which
-    // matches what the user expects (# points that will be probed, not raw sample
-    // count). Reset on gap-detection and in reset().
-    double mesh_last_probe_x_ = 0.0;
-    double mesh_last_probe_y_ = 0.0;
-    bool mesh_has_last_probe_pos_ = false;
+    /// Unique probe POINTS (not sample lines) counted from the "probe at X,Y"
+    /// fallback, for firmware that emits no "Probing point N/M". Reset on
+    /// gap-detection, on mesh sub-phase change, and in reset().
+    helix::ProbePointCounter mesh_points_;
 
     // Sub-phase tracking within BED_MESH. Some firmwares (Snapmaker U1) route
     // multiple distinct probe operations through one phase enum but vary the
@@ -413,17 +498,38 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // which sub-phase they're in. Empty when not in BED_MESH.
     std::string current_mesh_message_;
 
+    /// Last bed-mesh presence reported via note_bed_mesh_presence(). The
+    /// leveling trigger is the present→absent edge, so an unknown initial
+    /// state (no report yet) never fires it.
+    bool bed_mesh_present_{false};
+
+    /// Position-stream inference for silent pre-print windows. Fed by
+    /// note_position_sample()/note_mesh_bounds(); guarded by state_mutex_.
+    helix::PrintStartPositionClassifier position_classifier_;
+    helix::PositionActivity last_position_activity_ = helix::PositionActivity::NONE;
+    /// Anchor for the classifier's millisecond sample clock (set in start()).
+    std::chrono::steady_clock::time_point position_clock_start_{};
+
     /// Max gap between consecutive probe lines before resetting counters.
     /// Handles printers that emit "probe at" for non-mesh operations (e.g.
     /// nozzle wipe) before the actual mesh calibration begins.
     static constexpr auto MESH_PROBE_GAP_RESET = std::chrono::seconds(30);
 
     // Pre-mesh probe buffering: don't auto-enter BED_MESH from probe lines
-    // until we've seen enough consecutive probes to distinguish mesh calibration
-    // from isolated PROBE commands (e.g. nozzle wipe on AD5M Klipper mod).
-    int pre_mesh_probe_count_ = 0;
+    // until we've seen enough distinct probe POINTS to distinguish mesh
+    // calibration from isolated PROBE commands (e.g. nozzle wipe on AD5M
+    // Klipper mod). Counting points rather than lines matters because Klipper
+    // emits two lines per touch on firmware that reports z_compensation
+    // separately, which halved the effective threshold.
+    helix::ProbePointCounter pre_mesh_points_;
     std::chrono::steady_clock::time_point pre_mesh_last_probe_time_;
-    static constexpr int MESH_PROBE_ENTRY_THRESHOLD = 3;
+
+    /// Distinct pre-mesh probe points required before auto-entering BED_MESH.
+    /// Must clear the largest non-mesh probe burst any firmware emits: K2 Plus
+    /// BOX_NOZZLE_CLEAN touches 3 points on the wipe strip, Voron 2.4 QGL
+    /// touches 4 corner pads, AD5M nozzle wipe touches 1-2. Every real mesh is
+    /// far larger, so 5 costs nothing on the firmwares that need this path.
+    static constexpr int MESH_PROBE_ENTRY_THRESHOLD = 5;
 
     // Targets used in last compute_predicted_weights() call — used to detect
     // when heater targets change (e.g. macro issues M109 after bed-first heating)
@@ -508,6 +614,37 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * from its starting temperature toward the target.
      */
     float compute_heating_fraction() const;
+
+    /**
+     * @brief Compute the heating fraction for an arbitrary phase
+     *
+     * Concurrent-heat firmwares (K1/K2 class) run heating in parallel with
+     * homing, wiping and meshing, so a heating phase that is no longer
+     * current may still be physically running. This is the phase-aware
+     * generalization compute_heating_fraction() delegates to.
+     */
+    float compute_heating_fraction_for_locked(helix::PrintStartPhase phase) const;
+
+    /**
+     * @brief True once the phase's heater has reached its target (within 2C)
+     *
+     * The completion criterion for heating phases on concurrent-heat
+     * firmware: the marker passing means the chain moved on, not that the
+     * heater finished.
+     */
+    bool heating_target_reached_locked(helix::PrintStartPhase phase) const;
+
+    /**
+     * @brief Enter BED_MESH and credit any buffered pre-mesh probes
+     *
+     * update_phase() clears the mesh counters, so the probes buffered while
+     * approaching the mesh (console pre-mesh points, or samples seen before
+     * the position classifier's sweep-march verdict) have to be re-applied
+     * after it returns — they are the sweep's first points. Every BED_MESH
+     * promotion path (console threshold, bed-mesh flap, sweep march) goes
+     * through here so none of them drops the count.
+     */
+    void enter_bed_mesh_with_buffer(const char* message);
 
     /**
      * @brief Save current print's phase timings to prediction history

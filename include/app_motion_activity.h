@@ -21,7 +21,7 @@ namespace helix {
 class AppMotionActivity {
   public:
     using clock = std::chrono::steady_clock;
-    static constexpr std::chrono::seconds kGraceWindow{2};
+    static constexpr std::chrono::seconds GRACE_WINDOW{2};
 
     void note_sent() {
         inflight_.fetch_add(1, std::memory_order_relaxed);
@@ -45,7 +45,7 @@ class AppMotionActivity {
             return false;
         }
         const clock::time_point last{clock::duration{last_ns}};
-        return (now - last) < kGraceWindow;
+        return (now - last) < GRACE_WINDOW;
     }
 
   private:

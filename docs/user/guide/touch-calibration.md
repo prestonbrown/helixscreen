@@ -57,7 +57,9 @@ You may need to recalibrate if:
 3. Tap the option — calibration starts immediately
 4. Complete the same 3-point crosshair flow described above
 
-> **Note:** The Touch Calibration option only appears in Settings if HelixScreen detected that your screen needs calibration. If you don't see it, your screen likely doesn't need it — but see the next section if you want to force calibration anyway.
+> **Note:** The Touch Calibration option appears in Settings for any touchscreen, whether or not HelixScreen thinks yours needs calibrating. That matters for one case in particular: a touch panel mounted at 90° to the display reports a perfectly ordinary controller and a coordinate range that matches the display exactly, so nothing HelixScreen can inspect reveals the mismatch — only you can. If your taps are rotated or mirrored, run the wizard even though nothing looks wrong to the software.
+>
+> If the option is missing entirely, HelixScreen didn't find a touchscreen at all (a mouse-only or HDMI-without-touch setup). See the next section to force it anyway.
 
 ---
 

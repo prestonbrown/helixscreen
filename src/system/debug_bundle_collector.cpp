@@ -7,17 +7,23 @@
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "helix_version.h"
+#include "host_identity.h"
 #include "http_executor.h"
 #include "hv/requests.h"
+#include "i_moonraker_api.h"
 #include "logging_init.h"
-#include "moonraker_api.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "printer_state.h"
 #include "system/crash_history.h"
+#include "system/helix_paths.h"
 #include "system/log_collector.h"
+#include "system/moonraker_local_probe.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
+#ifdef __ANDROID__
+#include "system/http_android.h"
+#endif
 
 #include <spdlog/spdlog.h>
 
@@ -27,7 +33,9 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <set>
 #include <sstream>
+#include <unordered_map>
 #include <zlib.h>
 
 using json = nlohmann::json;
@@ -71,7 +79,10 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     }
 
     try {
-        bundle["printer"] = collect_printer_info();
+        // upload_async() captures this on the main thread; a direct caller is
+        // main-thread itself, so taking it inline there is equally safe.
+        bundle["printer"] = collect_printer_info(
+            options.printer.captured ? options.printer : snapshot_printer_state());
     } catch (const std::exception& e) {
         spdlog::warn("[DebugBundle] Failed to collect printer info: {}", e.what());
         bundle["printer"] = json{{"error", e.what()}};
@@ -156,6 +167,15 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
         bundle["moonraker"] = json{{"error", e.what()}};
     }
 
+    // Always, not only when the REST calls failed: knowing Moonraker was up AND
+    // where it was bound is the control case that makes the down-case readable.
+    try {
+        bundle["moonraker_local"] = collect_moonraker_local_probe();
+    } catch (const std::exception& e) {
+        spdlog::warn("[DebugBundle] Failed to probe local moonraker: {}", e.what());
+        bundle["moonraker_local"] = json{{"error", e.what()}};
+    }
+
     try {
         bundle["filament_system"] = collect_filament_system_info();
     } catch (const std::exception& e) {
@@ -171,6 +191,16 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     } catch (const std::exception& e) {
         spdlog::warn("[DebugBundle] Failed to collect platform files: {}", e.what());
         bundle["platform_files"] = json{{"error", e.what()}};
+    }
+
+    try {
+        auto printer_config = collect_printer_config();
+        if (!printer_config.empty()) {
+            bundle["printer_config"] = printer_config;
+        }
+    } catch (const std::exception& e) {
+        spdlog::warn("[DebugBundle] Failed to collect printer config: {}", e.what());
+        bundle["printer_config"] = json{{"error", e.what()}};
     }
 
     if (options.include_klipper_logs) {
@@ -273,18 +303,23 @@ json DebugBundleCollector::build_update_info(const UpdateDiagnostics& diag) {
 
     // The predicates the update UI actually gates on. `suppressed` is the one
     // that decides whether the "Check for Updates" / "Install Update" rows
-    // exist at all (show_update_settings = !in_app_updates_suppressed()); the
+    // exist at all (show_update_settings = !update_checks_suppressed()); the
     // rest say which cause fired.
     //
-    // install_parent_writable is reported alongside self_update_supported (their
-    // OR with root escalation) because the pair distinguishes the two shapes that
-    // matter: false/false is a genuinely read-only install, while false/true is the
-    // ordinary /opt + unprivileged-service layout where install.sh sudoes the swap.
+    // The two writability terms are reported separately from self_update_supported
+    // (their OR with root escalation) because each names a different update route
+    // and a different fix. parent writable → install.sh takes the atomic swap;
+    // only the root writable → it takes the in-place replacement; neither, with
+    // self_update_supported still true → it is leaning on sudo, which the shipped
+    // systemd unit forbids (NoNewPrivileges=true); neither, with
+    // self_update_supported false → genuinely read-only, and the user needs to
+    // re-run the installer rather than wait for the in-app updater.
     upd["install_parent_writable"] = diag.install_parent_writable;
+    upd["install_root_writable"] = diag.install_root_writable;
     upd["self_update_supported"] = diag.self_update_supported;
     upd["externally_managed"] = diag.externally_managed;
     upd["suppressed"] =
-        compute_in_app_updates_suppressed(diag.externally_managed, diag.self_update_supported);
+        compute_update_install_suppressed(diag.externally_managed, diag.self_update_supported);
 
     // These two come from UpdateChecker's main-thread config snapshot, which is
     // empty until init() runs. Report that as "unknown" rather than "" so a
@@ -310,11 +345,16 @@ json DebugBundleCollector::collect_update_info() {
     UpdateDiagnostics diag;
 
     diag.install_root = app_get_install_root();
-    // can_escalate=false isolates the raw writability term; self_update_supported()
-    // is the cached OR of it and root_escalation_available(). Reading them in this
-    // order means a writable parent still never triggers the sudo probe — the
-    // cached value is already decided by the time the bundle asks.
-    diag.install_parent_writable = compute_self_update_supported(diag.install_root, false);
+    // Probe the two writability terms directly rather than through
+    // compute_self_update_supported(): that function ORs them together (plus
+    // escalation), so routing either one through it reports the OR under a name
+    // that promises one term. Which term is open decides which update route
+    // install.sh will take, and that is the whole diagnostic value here.
+    if (!diag.install_root.empty()) {
+        const std::string parent = std::filesystem::path(diag.install_root).parent_path().string();
+        diag.install_parent_writable = !parent.empty() && helix::paths::is_writable_dir(parent);
+        diag.install_root_writable = helix::paths::is_writable_dir(diag.install_root);
+    }
     diag.self_update_supported = self_update_supported();
     diag.externally_managed = updates_externally_managed();
 
@@ -343,13 +383,37 @@ json DebugBundleCollector::collect_update_info() {
 // Printer info
 // =============================================================================
 
-json DebugBundleCollector::collect_printer_info() {
-    json printer;
-
+PrinterSnapshot DebugBundleCollector::snapshot_printer_state() {
+    PrinterSnapshot snap;
     try {
         auto& ps = get_printer_state();
 
-        const std::string user_model = ps.get_printer_type();
+        // Copy, do not bind: get_printer_type() returns a reference to a member
+        // that set_printer_type() reassigns without a mutex.
+        snap.model = ps.get_printer_type();
+
+        if (auto* kv_subj = ps.get_klipper_version_subject()) {
+            const char* kv = lv_subject_get_string(kv_subj);
+            if (kv && kv[0] != '\0')
+                snap.klipper_version = kv;
+        }
+        if (auto* conn_subj = ps.get_printer_connection_state_subject())
+            snap.connection_state = lv_subject_get_int(conn_subj);
+        if (auto* klippy_subj = ps.get_klippy_state_subject())
+            snap.klippy_state = lv_subject_get_int(klippy_subj);
+
+        snap.captured = true;
+    } catch (const std::exception& e) {
+        spdlog::debug("[DebugBundle] Failed to snapshot printer state: {}", e.what());
+    }
+    return snap;
+}
+
+json DebugBundleCollector::collect_printer_info(const PrinterSnapshot& snap) {
+    json printer;
+
+    try {
+        const std::string& user_model = snap.model;
         printer["model"] = user_model;
 
         // Platform-derived canonical hardware name. Hardware platform is
@@ -374,34 +438,21 @@ json DebugBundleCollector::collect_printer_info() {
             }
         }
 
-        // Get klipper version from the string subject
-        auto* kv_subj = ps.get_klipper_version_subject();
-        if (kv_subj) {
-            const char* kv = lv_subject_get_string(kv_subj);
-            if (kv && kv[0] != '\0') {
-                printer["klipper_version"] = kv;
-            }
+        if (!snap.klipper_version.empty()) {
+            printer["klipper_version"] = snap.klipper_version;
         }
 
         // Connection state
-        auto* conn_subj = ps.get_printer_connection_state_subject();
-        if (conn_subj) {
-            int state = lv_subject_get_int(conn_subj);
-            const char* state_names[] = {"disconnected", "connecting", "connected", "reconnecting",
-                                         "failed"};
-            if (state >= 0 && state < 5) {
-                printer["connection_state"] = state_names[state];
-            }
+        const char* state_names[] = {"disconnected", "connecting", "connected", "reconnecting",
+                                     "failed"};
+        if (snap.connection_state >= 0 && snap.connection_state < 5) {
+            printer["connection_state"] = state_names[snap.connection_state];
         }
 
         // Klippy state
-        auto* klippy_subj = ps.get_klippy_state_subject();
-        if (klippy_subj) {
-            int kstate = lv_subject_get_int(klippy_subj);
-            const char* klippy_names[] = {"ready", "startup", "shutdown", "error"};
-            if (kstate >= 0 && kstate < 4) {
-                printer["klippy_state"] = klippy_names[kstate];
-            }
+        const char* klippy_names[] = {"ready", "startup", "shutdown", "error"};
+        if (snap.klippy_state >= 0 && snap.klippy_state < 4) {
+            printer["klippy_state"] = klippy_names[snap.klippy_state];
         }
     } catch (const std::exception& e) {
         spdlog::debug("[DebugBundle] Failed to collect printer info: {}", e.what());
@@ -415,11 +466,25 @@ json DebugBundleCollector::collect_printer_info() {
 // Log tail — cascades file → syslog → journal (see helix::logs for ordering)
 // =============================================================================
 
+size_t DebugBundleCollector::resolve_log_tail_lines(int requested, size_t ring_capacity) {
+    // Historical fixed size, and logging_init's own floor (MIN_RING_LINES). Used
+    // when there is no ring to measure, so the file/syslog cascade still gets a
+    // bound rather than an open-ended read.
+    constexpr size_t FALLBACK_LOG_TAIL_LINES = 2000;
+
+    if (requested > 0) {
+        return static_cast<size_t>(requested);
+    }
+    return ring_capacity > 0 ? ring_capacity : FALLBACK_LOG_TAIL_LINES;
+}
+
 std::string DebugBundleCollector::collect_log_tail(int num_lines) {
+    const size_t lines = resolve_log_tail_lines(num_lines, helix::logging::ring_buffer_capacity());
+
     // Sanitized here rather than at the call site so every consumer of the log
     // tail is covered. The ring captures at debug regardless of the user's
     // configured verbosity, so this text leaves the machine on every bundle.
-    return sanitize_text_block(helix::logs::tail_best(num_lines));
+    return sanitize_text_block(helix::logs::tail_best(static_cast<int>(lines)));
 }
 
 // =============================================================================
@@ -783,6 +848,60 @@ json DebugBundleCollector::collect_moonraker_info() {
     return mr;
 }
 
+json DebugBundleCollector::collect_moonraker_local_probe() {
+    json probe;
+
+    // The endpoint comes from the API's base URL, NOT from Config: this runs on
+    // HttpExecutor::slow() and Config is main-thread-only (see the note in
+    // collect_update_info()). get_moonraker_url() is the same accessor
+    // collect_moonraker_info() already uses from this thread.
+    std::string host;
+    uint16_t port = 7125;
+    const std::string base_url = get_moonraker_url();
+    if (!helix::diag::split_host_port(base_url, host, port)) {
+        probe["probed"] = false;
+        probe["reason"] = "no moonraker endpoint configured";
+        return probe;
+    }
+
+    const bool same_host = helix::is_moonraker_on_same_host(host);
+    probe["same_host"] = same_host;
+    probe["port"] = port;
+    if (!same_host) {
+        // Deliberately no listener/process data: those would describe THIS
+        // machine, and a reader would take them for the printer's.
+        return probe;
+    }
+
+    try {
+        const auto listeners = helix::diag::listeners_on_port(port);
+        probe["listening"] = !listeners.empty();
+        json addrs = json::array();
+        for (const auto& a : listeners) {
+            addrs.push_back(a);
+        }
+        probe["listen_addrs"] = addrs;
+    } catch (const std::exception& e) {
+        spdlog::debug("[DebugBundle] listener probe failed: {}", e.what());
+        probe["listen_error"] = e.what();
+    }
+
+    try {
+        const auto procs = helix::diag::find_moonraker_processes();
+        json arr = json::array();
+        for (const auto& p : procs) {
+            arr.push_back(json{{"pid", p.pid}, {"cmdline", sanitize_value(p.cmdline)}});
+        }
+        probe["processes"] = arr;
+        probe["process_count"] = static_cast<int>(procs.size());
+    } catch (const std::exception& e) {
+        spdlog::debug("[DebugBundle] process probe failed: {}", e.what());
+        probe["process_error"] = e.what();
+    }
+
+    return probe;
+}
+
 // =============================================================================
 // Filament system info (AFC, Happy Hare, ACE, Spoolman, tool changers)
 // =============================================================================
@@ -812,6 +931,32 @@ json DebugBundleCollector::filter_filament_objects(const json& object_list) {
     return result;
 }
 
+json DebugBundleCollector::extract_gcode_macro_names(const json& object_list) {
+    static constexpr const char* PREFIX = "gcode_macro ";
+    static constexpr size_t PREFIX_LEN = 12; // strlen("gcode_macro ")
+
+    json result = json::array();
+    if (!object_list.is_array())
+        return result;
+
+    for (const auto& obj : object_list) {
+        if (!obj.is_string())
+            continue;
+        const std::string name = obj.get<std::string>();
+        if (name.compare(0, PREFIX_LEN, PREFIX) != 0)
+            continue;
+        // Store the bare name: "gcode_macro A_CHANGE_FILAMENT" -> "A_CHANGE_FILAMENT".
+        // A macro named exactly "gcode_macro " with nothing after it is not a
+        // thing Klipper accepts, but an empty push would read as a real entry.
+        if (name.size() <= PREFIX_LEN)
+            continue;
+        result.push_back(name.substr(PREFIX_LEN));
+        if (result.size() >= MAX_GCODE_MACRO_NAMES)
+            break;
+    }
+    return result;
+}
+
 json DebugBundleCollector::collect_filament_system_info() {
     json fs;
     std::string base_url = get_moonraker_url();
@@ -819,6 +964,7 @@ json DebugBundleCollector::collect_filament_system_info() {
     if (base_url.empty()) {
         spdlog::debug("[DebugBundle] Moonraker not connected, skipping filament system info");
         fs["object_list"] = json::array();
+        fs["gcode_macros"] = json::array();
         fs["object_state"] = json{{"error", "Not connected"}};
         fs["spoolman_status"] = json{{"error", "Not connected"}};
         fs["afc_version"] = json{{"error", "Not connected"}};
@@ -830,15 +976,35 @@ json DebugBundleCollector::collect_filament_system_info() {
 
     // Phase 1: Discover filament-related Klipper objects
     json discovered = json::array();
+    json macro_names = json::array();
+    size_t total_macros = 0;
     try {
         auto objects_resp = moonraker_get(base_url, "/printer/objects/list");
         if (objects_resp.contains("result") && objects_resp["result"].contains("objects")) {
-            discovered = filter_filament_objects(objects_resp["result"]["objects"]);
+            const json& objects = objects_resp["result"]["objects"];
+            discovered = filter_filament_objects(objects);
+            macro_names = extract_gcode_macro_names(objects);
+            if (objects.is_array()) {
+                for (const auto& obj : objects) {
+                    if (obj.is_string() && obj.get<std::string>().rfind("gcode_macro ", 0) == 0) {
+                        ++total_macros;
+                    }
+                }
+            }
         }
     } catch (const std::exception& e) {
         spdlog::debug("[DebugBundle] object_list discovery failed: {}", e.what());
     }
     fs["object_list"] = discovered;
+    // Names only - see extract_gcode_macro_names(). NOT folded into
+    // object_list, which drives the objects/query batch below.
+    fs["gcode_macros"] = macro_names;
+    if (total_macros > macro_names.size()) {
+        fs["gcode_macros_truncated"] =
+            json{{"captured", macro_names.size()}, {"total", total_macros}};
+        spdlog::info("[DebugBundle] gcode_macro names truncated: {} of {} captured",
+                     macro_names.size(), total_macros);
+    }
 
     // Phase 2: Batch query all discovered objects
     if (!discovered.empty()) {
@@ -937,15 +1103,15 @@ static std::vector<PlatformFile> platform_diagnostic_files(const std::string& pl
 
 // Fetch a text file from Moonraker. Returns body + HTTP status; an HTTP-status
 // of 404 is a normal "not present on this device" signal callers should treat
-// as skip-silently. Truncates the body at kMaxTextBytes to keep bundles small.
+// as skip-silently. Truncates the body at MAX_TEXT_BYTES to keep bundles small.
 static RawHttpResult http_get_text(const std::string& base_url, const std::string& endpoint,
                                    int timeout_sec) {
     auto raw = http_get_raw(base_url, endpoint, timeout_sec);
     // Cap text-file capture at 256 KB. Diagnostic files we currently ship are
     // < 8 KB; the cap is a guardrail against future entries that grow large.
-    constexpr size_t kMaxTextBytes = 256 * 1024;
-    if (raw.body.size() > kMaxTextBytes) {
-        raw.body.resize(kMaxTextBytes);
+    constexpr size_t MAX_TEXT_BYTES = 256 * 1024;
+    if (raw.body.size() > MAX_TEXT_BYTES) {
+        raw.body.resize(MAX_TEXT_BYTES);
         raw.body += "\n[truncated]\n";
     }
     return raw;
@@ -1006,57 +1172,403 @@ json DebugBundleCollector::collect_platform_files() {
 }
 
 // =============================================================================
+// printer.cfg + its [include] tree
+// =============================================================================
+
+std::vector<std::string> DebugBundleCollector::parse_include_patterns(const std::string& body) {
+    std::vector<std::string> patterns;
+    std::istringstream stream(body);
+    std::string line;
+    while (std::getline(stream, line)) {
+        // Strip a trailing CR so CRLF configs parse (Klipper accepts them).
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        // Klipper section headers must start at column 0; a leading space makes
+        // the line a continuation of the previous option, not a new section.
+        // Comments (# or ;) are not section headers either.
+        if (line.compare(0, 9, "[include ") != 0) {
+            continue;
+        }
+        const size_t close = line.find(']', 9);
+        if (close == std::string::npos) {
+            continue;
+        }
+        std::string pattern = line.substr(9, close - 9);
+        // Trim surrounding whitespace: "[include  foo.cfg ]" is valid.
+        const size_t first = pattern.find_first_not_of(" \t");
+        const size_t last = pattern.find_last_not_of(" \t");
+        if (first == std::string::npos) {
+            continue;
+        }
+        patterns.push_back(pattern.substr(first, last - first + 1));
+    }
+    return patterns;
+}
+
+bool DebugBundleCollector::glob_match(const std::string& pattern, const std::string& path) {
+    // Iterative wildcard match with backtracking. '*' and '?' do not cross '/',
+    // matching Python's glob (which is what Klipper's configfile.py uses), so
+    // "mod/*.cfg" does not reach into "mod/sub/".
+    size_t p = 0, s = 0;
+    size_t star = std::string::npos; // last '*' in the pattern
+    size_t star_s = 0;               // where that '*' started consuming
+    while (s < path.size()) {
+        const bool lit_match =
+            p < pattern.size() && (pattern[p] == '?' ? path[s] != '/' : pattern[p] == path[s]);
+        if (lit_match) {
+            ++p;
+            ++s;
+        } else if (p < pattern.size() && pattern[p] == '*') {
+            star = p++;
+            star_s = s;
+        } else if (star != std::string::npos && path[star_s] != '/') {
+            // Give the '*' one more character, unless that character is a
+            // separator it is not allowed to swallow.
+            p = star + 1;
+            s = ++star_s;
+        } else {
+            return false;
+        }
+    }
+    while (p < pattern.size() && pattern[p] == '*') {
+        ++p;
+    }
+    return p == pattern.size();
+}
+
+std::vector<std::string>
+DebugBundleCollector::resolve_include_pattern(const std::string& pattern,
+                                              const std::string& including_file,
+                                              const std::vector<std::string>& available) {
+    // Klipper resolves an include relative to the directory of the file that
+    // contains it, so an include inside "mod/a.cfg" of "b.cfg" means
+    // "mod/b.cfg".
+    std::string base;
+    const size_t slash = including_file.find_last_of('/');
+    if (slash != std::string::npos) {
+        base = including_file.substr(0, slash + 1);
+    }
+    std::string full = (!pattern.empty() && pattern.front() == '/') ? pattern : base + pattern;
+
+    // Collapse a leading "./" so "./foo.cfg" matches the listing's "foo.cfg".
+    if (full.compare(0, 2, "./") == 0) {
+        full = full.substr(2);
+    }
+
+    std::vector<std::string> matches;
+    for (const auto& path : available) {
+        if (glob_match(full, path)) {
+            matches.push_back(path);
+        }
+    }
+    return matches;
+}
+
+json DebugBundleCollector::walk_include_tree(const std::string& root,
+                                             const std::vector<std::string>& available,
+                                             const ConfigFetcher& fetch, std::string* truncated_out,
+                                             size_t* bytes_out) {
+    json files = json::object();
+    size_t total_bytes = 0;
+    std::string truncate_reason;
+
+    // Breadth-first over the include tree, deduped: a config included from two
+    // places is fetched once, and an include cycle terminates.
+    std::vector<std::string> queue{root};
+    std::set<std::string> seen{root};
+
+    for (size_t i = 0; i < queue.size(); ++i) {
+        // By value, not by reference: the include loop below pushes onto `queue`,
+        // and the reallocation that follows would leave a reference to queue[i]
+        // dangling for every pattern after the first match.
+        const std::string path = queue[i];
+
+        if (files.size() >= MAX_CONFIG_FILES) {
+            truncate_reason = "file count";
+            break;
+        }
+        if (total_bytes >= MAX_CONFIG_BYTES) {
+            truncate_reason = "byte budget";
+            break;
+        }
+
+        const ConfigFetchResult raw = fetch(path);
+        if (raw.status == 404) {
+            // A stale [include] of a deleted file is a Klipper startup error,
+            // not our problem to report; note it and move on.
+            spdlog::debug("[DebugBundle] config '{}' not present (404)", path);
+            continue;
+        }
+        if (raw.status < 200 || raw.status >= 300) {
+            files[path] = json{{"error", "HTTP " + std::to_string(raw.status)}};
+            continue;
+        }
+
+        total_bytes += raw.body.size();
+        // Per-LINE sanitize: sanitize_value() replaces any string over 4 KB
+        // with [REDACTED_LONG_VALUE], so handing it a whole config would redact
+        // the entire file. Line granularity still catches the things that
+        // actually appear in a printer.cfg - notification macros carrying
+        // Pushover/Telegram tokens, camera and Spoolman URLs with embedded
+        // credentials, [include] paths carrying a home-directory username.
+        files[path] = sanitize_text_block(raw.body);
+
+        for (const auto& pattern : parse_include_patterns(raw.body)) {
+            for (const auto& match : resolve_include_pattern(pattern, path, available)) {
+                if (seen.insert(match).second) {
+                    queue.push_back(match);
+                }
+            }
+        }
+    }
+
+    if (truncated_out)
+        *truncated_out = truncate_reason;
+    if (bytes_out)
+        *bytes_out = total_bytes;
+    return files;
+}
+
+json DebugBundleCollector::collect_printer_config() {
+    json result = json::object();
+    const std::string base_url = get_moonraker_url();
+    if (base_url.empty()) {
+        spdlog::debug("[DebugBundle] Moonraker not connected, skipping printer config");
+        return result;
+    }
+
+    // The config-root listing is what turns a glob include into filenames. If
+    // it fails we can still ship printer.cfg itself, just without its tree.
+    std::vector<std::string> available;
+    try {
+        auto listing = moonraker_get(base_url, "/server/files/list?root=config");
+        if (listing.contains("result") && listing["result"].is_array()) {
+            for (const auto& entry : listing["result"]) {
+                if (entry.is_object() && entry.contains("path") && entry["path"].is_string()) {
+                    available.push_back(entry["path"].get<std::string>());
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::debug("[DebugBundle] config listing failed: {}", e.what());
+    }
+
+    size_t total_bytes = 0;
+    std::string truncate_reason;
+    json files = walk_include_tree(
+        "printer.cfg", available,
+        [&base_url](const std::string& path) {
+            auto raw = http_get_text(base_url, "/server/files/config/" + path, 15);
+            return ConfigFetchResult{raw.status, std::move(raw.body)};
+        },
+        &truncate_reason, &total_bytes);
+
+    result["files"] = files;
+    result["bytes"] = total_bytes;
+    if (!truncate_reason.empty()) {
+        result["truncated"] = truncate_reason;
+        spdlog::info("[DebugBundle] printer config capture truncated ({}) after {} file(s)",
+                     truncate_reason, files.size());
+    }
+    spdlog::info("[DebugBundle] Collected {} config file(s), {} bytes", files.size(), total_bytes);
+    return result;
+}
+
+// =============================================================================
 // Klipper / Moonraker log tails (via HTTP Range for memory safety)
 // =============================================================================
 
-std::string DebugBundleCollector::condense_klipper_log(const std::string& raw, int stats_context,
-                                                       int stats_tail) {
-    const size_t keep_ctx = stats_context < 0 ? 0 : static_cast<size_t>(stats_context);
-    const size_t keep_tail = stats_tail < 0 ? 0 : static_cast<size_t>(stats_tail);
-    const size_t ring_cap = std::max(keep_ctx, keep_tail);
+/// Collapse digit runs so lines that differ only by numbers share a shape:
+/// "Stats 14645.9: ... sysload=0.60" and "Stats 14646.9: ... sysload=0.58"
+/// both become "Stats N.N: ... sysload=N.N".
+static std::string line_shape(const std::string& line) {
+    std::string shape;
+    shape.reserve(line.size());
+    bool in_digits = false;
+    for (char c : line) {
+        const bool is_digit = (c >= '0' && c <= '9');
+        if (is_digit) {
+            if (!in_digits) {
+                shape += 'N';
+                in_digits = true;
+            }
+            continue;
+        }
+        in_digits = false;
+        shape += c;
+    }
+    return shape;
+}
 
-    std::istringstream stream(raw);
-    std::deque<std::string> pending_stats; // most recent Stats not yet emitted
+/// Klipper's config dump markers (klippy/configfile.py, PrinterConfig::log_config).
+/// The whole of printer.cfg is written between them on every start and on every
+/// log rollover.
+static constexpr const char* KLIPPER_CONFIG_HEADER = "===== Config file =====";
+static constexpr const char* KLIPPER_CONFIG_FOOTER = "=======================";
+
+/// Klipper's per-second runtime stats line. Used as the discriminator for an
+/// orphan footer: the config dump contains no line starting with "Stats " (the
+/// dump indents every continuation with a tab, and config keys are lowercase),
+/// while a live log window is saturated with them. Measured on Vger1700's
+/// printer.log: 0 before the footer, 3284 after.
+static constexpr const char* KLIPPER_STATS_PREFIX = "Stats ";
+
+/// Positional backstop for a lone footer, used alongside the "no Stats yet"
+/// rule above. Deliberately generous: a real AD5X+ZMOD dump is 6668 lines, not
+/// the ~1300 this was first written against, so a tight bound silently skips
+/// the elision whenever the fetch cuts near the top of a dump. The Stats rule
+/// is what actually prevents over-reach; this only caps the damage in a window
+/// that somehow contains no runtime output at all.
+static constexpr size_t ORPHAN_FOOTER_MAX_INDEX = 25000;
+
+/// Drop Klipper's config dump(s) from a raw log window, in place.
+///
+/// Every line of printer.cfg is a distinct shape, so shape-collapse keeps all of
+/// them and the dump crowds out the events the bundle was uploaded to explain.
+/// It is not incidental: pressing "Restart Klipper" on HelixScreen's own Klipper
+/// recovery dialog re-dumps the config, so the bundles most likely to carry a
+/// shutdown are the ones most likely to have buried it.
+///
+/// Two shapes, both real:
+///   - Paired: header and footer both in the window. Drop the span.
+///   - Head-truncated: the fetch starts mid-dump, so only the footer survives.
+///     This is what actually ships — all three AD5X bundles measured
+///     (4QA7SZAM 84%, LYGVE39Y 63%, XSNN7PX5 58% of the payload) look like this,
+///     and a paired-only rule would have recovered nothing from any of them.
+///
+/// A header with no footer is left alone: the dump runs past the end of the
+/// window, and dropping to end-of-input would discard the newest lines, which is
+/// where the shutdown lives.
+static void strip_klipper_config_dumps(std::vector<std::string>& lines) {
+    std::vector<std::string> out;
+    out.reserve(lines.size());
+
+    size_t header_at = std::string::npos; // index of an open, unterminated header
+    size_t dumps_closed = 0;
+    bool runtime_output_seen = false; // a "Stats " line means we are past any dump
+    auto note_elision = [&out](size_t count) {
+        if (count == 0)
+            return;
+        out.push_back("[helix] elided " + std::to_string(count) + " lines of Klipper config dump");
+    };
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const std::string& line = lines[i];
+
+        if (header_at != std::string::npos) {
+            if (line == KLIPPER_CONFIG_FOOTER) {
+                note_elision(i - header_at + 1);
+                header_at = std::string::npos;
+                ++dumps_closed;
+            }
+            continue; // inside the dump: header, body, and footer all go
+        }
+
+        if (line == KLIPPER_CONFIG_HEADER) {
+            header_at = i;
+            continue;
+        }
+
+        // Orphan footer: the byte-range fetch cut the header off mid-dump, so
+        // everything before it is config body and goes with it. Three conditions
+        // keep that from reaching across real content:
+        //   - no dump has closed yet, so this stays a head-of-window rule;
+        //   - no runtime "Stats " line has been seen, which is what actually
+        //     distinguishes a cut-off dump from a stray rule line in a live log;
+        //   - a generous positional backstop for a window with no runtime output.
+        if (line == KLIPPER_CONFIG_FOOTER && dumps_closed == 0 && !runtime_output_seen &&
+            i <= ORPHAN_FOOTER_MAX_INDEX) {
+            out.clear();
+            note_elision(i + 1);
+            ++dumps_closed;
+            continue;
+        }
+
+        if (!runtime_output_seen && line.rfind(KLIPPER_STATS_PREFIX, 0) == 0) {
+            runtime_output_seen = true;
+        }
+        out.push_back(line);
+    }
+
+    // Header with no footer: the dump runs past the end of the window. Ship its
+    // body rather than drop the newest lines, which is where the shutdown lives.
+    if (header_at != std::string::npos) {
+        out.insert(out.end(), lines.begin() + static_cast<std::ptrdiff_t>(header_at), lines.end());
+    }
+
+    lines = std::move(out);
+}
+
+std::string DebugBundleCollector::condense_klipper_log(const std::string& raw, int max_repeats,
+                                                       int tail_lines) {
+    std::vector<std::string> lines;
+    {
+        std::istringstream stream(raw);
+        std::string line;
+        while (std::getline(stream, line)) {
+            lines.push_back(std::move(line));
+        }
+    }
+    if (lines.empty()) {
+        return {};
+    }
+
+    // Before shape-collapse: the dump is pure unique shapes, so it survives the
+    // collapse intact and would spend the whole line budget on printer.cfg.
+    strip_klipper_config_dumps(lines);
+    if (lines.empty()) {
+        return {};
+    }
+
+    const size_t keep_repeats = max_repeats < 0 ? 0 : static_cast<size_t>(max_repeats);
+    const size_t keep_tail =
+        std::min(lines.size(), tail_lines < 0 ? size_t{0} : static_cast<size_t>(tail_lines));
+    const size_t cut = lines.size() - keep_tail; // [cut, end) ships verbatim
+
+    // Pass 1: how often does each shape occur outside the verbatim tail?
+    std::unordered_map<std::string, size_t> shape_total;
+    for (size_t i = 0; i < cut; ++i) {
+        shape_total[line_shape(lines[i])]++;
+    }
+
+    // Pass 2: for a shape that recurs more than keep_repeats times, keep only its
+    // LAST keep_repeats occurrences — in place, so ordering is never disturbed.
+    // Recent repeats beat old ones: the values near the failure are the ones
+    // worth reading.
+    std::unordered_map<std::string, size_t> shape_seen;
     std::string out;
-    std::string line;
-
     auto emit = [&out](const std::string& s) {
         if (!out.empty())
             out += '\n';
         out += s;
     };
 
-    while (std::getline(stream, line)) {
-        if (line.rfind("Stats ", 0) == 0) {
-            if (ring_cap == 0)
-                continue;
-            pending_stats.push_back(std::move(line));
-            if (pending_stats.size() > ring_cap)
-                pending_stats.pop_front();
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (i >= cut) { // verbatim tail: the shutdown dump lives here
+            emit(lines[i]);
             continue;
         }
-        // Event line: emit the run-up Stats in order, then the event itself.
-        while (pending_stats.size() > keep_ctx)
-            pending_stats.pop_front();
-        for (const auto& s : pending_stats)
-            emit(s);
-        pending_stats.clear();
-        emit(line);
+        const std::string shape = line_shape(lines[i]);
+        const size_t total = shape_total[shape];
+        if (total <= keep_repeats) {
+            emit(lines[i]); // rare enough to be interesting on its own
+            continue;
+        }
+        if (++shape_seen[shape] > total - keep_repeats) {
+            emit(lines[i]);
+        }
     }
-
-    // Trailing Stats: keep the most recent few so a reader still sees the
-    // sysload/buffer_time picture at the moment the bundle was taken.
-    while (pending_stats.size() > keep_tail)
-        pending_stats.pop_front();
-    for (const auto& s : pending_stats)
-        emit(s);
 
     return out;
 }
 
 std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
                                                  const std::string& endpoint, int num_lines,
-                                                 int tail_bytes, bool condense_klipper) {
+                                                 int tail_bytes, int condense_max_repeats,
+                                                 int* raw_bytes_out) {
+    if (raw_bytes_out)
+        *raw_bytes_out = 0;
     try {
         auto req = std::make_shared<HttpRequest>();
         req->method = HTTP_GET;
@@ -1104,6 +1616,13 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
 
         std::string body = std::move(resp->body);
 
+        // Report the fetched size before any condensing: this is what the caller
+        // compares against tail_bytes to decide whether the window was actually
+        // spent. Measured here rather than on the return value, which condensing
+        // shrinks ~10x and which would make "the log filled its budget" never true.
+        if (raw_bytes_out)
+            *raw_bytes_out = static_cast<int>(body.size());
+
         // If we got a partial response (206), the first line is likely truncated -- drop it
         if (status == 206) {
             size_t nl = body.find('\n');
@@ -1112,9 +1631,9 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
 
         // Condense BEFORE the num_lines cap: the whole point is to spend the
         // line budget on events rather than on Klipper's per-second Stats spam.
-        if (condense_klipper) {
+        if (condense_max_repeats > 0) {
             size_t raw_bytes = body.size();
-            body = condense_klipper_log(body);
+            body = condense_klipper_log(body, condense_max_repeats);
             spdlog::debug("[DebugBundle] Condensed {} to {} bytes from {}", raw_bytes, body.size(),
                           endpoint);
         }
@@ -1147,25 +1666,195 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
     }
 }
 
+// Both log collectors fetch through Moonraker, which is unavailable in exactly
+// the case where these logs matter most: AD5X bundles TAU4PW4H / 865DXBQ7 carry
+// no klipper_log and no moonraker_log because the HTTP endpoint serving them was
+// refused, while both files sat on the local disk the whole time. moonraker.log
+// in particular is the one artefact that would say why Moonraker stopped.
+std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_name, int num_lines,
+                                                         int condense_max_repeats) {
+    std::string host;
+    uint16_t port = 7125;
+    if (!helix::diag::split_host_port(get_moonraker_url(), host, port))
+        return {};
+    // A remote printer's logs are not on our disk, and reading a same-named file
+    // here would attribute this machine's logs to the printer.
+    if (!helix::is_moonraker_on_same_host(host))
+        return {};
+
+    const auto paths =
+        helix::diag::candidate_log_paths(helix::diag::find_moonraker_processes(), log_name);
+    if (paths.empty()) {
+        spdlog::debug("[DebugBundle] No local path found for {} (no daemon argv to derive it from)",
+                      log_name);
+        return {};
+    }
+
+    std::string body = collect_log_tail_from_paths(paths, num_lines);
+    if (body.empty())
+        return {};
+    spdlog::info("[DebugBundle] Read {} from local disk ({} candidate path(s))", log_name,
+                 paths.size());
+    // Defaults, as at the HTTP call site: the second parameter is stats_context,
+    // not a line count.
+    return condense_max_repeats > 0 ? condense_klipper_log(body, condense_max_repeats) : body;
+}
+
+std::string DebugBundleCollector::pick_rotated_sibling(const std::vector<LogFileEntry>& listing,
+                                                       const std::vector<std::string>& stems) {
+    const LogFileEntry* best = nullptr;
+
+    for (const auto& e : listing) {
+        // Root-level only. A nested "mod/init.log.1" is another component's file
+        // even when the basename would match.
+        if (e.path.find('/') != std::string::npos)
+            continue;
+
+        for (const auto& stem : stems) {
+            // Exactly "<stem>." + a non-empty suffix. The trailing dot is what
+            // keeps "printer.log" from claiming "printer.log_backup.1" or
+            // "printer.logger.2", and requiring a suffix excludes the active file.
+            if (e.path.size() <= stem.size() + 1)
+                continue;
+            if (e.path.compare(0, stem.size(), stem) != 0 || e.path[stem.size()] != '.')
+                continue;
+
+            if (best == nullptr || e.modified > best->modified)
+                best = &e;
+            break;
+        }
+    }
+
+    return best ? best->path : std::string{};
+}
+
+std::vector<DebugBundleCollector::LogFileEntry>
+DebugBundleCollector::fetch_log_listing(const std::string& base_url) {
+    std::vector<LogFileEntry> out;
+    if (base_url.empty())
+        return out;
+
+    try {
+        auto resp = moonraker_get(base_url, "/server/files/list?root=logs");
+        if (!resp.is_object() || !resp.contains("result") || !resp["result"].is_array())
+            return out;
+
+        for (const auto& item : resp["result"]) {
+            if (!item.is_object() || !item.contains("path") || !item["path"].is_string())
+                continue;
+            LogFileEntry e;
+            e.path = item["path"].get<std::string>();
+            if (item.contains("size") && item["size"].is_number())
+                e.size = item["size"].get<uint64_t>();
+            if (item.contains("modified") && item["modified"].is_number())
+                e.modified = item["modified"].get<double>();
+            out.push_back(std::move(e));
+        }
+    } catch (const std::exception& e) {
+        spdlog::debug("[DebugBundle] Log listing failed: {}", e.what());
+    }
+    return out;
+}
+
+/// Prepend the newest rotated predecessor when the active log is too short to
+/// have used its byte budget.
+///
+/// The predicate is the point: if the active log already fills the window we
+/// were willing to spend, it reaches as far back as we can afford and there is
+/// nothing to gain. It is only when the active log is SHORT that the window has
+/// unspent room — and a short active log is exactly the fingerprint of the case
+/// that burned us, a restart or reboot after the incident. So the extra GET
+/// costs nothing in the common case and fires precisely when the evidence has
+/// moved next door.
+///
+/// `active_raw_bytes` must be the PRE-CONDENSE fetch size. Measuring
+/// active_body.size() instead compares a condensed body (~340 KB) against a raw
+/// budget (4 MiB), so the predicate is true for every log that ever existed and
+/// the "cheap in the common case" branch becomes a second multi-MiB GET plus a
+/// second full condense pass on every bundle — on the 473 MB devices this code
+/// exists to serve.
+std::string DebugBundleCollector::prepend_rotated_predecessor(const std::string& base_url,
+                                                              const std::vector<std::string>& stems,
+                                                              const std::string& active_body,
+                                                              int active_raw_bytes, int tail_bytes,
+                                                              int num_lines,
+                                                              int condense_max_repeats) {
+    const auto used = active_raw_bytes;
+    if (used >= tail_bytes)
+        return active_body; // window already spent; nothing older is affordable
+
+    auto listing = fetch_log_listing(base_url);
+    const std::string sibling = pick_rotated_sibling(listing, stems);
+    if (sibling.empty())
+        return active_body;
+
+    const int remaining = tail_bytes - used;
+    auto older = fetch_log_tail(base_url, "/server/files/logs/" + sibling, num_lines, remaining,
+                                condense_max_repeats);
+    if (older.empty())
+        return active_body;
+
+    spdlog::info("[DebugBundle] Active log short ({} B); prepended {} ({} B)", used, sibling,
+                 older.size());
+    // Older first: the two halves are contiguous in time, and a reader scanning
+    // downward should move forward through the incident, not backward.
+    return older + "\n[helix] ---- rotated boundary: " + sibling +
+           " above, active log below ----\n" + active_body;
+}
+
 std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines) {
     std::string base_url = get_moonraker_url();
     if (base_url.empty())
-        return {};
+        return collect_local_log_tail("klippy.log", num_lines, KLIPPER_CONDENSE_MAX_REPEATS);
     // 4 MiB of raw klippy.log is ~80 minutes of Klipper's 1-Stats-line-per-second
     // output, versus ~10 minutes for the old 512 KiB tail. condense_klipper_log()
     // then strips the Stats padding, so the retained payload stays in the same
     // ballpark as before while reaching far enough back to contain the incident
     // (bundle UJCCQP6S: 615 of 635 captured lines were Stats, and the MCU
     // shutdown being investigated had scrolled off hours earlier).
-    return fetch_log_tail(base_url, "/server/files/klippy.log", num_lines,
-                          /*tail_bytes=*/4 * 1024 * 1024, /*condense_klipper=*/true);
+    constexpr int KLIPPER_TAIL_BYTES = 4 * 1024 * 1024;
+    int raw_bytes = 0;
+    auto body = fetch_log_tail(base_url, "/server/files/klippy.log", num_lines, KLIPPER_TAIL_BYTES,
+                               KLIPPER_CONDENSE_MAX_REPEATS, &raw_bytes);
+    if (body.empty())
+        return collect_local_log_tail("klippy.log", num_lines, KLIPPER_CONDENSE_MAX_REPEATS);
+
+    // klippy.log is the fragile one. Klipper's handler rotates on a clock jump,
+    // and an RTC-less printer jumps its clock on every boot — Vger1700's device
+    // carried both printer.log.1970-01-01 and printer.log.2025-12-31 as proof.
+    // "klippy.log" is a Moonraker alias; on AD5M/AD5X the real file is
+    // printer.log, so rotations must be matched under both names.
+    static const std::vector<std::string> STEMS = {"klippy.log", "printer.log"};
+    return prepend_rotated_predecessor(base_url, STEMS, body, raw_bytes, KLIPPER_TAIL_BYTES,
+                                       num_lines, KLIPPER_CONDENSE_MAX_REPEATS);
 }
 
 std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines) {
+    // moonraker.log used to ship raw against a 512 KiB window. Both were wrong in
+    // the same direction: the condenser is shape-based rather than Klipper-specific,
+    // so it collapses moonraker's log_request() padding just as well (1524 KiB of a
+    // real file down to 240 KiB), and once the payload shrinks a bigger fetch costs
+    // little. Measured on Vger1700's logs, 512 KiB reached 7656 lines for 167 KB
+    // shipped; 2 MiB reached all 23862 for 240 KB.
+    //
+    // This matters more than the klippy budget does. moonraker.log carries the only
+    // record of the gcode queue stalling (klippy_connection.wait() pending ages) and
+    // the only host-CPU trace across a shutdown (proc_stats), it timestamps in wall
+    // clock rather than uptime seconds, it sees every client rather than just us,
+    // and it outlives the Klipper tree: on LYGVE39Y a rollback to Klipper 12 took
+    // klippy.log with it while moonraker.log kept the whole incident.
     std::string base_url = get_moonraker_url();
     if (base_url.empty())
-        return {};
-    return fetch_log_tail(base_url, "/server/files/moonraker.log", num_lines);
+        return collect_local_log_tail("moonraker.log", num_lines, MOONRAKER_CONDENSE_MAX_REPEATS);
+    int raw_bytes = 0;
+    auto body = fetch_log_tail(base_url, "/server/files/moonraker.log", num_lines,
+                               MOONRAKER_TAIL_BYTES, MOONRAKER_CONDENSE_MAX_REPEATS, &raw_bytes);
+    if (body.empty())
+        return collect_local_log_tail("moonraker.log", num_lines, MOONRAKER_CONDENSE_MAX_REPEATS);
+
+    static const std::vector<std::string> STEMS = {"moonraker.log"};
+    return prepend_rotated_predecessor(base_url, STEMS, body, raw_bytes, MOONRAKER_TAIL_BYTES,
+                                       num_lines, MOONRAKER_CONDENSE_MAX_REPEATS);
 }
 
 // =============================================================================
@@ -1325,15 +2014,21 @@ std::vector<uint8_t> DebugBundleCollector::gzip_compress(const std::string& data
 // =============================================================================
 
 void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCallback callback) {
+    // Read PrinterState and its subjects HERE, on the main thread, and carry the
+    // result into the worker as plain data. Everything past submit() runs on the
+    // slow lane, where touching either is a data race (see PrinterSnapshot).
+    BundleOptions opts = options;
+    opts.printer = snapshot_printer_state();
+
     // Large compressed upload — route through HttpExecutor::slow() (1-worker lane)
     // to avoid head-of-line blocking REST calls AND to avoid raw std::thread spawn,
     // which crashes with std::terminate on AD5M under thread exhaustion (#837, #724).
-    helix::http::HttpExecutor::slow().submit([options, callback = std::move(callback)]() {
+    helix::http::HttpExecutor::slow().submit([opts, callback = std::move(callback)]() {
         BundleResult result;
 
         try {
             spdlog::info("[DebugBundle] Collecting debug bundle...");
-            json bundle = collect(options);
+            json bundle = collect(opts);
             std::string json_str = bundle.dump();
 
             spdlog::info("[DebugBundle] Compressing {} bytes...", json_str.size());
@@ -1348,23 +2043,41 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
             spdlog::info("[DebugBundle] Uploading {} bytes (compressed from {})...",
                          compressed.size(), json_str.size());
 
+            std::string ua = std::string("HelixScreen/") + HELIX_VERSION;
+            int status;
+            std::string response_body;
+
+#ifdef __ANDROID__
+            // libhv is built without SSL on Android (no NDK OpenSSL), so route
+            // the gzip-compressed bundle through the platform TLS stack via JNI.
+            // The binary bridge avoids corrupting gzip bytes through a Java
+            // String — the existing httpsPost takes String body and would
+            // mangle arbitrary binary. Same pattern as update_checker and
+            // crash_reporter.
+            auto [s, body] = helix::android::https_post_binary(
+                WORKER_URL, compressed, "application/json", "gzip", ua, INGEST_API_KEY, 30);
+            status = s;
+            response_body = body;
+#else
             auto req = std::make_shared<HttpRequest>();
             req->method = HTTP_POST;
             req->url = WORKER_URL;
             req->timeout = 30;
             req->headers["Content-Type"] = "application/json";
             req->headers["Content-Encoding"] = "gzip";
-            req->headers["User-Agent"] = std::string("HelixScreen/") + HELIX_VERSION;
+            req->headers["User-Agent"] = ua;
             req->headers["X-API-Key"] = INGEST_API_KEY;
             req->body.assign(reinterpret_cast<const char*>(compressed.data()), compressed.size());
 
             auto resp = requests::request(req);
-            int status = resp ? static_cast<int>(resp->status_code) : 0;
+            status = resp ? static_cast<int>(resp->status_code) : 0;
+            response_body = resp ? resp->body : "";
+#endif
 
-            if (resp && status >= 200 && status < 300) {
+            if (status >= 200 && status < 300) {
                 // Parse share_code from response
                 try {
-                    json resp_json = json::parse(resp->body);
+                    json resp_json = json::parse(response_body);
                     if (resp_json.contains("share_code")) {
                         result.share_code = resp_json["share_code"].get<std::string>();
                     }
@@ -1375,8 +2088,9 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
                 spdlog::info("[DebugBundle] Upload successful (HTTP {}), share_code: {}", status,
                              result.share_code);
             } else {
-                result.error_message = "HTTP " + std::to_string(status) +
-                                       (resp ? ": " + resp->body.substr(0, 200) : ": no response");
+                result.error_message =
+                    "HTTP " + std::to_string(status) +
+                    (response_body.empty() ? ": no response" : ": " + response_body.substr(0, 200));
                 spdlog::warn("[DebugBundle] Upload failed: {}", result.error_message);
             }
         } catch (const std::exception& e) {

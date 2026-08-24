@@ -80,12 +80,12 @@ bool try_bare_toolchange(const std::string& line, const std::map<int, int>& rema
 
 // --- Family 1: prestart "SM_PRINT_<CMD> EXTRUDER=<digits><rest>" ---
 bool try_prestart(const std::string& line, const std::map<int, int>& remap, std::string& out) {
-    static const char* kPrefixes[] = {
+    static const char* PREFIXES[] = {
         "SM_PRINT_AUTO_FEED EXTRUDER=",
         "SM_PRINT_EXTRUDER_PREHEAT EXTRUDER=",
         "SM_PRINT_FLOW_CALIBRATE EXTRUDER=",
     };
-    for (const char* prefix : kPrefixes) {
+    for (const char* prefix : PREFIXES) {
         if (!starts_with(line, prefix)) {
             continue;
         }

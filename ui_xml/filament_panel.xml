@@ -2,10 +2,10 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Styles for reactive purge button state binding (L040: no inline bg attrs) -->
+  <!-- Styles for reactive extrude length button state binding (L040: no inline bg attrs) -->
   <styles>
-    <style name="purge_btn_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="purge_btn_unselected" bg_color="#primary" bg_opa="40"/>
+    <style name="extrude_length_btn_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="extrude_length_btn_unselected" bg_color="#primary" bg_opa="40"/>
   </styles>
   <consts>
     <!-- Temperature card spacing -->
@@ -44,126 +44,120 @@
     <!-- LEFT COLUMN: Temperature Status & AMS                              -->
     <!-- ================================================================== -->
     <lv_obj name="left_column"
-            width="40%" height="100%" style_pad_all="0" scrollable="false"
-            flex_flow="column" style_flex_main_place="start" style_pad_gap="#space_md">
+            width="40%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
+            style_flex_main_place="start" style_pad_gap="#space_md">
 
-        <!-- Temperature Status Card - shows both nozzle and bed -->
-        <ui_card name="temp_status_card"
-                 width="100%" style_pad_all="#space_sm" style_pad_gap="#temp_card_spacing"
-                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start">
+      <!-- Temperature Status Card - shows both nozzle and bed -->
+      <ui_card name="temp_status_card"
+               width="100%" style_pad_all="#space_sm" style_pad_gap="#temp_card_spacing" flex_flow="column"
+               style_flex_main_place="start" style_flex_cross_place="start">
 
-          <!-- Header row with icon -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
-            <icon src="thermometer" size="sm" variant="secondary"/>
-            <text_body text="Temperature" translation_tag="Temperature" text_transform="uppercase" style_translate_y="2"/>
-          </lv_obj>
+        <!-- Header row with icon -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_pad_gap="#space_sm">
+          <icon src="thermometer" size="sm" variant="secondary"/>
+          <text_body text="Temperature" translation_tag="Temperature" text_transform="uppercase" style_translate_y="2"/>
+        </lv_obj>
 
-          <!-- Nozzle Row: Current / Target (entire row tappable) -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true">
-            <event_cb trigger="clicked" callback="on_filament_nozzle_target_tap"/>
-            <text_small bind_text="filament_nozzle_label" clickable="false" event_bubble="true"/>
-            <lv_obj
-                    height="content" flex_flow="row" style_pad_all="0"
-                    scrollable="false" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false"
-                    event_bubble="true">
-              <text_body name="nozzle_current_temp"
-                         bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <lv_obj name="nozzle_target_tap"
-                      width="content" height="content" style_pad_all="#space_xs"
-                      scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                      clickable="false" event_bubble="true">
-                <text_body name="nozzle_target_temp"
-                           bind_text="filament_nozzle_target" clickable="false" event_bubble="true"/>
-                <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-              </lv_obj>
+        <!-- Nozzle Row: Current / Target (entire row tappable) -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true">
+          <event_cb trigger="clicked" callback="on_filament_nozzle_target_tap"/>
+          <text_small bind_text="filament_nozzle_label" clickable="false" event_bubble="true"/>
+          <lv_obj height="content"
+                  flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+            <text_body name="nozzle_current_temp"
+                       bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
+            <text_body text="/" clickable="false" event_bubble="true"/>
+            <lv_obj name="nozzle_target_tap"
+                    width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+              <text_body name="nozzle_target_temp"
+                         bind_text="filament_nozzle_target" clickable="false" event_bubble="true"/>
+              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
-          <!-- Bed Row: Current / Target (entire row tappable) -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true">
-            <event_cb trigger="clicked" callback="on_filament_bed_target_tap"/>
-            <text_small text="Bed" translation_tag="Bed" clickable="false" event_bubble="true"/>
-            <lv_obj
-                    height="content" flex_flow="row" style_pad_all="0"
-                    scrollable="false" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false"
-                    event_bubble="true">
-              <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <lv_obj name="bed_target_tap"
-                      width="content" height="content" style_pad_all="#space_xs"
-                      scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                      clickable="false" event_bubble="true">
-                <text_body name="bed_target_temp" bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
-                <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-              </lv_obj>
+        </lv_obj>
+        <!-- Bed Row: Current / Target (entire row tappable) -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true">
+          <event_cb trigger="clicked" callback="on_filament_bed_target_tap"/>
+          <text_small text="Bed" translation_tag="Bed" clickable="false" event_bubble="true"/>
+          <lv_obj height="content"
+                  flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+            <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
+            <text_body text="/" clickable="false" event_bubble="true"/>
+            <lv_obj name="bed_target_tap"
+                    width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+              <text_body name="bed_target_temp" bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
+              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
-          <!-- Chamber Row: Current / Target (visible only if printer has chamber sensor) -->
-          <lv_obj name="chamber_section"
-                  width="100%" height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true"
-                  hidden="true">
-            <event_cb trigger="clicked" callback="on_filament_chamber_target_tap"/>
-            <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-            <text_small text="Chamber" translation_tag="Chamber" clickable="false" event_bubble="true"/>
-            <lv_obj
-                    height="content" flex_flow="row" style_pad_all="0"
-                    scrollable="false" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false"
-                    event_bubble="true">
-              <text_body name="chamber_current_temp" bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <lv_obj name="chamber_target_tap"
-                      width="content" height="content" style_pad_all="#space_xs"
-                      scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                      clickable="false" event_bubble="true">
-                <text_body name="chamber_target_temp" bind_text="filament_chamber_target" clickable="false" event_bubble="true"/>
-                <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-              </lv_obj>
+        </lv_obj>
+        <!-- Chamber Row: Current / Target (visible only if printer has chamber sensor) -->
+        <lv_obj name="chamber_section"
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true" hidden="true">
+          <event_cb trigger="clicked" callback="on_filament_chamber_target_tap"/>
+          <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
+          <text_small text="Chamber" translation_tag="Chamber" clickable="false" event_bubble="true"/>
+          <lv_obj height="content"
+                  flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+            <text_body name="chamber_current_temp"
+                       bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
+            <text_body text="/" clickable="false" event_bubble="true"/>
+            <lv_obj name="chamber_target_tap"
+                    width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+              <text_body name="chamber_target_temp"
+                         bind_text="filament_chamber_target" clickable="false" event_bubble="true"/>
+              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
-          <!-- Status Indicator (icon + text row). Hidden at MICRO and TINY
+        </lv_obj>
+        <!-- Status Indicator (icon + text row). Hidden at MICRO and TINY
                where vertical space is needed for the graph and filament card. -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-                  style_pad_gap="#space_xs">
-            <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
-            <icon name="status_icon" src="info" size="xs" variant="secondary"/>
-            <text_small name="status_text" bind_text="filament_status"/>
-          </lv_obj>
-        </ui_card> <!-- temp card -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
+          <icon name="status_icon" src="info" size="xs" variant="secondary"/>
+          <text_small name="status_text" bind_text="filament_status"/>
+        </lv_obj>
+      </ui_card>
+      <!-- temp card -->
 
-        <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow
+      <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow
              are set from C++ (apply_left_column_sizing) so the layout can
              swap between fixed-graph / growing-spool (AMS) and growing-graph
              / content-spool (external spool at MICRO/TINY). -->
-        <lv_obj name="temp_graph_card"
-                 width="100%" height="0" style_pad_all="0" scrollable="false"
-                 style_bg_opa="255" style_bg_color="#card_bg">
-          <!-- Graph container - populated by C++ via TempControlPanel -->
-          <lv_obj name="temp_graph_container"
-                  width="100%" height="100%" style_pad_all="0"
-                  clickable="false" event_bubble="true"/>
-        </lv_obj>
+      <lv_obj name="temp_graph_card"
+              width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_opa="255" style_bg_color="#card_bg">
+        <!-- Graph container - populated by C++ via TempControlPanel -->
+        <lv_obj name="temp_graph_container"
+                width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true"/>
+      </lv_obj>
 
       <!-- BOTTOM: Spool card — relevant with or without AMS. C++ swaps between
            Multi-Filament (AMS/multi-tool rows) and External Spool presentations. -->
       <ui_card name="spool_card"
-               width="100%" height="0" flex_grow="1"
-               style_radius="#border_radius" style_pad_ver="#space_xs" style_pad_hor="#space_md" style_pad_gap="#space_xxs"
-               flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start">
+               width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_ver="#space_xs"
+               style_pad_hor="#space_md" style_pad_gap="#space_xxs" flex_flow="column" style_flex_main_place="start"
+               style_flex_cross_place="start">
         <!-- Header row with icon (hidden when external spool mode — no AMS) -->
-        <lv_obj name="spool_card_header_row" width="100%"
-                height="content" style_pad_all="0" scrollable="false"
-                flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+        <lv_obj name="spool_card_header_row"
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <icon src="filament" size="sm" variant="secondary"/>
-          <text_body bind_text="filament_card_title" translation_tag="Multi-Filament" text_transform="uppercase" style_translate_y="2"/>
+          <text_body bind_text="filament_card_title"
+                     translation_tag="Multi-Filament" text_transform="uppercase" style_translate_y="2"/>
         </lv_obj>
 
         <!-- AMS mini status + action widget row. Fixed height so the row
@@ -171,14 +165,13 @@
              parent slack to distribute in that mode). Using button_height_lg
              so the AMS slot indicators aren't pinched at MICRO (26px on
              button_height is below the mini-status 32px floor). -->
-        <lv_obj name="ams_manage_row" width="100%" height="#filament_ams_row_h"
-                style_pad_all="0" scrollable="false"
-                flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                style_pad_gap="#space_sm"
+        <lv_obj name="ams_manage_row"
+                width="100%" height="#filament_ams_row_h" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm"
                 hidden="true">
 
           <!-- AMS mini status (auto-binds to AmsState, fills width, stretches to row height) -->
-          <ams_mini_status flex_grow="1" height="100%"/>
+          <ams_mini_status name="ams_mini_status" height="100%" flex_grow="1"/>
           <!-- Manage Button (shown when single-tool AMS, hidden when multi-tool) -->
           <ui_button name="btn_manage_slots"
                      width="content" height="#button_height" text="Manage" translation_tag="Manage"
@@ -187,37 +180,45 @@
           </ui_button>
           <!-- Extruder Dropdown (shown when multi-tool, replaces Manage button) -->
           <lv_obj name="extruder_selector_group"
-                  width="content" height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="column" style_flex_cross_place="start" style_pad_gap="2"
-                  hidden="true">
-          <text_small text="Tool" translation_tag="Tool"/>
-          <lv_dropdown name="extruder_dropdown"
-                       width="content" height="content" style_min_width="80"
-                       style_radius="#border_radius_sm" style_pad_all="#space_sm">
-            <event_cb trigger="value_changed" callback="on_extruder_dropdown_changed"/>
-          </lv_dropdown>
+                  width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+                  style_flex_cross_place="start" style_pad_gap="2" hidden="true">
+            <text_small text="Tool" translation_tag="Tool"/>
+            <lv_dropdown name="extruder_dropdown"
+                         width="content" height="content" style_min_width="80" style_radius="#border_radius_sm"
+                         style_pad_all="#space_sm">
+              <event_cb trigger="value_changed" callback="on_extruder_dropdown_changed"/>
+            </lv_dropdown>
           </lv_obj>
         </lv_obj>
 
+        <!-- No endless-spool status row here, deliberately. This card lives in a
+             left column whose height is a fixed budget (apply_left_column_sizing)
+             with temp_graph_card as the flexible remainder, so any row added to
+             spool_card is paid for entirely by the graph: measured 172 -> 76 px at
+             LARGE and 118 -> 30 px at MEDIUM for a two-line status, and it does not
+             fit at all at MICRO (spool_card is 74 px there, 48 of it ams_manage_row).
+             The status line lives on the AMS panel, next to the arrows it explains,
+             and in the slot context menu, which is where the disabled-or-absent
+             backup dropdown actually is. -->
         <!-- External spool row (visible when no AMS and no multi-tool, managed by C++) -->
-        <lv_obj name="external_spool_row" width="100%" height="content"
-                style_pad_all="0" scrollable="false" clickable="true"
-                flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
-                style_pad_gap="#space_sm"
-                hidden="true">
+        <lv_obj name="external_spool_row"
+                width="100%" height="content" style_pad_all="0" scrollable="false" clickable="true" flex_flow="row"
+                style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm" hidden="true">
+          <!-- Pressed wash from the shared style library (ui_xml/styles.xml) -->
+          <style name="styles.press_wash" selector="pressed"/>
           <event_cb trigger="clicked" callback="on_external_spool_edit"/>
           <!-- Spool canvas container (C++ creates 48x48 canvas inside) -->
-          <lv_obj name="external_spool_container" width="48" height="48"
-                  style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
-          </lv_obj>
+          <lv_obj name="external_spool_container"
+                  width="48" height="48" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"/>
           <!-- Material info column -->
-          <lv_obj flex_grow="1" height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
-                  style_pad_gap="2" clickable="false" event_bubble="true">
-            <text_body name="external_spool_material_label" text="No spool assigned" translation_tag="No spool assigned"
-                       clickable="false" event_bubble="true"/>
-            <text_small name="external_spool_color_label" text="Tap to assign" translation_tag="Tap to assign"
-                        clickable="false" event_bubble="true"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column" style_flex_main_place="center"
+                  style_flex_cross_place="start" style_pad_gap="2" clickable="false" event_bubble="true">
+            <text_body name="external_spool_material_label"
+                       text="No spool assigned" translation_tag="No spool assigned" clickable="false"
+                       event_bubble="true"/>
+            <text_small name="external_spool_color_label"
+                        text="Tap to assign" translation_tag="Tap to assign" clickable="false" event_bubble="true"/>
           </lv_obj>
         </lv_obj>
       </ui_card>
@@ -226,110 +227,118 @@
     <!-- RIGHT COLUMN: Material Selection & Actions                        -->
     <!-- ================================================================== -->
     <lv_obj name="right_column"
-            width="58%" height="100%" style_pad_all="0" scrollable="false"
-            style_layout="flex" style_flex_flow="column" style_flex_main_place="space_between" style_pad_gap="#space_sm">
+            width="58%" height="100%" style_pad_all="0" scrollable="false" style_layout="flex" style_flex_flow="column"
+            style_flex_main_place="space_between" style_pad_gap="#space_sm">
       <!-- TOP GROUP: Material Selection + Selected Temps (grouped as one flex child) -->
       <lv_obj name="material_group"
-              width="100%" height="content" style_pad_all="0" scrollable="false"
-              flex_flow="column" style_pad_gap="#space_md">
+              width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+              style_pad_gap="#space_md">
         <!-- Material Selection Header -->
         <text_body text="Material" translation_tag="Material" text_transform="uppercase" align="left_mid"/>
         <!-- Material Preset Buttons (2x2 Grid: PLA, PETG, ABS, TPU) -->
         <lv_obj name="preset_grid"
-                width="100%" height="content" style_pad_all="0"
-                scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
-                style_pad_gap="#space_sm">
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <!-- Row 1: PLA, PETG, ABS -->
           <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_pad_gap="#space_md">
-            <ui_button name="preset_pla" height="content" flex_grow="1" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
+                  height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_md">
+            <ui_button name="preset_pla"
+                       height="content" flex_grow="1" layout="column" state_trickle="true" style_pad_ver="#space_sm"
+                       style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="short_clicked" callback="on_filament_preset_pla"/>
               <event_cb trigger="long_pressed" callback="on_filament_preset_pla_hold"/>
               <text_body bind_text="preset_material_0_name" style_text_color:checked="#text"/>
-              <text_small bind_text="preset_material_0_temps" style_text_align="center"
-                          style_text_color="#text_muted" style_text_color:checked="#text"/>
+              <text_small bind_text="preset_material_0_temps"
+                          style_text_align="center" style_text_color="#text_muted"
+                          style_text_color:checked="#text"/>
             </ui_button>
-            <ui_button name="preset_petg" height="content" flex_grow="1" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
+            <ui_button name="preset_petg"
+                       height="content" flex_grow="1" layout="column" state_trickle="true" style_pad_ver="#space_sm"
+                       style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="short_clicked" callback="on_filament_preset_petg"/>
               <event_cb trigger="long_pressed" callback="on_filament_preset_petg_hold"/>
               <text_body bind_text="preset_material_1_name" style_text_color:checked="#text"/>
-              <text_small bind_text="preset_material_1_temps" style_text_align="center"
-                          style_text_color="#text_muted" style_text_color:checked="#text"/>
+              <text_small bind_text="preset_material_1_temps"
+                          style_text_align="center" style_text_color="#text_muted"
+                          style_text_color:checked="#text"/>
             </ui_button>
-            <ui_button name="preset_abs" height="content" flex_grow="1" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
+            <ui_button name="preset_abs"
+                       height="content" flex_grow="1" layout="column" state_trickle="true" style_pad_ver="#space_sm"
+                       style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="short_clicked" callback="on_filament_preset_abs"/>
               <event_cb trigger="long_pressed" callback="on_filament_preset_abs_hold"/>
               <text_body bind_text="preset_material_2_name" style_text_color:checked="#text"/>
-              <text_small bind_text="preset_material_2_temps" style_text_align="center"
-                          style_text_color="#text_muted" style_text_color:checked="#text"/>
+              <text_small bind_text="preset_material_2_temps"
+                          style_text_align="center" style_text_color="#text_muted"
+                          style_text_color:checked="#text"/>
             </ui_button>
           </lv_obj>
           <!-- Row 2: TPU + Spool preset (spool hidden by default) -->
-          <lv_obj name="spool_preset_row" width="100%"
-                  height="content" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_pad_gap="#space_md">
-            <ui_button name="preset_tpu" height="content" flex_grow="1" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing">
+          <lv_obj name="spool_preset_row"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_md">
+            <ui_button name="preset_tpu"
+                       height="content" flex_grow="1" layout="column" state_trickle="true" style_pad_ver="#space_sm"
+                       style_pad_gap="#temp_preset_btn_spacing">
               <event_cb trigger="short_clicked" callback="on_filament_preset_tpu"/>
               <event_cb trigger="long_pressed" callback="on_filament_preset_tpu_hold"/>
               <text_body bind_text="preset_material_3_name" style_text_color:checked="#text"/>
-              <text_small bind_text="preset_material_3_temps" style_text_align="center"
-                          style_text_color="#text_muted" style_text_color:checked="#text"/>
+              <text_small bind_text="preset_material_3_temps"
+                          style_text_align="center" style_text_color="#text_muted"
+                          style_text_color:checked="#text"/>
             </ui_button>
-            <ui_button name="preset_spool" height="content" flex_grow="1" layout="column"
-                       state_trickle="true" style_pad_ver="#space_sm" style_pad_gap="#temp_preset_btn_spacing"
-                       hidden="true">
+            <ui_button name="preset_spool"
+                       height="content" flex_grow="1" layout="column" state_trickle="true" style_pad_ver="#space_sm"
+                       style_pad_gap="#temp_preset_btn_spacing" hidden="true">
               <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
               <text_body name="spool_preset_label" text="" style_text_color:checked="#text"/>
-              <text_small name="spool_preset_temps" text="" style_text_align="center"
-                          style_text_color="#text_muted" style_text_color:checked="#text"/>
+              <text_small name="spool_preset_temps"
+                          text="" style_text_align="center" style_text_color="#text_muted"
+                          style_text_color:checked="#text"/>
             </ui_button>
           </lv_obj>
         </lv_obj>
         <!-- Cooldown Button (visible when heating) -->
         <ui_button name="btn_cooldown"
-                   width="100%" height="#button_height"
-                   style_bg_color="#temp_gradient_cold" icon="cooldown" text="Cool Down" translation_tag="Cool Down">
+                   width="100%" height="#button_height" style_bg_color="#temp_gradient_cold" icon="cooldown"
+                   text="Cool Down" translation_tag="Cool Down">
           <bind_flag_if_eq subject="filament_nozzle_heating" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_filament_cooldown"/>
         </ui_button>
       </lv_obj>
       <!-- BOTTOM GROUP: Operations (second flex child, pushed to bottom by space_between) -->
       <lv_obj name="operations_group"
-              width="100%" height="content" style_pad_all="0" scrollable="false"
-              flex_flow="column" style_pad_gap="#space_sm">
+              width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+              style_pad_gap="#space_sm">
         <!-- Filament Operations Header -->
         <text_body text="Operations" translation_tag="Operations" text_transform="uppercase" align="left_mid">
-            <!-- Text label for TINY+ breakpoints -->
-            <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+          <!-- Text label for TINY+ breakpoints -->
+          <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
         </text_body>
         <!-- Load/Unload/Purge Row (macro-based, no length selector) -->
         <lv_obj width="100%"
-                height="#button_height" style_pad_all="0" scrollable="false"
-                flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                style_pad_gap="#space_sm">
+                height="#button_height" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <ui_button name="btn_load"
-                     height="#button_height" flex_grow="1" icon="arrow_down" text="Load" translation_tag="Load" style_text_font="#font_small" bind_op_state="filament_op_load_state">
+                     height="#button_height" flex_grow="1" icon="arrow_down" text="Load" translation_tag="Load"
+                     style_text_font="#font_small" bind_op_state="filament_op_load_state">
             <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_filament_load"/>
           </ui_button>
           <ui_button name="btn_unload"
-                     height="#button_height" flex_grow="1" icon="arrow_up" text="Unload" translation_tag="Unload" style_text_font="#font_small" bind_op_state="filament_op_unload_state">
+                     height="#button_height" flex_grow="1" icon="arrow_up" text="Unload" translation_tag="Unload"
+                     style_text_font="#font_small" bind_op_state="filament_op_unload_state">
             <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_filament_unload"/>
           </ui_button>
           <ui_button name="btn_purge"
-                     height="#button_height" flex_grow="1" icon="trash_can_outline" text="Purge" translation_tag="Purge" style_text_font="#font_small" bind_op_state="filament_op_purge_state">
+                     height="#button_height" flex_grow="1" icon="trash_can_outline" text="Purge" translation_tag="Purge"
+                     style_text_font="#font_small" bind_op_state="filament_op_purge_state">
             <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
@@ -337,43 +346,43 @@
           </ui_button>
         </lv_obj>
         <!-- Length Selector -->
-        <lv_obj name="purge_amount_row"
-                width="100%" height="content" style_pad_all="0"
-                scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-                style_pad_gap="#space_sm">
+        <lv_obj name="extrude_length_row"
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <text_small text="Length:" translation_tag="Length:"/>
-          <ui_button name="purge_5mm"
-                     height="#button_height_sm" flex_grow="1" text="5mm" translation_tag="5mm" style_text_font="#font_small">
-            <bind_style name="purge_btn_selected" subject="filament_purge_5mm_active" ref_value="1"/>
-            <bind_style name="purge_btn_unselected" subject="filament_purge_5mm_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_filament_purge_5mm"/>
+          <ui_button name="extrude_length_5mm"
+                     height="#button_height_sm" flex_grow="1" text="5mm" style_text_font="#font_small">
+            <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_5mm_active" ref_value="1"/>
+            <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_5mm_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_filament_extrude_length_5mm"/>
           </ui_button>
-          <ui_button name="purge_10mm"
-                     height="#button_height_sm" flex_grow="1" text="10mm" translation_tag="10mm" style_text_font="#font_small">
-            <bind_style name="purge_btn_selected" subject="filament_purge_10mm_active" ref_value="1"/>
-            <bind_style name="purge_btn_unselected" subject="filament_purge_10mm_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_filament_purge_10mm"/>
+          <ui_button name="extrude_length_10mm"
+                     height="#button_height_sm" flex_grow="1" text="10mm" style_text_font="#font_small">
+            <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_10mm_active" ref_value="1"/>
+            <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_10mm_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_filament_extrude_length_10mm"/>
           </ui_button>
-          <ui_button name="purge_25mm"
-                     height="#button_height_sm" flex_grow="1" text="25mm" translation_tag="25mm" style_text_font="#font_small">
-            <bind_style name="purge_btn_selected" subject="filament_purge_25mm_active" ref_value="1"/>
-            <bind_style name="purge_btn_unselected" subject="filament_purge_25mm_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_filament_purge_25mm"/>
+          <ui_button name="extrude_length_25mm"
+                     height="#button_height_sm" flex_grow="1" text="25mm" style_text_font="#font_small">
+            <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_25mm_active" ref_value="1"/>
+            <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_25mm_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_filament_extrude_length_25mm"/>
           </ui_button>
         </lv_obj>
         <!-- Extrude/Retract Row (length-based operations) -->
         <lv_obj width="100%"
-                height="#button_height" style_pad_all="0" scrollable="false"
-                flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                style_pad_gap="#space_sm">
+                height="#button_height" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <ui_button name="btn_extrude"
-                     height="#button_height" flex_grow="1" icon="arrow_down" text="Extrude" translation_tag="Extrude" style_text_font="#font_small" bind_op_state="filament_op_extrude_state">
+                     height="#button_height" flex_grow="1" icon="arrow_down" text="Extrude" translation_tag="Extrude"
+                     style_text_font="#font_small" bind_op_state="filament_op_extrude_state">
             <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_filament_extrude"/>
           </ui_button>
           <ui_button name="btn_retract"
-                     height="#button_height" flex_grow="1" icon="arrow_up" text="Retract" translation_tag="Retract" style_text_font="#font_small" bind_op_state="filament_op_retract_state">
+                     height="#button_height" flex_grow="1" icon="arrow_up" text="Retract" translation_tag="Retract"
+                     style_text_font="#font_small" bind_op_state="filament_op_retract_state">
             <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_filament_retract"/>
@@ -381,9 +390,9 @@
         </lv_obj>
         <!-- Safety Warning (compact inline - shows when cold) -->
         <lv_obj name="safety_warning"
-                width="100%" height="content" style_pad_all="0"
-                scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-                style_flex_track_place="center" style_pad_gap="#space_xs">
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
+                style_pad_gap="#space_xs">
           <bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
           <icon src="alert" size="sm" variant="warning"/>
           <text_small bind_text="filament_safety_warning_text"/>

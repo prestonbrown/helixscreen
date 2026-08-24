@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_overlays.h"
 
 #include "ui_fonts.h"
@@ -803,3 +805,5 @@ void render_reference_grids(PixelBuffer& buf, const bed_mesh_renderer_t* rendere
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

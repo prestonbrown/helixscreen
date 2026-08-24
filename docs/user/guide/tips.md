@@ -40,7 +40,7 @@ For detailed troubleshooting, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
 | Run a custom macro | Advanced, Macros |
 | Check print history | Advanced, Print History |
 | Change theme | Settings > Display & Sound > Theme Colors |
-| Fix touch calibration | Settings > System > Touch & Input (shown only when recalibration is needed) |
+| Fix touch calibration | Settings > System > Touch & Input (shown for any touchscreen) |
 
 ---
 

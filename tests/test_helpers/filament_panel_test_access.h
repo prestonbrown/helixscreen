@@ -26,6 +26,10 @@ struct FilamentPanelTestAccess {
         p.execute_unload();
     }
 
+    static void handle_load_button(FilamentPanel& p) {
+        p.handle_load_button();
+    }
+
     static void populate_extruder_dropdown(FilamentPanel& p) {
         p.populate_extruder_dropdown();
     }

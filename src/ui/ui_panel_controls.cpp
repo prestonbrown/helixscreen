@@ -21,6 +21,7 @@
 #include "ui_settings_sensors.h"
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
+#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
@@ -71,7 +72,7 @@ using helix::ui::position::format_position;
 // CONSTRUCTOR
 // ============================================================================
 
-ControlsPanel::ControlsPanel(PrinterState& printer_state, MoonrakerAPI* api)
+ControlsPanel::ControlsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     // Dependencies passed for interface consistency
     // Child panels (motion, temp, extrusion) may use these when wired
@@ -152,6 +153,8 @@ void ControlsPanel::init_subjects() {
     // Macro button visibility and names (for declarative binding)
     UI_MANAGED_SUBJECT_INT(macro_1_visible_, 0, "macro_1_visible", subjects_);
     UI_MANAGED_SUBJECT_INT(macro_2_visible_, 0, "macro_2_visible", subjects_);
+    UI_MANAGED_SUBJECT_INT(macro_1_available_, 0, "macro_1_available", subjects_);
+    UI_MANAGED_SUBJECT_INT(macro_2_available_, 0, "macro_2_available", subjects_);
     UI_MANAGED_SUBJECT_STRING(macro_1_name_, macro_1_name_buf_, "", "macro_1_name", subjects_);
     UI_MANAGED_SUBJECT_STRING(macro_2_name_, macro_2_name_buf_, "", "macro_2_name", subjects_);
 
@@ -189,6 +192,8 @@ void ControlsPanel::init_subjects() {
     // Macro buttons 3 & 4 visibility and names
     UI_MANAGED_SUBJECT_INT(macro_3_visible_, 0, "macro_3_visible", subjects_);
     UI_MANAGED_SUBJECT_INT(macro_4_visible_, 0, "macro_4_visible", subjects_);
+    UI_MANAGED_SUBJECT_INT(macro_3_available_, 0, "macro_3_available", subjects_);
+    UI_MANAGED_SUBJECT_INT(macro_4_available_, 0, "macro_4_available", subjects_);
     UI_MANAGED_SUBJECT_STRING(macro_3_name_, macro_3_name_buf_, "", "macro_3_name", subjects_);
     UI_MANAGED_SUBJECT_STRING(macro_4_name_, macro_4_name_buf_, "", "macro_4_name", subjects_);
     UI_MANAGED_SUBJECT_INT(macro_header_visible_, 1, "macro_header_visible", subjects_);
@@ -501,9 +506,7 @@ void ControlsPanel::refresh_all_displays() {
     if (auto* subj = printer_state_.get_pending_z_offset_delta_subject()) {
         update_z_offset_delta_display(lv_subject_get_int(subj));
     }
-    if (auto* subj = printer_state_.get_gcode_z_offset_subject()) {
-        update_controls_z_offset_display(lv_subject_get_int(subj));
-    }
+    update_controls_z_offset_display();
 
     spdlog::trace("[{}] All displays refreshed after activation", get_name());
 }
@@ -633,6 +636,16 @@ void ControlsPanel::register_observers() {
             }
         });
 
+    // Which macros a printer defines is not fixed for the life of a session: a
+    // Klipper restart or a config change re-runs discovery, and StandardMacros
+    // re-resolves every slot against the new list. Sampling once at setup() left
+    // a button enabled for a macro that had gone away (and hidden for one that
+    // had arrived) until the panel next deactivated.
+    macros_version_observer_ = observe_int_sync<ControlsPanel>(
+        StandardMacros::instance().get_macros_version_subject(), this,
+        [](ControlsPanel* self, int /* version */) { self->refresh_macro_buttons(); },
+        StandardMacros::instance().get_subjects_lifetime());
+
     // Subscribe to active tool changes for dynamic nozzle label
     active_tool_observer_ = observe_int_sync<ControlsPanel>(
         helix::ToolState::instance().get_active_tool_subject(), this,
@@ -708,9 +721,35 @@ void ControlsPanel::register_observers() {
     // Subscribe to gcode Z-offset for live tuning display (skip formatting when hidden)
     gcode_z_offset_observer_ = observe_int_sync<ControlsPanel>(
         printer_state_.get_gcode_z_offset_subject(), this,
-        [](ControlsPanel* self, int offset_microns) {
+        [](ControlsPanel* self, int /* offset_microns */) {
             if (self->active_)
-                self->update_controls_z_offset_display(offset_microns);
+                self->update_controls_z_offset_display();
+        },
+        printer_state_.get_subjects_lifetime());
+
+    // The displayed Z-offset switches source between the live and the
+    // firmware-persisted reading, so all three inputs have to retrigger it.
+    persisted_z_offset_observer_ = observe_int_sync<ControlsPanel>(
+        printer_state_.get_persisted_z_offset_subject(), this,
+        [](ControlsPanel* self, int /* offset_microns */) {
+            if (self->active_)
+                self->update_controls_z_offset_display();
+        },
+        printer_state_.get_subjects_lifetime());
+
+    persisted_z_offset_valid_observer_ = observe_int_sync<ControlsPanel>(
+        printer_state_.get_persisted_z_offset_valid_subject(), this,
+        [](ControlsPanel* self, int /* valid */) {
+            if (self->active_)
+                self->update_controls_z_offset_display();
+        },
+        printer_state_.get_subjects_lifetime());
+
+    z_offset_print_active_observer_ = observe_int_sync<ControlsPanel>(
+        printer_state_.get_print_active_subject(), this,
+        [](ControlsPanel* self, int /* print_active */) {
+            if (self->active_)
+                self->update_controls_z_offset_display();
         },
         printer_state_.get_subjects_lifetime());
 
@@ -791,24 +830,44 @@ void ControlsPanel::update_fan_display() {
 
 void ControlsPanel::update_macro_button(StandardMacros& macros,
                                         const std::optional<StandardMacroSlot>& slot,
-                                        lv_subject_t& visible_subject, lv_subject_t& name_subject,
+                                        lv_subject_t& visible_subject,
+                                        lv_subject_t& available_subject, lv_subject_t& name_subject,
                                         int button_num) {
     if (!slot) {
         lv_subject_set_int(&visible_subject, 0);
+        lv_subject_set_int(&available_subject, 0);
         return;
     }
 
     const auto& info = macros.get(*slot);
-    if (info.is_empty()) {
-        lv_subject_set_int(&visible_subject, 0);
-        spdlog::trace("[{}] Macro {} slot '{}' is empty, hiding button", get_name(), button_num,
-                      info.slot_name);
-    } else {
+
+    if (!info.is_empty()) {
         lv_subject_set_int(&visible_subject, 1);
+        lv_subject_set_int(&available_subject, 1);
         lv_subject_copy_string(&name_subject, info.translated_name());
         spdlog::trace("[{}] Macro {}: '{}' → {}", get_name(), button_num, info.display_name,
                       info.get_macro());
+        return;
     }
+
+    if (info.has_missing_macro()) {
+        // The user assigned this slot and the printer does not answer for it (a
+        // preset can seed a macro name the machine never defined, and a Klipper
+        // config change can retire one). Keep the button where they left it and
+        // grey it out: a button that disappears reads as a bug in the screen,
+        // while a disabled one points at the assignment that needs fixing.
+        lv_subject_set_int(&visible_subject, 1);
+        lv_subject_set_int(&available_subject, 0);
+        lv_subject_copy_string(&name_subject, info.translated_name());
+        spdlog::debug("[{}] Macro {} slot '{}' disabled: '{}' is not defined on this printer",
+                      get_name(), button_num, info.slot_name, info.missing_macro);
+        return;
+    }
+
+    lv_subject_set_int(&visible_subject, 0);
+    lv_subject_set_int(&available_subject, 0);
+    spdlog::trace("[{}] Macro {} slot '{}' is empty, hiding button", get_name(), button_num,
+                  info.slot_name);
 }
 
 void ControlsPanel::refresh_macro_buttons() {
@@ -819,12 +878,14 @@ void ControlsPanel::refresh_macro_buttons() {
                                                        &macro_3_slot_, &macro_4_slot_};
     lv_subject_t* visible_subjects[] = {&macro_1_visible_, &macro_2_visible_, &macro_3_visible_,
                                         &macro_4_visible_};
+    lv_subject_t* available_subjects[] = {&macro_1_available_, &macro_2_available_,
+                                          &macro_3_available_, &macro_4_available_};
     lv_subject_t* name_subjects[] = {&macro_1_name_, &macro_2_name_, &macro_3_name_,
                                      &macro_4_name_};
 
     for (size_t i = 0; i < 4; ++i) {
-        update_macro_button(macros, *slots[i], *visible_subjects[i], *name_subjects[i],
-                            static_cast<int>(i + 1));
+        update_macro_button(macros, *slots[i], *visible_subjects[i], *available_subjects[i],
+                            *name_subjects[i], static_cast<int>(i + 1));
     }
 
     // Hide the Quick Actions header when row 2 is visible (macro 3 or 4) to save space
@@ -1001,7 +1062,12 @@ void ControlsPanel::update_z_offset_delta_display(int delta_microns) {
                   z_offset_delta_display_buf_);
 }
 
-void ControlsPanel::update_controls_z_offset_display(int offset_microns) {
+void ControlsPanel::update_controls_z_offset_display() {
+    // ZMOD's END_PRINT/CANCEL_PRINT zero gcode_move's offset and START_PRINT
+    // re-applies the stored one, so while idle the live reading is 0.000 and the
+    // persisted value is what the next print will actually use.
+    const int offset_microns = helix::zoffset::displayed_z_offset_microns(printer_state_);
+
     auto* bp_subj = theme_manager_get_breakpoint_subject();
     auto bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
     if (bp == UiBreakpoint::Tiny || bp == UiBreakpoint::Micro) {
@@ -1473,6 +1539,20 @@ void ControlsPanel::execute_macro(size_t index) {
         return;
     }
 
+    // Backstop for the XML disabled binding. LVGL suppresses CLICKED on a
+    // LV_STATE_DISABLED object, so this normally cannot be reached from touch —
+    // but execute_macro() is also the entry point for the remote-control server
+    // and any future caller, and dispatching a macro the printer does not define
+    // is exactly the silent failure this gate exists to stop.
+    const auto& gate_info = StandardMacros::instance().get(*slot);
+    if (gate_info.is_empty() && gate_info.has_missing_macro()) {
+        spdlog::warn("[{}] Macro {} slot '{}' names '{}', which this printer does not define",
+                     get_name(), static_cast<int>(index + 1), gate_info.slot_name,
+                     gate_info.missing_macro);
+        NOTIFY_WARNING(lv_tr("{} is not set up on this printer"), gate_info.translated_name());
+        return;
+    }
+
     if (!helix::SafetySettingsManager::instance().get_macro_require_confirmation()) {
         do_execute_macro(index);
         return;
@@ -1730,11 +1810,21 @@ void ControlsPanel::handle_motors_cancel() {
 }
 
 void ControlsPanel::handle_calibration_bed_mesh() {
+#if defined(HELIX_PLATFORM_ESP32)
+    // Bed-mesh calibration is excluded from the v1 Core+AMS cut; its panel is a
+    // null-vtable link stub. Toast instead of the LoadProhibited crash.
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
     helix::ui::lazy_create_and_push_overlay<BedMeshPanel>(
         get_global_bed_mesh_panel, bed_mesh_panel_, parent_screen_, "Bed Mesh", get_name(), true);
 }
 
 void ControlsPanel::handle_calibration_zoffset() {
+#if defined(HELIX_PLATFORM_ESP32)
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
     // Set the Moonraker client before lazy creation so it's available when calibration starts
     get_global_zoffset_cal_panel().set_api(get_moonraker_api());
     helix::ui::lazy_create_and_push_overlay<ZOffsetCalibrationPanel>(
@@ -1743,6 +1833,10 @@ void ControlsPanel::handle_calibration_zoffset() {
 }
 
 void ControlsPanel::handle_calibration_screws() {
+#if defined(HELIX_PLATFORM_ESP32)
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
     get_global_screws_tilt_panel().set_client(get_moonraker_client(), get_moonraker_api());
     helix::ui::lazy_create_and_push_overlay<ScrewsTiltPanel>(
         get_global_screws_tilt_panel, screws_panel_, parent_screen_, "Bed Screws", get_name());

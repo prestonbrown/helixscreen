@@ -3,7 +3,7 @@
 
 #include <functional>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct MoonrakerError;
 
 namespace helix {
@@ -39,7 +39,7 @@ class AsyncLifetimeGuard;
  *
  * If `toolhead_is_homed()` is already true, `then()` runs synchronously,
  * on the caller's thread, before this function returns. Otherwise a `G28`
- * is sent at `MoonrakerAPI::HOMING_TIMEOUT_MS`; `then()` on success or
+ * is sent at `IMoonrakerAPI::HOMING_TIMEOUT_MS`; `then()` on success or
  * `on_error()` on failure is marshalled onto the main thread through
  * `guard` (via `AsyncLifetimeGuard::bg_cb()`), so both fire safely even if
  * the owning object has since been destroyed.
@@ -52,7 +52,7 @@ class AsyncLifetimeGuard;
  * @warning Call from the main thread only — checks `toolhead_is_homed()`,
  * which reads an LVGL subject.
  */
-void ensure_homed_then(MoonrakerAPI* api, AsyncLifetimeGuard& guard, std::function<void()> then,
+void ensure_homed_then(IMoonrakerAPI* api, AsyncLifetimeGuard& guard, std::function<void()> then,
                        std::function<void(const MoonrakerError&)> on_error);
 
 } // namespace helix

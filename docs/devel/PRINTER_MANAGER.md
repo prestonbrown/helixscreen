@@ -29,6 +29,8 @@ It follows the standard OverlayBase lifecycle and uses the `overlay_panel` XML c
 | `ui_xml/printer_image_overlay.xml` | Image picker layout (list + preview) |
 | `include/printer_images.h` | Printer type to image path mapping |
 | `include/prerendered_images.h` | Screen-responsive image size selection |
+| `include/ui_overlay_printer_type.h` | Model-correction overlay (click-to-correct row) |
+| `src/ui/ui_overlay_printer_type.cpp` | Type list, selection, `apply_type_choice()` routing |
 | `config/printer_database.json` | Printer definitions, heuristics, images |
 | `include/capability_matrix.h` | Pre-print operation capability merging |
 | `include/capability_overrides.h` | User overrides for auto-detected capabilities |
@@ -43,7 +45,7 @@ PrinterManagerOverlay (overlay_panel)
   +-- Section 1: Printer Identity
   |     +-- Printer image (lv_image, clickable -> PrinterImageOverlay)
   |     +-- Printer name (text_heading, clickable -> inline edit)
-  |     +-- Printer model (text_muted, bound to subject)
+  |     +-- Printer model (text_muted + pencil icon, clickable -> PrinterTypeOverlay)
   |
   +-- Section 2: Software Versions
   |     +-- Klipper version (bound to klipper_version subject)
@@ -54,6 +56,12 @@ PrinterManagerOverlay (overlay_panel)
         +-- Capability chips (flow-wrapped, subject-bound visibility)
         +-- Clickable chips navigate to feature overlays
 ```
+
+The model row is clickable because detection can decline to guess or land on a wrong
+near-neighbour; picking a model in `PrinterTypeOverlay` goes through
+`PrinterDetector::apply_type_choice()`, the same call the wizard's identify step makes.
+
+![Identity card -- the click-to-correct printer model row with its pencil](../images/screenshot-model-row.png)
 
 ### Subject Bindings
 
@@ -285,7 +293,7 @@ The printer database (`config/printer_database.json`) is the source of truth for
   "manufacturer": "FlashForge",
   "image": "flashforge-adventurer-5m.png",
   "print_start_profile": "forge_x",
-  "z_offset_calibration_strategy": "gcode_offset",
+  "z_offset_calibration_strategy": "firmware_managed",
   "heuristics": [
     {
       "type": "macro_match",
@@ -311,7 +319,7 @@ The printer database (`config/printer_database.json`) is the source of truth for
 | `manufacturer` | Manufacturer name |
 | `image` | PNG filename in `assets/images/printers/` |
 | `print_start_profile` | Profile for print start phase detection |
-| `z_offset_calibration_strategy` | Z-offset approach (`gcode_offset`, etc.) |
+| `z_offset_calibration_strategy` | Z-offset calibration approach: `probe_calibrate`, `endstop`, or `firmware_managed` (firmware/macros persist it, so HelixScreen hides its own Save step). Omit to derive from probe presence. Separate from *where the value is stored* — see `include/z_offset_persistence.h` |
 | `heuristics` | Array of detection rules with confidence scores |
 | `print_start_capabilities` | PRINT_START macro parameters |
 | `screws_tilt_direction` | `"cw"` or `"ccw"` — override for the physical tightening direction of bed screws. Use when the vendor-shipped Klipper `screw_thread` disagrees with the actual screw geometry, causing `SCREWS_TILT_CALCULATE` directions to un-level the bed. When set to `"ccw"` (disagreeing with Klipper's default CW-M\* semantics), HelixScreen flips CW↔CCW in the displayed direction. Omit the field (or set `"cw"`) for printers whose Klipper config matches reality. Known use: FlashForge Adventurer 5M family. |

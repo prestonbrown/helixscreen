@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "print_history_data.h"
 #include "ui_panel_history_list.h"
+
+#include "print_history_data.h"
 
 #include <vector>
 

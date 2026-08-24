@@ -54,6 +54,7 @@
 #ifdef HELIX_ENABLE_REMOTE_CONTROL
 #include "remote_control_server.h"
 #endif
+#include "audio_settings_manager.h"
 #include "rpc_error_correlation.h"
 #include "screenshot.h"
 #include "sensor_state.h"
@@ -73,6 +74,7 @@
 
 // UI headers
 #include "ui_ams_environment_overlay.h"
+#include "ui_ams_loading_error_modal.h"
 #include "ui_ams_mini_status.h"
 #include "ui_ams_tool_text.h"
 #include "ui_bed_mesh.h"
@@ -143,6 +145,7 @@
 #include "ui_wizard_touch_calibration.h"
 #include "ui_wizard_wifi.h"
 
+#include "color_utils.h"
 #include "preflight_validator.h"
 
 // Developer-only showcase panels (ENABLE_DEV_PANELS, excluded from release
@@ -199,6 +202,7 @@
 #include "logging_init.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
+#include "main_loop_heartbeat.h"
 #include "memory_monitor.h"
 #include "memory_profiling.h"
 #include "memory_utils.h"
@@ -215,7 +219,7 @@
 #include "tips_manager.h"
 #include "tool_state.h"
 #include "xml_registration.h"
-#include "zmod_zoffset.h"
+#include "z_offset_persistence.h"
 
 #include <lvgl/src/misc/cache/instance/lv_image_cache.h>
 #include <spdlog/spdlog.h>
@@ -230,11 +234,14 @@
 #include <atomic>
 #include <cerrno>
 #include <chrono>
+// abi::__cxa_current_exception_type() — names the exception being handled
+// without RTTI on the static type. See the catch blocks below.
 #include <climits>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cxxabi.h>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -264,6 +271,20 @@ extern std::string g_log_file_cli;
 extern std::string g_log_level_cli;
 
 namespace {
+
+// Mangled type name of the exception currently being handled, for the catch-all
+// loggers below.
+//
+// Replaces typeid(e).name(), which needs RTTI — the firmware builds -fno-rtti.
+// __cxa_current_exception_type() is part of the Itanium ABI's exception-handling
+// support, which is unaffected by -fno-rtti, and it reports the type that was
+// thrown rather than the type of the handler's parameter. Null when no exception
+// is in flight; inside a catch block it never is, but the callers do not depend
+// on that.
+const char* current_exception_type_name() {
+    const std::type_info* ti = abi::__cxa_current_exception_type();
+    return ti ? ti->name() : "<unknown>";
+}
 
 // Android lifecycle: background/foreground state set from SDL event handler
 std::atomic<bool> s_app_backgrounded{false};
@@ -807,6 +828,11 @@ int Application::run(int argc, char** argv) {
     SoundManager::instance().initialize();
     SoundManager::instance().play("startup", SoundPriority::EVENT);
 
+    // Backend is now picked: seed the audio-device-available subject so the
+    // Display/Sound overlay's device-row binding resolves correctly. Subjects
+    // init before SoundManager, so the value is stale until this refresh.
+    AudioSettingsManager::instance().refresh_audio_device_available();
+
     // Show sound settings immediately if a local backend exists,
     // without waiting for hardware discovery / Klipper connection.
     if (SoundManager::instance().has_backend()) {
@@ -993,6 +1019,40 @@ int Application::run(int argc, char** argv) {
                 TelemetryManager::instance().record_memory_warning(event);
             });
 
+        // Main-loop hang detection. A deadlocked UI thread leaves the process
+        // alive and the screen lit, so the watchdog (which only supervises exit)
+        // cannot see it and the user just gets a panel that ignores touch.
+        //
+        // Detection only for now — this reports and does not kill. The abort
+        // lives behind one guarded call site below so turning it on later is a
+        // single change rather than a refactor.
+        {
+            uint32_t hang_ms = helix::MainLoopHangDetector::DEFAULT_THRESHOLD_MS;
+            if (const char* env = std::getenv("HELIX_HANG_THRESHOLD_SEC")) {
+                char* end = nullptr;
+                const long secs = std::strtol(env, &end, 10);
+                if (end != env && secs >= 0 && secs <= 3600) {
+                    hang_ms = static_cast<uint32_t>(secs) * 1000u;
+                    spdlog::info("[Application] Main-loop hang threshold overridden to {}s{}", secs,
+                                 secs == 0 ? " (disabled)" : "");
+                } else {
+                    spdlog::warn("[Application] Ignoring bad HELIX_HANG_THRESHOLD_SEC='{}' "
+                                 "(want 0-3600)",
+                                 env);
+                }
+            }
+            helix::MemoryMonitor::instance().set_hang_threshold_ms(hang_ms);
+        }
+        helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {
+            // Runs on the monitor thread. record_error() is documented as safe
+            // from background threads, and deliberately so here: the UI thread
+            // is the thing that is wedged, so anything routed through
+            // UpdateQueue would never be delivered.
+            TelemetryManager::instance().record_error(
+                "ui", "main_loop_hang", fmt::format("stalled_{}s", stalled_ms / 1000));
+            crash_handler::breadcrumb::note("main_loop", "hang");
+        });
+
         // Drop LVGL's decoded-image cache on critical pressure. Printer images,
         // thumbnails, and XML-loaded PNGs live here as full ARGB8888 pixel buffers
         // (e.g. a 300x300 printer image is ~360KB decoded). Freeing them forces
@@ -1057,7 +1117,7 @@ int Application::run(int argc, char** argv) {
         }
 
     } catch (const std::exception& e) {
-        const char* type_name = typeid(e).name();
+        const char* type_name = current_exception_type_name();
         spdlog::error("[Application] Caught exception during post-UI init: {} ({})", e.what(),
                       type_name);
         crash_handler::breadcrumb::note("post_init_catch", type_name);
@@ -1245,10 +1305,27 @@ bool Application::init_logging() {
 
     LogConfig log_config;
 
-    // Resolve log level with precedence: --log-level > -v flags > config file > defaults
+    // HELIX_LOG_* is read HERE, not only translated by scripts/helix-launcher.sh
+    // into --log-dest/--log-file/--log-level. The launcher is not always in the
+    // picture: a systemd unit with Environment=, a hand-run binary over SSH, and
+    // third-party init scripts (ZMOD ships its own fork of ours) all start
+    // helix-screen directly, and until now every HELIX_LOG_* they exported was
+    // silently ignored — the variables looked configurable and were not (#1249).
+    // The launcher's flags still win, because a CLI flag outranks the env below.
+    const std::string env_log_dest =
+        log_env_override("HELIX_LOG_DEST", &is_valid_log_target, log_target_accepted_values());
+    const std::string env_log_level =
+        log_env_override("HELIX_LOG_LEVEL", &is_valid_log_level, log_level_accepted_values());
+    // No validity predicate for a path: any string is a candidate, and an
+    // unopenable one degrades to the platform's normal sink inside init().
+    const std::string env_log_file = log_env_override("HELIX_LOG_FILE", nullptr, nullptr);
+
+    // Resolve log level: --log-level > HELIX_LOG_LEVEL > -v flags > config file > defaults
     std::string config_level = m_config->get<std::string>("/log_level", "");
     if (!g_log_level_cli.empty()) {
         log_config.level = parse_level(g_log_level_cli, spdlog::level::warn);
+    } else if (!env_log_level.empty()) {
+        log_config.level = parse_level(env_log_level, spdlog::level::warn);
     } else {
         log_config.level =
             resolve_log_level(m_args.verbosity, config_level, get_runtime_config()->test_mode);
@@ -1259,25 +1336,31 @@ bool Application::init_logging() {
     // tee run.log` on any box with a systemd journal socket produces no output at
     // all — auto-detection picks the Journal target, whose console gate is
     // isatty(stdout). A bare run with no flag keeps the journal-only behavior.
-    log_config.force_console = m_args.verbosity > 0 || !g_log_level_cli.empty();
+    //
+    // HELIX_LOG_LEVEL counts as explicit for the same reason the flag does: the
+    // launcher already turns that variable into --log-level=, so it has ALWAYS
+    // set force_console on a launcher-started device. Treating the direct-env
+    // path differently would make the same helixscreen.env behave one way under
+    // the launcher and another under systemd/a forked init script, which is the
+    // exact inconsistency this block exists to remove. The blast radius is
+    // bounded: force_console only adds a sink for a PIPE — should_add_console()
+    // still refuses a regular file or socket, which is where the daemon
+    // double-log (the Snapmaker U1 tmpfs blowout) came from.
+    log_config.force_console =
+        m_args.verbosity > 0 || !g_log_level_cli.empty() || !env_log_level.empty();
 
     // --test always gets a console sink, whatever stdout is (pipe, file, socket).
     // Read here rather than inside logging_init.cpp because that TU is linked into
     // the watchdog build, which does not link runtime_config.o.
     log_config.test_mode = get_runtime_config()->test_mode;
 
-    // Resolve log destination: CLI > config > auto
-    std::string log_dest_str = g_log_dest_cli;
-    if (log_dest_str.empty()) {
-        log_dest_str = m_config->get<std::string>("/log_dest", "auto");
-    }
-    log_config.target = parse_log_target(log_dest_str);
+    // Resolve log destination: CLI > HELIX_LOG_DEST > config > auto
+    log_config.target = parse_log_target(resolve_log_setting(
+        g_log_dest_cli, env_log_dest, m_config->get<std::string>("/log_dest", "auto")));
 
-    // Resolve log file path: CLI > config
-    log_config.file_path = g_log_file_cli;
-    if (log_config.file_path.empty()) {
-        log_config.file_path = m_config->get<std::string>("/log_path", "");
-    }
+    // Resolve log file path: CLI > HELIX_LOG_FILE > config
+    log_config.file_path = resolve_log_setting(g_log_file_cli, env_log_file,
+                                               m_config->get<std::string>("/log_path", ""));
 
     init(log_config);
 
@@ -1339,6 +1422,48 @@ bool Application::init_display() {
     // any rotation applied.
     m_screen_width = m_display->width();
     m_screen_height = m_display->height();
+
+    // Reconnect the WebSocket when the display wakes from sleep. The app
+    // background/foreground path (on_enter_foreground) already force-reconnects,
+    // but on Android the SDL background/foreground event pair is unreliable for
+    // the display-off/on round trip — the Activity may not get a clean
+    // onPause/onResume, so m_backgrounded never flips and the reconnect is
+    // skipped. This sleep callback closes that gap (#1245).
+    //
+    // Android ONLY, deliberately. force_reconnect() tears the socket down and
+    // rebuilds it synchronously on whatever thread calls it, and this callback
+    // runs on the UI thread. The Linux fbdev/DRM fleet never backgrounds the
+    // process on display sleep — the connection stays up and the health timer
+    // keeps running — so there is nothing to re-establish on wake, and running
+    // the teardown anyway only exposes the main loop to blocking inside it.
+    //
+    // Registered here, alongside the DisplayManager that owns the callback list,
+    // rather than in connect_moonraker(): that runs again on every printer
+    // switch, and register_sleep_callback() only appends — there is no
+    // unregister — so each switch would stack another copy and fire one extra
+    // force_reconnect() per wake. init_display() runs once per process, and the
+    // captured `this` owns m_display, so the callback list cannot outlive it.
+    // m_moonraker is read lazily at wake time and need not exist yet.
+#ifdef __ANDROID__
+    m_display->register_sleep_callback([this](bool sleeping) {
+        if (!sleeping && m_moonraker && m_moonraker->client()) {
+            // Debounce: on_enter_foreground() may have already called
+            // force_reconnect for the same wake event. Skip if it ran
+            // within the last 5 seconds — the second call would bump
+            // the connection generation and make the first discovery's
+            // subscription stale (#1245).
+            auto now = std::chrono::steady_clock::now();
+            if (now - m_last_force_reconnect < std::chrono::seconds(5)) {
+                spdlog::debug("[Application] Display woke — skipping reconnect (debounced, "
+                              "on_enter_foreground ran recently)");
+                return;
+            }
+            spdlog::info("[Application] Display woke — reconnecting WebSocket");
+            m_last_force_reconnect = now;
+            m_moonraker->client()->force_reconnect();
+        }
+    });
+#endif
 
 #ifdef __ANDROID__
     {
@@ -1406,8 +1531,12 @@ bool Application::init_display() {
         const int h = dm->height();
         auto& layout = helix::LayoutManager::instance();
 
-        theme_manager_refresh_layout_constants(disp);
+        // LayoutManager first: theme_manager_refresh_layout_constants() now
+        // derives ui_is_portrait from LayoutManager::type() (override-aware),
+        // so the type must reflect the new geometry before refresh reads it.
+        // #1255.
         layout.init(w, h);
+        theme_manager_refresh_layout_constants(disp);
 
         // Overlays cache their root widget across show/hide cycles, so the
         // width applied at push time goes stale when the canvas changes size
@@ -1421,11 +1550,9 @@ bool Application::init_display() {
                      layout.name());
     });
 
-    // Initialize tips manager
-    TipsManager* tips_mgr = TipsManager::get_instance();
-    if (!tips_mgr->init(helix::find_readable("printing_tips.json"))) {
-        spdlog::warn("[Application] Failed to initialize tips manager");
-    }
+    // Tips are NOT loaded here. TipsManager::get_instance() parses the database
+    // on first use instead, so a session that never displays the tips widget
+    // never pays the 105 KB parse or keeps its cache resident.
 
     spdlog::debug("[Application] Display initialized");
     helix::MemoryMonitor::log_now("after_display_init");
@@ -1473,7 +1600,8 @@ bool Application::init_theme() {
 
     // Register globals.xml first (required for theme constants, fonts, spacing tokens)
     // Note: fonts must be registered before this (done in init_assets phase)
-    lv_result_t globals_result = lv_xml_register_component_from_file("A:ui_xml/globals.xml");
+    lv_result_t globals_result = lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/globals.xml").c_str());
     if (globals_result != LV_RESULT_OK) {
         spdlog::error("[Application] FATAL: Failed to load globals.xml - "
                       "all XML constants (fonts, colors, spacing) will be missing. "
@@ -1604,6 +1732,11 @@ void Application::run_rotation_probe_and_layout() {
         }
     }
     layout_mgr.init(m_screen_width, m_screen_height);
+    // LayoutManager just resolved any --layout override. Republish
+    // ui_is_portrait from it so XML visual decisions match the C++ ones; the
+    // startup seed (theme_manager_init) and the rotation-probe refresh both ran
+    // before this point and could only see detect_layout_type(). #1255.
+    theme_manager_refresh_orientation();
     spdlog::info("[Application] Layout: {} ({})", layout_mgr.name(),
                  layout_mgr.is_standard() ? "default" : "override");
 }
@@ -1682,9 +1815,10 @@ bool Application::init_translations() {
     std::string lang = m_config->get_language();
     helix::ui::ensure_translation_loaded(lang);
 
-    // Set initial language. When no pack is loaded for a language (e.g. English
-    // with no en.xml), lv_translation_get() returns the tag itself — and since
-    // our tags ARE English, English UI works without any registered pack.
+    // Set initial language. When no pack is loaded for a language — which is
+    // the normal case for English, whose pack is skipped entirely —
+    // lv_translation_get() returns the tag itself, and since our tags ARE
+    // English the UI is already correct without any registered pack.
     lv_translation_set_language(lang.c_str());
 
     // Load CJK runtime fonts if persisted language is CJK
@@ -1743,7 +1877,7 @@ bool Application::init_panel_subjects() {
     helix::AbortManager::instance().init(m_moonraker->api(), &get_printer_state());
 
     // Spaghetti / failed-print detection
-    // (see docs/devel/plans/2026-06-15-spaghetti-detection-source.md)
+    // (see docs/devel/printers/SNAPMAKER_U1_SUPPORT.md, defect_detection)
     // Must happen after MoonrakerClient + PrinterState exist (above).
     {
         auto u1 = std::make_unique<helix::detection::U1StockSource>(&get_printer_state());
@@ -1775,10 +1909,14 @@ bool Application::init_panel_subjects() {
             });
             modal->set_on_abort([] { helix::AbortManager::instance().start_abort(); });
             modal->set_on_tune([] {
+                // Null callbacks, not empty lambdas: a non-null error_cb reads
+                // as "this caller reports the failure itself", which would
+                // suppress Klipper's `!!` broadcast for a rejected
+                // DEFECT_DETECTION_CONFIG and leave the user with nothing.
                 get_moonraker_client()->send_jsonrpc(
                     "printer.gcode.script",
                     nlohmann::json{{"script", "DEFECT_DETECTION_CONFIG NOODLE_SENSITIVITY=low"}},
-                    [](const nlohmann::json&) {}, [](const MoonrakerError&) {});
+                    nullptr, nullptr);
             });
             modal->show(lv_screen_active());
         });
@@ -1797,7 +1935,7 @@ bool Application::init_panel_subjects() {
     spdlog::debug("[Application] TemperatureHistoryManager created");
 
     // Initialize PerformanceState subjects and wire the data source.
-    // Must happen after MoonrakerAPI is up (m_moonraker->api() is valid here)
+    // Must happen after IMoonrakerAPI is up (m_moonraker->api() is valid here)
     // and before XML panels are created so subjects exist when bindings resolve.
     helix::perf::PerformanceState::instance().init_subjects();
     if (get_runtime_config()->should_mock_moonraker()) {
@@ -1815,8 +1953,15 @@ bool Application::init_panel_subjects() {
 }
 
 bool Application::init_ui() {
-    // Create entire UI from XML
+    // Create entire UI from XML. Timed because this builds all six panel
+    // subtrees in one call — the other half of what per-panel deferral would
+    // move off boot and onto the first navigation.
+    auto layout_t0 = std::chrono::steady_clock::now();
     m_app_layout = static_cast<lv_obj_t*>(lv_xml_create(m_screen, "app_layout", nullptr));
+    spdlog::debug(
+        "[Application] app_layout XML create took {:.1f}ms",
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - layout_t0)
+            .count());
     if (!m_app_layout) {
         spdlog::error("[Application] Failed to create app_layout from XML");
         return false;
@@ -1979,6 +2124,7 @@ bool Application::init_moonraker() {
 }
 
 bool Application::init_plugins() {
+#if HELIX_HAS_PLUGINS
     spdlog::debug("[Application] Initializing plugin system");
 
     m_plugin_manager = std::make_unique<helix::plugin::PluginManager>();
@@ -2055,6 +2201,10 @@ bool Application::init_plugins() {
 
     helix::MemoryMonitor::log_now("after_plugins_loaded");
     return all_loaded;
+#else
+    spdlog::debug("[Application] Plugin system compiled out (HELIX_HAS_PLUGINS=0)");
+    return true;
+#endif
 }
 
 bool Application::run_wizard() {
@@ -2147,10 +2297,10 @@ bool Application::run_wizard() {
     // initial_step is a raw CLI/config int (--wizard-step) — a genuine int seam.
     // Clamp to a valid StepId range so an out-of-range debug value lands on a real
     // step (the last one) instead of a blank wizard from a bogus enum cast.
-    if (initial_step < 0 || initial_step >= helix::wizard::kStepCount) {
+    if (initial_step < 0 || initial_step >= helix::wizard::STEP_COUNT) {
         spdlog::warn("[Application] --wizard-step {} out of range [0,{}); clamping", initial_step,
-                     helix::wizard::kStepCount);
-        initial_step = (initial_step < 0) ? 0 : helix::wizard::kStepCount - 1;
+                     helix::wizard::STEP_COUNT);
+        initial_step = (initial_step < 0) ? 0 : helix::wizard::STEP_COUNT - 1;
     }
     // Map it to a StepId for the registry-driven wizard.
     ui_wizard_navigate_to_step(static_cast<helix::wizard::StepId>(initial_step));
@@ -2280,11 +2430,123 @@ bool show_demo_overlay(const std::string& name) {
         return true;
     }
 
+    if (name == "color-mismatch") {
+        // The SECOND gate on a Print tap, after the pre-flight empty-slot block:
+        // the print-start pipeline warns when a tool resolves to no slot at all.
+        // Only reachable from a real multi-tool file whose tools do not map, so
+        // mock navigation cannot get here. Text mirrors the unresolved_tools
+        // gate's dialog exactly — two unresolved tools, color name plus
+        // material per row.
+        std::string message = lv_tr("These tools have no matching filament loaded:");
+        message += "\n\n";
+        message += std::string("  ") + LV_SYMBOL_BULLET +
+                   " T2: " + helix::describe_color(0xF5A623) + " (PETG)\n";
+        message += std::string("  ") + LV_SYMBOL_BULLET +
+                   " T3: " + helix::describe_color(0x2E8B57) + " (PLA)\n";
+        message += "\n";
+        message += lv_tr("Load the required filaments or start anyway?");
+        static char demo_message[1024];
+        snprintf(demo_message, sizeof(demo_message), "%s", message.c_str());
+        helix::ui::modal_show_confirmation(lv_tr("Color Mismatch"), demo_message,
+                                           ModalSeverity::Warning, lv_tr("Start Anyway"), nullptr,
+                                           nullptr, nullptr);
+        return true;
+    }
+
     if (name == "runout-modal") {
         auto* modal = new RunoutGuidanceModal();
         modal->set_autofeed_capable(false);
         modal->set_resume_blocked(false);
         modal->show(screen);
+        return true;
+    }
+
+    if (name == "ams-loading-error") {
+        // Worst case for the modal chrome budget (prestonbrown/helixscreen#1277):
+        // a fault string long enough to drive content_container to its
+        // #dialog_content_max cap, with the AFC diagram pinned BELOW it and
+        // outside the scroll area. That combination overruns the 85% card cap on
+        // a 480x272 panel and the button row falls off the bottom. Unreachable in
+        // mock mode — AmsBackendMock never produces a recognised AFC fault — so
+        // this is the only way to check the real layout instead of arithmetic on
+        // a token table.
+        // ams_loading_error_modal.xml is registered lazily by AmsPanel, which has
+        // not necessarily run — register it here so the demo works from a cold start.
+        // Idempotent: re-registering a component replaces the identical entry.
+        lv_xml_register_component_from_file(
+            helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
+
+        lv_subject_t* seg = lv_xml_get_subject(nullptr, "afc_fault_segment");
+        if (seg != nullptr) {
+            lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
+        }
+        auto* modal = new helix::ui::AmsLoadingErrorModal();
+        modal->show(screen,
+                    "Filament did not reach the toolhead sensor after the "
+                    "configured load length. The lane may be jammed at the hub, "
+                    "the spool may have run out mid-load, or the bowden length "
+                    "configured for this lane may not match the physical tube "
+                    "run between the hub and the toolhead.",
+                    "Check the filament path and try again. If the lane is clear, "
+                    "verify the configured bowden length for this lane and confirm "
+                    "the hub sensor triggers when filament passes it.",
+                    []() {});
+        return true;
+    }
+
+    if (name == "action-prompt-worst") {
+        // Worst case for action_prompt_modal's chrome budget (#1277). This modal
+        // carries MORE pinned chrome than ams_loading_error_modal: the AFC
+        // diagram, a row_wrap button container that can spill to a second row,
+        // and a footer divider + footer row that are hidden by default. All of
+        // it sits below the scroll area, so it is the shape most likely to
+        // overrun the 85% card cap. Unreachable in mock mode — it needs a live
+        // Klipper `action:prompt_begin` — so this is the only way to measure it.
+        lv_subject_t* seg = lv_xml_get_subject(nullptr, "afc_fault_segment");
+        if (seg != nullptr) {
+            lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
+        }
+        helix::PromptData data;
+        data.title = "Filament Runout Detected";
+        data.severity = "error";
+        data.text_lines = {
+            "Lane 1 ran out of filament during the print.",
+            "The toolhead has been parked and the print is paused.",
+            "Load a new spool into lane 1, then choose how to continue.",
+        };
+        data.buttons = {
+            {"Resume", "RESUME", "primary", "", false, -1},
+            {"Retry Load", "AFC_LOAD LANE=1", "secondary", "", false, -1},
+            {"Change Lane", "AFC_CHANGE_LANE", "secondary", "", false, -1},
+            {"Cancel Print", "CANCEL_PRINT", "error", "", true, -1},
+        };
+        auto* modal = new helix::ui::ActionPromptModal();
+        modal->show_prompt(screen, data);
+        return true;
+    }
+
+    if (name == "action-prompt-many") {
+        // A prompt whose buttons cannot share one row: a preheat macro offering
+        // seven material presets. Each label is far wider than a seventh of the
+        // card, so this is the case that must fall back to row_wrap instead of
+        // being squeezed into equal-width cells. Unreachable in mock mode - it
+        // needs a live Klipper `action:prompt_begin` - so this is the only way
+        // to check the wrapped layout against a real 480x272 panel.
+        helix::PromptData data;
+        data.title = "Preheat for Load";
+        data.text_lines = {"Preheat filament and choose a material."};
+        data.buttons = {
+            {"PLA 220/60", "SET_MATERIAL M=PLA", "primary", "", false, -1},
+            {"PETG 240/80", "SET_MATERIAL M=PETG", "primary", "", false, -1},
+            {"ABS 250/100", "SET_MATERIAL M=ABS", "primary", "", false, -1},
+            {"ASA 260/100", "SET_MATERIAL M=ASA", "primary", "", false, -1},
+            {"TPU 230/50", "SET_MATERIAL M=TPU", "primary", "", false, -1},
+            {"PC 280/110", "SET_MATERIAL M=PC", "primary", "", false, -1},
+            {"Nylon 260/80", "SET_MATERIAL M=NYLON", "primary", "", false, -1},
+            {"Cancel", "", "error", "", true, -1},
+        };
+        auto* modal = new helix::ui::ActionPromptModal();
+        modal->show_prompt(screen, data);
         return true;
     }
 
@@ -2352,7 +2614,7 @@ bool show_demo_overlay(const std::string& name) {
 
 void Application::reapply_hardware_roles() {
     m_async_lifetime.defer("Application::reapply_hardware_roles", [this]() {
-        MoonrakerAPI* api = m_moonraker ? m_moonraker->api() : nullptr;
+        IMoonrakerAPI* api = m_moonraker ? m_moonraker->api() : nullptr;
         if (!api) {
             return;
         }
@@ -2463,9 +2725,157 @@ void Application::prompt_deferred_hardware_setup(std::vector<helix::wizard::Step
         this, lv_tr("Not now"));
 }
 
+void Application::settle_type_mismatch_warning() {
+    auto* cfg = Config::get_instance();
+    cfg->set<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR,
+                          cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
+    if (!cfg->save()) {
+        spdlog::warn("[Application] Failed to persist type mismatch decision");
+    }
+}
+
+void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardware) {
+    // The gates below all decline silently in normal operation. A debug bundle
+    // is the only view we get of a reporter's run, so each one says why it
+    // declined: without that there is no way to tell a 68%-confidence near-miss
+    // apart from detection returning nothing at all (bundle TZT85MQ3).
+    if (m_type_mismatch_shown) {
+        spdlog::debug("[Application] Type mismatch check skipped: already prompted this session");
+        return;
+    }
+    if (get_runtime_config()->should_mock_moonraker()) {
+        // A mock printer's identity is whatever the persona declares, so a
+        // mismatch against the saved type says nothing about real hardware.
+        // Gate on the runtime-config predicate, not on HELIX_MOCK_PRINTER:
+        // plain --test runs the mock client without that env var ever being
+        // set, so the old getenv check let every --test launch open the
+        // prompt against whatever type settings-test.json happened to carry.
+        spdlog::debug("[Application] Type mismatch check skipped: mock printer");
+        return;
+    }
+    if (Config::get_instance()->is_wizard_required() || is_wizard_active()) {
+        spdlog::debug("[Application] Type mismatch check skipped: wizard required or active");
+        return;
+    }
+
+    auto* cfg = Config::get_instance();
+    const std::string stored = cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+
+    // The saved type is a display name, so an entry renamed in the printer
+    // database orphans every config written under the old one and detection
+    // then contradicts a type that was never wrong. Resolve through the
+    // database's alias list and heal the stored value, otherwise the stale
+    // name keeps missing every other name-keyed lookup too (image, preset,
+    // pre-print profile) long after this prompt is dismissed.
+    const std::string saved = PrinterDetector::canonical_type_name(stored);
+    if (saved != stored) {
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, saved);
+        if (!cfg->save()) {
+            spdlog::warn("[Application] Failed to persist renamed printer type '{}' -> '{}'",
+                         stored, saved);
+        }
+    }
+
+    // Canonicalised too: a dismissal recorded under the pre-rename name still
+    // answers for the same printer.
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
+
+    auto detected = PrinterDetector::auto_detect(hardware);
+    const auto decision = detected.detected()
+                              ? PrinterDetector::classify_type_mismatch(saved, detected.type_name,
+                                                                        detected.confidence, flag)
+                              : PrinterDetector::MismatchDecision::NoDetection;
+    if (decision != PrinterDetector::MismatchDecision::Warn) {
+        // info, not debug: this runs once per discovery pass, and it is the line
+        // that answers "why was there no prompt?" in a bundle.
+        spdlog::info("[Application] No type mismatch prompt: detected '{}' at {}% (runner-up '{}' "
+                     "at {}%), saved '{}', dismissed-for '{}', need >={}% - {}",
+                     detected.type_name, detected.confidence, detected.runner_up_type_name,
+                     detected.runner_up_confidence, saved, flag,
+                     PrinterDetector::MISMATCH_MIN_CONFIDENCE,
+                     PrinterDetector::mismatch_decision_name(decision));
+        return;
+    }
+
+    // Session guard: one prompt per boot regardless of which button dismisses it.
+    m_type_mismatch_shown = true;
+    spdlog::info("[Application] Printer type mismatch: saved '{}' but detected '{}' ({}%)", saved,
+                 detected.type_name, detected.confidence);
+
+    // modal_show_confirmation takes a plain const char* — compose the
+    // parameterized body first (fmt::runtime: the format string is the
+    // translated handle, not a compile-time literal).
+    const std::string body =
+        fmt::format(fmt::runtime(lv_tr("This printer looks like a {} ({}% confidence), but it is "
+                                       "set up as a {}. A wrong type applies incorrect pre-print "
+                                       "options and presets.")),
+                    detected.type_name, detected.confidence, saved);
+
+    helix::ui::modal_show_confirmation(
+        lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Re-identify"),
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[Application] type_mismatch_confirm");
+            auto* app = static_cast<Application*>(lv_event_get_user_data(e));
+            Modal::hide(Modal::get_top());
+            // Settle first: the wizard tears itself down asynchronously, and a
+            // crash mid-run must not leave the prompt pending forever.
+            app->settle_type_mismatch_warning();
+            // Build the wizard AFTER the modal's exit animation, not inside the
+            // click that started it: Modal::hide() only marks the backdrop
+            // exiting, so creating the full-screen wizard here would put it
+            // underneath a still-fading backdrop (same 300 ms one-shot as
+            // launch_deferred_hardware_setup).
+            lv_timer_t* launch = lv_timer_create(
+                [](lv_timer_t* t) {
+                    auto* self = static_cast<Application*>(lv_timer_get_user_data(t));
+                    lv_timer_delete(t);
+                    self->launch_type_reidentify_wizard();
+                },
+                300, app);
+            lv_timer_set_repeat_count(launch, 1);
+            LVGL_SAFE_EVENT_CB_END();
+        },
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[Application] type_mismatch_decline");
+            Modal::hide(Modal::get_top());
+            // Declining is final for this saved type. Keeping the type is a
+            // deliberate choice (a heavily modified printer can legitimately
+            // outvote a 70% heuristic), and the persisted flag stops the
+            // prompt from re-appearing every boot. Re-identify remains
+            // available via the full `--wizard` run.
+            static_cast<Application*>(lv_event_get_user_data(e))->settle_type_mismatch_warning();
+            spdlog::info("[Application] Type mismatch warning declined");
+            LVGL_SAFE_EVENT_CB_END();
+        },
+        this, lv_tr("Keep current"));
+}
+
+void Application::launch_type_reidentify_wizard() {
+    spdlog::info("[Application] Launching printer re-identify wizard");
+    ui_wizard_register_event_callbacks();
+    ui_wizard_container_register_responsive_constants();
+    ui_wizard_init_subjects();
+    // Back on the first targeted step has nothing to retreat to, so give it the
+    // same dismiss semantics as the deferred hardware-setup session.
+    set_wizard_cancel_callback([]() {
+        ui_wizard_complete_targeted();
+        set_wizard_cancel_callback(nullptr);
+    });
+    Application* app = this;
+    ui_wizard_create_targeted(m_screen, {helix::wizard::StepId::PrinterIdentify}, [app]() {
+        set_wizard_cancel_callback(nullptr);
+        // The identify step's cleanup already persisted PRINTER_TYPE and applied
+        // the new preset (ui_wizard_printer_identify.cpp cleanup). The preset
+        // rewrote fan/heater role keys, so rebind the runtime mappings the same
+        // way the deferred hardware-setup session does.
+        app->reapply_hardware_roles();
+    });
+}
+
 void Application::setup_discovery_callbacks() {
-    MoonrakerClient* client = m_moonraker->client();
-    MoonrakerAPI* api = m_moonraker->api();
+    IMoonrakerClient* client = m_moonraker->client();
+    IMoonrakerAPI* api = m_moonraker->api();
 
     Application* app = this;
 
@@ -2576,13 +2986,14 @@ void Application::setup_discovery_callbacks() {
             crash_handler::breadcrumb::note("disc", "post_init_fans",
                                             static_cast<long>(hw.fans().size()));
 
-            // Enable ZMOD persistent z-offset reload once per session, only when
-            // idle. ZMOD saves any z-offset the user dials in, but reloading it on
-            // the next print is off by default — SAVE_ZMOD_DATA LOAD_ZOFFSET=1 turns
-            // it on so HelixScreen z-offset adjustments survive prints/reboots. The
-            // print_active subject is not yet applied from this discovery's status
-            // (see the reconfig-wizard gate below), so consult status_snapshot
-            // directly to avoid injecting gcode over a live print.
+            // Turn on the firmware's own z-offset persistence once per session,
+            // only when idle. Some firmwares store the offset themselves but ship
+            // with reload-at-print-start off, so adjustments made here would not
+            // survive. Which printers need it, and what to send, lives in
+            // include/z_offset_persistence.h. The print_active subject is not yet
+            // applied from this discovery's status (see the reconfig-wizard gate
+            // below), so consult status_snapshot directly to avoid injecting gcode
+            // over a live print.
             {
                 bool print_active =
                     lv_subject_get_int(get_printer_state().get_print_active_subject()) != 0;
@@ -2590,22 +3001,24 @@ void Application::setup_discovery_callbacks() {
                     helix::PrinterPrintState::status_indicates_active_print(*status_snapshot)) {
                     print_active = true;
                 }
-                if (helix::zmod::should_enable_persistent_zoffset(
-                        api->hardware().has_macro("SAVE_ZMOD_DATA"), print_active,
-                        app->m_zmod_zoffset_enabled)) {
-                    app->m_zmod_zoffset_enabled = true;
-                    spdlog::info("[ZMOD] Enabling persistent z-offset (SAVE_ZMOD_DATA "
-                                 "LOAD_ZOFFSET=1)");
+                const std::string enable_gcode =
+                    helix::zoffset::persistence_enable_gcode(api->hardware());
+                if (helix::zoffset::should_enable_persistence(!enable_gcode.empty(), print_active,
+                                                              app->m_zoffset_persistence_enabled)) {
+                    app->m_zoffset_persistence_enabled = true;
+                    spdlog::info("[ZOffset] Enabling firmware z-offset persistence ({})",
+                                 helix::zoffset::persistence_provider_name(api->hardware()));
                     // Fire-and-forget: callbacks are LOG-ONLY and capture nothing that
                     // can dangle, so the background response thread is lifetime-safe.
                     api->execute_gcode(
-                        "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
-                        []() { spdlog::info("[ZMOD] Persistent z-offset enabled"); },
+                        enable_gcode,
+                        []() { spdlog::info("[ZOffset] Firmware z-offset persistence enabled"); },
                         [](const MoonrakerError& err) {
-                            spdlog::warn("[ZMOD] Failed to enable persistent z-offset: {}",
+                            spdlog::warn("[ZOffset] Failed to enable z-offset persistence: {}",
                                          err.message);
                         },
-                        0, /*silent=*/true);
+                        0, /*silent=*/true, /*on_queued=*/nullptr,
+                        /*caller_surfaces_errors=*/false);
                 }
             }
 
@@ -2644,8 +3057,14 @@ void Application::setup_discovery_callbacks() {
             // Dispatch initial subscription status AFTER init_fans so fan/sensor subjects
             // exist when the status data is processed. The initial status is passed from the
             // discovery sequence rather than dispatched separately to guarantee ordering.
+            // Flagged as a cached snapshot: it was captured on the background
+            // thread when the subscribe response landed and has been carried
+            // through the rest of discovery, so it can be seconds stale by the
+            // time it lands here. Live WebSocket frames have been updating the
+            // same state the whole time — this replay must not walk a liveness
+            // signal (klippy state) backwards.
             if (!(*status_snapshot).empty()) {
-                client->dispatch_status_update((*status_snapshot));
+                client->dispatch_status_update((*status_snapshot), /*from_cached_snapshot=*/true);
             }
             crash_handler::breadcrumb::note("disc", "post_status_dispatch", n);
 
@@ -2886,6 +3305,21 @@ void Application::setup_discovery_callbacks() {
                 }
             }
 
+            // Saved printer type vs detected hardware (bundle F2LNLQCC: a Voron
+            // Trident saved as "FlashForge Adventurer 5M Pro" silently received
+            // AD5M pre-print options, presets, and screws-tilt direction on every
+            // boot — auto_detect_and_save self-guards on a saved type and never
+            // re-checks). One actionable prompt per saved type. Gated exactly
+            // like the reconfig wizard and deferred offer above — plus
+            // reconfig_steps.empty() and !hardware_setup_deferred so the three
+            // never stack in one discovery pass — and on the same hw_changed
+            // gate: detection is purely a function of the hardware shape.
+            if (hw_changed && !print_active && reconfig_steps.empty() && !hardware_setup_deferred &&
+                !Config::get_instance()->is_wizard_required() && !is_wizard_active() &&
+                !app->m_type_mismatch_shown) {
+                app->maybe_warn_type_mismatch(api->hardware());
+            }
+
             // Save session snapshot for next comparison (even if no issues)
             validator.save_session_snapshot(Config::get_instance(), api->hardware());
             crash_handler::breadcrumb::note("disc", "post_validate", n);
@@ -2908,7 +3342,7 @@ void Application::setup_discovery_callbacks() {
             // min_extrude_temp, max_temp, etc.) — runs for ALL discovery completions
             // (normal startup AND post-wizard) so we don't duplicate this in callers
             if (api) {
-                MoonrakerAPI* api_ptr = api;
+                IMoonrakerAPI* api_ptr = api;
                 api_ptr->update_safety_limits_from_printer(
                     [api_ptr]() {
                         const auto& limits = api_ptr->get_safety_limits();
@@ -2993,7 +3427,11 @@ void Application::setup_discovery_callbacks() {
                     // channel from it (invalidate first: cache_identity() is
                     // insert-if-absent, so a stale entry would win otherwise).
                     SpoolmanManager::invalidate_identity(spool.id);
-                    SpoolmanManager::cache_identity(spool);
+                    if (SpoolmanManager::cache_identity(spool)) {
+                        // Tell the label consumers a name they could not resolve
+                        // before is available now (#1264).
+                        AmsState::instance().bump_slots_version();
+                    }
 
                     SlotInfo slot;
                     slot.slot_index = -2;
@@ -3015,7 +3453,7 @@ void Application::setup_discovery_callbacks() {
             // This ensures the filament panel shows the correct spool on startup,
             // even if the active spool was changed via Spoolman's web UI or another client
             {
-                MoonrakerAPI* api_for_spool = api;
+                IMoonrakerAPI* api_for_spool = api;
                 api_for_spool->spoolman().get_spoolman_status(
                     [api_for_spool, sync_external_spool](bool connected, int active_spool_id) {
                         if (!connected || active_spool_id <= 0) {
@@ -3064,7 +3502,7 @@ void Application::setup_discovery_callbacks() {
             // Listen for Moonraker active spool changes (user changes spool in
             // Spoolman web UI or another client while HelixScreen is running)
             {
-                MoonrakerAPI* api_for_notify = api;
+                IMoonrakerAPI* api_for_notify = api;
                 client->register_method_callback(
                     "notify_active_spool_set", "external_spool_sync",
                     [api_for_notify, sync_external_spool](const nlohmann::json& data) {
@@ -3122,7 +3560,7 @@ void Application::setup_discovery_callbacks() {
             // (e.g., PROBE_CALIBRATE started from Mainsail or console before HelixScreen launched)
             // Deferred one tick: status updates from the subscription response are queued
             // via ui_queue_update and may not have landed yet at this point.
-            MoonrakerAPI* api_ptr_zoffset = api;
+            IMoonrakerAPI* api_ptr_zoffset = api;
             lv_obj_t* screen = app->m_screen;
             helix::ui::queue_update([api_ptr_zoffset, screen]() {
                 auto& ps = get_printer_state();
@@ -3181,10 +3619,13 @@ bool Application::connect_moonraker() {
         http_base_url = "http://" + host + ":" + std::to_string(port);
     }
 
-    // Discovery callbacks are already registered (setup_discovery_callbacks in init_moonraker)
+    // Discovery callbacks are already registered (setup_discovery_callbacks in init_moonraker).
+    // The display-wake reconnect callback is registered once in init_display(), not here —
+    // connect_moonraker() re-runs on every printer switch and DisplayManager has no
+    // unregister path.
 
     // Set HTTP base URL for API
-    MoonrakerAPI* api = m_moonraker->api();
+    IMoonrakerAPI* api = m_moonraker->api();
     api->set_http_base_url(http_base_url);
 
     // Connect
@@ -3222,8 +3663,8 @@ lv_obj_t* Application::create_overlay_panel(lv_obj_t* screen, const char* compon
 }
 
 void Application::init_action_prompt() {
-    MoonrakerClient* client = m_moonraker->client();
-    MoonrakerAPI* api = m_moonraker->api();
+    IMoonrakerClient* client = m_moonraker->client();
+    IMoonrakerAPI* api = m_moonraker->api();
 
     if (!client) {
         spdlog::warn("[Application] Cannot init action prompt - no client");
@@ -3251,8 +3692,13 @@ void Application::init_action_prompt() {
                 gcode, []() { spdlog::debug("[ActionPrompt] Gcode executed successfully"); },
                 [gcode](const MoonrakerError& err) {
                     spdlog::error("[ActionPrompt] Gcode execution failed: {}", err.message);
+                    // The modal already closed on the button press, and this
+                    // error_cb marks the call caller-handled so the `!!`
+                    // GcodeError toast is suppressed for the same failure.
+                    // Without this the user sees nothing at all.
+                    helix::ui::report_action_prompt_gcode_failure(err.user_message());
                 },
-                MoonrakerAPI::MACRO_TIMEOUT_MS);
+                IMoonrakerAPI::MACRO_TIMEOUT_MS);
         });
     }
 
@@ -3422,6 +3868,9 @@ void Application::init_action_prompt() {
             }
 
             // Only track layers while printing or paused
+            // RAW_PRINT_STATE_OK: layer tracking. There are no layers during a
+            // preparing window, and admitting one would derive a layer number
+            // from the pre-print block's own Z moves.
             auto job_state = get_printer_state().get_print_job_state();
             if (job_state != PrintJobState::PRINTING && job_state != PrintJobState::PAUSED) {
                 return;
@@ -3607,6 +4056,12 @@ int Application::main_loop() {
             uint32_t current_tick = DisplayManager::get_ticks();
             m_loop_handler.on_frame(current_tick);
 
+            // Liveness signal. Placed at the top of the iteration and before any
+            // of the work below, so it advances on every pass the loop actually
+            // completes — including the backgrounded early-continue path further
+            // down, which is a live loop and must not read as a hang.
+            helix::MainLoopHeartbeat::beat();
+
             handle_keyboard_shortcuts();
 
             // Android lifecycle: pause/resume when backgrounded
@@ -3789,7 +4244,7 @@ int Application::main_loop() {
             // and continue. If catches pile up faster than RUNAWAY_THRESHOLD
             // / RUNAWAY_WINDOW_MS, exit cleanly so the watchdog sees a
             // graceful shutdown instead of an infinite throw-catch tight loop.
-            const char* type_name = typeid(e).name();
+            const char* type_name = current_exception_type_name();
             spdlog::error("[Application] Caught exception in main loop: {} ({})", e.what(),
                           type_name);
             crash_handler::breadcrumb::note("loop_catch", type_name);
@@ -3854,15 +4309,27 @@ void Application::on_enter_background() {
     m_backgrounded = true;
     spdlog::info("[Application] Pausing for background");
 
-    // 1. Disconnect WebSocket (stops all status updates and reconnect timer)
+    // 1. Suspend the visible panel/overlay lifecycle (same hook the screensaver
+    //    uses). on_deactivate() stops per-panel timers, camera streams and
+    //    graph refreshes that would otherwise keep running against an LVGL
+    //    thread Android has frozen. It runs FIRST, while the socket is still
+    //    up and rendering is still enabled, so teardown that talks to Moonraker
+    //    or touches widgets behaves exactly as it does on the sleep path.
+    NavigationManager::instance().suspend_active();
+
+    // 2. Disconnect WebSocket (stops all status updates and reconnect timer)
     if (m_moonraker) {
+        // Mark the disconnect as expected so the DISCONNECTED notification
+        // (queued here, drained on resume) doesn't clear the overlay stack
+        // and bounce the user to home (#1245).
+        NavigationManager::instance().mark_disconnect_expected();
         m_moonraker->client()->disconnect();
     }
 
-    // 2. Mute sound
+    // 3. Mute sound
     SoundManager::instance().shutdown();
 
-    // 3. Suppress rendering — save CPU/GPU
+    // 4. Suppress rendering — save CPU/GPU
     lv_display_enable_invalidation(nullptr, false);
 
     spdlog::info("[Application] Background pause complete");
@@ -3882,10 +4349,29 @@ void Application::on_enter_foreground() {
 
     // 3. Reconnect WebSocket (triggers discovery + full state refresh)
     if (m_moonraker && m_moonraker->client()) {
+        m_last_force_reconnect = std::chrono::steady_clock::now();
         m_moonraker->client()->force_reconnect();
     }
 
-    // 4. Force full display redraw — EGL surface may have been destroyed and
+    // 4. Resume the visible panel/overlay lifecycle. Repainting alone only
+    //    re-draws whatever the widgets already hold — on_activate() is what
+    //    re-seeds subjects, re-binds observers, reloads content and restarts
+    //    timers (that asymmetry is why a tab round-trip un-sticks a stale panel
+    //    and a resume did not; prestonbrown/helixscreen#1245). It runs AFTER
+    //    force_reconnect() so requests issued from on_activate() meet a socket
+    //    that is already reconnecting rather than a definitively dead one, and
+    //    BEFORE the repaint below so the forced frame paints the re-seeded UI
+    //    instead of the stale one.
+    NavigationManager::instance().resume_active();
+
+    // 5. Reset LVGL's activity timestamp. Inactivity is measured off the tick,
+    //    which keeps advancing while Android has us paused, so the first
+    //    check_display_sleep() after resume would otherwise see the whole
+    //    backgrounded interval as idle and drop straight back into sleep or the
+    //    screensaver. Same idiom as DisplayManager::wake_display().
+    lv_display_trigger_activity(nullptr);
+
+    // 6. Force full display redraw — EGL surface may have been destroyed and
     //    recreated by Android while backgrounded.  Use invalidate_all_recursive
     //    (same as post-splash handoff) because partial-render mode won't
     //    propagate a single lv_obj_invalidate() to all descendants.

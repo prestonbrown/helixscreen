@@ -28,7 +28,23 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 | **MAJOR** | Breaking changes (config format, API, incompatible UI changes) |
 | **MINOR** | New features, backwards-compatible |
 | **PATCH** | Bug fixes, documentation, minor improvements |
-| **PRERELEASE** | Optional: `-alpha`, `-beta`, `-rc.1` for testing |
+| **PRERELEASE** | **Do not use.** See below. |
+
+> ### Never ship a prerelease suffix
+>
+> `helix::version::Version` **discards** the prerelease suffix when parsing
+> (`include/version.h`). `v1.0.0-rc.1`, `v1.0.0-beta` and `v1.0.0` all parse to
+> `1.0.0` and compare **equal**.
+>
+> So a user who installs `v1.0.0-rc.1` has an app that believes it is already on
+> `1.0.0`. When the real `1.0.0` publishes, the updater sees no newer version and
+> **never offers it**. Your testers are stranded on the release candidate.
+>
+> Use a plain monotonic version instead, and pick the audience with the branch's
+> `RELEASE_CHANNEL` file rather than with the tag string. That is exactly why
+> `RELEASE_CHANNEL` exists - read its header comment. A release candidate that
+> everyone should test is just the next `PATCH` on the line they are already on
+> (v0.99.114 was the 1.0 RC, shipped on the stable 0.99.x line).
 
 ### Examples
 
@@ -36,7 +52,8 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 - `v1.1.0` - New features added
 - `v1.1.1` - Bug fix
 - `v2.0.0` - Breaking changes
-- `v1.2.0-beta` - Pre-release for testing
+- `v0.99.114` - a release candidate: a plain PATCH bump, audience chosen by
+  `RELEASE_CHANNEL`, **not** by a `-rc` suffix
 
 ---
 
@@ -69,6 +86,10 @@ git push origin v1.2.0
   validate-shell gate → build-platforms matrix (9):
     pi · pi32 · ad5m · cc1 · k1 · ad5x · k2 · x86 · snapmaker-u1
   plus build-android → publish-android
+    `release` needs build-android too, not just build-platforms — otherwise it
+    could publish before Android finished and ship with no APKs, silently.
+    build-android FAILS the whole release if ANDROID_KEYSTORE_BASE64 is unset;
+    it no longer falls back to the debug keystore. See ANDROID_PLAY_STORE.md.
 
   Each platform job: Docker cross-toolchain → target arch → package .zip
                                │
@@ -114,9 +135,14 @@ git push origin v1.2.0
    make test-run  # Run tests
    ```
 
-2. **Update version references** (if any hardcoded versions exist):
-   - Check `CLAUDE.md`, `README.md`, documentation for version strings
-   - Usually not needed - version comes from git tag
+2. **Bump `VERSION.txt` and add the CHANGELOG entry, in one `chore(release):` commit.**
+   `VERSION.txt` is the source of truth for the built binary (`Makefile:195`,
+   `mk/cross.mk:2452`) - the version does **not** come from the git tag. Tagging
+   without bumping the file ships a binary that reports the previous version.
+   - `echo "X.Y.Z" > VERSION.txt`
+   - Add the release section to `CHANGELOG.md` above the previous one
+   - `git commit -m "chore(release): vX.Y.Z" CHANGELOG.md VERSION.txt`
+   - Also check `CLAUDE.md` / `README.md` for any hardcoded version strings
 
 3. **Test on actual hardware:**
    - MainsailOS / Raspberry Pi
@@ -184,7 +210,6 @@ The workflow auto-generates basic release notes if no annotation is provided.
 - [ ] All tests pass (`make test-run`)
 - [ ] No critical bugs in issue tracker
 - [ ] Documentation updated for new features
-- [ ] ROADMAP.md updated if needed
 - [ ] Tested on real hardware (Pi and/or AD5M)
 
 ### After Release
@@ -242,12 +267,23 @@ git push origin v1.3.0-rc.1
 
 ### Pre-release Behavior
 
-- Tags containing `-` are automatically marked as **prerelease** on GitHub
-- Not shown as "latest" release
-- Users must explicitly choose to install:
+The GitHub prerelease flag and the R2 upload channels both come from the
+**`RELEASE_CHANNEL` file at the repo root**, on the branch being tagged — not from
+the tag string. See `docs/devel/UPDATE_SYSTEM.md` § "How CI Determines Upload
+Channels" for the full table and the reason.
+
+- `RELEASE_CHANNEL=stable` -> full GitHub release, shown as "latest"
+- `RELEASE_CHANNEL=beta` or `dev` -> marked **prerelease**, not shown as "latest"
+- Users must explicitly choose to install a prerelease:
   ```bash
   curl -sSL .../install.sh | sh -s -- --version v1.3.0-beta
   ```
+
+**Do not use a `-suffix` to mean "devel build".** `helix::version::Version`
+discards prerelease suffixes, so `v1.1.0-dev1` and `v1.1.0-dev2` compare equal and
+the in-app updater stops offering builds. Devel-track releases use plain
+incrementing versions and rely on `RELEASE_CHANNEL` for routing. A suffixed tag on
+a `stable` branch is rejected by `scripts/release-channel.sh`.
 
 ### Graduating Pre-releases
 
@@ -287,29 +323,14 @@ make PLATFORM_TARGET=ad5m clean release-ad5m
 
 ## Changelog Generation
 
-Currently, changelogs are written manually in the tag annotation. Future options:
+`CHANGELOG.md` is the changelog. It is written by hand in the release commit (Step 1);
+nothing generates it. The annotated tag's message becomes the GitHub release body
+(Step 2), and `scripts/generate-whatsnew.sh` distills the finished CHANGELOG section
+into the Play Store "What's New" - both consume what was already written.
 
-### Option A: Manual Changelog File
-
-Maintain `CHANGELOG.md` in the repository, update before each release.
-
-### Option B: Conventional Commits + Auto-generation
-
-Use tools like `git-cliff` or `semantic-release`:
-
-```bash
-# Generate changelog from conventional commits
-git cliff -o CHANGELOG.md
-```
-
-This requires commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat: add new feature`
-- `fix: resolve bug`
-- `docs: update documentation`
-
-### Current Approach
-
-We use annotated tags with manual release notes. This provides flexibility while keeping the process simple.
+Prose style - user-facing voice, separator, issue-link form, and the daily vs milestone
+entry shapes - is specified in [CHANGELOG_STYLE.md](CHANGELOG_STYLE.md). Read it before
+drafting the release's section.
 
 ---
 

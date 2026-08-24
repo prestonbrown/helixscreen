@@ -392,12 +392,12 @@ void FanDial::handle_arc_changed() {
     // the release event never arrives (e.g. AD5X touchscreen quirks).
     pending_speed_ = value;
     has_pending_send_ = true;
-    constexpr uint32_t kDebounceMs = 500;
+    constexpr uint32_t DEBOUNCE_MS = 500;
     if (debounce_timer_) {
         lv_timer_reset(debounce_timer_);
-        lv_timer_set_period(debounce_timer_, kDebounceMs);
+        lv_timer_set_period(debounce_timer_, DEBOUNCE_MS);
     } else {
-        debounce_timer_ = lv_timer_create(on_debounce_timer, kDebounceMs, this);
+        debounce_timer_ = lv_timer_create(on_debounce_timer, DEBOUNCE_MS, this);
         lv_timer_set_repeat_count(debounce_timer_, 1);
     }
 

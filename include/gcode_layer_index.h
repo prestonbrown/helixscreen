@@ -76,8 +76,11 @@ struct LayerIndexStats {
     size_t total_layers{0}; ///< Number of layers found
     size_t total_lines{0};  ///< Total G-code lines processed
     size_t total_bytes{0};  ///< Total file size
-    float min_z{0.0f};      ///< Minimum Z height
-    float max_z{0.0f};      ///< Maximum Z height
+    /// Model Z extents, accumulated over the same extruding moves as the XY
+    /// pair below so the two describe one box. Empty (min > max) if no
+    /// extrusion was seen — see has_z_bounds().
+    float min_z{std::numeric_limits<float>::max()};
+    float max_z{std::numeric_limits<float>::lowest()};
     /// Model XY extents, accumulated over extruding moves during the index scan
     /// and filtered by is_excluded_from_bounds() exactly like the full-file
     /// parser's global_bounding_box. Empty (min > max) if no extrusion was seen.
@@ -99,6 +102,12 @@ struct LayerIndexStats {
     /// XY describe real geometry.
     bool has_xy_bounds() const {
         return min_x <= max_x && min_y <= max_y;
+    }
+
+    /// True when the scan accumulated at least one extruding move, i.e. min/max
+    /// Z describe real geometry.
+    bool has_z_bounds() const {
+        return min_z <= max_z;
     }
     double build_time_ms{0.0};  ///< Time to build index
     std::string filament_color; ///< First filament color hex from metadata (palette[0]; legacy)

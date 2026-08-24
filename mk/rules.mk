@@ -173,6 +173,12 @@ $(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP
 		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) [objects] -o $@ $(LDFLAGS)"; \
 		exit 1; \
 	}
+	@# Record the optional subsystems this binary actually contains, beside it.
+	@# `make deploy-*` runs as a SEPARATE make invocation with no PLATFORM_TARGET,
+	@# so it re-derives ENABLE_REMOTE_CONTROL as the native default (yes) and
+	@# cannot see what the cross build chose. The stamp carries that across, and
+	@# the deploy targets use it to turn the matching runtime switch on.
+	$(Q)printf 'remote_control=%s\n' "$(ENABLE_REMOTE_CONTROL)" > $(BIN_DIR)/.build-features
 
 # Collect all .d dependency files for proper header tracking
 # These are generated during compilation with -MMD -MP flags
@@ -260,6 +266,17 @@ endif
 		exit 1; \
 	}
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+
+# Large-file support for the gcode reader. FileDataSource addresses gcode by
+# uint64_t but seeks with fseeko/ftello, whose off_t is 32-bit on our 32-bit
+# targets, so a file past 2 GB truncates. The define has to arrive on the command
+# line: $(PCH_FLAGS) force-includes lvgl_pch.h ahead of the source, so a #define
+# inside the .cpp is read after the system headers have already latched the value.
+# Scoped to this one object because it widens off_t for the whole translation
+# unit; off_t crosses no TU boundary here (see the comment in the source).
+# Side effect: the flags no longer match $(PCH), so this object re-parses
+# lvgl_pch.h from source instead of using the precompiled copy.
+$(OBJ_DIR)/rendering/gcode_data_source.o: CXXFLAGS += -D_FILE_OFFSET_BITS=64
 
 # Compile app Objective-C++ sources (macOS .mm files)
 # Uses DEPFLAGS to generate .d files for header dependency tracking

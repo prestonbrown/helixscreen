@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "idle_timeout_busy.h"
 #include "state/volatile_subjects.h"
 #include "subject_managed_panel.h"
 
@@ -108,6 +109,18 @@ class PrinterCalibrationState {
     }
 
     /**
+     * @brief Debounced busy flag for the blocking-operation guard
+     *
+     * The subject above is the literal Klipper state and flips on every burst of
+     * executing gcode, housekeeping delayed_gcode included. Callers deciding
+     * whether to refuse or queue gcode want this instead — see IdleTimeoutBusy
+     * for why the raw flag is not usable as a gate.
+     */
+    IdleTimeoutBusy& idle_timeout_busy() {
+        return idle_timeout_busy_;
+    }
+
+    /**
      * @brief Get retract length subject
      * @return Integer subject: length in centimillimeters
      */
@@ -178,6 +191,11 @@ class PrinterCalibrationState {
      */
     void reset_klippy_volatile() {
         volatile_.reset_all();
+        // The debounced view is not a subject and so is not in volatile_, but it
+        // caches the same delta-only field and would otherwise keep reporting a
+        // pre-restart operation as still running — the exact #1129 wedge, just
+        // one layer down.
+        idle_timeout_busy_.set_printing(false);
     }
 
   private:
@@ -203,6 +221,10 @@ class PrinterCalibrationState {
 
     // idle_timeout.state == "Printing" flag (Klipper's canonical busy indicator)
     lv_subject_t idle_timeout_printing_{}; // 0=not printing/busy, 1=state == "Printing"
+
+    // Debounced view of the same flag, used by the blocking-op guard. The subject
+    // above stays the literal Klipper state; this one waits for it to settle.
+    IdleTimeoutBusy idle_timeout_busy_;
 
     // Latches the once-per-blocking-episode "your change will queue" toast. Claimed
     // by the busy guard (main thread), re-armed on the blocking op's falling edge in

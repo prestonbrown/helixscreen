@@ -71,6 +71,11 @@ static const IconFontEntry& get_font_entry(IconSize size) {
     return entries[static_cast<int>(size)];
 }
 
+/// One entry per IconSize, filled on first use and cleared whenever the
+/// breakpoint re-points the icon_font_* constants.
+static const lv_font_t* s_cached_font[5] = {};
+static bool s_font_resolved[5] = {};
+
 /**
  * Resolve the MDI font for a given size via XML constants.
  *
@@ -79,12 +84,10 @@ static const IconFontEntry& get_font_entry(IconSize size) {
  * logging an error on first occurrence.
  */
 static const lv_font_t* get_font_for_size(IconSize size) {
-    static const lv_font_t* cached[5] = {};
-    static bool resolved[5] = {};
     const int idx = static_cast<int>(size);
 
-    if (resolved[idx]) {
-        return cached[idx];
+    if (s_font_resolved[idx]) {
+        return s_cached_font[idx];
     }
 
     const auto& entry = get_font_entry(size);
@@ -109,9 +112,15 @@ static const lv_font_t* get_font_for_size(IconSize size) {
     spdlog::debug("[Icon] Using icon font for '{}' — line_height={}px", entry.xml_const,
                   lv_font_get_line_height(font));
 
-    cached[idx] = font;
-    resolved[idx] = true;
+    s_cached_font[idx] = font;
+    s_font_resolved[idx] = true;
     return font;
+}
+
+void ui_icon_invalidate_font_cache() {
+    for (bool& r : s_font_resolved) {
+        r = false;
+    }
 }
 
 /**

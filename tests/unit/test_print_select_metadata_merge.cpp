@@ -101,3 +101,75 @@ TEST_CASE("Size change wins over retry flag for empty-thumbnail entry",
     auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
     REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true) == false);
 }
+
+// ============================================================================
+// cap_print_file_list_to_newest (Task 11 R1 — ESP32 newest-N file cap)
+// ============================================================================
+
+namespace {
+
+PrintFileData make_file(const std::string& name) {
+    PrintFileData f;
+    f.filename = name;
+    f.is_dir = false;
+    return f;
+}
+
+PrintFileData make_dir(const std::string& name) {
+    PrintFileData f;
+    f.filename = name;
+    f.is_dir = true;
+    return f;
+}
+
+} // namespace
+
+TEST_CASE("Cap under the limit changes nothing", "[print_select][cap]") {
+    std::vector<PrintFileData> files{make_file("a"), make_file("b")};
+    // Injected cap value, not hardcoded — exercises the function generically
+    // rather than baking in the ESP32-only constant defined in the panel.
+    REQUIRE(cap_print_file_list_to_newest(files, 5) == false);
+    REQUIRE(files.size() == 2);
+}
+
+TEST_CASE("Cap at exactly the limit changes nothing", "[print_select][cap]") {
+    std::vector<PrintFileData> files{make_file("a"), make_file("b"), make_file("c")};
+    REQUIRE(cap_print_file_list_to_newest(files, 3) == false);
+    REQUIRE(files.size() == 3);
+}
+
+TEST_CASE("Cap drops the tail (oldest) files, keeps the newest N", "[print_select][cap]") {
+    // Assumes caller already sorted newest-first (PrintSelectFileSorter::apply_sort
+    // contract) — this fixture mimics that ordering directly.
+    std::vector<PrintFileData> files{make_file("newest"), make_file("middle"), make_file("oldest")};
+    REQUIRE(cap_print_file_list_to_newest(files, 2) == true);
+    REQUIRE(files.size() == 2);
+    REQUIRE(files[0].filename == "newest");
+    REQUIRE(files[1].filename == "middle");
+}
+
+TEST_CASE("Cap never drops directories, even past the file cap", "[print_select][cap]") {
+    // apply_sort() always groups directories before files regardless of sort
+    // column/direction, so a capped list must still let the user navigate into
+    // every directory — only trailing FILE entries are dropped.
+    std::vector<PrintFileData> files{make_dir(".."), make_dir("subfolder"), make_file("newest"),
+                                     make_file("oldest")};
+    REQUIRE(cap_print_file_list_to_newest(files, 1) == true);
+    REQUIRE(files.size() == 3);
+    REQUIRE(files[0].filename == "..");
+    REQUIRE(files[1].filename == "subfolder");
+    REQUIRE(files[2].filename == "newest");
+}
+
+TEST_CASE("Cap of zero keeps directories but drops all files", "[print_select][cap]") {
+    std::vector<PrintFileData> files{make_dir(".."), make_file("a"), make_file("b")};
+    REQUIRE(cap_print_file_list_to_newest(files, 0) == true);
+    REQUIRE(files.size() == 1);
+    REQUIRE(files[0].filename == "..");
+}
+
+TEST_CASE("Cap on an all-directory list changes nothing", "[print_select][cap]") {
+    std::vector<PrintFileData> files{make_dir(".."), make_dir("a"), make_dir("b")};
+    REQUIRE(cap_print_file_list_to_newest(files, 0) == false);
+    REQUIRE(files.size() == 3);
+}

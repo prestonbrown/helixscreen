@@ -7,12 +7,18 @@
  *
  * Covers:
  * - TemperatureHistoryManager::seed_from_store: fill-empty, decidegree
- *   conversion, 1 Hz backfill timestamps, sensor-only (target 0), merge with an
- *   existing out-of-order live sample, and the HISTORY_SIZE cap.
+ *   conversion, 1 Hz backfill timestamps, sensor-only (target 0), and the
+ *   HISTORY_SIZE cap.
+ * - The two properties the seed merge must hold at the SAME time (#1245):
+ *   no near-duplicate timestamps where the store and live samples overlap, and
+ *   no loss of local history older than the store window. Seeding re-runs on
+ *   every discovery/reconnect, so a blanket replace collapses a 20-minute graph
+ *   to seconds whenever Klipper restarts.
+ * - The store's values going through the same sanity filter as live samples.
  * - MoonrakerClient temperature_store RPC: empty-store default through the mock,
  *   and direct parse of a populated canned payload.
  *
- * These tests were authored BEFORE the implementation (TDD).
+ * The original set was authored BEFORE the implementation (TDD).
  */
 
 #include "../../include/moonraker_client_mock.h"
@@ -74,7 +80,7 @@ struct LVGLInitializerStoreSeed {
 static LVGLInitializerStoreSeed lvgl_init;
 
 // A fixed wall-clock base (Unix ms) so timestamp math is deterministic.
-constexpr int64_t kNow = 1700000000000LL;
+constexpr int64_t NOW = 1700000000000LL;
 } // namespace
 
 // ============================================================================
@@ -119,16 +125,16 @@ TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store fills empty history"
     // Sensor-only key: temperatures but no targets/powers.
     store["temperature_sensor foo"].temperatures = {30.0f, 31.2f, 32.0f};
 
-    manager_->seed_from_store(store, kNow);
+    manager_->seed_from_store(store, NOW);
 
     auto ex = manager_->get_samples_since("extruder", 0);
     REQUIRE(ex.size() == 5);
 
-    // Timestamps: 1 Hz spacing, newest == kNow, oldest first.
-    REQUIRE(ex.back().timestamp_ms == kNow);
-    REQUIRE(ex.front().timestamp_ms == kNow - 4000);
+    // Timestamps: 1 Hz spacing, newest == NOW, oldest first.
+    REQUIRE(ex.back().timestamp_ms == NOW);
+    REQUIRE(ex.front().timestamp_ms == NOW - 4000);
     for (size_t i = 0; i < ex.size(); ++i) {
-        int64_t expected = kNow - static_cast<int64_t>(4 - i) * 1000;
+        int64_t expected = NOW - static_cast<int64_t>(4 - i) * 1000;
         REQUIRE(ex[i].timestamp_ms == expected);
     }
 
@@ -141,8 +147,8 @@ TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store fills empty history"
 
     auto foo = manager_->get_samples_since("temperature_sensor foo", 0);
     REQUIRE(foo.size() == 3);
-    REQUIRE(foo.back().timestamp_ms == kNow);
-    REQUIRE(foo.front().timestamp_ms == kNow - 2000);
+    REQUIRE(foo.back().timestamp_ms == NOW);
+    REQUIRE(foo.front().timestamp_ms == NOW - 2000);
     REQUIRE(foo[1].temp_deci == 312); // 31.2 -> 312
     // No targets provided -> target_deci defaults to 0.
     for (const auto& s : foo) {
@@ -151,34 +157,151 @@ TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store fills empty history"
 }
 
 // ============================================================================
-// seed_from_store — merge with an existing out-of-order (newer) live sample
+// seed_from_store — the store wins inside its own window
 // ============================================================================
 
-TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store merges with existing samples",
+TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store supersedes samples in its window",
                  "[temp][seed]") {
     // A live sample already recorded for "extruder" that is NEWER than the
     // seed range — simulates the fetch returning after a live sample landed.
-    const int64_t live_ts = kNow + 5000;
+    const int64_t live_ts = NOW + 5000;
     REQUIRE(TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 2100, 2100,
                                                             live_ts));
 
     TemperatureStore store;
-    store["extruder"].temperatures = {100.0f, 101.0f, 102.0f}; // 3 older samples
-    manager_->seed_from_store(store, kNow);
+    store["extruder"].temperatures = {100.0f, 101.0f, 102.0f}; // 3 store samples
+    manager_->seed_from_store(store, NOW);
 
     auto s = manager_->get_samples_since("extruder", 0);
-    REQUIRE(s.size() == 4);
+    // Inside (and after) the store window the store is authoritative — the live
+    // sample is superseded, only the 3 store samples remain.
+    REQUIRE(s.size() == 3);
+    REQUIRE(s.front().timestamp_ms == NOW - 2000);
+    REQUIRE(s.back().timestamp_ms == NOW);
+    REQUIRE(s.back().temp_deci == 1020); // 102.0 -> 1020
+}
 
-    // Strictly time-ordered oldest-first (no inversion despite late insert).
-    for (size_t i = 1; i < s.size(); ++i) {
-        REQUIRE(s[i].timestamp_ms > s[i - 1].timestamp_ms);
+// ============================================================================
+// seed_from_store — local history the store does not cover must survive
+// ============================================================================
+
+TEST_CASE_METHOD(TempStoreSeedTestFixture,
+                 "seed_from_store keeps local history older than the store window",
+                 "[temp][seed][1245]") {
+    // Ten minutes of local history, recorded at 1 Hz, ending 10 minutes ago.
+    // add_sample_internal throttles to SAMPLE_INTERVAL_MS, so space them.
+    constexpr int LOCAL_COUNT = 20;
+    const int64_t local_start = NOW - 600000; // 10 min back
+    for (int i = 0; i < LOCAL_COUNT; ++i) {
+        REQUIRE(TemperatureHistoryManagerTestAccess::add_sample(
+            *manager_, "extruder", 2000 + i, 2100, local_start + static_cast<int64_t>(i) * 1000));
     }
 
-    // Seed samples occupy the older slots; the live sample is newest.
-    REQUIRE(s.front().timestamp_ms == kNow - 2000);
-    REQUIRE(s[2].timestamp_ms == kNow);        // newest seed sample
-    REQUIRE(s.back().timestamp_ms == live_ts); // live sample stays newest
-    REQUIRE(s.back().temp_deci == 2100);
+    // Klipper restarted: its store now holds only a few seconds of data.
+    TemperatureStore store;
+    store["extruder"].temperatures = {25.0f, 25.5f, 26.0f};
+    manager_->seed_from_store(store, NOW);
+
+    auto s = manager_->get_samples_since("extruder", 0);
+
+    // Nothing older than the store window was thrown away.
+    REQUIRE(s.size() == static_cast<size_t>(LOCAL_COUNT) + 3);
+    REQUIRE(s.front().timestamp_ms == local_start);
+    REQUIRE(s.front().temp_deci == 2000);
+    REQUIRE(s[LOCAL_COUNT - 1].timestamp_ms == local_start + (LOCAL_COUNT - 1) * 1000);
+
+    // The store's three samples are appended at the live edge.
+    REQUIRE(s[LOCAL_COUNT].timestamp_ms == NOW - 2000);
+    REQUIRE(s[LOCAL_COUNT].temp_deci == 250);
+    REQUIRE(s.back().timestamp_ms == NOW);
+    REQUIRE(s.back().temp_deci == 260);
+
+    // The point of the whole exercise: the graph still spans ten minutes rather
+    // than collapsing to the couple of seconds the restarted store returned.
+    REQUIRE((s.back().timestamp_ms - s.front().timestamp_ms) >= 600000);
+}
+
+// ============================================================================
+// seed_from_store — no duplicate / near-duplicate timestamps
+// ============================================================================
+
+TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store leaves no near-duplicate timestamps",
+                 "[temp][seed][1245]") {
+    // One old local sample (outside the store window, must survive) and one
+    // live sample that landed while the RPC was in flight — it sits inside the
+    // store window at a wall-clock time a few hundred ms off the synthetic 1 Hz
+    // grid. Interleaving that with the store's samples is what drew a phantom
+    // spike; it must be superseded, not merged alongside.
+    const int64_t old_ts = NOW - 300000;
+    REQUIRE(
+        TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 1900, 0, old_ts));
+    REQUIRE(
+        TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 500, 0, NOW - 1500));
+
+    TemperatureStore store;
+    store["extruder"].temperatures = {200.0f, 201.0f, 202.0f, 203.0f};
+    manager_->seed_from_store(store, NOW);
+
+    auto s = manager_->get_samples_since("extruder", 0);
+    REQUIRE(s.size() == 5); // 1 surviving local + 4 store
+
+    // Strictly increasing, and never closer together than the write throttle
+    // would ever have allowed. A near-duplicate pair fails both halves.
+    for (size_t i = 1; i < s.size(); ++i) {
+        INFO("pair " << i << ": " << s[i - 1].timestamp_ms << " -> " << s[i].timestamp_ms);
+        REQUIRE(s[i].timestamp_ms > s[i - 1].timestamp_ms);
+        REQUIRE((s[i].timestamp_ms - s[i - 1].timestamp_ms) >=
+                TemperatureHistoryManager::SAMPLE_INTERVAL_MS);
+    }
+
+    // The mid-flight live sample specifically is gone — no 50.0°C dip survives
+    // between the store's 200°C readings.
+    for (const auto& sample : s) {
+        REQUIRE(sample.temp_deci != 500);
+    }
+}
+
+// ============================================================================
+// seed_from_store — store values go through the live sanity filter
+// ============================================================================
+
+TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store rejects out-of-range store values",
+                 "[temp][seed][1245]") {
+    TemperatureStore store;
+    // 0.0 is Klipper's "no data" placeholder — replayed as a real sample it
+    // draws a solid vertical drop to the chart's 0°C floor. 401°C is past the
+    // 4000 deci ceiling add_sample_internal() enforces on live samples.
+    store["extruder"].temperatures = {0.0f, 200.0f, 401.0f, 205.0f};
+    manager_->seed_from_store(store, NOW);
+
+    auto s = manager_->get_samples_since("extruder", 0);
+    REQUIRE(s.size() == 2);
+    for (const auto& sample : s) {
+        REQUIRE(sample.temp_deci > 0);
+        REQUIRE(sample.temp_deci <= 4000);
+    }
+    // Surviving samples keep the timestamp their ORIGINAL index earned, so the
+    // rejected entries leave gaps rather than shifting the trace in time.
+    REQUIRE(s.front().temp_deci == 2000);
+    REQUIRE(s.front().timestamp_ms == NOW - 2000);
+    REQUIRE(s.back().temp_deci == 2050);
+    REQUIRE(s.back().timestamp_ms == NOW);
+}
+
+TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store leaves history alone when all rejected",
+                 "[temp][seed][1245]") {
+    const int64_t local_ts = NOW - 300000;
+    REQUIRE(
+        TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 2000, 0, local_ts));
+
+    TemperatureStore store;
+    store["extruder"].temperatures = {0.0f, 0.0f, 0.0f};
+    manager_->seed_from_store(store, NOW);
+
+    auto s = manager_->get_samples_since("extruder", 0);
+    REQUIRE(s.size() == 1);
+    REQUIRE(s.front().timestamp_ms == local_ts);
+    REQUIRE(s.front().temp_deci == 2000);
 }
 
 // ============================================================================
@@ -195,17 +318,17 @@ TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store caps at HISTORY_SIZE
 
     TemperatureStore store;
     store["extruder"].temperatures = temps;
-    manager_->seed_from_store(store, kNow);
+    manager_->seed_from_store(store, NOW);
 
     REQUIRE(manager_->get_sample_count("extruder") == TemperatureHistoryManager::HISTORY_SIZE);
 
     auto s = manager_->get_samples("extruder");
     REQUIRE(s.size() == static_cast<size_t>(TemperatureHistoryManager::HISTORY_SIZE));
 
-    // Newest kept == kNow; oldest kept dropped the first 100 synthesized points.
-    REQUIRE(s.back().timestamp_ms == kNow);
+    // Newest kept == NOW; oldest kept dropped the first 100 synthesized points.
+    REQUIRE(s.back().timestamp_ms == NOW);
     REQUIRE(s.front().timestamp_ms ==
-            kNow - static_cast<int64_t>(TemperatureHistoryManager::HISTORY_SIZE - 1) * 1000);
+            NOW - static_cast<int64_t>(TemperatureHistoryManager::HISTORY_SIZE - 1) * 1000);
 
     // Value identity of the retained window: newest is temps.back(), oldest
     // kept is the original index (n - HISTORY_SIZE) == 100.
@@ -219,8 +342,7 @@ TEST_CASE_METHOD(TempStoreSeedTestFixture, "seed_from_store caps at HISTORY_SIZE
 // RPC — mock returns an empty store; direct parse of a populated payload
 // ============================================================================
 
-TEST_CASE("get_temperature_store returns a realistic populated store via mock",
-          "[temp][seed]") {
+TEST_CASE("get_temperature_store returns a realistic populated store via mock", "[temp][seed]") {
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     mock.connect("ws://mock/websocket", []() {}, []() {});
 

@@ -16,7 +16,7 @@ namespace helix::ui {
  * print-status screen is preview" is a single decision with a single place to
  * change it.
  */
-inline constexpr int32_t kPortraitPreviewReservePct = 40;
+inline constexpr int32_t PORTRAIT_PREVIEW_RESERVE_PCT = 40;
 
 /**
  * @brief Vertical space the fan row may occupy, in px. Negative means no room.
@@ -50,7 +50,7 @@ inline constexpr int32_t fan_row_budget(bool portrait, int32_t controls_h, int32
     if (!portrait) {
         return controls_h - used;
     }
-    const int32_t preview_floor = content_h * kPortraitPreviewReservePct / 100;
+    const int32_t preview_floor = content_h * PORTRAIT_PREVIEW_RESERVE_PCT / 100;
     return content_h - preview_floor - used;
 }
 
@@ -70,7 +70,7 @@ inline constexpr int32_t fan_row_budget(bool portrait, int32_t controls_h, int32
  * deliberately the ONLY place the number appears, so retuning the whole
  * behaviour is a one-line edit here.
  */
-inline constexpr int32_t kMaxPreviewAspectPct = 130;
+inline constexpr int32_t MAX_PREVIEW_ASPECT_PCT = 130;
 
 /**
  * @brief Max height for portrait `thumbnail_section`, or 0 for "cannot decide".
@@ -98,7 +98,7 @@ inline constexpr int32_t portrait_preview_card_max_height(int32_t band_w, int32_
     if (band_w <= 0) {
         return 0;
     }
-    return band_w * kMaxPreviewAspectPct / 100 + (chrome_h > 0 ? chrome_h : 0);
+    return band_w * MAX_PREVIEW_ASPECT_PCT / 100 + (chrome_h > 0 ? chrome_h : 0);
 }
 
 /**
@@ -142,7 +142,7 @@ inline constexpr int32_t portrait_preview_slack(int32_t max_h, int32_t avail_h, 
  * the measured outcome of width, chrome and control height, so anything that
  * changes the layout is accounted for without enumerating resolutions.
  */
-inline constexpr int32_t kMinTempGraphHeightPx = 120;
+inline constexpr int32_t MIN_TEMP_GRAPH_HEIGHT_PX = 120;
 
 /**
  * @brief Extra slack the graph must gain before it comes BACK, in px.
@@ -154,7 +154,7 @@ inline constexpr int32_t kMinTempGraphHeightPx = 120;
  * layout parked exactly on the threshold would toggle the graph on every
  * recompute. Asymmetric on purpose — cheap to keep showing, dearer to start.
  */
-inline constexpr int32_t kTempGraphFitHysteresisPx = 8;
+inline constexpr int32_t TEMP_GRAPH_FIT_HYSTERESIS_PX = 8;
 
 /**
  * @brief Does the temperature mini-graph fit in the portrait slack band?
@@ -166,8 +166,8 @@ inline constexpr int32_t kTempGraphFitHysteresisPx = 8;
  *                function of state, not a pure threshold.
  */
 inline constexpr bool portrait_graph_fits(int32_t slack_h, bool shown) {
-    return shown ? slack_h >= kMinTempGraphHeightPx
-                 : slack_h >= kMinTempGraphHeightPx + kTempGraphFitHysteresisPx;
+    return shown ? slack_h >= MIN_TEMP_GRAPH_HEIGHT_PX
+                 : slack_h >= MIN_TEMP_GRAPH_HEIGHT_PX + TEMP_GRAPH_FIT_HYSTERESIS_PX;
 }
 
 /**
@@ -188,7 +188,7 @@ inline constexpr bool portrait_graph_fits(int32_t slack_h, bool shown) {
  * Deliberately the ONLY place the number appears, so retuning the graph's shape
  * is a one-line edit here.
  */
-inline constexpr int32_t kMaxGraphAspectPct = 100;
+inline constexpr int32_t MAX_GRAPH_ASPECT_PCT = 100;
 
 /**
  * @brief Height for the mini-graph inside the slack absorber, 0 = cannot decide.
@@ -201,7 +201,7 @@ inline constexpr int32_t kMaxGraphAspectPct = 100;
  * land.
  *
  * Independent of portrait_graph_fits(): "does a graph belong here at all" is a
- * floor on the slack (kMinTempGraphHeightPx), while this is a ceiling on the
+ * floor on the slack (MIN_TEMP_GRAPH_HEIGHT_PX), while this is a ceiling on the
  * graph. A graph that fits but is capped is the normal ultratall case; a slack
  * under the floor still means hidden, and this returns a height nobody reads.
  *
@@ -215,7 +215,7 @@ inline constexpr int32_t portrait_graph_height(int32_t graph_w, int32_t slack_h)
     if (graph_w <= 0 || slack_h <= 0) {
         return 0;
     }
-    const int32_t cap = graph_w * kMaxGraphAspectPct / 100;
+    const int32_t cap = graph_w * MAX_GRAPH_ASPECT_PCT / 100;
     return slack_h < cap ? slack_h : cap;
 }
 
@@ -232,7 +232,7 @@ inline constexpr int32_t portrait_graph_height(int32_t graph_w, int32_t slack_h)
  * PORTRAIT — controls are the bottom of a stack, so a 44%-wide list anchored
  * right covers the right 44% of *everything* and none of the controls fully.
  * The list goes full width, anchored to the bottom, and is sized in px from the
- * MEASURED control stack. It deliberately does not read kPortraitPreviewReservePct:
+ * MEASURED control stack. It deliberately does not read PORTRAIT_PREVIEW_RESERVE_PCT:
  * that constant answers "how much of the column is preview", which says nothing
  * about how tall a list of objects should be, and borrowing it once already cost
  * the map 40%+ of its tappable area when the controls shrank underneath it.
@@ -251,7 +251,7 @@ struct SideListGeometry {
  * a list that cannot show a single tappable entry is worse than no list — the
  * user gave up the map for nothing.
  */
-inline constexpr int32_t kMinSideListHeightPx = 160;
+inline constexpr int32_t MIN_SIDE_LIST_HEIGHT_PX = 160;
 
 /**
  * @brief Most of the stacked column the list may ever cover, in %.
@@ -260,18 +260,18 @@ inline constexpr int32_t kMinSideListHeightPx = 160;
  * cannot be tapped. This is a backstop on pathological control stacks, not the
  * normal sizing path — in portrait the controls come in far under it.
  */
-inline constexpr int32_t kMaxSideListCoveragePct = 55;
+inline constexpr int32_t MAX_SIDE_LIST_COVERAGE_PCT = 55;
 
 /**
  * @brief Height used when the portrait column has not been measured yet, in %.
  *
- * Deliberately NOT derived from kPortraitPreviewReservePct. Nothing about "how
+ * Deliberately NOT derived from PORTRAIT_PREVIEW_RESERVE_PCT. Nothing about "how
  * much of the screen is preview" tells you how tall a list of objects is; the
  * old coupling is exactly the bug this file now avoids. A caller that reaches
  * this has no measurements at all, so any number is a guess — this one is just
  * a middling guess that leaves the map visible.
  */
-inline constexpr int32_t kPortraitSideListFallbackPct = 50;
+inline constexpr int32_t PORTRAIT_SIDE_LIST_FALLBACK_PCT = 50;
 
 /**
  * @brief Portrait side-list height in px, or 0 when nothing is measurable yet.
@@ -295,10 +295,10 @@ inline constexpr int32_t portrait_side_list_height(int32_t controls_h, int32_t c
     if (controls_h <= 0 || content_h <= 0) {
         return 0;
     }
-    const int32_t ceiling = content_h * kMaxSideListCoveragePct / 100;
+    const int32_t ceiling = content_h * MAX_SIDE_LIST_COVERAGE_PCT / 100;
     // A column too short to honour the floor gets the ceiling: covering the map
     // is still better than a list with nothing in it.
-    const int32_t floor_h = kMinSideListHeightPx < ceiling ? kMinSideListHeightPx : ceiling;
+    const int32_t floor_h = MIN_SIDE_LIST_HEIGHT_PX < ceiling ? MIN_SIDE_LIST_HEIGHT_PX : ceiling;
     const int32_t want = controls_h + (gap > 0 ? gap : 0);
     if (want < floor_h) {
         return floor_h;
@@ -322,7 +322,7 @@ inline constexpr SideListGeometry exclude_side_list_geometry(bool portrait, int3
         // derived, not tuned, and needs no measurement.
         return SideListGeometry{44, 100, 0, false};
     }
-    return SideListGeometry{100, kPortraitSideListFallbackPct,
+    return SideListGeometry{100, PORTRAIT_SIDE_LIST_FALLBACK_PCT,
                             portrait_side_list_height(controls_h, content_h, gap), true};
 }
 

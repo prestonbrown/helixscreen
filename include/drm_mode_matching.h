@@ -33,7 +33,7 @@ struct DrmModeInfo {
 
 /** @brief Sentinel returned when no match / no modes available. */
 struct DrmModeMatch {
-    static constexpr int kNoMatch = -1;
+    static constexpr int NO_MATCH = -1;
 };
 
 /**
@@ -42,7 +42,7 @@ struct DrmModeMatch {
  * Refresh rate is ignored — multiple modes with the same pixel dimensions
  * are common and picking any of them is fine for our purposes.
  *
- * @return Index of matching mode, or DrmModeMatch::kNoMatch if none match
+ * @return Index of matching mode, or DrmModeMatch::NO_MATCH if none match
  *         or the list is empty.
  */
 int find_matching_mode(const std::vector<DrmModeInfo>& modes, uint32_t requested_w,
@@ -52,7 +52,7 @@ int find_matching_mode(const std::vector<DrmModeInfo>& modes, uint32_t requested
  * @brief Find the first mode marked as DRM preferred, falling back to 0.
  *
  * @return Index of preferred mode, 0 if none are marked preferred but the
- *         list is non-empty, or DrmModeMatch::kNoMatch if the list is empty.
+ *         list is non-empty, or DrmModeMatch::NO_MATCH if the list is empty.
  */
 int find_preferred_mode_index(const std::vector<DrmModeInfo>& modes);
 
@@ -66,7 +66,7 @@ int find_preferred_mode_index(const std::vector<DrmModeInfo>& modes);
  * (same pixel count) are broken by refresh rate (higher wins).
  *
  * @param max_axis  Maximum allowed pixels on either axis (e.g. 1920).
- * @return Index of the best downscale candidate, or DrmModeMatch::kNoMatch
+ * @return Index of the best downscale candidate, or DrmModeMatch::NO_MATCH
  *         if no downscaling is needed (preferred mode is within threshold)
  *         or no suitable lower mode exists.
  */

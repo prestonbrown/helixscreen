@@ -1,17 +1,17 @@
 diff --git a/evpp/TcpClient.h b/evpp/TcpClient.h
-index e355b61..aaba644 100644
 --- a/evpp/TcpClient.h
 +++ b/evpp/TcpClient.h
-@@ -1,6 +1,8 @@
+@@ -1,6 +1,9 @@
  #ifndef HV_TCP_CLIENT_HPP_
  #define HV_TCP_CLIENT_HPP_
  
 +#include <atomic>
++#include <mutex>
 +
  #include "hsocket.h"
  #include "hssl.h"
  #include "hlog.h"
-@@ -17,6 +19,7 @@ public:
+@@ -17,6 +20,7 @@
  
      TcpClientEventLoopTmpl(EventLoopPtr loop = NULL) {
          loop_ = loop ? loop : std::make_shared<EventLoop>();
@@ -19,7 +19,20 @@ index e355b61..aaba644 100644
          remote_port = 0;
          connect_timeout = HIO_DEFAULT_CONNECT_TIMEOUT;
          tls = false;
-@@ -56,6 +59,17 @@ public:
+@@ -26,8 +30,11 @@
+     }
+ 
+     virtual ~TcpClientEventLoopTmpl() {
++        {
++            std::lock_guard<std::mutex> lock(reconn_mtx);
++            HV_FREE(reconn_setting);
++        }
+         HV_FREE(tls_setting);
+-        HV_FREE(reconn_setting);
+         HV_FREE(unpack_setting);
+     }
+ 
+@@ -56,6 +63,17 @@
      }
  
      int createsocket(struct sockaddr* remote_addr) {
@@ -37,7 +50,7 @@ index e355b61..aaba644 100644
          int connfd = ::socket(remote_addr->sa_family, SOCK_STREAM, 0);
          // SOCKADDR_PRINT(remote_addr);
          if (connfd < 0) {
-@@ -63,7 +77,7 @@ public:
+@@ -63,10 +81,38 @@
              return -2;
          }
  
@@ -45,26 +58,125 @@ index e355b61..aaba644 100644
 +        hio_t* io = hio_get(hl, connfd);
          assert(io != NULL);
          hio_set_peeraddr(io, remote_addr, SOCKADDR_LEN(remote_addr));
++        // Hand the previous channel to the loop thread to destroy.
++        //
++        // This runs on the CALLER's thread (connect(), or a reconnect retry)
++        // while the loop thread may be inside that same channel's onclose:
++        // hio_close() invokes a std::function that LIVES IN the channel object,
++        // so dropping the last reference here frees the functor out from under
++        // the call. ASan caught it as an 8-byte read of the captured `this` in
++        // startConnect()'s onclose lambda, reached via __connect_timeout_cb ->
++        // hio_close (nightly, test_moonraker_connection_retry). runInLoop() is
++        // queueInLoop, NOT runInLoop: the dangerous case is re-entrant, and
++        // runInLoop() executes inline when it is already on the loop thread
++        // (`if (isRunning() && isInLoopThread()) fn();`), which is precisely when
++        // this happens. onclose calls back into user code synchronously, that
++        // code reconnects, and connect() lands here with the old channel's
++        // onclose still on the stack:
++        //
++        //   hio_close -> channel A onclose -> MoonrakerClient::on_ws_close ->
++        //   connect() -> WebSocketClient::open -> createsocket -> frees A
++        //
++        // and then control returns into A's onclose, which reads its captured
++        // `this` out of freed storage. queueInLoop always defers to the next
++        // loop iteration, so the release cannot land before the stack unwinds.
++        // Same caller-thread-versus-loop-thread family as reconn_setting above,
++        // different member.
++        TSocketChannelPtr prev = channel;
          channel = std::make_shared<TSocketChannel>(io);
-@@ -108,6 +122,17 @@ public:
-             int connfd = createsocket(&remote_addr.sa);
-             if (connfd < 0) {
-                 hloge("createsocket %s:%d return %d!\n", remote_host.c_str(), remote_port, connfd);
-+                // Reschedule instead of dropping the chain. Only channel->onclose
-+                // re-arms the retry timer, and it is installed further down this
-+                // function, so returning here leaves nothing to restart the client:
-+                // one transient ::socket() failure (EMFILE/ENFILE, ENOBUFS under
-+                // memory pressure) killed auto-reconnect permanently. Respects
-+                // max_retry_cnt via reconn_setting_can_retry(). -3 is the
-+                // exception: the event loop is gone, so there is nothing left to
-+                // retry on and re-arming would only churn during shutdown.
-+                if (reconn_setting && connfd != -3) {
-+                    startReconnect();
-+                }
-                 return connfd;
-             }
++        if (prev) {
++            loop_->queueInLoop([prev]() mutable { prev.reset(); });
++        }
+         return connfd;
+     }
+ 
+@@ -103,13 +149,55 @@
          }
-@@ -170,8 +195,14 @@ public:
+     }
+ 
++    // Re-resolve remote_host into remote_addr. open()/createsocket(port,host)
++    // resolves exactly once, and every auto-reconnect retry dials via
++    // createsocket(sockaddr*) — the overload that never resolves — so a
++    // hostname whose IP changed during a network blip (router reboot
++    // re-lease, mesh roaming, mDNS re-announce) was retried at its stale
++    // address forever. Literal IPs short-circuit inside sockaddr_set_ipport
++    // and pay no DNS. On resolution failure the last known address is KEPT:
++    // the retry chain stays armed and dials something, and the next retry
++    // re-resolves — zeroing it out or killing the chain would trade a stale
++    // dial for no dial at all.
++    bool refresh_remote_addr() {
++        if (remote_host.empty()) return false;
++        sockaddr_u addr;
++        memset(&addr, 0, sizeof(addr));
++        if (sockaddr_set_ipport(&addr, remote_host.c_str(), remote_port) != 0) {
++            hlogw("re-resolve %s:%d failed, keep last known address\n",
++                  remote_host.c_str(), remote_port);
++            return false;
++        }
++        memcpy(&remote_addr, &addr, sizeof(addr));
++        return true;
++    }
++
+     int startConnect() {
+         if (channel == NULL || channel->isClosed()) {
++            // Re-resolve on every dial attempt — the retry path must not be
++            // pinned to the address that was current at open() time.
++            refresh_remote_addr();
+             int connfd = createsocket(&remote_addr.sa);
+-            if (connfd < 0) {
+-                hloge("createsocket %s:%d return %d!\n", remote_host.c_str(), remote_port, connfd);
+-                return connfd;
+-            }
++                if (connfd < 0) {
++                    hloge("createsocket %s:%d return %d!\n", remote_host.c_str(), remote_port, connfd);
++                    // Reschedule instead of dropping the chain. Only channel->onclose
++                    // re-arms the retry timer, and it is installed further down this
++                    // function, so returning here leaves nothing to restart the client:
++                    // one transient ::socket() failure (EMFILE/ENFILE, ENOBUFS under
++                    // memory pressure) killed auto-reconnect permanently. Respects
++                    // max_retry_cnt via reconn_setting_can_retry(). -3 is the
++                    // exception: the event loop is gone, so there is nothing left to
++                    // retry on and re-arming would only churn during shutdown.
++                    bool retry;
++                    {
++                        std::lock_guard<std::mutex> lock(reconn_mtx);
++                        retry = reconn_setting && connfd != -3;
++                    }
++                    if (retry) {
++                        startReconnect();
++                    }
++                    return connfd;
++                }
+         }
+         if (channel == NULL || channel->status >= SocketChannel::CONNECTING) {
+             return -1;
+@@ -139,6 +227,7 @@
+             if (onConnection) {
+                 onConnection(channel);
+             }
++            std::lock_guard<std::mutex> lock(reconn_mtx);
+             if (reconn_setting) {
+                 reconn_setting_reset(reconn_setting);
+             }
+@@ -154,7 +243,11 @@
+             }
+         };
+         channel->onclose = [this]() {
+-            bool reconnect = reconn_setting != NULL;
++            bool reconnect;
++            {
++                std::lock_guard<std::mutex> lock(reconn_mtx);
++                reconnect = reconn_setting != NULL;
++            }
+             if (onConnection) {
+                 onConnection(channel);
+             }
+@@ -166,12 +259,24 @@
+     }
+ 
+     int startReconnect() {
++        std::lock_guard<std::mutex> lock(reconn_mtx);
+         if (!reconn_setting) return -1;
          if (!reconn_setting_can_retry(reconn_setting)) return -2;
          uint32_t delay = reconn_setting_calc_delay(reconn_setting);
          hlogi("reconnect... cnt=%d, delay=%d", reconn_setting->cur_retry_cnt, reconn_setting->cur_delay);
@@ -76,13 +188,20 @@ index e355b61..aaba644 100644
 +            // disconnecting or being destroyed. Reconnecting now resurrects a
 +            // socket on a torn-down client and, once the loop starts stopping,
 +            // faults in createsocket().
-+            if (!reconn_setting) return;
++            bool armed;
++            {
++                std::lock_guard<std::mutex> lock(reconn_mtx);
++                armed = reconn_setting != NULL;
++            }
++            if (!armed) return;
              startConnect();
          });
          return 0;
-@@ -217,6 +248,15 @@ public:
+@@ -216,7 +321,17 @@
+     }
  
      void setReconnect(reconn_setting_t* setting) {
++        std::lock_guard<std::mutex> lock(reconn_mtx);
          if (setting == NULL) {
 +            // Cancel a retry already armed by startReconnect(). Upstream never
 +            // stored the TimerID, so disabling reconnect could not stop a timer
@@ -96,7 +215,15 @@ index e355b61..aaba644 100644
              HV_FREE(reconn_setting);
              return;
          }
-@@ -251,6 +291,10 @@ public:
+@@ -226,6 +341,7 @@
+         *reconn_setting = *setting;
+     }
+     bool isReconnect() {
++        std::lock_guard<std::mutex> lock(reconn_mtx);
+         return reconn_setting && reconn_setting->cur_retry_cnt > 0;
+     }
+ 
+@@ -251,6 +367,20 @@
      hssl_ctx_opt_t*         tls_setting;
      reconn_setting_t*       reconn_setting;
      unpack_setting_t*       unpack_setting;
@@ -104,6 +231,16 @@ index e355b61..aaba644 100644
 +    // cancel it. Written from the loop thread (the timer callback) and the
 +    // caller's thread (setReconnect), hence atomic.
 +    std::atomic<TimerID>    reconn_timer_id;
++
++    // reconn_setting is touched from the caller's thread (setReconnect during
++    // connect) AND the event loop thread (closesocket's runInLoop lambda calls
++    // setReconnect(NULL) -> HV_FREE; the reconnect timer dereferences the
++    // struct). Upstream assumed single-threaded use, so a connect() racing a
++    // close() was a use-after-free on the struct and the pointer (helixscreen
++    // nightly, test_moonraker_client_robustness concurrent-connect). Every
++    // access below takes this mutex; never hold it across a call that re-enters
++    // this class (startConnect/closesocket take it themselves).
++    std::mutex              reconn_mtx;
  
      // Callback
      std::function<void(const TSocketChannelPtr&)>           onConnection;

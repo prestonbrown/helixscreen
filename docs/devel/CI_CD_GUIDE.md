@@ -19,11 +19,15 @@ HelixScreen uses GitHub Actions for continuous integration across multiple platf
 
 - **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 14, Android) plus split unit/shell test jobs
 - **Quality Workflow** (`.github/workflows/quality.yml`) - Code quality checks via shared script
+- **Server Tests** (`.github/workflows/server-tests.yml`) - Cloudflare Worker suites and the analytics dashboard build
 
-Both workflows trigger on:
+These trigger on:
 - Pushes to `main` branch
 - Pushes to branches matching `claude/**` pattern
 - Pull requests to `main` branch
+
+Server Tests additionally filters on `server/**`, so it only runs when server
+code changes.
 
 ## Workflows
 
@@ -88,6 +92,34 @@ jobs:
 **Artifacts:**
 - `helix-screen-ubuntu-22.04` - Ubuntu binary
 - `helix-screen-macos-14` - macOS binary
+
+### Server Tests Workflow
+
+**File:** `.github/workflows/server-tests.yml`
+
+Pure Node; needs neither submodules nor the C++ toolchain, so it runs apart from
+Build and finishes in well under a minute.
+
+| Job | Covers |
+|-----|--------|
+| `crash-worker` / `dl-worker` / `telemetry-worker` (matrix) | `npm ci && npm test` (vitest) |
+| `analytics-dashboard` | `npm run build`, which is `vue-tsc --noEmit && vite build` |
+
+`fail-fast` is off so one red worker does not hide the state of the other two.
+The dashboard job type-checks the SPA, which is what catches a view reading a
+field the worker does not actually return.
+
+**These suites were unwired until 2026-08-15.** The telemetry-worker Dashboard
+block had been red long enough that a comment recording the drift was written
+into the test file itself (`src/__tests__/index.test.ts`). Treat an unwired
+suite as decorative.
+
+**Lockfiles are committed for `server/*` only.** `.gitignore` ignores
+`package-lock.json` repo-wide with a `!server/*/package-lock.json` exception,
+because `npm ci` requires one and floating transitive dependencies would
+otherwise turn CI red with no code change. Regenerate with
+`npm install --package-lock-only` and commit the result alongside any
+`package.json` change.
 
 ### Quality Workflow
 

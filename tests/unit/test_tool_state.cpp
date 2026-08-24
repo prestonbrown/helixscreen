@@ -7,6 +7,7 @@
  */
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/tool_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
@@ -973,6 +974,115 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: assign_spool updates ToolInfo fie
     // T1 should be unaffected
     REQUIRE(tools[1].spoolman_id == 0);
     REQUIRE(tools[1].spool_name.empty());
+
+    ts.deinit_subjects();
+}
+
+// ============================================================================
+// assign_spool change detection.
+//
+// AFC reports lane weight as a continuous float (e.g. 627.685056380799 g) that
+// moves by hundredths on every status update, ~every 10 s. AmsState calls
+// assign_spool from that path and then save_spool_assignments_if_dirty(), so an
+// exact float compare meant each of those updates rewrote tool_spools.json,
+// POSTed the Moonraker DB, logged at info and rebuilt the filament panel. Debug
+// bundle L53W5PKG: 590 times in one session.
+// ============================================================================
+
+namespace {
+
+/// Bring up ToolState with two tools and one assigned spool.
+ToolState& seed_assigned_tool_state() {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"extruder", "extruder1", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    ts.assign_spool(0, 45, "Industry Blue", 627.685056380799f, 1000.0f);
+    helix::ToolStateTestAccess::clear_spool_dirty(ts);
+    return ts;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: sub-gram weight drift is not a change",
+                 "[tool][tool-state][spool][regression]") {
+    auto& ts = seed_assigned_tool_state();
+    const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
+
+    // The exact shape from the bundle: a few hundredths of a gram, repeatedly.
+    ts.assign_spool(0, 45, "Industry Blue", 627.63f, 1000.0f);
+    ts.assign_spool(0, 45, "Industry Blue", 627.58f, 1000.0f);
+    ts.assign_spool(0, 45, "Industry Blue", 627.51f, 1000.0f);
+
+    CHECK(lv_subject_get_int(ts.get_tools_version_subject()) == version_before);
+    CHECK_FALSE(helix::ToolStateTestAccess::spool_dirty(ts));
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: crossing a gram boundary updates the UI",
+                 "[tool][tool-state][spool]") {
+    // The debounce must not swallow real consumption — whole grams are what the
+    // UI renders, so that is the resolution downstream can observe.
+    auto& ts = seed_assigned_tool_state();
+    const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
+
+    ts.assign_spool(0, 45, "Industry Blue", 626.2f, 1000.0f);
+
+    CHECK(lv_subject_get_int(ts.get_tools_version_subject()) > version_before);
+    CHECK(ts.tools()[0].remaining_weight_g == 626.2f);
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: weight-only change does not trigger a save",
+                 "[tool][tool-state][spool][regression]") {
+    // Weights are a cache refreshed from AFC/Spoolman seconds after startup; the
+    // durable half of the record is which spool is on which tool. Persisting on
+    // every gram consumed writes flash and POSTs the Moonraker DB throughout a
+    // print for data that is thrown away on the next connect.
+    auto& ts = seed_assigned_tool_state();
+
+    ts.assign_spool(0, 45, "Industry Blue", 500.0f, 1000.0f);
+    CHECK_FALSE(helix::ToolStateTestAccess::spool_dirty(ts));
+
+    SECTION("but an identity change does") {
+        ts.assign_spool(0, 44, "Dark Teal", 500.0f, 1000.0f);
+        CHECK(helix::ToolStateTestAccess::spool_dirty(ts));
+    }
+
+    SECTION("and so does a rename of the same spool id") {
+        ts.assign_spool(0, 45, "Industry Blue v2", 500.0f, 1000.0f);
+        CHECK(helix::ToolStateTestAccess::spool_dirty(ts));
+    }
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: drift does not accumulate past a boundary",
+                 "[tool][tool-state][spool][regression]") {
+    // Each report is compared against the last STORED value, so a long series of
+    // sub-gram steps still fires when it crosses a gram — neither never (the
+    // displayed weight would silently freeze) nor once per report.
+    auto& ts = seed_assigned_tool_state();
+    const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
+
+    float w = 627.685056380799f;
+    for (int i = 0; i < 40; ++i) {
+        w -= 0.05f; // 40 steps = 2 g, i.e. two boundaries
+        ts.assign_spool(0, 45, "Industry Blue", w, 1000.0f);
+    }
+
+    const int bumps = lv_subject_get_int(ts.get_tools_version_subject()) - version_before;
+    INFO("version bumps for a 2 g slide: " << bumps);
+    CHECK(bumps >= 1);
+    CHECK(bumps <= 3); // one per gram crossed, not one per report
 
     ts.deinit_subjects();
 }

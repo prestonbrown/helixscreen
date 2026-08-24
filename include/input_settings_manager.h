@@ -68,6 +68,26 @@ class InputSettingsManager {
      */
     void set_scroll_limit(int value);
 
+    /**
+     * @brief Get the long-press hold time (ms) applied globally to the pointer
+     *        input device. Governs every long-press in the app (home grid edit
+     *        mode, file-card delete, macro edit, etc.), not just edit mode.
+     * @return Hold time in ms (300-1500; default 500)
+     */
+    int get_long_press_time() const;
+
+    /**
+     * @brief Set the global long-press hold time.
+     *
+     * Persists to config and applies LIVE (no restart): the filer's #1245
+     * report was that 500ms is easy to cross with a resting tablet finger, so
+     * this lets the user raise it. Reaches DisplayManager's pointer indev
+     * directly via lv_indev_set_long_press_time.
+     *
+     * @param value Hold time in ms (300-1500)
+     */
+    void set_long_press_time(int value);
+
     /** @brief Get jitter threshold in pixels (0-30; 0 disables) */
     int get_jitter_threshold() const;
 
@@ -102,6 +122,23 @@ class InputSettingsManager {
     void set_debug_touches(bool enabled);
 
     /**
+     * @brief Get whether home-screen edit mode (long-press to rearrange) is
+     *        allowed. When false, the long-press is suppressed entirely —
+     *        the #1245 report was that edit mode triggers by accident with a
+     *        resting finger, and this is the hard kill-switch for it.
+     * @return true if edit mode is enabled (default)
+     */
+    bool get_home_edit_mode_enabled() const;
+
+    /**
+     * @brief Enable/disable home-screen edit mode entirely.
+     *
+     * Persists to config and applies LIVE (no restart): should_suppress_edit_mode
+     * checks this on every long-press.
+     */
+    void set_home_edit_mode_enabled(bool enabled);
+
+    /**
      * @brief Check if restart is pending due to settings changes
      * @return true if settings changed that require restart
      */
@@ -130,6 +167,11 @@ class InputSettingsManager {
         return &scroll_limit_subject_;
     }
 
+    /** @brief Long-press time subject (integer ms: 300-1500) */
+    lv_subject_t* subject_long_press_time() {
+        return &long_press_time_subject_;
+    }
+
     /** @brief Jitter threshold subject (integer: 0-30) */
     lv_subject_t* subject_jitter_threshold() {
         return &jitter_threshold_subject_;
@@ -145,6 +187,11 @@ class InputSettingsManager {
         return &debug_touches_subject_;
     }
 
+    /** @brief Home edit mode enabled subject (integer: 0 or 1) */
+    lv_subject_t* subject_home_edit_mode_enabled() {
+        return &home_edit_mode_enabled_subject_;
+    }
+
   private:
     InputSettingsManager();
     ~InputSettingsManager() = default;
@@ -153,9 +200,11 @@ class InputSettingsManager {
 
     lv_subject_t scroll_throw_subject_;
     lv_subject_t scroll_limit_subject_;
+    lv_subject_t long_press_time_subject_;
     lv_subject_t jitter_threshold_subject_;
     lv_subject_t scroll_guard_subject_;
     lv_subject_t debug_touches_subject_;
+    lv_subject_t home_edit_mode_enabled_subject_;
 
     bool subjects_initialized_ = false;
     bool restart_pending_ = false;

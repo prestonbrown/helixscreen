@@ -48,15 +48,6 @@ std::vector<std::string> MoonrakerConfigManager::list_sections(const std::string
     return sections;
 }
 
-bool MoonrakerConfigManager::defines_all_sections(const std::string& content,
-                                                  const std::vector<std::string>& required) {
-    for (const auto& name : required) {
-        if (!has_section(content, name))
-            return false;
-    }
-    return true;
-}
-
 int MoonrakerConfigManager::select_primary_config_index(
     const std::vector<LoadedConfigFile>& files) {
     // Moonraker's root config is the file defining [server].
@@ -77,11 +68,28 @@ int MoonrakerConfigManager::select_primary_config_index(
     return -1;
 }
 
+int MoonrakerConfigManager::select_root_config_index(const std::vector<LoadedConfigFile>& files) {
+    // Moonraker records the file it was pointed at before descending into that
+    // file's includes, so the chain always arrives root-first. Section contents
+    // are deliberately not consulted: on COSMOS the root defines nothing at all,
+    // and picking by [server] is precisely what selects the vendor file.
+    for (size_t i = 0; i < files.size(); ++i) {
+        if (!files[i].filename.empty())
+            return static_cast<int>(i);
+    }
+    return -1;
+}
+
 std::vector<size_t>
 MoonrakerConfigManager::find_files_defining_section(const std::vector<LoadedConfigFile>& files,
                                                     const std::string& section_name) {
     std::vector<size_t> hits;
     for (size_t i = 0; i < files.size(); ++i) {
+        // A hit we cannot name is a hit we cannot address. Both index selectors above
+        // skip these; returning one here would hand the caller a write target with no
+        // path, and the in-place branch has no other source for one.
+        if (files[i].filename.empty())
+            continue;
         for (const auto& s : files[i].sections) {
             if (s == section_name) {
                 hits.push_back(i);
@@ -92,20 +100,63 @@ MoonrakerConfigManager::find_files_defining_section(const std::vector<LoadedConf
     return hits;
 }
 
+SectionMatchResult
+MoonrakerConfigManager::classify_section_match(const std::string& content,
+                                               const std::vector<std::string>& required) {
+    SectionMatchResult r;
+    r.total = required.size();
+    for (const auto& name : required) {
+        if (has_section(content, name))
+            ++r.matched;
+        else
+            r.missing.push_back(name);
+    }
+    // An empty required list matches vacuously rather than dividing by zero.
+    if (r.matched == r.total)
+        r.verdict = SectionMatch::Match;
+    else if (r.missing.size() <= drift_tolerance(r.total))
+        r.verdict = SectionMatch::Drifted;
+    else
+        r.verdict = SectionMatch::Mismatch;
+    return r;
+}
+
 ConfigPathInfo
-MoonrakerConfigManager::config_path_from_relative(const std::string& relative_filename) {
+MoonrakerConfigManager::config_path_from_relative(const std::string& filename,
+                                                  const std::string& config_root_abs) {
     ConfigPathInfo info;
-    std::string rel = trim(relative_filename);
+    std::string rel = trim(filename);
 
     if (rel.empty()) {
         info.error = "Moonraker did not report the name of its configuration file.";
         return info;
     }
     if (rel[0] == '/') {
-        info.error = "Moonraker loads its config from the absolute path " + rel +
-                     ", which is outside the writable config directory. HelixScreen cannot "
-                     "edit it remotely — add the [spoolman] section by hand.";
-        return info;
+        // Moonraker falls back to the full absolute path for any file outside the root
+        // config's own directory. Such a file is still reachable when it happens to sit
+        // under the file manager's config root, so strip that root and carry on through
+        // the relative logic below — which keeps the `..` and subdir handling.
+        std::string root = trim(config_root_abs);
+        while (root.size() > 1 && root.back() == '/')
+            root.pop_back();
+        // The prefix must end on a path component boundary, or ".../config" would
+        // swallow ".../config_backup/x.conf".
+        const std::string prefix = (root == "/") ? root : root + "/";
+
+        if (root.empty() || rel.compare(0, prefix.size(), prefix) != 0) {
+            info.error = "Moonraker loads its config from the absolute path " + rel +
+                         ", which is outside the writable config directory. HelixScreen cannot "
+                         "edit it remotely — add the [spoolman] section by hand.";
+            return info;
+        }
+
+        const std::string absolute = rel;
+        rel = rel.substr(prefix.size());
+        if (rel.empty()) {
+            // The root directory itself, not a file inside it.
+            info.error = "Moonraker reported a config path with no file name (" + absolute + ").";
+            return info;
+        }
     }
     // ".." would escape the config root; the file API rejects it and so do we.
     if (rel.find("..") != std::string::npos) {
@@ -131,6 +182,98 @@ MoonrakerConfigManager::config_path_from_relative(const std::string& relative_fi
 
     info.uploadable = true;
     return info;
+}
+
+std::vector<std::string>
+MoonrakerConfigManager::candidate_config_paths(const std::string& reported_filename,
+                                               const std::string& config_root_abs) {
+    std::vector<std::string> out;
+
+    const std::string reported = trim(reported_filename);
+    if (reported.empty())
+        return out;
+    // A traversal is discarded whole rather than sanitised: there is no reading of
+    // ".." that we want to turn into a path we then write to.
+    if (reported.find("..") != std::string::npos)
+        return out;
+
+    auto add = [&out](const std::string& candidate) {
+        if (candidate.empty() || candidate.front() == '/')
+            return;
+        if (std::find(out.begin(), out.end(), candidate) == out.end())
+            out.push_back(candidate);
+    };
+
+    // Case 1: already the relative form the file API wants.
+    if (reported.front() != '/') {
+        add(reported);
+        return out;
+    }
+
+    // Case 2: absolute, and inside the file manager's config root.
+    std::string root = trim(config_root_abs);
+    while (root.size() > 1 && root.back() == '/')
+        root.pop_back();
+
+    std::string abs = reported;
+    while (abs.size() > 1 && abs.back() == '/')
+        abs.pop_back();
+    if (!root.empty() && abs == root)
+        return out; // the config root directory itself, not a file inside it
+
+    if (!root.empty()) {
+        // The prefix must end on a component boundary, or ".../config" would
+        // swallow ".../config_backup/x.conf".
+        const std::string prefix = (root == "/") ? root : root + "/";
+        if (reported.compare(0, prefix.size(), prefix) == 0) {
+            add(reported.substr(prefix.size()));
+            return out;
+        }
+    }
+
+    // Case 3: absolute and outside the root. Moonraker may still be naming a file
+    // the file manager serves under a different tree (AD5M). The tail after the
+    // last "config/" component is the strongest guess, the basename the weakest.
+    const std::string marker = "/config/";
+    const size_t last = reported.rfind(marker);
+    if (last != std::string::npos)
+        add(reported.substr(last + marker.size()));
+
+    const size_t slash = reported.rfind('/');
+    if (slash != std::string::npos)
+        add(reported.substr(slash + 1));
+
+    return out;
+}
+
+bool MoonrakerConfigManager::candidates_are_speculative(const std::string& reported_filename,
+                                                        const std::string& config_root_abs) {
+    const std::string reported = trim(reported_filename);
+
+    // Nothing to grade: candidate_config_paths() returns an empty list for these, so
+    // there is no candidate whose trustworthiness the caller could be asking about.
+    if (reported.empty() || reported.find("..") != std::string::npos)
+        return false;
+
+    // Case 1: already relative — the file API takes it verbatim. Not a guess.
+    if (reported.front() != '/')
+        return false;
+
+    std::string root = trim(config_root_abs);
+    while (root.size() > 1 && root.back() == '/')
+        root.pop_back();
+    if (root.empty())
+        return true; // no root to strip against, so the tail is all we have
+
+    std::string abs = reported;
+    while (abs.size() > 1 && abs.back() == '/')
+        abs.pop_back();
+    if (abs == root)
+        return false; // the root directory itself yields no candidates at all
+
+    // Case 2: the root demonstrably contains it — the strip is derived, not guessed.
+    const std::string prefix = (root == "/") ? root : root + "/";
+    return reported.compare(0, prefix.size(), prefix) != 0;
 }
 
 std::string
@@ -373,15 +516,17 @@ std::string MoonrakerConfigManager::remove_section(const std::string& content,
     return result;
 }
 
-bool MoonrakerConfigManager::has_include_line(const std::string& moonraker_content) {
-    return has_section(moonraker_content, "include helixscreen.conf");
+bool MoonrakerConfigManager::has_include_line(const std::string& moonraker_content,
+                                              const std::string& include_target) {
+    return has_section(moonraker_content, "include " + include_target);
 }
 
-std::string MoonrakerConfigManager::add_include_line(const std::string& moonraker_content) {
-    if (has_include_line(moonraker_content))
+std::string MoonrakerConfigManager::add_include_line(const std::string& moonraker_content,
+                                                     const std::string& include_target) {
+    if (has_include_line(moonraker_content, include_target))
         return moonraker_content;
 
-    const std::string include_block = "[include helixscreen.conf]\n\n";
+    const std::string include_block = "[include " + include_target + "]\n\n";
 
     // Find the first non-comment section header and insert before it
     std::istringstream stream(moonraker_content);

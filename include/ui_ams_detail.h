@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_ams_context_menu.h"
 #include "ui_ams_slot_layout.h"
 
 #include "lvgl/lvgl.h"
@@ -124,3 +125,32 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
  * @param unit_index Unit whose env state to show; -1 (whole/single-unit) maps to unit 0
  */
 void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index);
+
+namespace helix {
+namespace ui {
+
+/**
+ * @brief Dispatch the context-menu actions that are pure backend calls
+ *
+ * AmsPanel and AmsOverviewPanel each wire their own AmsContextMenu action
+ * callback, and the two switches drifted: Overview was missing EJECT,
+ * SELECT_GATE, CHECK_GATE and CLEAR_SPOOL entirely, so those fell through its
+ * `default:` and were swallowed without a toast or a log line. Multi-unit
+ * setups render the Overview, so every AFC user with two units had a dead
+ * Eject button (prestonbrown/helixscreen#1258).
+ *
+ * These five actions need nothing from the owning panel except the path canvas,
+ * so they live here rather than in either panel. Panel-specific actions (EDIT,
+ * SPOOLMAN, SCAN_QR, LOAD/UNLOAD's sidebar routing) stay with their panel —
+ * they open panel-owned modals and have no single shared form.
+ *
+ * @param action      Menu action to dispatch
+ * @param slot        Slot index the menu was opened for
+ * @param path_canvas Filament path canvas to flip into eject mode, or nullptr
+ * @return true if @p action was handled here; false if the caller must handle it
+ */
+bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
+                                 lv_obj_t* path_canvas);
+
+} // namespace ui
+} // namespace helix

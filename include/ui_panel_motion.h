@@ -20,7 +20,7 @@
 // Jog mode: determines inner/outer ring distances for XY pad and Z buttons
 namespace helix {
 enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
-constexpr int kJogModeCount = 3;
+constexpr int JOG_MODE_COUNT = 3;
 
 // Inner/outer distance pair for each mode
 struct JogModeDistances {
@@ -37,10 +37,10 @@ inline const JogModeDistances& get_jog_mode_distances(JogMode mode) {
         {1.0f, 10.0f, "1", "10"},
         {10.0f, 50.0f, "10", "50"},
     };
-    static_assert(sizeof(modes) / sizeof(modes[0]) == kJogModeCount,
-                  "modes[] size must match kJogModeCount");
+    static_assert(sizeof(modes) / sizeof(modes[0]) == JOG_MODE_COUNT,
+                  "modes[] size must match JOG_MODE_COUNT");
     int idx = static_cast<int>(mode);
-    if (idx < 0 || idx >= kJogModeCount)
+    if (idx < 0 || idx >= JOG_MODE_COUNT)
         idx = 1; // default Coarse
     return modes[idx];
 }
@@ -48,7 +48,7 @@ inline const JogModeDistances& get_jog_mode_distances(JogMode mode) {
 inline const char* jog_mode_name(JogMode mode) {
     static const char* names[] = {"Fine", "Coarse", "Turbo"};
     int idx = static_cast<int>(mode);
-    if (idx < 0 || idx >= kJogModeCount)
+    if (idx < 0 || idx >= JOG_MODE_COUNT)
         return "Unknown";
     return names[idx];
 }

@@ -36,7 +36,7 @@
 namespace helix {
 class Config;
 }
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix::ui {
 class MacroEnhanceWizard;
 }
@@ -60,9 +60,9 @@ class MacroModificationManager {
     /**
      * @brief Construct manager
      * @param config Config instance for persistence
-     * @param api MoonrakerAPI for macro operations
+     * @param api IMoonrakerAPI for macro operations
      */
-    MacroModificationManager(Config* config, MoonrakerAPI* api);
+    MacroModificationManager(Config* config, IMoonrakerAPI* api);
     ~MacroModificationManager();
 
     // Non-copyable
@@ -131,7 +131,7 @@ class MacroModificationManager {
   private:
     // === Dependencies ===
     Config* config_ = nullptr;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // === State ===
     PrintStartAnalyzer analyzer_;

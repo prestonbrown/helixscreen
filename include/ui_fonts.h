@@ -11,12 +11,20 @@
 LV_FONT_DECLARE(mdi_icons_128); // Oversized hero icons (XXLARGE displays)
 LV_FONT_DECLARE(mdi_icons_96);  // Large hero icons (XXLARGE displays)
 LV_FONT_DECLARE(mdi_icons_80);  // Large hero icons (XLARGE displays)
-LV_FONT_DECLARE(mdi_icons_64);  // Navigation bar icons
-LV_FONT_DECLARE(mdi_icons_48);  // Status card icons (large displays)
-LV_FONT_DECLARE(mdi_icons_32);  // Status card icons (small displays)
-LV_FONT_DECLARE(mdi_icons_24);  // General UI icons (tiny displays)
-LV_FONT_DECLARE(mdi_icons_16);  // Metadata icons (small inline)
-LV_FONT_DECLARE(mdi_icons_14);  // Metadata icons (small inline for tiny)
+// mdi_icons_16/24/32/48/64 are declared non-const (not LV_FONT_DECLARE) because
+// on embedded targets (ESP32) their glyph data is loaded from a runtime .bin
+// and struct-copied into these symbols at boot (see
+// firmware/helixscreen-esp32/main/font_registration.c). Desktop still
+// compiles them from assets/fonts/*.c — now emitted non-const to match, a
+// small .rodata->.data move. This de-const covers exactly the medium-tier
+// faces moved to runtime .bin (Plan A); do NOT widen it to faces that stay
+// compiled (80/96/128/14).
+extern lv_font_t mdi_icons_64; // Navigation bar icons
+extern lv_font_t mdi_icons_48; // Status card icons (large displays)
+extern lv_font_t mdi_icons_32; // Status card icons (small displays)
+extern lv_font_t mdi_icons_24; // General UI icons (tiny displays)
+extern lv_font_t mdi_icons_16; // Metadata icons (small inline)
+LV_FONT_DECLARE(mdi_icons_14); // Metadata icons (small inline for tiny)
 
 // Noto Sans - Regular weight with extended Unicode (©®™€£¥°±•…)
 // Declared mutable (not const) so CjkFontManager can set fallback pointers at runtime
@@ -58,7 +66,11 @@ extern lv_font_t noto_sans_bold_40;
 LV_FONT_DECLARE(source_code_pro_8);
 LV_FONT_DECLARE(source_code_pro_10);
 LV_FONT_DECLARE(source_code_pro_12);
-LV_FONT_DECLARE(source_code_pro_14);
+// source_code_pro_14 is non-const (not LV_FONT_DECLARE): on embedded targets
+// (ESP32) it is moved to a runtime .bin and struct-copied into this symbol at
+// boot (firmware/helixscreen-esp32/main/font_registration.c). Desktop compiles
+// it from assets/fonts/source_code_pro_14.c, now emitted non-const to match.
+extern lv_font_t source_code_pro_14;
 LV_FONT_DECLARE(source_code_pro_16);
 LV_FONT_DECLARE(source_code_pro_18);
 LV_FONT_DECLARE(source_code_pro_20);

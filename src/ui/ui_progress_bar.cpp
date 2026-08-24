@@ -34,8 +34,8 @@ void on_progress_bar_draw(lv_event_t* e) {
     int32_t main_stop = static_cast<int32_t>(blend_start * 255.0f);
     int32_t grad_stop = static_cast<int32_t>(fill * 255.0f);
 
-    main_stop = std::clamp(main_stop, 0, 254);
-    grad_stop = std::clamp(grad_stop, main_stop + 1, 255);
+    main_stop = std::clamp<int32_t>(main_stop, 0, 254);
+    grad_stop = std::clamp<int32_t>(grad_stop, main_stop + 1, 255);
 
     // Only update if changed — setting styles during draw triggers invalidation
     int32_t cur_main = lv_obj_get_style_bg_main_stop(bar, LV_PART_INDICATOR);

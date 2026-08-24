@@ -79,6 +79,7 @@ lock-screen        demo lock-screen
 print-status       demo print-status
 print-tune         demo print-tune
 preflight-check    demo preflight-check
+color-mismatch     demo color-mismatch
 runout-modal       demo runout-modal
 camera             demo camera
 "

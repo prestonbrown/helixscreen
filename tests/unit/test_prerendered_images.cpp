@@ -10,13 +10,16 @@
  * use LZ4 compression.
  */
 
+#include "../../include/lvgl_image_writer.h"
 #include "../../include/prerendered_images.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -347,4 +350,92 @@ TEST_CASE("LZ4-compressed prerendered images have valid headers", "[assets][lz4]
             SKIP("No LZ4-compressed printer images found (run 'make gen-all-images')");
         }
     }
+}
+
+// ============================================================================
+// Cache source selection (sharpness)
+// ============================================================================
+
+namespace {
+
+/// Solid-colour ARGB8888 .bin at `printers/prerendered/<stem>-<tier>.bin`.
+void write_tier_bin(const std::filesystem::path& printers_dir, const std::string& stem, int tier,
+                    int px, uint8_t r, uint8_t g, uint8_t b) {
+    std::filesystem::create_directories(printers_dir / "prerendered");
+    std::vector<uint8_t> pixels(static_cast<size_t>(px) * px * 4);
+    for (size_t i = 0; i < pixels.size(); i += 4) {
+        pixels[i + 0] = b; // LVGL ARGB8888 is BGRA in memory
+        pixels[i + 1] = g;
+        pixels[i + 2] = r;
+        pixels[i + 3] = 0xFF;
+    }
+    const std::string path =
+        (printers_dir / "prerendered" / (stem + "-" + std::to_string(tier) + ".bin")).string();
+    REQUIRE(helix::write_lvgl_bin(path, px, px, 0x10, pixels.data(), pixels.size()));
+}
+
+/// Reads the centre pixel of a generated ARGB8888 cache image as {r,g,b}.
+std::array<uint8_t, 3> centre_rgb(const std::string& bin_path, int w, int h) {
+    std::ifstream f(bin_path, std::ios::binary);
+    REQUIRE(f.good());
+    f.seekg(0, std::ios::end);
+    const auto total = static_cast<size_t>(f.tellg());
+    const size_t pixel_bytes = static_cast<size_t>(w) * h * 4;
+    REQUIRE(total >= pixel_bytes);
+    f.seekg(static_cast<std::streamoff>(total - pixel_bytes)); // skip whatever header precedes
+    std::vector<uint8_t> px(pixel_bytes);
+    f.read(reinterpret_cast<char*>(px.data()), static_cast<std::streamsize>(pixel_bytes));
+    const size_t centre = ((static_cast<size_t>(h) / 2) * w + (static_cast<size_t>(w) / 2)) * 4;
+    return {px[centre + 2], px[centre + 1], px[centre + 0]}; // BGRA -> RGB
+}
+
+} // namespace
+
+// The prerendered tiers are 150px and 300px, but the home widget is far larger on a
+// big display (~667x455 at 1024x600). Enlarging the tier bakes blur into a cache that
+// is then kept forever, while the full-resolution PNG sits unused beside it. These
+// pin which source is chosen, by giving the two sources different colours: red .bin,
+// blue .png. Revert the selection and the upscale case goes red.
+TEST_CASE("Cache larger than the prerendered tier is sourced from the PNG",
+          "[assets][printer][cache]") {
+    const auto tmp =
+        std::filesystem::temp_directory_path() / ("helix_cache_src_" + std::to_string(::getpid()));
+    const auto printers = tmp / "printers";
+    std::filesystem::create_directories(printers);
+
+    write_tier_bin(printers, "testbot", 300, 32, 0xFF, 0x00, 0x00); // RED tier
+    // BLUE full-resolution PNG (512px, larger than the 300px tier). Shipped as a
+    // fixture because the tree vendors stb_image but not stb_image_write, so a test
+    // cannot synthesise a PNG in-process.
+    // Repo-root-relative, matching the convention in test_filament_catalog.cpp; the
+    // suite is run from the repo root.
+    const std::filesystem::path fixture = "tests/fixtures/printer_images/blue_source.png";
+    REQUIRE(std::filesystem::exists(fixture));
+    std::filesystem::copy_file(fixture, printers / "testbot.png",
+                               std::filesystem::copy_options::overwrite_existing);
+
+    const std::string tier_bin = (printers / "prerendered" / "testbot-300.bin").string();
+
+    SECTION("upscaling past the tier uses the PNG") {
+        const std::string out = (tmp / "big.bin").string();
+        REQUIRE(generate_cached_printer_image(tier_bin, 640, 640, out));
+        const auto rgb = centre_rgb(out, 640, 640);
+        INFO("expected blue (from the PNG), got r=" << +rgb[0] << " g=" << +rgb[1]
+                                                    << " b=" << +rgb[2]);
+        CHECK(rgb[2] > 0xA0); // blue dominant
+        CHECK(rgb[0] < 0x60);
+    }
+
+    SECTION("downscaling still uses the cheaper prerendered tier") {
+        const std::string out = (tmp / "small.bin").string();
+        REQUIRE(generate_cached_printer_image(tier_bin, 100, 100, out));
+        const auto rgb = centre_rgb(out, 100, 100);
+        INFO("expected red (from the .bin), got r=" << +rgb[0] << " g=" << +rgb[1]
+                                                    << " b=" << +rgb[2]);
+        CHECK(rgb[0] > 0xA0); // red dominant
+        CHECK(rgb[2] < 0x60);
+    }
+
+    std::error_code ec;
+    std::filesystem::remove_all(tmp, ec);
 }

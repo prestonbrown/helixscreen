@@ -17,9 +17,11 @@
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "filament_sensor_manager.h"
+#include "helix_plugin_installer.h"
+#include "host_identity.h"
 #include "hv/requests.h"
+#include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_types.h"
 #include "panel_widget_config.h"
@@ -291,6 +293,20 @@ static std::string sha256_hex(const std::string& input) {
 TelemetryManager& TelemetryManager::instance() {
     static TelemetryManager inst;
     return inst;
+}
+
+std::optional<bool>
+TelemetryManager::classify_moonraker_locality(const std::string& websocket_url) {
+    if (websocket_url.empty()) {
+        return std::nullopt;
+    }
+
+    const std::string host = helix::extract_host_from_websocket_url(websocket_url);
+    if (host.empty()) {
+        return std::nullopt;
+    }
+
+    return helix::is_moonraker_on_same_host(host);
 }
 
 TelemetryManager::~TelemetryManager() {
@@ -1974,6 +1990,16 @@ nlohmann::json TelemetryManager::build_hardware_profile_event() const {
             }
         }
 
+        // ---- Moonraker topology ----
+        // Whether HelixScreen runs on the printer or drives it over the network.
+        // Omitted, never guessed, when no URL is known: absent has to stay
+        // distinguishable from a measured "remote".
+        if (auto* topology_api = get_moonraker_api()) {
+            if (auto is_local = classify_moonraker_locality(topology_api->get_websocket_url())) {
+                event["moonraker_is_local"] = *is_local;
+            }
+        }
+
         auto* client = get_moonraker_client();
         if (client) {
             const auto& hw = client->hardware();
@@ -1994,7 +2020,7 @@ nlohmann::json TelemetryManager::build_hardware_profile_event() const {
             event["mcus"] = mcus;
 
             // ---- build_volume section ----
-            // Read from MoonrakerAPI (not client) because set_build_volume()
+            // Read from IMoonrakerAPI (not client) because set_build_volume()
             // updates api->hardware(), not the discovery sequence's copy
             auto* api = get_moonraker_api();
             const auto& bv = api ? api->hardware().build_volume() : hw.build_volume();
@@ -2977,6 +3003,11 @@ void TelemetryManager::load_snapshot_state() {
 namespace {
 
 /// Tracks the previous print state to detect transitions to terminal states
+// RAW_PRINT_STATE_OK: telemetry classifies the printer's own transitions.
+// FIRST-TICK: seeded to STANDBY, so connecting to an already-running printer
+// reads as one STANDBY -> PRINTING edge and resets the phase tracker. Harmless -
+// nothing has been collected at that point - but do not copy the pattern into a
+// site where a false first edge would discard data.
 PrintJobState s_telemetry_prev_state = PrintJobState::STANDBY;
 
 /// Guards against false completion on startup (first update may be stale)
@@ -2995,6 +3026,8 @@ float s_telemetry_filament_used_mm = 0.0f;
 /// Observer callback for print state transitions (telemetry recording)
 void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
+    // PRINT_STATE_CAST_OK: `subject` IS print_state_enum. Telemetry's terminal
+    // classification is deliberately on the wire.
     auto current = static_cast<PrintJobState>(lv_subject_get_int(subject));
 
     // Publish to off-main memory_warning context (relaxed: telemetry only).
@@ -3020,6 +3053,11 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         s_telemetry_max_phase = phase;
     }
 
+    // RAW_PRINT_STATE_OK: load-bearing. On the wire this is one reset at the
+    // real start (STANDBY -> PRINTING). On the lifecycle it becomes
+    // Idle -> Preparing -> Printing, so the reset would fire at
+    // Preparing -> Printing and WIPE the pre-print phase data this tracker
+    // exists to collect.
     // When a new print starts (transition to PRINTING from non-PAUSED), reset tracking
     if (current == PrintJobState::PRINTING && s_telemetry_prev_state != PrintJobState::PAUSED) {
         s_telemetry_max_phase = 0;
@@ -3086,6 +3124,9 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         }
     }
 
+    // RAW_PRINT_STATE_OK: terminal-outcome classification is about what the
+    // printer reported, and a preparing job that never confirms is retired by
+    // PrinterPrintState rather than ending here.
     // Detect transitions from active (PRINTING/PAUSED) to terminal states
     bool was_active = (s_telemetry_prev_state == PrintJobState::PRINTING ||
                        s_telemetry_prev_state == PrintJobState::PAUSED);
@@ -3145,6 +3186,7 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
 ObserverGuard TelemetryManager::init_print_outcome_observer() {
     // Reset state tracking on (re)initialization
     s_telemetry_first_update = false;
+    // RAW_PRINT_STATE_OK: re-seed on disconnect; see the declaration.
     s_telemetry_prev_state = PrintJobState::STANDBY;
     s_telemetry_max_phase = 0;
     s_telemetry_filament_type.clear();

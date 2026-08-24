@@ -37,6 +37,7 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -172,7 +173,7 @@ TEST_CASE_METHOD(ExecuteGcodeFixture,
     // (idle_timeout "Printing" without a file print) is what routes into it.
     lv_subject_set_int(state.get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
-    lv_subject_set_int(state.get_idle_timeout_printing_subject(), 1);
+    helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
 
     api->execute_gcode("M106 S128", nullptr, nullptr);
 

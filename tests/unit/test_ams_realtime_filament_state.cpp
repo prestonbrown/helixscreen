@@ -22,9 +22,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 
-#include <chrono>
 #include <memory>
-#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -78,18 +76,20 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK_FALSE(backend.slot_is_actively_loaded(1));
         CHECK_FALSE(backend.slot_is_actively_loaded(2));
 
-        // After an unload completes, no slot is actively loaded.
+        // After an unload completes, no slot is actively loaded. The mock
+        // finishes the op on its own thread, so poll for it: a fixed sleep is a
+        // bet that the thread got scheduled inside the window, and on a
+        // saturated box it does not (seen failing at load average 94, passing
+        // 11/11 when the box was quiet).
         backend.unload_active_filament();
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        REQUIRE_FALSE(backend.is_filament_loaded());
+        REQUIRE(wait_until([&] { return !backend.is_filament_loaded(); }));
         for (int i = 0; i < 4; ++i) {
             CHECK_FALSE(backend.slot_is_actively_loaded(i));
         }
 
         // Load slot 1 → it becomes the actively-loaded slot.
         backend.load_filament(1);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        REQUIRE(backend.is_filament_loaded());
+        REQUIRE(wait_until([&] { return backend.is_filament_loaded(); }));
         REQUIRE(backend.get_current_slot() == 1);
         CHECK(backend.slot_is_actively_loaded(1));
         CHECK_FALSE(backend.slot_is_actively_loaded(0));
@@ -379,7 +379,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot fill subject on s
     // slot 1: empty lane → 0 (not present).
     mock_ptr->force_slot_status(1, SlotStatus::EMPTY);
 
-    // slot 2: present, metadata only (no usable weights) → 50% fallback (#1071).
+    // slot 2: present, metadata only (no usable weights) → full fallback.
     mock_ptr->force_slot_status(2, SlotStatus::AVAILABLE);
     SlotInfo s2;
     s2.slot_index = 2;
@@ -399,7 +399,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot fill subject on s
 
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 50);
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(1)) == 0);
-    CHECK(lv_subject_get_int(ams.get_slot_fill_subject(2)) == 50);
+    CHECK(lv_subject_get_int(ams.get_slot_fill_subject(2)) == 100);
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(3)) == -1);
 
     // Out-of-range → nullptr.
@@ -440,9 +440,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS op-card color matches the loaded slot's c
         mock_ptr->set_slot_info(i, slot);
     }
 
-    // Load slot 1 (a non-zero, non-first slot to expose +1 indexing).
+    // Load slot 1 (a non-zero, non-first slot to expose +1 indexing). The mock
+    // constructs with slot 0 already loaded, so is_filament_loaded() is true
+    // before this load even starts -- polling on it returns on the first
+    // evaluation and leaves the assertion below racing the operation thread,
+    // which has not yet published the new slot. Join the thread and read the
+    // settled state instead.
     mock_ptr->load_filament(1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    mock_ptr->wait_for_operation_thread();
     REQUIRE(mock_ptr->is_filament_loaded());
     REQUIRE(mock_ptr->get_current_slot() == 1);
 

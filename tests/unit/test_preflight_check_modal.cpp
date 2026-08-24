@@ -1,8 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "preflight_validator.h"
 #include "ui_preflight_check_modal.h"
+
+#include "preflight_validator.h"
 
 // LVGLUITestFixture registers ALL XML components (via
 // helix::register_xml_components()), including preflight_check_modal.xml and
@@ -29,8 +30,8 @@
 
 namespace {
 
-helix::ToolCheck make_check(int tool, uint32_t color, const char* material, int slot,
-                            bool present, helix::ToolCheck::Severity sev) {
+helix::ToolCheck make_check(int tool, uint32_t color, const char* material, int slot, bool present,
+                            helix::ToolCheck::Severity sev) {
     helix::ToolCheck c;
     c.tool_index = tool;
     c.intended_color = color;

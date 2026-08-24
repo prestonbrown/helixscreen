@@ -28,9 +28,15 @@ struct PreflightResult {
 
 class PreflightValidator {
   public:
+    /**
+     * @param bypass_active Filament is being fed from the bypass / external spool
+     *        rather than the slot system, so no tool can be satisfied by a slot
+     *        and the slot-based checks do not apply. Required rather than
+     *        defaulted: a caller that forgets it re-introduces a false block.
+     */
     static PreflightResult validate(const std::vector<GcodeToolInfo>& tools,
                                     const std::vector<AvailableSlot>& slots,
-                                    const std::vector<ToolMapping>& mapping);
+                                    const std::vector<ToolMapping>& mapping, bool bypass_active);
 };
 
 } // namespace helix

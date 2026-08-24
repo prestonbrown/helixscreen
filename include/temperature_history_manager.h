@@ -201,11 +201,15 @@ class TemperatureHistoryManager {
      * Temperatures/targets are converted to decidegrees (×10). Powers are
      * ignored (TempSample has no power field).
      *
-     * Seed samples are merged with any samples already recorded for a sensor,
-     * sorted by timestamp, de-duplicated on exact-timestamp collisions, and the
-     * newest HISTORY_SIZE are kept. This bypasses the SAMPLE_INTERVAL_MS write
-     * throttle and is race-safe against a live sample that may already have been
-     * appended before the async fetch returned.
+     * The store is authoritative inside its own window: local samples older than
+     * the oldest store sample are kept as a prefix, and anything the window
+     * covers is superseded. That keeps history a restarted Klipper no longer has
+     * while still discarding the near-duplicate pairs a plain merge produced
+     * (a live wall-clock sample next to the synthetic 1 Hz grid). Store values
+     * pass the same sanity filter as live samples, and the newest HISTORY_SIZE
+     * are kept. This bypasses the SAMPLE_INTERVAL_MS write throttle and is
+     * race-safe against a live sample that may already have been appended before
+     * the async fetch returned.
      *
      * @param store Per-sensor history keyed by Klipper object name
      * @param now_ms Wall-clock timestamp (Unix ms) for the newest seeded sample.
@@ -257,6 +261,38 @@ class TemperatureHistoryManager {
     void unsubscribe_from_subjects();
 
     /**
+     * @brief Rebuild every per-sensor recorder from what is currently discovered
+     *
+     * Drops all existing sample subscriptions and re-derives one per Klipper
+     * object we can sample: every discovered extruder, the bed, a chamber
+     * heater, and every TemperatureSensorManager sensor. Re-run whenever
+     * discovery republishes the extruder or sensor list — the subjects are
+     * recreated on rediscovery, so the old observers point at freed memory
+     * (their lifetime tokens neuter them; this reattaches to the new ones).
+     *
+     * Main thread only: touches LVGL subjects and observers.
+     */
+    void resubscribe();
+
+    /**
+     * @brief Attach temp/target observers for a single Klipper object
+     *
+     * No-op when @p temp_subject is null (object not discovered yet) or when
+     * @p key already has a recorder — dedupe matters because a sensor-based
+     * chamber appears both as the chamber subject and in the sensor list.
+     *
+     * @param key           History bucket name; MUST be the Klipper object name
+     *                      that TempGraphController's backfill will ask for
+     * @param temp_subject  Temperature subject (decidegrees), may be null
+     * @param temp_lifetime Lifetime token for @p temp_subject
+     * @param target_subject Target subject, or null for sensors with no target
+     * @param target_lifetime Lifetime token for @p target_subject
+     */
+    void subscribe_one(const std::string& key, lv_subject_t* temp_subject,
+                       const SubjectLifetime& temp_lifetime, lv_subject_t* target_subject,
+                       const SubjectLifetime& target_lifetime);
+
+    /**
      * @brief Static callback for temperature observer notifications
      *
      * Called by LVGL when temperature subjects change. Implemented as static
@@ -278,11 +314,13 @@ class TemperatureHistoryManager {
     // Per-heater circular buffers
     std::unordered_map<std::string, HeaterHistory> heaters_;
 
-    // Cached targets (updated by target subject observers)
-    // Thread-safety note: These are only accessed from the main thread via LVGL
-    // observer callbacks. No mutex protection needed as LVGL runs single-threaded.
-    int cached_extruder_target_ = 0;
-    int cached_bed_target_ = 0;
+    // Cached targets per Klipper object, updated by the target observers.
+    // Keyed the same way as heaters_ so every tool on a changer carries its own
+    // setpoint — a single shared extruder cache would stamp the active tool's
+    // target onto every other tool's samples.
+    // Thread-safety note: only accessed from the main thread via LVGL observer
+    // callbacks. No mutex protection needed as LVGL runs single-threaded.
+    std::unordered_map<std::string, int> cached_targets_;
 
     // Thread safety
     mutable std::mutex mutex_;
@@ -303,17 +341,29 @@ class TemperatureHistoryManager {
         std::string heater_name; ///< Which heater this context is for
     };
 
-    // Observer contexts (for skipping initial callback and tracking heater name)
-    std::unique_ptr<ObserverContext> extruder_temp_ctx_;
-    std::unique_ptr<ObserverContext> bed_temp_ctx_;
-    std::unique_ptr<ObserverContext> extruder_target_ctx_;
-    std::unique_ptr<ObserverContext> bed_target_ctx_;
+    /**
+     * @brief One sample recorder: the contexts and guards for a single key
+     *
+     * Member order is load-bearing: the guards are declared last so they
+     * destruct FIRST, coming off the subjects before the contexts they
+     * reference are freed.
+     */
+    struct Subscription {
+        std::unique_ptr<ObserverContext> temp_ctx;
+        std::unique_ptr<ObserverContext> target_ctx;
+        SubjectLifetime temp_lifetime;
+        SubjectLifetime target_lifetime;
+        ObserverGuard temp_observer;
+        ObserverGuard target_observer;
+    };
 
-    // LVGL observer guards for automatic cleanup
-    ObserverGuard extruder_temp_observer_;
-    SubjectLifetime bed_temp_lifetime_;
-    ObserverGuard bed_temp_observer_;
-    ObserverGuard extruder_target_observer_;
-    SubjectLifetime bed_target_lifetime_;
-    ObserverGuard bed_target_observer_;
+    // One entry per Klipper object being recorded, rebuilt by resubscribe().
+    // Contexts are heap-stable (unique_ptr) because the observers hold raw
+    // pointers into them.
+    std::vector<std::unique_ptr<Subscription>> subscriptions_;
+
+    // Discovery watchers — bumped when the extruder or sensor list changes,
+    // which is when the per-object subjects are recreated.
+    ObserverGuard extruder_version_observer_;
+    ObserverGuard sensor_count_observer_;
 };

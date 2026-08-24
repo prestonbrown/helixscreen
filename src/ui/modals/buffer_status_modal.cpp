@@ -19,6 +19,8 @@ lv_subject_t BufferStatusModal::show_espooler_subject_;
 lv_subject_t BufferStatusModal::show_flow_subject_;
 lv_subject_t BufferStatusModal::show_distance_subject_;
 lv_subject_t BufferStatusModal::description_subject_;
+lv_subject_t BufferStatusModal::unsupported_subject_;
+char BufferStatusModal::unsupported_buf_[128];
 char BufferStatusModal::description_buf_[128]{};
 lv_subject_t BufferStatusModal::espooler_value_subject_;
 char BufferStatusModal::espooler_buf_[128]{};
@@ -56,6 +58,8 @@ void BufferStatusModal::init_subjects() {
 
     lv_subject_init_string(&description_subject_, description_buf_, nullptr,
                            sizeof(description_buf_), "");
+    lv_subject_init_string(&unsupported_subject_, unsupported_buf_, nullptr,
+                           sizeof(unsupported_buf_), "");
     lv_subject_init_string(&espooler_value_subject_, espooler_buf_, nullptr, sizeof(espooler_buf_),
                            "");
     lv_subject_init_string(&gear_sync_value_subject_, gear_sync_buf_, nullptr,
@@ -73,6 +77,7 @@ void BufferStatusModal::init_subjects() {
     lv_xml_register_subject(nullptr, "buf_show_flow", &show_flow_subject_);
     lv_xml_register_subject(nullptr, "buf_show_distance", &show_distance_subject_);
     lv_xml_register_subject(nullptr, "buf_description", &description_subject_);
+    lv_xml_register_subject(nullptr, "buf_unsupported", &unsupported_subject_);
     lv_xml_register_subject(nullptr, "buf_espooler_value", &espooler_value_subject_);
     lv_xml_register_subject(nullptr, "buf_gear_sync_value", &gear_sync_value_subject_);
     lv_xml_register_subject(nullptr, "buf_clog_value", &clog_value_subject_);
@@ -84,6 +89,10 @@ void BufferStatusModal::init_subjects() {
 }
 
 void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) {
+    // Cleared up front: the modal's subjects are static, so a message left from
+    // a previous open would otherwise sit under a supported backend's body.
+    lv_subject_copy_string(&unsupported_subject_, "");
+
     if (info.type == AmsType::HAPPY_HARE) {
         lv_subject_set_int(&type_subject_, 1);
 
@@ -196,8 +205,18 @@ void BufferStatusModal::populate(const AmsSystemInfo& info, int effective_unit) 
             lv_subject_copy_string(&clog_value_subject_, lv_tr("Unknown"));
         }
     } else {
+        // Neither buffer backend. Stock CFS, AD5X IFS, tool changers, ACE,
+        // Snapmaker and QIDI report none of this - see AmsBackendCfs's own note
+        // that "Stock CFS reports none of these". Every body section binds
+        // hidden unless buf_type is 1 or 2, so without a message here the dialog
+        // renders as a title and two buttons over an empty box, which is what a
+        // K2 Plus owner actually saw. The modal is reachable from the AMS panel
+        // as well as the tile, so this has to answer rather than rely on the
+        // tile's gate.
         lv_subject_set_int(&type_subject_, 0);
         lv_subject_set_int(&show_meter_subject_, 0);
+        lv_subject_copy_string(&unsupported_subject_,
+                               lv_tr("This filament system does not report buffer or flow data."));
     }
 }
 

@@ -1,0 +1,80 @@
+diff --git a/base/hlog.c b/base/hlog.c
+--- a/base/hlog.c
++++ b/base/hlog.c
+@@ -1,3 +1,14 @@
++/* PATCH NOTE(helixscreen): libhv builds with -std=c99, which leaves glibc's
++ * POSIX declarations hidden. Without this, localtime_r() below is implicitly
++ * declared as returning int and its result is converted to a garbage pointer -
++ * the first tm->tm_year dereference then segfaults. Must precede every header.
++ */
++#ifndef _WIN32
++#  ifndef _POSIX_C_SOURCE
++#    define _POSIX_C_SOURCE 200809L
++#  endif
++#endif
++
+ #include "hlog.h"
+ 
+ #include <assert.h>
+@@ -26,6 +37,22 @@
+ #define hmutex_unlock       pthread_mutex_unlock
+ #endif
+ 
++// PATCH NOTE(helixscreen): localtime() -> localtime_r() for thread safety.
++// localtime() returns a pointer into a single process-wide struct tm, so two
++// threads formatting a log line overwrite each other's result. Worse, the first
++// call per thread reaches glibc's tzset_internal(), which strdup()s and free()s
++// the TZ string - ThreadSanitizer reports both as data races inside
++// logger_print(), and libhv logs from every event-loop and HTTP worker thread.
++// localtime_r() writes into a caller-supplied buffer and, once the timezone has
++// been resolved, does not re-enter tzset_internal().
++static struct tm* hlog_localtime(const time_t* t, struct tm* buf) {
++#ifdef _WIN32
++    return localtime_s(buf, t) == 0 ? buf : NULL;
++#else
++    return localtime_r(t, buf);
++#endif
++}
++
+ //#include "htime.h"
+ #define SECONDS_PER_HOUR    3600
+ #define SECONDS_PER_DAY     86400   // 24*3600
+@@ -79,9 +106,14 @@
+ }
+ 
+ logger_t* logger_create() {
++    // Resolve the timezone once, here, while this is still the only thread that
++    // has touched it: tzset_internal() mutates the shared TZ string, and two
++    // threads reaching it through localtime_r() race on that pointer.
++    tzset();
+     // init gmtoff here
+     time_t ts = time(NULL);
+-    struct tm* local_tm = localtime(&ts);
++    struct tm local_tm_buf;
++    struct tm* local_tm = hlog_localtime(&ts, &local_tm_buf);
+     int local_hour = local_tm->tm_hour;
+     struct tm* gmt_tm = gmtime(&ts);
+     int gmt_hour = gmt_tm->tm_hour;
+@@ -214,7 +246,8 @@
+ }
+ 
+ static void logfile_name(const char* filepath, time_t ts, char* buf, int len) {
+-    struct tm* tm = localtime(&ts);
++    struct tm tmbuf;
++    struct tm* tm = hlog_localtime(&ts, &tmbuf);
+     snprintf(buf, len, "%s.%04d%02d%02d.log",
+             filepath,
+             tm->tm_year+1900,
+@@ -375,10 +408,11 @@
+     us       = tm.wMilliseconds * 1000;
+ #else
+     struct timeval tv;
++    struct tm tmbuf;
+     struct tm* tm = NULL;
+     gettimeofday(&tv, NULL);
+     time_t tt = tv.tv_sec;
+-    tm = localtime(&tt);
++    tm = hlog_localtime(&tt, &tmbuf);
+     year     = tm->tm_year + 1900;
+     month    = tm->tm_mon  + 1;
+     day      = tm->tm_mday;

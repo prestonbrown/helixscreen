@@ -181,7 +181,7 @@ void RibbonGeometry::expand_strips(size_t first_strip, size_t strip_count,
                                    PackedVertex* out) const {
     // Strip order: BL(0), BR(1), TL(2), TR(3)
     // Triangle 1: BL-BR-TL,  Triangle 2: BR-TR-TL
-    static constexpr int kTriIndices[6] = {0, 1, 2, 1, 3, 2};
+    static constexpr int TRI_INDICES[6] = {0, 1, 2, 1, 3, 2};
 
     for (size_t s = 0; s < strip_count; ++s) {
         const size_t strip_idx = first_strip + s;
@@ -193,7 +193,7 @@ void RibbonGeometry::expand_strips(size_t first_strip, size_t strip_count,
         PackedVertex::encode_color(strip_color(strip_idx), rgba);
 
         for (int ti = 0; ti < 6; ++ti) {
-            const auto& vert = vertices[strip[static_cast<size_t>(kTriIndices[ti])]];
+            const auto& vert = vertices[strip[static_cast<size_t>(TRI_INDICES[ti])]];
 
             // Quantized coordinates go to the GPU as-is; the renderer folds the
             // dequantization into its matrices.
@@ -222,7 +222,7 @@ void RibbonGeometry::prepare_interleaved_buffers() {
     size_t num_layers = layer_strip_ranges.empty() ? 1 : layer_strip_ranges.size();
     prepared_buffers.resize(num_layers);
 
-    constexpr size_t kStride = PackedVertex::stride();
+    constexpr size_t STRIDE = PackedVertex::stride();
 
     for (size_t layer = 0; layer < num_layers; ++layer) {
         size_t first_strip = 0;
@@ -242,7 +242,7 @@ void RibbonGeometry::prepare_interleaved_buffers() {
 
         size_t total_verts = strip_count * 6; // 2 triangles per strip
         prepared.vertex_count = total_verts;
-        prepared.data.resize(total_verts * kStride);
+        prepared.data.resize(total_verts * STRIDE);
 
         expand_strips(first_strip, strip_count,
                       reinterpret_cast<PackedVertex*>(prepared.data.data()));

@@ -1,12 +1,18 @@
 <?xml version="1.0"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <consts>
+    <!-- Legend indicator dot size, held constant across breakpoints like the
+         lock-screen PIN dots (components/lock_screen.xml). -->
+    <px name="legend_dot_size" value="8"/>
+  </consts>
   <view name="input_shaper_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_border_width="0"
         style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar -->
-    <header_bar name="overlay_header" title="Input Shaper" title_tag="Input Shaper"
-                hide_action_button="false" action_button_text="Calibrate All" action_button_text_tag="Calibrate All"
+    <header_bar name="overlay_header"
+                title="Input Shaper" title_tag="Input Shaper" hide_action_button="false"
+                action_button_text="Calibrate All" action_button_text_tag="Calibrate All"
                 action_button_callback="input_shaper_calibrate_all_cb"
                 action_button_disabled_cond="is_calibrate_all_disabled or nav_buttons_enabled eq 0"/>
     <!-- Content Area -->
@@ -31,17 +37,21 @@
                   height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
                   style_pad_gap="#space_sm" scrollable="false">
             <icon src="sine_wave" size="lg" variant="primary"/>
-            <text_body text="Reduce vibration artifacts like ringing and ghosting" translation_tag="Reduce vibration artifacts like ringing and ghosting" flex_grow="1" style_text_color="#text_muted"/>
-            <ui_button name="btn_help" width="#icon_button_size_lg" height="#icon_button_size_lg" variant="ghost" icon="help_circle">
+            <text_body text="Reduce vibration artifacts like ringing and ghosting"
+                       translation_tag="Reduce vibration artifacts like ringing and ghosting" flex_grow="1"
+                       style_text_color="#text_muted"/>
+            <ui_button name="btn_help"
+                       width="#icon_button_size_lg" height="#icon_button_size_lg" variant="ghost" icon="help_circle">
               <event_cb trigger="clicked" callback="input_shaper_help_cb"/>
             </ui_button>
           </lv_obj>
           <!-- Current Config (shown when configured) -->
           <lv_obj name="config_card"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column"
-                  style_pad_gap="#space_sm" scrollable="false">
+                  width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+                  scrollable="false">
             <bind_flag_if_eq subject="is_shaper_configured" flag="hidden" ref_value="0"/>
-            <text_small text="Current Configuration" translation_tag="Current Configuration" style_text_color="#text_muted"/>
+            <text_small text="Current Configuration"
+                        translation_tag="Current Configuration" style_text_color="#text_muted"/>
             <!-- X axis row -->
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
@@ -61,32 +71,39 @@
           </lv_obj>
           <!-- Not Configured (shown when NOT configured) -->
           <lv_obj name="not_configured_card"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column"
-                  style_pad_gap="#space_xs" scrollable="false">
+                  width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                  scrollable="false">
             <bind_flag_if_not_eq subject="is_shaper_configured" flag="hidden" ref_value="0"/>
-            <text_body text="Not yet calibrated" translation_tag="Not yet calibrated" width="100%"/>
-            <text_small text="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." translation_tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." width="100%" style_text_color="#text_muted"/>
+            <text_body width="100%" text="Not yet calibrated" translation_tag="Not yet calibrated"/>
+            <text_small width="100%"
+                        text="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements."
+                        translation_tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements."
+                        style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
         <!-- Accelerometer status (hidden when accelerometer present, shown when missing) -->
         <lv_obj name="accel_warning"
-                width="100%" height="content" style_bg_color="#warning" style_bg_opa="25"
-                style_radius="#border_radius" style_border_width="1" style_border_color="#warning"
-                style_pad_all="#space_sm" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_sm" scrollable="false">
+                width="100%" height="content" style_bg_color="#warning" style_bg_opa="25" style_radius="#border_radius"
+                style_border_width="1" style_border_color="#warning" style_pad_all="#space_sm" flex_flow="row"
+                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
           <bind_flag_if_not_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
           <icon src="alert" size="sm" variant="warning"/>
-          <text_small text="Connect an ADXL345 accelerometer to calibrate" translation_tag="Connect an ADXL345 accelerometer to calibrate" style_text_color="#warning" flex_grow="1"/>
+          <text_small text="Connect an ADXL345 accelerometer to calibrate"
+                      translation_tag="Connect an ADXL345 accelerometer to calibrate" style_text_color="#warning"
+                      flex_grow="1"/>
         </lv_obj>
         <!-- Individual axis buttons (secondary, side by side) -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
-                scrollable="false">
-          <ui_button name="btn_calibrate_x" flex_grow="1" variant="secondary" icon="axis_x_arrow" text="Calibrate X" translation_tag="Calibrate X">
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_calibrate_x"
+                     flex_grow="1" variant="secondary" icon="axis_x_arrow" text="Calibrate X"
+                     translation_tag="Calibrate X">
             <bind_state_if_eq subject="printer_has_accelerometer" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="input_shaper_calibrate_x_cb"/>
           </ui_button>
-          <ui_button name="btn_calibrate_y" flex_grow="1" variant="secondary" icon="axis_y_arrow" text="Calibrate Y" translation_tag="Calibrate Y">
+          <ui_button name="btn_calibrate_y"
+                     flex_grow="1" variant="secondary" icon="axis_y_arrow" text="Calibrate Y"
+                     translation_tag="Calibrate Y">
             <bind_state_if_eq subject="printer_has_accelerometer" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="input_shaper_calibrate_y_cb"/>
           </ui_button>
@@ -98,29 +115,32 @@
                 height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="start"
                 style_pad_gap="#space_sm" scrollable="false">
           <icon src="alert" size="sm" variant="warning"/>
-          <text_small text="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." translation_tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." flex_grow="1" style_text_color="#text_muted"/>
+          <text_small text="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal."
+                      translation_tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal."
+                      flex_grow="1" style_text_color="#text_muted"/>
         </lv_obj>
-      </lv_obj> <!-- idle state -->
+      </lv_obj>
+      <!-- idle state -->
 
       <!-- ============================================================ -->
       <!-- STATE: MEASURING - Progress spinner -->
       <!-- ============================================================ -->
       <lv_obj name="state_measuring"
-              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_lg" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center"
-              scrollable="false">
+              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_lg" flex_flow="column"
+              style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
         <bind_flag_if_not_eq subject="input_shaper_state" flag="hidden" ref_value="1"/>
         <!-- Spinner and status container -->
         <lv_obj width="100%"
-                height="content" style_min_height="160"
-                style_pad_all="#space_xl" flex_flow="column"
+                height="content" style_min_height="160" style_pad_all="#space_xl" flex_flow="column"
                 style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
-                style_pad_gap="#space_md"
-                scrollable="false">
+                style_pad_gap="#space_md" scrollable="false">
 
-          <text_heading name="status_label" bind_text="is_measuring_axis_label" text="Calibrating..." style_text_align="center"/>
+          <text_heading name="status_label"
+                        bind_text="is_measuring_axis_label" text="Calibrating..." style_text_align="center"/>
           <text_small bind_text="is_measuring_step_label" text="" style_text_align="center"/>
-          <text_small text="Do not touch the printer during calibration" translation_tag="Do not touch the printer during calibration" style_text_align="center" style_text_color="#text_muted"/>
+          <text_small text="Do not touch the printer during calibration"
+                      translation_tag="Do not touch the printer during calibration" style_text_align="center"
+                      style_text_color="#text_muted"/>
 
           <!-- Spinner during indeterminate phases (checking accel, homing) -->
           <spinner size="lg">
@@ -141,691 +161,781 @@
       <!-- STATE: RESULTS - Per-axis result cards -->
       <!-- ============================================================ -->
       <lv_obj name="state_results"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column"
-              style_pad_gap="#space_md"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
               scrollable="false">
         <bind_flag_if_not_eq subject="input_shaper_state" flag="hidden" ref_value="2"/>
         <!-- Scrollable results area -->
-        <lv_obj width="100%" flex_grow="1" style_pad_all="0" flex_flow="column"
-                style_pad_gap="#space_sm" scrollable="true">
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="true">
           <!-- Success header -->
-          <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="row"
-                  style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                  style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
             <icon src="check_circle" size="sm" variant="success"/>
             <text_body text="Calibration Complete!" translation_tag="Calibration Complete!"/>
           </lv_obj>
-        <!-- X Axis Result Card -->
-        <lv_obj name="result_card_x"
-                width="100%" height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
-                style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_eq subject="is_results_has_x" flag="hidden" ref_value="0"/>
-          <!-- Card header: axis label + recommended shaper -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                  style_flex_cross_place="center" scrollable="false">
-            <text_body text="X Axis" translation_tag="X Axis"/>
-            <text_small bind_text="is_result_x_shaper" style_text_color="#text_muted"/>
-          </lv_obj>
-          <!-- Frequency response chart container (hidden when no freq data) -->
-          <lv_obj name="chart_container_x"
-                  width="100%" height="180" style_pad_all="0" style_radius="#border_radius"
-                  style_bg_color="#screen_bg" style_bg_opa="255"
-                  scrollable="false">
-            <bind_flag_if_eq subject="is_x_has_freq_data" flag="hidden" ref_value="0"/>
-          </lv_obj>
-          <!-- Shaper overlay chip toggles -->
-          <lv_obj name="chip_row_x"
-                  width="100%" height="content" style_pad_all="0" flex_flow="row_wrap"
-                  style_pad_gap="#space_xs" style_flex_main_place="start"
-                  style_flex_cross_place="center"
-                  scrollable="false">
-            <bind_flag_if_eq subject="is_x_has_freq_data" flag="hidden" ref_value="0"/>
-            <!-- Chip 0 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
+          <!-- X Axis Result Card -->
+          <lv_obj name="result_card_x"
+                  width="100%" height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
+                  style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if_eq subject="is_results_has_x" flag="hidden" ref_value="0"/>
+            <!-- Card header: axis label + recommended shaper -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                    style_flex_cross_place="center" scrollable="false">
+              <text_body text="X Axis" translation_tag="X Axis"/>
+              <text_small bind_text="is_result_x_shaper" style_text_color="#text_muted"/>
+            </lv_obj>
+            <!-- Firmware overwrote the staged X result during the Y run (fork behavior) -->
+            <lv_obj name="fw_overwrite_warn_x"
+                    width="100%" height="content" style_bg_color="#warning" style_bg_opa="25"
+                    style_radius="#border_radius" style_border_width="1" style_border_color="#warning"
+                    style_pad_all="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
                     scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_0_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_0_cb"/>
-              <text_small bind_text="is_x_chip_0_label"/>
-            </ui_button>
-            <!-- Chip 1 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
+              <bind_flag_if_eq subject="is_x_fw_overwrite_warn" flag="hidden" ref_value="0"/>
+              <icon src="alert" size="sm" variant="warning"/>
+              <text_small text="Firmware saved X = Y's value; the measured X result was discarded"
+                          translation_tag="Firmware saved X = Y's value; the measured X result was discarded"
+                          style_text_color="#warning" flex_grow="1"/>
+            </lv_obj>
+            <!-- Y-axis quantity caption, then frequency response chart (hidden when no freq data) -->
+            <text_small name="chart_x_caption"
+                        text="Relative vibration" translation_tag="Relative vibration" style_text_color="#text_muted"/>
+            <lv_obj name="chart_container_x"
+                    width="100%" height="180" style_pad_all="0" style_radius="#border_radius"
+                    style_bg_color="#screen_bg" style_bg_opa="255" scrollable="false">
+              <bind_flag_if_eq subject="is_x_has_freq_data" flag="hidden" ref_value="0"/>
+            </lv_obj>
+            <!-- Shaper overlay chip toggles -->
+            <lv_obj name="chip_row_x"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_xs"
+                    style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
+              <bind_flag_if_eq subject="is_x_has_freq_data" flag="hidden" ref_value="0"/>
+              <!-- Chip 0 -->
+              <ui_button name="btn_chip_x_0"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="0"/>
+                <bind_state_if_eq subject="is_x_chip_0_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_0_cb"/>
+                <text_small bind_text="is_x_chip_0_label"/>
+              </ui_button>
+              <!-- Chip 1 -->
+              <ui_button name="btn_chip_x_1"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="1"/>
+                <bind_state_if_eq subject="is_x_chip_1_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_1_cb"/>
+                <text_small bind_text="is_x_chip_1_label"/>
+              </ui_button>
+              <!-- Chip 2 -->
+              <ui_button name="btn_chip_x_2"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="2"/>
+                <bind_state_if_eq subject="is_x_chip_2_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_2_cb"/>
+                <text_small bind_text="is_x_chip_2_label"/>
+              </ui_button>
+              <!-- Chip 3 -->
+              <ui_button name="btn_chip_x_3"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="3"/>
+                <bind_state_if_eq subject="is_x_chip_3_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_3_cb"/>
+                <text_small bind_text="is_x_chip_3_label"/>
+              </ui_button>
+              <!-- Chip 4 -->
+              <ui_button name="btn_chip_x_4"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="4"/>
+                <bind_state_if_eq subject="is_x_chip_4_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_4_cb"/>
+                <text_small bind_text="is_x_chip_4_label"/>
+              </ui_button>
+              <!-- Chip 5 -->
+              <ui_button name="btn_chip_x_5"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="5"/>
+                <bind_state_if_eq subject="is_x_chip_5_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_5_cb"/>
+                <text_small bind_text="is_x_chip_5_label"/>
+              </ui_button>
+              <!-- Chip 6 -->
+              <ui_button name="btn_chip_x_6"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="6"/>
+                <bind_state_if_eq subject="is_x_chip_6_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_6_cb"/>
+                <text_small bind_text="is_x_chip_6_label"/>
+              </ui_button>
+              <!-- Chip 7 -->
+              <ui_button name="btn_chip_x_7"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="7"/>
+                <bind_state_if_eq subject="is_x_chip_7_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_7_cb"/>
+                <text_small bind_text="is_x_chip_7_label"/>
+              </ui_button>
+              <!-- Chip 8 -->
+              <ui_button name="btn_chip_x_8"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="8"/>
+                <bind_state_if_eq subject="is_x_chip_8_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_8_cb"/>
+                <text_small bind_text="is_x_chip_8_label"/>
+              </ui_button>
+              <!-- Chip 9 -->
+              <ui_button name="btn_chip_x_9"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="9"/>
+                <bind_state_if_eq subject="is_x_chip_9_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_9_cb"/>
+                <text_small bind_text="is_x_chip_9_label"/>
+              </ui_button>
+              <!-- Chip 10 -->
+              <ui_button name="btn_chip_x_10"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_x_num_chips" flag="hidden" ref_value="10"/>
+                <bind_state_if_eq subject="is_x_chip_10_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_x_10_cb"/>
+                <text_small bind_text="is_x_chip_10_label"/>
+              </ui_button>
+              <!-- Spacer to push legend right -->
+              <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <!-- Legend: colored dots with series labels -->
+              <lv_obj width="content"
+                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+                      style_flex_cross_place="center" scrollable="false">
+                <!-- Measured PSD dot + label -->
+                <lv_obj name="legend_x_measured_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="0xB0B0B0" style_pad_all="0" scrollable="false"/>
+                <text_small name="legend_x_measured_label"
+                            text="Measured (shaper off)" translation_tag="Measured (shaper off)"
+                            style_text_color="#text_muted"/>
+                <!-- Active shaper dot + label -->
+                <lv_obj name="legend_x_shaper_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="0x66BB6A" style_pad_all="0" style_margin_left="#space_xs" scrollable="false"/>
+                <text_small bind_text="is_x_legend_shaper_label" style_text_color="#text_muted"/>
+                <!-- Previous (live-before) setting dot + label - only when a before-config was captured -->
+                <lv_obj name="legend_x_previous_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="#text_muted" style_pad_all="0" style_margin_left="#space_xs" scrollable="false">
+                  <bind_flag_if_eq subject="is_x_has_delta" flag="hidden" ref_value="0"/>
+                </lv_obj>
+                <text_small name="legend_x_previous_label"
+                            text="Previous" translation_tag="Previous" style_text_color="#text_muted">
+                  <bind_flag_if_eq subject="is_x_has_delta" flag="hidden" ref_value="0"/>
+                </text_small>
+              </lv_obj>
+            </lv_obj>
+            <!-- Comparison table for X axis -->
+            <lv_obj name="shaper_table_x"
+                    width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0"
                     scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_1_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_1_cb"/>
-              <text_small bind_text="is_x_chip_1_label"/>
-            </ui_button>
-            <!-- Chip 2 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_2_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_2_cb"/>
-              <text_small bind_text="is_x_chip_2_label"/>
-            </ui_button>
-            <!-- Chip 3 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_3_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_3_cb"/>
-              <text_small bind_text="is_x_chip_3_label"/>
-            </ui_button>
-            <!-- Chip 4 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_4_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_4_cb"/>
-              <text_small bind_text="is_x_chip_4_label"/>
-            </ui_button>
-            <!-- Chip 5 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_5_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_5_cb"/>
-              <text_small bind_text="is_x_chip_5_label"/>
-            </ui_button>
-            <!-- Chip 6 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_6_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_6_cb"/>
-              <text_small bind_text="is_x_chip_6_label"/>
-            </ui_button>
-            <!-- Chip 7 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_7_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_7_cb"/>
-              <text_small bind_text="is_x_chip_7_label"/>
-            </ui_button>
-            <!-- Chip 8 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_8_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_8_cb"/>
-              <text_small bind_text="is_x_chip_8_label"/>
-            </ui_button>
-            <!-- Chip 9 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_9_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_9_cb"/>
-              <text_small bind_text="is_x_chip_9_label"/>
-            </ui_button>
-            <!-- Chip 10 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_chip_10_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_x_10_cb"/>
-              <text_small bind_text="is_x_chip_10_label"/>
-            </ui_button>
-            <!-- Spacer to push legend right -->
-            <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-            <!-- Legend: colored dots with series labels -->
-            <lv_obj width="content" height="content" style_pad_all="0" flex_flow="row"
-                    style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
-              <!-- Measured PSD dot + label -->
-              <lv_obj name="legend_x_measured_dot" width="8" height="8"
-                      style_radius="4" style_bg_opa="255" style_bg_color="0xB0B0B0"
-                      style_pad_all="0" scrollable="false"/>
-              <text_small text="Measured" translation_tag="Measured" style_text_color="#text_muted"/>
-              <!-- Active shaper dot + label -->
-              <lv_obj name="legend_x_shaper_dot" width="8" height="8"
-                      style_radius="4" style_bg_opa="255" style_bg_color="0x66BB6A"
-                      style_pad_all="0" style_margin_left="#space_xs" scrollable="false"/>
-              <text_small bind_text="is_x_legend_shaper_label" style_text_color="#text_muted"/>
+              <!-- Header row -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_border_width="1" style_border_color="#border"
+                      style_border_side="bottom" scrollable="false">
+                <text_small width="28%" text="Type" translation_tag="Type" style_text_color="#text_muted"/>
+                <text_small width="22%" text="Peak Freq" translation_tag="Peak Freq" style_text_color="#text_muted"/>
+                <text_small width="25%" text="Vibration" translation_tag="Vibration" style_text_color="#text_muted"/>
+                <text_small width="25%" text="Max Accel" translation_tag="Max Accel" style_text_color="#text_muted"/>
+              </lv_obj>
+              <!-- Row 0 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="0"/>
+                <text_small width="28%" bind_text="is_x_cmp_0_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_0_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_0_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_0_accel"/>
+              </lv_obj>
+              <!-- Row 1 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="1"/>
+                <text_small width="28%" bind_text="is_x_cmp_1_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_1_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_1_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_1_accel"/>
+              </lv_obj>
+              <!-- Row 2 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="2"/>
+                <text_small width="28%" bind_text="is_x_cmp_2_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_2_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_2_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_2_accel"/>
+              </lv_obj>
+              <!-- Row 3 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="3"/>
+                <text_small width="28%" bind_text="is_x_cmp_3_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_3_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_3_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_3_accel"/>
+              </lv_obj>
+              <!-- Row 4 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="4"/>
+                <text_small width="28%" bind_text="is_x_cmp_4_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_4_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_4_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_4_accel"/>
+              </lv_obj>
+              <!-- Row 5 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="5"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="5"/>
+                <text_small width="28%" bind_text="is_x_cmp_5_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_5_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_5_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_5_accel"/>
+              </lv_obj>
+              <!-- Row 6 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="6"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="6"/>
+                <text_small width="28%" bind_text="is_x_cmp_6_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_6_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_6_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_6_accel"/>
+              </lv_obj>
+              <!-- Row 7 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="7"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="7"/>
+                <text_small width="28%" bind_text="is_x_cmp_7_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_7_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_7_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_7_accel"/>
+              </lv_obj>
+              <!-- Row 8 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="8"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="8"/>
+                <text_small width="28%" bind_text="is_x_cmp_8_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_8_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_8_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_8_accel"/>
+              </lv_obj>
+              <!-- Row 9 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="9"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="9"/>
+                <text_small width="28%" bind_text="is_x_cmp_9_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_9_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_9_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_9_accel"/>
+              </lv_obj>
+              <!-- Row 10 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="10"/>
+                <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="10"/>
+                <text_small width="28%" bind_text="is_x_cmp_10_type"/>
+                <text_small width="22%" bind_text="is_x_cmp_10_freq"/>
+                <text_small width="25%" bind_text="is_x_cmp_10_vib"/>
+                <text_small width="25%" bind_text="is_x_cmp_10_accel"/>
+              </lv_obj>
+              <!-- Explanation -->
+              <text_small width="100%"
+                          bind_text="is_result_x_explanation" style_text_color="#text_muted" style_pad_top="#space_sm"/>
+              <!-- Live-before -> measured delta (hidden until a before-value exists) -->
+              <text_small width="100%"
+                          bind_text="is_x_delta_text" style_text_color="#text_muted" style_pad_top="#space_sm">
+                <bind_flag_if_eq subject="is_x_has_delta" flag="hidden" ref_value="0"/>
+              </text_small>
+              <!-- Old setting re-scored on today's measured spectrum -->
+              <text_small width="100%" bind_text="is_x_verdict_text" style_text_color="#text_muted">
+                <bind_flag_if_eq subject="is_x_has_verdict" flag="hidden" ref_value="0"/>
+              </text_small>
             </lv_obj>
           </lv_obj>
-          <!-- Comparison table for X axis -->
-          <lv_obj name="shaper_table_x"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column"
-                  style_pad_gap="0" scrollable="false">
-            <!-- Header row -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_border_width="1" style_border_color="#border" style_border_side="bottom"
-                    scrollable="false">
-              <text_small width="28%" text="Type" translation_tag="Type" style_text_color="#text_muted"/>
-              <text_small width="22%" text="Peak Freq" translation_tag="Peak Freq" style_text_color="#text_muted"/>
-              <text_small width="25%" text="Vibration" translation_tag="Vibration" style_text_color="#text_muted"/>
-              <text_small width="25%" text="Max Accel" translation_tag="Max Accel" style_text_color="#text_muted"/>
+          <!-- Y Axis Result Card -->
+          <lv_obj name="result_card_y"
+                  width="100%" height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
+                  style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if_eq subject="is_results_has_y" flag="hidden" ref_value="0"/>
+            <!-- Card header: axis label + recommended shaper -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                    style_flex_cross_place="center" scrollable="false">
+              <text_body text="Y Axis" translation_tag="Y Axis"/>
+              <text_small bind_text="is_result_y_shaper" style_text_color="#text_muted"/>
             </lv_obj>
-            <!-- Row 0 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
+            <!-- Same firmware-overwrite warning as the X card, shown only when
+                 the X card is absent (a Y-only run has nowhere else to surface
+                 that the fork saved X = Y's value) -->
+            <lv_obj name="fw_overwrite_warn_y"
+                    width="100%" height="content" style_bg_color="#warning" style_bg_opa="25"
+                    style_radius="#border_radius" style_border_width="1" style_border_color="#warning"
+                    style_pad_all="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
                     scrollable="false">
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="0"/>
-              <text_small width="28%" bind_text="is_x_cmp_0_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_0_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_0_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_0_accel"/>
+              <bind_flag_if cond="is_x_fw_overwrite_warn eq 1 and is_results_has_x eq 0" flag="hidden" invert="true"/>
+              <icon src="alert" size="sm" variant="warning"/>
+              <text_small text="Firmware saved X = Y's value; the measured X result was discarded"
+                          translation_tag="Firmware saved X = Y's value; the measured X result was discarded"
+                          style_text_color="#warning" flex_grow="1"/>
             </lv_obj>
-            <!-- Row 1 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
+            <!-- Y-axis quantity caption, then frequency response chart (hidden when no freq data) -->
+            <text_small name="chart_y_caption"
+                        text="Relative vibration" translation_tag="Relative vibration" style_text_color="#text_muted"/>
+            <lv_obj name="chart_container_y"
+                    width="100%" height="180" style_pad_all="0" style_radius="#border_radius"
+                    style_bg_color="#screen_bg" style_bg_opa="255" scrollable="false">
+              <bind_flag_if_eq subject="is_y_has_freq_data" flag="hidden" ref_value="0"/>
+            </lv_obj>
+            <!-- Shaper overlay chip toggles -->
+            <lv_obj name="chip_row_y"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_xs"
+                    style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
+              <bind_flag_if_eq subject="is_y_has_freq_data" flag="hidden" ref_value="0"/>
+              <!-- Chip 0 -->
+              <ui_button name="btn_chip_y_0"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="0"/>
+                <bind_state_if_eq subject="is_y_chip_0_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_0_cb"/>
+                <text_small bind_text="is_y_chip_0_label"/>
+              </ui_button>
+              <!-- Chip 1 -->
+              <ui_button name="btn_chip_y_1"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="1"/>
+                <bind_state_if_eq subject="is_y_chip_1_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_1_cb"/>
+                <text_small bind_text="is_y_chip_1_label"/>
+              </ui_button>
+              <!-- Chip 2 -->
+              <ui_button name="btn_chip_y_2"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="2"/>
+                <bind_state_if_eq subject="is_y_chip_2_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_2_cb"/>
+                <text_small bind_text="is_y_chip_2_label"/>
+              </ui_button>
+              <!-- Chip 3 -->
+              <ui_button name="btn_chip_y_3"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="3"/>
+                <bind_state_if_eq subject="is_y_chip_3_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_3_cb"/>
+                <text_small bind_text="is_y_chip_3_label"/>
+              </ui_button>
+              <!-- Chip 4 -->
+              <ui_button name="btn_chip_y_4"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="4"/>
+                <bind_state_if_eq subject="is_y_chip_4_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_4_cb"/>
+                <text_small bind_text="is_y_chip_4_label"/>
+              </ui_button>
+              <!-- Chip 5 -->
+              <ui_button name="btn_chip_y_5"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="5"/>
+                <bind_state_if_eq subject="is_y_chip_5_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_5_cb"/>
+                <text_small bind_text="is_y_chip_5_label"/>
+              </ui_button>
+              <!-- Chip 6 -->
+              <ui_button name="btn_chip_y_6"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="6"/>
+                <bind_state_if_eq subject="is_y_chip_6_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_6_cb"/>
+                <text_small bind_text="is_y_chip_6_label"/>
+              </ui_button>
+              <!-- Chip 7 -->
+              <ui_button name="btn_chip_y_7"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="7"/>
+                <bind_state_if_eq subject="is_y_chip_7_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_7_cb"/>
+                <text_small bind_text="is_y_chip_7_label"/>
+              </ui_button>
+              <!-- Chip 8 -->
+              <ui_button name="btn_chip_y_8"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="8"/>
+                <bind_state_if_eq subject="is_y_chip_8_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_8_cb"/>
+                <text_small bind_text="is_y_chip_8_label"/>
+              </ui_button>
+              <!-- Chip 9 -->
+              <ui_button name="btn_chip_y_9"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="9"/>
+                <bind_state_if_eq subject="is_y_chip_9_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_9_cb"/>
+                <text_small bind_text="is_y_chip_9_label"/>
+              </ui_button>
+              <!-- Chip 10 -->
+              <ui_button name="btn_chip_y_10"
+                         width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                         style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_radius="12" style_border_width="1"
+                         style_border_color="#border" style_bg_opa="0" style_bg_opa:checked="200"
+                         style_bg_color:checked="#primary"
+                         style_border_color:checked="#primary" scrollable="false">
+                <bind_flag_if_le subject="is_y_num_chips" flag="hidden" ref_value="10"/>
+                <bind_state_if_eq subject="is_y_chip_10_active" state="checked" ref_value="1"/>
+                <event_cb trigger="clicked" callback="input_shaper_chip_y_10_cb"/>
+                <text_small bind_text="is_y_chip_10_label"/>
+              </ui_button>
+              <!-- Spacer to push legend right -->
+              <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <!-- Legend: colored dots with series labels -->
+              <lv_obj width="content"
+                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+                      style_flex_cross_place="center" scrollable="false">
+                <!-- Measured PSD dot + label -->
+                <lv_obj name="legend_y_measured_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="0xB0B0B0" style_pad_all="0" scrollable="false"/>
+                <text_small name="legend_y_measured_label"
+                            text="Measured (shaper off)" translation_tag="Measured (shaper off)"
+                            style_text_color="#text_muted"/>
+                <!-- Active shaper dot + label -->
+                <lv_obj name="legend_y_shaper_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="0x66BB6A" style_pad_all="0" style_margin_left="#space_xs" scrollable="false"/>
+                <text_small bind_text="is_y_legend_shaper_label" style_text_color="#text_muted"/>
+                <!-- Previous (live-before) setting dot + label - only when a before-config was captured -->
+                <lv_obj name="legend_y_previous_dot"
+                        width="#legend_dot_size" height="#legend_dot_size" style_radius="4" style_bg_opa="255"
+                        style_bg_color="#text_muted" style_pad_all="0" style_margin_left="#space_xs" scrollable="false">
+                  <bind_flag_if_eq subject="is_y_has_delta" flag="hidden" ref_value="0"/>
+                </lv_obj>
+                <text_small name="legend_y_previous_label"
+                            text="Previous" translation_tag="Previous" style_text_color="#text_muted">
+                  <bind_flag_if_eq subject="is_y_has_delta" flag="hidden" ref_value="0"/>
+                </text_small>
+              </lv_obj>
+            </lv_obj>
+            <!-- Comparison table for Y axis -->
+            <lv_obj name="shaper_table_y"
+                    width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0"
                     scrollable="false">
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="1"/>
-              <text_small width="28%" bind_text="is_x_cmp_1_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_1_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_1_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_1_accel"/>
+              <!-- Header row -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_border_width="1" style_border_color="#border"
+                      style_border_side="bottom" scrollable="false">
+                <text_small width="28%" text="Type" translation_tag="Type" style_text_color="#text_muted"/>
+                <text_small width="22%" text="Peak Freq" translation_tag="Peak Freq" style_text_color="#text_muted"/>
+                <text_small width="25%" text="Vibration" translation_tag="Vibration" style_text_color="#text_muted"/>
+                <text_small width="25%" text="Max Accel" translation_tag="Max Accel" style_text_color="#text_muted"/>
+              </lv_obj>
+              <!-- Row 0 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="0"/>
+                <text_small width="28%" bind_text="is_y_cmp_0_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_0_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_0_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_0_accel"/>
+              </lv_obj>
+              <!-- Row 1 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="1"/>
+                <text_small width="28%" bind_text="is_y_cmp_1_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_1_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_1_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_1_accel"/>
+              </lv_obj>
+              <!-- Row 2 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="2"/>
+                <text_small width="28%" bind_text="is_y_cmp_2_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_2_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_2_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_2_accel"/>
+              </lv_obj>
+              <!-- Row 3 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="3"/>
+                <text_small width="28%" bind_text="is_y_cmp_3_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_3_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_3_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_3_accel"/>
+              </lv_obj>
+              <!-- Row 4 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="4"/>
+                <text_small width="28%" bind_text="is_y_cmp_4_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_4_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_4_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_4_accel"/>
+              </lv_obj>
+              <!-- Row 5 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="5"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="5"/>
+                <text_small width="28%" bind_text="is_y_cmp_5_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_5_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_5_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_5_accel"/>
+              </lv_obj>
+              <!-- Row 6 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="6"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="6"/>
+                <text_small width="28%" bind_text="is_y_cmp_6_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_6_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_6_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_6_accel"/>
+              </lv_obj>
+              <!-- Row 7 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="7"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="7"/>
+                <text_small width="28%" bind_text="is_y_cmp_7_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_7_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_7_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_7_accel"/>
+              </lv_obj>
+              <!-- Row 8 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="8"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="8"/>
+                <text_small width="28%" bind_text="is_y_cmp_8_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_8_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_8_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_8_accel"/>
+              </lv_obj>
+              <!-- Row 9 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="9"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="9"/>
+                <text_small width="28%" bind_text="is_y_cmp_9_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_9_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_9_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_9_accel"/>
+              </lv_obj>
+              <!-- Row 10 -->
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                      style_pad_top="#space_xs" style_pad_bottom="#space_xs" flex_flow="row"
+                      style_flex_cross_place="center" style_bg_opa="0" style_bg_opa:checked="40"
+                      style_bg_color:checked="#primary" style_radius:checked="4"
+                      scrollable="false">
+                <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="10"/>
+                <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="10"/>
+                <text_small width="28%" bind_text="is_y_cmp_10_type"/>
+                <text_small width="22%" bind_text="is_y_cmp_10_freq"/>
+                <text_small width="25%" bind_text="is_y_cmp_10_vib"/>
+                <text_small width="25%" bind_text="is_y_cmp_10_accel"/>
+              </lv_obj>
+              <!-- Explanation -->
+              <text_small width="100%"
+                          bind_text="is_result_y_explanation" style_text_color="#text_muted" style_pad_top="#space_sm"/>
+              <!-- Live-before -> measured delta (hidden until a before-value exists) -->
+              <text_small width="100%"
+                          bind_text="is_y_delta_text" style_text_color="#text_muted" style_pad_top="#space_sm">
+                <bind_flag_if_eq subject="is_y_has_delta" flag="hidden" ref_value="0"/>
+              </text_small>
+              <!-- Old setting re-scored on today's measured spectrum -->
+              <text_small width="100%" bind_text="is_y_verdict_text" style_text_color="#text_muted">
+                <bind_flag_if_eq subject="is_y_has_verdict" flag="hidden" ref_value="0"/>
+              </text_small>
             </lv_obj>
-            <!-- Row 2 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="2"/>
-              <text_small width="28%" bind_text="is_x_cmp_2_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_2_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_2_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_2_accel"/>
-            </lv_obj>
-            <!-- Row 3 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="3"/>
-              <text_small width="28%" bind_text="is_x_cmp_3_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_3_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_3_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_3_accel"/>
-            </lv_obj>
-            <!-- Row 4 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="4"/>
-              <text_small width="28%" bind_text="is_x_cmp_4_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_4_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_4_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_4_accel"/>
-            </lv_obj>
-            <!-- Row 5 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="5"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="5"/>
-              <text_small width="28%" bind_text="is_x_cmp_5_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_5_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_5_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_5_accel"/>
-            </lv_obj>
-            <!-- Row 6 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="6"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="6"/>
-              <text_small width="28%" bind_text="is_x_cmp_6_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_6_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_6_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_6_accel"/>
-            </lv_obj>
-            <!-- Row 7 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="7"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="7"/>
-              <text_small width="28%" bind_text="is_x_cmp_7_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_7_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_7_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_7_accel"/>
-            </lv_obj>
-            <!-- Row 8 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="8"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="8"/>
-              <text_small width="28%" bind_text="is_x_cmp_8_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_8_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_8_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_8_accel"/>
-            </lv_obj>
-            <!-- Row 9 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="9"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="9"/>
-              <text_small width="28%" bind_text="is_x_cmp_9_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_9_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_9_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_9_accel"/>
-            </lv_obj>
-            <!-- Row 10 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_x_num_shapers" flag="hidden" ref_value="10"/>
-              <bind_state_if_eq subject="is_x_recommended_row" state="checked" ref_value="10"/>
-              <text_small width="28%" bind_text="is_x_cmp_10_type"/>
-              <text_small width="22%" bind_text="is_x_cmp_10_freq"/>
-              <text_small width="25%" bind_text="is_x_cmp_10_vib"/>
-              <text_small width="25%" bind_text="is_x_cmp_10_accel"/>
-            </lv_obj>
-            <!-- Explanation -->
-            <text_small width="100%" bind_text="is_result_x_explanation" style_text_color="#text_muted"
-                        style_pad_top="#space_sm"/>
           </lv_obj>
         </lv_obj>
-        <!-- Y Axis Result Card -->
-        <lv_obj name="result_card_y"
-                width="100%" height="content" style_bg_color="#section_bg_color" style_radius="#border_radius"
-                style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_eq subject="is_results_has_y" flag="hidden" ref_value="0"/>
-          <!-- Card header: axis label + recommended shaper -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
-                  style_flex_cross_place="center" scrollable="false">
-            <text_body text="Y Axis" translation_tag="Y Axis"/>
-            <text_small bind_text="is_result_y_shaper" style_text_color="#text_muted"/>
-          </lv_obj>
-          <!-- Frequency response chart container (hidden when no freq data) -->
-          <lv_obj name="chart_container_y"
-                  width="100%" height="180" style_pad_all="0" style_radius="#border_radius"
-                  style_bg_color="#screen_bg" style_bg_opa="255"
-                  scrollable="false">
-            <bind_flag_if_eq subject="is_y_has_freq_data" flag="hidden" ref_value="0"/>
-          </lv_obj>
-          <!-- Shaper overlay chip toggles -->
-          <lv_obj name="chip_row_y"
-                  width="100%" height="content" style_pad_all="0" flex_flow="row_wrap"
-                  style_pad_gap="#space_xs" style_flex_main_place="start"
-                  style_flex_cross_place="center"
-                  scrollable="false">
-            <bind_flag_if_eq subject="is_y_has_freq_data" flag="hidden" ref_value="0"/>
-            <!-- Chip 0 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_0_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_0_cb"/>
-              <text_small bind_text="is_y_chip_0_label"/>
-            </ui_button>
-            <!-- Chip 1 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_1_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_1_cb"/>
-              <text_small bind_text="is_y_chip_1_label"/>
-            </ui_button>
-            <!-- Chip 2 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_2_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_2_cb"/>
-              <text_small bind_text="is_y_chip_2_label"/>
-            </ui_button>
-            <!-- Chip 3 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_3_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_3_cb"/>
-              <text_small bind_text="is_y_chip_3_label"/>
-            </ui_button>
-            <!-- Chip 4 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_4_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_4_cb"/>
-              <text_small bind_text="is_y_chip_4_label"/>
-            </ui_button>
-            <!-- Chip 5 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_5_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_5_cb"/>
-              <text_small bind_text="is_y_chip_5_label"/>
-            </ui_button>
-            <!-- Chip 6 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_6_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_6_cb"/>
-              <text_small bind_text="is_y_chip_6_label"/>
-            </ui_button>
-            <!-- Chip 7 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_7_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_7_cb"/>
-              <text_small bind_text="is_y_chip_7_label"/>
-            </ui_button>
-            <!-- Chip 8 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_8_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_8_cb"/>
-              <text_small bind_text="is_y_chip_8_label"/>
-            </ui_button>
-            <!-- Chip 9 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_9_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_9_cb"/>
-              <text_small bind_text="is_y_chip_9_label"/>
-            </ui_button>
-            <!-- Chip 10 -->
-            <ui_button width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    style_radius="12" style_border_width="1" style_border_color="#border"
-                    style_bg_opa="0" style_bg_opa:checked="200" style_bg_color:checked="#primary"
-                    style_border_color:checked="#primary"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_chip_10_active" state="checked" ref_value="1"/>
-              <event_cb trigger="clicked" callback="input_shaper_chip_y_10_cb"/>
-              <text_small bind_text="is_y_chip_10_label"/>
-            </ui_button>
-            <!-- Spacer to push legend right -->
-            <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-            <!-- Legend: colored dots with series labels -->
-            <lv_obj width="content" height="content" style_pad_all="0" flex_flow="row"
-                    style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
-              <!-- Measured PSD dot + label -->
-              <lv_obj name="legend_y_measured_dot" width="8" height="8"
-                      style_radius="4" style_bg_opa="255" style_bg_color="0xB0B0B0"
-                      style_pad_all="0" scrollable="false"/>
-              <text_small text="Measured" translation_tag="Measured" style_text_color="#text_muted"/>
-              <!-- Active shaper dot + label -->
-              <lv_obj name="legend_y_shaper_dot" width="8" height="8"
-                      style_radius="4" style_bg_opa="255" style_bg_color="0x66BB6A"
-                      style_pad_all="0" style_margin_left="#space_xs" scrollable="false"/>
-              <text_small bind_text="is_y_legend_shaper_label" style_text_color="#text_muted"/>
-            </lv_obj>
-          </lv_obj>
-          <!-- Comparison table for Y axis -->
-          <lv_obj name="shaper_table_y"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column"
-                  style_pad_gap="0" scrollable="false">
-            <!-- Header row -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_border_width="1" style_border_color="#border" style_border_side="bottom"
-                    scrollable="false">
-              <text_small width="28%" text="Type" translation_tag="Type" style_text_color="#text_muted"/>
-              <text_small width="22%" text="Peak Freq" translation_tag="Peak Freq" style_text_color="#text_muted"/>
-              <text_small width="25%" text="Vibration" translation_tag="Vibration" style_text_color="#text_muted"/>
-              <text_small width="25%" text="Max Accel" translation_tag="Max Accel" style_text_color="#text_muted"/>
-            </lv_obj>
-            <!-- Row 0 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="0"/>
-              <text_small width="28%" bind_text="is_y_cmp_0_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_0_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_0_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_0_accel"/>
-            </lv_obj>
-            <!-- Row 1 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="1"/>
-              <text_small width="28%" bind_text="is_y_cmp_1_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_1_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_1_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_1_accel"/>
-            </lv_obj>
-            <!-- Row 2 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="2"/>
-              <text_small width="28%" bind_text="is_y_cmp_2_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_2_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_2_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_2_accel"/>
-            </lv_obj>
-            <!-- Row 3 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="3"/>
-              <text_small width="28%" bind_text="is_y_cmp_3_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_3_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_3_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_3_accel"/>
-            </lv_obj>
-            <!-- Row 4 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="4"/>
-              <text_small width="28%" bind_text="is_y_cmp_4_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_4_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_4_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_4_accel"/>
-            </lv_obj>
-            <!-- Row 5 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="5"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="5"/>
-              <text_small width="28%" bind_text="is_y_cmp_5_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_5_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_5_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_5_accel"/>
-            </lv_obj>
-            <!-- Row 6 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="6"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="6"/>
-              <text_small width="28%" bind_text="is_y_cmp_6_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_6_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_6_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_6_accel"/>
-            </lv_obj>
-            <!-- Row 7 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="7"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="7"/>
-              <text_small width="28%" bind_text="is_y_cmp_7_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_7_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_7_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_7_accel"/>
-            </lv_obj>
-            <!-- Row 8 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="8"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="8"/>
-              <text_small width="28%" bind_text="is_y_cmp_8_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_8_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_8_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_8_accel"/>
-            </lv_obj>
-            <!-- Row 9 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="9"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="9"/>
-              <text_small width="28%" bind_text="is_y_cmp_9_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_9_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_9_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_9_accel"/>
-            </lv_obj>
-            <!-- Row 10 -->
-            <lv_obj width="100%" height="content" style_pad_all="0"
-                    style_pad_left="#space_sm" style_pad_right="#space_sm"
-                    style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                    flex_flow="row" style_flex_cross_place="center"
-                    style_bg_opa="0" style_bg_opa:checked="40" style_bg_color:checked="#primary" style_radius:checked="4"
-                    scrollable="false">
-              <bind_flag_if_le subject="is_y_num_shapers" flag="hidden" ref_value="10"/>
-              <bind_state_if_eq subject="is_y_recommended_row" state="checked" ref_value="10"/>
-              <text_small width="28%" bind_text="is_y_cmp_10_type"/>
-              <text_small width="22%" bind_text="is_y_cmp_10_freq"/>
-              <text_small width="25%" bind_text="is_y_cmp_10_vib"/>
-              <text_small width="25%" bind_text="is_y_cmp_10_accel"/>
-            </lv_obj>
-            <!-- Explanation -->
-            <text_small width="100%" bind_text="is_result_y_explanation" style_text_color="#text_muted"
-                        style_pad_top="#space_sm"/>
-          </lv_obj>
-        </lv_obj>
-        </lv_obj> <!-- end scrollable results area -->
+        <!-- end scrollable results area -->
         <!-- Save button — pinned to bottom -->
-        <ui_button name="btn_save" width="100%" height="#button_height" variant="primary" icon="check" text="Save" translation_tag="Save"
-                   style_margin_top="#space_md">
+        <ui_button name="btn_save"
+                   width="100%" height="#button_height" variant="primary" icon="check" text="Save"
+                   translation_tag="Save" style_margin_top="#space_md">
           <event_cb trigger="clicked" callback="input_shaper_save_cb"/>
         </ui_button>
       </lv_obj>
@@ -843,7 +953,8 @@
                 style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm"
                 scrollable="false">
           <icon src="alert" size="lg" variant="danger"/>
-          <text_heading text="Calibration Failed" translation_tag="Calibration Failed" style_text_align="center" style_text_color="#danger"/>
+          <text_heading text="Calibration Failed"
+                        translation_tag="Calibration Failed" style_text_align="center" style_text_color="#danger"/>
           <text_muted bind_text="is_error_message" style_text_align="center"/>
         </lv_obj>
         <!-- Troubleshooting tips -->
@@ -852,7 +963,8 @@
                 style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
           <text_small text="Troubleshooting:" translation_tag="Troubleshooting:"/>
           <text_small text="- Ensure ADXL345 is connected" translation_tag="- Ensure ADXL345 is connected"/>
-          <text_small text="- Check [resonance_tester] in printer.cfg" translation_tag="- Check [resonance_tester] in printer.cfg"/>
+          <text_small text="- Check [resonance_tester] in printer.cfg"
+                      translation_tag="- Check [resonance_tester] in printer.cfg"/>
           <text_small text="- Try Measure Noise first" translation_tag="- Try Measure Noise first"/>
         </lv_obj>
         <!-- Action buttons -->

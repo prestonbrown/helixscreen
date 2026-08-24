@@ -5,12 +5,15 @@
 #include "config.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
+#include "filament_op_dispatch.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "test_helpers/cfs_test_access.h"
 
 #include <filesystem>
@@ -20,6 +23,7 @@
 #include <type_traits>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -76,9 +80,9 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     // Expose protected firmware-writeback helper for direct test calls.
-    // push_slot_color_to_firmware is protected (called from set_slot_info but
-    // not part of the public IAmsBackend surface).
-    using AmsBackendCfs::push_slot_color_to_firmware;
+    // push_slot_identity_to_firmware is protected (called from set_slot_info
+    // but not part of the public IAmsBackend surface).
+    using AmsBackendCfs::push_slot_identity_to_firmware;
 
     // Capture the assembled load/swap/unload script that change_tool /
     // load_filament / unload_filament hand to dispatch_action_script. Returns
@@ -121,6 +125,237 @@ TEST_CASE("CFS Box profile clear is Fork-only", "[ams][cfs][fork]") {
     backend.clear_box_slot_profile(2);
 
     REQUIRE(backend.captured == std::vector<std::string>{"_BOX_SLOT_CLEAR SLOT=2"});
+}
+
+// =============================================================================
+// CFS bypass / external spool
+// =============================================================================
+//
+// Two dialect answers, one per axis from FILAMENT_MANAGEMENT.md § CFS:
+//  - Fork (community Kalico box.py): the firmware registers T<external_slot>
+//    for the holder and BOX_UNLOAD's external branch ejects it, so bypass is
+//    commanded with real gcode.
+//  - Stock (K1 BOX_* / K2 CR_BOX_*): no Klipper-side command loads from the
+//    holder (Creality's own UI drives the box over RS-485), so enabling is a
+//    declaration confirmed by the toolhead filament sensor.
+
+// Wrap a box object in the notify_status_update envelope. Defined with the
+// status-parsing fixtures further down; forward-declared so the bypass tests
+// above them can share it.
+static json make_cfs_notification(const json& box_obj);
+
+TEST_CASE("CFS bypass: fork dialect commands the attended load", "[ams][cfs][bypass]") {
+    CfsRemapHelper backend;
+    backend.mark_running();
+    CfsTestAccess::set_flat_fork(backend, /*external_index=*/4);
+
+    SECTION("enable dispatches T<external>") {
+        auto err = backend.enable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        REQUIRE(backend.dispatched[0] == "T4");
+    }
+
+    SECTION("no external entry in the payload means no bypass") {
+        CfsTestAccess::set_flat_fork(backend, /*external_index=*/-1);
+        auto err = backend.enable_bypass();
+        REQUIRE(err.result == AmsResult::NOT_SUPPORTED);
+        REQUIRE(backend.dispatched.empty());
+    }
+
+    SECTION("disable while engaged dispatches BOX_UNLOAD") {
+        // Engaged = firmware named the external entry in loaded_slot.
+        CfsTestAccess::handle_status(backend, make_cfs_notification(json::parse(
+                                                  R"({"api_version": 1, "loaded_slot": 4, "slots": [
+                 {"index": 0, "external": false, "present": true},
+                 {"index": 1, "external": false, "present": true},
+                 {"index": 2, "external": false, "present": true},
+                 {"index": 3, "external": false, "present": true},
+                 {"index": 4, "external": true,  "present": true}]})")));
+        REQUIRE(backend.is_bypass_active());
+
+        auto err = backend.disable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        REQUIRE(backend.dispatched[0] == "BOX_UNLOAD");
+    }
+
+    SECTION("disable when not engaged is a no-op success") {
+        auto err = backend.disable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.empty());
+    }
+}
+
+TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cfs][bypass]") {
+    CfsRemapHelper backend;
+    backend.mark_running();
+    // Stock dialect is the default schema; a full box frame is what flips
+    // supports_bypass on.
+    CfsTestAccess::handle_status(backend, make_cfs_notification(json::parse(
+                                              R"({"state": "connect", "filament": 0, "enable": 1,
+            "filament_useup": 0,
+            "map": {"T1A": "T1A"},
+            "T1": {"state": "connect", "filament": "None",
+                   "vender": ["none"], "remain_len": ["-1"],
+                   "color_value": ["-1"], "material_type": ["-1"]}})")));
+
+    SECTION("first full box frame flips supports_bypass") {
+        auto info = backend.get_system_info();
+        REQUIRE(info.supports_bypass);
+    }
+
+    SECTION("enable stands the CFS down and declares; sensor feed confirms; "
+            "sensor clear retracts") {
+        auto err = backend.enable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        // No motion script exists for stock — but the box's print feed is
+        // stood down so it cannot drive bay filament into the tube the
+        // external spool occupies.
+        REQUIRE(backend.captured == std::vector<std::string>{"BOX_ENABLE_CFS_PRINT ENABLE=0"});
+        REQUIRE(backend.dispatched.empty());
+        REQUIRE(backend.is_bypass_active()); // declaration half
+
+        // Toolhead sensor sees hand-fed filament with no active lane.
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(backend, json{{"params", json::array({json::object(), 0})}});
+        REQUIRE(backend.get_system_info().current_slot == -2);
+
+        // Filament pulled back out: sentinel clears. The declaration itself
+        // persists until the user toggles bypass off — is_bypass_active()
+        // keeps reporting the declared half, matching the sidebar toggle.
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+        CfsTestAccess::handle_status(backend, json{{"params", json::array({json::object(), 0})}});
+        REQUIRE(backend.get_system_info().current_slot == -1);
+        REQUIRE(backend.is_bypass_active());
+    }
+
+    SECTION("sensor never saw filament: no derivation") {
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/false, /*detected=*/false);
+        CfsTestAccess::handle_status(backend, json{{"params", json::array({json::object(), 0})}});
+        REQUIRE(backend.get_system_info().current_slot == -1);
+    }
+
+    SECTION("disable re-arms the CFS and clears the declaration") {
+        backend.enable_bypass();
+        backend.captured.clear();
+
+        auto err = backend.disable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.captured == std::vector<std::string>{"BOX_ENABLE_CFS_PRINT ENABLE=1"});
+        REQUIRE_FALSE(backend.is_bypass_active());
+
+        // Re-enable works after a disable.
+        REQUIRE(backend.enable_bypass().result == AmsResult::SUCCESS);
+    }
+
+    SECTION("disable when fully off is a no-op — no spurious re-arm send") {
+        auto err = backend.disable_bypass();
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.captured.empty());
+        REQUIRE(backend.dispatched.empty());
+    }
+
+    SECTION("enable persists the declaration; disable clears it") {
+        SettingsManager::instance().set_bypass_declared(false);
+        backend.enable_bypass();
+        REQUIRE(SettingsManager::instance().get_bypass_declared());
+
+        backend.disable_bypass();
+        REQUIRE_FALSE(SettingsManager::instance().get_bypass_declared());
+    }
+
+    SECTION("declaration survives a restart via on_started restore") {
+        SettingsManager::instance().set_bypass_declared(false);
+        backend.enable_bypass();
+        REQUIRE(SettingsManager::instance().get_bypass_declared());
+
+        // New backend instance = new process, same persisted settings.
+        CfsRemapHelper restarted;
+        CfsTestAccess::call_on_started(restarted);
+        REQUIRE(restarted.is_bypass_active());
+
+        SettingsManager::instance().set_bypass_declared(false); // test-env cleanup
+    }
+
+    SECTION("the box re-arming itself does NOT drop the declaration") {
+        // This section used to assert the opposite, on the premise that enable=1
+        // meant "someone re-enabled the CFS through Creality's own screen". That
+        // premise is false and the frame below is why: it is the literal frame a
+        // K2 Plus sent after re-arming with no host involved — no
+        // BOX_ENABLE_CFS_PRINT in klippy.log, no disable_bypass() in ours (the
+        // only thing that sends ENABLE=1), and the prints in that window were
+        // plain Moonraker start_print calls from a third-party client.
+        //
+        // Because partial frames omit `enable`, the old rule only bit on the
+        // first full frame after a restart — so bypass survived all session and
+        // died on relaunch, while the external spool was still feeding the
+        // nozzle and Unload greyed out.
+        SettingsManager::instance().set_bypass_declared(false);
+        backend.enable_bypass();
+        REQUIRE(backend.is_bypass_active());
+
+        CfsTestAccess::handle_status(
+            backend, make_cfs_notification(json::parse(
+                         R"({"state":"connect","filament":0,"auto_refill":0,"enable":1,
+                "map":{"T1A":"T1A"},
+                "T1":{"state":"connect","filament":"None","vender":["none"],
+                      "remain_len":["-1"],"color_value":["-1"],
+                      "material_type":["-1"]}})")));
+        REQUIRE(backend.is_bypass_active());
+
+        SettingsManager::instance().set_bypass_declared(false); // test-env cleanup
+    }
+
+    SECTION("bay filament at the toolhead blocks enable") {
+        CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/true,
+                                        /*current_slot=*/2);
+        auto err = backend.enable_bypass();
+        REQUIRE(err.result == AmsResult::WRONG_STATE);
+        REQUIRE(backend.dispatched.empty());
+    }
+}
+
+TEST_CASE("CFS auto-refill device action sends an explicit ENABLE", "[ams][cfs]") {
+    // BOX_ENABLE_AUTO_REFILL is a setter, not a toggle: the handler reads
+    // ENABLE via gcmd.get_int, and Creality's own master-server sends
+    // ENABLE=1/0 explicitly on both families. The device action must invert
+    // the last box-reported flag and send the spelled-out command.
+    CfsRemapHelper backend;
+    backend.mark_running();
+    backend.captured.clear();
+
+    SECTION("auto-refill currently off → ENABLE=1") {
+        CfsTestAccess::set_loaded_state(backend, false, -1);
+        {
+            // Seed endless_spool_enabled=false via a box frame (auto_refill=0).
+            CfsTestAccess::handle_status(
+                backend, make_cfs_notification(json::parse(
+                             R"({"state":"connect","filament":0,"auto_refill":0,"enable":1,
+                    "map":{"T1A":"T1A"},
+                    "T1":{"state":"connect","filament":"None","vender":["none"],
+                          "remain_len":["-1"],"color_value":["-1"],
+                          "material_type":["-1"]}})")));
+        }
+        backend.captured.clear();
+        auto err = backend.execute_device_action("toggle_auto_refill");
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.captured == std::vector<std::string>{"BOX_ENABLE_AUTO_REFILL ENABLE=1"});
+    }
+
+    SECTION("auto-refill currently on → ENABLE=0") {
+        CfsTestAccess::handle_status(
+            backend, make_cfs_notification(json::parse(
+                         R"({"state":"connect","filament":0,"auto_refill":1,"enable":1,
+                "map":{"T1A":"T1A"},
+                "T1":{"state":"connect","filament":"None","vender":["none"],
+                      "remain_len":["-1"],"color_value":["-1"],
+                      "material_type":["-1"]}})")));
+        backend.captured.clear();
+        auto err = backend.execute_device_action("toggle_auto_refill");
+        REQUIRE(err.result == AmsResult::SUCCESS);
+        REQUIRE(backend.captured == std::vector<std::string>{"BOX_ENABLE_AUTO_REFILL ENABLE=0"});
+    }
 }
 
 TEST_CASE("CFS type enum", "[ams][cfs]") {
@@ -213,9 +448,18 @@ TEST_CASE("CFS material database", "[ams][cfs]") {
         REQUIRE(info == nullptr);
     }
 
-    SECTION("code stripping: 101001 to 01001") {
+    SECTION("code stripping: 101001 to 01001 (K2, Creality prefix)") {
         auto id = CfsMaterialDb::strip_code("101001");
         REQUIRE(id == "01001");
+    }
+
+    SECTION("code stripping: K1 Generic prefix (#968)") {
+        // K1C reporter tn_data.json: 000001 = PLA, 000003 = PETG — the
+        // catalog ids are 00001 / 00003, so the leading '0' is the same
+        // brand-prefix digit the K2 carries as '1'.
+        REQUIRE(CfsMaterialDb::strip_code("000001") == "00001");
+        REQUIRE(CfsMaterialDb::strip_code("000003") == "00003");
+        REQUIRE(FilamentCatalog::load_codes("cfs").resolve_code("cfs", "00003") != nullptr);
     }
 
     SECTION("short code returned as-is") {
@@ -475,7 +719,8 @@ TEST_CASE("CFS backend status parsing", "[ams][cfs]") {
 
     SECTION("system-level fields") {
         REQUIRE(info.type == AmsType::CFS);
-        REQUIRE(info.supports_endless_spool == true);
+        // box.auto_refill=1 -> the ENABLE bit, which caps.enabled derives from.
+        REQUIRE(info.endless_spool_enabled == true);
     }
 
     SECTION("connected unit created, disconnected skipped") {
@@ -673,7 +918,20 @@ TEST_CASE("CFS GCode helpers", "[ams][cfs]") {
     }
 
     SECTION("recover gcode") {
-        REQUIRE(AmsBackendCfs::recover_gcode() == "BOX_ERROR_RESUME_PROCESS");
+        using V = helix::printer::CfsMacroVariant;
+        // K2 keeps the box-specific resume.
+        REQUIRE(AmsBackendCfs::recover_gcode(V::K2) == "BOX_ERROR_RESUME_PROCESS");
+
+        // K1 must NOT emit it: the K1 box extension registers no
+        // cmd_error_resume_process (symbol-grepped from box_wrapper .so in
+        // CR4CU220812S11 v2.3.5.34), so it returns "Unknown command" and the
+        // box is never resumed. #1278.
+        REQUIRE(AmsBackendCfs::recover_gcode(V::K1) != "BOX_ERROR_RESUME_PROCESS");
+        REQUIRE(AmsBackendCfs::recover_gcode(V::K1) == "RESUME");
+
+        // BOX_TNN_RETRY_PROCESS exists on K1 but is NOT a substitute — it
+        // retries a specific tool change and needs TNN/LAST_TNN context.
+        REQUIRE(AmsBackendCfs::recover_gcode(V::K1) != "BOX_TNN_RETRY_PROCESS");
     }
 }
 
@@ -685,19 +943,22 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     using V = helix::printer::CfsMacroVariant;
 
     SECTION("K1 load gcode mirrors BOX_LOAD_MATERIAL_WITHOUT_MATERIAL (#968)") {
-        // Fresh load, nozzle empty. Mirrors the firmware
-        // BOX_LOAD_MATERIAL_WITHOUT_MATERIAL step list with explicit TNN=, and
-        // ADDS the missing BOX_EXTRUDER_EXTRUDE (root cause of "no auto-extrude
-        // after load"). All commands are confirmed-present in the reporter's
-        // box.cfg. Homing is handled upstream by dispatch_action_script.
+        // Fresh load, nozzle empty. Feed steps follow the firmware
+        // BOX_LOAD_MATERIAL_WITHOUT_MATERIAL chain, with explicit TNN= on the
+        // two commands that take it, and ADD the missing BOX_EXTRUDER_EXTRUDE
+        // (root cause of "no auto-extrude after load"). BOX_MATERIAL_FLUSH is
+        // bare: it takes LEN/VELOCITY/TEMP only, never TNN. Homing is handled
+        // upstream by dispatch_action_script.
         const std::string expected_a = "SAVE_GCODE_STATE NAME=helix_cfs_load\n"
+                                       "BOX_SAVE_FAN\n"
                                        "BOX_ERROR_CLEAR\n"
                                        "BOX_CHECK_MATERIAL\n"
                                        "BOX_GO_TO_EXTRUDE_POS\n"
                                        "BOX_EXTRUDE_MATERIAL TNN=T1A\n"
                                        "BOX_EXTRUDER_EXTRUDE TNN=T1A\n"
-                                       "BOX_MATERIAL_FLUSH TNN=T1A\n"
+                                       "BOX_MATERIAL_FLUSH\n"
                                        "BOX_NOZZLE_CLEAN\n"
+                                       "BOX_RESTORE_FAN\n"
                                        "BOX_MOVE_TO_SAFE_POS\n"
                                        "RESTORE_GCODE_STATE NAME=helix_cfs_load";
         REQUIRE(AmsBackendCfs::load_gcode(0, V::K1) == expected_a);
@@ -710,16 +971,17 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
         // The fix: BOX_EXTRUDER_EXTRUDE must appear between EXTRUDE and FLUSH.
         const auto pos_extrude = g.find("BOX_EXTRUDE_MATERIAL TNN=T1B");
         const auto pos_extruder = g.find("BOX_EXTRUDER_EXTRUDE TNN=T1B");
-        const auto pos_flush = g.find("BOX_MATERIAL_FLUSH TNN=T1B");
+        const auto pos_flush = g.find("BOX_MATERIAL_FLUSH\n");
         REQUIRE(pos_extrude != std::string::npos);
         REQUIRE(pos_extruder != std::string::npos);
         REQUIRE(pos_flush != std::string::npos);
         REQUIRE(pos_extrude < pos_extruder);
         REQUIRE(pos_extruder < pos_flush);
 
-        // K1 firmware lacks fan-save and mode-wait — must not be emitted.
-        REQUIRE(g.find("BOX_SAVE_FAN") == std::string::npos);
-        REQUIRE(g.find("BOX_RESTORE_FAN") == std::string::npos);
+        // K1 firmware lacks mode-wait — must not be emitted. Fan-save DOES
+        // exist here and is required; see the envelope guard section (#1278).
+        REQUIRE(g.find("BOX_SAVE_FAN") != std::string::npos);
+        REQUIRE(g.find("BOX_RESTORE_FAN") != std::string::npos);
         REQUIRE(g.find("BOX_MODE_WAIT") == std::string::npos);
 
         // Fresh load mirror must NOT cut (nozzle is empty).
@@ -756,10 +1018,12 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
         // Mirrors the firmware BOX_QUIT_MATERIAL step list:
         // ERROR_CLEAR → CHECK_MATERIAL → CUT → RETRUDE → safe park.
         const std::string expected = "SAVE_GCODE_STATE NAME=helix_cfs_load\n"
+                                     "BOX_SAVE_FAN\n"
                                      "BOX_ERROR_CLEAR\n"
                                      "BOX_CHECK_MATERIAL\n"
                                      "BOX_CUT_MATERIAL\n"
                                      "BOX_RETRUDE_MATERIAL\n"
+                                     "BOX_RESTORE_FAN\n"
                                      "BOX_MOVE_TO_SAFE_POS\n"
                                      "RESTORE_GCODE_STATE NAME=helix_cfs_load";
         REQUIRE(AmsBackendCfs::unload_gcode(V::K1) == expected);
@@ -767,7 +1031,9 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
         const std::string g = AmsBackendCfs::unload_gcode(V::K1);
         REQUIRE(g.find("CR_BOX_") == std::string::npos);
         REQUIRE(g.find("BOX_MODE_WAIT") == std::string::npos);
-        REQUIRE(g.find("BOX_SAVE_FAN") == std::string::npos);
+        // BOX_SAVE_FAN is NOT K2-only — it exists on K1 too (symbol-verified in
+        // CR4CU220812S11_ota_img_V2.3.5.34) and the envelope now emits it.
+        REQUIRE(g.find("BOX_SAVE_FAN") != std::string::npos);
         // Cut + retrude present.
         REQUIRE(g.find("BOX_CUT_MATERIAL") != std::string::npos);
         REQUIRE(g.find("BOX_RETRUDE_MATERIAL") != std::string::npos);
@@ -778,7 +1044,9 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     SECTION("K1 swap gcode mirrors BOX_LOAD_MATERIAL_WITH_MATERIAL for slot 5 (T2B) (#968)") {
         // Nozzle loaded: cut old, retract, position, clean, then load new slot
         // with the missing BOX_EXTRUDER_EXTRUDE between EXTRUDE and FLUSH.
+        // BOX_MATERIAL_FLUSH is bare — it has no TNN parameter.
         const std::string expected = "SAVE_GCODE_STATE NAME=helix_cfs_load\n"
+                                     "BOX_SAVE_FAN\n"
                                      "BOX_ERROR_CLEAR\n"
                                      "BOX_CHECK_MATERIAL\n"
                                      "BOX_CUT_MATERIAL\n"
@@ -787,7 +1055,8 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
                                      "BOX_NOZZLE_CLEAN\n"
                                      "BOX_EXTRUDE_MATERIAL TNN=T2B\n"
                                      "BOX_EXTRUDER_EXTRUDE TNN=T2B\n"
-                                     "BOX_MATERIAL_FLUSH TNN=T2B\n"
+                                     "BOX_MATERIAL_FLUSH\n"
+                                     "BOX_RESTORE_FAN\n"
                                      "BOX_MOVE_TO_SAFE_POS\n"
                                      "RESTORE_GCODE_STATE NAME=helix_cfs_load";
         REQUIRE(AmsBackendCfs::swap_gcode(5, V::K1) == expected);
@@ -802,10 +1071,10 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
             REQUIRE(g.find("BOX_RETRUDE_MATERIAL") != std::string::npos);
             REQUIRE(g.find("BOX_EXTRUDE_MATERIAL TNN=") != std::string::npos);
             REQUIRE(g.find("BOX_EXTRUDER_EXTRUDE TNN=") != std::string::npos);
-            REQUIRE(g.find("BOX_MATERIAL_FLUSH TNN=") != std::string::npos);
+            REQUIRE(g.find("BOX_MATERIAL_FLUSH\n") != std::string::npos);
             // The missing extrude primitive must sit between EXTRUDE and FLUSH.
             REQUIRE(g.find("BOX_EXTRUDE_MATERIAL TNN=") < g.find("BOX_EXTRUDER_EXTRUDE TNN="));
-            REQUIRE(g.find("BOX_EXTRUDER_EXTRUDE TNN=") < g.find("BOX_MATERIAL_FLUSH TNN="));
+            REQUIRE(g.find("BOX_EXTRUDER_EXTRUDE TNN=") < g.find("BOX_MATERIAL_FLUSH\n"));
             // Swap ends with flush of new slot — wipe before parking.
             REQUIRE(g.find("BOX_NOZZLE_CLEAN") != std::string::npos);
             REQUIRE(g.find("BOX_MOVE_TO_SAFE_POS") != std::string::npos);
@@ -815,14 +1084,28 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     }
 
     SECTION("K1 envelope omits all K2-only helpers across all three operations") {
-        // Regression guard: any future refactor that accidentally re-introduces
-        // BOX_SAVE_FAN/RESTORE_FAN/BOX_MODE_WAIT for the K1 path would send
-        // the printer back into key61 territory (#968).
+        // Regression guard. BOX_MODE_WAIT and the CR_BOX_* primitives are
+        // genuinely absent from K1 and re-introducing them means key61 (#968).
+        //
+        // BOX_SAVE_FAN / BOX_RESTORE_FAN are NOT in that set, though this guard
+        // once asserted they were. They are C-extension commands registered from
+        // box_wrapper.cpython-38-mipsel-linux-gnu.so, never [gcode_macro]s, so
+        // the box.cfg dump they were "verified absent" in could not have listed
+        // them either way. Symbol grep of the extension in
+        // CR4CU220812S11_ota_img_V2.3.5.34 shows cmd_save_fan / cmd_restore_fan
+        // present. Omitting them left part-cooling blowing across the nozzle
+        // through every K1 load, cut and flush (#1278).
         for (const std::string& g :
              {AmsBackendCfs::load_gcode(0, V::K1), AmsBackendCfs::unload_gcode(V::K1),
               AmsBackendCfs::swap_gcode(0, V::K1)}) {
-            REQUIRE(g.find("BOX_SAVE_FAN") == std::string::npos);
-            REQUIRE(g.find("BOX_RESTORE_FAN") == std::string::npos);
+            REQUIRE(g.find("BOX_SAVE_FAN") != std::string::npos);
+            REQUIRE(g.find("BOX_RESTORE_FAN") != std::string::npos);
+            // Suppress before the body runs, restore after it — never the
+            // reverse, or the op runs with the fan on and ends with it off.
+            REQUIRE(g.find("BOX_SAVE_FAN") < g.find("BOX_RESTORE_FAN"));
+            // The restore must precede the park so a raise mid-park still
+            // leaves the fan correct.
+            REQUIRE(g.find("BOX_RESTORE_FAN") < g.find("BOX_MOVE_TO_SAFE_POS"));
             REQUIRE(g.find("BOX_MODE_WAIT") == std::string::npos);
             REQUIRE(g.find("CR_BOX_") == std::string::npos);
             // Save/restore + park are common to all three K1 operations.
@@ -839,6 +1122,64 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
                 std::string::npos);
         REQUIRE(AmsBackendCfs::unload_gcode(V::K1).find("BOX_GO_TO_EXTRUDE_POS") ==
                 std::string::npos);
+    }
+
+    SECTION("K1 BOX_MATERIAL_FLUSH is emitted bare — it has no TNN parameter (#968)") {
+        // Genuine K1 CFS firmware (Creality OTA V2.3.5.34, board CR4CU220812S11):
+        // the shipped box.cfg — byte-identical across all 11 per-model configs —
+        // documents the parameter forms as
+        //     BOX_EXTRUDE_MATERIAL TNN=T1A
+        //     BOX_EXTRUDER_EXTRUDE TNN=T1A
+        //     BOX_MATERIAL_FLUSH LEN=100 VELOCITY=360 TEMP=220
+        //     BOX_RETRUDE_MATERIAL_WITH_TNN TNN=T1A
+        // TNN is on three commands and deliberately not on the flush, and every
+        // shipped BOX_LOAD_MATERIAL_* macro invokes the flush bare. Disassembly
+        // of box_wrapper...so agrees: cmd_material_flush reads only LEN /
+        // VELOCITY / TEMP and never touches TNN or the Tnn_map lookup.
+        //
+        // Sending TNN= is inert rather than fatal (Klipper's GCodeCommand
+        // ignores unread parameters), which is exactly why it needs pinning —
+        // nothing at runtime would ever complain if it came back.
+        //
+        // Extract each emitted flush line and require it to be exactly bare.
+        auto flush_lines = [](const std::string& g) {
+            std::vector<std::string> out;
+            const std::string needle = "BOX_MATERIAL_FLUSH";
+            for (size_t p = g.find(needle); p != std::string::npos; p = g.find(needle, p + 1)) {
+                const size_t end = g.find('\n', p);
+                out.push_back(g.substr(p, end == std::string::npos ? std::string::npos : end - p));
+            }
+            return out;
+        };
+
+        // Load and swap both flush; unload does not (nozzle is empty post-cut).
+        for (int idx : {0, 1, 5, 15}) {
+            for (const std::string& g :
+                 {AmsBackendCfs::load_gcode(idx, V::K1), AmsBackendCfs::swap_gcode(idx, V::K1)}) {
+                const auto lines = flush_lines(g);
+                INFO("idx=" << idx << " gcode:\n" << g);
+                REQUIRE(lines.size() == 1);
+                REQUIRE(lines[0] == "BOX_MATERIAL_FLUSH");
+            }
+        }
+        // Unload emits no flush at all.
+        REQUIRE(flush_lines(AmsBackendCfs::unload_gcode(V::K1)).empty());
+
+        // No K1 builder may put TNN on the flush, and none may reach for the
+        // TNN-aware BOX_MATERIAL_CHANGE_FLUSH — it exists in this firmware but
+        // no shipped macro uses it, so adopting it would be a behavior change.
+        for (const std::string& g :
+             {AmsBackendCfs::load_gcode(0, V::K1), AmsBackendCfs::unload_gcode(V::K1),
+              AmsBackendCfs::swap_gcode(0, V::K1)}) {
+            REQUIRE(g.find("BOX_MATERIAL_FLUSH TNN=") == std::string::npos);
+            REQUIRE(g.find("BOX_MATERIAL_CHANGE_FLUSH") == std::string::npos);
+        }
+
+        // The commands that genuinely DO take TNN must keep it — this guard
+        // must not be "fixed" by stripping TNN everywhere.
+        const std::string load = AmsBackendCfs::load_gcode(5, V::K1);
+        REQUIRE(load.find("BOX_EXTRUDE_MATERIAL TNN=T2B") != std::string::npos);
+        REQUIRE(load.find("BOX_EXTRUDER_EXTRUDE TNN=T2B") != std::string::npos);
     }
 
     SECTION("K2 default preserved when variant omitted") {
@@ -890,35 +1231,149 @@ TEST_CASE("CFS change_tool selects load-vs-swap from filament_loaded (#968)", "[
 }
 
 // =============================================================================
-// push_slot_color_to_firmware is color-only: it emits a single
-// BOX_MODIFY_TN_DATA PART=color_value write. Changing the material *type* on CFS
-// is unsupported (no name->code forward map), so no material_type write is ever
-// emitted. Same ADDR/NUM validation + invalid-skip guard as before.
+// push_slot_identity_to_firmware (#968 material-type writeback)
 // =============================================================================
-TEST_CASE("CFS push_slot_color_to_firmware writes color only", "[ams][cfs][firmware_writeback]") {
+//
+// The push writes color_value always, and material_type ONLY when a code for
+// the user's pick exists in the firmware-observed vocabulary harvested by
+// handle_status_update (observed_material_*_). Codes are never synthesized —
+// a value the firmware never reported could poison the wrapper's material-DB
+// lookups (flush temps, same-material matching) and the stock LCD display.
+//
+// K1 codes below (000001 = Generic PLA, 000003 = Generic PETG) come from the
+// #968 reporter's real tn_data.json / box dumps.
+TEST_CASE("CFS push_slot_identity_to_firmware writes color + observed material code",
+          "[ams][cfs][firmware_writeback][968]") {
     CfsRemapHelper helper;
 
-    SECTION("valid slot → single color_value write, no material_type") {
-        helper.push_slot_color_to_firmware(0, 0xFF0000);
-        REQUIRE(helper.captured.size() == 1);
+    SECTION("no firmware-observed code → color-only + same-material refresh") {
+        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        // The follow-up BOX_UPDATE_SAME_MATERIAL_LIST mirrors Creality's own
+        // master-server, which refreshes the auto-refill equivalence groups
+        // after every BOX_MODIFY_TN_DATA write (group membership requires
+        // exact color equality).
+        REQUIRE(helper.captured.size() == 2);
         REQUIRE(helper.captured[0] ==
                 "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000");
-        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+        for (const auto& c : helper.captured) {
+            REQUIRE(c.find("PART=material_type") == std::string::npos);
+        }
     }
 
-    SECTION("a known RFID fingerprint does NOT trigger a material_type write") {
-        // Fingerprint format is "<raw_material_type>|<raw_color_value>". Even
-        // when present, color push stays color-only — material type is firmware
-        // territory we don't write back.
+    SECTION("baseline present but code never observed → still color-only") {
         CfsTestAccess::set_last_rfid_uid(helper, 5, "101001|0FF0000");
-        helper.push_slot_color_to_firmware(5, 0x00FF00);
-        REQUIRE(helper.captured.size() == 1);
+        helper.push_slot_identity_to_firmware(5, "PETG", "Generic", "", 0x00FF00);
+        REQUIRE(helper.captured.size() == 2);
+        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+    }
+
+    SECTION("K1: brand|type observed on another slot → material + color written") {
+        // Slot 1 carries the PETG spool (K1 code 000003); the user edits
+        // slot 0. The observed vocabulary is system-wide, not per-slot.
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"-1", "000003", "-1", "-1"},
+                                                               {"-1", "01B04AE", "-1", "-1"})));
+        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        REQUIRE(helper.captured.size() == 2);
+        REQUIRE(helper.captured[0] ==
+                "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=material_type DATA=000003\n"
+                "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000");
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+    }
+
+    SECTION("type-only fallback when brand is unknown") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
+                                                               {"01B04AE", "-1", "-1", "-1"})));
+        helper.push_slot_identity_to_firmware(1, "PETG", "", "", 0x00FF00);
+        REQUIRE(helper.captured.size() == 2);
+        REQUIRE(helper.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+    }
+
+    SECTION("catalog product pick resolves through its own cfs code id") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"-1", "-1", "000003", "-1"},
+                                                               {"-1", "-1", "0000000", "-1"})));
+        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "generic-petg", 0xFF0000);
+        REQUIRE(helper.captured.size() == 2);
+        REQUIRE(helper.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+    }
+
+    SECTION("unknown material → color-only even with a rich vocabulary") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
+                                                               {"01B04AE", "-1", "-1", "-1"})));
+        helper.push_slot_identity_to_firmware(2, "Unobtanium", "ACME", "", 0xFF0000);
+        REQUIRE(helper.captured.size() == 2);
+        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
+        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
         REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
     }
 
     SECTION("invalid slot index skips the write (must not crash klippy)") {
-        helper.push_slot_color_to_firmware(99, 0xFF0000);
+        helper.push_slot_identity_to_firmware(99, "PETG", "Generic", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
+    }
+}
+
+// The two PART writes land as one script, but a status poll can slip between
+// their echoes and observe the intermediate composite (new material + old
+// color). expect_any_of must classify BOTH echoes as OwnWriteEcho so the
+// fresh override survives its own writeback; a subsequent genuine change must
+// still clear it.
+TEST_CASE("CFS identity writeback echoes do not self-wipe the override",
+          "[ams][cfs][firmware_writeback][968]") {
+    CfsRemapHelper helper;
+
+    // Slot 0 holds Generic PLA (K1 code 000001, NilsOF's dump color 09CFF4F);
+    // slot 1 holds Generic PETG (000003), which is what puts PETG in the
+    // firmware-observed vocabulary the push needs.
+    CfsTestAccess::handle_status(
+        helper, make_cfs_notification(make_single_unit_box({"000001", "000003", "-1", "-1"},
+                                                           {"09CFF4F", "01B04AE", "-1", "-1"})));
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.material = "PETG";
+    ovr.brand = "Generic";
+    ovr.color_rgb = 0xFF0000;
+    ovr.color_set = true;
+    ovr.user_locked_color = true;
+    ovr.user_locked_material = true;
+    CfsTestAccess::seed_override(helper, 0, ovr);
+
+    // User picks PETG + red. Material (000003 via observed vocabulary) and
+    // color both differ from the baseline.
+    helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+    REQUIRE(helper.captured.size() == 2);
+    REQUIRE(helper.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
+
+    SECTION("intermediate echo (new material, old color) keeps the override") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
+                                                               {"09CFF4F", "-1", "-1", "-1"})));
+        REQUIRE(CfsTestAccess::get_override(helper, 0).has_value());
+    }
+
+    SECTION("final echo (new material + new color) keeps the override") {
+        // Intermediate first, then final — the realistic poll sequence.
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
+                                                               {"09CFF4F", "-1", "-1", "-1"})));
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
+                                                               {"0FF0000", "-1", "-1", "-1"})));
+        REQUIRE(CfsTestAccess::get_override(helper, 0).has_value());
+    }
+
+    SECTION("a value we never wrote still clears the override (real swap)") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(make_single_unit_box({"000001", "-1", "-1", "-1"},
+                                                               {"0FFFFFF", "-1", "-1", "-1"})));
+        REQUIRE_FALSE(CfsTestAccess::get_override(helper, 0).has_value());
     }
 }
 
@@ -1172,7 +1627,7 @@ TEST_CASE("CFS refresh_rfid probes each connected unit via BOX_INFO_REFRESH",
 }
 
 // =============================================================================
-// CFS BOX_MODIFY_TN_DATA color firmware-writeback (push_slot_color_to_firmware)
+// CFS BOX_MODIFY_TN_DATA color firmware-writeback (push_slot_identity_to_firmware)
 // =============================================================================
 //
 // Format reverse-engineered from K2's master-server binary
@@ -1183,46 +1638,50 @@ TEST_CASE("CFS refresh_rfid probes each connected unit via BOX_INFO_REFRESH",
 // .claude/scratchpad/research/k2-box-firmware-writeback.md.
 //
 // CRITICAL: invalid args trigger box_wrapper TypeError → klippy invoke_shutdown.
-// These tests cover the validation guards in push_slot_color_to_firmware that
+// These tests cover the validation guards in push_slot_identity_to_firmware that
 // prevent any out-of-range slot index or zero-color sentinel from reaching the
 // firmware as a malformed gcode.
 
-TEST_CASE("CFS push_slot_color_to_firmware emits BOX_MODIFY_TN_DATA",
+TEST_CASE("CFS push_slot_identity_to_firmware emits BOX_MODIFY_TN_DATA",
           "[ams][cfs][firmware_writeback]") {
     CfsRemapHelper helper;
 
     SECTION("Slot 0 (T1A) red 0xFF0000 → ADDR=1 NUM=A DATA=0FF0000") {
-        helper.push_slot_color_to_firmware(0, 0xFF0000);
+        helper.push_slot_identity_to_firmware(0, "", "", "", 0xFF0000);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
-                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000"});
+                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 
     SECTION("Slot 5 (T2B) green 0x00FF00 → ADDR=2 NUM=B DATA=000FF00") {
-        helper.push_slot_color_to_firmware(5, 0x00FF00);
+        helper.push_slot_identity_to_firmware(5, "", "", "", 0x00FF00);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
-                    "BOX_MODIFY_TN_DATA ADDR=2 NUM=B PART=color_value DATA=000FF00"});
+                    "BOX_MODIFY_TN_DATA ADDR=2 NUM=B PART=color_value DATA=000FF00",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 
     SECTION("Slot 15 (T4D) white 0xFFFFFF → ADDR=4 NUM=D DATA=0FFFFFF") {
-        helper.push_slot_color_to_firmware(15, 0xFFFFFF);
+        helper.push_slot_identity_to_firmware(15, "", "", "", 0xFFFFFF);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
-                    "BOX_MODIFY_TN_DATA ADDR=4 NUM=D PART=color_value DATA=0FFFFFF"});
+                    "BOX_MODIFY_TN_DATA ADDR=4 NUM=D PART=color_value DATA=0FFFFFF",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 
     SECTION("Color masks high bits — alpha byte from caller is ignored") {
         // If a caller passes 0xAA112233, the alpha byte is dropped. The
         // firmware's leading nibble is always our own '0'.
-        helper.push_slot_color_to_firmware(0, 0xAA112233);
+        helper.push_slot_identity_to_firmware(0, "", "", "", 0xAA112233);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
-                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0112233"});
+                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0112233",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 }
 
-TEST_CASE("CFS push_slot_color_to_firmware skips invalid inputs (must NOT crash klippy)",
+TEST_CASE("CFS push_slot_identity_to_firmware skips invalid inputs (must NOT crash klippy)",
           "[ams][cfs][firmware_writeback]") {
     CfsRemapHelper helper;
 
@@ -1232,21 +1691,22 @@ TEST_CASE("CFS push_slot_color_to_firmware skips invalid inputs (must NOT crash 
         // must NOT skip it — that's the bug fixed by the color_set boolean.
         // Caller (set_slot_info) is responsible for not invoking when color
         // wasn't actually set (color_set=false on the override).
-        helper.push_slot_color_to_firmware(0, 0);
+        helper.push_slot_identity_to_firmware(0, "", "", "", 0);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
-                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0000000"});
+                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0000000",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 
     SECTION("Negative slot index is skipped") {
-        helper.push_slot_color_to_firmware(-1, 0xFF0000);
+        helper.push_slot_identity_to_firmware(-1, "", "", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
     }
 
     SECTION("slot_index >= 16 is skipped") {
-        helper.push_slot_color_to_firmware(16, 0xFF0000);
+        helper.push_slot_identity_to_firmware(16, "", "", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
-        helper.push_slot_color_to_firmware(99, 0xFF0000);
+        helper.push_slot_identity_to_firmware(99, "", "", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
     }
 }
@@ -2356,4 +2816,716 @@ TEST_CASE("FillUnsetOnly mirror does not overwrite user-locked fields",
         CHECK_FALSE(overrides[1].user_locked_color);
         CHECK_FALSE(overrides[1].user_locked_material);
     }
+}
+
+// ============================================================================
+// #1250 — CFS runout surface (auto-refill give-up messages)
+//
+// The K2's runout path always pauses first (pause_on_runout on
+// [filament_switch_sensor filament_sensor]) and then runs
+// BOX_CHECK_MATERIAL_REFILL, which either swaps and resumes or gives up with a
+// respond_info line. Those give-up lines are the only runout signal HelixScreen
+// gets, and they arrive as `// `-prefixed responses, not `!!`.
+//
+// See docs/devel/printers/CREALITY_K2_SUPPORT.md § "Runout and auto-refill".
+// ============================================================================
+
+namespace {
+// Box payload with the runout latch (filament_useup) in a chosen state, so the
+// weak-hint fallback tier has real backend state to corroborate against.
+json make_runout_box(int filament_useup) {
+    json box = json::parse(R"({
+        "state": "connect",
+        "filament": 1,
+        "auto_refill": 1,
+        "enable": 1,
+        "map": {"T1A": "T1A", "T1B": "T1B", "T1C": "T1C", "T1D": "T1D"},
+        "T1": {
+            "state": "connect",
+            "filament": "None",
+            "temperature": "27",
+            "dry_and_humidity": "35",
+            "version": "1.1.3",
+            "sn": "SERIAL",
+            "mode": "0",
+            "vender": ["unknown", "unknown", "unknown", "unknown"],
+            "remain_len": ["100", "0", "46", "50"],
+            "color_value": ["0FFFFFF", "01A1A1A", "01A1A1A", "01A1A1A"],
+            "material_type": ["101001", "101001", "101001", "101001"],
+            "change_color_num": ["0", "0", "-1", "-1"]
+        }
+    })");
+    box["filament_useup"] = filament_useup;
+    return box;
+}
+
+helix::ClassifyContext paused_ctx() {
+    helix::ClassifyContext ctx;
+    ctx.is_paused = true;
+    return ctx;
+}
+} // namespace
+
+TEST_CASE("CFS runout: 'no identical supplies' raises one runout fault", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+
+    auto ev = backend.classify_error("// no identical supplies", paused_ctx());
+    REQUIRE(ev.has_value());
+    CHECK(ev->source == helix::ErrorSource::CFS);
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->sticky);
+    // Titled, so modal_title_for() does not relabel it "Filament System Error".
+    CHECK(ev->title == std::string("Filament runout"));
+    // The user is told the CFS found nothing to switch to, not just "error".
+    CHECK(ev->detail.find("no matching spool") != std::string::npos);
+    // Raw firmware wording is preserved for cross-channel dedup, `//` stripped.
+    CHECK(ev->raw_detail == "no identical supplies");
+
+    // Exactly the two vetted actions, in order.
+    REQUIRE(ev->recovery_actions.size() == 2);
+    CHECK(ev->recovery_actions[0].gcode == "RESUME");
+    CHECK(ev->recovery_actions[0].style == "primary");
+    // Resuming extrudes on the next move — a cold nozzle fails the same way the
+    // print did.
+    CHECK(ev->recovery_actions[0].needs_hot_nozzle);
+    // NOT BOX_ERROR_RESUME_PROCESS: that only drives the box half and leaves the
+    // job paused (it is reached FROM RESUME via RESUME_EXTERNAL_PROCESS).
+    CHECK(ev->recovery_actions[0].gcode != AmsBackendCfs::recover_gcode());
+
+    CHECK(ev->recovery_actions[1].gcode == AmsBackendCfs::reset_gcode());
+    CHECK(ev->recovery_actions[1].gcode == "BOX_ERROR_CLEAR");
+    // State only — must stay tappable on a cold nozzle.
+    CHECK_FALSE(ev->recovery_actions[1].needs_hot_nozzle);
+}
+
+TEST_CASE("CFS runout: 'disable material automatic refill' raises one runout fault",
+          "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+
+    auto ev = backend.classify_error("// disable material automatic refill", paused_ctx());
+    REQUIRE(ev.has_value());
+    CHECK(ev->source == helix::ErrorSource::CFS);
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->title == std::string("Filament runout"));
+    // This branch must say WHY nothing happened — auto-refill is switched off.
+    CHECK(ev->detail.find("Auto-refill is off") != std::string::npos);
+    CHECK(ev->raw_detail == "disable material automatic refill");
+    REQUIRE(ev->recovery_actions.size() == 2);
+    CHECK(ev->recovery_actions[0].gcode == "RESUME");
+    CHECK(ev->recovery_actions[1].gcode == "BOX_ERROR_CLEAR");
+}
+
+// ---------------------------------------------------------------------------
+// Post-operation phase verification (#968)
+//
+// The BOX_* primitives record and queue failures instead of raising at the
+// failing command, so a load that never fed filament still drains the script
+// and reports success at every RPC layer. These pin the rule that reads the
+// one independent physical witness we have: the toolhead filament switch.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("CFS phase verify: load that never reached the nozzle is caught", "[ams][cfs][968]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    // The #968 failure: script drained clean, nozzle still empty.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, /*sensor_ever_read=*/true,
+                                              /*filament_at_end=*/false) ==
+          V::LoadDidNotReachNozzle);
+    // Filament present at the end is the success case.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, true, true) == V::Ok);
+}
+
+TEST_CASE("CFS phase verify: unload that left filament behind is caught", "[ams][cfs][968]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, /*filament_at_end=*/
+                                              true) == V::UnloadLeftFilament);
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, false) == V::Ok);
+}
+
+TEST_CASE("CFS phase verify: a bypass unload is not judged by the toolhead switch",
+          "[ams][cfs][bypass]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    // A bay unload reels filament back down its lane, so filament still at the
+    // switch means the cut or retract failed. A bypass unload has no lane: both
+    // QUIT_MATERIAL and our fallback pull ~10 mm to clear the melt zone and
+    // stop, leaving the user to pull the rest. Judging it by the bay rule marked
+    // every bypass unload failed and disarmed the manual-pull prompt with it.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, /*sensor_ever_read=*/true,
+                                              /*filament_at_end=*/true,
+                                              /*bypass_unload=*/true) == V::Ok);
+    // The bay rule is untouched: same inputs, bypass off, still a failure.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, true, true,
+                                              /*bypass_unload=*/false) == V::UnloadLeftFilament);
+    // The exemption is scoped to unload. A bypass flag must not launder a load
+    // that never reached the nozzle.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, true, /*filament_at_end=*/false,
+                                              /*bypass_unload=*/true) == V::LoadDidNotReachNozzle);
+}
+
+TEST_CASE("CFS bypass load gcode: LOAD_MATERIAL when the printer defines it",
+          "[ams][cfs][bypass]") {
+    using V = helix::printer::CfsMacroVariant;
+
+    // Creality's own external-spool load, the mirror of QUIT_MATERIAL. Unlike
+    // the unload it needs no tail of ours: its FILAMENT_RACK_FLUSH already
+    // drives the feed, gated on the toolhead switch the user fed to.
+    CHECK(AmsBackendCfs::bypass_load_gcode(V::K2, /*has_load_material=*/true) == "LOAD_MATERIAL");
+    CHECK(AmsBackendCfs::bypass_load_gcode(V::K1, true) == "LOAD_MATERIAL");
+}
+
+TEST_CASE("CFS bypass load gcode: fallback feeds the same path the unload backs out",
+          "[ams][cfs][bypass]") {
+    using V = helix::printer::CfsMacroVariant;
+
+    const std::string load = AmsBackendCfs::bypass_load_gcode(V::K2, /*has_load_material=*/false);
+    const std::string unload = AmsBackendCfs::bypass_unload_gcode(V::K2, false);
+
+    // Same distance and rate, opposite sign — the load pushes back down exactly
+    // the path the unload backs out of.
+    REQUIRE(load.find("G0 E80 F600") != std::string::npos);
+    REQUIRE(load.find("G0 E-") == std::string::npos);
+    REQUIRE(unload.find("G0 E-80 F600") != std::string::npos);
+
+    // Positioning and state bracketing, same as the unload.
+    REQUIRE(load.find("BOX_GO_TO_EXTRUDE_POS") != std::string::npos);
+    REQUIRE(load.find("BOX_MOVE_TO_SAFE_POS") != std::string::npos);
+    REQUIRE(load.find("SAVE_GCODE_STATE") != std::string::npos);
+    REQUIRE(load.find("RESTORE_GCODE_STATE") != std::string::npos);
+
+    // A load must not cut. The unload's cut primitive has no business here.
+    REQUIRE(load.find("CR_BOX_CUT") == std::string::npos);
+    REQUIRE(load.find("BOX_CUT_MATERIAL") == std::string::npos);
+}
+
+TEST_CASE("CFS load routes the bypass sentinel instead of refusing it", "[ams][cfs][bypass]") {
+    helix::MacroParamCache::instance().clear(); // no LOAD_MATERIAL — exercise the fallback
+
+    SECTION("stock K2: -2 dispatches a load instead of invalid_slot") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+
+        // The regression: slot_to_tnn(-2) has no answer, so this refused
+        // outright and an external spool could never be loaded from the app —
+        // which also left no way to reach the state the bypass UNLOAD needs.
+        REQUIRE(backend.load_filament(helix::ui::EXTERNAL_SPOOL_SLOT).result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0].find("G0 E80 F600") != std::string::npos);
+    }
+
+    SECTION("stock K2: a real bay still gets the bay script") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+
+        REQUIRE(backend.load_filament(0).result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0].find("CR_BOX_EXTRUDE") != std::string::npos);
+    }
+
+    SECTION("Fork keeps its own T<external> attended load") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+        CfsTestAccess::set_macro_variant_fork(backend);
+
+        // Fork resolves the external bay through its own T command, so the
+        // sentinel must NOT be diverted into our stock-dialect script.
+        REQUIRE(backend.load_filament(3).result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0] == "T3");
+    }
+}
+
+TEST_CASE("CFS bypass unload gcode: QUIT_MATERIAL when the printer defines it",
+          "[ams][cfs][bypass]") {
+    using V = helix::printer::CfsMacroVariant;
+
+    // Creality's own external-spool unload owns the heat, the cut and the park.
+    const std::string k2 = AmsBackendCfs::bypass_unload_gcode(V::K2, /*has_quit_material=*/true);
+    REQUIRE(k2.rfind("QUIT_MATERIAL", 0) == 0);
+    CHECK(AmsBackendCfs::bypass_unload_gcode(V::K1, true) == k2);
+
+    // But QUIT_MATERIAL does not finish the pull. Its built-in retract is [box]
+    // tn_retrude = -10 against tn_extrude = 140: the extruder only breaks the
+    // grip and the box's feeder reels the rest back down the tube. A bypass
+    // spool has no feeder. Measured on a K2 Plus 2026-08-18 — QUIT_MATERIAL
+    // alone moved E by -13.99 mm, and another 50 mm by hand freed it.
+    CHECK(k2.find("G0 E-80 F600") != std::string::npos);
+    CHECK(k2.find("G91") != std::string::npos);
+    CHECK(k2.find("G90") != std::string::npos);
+}
+
+TEST_CASE("CFS bypass unload gcode: fallback cuts and retracts with the extruder",
+          "[ams][cfs][bypass]") {
+    using V = helix::printer::CfsMacroVariant;
+
+    const std::string k2 = AmsBackendCfs::bypass_unload_gcode(V::K2, /*has_quit_material=*/false);
+    const std::string k1 = AmsBackendCfs::bypass_unload_gcode(V::K1, false);
+
+    for (const std::string& g : {k2, k1}) {
+        // The retract is the whole point: the box primitive is TNN-keyed and
+        // no-ops under bypass, so the extruder has to do it.
+        REQUIRE(g.find("G91") != std::string::npos);
+        REQUIRE(g.find("G0 E-80 F600") != std::string::npos);
+        REQUIRE(g.find("G90") != std::string::npos);
+        REQUIRE(g.find("CR_BOX_RETRUDE") == std::string::npos);
+        REQUIRE(g.find("BOX_RETRUDE_MATERIAL") == std::string::npos);
+
+        // No bay handshake: a stood-down box cannot answer any of these.
+        REQUIRE(g.find("BOX_MODE_WAIT") == std::string::npos);
+        REQUIRE(g.find("CR_BOX_PRE_OPT") == std::string::npos);
+        REQUIRE(g.find("CR_BOX_END_OPT") == std::string::npos);
+        REQUIRE(g.find("BOX_CHECK_MATERIAL") == std::string::npos);
+
+        // Positioning and state bracketing still happen.
+        REQUIRE(g.find("BOX_GO_TO_EXTRUDE_POS") != std::string::npos);
+        REQUIRE(g.find("BOX_MOVE_TO_SAFE_POS") != std::string::npos);
+        REQUIRE(g.find("SAVE_GCODE_STATE") != std::string::npos);
+        REQUIRE(g.find("RESTORE_GCODE_STATE") != std::string::npos);
+    }
+
+    // Each dialect cuts with the primitive its own unload already emits.
+    REQUIRE(k2.find("CR_BOX_CUT") != std::string::npos);
+    REQUIRE(k1.find("BOX_CUT_MATERIAL") != std::string::npos);
+    REQUIRE(k1.find("CR_BOX_CUT") == std::string::npos);
+}
+
+TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[ams][cfs][bypass]") {
+    helix::MacroParamCache::instance().clear(); // no QUIT_MATERIAL — exercise the fallback
+
+    SECTION("stock K2: -2 gets the bypass script, a real bay still gets the bay script") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+        CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/true, /*current_slot=*/-2);
+
+        REQUIRE(backend.unload_filament(helix::ui::EXTERNAL_SPOOL_SLOT).result ==
+                AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        // The regression: CR_BOX_RETRUDE is keyed on a TNN and silently no-ops
+        // with the box stood down, so the cut ran and nothing came out.
+        CHECK(backend.dispatched[0].find("CR_BOX_RETRUDE") == std::string::npos);
+        CHECK(backend.dispatched[0].find("G0 E-80 F600") != std::string::npos);
+        CHECK(CfsTestAccess::phase_bypass_unload(backend));
+    }
+
+    SECTION("stock K2: a real bay keeps the box retract") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+        CfsTestAccess::set_loaded_state(backend, true, /*current_slot=*/0);
+
+        REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0].find("CR_BOX_RETRUDE") != std::string::npos);
+        CHECK_FALSE(CfsTestAccess::phase_bypass_unload(backend));
+    }
+
+    SECTION("Fork keeps BOX_UNLOAD — its own external branch handles the holder") {
+        CfsRemapHelper backend;
+        backend.mark_running();
+        CfsTestAccess::set_macro_variant_fork(backend);
+        CfsTestAccess::set_loaded_state(backend, true, -2);
+
+        REQUIRE(backend.unload_filament(helix::ui::EXTERNAL_SPOOL_SLOT).result ==
+                AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0] == "BOX_UNLOAD");
+        CHECK_FALSE(CfsTestAccess::phase_bypass_unload(backend));
+    }
+}
+
+TEST_CASE("CFS bypass unload completes instead of erroring with filament still detected",
+          "[ams][cfs][bypass]") {
+    helix::MacroParamCache::instance().clear();
+
+    CfsRemapHelper backend;
+    backend.mark_running();
+    CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/true, /*current_slot=*/-2);
+    REQUIRE(backend.unload_filament(helix::ui::EXTERNAL_SPOOL_SLOT).result == AmsResult::SUCCESS);
+
+    // The end state a bypass unload actually leaves: tip clear of the melt zone,
+    // filament still across the toolhead switch, waiting on the user's hand.
+    CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
+    CfsTestAccess::complete_action(backend);
+
+    // ERROR here is what killed the manual-pull prompt on the K2: op_failed()
+    // runs disarm_manual_pull_prompt().
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK(backend.get_system_info().operation_detail.empty());
+}
+
+TEST_CASE("CFS phase verify: stays silent without a sensor reading", "[ams][cfs][968]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    // Klipper publishes filament_detected as null until the switch takes its
+    // first reading, and a printer without the switch never publishes at all.
+    // last_filament_detected_ is then a DEFAULT, not an observation. Concluding
+    // "load failed" from it would put a modal on every successful load on such
+    // a machine — strictly worse than saying nothing.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, /*sensor_ever_read=*/false,
+                                              false) == V::Unverifiable);
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::UNLOADING, false, true) ==
+          V::Unverifiable);
+    // Even when the default happens to look like success, refuse to claim it.
+    CHECK(AmsBackendCfs::verify_phase_outcome(AmsAction::LOADING, false, true) == V::Unverifiable);
+}
+
+TEST_CASE("CFS phase verify: only load and unload are judged", "[ams][cfs][968]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    // The synthesized sub-phases (CUTTING/PURGING) and every non-material
+    // action must never produce a verdict — they are not operations with a
+    // filament end-state contract, and judging them would fire on the
+    // synthesized action rather than the user's actual intent.
+    for (AmsAction op : {AmsAction::IDLE, AmsAction::CUTTING, AmsAction::PURGING,
+                         AmsAction::SELECTING, AmsAction::RESETTING, AmsAction::HEATING}) {
+        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, false) == V::Ok);
+        CHECK(AmsBackendCfs::verify_phase_outcome(op, true, true) == V::Ok);
+    }
+}
+
+TEST_CASE("CFS phase verify: failure verdicts carry actionable wording", "[ams][cfs][968]") {
+    using V = AmsBackendCfs::PhaseVerdict;
+
+    const std::string load_msg = AmsBackendCfs::phase_verdict_message(V::LoadDidNotReachNozzle);
+    const std::string unload_msg = AmsBackendCfs::phase_verdict_message(V::UnloadLeftFilament);
+
+    REQUIRE_FALSE(load_msg.empty());
+    REQUIRE_FALSE(unload_msg.empty());
+    // The two must not read the same — they need opposite user responses.
+    CHECK(load_msg != unload_msg);
+    // Non-failures say nothing, so a caller can treat empty as "no fault".
+    CHECK(AmsBackendCfs::phase_verdict_message(V::Ok).empty());
+    CHECK(AmsBackendCfs::phase_verdict_message(V::Unverifiable).empty());
+}
+
+TEST_CASE("CFS phase verify: a failed load raises a fault through current_error",
+          "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    // No error while nothing has gone wrong.
+    CHECK_FALSE(backend.current_error().has_value());
+
+    // Drive the real completion path: intent latched at dispatch, sensor says
+    // the nozzle is still empty when the script drains.
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+    CfsTestAccess::complete_action(backend);
+
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->source == helix::ErrorSource::CFS);
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    // Must name the real problem rather than a generic failure.
+    CHECK(ev->detail.find("did not reach") != std::string::npos);
+    // NOT the runout action set. "Resume" is meaningless here — a manual load
+    // that failed has no paused job to restart, and offering it would send
+    // RESUME to an idle printer.
+    for (const auto& a : ev->recovery_actions) {
+        CHECK(a.gcode != "RESUME");
+    }
+    // Clearing the latched box error is the one safe lever, and it must stay
+    // tappable on a cold nozzle since it moves no filament.
+    REQUIRE(ev->recovery_actions.size() == 1);
+    CHECK(ev->recovery_actions[0].gcode == AmsBackendCfs::reset_gcode());
+    CHECK_FALSE(ev->recovery_actions[0].needs_hot_nozzle);
+}
+
+TEST_CASE("CFS phase verify: a raised fault survives later status frames", "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, true, false);
+    CfsTestAccess::complete_action(backend);
+    REQUIRE(backend.current_error().has_value());
+
+    // The box keeps streaming after the failure. Phase synthesis runs off those
+    // frames and used to be free to overwrite `action` with LOADING/CUTTING —
+    // which would erase the fault and dismiss the modal the user is reading.
+    nlohmann::json n = {
+        {"params", nlohmann::json::array(
+                       {{{"filament_switch_sensor filament_sensor", {{"filament_detected", false}}},
+                         {"extruder", {{"temperature", 210.0}, {"target", 220.0}}}}})}};
+    CfsTestAccess::handle_status(backend, n["params"][0]);
+
+    CHECK(backend.get_system_info().action == AmsAction::ERROR);
+    CHECK(backend.current_error().has_value());
+}
+
+TEST_CASE("CFS phase verify: starting a new operation clears the fault", "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, true, false);
+    CfsTestAccess::complete_action(backend);
+    REQUIRE(backend.current_error().has_value());
+
+    // A retry must not inherit the previous failure — otherwise the modal can
+    // never be dismissed by doing the obvious thing.
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CHECK_FALSE(backend.current_error().has_value());
+    CHECK(backend.get_system_info().action == AmsAction::LOADING);
+}
+
+TEST_CASE("CFS phase verify: a good load completes to IDLE with no fault", "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
+    CfsTestAccess::complete_action(backend);
+
+    CHECK_FALSE(backend.current_error().has_value());
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+}
+
+TEST_CASE("CFS runout: terse 'no auto refill' wording is recognized", "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    // Fourth give-up literal, read out of the 2.3.5.34 box_wrapper extension.
+    // It shares nothing with the long-form "disable material automatic refill":
+    // "auto refill" != "automatic refill", and there is no "disab". Before this
+    // it could only ever reach the weak tier, and only with the box latch set.
+    auto ev = backend.classify_error("// no auto refill", paused_ctx());
+    REQUIRE(ev.has_value());
+    CHECK(ev->title == std::string("Filament runout"));
+    CHECK(ev->detail.find("Auto-refill is off") != std::string::npos);
+    CHECK(ev->raw_detail == "no auto refill");
+    REQUIRE(ev->recovery_actions.size() == 2);
+}
+
+TEST_CASE("CFS runout: 'no tray with ingredients found' raises one runout fault",
+          "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    // The third give-up path, documented in the K1 wrapper RE notes
+    // (docs/devel/CREALITY_CFS_INTERNALS.md): a same_material group DOES exist
+    // for the exhausted slot, but none of its members currently has material
+    // sensor presence. Distinct cause from "no identical supplies", which means
+    // no compatible group exists at all.
+    auto ev = backend.classify_error("// no tray with ingredients found", paused_ctx());
+    REQUIRE(ev.has_value());
+    CHECK(ev->source == helix::ErrorSource::CFS);
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->sticky);
+    CHECK(ev->title == std::string("Filament runout"));
+    // Must name the actual situation: the matching slots are empty, so the fix
+    // is loading one of them — not "buy matching filament".
+    CHECK(ev->detail.find("empty") != std::string::npos);
+    // Must NOT be misreported as the no-compatible-material branch.
+    CHECK(ev->detail.find("no matching spool") == std::string::npos);
+    CHECK(ev->raw_detail == "no tray with ingredients found");
+
+    REQUIRE(ev->recovery_actions.size() == 2);
+    CHECK(ev->recovery_actions[0].gcode == "RESUME");
+    CHECK(ev->recovery_actions[1].gcode == AmsBackendCfs::reset_gcode());
+}
+
+TEST_CASE("CFS runout: 'no tray' branch does not need the box latch", "[ams][cfs][968]") {
+    CfsRemapHelper backend;
+
+    // Distinguishes this from the weak-hint tier: that one requires
+    // system_info_.filament_runout to be set. This wording is specific enough
+    // to stand on its own, exactly like the other two strong matches, so a
+    // fresh backend with no box frame parsed yet must still classify it.
+    auto ev = backend.classify_error("// No tray with ingredients found!", paused_ctx());
+    REQUIRE(ev.has_value());
+    CHECK(ev->detail.find("empty") != std::string::npos);
+}
+
+TEST_CASE("CFS runout: matcher survives the sentence being reworded", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+
+    // Fragment match, not whole-sentence: these are untranslated literals from
+    // one firmware build and the surrounding words are the least durable part.
+    SECTION("no-match branch, alternate phrasing") {
+        auto ev =
+            backend.classify_error("// There are no identical supplies available!", paused_ctx());
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail.find("no matching spool") != std::string::npos);
+    }
+    SECTION("refill-off branch, alternate phrasing") {
+        auto ev = backend.classify_error("// Material automatic refill is disabled", paused_ctx());
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail.find("Auto-refill is off") != std::string::npos);
+    }
+    SECTION("bare line with no // prefix still matches") {
+        auto ev = backend.classify_error("no identical supplies", paused_ctx());
+        REQUIRE(ev.has_value());
+        CHECK(ev->raw_detail == "no identical supplies");
+    }
+}
+
+TEST_CASE("CFS runout: weak-hint fallback needs the box latch AND a pause", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+
+    // Wording neither matcher recognizes, but the line is about refilling.
+    const std::string line = "// material refill aborted";
+
+    SECTION("latch clear: not enough evidence, defer to the generic classifier") {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+        CHECK_FALSE(backend.classify_error(line, paused_ctx()).has_value());
+    }
+
+    SECTION("latch set + paused: fires, surfacing the firmware's own words") {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(1)));
+        auto ev = backend.classify_error(line, paused_ctx());
+        REQUIRE(ev.has_value());
+        // Weaker evidence, so it must NOT claim which give-up path ran.
+        CHECK(ev->detail == "material refill aborted");
+        CHECK(ev->recovery_actions.size() == 2);
+    }
+
+    SECTION("latch set but not paused: still nothing") {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(1)));
+        helix::ClassifyContext idle_ctx;
+        idle_ctx.is_paused = false;
+        CHECK_FALSE(backend.classify_error(line, idle_ctx).has_value());
+    }
+}
+
+TEST_CASE("CFS runout: an unpaused give-up line is not a runout", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+    helix::ClassifyContext idle_ctx; // is_paused = false
+
+    // The firmware pauses BEFORE running BOX_CHECK_MATERIAL_REFILL, so an
+    // unpaused occurrence is a human echoing the words or poking the macro.
+    CHECK_FALSE(backend.classify_error("// no identical supplies", idle_ctx).has_value());
+    CHECK_FALSE(
+        backend.classify_error("// disable material automatic refill", idle_ctx).has_value());
+}
+
+TEST_CASE("CFS runout: `!!` lines stay with the generic key8xx classifier", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+    // The box latch is set, so nothing but the `!!` gate can be refusing these.
+    CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(1)));
+
+    // key840 keeps its existing generic decode + hardcoded "Reset CFS" action.
+    // Claiming it here would double-surface (a backend modal AND the generic one)
+    // or silently replace the coded decode.
+    CHECK_FALSE(
+        backend.classify_error(R"(!! {"code":"key840","values":[]})", paused_ctx()).has_value());
+
+    // Even a `!!` that happens to carry the give-up wording is refused — the
+    // inverted gate is unconditional, so the two channels cannot both claim it.
+    CHECK_FALSE(backend.classify_error("!! no identical supplies", paused_ctx()).has_value());
+    CHECK_FALSE(backend.classify_error("!! material refill aborted", paused_ctx()).has_value());
+}
+
+TEST_CASE("CFS runout: ordinary console chatter is ignored", "[ams][cfs][1250]") {
+    CfsRemapHelper backend;
+    CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(1)));
+
+    // A paused print with the latch set is the state most likely to produce a
+    // false positive, so that is the state these are checked in.
+    for (const char* line : {"ok", "// echo: busy", "// Klipper state: Ready",
+                             "// probe at 10.000,10.000 is z=0.100", ""}) {
+        CAPTURE(line);
+        CHECK_FALSE(backend.classify_error(line, paused_ctx()).has_value());
+    }
+}
+
+// ============================================================================
+// Endless spool capabilities
+// ============================================================================
+//
+// CFS had no capability test at all, and its old answer was
+// {supported=true, editable=false, description="Auto-refill enabled"|"disabled"} —
+// so auto-refill on and off were indistinguishable to any UI, and the only place
+// the real state lived was an untranslated English string.
+
+TEST_CASE("CFS endless spool: auto-refill on and off are distinguishable",
+          "[ams][cfs][endless_spool]") {
+    SECTION("auto_refill=1 reads as available and ON") {
+        CfsRemapHelper backend;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::On);
+        // The box picks the refill spool from its own same_material groups.
+        CHECK(caps.editability == EndlessSpoolEditability::ReadOnly);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+        CHECK_FALSE(caps.editable());
+    }
+
+    SECTION("auto_refill=0 reads as available and OFF") {
+        CfsRemapHelper backend;
+        json box = make_runout_box(0);
+        box["auto_refill"] = 0;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+
+        auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.availability == EndlessSpoolAvailability::Available);
+        CHECK(caps.enabled == EndlessSpoolEnabled::Off);
+        CHECK(caps.restriction == EndlessSpoolRestriction::FirmwareManaged);
+    }
+
+    SECTION("no per-slot relation is reported, so the UI has no dropdown to draw") {
+        // The old shape (available + an empty per-slot config) made the context
+        // menu render a backup dropdown that could only ever read "None", with no
+        // way to tell that apart from "no backup configured".
+        CfsRemapHelper backend;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+
+        CHECK(backend.get_endless_spool_config().empty());
+        CHECK(endless_spool_backup_for(backend.get_endless_spool_config(), 0) == -1);
+    }
+
+    SECTION("writes are refused with the firmware-managed reason") {
+        CfsRemapHelper backend;
+        CfsTestAccess::handle_status(backend, make_cfs_notification(make_runout_box(0)));
+
+        auto result = backend.set_endless_spool_backup(0, 1);
+        CHECK_FALSE(result.success());
+        CHECK(result.result == AmsResult::NOT_SUPPORTED);
+        CHECK(result.user_msg ==
+              endless_spool_restriction_text(EndlessSpoolRestriction::FirmwareManaged));
+
+        CHECK_FALSE(backend.reset_endless_spool().success());
+    }
+}
+
+// ===========================================================================
+// Bypass declaration lifetime — what actually means "the CFS took the feed back"
+// ===========================================================================
+//
+// Field evidence, K2 Plus 2026-08-18. Bypass was declared (BOX_ENABLE_CFS_PRINT
+// ENABLE=0) at 23:13 and restored cleanly across a restart at 00:34 with the box
+// still reporting enable=0. By the next restart `enable` had returned to 1 with
+// no host command in between: no BOX_ENABLE_CFS_PRINT anywhere in klippy.log, no
+// disable_bypass() in ours, and the prints in that window were plain Moonraker
+// start_print calls from Fluidd, which runs nothing vendor-specific. The box
+// re-arms itself.
+//
+// Dropping the declaration on `enable` alone therefore threw bypass away on the
+// first full frame after every restart (partial frames omit the field, so it only
+// ever bit at startup) while the external spool was still feeding the nozzle.
+
+TEST_CASE("CFS drops the bypass declaration once a bay is actually loaded", "[ams][cfs][bypass]") {
+    // The real drift case the guard exists for: the CFS is feeding again, so the
+    // declaration is stale and must not permit a later re-derivation.
+    CfsRemapHelper cfs;
+    CfsTestAccess::set_bypass_declared(cfs, true);
+
+    json box = make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+    box["enable"] = 1;
+    box["T1"]["filament"] = "A"; // bay 1 slot A is the active lane
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+
+    CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
+}
+
+TEST_CASE("CFS drops the bypass declaration for a loaded bay even while stood down",
+          "[ams][cfs][bypass]") {
+    // enable=0 with a bay loaded: the box is not participating in prints but a
+    // lane is threaded and named active. Gating the drop on enable==1 as well
+    // would leave the declaration latched with the CFS holding the path.
+    CfsRemapHelper cfs;
+    CfsTestAccess::set_bypass_declared(cfs, true);
+
+    json box = make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+    box["enable"] = 0;
+    box["T1"]["filament"] = "A";
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+
+    CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
 }

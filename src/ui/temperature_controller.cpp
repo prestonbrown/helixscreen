@@ -6,8 +6,8 @@
 #include "ui_temperature_utils.h"
 
 #include "filament_database.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 
@@ -21,7 +21,7 @@
 
 namespace helix {
 
-TemperatureController::TemperatureController(PrinterState& state, MoonrakerAPI* api)
+TemperatureController::TemperatureController(PrinterState& state, IMoonrakerAPI* api)
     : state_(state), api_(api) {
     // Keypad ceilings mirror temperature_service.cpp keypad_range fields.
     model_[idx(HeaterType::Nozzle)].keypad_max_default = 350.0f;
@@ -230,7 +230,12 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
             NOTIFY_ERROR(lv_tr("Failed to set temperature: {}"), e.user_message());
         }
     };
-    api_->set_temperature(klipper_name, celsius, std::move(on_ok), std::move(on_err));
+    // opts.toast is the signal: on_err above raises NOTIFY_ERROR only when it is
+    // set, so a toast=false send has an error callback that reaches no human.
+    // Claiming otherwise would record the rejection for dedup and silence
+    // GcodeErrorRouter's `!!` report — see include/rpc_error_policy.h.
+    api_->set_temperature(klipper_name, celsius, std::move(on_ok), std::move(on_err),
+                          /*caller_surfaces_errors=*/opts.toast);
 }
 
 void TemperatureController::apply_material(double nozzle, double bed, double chamber,

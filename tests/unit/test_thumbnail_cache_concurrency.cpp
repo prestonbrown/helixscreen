@@ -137,13 +137,13 @@ TEST_CASE("Cache size accounting survives an entry that cannot be stat'd",
           "[assets][cache][1207]") {
     ScopedCacheDir scoped("size_partial");
 
-    constexpr size_t kFileBytes = 16 * 1024;
-    constexpr int kFileCount = 32;
-    constexpr size_t kExpected = kFileBytes * kFileCount;
+    constexpr size_t FILE_BYTES = 16 * 1024;
+    constexpr int FILE_COUNT = 32;
+    constexpr size_t EXPECTED = FILE_BYTES * FILE_COUNT;
 
-    ThumbnailCache cache(4 * kExpected); // limit high enough that nothing evicts
+    ThumbnailCache cache(4 * EXPECTED); // limit high enough that nothing evicts
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kFileCount, kFileBytes);
+    seed_cache_files(dir, FILE_COUNT, FILE_BYTES);
 
     // Several interleaved bad entries: directory_iterator order is unspecified,
     // so one alone could happen to sort last and hide the truncation.
@@ -155,61 +155,61 @@ TEST_CASE("Cache size accounting survives an entry that cannot be stat'd",
     // counted after it. Wrapping the whole walk in one try/catch returns the
     // partial sum, which reads as "cache is smaller than it is" and silently
     // disables eviction.
-    REQUIRE(cache.get_cache_size() == kExpected);
+    REQUIRE(cache.get_cache_size() == EXPECTED);
 }
 
 TEST_CASE("Eviction still runs when the cache holds an entry that cannot be stat'd",
           "[assets][cache][1207]") {
     ScopedCacheDir scoped("evict_partial");
 
-    constexpr size_t kFileBytes = 16 * 1024;
-    constexpr int kFileCount = 64;
-    constexpr size_t kLimit = 16 * kFileBytes; // 4x oversubscribed
+    constexpr size_t FILE_BYTES = 16 * 1024;
+    constexpr int FILE_COUNT = 64;
+    constexpr size_t LIMIT = 16 * FILE_BYTES; // 4x oversubscribed
 
-    ThumbnailCache cache(kLimit);
+    ThumbnailCache cache(LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kFileCount, kFileBytes);
+    seed_cache_files(dir, FILE_COUNT, FILE_BYTES);
     make_unstattable_entry(dir, "bad0");
     make_unstattable_entry(dir, "bad1");
 
-    cache.set_max_size(kLimit);
+    cache.set_max_size(LIMIT);
 
     // Measured off the filesystem, not via get_cache_size(): the bug under test
     // makes that method under-report, which would satisfy this assertion for the
     // wrong reason. The scan abandoning the pass on the first bad entry means the
     // cache grows without bound while the log shows a single warning.
     const size_t final_size = true_dir_size(dir);
-    INFO("true on-disk size: " << final_size << " limit: " << kLimit);
-    REQUIRE(final_size <= kLimit);
+    INFO("true on-disk size: " << final_size << " limit: " << LIMIT);
+    REQUIRE(final_size <= LIMIT);
 }
 
 TEST_CASE("Concurrent eviction leaves the cache at or below its limit",
           "[assets][cache][threading][1207][slow]") {
     ScopedCacheDir scoped("evict_threads");
 
-    constexpr size_t kFileBytes = 16 * 1024;
-    constexpr int kFileCount = 64;
-    constexpr size_t kLimit = 16 * kFileBytes;
+    constexpr size_t FILE_BYTES = 16 * 1024;
+    constexpr int FILE_COUNT = 64;
+    constexpr size_t LIMIT = 16 * FILE_BYTES;
 
-    ThumbnailCache cache(kLimit);
-    seed_cache_files(cache.get_cache_dir(), kFileCount, kFileBytes);
-    REQUIRE(cache.get_cache_size() > kLimit);
+    ThumbnailCache cache(LIMIT);
+    seed_cache_files(cache.get_cache_dir(), FILE_COUNT, FILE_BYTES);
+    REQUIRE(cache.get_cache_size() > LIMIT);
 
     // set_max_size() is the public entry point that runs an eviction pass. Every
     // thread sets the SAME value, so any difference in outcome comes from the
     // interleaving rather than from disagreeing limits. This also exercises the
     // unsynchronized max_size_ write the issue calls out as a plain data race.
-    constexpr int kThreads = 6;
+    constexpr int THREADS = 6;
     std::atomic<int> ready{0};
     std::vector<std::thread> threads;
-    threads.reserve(kThreads);
-    for (int t = 0; t < kThreads; ++t) {
+    threads.reserve(THREADS);
+    for (int t = 0; t < THREADS; ++t) {
         threads.emplace_back([&] {
             ready.fetch_add(1);
-            while (ready.load() < kThreads) {
+            while (ready.load() < THREADS) {
             }
             for (int i = 0; i < 10; ++i) {
-                cache.set_max_size(kLimit);
+                cache.set_max_size(LIMIT);
             }
         });
     }
@@ -217,19 +217,19 @@ TEST_CASE("Concurrent eviction leaves the cache at or below its limit",
         th.join();
     }
 
-    REQUIRE(cache.get_cache_size() <= kLimit);
+    REQUIRE(cache.get_cache_size() <= LIMIT);
 }
 
 TEST_CASE("Cache size query is safe while eviction runs on other threads",
           "[assets][cache][threading][1207][slow]") {
     ScopedCacheDir scoped("readers");
 
-    constexpr size_t kFileBytes = 8 * 1024;
-    constexpr int kFileCount = 96;
-    constexpr size_t kLimit = 24 * kFileBytes;
+    constexpr size_t FILE_BYTES = 8 * 1024;
+    constexpr int FILE_COUNT = 96;
+    constexpr size_t LIMIT = 24 * FILE_BYTES;
 
-    ThumbnailCache cache(kLimit);
-    seed_cache_files(cache.get_cache_dir(), kFileCount, kFileBytes);
+    ThumbnailCache cache(LIMIT);
+    seed_cache_files(cache.get_cache_dir(), FILE_COUNT, FILE_BYTES);
 
     std::atomic<bool> stop{false};
     std::atomic<int> reads{0};
@@ -248,7 +248,7 @@ TEST_CASE("Cache size query is safe while eviction runs on other threads",
     for (int e = 0; e < 3; ++e) {
         evictors.emplace_back([&] {
             for (int i = 0; i < 20; ++i) {
-                cache.set_max_size(kLimit);
+                cache.set_max_size(LIMIT);
             }
         });
     }
@@ -261,5 +261,5 @@ TEST_CASE("Cache size query is safe while eviction runs on other threads",
     }
 
     REQUIRE(reads.load() > 0);
-    REQUIRE(cache.get_cache_size() <= kLimit);
+    REQUIRE(cache.get_cache_size() <= LIMIT);
 }

@@ -29,8 +29,22 @@ gate_excludes() {
 }
 
 gate_baseline() {
-    sed -n '/^SHELLCHECK_BASELINE="/,/"$/p' "$QC" \
-        | sed 's/^SHELLCHECK_BASELINE="//; s/"$//'
+    local first
+    first=$(grep '^SHELLCHECK_BASELINE="' "$QC" | head -1)
+    case "$first" in
+        *\")  # opens and closes on one line (the empty baseline)
+            # The sed range below cannot read this form: GNU sed starts
+            # matching the end regex on the line AFTER the start match, so a
+            # one-line value overruns into the next quote-terminated
+            # assignment (SHELL_FILES="").
+            first=${first#SHELLCHECK_BASELINE=\"}
+            printf '%s\n' "${first%\"}"
+            ;;
+        *)    # multi-line list: opening assignment line, entries, closing quote
+            sed -n '/^SHELLCHECK_BASELINE="/,/"$/p' "$QC" \
+                | sed 's/^SHELLCHECK_BASELINE="//; s/"$//'
+            ;;
+    esac
 }
 
 # The path filter the staged-file branch uses. Extracted rather than restated,
@@ -158,14 +172,34 @@ gate_scripts() {
     fi
 }
 
+@test "the baseline extractor matches the file's shape" {
+    # Canary against a silently-broken extractor: with the baseline empty,
+    # tests 7-9 above pass vacuously, so the extractor must provably return
+    # empty for the one-line form - and provably non-empty while any file is
+    # listed.
+    local baseline first
+    baseline=$(gate_baseline)
+    first=$(grep '^SHELLCHECK_BASELINE="' "$QC" | head -1)
+    if [ "$first" = 'SHELLCHECK_BASELINE=""' ]; then
+        [ -z "$baseline" ]
+    else
+        [ -n "$baseline" ]
+    fi
+}
+
 @test "baseline membership is exact, not substring" {
     # A substring test would exempt scripts/install-dev.sh.bak along with
-    # scripts/install-dev.sh.
-    local baseline
+    # scripts/install-dev.sh. The baseline is empty today, so the guard runs
+    # against the historically-baselined name's .bak twin and, should a file
+    # ever be re-baselined, against every listed entry's .bak twin.
+    local baseline entry
     baseline=$(gate_baseline)
 
-    printf '%s\n' "$baseline" | grep -Fxq "scripts/install-dev.sh"
     ! printf '%s\n' "$baseline" | grep -Fxq "scripts/install-dev.sh.bak"
+    while IFS= read -r entry; do
+        [ -z "$entry" ] && continue
+        ! printf '%s\n' "$baseline" | grep -Fxq "$entry.bak"
+    done <<< "$baseline"
 }
 
 # --------------------------------------------------------- severity behaviour

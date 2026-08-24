@@ -53,7 +53,7 @@ namespace {
  */
 class ActiveLaneMock : public AmsBackendMock {
   public:
-    static constexpr int kMaxSlots = 16;
+    static constexpr int MAX_SLOTS = 16;
 
     explicit ActiveLaneMock(int slot_count) : AmsBackendMock(slot_count) {}
 
@@ -63,7 +63,7 @@ class ActiveLaneMock : public AmsBackendMock {
 
     /// Force a lane's status (the field set_slot_info() drops).
     void set_status(int slot_index, SlotStatus status) {
-        if (slot_index >= 0 && slot_index < kMaxSlots) {
+        if (slot_index >= 0 && slot_index < MAX_SLOTS) {
             status_override_[slot_index] = status;
         }
     }
@@ -96,12 +96,12 @@ class ActiveLaneMock : public AmsBackendMock {
 
   private:
     void apply_status_override(int slot_index, SlotInfo& slot) const {
-        if (slot_index >= 0 && slot_index < kMaxSlots && status_override_[slot_index]) {
+        if (slot_index >= 0 && slot_index < MAX_SLOTS && status_override_[slot_index]) {
             slot.status = *status_override_[slot_index];
         }
     }
 
-    std::array<std::optional<SlotStatus>, kMaxSlots> status_override_{};
+    std::array<std::optional<SlotStatus>, MAX_SLOTS> status_override_{};
 };
 
 ActiveLaneMock* install_mock(int slot_count) {

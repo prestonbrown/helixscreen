@@ -73,7 +73,30 @@ Docker images are **automatically built** on first use - no manual setup require
 
 3. **Volume Mounting**: Your source code is mounted into the container, so compiled binaries appear directly in your `build/` directory.
 
-4. **Display Backend Selection**: Cross-compilation automatically selects the appropriate display backend:
+   Everything else the container needs from the host rides on `$(DOCKER_HOST_CONTEXT)`
+   (`mk/cross.mk`), which every `docker run` that mounts the tree must pass —
+   `tests/shell/test_build_provenance.bats` fails the build if one does not. It carries two
+   things, both of which exist because a **git worktree** is not self-contained:
+
+   - `DOCKER_WORKTREE_MOUNT` — `scripts/setup-worktree.sh` symlinks `lib/<submodule>` to the
+     main checkout by absolute path, so those links dangle inside a container that mounts only
+     `$(PWD)`. The real submodule tree is bind-mounted at its own absolute path so every
+     `lib/*` link resolves identically inside and out.
+   - `DOCKER_GIT_HASH_ENV` — a worktree's `.git` is a *file* reading
+     `gitdir: $(MAIN)/.git/worktrees/<name>`, a path outside the mount, so git cannot resolve
+     `HEAD` in the container and `scripts/gen-git-hash.sh` used to stamp
+     `HELIX_GIT_HASH "unknown"` — silently, since the build still succeeded, leaving any
+     evidence gathered on a printer unattributable. The hash is resolved on the host and
+     passed in as `HELIX_GIT_HASH`, which the script prefers over its own lookup.
+
+4. **Build Features Stamp**: The link rule writes `build/<platform>/bin/.build-features`
+   recording which optional subsystems the binary actually contains (currently
+   `remote_control`). `make deploy-*` runs as a separate make invocation with no
+   `PLATFORM_TARGET` and so cannot re-derive what the cross build chose; the stamp carries it
+   across, and the deploy turns on the matching runtime switch on the device. See
+   `docs/devel/HELIXCTL.md`.
+
+5. **Display Backend Selection**: Cross-compilation automatically selects the appropriate display backend:
    - **Pi / Pi32**: DRM (preferred) with fbdev fallback
    - **AD5M / CC1**: fbdev (framebuffer)
 
@@ -451,8 +474,11 @@ cd .worktrees/my-feature
 ### Script Options
 
 ```bash
-# Create at custom path
+# Create at custom path — the second argument is a PATH, not a base branch
 ./scripts/setup-worktree.sh feature/foo /tmp/helixscreen-foo
+
+# Branch from something other than the current HEAD
+./scripts/setup-worktree.sh --base feature/parent feature/child
 
 # Set up existing worktree without creating
 ./scripts/setup-worktree.sh --setup-only feature/i18n
@@ -461,11 +487,24 @@ cd .worktrees/my-feature
 ./scripts/setup-worktree.sh --no-build feature/quick-test
 ```
 
+A new branch is cut from the HEAD of **whichever tree you run the script in**,
+which is not necessarily `main` — the script prints the resolved base commit so
+a stale or unexpected one is visible immediately. Use `--base <ref>` to pick it
+explicitly. Passing a branch name as the second argument is rejected, as is any
+path inside the repo outside `.worktrees/`.
+
 ### What setup-worktree.sh Does
 
 The script optimizes for **fast builds** by sharing artifacts from the main tree:
 
-1. **Symlinks lib/** — all submodules symlinked (no clone/configure time)
+1. **Symlinks lib/** — third-party submodules symlinked (no clone/configure time).
+   `lib/helix-xml` is the exception: it is **ours** and CLAUDE.md says to edit it directly
+   rather than carry a patch, so a symlink would put every worktree's engine edits into the
+   *main* tree's submodule working copy — shared with every other worktree, and showing up as
+   dirt in main's `git status` for another session to sweep. It gets a private per-worktree
+   checkout instead (~2.6 MB, seconds), listed in `LIB_PRIVATE_SUBMODULES`. Its gitdir lands
+   under `.git/worktrees/<name>/modules/`, `origin` stays the public GitHub remote, and
+   because a real checkout is what git already expects it needs no `--unlink`/`--relink`.
 2. **Adopts the main tree's mtimes** for every byte-identical file — without this, nothing below actually saves you anything (see next section)
 3. **Clones compiled libraries** — `libhv.a`, `libwpa_client.a` from main tree
 4. **Clones the precompiled header** — `lvgl_pch.h.gch` (27MB)
@@ -642,6 +681,11 @@ The project uses **GNU Make** with a modular architecture:
 - **Fail-fast error handling** with clear diagnostics
 - **Parallel build support** with output synchronization
 - **Build timing** for performance tracking
+
+**XML stays runtime-loaded — compile-time codegen was measured and declined.** A build-time
+XML-to-C component compiler was designed and measured (2026-08-08; the design doc has since
+been deleted) and declined: runtime-loaded XML with hot reload won on build complexity and
+iteration speed. Revisit only if startup cost on SPI-flash platforms demands it.
 
 ### Modular Makefile Structure
 
@@ -1512,7 +1556,7 @@ The project uses git submodules for external dependencies:
 - `spdlog` - Logging library
 - `wpa_supplicant` - WiFi control (Linux only, auto-built)
 
-Additionally, `lib/helix-xml/` is the XML engine — a permanent MIT fork taken from LVGL at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It is a submodule, but **ours**: [prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml). That makes its workflow the opposite of every other submodule here — edit the files directly, commit and push inside `lib/helix-xml/`, then commit the bumped pointer in this repo. It gets no `patches/*.patch` entry, and it is excluded from clang-format. See `LVGL_XML_SITUATION.md`.
+Additionally, `lib/helix-xml/` is the XML engine — a permanent MIT fork taken from LVGL at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It is a submodule, but **ours**: [prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml). That makes its workflow the opposite of every other submodule here — edit the files directly, commit and push inside `lib/helix-xml/`, then commit the bumped pointer in this repo. It gets no `patches/*.patch` entry, and it is excluded from clang-format. See `HELIX_XML_FORK.md`.
 
 Being its own repo, it also carries its own tests and its own CI. `lib/helix-xml/tests/` is a standalone CMake + Unity suite that builds the engine against a pinned upstream LVGL v9.5.0 rather than our patched `lib/lvgl`; run it with `make test-xml` (`make test` does not build it), and see **[TESTING.md](TESTING.md)** § "helix-xml Engine Tests". `.github/workflows/ci.yml` *inside* the submodule covers a gcc + clang matrix, ASAN/UBSAN, and a conf-guards job. `scripts/quality-checks.sh` runs the suite on commits that stage a `lib/helix-xml` change, but only once `build/helix-xml-tests/` has been configured by hand - the first configure fetches LVGL and is too slow for a commit hook.
 
@@ -1842,6 +1886,9 @@ Only use `make clean && make` when:
 
 ### Submodule Management
 
+**spdlog submodule:** uses the fmt-11.2.0 branch. Initialize with
+`git submodule update --init --recursive` on a fresh clone.
+
 **Never**:
 - Commit changes directly to submodules
 - Update submodule commits without testing
@@ -1856,6 +1903,6 @@ Only use `make clean && make` when:
 
 - **[README.md](../README.md)** - Project overview and quick start
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development environment, workflow, and contributing
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and technical patterns
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - The 15-minute whole-app model + chapter-series routing
 - **[CLAUDE.md](../CLAUDE.md)** - Development context and AI assistant guidelines
 - **[patches/README.md](../../patches/README.md)** - Patch documentation

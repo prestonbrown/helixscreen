@@ -2,6 +2,7 @@
 #include "page_scroll_auto_inject.h"
 
 #include "display_settings_manager.h"
+#include "panel_widget.h"
 
 #include <spdlog/spdlog.h>
 
@@ -56,6 +57,15 @@ bool PageScrollAutoInject::qualifies(lv_obj_t* obj) {
 void PageScrollAutoInject::walk_and_attach(lv_obj_t* obj, bool ancestor_managed) {
     if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
         return; // don't inject into hidden/stacked panels
+    }
+    // Page scrolling is a page affordance. A home widget tile is sized by the
+    // grid and scrolled by dragging it, and the gutter is two chevrons plus a
+    // gap tall (172px at the medium tier) against a tile that is often not much
+    // taller, so a gutter inside one sits on the widget's own content instead of
+    // beside it. Cut the whole subtree: most tile roots are non-scrollable and
+    // the walk would otherwise sail through them into a widget's inner list.
+    if (lv_obj_has_flag(obj, helix::PANEL_WIDGET_TILE_FLAG)) {
+        return;
     }
     // A container already managed from an earlier on_root_shown() pass must
     // still propagate the claim to its subtree on a repeated walk over a

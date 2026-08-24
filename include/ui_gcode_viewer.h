@@ -72,8 +72,6 @@ extern "C" {
  *   lv_obj_t* viewer = ui_gcode_viewer_create(parent);
  *   ui_gcode_viewer_load_file(viewer, "/path/to/file.gcode");
  * @endcode
- *
- * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
 /**
@@ -118,6 +116,29 @@ void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path);
  */
 void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback,
                                        void* user_data);
+
+/**
+ * @brief Register a one-shot callback that fires when the viewer produces its
+ *        first complete rendered frame (after VBO upload / parse, not on a
+ *        skipped or failed frame).
+ *
+ * Callers that overlay a thumbnail behind the viewer use this to defer hiding
+ * the thumbnail until the viewer actually has pixels to show, avoiding a gray
+ * flash during the load-to-render gap.
+ *
+ * The callback is invoked deferred (UpdateQueue), not inside the draw pass, so
+ * it may safely write subjects and hide widgets. Pass a null callback to
+ * unregister — required from any teardown that outlives the viewer widget, or
+ * the stored user_data pointer and whatever it owns (subjects, `this`) are
+ * dangling by the time the next frame renders.
+ *
+ * @param obj       Viewer widget
+ * @param callback  Fires once with success=true when the first frame renders,
+ *                  or nullptr to unregister
+ * @param user_data Passed through to the callback
+ */
+void ui_gcode_viewer_set_first_frame_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback,
+                                              void* user_data);
 
 /**
  * @brief Clear loaded G-code
@@ -374,15 +395,23 @@ void ui_gcode_viewer_set_print_progress(lv_obj_t* obj, int current_layer);
 void ui_gcode_viewer_set_ghost_mode(lv_obj_t* obj, int mode);
 
 /**
- * @brief Set vertical content offset (shifts render center up/down)
- * @param obj Viewer widget
- * @param offset_percent Offset as percentage of canvas height (-1.0 to 1.0)
- *                       Negative = shift content up, Positive = shift down
+ * @brief Name the widget that covers the bottom of this viewer.
+ * @param obj      Viewer widget
+ * @param occluder Overlapping widget (the translucent metadata strip), or null
+ *                 to clear
  *
- * Use this to account for overlapping UI elements (e.g., metadata overlay at bottom).
- * A value of -0.1 shifts the render center up by 10% of canvas height.
+ * The viewer measures the real overlap on every draw and derives its vertical
+ * shift from that plus the model's fitted height, so the framing follows
+ * breakpoints, orientation, and the strip growing at runtime with no repush.
+ * Layouts where the strip sits flush BELOW the preview measure zero overlap and
+ * get no shift, which is the correct answer there.
+ *
+ * The reference is dropped by the occluder's own LV_EVENT_DELETE, so callers do
+ * not have to unwire it during teardown.
+ *
+ * @see helix::gcode::compute_content_offset_y() for the rule being applied.
  */
-void ui_gcode_viewer_set_content_offset_y(lv_obj_t* obj, float offset_percent);
+void ui_gcode_viewer_set_bottom_occluder(lv_obj_t* obj, lv_obj_t* occluder);
 
 /**
  * @brief Get maximum layer index in current geometry

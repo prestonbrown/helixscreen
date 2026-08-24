@@ -344,17 +344,17 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
     // panels (e.g. 5.5" QHD 1440x2560) that would otherwise render with
     // unreadably small text. Skip if the user explicitly requested a resolution
     // via -s. See prestonbrown/helixscreen#773, #774.
-    static constexpr uint32_t kHighDpiThreshold = 1920;
+    static constexpr uint32_t HIGH_DPI_THRESHOLD = 1920;
     int downscale_idx = size_was_explicit_
-                            ? helix::DrmModeMatch::kNoMatch
-                            : helix::find_best_downscale_mode(modes, kHighDpiThreshold);
-    if (downscale_idx != helix::DrmModeMatch::kNoMatch) {
+                            ? helix::DrmModeMatch::NO_MATCH
+                            : helix::find_best_downscale_mode(modes, HIGH_DPI_THRESHOLD);
+    if (downscale_idx != helix::DrmModeMatch::NO_MATCH) {
         int pref_idx = helix::find_preferred_mode_index(modes);
         const auto& native = modes[pref_idx];
         const auto& target = modes[downscale_idx];
         spdlog::info("[DRM Backend] Native resolution {}x{} exceeds {}px threshold, "
                      "selecting {}x{}@{} mode",
-                     native.hdisplay, native.vdisplay, kHighDpiThreshold, target.hdisplay,
+                     native.hdisplay, native.vdisplay, HIGH_DPI_THRESHOLD, target.hdisplay,
                      target.vdisplay, target.vrefresh);
         width = static_cast<int>(target.hdisplay);
         height = static_cast<int>(target.vdisplay);
@@ -366,13 +366,13 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
     if (width > 0 && height > 0) {
         int match_idx = helix::find_matching_mode(modes, static_cast<uint32_t>(width),
                                                   static_cast<uint32_t>(height));
-        if (match_idx != helix::DrmModeMatch::kNoMatch) {
+        if (match_idx != helix::DrmModeMatch::NO_MATCH) {
             chosen_w = modes[match_idx].hdisplay;
             chosen_h = modes[match_idx].vdisplay;
             spdlog::info("[DRM Backend] Using requested mode {}x{}", chosen_w, chosen_h);
         } else if (size_was_explicit_ && !modes.empty()) {
             int pref = helix::find_preferred_mode_index(modes);
-            if (pref != helix::DrmModeMatch::kNoMatch) {
+            if (pref != helix::DrmModeMatch::NO_MATCH) {
                 chosen_w = modes[pref].hdisplay;
                 chosen_h = modes[pref].vdisplay;
             }
@@ -552,6 +552,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             bool has_abs = helix::input::get_input_touch_capabilities(event_num, &abs_caps);
 
             needs_calibration_ = helix::device_needs_calibration(dev_name, dev_phys, has_abs);
+            supports_calibration_ = helix::device_supports_calibration(dev_name, has_abs);
 
             // Query the touch controller's ABS range and propagate it into LVGL's
             // internal calibration. This runs unconditionally (not gated on
@@ -625,21 +626,32 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                 }
             }
 
-            // #943 diagnostic: if the coarse down-scale was never installed
-            // (lv_evdev_set_calibration skipped — e.g. the ABS/MT range query failed
-            // on this boot) but the panel is known to mismatch the digitizer, raw
-            // 0..max coords flow into the smaller panel UNSCALED and only the
-            // top-left corner registers. This was silent before; make it loud and
-            // grep-able so a failed-query boot is diagnosable from logs alone.
+            // #943 diagnostic: our explicit lv_evdev_set_calibration call was
+            // skipped (only the MT-fallback and env-override paths make it),
+            // but the panel is known to mismatch the digitizer. Coordinates
+            // still flow coarse-SCALED, not raw: lv_evdev performs its own
+            // EVIOCGABS query on open (legacy ABS_X/Y first, then MT fallback
+            // — lv_evdev.c), and this warning can only fire when that same
+            // query returned a usable range here. The 0.99.114 wording claimed
+            // "UNSCALED / only top-left registers", which sent diagnosis down
+            // the wrong path: bundle N4ZN3YY2 shows this device booting with
+            // scaling active and captures compressed 0.57/0.49 — the real
+            // hazard is a controller that over-reports its emitted range
+            // (taps compress toward the top-left UNTIL calibrated; the
+            // calibration span-check logs the captured/target ratio). Keep it
+            // loud and grep-able either way.
             bool abs_mismatch =
                 got_range && helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
                                                              screen_width_, screen_height_);
             if (!coarse_scale_installed && (abs_mismatch || needs_cal_forced_by_abs)) {
                 spdlog::warn(
-                    "[DRM Backend] Coarse touch scale NOT installed (lv_evdev_set_calibration "
-                    "skipped) but panel mismatches — raw touch coords will flow UNSCALED (touch "
-                    "may register only top-left). ABS X({}..{}) Y({}..{}) vs display {}x{} "
-                    "[abs_mismatch={} needs_cal_forced={} got_range={}]",
+                    "[DRM Backend] Coarse touch scale not explicitly installed "
+                    "(lv_evdev_set_calibration skipped) but ABS range mismatches the display — "
+                    "lv_evdev's own open-time EVIOCGABS applies the same scaling, so coordinates "
+                    "flow coarse-scaled, not raw. If the controller over-reports its emitted "
+                    "range (Qidi Q2, #943), taps compress toward the top-left until calibrated "
+                    "(the calibration span-check logs the captured/target ratio). ABS X({}..{}) "
+                    "Y({}..{}) vs display {}x{} [abs_mismatch={} needs_cal_forced={} got_range={}]",
                     abs_x.minimum, abs_x.maximum, abs_y.minimum, abs_y.maximum, screen_width_,
                     screen_height_, abs_mismatch, needs_cal_forced_by_abs, got_range);
 
@@ -651,7 +663,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                 // singleton into those pipeline-less binaries. See
                 // helix_display_telemetry.h.
                 helix_display_telemetry_error("display", "touch-coarse-scale-skipped",
-                                              "drm_abs_range_query_unusable");
+                                              "drm_abs_mismatch_evdev_self_scaling");
             }
 
             // Touch axis / range overrides via environment (parity with the fbdev

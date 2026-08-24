@@ -261,8 +261,8 @@ void draw_merge_fan(lv_layer_t* layer, const MergeFanLane* lanes, int n, int32_t
 
     // Inset the outermost entries ~8px from each hub-top end (per the design),
     // and cap the per-side slope at 1.2 so tall hubs don't run near-vertical.
-    constexpr float kEntryMargin = 8.0f;
-    constexpr float kMaxSlope = 1.2f;
+    constexpr float ENTRY_MARGIN = 8.0f;
+    constexpr float MAX_SLOPE = 1.2f;
 
     pg::MergeLaneIn in[pg::FilamentPath::MAX_SEGS];
     pg::MergeLaneOut fan[pg::FilamentPath::MAX_SEGS];
@@ -270,8 +270,8 @@ void draw_merge_fan(lv_layer_t* layer, const MergeFanLane* lanes, int n, int32_t
     for (int i = 0; i < count; ++i)
         in[i] = {(float)lanes[i].slot_x, (float)lanes[i].start_y};
 
-    pg::build_merge_fan(in, count, (float)hub_cx, (float)hub_top, (float)hub_w, kEntryMargin,
-                        fillet_r, kMaxSlope, fan);
+    pg::build_merge_fan(in, count, (float)hub_cx, (float)hub_top, (float)hub_w, ENTRY_MARGIN,
+                        fillet_r, MAX_SLOPE, fan);
 
     for (int i = 0; i < count; ++i) {
         if (entry_x_out)

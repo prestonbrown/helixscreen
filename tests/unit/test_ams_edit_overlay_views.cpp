@@ -11,6 +11,9 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "ams_backend_mock.h"
+#include "ams_error.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "moonraker_api_mock.h"
@@ -18,6 +21,9 @@
 #include "printer_state.h"
 #include "spoolman_manager.h"
 #include "spoolman_slot_saver.h"
+#include "src/ui/panel_widgets/active_spool_widget.h"
+
+#include <memory>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -231,7 +237,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "card tap opens spool-edit; change-filament 
     process_lvgl(10);
     auto* view_subj = lv_xml_get_subject(nullptr, "ams_edit_view");
     REQUIRE(view_subj != nullptr);
-    CHECK(lv_subject_get_int(view_subj) == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(lv_subject_get_int(view_subj) == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     access.call_switch_to_form();
     UpdateQueue::instance().drain();
@@ -244,7 +250,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "card tap opens spool-edit; change-filament 
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(lv_subject_get_int(view_subj) == AmsEditOverlay::kViewSpoolPicker);
+    CHECK(lv_subject_get_int(view_subj) == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     // Retired widgets: chip, details row, inline remaining slider.
     CHECK(access.widget("identity_chip") == nullptr);
@@ -510,7 +516,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "filament-details view: toggle hidden withou
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     lv_obj_t* toggle_row = access.widget("save_to_spoolman_row");
     REQUIRE(toggle_row != nullptr);
@@ -551,7 +557,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool-edit Save applies color locally with 
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK(access.working_info().color_rgb == 0xE53935);
     CHECK(access.working_info().spoolman_id == 0); // stays untracked
     CHECK_FALSE(access.save_opt_in());             // Save will NOT write Spoolman
@@ -787,7 +793,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK(access.working_info().spoolman_id == 0); // unlink still happened
     // The core weight (216) must NOT have overwritten the real total (1000).
     CHECK(access.working_info().total_weight_g == Catch::Approx(1000.0f));
@@ -830,14 +836,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_open_color_view();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(access.view() == AmsEditOverlay::kViewColor);
+    CHECK(access.view() == AmsEditOverlay::VIEW_COLOR);
 
     uint32_t before = access.working_info().color_rgb;
     access.call_apply_color(0x1E88E5);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
     CHECK(access.details_color() == 0x1E88E5);
     CHECK(access.details_color_set());
     CHECK(access.working_info().color_rgb == before); // slot untouched until Save
@@ -860,7 +866,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unified spool-edit view shows logistics onl
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
     lv_obj_t* logistics = access.widget("spool_edit_logistics");
     REQUIRE(logistics != nullptr);
     CHECK_FALSE(lv_obj_has_flag(logistics, LV_OBJ_FLAG_HIDDEN));
@@ -902,7 +908,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK(access.working_info().spoolman_id == 0); // still untracked, no PATCH
     CHECK(access.working_info().remaining_weight_g == Catch::Approx(321.0f));
     CHECK(access.working_info().total_weight_g == Catch::Approx(987.0f));
@@ -940,7 +946,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK(access.working_info().total_weight_g == Catch::Approx(144.0f));
     // The new total_weight_g term in is_dirty() must light Save even when
     // remaining is untouched.
@@ -978,7 +984,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Blank == unchanged: the -1 sentinel is preserved (NOT overwritten with
     // 0), so the slot stays clean and Save does not light up.
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK(access.working_info().remaining_weight_g <= 0);
     CHECK(access.working_info().total_weight_g <= 0);
     CHECK_FALSE(access.is_dirty());
@@ -1015,7 +1021,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Validation toast fired and returned early -> still on spool-edit view,
     // working_info_ untouched, and the catalog selector stays attached (the
     // early return happens before detach()/clear_catalog()).
-    CHECK(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
     CHECK(access.working_info().remaining_weight_g == before_remaining);
     CHECK(access.working_info().total_weight_g == before_total);
 
@@ -1037,6 +1043,69 @@ std::vector<SpoolInfo> two_spools() {
     return {a, b};
 }
 } // namespace
+
+// ============================================================================
+// OverlayConsumerCommitFixture — for tests whose completion callback must
+// mirror the production consumers (AmsPanel / AmsOverviewPanel): the overlay
+// no longer pre-fires the server active-spool sync, so the consumer's
+// commit_slot_edit() owns it, and the wiring that commit needs (a backend +
+// the API registered on AmsState) has to exist in the test too. Wiring shape
+// mirrors OverlayCommitFixture (test_ams_edit_overlay_active_spool.cpp) /
+// CommitFixture (test_ams_state_commit_slot.cpp); no Config isolation —
+// commit_slot_edit persists nothing (AmsBackendMock ignores the persist flag).
+// ============================================================================
+
+struct OverlayConsumerCommitFixture : LVGLUITestFixture {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api;
+    AmsBackendMock* backend = nullptr;
+
+    OverlayConsumerCommitFixture() : api(client, get_printer_state()) {
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        // AmsState::init_subjects observes PrinterState's print-state subject;
+        // it must exist first or the observer attaches to nothing.
+        get_printer_state().init_subjects(false);
+        ams.init_subjects(false);
+
+        // A previous test file's SpoolmanManager::deinit_subjects() may have
+        // latched its shutdown flag — unlatch it (see CommitFixture).
+        SpoolmanManager::instance().init_subjects();
+        SpoolmanManager::clear_identity_cache();
+
+        auto owned = std::make_unique<AmsBackendMock>(4);
+        backend = owned.get();
+        ams.set_backend(std::move(owned));
+        ams.set_moonraker_api(&api);
+    }
+
+    ~OverlayConsumerCommitFixture() override {
+        // Detach the mocks BEFORE members are destroyed and while LVGL still
+        // runs (base-class teardown has not happened yet).
+        auto& ams = AmsState::instance();
+        ams.set_moonraker_api(nullptr);
+        ams.clear_backends();
+        // Drain while AmsState's subjects are still alive; queued backend-event
+        // syncs from this test must not leak into the next one.
+        UpdateQueue::instance().drain();
+        ams.deinit_subjects();
+        SpoolmanManager::clear_identity_cache();
+    }
+
+    /// The production backend-slot completion-consumer body (AmsPanel /
+    /// AmsOverviewPanel): capture the pre-edit slot BEFORE the commit — its
+    /// unlink arm (clear the server active spool) needs the old link.
+    void commit_like_consumer(const AmsEditOverlay::EditResult& r) {
+        if (!r.saved || r.slot_index < 0)
+            return;
+        AmsBackend* commit_backend = AmsState::instance().get_backend();
+        REQUIRE(commit_backend);
+        SlotInfo original = commit_backend->get_slot_info(r.slot_index);
+        AmsError err = AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+        REQUIRE(err.success());
+    }
+};
 
 TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the first row for unlinked slots",
                  "[ams_edit_overlay][picker][preselect]") {
@@ -1086,7 +1155,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
         /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
@@ -1108,7 +1177,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "picker-entry relink to a different spool never prompts or PATCHes the old spool",
                  "[ams_edit_overlay][filament_picker][picker][header_save]") {
     // Task #16 regression: a slot linked to spool A, opened directly on the
@@ -1116,9 +1185,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // edit of A's identity. The old "Different filament?" confirm + identity
     // PATCH would clobber the wrong Spoolman record. Assert: no confirm modal,
     // completion fires once with spool B, and NO spool/filament PATCH is sent.
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
 
     // Seed the currently-linked spool A (id 7) so the open-time re-fetch has an
     // authoritative record and leaves original_info_ as A's identity.
@@ -1129,6 +1195,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     linked_a.material = "ASA";
     linked_a.color_hex = "8A949E";
     api.spoolman_mock().get_mock_spools().push_back(linked_a);
+    // The backend mirrors the overlay's initial info, the way a live backend
+    // holds the tracked slot the editor was opened on.
+    backend->set_slot_info(0, tracked_slot(), /*persist=*/false);
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1145,11 +1214,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         [&](const AmsEditOverlay::EditResult& r) {
             fired = true;
             captured = r;
+            commit_like_consumer(r); // the consumer commit owns the server sync
         },
         /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
@@ -1180,15 +1250,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "two-step relink header Save never prompts or PATCHes the old spool",
                  "[ams_edit_overlay][filament_picker][picker][header_save]") {
     // Task #16, two-step variant: reach the picker via Change Filament (not the
     // one-tap entry), pick a different spool, return to the overview, then tap
     // header Save. Same relink semantics: no confirm, no PATCH of the old spool.
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
 
     SpoolInfo linked_a;
     linked_a.id = 7;
@@ -1197,6 +1264,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     linked_a.material = "ASA";
     linked_a.color_hex = "8A949E";
     api.spoolman_mock().get_mock_spools().push_back(linked_a);
+    backend->set_slot_info(0, tracked_slot(), /*persist=*/false);
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1212,6 +1280,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                   [&](const AmsEditOverlay::EditResult& r) {
                                       fired = true;
                                       captured = r;
+                                      commit_like_consumer(r);
                                   }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -1219,7 +1288,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_switch_to_picker(); // Change-Filament entry: clears the shortcut
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
@@ -1229,7 +1298,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_handle_spool_selected(22); // stages the relink, returns to overview
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewOverview);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     REQUIRE_FALSE(fired); // not committed yet
     REQUIRE(access.working_info().spoolman_id == 22);
 
@@ -1248,6 +1317,63 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().set_spoolman_available(false); // restore clean slate
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "active_spool widget completion routes the edit through commit_slot_edit",
+                 "[ams_edit_overlay][active_spool][commit]") {
+    // Final-review find: ActiveSpoolWidget is the sixth completion consumer of
+    // the shared edit overlay. Its backend-slot arm used to write the backend
+    // directly (set_slot_info) — no server active-spool sync, no identity
+    // invalidation. The consumer commit owns both; this drives the widget's
+    // own click → editor → Save path and asserts the server sync fired.
+
+    // The mock backend starts with slot 0 loaded and current by construction;
+    // give that lane a Spoolman link the way a live one carries it.
+    SlotInfo seeded = backend->get_slot_info(0);
+    seeded.spoolman_id = 169;
+    seeded.material = "PLA";
+    backend->set_slot_info(0, seeded, /*persist=*/false);
+
+    // Spoolman "unavailable" so the editor's Save takes the synchronous
+    // local-close branch (no async PATCH seam).
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0);
+    get_printer_state().set_spoolman_available(false);
+
+    // Build the home-panel component + controller, then tap it the way a user
+    // does — the widget's own completion wiring is the code under test.
+    lv_obj_t* comp =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_active_spool", nullptr));
+    REQUIRE(comp != nullptr);
+    ActiveSpoolWidget widget(&api);
+    widget.attach(comp, test_screen());
+
+    lv_obj_t* btn = lv_obj_find_by_name(comp, "spoolman_btn");
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // The editor opened on the loaded slot; stage an edit and header-Save the
+    // overlay the widget opened.
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo edited = seeded;
+    edited.material = "PETG";
+    access.set_working_info(edited);
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // REQUIRED: the edit reached the backend slot through commit_slot_edit...
+    const SlotInfo after = backend->get_slot_info(0);
+    REQUIRE(after.material == "PETG");
+    REQUIRE(after.spoolman_id == 169);
+    // ...AND the server active-spool sync fired — the old direct-write arm
+    // never did, which is exactly the branch regression this pins.
+    REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -1371,7 +1497,7 @@ TEST_CASE_METHOD(
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain(); // applies the async Spoolman logistics fetch
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     // Stage a color-only identity change (material stays ASA via the
     // preselected catalog product) — same-spool edit, no logistics diff, so
@@ -1395,7 +1521,7 @@ TEST_CASE_METHOD(
 
     // TRUE ABORT: no completion, still on the spool-edit view, nothing sent.
     CHECK(fire_count == 0);
-    CHECK(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
     CHECK(ModalStack::instance().stack_empty());
     CHECK(api.spoolman_mock().spool_updates.empty());
     CHECK(api.spoolman_mock().filament_updates.empty());
@@ -1481,7 +1607,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain(); // applies the async Spoolman logistics fetch
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     // Change logistics: remaining weight 1000 -> 750.
     lv_obj_t* remaining = access.widget("detail_field_remaining");
@@ -1552,7 +1678,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_switch_to_picker(); // Change-Filament entry: clears the shortcut
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
@@ -1563,7 +1689,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.view() == AmsEditOverlay::kViewOverview);
+    CHECK(access.view() == AmsEditOverlay::VIEW_OVERVIEW);
     CHECK_FALSE(fired); // no commit — the overview header Save commits later
     CHECK(access.working_info().spoolman_id == 22); // staged, awaiting review
 
@@ -1715,20 +1841,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(save_dis != nullptr);
     REQUIRE(lv_subject_get_int(hide_subj) == 0); // overview: visible
 
-    access.call_set_view(AmsEditOverlay::kViewSpoolPicker);
+    access.call_set_view(AmsEditOverlay::VIEW_SPOOL_PICKER);
     REQUIRE(lv_subject_get_int(hide_subj) == 1); // picker: hidden
 
     // Spool-edit: Save is VISIBLE and ENABLED even though nothing is dirty
     // (edits live in widgets, not staged into working_info_).
-    access.call_set_view(AmsEditOverlay::kViewSpoolEdit);
+    access.call_set_view(AmsEditOverlay::VIEW_SPOOL_EDIT);
     REQUIRE(lv_subject_get_int(hide_subj) == 0);
     REQUIRE_FALSE(access.is_dirty());
     CHECK(lv_subject_get_int(save_dis) == 0);
 
-    access.call_set_view(AmsEditOverlay::kViewColor);
+    access.call_set_view(AmsEditOverlay::VIEW_COLOR);
     REQUIRE(lv_subject_get_int(hide_subj) == 1); // color: hidden
 
-    access.call_set_view(AmsEditOverlay::kViewOverview);
+    access.call_set_view(AmsEditOverlay::VIEW_OVERVIEW);
     REQUIRE(lv_subject_get_int(hide_subj) == 0);
     // Overview: dirty-gated — a clean slot keeps Save disabled.
     CHECK(lv_subject_get_int(save_dis) == 1);
@@ -1760,7 +1886,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     // Stage a color + weight edit in the spool-edit widgets.
     access.set_details_color(0x123456);
@@ -1847,7 +1973,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     access.call_enter_spool_edit();
     UpdateQueue::instance().drain(); // applies the async Spoolman logistics fetch
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolEdit);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
 
     // Managed slot -> Save-to-Spoolman toggle defaults ON (stays tracked).
     lv_obj_t* toggle = access.widget("save_to_spoolman_switch");
@@ -2036,19 +2162,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "picker-entry link on an untracked slot with Spoolman available commits cleanly",
                  "[ams_edit_overlay][filament_picker][picker][spoolman][header_save]") {
     // Companion to the tracked-relink picker-entry test (8e23fbc23 covers
     // A>0 -> B>0). This exercises the OTHER relink branch — 0 -> B>0 — with
-    // Spoolman AVAILABLE, so the pick runs through commit_and_close's async
-    // Spoolman seam (sync_active_spool) rather than the synchronous local-close
-    // branch the =0 picker-entry test uses. Assert: one-tap commit + close, slot
-    // linked to B, active spool set on the server, NO identity dialog, and no
-    // spurious identity PATCH (a fresh link is not an edit).
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    // Spoolman AVAILABLE. The active-spool registration is the completion
+    // consumer's job now (commit_slot_edit), so the callback below mirrors the
+    // production consumer the way the sibling active-spool tests do. Assert:
+    // one-tap commit + close, slot linked to B, active spool set on the server,
+    // NO identity dialog, and no spurious identity PATCH (a fresh link is not
+    // an edit).
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -2067,11 +2191,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         [&](const AmsEditOverlay::EditResult& r) {
             fired = true;
             captured = r;
+            commit_like_consumer(r); // the consumer commit owns the server sync
         },
         /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");

@@ -94,6 +94,17 @@ class AudioSettingsManager {
     /** @brief Set completion alert mode (updates subject + persists) */
     void set_completion_alert_mode(CompletionAlertMode mode);
 
+    /**
+     * @brief Refresh the audio-device-available subject from the live backend
+     *
+     * `settings_audio_device_available` cannot be seeded in init_subjects()
+     * because subjects are initialized before SoundManager picks its backend.
+     * Called once after SoundManager::initialize() so the value is correct
+     * before any overlay binds to it. The backend is static after init, so a
+     * single refresh is sufficient.
+     */
+    void refresh_audio_device_available();
+
     // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
     // =========================================================================
@@ -128,6 +139,7 @@ class AudioSettingsManager {
     lv_subject_t ui_sounds_enabled_subject_;
     lv_subject_t volume_subject_;
     lv_subject_t completion_alert_subject_;
+    lv_subject_t audio_device_available_subject_;
 
     bool subjects_initialized_ = false;
 };

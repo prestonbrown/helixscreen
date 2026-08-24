@@ -1,7 +1,13 @@
 # Hidden Tests Tracker
 
-**Last Updated:** 2026-08-09
-**Total Hidden Tests:** 89 (Catch2's own count — `./build/bin/helix-tests "[.]" --list-tests | tail -1`)
+**Last Updated:** 2026-08-17
+**Total Hidden Tests:** 81 (Catch2's own count — `./build/bin/helix-tests "[.]" --list-tests | tail -1`)
+
+> 2026-08-17: 81, down from 89. The seven `test_ui_ams_slot.cpp` cases left the
+> hidden set entirely (see the `[.skip]` row removal below), and the concurrent
+> connect/disconnect robustness case was re-enlisted into the nightly
+> `[eventloop]` job after its libhv heap-corruption root cause was fixed
+> (patches/libhv-websocket-open-install-once.patch; 2.56s measured, no `[slow]`).
 
 Hidden tests are excluded from normal runs using Catch2's `[.]` tag prefix. They exist for legitimate reasons (benchmarks, stress tests, destructive global-state cycles, tests that need the `ui_xml/` tree on disk) and should be run manually when relevant.
 
@@ -30,7 +36,7 @@ make test-hidden-list                             # inventory without running
 Measured on macOS (Darwin 24.3.0, arm64), serial, from the repo root, ~65s:
 
 ```
-test cases:   89 |   48 passed | 41 skipped
+test cases:   81 |   41 passed | 40 skipped (2026-08-17 recount; previously 89)
 ```
 
 The 41 "skipped" are `SKIP()` calls inside otherwise-passing cases (absent hardware, absent XML component, platform guards) — not silent failures.
@@ -53,8 +59,12 @@ Both groups were left red rather than filtered out on purpose while they were re
 | `[.xml_required]` | 41 | `test_ui_panel_bindings.cpp` | Panel subject-binding assertions needing the XML tree |
 | `[.ui_integration]` | 17 | 5 files (below) | Real widget tree built from `ui_xml/` |
 | `[.disabled]` | 11 | `test_wifi_manager.cpp` | WiFiManager integration against the mock backend; slow (2-3s simulated scan/connect per case) |
-| `[.]` (generic) | 9 | `test_config.cpp`, `test_moonraker_client_robustness.cpp`, `test_moonraker_api_exclude_object.cpp`, `test_nozzle_render_gallery.cpp` | Destructive global state, event-loop concurrency, BMP-writing gallery |
-| `[.skip]` | 7 | `test_ui_ams_slot.cpp` | `ams_slot` binding/cleanup tests (all passing; tag predates the fix) |
+| `[.]` (generic) | 8 | `test_config.cpp`, `test_moonraker_client_robustness.cpp`, `test_moonraker_api_exclude_object.cpp`, `test_nozzle_render_gallery.cpp` | Destructive global state, event-loop concurrency, BMP-writing gallery |
+<!-- [.skip] row removed 2026-08-17: all seven test_ui_ams_slot.cpp cases left
+     the hidden set — the tag predated the init_subjects() fix and every case
+     passes in the default run (79 assertions across 25 ams_slot cases). They
+     are LVGLUITestFixture C++-widget tests, not cwd-coupled XML-tree tests, so
+     the "run from the repo root" constraint never applied to them. -->
 | `[.slow]` | 2 | `test_async_callback_safety.cpp` | Stress tests, too slow for CI |
 | `[.memprobe]` | 1 | `test_gcode_memory_probe.cpp` | Memory measurement probe |
 | `[.integration]` | 1 | `test_moonraker_client_security.cpp` | Timeout-callback deadlock check |
@@ -111,6 +121,6 @@ make test-hidden-list                                  # or, equivalently:
 ./build/bin/helix-tests "[.]" --list-tests | tail -1
 ```
 
-Expected: `89 matching test cases`. Catch2's count is the authority here — grepping the
+Expected: `81 matching test cases`. Catch2's count is the authority here — grepping the
 sources for `[.` over-counts, because several tests carry a literal `"[.]"` inside an
 unrelated string (regex fixtures in the Klipper-config parser tests, for one).

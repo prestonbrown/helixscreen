@@ -1,0 +1,96 @@
+name: Server Tests
+
+# Cloudflare Worker + dashboard suites. These are pure Node and need neither
+# submodules nor the C++ toolchain, so they live apart from Build/Code Quality
+# and finish in well under a minute.
+#
+# Added because the worker suites had never been wired into CI at all: the
+# telemetry-worker Dashboard block sat red long enough that a comment recording
+# the drift was written into the test file itself. Anything not gated here
+# rots the same way.
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+
+# A newer push to the same branch makes an in-flight run pointless.
+concurrency:
+  group: server-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workers:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    strategy:
+      # One red worker should not hide the state of the other two.
+      fail-fast: false
+      matrix:
+        package: [crash-worker, dl-worker, telemetry-worker]
+
+    defaults:
+      run:
+        working-directory: server/${{ matrix.package }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: server/${{ matrix.package }}/package-lock.json
+
+      # npm ci, not npm install: it installs exactly the committed lockfile and
+      # fails loudly if the lockfile and package.json have drifted apart, rather
+      # than silently resolving something new.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  dashboard:
+    name: analytics-dashboard
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: server/analytics-dashboard
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: server/analytics-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The build script is `vue-tsc --noEmit && vite build`, so this type-checks
+      # the whole SPA as well as building it. That is what catches a dashboard
+      # view reading a field the worker does not actually return.
+      - name: Type-check and build
+        run: npm run build

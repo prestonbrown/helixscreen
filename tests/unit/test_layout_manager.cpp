@@ -406,7 +406,8 @@ TEST_CASE_METHOD(LayoutFixture, "micro_portrait inherits app_layout from portrai
     REQUIRE(lm.resolve_xml_path("app_layout.xml") == "ui_xml/portrait/app_layout.xml");
 }
 
-TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own app_layout override", "[layout-manager]") {
+TEST_CASE_METHOD(LayoutFixture, "portrait resolves its own app_layout override",
+                 "[layout-manager]") {
     auto& lm = LayoutManager::instance();
     lm.init(480, 800);
     REQUIRE(lm.type() == LayoutType::PORTRAIT);

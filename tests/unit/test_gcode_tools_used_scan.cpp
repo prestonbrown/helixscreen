@@ -141,3 +141,36 @@ TEST_CASE("scan_tools_used_from_file - streams from disk", "[gcode][tools_used]"
 TEST_CASE("scan_tools_used_from_file - missing file returns empty", "[gcode][tools_used]") {
     REQUIRE(scan_tools_used_from_file("/tmp/does_not_exist_helix_XXXXXX.gcode").empty());
 }
+
+TEST_CASE("scan_tools_used - early exit", "[gcode][tools_used]") {
+    // Body where all palette tools appear near the head, then a huge tail.
+    std::string g = "T0\nG1 X1 E1\nT1\nG1 X2 E1\nT0\n";
+    for (int i = 0; i < 50000; ++i) {
+        g += "G1 X" + std::to_string(i % 50) + " E0.05\n";
+    }
+    const std::set<int> full{0, 1};
+
+    SECTION("Early exit returns the same set as a full scan") {
+        REQUIRE(scan_tools_used_from_content(g, full) == full);
+    }
+    SECTION("Subset file: stop set never completed, full scan still correct") {
+        // File only ever uses T0; stop set {0,1} is unreachable => whole body
+        // is read and the result is still exactly {0}.
+        const std::set<int> expect{0};
+        REQUIRE(scan_tools_used_from_content(g.substr(0, g.find("T1")), {0, 1}) == expect);
+    }
+    SECTION("Empty stop set behaves exactly like today") {
+        REQUIRE(scan_tools_used_from_content(g, {}) == full);
+        REQUIRE(scan_tools_used_from_content(g) == full);
+    }
+    SECTION("Early exit finds a late tool that IS in the stop set") {
+        // T1 appears only deep in the body — must not be missed just because
+        // T0 was seen immediately.
+        std::string late = "T0\n";
+        for (int i = 0; i < 20000; ++i)
+            late += "G1 X1 E0.1\n";
+        late += "T1\n";
+        const std::set<int> expect{0, 1};
+        REQUIRE(scan_tools_used_from_content(late, {0, 1}) == expect);
+    }
+}

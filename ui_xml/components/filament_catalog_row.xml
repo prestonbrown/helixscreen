@@ -9,16 +9,13 @@
        on the optional children. Non-interactive children carry event_bubble so a
        tap falls through to the clickable row; edit_icon intercepts its own tap
        (clickable, NO event_bubble) so editing never fires row-select. -->
-  <styles>
-    <!-- Pressed feedback: primary accent at low opacity, matching the retired
-         imperative LV_STATE_PRESSED styling. -->
-    <style name="row_pressed" bg_color="#primary" bg_opa="30%"/>
-  </styles>
   <view name="catalog_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_hor="#space_md" style_pad_ver="#space_sm" style_pad_gap="#space_sm" style_radius="#border_radius"
         style_bg_opa="0" scrollable="false" clickable="true">
-    <style name="row_pressed" selector="pressed"/>
+    <!-- Pressed wash from the shared style library (ui_xml/styles.xml).
+         Row-level style_radius matches the wash radius token, no override. -->
+    <style name="styles.press_wash" selector="pressed"/>
     <event_cb trigger="clicked" callback="catalog_row_clicked_cb"/>
     <!-- Selected-row checkmark. C++ sets the check codepoint + accent color on
          the highlighted row and clears it elsewhere. min_width reserves the

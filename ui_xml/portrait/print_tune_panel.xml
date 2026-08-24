@@ -34,16 +34,16 @@
           </lv_obj>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <ui_button height="#button_height_sm" flex_grow="1" text="-10">
+            <ui_button name="btn_speed_minus_10" height="#button_height_sm" flex_grow="1" text="-10">
               <event_cb trigger="clicked" callback="on_tune_speed_adjust" user_data="-10"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="-5">
+            <ui_button name="btn_speed_minus_5" height="#button_height_sm" flex_grow="1" text="-5">
               <event_cb trigger="clicked" callback="on_tune_speed_adjust" user_data="-5"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="+5">
+            <ui_button name="btn_speed_plus_5" height="#button_height_sm" flex_grow="1" text="+5">
               <event_cb trigger="clicked" callback="on_tune_speed_adjust" user_data="5"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="+10">
+            <ui_button name="btn_speed_plus_10" height="#button_height_sm" flex_grow="1" text="+10">
               <event_cb trigger="clicked" callback="on_tune_speed_adjust" user_data="10"/>
             </ui_button>
           </lv_obj>
@@ -62,16 +62,16 @@
           </lv_obj>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <ui_button height="#button_height_sm" flex_grow="1" text="-10">
+            <ui_button name="btn_flow_minus_10" height="#button_height_sm" flex_grow="1" text="-10">
               <event_cb trigger="clicked" callback="on_tune_flow_adjust" user_data="-10"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="-5">
+            <ui_button name="btn_flow_minus_5" height="#button_height_sm" flex_grow="1" text="-5">
               <event_cb trigger="clicked" callback="on_tune_flow_adjust" user_data="-5"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="+5">
+            <ui_button name="btn_flow_plus_5" height="#button_height_sm" flex_grow="1" text="+5">
               <event_cb trigger="clicked" callback="on_tune_flow_adjust" user_data="5"/>
             </ui_button>
-            <ui_button height="#button_height_sm" flex_grow="1" text="+10">
+            <ui_button name="btn_flow_plus_10" height="#button_height_sm" flex_grow="1" text="+10">
               <event_cb trigger="clicked" callback="on_tune_flow_adjust" user_data="10"/>
             </ui_button>
           </lv_obj>
@@ -113,10 +113,12 @@
                  taller default; in portrait the pair is what sets this row's
                  height, so the default costs more than the indicator does. The
                  buttons stay wide (they flex), so the touch target does not. -->
-            <ui_button width="100%" height="#button_height_sm" icon="arrow_up" bind_icon="tune_z_farther_icon">
+            <ui_button name="btn_z_farther"
+                       width="100%" height="#button_height_sm" icon="arrow_up" bind_icon="tune_z_farther_icon">
               <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
             </ui_button>
-            <ui_button width="100%" height="#button_height_sm" icon="arrow_down" bind_icon="tune_z_closer_icon">
+            <ui_button name="btn_z_closer"
+                       width="100%" height="#button_height_sm" icon="arrow_down" bind_icon="tune_z_closer_icon">
               <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
             </ui_button>
           </lv_obj>
@@ -125,22 +127,22 @@
              width so all four stay legible on a narrow display. -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-          <ui_button height="#button_height_sm" flex_grow="1" text="0.05">
+          <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
             <bind_style name="z_step_selected" subject="z_step_0_active" ref_value="1"/>
             <bind_style name="z_step_unselected" subject="z_step_0_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
           </ui_button>
-          <ui_button height="#button_height_sm" flex_grow="1" text="0.025">
+          <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
             <bind_style name="z_step_selected" subject="z_step_1_active" ref_value="1"/>
             <bind_style name="z_step_unselected" subject="z_step_1_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
           </ui_button>
-          <ui_button height="#button_height_sm" flex_grow="1" text="0.01">
+          <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
             <bind_style name="z_step_selected" subject="z_step_2_active" ref_value="1"/>
             <bind_style name="z_step_unselected" subject="z_step_2_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
           </ui_button>
-          <ui_button height="#button_height_sm" flex_grow="1" text="0.005">
+          <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
             <bind_style name="z_step_selected" subject="z_step_3_active" ref_value="1"/>
             <bind_style name="z_step_unselected" subject="z_step_3_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>

@@ -162,6 +162,28 @@ void ui_notification_warning(const char* title, const char* message);
 void ui_notification_error(const char* title, const char* message, bool modal = true);
 
 /**
+ * @brief Show a blocking error modal for a fault ON THE PRINTER
+ *
+ * Renders exactly like ui_notification_error(title, message, modal=true) — same
+ * widget, same dedup-by-title, same history entry — but the dialog is handed to
+ * helix::ui::track_fault_modal() (fault_modal_registry.h) so it can be retired
+ * once the condition it describes is gone.
+ *
+ * Use this only when the message describes the PRINTER's state (a Klipper
+ * shutdown, an MCU that stopped answering, a filament-system fault). A
+ * HelixScreen-side failure ("failed to load the wizard screen") must stay on
+ * ui_notification_error: Klipper recovering says nothing about whether that
+ * screen will load, and sweeping it away would hide a problem that is still
+ * real. See #1266.
+ *
+ * **Thread-safe**: marshals to the LVGL main thread. Safe from any thread.
+ *
+ * @param title Error title (required — a modal without one degrades to a toast)
+ * @param message Error message text
+ */
+void ui_notification_printer_fault(const char* title, const char* message);
+
+/**
  * @brief Show an error toast with a second line saying what to do about it
  *
  * The toast renders @p message as the body and @p detail beneath it in the

@@ -67,6 +67,7 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -115,6 +116,23 @@ class TelemetryManager {
      * @return Reference to global TelemetryManager
      */
     static TelemetryManager& instance();
+
+    /**
+     * @brief Classify whether a Moonraker websocket URL points at this machine
+     *
+     * Answers "is HelixScreen running on the printer, or driving it over the
+     * network" for the hardware_profile event. Only the verdict is ever
+     * recorded -- the host itself never leaves the device.
+     *
+     * Reads the same URL HelixPluginInstaller uses for is_local_moonraker(), so
+     * telemetry and the installer cannot disagree about a given install.
+     *
+     * @param websocket_url URL from IMoonrakerAPI::get_websocket_url()
+     * @return true if loopback, false if routable, nullopt if no URL is known
+     *         (mock client, or not connected yet) -- absent is not "remote"
+     */
+    [[nodiscard]] static std::optional<bool>
+    classify_moonraker_locality(const std::string& websocket_url);
 
     // =========================================================================
     // LIFECYCLE

@@ -2,6 +2,11 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- MICRO OVERRIDE of ui_xml/theme_preview_overlay.xml for 480x272 displays -->
+<!-- Divergences from standard:
+     - Uses #overlay_width_transient (vs default width)
+     - Tighter padding: #space_sm (vs #space_md)
+     - Action buttons in header bar use #button_height_sm + #space_xs padding
+-->
 <component>
   <view name="theme_preview_overlay"
         extends="overlay_panel" title="Theme" title_tag="Theme" bg_color="#screen_bg" hide_action_button="false"

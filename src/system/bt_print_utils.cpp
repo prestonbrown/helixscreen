@@ -193,14 +193,14 @@ RfcommSendResult rfcomm_send_receive(const std::string& mac, int fallback_channe
 namespace helix::label {
 
 namespace {
-constexpr int kMinChannel = 1;
-constexpr int kMaxChannel = 30;
+constexpr int MIN_CHANNEL = 1;
+constexpr int MAX_CHANNEL = 30;
 } // namespace
 
 int resolve_label_printer_channel(const std::string& mac, int fallback_channel) {
     auto& settings = helix::LabelPrinterSettingsManager::instance();
     int cached = settings.get_bt_channel();
-    if (cached >= kMinChannel && cached <= kMaxChannel) {
+    if (cached >= MIN_CHANNEL && cached <= MAX_CHANNEL) {
         spdlog::debug("[BT] Using cached RFCOMM channel {} for {}", cached,
                       helix::redact::mac(mac));
         return cached;
@@ -210,15 +210,15 @@ int resolve_label_printer_channel(const std::string& mac, int fallback_channel) 
     if (!loader.sdp_find_rfcomm_channel) {
         spdlog::warn("[BT] SDP symbol missing; using fallback channel {} for {}", fallback_channel,
                      helix::redact::mac(mac));
-        return (fallback_channel >= kMinChannel && fallback_channel <= kMaxChannel)
+        return (fallback_channel >= MIN_CHANNEL && fallback_channel <= MAX_CHANNEL)
                    ? fallback_channel
                    : -1;
     }
 
     auto* ctx = loader.get_or_create_context();
     int channel = -1;
-    int r = loader.sdp_find_rfcomm_channel(ctx, mac.c_str(), kSppUuid16, &channel);
-    if (r == 0 && channel >= kMinChannel && channel <= kMaxChannel) {
+    int r = loader.sdp_find_rfcomm_channel(ctx, mac.c_str(), SPP_UUID16, &channel);
+    if (r == 0 && channel >= MIN_CHANNEL && channel <= MAX_CHANNEL) {
         spdlog::info("[BT] SDP resolved RFCOMM channel {} for {} (caching)", channel,
                      helix::redact::mac(mac));
         settings.set_bt_channel(channel);
@@ -227,7 +227,7 @@ int resolve_label_printer_channel(const std::string& mac, int fallback_channel) 
 
     spdlog::warn("[BT] SDP lookup failed for {} (r={}, ch={}); falling back to {}",
                  helix::redact::mac(mac), r, channel, fallback_channel);
-    if (fallback_channel >= kMinChannel && fallback_channel <= kMaxChannel) {
+    if (fallback_channel >= MIN_CHANNEL && fallback_channel <= MAX_CHANNEL) {
         return fallback_channel; // do NOT cache fallback
     }
     return -1;

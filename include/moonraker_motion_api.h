@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
@@ -21,7 +22,7 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 class PrinterState;
 } // namespace helix
 
@@ -41,7 +42,7 @@ class PrinterState;
  *       []() { ... },
  *       [](const auto& err) { ... });
  */
-class MoonrakerMotionAPI {
+class MoonrakerMotionAPI : public IMotionAPI {
   public:
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
@@ -57,7 +58,7 @@ class MoonrakerMotionAPI {
      *              consulted by the homing guard to refuse G28 while printing
      * @param safety_limits Reference to safety limits (must remain valid during API lifetime)
      */
-    MoonrakerMotionAPI(helix::MoonrakerClient& client, helix::PrinterState& state,
+    MoonrakerMotionAPI(helix::IMoonrakerClient& client, helix::PrinterState& state,
                        const SafetyLimits& safety_limits);
     virtual ~MoonrakerMotionAPI() = default;
 
@@ -72,7 +73,8 @@ class MoonrakerMotionAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void home_axes(const std::string& axes, SuccessCallback on_success, ErrorCallback on_error);
+    void home_axes(const std::string& axes, SuccessCallback on_success,
+                   ErrorCallback on_error) override;
 
     /**
      * @brief Move an axis by a relative amount
@@ -84,7 +86,7 @@ class MoonrakerMotionAPI {
      * @param on_error Error callback
      */
     void move_axis(char axis, double distance, double feedrate, SuccessCallback on_success,
-                   ErrorCallback on_error);
+                   ErrorCallback on_error) override;
 
     /**
      * @brief Relative multi-axis move as ONE gcode script
@@ -102,7 +104,7 @@ class MoonrakerMotionAPI {
      * @param on_error Error callback
      */
     void move_relative(double dx, double dy, double dz, double xy_feedrate, double z_feedrate,
-                       SuccessCallback on_success, ErrorCallback on_error);
+                       SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Generate G-code for a relative multi-axis move (public for direct
@@ -121,10 +123,10 @@ class MoonrakerMotionAPI {
      * @param on_error Error callback
      */
     void move_to_position(char axis, double position, double feedrate, SuccessCallback on_success,
-                          ErrorCallback on_error);
+                          ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
     helix::PrinterState& state_;
     const SafetyLimits& safety_limits_;
 
@@ -147,7 +149,13 @@ class MoonrakerMotionAPI {
      * @brief Execute G-code via printer.gcode.script JSON-RPC
      *
      * Annotates G-code with source comment and sends via client.
+     *
+     * @param caller_surfaces_errors Whether @p on_error actually SHOWS the user
+     *        something. Pass false when it only logs: a spdlog line is not a
+     *        user-visible report, and letting it claim ownership suppresses
+     *        Klipper's `!!` broadcast for the same failure. See
+     *        include/rpc_error_policy.h.
      */
     void execute_gcode(const std::string& gcode, SuccessCallback on_success, ErrorCallback on_error,
-                       uint32_t timeout_ms = 0);
+                       uint32_t timeout_ms = 0, bool caller_surfaces_errors = true);
 };

@@ -16,7 +16,7 @@
 
 #include "app_globals.h"
 #include "filament_database.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "theme_manager.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -437,7 +437,7 @@ void SpoolWizardOverlay::set_creating(bool val) {
 }
 
 void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         on_creation_error(lv_tr("No API connection"));
         return;
@@ -475,7 +475,7 @@ void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
 }
 
 void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         on_creation_error(lv_tr("No API connection"), created_vendor_id_);
         return;
@@ -527,7 +527,7 @@ void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
 }
 
 void SpoolWizardOverlay::create_spool(int filament_id) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         on_creation_error(lv_tr("No API connection"), created_vendor_id_, created_filament_id_);
         return;
@@ -589,7 +589,7 @@ void SpoolWizardOverlay::on_creation_error(const std::string& message, int rollb
     ToastManager::instance().show(ToastSeverity::ERROR, message.c_str());
 
     // Best-effort rollback — delete filament first (references vendor), then vendor
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         auto delete_vendor = [api, rollback_vendor_id]() {
             if (rollback_vendor_id >= 0) {
@@ -716,8 +716,8 @@ void SpoolWizardOverlay::load_vendors() {
         lv_subject_set_int(&show_create_vendor_subject_, 0);
     }
 
-    // Get server + external vendors (both async via MoonrakerAPI)
-    MoonrakerAPI* api = get_moonraker_api();
+    // Get server + external vendors (both async via IMoonrakerAPI)
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API available, showing empty vendors", get_name());
         if (subjects_initialized_) {
@@ -1199,7 +1199,7 @@ void SpoolWizardOverlay::load_filaments() {
         lv_subject_set_int(&filaments_loading_subject_, 1);
     }
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API available, showing empty filaments", get_name());
         if (subjects_initialized_) {

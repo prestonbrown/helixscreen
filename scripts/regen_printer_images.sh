@@ -54,7 +54,8 @@ list_targets() {
     local count=0
     for png in "$SOURCE_DIR"/*.png; do
         [ -f "$png" ] || continue
-        local basename=$(basename "$png" .png)
+        local basename
+        basename=$(basename "$png" .png)
 
         echo -e "  ${GREEN}$basename${NC}"
         for size in "${TARGET_SIZES[@]}"; do
@@ -79,7 +80,8 @@ render_all() {
 
     for png in "$SOURCE_DIR"/*.png; do
         [ -f "$png" ] || continue
-        local basename=$(basename "$png" .png)
+        local basename
+        basename=$(basename "$png" .png)
 
         echo -ne "  $basename: "
 
@@ -108,7 +110,8 @@ render_all() {
 
     # Show total size
     if [ -d "$OUTPUT_DIR" ]; then
-        local total_size=$(du -sh "$OUTPUT_DIR" | cut -f1)
+        local total_size
+        total_size=$(du -sh "$OUTPUT_DIR" | cut -f1)
         echo -e "  Total size: ${CYAN}$total_size${NC}"
     fi
 }

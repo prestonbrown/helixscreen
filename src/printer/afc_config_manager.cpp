@@ -2,13 +2,13 @@
 
 #include "afc_config_manager.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
-AfcConfigManager::AfcConfigManager(MoonrakerAPI* api) : api_(api) {}
+AfcConfigManager::AfcConfigManager(IMoonrakerAPI* api) : api_(api) {}
 
-AfcConfigManager::AfcConfigManager(MoonrakerAPI* api, helix::LifetimeToken token)
+AfcConfigManager::AfcConfigManager(IMoonrakerAPI* api, helix::LifetimeToken token)
     : api_(api), token_(std::move(token)) {}
 
 void AfcConfigManager::load(const std::string& filename, Callback on_done) {

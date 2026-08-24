@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Full-screen backdrop overlay - tap to dismiss -->
+  <view name="tool_switcher_picker" extends="context_menu_backdrop">
+    <!-- Card width matched to the widget tile, positioned by ContextMenu. The
+         card is as narrow as the tile, so the title is one word, the X carries
+         the dismiss, and there is no room to spend on a rule. -->
+    <context_menu_card title="Tool" title_tag="Tool" pad_all="#space_xs" pad_gap="#space_xs" hide_divider="true">
+      <!-- Tool buttons populated dynamically by C++ -->
+      <!-- max_height set dynamically by C++ to ~60% screen height -->
+      <lv_obj name="tool_list"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+              scrollable="true" clickable="false"/>
+    </context_menu_card>
+  </view>
+</component>

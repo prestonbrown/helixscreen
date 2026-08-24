@@ -14,7 +14,6 @@ namespace helix::ui {
 
 // Static member initialization
 bool AmsSelectorMenu::callbacks_registered_ = false;
-AmsSelectorMenu* AmsSelectorMenu::s_active_instance_ = nullptr;
 
 // ============================================================================
 // Construction / Destruction
@@ -25,38 +24,22 @@ AmsSelectorMenu::AmsSelectorMenu() {
 }
 
 AmsSelectorMenu::~AmsSelectorMenu() {
-    // Clear active instance before base destructor calls hide()
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
     spdlog::trace("[AmsSelectorMenu] Destroyed");
 }
 
 AmsSelectorMenu::AmsSelectorMenu(AmsSelectorMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
       backend_(other.backend_) {
-    if (s_active_instance_ == &other) {
-        s_active_instance_ = this;
-    }
     other.backend_ = nullptr;
 }
 
 AmsSelectorMenu& AmsSelectorMenu::operator=(AmsSelectorMenu&& other) noexcept {
     if (this != &other) {
-        // Clear our active instance before base hide()
-        if (s_active_instance_ == this) {
-            s_active_instance_ = nullptr;
-        }
-
-        // Let base class handle its state
+        // Let base class handle its state, including the active-menu registry
         ContextMenu::operator=(std::move(other));
 
         action_callback_ = std::move(other.action_callback_);
         backend_ = other.backend_;
-
-        if (s_active_instance_ == &other) {
-            s_active_instance_ = this;
-        }
 
         other.backend_ = nullptr;
     }
@@ -79,16 +62,11 @@ bool AmsSelectorMenu::show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t cli
     // Store state BEFORE base class calls on_created
     backend_ = backend;
 
-    // Set as active instance for static callbacks
-    s_active_instance_ = this;
-
     set_click_point(click_pt);
 
-    // Base class handles: XML creation, on_created callback, positioning
+    // Base class handles: XML creation, on_created callback, positioning, and
+    // claiming the active-menu slot the static callbacks resolve through.
     bool result = show_near_widget(parent, -1, anchor);
-    if (!result) {
-        s_active_instance_ = nullptr;
-    }
 
     spdlog::debug("[AmsSelectorMenu] Shown");
     return result;
@@ -128,9 +106,6 @@ void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
 void AmsSelectorMenu::dispatch_selector_action(SelectorAction action) {
     ActionCallback callback_copy = action_callback_;
 
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
     hide();
 
     if (callback_copy) {
@@ -138,7 +113,7 @@ void AmsSelectorMenu::dispatch_selector_action(SelectorAction action) {
     }
 }
 
-void AmsSelectorMenu::handle_backdrop_clicked() {
+void AmsSelectorMenu::on_backdrop_clicked() {
     spdlog::debug("[AmsSelectorMenu] Backdrop clicked");
     dispatch_selector_action(SelectorAction::CANCELLED);
 }
@@ -204,7 +179,6 @@ void AmsSelectorMenu::register_callbacks() {
     }
 
     register_xml_callbacks({
-        {"ams_selector_backdrop_cb", on_backdrop_cb},
         {"ams_selector_home_cb", on_home_cb},
         {"ams_selector_check_cb", on_check_cb},
         {"ams_selector_servo_up_cb", on_servo_up_cb},
@@ -221,21 +195,15 @@ void AmsSelectorMenu::register_callbacks() {
 }
 
 // ============================================================================
-// Static Callbacks (Instance Lookup via Static Pointer)
+// Static Callbacks (Instance Lookup via ContextMenu::active())
 // ============================================================================
 
 AmsSelectorMenu* AmsSelectorMenu::get_active_instance() {
-    if (!s_active_instance_) {
+    auto* self = ContextMenu::active_as<AmsSelectorMenu>();
+    if (!self) {
         spdlog::warn("[AmsSelectorMenu] No active instance for event");
     }
-    return s_active_instance_;
-}
-
-void AmsSelectorMenu::on_backdrop_cb(lv_event_t* /*e*/) {
-    auto* self = get_active_instance();
-    if (self) {
-        self->handle_backdrop_clicked();
-    }
+    return self;
 }
 
 void AmsSelectorMenu::on_home_cb(lv_event_t* /*e*/) {

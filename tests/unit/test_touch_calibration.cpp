@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025-2026 356C LLC
 
+#include "lvgl_test_fixture.h"
 #include "touch_calibration.h"
 #include "touch_calibration_panel.h"
 #include "touch_calibration_wrapper.h"
 
 #include "../catch_amalgamated.hpp"
-#include "lvgl_test_fixture.h"
 
 using Catch::Approx;
 using namespace helix;
@@ -1142,6 +1142,73 @@ TEST_CASE("TouchCalibration: device_needs_calibration with MT-detected devices",
     SECTION("MT-only resistive (hypothetical) — would need calibration") {
         // If a resistive touchscreen only reported MT axes, it would still need cal
         REQUIRE(device_needs_calibration("sun4i-ts", "sun4i_ts", true) == true);
+    }
+}
+
+// ============================================================================
+// Manual Calibration Availability (device_supports_calibration)
+// ============================================================================
+
+TEST_CASE("TouchCalibration: device_supports_calibration", "[touch-calibration][1259]") {
+    // --- Real touch panels: the manual entry point is always offered ---
+
+    SECTION("Capacitive panel the auto-heuristic skips still offers manual calibration") {
+        // tlsc6x_touch on an FLSUN T1 Pro: touch panel mounted 90° from the
+        // display. device_needs_calibration() says no (not a known resistive
+        // name), which is correct for auto-firing the wizard and fatal if it
+        // also hides the manual path.
+        REQUIRE(device_needs_calibration("tlsc6x_touch", "", true) == false);
+        REQUIRE(device_supports_calibration("tlsc6x_touch", true) == true);
+    }
+
+    SECTION("Goodix capacitive offers manual calibration") {
+        REQUIRE(device_supports_calibration("Goodix-TS gt9xxnew_ts", true) == true);
+    }
+
+    SECTION("Resistive panel offers manual calibration") {
+        REQUIRE(device_supports_calibration("sun4i-ts", true) == true);
+    }
+
+    SECTION("USB HID touchscreen offers manual calibration") {
+        // Auto-detection skips USB HID (it reports mapped coordinates), but a
+        // USB panel can still be physically rotated inside an enclosure.
+        REQUIRE(device_supports_calibration("BIQU BTT-HDMI5", true) == true);
+    }
+
+    SECTION("Unknown-but-real touchscreen offers manual calibration") {
+        REQUIRE(device_supports_calibration("some-unknown-ts", true) == true);
+    }
+
+    // --- Not touch panels: nothing to calibrate ---
+
+    SECTION("Device without ABS axes offers nothing") {
+        REQUIRE(device_supports_calibration("gpio-keys", false) == false);
+        REQUIRE(device_supports_calibration("AT Translated Set 2 keyboard", false) == false);
+    }
+
+    SECTION("Virtual/uinput device offers nothing") {
+        // VNC injection feeds already-mapped screen coordinates; an affine on
+        // top of that has nothing to correct.
+        REQUIRE(device_supports_calibration("virtual-touchscreen", true) == false);
+    }
+
+    SECTION("Empty name with ABS axes still offers manual calibration") {
+        // A nameless platform touchscreen is exactly the case the name-based
+        // auto-heuristic cannot classify, so it must not lose the manual path.
+        REQUIRE(device_supports_calibration("", true) == true);
+    }
+
+    // --- Relationship to the auto-fire decision ---
+
+    SECTION("Every device that needs calibration also supports it") {
+        // supports is a superset of needs: the wizard must never auto-fire on a
+        // device whose manual entry point is hidden.
+        const char* auto_fire_devices[] = {"sun4i-ts", "rtp", "ns2009", "tsc2007"};
+        for (const char* name : auto_fire_devices) {
+            INFO("device: " << name);
+            REQUIRE(device_needs_calibration(name, "", true) == true);
+            REQUIRE(device_supports_calibration(name, true) == true);
+        }
     }
 }
 

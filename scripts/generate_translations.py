@@ -61,13 +61,24 @@ def is_plural_entry(value: Any) -> bool:
 
 
 def escape_xml_attr(text: str) -> str:
-    """Escape special characters for XML attributes."""
+    """Escape special characters for XML attributes.
+
+    Newline, tab and carriage return MUST go out as numeric character
+    references. XML attribute-value normalization (XML 1.0 s3.3.3) replaces a
+    literal one with a space, but a character reference is appended to the
+    normalized value as-is - so `&#10;` is the only way a key or translation
+    containing a real newline survives the parse. helix-xml reads the packs with
+    expat (lib/helix-xml/src/xml/lv_xml_translation.c), which conforms.
+    """
     # Order matters - ampersand first
     text = text.replace("&", "&amp;")
     text = text.replace("<", "&lt;")
     text = text.replace(">", "&gt;")
     text = text.replace('"', "&quot;")
     text = text.replace("'", "&apos;")
+    text = text.replace("\n", "&#10;")
+    text = text.replace("\t", "&#9;")
+    text = text.replace("\r", "&#13;")
     return text
 
 

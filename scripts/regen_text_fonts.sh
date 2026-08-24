@@ -248,6 +248,18 @@ if [ -f "$FONT_MONO" ]; then
             --range "$UNICODE_RANGES" \
             \
             -o "$OUTPUT"
+        # De-const only source_code_pro_14: it is a MOVED face (ESP32 loads its
+        # glyph data from a runtime .bin and struct-copies into the symbol at
+        # boot; Plan A fonts->frogfs move), so ui_fonts.h declares it non-const.
+        # The .c definition must match or gcc errors with "conflicting type
+        # qualifiers". The other mono sizes are NOT moved and stay const.
+        if [ "$SIZE" = "14" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' 's/^const lv_font_t /lv_font_t /' "$OUTPUT"
+            else
+                sed -i 's/^const lv_font_t /lv_font_t /' "$OUTPUT"
+            fi
+        fi
     done
 else
     echo ""

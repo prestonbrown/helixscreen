@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
@@ -21,7 +22,7 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 } // namespace helix
 
 /**
@@ -37,7 +38,7 @@ class MoonrakerClient;
  *       [](const auto& settings) { ... },
  *       [](const auto& err) { ... });
  */
-class MoonrakerTimelapseAPI {
+class MoonrakerTimelapseAPI : public ITimelapseAPI {
   public:
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
@@ -50,7 +51,7 @@ class MoonrakerTimelapseAPI {
      * @param client MoonrakerClient instance (must remain valid during API lifetime)
      * @param http_base_url Reference to HTTP base URL string (owned by MoonrakerAPI)
      */
-    explicit MoonrakerTimelapseAPI(helix::MoonrakerClient& client,
+    explicit MoonrakerTimelapseAPI(helix::IMoonrakerClient& client,
                                    const std::string& http_base_url);
     virtual ~MoonrakerTimelapseAPI();
 
@@ -67,8 +68,8 @@ class MoonrakerTimelapseAPI {
      * @param on_success Callback with current settings
      * @param on_error Error callback
      */
-    virtual void get_timelapse_settings(TimelapseSettingsCallback on_success,
-                                        ErrorCallback on_error);
+    void get_timelapse_settings(TimelapseSettingsCallback on_success,
+                                ErrorCallback on_error) override;
 
     /**
      * @brief Update timelapse settings
@@ -80,8 +81,8 @@ class MoonrakerTimelapseAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    virtual void set_timelapse_settings(const TimelapseSettings& settings,
-                                        SuccessCallback on_success, ErrorCallback on_error);
+    void set_timelapse_settings(const TimelapseSettings& settings, SuccessCallback on_success,
+                                ErrorCallback on_error) override;
 
     /**
      * @brief Enable or disable timelapse for current/next print
@@ -93,8 +94,8 @@ class MoonrakerTimelapseAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    virtual void set_timelapse_enabled(bool enabled, SuccessCallback on_success,
-                                       ErrorCallback on_error);
+    void set_timelapse_enabled(bool enabled, SuccessCallback on_success,
+                               ErrorCallback on_error) override;
 
     // ========================================================================
     // Timelapse Render / Frame Operations (JSON-RPC)
@@ -106,20 +107,20 @@ class MoonrakerTimelapseAPI {
      * Starts the rendering process for captured frames into a video file.
      * Progress is reported via notify_timelapse_event WebSocket events.
      */
-    virtual void render_timelapse(SuccessCallback on_success, ErrorCallback on_error);
+    void render_timelapse(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Save timelapse frames without rendering
      *
      * Saves captured frame files for later processing.
      */
-    virtual void save_timelapse_frames(SuccessCallback on_success, ErrorCallback on_error);
+    void save_timelapse_frames(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Get information about the last captured frame
      */
-    virtual void get_last_frame_info(std::function<void(const LastFrameInfo&)> on_success,
-                                     ErrorCallback on_error);
+    void get_last_frame_info(std::function<void(const LastFrameInfo&)> on_success,
+                             ErrorCallback on_error) override;
 
     // ========================================================================
     // Webcam Operations (JSON-RPC)
@@ -134,9 +135,9 @@ class MoonrakerTimelapseAPI {
      * @param on_success Callback with vector of webcam info
      * @param on_error Error callback
      */
-    virtual void get_webcam_list(WebcamListCallback on_success, ErrorCallback on_error);
+    void get_webcam_list(WebcamListCallback on_success, ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
     const std::string& http_base_url_;
 };

@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 from xml.etree import ElementTree
 
-# Mirrors kVariantDirs in src/layout_manager.cpp. Content subdirectories
+# Mirrors VARIANT_DIRS in src/layout_manager.cpp. Content subdirectories
 # (components/, translations/) are not layout variants and are skipped.
 VARIANT_DIRS = ("micro_portrait", "tiny_portrait", "portrait", "ultrawide", "micro", "tiny")
 

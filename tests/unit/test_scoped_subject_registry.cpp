@@ -27,8 +27,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry uses active scope whe
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("test_scope_stub");
     REQUIRE(scope != nullptr);
 
-    // Heap-allocate the subject so lv_xml_component_unregister() can lv_free it;
-    // the scope takes ownership of the subject pointer on registration.
+    // Heap-allocate the subject. NOTE: the scope does NOT take ownership -
+    // lv_xml_subject_record_release() frees a record only when its `owned` flag
+    // is set, which is true for parser-created <subject>/<subject_expr> and
+    // false for anything handed in through lv_xml_register_subject(). This one
+    // is BORROWED, so freeing it is our job (see the provenance rule above
+    // lv_xml_subject_record_release, and lib/helix-xml's test_subject_provenance).
     auto* s = static_cast<lv_subject_t*>(lv_malloc(sizeof(lv_subject_t)));
     REQUIRE(s != nullptr);
     lv_subject_init_int(s, 7);
@@ -41,7 +45,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry uses active scope whe
     REQUIRE(lv_xml_get_subject(scope, "scoped_int") == s);
     REQUIRE(lv_xml_get_subject(nullptr, "scoped_int") == nullptr);
 
-    // lv_xml_component_unregister() walks subjects_ll and lv_free()s each
-    // subject pointer, which handles cleanup of `s`.
     lv_xml_component_unregister("test_scope_stub");
+
+    // Ours to release: the record was borrowed, so retiring the scope dropped
+    // the reference without touching the storage. Omitting this leaks 72 bytes.
+    lv_subject_deinit(s);
+    lv_free(s);
 }

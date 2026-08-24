@@ -120,7 +120,7 @@ class ScopedGlobalApi {
     ScopedGlobalApi& operator=(const ScopedGlobalApi&) = delete;
 
   private:
-    MoonrakerAPI* previous_;
+    IMoonrakerAPI* previous_;
 };
 
 } // namespace

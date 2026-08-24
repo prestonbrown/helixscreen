@@ -12,7 +12,7 @@ using namespace helix::ui::pathgeo;
 
 namespace {
 
-constexpr float kPi = 3.14159265358979323846f;
+constexpr float PI = 3.14159265358979323846f;
 
 float dist(const PathPoint& a, const PathPoint& b) {
     float dx = a.x - b.x;
@@ -81,20 +81,20 @@ TEST_CASE("seg_length ARC is |sweep|*radius", "[filament-path][geometry]") {
     s.center = {0.0f, 0.0f};
     s.radius = 10.0f;
     s.start_angle = 0.0f;
-    s.sweep = kPi / 2.0f; // quarter circle
-    REQUIRE(seg_length(s) == Catch::Approx(10.0f * kPi / 2.0f));
+    s.sweep = PI / 2.0f; // quarter circle
+    REQUIRE(seg_length(s) == Catch::Approx(10.0f * PI / 2.0f));
 
     // Negative sweep -> same length (uses |sweep|).
-    s.sweep = -kPi / 2.0f;
-    REQUIRE(seg_length(s) == Catch::Approx(10.0f * kPi / 2.0f));
+    s.sweep = -PI / 2.0f;
+    REQUIRE(seg_length(s) == Catch::Approx(10.0f * PI / 2.0f));
 }
 
 TEST_CASE("path_length sums mixed segments", "[filament-path][geometry]") {
     FilamentPath p;
-    p.add_line(0.0f, 0.0f, 0.0f, 10.0f);           // length 10
-    p.add_arc(5.0f, 10.0f, 5.0f, kPi, kPi / 2.0f); // quarter arc r=5 -> 5*pi/2
-    p.add_line(5.0f, 15.0f, 15.0f, 15.0f);         // length 10
-    float expect = 10.0f + 5.0f * kPi / 2.0f + 10.0f;
+    p.add_line(0.0f, 0.0f, 0.0f, 10.0f);         // length 10
+    p.add_arc(5.0f, 10.0f, 5.0f, PI, PI / 2.0f); // quarter arc r=5 -> 5*pi/2
+    p.add_line(5.0f, 15.0f, 15.0f, 15.0f);       // length 10
+    float expect = 10.0f + 5.0f * PI / 2.0f + 10.0f;
     REQUIRE(path_length(p) == Catch::Approx(expect));
 }
 
@@ -150,23 +150,23 @@ TEST_CASE("path_point_at on arc midpoint and tangent", "[filament-path][geometry
     // Quarter arc: center (0,0), r=10, start angle 0 (point (10,0)),
     // sweep +pi/2 (clockwise on screen) -> ends at (0,10).
     FilamentPath p;
-    p.add_arc(0.0f, 0.0f, 10.0f, 0.0f, kPi / 2.0f);
+    p.add_arc(0.0f, 0.0f, 10.0f, 0.0f, PI / 2.0f);
 
     float total = path_length(p);
-    REQUIRE(total == Catch::Approx(10.0f * kPi / 2.0f));
+    REQUIRE(total == Catch::Approx(10.0f * PI / 2.0f));
 
     // Midpoint at d = total/2 -> angle pi/4 -> (10*cos45, 10*sin45).
     PathPoint tangent;
     PathPoint midp = path_point_at(p, total / 2.0f, &tangent);
-    REQUIRE(midp.x == Catch::Approx(10.0f * std::cos(kPi / 4.0f)));
-    REQUIRE(midp.y == Catch::Approx(10.0f * std::sin(kPi / 4.0f)));
+    REQUIRE(midp.x == Catch::Approx(10.0f * std::cos(PI / 4.0f)));
+    REQUIRE(midp.y == Catch::Approx(10.0f * std::sin(PI / 4.0f)));
 
     // Unit tangent.
     float tlen = std::sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
     REQUIRE(tlen == Catch::Approx(1.0f).margin(1e-4));
     // At pi/4, moving clockwise (+sweep): direction = (-sin, cos) = (-0.707, 0.707).
-    REQUIRE(tangent.x == Catch::Approx(-std::sin(kPi / 4.0f)).margin(1e-3));
-    REQUIRE(tangent.y == Catch::Approx(std::cos(kPi / 4.0f)).margin(1e-3));
+    REQUIRE(tangent.x == Catch::Approx(-std::sin(PI / 4.0f)).margin(1e-3));
+    REQUIRE(tangent.y == Catch::Approx(std::cos(PI / 4.0f)).margin(1e-3));
 }
 
 TEST_CASE("path_point_at exactly on segment boundary", "[filament-path][geometry]") {
@@ -276,7 +276,7 @@ TEST_CASE("route_orthogonal total length is analytic", "[filament-path][geometry
     // verticals + horizontal + 2 quarter arcs.
     // vertical total = dy - 2*r_eff ; horizontal = |dx| - 2*r_eff ; arcs = 2*(pi/2)*r_eff
     float expect =
-        (dy - 2.0f * r_eff) + (std::fabs(dx) - 2.0f * r_eff) + 2.0f * (kPi / 2.0f) * r_eff;
+        (dy - 2.0f * r_eff) + (std::fabs(dx) - 2.0f * r_eff) + 2.0f * (PI / 2.0f) * r_eff;
     REQUIRE(path_length(p) == Catch::Approx(expect).margin(1e-2));
 }
 
@@ -445,7 +445,7 @@ TEST_CASE("route_polyline_filleted shallow (20-degree) corner: tangency",
           "[filament-path][geometry]") {
     // Shallow bend: nearly collinear, ~20 degrees of turn.
     // First leg along +x; second leg turned 20 degrees toward +y.
-    float ang = 20.0f * kPi / 180.0f;
+    float ang = 20.0f * PI / 180.0f;
     PathPoint pts[3] = {
         {0.0f, 0.0f},
         {200.0f, 0.0f},
@@ -576,9 +576,9 @@ TEST_CASE("route_polyline_filleted duplicate waypoint preserves the corner",
     // distance to the corner.
     float total = path_length(p);
     float min_to_corner = 1e9f;
-    const int kSamples = 200;
-    for (int i = 0; i <= kSamples; ++i) {
-        PathPoint at = path_point_at(p, total * (float)i / (float)kSamples);
+    const int SAMPLES = 200;
+    for (int i = 0; i <= SAMPLES; ++i) {
+        PathPoint at = path_point_at(p, total * (float)i / (float)SAMPLES);
         float dx = at.x - 100.0f;
         float dy = at.y - 0.0f;
         float d = std::sqrt(dx * dx + dy * dy);
@@ -686,7 +686,7 @@ float leg_len(const MergeLaneOut& o, int i) {
 // starved arc or a sharp mitered notch. The two corners that previously starved
 // were the FIRST (just below the sensor) and LAST (just above the hub) verticals.
 TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-path][geometry]") {
-    const float kFilletR = 8.0f;
+    const float FILLET_R = 8.0f;
 
     auto check_lane_legs = [&](const MergeLaneOut& o, const char* label) {
         INFO(label);
@@ -700,13 +700,13 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
         float l0 = leg_len(o, 0);
         float l1 = leg_len(o, 1);
         float l2 = leg_len(o, 2);
-        REQUIRE(l0 >= kFilletR);
-        REQUIRE(l2 >= kFilletR);
+        REQUIRE(l0 >= FILLET_R);
+        REQUIRE(l2 >= FILLET_R);
         // Middle diagonal: either degenerate (collinear collapse) or long enough
         // to seat both corner fillets.
         bool degenerate = std::fabs(o.pts[1].x - o.pts[2].x) < 1e-2f;
         if (!degenerate)
-            REQUIRE(l1 >= kFilletR);
+            REQUIRE(l1 >= FILLET_R);
     };
 
     // AFC-like fan: 4 lanes, sensors across the top, hub well below. The steepest
@@ -715,7 +715,7 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
         MergeLaneIn in[4] = {{20.0f, 0.0f}, {60.0f, 0.0f}, {140.0f, 0.0f}, {180.0f, 0.0f}};
         MergeLaneOut out[4];
         build_merge_fan(in, 4, /*hub_cx=*/100.0f, /*hub_top=*/120.0f, /*hub_w=*/90.0f,
-                        /*entry_margin=*/8.0f, kFilletR, /*max_slope=*/1.2f, out);
+                        /*entry_margin=*/8.0f, FILLET_R, /*max_slope=*/1.2f, out);
         for (int i = 0; i < 4; ++i)
             check_lane_legs(out[i], "afc-4 lane");
     }
@@ -726,7 +726,7 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
         MergeLaneIn in[3] = {{30.0f, 10.0f}, {100.0f, 10.0f}, {170.0f, 10.0f}};
         MergeLaneOut out[3];
         build_merge_fan(in, 3, /*hub_cx=*/100.0f, /*hub_top=*/70.0f, /*hub_w=*/120.0f,
-                        /*entry_margin=*/8.0f, kFilletR, /*max_slope=*/1.2f, out);
+                        /*entry_margin=*/8.0f, FILLET_R, /*max_slope=*/1.2f, out);
         for (int i = 0; i < 3; ++i)
             check_lane_legs(out[i], "shallow-hub lane");
     }
@@ -737,11 +737,11 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
         MergeLaneIn in[3] = {{30.0f, 0.0f}, {100.0f, 25.0f}, {170.0f, 50.0f}};
         MergeLaneOut out[3];
         build_merge_fan(in, 3, /*hub_cx=*/100.0f, /*hub_top=*/130.0f, /*hub_w=*/110.0f,
-                        /*entry_margin=*/8.0f, kFilletR, /*max_slope=*/1.2f, out);
+                        /*entry_margin=*/8.0f, FILLET_R, /*max_slope=*/1.2f, out);
         for (int i = 0; i < 3; ++i) {
             check_lane_legs(out[i], "staggered lane");
             // First leg must clear THIS lane's own sensor by >= fillet_r.
-            REQUIRE(out[i].pts[1].y - out[i].pts[0].y >= kFilletR);
+            REQUIRE(out[i].pts[1].y - out[i].pts[0].y >= FILLET_R);
         }
     }
 }

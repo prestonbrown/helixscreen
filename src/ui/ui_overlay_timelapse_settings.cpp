@@ -29,7 +29,7 @@ TimelapseSettingsOverlay& get_global_timelapse_settings() {
     return *g_timelapse_settings;
 }
 
-void init_global_timelapse_settings(MoonrakerAPI* api) {
+void init_global_timelapse_settings(IMoonrakerAPI* api) {
     if (g_timelapse_settings) {
         spdlog::warn("[Timelapse Settings] TimelapseSettingsOverlay already initialized, skipping");
         return;
@@ -64,7 +64,7 @@ int TimelapseSettingsOverlay::index_to_framerate(int index) {
     return 30; // Default to 30fps
 }
 
-TimelapseSettingsOverlay::TimelapseSettingsOverlay(MoonrakerAPI* api) : api_(api) {
+TimelapseSettingsOverlay::TimelapseSettingsOverlay(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[{}] Constructor", get_name());
 }
 

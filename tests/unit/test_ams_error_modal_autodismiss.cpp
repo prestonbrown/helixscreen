@@ -31,9 +31,11 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 
 #include <memory>
@@ -125,6 +127,21 @@ class AmsErrorModalFixture : public XMLTestFixture {
     void set_print_state(helix::PrintJobState s) {
         lv_subject_set_int(state().get_print_state_enum_subject(), static_cast<int>(s));
     }
+
+    /// Drive the real inputs so print_lifecycle is republished alongside the
+    /// wire. Only the keep-raw case below needs the two to disagree.
+    ///
+    /// PHASE FIRST. update_from_status() republishes the lifecycle using
+    /// whatever phase is live at that instant, so raising the wire before the
+    /// phase publishes a transient Printing on the way to Preparing - which any
+    /// edge-into-Printing observer would fire on, making the keep-raw case pass
+    /// against a lifecycle reader it is supposed to catch.
+    void set_wire_and_phase(helix::PrintJobState s, helix::PrintStartPhase phase) {
+        state().set_print_start_state(phase, "", 0);
+        pump();
+        helix::test::set_wire_state(state(), s);
+        pump();
+    }
 };
 
 } // namespace
@@ -178,7 +195,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // Panel level — the two dismissal triggers
 // ============================================================================
 
-TEST_CASE_METHOD(AmsErrorModalFixture, "AmsPanel shows the error modal when the action enters ERROR",
+TEST_CASE_METHOD(AmsErrorModalFixture,
+                 "AmsPanel shows the error modal when the action enters ERROR",
                  "[ui_integration][ams][regression][1185]") {
     // Baseline for every case below: without this, "the modal went away"
     // assertions would pass vacuously.
@@ -339,5 +357,38 @@ TEST_CASE_METHOD(AmsErrorModalFixture,
 
     CHECK(panel.is_error_modal_visible());
 
+    teardown_panel(panel, obj);
+}
+
+TEST_CASE_METHOD(AmsErrorModalFixture,
+                 "AmsPanel's resume trigger reads the wire on purpose (#1185 keep-raw)",
+                 "[ui_integration][ams][regression][1185]") {
+    // This trigger asks a VALUE question about what the printer reports - "does
+    // print_stats say printing again?" - not the capability question
+    // job_holds_machine() answers, so it is one of the sites that keeps
+    // PrintJobState deliberately.
+    //
+    // The consequence is observable, which is why it is pinned rather than only
+    // commented: during a firmware-side PRINT_START Klipper reports `printing`
+    // while a pre-print phase is still live, so print_lifecycle stays Preparing.
+    // Reading the lifecycle here would push the dismissal to the END of
+    // PRINT_START. Migrating the observer turns this case red instead of
+    // shifting the timing silently.
+    install_backend();
+    set_wire_and_phase(helix::PrintJobState::STANDBY, helix::PrintStartPhase::IDLE);
+
+    AmsPanel panel(state(), &api());
+    lv_obj_t* obj = build_panel(panel);
+
+    AmsState::instance().set_action(AmsAction::ERROR);
+    pump();
+    REQUIRE(panel.is_error_modal_visible());
+
+    set_wire_and_phase(helix::PrintJobState::PRINTING, helix::PrintStartPhase::HOMING);
+    REQUIRE(state().get_print_lifecycle() == PrintState::Preparing);
+
+    CHECK_FALSE(panel.is_error_modal_visible());
+
+    set_wire_and_phase(helix::PrintJobState::STANDBY, helix::PrintStartPhase::IDLE);
     teardown_panel(panel, obj);
 }

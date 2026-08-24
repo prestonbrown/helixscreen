@@ -85,13 +85,11 @@ FONTS_CORE := assets/fonts/noto_sans_8.c \
               assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c \
               assets/fonts/noto_sans_16.c assets/fonts/noto_sans_18.c \
               assets/fonts/noto_sans_20.c assets/fonts/noto_sans_24.c \
-              assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c \
               assets/fonts/noto_sans_bold_14.c assets/fonts/noto_sans_bold_16.c \
               assets/fonts/noto_sans_bold_18.c assets/fonts/noto_sans_bold_20.c \
               assets/fonts/noto_sans_bold_24.c assets/fonts/noto_sans_bold_28.c \
               assets/fonts/noto_sans_light_10.c assets/fonts/noto_sans_light_11.c \
-              assets/fonts/noto_sans_light_12.c assets/fonts/noto_sans_light_14.c \
-              assets/fonts/noto_sans_light_16.c assets/fonts/noto_sans_light_18.c \
+              assets/fonts/noto_sans_light_12.c \
               assets/fonts/source_code_pro_8.c assets/fonts/source_code_pro_10.c \
               assets/fonts/source_code_pro_12.c assets/fonts/source_code_pro_14.c \
               assets/fonts/source_code_pro_16.c \
@@ -118,13 +116,23 @@ else
     ifneq ($(filter small,$(FONT_TIERS)),)
         TIER_FONT_SRCS += $(FONTS_SMALL)
     endif
-    ifneq ($(filter medium,$(FONT_TIERS)),)
+    # Tiers medium and up are selected by ">= that tier", NOT by set membership.
+    # asset_manager.cpp / cjk_font_manager.cpp guard those faces with
+    # `#if HELIX_MAX_FONT_TIER >= N`, and cross.mk derives MAX from the HIGHEST
+    # declared tier. So a platform whose max is >= N compiles a reference to
+    # tier N's faces even when N is absent from its declared set: k2 declares
+    # "large xlarge" (max 5) and would reference noto_sans_26 / noto_sans_light_16
+    # with FONTS_MEDIUM missing from its sources -- an undefined-reference link
+    # failure. Matching the guards' ">=" semantics here keeps the two sides
+    # consistent by construction rather than by every platform remembering to
+    # spell out its lower tiers.
+    ifneq ($(filter medium large xlarge xxlarge,$(FONT_TIERS)),)
         TIER_FONT_SRCS += $(FONTS_MEDIUM)
     endif
-    ifneq ($(filter large,$(FONT_TIERS)),)
+    ifneq ($(filter large xlarge xxlarge,$(FONT_TIERS)),)
         TIER_FONT_SRCS += $(FONTS_LARGE)
     endif
-    ifneq ($(filter xlarge,$(FONT_TIERS)),)
+    ifneq ($(filter xlarge xxlarge,$(FONT_TIERS)),)
         TIER_FONT_SRCS += $(FONTS_XLARGE)
     endif
     ifneq ($(filter xxlarge,$(FONT_TIERS)),)

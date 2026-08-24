@@ -31,6 +31,33 @@
 #include <vector>
 
 /**
+ * @brief How the selected channel's served version relates to what is installed
+ */
+enum class ChannelVersionRelation {
+    Unknown = 0, ///< Either version failed to parse — treat as "do nothing"
+    Same,        ///< Channel serves exactly the installed version
+    Newer,       ///< Channel is ahead: an ordinary update
+    Older        ///< Channel is behind: taking it moves this install backward
+};
+
+/**
+ * @brief Compare the installed version against what a channel serves
+ *
+ * Split out of the check worker so the three-way outcome is unit-testable. The
+ * Older case exists because channels are user-selectable: someone who ran the
+ * devel track and switched back to stable is AHEAD of the channel they now
+ * want, and a strict "offer only if newer" rule strands them there forever —
+ * the check reports "Already up to date" and there is no way back short of a
+ * manual reinstall.
+ *
+ * @param installed Currently running version (HELIX_VERSION)
+ * @param channel_version Version the selected channel's manifest serves
+ * @return Relation, or Unknown if either string fails to parse
+ */
+ChannelVersionRelation compare_channel_version(const std::string& installed,
+                                               const std::string& channel_version);
+
+/**
  * @brief Async update checker for HelixScreen
  *
  * Checks the R2 CDN manifest (GitHub releases API as fallback) to determine if
@@ -65,6 +92,11 @@ class UpdateChecker {
         std::string published_at;  ///< ISO 8601 timestamp
         std::string sha256;        ///< SHA-256 hash (for dev channel verification)
         size_t download_bytes = 0; ///< Asset size in bytes (0 if unknown)
+        /// True when this release is OLDER than what is installed — the selected
+        /// channel is behind, typically right after switching from a faster
+        /// channel back to a slower one. Offered explicitly and confirmed, never
+        /// auto-notified.
+        bool is_downgrade = false;
     };
 
     /**
@@ -154,6 +186,20 @@ class UpdateChecker {
      * Resets status to Idle and clears cached release info.
      */
     void clear_cache();
+
+    /**
+     * @brief Re-evaluate after the user selects a different update channel
+     *
+     * Drops the cached result (it describes the channel they just left),
+     * re-reads the channel config for off-thread readers, clears the rate-limit
+     * clock, and starts a fresh check. Main thread only.
+     *
+     * The rate-limit reset is the load-bearing part: the limiter predates
+     * user-switchable channels, so without it the check returns the PREVIOUS
+     * channel's verdict and the About row keeps advertising a version the newly
+     * selected channel does not serve.
+     */
+    void on_channel_changed();
 
     /**
      * @brief Initialize the update checker
@@ -469,6 +515,12 @@ class UpdateChecker {
                                   const std::string& member);
 
   private:
+    // Test-only seam (tests/test_helpers/update_checker_test_access.h). Seeds
+    // cached_info_ + status_ so has_update_available() answers true without a
+    // network round trip — the gate every "an update exists" consumer sits
+    // behind. Kept out of the production API so no shipped code can fake one.
+    friend class UpdateCheckerTestAccess;
+
     UpdateChecker() = default;
     ~UpdateChecker();
 

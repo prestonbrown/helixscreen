@@ -308,6 +308,77 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
+# --- Fresh-install marker interaction ---
+#
+# extract_release() leaves config/.helix-fresh-install when it kept the packaged
+# config because no user config existed to restore. On Pi that verdict can be
+# wrong: printer_data outlives the install dir, so a settings.json can still be
+# sitting there when INSTALL_DIR is brand new.
+
+@test "clears fresh-install marker when printer_data already holds a settings.json" {
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/pi"
+    INSTALL_DIR="$BATS_TEST_TMPDIR/helixscreen"
+    mkdir -p "$KLIPPER_HOME/printer_data/config/helixscreen"
+    mkdir -p "$INSTALL_DIR/config"
+    # The user's real config, survivor of a previous install
+    echo '{"user":true,"config_version":21}' \
+        > "$KLIPPER_HOME/printer_data/config/helixscreen/settings.json"
+    # What extract_release just laid down on a fresh install dir
+    echo '{"preset":"k1"}' > "$INSTALL_DIR/config/settings.json"
+    touch "$INSTALL_DIR/config/.helix-fresh-install"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    # The user's config wins, so the marker's premise was false and it must go.
+    [ -L "$INSTALL_DIR/config/settings.json" ]
+    grep -q '"user"' "$INSTALL_DIR/config/settings.json"
+    [ ! -e "$INSTALL_DIR/config/.helix-fresh-install" ]
+}
+
+@test "keeps fresh-install marker when the packaged config is the one migrated" {
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/pi"
+    INSTALL_DIR="$BATS_TEST_TMPDIR/helixscreen"
+    mkdir -p "$KLIPPER_HOME/printer_data/config"
+    mkdir -p "$INSTALL_DIR/config"
+    # Nothing in printer_data - a genuine first install on this machine
+    echo '{"preset":"k1"}' > "$INSTALL_DIR/config/settings.json"
+    touch "$INSTALL_DIR/config/.helix-fresh-install"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    # The packaged config is what got migrated out, so the verdict still holds.
+    grep -q '"preset"' "$KLIPPER_HOME/printer_data/config/helixscreen/settings.json"
+    [ -f "$INSTALL_DIR/config/.helix-fresh-install" ]
+}
+
+@test "marker stays a real file in the install dir, never relocated or symlinked" {
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/pi"
+    INSTALL_DIR="$BATS_TEST_TMPDIR/helixscreen"
+    mkdir -p "$KLIPPER_HOME/printer_data/config"
+    mkdir -p "$INSTALL_DIR/config"
+    echo '{"preset":"k1"}' > "$INSTALL_DIR/config/settings.json"
+    touch "$INSTALL_DIR/config/.helix-fresh-install"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    # It is not in HELIX_USER_CONFIG_FILES, so it must not follow settings.json
+    # out to printer_data. Living inside INSTALL_DIR is what makes Moonraker's
+    # rmtree() take it with them.
+    [ ! -L "$INSTALL_DIR/config/.helix-fresh-install" ]
+    [ ! -e "$KLIPPER_HOME/printer_data/config/helixscreen/.helix-fresh-install" ]
+}
+
+@test "marker is not listed as a user config file" {
+    # HELIX_USER_CONFIG_FILES entries get moved out to printer_data and replaced
+    # by symlinks. The marker must never join them.
+    for f in $HELIX_USER_CONFIG_FILES; do
+        [ "$f" != ".helix-fresh-install" ]
+    done
+}
+
 # --- Bundled installer parity ---
 
 @test "bundled install.sh has setup_config_symlink function" {

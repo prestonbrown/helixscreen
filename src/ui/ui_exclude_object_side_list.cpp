@@ -19,7 +19,7 @@
 namespace helix::ui {
 
 namespace {
-constexpr uint32_t kSlideInDurationMs = 220;
+constexpr uint32_t SLIDE_IN_DURATION_MS = 220;
 
 // Singleton handle so the static XML close callback can find the live instance.
 // Only one side list exists at a time (owned by PrintStatusPanel).
@@ -129,7 +129,7 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state
     lv_anim_init(&a);
     lv_anim_set_var(&a, root_);
     lv_anim_set_values(&a, slide_distance, 0);
-    lv_anim_set_duration(&a, kSlideInDurationMs);
+    lv_anim_set_duration(&a, SLIDE_IN_DURATION_MS);
     lv_anim_set_exec_cb(
         &a, geom.anchor_bottom
                 ? [](void* obj, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t*>(obj), v); }

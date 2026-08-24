@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Task 3: LittleFS for the real ui_xml/ tree (XML is loaded at runtime via
+# LVGL's POSIX FS driver, same as on Linux — path prefix /littlefs/).
+dependencies:
+  joltwallet/littlefs: "^1.14.0"

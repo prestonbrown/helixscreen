@@ -135,10 +135,15 @@ class TempGraphOverlay : public OverlayBase {
 
     // State
     Mode mode_ = Mode::GraphOnly;
+
+    // Declarative mode subject (0=GraphOnly, 1=Nozzle, 2=Bed, 3=Chamber).
+    // Drives strip visibility and graph_outer width from XML — see
+    // temp_graph_overlay.xml's <subjects> block. Seeded with mode_ by
+    // init_subjects(); synced on every open() call.
+    lv_subject_t mode_subject_{};
     std::unique_ptr<helix::TempGraphController> controller_;
     lv_obj_t* chip_row_ = nullptr;
     lv_obj_t* graph_container_ = nullptr;
-    lv_obj_t* graph_outer_ = nullptr;
     lv_obj_t* nozzle_strip_ = nullptr;
     lv_obj_t* bed_strip_ = nullptr;
     lv_obj_t* chamber_strip_ = nullptr;

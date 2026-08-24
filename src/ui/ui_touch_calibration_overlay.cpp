@@ -722,11 +722,28 @@ void TouchCalibrationOverlay::handle_screen_touched(lv_event_t* e) {
          state_after == helix::TouchCalibrationPanel::State::POINT_3)) {
         flash_object(crosshair_, 200, true);
 
-        // Drop a touch marker (ripple + lingering dot) at the finger's raw
-        // landing point so the user can compare where they actually touched
-        // against the target crosshair (#1082). Capture runs with the affine
-        // transform disabled, so `point` is the physical touch location.
-        create_touch_marker(lv_layer_top(), point.x, point.y);
+        // Drop a touch marker (ripple + lingering dot) at the finger's landing
+        // point so the user can compare where they actually touched against
+        // the target crosshair (#1082). Capture runs with the affine transform
+        // disabled, so `point` is in raw capture space — which is NOT screen
+        // space on panels whose digitizer over-reports its ABS range (Qidi Q2,
+        // #943): raw space is compressed ~0.5x and a marker drawn there lands
+        // centimetres from the crosshair, reading as "broken" even while
+        // calibration is working. Map it through the session's backup — the
+        // calibration the user's touches were tracking under when the session
+        // opened — so the dot shows where the finger lands under the CURRENT
+        // mapping. First-ever calibration (no backup) draws at the raw point:
+        // no mapping exists to show yet, and the pre-calibration state really
+        // is that broken.
+        Point marker{point.x, point.y};
+        const TouchCalibration& pre_session = session_.backup();
+        if (pre_session.valid) {
+            lv_display_t* disp = lv_display_get_default();
+            const int max_x = disp ? lv_display_get_horizontal_resolution(disp) - 1 : 0;
+            const int max_y = disp ? lv_display_get_vertical_resolution(disp) - 1 : 0;
+            marker = transform_point(pre_session, marker, max_x, max_y);
+        }
+        create_touch_marker(lv_layer_top(), marker.x, marker.y);
     }
 
     // VERIFY entry (re-enabling the original calibration) is handled by the

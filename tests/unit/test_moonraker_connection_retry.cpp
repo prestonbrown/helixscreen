@@ -74,9 +74,16 @@ class MoonrakerConnectionRetryFixture {
 
 TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop][slow]") {
     SECTION("First connection attempt respects timeout") {
+        // Everything the disconnect callback touches is declared BEFORE the
+        // fixture, so it outlives it. ~MoonrakerConnectionRetryFixture calls
+        // disconnect() and then pumps the libhv loop to completion, which
+        // dispatches one last on_ws_close on the loop thread. A local declared
+        // after the fixture is already destroyed by the time that callback
+        // runs — ASan caught exactly that as a stack-use-after-scope on
+        // `disconnect_count` below.
+        std::atomic<bool> disconnected{false};
         MoonrakerConnectionRetryFixture fixture;
         auto start = steady_clock::now();
-        std::atomic<bool> disconnected{false};
 
         fixture.client_->connect(
             INVALID_URL,
@@ -99,13 +106,16 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
     }
 
     SECTION("Second connection attempt also respects timeout (not instant failure)") {
-        MoonrakerConnectionRetryFixture fixture;
         std::atomic<int> attempt{0};
         std::mutex durations_mutex;
         std::vector<milliseconds> durations;
         std::atomic<bool> all_done{false};
+        // do_attempt is re-entered from the disconnect callback, so it too must
+        // outlive the fixture. Declared here, assigned once the fixture exists.
+        std::function<void()> do_attempt;
+        MoonrakerConnectionRetryFixture fixture;
 
-        std::function<void()> do_attempt = [&]() {
+        do_attempt = [&]() {
             int current_attempt = ++attempt;
             auto start = steady_clock::now();
 
@@ -149,14 +159,15 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
     }
 
     SECTION("Multiple rapid retries all work correctly") {
-        MoonrakerConnectionRetryFixture fixture;
         constexpr int NUM_RETRIES = 5;
         std::atomic<int> attempt{0};
         std::mutex durations_mutex;
         std::vector<milliseconds> durations;
         std::atomic<bool> all_done{false};
+        std::function<void()> do_attempt;
+        MoonrakerConnectionRetryFixture fixture;
 
-        std::function<void()> do_attempt = [&]() {
+        do_attempt = [&]() {
             int current_attempt = ++attempt;
             auto start = steady_clock::now();
 
@@ -199,8 +210,8 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
     }
 
     SECTION("Auto-reconnect stays disabled between retries") {
-        MoonrakerConnectionRetryFixture fixture;
         std::atomic<int> disconnect_count{0};
+        MoonrakerConnectionRetryFixture fixture;
 
         fixture.client_->connect(
             INVALID_URL, []() { FAIL("Connection succeeded to invalid address"); },
@@ -219,18 +230,19 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
     }
 
     SECTION("Connection state transitions correctly during retries") {
-        MoonrakerConnectionRetryFixture fixture;
         std::mutex states_mutex;
         std::vector<ConnectionState> states;
         std::atomic<bool> all_done{false};
+        std::atomic<int> attempt{0};
+        std::function<void()> do_attempt;
+        MoonrakerConnectionRetryFixture fixture;
 
         fixture.client_->set_state_change_callback([&](ConnectionState, ConnectionState new_state) {
             std::lock_guard<std::mutex> lock(states_mutex);
             states.push_back(new_state);
         });
 
-        std::atomic<int> attempt{0};
-        std::function<void()> do_attempt = [&]() {
+        do_attempt = [&]() {
             int current_attempt = ++attempt;
             fixture.client_->connect(
                 INVALID_URL, []() {},
@@ -272,9 +284,9 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
     }
 
     SECTION("Disconnect during connection attempt cleans up properly") {
-        MoonrakerConnectionRetryFixture fixture;
         std::atomic<bool> connected{false};
         std::atomic<bool> disconnected{false};
+        MoonrakerConnectionRetryFixture fixture;
 
         fixture.client_->connect(
             INVALID_URL, [&]() { connected = true; }, [&]() { disconnected = true; });

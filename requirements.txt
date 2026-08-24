@@ -6,6 +6,13 @@ PyYAML>=6.0
 ruamel.yaml>=0.18.0
 numpy>=1.24
 pandas>=2.0
+# Test runner for the Python suites (moonraker-plugin/tests, tests/ui). pytest-asyncio is
+# not optional: moonraker-plugin/tests/test_helix_print.py drives async endpoint handlers
+# and every one of those cases is @pytest.mark.asyncio. Without the plugin pytest does not
+# error out — it collects them and fails each one with "async def functions are not
+# natively supported", which is how CI went red on a suite that was green locally.
+pytest>=8.0
+pytest-asyncio>=0.23
 # Pinned EXACTLY so clang-format output is byte-identical on every machine + CI.
 # The pip wheel is the single source of truth — the hook prefers .venv/bin/clang-format
 # (see scripts/quality-checks.sh) so a machine's system clang-format (Homebrew's newer

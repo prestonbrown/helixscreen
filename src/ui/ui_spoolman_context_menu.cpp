@@ -12,7 +12,6 @@ namespace helix::ui {
 
 // Static member initialization
 bool SpoolmanContextMenu::callbacks_registered_ = false;
-SpoolmanContextMenu* SpoolmanContextMenu::s_active_instance_ = nullptr;
 
 // ============================================================================
 // Construction / Destruction
@@ -23,33 +22,19 @@ SpoolmanContextMenu::SpoolmanContextMenu() {
 }
 
 SpoolmanContextMenu::~SpoolmanContextMenu() {
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
     spdlog::trace("[SpoolmanContextMenu] Destroyed");
 }
 
 SpoolmanContextMenu::SpoolmanContextMenu(SpoolmanContextMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
-      pending_spool_(std::move(other.pending_spool_)) {
-    if (s_active_instance_ == &other) {
-        s_active_instance_ = this;
-    }
-}
+      pending_spool_(std::move(other.pending_spool_)) {}
 
 SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other) noexcept {
     if (this != &other) {
-        if (s_active_instance_ == this) {
-            s_active_instance_ = nullptr;
-        }
-
+        // Let base class handle its state, including the active-menu registry
         ContextMenu::operator=(std::move(other));
         action_callback_ = std::move(other.action_callback_);
         pending_spool_ = std::move(other.pending_spool_);
-
-        if (s_active_instance_ == &other) {
-            s_active_instance_ = this;
-        }
     }
     return *this;
 }
@@ -69,17 +54,10 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
     // Store spool info before base class calls on_created
     pending_spool_ = spool;
 
-    // Set as active instance for static callbacks
-    s_active_instance_ = this;
-
-    // Base class handles: XML creation, on_created callback, positioning
+    // Base class handles: XML creation, on_created callback, positioning, and
+    // claiming the active-menu slot the static callbacks resolve through.
     // item_index = spool.id for action dispatch
-    bool result = ContextMenu::show_near_widget(parent, spool.id, near_widget);
-    if (!result) {
-        s_active_instance_ = nullptr;
-    }
-
-    return result;
+    return ContextMenu::show_near_widget(parent, spool.id, near_widget);
 }
 
 // ============================================================================
@@ -152,9 +130,6 @@ void SpoolmanContextMenu::dispatch_spoolman_action(MenuAction action) {
     int spool_id = get_item_index();
     ActionCallback callback_copy = action_callback_;
 
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
     hide();
 
     if (callback_copy) {
@@ -162,7 +137,7 @@ void SpoolmanContextMenu::dispatch_spoolman_action(MenuAction action) {
     }
 }
 
-void SpoolmanContextMenu::handle_backdrop_clicked() {
+void SpoolmanContextMenu::on_backdrop_clicked() {
     spdlog::debug("[SpoolmanContextMenu] Backdrop clicked");
     dispatch_spoolman_action(MenuAction::CANCELLED);
 }
@@ -202,7 +177,6 @@ void SpoolmanContextMenu::register_callbacks() {
     }
 
     register_xml_callbacks({
-        {"spoolman_context_backdrop_cb", on_backdrop_cb},
         {"spoolman_context_set_active_cb", on_set_active_cb},
         {"spoolman_context_edit_cb", on_edit_cb},
         {"spoolman_context_print_label_cb", on_print_label_cb},
@@ -215,21 +189,15 @@ void SpoolmanContextMenu::register_callbacks() {
 }
 
 // ============================================================================
-// Static Callbacks (Instance Lookup via Static Pointer)
+// Static Callbacks (Instance Lookup via ContextMenu::active())
 // ============================================================================
 
 SpoolmanContextMenu* SpoolmanContextMenu::get_active_instance() {
-    if (!s_active_instance_) {
+    auto* self = ContextMenu::active_as<SpoolmanContextMenu>();
+    if (!self) {
         spdlog::warn("[SpoolmanContextMenu] No active instance for event");
     }
-    return s_active_instance_;
-}
-
-void SpoolmanContextMenu::on_backdrop_cb(lv_event_t* /*e*/) {
-    auto* self = get_active_instance();
-    if (self) {
-        self->handle_backdrop_clicked();
-    }
+    return self;
 }
 
 void SpoolmanContextMenu::on_set_active_cb(lv_event_t* /*e*/) {

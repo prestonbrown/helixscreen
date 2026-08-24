@@ -6,9 +6,10 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::zoffset {
 
@@ -25,6 +26,44 @@ void format_offset(int microns, char* buf, size_t buf_size);
 /// Compact variant: drops leading zero for |value| < 1.0 → "+.050mm".
 void format_offset_compact(int microns, char* buf, size_t buf_size);
 
+/// Pick which z-offset to show the user, in microns.
+///
+/// Firmware that persists the z-offset itself (ZMOD, via its SET_GCODE_OFFSET
+/// override) zeroes Klipper's live gcode_move offset in END_PRINT/CANCEL_PRINT
+/// and re-applies the stored value at START_PRINT. So while idle the live offset
+/// reads 0.000 and lies about what the next print will use; the stored value is
+/// the truth. Mid-print the live offset is authoritative again, because baby
+/// steps land there first.
+///
+/// @param live_microns       gcode_move.homing_origin[2]
+/// @param persisted_microns  firmware-stored offset, or nullopt when unknown
+///                           (every non-ZMOD printer, and ZMOD before its
+///                           save_variables frame has arrived)
+/// @param print_active       a print is currently running
+int displayed_z_offset_microns(int live_microns, std::optional<int> persisted_microns,
+                               bool print_active);
+
+/// Convenience overload resolving all three inputs from PrinterState. Use this
+/// at UI call sites so the selection rule lives in exactly one place.
+int displayed_z_offset_microns(helix::PrinterState& state);
+
+/// Build the SET_GCODE_OFFSET command for a baby-step of @p delta_microns taken
+/// from the offset we showed the user (@p base_microns).
+///
+/// Relative `Z_ADJUST=` is only correct when the base IS Klipper's live offset,
+/// because Klipper resolves it against homing_origin. On ZMOD at idle the live
+/// offset has been zeroed, so a relative nudge would land on just the delta - and
+/// ZMOD's override persists whatever it lands on, silently discarding the stored
+/// offset. Send an absolute `Z=` in that case so the result is what the user saw
+/// plus what they asked for.
+///
+/// @param base_microns  offset the UI displayed and is adjusting from
+/// @param live_microns  Klipper's current gcode_move.homing_origin[2]
+/// @param delta_microns signed baby-step
+/// @param all_homed     x, y and z are all homed (MOVE=1 errors otherwise)
+std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
+                                 bool all_homed);
+
 /// Execute strategy-aware save sequence:
 ///   PROBE_CALIBRATE -> Z_OFFSET_APPLY_PROBE -> SAVE_CONFIG
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
@@ -34,7 +73,7 @@ void format_offset_compact(int microns, char* buf, size_t buf_size);
 /// @param strategy      Calibration strategy determining command sequence
 /// @param on_success    Called after SAVE_CONFIG succeeds (Klipper will restart)
 /// @param on_error      Called with user-facing message on any failure
-void apply_and_save(MoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
+void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
                     std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error);
 

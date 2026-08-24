@@ -350,12 +350,14 @@
             <!-- Extruder temp (shown when extruder selected) -->
             <lv_obj width="content" height="content" style_pad_all="0" scrollable="false">
               <bind_flag_if_eq subject="pid_heater_is_extruder" flag="hidden" ref_value="0"/>
-              <temp_display size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
+              <temp_display name="pid_temp_extruder"
+                            size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
             </lv_obj>
             <!-- Bed temp (shown when bed selected) -->
             <lv_obj width="content" height="content" style_pad_all="0" scrollable="false">
               <bind_flag_if_not_eq subject="pid_heater_is_extruder" flag="hidden" ref_value="0"/>
-              <temp_display size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
+              <temp_display name="pid_temp_bed"
+                            size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
             </lv_obj>
             <text_small text="Current Temperature" translation_tag="Current Temperature" style_text_color="#text_muted"/>
           </lv_obj>

@@ -120,12 +120,12 @@ TEST_CASE("redact::ssid is stable within a process", "[redact]") {
 TEST_CASE("redact::ssid distinguishes different networks", "[redact]") {
     // Fixed salt so the assertion is deterministic rather than depending on
     // this boot's random value.
-    constexpr uint64_t kSalt = 0xC0FFEE0000000001ULL;
+    constexpr uint64_t SALT = 0xC0FFEE0000000001ULL;
 
     std::set<std::string> tokens;
     for (const std::string s :
          {"Pretzel Logic Cafe", "Basement Lab 5G", "tin can and string", "((o))"}) {
-        tokens.insert(helix::redact::ssid_with_salt(s, kSalt));
+        tokens.insert(helix::redact::ssid_with_salt(s, SALT));
     }
     // A redactor returning a constant would leak nothing but tell you nothing.
     REQUIRE(tokens.size() == 4);

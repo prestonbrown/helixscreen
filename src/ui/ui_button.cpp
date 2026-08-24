@@ -104,22 +104,25 @@ static const lv_font_t* resolve_icon_font(const char* xml_const) {
     return font ? font : &mdi_icons_24;
 }
 
+static const lv_font_t* s_icon_font = nullptr;
+static bool s_icon_font_resolved = false;
+
 /**
  * @brief Get the default button icon font (icon_font_sm).
  *
- * Cached because the same value is used for every standard button.
+ * Cached because the same value is used for every standard button. Dropped by
+ * ui_button_invalidate_icon_font_cache() when the breakpoint re-points the
+ * constant.
  */
 static const lv_font_t* get_button_icon_font() {
-    static const lv_font_t* cached = nullptr;
-    static bool resolved = false;
-    if (resolved) {
-        return cached;
+    if (s_icon_font_resolved) {
+        return s_icon_font;
     }
-    cached = resolve_icon_font("icon_font_sm");
-    resolved = true;
+    s_icon_font = resolve_icon_font("icon_font_sm");
+    s_icon_font_resolved = true;
     spdlog::debug("[ui_button] Default button icon font — line_height={}px",
-                  lv_font_get_line_height(cached));
-    return cached;
+                  lv_font_get_line_height(s_icon_font));
+    return s_icon_font;
 }
 
 /**
@@ -1129,6 +1132,10 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
 void ui_button_init() {
     lv_xml_register_widget("ui_button", ui_button_create, ui_button_apply);
     spdlog::trace("[ui_button] Registered semantic button widget");
+}
+
+void ui_button_invalidate_icon_font_cache() {
+    s_icon_font_resolved = false;
 }
 
 void ui_button_set_text(lv_obj_t* btn, const char* text) {

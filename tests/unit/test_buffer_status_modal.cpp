@@ -32,6 +32,9 @@ class TestableBufferStatusModal : public BufferStatusModal {
         return lv_subject_get_int(&show_distance_subject_);
     }
 
+    const char* unsupported_value() {
+        return lv_subject_get_string(&unsupported_subject_);
+    }
     const char* description_value() {
         return lv_subject_get_string(&description_subject_);
     }
@@ -383,4 +386,47 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate unknown type",
 
     REQUIRE(modal.type_value() == 0);
     REQUIRE(modal.show_meter_value() == 0);
+}
+
+// ============================================================================
+// Systems with no buffer hardware at all
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal explains itself on a system with no buffer",
+                 "[modals][buffer_status]") {
+    // Stock CFS (and AD5X IFS, tool changers, ACE, Snapmaker, QIDI) report no
+    // buffer or flow data whatsoever. Every body section in the XML binds hidden
+    // unless buf_type is 1 or 2, so without a message the dialog renders as a
+    // title and a button row over an empty box - which is exactly what a K2 Plus
+    // owner saw. The modal is reachable from the AMS panel as well as the home
+    // tile, so it has to answer for itself rather than lean on the tile's gate.
+    TestableBufferStatusModal modal;
+    AmsSystemInfo info;
+    info.type = AmsType::CFS;
+
+    modal.populate(info, 0);
+
+    CHECK(modal.type_value() == 0);
+    CHECK(modal.show_meter_value() == 0);
+    CHECK(std::string(modal.unsupported_value()).empty() == false);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "BufferStatusModal clears the unsupported notice for a real buffer",
+                 "[modals][buffer_status]") {
+    // The subjects are static and outlive any one modal, so a notice left from a
+    // previous open would sit underneath a supported backend's body.
+    TestableBufferStatusModal modal;
+
+    AmsSystemInfo none_info;
+    none_info.type = AmsType::CFS;
+    modal.populate(none_info, 0);
+    REQUIRE(std::string(modal.unsupported_value()).empty() == false);
+
+    auto hh = make_hh_info();
+    hh.sync_feedback_bias = 0.15f;
+    modal.populate(hh, 0);
+
+    CHECK(modal.type_value() == 1);
+    CHECK(std::string(modal.unsupported_value()).empty());
 }

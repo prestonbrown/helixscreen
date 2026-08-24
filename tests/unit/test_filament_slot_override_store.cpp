@@ -404,12 +404,14 @@ TEST_CASE("FilamentSlotOverrideStore save_async writes AFC-shaped record to lane
     CHECK(reparsed->second.product_name == "PLA+ 2.0");
 }
 
-TEST_CASE("FilamentSlotOverrideStore save_async emits Happy Hare key aliases",
+TEST_CASE("FilamentSlotOverrideStore save_async emits the shared lane_data key aliases",
           "[filament_slot_override]") {
-    // Forward-compat: the writer emits vendor_name (alias of vendor) and name
-    // (alias of spool_name) using Happy Hare's key convention, in addition to
-    // our own keys. Orca is most likely to consume vendor_name for vendor-aware
-    // preset matching as it evolves; unknown keys are ignored today.
+    // The writer emits vendor_name (alias of vendor) and name (alias of
+    // spool_name) alongside our own keys. Those two are the agreed spelling for
+    // this shared namespace: Happy Hare established them and AFC adopted them in
+    // AFCProject/AFC-Klipper-Add-On#833, so a reader of lane_data finds our
+    // overrides under the key it already looks for. Unknown keys are ignored, so
+    // carrying both spellings costs nothing.
     TmpCacheDir tmp("save_hh_aliases");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -569,11 +571,12 @@ TEST_CASE("FilamentSlotOverride persists product_name independently of catalog_i
     CHECK(round.product_name == "PLA+ 2.0");
 }
 
-TEST_CASE("FilamentSlotOverrideStore load_blocking reads Happy Hare alias-only record",
+TEST_CASE("FilamentSlotOverrideStore load_blocking reads an alias-only record",
           "[filament_slot_override]") {
-    // A record written by Happy Hare's mmu_server.push_lane_data carries
-    // vendor_name / name but NOT vendor / spool_name. The reader must fall back
-    // to the alias keys so these records parse correctly.
+    // A record written by anything but us carries vendor_name / name but NOT
+    // vendor / spool_name — Happy Hare's mmu_server.push_lane_data and AFC's
+    // send_lane_data (#833) both do. The reader must fall back to the alias keys
+    // so these records parse correctly.
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
     state.init_subjects(false);
@@ -3311,5 +3314,179 @@ TEST_CASE("FilamentSlotOverrideStore uses the namespace it was given",
         FilamentSlotOverrideStore store(&api, "happy_hare", LaneKeyStyle::Lane,
                                         "helix-screen-hh-overrides");
         CHECK(store.namespace_for_test() != "lane_data");
+    }
+}
+
+// ============================================================================
+// merge_override — shared spec §5 implementation + re-bind/eject rule matrix
+// ============================================================================
+
+TEST_CASE("merge_override rule matrix", "[ams][override-merge]") {
+    using helix::ams::merge_override;
+    SlotInfo slot;
+    const auto ovr_with = [](int id) {
+        helix::ams::FilamentSlotOverride o;
+        o.brand = "Polymaker";
+        o.spool_name = "PLA Black";
+        o.spoolman_id = id;
+        o.material = "PLA";
+        o.color_set = true;
+        o.color_rgb = 0x000000;
+        o.catalog_id = "sku-1";
+        return o;
+    };
+
+    SECTION("no rules fire when firmware agrees with the override") {
+        slot.spoolman_id = 42;
+        auto o = ovr_with(42);
+        auto r = merge_override(slot, o, {});
+        CHECK_FALSE(r.cleared_rebind);
+        CHECK_FALSE(r.cleared_eject);
+        CHECK(slot.spoolman_id == 42);
+        CHECK(slot.brand == "Polymaker");
+    }
+
+    SECTION("re-bind: firmware reports a different positive id — whole record drops, firmware "
+            "truth paints") {
+        slot.spoolman_id = 7;
+        auto o = ovr_with(42);
+        auto r = merge_override(slot, o, {});
+        CHECK(r.cleared_rebind);
+        CHECK(slot.spoolman_id == 7); // firmware truth
+        CHECK(slot.brand.empty());    // no override field painted
+        CHECK(slot.material.empty());
+    }
+
+    SECTION("re-bind ignores the setting — an explicit external write is not a preference") {
+        slot.spoolman_id = 7;
+        helix::ams::MergeOptions opts;
+        opts.keep_spool_info_on_eject = true;
+        auto r = merge_override(slot, ovr_with(42), opts);
+        CHECK(r.cleared_rebind);
+    }
+
+    SECTION("re-bind never fires on eject zero") {
+        slot.spoolman_id = 0;
+        auto r = merge_override(slot, ovr_with(42), {});
+        CHECK_FALSE(r.cleared_rebind);
+    }
+
+    SECTION("own-write suppression: stale firmware id (pre-write) does not clear; "
+            "fields still paint") {
+        // HelixScreen itself re-linked 42 -> 169; an in-flight frame still
+        // reports the old firmware id 42. Rule 1 must not read that stale
+        // frame as an external re-bind and eat the just-saved override.
+        slot.spoolman_id = 42;
+        helix::ams::MergeOptions opts;
+        opts.suppress_rebind_firmware_old_id = 42;
+        opts.suppress_rebind_firmware_new_id = 169;
+        auto r = merge_override(slot, ovr_with(169), opts);
+        CHECK_FALSE(r.cleared_rebind);
+        CHECK_FALSE(r.cleared_eject);
+        // Suppression changes ONLY the clear decision — the §5 field merge
+        // paints the override normally.
+        CHECK(slot.spoolman_id == 169);
+        CHECK(slot.brand == "Polymaker");
+        CHECK(slot.material == "PLA");
+    }
+
+    SECTION("own-write suppression: the echo (firmware reports the new id) does not clear") {
+        slot.spoolman_id = 169;
+        helix::ams::MergeOptions opts;
+        opts.suppress_rebind_firmware_old_id = 42;
+        opts.suppress_rebind_firmware_new_id = 169;
+        auto r = merge_override(slot, ovr_with(169), opts);
+        CHECK_FALSE(r.cleared_rebind);
+        CHECK(slot.brand == "Polymaker");
+    }
+
+    SECTION("own-write suppression: a third firmware id still clears — external change wins") {
+        slot.spoolman_id = 200;
+        helix::ams::MergeOptions opts;
+        opts.suppress_rebind_firmware_old_id = 42;
+        opts.suppress_rebind_firmware_new_id = 169;
+        auto r = merge_override(slot, ovr_with(169), opts);
+        CHECK(r.cleared_rebind);
+        CHECK(slot.spoolman_id == 200);
+        CHECK(slot.brand.empty());
+    }
+
+    SECTION("eject: firmware 0 on an id-reporting backend — retention ON keeps the record") {
+        slot.spoolman_id = 0;
+        helix::ams::MergeOptions opts;
+        opts.printer_reports_spool_ids = true;
+        opts.keep_spool_info_on_eject = true;
+        auto r = merge_override(slot, ovr_with(42), opts);
+        CHECK_FALSE(r.cleared_eject);
+        CHECK(slot.spoolman_id == 42); // override wins, designed retention
+        CHECK(slot.brand == "Polymaker");
+    }
+
+    SECTION("eject: firmware 0 on an id-reporting backend — setting OFF clears") {
+        slot.spoolman_id = 0;
+        helix::ams::MergeOptions opts;
+        opts.printer_reports_spool_ids = true;
+        opts.keep_spool_info_on_eject = false;
+        auto r = merge_override(slot, ovr_with(42), opts);
+        CHECK(r.cleared_eject);
+        CHECK_FALSE(r.cleared_rebind);
+        CHECK(slot.spoolman_id == 0);
+        CHECK(slot.brand.empty());
+    }
+
+    SECTION("eject rule inert on backends that never report ids (default options)") {
+        // IFS/ACE/CFS/Snapmaker: firmware id is 0 every poll; a setting-OFF
+        // user must not have every override nuked.
+        slot.spoolman_id = 0;
+        helix::ams::MergeOptions opts;
+        opts.keep_spool_info_on_eject = false;
+        auto r = merge_override(slot, ovr_with(42), opts);
+        CHECK_FALSE(r.cleared_eject);
+        CHECK(slot.spoolman_id == 42);
+    }
+
+    SECTION("eject rule needs a linked override — an unlinked record is never ejected") {
+        slot.spoolman_id = 0;
+        helix::ams::MergeOptions opts;
+        opts.printer_reports_spool_ids = true;
+        opts.keep_spool_info_on_eject = false;
+        auto r = merge_override(slot, ovr_with(0), opts); // override holds color only
+        CHECK_FALSE(r.cleared_eject);
+        CHECK(slot.color_rgb == 0x000000); // its fields still merge
+    }
+
+    SECTION("spec §5 field merge: sentinels fall through to firmware") {
+        slot.spoolman_id = 9;
+        slot.remaining_weight_g = 111.f;
+        slot.brand = "Elegoo";
+        helix::ams::FilamentSlotOverride o; // all sentinels
+        auto r = merge_override(slot, o, {});
+        CHECK_FALSE(r.cleared_rebind);
+        CHECK(slot.brand == "Elegoo");
+        CHECK(slot.remaining_weight_g == 111.f);
+        CHECK(slot.spoolman_id == 9);
+    }
+
+    SECTION("spec §5 field merge: override values win field-by-field") {
+        slot.brand = "Elegoo";
+        slot.spool_name = "firmware-name";
+        slot.material = "PETG";
+        auto o = ovr_with(0);
+        o.spool_name = "user-name";
+        o.remaining_weight_g = 50.f;
+        auto r = merge_override(slot, o, {});
+        CHECK(slot.brand == "Polymaker");
+        CHECK(slot.spool_name == "user-name");
+        CHECK(slot.material == "PLA");
+        CHECK(slot.remaining_weight_g == 50.f);
+        CHECK(slot.catalog_id == "sku-1");
+    }
+
+    SECTION("weight zero is a real value, not a sentinel") {
+        slot.remaining_weight_g = -1.f;
+        auto o = ovr_with(0);
+        o.remaining_weight_g = 0.f;
+        merge_override(slot, o, {});
+        CHECK(slot.remaining_weight_g == 0.f);
     }
 }

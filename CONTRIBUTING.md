@@ -4,6 +4,12 @@ Thanks for being here. HelixScreen is a touchscreen UI for Klipper 3D printers, 
 
 This file is the **front door**. It tells you where to go next based on what you want to do.
 
+**New contributor?** There is a marked path:
+[ONBOARDING.md](docs/devel/ONBOARDING.md) (environment + build + the 15-minute
+mental model) → [YOUR_FIRST_CONTRIBUTION.md](docs/devel/YOUR_FIRST_CONTRIBUTION.md)
+(walkthrough of a real contribution) → [the architecture guide](docs/devel/architecture/README.md)
+(pick your subsystem). Each doc links to the next.
+
 ---
 
 ## Before you start
@@ -13,6 +19,7 @@ Make sure you can build and run HelixScreen locally:
 ```bash
 git clone https://github.com/prestonbrown/helixscreen.git
 cd helixscreen
+git submodule update --init --recursive
 make setup              # Installs pre-commit hook + commit template
 make -j                 # Builds the binary (not tests — see Makefile)
 ./build/bin/helix-screen --test -vv
@@ -20,8 +27,9 @@ make -j                 # Builds the binary (not tests — see Makefile)
 
 If the mock printer UI comes up, you're ready.
 
-Full environment setup, dependencies per OS, and the broader build/test/logging workflow:
-→ **[docs/devel/DEVELOPMENT.md](docs/devel/DEVELOPMENT.md)**
+Full environment setup (dependencies per OS), the build/test workflow, and the
+whole-app mental model live in the next stop on the path:
+→ **[docs/devel/ONBOARDING.md](docs/devel/ONBOARDING.md)**
 
 ---
 
@@ -73,6 +81,12 @@ Full details on code standards, commit style, and PR expectations:
 
 ---
 
+## Plans and specs
+
+In-flight design docs live in [docs/devel/plans/](docs/devel/plans/) — working scaffolding, deleted in the same change that ships the work. Don't commit plans anywhere else, and don't resurrect shipped ones; git history is the archive (full convention: [docs/CLAUDE.md](docs/CLAUDE.md)).
+
+---
+
 ## Things that will get your PR bounced
 
 These are non-negotiable. They're in place because violations have caused real crashes, real user-visible regressions, or real contributor onboarding pain.
@@ -116,5 +130,10 @@ HelixScreen is licensed under [GPL v3.0 or later](LICENSE). By contributing, you
 (XML files use `<!-- ... -->` comments for the header. Full format reference: [COPYRIGHT_HEADERS.md](docs/devel/COPYRIGHT_HEADERS.md).)
 
 ---
+
+## Your next step
+
+- **First time here?** Continue the path: → **[ONBOARDING.md](docs/devel/ONBOARDING.md)**
+- **Already know the codebase?** Pick your subsystem: → **[architecture/README.md](docs/devel/architecture/README.md)**
 
 Thanks for helping make HelixScreen better.

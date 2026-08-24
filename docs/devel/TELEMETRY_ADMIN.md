@@ -8,6 +8,10 @@ Administration guide for HelixScreen's telemetry pipeline and analytics dashboar
 [Devices] → POST /v1/events → [Worker] → R2 (raw archive, permanent)
                                         → Analytics Engine (queryable, 90-day)
 
+[Cron 02:10 UTC] → [Worker.scheduled] → Cloudflare zone analytics (GraphQL)
+                                      → R2 cdn/ (permanent)
+                                      → Analytics Engine (cdn_fleet_daily)
+
 [Vue Dashboard] → GET /v1/dashboard/* → [Worker] → Analytics Engine SQL API
       ↑
   Cloudflare Pages (analytics.helixscreen.org)
@@ -18,6 +22,97 @@ Administration guide for HelixScreen's telemetry pipeline and analytics dashboar
 - **Worker**: `telemetry.helixscreen.org` — handles ingest + admin API + dashboard API
 - **Dashboard**: `analytics.helixscreen.org` — Vue SPA on Cloudflare Pages
 
+## Fleet size: two numbers that do not agree
+
+The dashboard Overview shows two population figures, and they measure different
+things. Quoting the wrong one understates the project by roughly half.
+
+| Tile | Source | What it counts |
+|------|--------|----------------|
+| **Active Devices** | `session` events in Analytics Engine | Installs whose owner **opted into telemetry** and that launched in the window |
+| **Fleet (CDN)** | `cdn_fleet_daily`, from zone HTTP analytics | Distinct addresses that polled the update manifest, **regardless of telemetry opt-in** |
+
+Telemetry is opt-in and defaults OFF, so `Active Devices` is a self-selected
+floor. Every install polls `{channel}/manifest.json` 15s after startup and every
+24h thereafter (`UpdateChecker`), whether or not telemetry is on - so the CDN
+figure sees installs the telemetry pipeline never will. When first measured
+(2026-08-14) they read 549 and ~470 respectively, but over incomparable windows:
+549 was 30 days of opt-in devices, ~470 was **a single day** of distinct
+addresses. The 8-day distinct union was 1,092.
+
+**Read `Fleet (CDN)` as an estimate with error bars in both directions.** NAT
+puts several printers behind one address and undercounts; dynamic residential
+IPs split one printer across several days and overcount. It is a better
+population estimate than `Active Devices`, not a headcount.
+
+### Why a scheduled snapshot rather than a counter
+
+`dl-worker` cannot count these polls. 99.9% of them are served by
+`releases.helixscreen.org`, an R2 custom domain that never executes Worker code;
+only ~0.1% reach `dl.helixscreen.org`. The numbers therefore come from
+Cloudflare's zone HTTP analytics, which **retain only about 8 days** on the
+current plan. The daily cron exists because anything not snapshotted inside that
+window is gone permanently - there is no backfill beyond ~8 days, ever.
+
+### Privacy
+
+The snapshot computes the cardinality of client IPs in memory and discards the
+addresses. Every persisted field is an integer or a date. `cdn_fleet_daily`
+carries no `device_id` and no per-install identifier of any kind, which makes it
+strictly less identifying than the opt-in telemetry it sits beside.
+
+### Operating it
+
+```bash
+source .env.telemetry
+BASE=https://telemetry.helixscreen.org/v1/admin/cdn-snapshot
+
+# One specific UTC day.
+curl -X POST -H "X-API-Key: $HELIX_TELEMETRY_ADMIN_KEY" "$BASE?date=2026-08-14"
+
+# Backfill the whole retention window - ONE DAY PER REQUEST, on purpose.
+for i in $(seq 1 8); do
+  D=$(date -u -d "$i days ago" +%F)
+  curl -sS -X POST -H "X-API-Key: $HELIX_TELEMETRY_ADMIN_KEY" "$BASE?date=$D"
+  echo
+done
+```
+
+Safe to repeat: reads aggregate with `max()`, so duplicate rows collapse rather
+than double-count.
+
+**`days` is clamped to 3, and a longer backfill must be looped one day per
+request.** Analytics Engine silently drops `writeDataPoint` calls past a ceiling
+within a single invocation. Measured 2026-08-15: a `days=8` run wrote 24 points
+(8 days x 3 channels), persisted only the **first four days**, and still
+reported all eight as `captured` - because the snapshot and the R2 write both
+succeeded and only the fire-and-forget AE write was dropped. Re-running the
+missing days individually persisted them correctly.
+
+So `captured` in the response means "queried and archived to R2", **not**
+"queryable in the dashboard". Confirm against the dashboard before believing a
+large backfill:
+
+```bash
+curl -sS -H "X-API-Key: $HELIX_TELEMETRY_ADMIN_KEY" \
+  "https://telemetry.helixscreen.org/v1/dashboard/overview?range=30d" \
+  | python3 -c "import json,sys; print(len(json.load(sys.stdin)['cdn_fleet']), 'days queryable')"
+```
+
+Allow a minute or two for AE ingestion before concluding a day is missing.
+
+**A non-zero `errors` count on a channel means installs on it are failing their
+update check.** This is not cosmetic: it was how we found that
+/beta/manifest.json was returning 404 to ~19 devices a day before the 1.0
+branch cut created it.
+
+**Known gap:** the Overview query filters `blob2 = 'stable'`, so the tile's
+error count only reflects the stable channel. Beta and dev rows *are* written
+and stored - they are just not surfaced yet. To see them, query the snapshot
+endpoint output directly or the R2 archive under `cdn/`. Adding a per-channel
+breakdown to the dashboard is the obvious next step if beta traffic ever
+matters more than it does today.
+
 ## Secrets & Configuration
 
 ### Worker Secrets (set via `wrangler secret put`)
@@ -27,12 +122,14 @@ Administration guide for HelixScreen's telemetry pipeline and analytics dashboar
 | `INGEST_API_KEY` | Baked into the HelixScreen binary. Write-only ingest access. |
 | `ADMIN_API_KEY` | Server-side secret. Read access to events, dashboard queries, backfill. |
 | `HELIX_ANALYTICS_READ_TOKEN` | Cloudflare API token for Analytics Engine SQL queries. |
+| `CF_ZONE_ANALYTICS_TOKEN` | Optional. Cloudflare API token with **Zone Analytics:Read** on `helixscreen.org`, for the daily CDN fleet snapshot. Falls back to `HELIX_ANALYTICS_READ_TOKEN` if unset - which works only if that token also carries zone analytics scope (Account Analytics:Read alone is not enough). |
 
 ### Worker Config (in `wrangler.toml`)
 
 | Var | Purpose |
 |-----|---------|
 | `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID (not secret). |
+| `CDN_ZONE_ID` | Zone whose HTTP analytics carry the manifest polls (`helixscreen.org`). Not secret. |
 
 ### Local Environment
 

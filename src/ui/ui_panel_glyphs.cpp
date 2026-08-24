@@ -18,8 +18,10 @@
 
 using namespace helix;
 
-// MDI icon font (48px for good visibility in debug panel)
-extern const lv_font_t mdi_icons_48;
+// MDI icon font (48px for good visibility in debug panel). Non-const: the
+// canonical declaration in ui_fonts.h dropped const so embedded targets can
+// populate the symbol at runtime from a .bin face.
+extern lv_font_t mdi_icons_48;
 
 /**
  * @brief Create a single icon display item
@@ -67,9 +69,9 @@ static lv_obj_t* create_icon_item(lv_obj_t* parent, const ui_icon::IconMapping& 
 // CONSTRUCTOR
 // ============================================================================
 
-GlyphsPanel::GlyphsPanel(PrinterState& printer_state, MoonrakerAPI* api)
+GlyphsPanel::GlyphsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    // GlyphsPanel doesn't use PrinterState or MoonrakerAPI, but we accept
+    // GlyphsPanel doesn't use PrinterState or IMoonrakerAPI, but we accept
     // them for interface consistency with other panels
 }
 

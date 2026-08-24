@@ -5,8 +5,8 @@
 
 #include "ui_update_queue.h"
 
+#include "i_moonraker_client.h"
 #include "lvgl.h"
-#include "moonraker_client.h"
 #include "plugin_registry.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
@@ -17,7 +17,7 @@ namespace helix::plugin {
 // PluginAPI Implementation
 // ============================================================================
 
-PluginAPI::PluginAPI(MoonrakerAPI* api, MoonrakerClient* client, PrinterState& state,
+PluginAPI::PluginAPI(IMoonrakerAPI* api, IMoonrakerClient* client, PrinterState& state,
                      Config* config, const std::string& plugin_id)
     : moonraker_api_(api), moonraker_client_(client), printer_state_(state), config_(config),
       plugin_id_(plugin_id), alive_flag_(std::make_shared<bool>(true)) {
@@ -62,7 +62,7 @@ bool PluginAPI::off_event(EventSubscriptionId id) {
 MoonrakerSubscriptionId PluginAPI::subscribe_moonraker(const std::vector<std::string>& objects,
                                                        MoonrakerCallback callback) {
     MoonrakerSubscriptionId id;
-    MoonrakerClient* client_to_register = nullptr;
+    IMoonrakerClient* client_to_register = nullptr;
     std::weak_ptr<bool> weak_alive;
     bool should_defer = false;
     std::string plugin_id_copy;
@@ -133,7 +133,7 @@ MoonrakerSubscriptionId PluginAPI::subscribe_moonraker(const std::vector<std::st
 
 bool PluginAPI::unsubscribe_moonraker(MoonrakerSubscriptionId id) {
     uint64_t client_sub_id = 0;
-    MoonrakerClient* client = nullptr;
+    IMoonrakerClient* client = nullptr;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -327,7 +327,7 @@ bool PluginAPI::has_injection_point(const std::string& point_id) const {
 // Internal Methods
 // ============================================================================
 
-void PluginAPI::set_moonraker(MoonrakerAPI* api, MoonrakerClient* client) {
+void PluginAPI::set_moonraker(IMoonrakerAPI* api, IMoonrakerClient* client) {
     std::lock_guard<std::mutex> lock(mutex_);
     moonraker_api_ = api;
     moonraker_client_ = client;
@@ -337,7 +337,7 @@ void PluginAPI::set_moonraker(MoonrakerAPI* api, MoonrakerClient* client) {
 void PluginAPI::apply_deferred_subscriptions() {
     // Collect data while holding the mutex
     std::vector<DeferredSubscription> subs_to_apply;
-    MoonrakerClient* client_to_register = nullptr;
+    IMoonrakerClient* client_to_register = nullptr;
     std::weak_ptr<bool> weak_alive;
     std::string plugin_id_copy;
 
@@ -419,7 +419,7 @@ void PluginAPI::apply_deferred_subscriptions() {
 void PluginAPI::cleanup() {
     // Collect data for cleanup outside the lock
     std::vector<uint64_t> client_sub_ids;
-    MoonrakerClient* client = nullptr;
+    IMoonrakerClient* client = nullptr;
     std::string plugin_id_copy;
 
     {

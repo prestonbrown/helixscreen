@@ -76,14 +76,9 @@ constexpr int DEFAULT_LOAD_PREHEAT_TEMP = 220;
 /**
  * @brief Startup timing constants
  *
- * Grace periods for suppressing notifications during initial boot.
- * On embedded devices, Moonraker connection may take 10+ seconds.
+ * Grace periods for behavior that must settle during initial boot.
  */
 namespace Startup {
-/// Grace period for suppressing initial state notifications (Klipper ready toast)
-/// Used from app startup - accounts for slow Moonraker connection on embedded devices
-constexpr std::chrono::seconds NOTIFICATION_GRACE_PERIOD{10};
-
 /// Grace period for filament sensor state stabilization after Moonraker connects
 /// Allows time for initial sensor state to arrive after discovery
 constexpr std::chrono::seconds SENSOR_STABILIZATION_PERIOD{5};
@@ -219,6 +214,18 @@ inline std::string legacy_config_backup_fallback() {
 inline std::string env_backup_fallback() {
     return backup_fallback_dir() + "/helixscreen.env.backup";
 }
+
+/// Marker the installer drops beside settings.json when it deliberately keeps
+/// the packaged (platform preset) config because no user config existed to
+/// restore. Resolved relative to the config file's own directory.
+///
+/// A packaged settings.json is ambiguous on its own: byte-for-byte the same
+/// document ships with a fresh install and is what Moonraker's type:web update
+/// leaves behind after rmtree() destroys the user's copy. Moonraker never runs
+/// the installer, and its rmtree() takes the marker with it, so an absent
+/// marker identifies the clobber. Config::init() consumes the marker on the
+/// first boot that reads it.
+constexpr const char* FRESH_INSTALL_MARKER = ".helix-fresh-install";
 
 /// Marker file written before _exit(0) after a successful update.
 /// Watchdog checks for this to skip crash dialog on post-update restarts.

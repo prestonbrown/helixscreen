@@ -12,7 +12,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 class PrintSelectPanel;
 class PrintStatusPanel;
 class MotionPanel;
@@ -32,7 +32,7 @@ class PlrOfferController;
  * SubjectInitializer orchestrates the initialization of all reactive subjects
  * in the correct dependency order. It manages observer guards for proper cleanup.
  *
- * Initialization is split into phases to allow MoonrakerAPI injection:
+ * Initialization is split into phases to allow IMoonrakerAPI injection:
  * 1. init_core_and_state() - Core subjects, PrinterState, AmsState
  * 2. init_panels(api) - Panel subjects with API injected at construction
  * 3. init_post() - Observers and utility subjects
@@ -67,13 +67,13 @@ class SubjectInitializer {
 
     /**
      * @brief Initialize panel subjects with API injection (phase 4)
-     * @param api Pointer to the initialized MoonrakerAPI (required)
+     * @param api Pointer to the initialized IMoonrakerAPI (required)
      * @param runtime_config Runtime configuration for mock modes
      *
      * Creates all panels with the API injected at construction time.
      * Must be called after MoonrakerManager::init().
      */
-    void init_panels(MoonrakerAPI* api, const RuntimeConfig& runtime_config);
+    void init_panels(IMoonrakerAPI* api, const RuntimeConfig& runtime_config);
 
     /**
      * @brief Initialize observers and utility subjects (phases 5-7)
@@ -131,7 +131,7 @@ class SubjectInitializer {
     void init_core_subjects();
     void init_printer_state_subjects();
     void init_ams_subjects();
-    void init_panel_subjects(MoonrakerAPI* api);
+    void init_panel_subjects(IMoonrakerAPI* api);
     void init_observers();
     void init_utility_subjects();
     void init_usb_manager(const RuntimeConfig& runtime_config);

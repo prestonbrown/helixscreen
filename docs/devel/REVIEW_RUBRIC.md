@@ -46,6 +46,7 @@ Full rules: [`THREADING.md`](THREADING.md).
 | **Deletion during input dispatch** | `lv_obj_delete()` on container children inside `LV_EVENT_CLICKED` / `LV_EVENT_RELEASED`. | — |
 | **Missing shutdown self-registration** | An `init_subjects()` that doesn't register its own `deinit_subjects()`, or a teardown callback that reaches a lazy `get_global_*()` getter and resurrects a singleton. | L101 |
 | **`lv_obj_is_valid()` in a hot path** | Recursive O(n) walk; stack-overflows on Pi. Use null checks plus a lifetime token. | L076 |
+| **Cached child pointers outliving the widget tree** | A panel or manager caches raw `lv_obj_t*` members (or containers keyed by widget) — the subtree is deleted by a rebuild/teardown, then a later callback writes through the stale pointer. Null checks pass; the pointer isn't null, it's freed. Two guards do **not** cover it: `AsyncLifetimeGuard` guards `this`, not the widget tree, and a queued `UpdateQueue` callback can drain after the tree died. Fix shape: an `LV_EVENT_DELETE` hook on the owning root nulls the cached pointers. | 882edde88, 13db7c92e |
 
 ---
 
@@ -63,6 +64,8 @@ reasonable, and the reason adversarial reading matters.
 | **JSON null vs missing** | A default-constructed `nlohmann::json` is null, and `.value()` throws on null. Guard with `is_object()` or initialize to `json::object()`. | L087 |
 | **Thread/network test left untagged** | Tests using `std::thread` / `condition_variable` / `hv::EventLoop` must be `[slow]`, or they deadlock parallel shards. | L052 |
 | **Claim not verified against current code** | A root cause inherited from an issue report, a commit message, or a stale comment. Grep the current tree and `git log -S` before accepting a mechanism — confident, well-argued reporter archaeology has pointed at the wrong cause more than once. | L095 |
+| **Log-only `on_error` claiming the error report** | An `execute_gcode` / `set_temperature` / `set_led` caller whose `on_error` only `spdlog`s or resets state, without `caller_surfaces_errors=false`. It records the rejection for dedup and silences `GcodeErrorRouter`'s `!!` copy — the only surface that would have told the user. Deriving intent *after* an internal callback wrapper has the same effect. | `RPC_ERROR_OWNERSHIP.md` |
+| **Print-state enum mismatch** | `static_cast<PrintState>(lv_subject_get_int(...))` compiles against whichever subject the author named — and `PrintJobState` and `PrintState` share no numbering past index 0, so a COMPLETE job reads back Paused and a PRINTING one Preparing. Binding the wrong subject to a typed observer fails the same way. Compiles, runs, answers a different question; shipped twice in one refactor. Use `get_print_lifecycle()` / `get_print_job_state()` and the typed factories (see `architecture/05-printer-state.md` § "Reading print state: typed accessors, not hand-cast ints"). | `check_print_state_cast.py` (partial) |
 
 ---
 
@@ -120,11 +123,15 @@ to skip verification. Use `--sim-speed 4..10` to reach an active print in second
 
 | Gate | Enforces |
 |------|----------|
-| `check_l081_anti_pattern.py` | No bare `tok.expired()` then `this` access on a bg thread |
+| `check_l081_anti_pattern.py` | No bare `tok.expired()`/`expired_no_lvgl()` then `this` access on a bg thread |
 | `check_subscription_null_safety.py` | Subscription-handler JSON reads are guarded (baseline 0) |
 | `check_imperative_ui.py` | XML-owned widgets driven from C++ (ratcheting baseline) |
-| `check_doc_refs.py` | Docs cite files that exist; `docs/devel/` index is complete |
+| `check_doc_refs.py` | Docs cite files that exist (CLAUDE.md files, skills, all of `docs/devel/`); `docs/devel/` index is complete |
+| `check_gcode_error_ownership.py` | Log-only error callbacks declare `caller_surfaces_errors=false` (baseline 0) |
 | `check_translation_format_specifiers.py` | Translated strings keep their placeholders |
+| `check_modal_chrome_budget.py` | A modal's chrome matches the content cap it budgets against: everything but a divider and the button row lives inside the scroll container; a second button row switches to the tall-chrome token; no card raised above the shared 85% cap (`MODAL_CHROME_OK` opt-out) |
+| `check_raw_print_job_state.py` | Every read of the raw print wire (`PrintJobState::…`, `get_print_job_state()`, `get_print_state_enum_subject()`) says why it is not on the lifecycle — `// RAW_PRINT_STATE_OK: <reason>` (baseline 0) |
+| `check_print_state_cast.py` | No hand-casting `lv_subject_get_int()` into `PrintState`/`PrintJobState`; the typed accessors pair each subject with its own enum (`PRINT_STATE_CAST_OK` opt-out) |
 | spdlog-only | No `printf`/`cout`/`LV_LOG_` outside CLI subcommands |
 | design tokens | Hardcoded colors ratcheted; no private `_lv_*` APIs |
 | copyright, icon fonts, XML validity, shellcheck | Headers, codepoint sync, well-formed XML |

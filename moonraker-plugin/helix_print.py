@@ -33,10 +33,11 @@ import glob as glob_module
 import json
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from moonraker.common import RequestType, WebRequest
@@ -920,8 +921,6 @@ class HelixPrint:
 
         POST /server/helix/phase_tracking/enable
         """
-        import re
-
         try:
             # Get the PRINT_START macro definition
             macro_name, gcode = await self._get_print_start_macro()
@@ -942,6 +941,34 @@ class HelixPrint:
 
             # Instrument the macro
             instrumented = self._instrument_gcode(gcode)
+
+            # Fail closed if the macros we are about to call are not installed.
+            # Klipper does not validate gcode_macro bodies at config load, so
+            # instrumenting against missing macros looks like it worked and only
+            # fails when the macro runs - aborting print start with
+            # "Unknown command: HELIX_PHASE_HOMING".
+            config_dir = await self._get_config_dir()
+            if config_dir:
+                missing = sorted(
+                    self._injected_macro_names(instrumented)
+                    - self._defined_macro_names(config_dir)
+                )
+                if missing:
+                    logging.error(
+                        "HelixPrint: Refusing to instrument %s - helix_macros.cfg "
+                        "is not installed (missing: %s)",
+                        macro_name,
+                        ", ".join(missing),
+                    )
+                    return {
+                        "success": False,
+                        "error": (
+                            "helix_macros.cfg is not installed - missing macros: "
+                            + ", ".join(missing)
+                        ),
+                        "macro_name": macro_name,
+                        "missing_macros": missing,
+                    }
 
             # Write the modified macro back
             success = await self._update_macro(macro_name, instrumented)
@@ -1066,59 +1093,174 @@ class HelixPrint:
 
         return (macro_names[0], None)
 
-    def _read_macro_from_config(
-        self, config_dir: Path, macro_name: str
-    ) -> Optional[str]:
-        """Read a macro definition from Klipper config files."""
-        import re
+    def _locate_macro_body(
+        self, content: str, macro_name: str
+    ) -> Optional[Tuple[int, int]]:
+        """Locate a macro's gcode: body within one config file's text.
 
-        # Search all .cfg files
-        for cfg_file in config_dir.glob("**/*.cfg"):
+        Returns (body_start, body_end) character offsets into content, or None
+        if the macro has no gcode: block here. content[body_start:body_end] is
+        the body verbatim, so splicing a replacement between those offsets is
+        the whole of a correct rewrite - there is deliberately no second parser
+        for the write path to disagree with.
+
+        A body runs until a line that is non-blank and starts in column 0.
+        Blank lines belong to the body: Klipper continues a block across them,
+        and treating one as a terminator truncates most real PRINT_START macros.
+        """
+        # Anchored: a Klipper section header starts in column 0, so matching
+        # anywhere in the line would also match a commented-out copy and send
+        # the scan into the comment block instead of the definition.
+        match = re.search(
+            rf"^\[gcode_macro\s+{re.escape(macro_name)}\]",
+            content,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        if not match:
+            return None
+
+        pos = match.end()
+        body_start: Optional[int] = None
+        body_end: Optional[int] = None
+
+        while pos < len(content):
+            newline = content.find("\n", pos)
+            line_end = len(content) if newline == -1 else newline
+            next_pos = len(content) if newline == -1 else newline + 1
+            line = content[pos:line_end]
+
+            # A new section ends this macro
+            if line.startswith("["):
+                break
+
+            if body_start is None:
+                # Still in the section's key: value header
+                if line.strip().startswith("gcode:"):
+                    after = line.split("gcode:", 1)[1]
+                    if after.strip():
+                        # Inline form: gcode: G28
+                        body_start = line_end - len(after)
+                        body_end = line_end
+                    else:
+                        body_start = next_pos
+                        body_end = next_pos
+                pos = next_pos
+                continue
+
+            # Non-blank text in column 0 ends the block
+            if line.strip() and not line[0].isspace():
+                break
+
+            body_end = line_end
+            pos = next_pos
+
+        if body_start is None or body_end is None:
+            return None
+        return (body_start, body_end)
+
+    def _find_macro(
+        self, config_dir: Path, macro_name: str
+    ) -> Optional[Tuple[Path, str, int, int]]:
+        """Find a macro's gcode: body across the config tree.
+
+        Returns (cfg_file, content, body_start, body_end), or None if no config
+        file defines the macro with a non-empty body.
+
+        Files are visited in sorted order so that reading and writing always
+        resolve a duplicated macro name to the same file; raw glob order is
+        filesystem-dependent.
+        """
+        for cfg_file in sorted(config_dir.glob("**/*.cfg")):
             try:
                 content = cfg_file.read_text()
-
-                # Find the macro section
-                pattern = rf"\[gcode_macro\s+{macro_name}\]"
-                match = re.search(pattern, content, re.IGNORECASE)
-                if not match:
-                    continue
-
-                # Extract the gcode block
-                section_start = match.end()
-                lines = []
-                in_gcode = False
-
-                for line in content[section_start:].split("\n"):
-                    # Check for next section
-                    if line.startswith("[") and not line.startswith("[gcode_macro"):
-                        break
-                    if re.match(r"^\[gcode_macro", line, re.IGNORECASE):
-                        break
-
-                    # Check for gcode: line
-                    if line.strip().startswith("gcode:"):
-                        in_gcode = True
-                        # Get content after gcode: on same line
-                        after_gcode = line.split("gcode:", 1)[1].strip()
-                        if after_gcode:
-                            lines.append(after_gcode)
-                        continue
-
-                    # Collect gcode lines (indented continuation)
-                    if in_gcode:
-                        if line and not line[0].isspace() and line.strip():
-                            # End of gcode block
-                            break
-                        lines.append(line)
-
-                if lines:
-                    return "\n".join(lines)
-
             except Exception as e:
                 logging.debug(f"Error reading {cfg_file}: {e}")
                 continue
 
+            located = self._locate_macro_body(content, macro_name)
+            if located is None:
+                continue
+
+            body_start, body_end = located
+            if not content[body_start:body_end].strip():
+                # Declared but empty - keep looking for the real definition
+                continue
+
+            return (cfg_file, content, body_start, body_end)
+
         return None
+
+    def _read_macro_from_config(
+        self, config_dir: Path, macro_name: str
+    ) -> Optional[str]:
+        """Read a macro definition from Klipper config files."""
+        found = self._find_macro(config_dir, macro_name)
+        if found is None:
+            return None
+
+        _cfg_file, content, body_start, body_end = found
+        return content[body_start:body_end]
+
+    @staticmethod
+    def _body_indent(body: str) -> str:
+        """Infer the indentation of an existing gcode: body."""
+        for line in body.split("\n"):
+            if line.strip() and line[0].isspace():
+                return line[: len(line) - len(line.lstrip())]
+        return "    "
+
+    @staticmethod
+    def _reindent_body(gcode: str, indent: str) -> str:
+        """Indent only the lines that need it.
+
+        Lines read back out of the config already carry their original
+        indentation; lines injected by _instrument_gcode start in column 0.
+        Indenting unconditionally would deepen the whole body by one level on
+        every enable/disable cycle.
+        """
+        lines = []
+        for line in gcode.split("\n"):
+            if not line.strip():
+                lines.append("")
+            elif line[0].isspace():
+                lines.append(line)
+            else:
+                lines.append(indent + line)
+        return "\n".join(lines)
+
+    def _defined_macro_names(self, config_dir: Path) -> set:
+        """Collect every gcode_macro name defined in the config tree."""
+        names = set()
+        for cfg_file in sorted(config_dir.glob("**/*.cfg")):
+            try:
+                content = cfg_file.read_text()
+            except Exception as e:
+                logging.debug(f"Error reading {cfg_file}: {e}")
+                continue
+            for match in re.finditer(
+                r"^\[gcode_macro\s+([^\]]+)\]", content, re.MULTILINE
+            ):
+                names.add(match.group(1).strip().upper())
+        return names
+
+    def _injected_macro_names(self, instrumented: str) -> set:
+        """Names of the macros _instrument_gcode injected calls to.
+
+        Derived from the marker pairs rather than from PHASE_PATTERNS, so this
+        stays correct if the pattern table changes.
+        """
+        names = set()
+        in_block = False
+        for line in instrumented.split("\n"):
+            if self.TRACKING_MARKER_BEGIN in line:
+                in_block = True
+                continue
+            if self.TRACKING_MARKER_END in line:
+                in_block = False
+                continue
+            if in_block and line.strip():
+                names.add(line.strip().split()[0].upper())
+        return names
 
     async def _get_config_dir(self) -> Optional[Path]:
         """Get the Klipper config directory."""
@@ -1194,91 +1336,45 @@ class HelixPrint:
 
     async def _update_macro(self, macro_name: str, gcode: str) -> bool:
         """
-        Update a macro definition in the config file.
+        Replace a macro's gcode: body in the config file that defines it.
 
-        This is a simplified implementation that updates printer.cfg.
-        A production version would need to handle includes properly.
+        The body is spliced in at the offsets _find_macro returned, so whatever
+        surrounds it - the section header, other keys such as description:, the
+        neighbouring sections - is carried through byte for byte.
         """
-        import re
-
         config_dir = await self._get_config_dir()
         if not config_dir:
             logging.error("HelixPrint: Config directory not found")
             return False
 
-        # Find the file containing the macro
-        for cfg_file in config_dir.glob("**/*.cfg"):
-            try:
-                content = cfg_file.read_text()
+        found = self._find_macro(config_dir, macro_name)
+        if found is None:
+            logging.error(
+                f"HelixPrint: Could not find {macro_name} in config files"
+            )
+            return False
 
-                # Check if this file contains the macro
-                pattern = rf"\[gcode_macro\s+{re.escape(macro_name)}\]"
-                match = re.search(pattern, content, re.IGNORECASE)
-                if not match:
-                    continue
+        cfg_file, content, body_start, body_end = found
+        new_body = self._reindent_body(
+            gcode, self._body_indent(content[body_start:body_end])
+        )
+        new_content = content[:body_start] + new_body + content[body_end:]
 
-                # Found the file - update the gcode section
-                # This is complex because we need to preserve the section structure
+        if new_content == content:
+            logging.info(f"HelixPrint: {macro_name} already up to date")
+            return True
 
-                # Create backup
-                backup_path = cfg_file.with_suffix(
-                    f".bak.{int(time.time())}"
-                )
-                shutil.copy(cfg_file, backup_path)
-                logging.info(f"HelixPrint: Created backup: {backup_path}")
+        try:
+            backup_path = cfg_file.with_suffix(f".bak.{int(time.time())}")
+            shutil.copy(cfg_file, backup_path)
+            logging.info(f"HelixPrint: Created backup: {backup_path}")
 
-                # Find section boundaries
-                section_start = match.start()
-                section_end = len(content)
-
-                # Find next section
-                next_section = re.search(r"\n\[", content[match.end():])
-                if next_section:
-                    section_end = match.end() + next_section.start()
-
-                # Extract the section
-                section = content[section_start:section_end]
-
-                # Find and replace gcode block within section
-                gcode_match = re.search(
-                    r"gcode:\s*\n((?:[ \t]+.*\n)*)",
-                    section,
-                    re.MULTILINE
-                )
-
-                if gcode_match:
-                    # Preserve indentation
-                    indent = "    "
-                    indented_gcode = "\n".join(
-                        indent + line if line.strip() else line
-                        for line in gcode.split("\n")
-                    )
-
-                    new_section = (
-                        section[:gcode_match.start(1)]
-                        + indented_gcode
-                        + "\n"
-                        + section[gcode_match.end(1):]
-                    )
-
-                    new_content = (
-                        content[:section_start]
-                        + new_section
-                        + content[section_end:]
-                    )
-
-                    cfg_file.write_text(new_content)
-                    logging.info(
-                        f"HelixPrint: Updated {macro_name} in {cfg_file}"
-                    )
-                    return True
-
-            except Exception as e:
-                logging.exception(f"Error updating {cfg_file}: {e}")
-                continue
-
-        logging.error(f"HelixPrint: Could not find {macro_name} in config files")
-        return False
+            cfg_file.write_text(new_content)
+            logging.info(f"HelixPrint: Updated {macro_name} in {cfg_file}")
+            return True
+        except Exception as e:
+            logging.exception(f"Error updating {cfg_file}: {e}")
+            return False
 
 
 def load_component(config: ConfigHelper) -> HelixPrint:

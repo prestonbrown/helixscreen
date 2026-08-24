@@ -21,8 +21,8 @@
 #include "label_printer_utils.h"
 #endif
 #include "format_utils.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h" // apply_spool_to_slot
@@ -198,7 +198,7 @@ void SpoolmanPanel::on_deactivate() {
 // ============================================================================
 
 void SpoolmanPanel::refresh_spools() {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API available, cannot refresh", get_name());
         show_empty_state();
@@ -229,7 +229,7 @@ void SpoolmanPanel::refresh_spools() {
             spdlog::info("[{}] Received {} spools from Spoolman", name, spools.size());
 
             // Also get active spool ID before updating UI
-            MoonrakerAPI* api_inner = get_moonraker_api();
+            IMoonrakerAPI* api_inner = get_moonraker_api();
             if (!api_inner) {
                 spdlog::warn("[{}] API unavailable for status check", name);
                 apply_spools(spools, -1);
@@ -497,55 +497,49 @@ void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAc
 }
 
 void SpoolmanPanel::set_active_spool(int spool_id) {
-    MoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
-        spdlog::warn("[{}] No API, cannot set active spool", get_name());
+    const SpoolInfo* found = find_cached_spool(spool_id);
+    if (!found) {
+        spdlog::warn("[{}] Spool {} not found in cache, cannot set active", get_name(), spool_id);
         return;
     }
 
     std::string name = get_name();
     auto tok = lifetime_.token();
+    std::string spool_name = found->display_name();
 
-    api->spoolman().set_active_spool(
-        spool_id,
-        [this, spool_id, name, tok]() {
+    // External-spool slot (sentinel -2), identity transferred by the shared
+    // helper. The commit is the single authority for spool assignment writes:
+    // S1 server set gated on the round-trip, S5 store subset with the
+    // emptiness predicate, S6 identity-cache invalidation of the replaced
+    // link (prestonbrown/helixscreen#1283).
+    SlotInfo slot;
+    slot.slot_index = -2;
+    slot.global_index = -2;
+    apply_spool_to_slot(slot, *found);
+
+    AmsState::instance().commit_external_spool_edit(
+        slot,
+        [this, spool_id, spool_name, name, tok]() {
+            // Main-thread-only: AmsState::commit_external_spool_edit marshals
+            // on_committed through queue_update before invoking it.
             if (tok.expired())
-                return;
+                return; // L081_OK: see comment above
             spdlog::info("[{}] Set active spool to {}", name, spool_id);
 
-            tok.defer([this, spool_id]() {
-                const SpoolInfo* found = find_cached_spool(spool_id);
-                std::string spool_name =
-                    found ? found->display_name()
-                          : std::string(lv_tr("Spool ")) + std::to_string(spool_id);
+            active_spool_id_ = spool_id;
+            update_active_indicators();
 
-                active_spool_id_ = spool_id;
-                update_active_indicators();
-
-                // Update external spool info so filament panel stays in sync
-                if (found) {
-                    // Third copy of the same identity transfer, retired in
-                    // favour of the shared writer — it was the one that wrote
-                    // display_name() ("Polymaker PLA - Jet Black") into
-                    // spool_name, which every other surface reads as the bare
-                    // filament name.
-                    SlotInfo slot;
-                    slot.slot_index = -2;
-                    slot.global_index = -2;
-                    apply_spool_to_slot(slot, *found);
-                    AmsState::instance().set_external_spool_info(slot);
-                }
-
-                std::string msg = std::string(lv_tr("Active")) + ": " + spool_name;
-                ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
-            });
+            std::string msg = std::string(lv_tr("Active")) + ": " + spool_name;
+            ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
         },
-        [name, spool_id](const MoonrakerError& err) {
+        [name, spool_id, tok](const MoonrakerError& err) {
+            // Main-thread-only: on_error is marshalled through queue_update
+            // by commit_external_spool_edit before invocation.
+            if (tok.expired())
+                return; // L081_OK: see comment above
             spdlog::error("[{}] Failed to set active spool {}: {}", name, spool_id, err.message);
-            helix::ui::queue_update([]() {
-                ToastManager::instance().show(ToastSeverity::ERROR,
-                                              lv_tr("Failed to set active spool"), 3000);
-            });
+            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to set active spool"),
+                                          3000);
         });
 }
 
@@ -560,7 +554,7 @@ void SpoolmanPanel::show_edit_modal(int spool_id) {
         return;
     }
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
 
     edit_modal_.set_completion_callback([this](bool saved) {
         if (saved) {
@@ -577,7 +571,7 @@ void SpoolmanPanel::show_edit_modal(int spool_id) {
 // ============================================================================
 
 void SpoolmanPanel::duplicate_spool(int spool_id) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::warn("[{}] No API, cannot duplicate spool", get_name());
         return;
@@ -654,7 +648,7 @@ void SpoolmanPanel::delete_spool(int spool_id) {
             int id = s_pending_delete_id;
             spdlog::info("[Spoolman] Confirmed delete of spool {}", id);
 
-            MoonrakerAPI* api = get_moonraker_api();
+            IMoonrakerAPI* api = get_moonraker_api();
             if (!api) {
                 ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("API not available"),
                                               3000);

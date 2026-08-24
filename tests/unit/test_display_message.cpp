@@ -73,8 +73,7 @@ TEST_CASE("Display message: parses string message from display_status",
 // Clearing Semantics
 // ============================================================================
 
-TEST_CASE("Display message: survives the transition into PRINTING",
-          "[print][display_message]") {
+TEST_CASE("Display message: survives the transition into PRINTING", "[print][display_message]") {
     lv_init_safe();
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
@@ -122,9 +121,15 @@ TEST_CASE("Display message: cleared at print end", "[print][display_message]") {
         REQUIRE(lv_subject_get_int(state.get_display_message_visible_subject()) == 0);
     };
 
-    SECTION("complete") { run_end_state("complete"); }
-    SECTION("cancelled") { run_end_state("cancelled"); }
-    SECTION("error") { run_end_state("error"); }
+    SECTION("complete") {
+        run_end_state("complete");
+    }
+    SECTION("cancelled") {
+        run_end_state("cancelled");
+    }
+    SECTION("error") {
+        run_end_state("error");
+    }
 }
 
 TEST_CASE("Display message: END_PRINT M117 survives the print-end clear",
@@ -187,8 +192,12 @@ TEST_CASE("Display message: cleared on abnormal exit to standby (no terminal sta
         REQUIRE(lv_subject_get_int(state.get_display_message_visible_subject()) == 0);
     };
 
-    SECTION("printing -> standby") { run_abnormal_exit("printing"); }
-    SECTION("paused -> standby") { run_abnormal_exit("paused"); }
+    SECTION("printing -> standby") {
+        run_abnormal_exit("printing");
+    }
+    SECTION("paused -> standby") {
+        run_abnormal_exit("paused");
+    }
 }
 
 TEST_CASE("Display message: normal end-of-print sequence leaves the END_PRINT "
@@ -341,8 +350,8 @@ TEST_CASE("print_active tracks PrintJobState across a full job lifecycle",
         int expected_active;
     };
     const Step steps[] = {
-        {"standby", 0}, {"printing", 1}, {"paused", 1},  {"printing", 1},
-        {"complete", 0}, {"standby", 0}, {"cancelled", 0}, {"error", 0},
+        {"standby", 0},  {"printing", 1}, {"paused", 1},    {"printing", 1},
+        {"complete", 0}, {"standby", 0},  {"cancelled", 0}, {"error", 0},
     };
 
     for (const auto& s : steps) {

@@ -7,6 +7,10 @@
 
 #include "consumption_sink.h"
 
+namespace helix {
+enum class PrintJobState;
+} // namespace helix
+
 #include <array>
 #include <cstddef>
 #include <memory>
@@ -17,10 +21,10 @@ namespace helix {
 class FilamentConsumptionTracker {
   public:
     /// Maximum number of per-extruder filament_used subjects the tracker
-    /// subscribes to. Aligns with `PrinterPrintState::kMaxExtruderScan` — the
+    /// subscribes to. Aligns with `PrinterPrintState::MAX_EXTRUDER_SCAN` — the
     /// pool of pre-populated dynamic subjects on PrinterState. Klipper
     /// toolchanger setups never come close to this.
-    static constexpr int kMaxTrackedExtruders = 16;
+    static constexpr int MAX_TRACKED_EXTRUDERS = 16;
 
     /// Opaque handle returned by register_sink() and consumed by unregister_sink().
     using SinkHandle = IConsumptionSink*;
@@ -99,9 +103,9 @@ class FilamentConsumptionTracker {
 
     /// Per-extruder filament_used_mm observers. Index i observes Klipper's
     /// `extruder` (i=0) / `extruder1` / `extruder2` / ... filament_used field.
-    std::array<ObserverGuard, kMaxTrackedExtruders> extruder_obs_{};
+    std::array<ObserverGuard, MAX_TRACKED_EXTRUDERS> extruder_obs_{};
 
-    void on_print_state_changed(int job_state);
+    void on_print_state_changed(helix::PrintJobState state);
     void on_filament_used_changed(int filament_mm);
 
     /// Handler for a single extruder's filament_used delta. Routes the delta

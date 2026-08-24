@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -32,7 +32,7 @@ class PrintControlButtons {
     /// wire the event callbacks, and start observing the print state. Idempotent.
     void init_subjects();
 
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -92,6 +92,14 @@ class PrintControlButtons {
     ~PrintControlButtons();
 
     void recompute();
+
+    /**
+     * @brief Gather every input and decide both buttons
+     *
+     * Public so the stop handler can ask the same question the enablement
+     * asked, rather than re-deriving the routing condition beside it.
+     */
+    [[nodiscard]] helix::ui::ControlButtonView current_view() const;
     void start_pending_action(PendingAction action);
     void clear_pending_action();
 
@@ -112,7 +120,7 @@ class PrintControlButtons {
     static void on_primary_clicked(lv_event_t* e);
     static void on_stop_clicked(lv_event_t* e);
 
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;
     lv_timer_t* pending_action_timeout_ = nullptr;
@@ -134,6 +142,11 @@ class PrintControlButtons {
     // SubjectLifetime is only required for dynamic per-fan/sensor/extruder
     // subjects that can be destroyed and recreated during rediscovery.
     ObserverGuard print_state_observer_;
+    /// The UI lifecycle axis. Pause/Cancel affordance is a function of
+    /// PrintState, and PrintState changes without print_state_enum changing at
+    /// all - a host-side pre-start block leaves the printer reporting the
+    /// PREVIOUS job for its whole duration.
+    ObserverGuard print_lifecycle_observer_;
     PrintCancelModal cancel_modal_;
 
     friend struct PrintControlButtonsTestAccess;

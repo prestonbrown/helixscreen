@@ -3,6 +3,8 @@
 
 #include "gcode_camera.h"
 
+#include "gcode_projection.h"
+
 #include <algorithm>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <spdlog/spdlog.h>
@@ -75,7 +77,12 @@ void GCodeCamera::zoom(float factor) {
     update_matrices();
 }
 
-void GCodeCamera::fit_to_bounds(const AABB& bounds) {
+void GCodeCamera::fit_to_bounds(const AABB& raw_bounds) {
+    // Order any inverted axis before the emptiness test — one bad axis must not
+    // discard the others. Shared with compute_auto_fit() so the 3D and 2D paths
+    // agree on which boxes are framable.
+    const AABB bounds = raw_bounds.normalized();
+
     if (bounds.is_empty()) {
         spdlog::warn("[GCode Camera] Cannot fit camera to empty bounding box");
         return;
@@ -120,6 +127,7 @@ void GCodeCamera::fit_to_bounds(const AABB& bounds) {
     if (viewport_width_ <= 0 || viewport_height_ <= 0 || proj_width <= 0.0f ||
         proj_height <= 0.0f) {
         zoom_level_ = 1.4f;
+        content_height_world_ = 0.0f;
         update_matrices();
         spdlog::debug("[GCode Camera] Fit to bounds: fallback (viewport {}x{})", viewport_width_,
                       viewport_height_);
@@ -133,10 +141,22 @@ void GCodeCamera::fit_to_bounds(const AABB& bounds) {
     // We need: proj_height <= 2 * ortho_size * margin, and
     //          proj_width  <= 2 * ortho_size * aspect * margin
     constexpr float MARGIN = 0.80f; // ~10% margin on each side
-    float zoom_for_height = distance_ / (proj_height / MARGIN);
+
+    // Same shape rule as compute_auto_fit(): only a model markedly taller than
+    // it is wide keeps the full viewport height and runs under the bottom UI
+    // strip. Anything squatter is framed to sit above it.
+    const bool elongated = proj_height > projection::ELONGATION_LIMIT * proj_width;
+    const float usable_height_frac = elongated ? 1.0f : (1.0f - bottom_occlusion_);
+
+    float zoom_for_height = distance_ * usable_height_frac / (proj_height / MARGIN);
     float zoom_for_width = distance_ * aspect / (proj_width / MARGIN);
     zoom_level_ = std::min(zoom_for_height, zoom_for_width);
     zoom_level_ = std::clamp(zoom_level_, 0.1f, 100.0f);
+
+    // Keep the model's projected height in world units. The visible vertical
+    // extent is 2 * ortho_size = distance / zoom, so get_content_height_fraction()
+    // can turn this into a viewport fraction that also tracks later pinch-zoom.
+    content_height_world_ = proj_height;
 
     // Shift target so the projected center is on screen center.
     // The projected midpoint in camera space may not be at (0,0) because

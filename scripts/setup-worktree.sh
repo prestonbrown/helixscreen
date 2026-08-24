@@ -21,8 +21,12 @@ usage() {
     echo "Arguments:"
     echo "  branch-name     Branch to checkout (will be created if it doesn't exist)"
     echo "  worktree-path   Path for worktree (default: .worktrees/<branch-name>)"
+    echo "                  NOTE: this is a PATH, not a base branch. To branch from"
+    echo "                  something other than HEAD, use --base."
     echo ""
     echo "Options:"
+    echo "  --base <ref>    Commit/branch to create the new branch from"
+    echo "                  (default: HEAD of the tree you run this from)"
     echo "  --setup-only    Only set up an existing worktree, don't create it"
     echo "  --unlink        Replace lib/ symlinks with what git expects, so git"
     echo "                  status/merge/rebase/stash work in this worktree"
@@ -33,6 +37,7 @@ usage() {
     echo "Examples:"
     echo "  $0 feature/new-panel           # Create worktree in .worktrees/new-panel"
     echo "  $0 feature/foo /tmp/foo        # Create worktree in /tmp/foo"
+    echo "  $0 --base feature/a feature/b  # Branch feature/b off feature/a, not HEAD"
     echo "  $0 --setup-only feature/i18n   # Just set up existing worktree"
     echo ""
     echo "  # Merging or rebasing inside a worktree (git cannot scan symlinked submodules):"
@@ -80,6 +85,26 @@ usage() {
 # compile fails it with missing headers, and re-linking mid-compile is no better.
 LIB_NON_SUBMODULE_ITEMS=("tuibox.h" "mdns")
 
+# Submodules that get a PRIVATE checkout per worktree instead of a symlink.
+#
+# lib/helix-xml is ours (prestonbrown/helix-xml) and CLAUDE.md says to edit it
+# directly rather than carry a patch — which makes a symlink actively wrong:
+# every worktree would be editing the MAIN tree's submodule working tree, so two
+# branches could not hold different engine versions, and an edit made here would
+# surface as dirt in main's `git status` for another session to sweep up.
+# Cloning it costs ~2.6 MB and a couple of seconds, against the ~GB and minutes
+# that make symlinking lvgl/libhv worthwhile. A real checkout is also what git
+# expects, so these need no --unlink/--relink dance.
+LIB_PRIVATE_SUBMODULES=("lib/helix-xml")
+
+is_private_submodule() {
+    local candidate="$1" p
+    for p in "${LIB_PRIVATE_SUBMODULES[@]}"; do
+        [[ "$p" == "$candidate" ]] && return 0
+    done
+    return 1
+}
+
 # Copy a build artifact into the worktree as cheaply as the filesystem allows,
 # preserving mtime — make's up-to-date decisions depend on it.
 #   macOS/APFS:  cp -c            -> clonefile(2), instant, zero disk until diverged
@@ -93,9 +118,16 @@ clone_file() {
     touch -r "$src" "$dst"
 }
 
+# Symlinked submodules only. A private checkout is a normal submodule as far as
+# git is concerned, so including it here would have --unlink replace a real
+# checkout (possibly holding uncommitted engine work) with an empty directory.
 lib_submodule_paths() {
+    local path
     git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path \
-        | grep "^submodule\." | awk '{print $2}' | grep "^lib/"
+        | grep "^submodule\." | awk '{print $2}' | grep "^lib/" \
+    | while read -r path; do
+        is_private_submodule "$path" || echo "$path"
+    done
 }
 
 # Replace symlinks with what git expects: an empty directory for a submodule
@@ -127,6 +159,8 @@ NO_BUILD=false
 LINK_MODE=""
 BRANCH=""
 WORKTREE_PATH=""
+BASE_REF=""
+EXPLICIT_PATH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -137,6 +171,14 @@ while [[ $# -gt 0 ]]; do
         --no-build)
             NO_BUILD=true
             shift
+            ;;
+        --base)
+            if [[ -z "${2:-}" ]]; then
+                echo -e "${RED}Error: --base needs a commit or branch${RESET}"
+                exit 1
+            fi
+            BASE_REF="$2"
+            shift 2
             ;;
         --unlink|--relink)
             LINK_MODE="${1#--}"
@@ -156,6 +198,7 @@ while [[ $# -gt 0 ]]; do
                 BRANCH="$1"
             elif [[ -z "$WORKTREE_PATH" ]]; then
                 WORKTREE_PATH="$1"
+                EXPLICIT_PATH="$1"
             else
                 echo -e "${RED}Too many arguments${RESET}"
                 usage
@@ -205,6 +248,29 @@ if [[ ! "$WORKTREE_PATH" = /* ]]; then
     WORKTREE_PATH="$MAIN_TREE/$WORKTREE_PATH"
 fi
 
+# Guard: arg 2 is a PATH. Passing a base branch there is an easy slip, and it
+# used to succeed silently — mkdir -p created a real directory of that name in
+# the repo root and the branch was cut from HEAD instead of the intended base.
+if [[ -n "$EXPLICIT_PATH" && ! -e "$WORKTREE_PATH" ]] \
+   && git -C "$MAIN_TREE" rev-parse --verify --quiet "$EXPLICIT_PATH" >/dev/null; then
+    echo -e "${RED}Error: '$EXPLICIT_PATH' is a git ref, but argument 2 is the worktree PATH.${RESET}"
+    echo -e "To branch from it instead:"
+    echo -e "  ${CYAN}$0 --base $EXPLICIT_PATH $BRANCH${RESET}"
+    echo -e "To really use it as a path, create the directory first."
+    exit 1
+fi
+
+# Guard: keep worktrees out of the tracked tree. Anywhere outside the main tree
+# (/tmp/foo and friends) is fine; inside it, only .worktrees/ is — otherwise the
+# new tree shows up as a mountain of untracked files in the main tree's status.
+if [[ "$WORKTREE_PATH" == "$MAIN_TREE"/* && "$WORKTREE_PATH" != "$MAIN_TREE"/.worktrees/* ]] \
+   && [[ ! -e "$WORKTREE_PATH" ]]; then
+    echo -e "${RED}Error: refusing to create a worktree inside the main tree at${RESET}"
+    echo -e "  $WORKTREE_PATH"
+    echo -e "Use ${CYAN}.worktrees/<name>${RESET} (the default), or a path outside $MAIN_TREE."
+    exit 1
+fi
+
 echo -e "${BOLD}${CYAN}HelixScreen Worktree Setup${RESET}"
 echo -e "Main tree:    $MAIN_TREE"
 echo -e "Worktree:     $WORKTREE_PATH"
@@ -216,15 +282,36 @@ if [[ "$SETUP_ONLY" == "false" ]]; then
     if [[ -d "$WORKTREE_PATH" ]]; then
         echo -e "${YELLOW}Worktree already exists at $WORKTREE_PATH${RESET}"
     else
+        # Validate BEFORE creating anything, so a rejected invocation leaves no
+        # half-made directory behind.
+        BRANCH_EXISTS=false
+        if git -C "$MAIN_TREE" rev-parse --verify --quiet "$BRANCH" >/dev/null; then
+            BRANCH_EXISTS=true
+            if [[ -n "$BASE_REF" ]]; then
+                echo -e "${RED}Error: branch '$BRANCH' already exists, so --base would be ignored.${RESET}"
+                echo -e "Drop --base to check it out, or pick a new branch name."
+                exit 1
+            fi
+        elif [[ -n "$BASE_REF" ]] \
+             && ! git -C "$MAIN_TREE" rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
+            echo -e "${RED}Error: base '$BASE_REF' is not a valid commit or branch${RESET}"
+            exit 1
+        fi
+
         echo -e "${CYAN}Creating worktree...${RESET}"
         mkdir -p "$(dirname "$WORKTREE_PATH")"
 
-        # Check if branch exists
-        if git -C "$MAIN_TREE" rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+        if [[ "$BRANCH_EXISTS" == "true" ]]; then
             git -C "$MAIN_TREE" worktree add "$WORKTREE_PATH" "$BRANCH"
         else
-            echo -e "${YELLOW}Branch '$BRANCH' doesn't exist, creating from current HEAD...${RESET}"
-            git -C "$MAIN_TREE" worktree add -b "$BRANCH" "$WORKTREE_PATH"
+            # Default to the HEAD of whichever tree invoked us, which is NOT
+            # necessarily main — say which commit that resolved to, so a stale
+            # or unexpected base is visible now rather than three commits later.
+            BASE="${BASE_REF:-HEAD}"
+            BASE_DESC="$(git -C "$MAIN_TREE" log --oneline -1 "$BASE")"
+            echo -e "${YELLOW}Branch '$BRANCH' doesn't exist, creating from ${BOLD}$BASE${RESET}${YELLOW}:${RESET}"
+            echo -e "  ${CYAN}$BASE_DESC${RESET}"
+            git -C "$MAIN_TREE" worktree add -b "$BRANCH" "$WORKTREE_PATH" "$BASE"
         fi
         echo -e "${GREEN}✓ Worktree created${RESET}"
     fi
@@ -247,8 +334,7 @@ link_lib_from_main() {
 
     # Get list of submodules in lib/
     SUBMODULES=$(git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path | grep "^submodule\." | awk '{print $2}' | grep "^lib/")
-    # Also include non-submodule files in lib/
-    LIB_ITEMS=("tuibox.h" "mdns")
+    # Also include non-submodule files in lib/ (LIB_NON_SUBMODULE_ITEMS, above)
 
     # Ensure lib/ directory exists
     mkdir -p "$WORKTREE_PATH/lib"
@@ -257,6 +343,10 @@ link_lib_from_main() {
     for submod in $SUBMODULES; do
         MAIN_SUBMOD="$MAIN_TREE/$submod"
         WORKTREE_SUBMOD="$WORKTREE_PATH/$submod"
+
+        if is_private_submodule "$submod"; then
+            continue
+        fi
 
         if [[ -L "$WORKTREE_SUBMOD" ]]; then
             echo -e "  $submod: ${GREEN}already symlinked${RESET}"
@@ -271,7 +361,7 @@ link_lib_from_main() {
     done
 
     # Symlink non-submodule items
-    for item in "${LIB_ITEMS[@]}"; do
+    for item in "${LIB_NON_SUBMODULE_ITEMS[@]}"; do
         MAIN_ITEM="$MAIN_TREE/lib/$item"
         WORKTREE_ITEM="$WORKTREE_PATH/lib/$item"
 
@@ -286,6 +376,43 @@ link_lib_from_main() {
                 ln -s "$MAIN_ITEM" "$WORKTREE_ITEM"
                 echo -e "  lib/$item: ${GREEN}symlinked${RESET}"
             fi
+        fi
+    done
+
+    checkout_private_submodules
+}
+
+# Give each private submodule its own working tree at the commit this branch
+# points at. The gitdir lands under .git/worktrees/<name>/modules/, so the
+# checkout is independent of the main tree's and of every other worktree's, and
+# `git submodule status` reports it clean. origin stays the public GitHub remote,
+# so committing and pushing from in here works exactly as it does in main.
+checkout_private_submodules() {
+    local submod
+    for submod in "${LIB_PRIVATE_SUBMODULES[@]}"; do
+        [[ -e "$MAIN_TREE/$submod/.git" ]] || continue
+        if [[ -L "$WORKTREE_PATH/$submod" ]]; then
+            rm "$WORKTREE_PATH/$submod"
+        fi
+        if [[ -e "$WORKTREE_PATH/$submod/.git" ]]; then
+            echo -e "  $submod: ${GREEN}already a private checkout${RESET}"
+            continue
+        fi
+        echo -e "  $submod: ${CYAN}private checkout (ours — edited directly, not patched)${RESET}"
+        if ! git -C "$WORKTREE_PATH" submodule update --init "$submod" >/dev/null 2>&1; then
+            echo -e "  $submod: ${YELLOW}checkout failed${RESET}"
+            # Only a partial clone may be swept: anything with a .git returned
+            # above, and a directory holding files but no .git is something a
+            # person put there, not ours to delete.
+            if [[ -d "$WORKTREE_PATH/$submod" ]] \
+               && [[ -n "$(ls -A "$WORKTREE_PATH/$submod" 2>/dev/null)" ]]; then
+                echo -e "  ${RED}$submod has content but is not a checkout — leaving it alone.${RESET}"
+                echo -e "  ${YELLOW}Resolve by hand, then re-run with --setup-only.${RESET}"
+                continue
+            fi
+            echo -e "  ${YELLOW}falling back to a symlink — edits here will land in the MAIN tree's submodule${RESET}"
+            rmdir "$WORKTREE_PATH/$submod" 2>/dev/null || true
+            ln -s "$MAIN_TREE/$submod" "$WORKTREE_PATH/$submod"
         fi
     done
 }
@@ -609,9 +736,29 @@ mkdir -p "$(dirname "$EXCLUDE_FILE")"
 
 # Items to exclude (symlinks we created + build artifacts)
 # Note: We exclude lib/* specifically because lib/ itself is a real directory
+#
+# lib/* hides the symlinks, but it would also hide the entries under lib/ that
+# carry tracked content, so each of those is negated back in. Git cannot
+# re-include a path whose parent directory is excluded, so the negation has to
+# name the directory itself, not the files inside it.
+#
+# lib/mdns is negated with a TRAILING SLASH, which matches directories only.
+# In the main tree it is a real directory and the negation applies, so tracked
+# content there stays visible. In a worktree the path is a symlink, the
+# negation does not apply, and lib/* keeps it hidden — otherwise every worktree
+# reports a permanent `?? lib/mdns` for a symlink this script created. That
+# stray entry is what `git add -A` once swept onto main as a blob replacing the
+# tracked directory (restored in 3b0a8491b). lib/tuibox.h needs no such care:
+# its symlink sits at the tracked path itself, and a path in the index is never
+# reported as untracked.
 EXCLUDES=(
     "# HelixScreen worktree setup - auto-generated excludes"
     "lib/*"
+    "!lib/helix-xml"
+    "!lib/mdns/"
+    "!lib/minilzo"
+    "!lib/quirc"
+    "!lib/tuibox.h"
     "node_modules"
     ".venv"
     "build/"
@@ -619,9 +766,18 @@ EXCLUDES=(
     ".fonts.stamp"
 )
 
-# Add excludes if not already present
+# Drop a legacy slashless "!lib/mdns", which would re-expose the worktree
+# symlink and defeat the "!lib/mdns/" line below.
+if [[ -f "$EXCLUDE_FILE" ]] && grep -qxF '!lib/mdns' "$EXCLUDE_FILE"; then
+    EXCLUDE_TMP=$(mktemp)
+    grep -vxF '!lib/mdns' "$EXCLUDE_FILE" > "$EXCLUDE_TMP" && mv "$EXCLUDE_TMP" "$EXCLUDE_FILE"
+    echo -e "  ${YELLOW}replaced legacy !lib/mdns with !lib/mdns/${RESET}"
+fi
+
+# Add excludes if not already present. Match whole lines: a substring test
+# reports "!lib/mdns/" as already present when only "lib/mdns" is there.
 for exclude in "${EXCLUDES[@]}"; do
-    if ! grep -qF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
+    if ! grep -qxF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
         echo "$exclude" >> "$EXCLUDE_FILE"
     fi
 done

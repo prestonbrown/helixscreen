@@ -3,6 +3,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
@@ -258,7 +259,7 @@ namespace {
 /// Smallest PNG the cache and the processor will both accept: a 10x10 solid
 /// square, 75 bytes. Same bytes as tests/unit/test_thumbnail_cache_request.cpp.
 // clang-format off
-const std::vector<uint8_t> kTinyPng = {
+const std::vector<uint8_t> TINY_PNG = {
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
     0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x0A,
     0x08, 0x02, 0x00, 0x00, 0x00, 0x02, 0x50, 0x58, 0xEA, 0x00, 0x00, 0x00,
@@ -277,8 +278,8 @@ void plant_cached_png(const ThumbnailCache& cache, const std::string& key) {
     const std::string path = cache.get_cache_path(key);
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     REQUIRE(out.good());
-    out.write(reinterpret_cast<const char*>(kTinyPng.data()),
-              static_cast<std::streamsize>(kTinyPng.size()));
+    out.write(reinterpret_cast<const char*>(TINY_PNG.data()),
+              static_cast<std::streamsize>(TINY_PNG.size()));
     out.close();
     REQUIRE(std::filesystem::exists(path));
 }
@@ -490,7 +491,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     const helix::ThumbnailTarget target_b = size_thumb(container, 900, 900);
     REQUIRE(target_b.width != target_a.width);
     const auto planted_b =
-        helix::ThumbnailProcessor::instance().process_sync(kTinyPng, key, target_b);
+        helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target_b);
     REQUIRE(planted_b.success);
     const std::string path_b = planted_b.output_path;
     REQUIRE(path_b != path_a);
@@ -542,7 +543,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     REQUIRE(source_modified > 0.0);
 
     const helix::ThumbnailTarget target = size_thumb(container, 100, 100);
-    const auto planted = helix::ThumbnailProcessor::instance().process_sync(kTinyPng, key, target);
+    const auto planted = helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
     REQUIRE(planted.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(planted.output_path));
 
@@ -572,4 +573,77 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
 
     widget.detach();
     cache.invalidate(key);
+}
+
+// =============================================================================
+// The idle thumbnail must describe a file that still exists
+//
+// The cache key is the job's thumbnail path and the freshness stamp is the
+// job's `modified`, neither of which changes when the gcode is deleted. Nothing
+// 404s, so the cached render of a deleted file is served forever unless the
+// resolve skips jobs whose `exists` flag is false.
+// =============================================================================
+
+namespace {
+
+PrintHistoryJob thumb_job(const char* filename, bool exists, const char* thumb, double modified) {
+    PrintHistoryJob job;
+    job.filename = filename;
+    job.exists = exists;
+    job.thumbnail_path = thumb;
+    job.modified = modified;
+    return job;
+}
+
+/// Installs a hand-built history as the process-wide one for the test's scope.
+struct ScopedIdleThumbHistory {
+    explicit ScopedIdleThumbHistory(std::vector<PrintHistoryJob> jobs) : manager(nullptr, nullptr) {
+        helix::PrintHistoryManagerTestAccess::set_loaded_jobs(manager, std::move(jobs));
+        set_print_history_manager(&manager);
+    }
+    ~ScopedIdleThumbHistory() {
+        set_print_history_manager(nullptr);
+    }
+    PrintHistoryManager manager;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
+                 "PrintStatusWidget: idle thumbnail resolves past a deleted newest job",
+                 "[print_status_widget][idle_thumb][exists]") {
+    ScopedIdleThumbHistory history(
+        {thumb_job("deleted.gcode", false, ".thumbs/deleted.png", 900.0),
+         thumb_job("survivor.gcode", true, ".thumbs/survivor.png", 500.0)});
+
+    PrintStatusWidget widget;
+
+    // Unattached: no measured thumb widget, so the resolve takes the
+    // pre-selected largest thumbnail off whichever job it picked.
+    REQUIRE(PrintStatusWidgetTestAccess::last_print_thumbnail_path(widget) ==
+            ".thumbs/survivor.png");
+    // The freshness stamp has to come off the same job as the key - otherwise
+    // the cache validates one file's render against another file's mtime.
+    REQUIRE(PrintStatusWidgetTestAccess::last_print_source_modified(widget) ==
+            static_cast<time_t>(500.0));
+}
+
+TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
+                 "PrintStatusWidget: idle thumbnail falls back to benchy when nothing survives",
+                 "[print_status_widget][idle_thumb][exists]") {
+    ScopedIdleThumbHistory history({thumb_job("deleted_a.gcode", false, ".thumbs/a.png", 900.0),
+                                    thumb_job("deleted_b.gcode", false, ".thumbs/b.png", 500.0)});
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+
+    // No key at all - reset_print_card_to_idle() takes its "no history" exit
+    // and paints the placeholder.
+    REQUIRE(PrintStatusWidgetTestAccess::last_print_thumbnail_path(widget).empty());
+
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+    REQUIRE(get_idle_thumb_src(container) == BENCHY_PATH);
+
+    widget.detach();
 }

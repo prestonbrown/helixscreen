@@ -7,7 +7,6 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
-#include "ui_utils.h"
 
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -28,7 +27,6 @@ void register_fan_widget() {
 
     // Register XML event callbacks at startup (before any XML is parsed)
     lv_xml_register_event_cb(nullptr, "fan_widget_clicked_cb", FanWidget::fan_widget_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "fan_picker_backdrop_cb", FanWidget::fan_picker_backdrop_cb);
 }
 } // namespace helix
 
@@ -40,56 +38,6 @@ namespace {
 int resolve_space_token(const char* name, int fallback) {
     const char* s = lv_xml_get_const(nullptr, name);
     return s ? std::atoi(s) : fallback;
-}
-
-/// Free heap-allocated object_name strings stored as user_data on picker rows.
-void cleanup_picker_row_strings(lv_obj_t* backdrop) {
-    lv_obj_t* fan_list = lv_obj_find_by_name(backdrop, "fan_list");
-    if (!fan_list)
-        return;
-    uint32_t count = lv_obj_get_child_count(fan_list);
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_t* row = lv_obj_get_child(fan_list, i);
-        auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(row));
-        delete name_ptr;
-        lv_obj_set_user_data(row, nullptr);
-    }
-}
-
-/// Position a context_menu card near a widget, clamped to screen.
-void position_picker_card(lv_obj_t* backdrop, lv_obj_t* widget_obj, lv_obj_t* parent_screen,
-                          int card_w) {
-    lv_obj_t* card = lv_obj_find_by_name(backdrop, "fan_picker_card");
-    if (!card || !widget_obj)
-        return;
-
-    int space_xs = resolve_space_token("space_xs", 4);
-    int space_md = resolve_space_token("space_md", 10);
-    int screen_w = lv_obj_get_width(parent_screen);
-    int screen_h = lv_obj_get_height(parent_screen);
-
-    lv_obj_set_width(card, card_w);
-    lv_obj_set_style_max_height(card, screen_h * 80 / 100, 0);
-    lv_obj_update_layout(card);
-    int card_h = lv_obj_get_height(card);
-
-    lv_area_t widget_area;
-    lv_obj_get_coords(widget_obj, &widget_area);
-
-    int card_x = (widget_area.x1 + widget_area.x2) / 2 - card_w / 2;
-    int card_y = widget_area.y2 + space_xs;
-
-    if (card_x < space_md)
-        card_x = space_md;
-    if (card_x + card_w > screen_w - space_md)
-        card_x = screen_w - card_w - space_md;
-    if (card_y + card_h > screen_h - space_md) {
-        card_y = widget_area.y1 - card_h - space_xs;
-        if (card_y < space_md)
-            card_y = space_md;
-    }
-
-    lv_obj_set_pos(card, card_x, card_y);
 }
 
 } // anonymous namespace
@@ -164,7 +112,7 @@ void FanWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
 void FanWidget::detach() {
     lifetime_.invalidate();
-    dismiss_fan_picker();
+    picker_.hide();
     {
         auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
         helix::ui::UpdateQueue::instance().drain();
@@ -323,43 +271,39 @@ bool FanWidget::on_edit_configure() {
 }
 
 void FanWidget::show_fan_picker() {
-    if (picker_backdrop_ || !parent_screen_) {
+    if (picker_.is_visible() || !parent_screen_ || !widget_obj_) {
         return;
     }
 
-    // Dismiss any other instance's picker first
-    if (s_active_picker_ && s_active_picker_ != this) {
-        s_active_picker_->dismiss_fan_picker();
-    }
-
-    const auto& fans = get_printer_state().get_fans();
-    if (fans.empty()) {
+    if (get_printer_state().get_fans().empty()) {
         spdlog::warn("[FanWidget] No fans available for picker");
         return;
     }
 
-    // Create picker from XML
-    picker_backdrop_ = static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "fan_picker", nullptr));
-    if (!picker_backdrop_) {
-        spdlog::error("[FanWidget] Failed to create fan picker from XML");
+    // The card hangs under the widget tile, centred on it, flipping above when the
+    // tile sits low on the screen.
+    picker_.show_below_widget(parent_screen_, widget_obj_,
+                              helix::ui::ContextMenu::AnchorAlign::Center);
+}
+
+void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
+    lv_obj_t* fan_list = lv_obj_find_by_name(menu_obj, "fan_list");
+    if (!fan_list) {
+        spdlog::error("[FanWidget] fan_list not found in picker XML");
         return;
     }
 
-    lv_obj_t* fan_list = lv_obj_find_by_name(picker_backdrop_, "fan_list");
-    if (!fan_list) {
-        spdlog::error("[FanWidget] fan_list not found in picker XML");
-        helix::ui::safe_delete(picker_backdrop_);
-        picker_backdrop_ = nullptr;
-        return;
-    }
+    const auto& fans = get_printer_state().get_fans();
 
     int space_xs = resolve_space_token("space_xs", 4);
     int space_sm = resolve_space_token("space_sm", 6);
-    int screen_h = lv_obj_get_height(parent_screen_);
-    lv_obj_set_style_max_height(fan_list, screen_h * 2 / 3, 0);
+
+    // Cap the list at a share of the screen so a printer with a dozen fans
+    // scrolls the list instead of growing the card past the panel.
+    lv_obj_set_style_max_height(fan_list, screen_height_pct(66), 0);
 
     for (const auto& fan : fans) {
-        bool is_selected = (fan.object_name == selected_fan_);
+        bool is_selected = (fan.object_name == owner_.selected_fan_);
 
         lv_obj_t* row = lv_obj_create(fan_list);
         lv_obj_set_width(row, LV_PCT(100));
@@ -389,71 +333,39 @@ void FanWidget::show_fan_picker() {
         lv_obj_set_style_text_font(speed, lv_font_get_default(), 0);
         lv_obj_set_style_text_opa(speed, 180, 0);
 
-        // Store object_name for click handler
-        auto* name_copy = new std::string(fan.object_name);
-        lv_obj_set_user_data(row, name_copy);
+        lv_obj_set_user_data(row, new RowPayload{this, fan.object_name});
 
         lv_obj_add_event_cb(
             row,
             [](lv_event_t* e) {
                 LVGL_SAFE_EVENT_CB_BEGIN("[FanWidget] fan_row_cb");
-                auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(target));
-                if (!name_ptr)
+                auto* target = lv_event_get_current_target_obj(e);
+                auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
+                if (!payload)
                     return;
 
-                if (FanWidget::s_active_picker_) {
-                    std::string fan_name = *name_ptr;
-                    FanWidget::s_active_picker_->select_fan(fan_name);
-                    FanWidget::s_active_picker_->dismiss_fan_picker();
-                }
+                // Copy the name: hide() takes the row - and this payload - with it.
+                std::string fan_name = payload->object_name;
+                FanPicker* picker = payload->picker;
+                picker->owner_.select_fan(fan_name);
+                picker->hide();
                 LVGL_SAFE_EVENT_CB_END();
             },
             LV_EVENT_CLICKED, nullptr);
+
+        lv_obj_add_event_cb(
+            row,
+            [](lv_event_t* e) {
+                LVGL_SAFE_EVENT_CB_BEGIN("[FanWidget] fan_row_delete_cb");
+                auto* target = lv_event_get_current_target_obj(e);
+                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
+                lv_obj_set_user_data(target, nullptr);
+                LVGL_SAFE_EVENT_CB_END();
+            },
+            LV_EVENT_DELETE, nullptr);
     }
 
-    s_active_picker_ = this;
-
-    // Self-clearing delete callback with heap string cleanup
-    lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FanWidget*>(lv_event_get_user_data(e));
-            if (self) {
-                lv_obj_t* backdrop = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                cleanup_picker_row_strings(backdrop);
-                self->picker_backdrop_ = nullptr;
-                if (s_active_picker_ == self) {
-                    s_active_picker_ = nullptr;
-                }
-            }
-        },
-        LV_EVENT_DELETE, this);
-
-    // Position card near widget
-    int screen_w = lv_obj_get_width(parent_screen_);
-    int card_w = std::clamp(screen_w * 3 / 10, 160, 240);
-    position_picker_card(picker_backdrop_, widget_obj_, parent_screen_, card_w);
-
-    spdlog::debug("[FanWidget] Fan picker shown with {} fans", fans.size());
-}
-
-void FanWidget::dismiss_fan_picker() {
-    if (!picker_backdrop_) {
-        return;
-    }
-
-    // Nullify pointers BEFORE delete — the DELETE handler does cleanup
-    // as a safety net (also handles parent-deletion case)
-    lv_obj_t* backdrop = picker_backdrop_;
-    picker_backdrop_ = nullptr;
-    s_active_picker_ = nullptr;
-
-    if (lv_obj_is_valid(backdrop)) {
-        helix::ui::safe_delete_deferred(backdrop);
-    }
-
-    spdlog::debug("[FanWidget] Fan picker dismissed");
+    spdlog::debug("[FanWidget] Fan picker built with {} fans", fans.size());
 }
 
 // Static callbacks
@@ -466,15 +378,3 @@ void FanWidget::fan_widget_clicked_cb(lv_event_t* e) {
     }
     LVGL_SAFE_EVENT_CB_END();
 }
-
-void FanWidget::fan_picker_backdrop_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FanWidget] fan_picker_backdrop_cb");
-    (void)e;
-    if (s_active_picker_) {
-        s_active_picker_->dismiss_fan_picker();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-// Static instance for picker callbacks
-FanWidget* FanWidget::s_active_picker_ = nullptr;

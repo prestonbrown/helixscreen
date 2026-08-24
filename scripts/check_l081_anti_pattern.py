@@ -71,8 +71,13 @@ from typing import Iterable
 # fires on either (it lives inside LifetimeToken::expired() itself); the lint
 # previously only matched `.expired()`, letting optional/shared_ptr<Token>
 # callsites in AfcConfigManager etc. evade gating until telemetry surfaced them.
+# `expired_no_lvgl()` is the audited-callsite spelling (see
+# include/async_lifetime_guard.h). It skips the *runtime* report, so this
+# static gate is the only thing left watching those sites — match it here or
+# renaming a call becomes a way to opt out of both checks at once.
 EXPIRED_CHECK_RE = re.compile(
-    r'\bif\s*\([^)]*\b(?P<varname>[a-zA-Z_]\w*)\s*(?:\.|->)\s*expired\s*\(\)[^)]*\)'
+    r'\bif\s*\([^)]*\b(?P<varname>[a-zA-Z_]\w*)\s*(?:\.|->)\s*'
+    r'expired(?:_no_lvgl)?\s*\(\)[^)]*\)'
 )
 
 # `ThumbnailLoadContext::is_valid()` is `LifetimeToken::expired()` wearing a
@@ -258,7 +263,9 @@ def is_only_return(line: str) -> bool:
 def trailing_after_paren(line: str) -> str:
     """Return whatever follows the closing `)` of the if-condition on the same line."""
     # naive: find first ')' after 'expired()' — fine for the codebase's style
-    idx = line.find('expired()')
+    idx = line.find('expired_no_lvgl()')
+    if idx < 0:
+        idx = line.find('expired()')
     if idx < 0:
         return ''
     rest = line[idx:]

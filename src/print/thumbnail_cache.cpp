@@ -612,7 +612,7 @@ ThumbnailCache::ErrorCallback ThumbnailCache::on_main_err(ErrorCallback cb) {
     };
 }
 
-void ThumbnailCache::fetch(MoonrakerAPI* api, const std::string& relative_path,
+void ThumbnailCache::fetch(IMoonrakerAPI* api, const std::string& relative_path,
                            SuccessCallback on_success, ErrorCallback on_error) {
     // Marshal once, at the boundary — see on_main() for why per-path wrapping
     // does not hold. Everything below may now deliver from any thread.
@@ -724,6 +724,20 @@ std::string ThumbnailCache::save_raw_png(const std::string& source_identifier,
         spdlog::warn("[ThumbnailCache] Invalid PNG magic bytes in save_raw_png");
         return "";
     }
+
+#if defined(HELIX_PLATFORM_ESP32)
+    // No disk-cache materialization on ESP32 (Task 10 R3 hard constraint).
+    // This path is reachable ONLY via the gcode-header thumbnail-extraction
+    // fallback (ui_panel_print_select.cpp), which is itself desktop-shaped
+    // and awaiting Task 11's PSRAM-based redesign — until then, refuse to
+    // write and let the existing empty-return handling there degrade
+    // gracefully ("Failed to cache extracted thumbnail for ..." + skip), the
+    // same fallback contract every other failure branch in this function
+    // already uses.
+    spdlog::debug("[ThumbnailCache] save_raw_png: no local cache on this platform ({})",
+                  source_identifier);
+    return "";
+#endif
 
     // Check disk pressure before saving
     if (!is_caching_allowed()) {
@@ -906,7 +920,7 @@ std::string ThumbnailCache::get_if_optimized(const std::string& relative_path,
     return bin_path;
 }
 
-void ThumbnailCache::fetch_optimized(MoonrakerAPI* api, const std::string& relative_path,
+void ThumbnailCache::fetch_optimized(IMoonrakerAPI* api, const std::string& relative_path,
                                      const helix::ThumbnailTarget& target,
                                      SuccessCallback on_success, ErrorCallback on_error,
                                      time_t source_modified) {

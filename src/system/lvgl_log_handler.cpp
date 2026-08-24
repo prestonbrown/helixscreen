@@ -300,9 +300,13 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
 
     // Downgrade translation warnings to debug level
     // Expected when languages have incomplete translations - not actionable at runtime
+    // "language is not found" is the no-pack-registered fallback, which English
+    // takes on every boot by design (our tags ARE English — see
+    // helix::ui::ensure_translation_loaded). LVGL emits it once per language.
     bool is_translation_warning = (level == LV_LOG_LEVEL_WARN &&
                                    (msg.find("language is missing from tag") != std::string::npos ||
-                                    msg.find("tag is not found") != std::string::npos));
+                                    msg.find("tag is not found") != std::string::npos ||
+                                    msg.find("language is not found") != std::string::npos));
 
     // Dedupe high-frequency retry messages (broken image assets, etc.) — first
     // occurrence at original level, repeats at debug. Decided up-front so the

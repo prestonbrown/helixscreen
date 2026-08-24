@@ -7,7 +7,7 @@
 #include "ui_update_queue.h"
 
 #include "device_display_name.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -43,7 +43,7 @@ std::string build_macro_gcode(const std::string& macro_name, const MacroParamRes
     return gcode;
 }
 
-void execute_macro_gcode(MoonrakerAPI* api, const std::string& macro_name,
+void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                          const MacroParamResult& result, const char* caller_tag) {
     if (!api) {
         spdlog::warn("{} No API available — cannot execute macro", caller_tag);
@@ -72,7 +72,7 @@ void execute_macro_gcode(MoonrakerAPI* api, const std::string& macro_name,
                 ToastManager::instance().show(ToastSeverity::ERROR, msg.c_str(), 4000);
             });
         },
-        MoonrakerAPI::MACRO_TIMEOUT_MS);
+        IMoonrakerAPI::MACRO_TIMEOUT_MS);
 }
 
 bool is_dangerous_macro(const std::string& name) {

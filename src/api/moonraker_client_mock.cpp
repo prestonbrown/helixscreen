@@ -6,14 +6,17 @@
 #include "ui_update_queue.h"
 
 #include "../tests/mocks/mock_printer_state.h"
+#include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "gcode_parser.h"
 #include "macro_param_cache.h"
 #include "moonraker_client_mock_internal.h"
 #include "power_device_state.h"
 #include "printer_state.h"
+#include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "sensor_state.h"
+#include "shaper_response.h"
 
 #include <spdlog/spdlog.h>
 
@@ -35,21 +38,21 @@ using namespace helix;
 // Spreads objects in a grid inset from the edges of the mock bed, matching the
 // `center` + `polygon` shape Moonraker reports for EXCLUDE_OBJECT_DEFINE.
 static json mock_object_entry(const std::string& name, int index, int total) {
-    constexpr float kInset = 20.0f; // keep the plate margin visible in the map
+    constexpr float INSET = 20.0f; // keep the plate margin visible in the map
     const float bed_w =
         static_cast<float>(mock_internal::MOCK_BED_X_MAX - mock_internal::MOCK_BED_X_MIN) -
-        2.0f * kInset;
+        2.0f * INSET;
     const float bed_h =
         static_cast<float>(mock_internal::MOCK_BED_Y_MAX - mock_internal::MOCK_BED_Y_MIN) -
-        2.0f * kInset;
+        2.0f * INSET;
     int cols = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(std::max(1, total)))));
     int rows = std::max(1, (total + cols - 1) / cols);
     int row = index / cols, col = index % cols;
     float cell_w = bed_w / static_cast<float>(cols);
     float cell_h = bed_h / static_cast<float>(rows);
-    float cx = static_cast<float>(mock_internal::MOCK_BED_X_MIN) + kInset +
+    float cx = static_cast<float>(mock_internal::MOCK_BED_X_MIN) + INSET +
                (static_cast<float>(col) + 0.5f) * cell_w;
-    float cy = static_cast<float>(mock_internal::MOCK_BED_Y_MIN) + kInset +
+    float cy = static_cast<float>(mock_internal::MOCK_BED_Y_MIN) + INSET +
                (static_cast<float>(row) + 0.5f) * cell_h;
     float hw = cell_w * 0.35f, hh = cell_h * 0.35f;
     return {{"name", name},
@@ -63,18 +66,18 @@ namespace {
 /// Slicer-style plate names for HELIX_MOCK_EXCLUDE_OBJECTS. Real slicers emit
 /// `<model>_id_<n>_copy_<n>`, so these are long enough to exercise label
 /// truncation/wrapping in the side list rather than flattering it.
-constexpr const char* kMockExcludeObjectNames[] = {
+constexpr const char* MOCK_EXCLUDE_OBJECT_NAMES[] = {
     "Benchy_id_0_copy_0",        "Calibration_Cube_id_1_copy_0", "Bracket_Left_id_2_copy_0",
     "Bracket_Right_id_3_copy_0", "Gear_Housing_id_4_copy_0",     "Vase_id_5_copy_0",
     "Spool_Holder_id_6_copy_0",  "Cable_Clip_id_7_copy_0",       "Hinge_Pin_id_8_copy_0",
     "Knob_id_9_copy_0",          "Fan_Duct_id_10_copy_0",        "Strain_Relief_id_11_copy_0"};
 
-constexpr int kMaxMockExcludeObjectCount =
-    static_cast<int>(sizeof(kMockExcludeObjectNames) / sizeof(kMockExcludeObjectNames[0]));
+constexpr int MAX_MOCK_EXCLUDE_OBJECT_COUNT =
+    static_cast<int>(sizeof(MOCK_EXCLUDE_OBJECT_NAMES) / sizeof(MOCK_EXCLUDE_OBJECT_NAMES[0]));
 
 /// Objects published for a bare `HELIX_MOCK_EXCLUDE_OBJECTS=1`. Enough to fill a
 /// side list past one screen on the short landscape panel without being absurd.
-constexpr int kDefaultMockExcludeObjectCount = 5;
+constexpr int DEFAULT_MOCK_EXCLUDE_OBJECT_COUNT = 5;
 
 } // namespace
 
@@ -134,9 +137,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         // object" — one object would leave the button hidden, which is the very
         // thing the flag exists to defeat.
         if (requested <= 1) {
-            requested = kDefaultMockExcludeObjectCount;
+            requested = DEFAULT_MOCK_EXCLUDE_OBJECT_COUNT;
         }
-        mock_exclude_object_count_ = std::clamp(requested, 2, kMaxMockExcludeObjectCount);
+        mock_exclude_object_count_ = std::clamp(requested, 2, MAX_MOCK_EXCLUDE_OBJECT_COUNT);
         spdlog::info("[MoonrakerClientMock] HELIX_MOCK_EXCLUDE_OBJECTS={} — will publish {} "
                      "synthetic exclude_object entries at print start",
                      exclude_env, mock_exclude_object_count_);
@@ -155,6 +158,156 @@ void MoonrakerClientMock::set_simulation_speedup(double factor) {
 
 double MoonrakerClientMock::get_simulation_speedup() const {
     return speedup_factor_.load();
+}
+
+bool MoonrakerClientMock::arm_event_replay(const std::string& json_path) {
+    replay_events_.clear();
+    replay_next_ = 0;
+
+    std::ifstream f(json_path);
+    if (!f.good()) {
+        spdlog::warn("[Mock Replay] Cannot open replay script '{}'", json_path);
+        return false;
+    }
+    try {
+        json script = json::parse(f);
+        for (const auto& ev : script.at("events")) {
+            ReplayEvent re;
+            re.t_ms = ev.value("t", 0);
+            if (ev.value("type", "") == "gcode_response") {
+                re.is_gcode = true;
+                re.line = ev.at("line").get<std::string>();
+            } else {
+                re.object = ev.at("object").get<std::string>();
+                re.payload = ev.at("payload");
+            }
+            replay_events_.push_back(std::move(re));
+        }
+        // Optional: serve configfile.settings.bed_mesh.probe_count so the
+        // collector's denominator query answers like the real printer did.
+        if (script.contains("config_probe_count") && script["config_probe_count"].is_array() &&
+            script["config_probe_count"].size() == 2) {
+            set_config_bed_mesh_probe_count(script["config_probe_count"][0].get<int>(),
+                                            script["config_probe_count"][1].get<int>());
+        }
+    } catch (const std::exception& e) {
+        replay_events_.clear();
+        spdlog::warn("[Mock Replay] Failed to parse '{}': {}", json_path, e.what());
+        return false;
+    }
+
+    if (replay_events_.empty()) {
+        spdlog::warn("[Mock Replay] Script '{}' carries no events", json_path);
+        return false;
+    }
+    spdlog::info("[Mock Replay] Armed {} events from '{}' (span {:.0f}s)", replay_events_.size(),
+                 json_path, static_cast<double>(replay_events_.back().t_ms) / 1000.0);
+    return true;
+}
+
+namespace {
+/// Per-persona travel bounds reported as toolhead axis_maximum. The K1
+/// persona carries the real values from a K1C capture (printer.cfg
+/// position_max 229/227/255) so printer detection scores it as the Creality
+/// it is; every other persona keeps the long-standing generic volume and
+/// detects exactly as before.
+std::array<double, 3> persona_axis_maximum(MoonrakerClientMock::PrinterType type) {
+    switch (type) {
+    case MoonrakerClientMock::PrinterType::CREALITY_K1:
+        return {229.0, 227.0, 255.0};
+    default:
+        return {235.0, 235.0, 250.0};
+    }
+}
+} // namespace
+
+void MoonrakerClientMock::start_replay_timer() {
+    if (replay_events_.empty() || replay_timer_ != nullptr) {
+        return;
+    }
+    // Grace before the first event: the app re-dispatches its cached status
+    // snapshot after subsystem init (~1.4s in), which would otherwise land
+    // after the script's first print_stats edge and stamp standby over it.
+    replay_start_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(2500);
+    spdlog::info("[Mock Replay] Starting: {} events at {:.0f}x speedup", replay_events_.size(),
+                 get_simulation_speedup());
+    replay_timer_ = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<MoonrakerClientMock*>(lv_timer_get_user_data(t));
+            self->pump_replay();
+        },
+        20, this);
+}
+
+void MoonrakerClientMock::pump_replay() {
+    const double speed = std::max(1.0, get_simulation_speedup());
+    const auto now = std::chrono::steady_clock::now();
+    if (now < replay_start_) {
+        return;
+    }
+    const auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - replay_start_).count();
+    const uint64_t due_ms = static_cast<uint64_t>(static_cast<double>(elapsed_ms) * speed);
+
+    while (replay_next_ < replay_events_.size() && replay_events_[replay_next_].t_ms <= due_ms) {
+        fire_replay_event(replay_events_[replay_next_]);
+        ++replay_next_;
+    }
+    if (replay_next_ >= replay_events_.size() && replay_timer_ != nullptr) {
+        spdlog::info("[Mock Replay] Finished: {} events fired", replay_events_.size());
+        lv_timer_t* timer = replay_timer_;
+        replay_timer_ = nullptr;
+        lv_timer_delete(timer);
+    }
+}
+
+void MoonrakerClientMock::fire_replay_event(const ReplayEvent& event) {
+    if (event.is_gcode) {
+        json msg = {{"method", "notify_gcode_response"}, {"params", {event.line}}};
+        dispatch_method_callback("notify_gcode_response", msg);
+        return;
+    }
+
+    // Keep the mock's own simulators in step with the capture so their later
+    // pushes (idle-timeout steppers, cooldown transitions, snapshots rebuilt
+    // from internal state) agree with the script instead of fighting it.
+    if (event.object == "print_stats" && event.payload.contains("state")) {
+        const std::string state = event.payload.value("state", "");
+        int mapped = 0; // standby
+        if (state == "printing") {
+            mapped = 1;
+        } else if (state == "paused") {
+            mapped = 2;
+        } else if (state == "complete") {
+            mapped = 3;
+        } else if (state == "cancelled") {
+            mapped = 4;
+        } else if (state == "error") {
+            mapped = 5;
+        }
+        print_state_.store(mapped);
+        if (event.payload.contains("filename") && event.payload["filename"].is_string()) {
+            std::lock_guard<std::mutex> lock(print_mutex_);
+            print_filename_ = event.payload["filename"].get<std::string>();
+        }
+    } else if (event.object == "extruder") {
+        if (event.payload.contains("target") && event.payload["target"].is_number()) {
+            extruder_target_.store(event.payload["target"].get<double>());
+        }
+        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
+            extruder_temp_.store(event.payload["temperature"].get<double>());
+        }
+    } else if (event.object == "heater_bed") {
+        if (event.payload.contains("target") && event.payload["target"].is_number()) {
+            bed_target_.store(event.payload["target"].get<double>());
+        }
+        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
+            bed_temp_.store(event.payload["temperature"].get<double>());
+        }
+    }
+
+    json status = {{event.object, event.payload}};
+    dispatch_status_update(status);
 }
 
 void MoonrakerClientMock::reset_idle_timeout() {
@@ -179,6 +332,12 @@ int MoonrakerClientMock::get_total_layers() const {
 }
 
 bool MoonrakerClientMock::has_chamber_sensor() const {
+    // The simulation thread calls this every iteration while discover_printer()
+    // is still reassigning discovery_.sensors() on the calling thread — the same
+    // heap-use-after-free the writers below guard against. Neither caller (here
+    // and dispatch_historical_temperatures()) holds the lock, so taking it here
+    // cannot self-deadlock.
+    std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
     for (const auto& s : discovery_.sensors()) {
         if (s == "temperature_sensor chamber") {
             return true;
@@ -201,6 +360,9 @@ void MoonrakerClientMock::update_cached_chamber_key() {
     }
 }
 
+// PRECONDITION: caller holds discovery_mutex_. Reached only from
+// populate_capabilities() and rebuild_hardware_from_lists(), both of which take it.
+// Locking here instead would self-deadlock — discovery_mutex_ is not recursive.
 void MoonrakerClientMock::override_chamber_heater(const std::string& heater_obj) {
     auto& heaters = discovery_.heaters();
     heaters.erase(
@@ -253,19 +415,28 @@ MoonrakerClientMock::~MoonrakerClientMock() {
     // use-after-free when a subsequent test calls process_lvgl().
     // Timer callbacks self-delete via lv_timer_delete, so some tracked pointers
     // may be stale. Verify each exists in LVGL's timer list before deleting.
+    // The payload deleter runs either way when the timer is still armed: the
+    // callback that would have freed it will never fire.
     if (lv_is_initialized()) {
-        for (auto* tracked : calibration_timers_) {
+        if (replay_timer_ != nullptr) {
+            lv_timer_delete(replay_timer_);
+            replay_timer_ = nullptr;
+        }
+        for (auto& tracked : calibration_timers_) {
             bool still_alive = false;
             lv_timer_t* t = lv_timer_get_next(nullptr);
             while (t) {
-                if (t == tracked) {
+                if (t == tracked.timer) {
                     still_alive = true;
                     break;
                 }
                 t = lv_timer_get_next(t);
             }
             if (still_alive) {
-                lv_timer_delete(tracked);
+                if (tracked.free_payload) {
+                    tracked.free_payload();
+                }
+                lv_timer_delete(tracked.timer);
             }
         }
     }
@@ -275,6 +446,12 @@ MoonrakerClientMock::~MoonrakerClientMock() {
 int MoonrakerClientMock::connect(const char* url, std::function<void()> on_connected,
                                  [[maybe_unused]] std::function<void()> on_disconnected) {
     spdlog::debug("[MoonrakerClientMock] Simulating connection to: {}", url ? url : "(null)");
+
+    // Record the URL exactly as the real connect() does. Without this,
+    // get_last_url() stays empty for the whole life of a mock session and
+    // anything asking which host we are talking to -- is_local_moonraker(),
+    // telemetry topology -- silently reads "no connection".
+    set_last_url(url ? url : "");
 
     // Simulate connection state change (same as real client)
     set_connection_state(ConnectionState::CONNECTING);
@@ -315,6 +492,13 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
                                      : RuntimeConfig::DEFAULT_TEST_FILE;
         spdlog::info("[MoonrakerClientMock] Auto-starting print simulation with '{}'", print_file);
         start_print_internal(print_file);
+    }
+
+    // Walk a captured print-start sequence through the real dispatch paths
+    // (HELIX_MOCK_REPLAY). Runs after the initial state so the replay's
+    // print_stats edge arms the collector the same way a live print would.
+    if (!replay_events_.empty()) {
+        start_replay_timer();
     }
 
     // Immediately invoke connection callback
@@ -381,6 +565,10 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
 }
 
 void MoonrakerClientMock::populate_capabilities() {
+    // Held for the whole body: the simulation thread may already be running (connect()
+    // starts it before discover_printer() calls this) and iterates these same lists.
+    std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+
     // Create mock Klipper object list for capabilities parsing
     json mock_objects = json::array();
 
@@ -606,9 +794,7 @@ void MoonrakerClientMock::populate_capabilities() {
     // Mock accelerometer configuration for input shaper wizard testing
     // Real Klipper doesn't expose accelerometers in objects list (no get_status()),
     // so we simulate what parse_config_keys() would find from configfile.config
-    json mock_config;
-    mock_config["adxl345"] = json::object();
-    mock_config["resonance_tester"] = json::object();
+    json mock_config = mock_internal::get_mock_accel_config();
     // Bed screws — same story as the accelerometers: screws_tilt_adjust has no
     // get_status(), so Klipper never lists it and the capability is detected
     // from configfile.config. Without this the whole mock screws-tilt state
@@ -636,10 +822,24 @@ void MoonrakerClientMock::populate_capabilities() {
     mock_config["printer"] = {{"kinematics", mock_kinematics}};
     // Add gcode_macro entries for param detection (shared with configfile.config response)
     mock_config.merge_patch(mock_internal::get_mock_gcode_macro_config());
+    // Probe section — shared with the configfile.config query/subscribe responses
+    // so all three payloads describe the same probe.
+    mock_config.merge_patch(mock_internal::get_mock_probe_config());
+    // Stepper travel limits, matching the configfile.settings the query and
+    // subscribe handlers report. The real discovery sequence derives the build
+    // volume from these before detection runs, so the mock has to carry them or
+    // --test detects against an empty volume the live path no longer sees.
+    mock_config["stepper_x"] = {{"position_min", mock_internal::MOCK_BED_X_MIN},
+                                {"position_max", mock_internal::MOCK_BED_X_MAX}};
+    mock_config["stepper_y"] = {{"position_min", mock_internal::MOCK_BED_Y_MIN},
+                                {"position_max", mock_internal::MOCK_BED_Y_MAX}};
+    mock_config["stepper_z"] = {{"position_min", 0.0},
+                                {"position_max", mock_internal::MOCK_BED_Z_MAX}};
 
     std::unordered_set<std::string> macros_snapshot;
     discovery_.modify_hardware([&](PrinterDiscovery& hw) {
         hw.parse_config_keys(mock_config);
+        hw.parse_build_volume(mock_config);
         macros_snapshot = hw.macros();
     });
 
@@ -681,6 +881,10 @@ void MoonrakerClientMock::populate_capabilities() {
 }
 
 void MoonrakerClientMock::rebuild_hardware_from_lists() {
+    // See populate_capabilities(). The set_* helpers release their own lock before
+    // calling this, so taking it here is a fresh acquisition, not a nested one.
+    std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+
     // Lightweight re-parse: build objects array from current discovery lists only.
     // Used by test helpers (set_heaters, set_fans, etc.) that need to update hardware()
     // without adding hardcoded common objects from populate_capabilities().
@@ -746,6 +950,16 @@ void MoonrakerClientMock::discover_printer(
 
     // Populate hardware based on printer type (may have already been done in constructor)
     populate_hardware();
+
+    // This shortcut never queries configfile, so the accelerometer seeding the
+    // real sequence does in moonraker_discovery_sequence.cpp is missing here.
+    // Without it AccelSensorManager stays empty under --test and Settings >
+    // Sensors shows no accelerometer on a mock printer that reports one.
+    // Main thread only — discover_from_config() sets LVGL subjects.
+    json accel_config = mock_internal::get_mock_accel_config();
+    helix::ui::queue_update([accel_config]() {
+        helix::sensors::AccelSensorManager::instance().discover_from_config(accel_config);
+    });
 
     // Generate synthetic bed mesh data (may have already been done in constructor)
     generate_mock_bed_mesh();
@@ -855,6 +1069,21 @@ void MoonrakerClientMock::discover_printer(
             spdlog::debug("[MoonrakerClientMock] Invoking early hardware discovery callback");
             discovery_.invoke_hardware_discovered();
 
+            // Seed probe z_offset from the mock configfile, mirroring Step 4 of
+            // MoonrakerDiscoverySequence. This shortcut of a discover_printer()
+            // never queries configfile, so without it the whole configfile→probe
+            // path — the one that rescues probes whose runtime status reports a
+            // null z_offset — is unreachable under --test.
+            //
+            // Queued, not called inline, for ordering: ProbeSensorManager's
+            // sensor list is populated by the hardware-discovered callback just
+            // above, which Application also queues. Seeding runs on a sensor list
+            // that does not exist yet if it jumps the queue. FIFO puts it second.
+            helix::ui::queue_update("MoonrakerClientMock::probe_config_seed", []() {
+                helix::sensors::ProbeSensorManager::instance().discover_from_config(
+                    mock_internal::get_mock_probe_config());
+            });
+
             // Invoke discovery complete callback with hardware (for PrinterState binding)
             discovery_.invoke_discovery_complete();
 
@@ -880,6 +1109,10 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
 }
 
 void MoonrakerClientMock::populate_hardware() {
+    // See populate_capabilities(). The clear()/assign below are exactly the writes
+    // that freed string buffers out from under the simulation thread.
+    std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+
     // Clear existing data (in discovery sequence)
     discovery_.heaters().clear();
     discovery_.sensors().clear();
@@ -1300,9 +1533,15 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
 RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
                                             std::function<void(const json&)> success_cb,
                                             std::function<void(const MoonrakerError&)> error_cb,
-                                            uint32_t timeout_ms, bool silent) {
+                                            uint32_t timeout_ms, bool silent,
+                                            std::optional<rpc_error_policy::CallerIntent> intent) {
     spdlog::trace("[MoonrakerClientMock] Mock send_jsonrpc: {} (with success/error callbacks)",
                   method);
+
+    // Same fallback inference MoonrakerRequestTracker::send() applies, so a
+    // handler asking rpc_error_policy::decide() gets the hardware answer.
+    current_send_intent_ =
+        intent.value_or(rpc_error_policy::CallerIntent{silent, error_cb != nullptr});
 
     // Capture for test inspection — used by tests verifying that specific callers pass
     // non-default timeout/silent values (e.g. exclude_object which must be silent+long).
@@ -1934,7 +2173,7 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
             },
             500, sim);                       // 500ms between cycles for quick mock
         lv_timer_set_repeat_count(timer, 6); // 5 progress + 1 result
-        calibration_timers_.push_back(timer);
+        calibration_timers_.push_back({timer, [sim] { delete sim; }});
 
         return 0; // Success - results come asynchronously via gcode_response
     }
@@ -2002,7 +2241,7 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
             },
             500, sim);
         lv_timer_set_repeat_count(timer, total_phases + 1);
-        calibration_timers_.push_back(timer);
+        calibration_timers_.push_back({timer, [sim] { delete sim; }});
 
         return 0; // Success - results come asynchronously via gcode_response
     }
@@ -2901,7 +3140,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
         names.reserve(static_cast<size_t>(total));
         json objects_array = json::array();
         for (int i = 0; i < total; ++i) {
-            names.emplace_back(kMockExcludeObjectNames[i]);
+            names.emplace_back(MOCK_EXCLUDE_OBJECT_NAMES[i]);
             objects_array.push_back(mock_object_entry(names.back(), i, total));
         }
 
@@ -3349,7 +3588,9 @@ void MoonrakerClientMock::dispatch_initial_state() {
          {{"position", {x, y, z, 0.0}},
           {"homed_axes", homed},
           {"axis_minimum", {0.0, 0.0, 0.0, 0.0}},
-          {"axis_maximum", {235.0, 235.0, 250.0, 0.0}},
+          {"axis_maximum",
+           {persona_axis_maximum(printer_type_)[0], persona_axis_maximum(printer_type_)[1],
+            persona_axis_maximum(printer_type_)[2], 0.0}},
           {"kinematics", discovery_.hardware().kinematics()}}},
         {"gcode_move",
          {{"gcode_position", {x, y, z, 0.0}}, // Commanded position (same as toolhead in mock)
@@ -3962,7 +4203,8 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             // Check idle timeout (only when not printing)
             auto now = std::chrono::steady_clock::now();
             auto elapsed =
-                std::chrono::duration_cast<std::chrono::seconds>(now - last_activity_time_).count();
+                std::chrono::duration_cast<std::chrono::seconds>(now - last_activity_time_.load())
+                    .count();
 
             if (!idle_timeout_triggered_.load() &&
                 elapsed >= static_cast<int64_t>(idle_timeout_seconds_.load())) {
@@ -4129,7 +4371,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"position", {x, y, z, 0.0}},
               {"homed_axes", homed},
               {"axis_minimum", {0.0, 0.0, 0.0, 0.0}},
-              {"axis_maximum", {235.0, 235.0, 250.0, 0.0}},
+              {"axis_maximum",
+               {persona_axis_maximum(printer_type_)[0], persona_axis_maximum(printer_type_)[1],
+                persona_axis_maximum(printer_type_)[2], 0.0}},
               {"kinematics", discovery_.hardware().kinematics()}}},
             {"gcode_move",
              {{"gcode_position", {x, y, z, 0.0}}, // Commanded position (same as toolhead in mock)
@@ -4228,10 +4472,19 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             status_obj["webhooks"] = {{"state", state_str}};
         }
 
+        // Snapshot under the lock rather than iterating discovery_ directly: the
+        // list can be reassigned on the main thread mid-iteration. Copy is cheap
+        // (a handful of short names) and keeps the lock off the JSON building below.
+        std::vector<std::string> fans_snapshot;
+        {
+            std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+            fans_snapshot = discovery_.fans();
+        }
+
         // Auto-controlled heater_fans follow extruder temperature, matching
         // Klipper behavior. Apply BEFORE the explicit-override loop so users
         // can still pin a fan speed via M106 for testing.
-        for (const auto& fan_name : discovery_.fans()) {
+        for (const auto& fan_name : fans_snapshot) {
             if (fan_name.rfind("heater_fan ", 0) == 0) {
                 status_obj[fan_name] = {{"speed", hotend_fan_speed}};
             }
@@ -4291,8 +4544,15 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 {"current_object", current_obj.empty() ? json(nullptr) : json(current_obj)}};
         }
 
+        // Snapshot under the lock — same reasoning as fans_snapshot above.
+        std::vector<std::string> sensors_snapshot;
+        {
+            std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+            sensors_snapshot = discovery_.sensors();
+        }
+
         // Add temperature sensor data for all sensors in the discovery sensors list
-        for (const auto& s : discovery_.sensors()) {
+        for (const auto& s : sensors_snapshot) {
             if (s.rfind("temperature_sensor ", 0) == 0) {
                 std::string sensor_name = s.substr(19);
                 double temp = 25.0;
@@ -4543,6 +4803,24 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
     std::mt19937 rng(42 + static_cast<unsigned>(axis)); // Deterministic per-axis
     std::uniform_real_distribution<float> noise_dist(0.8f, 1.2f);
 
+    // Frequency bins the PSD rows (and the shaper curves below) are sampled at
+    std::vector<double> bins;
+    for (float freq = 5.0f; freq <= 200.0f; freq += 4.0f) {
+        bins.push_back(freq);
+    }
+
+    // Real transfer curves per shaper (the same math the firmware uses to
+    // write these columns), so the shaped-PSD overlays and any client-side
+    // re-scoring of the mock data see physically consistent notches rather
+    // than a toy quadratic approximation.
+    std::vector<std::vector<double>> shaper_curves;
+    shaper_curves.reserve(num_shapers);
+    for (int i = 0; i < num_shapers; ++i) {
+        shaper_curves.push_back(helix::calibration::shaper_transfer_curve(
+            shapers[i].name, shapers[i].freq, helix::calibration::SHAPER_DEFAULT_DAMPING_RATIO,
+            bins));
+    }
+
     // Resonance peak parameters — should agree with optimal shaper frequencies above
     const float peak_freq = (axis == 'x' || axis == 'X') ? 53.8f : 48.2f;
     const float peak_width = 8.0f; // Hz bandwidth of resonance
@@ -4550,7 +4828,9 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
     const float noise_floor = 5e-4f;
 
     // Generate ~50 bins from 5 to 200 Hz (step ~4 Hz)
-    for (float freq = 5.0f; freq <= 200.0f; freq += 4.0f) {
+    for (size_t bin = 0; bin < bins.size(); ++bin) {
+        const float freq = static_cast<float>(bins[bin]);
+
         // Raw PSD: noise floor + Lorentzian resonance peak
         float df = freq - peak_freq;
         float resonance = peak_amp / (1.0f + (df * df) / (peak_width * peak_width));
@@ -4573,21 +4853,13 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
         ofs << std::scientific << std::setprecision(3) << freq << "," << psd_x << "," << psd_y
             << "," << psd_z << "," << psd_xyz;
 
-        // Shaper response curves: attenuate near their fitted frequencies
+        // Write transfer function coefficients (0-1), matching real Klipper CSV
+        // format. The CSV parser multiplies by raw PSD to get shaped PSD for
+        // charting. Shapers without a ported curve degrade to a flat passband.
         for (int i = 0; i < num_shapers; ++i) {
-            float shaper_freq_val = shapers[i].freq;
-            // Simple notch-filter model: strong attenuation near fitted freq
-            float dist = std::abs(freq - shaper_freq_val);
-            float attenuation;
-            if (dist < 15.0f) {
-                // Near the notch: strong attenuation
-                attenuation = 0.05f + 0.95f * (dist / 15.0f) * (dist / 15.0f);
-            } else {
-                attenuation = 1.0f;
-            }
-            // Write transfer function coefficient (0-1), matching real Klipper CSV format.
-            // The CSV parser multiplies by raw PSD to get shaped PSD for charting.
-            ofs << "," << attenuation;
+            const double attenuation =
+                (bin < shaper_curves[i].size()) ? shaper_curves[i][bin] : 1.0;
+            ofs << "," << std::fixed << std::setprecision(3) << attenuation;
         }
         ofs << "\n";
     }
@@ -4598,127 +4870,142 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
 
 } // anonymous namespace
 
+json MoonrakerClientMock::build_input_shaper_config() const {
+    char freq_x[16];
+    char freq_y[16];
+    snprintf(freq_x, sizeof(freq_x), "%.1f", shaper_freq_x_);
+    snprintf(freq_y, sizeof(freq_y), "%.1f", shaper_freq_y_);
+    return json{
+        {"shaper_type_x", shaper_type_x_}, {"shaper_freq_x", freq_x},
+        {"shaper_type_y", shaper_type_y_}, {"shaper_freq_y", freq_y},
+        {"damping_ratio_x", "0.1"},        {"damping_ratio_y", "0.1"},
+    };
+}
+
 void MoonrakerClientMock::dispatch_shaper_calibrate_response(char axis) {
     // Timer-based dispatch for realistic progress animation
     // Matches PID_CALIBRATE timer pattern (line 1389)
     char axis_lower = static_cast<char>(std::tolower(static_cast<unsigned char>(axis)));
 
+    // Build the whole console transcript up front, then play it back one line
+    // per tick. Every line here is the wording Klipper and Kalico actually
+    // emit — an invented marker line would let the collector's parsing pass in
+    // tests while failing against real firmware.
+    std::vector<std::string> lines;
+    char buf[256];
+
+    // Phase 1: frequency sweep across the configured [resonance_tester] range,
+    // ending exactly on max_freq the way a real sweep does.
+    constexpr int SWEEP_STEPS = 20;
+    const double min_freq = resonance_min_freq_;
+    const double max_freq = resonance_max_freq_;
+    for (int i = 0; i < SWEEP_STEPS; ++i) {
+        const double freq =
+            min_freq + (max_freq - min_freq) * i / static_cast<double>(SWEEP_STEPS - 1);
+        snprintf(buf, sizeof(buf), "Testing frequency %.0f Hz", freq);
+        lines.emplace_back(buf);
+    }
+
+    // Phase 2: analysis heartbeats, the sweep-finished marker, then one fit +
+    // max_accel per shaper. Creality's K1C build prints "Wait for calculations.."
+    // every ~5s through its (compressed here) analysis window before the
+    // "Calculating the best" line; the collector treats the repeats as liveness
+    // heartbeats, not new events. Ten lines give the phase ~1s of transcript on
+    // its own so the panel's spinner + elapsed-seconds label has a window to
+    // be observed in.
+    for (int i = 0; i < 10; ++i) {
+        lines.emplace_back("Wait for calculations..");
+    }
+    snprintf(buf, sizeof(buf), "Calculating the best input shaper parameters for %c axis",
+             axis_lower);
+    lines.emplace_back(buf);
+
+    struct ShaperData {
+        const char* type;
+        float freq;
+        float vibrations;
+        float smoothing;
+        int max_accel;
+    };
+    static const ShaperData shapers[] = {
+        {"zv", 59.0f, 5.2f, 0.045f, 13400},      {"mzv", 53.8f, 1.6f, 0.130f, 4000},
+        {"ei", 56.2f, 0.7f, 0.120f, 4600},       {"2hump_ei", 71.8f, 0.0f, 0.076f, 8800},
+        {"3hump_ei", 89.6f, 0.0f, 0.076f, 8800},
+    };
+    for (const auto& sh : shapers) {
+        snprintf(buf, sizeof(buf),
+                 "Fitted shaper '%s' frequency = %.1f Hz (vibrations = %.1f%%, "
+                 "smoothing ~= %.3f)",
+                 sh.type, sh.freq, sh.vibrations, sh.smoothing);
+        lines.emplace_back(buf);
+        snprintf(buf, sizeof(buf),
+                 "To avoid too much smoothing with '%s' (scv: 25), suggested max_accel "
+                 "<= %d mm/sec^2",
+                 sh.type, sh.max_accel);
+        lines.emplace_back(buf);
+    }
+
+    // Phase 3: recommendation, then the CSV path that terminates the collector.
+    snprintf(buf, sizeof(buf), "Recommended shaper_type_%c = mzv, shaper_freq_%c = 53.8 Hz",
+             axis_lower, axis_lower);
+    lines.emplace_back(buf);
+    snprintf(buf, sizeof(buf),
+             "Shaper calibration data written to /tmp/calibration_data_%c_mock.csv file",
+             axis_lower);
+    const std::string csv_line(buf);
+
     struct ShaperSimState {
         MoonrakerClientMock* mock;
         char axis_lower;
-        int step;       // Overall step counter
-        int sweep_freq; // Current sweep frequency
+        std::vector<std::string> lines;
+        std::string csv_line;
+        size_t index;
     };
 
-    auto* sim = new ShaperSimState{this, axis_lower, 0, 5};
+    auto* sim = new ShaperSimState{this, axis_lower, std::move(lines), csv_line, 0};
+    const int total_steps = static_cast<int>(sim->lines.size()) + 1; // + the CSV line
 
-    // Total steps: 20 sweep (5-100 by 5) + ~15 calc lines + 2 final = ~37
-    // At 100ms per step = ~3.7 seconds total
     lv_timer_t* timer = lv_timer_create(
         [](lv_timer_t* t) {
             auto* s = static_cast<ShaperSimState*>(lv_timer_get_user_data(t));
-            char buf[256];
 
-            // Phase 1: Frequency sweep (steps 0-19)
-            if (s->sweep_freq <= 100) {
-                snprintf(buf, sizeof(buf), "Testing frequency %.2f Hz",
-                         static_cast<float>(s->sweep_freq));
-                s->mock->dispatch_gcode_response(buf);
-                s->sweep_freq += 5;
-                s->step++;
+            if (s->index < s->lines.size()) {
+                s->mock->dispatch_gcode_response(s->lines[s->index]);
+                s->index++;
                 return;
             }
 
-            // Phase 2: Fitted shapers with max_accel
-            // Steps 20+: shaper calculation lines
-            int calc_step = s->step - 20;
-
-            struct ShaperData {
-                const char* type;
-                float freq;
-                float vibrations;
-                float smoothing;
-                int max_accel;
-            };
-
-            static const ShaperData shapers[] = {
-                {"zv", 59.0f, 5.2f, 0.045f, 13400},      {"mzv", 53.8f, 1.6f, 0.130f, 4000},
-                {"ei", 56.2f, 0.7f, 0.120f, 4600},       {"2hump_ei", 71.8f, 0.0f, 0.076f, 8800},
-                {"3hump_ei", 89.6f, 0.0f, 0.076f, 8800},
-            };
-
-            // Each shaper has 3 lines: "Wait for calculations..", fitted, max_accel
-            // So calc_step 0-2 = zv, 3-5 = mzv, 6-8 = ei, 9-11 = 2hump, 12-14 = 3hump
-            int shaper_idx = calc_step / 3;
-            int sub_step = calc_step % 3;
-
-            if (shaper_idx < 5) {
-                const auto& sh = shapers[shaper_idx];
-                if (sub_step == 0) {
-                    s->mock->dispatch_gcode_response("Wait for calculations..");
-                } else if (sub_step == 1) {
-                    snprintf(buf, sizeof(buf),
-                             "Fitted shaper '%s' frequency = %.1f Hz (vibrations = %.1f%%, "
-                             "smoothing ~= %.3f)",
-                             sh.type, sh.freq, sh.vibrations, sh.smoothing);
-                    s->mock->dispatch_gcode_response(buf);
-                } else {
-                    snprintf(buf, sizeof(buf),
-                             "To avoid too much smoothing with '%s' (scv: 25), suggested max_accel "
-                             "<= %d mm/sec^2",
-                             sh.type, sh.max_accel);
-                    s->mock->dispatch_gcode_response(buf);
-                }
-                s->step++;
-                return;
+            // Write actual CSV file so frequency response chart has data.
+            // When shaper_csv_writable_ is false, simulate Klipper's /tmp
+            // output being unreadable (e.g. PrivateTmp) by removing any
+            // stale file at the path instead of writing it.
+            std::string csv_path =
+                std::string("/tmp/calibration_data_") + s->axis_lower + std::string("_mock.csv");
+            if (s->mock->shaper_csv_writable_) {
+                write_mock_shaper_csv(csv_path, s->axis_lower);
+            } else {
+                std::remove(csv_path.c_str());
             }
-
-            // Phase 3: Recommendation + CSV path
-            int final_step = calc_step - 15; // 5 shapers * 3 lines = 15
-            if (final_step == 0) {
-                snprintf(buf, sizeof(buf),
-                         "Recommended shaper_type_%c = mzv, shaper_freq_%c = 53.8 Hz",
-                         s->axis_lower, s->axis_lower);
-                s->mock->dispatch_gcode_response(buf);
-                s->step++;
-                return;
-            }
-
-            if (final_step == 1) {
-                // Write actual CSV file so frequency response chart has data.
-                // When shaper_csv_writable_ is false, simulate Klipper's /tmp
-                // output being unreadable (e.g. PrivateTmp) by removing any
-                // stale file at the path instead of writing it.
-                std::string csv_path = std::string("/tmp/calibration_data_") + s->axis_lower +
-                                       std::string("_mock.csv");
-                if (s->mock->shaper_csv_writable_) {
-                    write_mock_shaper_csv(csv_path, s->axis_lower);
-                } else {
-                    std::remove(csv_path.c_str());
-                }
-
-                snprintf(
-                    buf, sizeof(buf),
-                    "Shaper calibration data written to /tmp/calibration_data_%c_mock.csv file",
-                    s->axis_lower);
-                s->mock->dispatch_gcode_response(buf);
-            }
+            s->mock->dispatch_gcode_response(s->csv_line);
 
             spdlog::info(
                 "[MoonrakerClientMock] Dispatched SHAPER_CALIBRATE response for axis {}",
                 static_cast<char>(std::toupper(static_cast<unsigned char>(s->axis_lower))));
             auto& timers = s->mock->calibration_timers_;
-            timers.erase(std::remove(timers.begin(), timers.end(), t), timers.end());
+            timers.erase(std::remove_if(timers.begin(), timers.end(),
+                                        [t](const CalibrationTimer& ct) { return ct.timer == t; }),
+                         timers.end());
             delete s;
             lv_timer_delete(t);
         },
         100, sim); // 100ms between lines for snappy animation
 
-    // Total: 20 sweep + 15 calc + 2 final = 37 steps
-    lv_timer_set_repeat_count(timer, 37);
-    calibration_timers_.push_back(timer);
+    lv_timer_set_repeat_count(timer, total_steps);
+    calibration_timers_.push_back({timer, [sim] { delete sim; }});
 
-    spdlog::info("[MoonrakerClientMock] Started SHAPER_CALIBRATE timer for axis {}", axis);
+    spdlog::info("[MoonrakerClientMock] Started SHAPER_CALIBRATE timer for axis {} ({:.0f}-{:.0f} "
+                 "Hz sweep)",
+                 axis, min_freq, max_freq);
 }
 
 void MoonrakerClientMock::dispatch_measure_axes_noise_response() {

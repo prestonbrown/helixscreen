@@ -73,6 +73,8 @@ struct PrintStartCallInfo {
     std::string raw_line;   ///< Full line text (e.g., "PRINT_START EXTRUDER=210 BED=60")
     size_t line_number = 0; ///< 1-indexed line number
     size_t byte_offset = 0; ///< Byte offset in file
+    int extruder_temp = 0;  ///< First-layer extruder temp from the call (C), 0 = not stated
+    int bed_temp = 0;       ///< First-layer bed temp from the call (C), 0 = not stated
 
     /**
      * @brief Build a modified line with skip parameters appended

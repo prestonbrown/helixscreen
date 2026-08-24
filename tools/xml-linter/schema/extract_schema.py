@@ -1294,7 +1294,7 @@ def _infer_cpp_attr_type(source: str, attr_name: str) -> dict[str, Any]:
     bool_attrs = {
         "focusable", "show_clear_button", "multiline", "dither",
         "show_selection", "show_target", "show_indicators", "wrap",
-        "bypass_active", "show_bypass", "hub_only",
+        "bypass_active", "show_bypass", "hub_only", "hide_target_when_off",
     }
     if attr_name in bool_attrs:
         return {"type": "bool"}

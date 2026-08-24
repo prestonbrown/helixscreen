@@ -25,7 +25,9 @@ namespace {
 // Reinitialize logging to a Console target so we never touch syslog/journal in
 // the test environment, then return after the ring sink is installed. The
 // process-global ring sink is rebuilt on every init(), so each test starts with
-// a clean buffer.
+// a clean buffer — the one exception is the init() that immediately follows an
+// init_early(), which adopts the early buffer instead (see the adoption test
+// below).
 void init_console_logging(spdlog::level::level_enum level = spdlog::level::warn) {
     LogConfig cfg;
     cfg.target = LogTarget::Console;
@@ -111,6 +113,71 @@ TEST_CASE("set_runtime_level keeps the ring buffer capturing DEBUG at WARN", "[l
 
     // Restore a sane level for subsequent tests sharing the process logger.
     set_runtime_level(spdlog::level::info);
+}
+
+// ============================================================================
+// init_early() → init() handoff
+// ============================================================================
+
+TEST_CASE("init_early installs a ring sink whose contents survive into init", "[log_ring]") {
+    // Startup order is init_early() → Config (Phase 2) → init() (Phase 3), so
+    // the entire config diagnostic trail — "Restored from backup", "Corrupt
+    // config saved to", "Failed to parse" — is logged BEFORE init() runs. It was
+    // being lost twice over: the early logger sat at WARN with no ring sink, and
+    // init() then built a brand-new ring. Bundle XGVDYEB5 showed the result — a
+    // user-visible "settings were corrupted, restored from backup" toast and not
+    // one matching line anywhere in a 20,000-line log_tail.
+    //
+    // Like the DEBUG-capture test above, this pins the default behaviour and so
+    // assumes HELIX_BUNDLE_LOG_DEBUG is not set to 0.
+    init_early();
+
+    // Emitted with only the early logger installed — this is the config phase.
+    spdlog::info("early-config-marker-INFO-7f3a");
+    spdlog::debug("early-config-marker-DEBUG-91cd");
+    spdlog::warn("early-config-marker-WARN-b204");
+
+    // The logger floor must drop to debug or nothing below WARN reaches any sink
+    // (spdlog gates at the logger before consulting sinks).
+    REQUIRE(spdlog::default_logger()->level() == spdlog::level::debug);
+
+    // …but exactly ONE sink may accept that extra detail. Combined with the ring
+    // assertions below (which prove the ring is an accepting sink), this pins the
+    // console sink at WARN: pre-Phase-3 stdout volume is unchanged, which is what
+    // keeps a daemonized launch from double-logging into the journal/log file.
+    // The crash breadcrumb sink self-levels at ERROR and is never counted.
+    int verbose_sinks = 0;
+    for (const auto& s : spdlog::default_logger()->sinks()) {
+        if (s->should_log(spdlog::level::info)) {
+            ++verbose_sinks;
+        }
+    }
+    REQUIRE(verbose_sinks == 1);
+
+    // Phase 3. The real sinks are built here; the ring must be ADOPTED, not
+    // replaced, or every line above is gone from the bundle.
+    init_console_logging(spdlog::level::warn);
+
+    auto tail = tail_ring_buffer(200);
+    REQUIRE(tail.find("early-config-marker-INFO-7f3a") != std::string::npos);
+    REQUIRE(tail.find("early-config-marker-DEBUG-91cd") != std::string::npos);
+    REQUIRE(tail.find("early-config-marker-WARN-b204") != std::string::npos);
+
+    // Ordering is preserved across the handoff: the early lines precede the ones
+    // the full logger records, so a bundle reads as one continuous session.
+    spdlog::info("post-init-marker-5e11");
+    auto after = tail_ring_buffer(200);
+    auto early = after.find("early-config-marker-INFO-7f3a");
+    auto late = after.find("post-init-marker-5e11");
+    REQUIRE(early != std::string::npos);
+    REQUIRE(late != std::string::npos);
+    REQUIRE(early < late);
+
+    // A second init() (no init_early() in front of it) rebuilds the ring as it
+    // always has — that is what gives every other test in the suite a clean
+    // buffer, so the adoption path must not leak content forward indefinitely.
+    init_console_logging(spdlog::level::info);
+    REQUIRE(tail_ring_buffer(200).find("early-config-marker-INFO-7f3a") == std::string::npos);
 }
 
 // ============================================================================

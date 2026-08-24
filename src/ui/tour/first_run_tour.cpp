@@ -49,10 +49,10 @@ bool FirstRunTour::should_auto_start() {
         spdlog::debug("[FirstRunTour] gate: fresh_auto_start");
         return true;
     }
-    if (last_seen < kTourVersion) {
+    if (last_seen < TOUR_VERSION) {
         spdlog::debug("[FirstRunTour] gate: version_bumped_since_last_seen "
                       "(last_seen={}, current={})",
-                      last_seen, kTourVersion);
+                      last_seen, TOUR_VERSION);
         return true;
     }
     spdlog::debug("[FirstRunTour] gate: already_completed_current_version");
@@ -64,9 +64,9 @@ void FirstRunTour::mark_completed() {
     if (!cfg)
         return;
     cfg->set<bool>("/tour/completed", true);
-    cfg->set<int>("/tour/last_seen_version", kTourVersion);
+    cfg->set<int>("/tour/last_seen_version", TOUR_VERSION);
     cfg->save();
-    spdlog::debug("[FirstRunTour] Marked completed (version={})", kTourVersion);
+    spdlog::debug("[FirstRunTour] Marked completed (version={})", TOUR_VERSION);
 }
 
 void FirstRunTour::maybe_start() {

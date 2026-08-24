@@ -30,7 +30,7 @@ using namespace helix;
 
 static std::unique_ptr<GcodeTestPanel> g_gcode_test_panel;
 
-GcodeTestPanel* get_gcode_test_panel(PrinterState& printer_state, MoonrakerAPI* api) {
+GcodeTestPanel* get_gcode_test_panel(PrinterState& printer_state, IMoonrakerAPI* api) {
     if (!g_gcode_test_panel) {
         g_gcode_test_panel = std::make_unique<GcodeTestPanel>(printer_state, api);
         StaticPanelRegistry::instance().register_destroy("GcodeTestPanel",
@@ -43,7 +43,7 @@ GcodeTestPanel* get_gcode_test_panel(PrinterState& printer_state, MoonrakerAPI* 
 // CONSTRUCTOR / DESTRUCTOR
 // ============================================================================
 
-GcodeTestPanel::GcodeTestPanel(PrinterState& printer_state, MoonrakerAPI* api)
+GcodeTestPanel::GcodeTestPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::debug("[{}] Constructed", get_name());
 }

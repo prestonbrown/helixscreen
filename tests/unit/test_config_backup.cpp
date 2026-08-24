@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -89,6 +90,11 @@ TEST_CASE("write_backup_file overwrites existing backup", "[config_backup]") {
 }
 
 TEST_CASE("write_backup_file cleans up tmp on rename failure", "[config_backup]") {
+    // root bypasses the permission bits this case depends on, so the rename cannot fail
+    // and the assertion below would be asserting the opposite of the point.
+    if (::geteuid() == 0) {
+        SKIP("Test requires non-root euid - root bypasses permission bits");
+    }
     TmpDir dir("renamefail");
     std::string src = dir.file("source.txt");
     // Backup path in a read-only directory (create dir, then chmod)
@@ -127,6 +133,11 @@ TEST_CASE("write_rolling_backup uses primary when available", "[config_backup]")
 }
 
 TEST_CASE("write_rolling_backup falls back when primary dir is unwritable", "[config_backup]") {
+    // root bypasses the permission bits this case depends on, so the primary dir is still writable
+    // and the assertion below would be asserting the opposite of the point.
+    if (::geteuid() == 0) {
+        SKIP("Test requires non-root euid - root bypasses permission bits");
+    }
     TmpDir dir("rolling_fallback");
     std::string src = dir.file("config.json");
     write_file(src, "config_data");

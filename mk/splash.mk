@@ -77,6 +77,7 @@ $(BUILD_DIR)/splash/%.o: src/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) | $(BUILD_D
 SPLASH_EXTRA_OBJS := \
     $(BUILD_DIR)/splash/config.o \
     $(BUILD_DIR)/splash/config_backup.o \
+    $(BUILD_DIR)/splash/config_storage_file.o \
     $(BUILD_DIR)/splash/backlight_backend.o \
     $(BUILD_DIR)/splash/data_root_resolver.o \
     $(BUILD_DIR)/splash/helix_paths.o \
@@ -94,6 +95,11 @@ $(BUILD_DIR)/splash/config.o: src/system/config.cpp $(LIBHV_LIB) $(LIBHV_JSON_HE
 
 # Compile config_backup for splash (config.cpp references it)
 $(BUILD_DIR)/splash/config_backup.o: src/system/config_backup.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) | $(BUILD_DIR)/splash
+	@echo "[CXX] $< (splash)"
+	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Compile config_storage_file for splash (config.cpp's default ConfigStorage backend)
+$(BUILD_DIR)/splash/config_storage_file.o: src/system/config_storage_file.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

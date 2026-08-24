@@ -35,9 +35,9 @@
               style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xxs" clickable="true">
         <event_cb trigger="clicked" callback="preheat_nozzle_tap_cb"/>
         <nozzle_icon name="preheat_nozzle_icon" size="xs" badge_subject="" clickable="false" event_bubble="true"/>
-        <temp_display size="xs"
-                      show_target="false" bind_current="extruder_temp" bind_target="extruder_target" clickable="false"
-                      event_bubble="true"/>
+        <temp_display name="preheat_nozzle_temp"
+                      size="xs" show_target="false" bind_current="extruder_temp" bind_target="extruder_target"
+                      clickable="false" event_bubble="true"/>
       </lv_obj>
 
       <!-- Bed row -->
@@ -46,8 +46,8 @@
               style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xxs" clickable="true">
         <event_cb trigger="clicked" callback="preheat_bed_tap_cb"/>
         <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs" clickable="false" event_bubble="true"/>
-        <temp_display size="xs"
-                      show_target="false" bind_current="bed_temp" bind_target="bed_target" clickable="false"
+        <temp_display name="preheat_bed_temp"
+                      size="xs" show_target="false" bind_current="bed_temp" bind_target="bed_target" clickable="false"
                       event_bubble="true"/>
       </lv_obj>
     </lv_obj>

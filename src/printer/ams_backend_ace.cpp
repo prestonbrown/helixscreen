@@ -15,10 +15,11 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h"
 #include "post_op_cooldown_manager.h"
+#include "settings_manager.h"
 #include "spdlog/spdlog.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -35,7 +36,7 @@ static constexpr int MAX_INFO_FETCH_FAILURES = 3;
 // Construction / Destruction
 // ============================================================================
 
-AmsBackendAce::AmsBackendAce(MoonrakerAPI* api, MoonrakerClient* client)
+AmsBackendAce::AmsBackendAce(IMoonrakerAPI* api, IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
     // Initialize system info with ACE defaults
     system_info_.type = AmsType::ACE;
@@ -334,6 +335,8 @@ AmsError AmsBackendAce::do_load_filament(int slot_index) {
             });
         },
         [this, token, gcode](const MoonrakerError& err) {
+            // Log + reset to IDLE only — nothing here reaches the user, so the
+            // execute_gcode() call below declares caller_surfaces_errors=false.
             token.defer("AmsBackendAce::load_err", [this, err, gcode]() {
                 if (err.type == MoonrakerErrorType::TIMEOUT) {
                     spdlog::warn("[ACE] Load gcode timed out (may still be running): {}", gcode);
@@ -347,7 +350,11 @@ AmsError AmsBackendAce::do_load_filament(int slot_index) {
                 emit_event(EVENT_STATE_CHANGED);
             });
         },
-        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
+        IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS, /*silent=*/false, /*on_queued=*/nullptr,
+        // See include/rpc_error_policy.h: a log-only error callback that claims
+        // the report silences GcodeErrorRouter's `!!` copy, which is the only
+        // surface that would have told the user the load failed.
+        /*caller_surfaces_errors=*/false);
 
     return AmsErrorHelper::success();
 }
@@ -389,6 +396,8 @@ AmsError AmsBackendAce::do_unload_filament(int /*slot_index*/) {
             });
         },
         [this, token, gcode](const MoonrakerError& err) {
+            // Log + reset to IDLE only — nothing here reaches the user, so the
+            // execute_gcode() call below declares caller_surfaces_errors=false.
             token.defer("AmsBackendAce::unload_err", [this, err, gcode]() {
                 if (err.type == MoonrakerErrorType::TIMEOUT) {
                     spdlog::warn("[ACE] Unload gcode timed out (may still be running): {}", gcode);
@@ -402,7 +411,9 @@ AmsError AmsBackendAce::do_unload_filament(int /*slot_index*/) {
                 emit_event(EVENT_STATE_CHANGED);
             });
         },
-        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
+        IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS, /*silent=*/false, /*on_queued=*/nullptr,
+        // Same reasoning as the load path above — see include/rpc_error_policy.h.
+        /*caller_surfaces_errors=*/false);
 
     return AmsErrorHelper::success();
 }
@@ -1622,42 +1633,41 @@ void AmsBackendAce::apply_overrides(SlotInfo& slot, int slot_index) {
     // overrides_ writers (on_started initial load, set_slot_info persist path)
     // hold mutex_, and every caller of apply_overrides runs under mutex_ via
     // parse_ace_object — so the map read here is implicitly lock-protected.
+    // The whole spec §5 policy + the re-bind/eject rules live in
+    // helix::ams::merge_override — the single implementation every backend
+    // shares. Rule 1 (re-bind) is NOT gated by the capability: it can fire
+    // on any backend whose firmware reports a positive spool id disagreeing
+    // with the override (AFC, Happy Hare, flat-schema CFS). ACE's firmware
+    // never reports one, so Rule 1 cannot fire here today — but that is a
+    // fact about this firmware, not what the capability gates. Rule 2
+    // (eject) IS what printer_reports_spool_ids() gates (base false here:
+    // 0 is ACE's everyday reading, never an eject), and the erase branch is
+    // correct tomorrow if a firmware ever starts reporting ids.
     auto it = overrides_.find(slot_index);
     if (it == overrides_.end())
         return;
-    const auto& o = it->second;
-    // Merge policy matches AD5X IFS / Snapmaker: override wins only when the
-    // override field carries a real value; default sentinels (empty string,
-    // spoolman_id == 0, weights == -1.0, color_rgb == 0) fall through to the
-    // firmware-reported data. For ACE this covers color/material too — ACE
-    // can't set those via gcode, so user edits live exclusively in the
-    // override record.
-    if (!o.brand.empty())
-        slot.brand = o.brand;
-    if (!o.spool_name.empty())
-        slot.spool_name = o.spool_name;
-    if (o.spoolman_id > 0)
-        slot.spoolman_id = o.spoolman_id;
-    if (o.spoolman_vendor_id > 0)
-        slot.spoolman_vendor_id = o.spoolman_vendor_id;
-    if (o.remaining_weight_g >= 0.0f)
-        slot.remaining_weight_g = o.remaining_weight_g;
-    if (o.total_weight_g >= 0.0f)
-        slot.total_weight_g = o.total_weight_g;
-    if (o.color_set)
-        slot.color_rgb = o.color_rgb;
-    if (!o.color_name.empty())
-        slot.color_name = o.color_name;
-    if (!o.material.empty())
-        slot.material = o.material;
-    // Catalog product identity — same "override wins only when it carries a
-    // real value" rule as the strings above. Firmware never populates these
-    // (no AMS protocol has a notion of a branded product id), so a non-empty
-    // value here is always a user pick and always wins.
-    if (!o.catalog_id.empty())
-        slot.catalog_id = o.catalog_id;
-    if (!o.product_name.empty())
-        slot.product_name = o.product_name;
+    helix::ams::MergeOptions opts;
+    opts.printer_reports_spool_ids = printer_reports_spool_ids();
+    opts.keep_spool_info_on_eject = SettingsManager::instance().get_ams_keep_spool_info_on_eject();
+    // Own-write echo suppression (SlotFingerprintTracker::expect()
+    // semantics): Rule 1 must not read an in-flight stale firmware id as an
+    // external re-bind. ACE never writes firmware ids, so this is always
+    // {0, 0} today — the call keeps one shape across backends.
+    const auto [own_old_id, own_new_id] = own_write_expectation(slot_index, slot.spoolman_id);
+    opts.suppress_rebind_firmware_old_id = own_old_id;
+    opts.suppress_rebind_firmware_new_id = own_new_id;
+    const auto result = helix::ams::merge_override(slot, it->second, opts);
+    if (result.cleared_rebind || result.cleared_eject) {
+        overrides_.erase(it);
+        if (override_store_) {
+            const std::string tag = backend_log_tag();
+            override_store_->clear_async(slot_index, [tag, slot_index](bool ok, std::string err) {
+                if (!ok) {
+                    spdlog::warn("{} clear_async failed for slot {}: {}", tag, slot_index, err);
+                }
+            });
+        }
+    }
 }
 
 void AmsBackendAce::check_hardware_event_clear(SlotInfo& slot, int slot_index, SlotStatus prev,

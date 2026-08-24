@@ -43,6 +43,22 @@ std::string format_filament_weight(float grams);
 std::string format_layer_count(uint32_t layer_count);
 
 /**
+ * @brief Format live layer progress for the print-status displays
+ *
+ * The single renderer behind every "Layer N / M" string. Omits the total when
+ * it is unknown, marks counts that were guessed from the progress fraction with
+ * a leading "~", and appends the commanded Z height when one is available.
+ * Examples: "Layer 42 / 213", "Layer ~42 / 213 (24.0mm)", "Layer 7"
+ *
+ * @param current Current layer number
+ * @param total Total layers, or 0/negative when unknown
+ * @param accurate False when the layer was estimated from the progress fraction
+ * @param z_centimm Commanded Z in centimillimeters, or 0/negative to omit
+ * @return Formatted layer string
+ */
+std::string format_layer_progress(int current, int total, bool accurate, int z_centimm);
+
+/**
  * @brief Format print height in millimeters
  *
  * Formats object height with appropriate precision.
@@ -97,6 +113,19 @@ std::string format_short_date(time_t timestamp);
  * @return Formatted time string
  */
 std::string format_time(const struct tm* tm_info);
+
+/**
+ * @brief Format time including seconds, honoring the 12H/24H setting
+ *
+ * Same shape as format_time() with a :SS field appended. The temperature
+ * graph caption needs this because samples are 3s apart, so minute
+ * resolution cannot distinguish adjacent points.
+ * Examples: "2:30:06 PM" (12H) or "14:30:06" (24H)
+ *
+ * @param tm_info Pointer to tm struct with time to format
+ * @return Formatted time string, or helix::format::UNAVAILABLE if tm_info is null
+ */
+std::string format_time_with_seconds(const struct tm* tm_info);
 
 // get_time_format_string() is intentionally NOT public. Use format_time()
 // which handles POSIX-safe formatting and leading-zero stripping.

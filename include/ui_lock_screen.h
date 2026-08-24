@@ -53,8 +53,8 @@ class LockScreenOverlay {
     lv_obj_t* overlay_ = nullptr;
     std::string digit_buffer_;
 
-    static constexpr int kMaxDigits = 6;
-    static constexpr int kMinDigits = 4;
+    static constexpr int MAX_DIGITS = 6;
+    static constexpr int MIN_DIGITS = 4;
 };
 
 /**

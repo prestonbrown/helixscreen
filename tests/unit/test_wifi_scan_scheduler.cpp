@@ -14,7 +14,7 @@ TEST_CASE("ScanScheduler starts ready to trigger", "[wifi][scan_scheduler]") {
     ScanScheduler sched;
     REQUIRE(sched.should_trigger());
     REQUIRE_FALSE(sched.suppressed());
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
 }
 
 TEST_CASE("ScanScheduler blocks a second trigger while a scan is outstanding",
@@ -49,10 +49,10 @@ TEST_CASE("ScanScheduler grows the interval 10s -> 20s -> 30s and caps", "[wifi]
     sched.on_scan_complete(5, false);
     REQUIRE(sched.next_interval_ms() == 30000);
 
-    // Third repeat — capped, does not exceed kMaxIntervalMs.
+    // Third repeat — capped, does not exceed MAX_INTERVAL_MS.
     sched.on_scan_started();
     sched.on_scan_complete(5, false);
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kMaxIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::MAX_INTERVAL_MS);
     REQUIRE(sched.next_interval_ms() == 30000);
 }
 
@@ -109,7 +109,7 @@ TEST_CASE("ScanScheduler on_user_refresh clears suppression and resets the inter
 
     sched.on_user_refresh();
     REQUIRE_FALSE(sched.suppressed());
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
     REQUIRE(sched.should_trigger());
 }
 
@@ -127,7 +127,7 @@ TEST_CASE("ScanScheduler on_disconnected clears suppression and resets the inter
 
     sched.on_disconnected();
     REQUIRE_FALSE(sched.suppressed());
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
     REQUIRE(sched.should_trigger());
 }
 
@@ -146,7 +146,7 @@ TEST_CASE("ScanScheduler resets the interval on a changed count without suppress
     // A changed count resets the interval...
     sched.on_scan_started();
     sched.on_scan_complete(9, true);
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
     // ...and does not suppress.
     REQUIRE_FALSE(sched.suppressed());
     REQUIRE(sched.should_trigger());
@@ -170,7 +170,7 @@ TEST_CASE("ScanScheduler on_scan_failed clears only the outstanding flag",
     sched.on_scan_failed();
     REQUIRE(sched.should_trigger());
     REQUIRE_FALSE(sched.suppressed());
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
 }
 
 TEST_CASE("ScanScheduler never suppresses from repeated on_scan_failed() while connected",
@@ -190,7 +190,7 @@ TEST_CASE("ScanScheduler never suppresses from repeated on_scan_failed() while c
 
     // The interval must not have grown either — a failure isn't evidence
     // the environment is stable, so it must not feed the backoff.
-    REQUIRE(sched.next_interval_ms() == ScanScheduler::kBaseIntervalMs);
+    REQUIRE(sched.next_interval_ms() == ScanScheduler::BASE_INTERVAL_MS);
 }
 
 TEST_CASE("ScanScheduler on_scan_failed does not advance unchanged_streak_",

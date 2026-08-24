@@ -14,7 +14,7 @@
       <!-- ================================================================== -->
       <!-- LED SELECTION SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_led_selection">
         <setting_group_header title="LED SELECTION" title_tag="LED SELECTION" icon="light" hide_icon="false"/>
         <setting_led_chip_row name="row_led_select"
                               label="LEDs" label_tag="LEDs" icon="lightbulb_outline"
@@ -24,7 +24,7 @@
       <!-- ================================================================== -->
       <!-- STARTUP SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_startup">
         <setting_group_header title="STARTUP" title_tag="STARTUP" icon="power" hide_icon="false"/>
         <setting_toggle_row name="row_led_on_at_start"
                             label="LED on at Start" label_tag="LED on at Start" icon="light"
@@ -42,7 +42,7 @@
       <!-- ================================================================== -->
       <!-- AUTO STATE SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_auto_state">
         <setting_group_header title="AUTO STATE" title_tag="AUTO STATE" icon="tune" hide_icon="false"/>
         <setting_toggle_row name="row_auto_state_enabled"
                             label="Automatic LED Control" label_tag="Automatic LED Control" icon="tune_variant"

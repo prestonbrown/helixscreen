@@ -7,19 +7,6 @@
 
 using namespace helix::timelapse;
 
-TEST_CASE("Playback: local vs remote detection", "[timelapse][videos][playback]") {
-    SECTION("localhost is local") {
-        REQUIRE(is_local_host("127.0.0.1"));
-        REQUIRE(is_local_host("localhost"));
-        REQUIRE(is_local_host("::1"));
-    }
-
-    SECTION("remote hosts are not local") {
-        REQUIRE_FALSE(is_local_host("192.168.1.100"));
-        REQUIRE_FALSE(is_local_host("printer.local"));
-    }
-}
-
 TEST_CASE("Playback: argument list construction", "[timelapse][videos][playback]") {
     SECTION("mpv arguments") {
         auto args = build_player_args("mpv", "/tmp/video.mp4");

@@ -38,16 +38,16 @@
 
 namespace {
 
-constexpr int32_t kCanvasW = 600;
-constexpr int32_t kCanvasH = 600;
-constexpr int32_t kCenterX = kCanvasW / 2;
-constexpr int32_t kCenterY = kCanvasH / 2;
+constexpr int32_t CANVAS_W = 600;
+constexpr int32_t CANVAS_H = 600;
+constexpr int32_t CENTER_X = CANVAS_W / 2;
+constexpr int32_t CENTER_Y = CANVAS_H / 2;
 // Z-offset indicator uses LV_CLAMP(5, h/10, 12). Scale 40 makes the narrowest
 // renderer (creality_k2, ~2.5 units wide) exceed 100px while the tallest
 // (stealthburner, ~8.5 units) still fits the 600px canvas.
-constexpr int32_t kScaleUnit = 40;
-constexpr uint32_t kBgHex = 0x1A1A1A;       // dark neutral, matches app dark theme
-constexpr uint32_t kFilamentHex = 0xFF6A00; // visible orange
+constexpr int32_t SCALE_UNIT = 40;
+constexpr uint32_t BG_HEX = 0x1A1A1A;       // dark neutral, matches app dark theme
+constexpr uint32_t FILAMENT_HEX = 0xFF6A00; // visible orange
 
 using DrawFn = void (*)(lv_layer_t*, int32_t, int32_t, lv_color_t, int32_t, lv_opa_t);
 
@@ -56,7 +56,7 @@ struct RendererEntry {
     DrawFn draw;
 };
 
-const RendererEntry kRenderers[] = {
+const RendererEntry RENDERERS[] = {
     {"stealthburner", draw_nozzle_stealthburner},
     {"a4t", draw_nozzle_a4t},
     {"bambu", draw_nozzle_bambu},
@@ -86,9 +86,9 @@ struct BBox {
 /// Scan tightly-packed BGRA pixels for anything that differs from the
 /// background color (RGB compared, alpha ignored).
 BBox compute_bbox(const std::vector<uint8_t>& bgra, int32_t w, int32_t h) {
-    const uint8_t bg_b = kBgHex & 0xFF;
-    const uint8_t bg_g = (kBgHex >> 8) & 0xFF;
-    const uint8_t bg_r = (kBgHex >> 16) & 0xFF;
+    const uint8_t bg_b = BG_HEX & 0xFF;
+    const uint8_t bg_g = (BG_HEX >> 8) & 0xFF;
+    const uint8_t bg_r = (BG_HEX >> 16) & 0xFF;
 
     BBox box;
     for (int32_t y = 0; y < h; y++) {
@@ -121,36 +121,36 @@ TEST_CASE_METHOD(XMLTestFixture, "Nozzle render gallery writes BMPs for all rend
     lv_obj_t* canvas = lv_canvas_create(test_screen());
     REQUIRE(canvas != nullptr);
     lv_draw_buf_t* draw_buf =
-        lv_draw_buf_create(kCanvasW, kCanvasH, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+        lv_draw_buf_create(CANVAS_W, CANVAS_H, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
     REQUIRE(draw_buf != nullptr);
     lv_canvas_set_draw_buf(canvas, draw_buf);
 
-    const lv_color_t filament = lv_color_hex(kFilamentHex);
+    const lv_color_t filament = lv_color_hex(FILAMENT_HEX);
 
-    for (const auto& entry : kRenderers) {
+    for (const auto& entry : RENDERERS) {
         SECTION(entry.name) {
-            lv_canvas_fill_bg(canvas, lv_color_hex(kBgHex), LV_OPA_COVER);
+            lv_canvas_fill_bg(canvas, lv_color_hex(BG_HEX), LV_OPA_COVER);
 
             lv_layer_t layer;
             lv_canvas_init_layer(canvas, &layer);
-            entry.draw(&layer, kCenterX, kCenterY, filament, kScaleUnit, LV_OPA_COVER);
+            entry.draw(&layer, CENTER_X, CENTER_Y, filament, SCALE_UNIT, LV_OPA_COVER);
             lv_canvas_finish_layer(canvas, &layer);
 
             // Repack stride-padded rows into a tight BGRA buffer.
             const uint32_t stride = draw_buf->header.stride;
-            std::vector<uint8_t> tight(static_cast<size_t>(kCanvasW) * kCanvasH * 4);
-            for (int32_t y = 0; y < kCanvasH; y++) {
-                std::memcpy(tight.data() + static_cast<size_t>(y) * kCanvasW * 4,
+            std::vector<uint8_t> tight(static_cast<size_t>(CANVAS_W) * CANVAS_H * 4);
+            for (int32_t y = 0; y < CANVAS_H; y++) {
+                std::memcpy(tight.data() + static_cast<size_t>(y) * CANVAS_W * 4,
                             draw_buf->data + static_cast<size_t>(y) * stride,
-                            static_cast<size_t>(kCanvasW) * 4);
+                            static_cast<size_t>(CANVAS_W) * 4);
             }
 
-            const BBox box = compute_bbox(tight, kCanvasW, kCanvasH);
+            const BBox box = compute_bbox(tight, CANVAS_W, CANVAS_H);
             spdlog::info("[render-gallery] {}: bbox x=[{},{}] y=[{},{}] size={}x{} "
                          "anchor_offset=({},{}) scale_unit={}",
                          entry.name, box.min_x, box.max_x, box.min_y, box.max_y, box.width(),
-                         box.height(), box.empty() ? 0 : (box.min_x + box.max_x) / 2 - kCenterX,
-                         box.empty() ? 0 : (box.min_y + box.max_y) / 2 - kCenterY, kScaleUnit);
+                         box.height(), box.empty() ? 0 : (box.min_x + box.max_x) / 2 - CENTER_X,
+                         box.empty() ? 0 : (box.min_y + box.max_y) / 2 - CENTER_Y, SCALE_UNIT);
 
             // Real assertion: the renderer must have drawn something substantial.
             REQUIRE_FALSE(box.empty());
@@ -159,11 +159,11 @@ TEST_CASE_METHOD(XMLTestFixture, "Nozzle render gallery writes BMPs for all rend
             // Not clipped at canvas edges.
             CHECK(box.min_x > 0);
             CHECK(box.min_y > 0);
-            CHECK(box.max_x < kCanvasW - 1);
-            CHECK(box.max_y < kCanvasH - 1);
+            CHECK(box.max_x < CANVAS_W - 1);
+            CHECK(box.max_y < CANVAS_H - 1);
 
             const std::string path = (out_dir / (std::string(entry.name) + ".bmp")).string();
-            REQUIRE(helix::write_bmp(path.c_str(), tight.data(), kCanvasW, kCanvasH));
+            REQUIRE(helix::write_bmp(path.c_str(), tight.data(), CANVAS_W, CANVAS_H));
             spdlog::info("[render-gallery] {}: wrote {}", entry.name, path);
         }
     }

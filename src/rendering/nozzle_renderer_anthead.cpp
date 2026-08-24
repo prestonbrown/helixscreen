@@ -3,6 +3,13 @@
 
 #include "nozzle_renderer_anthead.h"
 
+// The AntHead is one selectable toolhead-visualization style. On ESP32 (v1
+// size cut) its 65 KB ARGB source image is dropped: draw_nozzle_anthead becomes
+// a no-op so the dispatch (nozzle_renderer_dispatch.h) and the three UI callers
+// still link, and a user who selects the AntHead style sees no toolhead glyph
+// (every other style renders normally). Firmware-only; desktop keeps the image.
+#if !defined(HELIX_PLATFORM_ESP32)
+
 static const uint8_t img_anthead_data[65200] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -4132,3 +4139,9 @@ void draw_nozzle_anthead(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t f
 
     lv_draw_image(layer, &dsc, &coords);
 }
+
+#else // HELIX_PLATFORM_ESP32 — 65 KB AntHead image dropped (see top of file)
+
+void draw_nozzle_anthead(lv_layer_t*, int32_t, int32_t, lv_color_t, int32_t, lv_opa_t) {}
+
+#endif // !HELIX_PLATFORM_ESP32

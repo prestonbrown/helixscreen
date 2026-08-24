@@ -137,6 +137,31 @@ class GridEditMode {
     /// @return Zeroed metrics when there is no container or it has no extent.
     helix::CellMetrics current_metrics(lv_area_t* out_content = nullptr) const;
 
+    /// Edge grab band in px for a grid cell of @p cell_px on its shorter axis.
+    ///
+    /// A fraction of the cell rather than a fixed pixel count: the same 18px is
+    /// a large share of a cell on a 480x272 panel and a sliver of one on a
+    /// 1024x600 panel, so a constant makes the edge either impossible to miss
+    /// or impossible to hit depending on the screen. Clamped at both ends to
+    /// stay finger-sized.
+    ///
+    /// @return The fallback band when @p cell_px is not positive.
+    static int edge_hit_band_for_cell(float cell_px);
+
+    /// Edge grab band in px, derived from the live grid's cell size. Falls back
+    /// to a fixed band before a grid exists (cell_w/cell_h are 0 then).
+    int edge_hit_band() const;
+
+    /// Whether a press at @p origin counts as landing on @p area, allowing the
+    /// edge grab band of slop outside the bounds.
+    ///
+    /// Anchored at the press origin rather than the live pointer because a
+    /// resize that grows a widget drags *away* from it by design: by the time
+    /// the drag threshold is met the pointer is legitimately off-widget, and
+    /// testing it there rejects exactly the gestures that should have become
+    /// resizes. Where the finger first landed is what decides ownership.
+    bool press_owns_widget(lv_point_t origin, const lv_area_t& area) const;
+
     void create_dots_overlay();
     void destroy_dots_overlay();
     void create_selection_chrome(lv_obj_t* widget);
@@ -170,6 +195,14 @@ class GridEditMode {
     void handle_resize_end(lv_event_t* e);
     void update_resize_preview_px(int x, int y, int w, int h, bool valid);
     void commit_resize_with_snap(const ResizeResult& result);
+
+    /// Stop the resize snap animation if one is in flight.
+    ///
+    /// Its completion callback holds a raw `this` and dereferences config_, so
+    /// both exit() (which nulls config_) and the destructor must run this. The
+    /// animation's deleted_cb frees the heap context and clears
+    /// snap_anim_preview_, so this is also the leak-free cancel path.
+    void cancel_snap_animation();
 
     // Widget catalog placement
     void place_widget_from_catalog(const std::string& widget_id);
@@ -211,6 +244,11 @@ class GridEditMode {
     bool resizing_ = false;
     ResizeEdge resize_edge_ = ResizeEdge::None;
     lv_obj_t* resize_preview_ = nullptr; // Pixel-tracking preview overlay
+
+    // Widget the resize snap animation is driving, or nullptr when none is in
+    // flight. It is the animation's `var`, which is what lets LVGL auto-cancel
+    // on widget deletion and what cancel_snap_animation() cancels by.
+    lv_obj_t* snap_anim_preview_ = nullptr;
 
     // Widget catalog placement: grid cell where the long-press originated
     int catalog_origin_col_ = -1;

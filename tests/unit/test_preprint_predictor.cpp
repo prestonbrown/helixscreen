@@ -474,3 +474,126 @@ TEST_CASE("PreprintPredictor accepts up to 10 entries", "[preprint_predictor]") 
     predictor.load_entries(entries);
     REQUIRE(predictor.get_entries().size() == 10);
 }
+
+// ============================================================================
+// Measurement-window bucketing
+//
+// The collector is armed either at the printer's own print-start edge (an
+// externally started print) or at user commit (the screen started it). Commit
+// arming puts any host-side pre-start block - a forced bed mesh, a setup macro
+// - inside the measured window. On a printer that runs one, the two windows
+// differ by minutes, so averaging them together produces an estimate that is
+// wrong for both, and feeds a too-small predicted_total into the collector's
+// adaptive timeout.
+// ============================================================================
+
+TEST_CASE("PreprintPredictor: host-pre-start window rejects printer-edge history",
+          "[print][predictor]") {
+    PreprintPredictor predictor;
+
+    std::vector<PreprintEntry> entries = {
+        // Externally started: window is the printer's own PRINT_START only.
+        {300, 1700000000, {{2, 20}, {7, 100}}, 1, PreprintWindow::PrinterEdge},
+        // Screen started on the same printer, with a host-side bed mesh in front.
+        {1140, 1700000001, {{2, 20}, {7, 500}}, 1, PreprintWindow::HostPreStart},
+    };
+
+    predictor.load_entries(entries, 1, PreprintWindow::HostPreStart);
+
+    auto kept = predictor.get_entries();
+    REQUIRE(kept.size() == 1);
+    REQUIRE(kept[0].total_seconds == 1140);
+}
+
+TEST_CASE("PreprintPredictor: printer-edge window rejects host-pre-start history",
+          "[print][predictor]") {
+    PreprintPredictor predictor;
+
+    std::vector<PreprintEntry> entries = {
+        {300, 1700000000, {{2, 20}, {7, 100}}, 1, PreprintWindow::PrinterEdge},
+        {1140, 1700000001, {{2, 20}, {7, 500}}, 1, PreprintWindow::HostPreStart},
+    };
+
+    predictor.load_entries(entries, 1, PreprintWindow::PrinterEdge);
+
+    auto kept = predictor.get_entries();
+    REQUIRE(kept.size() == 1);
+    REQUIRE(kept[0].total_seconds == 300);
+}
+
+TEST_CASE("PreprintPredictor: legacy entries count as printer-edge, not host-pre-start",
+          "[print][predictor]") {
+    // Every entry recorded before commit arming existed measured a printer-edge
+    // window, so treating a missing field as PrinterEdge is a fact about the
+    // data, not a guess. The asymmetry matters on upgrade: an existing history
+    // stays usable for externally started prints, and cannot drag a host-side
+    // block's estimate down to a duration that never included one.
+    std::vector<PreprintEntry> entries = {
+        {300, 1700000000, {{2, 20}}, 1, PreprintWindow::Unknown},
+    };
+
+    SECTION("a printer-edge query keeps them") {
+        PreprintPredictor predictor;
+        predictor.load_entries(entries, 1, PreprintWindow::PrinterEdge);
+        REQUIRE(predictor.get_entries().size() == 1);
+    }
+
+    SECTION("a host-pre-start query discards them") {
+        PreprintPredictor predictor;
+        predictor.load_entries(entries, 1, PreprintWindow::HostPreStart);
+        REQUIRE(predictor.get_entries().empty());
+    }
+}
+
+TEST_CASE("PreprintPredictor: window filter composes with temp_bucket", "[print][predictor]") {
+    PreprintPredictor predictor;
+
+    std::vector<PreprintEntry> entries = {
+        {1100, 1700000000, {{7, 500}}, 1, PreprintWindow::HostPreStart}, // cold + host
+        {900, 1700000001, {{7, 400}}, 2, PreprintWindow::HostPreStart},  // warm + host
+        {300, 1700000002, {{7, 100}}, 1, PreprintWindow::PrinterEdge},   // cold + edge
+    };
+
+    predictor.load_entries(entries, 1, PreprintWindow::HostPreStart);
+
+    auto kept = predictor.get_entries();
+    REQUIRE(kept.size() == 1);
+    REQUIRE(kept[0].total_seconds == 1100);
+}
+
+TEST_CASE("PreprintPredictor: window survives add_entry round-trip", "[print][predictor]") {
+    PreprintPredictor predictor;
+
+    PreprintEntry entry;
+    entry.total_seconds = 1140;
+    entry.timestamp = 1700000000;
+    entry.phase_durations = {{7, 500}};
+    entry.temp_bucket = 1;
+    entry.window = PreprintWindow::HostPreStart;
+
+    predictor.add_entry(entry);
+
+    auto kept = predictor.get_entries();
+    REQUIRE(kept.size() == 1);
+    REQUIRE(kept[0].window == PreprintWindow::HostPreStart);
+}
+
+TEST_CASE("PreprintPredictor: window defaults to Unknown when unspecified", "[print][predictor]") {
+    PreprintEntry entry;
+    REQUIRE(entry.window == PreprintWindow::Unknown);
+}
+
+TEST_CASE("PreprintPredictor: omitting the window filter keeps every entry", "[print][predictor]") {
+    // Existing callers pass no window and must be unaffected.
+    PreprintPredictor predictor;
+
+    std::vector<PreprintEntry> entries = {
+        {300, 1700000000, {{2, 20}}, 1, PreprintWindow::PrinterEdge},
+        {1140, 1700000001, {{7, 500}}, 1, PreprintWindow::HostPreStart},
+        {600, 1700000002, {{2, 30}}, 1, PreprintWindow::Unknown},
+    };
+
+    predictor.load_entries(entries, 1);
+
+    REQUIRE(predictor.get_entries().size() == 3);
+}

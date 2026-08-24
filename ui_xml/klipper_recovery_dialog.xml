@@ -3,46 +3,74 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <!-- Dialog card with warning border (backdrop created programmatically) -->
+  <!-- Dialog card with warning border (backdrop created programmatically).
+       style_max_height caps the card: Klipper shutdown reasons are arbitrarily long,
+       and without it the card grew past both screen edges and lost its header and
+       buttons on a 480x272 panel.
+
+       85% like every other modal: this card carries more chrome than modal_dialog
+       (a restart button row AND a Dismiss row, each with its divider), and that
+       extra chrome is budgeted by capping the message area at
+       #dialog_content_tall_chrome_max instead of #dialog_content_max — measured
+       per breakpoint for exactly this shape (#1277). An earlier revision raised
+       the card to 90% to fit; that unsized the shared ladder arithmetic, so the
+       hack was ported back onto the token. -->
   <view name="klipper_recovery_card"
-        extends="ui_dialog" width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0" style_border_width="2" style_border_color="#warning">
-    <!-- Content area -->
+        extends="ui_dialog" width="85%" height="content" style_max_height="85%" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0" style_border_width="2" style_border_color="#warning"
+        scrollable="false">
+    <!-- Header: icon and title share one row, error code trailing. Collapsing what was
+         a stacked icon above a centred title buys back a whole row of height, which is
+         what lets a multi-line message fit on the smallest panels. -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
-      <!-- Warning icon -->
-      <icon src="alert_octagon" size="lg" variant="warning"/>
+            style_pad_bottom="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+            scrollable="false">
+      <icon src="alert_octagon" size="md" variant="warning"/>
       <!-- Title (driven by recovery_title subject) -->
-      <text_heading name="recovery_title" width="100%" bind_text="recovery_title" style_text_align="center"/>
-      <!-- Message (driven by recovery_message subject) -->
-      <text_muted name="recovery_message"
-                  width="100%" bind_text="recovery_message" long_mode="wrap" style_text_align="center"/>
+      <text_heading name="recovery_title" bind_text="recovery_title" flex_grow="1"/>
+      <!-- Klipper's JSON error code, e.g. "key1". Meaningless to a user reading the
+           message, but worth keeping for bug reports, so it rides small and dim at the
+           end of the row. Hidden via the companion int subject because bind_flag_if_eq
+           compares ints and cannot test recovery_code for emptiness. -->
+      <text_small name="recovery_code" bind_text="recovery_code" style_text_color="#text_muted">
+        <bind_flag_if_eq subject="recovery_has_code" flag="hidden" ref_value="0"/>
+      </text_small>
     </lv_obj>
-    <!-- Horizontal divider above buttons -->
+    <!-- Horizontal divider below header -->
     <divider_horizontal/>
-    <!-- Button column -->
-    <lv_obj width="100%" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm">
-      <!-- Restart Klipper (hidden when disconnected via recovery_can_restart subject) -->
-      <ui_button name="restart_klipper_btn"
-                 width="100%" height="#button_height" variant="warning" icon="refresh" text="Restart Klipper"
-                 translation_tag="Restart Klipper">
-        <bind_flag_if_eq subject="recovery_can_restart" flag="hidden" ref_value="0"/>
-        <event_cb trigger="clicked" callback="recovery_restart_klipper_clicked"/>
-      </ui_button>
-      <!-- Firmware Restart (hidden when disconnected via recovery_can_restart subject) -->
-      <ui_button name="firmware_restart_btn"
-                 width="100%" height="#button_height" variant="secondary" icon="update" text="Firmware Restart"
-                 translation_tag="Firmware Restart">
-        <bind_flag_if_eq subject="recovery_can_restart" flag="hidden" ref_value="0"/>
-        <event_cb trigger="clicked" callback="recovery_firmware_restart_clicked"/>
-      </ui_button>
-      <!-- Dismiss (tertiary action) -->
-      <ui_button name="recovery_dismiss_btn"
-                 width="100%" height="#button_height" variant="ghost" style_border_width="#border_width"
-                 style_border_color="#border" text="Dismiss" translation_tag="Dismiss">
-        <event_cb trigger="clicked" callback="recovery_dismiss_clicked"/>
-      </ui_button>
+    <!-- Message (driven by recovery_message subject). Capped and scrollable so a long
+         shutdown reason scrolls within the card rather than growing it. The cap is
+         #dialog_content_tall_chrome_max — the ladder measured for this card's TWO
+         button rows — so chrome + full cap lands 8px under the shared 85% card cap
+         at every breakpoint. flex_grow makes this the element that yields once the
+         card hits style_max_height. -->
+    <lv_obj name="recovery_message_scroll"
+            width="100%" height="content" style_max_height="#dialog_content_tall_chrome_max" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_md" style_pad_bottom="#space_md" scrollable="true"
+            scroll_snap_y="none">
+      <text_muted name="recovery_message" width="100%" bind_text="recovery_message" long_mode="wrap"/>
     </lv_obj>
+    <!-- Restart actions, side by side rather than stacked. Wrapped so the whole row
+         (including modal_button_row's own leading divider) hides as a unit when
+         disconnected, leaving Dismiss as the only button. -->
+    <lv_obj name="recovery_restart_actions"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false">
+      <bind_flag_if_eq subject="recovery_can_restart" flag="hidden" ref_value="0"/>
+      <modal_button_row secondary_text="Firmware Restart"
+                        secondary_tag="Firmware Restart" secondary_icon="update"
+                        secondary_callback="recovery_firmware_restart_clicked" primary_text="Restart Klipper"
+                        primary_tag="Restart Klipper" primary_icon="refresh" primary_variant="warning"
+                        primary_callback="recovery_restart_klipper_clicked"/>
+    </lv_obj>
+    <!-- Horizontal divider above Dismiss -->
+    <divider_horizontal/>
+    <!-- Dismiss (tertiary action, always available) -->
+    <ui_button name="recovery_dismiss_btn"
+               width="100%" height="#button_height" variant="ghost" style_radius="0" style_border_width="0"
+               focusable="false" text="Dismiss" translation_tag="Dismiss">
+      <event_cb trigger="clicked" callback="recovery_dismiss_clicked"/>
+    </ui_button>
   </view>
 </component>

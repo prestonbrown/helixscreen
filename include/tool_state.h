@@ -18,7 +18,7 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -114,12 +114,30 @@ class ToolState {
         return tools_.size() > 1;
     }
 
+    /// Number of distinct physical extruders backing the current tool list.
+    ///
+    /// NOT interchangeable with tool_count(): set_ams_topology() expands tools_
+    /// to one entry per filament SLOT, so a 4-slot AMS on a single-hotend
+    /// printer reports 4 tools and 1 extruder. Only tools carrying an extruder
+    /// name count, and duplicates collapse — the AMS rebuild leaves slots past
+    /// the real extruder list with no mapping at all.
+    [[nodiscard]] int extruder_count() const;
+
+    /// Whether the printer physically has more than one hotend/extruder.
+    ///
+    /// The predicate for anything annotating a single nozzle with which tool it
+    /// is (the nozzle_icon tool badge). is_multi_tool() is the wrong test there:
+    /// it counts AMS slots fed into one hotend, which need no badge.
+    [[nodiscard]] bool has_multiple_extruders() const {
+        return extruder_count() > 1;
+    }
+
     /// Returns "Nozzle" for single-tool, "Nozzle T0" for multi-tool (active tool).
     [[nodiscard]] std::string nozzle_label() const;
 
     /// Request a tool change, delegating to AMS backend or falling back to Tn gcode.
     /// Callbacks are invoked asynchronously from the API response.
-    void request_tool_change(int tool_index, MoonrakerAPI* api,
+    void request_tool_change(int tool_index, IMoonrakerAPI* api,
                              std::function<void()> on_success = nullptr,
                              std::function<void(const std::string&)> on_error = nullptr);
 
@@ -138,13 +156,13 @@ class ToolState {
     [[nodiscard]] std::set<int> assigned_spool_ids(int exclude_tool = -1) const;
 
     /// Load persisted spool assignments (Moonraker DB → local JSON → empty)
-    void load_spool_assignments(MoonrakerAPI* api);
+    void load_spool_assignments(IMoonrakerAPI* api);
 
     /// Save all spool assignments (local JSON + Moonraker DB fire-and-forget)
-    void save_spool_assignments(MoonrakerAPI* api);
+    void save_spool_assignments(IMoonrakerAPI* api);
 
     /// Save spool assignments only if data has changed since last save
-    void save_spool_assignments_if_dirty(MoonrakerAPI* api);
+    void save_spool_assignments_if_dirty(IMoonrakerAPI* api);
 
     /// True after load_spool_assignments() has completed (success or fallback).
     [[nodiscard]] bool spool_assignments_loaded() const {
@@ -195,6 +213,8 @@ class ToolState {
     }
 
   private:
+    friend class ToolStateTestAccess;
+
     ToolState() = default;
     SubjectManager subjects_;
     /// See get_subjects_lifetime(). Created with the object and REPLACED (never

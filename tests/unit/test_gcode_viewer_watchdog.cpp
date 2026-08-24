@@ -19,15 +19,15 @@ using helix::gcode_viewer::WatchdogDecision;
 using helix::gcode_viewer::WatchdogObservation;
 
 namespace {
-constexpr int kNeverSampled = -2; // sentinel for "no previous observation"
-constexpr int kMaxStallKicks = 30;
+constexpr int NEVER_SAMPLED = -2; // sentinel for "no previous observation"
+constexpr int MAX_STALL_KICKS = 30;
 } // namespace
 
 TEST_CASE("watchdog: first sample never kicks or gives up", "[gcode_viewer][watchdog]") {
     // prev_cached == -2 sentinel: we have nothing to compare against yet.
-    WatchdogObservation obs{/*cached=*/-1, /*target=*/855, /*prev_cached=*/kNeverSampled,
-                            /*prev_target=*/kNeverSampled, /*stall_streak=*/0};
-    auto d = watchdog_evaluate(obs, kMaxStallKicks);
+    WatchdogObservation obs{/*cached=*/-1, /*target=*/855, /*prev_cached=*/NEVER_SAMPLED,
+                            /*prev_target=*/NEVER_SAMPLED, /*stall_streak=*/0};
+    auto d = watchdog_evaluate(obs, MAX_STALL_KICKS);
     CHECK_FALSE(d.kick);
     CHECK_FALSE(d.give_up);
     CHECK(d.stall_streak == 0);
@@ -37,7 +37,7 @@ TEST_CASE("watchdog: caught-up cache idles with zero streak", "[gcode_viewer][wa
     // cached >= target: healthy, nothing to do, streak resets even if it was high.
     WatchdogObservation obs{/*cached=*/855, /*target=*/855, /*prev_cached=*/855,
                             /*prev_target=*/855, /*stall_streak=*/12};
-    auto d = watchdog_evaluate(obs, kMaxStallKicks);
+    auto d = watchdog_evaluate(obs, MAX_STALL_KICKS);
     CHECK_FALSE(d.kick);
     CHECK_FALSE(d.give_up);
     CHECK(d.stall_streak == 0);
@@ -47,7 +47,7 @@ TEST_CASE("watchdog: confirmed stall kicks and increments streak", "[gcode_viewe
     // Behind target AND same (cached,target) as last tick -> confirmed stall.
     WatchdogObservation obs{/*cached=*/-1, /*target=*/855, /*prev_cached=*/-1,
                             /*prev_target=*/855, /*stall_streak=*/0};
-    auto d = watchdog_evaluate(obs, kMaxStallKicks);
+    auto d = watchdog_evaluate(obs, MAX_STALL_KICKS);
     CHECK(d.kick);
     CHECK_FALSE(d.give_up);
     CHECK(d.stall_streak == 1);
@@ -58,7 +58,7 @@ TEST_CASE("watchdog: progress since last tick resets the streak", "[gcode_viewer
     // large prior streak must reset and we must NOT give up.
     WatchdogObservation obs{/*cached=*/40, /*target=*/855, /*prev_cached=*/-1,
                             /*prev_target=*/855, /*stall_streak=*/29};
-    auto d = watchdog_evaluate(obs, kMaxStallKicks);
+    auto d = watchdog_evaluate(obs, MAX_STALL_KICKS);
     CHECK_FALSE(d.kick);
     CHECK_FALSE(d.give_up);
     CHECK(d.stall_streak == 0);
@@ -69,9 +69,9 @@ TEST_CASE("watchdog: gives up after max consecutive stalls and stops kicking",
     // One more stall tick reaches the cap: stop force-invalidating and signal
     // give_up so the caller can surface the error state.
     WatchdogObservation obs{/*cached=*/-1, /*target=*/855, /*prev_cached=*/-1,
-                            /*prev_target=*/855, /*stall_streak=*/kMaxStallKicks - 1};
-    auto d = watchdog_evaluate(obs, kMaxStallKicks);
+                            /*prev_target=*/855, /*stall_streak=*/MAX_STALL_KICKS - 1};
+    auto d = watchdog_evaluate(obs, MAX_STALL_KICKS);
     CHECK_FALSE(d.kick);
     CHECK(d.give_up);
-    CHECK(d.stall_streak == kMaxStallKicks);
+    CHECK(d.stall_streak == MAX_STALL_KICKS);
 }

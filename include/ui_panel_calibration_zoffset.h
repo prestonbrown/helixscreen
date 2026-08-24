@@ -13,7 +13,7 @@
 
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
 class PrinterState;
 }
@@ -125,11 +125,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void show();
 
     /**
-     * @brief Set the MoonrakerAPI for G-code commands
+     * @brief Set the IMoonrakerAPI for G-code commands
      *
-     * @param api MoonrakerAPI for sending commands
+     * @param api IMoonrakerAPI for sending commands
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -167,7 +167,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // API reference
     // Note: overlay_root_ inherited from OverlayBase
     lv_obj_t* parent_screen_ = nullptr;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // State management
     State state_ = State::IDLE;
@@ -242,6 +242,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// Latches restart activity seen during a save. Reset on every entry to and
     /// exit from State::SAVING so repeated saves in one session start clean.
     helix::zoffset::SaveRestartLatch save_restart_latch_;
+
+    friend class ZOffsetCalibrationTestAccess;
 
     /// Watches klippy state while saving, to feed save_restart_latch_.
     /// No paired SubjectLifetime: PrinterState::get_klippy_state_subject() is a

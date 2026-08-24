@@ -22,9 +22,10 @@
 #include "ui_observer_guard.h"
 #include "ui_update_queue.h"
 
+#include "connection_state.h"
 #include "lvgl/lvgl.h"
-#include "moonraker_client.h" // ConnectionState
-#include "printer_state.h"    // PrintJobState
+#include "print_lifecycle_state.h" // PrintState, for observe_print_lifecycle
+#include "printer_state.h"         // PrintJobState
 
 #include <memory>
 #include <string>
@@ -650,7 +651,11 @@ ObserverGuard observe_connection_state(lv_subject_t* subject, Panel* panel,
  *
  * @tparam Panel Panel class type
  * @tparam Handler Callable: void(Panel*, PrintJobState)
- * @param subject Print state enum subject (print_state_enum)
+ * @param subject The RAW wire subject, `print_state_enum` — nothing else. This
+ *        factory hard-casts to PrintJobState, and PrintState does not share its
+ *        numbering past index 0, so handing it `print_lifecycle` compiles, runs,
+ *        and answers a different question. Use observe_print_lifecycle() for
+ *        that subject.
  * @param panel Panel instance
  * @param handler Lambda called with panel and typed PrintJobState
  * @param lifetime Death signal for @p subject. Required whenever the observing
@@ -666,6 +671,60 @@ ObserverGuard observe_print_state(lv_subject_t* subject, Panel* panel, Handler&&
         subject, panel,
         [handler = std::forward<Handler>(handler)](Panel* p, int state_int) {
             handler(p, static_cast<PrintJobState>(state_int));
+        },
+        lifetime);
+}
+
+/**
+ * @brief observe_print_state(), but firing SYNCHRONOUSLY like observe_int_immediate().
+ *
+ * Typing and dispatch mode are orthogonal, and a family that covers only one
+ * dispatch mode is a trap: swapping observe_int_immediate() for
+ * observe_print_state() to gain the typing silently moves the handler onto the
+ * UpdateQueue. AbortManager's cancel detection reads the resulting state in the
+ * same turn, so deferring it broke two tests the moment that swap was tried.
+ *
+ * Prefer the deferred observe_print_state() unless the caller genuinely needs
+ * the value before returning.
+ */
+template <typename Panel, typename Handler>
+ObserverGuard observe_print_state_immediate(lv_subject_t* subject, Panel* panel, Handler&& handler,
+                                            const SubjectLifetime& lifetime = {}) {
+    return observe_int_immediate<Panel>(
+        subject, panel,
+        [handler = std::forward<Handler>(handler)](Panel* p, int state_int) {
+            handler(p, static_cast<PrintJobState>(state_int));
+        },
+        lifetime);
+}
+
+/**
+ * @brief Create a print lifecycle observer with typed PrintState
+ *
+ * The derived-lifecycle sibling of observe_print_state(). Consumers asking a
+ * capability question — "does a job own the machine right now?" — want this one,
+ * because it is the only axis that can express a start the app has committed to
+ * but the printer has not reported yet.
+ *
+ * @tparam Panel Panel class type
+ * @tparam Handler Callable: void(Panel*, PrintState)
+ * @param subject The derived lifecycle subject, `print_lifecycle` — nothing else.
+ *        See the warning on observe_print_state(): the two enums do not share
+ *        numbering, and passing the wrong subject is silent.
+ * @param panel Panel instance
+ * @param handler Lambda called with panel and typed PrintState
+ * @param lifetime Death signal for @p subject. Same rule as observe_int_sync():
+ *        print_lifecycle belongs to PrinterState, so every caller not owned by
+ *        PrinterState wants one.
+ * @return ObserverGuard for RAII cleanup
+ */
+template <typename Panel, typename Handler>
+ObserverGuard observe_print_lifecycle(lv_subject_t* subject, Panel* panel, Handler&& handler,
+                                      const SubjectLifetime& lifetime = {}) {
+    return observe_int_sync<Panel>(
+        subject, panel,
+        [handler = std::forward<Handler>(handler)](Panel* p, int state_int) {
+            handler(p, static_cast<PrintState>(state_int));
         },
         lifetime);
 }

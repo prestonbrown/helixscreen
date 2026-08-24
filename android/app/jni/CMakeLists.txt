@@ -28,6 +28,79 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(${LIBHV_DIR} libhv)
 
 # ============================================================================
+# libjpeg-turbo (shared — dlopen'd at runtime by CameraStream)
+# ============================================================================
+# Android ships no libturbojpeg, so CameraStream's dlopen fails and every MJPEG
+# frame falls back to stb_image: scalar IDCT (STBI_NEON is never defined) *and*
+# no decode-time downscale, because compute_scaled_size() is gated on
+# tjGetScalingFactors. A 1080p stream then costs a full-res scalar decode plus an
+# LVGL software rescale per frame (prestonbrown/helixscreen#1245).
+#
+# ExternalProject_Add rather than add_subdirectory: libjpeg-turbo's top-level
+# CMakeLists.txt hard-fails with "cannot be integrated into another build system
+# using add_subdirectory()" whenever CMAKE_SOURCE_DIR != its own source dir, and
+# tells downstreams to use ExternalProject_Add instead. A separate configure also
+# keeps its install rules, CMAKE_INSTALL_PREFIX and C flags out of our build.
+include(ExternalProject)
+set(LIBJPEG_TURBO_DIR "${PROJECT_ROOT}/lib/libjpeg-turbo")
+set(TURBOJPEG_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libjpeg-turbo")
+set(TURBOJPEG_SO "${TURBOJPEG_BINARY_DIR}/libturbojpeg.so")
+
+# Fail the build if SIMD is silently dropped on the ABIs that are the whole point
+# of this: a libturbojpeg without SIMD is barely worth shipping. Arm NEON is
+# intrinsics-only, so the NDK's clang is the only prerequisite and REQUIRE_SIMD is
+# safe. x86-64 needs a separate NASM-syntax assembler; this NDK bundles yasm and
+# CMake finds it, so that ABI gets SIMD too — but it is an emulator-only ABI, so
+# let it warn and degrade rather than hard-fail on a host where yasm is missing.
+if(ANDROID_ABI MATCHES "^arm")
+    set(TURBOJPEG_REQUIRE_SIMD 1)
+else()
+    set(TURBOJPEG_REQUIRE_SIMD 0)
+endif()
+
+ExternalProject_Add(turbojpeg_ext
+    SOURCE_DIR "${LIBJPEG_TURBO_DIR}"
+    BINARY_DIR "${TURBOJPEG_BINARY_DIR}"
+    DOWNLOAD_COMMAND ""
+    UPDATE_COMMAND ""
+    # Build only the TurboJPEG API shared library — not libjpeg.so, not the
+    # bundled tools, not the install tree.
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target turbojpeg
+    INSTALL_COMMAND ""
+    BUILD_BYPRODUCTS "${TURBOJPEG_SO}"
+    CMAKE_ARGS
+        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+        # Deliberately NOT ${CMAKE_BUILD_TYPE}: the NDK's Debug config passes no
+        # -O flag at all, and -O0 NEON intrinsics are slower than the stb_image
+        # path this replaces. Nobody steps through libjpeg-turbo, so pin it
+        # optimized and let a debug APK still show the real decode cost.
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+        -DCMAKE_INSTALL_PREFIX=${TURBOJPEG_BINARY_DIR}/install
+        -DANDROID_ABI=${ANDROID_ABI}
+        -DANDROID_PLATFORM=${ANDROID_PLATFORM}
+        -DANDROID_NDK=${ANDROID_NDK}
+        # TurboJPEG API only: no static libs, no cjpeg/djpeg/tjbench, no
+        # regression tests, no fuzzers, no Java/JNA bindings.
+        -DENABLE_SHARED=1
+        -DENABLE_STATIC=0
+        -DWITH_TURBOJPEG=1
+        -DWITH_TOOLS=0
+        -DWITH_TESTS=0
+        -DWITH_FUZZ=0
+        -DWITH_SIMD=1
+        -DREQUIRE_SIMD=${TURBOJPEG_REQUIRE_SIMD}
+    # AGP's ninja parser forwards compiler diagnostics and drops plain progress
+    # output, so a sub-build that streams to the console leaves no record of what
+    # it configured. Log to files instead and replay them only if it breaks — the
+    # configure log is where "SIMD extensions: ARM64" is confirmed.
+    LOG_CONFIGURE 1
+    LOG_BUILD 1
+    LOG_OUTPUT_ON_FAILURE 1
+)
+
+# ============================================================================
 # LVGL (static library from source globs)
 # ============================================================================
 file(GLOB_RECURSE LVGL_SOURCES "${PROJECT_ROOT}/lib/lvgl/src/*.c")
@@ -125,7 +198,29 @@ file(GLOB QUIRC_SOURCES "${PROJECT_ROOT}/lib/quirc/lib/*.c")
 
 add_library(main SHARED ${HELIX_SOURCES} ${FONT_SOURCES} ${TRANS_SOURCES} ${QUIRC_SOURCES})
 
+# Generated git-hash header, required by src/system/helix_version.cpp. Gradle
+# never runs the Makefile, so run the Makefile's own generator from here rather
+# than reimplementing it: the header's format and its only-rewrite-on-change
+# behaviour then have exactly one author. BUILD_DIR points at the CMake binary
+# dir so `make clean` and a Gradle build cannot pull the header out from under
+# each other, and that dir is searched ahead of ${PROJECT_ROOT}/build/generated
+# below, or a Makefile build's leftover copy would supply a hash from whenever
+# that build last ran. Configure-time only: the hash goes stale until the next
+# reconfigure, which is what "android-dev" used to say outright.
+set(HELIX_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env "BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            bash "${PROJECT_ROOT}/scripts/gen-git-hash.sh"
+    WORKING_DIRECTORY "${PROJECT_ROOT}"
+    RESULT_VARIABLE GIT_HASH_RESULT
+)
+if(NOT GIT_HASH_RESULT EQUAL 0)
+    message(FATAL_ERROR "gen-git-hash.sh failed (${GIT_HASH_RESULT}); "
+                        "src/system/helix_version.cpp cannot compile without it")
+endif()
+
 target_include_directories(main PRIVATE
+    "${HELIX_GENERATED_DIR}"            # For helix_git_hash.h (generated above)
     "${PROJECT_ROOT}/include"
     "${PROJECT_ROOT}"
     "${PROJECT_ROOT}/lib"                   # For lvgl/lvgl.h, spdlog/spdlog.h etc.
@@ -162,6 +257,13 @@ target_compile_definitions(main PRIVATE
     HELIX_PLATFORM_ANDROID
     HELIX_HAS_SOUND
     HELIX_HAS_TRACKER
+    # This build bypasses the Makefile, so its `?= 1` feature defaults do not
+    # apply here — an undefined macro in `#if` is 0 and silently selects the
+    # stub implementation.
+    HELIX_HAS_GCODE_VIEWER=1
+    HELIX_HAS_BED_MESH_3D=1
+    HELIX_HAS_PLUGINS=1
+    HELIX_HAS_TIMELAPSE_VIEWER=1
     ENABLE_GLES_3D
     $<$<CONFIG:Debug>:HELIX_ENABLE_MOCKS>
     LV_CONF_INCLUDE_SIMPLE
@@ -169,7 +271,6 @@ target_compile_definitions(main PRIVATE
     HELIX_VERSION_MAJOR=${HELIX_VERSION_MAJOR}
     HELIX_VERSION_MINOR=${HELIX_VERSION_MINOR}
     HELIX_VERSION_PATCH=${HELIX_VERSION_PATCH}
-    HELIX_GIT_SHA="android-dev"
 )
 
 target_compile_options(main PRIVATE
@@ -198,3 +299,32 @@ target_link_libraries(main
     ${z-lib}
     android
 )
+
+# libturbojpeg is loaded with dlopen(), never linked, so nothing above pulls it
+# into the APK — stage it by hand into CMAKE_LIBRARY_OUTPUT_DIRECTORY, AGP's
+# per-ABI obj dir, which is what mergeNativeLibs collects and packages.
+#
+# This is a standalone target, NOT a POST_BUILD hook on `main`: mergeNativeLibs
+# re-syncs its output from the obj dir every build, so a copy that only fires
+# when libmain.so happens to relink silently drops the library out of the APK on
+# any incremental build that leaves `main` up to date.
+#
+# CMake's Android platform sets CMAKE_PLATFORM_NO_VERSIONED_SONAME, so
+# libjpeg-turbo's VERSION/SOVERSION collapse to a plain "libturbojpeg.so" — the
+# APK packager only accepts unversioned lib*.so names, never libturbojpeg.so.0.
+if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    message(FATAL_ERROR
+        "CMAKE_LIBRARY_OUTPUT_DIRECTORY is unset — libturbojpeg.so has nowhere to be "
+        "staged and would be missing from the APK. AGP normally supplies it.")
+endif()
+set(TURBOJPEG_STAGED "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libturbojpeg.so")
+add_custom_command(
+    OUTPUT "${TURBOJPEG_STAGED}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${TURBOJPEG_SO}" "${TURBOJPEG_STAGED}"
+    DEPENDS turbojpeg_ext "${TURBOJPEG_SO}"
+    COMMENT "Staging libturbojpeg.so for packaging"
+    VERBATIM
+)
+add_custom_target(turbojpeg_staged ALL DEPENDS "${TURBOJPEG_STAGED}")
+# AGP builds the named library targets, not `all`, so this has to hang off main.
+add_dependencies(main turbojpeg_staged)

@@ -40,8 +40,8 @@ using namespace helix;
 
 namespace {
 // Unreachable loopback port — open() fails fast, no external dependency.
-constexpr const char* kBadUrl = "ws://127.0.0.1:19998/websocket";
-constexpr const char* kBadUrl2 = "ws://127.0.0.1:19997/websocket"; // simulate change-host
+constexpr const char* BAD_URL = "ws://127.0.0.1:19998/websocket";
+constexpr const char* BAD_URL2 = "ws://127.0.0.1:19997/websocket"; // simulate change-host
 } // namespace
 
 // NOTE on cadence: connect() calls close() then open() on the inherited
@@ -71,7 +71,7 @@ TEST_CASE("MoonrakerClient install-once: callbacks installed on first connect, n
     // No callbacks installed until the first connect().
     REQUIRE(MoonrakerClientTestAccess::callbacks_installed(client) == false);
 
-    client.connect(kBadUrl, []() {}, []() {});
+    client.connect(BAD_URL, []() {}, []() {});
     REQUIRE(MoonrakerClientTestAccess::callbacks_installed(client) == true);
 
     client.disconnect();
@@ -93,7 +93,7 @@ TEST_CASE("MoonrakerClient install-once: repeated connect/disconnect never reins
     // std::functions are never reassigned. We assert the guard flips true exactly once and
     // stays true across every cycle.
     for (int i = 0; i < 25; ++i) {
-        const char* url = (i % 2 == 0) ? kBadUrl : kBadUrl2;
+        const char* url = (i % 2 == 0) ? BAD_URL : BAD_URL2;
         REQUIRE_NOTHROW(client.connect(url, []() {}, []() {}));
         // After the very first connect the flag is set and must never clear — proving
         // install_ws_callbacks() is gated and won't reassign on subsequent connects.
@@ -115,7 +115,7 @@ TEST_CASE("MoonrakerClient install-once: destruction during pending connect is s
         loop_thread->start();
         {
             MoonrakerClient client(loop_thread->loop());
-            client.connect(kBadUrl, []() {}, []() {});
+            client.connect(BAD_URL, []() {}, []() {});
             settle(); // let the failing connect start churning on the libhv thread
             // Client destroyed here at scope exit — the dtor resets destruction_guard_
             // before the base hv::WebSocketClient destructor, so any in-flight trampoline
@@ -136,11 +136,11 @@ TEST_CASE("MoonrakerClient install-once: destruction during pending connect is s
         {
             MoonrakerClient client(loop_thread->loop());
             for (int i = 0; i < 5; ++i) {
-                client.connect(kBadUrl, []() {}, []() {});
+                client.connect(BAD_URL, []() {}, []() {});
                 client.disconnect();
                 settle();
             }
-            client.connect(kBadUrl2, []() {}, []() {});
+            client.connect(BAD_URL2, []() {}, []() {});
             settle();
             // Destroyed while last connect is still pending — dtor must self-cancel the
             // install-once trampolines via destruction_guard_.

@@ -14,8 +14,9 @@
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "observer_factory.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_subject_registry.h"
 
@@ -83,11 +84,18 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         // where a prior test called deinit_subjects on the global singleton).
         auto& ps = get_printer_state();
         if (ps.are_subjects_initialized()) {
-            auto* print_subj = ps.get_print_state_enum_subject();
+            // print_lifecycle, not print_state_enum. The lock now covers the
+            // preparing window, and the raw enum does not move on the
+            // Idle -> Preparing edge - it holds standby, or the PREVIOUS job's
+            // terminal state, for the whole of a host-side pre-start block. On
+            // the enum this observer simply would not fire, and the widened
+            // predicate below would be dead code.
+            auto* print_subj = ps.get_print_lifecycle_subject();
             if (print_subj) {
                 print_state_observer_ = ui::observe_int_sync<PowerDeviceState>(
-                    print_subj, this,
-                    [](PowerDeviceState* self, int /*state*/) { self->reevaluate_lock_states(); });
+                    print_subj, this, [](PowerDeviceState* self, int /*lifecycle*/) {
+                        self->reevaluate_lock_states();
+                    });
             }
         }
     }
@@ -125,13 +133,13 @@ std::vector<std::string> PowerDeviceState::device_names() const {
     return names;
 }
 
-void PowerDeviceState::subscribe(MoonrakerAPI& api) {
+void PowerDeviceState::subscribe(IMoonrakerAPI& api) {
     api.register_method_callback("notify_power_changed", "power_device_state",
                                  [this](const nlohmann::json& msg) { on_power_changed(msg); });
     spdlog::debug("[PowerDeviceState] Subscribed to notify_power_changed");
 }
 
-void PowerDeviceState::unsubscribe(MoonrakerAPI& api) {
+void PowerDeviceState::unsubscribe(IMoonrakerAPI& api) {
     api.unregister_method_callback("notify_power_changed", "power_device_state");
     print_state_observer_.reset();
     deinit_subjects();
@@ -150,12 +158,8 @@ void PowerDeviceState::update_device_status(const std::string& device, const std
         it->second.raw_status = new_raw;
         int effective = new_raw;
         if (it->second.locked_while_printing && new_raw == 1) {
-            auto* print_subj = get_printer_state().get_print_state_enum_subject();
-            if (print_subj) {
-                auto state = static_cast<PrintJobState>(lv_subject_get_int(print_subj));
-                if (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED) {
-                    effective = 2;
-                }
+            if (job_holds_machine(get_printer_state().get_print_lifecycle())) {
+                effective = 2;
             }
         }
         if (lv_subject_get_int(it->second.status_subject.get()) != effective) {
@@ -206,9 +210,7 @@ void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
             // Evaluate effective status (may be locked)
             int effective = new_raw;
             if (it->second.locked_while_printing && new_raw == 1) {
-                auto state = static_cast<PrintJobState>(
-                    lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
-                if (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED) {
+                if (job_holds_machine(get_printer_state().get_print_lifecycle())) {
                     effective = 2; // locked
                 }
             }
@@ -227,13 +229,17 @@ void PowerDeviceState::reevaluate_lock_states() {
     if (!ps.are_subjects_initialized()) {
         return;
     }
-    auto* print_subj = ps.get_print_state_enum_subject();
-    if (!print_subj) {
-        return;
-    }
+    // The LIFECYCLE subject, matching the PrintState cast below. These enums do
+    // not share numbering past index 0 - PrintJobState COMPLETE is 3, PrintState
+    // Paused is 3 - so reading one and interpreting it as the other compiles,
+    // runs, and answers a different question (a finished print would read as
+    // "paused" and hold the lock on).
 
-    auto state = static_cast<PrintJobState>(lv_subject_get_int(print_subj));
-    bool is_printing = (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED);
+    // A device flagged locked_while_printing is the PSU or a bound relay. During
+    // a host-side pre-start block the printer is homing and probing under power,
+    // so cutting it there is as destructive as cutting it mid-layer - and the
+    // wire cannot say so.
+    const bool is_printing = job_holds_machine(ps.get_print_lifecycle());
 
     for (auto& [name, info] : devices_) {
         if (!info.status_subject) {
@@ -261,7 +267,7 @@ void PowerDeviceState::deinit_subjects() {
 
     lifetime_.invalidate();
 
-    // [L073] The observer watches PrinterState's print_state_enum_ subject —
+    // [L073] The observer watches PrinterState's print_lifecycle_ subject —
     // an external subject whose lifecycle we don't control. During test runs,
     // PrinterState may have been deinit'd and reinit'd, destroying the original
     // subject while are_subjects_initialized() returns true (for the new one).

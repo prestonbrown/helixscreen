@@ -116,16 +116,15 @@ TEST_CASE_METHOD(MigrationV19Fixture,
     // never call the migration at all, making the test a no-op that proves nothing.
     json v18 = {{"config_version", 18},
                 {"active_printer_id", "default"},
-                {"preset_materials",
-                 json::array({{{"type", "PLA"}},
-                              {{"type", "PLA"},
-                               {"filament_id", "orca_bambu_pla_matte"},
-                               {"brand", "Bambu Lab"},
-                               {"name", "PLA Matte"},
-                               {"nozzle", 220},
-                               {"bed", 55}},
-                              {{"type", "ABS"}},
-                              {{"type", "TPU"}}})}};
+                {"preset_materials", json::array({{{"type", "PLA"}},
+                                                  {{"type", "PLA"},
+                                                   {"filament_id", "orca_bambu_pla_matte"},
+                                                   {"brand", "Bambu Lab"},
+                                                   {"name", "PLA Matte"},
+                                                   {"nozzle", 220},
+                                                   {"bed", 55}},
+                                                  {{"type", "ABS"}},
+                                                  {{"type", "TPU"}}})}};
     write_and_init(v18);
 
     REQUIRE(config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);

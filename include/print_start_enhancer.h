@@ -35,7 +35,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -206,7 +206,7 @@ class PrintStartEnhancer {
      * 4. Uploads the modified config
      * 5. Restarts Klipper to apply changes
      *
-     * @param api MoonrakerAPI instance (must be connected)
+     * @param api IMoonrakerAPI instance (must be connected)
      * @param macro_name Name of macro to enhance (e.g., "PRINT_START")
      * @param source_file Config file containing the macro (e.g., "macros.cfg")
      * @param enhancements List of approved enhancements
@@ -214,7 +214,7 @@ class PrintStartEnhancer {
      * @param on_complete Completion callback
      * @param on_error Error callback
      */
-    void apply_enhancements(MoonrakerAPI* api, const std::string& macro_name,
+    void apply_enhancements(IMoonrakerAPI* api, const std::string& macro_name,
                             const std::string& source_file,
                             const std::vector<MacroEnhancement>& enhancements,
                             EnhancementProgressCallback on_progress,
@@ -224,22 +224,22 @@ class PrintStartEnhancer {
     /**
      * @brief Restore printer.cfg from a backup
      *
-     * @param api MoonrakerAPI instance
+     * @param api IMoonrakerAPI instance
      * @param backup_filename Backup filename (in config root)
      * @param on_complete Called on success
      * @param on_error Called on error
      */
-    void restore_from_backup(MoonrakerAPI* api, const std::string& backup_filename,
+    void restore_from_backup(IMoonrakerAPI* api, const std::string& backup_filename,
                              std::function<void()> on_complete, EnhancementErrorCallback on_error);
 
     /**
      * @brief List available backups
      *
-     * @param api MoonrakerAPI instance
+     * @param api IMoonrakerAPI instance
      * @param on_complete Called with list of backup filenames
      * @param on_error Called on error
      */
-    void list_backups(MoonrakerAPI* api,
+    void list_backups(IMoonrakerAPI* api,
                       std::function<void(const std::vector<std::string>&)> on_complete,
                       EnhancementErrorCallback on_error);
 
@@ -269,14 +269,14 @@ class PrintStartEnhancer {
     /**
      * @brief Create a backup of a config file
      */
-    void create_backup(MoonrakerAPI* api, const std::string& source_file,
+    void create_backup(IMoonrakerAPI* api, const std::string& source_file,
                        const std::string& backup_filename, std::function<void()> on_success,
                        EnhancementErrorCallback on_error);
 
     /**
      * @brief Download, modify, and upload a config file
      */
-    void modify_and_upload_config(MoonrakerAPI* api, const std::string& macro_name,
+    void modify_and_upload_config(IMoonrakerAPI* api, const std::string& macro_name,
                                   const std::string& source_file,
                                   const std::vector<MacroEnhancement>& enhancements,
                                   std::function<void(size_t ops, size_t lines)> on_success,
@@ -285,7 +285,7 @@ class PrintStartEnhancer {
     /**
      * @brief Restart Klipper to apply config changes
      */
-    void restart_klipper(MoonrakerAPI* api, std::function<void()> on_success,
+    void restart_klipper(IMoonrakerAPI* api, std::function<void()> on_success,
                          EnhancementErrorCallback on_error);
 
     // === Lifetime Guard for Async Callbacks ===

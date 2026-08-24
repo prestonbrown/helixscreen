@@ -8,33 +8,40 @@
 // similarity search. So an unmatchable string does not degrade gracefully —
 // it becomes PLA temperatures on an ASA-GF spool.
 
+#include "filament_catalog.h"
 #include "filament_variants.h"
 
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <map>
 #include <set>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
-#include "filament_catalog.h"
+#include "hv/json.hpp"
 
 namespace {
 
 // Mirrors the shipped orca_library_types for deterministic tests.
-const std::set<std::string> kLib = {
-    "ABS", "ABS-GF", "ASA", "ASA-AERO", "ASA-CF", "BVOH", "CoPE", "EVA",
-    "HIPS", "PA", "PA-CF", "PA-GF", "PA6-CF", "PC", "PCTG", "PE", "PET-CF",
-    "PETG", "PETG-CF", "PHA", "PLA", "PLA-AERO", "PLA-CF", "PP", "PP-CF",
-    "PP-GF", "PPA-CF", "PPA-GF", "PVA", "SBS", "TPU"};
+const std::set<std::string> LIB = {
+    "ABS",    "ABS-GF", "ASA",     "ASA-AERO", "ASA-CF", "BVOH",     "CoPE",   "EVA",
+    "HIPS",   "PA",     "PA-CF",   "PA-GF",    "PA6-CF", "PC",       "PCTG",   "PE",
+    "PET-CF", "PETG",   "PETG-CF", "PHA",      "PLA",    "PLA-AERO", "PLA-CF", "PP",
+    "PP-CF",  "PP-GF",  "PPA-CF",  "PPA-GF",   "PVA",    "SBS",      "TPU"};
 
-const std::map<std::string, std::string> kOverrides = {
-    {"rPLA", "PLA"},   {"rPETG", "PETG"}, {"TPE", "TPU"},  {"TPU-95A", "TPU"},
-    {"TPU-85A", "TPU"}, {"SILK", "PLA"},  {"Color-Change", "PLA"},
-    {"PLA+", "PLA"},   {"ASA+", "ASA"},   {"ABS+", "ABS"}};
+const std::map<std::string, std::string> OVERRIDES = {
+    {"rPLA", "PLA"},    {"rPETG", "PETG"}, {"TPE", "TPU"},          {"TPU-95A", "TPU"},
+    {"TPU-85A", "TPU"}, {"SILK", "PLA"},   {"Color-Change", "PLA"}, {"PLA+", "PLA"},
+    {"ASA+", "ASA"},    {"ABS+", "ABS"}};
 
 struct TableFixture {
-    TableFixture() { filament::FilamentVariantsTestAccess::set_orca_tables(kLib, kOverrides); }
-    ~TableFixture() { filament::FilamentVariantsTestAccess::set_orca_tables({}, {}); }
+    TableFixture() {
+        filament::FilamentVariantsTestAccess::set_orca_tables(LIB, OVERRIDES);
+    }
+    ~TableFixture() {
+        filament::FilamentVariantsTestAccess::set_orca_tables({}, {});
+    }
 };
 
 } // namespace
@@ -84,9 +91,9 @@ TEST_CASE_METHOD(TableFixture, "orca_match_type handles non-catalog input", "[or
     // Material reaching the write path is not always catalog-sourced: firmware
     // reports strings, the whitelist dropdown has its own spellings, and users
     // type free text. [L093] — test the inputs the code actually receives.
-    CHECK(filament::orca_match_type("  PLA  ") == "PLA");   // whitespace
-    CHECK(filament::orca_match_type("pla") == "PLA");       // case
-    CHECK(filament::orca_match_type("Silk PLA") == "PLA");  // decorated
+    CHECK(filament::orca_match_type("  PLA  ") == "PLA");  // whitespace
+    CHECK(filament::orca_match_type("pla") == "PLA");      // case
+    CHECK(filament::orca_match_type("Silk PLA") == "PLA"); // decorated
 }
 
 // Every catalog type must resolve to a library type, or be on the explicit
@@ -97,7 +104,7 @@ TEST_CASE_METHOD(TableFixture, "orca_match_type handles non-catalog input", "[or
 TEST_CASE("every catalog type resolves or is deliberately blank", "[orca_match][catalog]") {
     // Deliberately unmatchable — see the spec's safety rationale. PET is not
     // PETG; PPS/PPA have no library equivalent and a wrong guess is unsafe.
-    const std::set<std::string> kMustNotGuess = {"PET", "PET-GF", "PPS", "PPS-CF", "PPA"};
+    const std::set<std::string> MUST_NOT_GUESS = {"PET", "PET-GF", "PPS", "PPS-CF", "PPA"};
 
     auto catalog = helix::printer::FilamentCatalog::load_full();
     auto products = catalog.all_products();
@@ -107,13 +114,13 @@ TEST_CASE("every catalog type resolves or is deliberately blank", "[orca_match][
     for (const auto* p : products) {
         if (p->type.empty())
             continue;
-        if (filament::orca_match_type(p->type).empty() && !kMustNotGuess.count(p->type))
+        if (filament::orca_match_type(p->type).empty() && !MUST_NOT_GUESS.count(p->type))
             unresolved.insert(p->type);
     }
 
     INFO("Types resolving to nothing. Either add an entry to ORCA_TYPE_OVERRIDES "
          "in scripts/import_orca_filaments.py and regenerate, or add it to "
-         "kMustNotGuess above with a comment explaining why guessing is unsafe.");
+         "MUST_NOT_GUESS above with a comment explaining why guessing is unsafe.");
     for (const auto& t : unresolved) {
         UNSCOPED_INFO("  unresolved type: " << t);
     }
@@ -130,13 +137,14 @@ TEST_CASE("every catalog type resolves or is deliberately blank", "[orca_match][
 // orca_tables_available() right after warm_orca_tables() would pass even if
 // warm_orca_tables() were a no-op — the assertion call would just trigger the
 // lazy load itself. To actually discriminate, this test breaks the lazy path
-// (relative kOrcaTablePaths resolve from cwd) AFTER warm_orca_tables() has had
+// (relative ORCA_TABLE_PATHS resolve from cwd) AFTER warm_orca_tables() has had
 // its chance to run from the real cwd: if warm already populated the tables,
 // the later orca_tables_available() call sees g_orca_loaded already true and
 // returns the cached result; if warm did nothing, that call performs the
 // FIRST load attempt from the broken cwd, fails to find the asset, and
 // (because load_orca_tables_locked only ever attempts once) latches in empty.
-TEST_CASE("warm_orca_tables loads the real asset without a prior match call", "[orca_match][warm]") {
+TEST_CASE("warm_orca_tables loads the real asset without a prior match call",
+          "[orca_match][warm]") {
     // Some earlier TEST_CASE in this binary may have already loaded or
     // injected tables; force back to fresh lazy mode first.
     filament::FilamentVariantsTestAccess::set_orca_tables({}, {});
@@ -167,7 +175,8 @@ TEST_CASE("warm_orca_tables loads the real asset without a prior match call", "[
 // g_orca_mutex. User entries must win over shipped entries in resolution
 // (step 1 of orca_match_type beats step 2/3), and the empty-string "suppress"
 // case must round-trip verbatim.
-TEST_CASE_METHOD(TableFixture, "merge_user_orca_overrides adds and supersedes", "[orca_match][user_override]") {
+TEST_CASE_METHOD(TableFixture, "merge_user_orca_overrides adds and supersedes",
+                 "[orca_match][user_override]") {
     // Baseline: "Unobtainium-Plus" is not in the shipped library or overrides,
     // and its base material ("Unobtainium") isn't either, so it resolves to ""
     // today (Orca shows the lane empty — the safe failure direction).
@@ -180,15 +189,15 @@ TEST_CASE_METHOD(TableFixture, "merge_user_orca_overrides adds and supersedes", 
     CHECK(filament::orca_match_type("PLA-Silk") == "PLA");
 
     std::map<std::string, std::string> user_map;
-    user_map["Unobtainium-Plus"] = "PLA";  // adds a new match where there was none
-    user_map["PLA-Silk"] = "";              // suppresses a previously-working match
-    user_map["rPLA"] = "PETG";              // supersedes a shipped override (was "PLA")
+    user_map["Unobtainium-Plus"] = "PLA"; // adds a new match where there was none
+    user_map["PLA-Silk"] = "";            // suppresses a previously-working match
+    user_map["rPLA"] = "PETG";            // supersedes a shipped override (was "PLA")
 
     filament::merge_user_orca_overrides(user_map);
 
-    CHECK(filament::orca_match_type("Unobtainium-Plus") == "PLA");  // new entry applied
-    CHECK(filament::orca_match_type("PLA-Silk") == "");             // suppress honored
-    CHECK(filament::orca_match_type("rPLA") == "PETG");             // user wins over shipped
+    CHECK(filament::orca_match_type("Unobtainium-Plus") == "PLA"); // new entry applied
+    CHECK(filament::orca_match_type("PLA-Silk") == "");            // suppress honored
+    CHECK(filament::orca_match_type("rPLA") == "PETG");            // user wins over shipped
     // Unrelated shipped entries are untouched.
     CHECK(filament::orca_match_type("TPU-95A") == "TPU");
     CHECK(filament::orca_match_type("ASA-CF") == "ASA-CF");
@@ -233,19 +242,164 @@ TEST_CASE_METHOD(TableFixture, "merge_user_orca_overrides is idempotent",
 
 TEST_CASE_METHOD(TableFixture, "merge_user_orca_overrides supersedes a case-variant shipped key",
                  "[orca_match][user_override]") {
-    // Shipped overrides are mixed-case (kOverrides carries "SILK" -> "PLA"). A
+    // Shipped overrides are mixed-case (OVERRIDES carries "SILK" -> "PLA"). A
     // user hand-editing orca_type_map may not match that exact case. The merge
     // must still let the user win: without case-insensitive replacement, "SILK"
     // and "Silk" coexist and std::map's sorted iteration (upper before lower)
     // returns the shipped "PLA", silently dropping the user's suppression.
-    CHECK(filament::orca_match_type("Silk") == "PLA");  // baseline: shipped SILK, case-insensitive
+    CHECK(filament::orca_match_type("Silk") == "PLA"); // baseline: shipped SILK, case-insensitive
 
     std::map<std::string, std::string> user_map;
-    user_map["Silk"] = "";  // suppress, using a different case than shipped "SILK"
+    user_map["Silk"] = ""; // suppress, using a different case than shipped "SILK"
     filament::merge_user_orca_overrides(user_map);
 
     // User wins outright regardless of the case in the query or the shipped key.
     CHECK(filament::orca_match_type("Silk") == "");
     CHECK(filament::orca_match_type("SILK") == "");
     CHECK(filament::orca_match_type("silk") == "");
+}
+
+// ============================================================================
+// Orca table reader
+// ============================================================================
+//
+// The reader walks assets/filaments.json with a SAX handler rather than
+// building a DOM, because the two tables it wants (426 bytes) sit beside a
+// 72 KB `filaments` array it has no use for. Skipping a subtree by hand means
+// the nesting rules are now load-bearing: these pin them.
+
+namespace {
+using filament::FilamentVariantsTestAccess;
+
+struct ParsedTables {
+    bool ok;
+    std::set<std::string> types;
+    std::map<std::string, std::string> overrides;
+    std::string error;
+};
+
+ParsedTables parse(const std::string& doc) {
+    ParsedTables r;
+    r.ok = FilamentVariantsTestAccess::parse_orca_tables(doc, r.types, r.overrides, r.error);
+    return r;
+}
+} // namespace
+
+TEST_CASE("orca table reader extracts both tables", "[orca_match][orca_tables]") {
+    auto r = parse(R"({
+        "orca_library_types": ["PLA", "ABS", "TPU"],
+        "orca_type_overrides": {"PLA+": "PLA", "TPE": "TPU"}
+    })");
+
+    REQUIRE(r.ok);
+    CHECK(r.types == std::set<std::string>{"PLA", "ABS", "TPU"});
+    CHECK(r.overrides == std::map<std::string, std::string>{{"PLA+", "PLA"}, {"TPE", "TPU"}});
+}
+
+TEST_CASE("orca table reader ignores the filaments array it skips over",
+          "[orca_match][orca_tables]") {
+    // The whole point of the SAX walk: `filaments` must cost nothing and
+    // contribute nothing, no matter what it contains.
+    auto r = parse(R"({
+        "orca_library_types": ["PLA"],
+        "filaments": [
+            {"name": "Some PLA", "type": "PETG", "vendor": "Acme"},
+            {"name": "Other",    "type": "ASA",  "colors": ["#fff", "#000"]}
+        ],
+        "orca_type_overrides": {"PLA+": "PLA"}
+    })");
+
+    REQUIRE(r.ok);
+    CHECK(r.types == std::set<std::string>{"PLA"});
+    CHECK(r.overrides.size() == 1);
+}
+
+TEST_CASE("orca table reader does not capture nested keys of the same name",
+          "[orca_match][orca_tables]") {
+    // Regression guard for the depth tracking. A product entry that happens to
+    // carry keys named like the top-level tables must not feed them — without a
+    // depth check, "NOT-A-TYPE" lands in the library set and silently makes an
+    // unmatchable filament type look matchable.
+    auto r = parse(R"({
+        "orca_library_types": ["PLA"],
+        "filaments": [
+            {
+                "name": "Trap",
+                "orca_library_types": ["NOT-A-TYPE"],
+                "orca_type_overrides": {"BOGUS": "PLA"}
+            }
+        ]
+    })");
+
+    REQUIRE(r.ok);
+    CHECK(r.types == std::set<std::string>{"PLA"});
+    CHECK(r.types.count("NOT-A-TYPE") == 0);
+    CHECK(r.overrides.empty());
+}
+
+TEST_CASE("orca table reader skips non-string entries", "[orca_match][orca_tables]") {
+    // Matches the DOM reader's is_string() guards: a hand-edited file with a
+    // number or a nested array in the list must drop that entry, not abort the
+    // whole load.
+    auto r = parse(R"({
+        "orca_library_types": ["PLA", 42, null, ["PETG"], "ABS"],
+        "orca_type_overrides": {"PLA+": "PLA", "Bad": 7, "Worse": {"x": "PLA"}}
+    })");
+
+    REQUIRE(r.ok);
+    CHECK(r.types == std::set<std::string>{"PLA", "ABS"});
+    CHECK(r.overrides == std::map<std::string, std::string>{{"PLA+", "PLA"}});
+}
+
+TEST_CASE("orca table reader reports malformed documents", "[orca_match][orca_tables]") {
+    auto r = parse(R"({"orca_library_types": ["PLA",})");
+
+    CHECK_FALSE(r.ok);
+    CHECK_FALSE(r.error.empty()); // non-empty error is what makes the caller warn
+}
+
+TEST_CASE("orca table reader rejects a non-object root", "[orca_match][orca_tables]") {
+    // Well-formed but the wrong shape: the caller must skip to the next search
+    // path quietly rather than warning about a parse failure.
+    auto r = parse(R"(["PLA", "ABS"])");
+
+    CHECK_FALSE(r.ok);
+    CHECK(r.error.empty());
+}
+
+TEST_CASE("orca table reader tolerates missing tables", "[orca_match][orca_tables]") {
+    auto r = parse(R"({"_attribution": {"source": "OrcaSlicer"}, "filaments": []})");
+
+    REQUIRE(r.ok);
+    CHECK(r.types.empty());
+    CHECK(r.overrides.empty());
+}
+
+TEST_CASE("orca table reader matches the shipped asset", "[orca_match][orca_tables]") {
+    // End-to-end against the real file: the reader must agree with what the
+    // shipped catalog actually declares, so a future edit to filaments.json
+    // that moves or renames these keys fails here rather than at runtime.
+    std::ifstream f("assets/filaments.json");
+    REQUIRE(f.is_open());
+    std::string doc((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+
+    auto r = parse(doc);
+    REQUIRE(r.ok);
+
+    // Independently derived: the DOM view of the same document.
+    auto dom = nlohmann::json::parse(doc);
+    std::set<std::string> expect_types;
+    for (const auto& t : dom["orca_library_types"]) {
+        if (t.is_string())
+            expect_types.insert(t.get<std::string>());
+    }
+    std::map<std::string, std::string> expect_overrides;
+    for (const auto& [k, v] : dom["orca_type_overrides"].items()) {
+        if (v.is_string())
+            expect_overrides[k] = v.get<std::string>();
+    }
+
+    CHECK(r.types == expect_types);
+    CHECK(r.overrides == expect_overrides);
+    CHECK(r.types.size() > 20); // the file is not silently empty
 }

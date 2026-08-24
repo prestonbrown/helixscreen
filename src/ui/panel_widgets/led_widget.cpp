@@ -10,8 +10,8 @@
 
 #include "app_globals.h"
 #include "display_settings_manager.h"
+#include "i_moonraker_api.h"
 #include "led/led_controller.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -28,7 +28,7 @@ namespace helix {
 void register_led_widget() {
     register_widget_factory("led", [](const std::string&) {
         auto& ps = get_printer_state();
-        auto* api = PanelWidgetManager::instance().shared_resource<MoonrakerAPI>();
+        auto* api = PanelWidgetManager::instance().shared_resource<IMoonrakerAPI>();
         return std::make_unique<LedWidget>(ps, api);
     });
 
@@ -36,7 +36,7 @@ void register_led_widget() {
     lv_xml_register_event_cb(nullptr, "light_toggle_cb", LedWidget::light_toggle_cb);
 }
 
-LedWidget::LedWidget(PrinterState& printer_state, MoonrakerAPI* api)
+LedWidget::LedWidget(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {}
 
 LedWidget::~LedWidget() {

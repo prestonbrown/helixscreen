@@ -38,11 +38,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // Slot 0 gets a two-color spool; the diagonal-chunk swatch renderer needs
     // this comma-separated hex list to arrive intact on the mapping surfaces.
-    const std::string kMultiHexes = "#202020,#F0F0F0";
+    const std::string MULTI_HEXES = "#202020,#F0F0F0";
     {
         auto slot = mock_ptr->get_slot_info(0);
         slot.color_rgb = 0x202020;
-        slot.multi_color_hexes = kMultiHexes;
+        slot.multi_color_hexes = MULTI_HEXES;
         mock_ptr->set_slot_info(0, slot);
     }
 
@@ -61,7 +61,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // The load-bearing assertion: the multi-color list survived the
     // SlotInfo -> AvailableSlot conversion in collect_available_slots().
-    CHECK(found->multi_color_hexes == kMultiHexes);
+    CHECK(found->multi_color_hexes == MULTI_HEXES);
     CHECK(found->color_rgb == 0x202020u);
 
     mock_ptr->stop();

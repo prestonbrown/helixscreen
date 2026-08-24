@@ -194,6 +194,7 @@ detect_init_system() {
 
     # Check for SysV init (BusyBox or traditional)
     if [ -d /etc/init.d ]; then
+        # shellcheck disable=SC2034  # consumed by service.sh, common.sh, competing_uis.sh, uninstall.sh
         INIT_SYSTEM="sysv"
         log_info "Init system: SysV (BusyBox/traditional)"
         return

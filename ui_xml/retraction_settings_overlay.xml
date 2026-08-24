@@ -61,7 +61,7 @@
                      style_margin_right="#space_sm">
             <event_cb trigger="value_changed" callback="on_retraction_setting_changed"/>
           </lv_slider>
-          <text_small width="40" text="6mm" translation_tag="6mm"/>
+          <text_small width="40" text="6mm"/>
         </lv_obj>
       </lv_obj>
       <!-- Divider -->
@@ -125,7 +125,7 @@
                      style_margin_right="#space_sm">
             <event_cb trigger="value_changed" callback="on_retraction_setting_changed"/>
           </lv_slider>
-          <text_small width="40" text="1mm" translation_tag="1mm"/>
+          <text_small width="40" text="1mm"/>
         </lv_obj>
       </lv_obj>
       <!-- Divider -->

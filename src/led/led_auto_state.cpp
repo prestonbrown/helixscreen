@@ -124,9 +124,12 @@ std::string LedAutoState::compute_state_key() const {
     }
 
     // Check print job state
-    auto* print_subj = printer_state_->get_print_state_enum_subject();
-    if (print_subj) {
-        auto print_state = static_cast<PrintJobState>(lv_subject_get_int(print_subj));
+    if (printer_state_->are_subjects_initialized()) {
+        // RAW_PRINT_STATE_OK: these names are LED THEME KEYS (see the JSON
+        // themes), not internal state. There is no "preparing" key, and a
+        // pre-print block already falls through to "heating" below, which is
+        // what the machine is in fact doing.
+        auto print_state = printer_state_->get_print_job_state();
         switch (print_state) {
         case PrintJobState::PRINTING:
             return "printing";
@@ -136,6 +139,7 @@ std::string LedAutoState::compute_state_key() const {
             return "complete";
         case PrintJobState::ERROR:
             return "error";
+        // RAW_PRINT_STATE_OK: theme-key arms; see the note above the switch.
         case PrintJobState::STANDBY:
         case PrintJobState::CANCELLED:
             break; // Fall through to heating/idle check
@@ -198,6 +202,8 @@ void LedAutoState::subscribe_observers() {
 
     using helix::ui::observe_int_sync;
 
+    // RAW_PRINT_STATE_OK: the LED state names are theme keys keyed off what the
+    // printer reports; see state_name_for_theme() below.
     auto* print_subj = printer_state_->get_print_state_enum_subject();
     if (print_subj) {
         print_state_observer_ = observe_int_sync<LedAutoState>(

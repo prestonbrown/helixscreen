@@ -111,6 +111,7 @@ void TouchSettingsOverlay::init_input_sliders() {
 
     sync_slider("row_jitter_threshold", input.get_jitter_threshold());
     sync_slider("row_scroll_limit", input.get_scroll_limit());
+    sync_slider("row_long_press_time", input.get_long_press_time());
 }
 
 } // namespace helix::settings

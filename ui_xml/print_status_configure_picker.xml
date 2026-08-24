@@ -3,18 +3,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- Full-screen backdrop overlay - tap to dismiss -->
-  <view name="print_status_configure_picker"
-        extends="lv_obj" width="100%" height="100%" style_bg_opa="128" style_bg_color="0x000000" style_border_width="0"
-        style_pad_all="0" style_radius="0" clickable="true">
-    <event_cb trigger="clicked" callback="print_status_picker_backdrop_cb"/>
-    <!-- Context menu card - positioned by C++ -->
-    <lv_obj name="context_menu"
-            width="content" height="content" style_bg_color="#elevated_bg" style_bg_opa="255"
-            style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_sm" flex_flow="column"
-            style_flex_main_place="start" style_flex_cross_place="start" scrollable="false" clickable="true">
-      <!-- Layout selector -->
-      <text_small text="Layout"
-                  translation_tag="Layout" style_pad_bottom="#space_xxs" clickable="false" event_bubble="true"/>
+  <view name="print_status_configure_picker" extends="context_menu_backdrop">
+    <!-- Card positioned and height-capped by ContextMenu. The controls apply
+         live, so the header offers Done rather than an X, and the rule is
+         suppressed here - the Show Sections group carries its own. -->
+    <context_menu_card title="Layout"
+                       title_tag="Layout" close_icon="check" close_text="Done" close_text_tag="Done" hide_divider="true">
       <lv_obj width="100%"
               height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
         <ui_button name="layout_btn_library"
@@ -43,6 +37,6 @@
                 width="100%" height="content" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="0"
                 scrollable="false"/>
       </lv_obj>
-    </lv_obj>
+    </context_menu_card>
   </view>
 </component>

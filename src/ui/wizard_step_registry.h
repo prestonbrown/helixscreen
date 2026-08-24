@@ -9,7 +9,7 @@
 namespace helix {
 namespace wizard {
 
-/// Ordered list of all wizard steps, indexed by StepId (0..kStepCount-1).
+/// Ordered list of all wizard steps, indexed by StepId (0..STEP_COUNT-1).
 /// Returned BY VALUE and rebuilt every call — the step singletons can be
 /// destroyed and recreated by StaticPanelRegistry across wizard sessions, so the
 /// pointers must NOT be cached (a stale cache dangled and crashed on a 3rd

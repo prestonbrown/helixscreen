@@ -186,7 +186,7 @@ TEST_CASE("Geometry data supports CPU re-expansion after prepared_buffers cleare
 
     size_t total_verts = strip_count * 6;
     std::vector<uint8_t> re_expanded(total_verts * PackedVertex::stride());
-    static constexpr int kTriIndices[6] = {0, 1, 2, 1, 3, 2};
+    static constexpr int TRI_INDICES[6] = {0, 1, 2, 1, 3, 2};
 
     auto* out = reinterpret_cast<PackedVertex*>(re_expanded.data());
     for (size_t s = 0; s < strip_count; ++s) {
@@ -201,7 +201,7 @@ TEST_CASE("Geometry data supports CPU re-expansion after prepared_buffers cleare
         }
 
         for (int ti = 0; ti < 6; ++ti) {
-            const auto& vert = geom->vertices[strip[static_cast<size_t>(kTriIndices[ti])]];
+            const auto& vert = geom->vertices[strip[static_cast<size_t>(TRI_INDICES[ti])]];
 
             out->position[0] = vert.position.x;
             out->position[1] = vert.position.y;

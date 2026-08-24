@@ -52,58 +52,6 @@ static void on_app_resize() {
 }
 
 // ============================================================================
-// HEADER BAR API
-// ============================================================================
-
-bool ui_header_bar_show_action_button(lv_obj_t* header_bar_widget) {
-    if (!header_bar_widget) {
-        return false;
-    }
-
-    lv_obj_t* button = lv_obj_find_by_name(header_bar_widget, "action_button");
-    if (button) {
-        lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
-        return true;
-    }
-
-    return false;
-}
-
-bool ui_header_bar_hide_action_button(lv_obj_t* header_bar_widget) {
-    if (!header_bar_widget) {
-        return false;
-    }
-
-    lv_obj_t* button = lv_obj_find_by_name(header_bar_widget, "action_button");
-    if (button) {
-        lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
-        return true;
-    }
-
-    return false;
-}
-
-bool ui_header_bar_set_action_button_text(lv_obj_t* header_bar_widget, const char* text) {
-    if (!header_bar_widget || !text) {
-        return false;
-    }
-
-    lv_obj_t* button = lv_obj_find_by_name(header_bar_widget, "action_button");
-    if (!button) {
-        return false;
-    }
-
-    // Find the label child of the button
-    lv_obj_t* label = lv_obj_find_by_name(button, "action_button_label");
-    if (label) {
-        lv_label_set_text(label, text);
-        return true;
-    }
-
-    return false;
-}
-
-// ============================================================================
 // INITIALIZATION
 // ============================================================================
 

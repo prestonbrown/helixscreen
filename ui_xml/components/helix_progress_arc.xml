@@ -1,6 +1,22 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Helix Progress Arc — shared lv_arc with proportional stroke thickness.
+
+  Encapsulates the common arc styling we used to repeat across
+  print_status_detailed_active, fan_arc_core, ams_loaded_card, and
+  clog_meter_page (track color, indicator color, rounded ends, no
+  bg/border/knob), plus the 5-tier diameter-driven thickness styles.
+
+  Pair with helix::ui::attach_progress_arc() (include/ui_progress_arc.h)
+  to wire automatic resize-to-square + thickness tier publication.
+  The C++ helper owns the per-instance tier subject and binds the 5
+  arc_w_* styles below to it on both LV_PART_MAIN and LV_PART_INDICATOR.
+
+  Default angles are a 270° dial (135 → 45). Override via props for
+  full circles or partial arcs.
+-->
 <component>
   <styles>
     <!-- Stroke thickness tiers — diameter ranges (px):

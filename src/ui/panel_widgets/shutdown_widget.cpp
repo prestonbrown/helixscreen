@@ -11,9 +11,10 @@
 
 #include "config.h"
 #include "host_identity.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "platform_info.h"
 #include "runtime_config.h"
 #include "system_power.h"
 
@@ -28,18 +29,18 @@ namespace {
 
 // Split-button dropdown indices (must match XML option order:
 // "Both\nPrinter\nScreen" in shutdown_modal.xml).
-constexpr uint32_t kScopeBoth = 0;
-constexpr uint32_t kScopePrinter = 1;
-constexpr uint32_t kScopeScreen = 2;
+constexpr uint32_t SCOPE_BOTH = 0;
+constexpr uint32_t SCOPE_PRINTER = 1;
+constexpr uint32_t SCOPE_SCREEN = 2;
 
 // After a successful machine.shutdown/reboot, Moonraker replies OK but the
 // OS-level shutdown can silently no-op on some firmwares (observed on SonicPad
 // Jpe230 — logind.PowerOff returns without initiating the shutdown). If the
 // WebSocket has reconnected within this window, the host is clearly still up.
-constexpr uint32_t kVerificationWindowMs = 20000;
+constexpr uint32_t VERIFICATION_WINDOW_MS = 20000;
 
 struct VerifyCtx {
-    MoonrakerAPI* api;
+    IMoonrakerAPI* api;
     bool is_reboot;
 };
 
@@ -53,7 +54,7 @@ void verify_host_down_timer_cb(lv_timer_t* timer) {
 
     const char* action = ctx->is_reboot ? "reboot" : "shutdown";
     spdlog::warn("[ShutdownDialog] Host still reachable {}s after {} — {} silently failed",
-                 kVerificationWindowMs / 1000, action, action);
+                 VERIFICATION_WINDOW_MS / 1000, action, action);
 
     const char* msg = ctx->is_reboot ? lv_tr("Reboot failed — host is still reachable")
                                      : lv_tr("Shutdown failed — host is still reachable");
@@ -62,13 +63,13 @@ void verify_host_down_timer_cb(lv_timer_t* timer) {
 
 // Invoked from Moonraker WebSocket (background) thread. Creating an lv_timer
 // is not thread-safe, so hop to the main thread via queue_update.
-void schedule_host_down_verification(MoonrakerAPI* api, bool is_reboot) {
+void schedule_host_down_verification(IMoonrakerAPI* api, bool is_reboot) {
     if (!api) {
         return;
     }
     helix::ui::queue_update("ShutdownDialog::verify", [api, is_reboot]() {
         auto* ctx = new VerifyCtx{api, is_reboot};
-        lv_timer_create(verify_host_down_timer_cb, kVerificationWindowMs, ctx);
+        lv_timer_create(verify_host_down_timer_cb, VERIFICATION_WINDOW_MS, ctx);
     });
 }
 
@@ -82,13 +83,13 @@ void schedule_host_down_verification(MoonrakerAPI* api, bool is_reboot) {
 // button itself. We don't depend on which descendant emitted the event; the
 // walk-up only needs to reach the named view-root ancestor (per L069).
 ShutdownModal* find_shutdown_modal(lv_event_t* e) {
-    constexpr const char* kViewName = "shutdown_modal";
-    constexpr size_t kViewNameLen = 14;
+    constexpr const char* VIEW_NAME = "shutdown_modal";
+    constexpr size_t VIEW_NAME_LEN = 14;
     lv_obj_t* obj = lv_event_get_current_target_obj(e);
     while (obj) {
         const char* name = lv_obj_get_name(obj);
-        if (name && std::strncmp(name, kViewName, kViewNameLen) == 0 &&
-            (name[kViewNameLen] == '\0' || name[kViewNameLen] == '_')) {
+        if (name && std::strncmp(name, VIEW_NAME, VIEW_NAME_LEN) == 0 &&
+            (name[VIEW_NAME_LEN] == '\0' || name[VIEW_NAME_LEN] == '_')) {
             return static_cast<ShutdownModal*>(lv_obj_get_user_data(obj));
         }
         obj = lv_obj_get_parent(obj);
@@ -134,7 +135,7 @@ void queue_machine_power_failure(const MoonrakerError& err, bool is_reboot,
 
 // @p allow_local_fallback is set only when Moonraker runs on this same host —
 // see handle_machine_power_failure().
-void execute_printer_shutdown(MoonrakerAPI* api, bool allow_local_fallback = false) {
+void execute_printer_shutdown(IMoonrakerAPI* api, bool allow_local_fallback = false) {
     if (!api)
         return;
     spdlog::info("[ShutdownDialog] Executing machine shutdown");
@@ -148,7 +149,7 @@ void execute_printer_shutdown(MoonrakerAPI* api, bool allow_local_fallback = fal
         });
 }
 
-void execute_printer_reboot(MoonrakerAPI* api, bool allow_local_fallback = false) {
+void execute_printer_reboot(IMoonrakerAPI* api, bool allow_local_fallback = false) {
     if (!api)
         return;
     spdlog::info("[ShutdownDialog] Executing machine reboot");
@@ -181,7 +182,7 @@ void execute_screen_reboot() {
 // WS frame, leaving the printer up. Fire screen on both success AND error:
 // the user said "Both", so we power down the screen even if the printer side
 // reported a failure.
-void execute_both_shutdown(MoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
+void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
     if (!api)
         return;
     spdlog::info("[ShutdownDialog] Executing both shutdown — printer first, screen on ack");
@@ -205,7 +206,7 @@ void execute_both_shutdown(MoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         });
 }
 
-void execute_both_reboot(MoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
+void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
     if (!api)
         return;
     spdlog::info("[ShutdownDialog] Executing both reboot — printer first, screen on ack");
@@ -246,7 +247,7 @@ void on_reboot_printer_clicked(lv_event_t* e) {
 }
 
 // Split-button dispatchers (dual-scope mode). The split button's selected
-// dropdown index encodes the scope (kScopeBoth/kScopePrinter/kScopeScreen).
+// dropdown index encodes the scope (SCOPE_BOTH/SCOPE_PRINTER/SCOPE_SCREEN).
 void on_restart_split_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] restart_split");
     auto* m = find_shutdown_modal(e);
@@ -254,13 +255,13 @@ void on_restart_split_clicked(lv_event_t* e) {
     if (!m || !sb)
         return;
     switch (ui_split_button_get_selected(sb)) {
-    case kScopeBoth:
+    case SCOPE_BOTH:
         m->fire_both_reboot();
         break;
-    case kScopePrinter:
+    case SCOPE_PRINTER:
         m->fire_printer_reboot();
         break;
-    case kScopeScreen:
+    case SCOPE_SCREEN:
         m->fire_screen_reboot();
         break;
     }
@@ -273,13 +274,13 @@ void on_shutdown_split_clicked(lv_event_t* e) {
     if (!m || !sb)
         return;
     switch (ui_split_button_get_selected(sb)) {
-    case kScopeBoth:
+    case SCOPE_BOTH:
         m->fire_both_shutdown();
         break;
-    case kScopePrinter:
+    case SCOPE_PRINTER:
         m->fire_printer_shutdown();
         break;
-    case kScopeScreen:
+    case SCOPE_SCREEN:
         m->fire_screen_shutdown();
         break;
     }
@@ -290,7 +291,7 @@ void on_shutdown_split_clicked(lv_event_t* e) {
 
 void register_shutdown_widget() {
     register_widget_factory("shutdown", [](const std::string&) {
-        auto* api = PanelWidgetManager::instance().shared_resource<MoonrakerAPI>();
+        auto* api = PanelWidgetManager::instance().shared_resource<IMoonrakerAPI>();
         return std::make_unique<ShutdownWidget>(api);
     });
 
@@ -302,7 +303,7 @@ void register_shutdown_widget() {
     lv_xml_register_event_cb(nullptr, "on_shutdown_split_clicked", on_shutdown_split_clicked);
 }
 
-ShutdownWidget::ShutdownWidget(MoonrakerAPI* api) : api_(api) {}
+ShutdownWidget::ShutdownWidget(IMoonrakerAPI* api) : api_(api) {}
 
 ShutdownWidget::~ShutdownWidget() {
     detach();
@@ -367,8 +368,16 @@ bool handle_machine_power_failure(const std::string& err_message, bool is_reboot
     return false;
 }
 
-void show_shutdown_dialog(MoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
+void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen) {
+    // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):
+    // platforms without host power controls (Android) must never reach the
+    // machine.reboot/shutdown RPCs, whatever entry point wires this up next.
+    if (!helix::platform_host_power_supported()) {
+        spdlog::info("[ShutdownDialog] Platform without host power support — ignoring request");
+        return;
+    }
+
     if (!api) {
         spdlog::warn("[ShutdownDialog] No API available");
         return;

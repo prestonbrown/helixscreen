@@ -16,8 +16,11 @@
  * TEST-FIRST: Documents expected behavior for the fix.
  */
 
+#include "ui_format_utils.h"
+
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
+#include "print_completion.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -469,4 +472,195 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     // Only the final terminal transition should count
     REQUIRE(get_completion_callback_count() == 1);
     REQUIRE(get_last_completion_state() == PrintJobState::CANCELLED);
+}
+
+// ============================================================================
+// Completion stats formatting
+// ============================================================================
+
+TEST_CASE("build_completion_stats renders layers through the canonical formatter",
+          "[print_completion][format]") {
+    // The completion modal used to hand-roll snprintf("%d %s", n, lv_tr("layers")),
+    // which renders "0 layers" where the shared helper returns UNAVAILABLE and
+    // "1 layers" where it returns the singular. It also used a second, separate
+    // translation key for the same word. Asserting equality with the helper
+    // states the contract directly and survives translation.
+    SECTION("zero layers matches the helper's unavailable form") {
+        auto stats = helix::build_completion_stats(60, 0, 0, 0);
+        REQUIRE(stats.layers == helix::ui::format_layer_count(0));
+    }
+
+    SECTION("a single layer is not pluralised") {
+        auto stats = helix::build_completion_stats(60, 0, 1, 0);
+        REQUIRE(stats.layers == helix::ui::format_layer_count(1));
+    }
+
+    SECTION("many layers match the helper") {
+        auto stats = helix::build_completion_stats(60, 0, 250, 0);
+        REQUIRE(stats.layers == helix::ui::format_layer_count(250));
+    }
+}
+
+TEST_CASE("build_completion_stats omits optional fields when unknown",
+          "[print_completion][format]") {
+    SECTION("no estimate yields an empty estimate string") {
+        auto stats = helix::build_completion_stats(60, 0, 10, 500);
+        REQUIRE(stats.estimate.empty());
+    }
+
+    SECTION("no filament yields an empty filament string") {
+        auto stats = helix::build_completion_stats(60, 120, 10, 0);
+        REQUIRE(stats.filament.empty());
+    }
+
+    SECTION("both present yields both populated") {
+        auto stats = helix::build_completion_stats(60, 120, 10, 500);
+        REQUIRE_FALSE(stats.estimate.empty());
+        REQUIRE_FALSE(stats.filament.empty());
+        REQUIRE_FALSE(stats.duration.empty());
+    }
+}
+
+// ============================================================================
+// What happens when a start dies before it prints
+// ============================================================================
+
+TEST_CASE("decide_preparing_exit_action distinguishes cancel from failure",
+          "[print_completion][preparing]") {
+    using helix::decide_preparing_exit_action;
+    using helix::PreparingExit;
+
+    SECTION("a user cancel reads as cancelled, not as a failure") {
+        auto a = decide_preparing_exit_action(PreparingExit::Cancelled);
+        REQUIRE(a.notify_cancelled);
+        REQUIRE_FALSE(a.notify_failure);
+    }
+
+    SECTION("a failed start reads as a failure") {
+        auto a = decide_preparing_exit_action(PreparingExit::Failed);
+        REQUIRE(a.notify_failure);
+        REQUIRE_FALSE(a.notify_cancelled);
+    }
+
+    SECTION("a timeout is a failure, not silence") {
+        // A start can die on a printer that never reaches state=printing at all,
+        // so nothing downstream would ever report it.
+        auto a = decide_preparing_exit_action(PreparingExit::TimedOut);
+        REQUIRE(a.notify_failure);
+    }
+}
+
+TEST_CASE("decide_preparing_exit_action only cools down when no print is running",
+          "[print_completion][preparing]") {
+    using helix::decide_preparing_exit_action;
+    using helix::PreparingExit;
+
+    SECTION("cancel, failure and timeout drop the heaters") {
+        // A pre-start block heats to print temperature. If no print follows,
+        // leaving a bed at 105C is the worst outcome - it was observed on a K2
+        // after cancelling mid-mesh.
+        REQUIRE(decide_preparing_exit_action(PreparingExit::Cancelled).cool_down);
+        REQUIRE(decide_preparing_exit_action(PreparingExit::Failed).cool_down);
+        REQUIRE(decide_preparing_exit_action(PreparingExit::TimedOut).cool_down);
+    }
+
+    SECTION("a confirmed start must not touch the heaters") {
+        auto a = decide_preparing_exit_action(PreparingExit::Confirmed);
+        REQUIRE_FALSE(a.cool_down);
+        REQUIRE_FALSE(a.notify_failure);
+        REQUIRE_FALSE(a.notify_cancelled);
+    }
+
+    SECTION("a superseded start must not touch the heaters") {
+        // Someone else's print is now running and owns the printer. Cooling
+        // down here would sabotage it.
+        auto a = decide_preparing_exit_action(PreparingExit::Superseded);
+        REQUIRE_FALSE(a.cool_down);
+        REQUIRE_FALSE(a.notify_failure);
+        REQUIRE_FALSE(a.notify_cancelled);
+    }
+}
+
+// ============================================================================
+// When a print ending should notify
+// ============================================================================
+
+TEST_CASE("should_notify_print_ended fires only when an active print reaches a terminal state",
+          "[print_completion][lifecycle]") {
+    using helix::should_notify_print_ended;
+
+    SECTION("printing or paused into a terminal state notifies") {
+        REQUIRE(should_notify_print_ended(PrintState::Printing, PrintState::Complete,
+                                          PrintOutcome::COMPLETE));
+        REQUIRE(should_notify_print_ended(PrintState::Printing, PrintState::Cancelled,
+                                          PrintOutcome::CANCELLED));
+        REQUIRE(should_notify_print_ended(PrintState::Printing, PrintState::Error,
+                                          PrintOutcome::ERROR));
+        REQUIRE(should_notify_print_ended(PrintState::Paused, PrintState::Cancelled,
+                                          PrintOutcome::CANCELLED));
+    }
+
+    SECTION("a print that dies inside PRINT_START notifies") {
+        // The lifecycle never reaches Printing here. A live pre-print phase
+        // outranks the job state, so a firmware-side PRINT_START sits at
+        // Preparing while print_stats already says printing; when Klipper faults
+        // (probe triggered prior to movement, heater fault) or the user cancels
+        // during the K2's ~19-minute mesh, the phase clears and the lifecycle
+        // goes straight Preparing -> terminal. Requiring prev==Printing meant
+        // NOTHING reported those - not this observer, and not the preparing-exit
+        // observer either, because the preparing job was already retired as
+        // Confirmed the moment the printer reported printing.
+        //
+        // The outcome is what makes it safe: it is recorded on the job-state
+        // transition into a terminal value.
+        REQUIRE(should_notify_print_ended(PrintState::Preparing, PrintState::Error,
+                                          PrintOutcome::ERROR));
+        REQUIRE(should_notify_print_ended(PrintState::Preparing, PrintState::Cancelled,
+                                          PrintOutcome::CANCELLED));
+        REQUIRE(should_notify_print_ended(PrintState::Preparing, PrintState::Complete,
+                                          PrintOutcome::COMPLETE));
+    }
+
+    SECTION("Preparing into a STALE terminal state does not notify") {
+        // The stale-badge case this whole branch exists to stop. During a
+        // host-side pre-start block print_stats still holds the PREVIOUS job's
+        // terminal value, so clearing the phase derives Preparing -> Complete
+        // from data about a print that ended minutes ago. begin_preparing()
+        // clears print_outcome to NONE, which is the only thing distinguishing
+        // it from a real ending - without this arm, abandoning a host-side block
+        // would announce "Print Complete!" for the previous job.
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Preparing, PrintState::Complete,
+                                                PrintOutcome::NONE));
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Preparing, PrintState::Cancelled,
+                                                PrintOutcome::NONE));
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Preparing, PrintState::Error,
+                                                PrintOutcome::NONE));
+    }
+
+    SECTION("booting straight into a terminal state does not notify") {
+        // The app can start while print_stats already reads complete. The
+        // previous state is Idle there, so nothing actually ended on our watch.
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Idle, PrintState::Complete,
+                                                PrintOutcome::COMPLETE));
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Idle, PrintState::Cancelled,
+                                                PrintOutcome::CANCELLED));
+    }
+
+    SECTION("non-terminal destinations never notify") {
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Printing, PrintState::Paused,
+                                                PrintOutcome::NONE));
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Paused, PrintState::Printing,
+                                                PrintOutcome::NONE));
+        REQUIRE_FALSE(
+            should_notify_print_ended(PrintState::Printing, PrintState::Idle, PrintOutcome::NONE));
+    }
+
+    SECTION("a terminal state settling to Idle does not re-notify") {
+        // Moonraker reports standby after a terminal state; that must not
+        // produce a second notification for the same print.
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Complete, PrintState::Idle,
+                                                PrintOutcome::COMPLETE));
+        REQUIRE_FALSE(should_notify_print_ended(PrintState::Cancelled, PrintState::Idle,
+                                                PrintOutcome::CANCELLED));
+    }
 }

@@ -4,18 +4,72 @@
 <component>
   <!-- Unified Temperature Graph Overlay -->
   <!-- Shows all temperature sensors with toggle chips and optional heater controls -->
+
+  <!-- Two independent axes drive the layout:
+       * orientation (ui_is_portrait) — overlay_content's flex direction,
+         graph_outer's container behavior (flex_grow vs full height),
+         and each strip's width/height.
+       * mode (temp_graph_mode: 0=GraphOnly, 1=Nozzle, 2=Bed, 3=Chamber,
+         set by TempGraphOverlay::open) — which control strip is visible,
+         and whether graph_outer takes the full width or shares with a strip.
+       The width decision is the one place both axes meet: full when GraphOnly
+       OR portrait (no strip beside the graph), 66% otherwise. Expressed as
+       inline cond= on graph_outer's bind_style_if pair rather than a
+       <subject_expr>, because subject_expr is evaluated at component-load
+       time (Phase 8c) while temp_graph_mode is only registered by
+       TempGraphOverlay::init_subjects() (Phase 9a). cond= on bind_style_if
+       compiles at view-creation time, after init_subjects has run. -->
+
+  <!-- Both orientations carry explicit styles because an inline attribute would
+       outrank a bound style; the row/column styles set layout=flex alongside
+       flex_flow because a style sets only what it names. Width and container
+       behavior are split into orthogonal pairs so a 4-state cross product
+       isn't needed: graph_outer carries one width-axis bind_style_if pair
+       (mode-driven via inline cond=) and one container-axis pair
+       (orientation-driven). -->
+  <styles>
+    <style name="tg_content_row" layout="flex" flex_flow="row"/>
+    <style name="tg_content_column" layout="flex" flex_flow="column"/>
+    <!-- graph_outer width axis: full when GraphOnly OR portrait, else 66%. -->
+    <style name="tg_graph_full" width="100%"/>
+    <style name="tg_graph_two_col" width="66%"/>
+    <!-- graph_outer container axis (ui_is_portrait). No min_height floor —
+         flex_grow gives the graph whatever's left after the strip claims
+         content height, so the tightest portrait target (272x480: ~180px
+         graph after the chip row + nozzle strip) fits without forcing
+         overlay_content to scroll. A floor large enough to matter would
+         re-introduce the scroll the floor was working around. -->
+    <style name="tg_graph_portrait" flex_grow="1"/>
+    <style name="tg_graph_landscape" height="100%" flex_grow="0"/>
+    <!-- strip orientation axis. Carries layout=flex AND flex_flow because a
+         style sets only what it names; the strip elements have no inline
+         flex_flow (inline would override the bind per AGENTS.md rule 6). -->
+    <style name="tg_strip_landscape"
+           width="33%" height="100%" layout="flex" flex_flow="column" style_flex_main_place="start"
+           style_flex_cross_place="center"/>
+    <style name="tg_strip_portrait"
+           width="100%" height="content" layout="flex" flex_flow="row" style_flex_main_place="start"
+           style_flex_cross_place="center"/>
+  </styles>
   <view name="temp_graph_overlay" extends="overlay_panel" title="Temperature" title_tag="Temperature">
     <!-- Content area: graph+chips left, controls right (side-by-side) -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_top="0" scrollable="false"
-            style_border_opa="0" flex_flow="row" style_flex_main_place="space_between">
+            style_border_opa="0" style_flex_main_place="space_between" style_pad_gap="#space_md">
+      <bind_style_if name="tg_content_column" cond="ui_is_portrait"/>
+      <bind_style_if name="tg_content_row" cond="ui_is_portrait" invert="true"/>
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
       <!-- Left column: Chip row + Temperature Graph -->
       <lv_obj name="graph_outer_container"
-              width="66%" height="100%" style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="column"
-              style_pad_gap="0">
+              style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="column" style_pad_gap="0">
+        <!-- Width axis: inline cond= (not subject_expr) so this evaluates at
+             view creation, after temp_graph_mode is registered. -->
+        <bind_style_if name="tg_graph_full" cond="ui_is_portrait or temp_graph_mode eq 0"/>
+        <bind_style_if name="tg_graph_two_col" cond="ui_is_portrait or temp_graph_mode eq 0" invert="true"/>
+        <bind_style_if name="tg_graph_portrait" cond="ui_is_portrait"/>
+        <bind_style_if name="tg_graph_landscape" cond="ui_is_portrait" invert="true"/>
         <!-- Chip row: wrapping series toggle chips -->
         <lv_obj name="chip_row"
                 width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_border_opa="0"
@@ -33,169 +87,351 @@
       <!-- Right Column: NOZZLE controls (shown in nozzle mode only)      -->
       <!-- ════════════════════════════════════════════════════════════════ -->
       <lv_obj name="nozzle_control_strip"
-              width="33%" height="100%" style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="column"
-              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm" hidden="true">
-        <!-- Current/Target Temperature Display Card with Icon and Status -->
-        <ui_card name="nozzle_display_card"
-                 width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
-                 style_pad_gap="#space_xs" style_pad_all="#space_sm">
-          <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-            <lv_obj height="content"
-                    flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
-                    scrollable="false">
-              <nozzle_icon name="nozzle_heater_icon" size="xl"/>
-              <lv_obj style_pad_all="0"
-                      scrollable="false" flex_flow="column" style_flex_main_place="center"
-                      style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                <text_small style_border_width="0" text="Current / Target" translation_tag="Current / Target"/>
-                <temp_display name="nozzle_temp_display"
-                              size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
+              style_pad_all="0" scrollable="false" style_border_opa="0" style_pad_gap="#space_sm" hidden="true">
+        <!-- Show only in Nozzle mode (temp_graph_mode == 1). bind_flag_if_not_eq
+             adds `hidden` when the condition is met (mode != 1) and removes it
+             otherwise — so the inline hidden="true" is just the initial state
+             before the binding fires. -->
+        <bind_flag_if_not_eq subject="temp_graph_mode" flag="hidden" ref_value="1"/>
+        <bind_style_if name="tg_strip_portrait" cond="ui_is_portrait"/>
+        <bind_style_if name="tg_strip_landscape" cond="ui_is_portrait" invert="true"/>
+
+        <!-- Structural <if>: landscape is a single column with a centered xl
+             card; portrait is a row with a compact card on the left and a
+             right-column controls wrapper. The card's internals differ enough
+             (icon size is creation-time, not styleable) that <if> is cleaner
+             than restyle. Only the matching branch is built — runtime
+             portrait/landscape flipping isn't supported, so no rebuild cost.
+             Names repeat across branches; check_duplicate_xml_names.py skips
+             <if>/<else> branch pairs by design. temp_display carries
+             event_cb="on_temp_graph_custom_clicked" so clicking the temp
+             opens the keypad (works in both orientations). -->
+        <if cond="ui_is_portrait eq 0">
+          <!-- LANDSCAPE: full-width centered xl-icon card, then extruder
+               selector, spacer, preset grid (2×2), Custom. -->
+          <ui_card name="nozzle_display_card"
+                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                   style_pad_gap="#space_xs" style_pad_all="#space_sm">
+            <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_obj height="content"
+                      flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
+                      scrollable="false">
+                <nozzle_icon name="nozzle_heater_icon" size="xl"/>
+                <lv_obj style_pad_all="0"
+                        scrollable="false" flex_flow="column" style_flex_main_place="center"
+                        style_flex_cross_place="start" style_pad_gap="#space_xxs">
+                  <text_small style_border_width="0" text="Current / Target" translation_tag="Current / Target"/>
+                  <temp_display name="nozzle_temp_display"
+                                size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
+                                event_cb="on_temp_graph_custom_clicked"/>
+                </lv_obj>
+                <text_small name="nozzle_status_msg"
+                            style_border_width="0" bind_text="nozzle_status" style_text_align="left"/>
               </lv_obj>
-              <text_small name="nozzle_status_msg"
-                          style_border_width="0" bind_text="nozzle_status" style_text_align="left"/>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          </ui_card>
+          <!-- Extruder selector (shown when multiple extruders detected) -->
+          <lv_obj name="extruder_selector_row"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" style_border_opa="0"
+                  flex_flow="row" style_pad_gap="#space_xs" style_flex_main_place="center" hidden="true">
+            <!-- Populated programmatically in C++ -->
           </lv_obj>
-        </ui_card>
-        <!-- Extruder selector (shown when multiple extruders detected) -->
-        <lv_obj name="extruder_selector_row"
-                width="100%" height="content" style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="row"
-                style_pad_gap="#space_xs" style_flex_main_place="center" hidden="true">
-          <!-- Populated programmatically in C++ -->
-        </lv_obj>
-        <!-- Spacer -->
-        <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-        <!-- Preset buttons -->
-        <lv_obj name="nozzle_preset_grid"
-                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
-                style_flex_main_place="space_between" style_pad_gap="#space_xs">
-          <ui_button name="preset_off"
-                     width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
-                     style_border_color="#border" style_border_opa="255">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+          <!-- Spacer -->
+          <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          <!-- Preset buttons -->
+          <lv_obj name="nozzle_preset_grid"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                  style_flex_main_place="space_between" style_pad_gap="#space_xs">
+            <ui_button name="preset_off"
+                       width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                       style_border_color="#border" style_border_opa="255">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+          </lv_obj>
+          <ui_button name="nozzle_btn_custom"
+                     width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+            <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
           </ui_button>
-          <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-        </lv_obj>
-        <ui_button name="nozzle_btn_custom"
-                   width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
-          <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
-        </ui_button>
+          <else/>
+          <!-- PORTRAIT: row with compact card on the left, controls column on
+               the right. Compact card uses size="md" icon + size="md" temp +
+               status, sized to content width — drops the centered xl layout
+               that eats vertical space at the cost of a narrower display. The
+               card is wrapped in a full-height column container that vertically
+               centers it against the taller right column — LVGL flex's
+               cross_place on the strip style doesn't reliably center
+               content-height items, so we wrap explicitly. The right column
+               holds the extruder selector, preset grid (still 2×2 but at
+               narrower width), and Custom button. -->
+          <lv_obj width="content"
+                  height="100%" flex_flow="column" style_flex_main_place="center" style_pad_all="0" scrollable="false"
+                  style_border_opa="0">
+            <ui_card name="nozzle_display_card"
+                     width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                     style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
+              <nozzle_icon name="nozzle_heater_icon" size="md"/>
+              <temp_display name="nozzle_temp_display"
+                            size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
+                            event_cb="on_temp_graph_custom_clicked"/>
+              <text_small name="nozzle_status_msg"
+                          style_border_width="0" bind_text="nozzle_status" style_text_align="center"/>
+            </ui_card>
+          </lv_obj>
+          <lv_obj height="content"
+                  flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
+                  style_border_opa="0">
+            <lv_obj name="extruder_selector_row"
+                    width="100%" height="content" style_pad_all="0" scrollable="false" style_border_opa="0"
+                    flex_flow="row" style_pad_gap="#space_xs" style_flex_main_place="center" hidden="true">
+              <!-- Populated programmatically in C++ -->
+            </lv_obj>
+            <lv_obj name="nozzle_preset_grid"
+                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                    style_flex_main_place="space_between" style_pad_gap="#space_xs">
+              <ui_button name="preset_off"
+                         width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                         style_border_color="#border" style_border_opa="255">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+            </lv_obj>
+            <ui_button name="nozzle_btn_custom"
+                       width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+              <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
+            </ui_button>
+          </lv_obj>
+        </if>
       </lv_obj>
 
       <!-- ════════════════════════════════════════════════════════════════ -->
       <!-- Right Column: BED controls (shown in bed mode only)            -->
       <!-- ════════════════════════════════════════════════════════════════ -->
       <lv_obj name="bed_control_strip"
-              width="33%" height="100%" style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="column"
-              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm" hidden="true">
-        <ui_card name="bed_display_card"
-                 width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
-                 style_pad_gap="#space_xs" style_pad_all="#space_sm">
-          <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-            <lv_obj height="content"
-                    flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
-                    scrollable="false">
-              <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xl"/>
-              <lv_obj style_pad_all="0"
-                      scrollable="false" flex_flow="column" style_flex_main_place="center"
-                      style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                <text_small text="Current / Target" translation_tag="Current / Target"/>
-                <temp_display name="bed_temp_display"
-                              size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
+              style_pad_all="0" scrollable="false" style_border_opa="0" style_pad_gap="#space_sm" hidden="true">
+        <bind_flag_if_not_eq subject="temp_graph_mode" flag="hidden" ref_value="2"/>
+        <bind_style_if name="tg_strip_portrait" cond="ui_is_portrait"/>
+        <bind_style_if name="tg_strip_landscape" cond="ui_is_portrait" invert="true"/>
+
+        <if cond="ui_is_portrait eq 0">
+          <!-- LANDSCAPE -->
+          <ui_card name="bed_display_card"
+                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                   style_pad_gap="#space_xs" style_pad_all="#space_sm">
+            <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_obj height="content"
+                      flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
+                      scrollable="false">
+                <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xl"/>
+                <lv_obj style_pad_all="0"
+                        scrollable="false" flex_flow="column" style_flex_main_place="center"
+                        style_flex_cross_place="start" style_pad_gap="#space_xxs">
+                  <text_small text="Current / Target" translation_tag="Current / Target"/>
+                  <temp_display name="bed_temp_display"
+                                size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"
+                                event_cb="on_temp_graph_custom_clicked"/>
+                </lv_obj>
+                <text_small name="bed_status_msg" bind_text="bed_status" style_text_align="left"/>
               </lv_obj>
-              <text_small name="bed_status_msg" bind_text="bed_status" style_text_align="left"/>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          </ui_card>
+          <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          <lv_obj name="bed_preset_grid"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                  style_flex_main_place="space_between" style_pad_gap="#space_xs">
+            <ui_button name="bed_preset_off"
+                       width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                       style_border_color="#border" style_border_opa="255">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="bed_preset_1" width="48%" bind_text="preset_material_0_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="bed_preset_2" width="48%" bind_text="preset_material_1_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="bed_preset_3" width="48%" bind_text="preset_material_2_name">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
           </lv_obj>
-        </ui_card>
-        <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-        <lv_obj name="bed_preset_grid"
-                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
-                style_flex_main_place="space_between" style_pad_gap="#space_xs">
-          <ui_button name="bed_preset_off"
-                     width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
-                     style_border_color="#border" style_border_opa="255">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+          <ui_button name="bed_btn_custom" width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+            <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
           </ui_button>
-          <ui_button name="bed_preset_1" width="48%" bind_text="preset_material_0_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="bed_preset_2" width="48%" bind_text="preset_material_1_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="bed_preset_3" width="48%" bind_text="preset_material_2_name">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-        </lv_obj>
-        <ui_button name="bed_btn_custom" width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
-          <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
-        </ui_button>
+          <else/>
+          <!-- PORTRAIT: compact card | right column. Card is wrapped in a
+               full-height column container that centers it vertically (see
+               nozzle strip comment for rationale). -->
+          <lv_obj width="content"
+                  height="100%" flex_flow="column" style_flex_main_place="center" style_pad_all="0" scrollable="false"
+                  style_border_opa="0">
+            <ui_card name="bed_display_card"
+                     width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                     style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
+              <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="md"/>
+              <temp_display name="bed_temp_display"
+                            size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target"
+                            event_cb="on_temp_graph_custom_clicked"/>
+              <text_small name="bed_status_msg" bind_text="bed_status" style_text_align="center"/>
+            </ui_card>
+          </lv_obj>
+          <lv_obj height="content"
+                  flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
+                  style_border_opa="0">
+            <lv_obj name="bed_preset_grid"
+                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                    style_flex_main_place="space_between" style_pad_gap="#space_xs">
+              <ui_button name="bed_preset_off"
+                         width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                         style_border_color="#border" style_border_opa="255">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="bed_preset_1" width="48%" bind_text="preset_material_0_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="bed_preset_2" width="48%" bind_text="preset_material_1_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="bed_preset_3" width="48%" bind_text="preset_material_2_name">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+            </lv_obj>
+            <ui_button name="bed_btn_custom"
+                       width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+              <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
+            </ui_button>
+          </lv_obj>
+        </if>
       </lv_obj>
 
       <!-- ════════════════════════════════════════════════════════════════ -->
       <!-- Right Column: CHAMBER controls (shown in chamber mode only)    -->
       <!-- ════════════════════════════════════════════════════════════════ -->
       <lv_obj name="chamber_control_strip"
-              width="33%" height="100%" style_pad_all="0" scrollable="false" style_border_opa="0" flex_flow="column"
-              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm" hidden="true">
-        <ui_card name="chamber_display_card"
-                 width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
-                 style_pad_gap="#space_xs" style_pad_all="#space_sm">
-          <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-            <lv_obj height="content"
-                    flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
-                    scrollable="false">
-              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xl"/>
-              <lv_obj style_pad_all="0"
-                      scrollable="false" flex_flow="column" style_flex_main_place="center"
-                      style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                <text_small text="Current / Target" translation_tag="Current / Target"/>
-                <temp_display name="chamber_temp_display"
-                              size="lg" show_target="true" bind_current="chamber_temp"
-                              bind_target="chamber_effective_target" bind_mode="chamber_mode"/>
+              style_pad_all="0" scrollable="false" style_border_opa="0" style_pad_gap="#space_sm" hidden="true">
+        <bind_flag_if_not_eq subject="temp_graph_mode" flag="hidden" ref_value="3"/>
+        <bind_style_if name="tg_strip_portrait" cond="ui_is_portrait"/>
+        <bind_style_if name="tg_strip_landscape" cond="ui_is_portrait" invert="true"/>
+
+        <if cond="ui_is_portrait eq 0">
+          <!-- LANDSCAPE -->
+          <ui_card name="chamber_display_card"
+                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                   style_pad_gap="#space_xs" style_pad_all="#space_sm">
+            <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_obj height="content"
+                      flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
+                      scrollable="false">
+                <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xl"/>
+                <lv_obj style_pad_all="0"
+                        scrollable="false" flex_flow="column" style_flex_main_place="center"
+                        style_flex_cross_place="start" style_pad_gap="#space_xxs">
+                  <text_small text="Current / Target" translation_tag="Current / Target"/>
+                  <temp_display name="chamber_temp_display"
+                                size="lg" show_target="true" bind_current="chamber_temp"
+                                bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                                event_cb="on_temp_graph_custom_clicked"/>
+                </lv_obj>
+                <text_small name="chamber_status_msg" bind_text="chamber_status" style_text_align="left"/>
               </lv_obj>
-              <text_small name="chamber_status_msg" bind_text="chamber_status" style_text_align="left"/>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
-            <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          </ui_card>
+          <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          <!-- Preset buttons: hidden when chamber is sensor-only -->
+          <lv_obj name="chamber_preset_grid"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                  style_flex_main_place="space_between" style_pad_gap="#space_xs">
+            <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+            <ui_button name="chamber_preset_off"
+                       width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                       style_border_color="#border" style_border_opa="255">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_1" width="48%" text="40°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_2" width="48%" text="50°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_3" width="48%" text="60°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
           </lv_obj>
-        </ui_card>
-        <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-        <!-- Preset buttons: hidden when chamber is sensor-only -->
-        <lv_obj name="chamber_preset_grid"
-                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
-                style_flex_main_place="space_between" style_pad_gap="#space_xs">
-          <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
-          <ui_button name="chamber_preset_off"
-                     width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
-                     style_border_color="#border" style_border_opa="255">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+          <ui_button name="chamber_btn_custom"
+                     width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+            <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
           </ui_button>
-          <ui_button name="chamber_preset_1" width="48%" text="40°C">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="chamber_preset_2" width="48%" text="50°C">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-          <ui_button name="chamber_preset_3" width="48%" text="60°C">
-            <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-          </ui_button>
-        </lv_obj>
-        <ui_button name="chamber_btn_custom"
-                   width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
-          <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
-        </ui_button>
+          <else/>
+          <!-- PORTRAIT: compact card | right column. The chamber_has_heater
+               guard applies to the preset grid and Custom button in both
+               branches; a sensor-only chamber degrades to just the display
+               card on the left and an empty right column. Card is wrapped in
+               a full-height centering container (see nozzle strip comment). -->
+          <lv_obj width="content"
+                  height="100%" flex_flow="column" style_flex_main_place="center" style_pad_all="0" scrollable="false"
+                  style_border_opa="0">
+            <ui_card name="chamber_display_card"
+                     width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
+                     style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
+              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="md"/>
+              <temp_display name="chamber_temp_display"
+                            size="md" show_target="true" bind_current="chamber_temp"
+                            bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                            event_cb="on_temp_graph_custom_clicked"/>
+              <text_small name="chamber_status_msg" bind_text="chamber_status" style_text_align="center"/>
+            </ui_card>
+          </lv_obj>
+          <lv_obj height="content"
+                  flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
+                  style_border_opa="0">
+            <lv_obj name="chamber_preset_grid"
+                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+                    style_flex_main_place="space_between" style_pad_gap="#space_xs">
+              <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+              <ui_button name="chamber_preset_off"
+                         width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
+                         style_border_color="#border" style_border_opa="255">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="chamber_preset_1" width="48%" text="40°C">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="chamber_preset_2" width="48%" text="50°C">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+              <ui_button name="chamber_preset_3" width="48%" text="60°C">
+                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+              </ui_button>
+            </lv_obj>
+            <ui_button name="chamber_btn_custom"
+                       width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+              <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
+            </ui_button>
+          </lv_obj>
+        </if>
       </lv_obj>
 
     </lv_obj>

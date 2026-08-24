@@ -19,6 +19,19 @@
 namespace fs = std::filesystem;
 using namespace helix;
 
+// The extraction-gate policy lives in android_asset_extractor.cpp outside the
+// __ANDROID__ block precisely so it can be exercised here. It is not in the
+// public header — that carries the two entry points, and these are internals
+// under test, not API. Declared by hand so the header stays the API surface.
+namespace helix {
+std::string trim_build_stamp(std::string stamp);
+std::string resolve_asset_build_stamp(const std::string& apk_stamp,
+                                      const std::string& fallback_version);
+bool asset_extraction_can_skip(const std::string& resolved_stamp, const std::string& disk_stamp);
+bool asset_extraction_succeeded(int dirs_requested, int dirs_extracted, int file_failures);
+bool is_non_shippable_config_file(const std::string& filename);
+} // namespace helix
+
 // ============================================================================
 // RAII temp directory helper
 // ============================================================================
@@ -197,4 +210,129 @@ TEST_CASE("Returns FAILED when source directory does not exist", "[android][asse
     auto result = extract_assets_if_needed("/nonexistent/source/dir", target.str(), "1.0.0");
 
     REQUIRE(result == AssetExtractionResult::FAILED);
+}
+
+// ============================================================================
+// BUILD_STAMP gate — the APK extraction path's skip/retry policy
+// ============================================================================
+
+TEST_CASE("Build stamp is trimmed of trailing whitespace", "[android][asset][stamp]") {
+    CHECK(trim_build_stamp("1754923312345\n") == "1754923312345");
+    CHECK(trim_build_stamp("1754923312345\r\n") == "1754923312345");
+    CHECK(trim_build_stamp("1754923312345 ") == "1754923312345");
+    CHECK(trim_build_stamp("1754923312345") == "1754923312345");
+    CHECK(trim_build_stamp("\n\n") == "");
+    CHECK(trim_build_stamp("") == "");
+    // Leading whitespace is not part of a stamp value and must survive as-is,
+    // so a genuinely different stamp never compares equal to a trimmed one.
+    CHECK(trim_build_stamp(" 123") == " 123");
+}
+
+TEST_CASE("A present build stamp is used verbatim", "[android][asset][stamp]") {
+    CHECK(resolve_asset_build_stamp("1754923312345\n", "0.99.105") == "1754923312345");
+}
+
+TEST_CASE("A missing build stamp falls back to the release version", "[android][asset][stamp]") {
+    // An empty stamp can never equal the disk stamp, so without a fallback the
+    // skip branch is unreachable and every cold start re-extracts the tree.
+    const std::string resolved = resolve_asset_build_stamp("", "0.99.105");
+    CHECK(resolved == "version:0.99.105");
+    CHECK_FALSE(resolved.empty());
+
+    // Whitespace-only and short-read (empty) stamps take the same path.
+    CHECK(resolve_asset_build_stamp("\n", "0.99.105") == "version:0.99.105");
+    CHECK(resolve_asset_build_stamp("  \r\n", "0.99.105\n") == "version:0.99.105");
+}
+
+TEST_CASE("The version fallback self-heals across launches", "[android][asset][stamp]") {
+    // First launch: nothing on disk, so the gate must extract...
+    const std::string resolved = resolve_asset_build_stamp("", "0.99.105");
+    CHECK_FALSE(asset_extraction_can_skip(resolved, ""));
+
+    // ...and the stamp it records makes the second launch skip.
+    CHECK(asset_extraction_can_skip(resolved, resolved));
+
+    // A version bump still forces a fresh extraction.
+    CHECK_FALSE(asset_extraction_can_skip(resolve_asset_build_stamp("", "0.99.106"), resolved));
+
+    // The fallback can never collide with a real millisecond build stamp.
+    CHECK_FALSE(asset_extraction_can_skip(resolved, "1754923312345"));
+}
+
+TEST_CASE("An empty resolved stamp never allows a skip", "[android][asset][stamp]") {
+    // Defensive: two empty stamps compare equal as strings, which would skip
+    // extraction on the strength of knowing nothing at all.
+    CHECK_FALSE(asset_extraction_can_skip("", ""));
+}
+
+TEST_CASE("Matching stamps skip extraction", "[android][asset][stamp]") {
+    CHECK(asset_extraction_can_skip("1754923312345", "1754923312345"));
+    CHECK_FALSE(asset_extraction_can_skip("1754923312345", "1754923300000"));
+}
+
+// ============================================================================
+// Extraction success gate — when the stamp may be recorded
+// ============================================================================
+
+TEST_CASE("A clean extraction may record its stamp", "[android][asset][stamp]") {
+    CHECK(asset_extraction_succeeded(12, 12, 0));
+}
+
+TEST_CASE("A partial extraction must not record its stamp", "[android][asset][stamp]") {
+    // ENOSPC halfway through: files failed to write. Recording the stamp here
+    // pins every later launch to a truncated asset tree.
+    CHECK_FALSE(asset_extraction_succeeded(12, 12, 1));
+    CHECK_FALSE(asset_extraction_succeeded(12, 12, 300));
+
+    // A directory that could not be created or enumerated.
+    CHECK_FALSE(asset_extraction_succeeded(12, 11, 0));
+    CHECK_FALSE(asset_extraction_succeeded(12, 0, 0));
+
+    // Both at once.
+    CHECK_FALSE(asset_extraction_succeeded(12, 8, 4));
+}
+
+TEST_CASE("An empty manifest is not a successful extraction", "[android][asset][stamp]") {
+    CHECK_FALSE(asset_extraction_succeeded(0, 0, 0));
+}
+
+// ============================================================================
+// config/ shipping policy — nothing user-owned leaves the package
+// ============================================================================
+
+TEST_CASE("User config is never extracted from the package", "[android][asset][config]") {
+    // A packaged settings.json would carry the packager's moonraker_host and a
+    // completed setup wizard onto every install.
+    CHECK(is_non_shippable_config_file("settings.json"));
+    CHECK(is_non_shippable_config_file("settings-test.json"));
+    CHECK(is_non_shippable_config_file("helixconfig.json"));
+    CHECK(is_non_shippable_config_file("helixconfig-test.json"));
+    CHECK(is_non_shippable_config_file("helixconfig.json.voronv2"));
+}
+
+TEST_CASE("Runtime artifacts are never extracted from the package", "[android][asset][config]") {
+    CHECK(is_non_shippable_config_file("crash.txt"));
+    CHECK(is_non_shippable_config_file("crash_1.txt"));
+    CHECK(is_non_shippable_config_file("crash_history.json"));
+    CHECK(is_non_shippable_config_file(".crash_restart_count"));
+    CHECK(is_non_shippable_config_file("tool_spools.json"));
+    CHECK(is_non_shippable_config_file("telemetry_device.json"));
+    CHECK(is_non_shippable_config_file("telemetry_queue.json"));
+    CHECK(is_non_shippable_config_file(".helix-screen.lock"));
+}
+
+TEST_CASE("Shipped config seeds still extract", "[android][asset][config]") {
+    // The predicate gates the whole of config/ — over-matching would silently
+    // strip the service units, udev rules and templates the package exists to
+    // deliver.
+    CHECK_FALSE(is_non_shippable_config_file("settings.json.template"));
+    CHECK_FALSE(is_non_shippable_config_file("helixscreen.env"));
+    CHECK_FALSE(is_non_shippable_config_file("helixscreen.service"));
+    CHECK_FALSE(is_non_shippable_config_file("helixscreen.init"));
+    CHECK_FALSE(is_non_shippable_config_file("helixscreen-update.service"));
+    CHECK_FALSE(is_non_shippable_config_file("99-helixscreen-backlight.rules"));
+    CHECK_FALSE(is_non_shippable_config_file("refresh-service-units.sh"));
+    CHECK_FALSE(is_non_shippable_config_file("printer_database.json"));
+    CHECK_FALSE(is_non_shippable_config_file("printing_tips.json"));
+    CHECK_FALSE(is_non_shippable_config_file("default_layout.json"));
 }

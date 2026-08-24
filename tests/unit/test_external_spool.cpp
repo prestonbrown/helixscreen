@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_constants.h"
+#include "app_globals.h"
 #include "config.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
 #include "settings_manager.h"
 
 #include <cstdlib>
@@ -42,8 +46,10 @@ struct TempConfigFixture : public HelixTestFixture {
         // Initialize Config singleton with temp path
         Config::get_instance()->init(config_path);
 
-        // Clear any external spool state leaked from other tests in this shard
-        SettingsManager::instance().clear_external_spool_info();
+        // Clear any external spool state leaked from other tests in this
+        // shard. AmsState's clear also resets the in-memory override, killing
+        // an order dependence on which test last wrote it.
+        AmsState::instance().clear_external_spool_info();
     }
 
     ~TempConfigFixture() {
@@ -53,6 +59,43 @@ struct TempConfigFixture : public HelixTestFixture {
         // TelemetryManager::set_enabled(true) calls CONFIG_RECORD_ERROR
         // which enqueues a phantom telemetry event in the next test's
         // queue, breaking queue-size assertions.
+        Config::get_instance()->clear_path();
+        std::filesystem::remove_all(temp_dir);
+    }
+};
+
+/// TempConfigFixture's settings isolation plus the mock-API wiring shape of
+/// CommitFixture (test_ams_state_commit_slot.cpp) — commit_external_spool_edit
+/// must be observable on BOTH stores (settings.json and the Spoolman server).
+struct ExternalSpoolCommitFixture : LVGLTestFixture {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api;
+    std::string temp_dir;
+    std::string config_path;
+
+    ExternalSpoolCommitFixture() : api(client, get_printer_state()) {
+        temp_dir = std::filesystem::temp_directory_path().string() + "/helix_ext_spool_commit_" +
+                   std::to_string(rand());
+        std::filesystem::create_directories(temp_dir);
+        config_path = temp_dir + "/settings.json";
+
+        // Same cross-test contamination guard as TempConfigFixture.
+        std::filesystem::remove(AppConstants::Update::config_backup_fallback());
+        std::filesystem::remove(AppConstants::Update::legacy_config_backup_fallback());
+        std::filesystem::remove(AppConstants::Update::env_backup_fallback());
+
+        Config::get_instance()->init(config_path);
+        // AmsState's clear resets the in-memory override too, not just the
+        // settings record (same cross-test guard as TempConfigFixture).
+        AmsState::instance().clear_external_spool_info();
+
+        AmsState::instance().set_moonraker_api(&api);
+    }
+
+    ~ExternalSpoolCommitFixture() override {
+        // Detach the mock BEFORE members are destroyed and while LVGL still
+        // runs (base-class teardown has not happened yet).
+        AmsState::instance().set_moonraker_api(nullptr);
         Config::get_instance()->clear_path();
         std::filesystem::remove_all(temp_dir);
     }
@@ -272,4 +315,72 @@ TEST_CASE("AmsState external_spool_color subject defaults to 0 when no spool",
 
     int color = lv_subject_get_int(ams.get_external_spool_color_subject());
     CHECK(color == 0);
+}
+
+// ============================================================================
+// Step 3: commit_external_spool_edit (single authority for external spool writes)
+// ============================================================================
+
+TEST_CASE("commit_external_spool_edit set arm syncs active spool and persists",
+          "[external-spool][commit]") {
+    ExternalSpoolCommitFixture fixture;
+
+    SlotInfo info;
+    info.spoolman_id = 169;
+    info.material = "PLA";
+    info.color_rgb = 0xFF8800;
+
+    AmsState::instance().commit_external_spool_edit(info);
+
+    // S5 — persisted via SettingsManager
+    auto persisted = SettingsManager::instance().get_external_spool_info();
+    REQUIRE(persisted.has_value());
+    CHECK(persisted->spoolman_id == 169);
+    CHECK(persisted->material == "PLA");
+    // S1 — server told which spool is active
+    REQUIRE(fixture.api.spoolman_mock().get_mock_active_spool_id() == 169);
+}
+
+TEST_CASE("commit_external_spool_edit empty arm erases settings record",
+          "[external-spool][commit]") {
+    ExternalSpoolCommitFixture fixture;
+
+    // Seed an assigned external spool (id 169) and make the server agree.
+    SlotInfo seeded;
+    seeded.spoolman_id = 169;
+    seeded.material = "PLA";
+    AmsState::instance().set_external_spool_info(seeded);
+    fixture.api.spoolman_mock().set_active_spool(169, nullptr, nullptr);
+    REQUIRE(fixture.api.spoolman_mock().get_mock_active_spool_id() == 169);
+
+    AmsState::instance().commit_external_spool_edit(SlotInfo{});
+
+    // S5 — the settings subtree is ABSENT, not an empty assigned=true record
+    REQUIRE_FALSE(SettingsManager::instance().get_external_spool_info().has_value());
+    // S1 — the server-side link was cleared too
+    REQUIRE(fixture.api.spoolman_mock().get_mock_active_spool_id() == 0);
+}
+
+TEST_CASE("commit_external_spool_edit keeps manual entry without spoolman id",
+          "[external-spool][commit]") {
+    ExternalSpoolCommitFixture fixture;
+
+    // Sentinel: any set_active_spool call from the commit lands here and fails
+    // the final check (7 stays 7 only if NO call fired).
+    fixture.api.spoolman_mock().set_active_spool(7, nullptr, nullptr);
+
+    SlotInfo info;
+    info.spoolman_id = 0;
+    info.material = "PLA";
+    info.color_rgb = 0x00FF00;
+
+    AmsState::instance().commit_external_spool_edit(info);
+
+    // S5 — manual entry (material set, no spoolman link) still persists
+    auto persisted = SettingsManager::instance().get_external_spool_info();
+    REQUIRE(persisted.has_value());
+    CHECK(persisted->spoolman_id == 0);
+    CHECK(persisted->material == "PLA");
+    // No API call — a manual entry is not a server-side spool assignment
+    CHECK(fixture.api.spoolman_mock().get_mock_active_spool_id() == 7);
 }

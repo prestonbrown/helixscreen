@@ -6,7 +6,7 @@
 
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -31,8 +31,8 @@ namespace helix::ui {
 ///
 /// `api` is stored as borrowed user_data on the two buttons — NO heap context
 /// is allocated, so a backdrop/ESC dismissal (which fires neither callback)
-/// cannot leak. `api` must outlive the modal; the app-global MoonrakerAPI does.
-void show_plr_recovery_prompt(MoonrakerAPI* api, const helix::PlrRecoveryPlan& plan);
+/// cannot leak. `api` must outlive the modal; the app-global IMoonrakerAPI does.
+void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& plan);
 
 /// Pure, LVGL-free body-text builder (unit-testable). When `file_path` is
 /// non-empty, its display filename (basename, gcode extension stripped) is

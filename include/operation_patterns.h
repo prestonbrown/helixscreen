@@ -7,6 +7,7 @@
 #include <cctype>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace helix {
@@ -391,10 +392,48 @@ inline std::string to_lower(std::string s) {
 }
 
 /**
- * @brief Case-insensitive substring search
+ * @brief Case-insensitive substring search (pure ASCII).
+ *
+ * Folds only A-Z/a-z, so it is locale-independent and leaves every other byte
+ * (including high-bit-set and UTF-8 continuation bytes) untouched. That matches
+ * the earlier ::toupper-based fold under the "C" locale this process keeps
+ * (only LC_TIME is ever setlocale'd, so LC_CTYPE stays "C"), without the two
+ * per-call std::string allocations or the ::toupper-on-negative-char UB.
+ *
+ * Empty needle returns false rather than the std::string::find "found at 0"
+ * convention: every call site searches for a concrete token, and an empty
+ * needle matching everything is a foot-gun the former local copies guarded
+ * against explicitly. Verified equivalent over all real needles across every
+ * byte 0x01-0xFF plus UTF-8 in de/fr/ru/ja.
+ *
+ * Accepts std::string_view, so std::string and string literals convert without
+ * allocating.
  */
-inline bool contains_ci(const std::string& haystack, const std::string& needle) {
-    return to_upper(haystack).find(to_upper(needle)) != std::string::npos;
+inline bool contains_ci(std::string_view haystack, std::string_view needle) {
+    if (needle.empty() || needle.size() > haystack.size()) {
+        return false;
+    }
+    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
+        bool match = true;
+        for (size_t j = 0; j < needle.size(); ++j) {
+            char hc = haystack[i + j];
+            char nc = needle[j];
+            if (hc >= 'A' && hc <= 'Z') {
+                hc = static_cast<char>(hc + 32);
+            }
+            if (nc >= 'A' && nc <= 'Z') {
+                nc = static_cast<char>(nc + 32);
+            }
+            if (hc != nc) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

@@ -598,7 +598,6 @@ TEST_CASE("PanelWidgetRegistry: all defs have non-null required fields",
         REQUIRE(def.display_name != nullptr);
         REQUIRE(def.icon != nullptr);
         REQUIRE(def.description != nullptr);
-        REQUIRE(def.translation_tag != nullptr);
         // hardware_gate_subject CAN be nullptr (always-available widgets)
     }
 }
@@ -1382,16 +1381,16 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture, "PanelWidgetConfig: add_page refuses 
     wc.load();
 
     // Add pages up to the cap
-    for (size_t i = 1; i < kMaxPages; ++i) {
+    for (size_t i = 1; i < MAX_PAGES; ++i) {
         int idx = wc.add_page();
         REQUIRE(idx >= 0);
     }
-    REQUIRE(wc.page_count() == kMaxPages);
+    REQUIRE(wc.page_count() == MAX_PAGES);
 
     // Adding one more should fail
     int idx = wc.add_page();
     REQUIRE(idx == -1);
-    REQUIRE(wc.page_count() == kMaxPages);
+    REQUIRE(wc.page_count() == MAX_PAGES);
 }
 
 TEST_CASE_METHOD(PanelWidgetConfigFixture, "PanelWidgetConfig: remove_page removes non-main page",

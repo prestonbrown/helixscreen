@@ -10,10 +10,10 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h"
 #include "printer_detector.h"
 #include "printer_images.h"
 #include "printer_name_sync.h"
@@ -96,9 +96,9 @@ int WizardPrinterIdentifyStep::find_printer_type_index(const std::string& printe
  * Uses kinematics-filtered list when kinematics is provided.
  */
 static PrinterDetectionHint detect_printer_type(const std::string& kinematics) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
-        spdlog::debug("[Wizard Printer] No MoonrakerAPI available for auto-detection");
+        spdlog::debug("[Wizard Printer] No IMoonrakerAPI available for auto-detection");
         return {PrinterDetector::get_unknown_list_index(kinematics), 0,
                 "No printer connection available"};
     }
@@ -133,7 +133,7 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics) {
 void WizardPrinterIdentifyStep::init_subjects() {
     // Check if we're connected to a DIFFERENT printer than last time
     std::string current_url;
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (client) {
         current_url = client->get_last_url();
     }
@@ -170,13 +170,13 @@ void WizardPrinterIdentifyStep::init_subjects() {
 
     // Detect kinematics FIRST — all list index lookups below use filtered APIs
     {
-        MoonrakerAPI* api = get_moonraker_api();
+        IMoonrakerAPI* api = get_moonraker_api();
         if (api) {
             detected_kinematics_ = api->hardware().kinematics();
             spdlog::info("[{}] Detected kinematics: '{}' (will filter printer list)", get_name(),
                          detected_kinematics_);
         } else {
-            spdlog::debug("[{}] No MoonrakerAPI — printer list will be unfiltered", get_name());
+            spdlog::debug("[{}] No IMoonrakerAPI — printer list will be unfiltered", get_name());
         }
     }
 
@@ -205,7 +205,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
 
     // Auto-fill printer name from Moonraker hostname if not saved
     if (default_name.empty()) {
-        MoonrakerAPI* api = get_moonraker_api();
+        IMoonrakerAPI* api = get_moonraker_api();
         if (api) {
             std::string hostname = api->hardware().hostname();
             spdlog::debug("[{}] Moonraker hostname value: '{}' (empty={}, unknown={})", get_name(),
@@ -218,7 +218,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
                 spdlog::debug("[{}] Hostname unavailable for auto-fill", get_name());
             }
         } else {
-            spdlog::debug("[{}] No MoonrakerAPI available for hostname auto-fill", get_name());
+            spdlog::debug("[{}] No IMoonrakerAPI available for hostname auto-fill", get_name());
         }
     }
 
@@ -512,38 +512,33 @@ void WizardPrinterIdentifyStep::cleanup() {
         int type_index = lv_subject_get_int(&printer_type_selected_);
         std::string type_name = PrinterDetector::get_list_name_at(type_index, detected_kinematics_);
 
-        // Save printer type name
-        config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, type_name);
+        // Save the printer type and merge its preset. Shared with the Printer
+        // Manager's model row via PrinterDetector::apply_type_choice() - both
+        // are "the user picked this model", and detection now declines to guess
+        // whenever it is unsure, so these hand-pick paths carry real traffic.
         spdlog::debug("[{}] Saving printer type to config: '{}' (index {})", get_name(), type_name,
                       type_index);
 
-        // Apply the matching preset for the user's pick. Auto-detect already runs
-        // this in printer_detector.cpp, but only when its confidence is non-zero.
-        // When the user picks the type manually (low-confidence detection or
-        // mismatch), we still need to merge the preset's hardware/expected list
-        // and fan role mappings into config — otherwise legitimate hardware shows
-        // up as "new hardware" warnings on next boot (issue #837).
-        std::string preset = PrinterDetector::get_preset_for_name(type_name);
-        if (!preset.empty()) {
-            MoonrakerAPI* api = get_moonraker_api();
-            if (api) {
-                std::string applied =
-                    PrinterDetector::apply_preset_with_variants(config, preset, api->hardware());
-                if (!applied.empty()) {
-                    spdlog::info("[{}] Applied preset '{}' for printer '{}'", get_name(), applied,
-                                 type_name);
-                    // apply_preset_with_variants() persists the top-level "preset"
-                    // marker, and Config::has_preset() is what collapses this step
-                    // plus every hardware picker and the summary. cleanup() runs on
-                    // Back as well as Next, so an interrupted run (crash, power cut,
-                    // user quits) previously came back with all of them gone and no
-                    // in-app way to revisit a mis-detected pick. Mark it provisional;
-                    // it becomes authoritative only when wizard_completed flips.
-                    config->set<bool>(config->df() + helix::kWizardPresetProvisional, true);
-                    // Keep the current run collapsing the now-redundant steps.
-                    helix::wizard_mark_preset_applied_this_session();
-                }
+        IMoonrakerAPI* api = get_moonraker_api();
+        if (api) {
+            std::string applied =
+                PrinterDetector::apply_type_choice(config, type_name, api->hardware());
+            if (!applied.empty()) {
+                // apply_preset_with_variants() persists the top-level "preset"
+                // marker, and Config::has_preset() is what collapses this step
+                // plus every hardware picker and the summary. cleanup() runs on
+                // Back as well as Next, so an interrupted run (crash, power cut,
+                // user quits) previously came back with all of them gone and no
+                // in-app way to revisit a mis-detected pick. Mark it provisional;
+                // it becomes authoritative only when wizard_completed flips.
+                config->set<bool>(config->df() + helix::WIZARD_PRESET_PROVISIONAL, true);
+                // Keep the current run collapsing the now-redundant steps.
+                helix::wizard_mark_preset_applied_this_session();
             }
+        } else {
+            // No Moonraker yet: still record the pick so the summary and the
+            // next boot agree with what the user selected.
+            config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, type_name);
         }
 
         // Display/backlight hardware settings are the responsibility of the

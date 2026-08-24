@@ -1,0 +1,4 @@
+{
+  "app_max_bytes": 6610944,
+  "comment": "6.50MB OTA slot (0x680000) minus 200KiB margin. Amended 2026-07-17 for the Stage B fonts->frogfs enabler (slots shrank 6.875->6.50MB as 5 cold faces moved into the storage partition). Raise only with a spec change."
+}

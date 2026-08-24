@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # AFC live smoke test — queries all AFC objects and verifies expected fields exist.
-# Usage: ./scripts/afc-test.sh [host:port]  (default: 192.168.1.112:7125)
+# Usage: ./scripts/afc-test.sh [host:port]  (default: 192.168.1.100:7125)
 
 set -euo pipefail
 
-HOST="${1:-192.168.1.112:7125}"
+HOST="${1:-192.168.1.100:7125}"
 BASE="http://${HOST}"
 PASS=0
 FAIL=0

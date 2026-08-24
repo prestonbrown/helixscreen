@@ -716,7 +716,7 @@ void ui_jog_pad_set_home_callback(lv_obj_t* obj, jog_pad_home_cb_t cb, void* use
 
 void ui_jog_pad_set_mode(lv_obj_t* obj, JogMode mode) {
     jog_pad_state_t* state = get_state(obj);
-    if (state && static_cast<int>(mode) >= 0 && static_cast<int>(mode) < kJogModeCount) {
+    if (state && static_cast<int>(mode) >= 0 && static_cast<int>(mode) < JOG_MODE_COUNT) {
         state->current_mode = mode;
     }
 }

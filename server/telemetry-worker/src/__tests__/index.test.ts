@@ -836,6 +836,95 @@ describe("mapEventToDataPoints", () => {
     expect(dp.blobs![9]).toBe("");
   });
 
+  it("keeps the established hardware_profile slots in place", () => {
+    // Guards the additions below from shifting anything the dashboard reads.
+    const event = {
+      event: "hardware_profile",
+      device_id: "dev-hw",
+      app: { version: "0.99.110", platform: "k1" },
+      printer: { detected_model: "Voron 2.4", kinematics: "corexy" },
+      mcus: { primary: "stm32f446" },
+      probe: { type: "beacon", has_probe: true },
+      ams: { type: "afc" },
+      macros: { total_count: 42 },
+      extruders: { count: 1 },
+    };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(dp.indexes).toEqual(["hardware_profile"]);
+    expect(dp.blobs![0]).toBe("dev-hw");
+    expect(dp.blobs![1]).toBe("0.99.110");
+    expect(dp.blobs![2]).toBe("k1");
+    expect(dp.blobs![3]).toBe("Voron 2.4");
+    expect(dp.blobs![4]).toBe("corexy");
+    expect(dp.blobs![5]).toBe("stm32f446");
+    expect(dp.blobs![6]).toBe("beacon");
+    expect(dp.blobs![7]).toBe("afc");
+    expect(dp.blobs).toHaveLength(12);
+    expect(dp.doubles![3]).toBe(42);
+    expect(dp.doubles).toHaveLength(8);
+  });
+
+  it("maps hardware_profile has_helix_macros into blob9", () => {
+    const event = {
+      event: "hardware_profile",
+      device_id: "dev-hm",
+      macros: { total_count: 30, has_helix_macros: true },
+    };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(dp.blobs![8]).toBe("1");
+  });
+
+  it("distinguishes has_helix_macros false from a client that never reports it", () => {
+    // A bitmask bit could not express this: absent and false would both read 0,
+    // so every pre-existing event would look like a printer without the macros.
+    const withoutMacros = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-hm-false",
+      macros: { total_count: 30, has_helix_macros: false },
+    })[0];
+    expect(withoutMacros.blobs![8]).toBe("0");
+
+    const notReported = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-hm-absent",
+      macros: { total_count: 30 },
+    })[0];
+    expect(notReported.blobs![8]).toBe("");
+
+    const noMacrosSection = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-hm-none",
+    })[0];
+    expect(noMacrosSection.blobs![8]).toBe("");
+  });
+
+  it("maps moonraker_is_local into blob10", () => {
+    const local = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-local",
+      moonraker_is_local: true,
+    })[0];
+    expect(local.blobs![9]).toBe("1");
+
+    const remote = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-remote",
+      moonraker_is_local: false,
+    })[0];
+    expect(remote.blobs![9]).toBe("0");
+  });
+
+  it("leaves moonraker_is_local empty for clients that predate the field", () => {
+    // Every release before this one. Without the empty case they would all be
+    // counted as remote, which is the wrong answer in the safe direction.
+    const dp = mapEventToDataPoints({
+      event: "hardware_profile",
+      device_id: "dev-old-hw",
+      app: { version: "0.99.110" },
+    })[0];
+    expect(dp.blobs![9]).toBe("");
+  });
+
   it("maps update_failed event to real slots, not the unknown fallback", () => {
     const event = {
       event: "update_failed",
@@ -1143,6 +1232,47 @@ describe("Dashboard endpoints", () => {
       expect(data.versions).toEqual([{ name: "0.9.19", count: 80 }]);
       expect(data.printer_models).toEqual([{ name: "Voron 2.4", count: 50 }]);
       expect(data.kinematics).toEqual([{ name: "corexy", count: 90 }]);
+    });
+  });
+
+  // -- GET /v1/dashboard/hardware --
+
+  describe("GET /v1/dashboard/hardware", () => {
+    // The hardware endpoint runs 10 queries; only the last two matter here, so
+    // the rest are fed empty result sets in order.
+    const emptyThrough = (n: number) => {
+      for (let i = 0; i < n; i++) mockExecuteQuery.mockResolvedValueOnce({ data: [] });
+    };
+
+    it("splits helix_macros and moonraker_locality into labelled counts", async () => {
+      emptyThrough(8);
+      mockExecuteQuery
+        .mockResolvedValueOnce({ data: [{ name: "1", count: 30 }, { name: "0", count: 70 }] })
+        .mockResolvedValueOnce({ data: [{ name: "1", count: 85 }, { name: "0", count: 15 }] });
+
+      const res = await worker.fetch(
+        dashboardRequest("/v1/dashboard/hardware?range=30d"),
+        env,
+      );
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.helix_macros).toEqual({ installed: 30, not_installed: 70, reported: 100 });
+      expect(data.moonraker_locality).toEqual({ local: 85, remote: 15, reported: 100 });
+    });
+
+    it("reports zero rather than failing when nothing has answered yet", async () => {
+      // The state on the day this ships: no client sends moonraker_is_local, so
+      // the split must read as "no data" and not as 100% remote.
+      emptyThrough(10);
+
+      const res = await worker.fetch(
+        dashboardRequest("/v1/dashboard/hardware?range=30d"),
+        env,
+      );
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.moonraker_locality).toEqual({ local: 0, remote: 0, reported: 0 });
+      expect(data.helix_macros).toEqual({ installed: 0, not_installed: 0, reported: 0 });
     });
   });
 

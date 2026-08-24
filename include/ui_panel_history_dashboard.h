@@ -30,7 +30,7 @@
  * all displayed statistics. Filter selection is maintained across panel activations.
  *
  * ## Data Flow:
- * 1. On activate, calls MoonrakerAPI::get_history_list() with time filter
+ * 1. On activate, calls IMoonrakerAPI::get_history_list() with time filter
  * 2. Parses response to calculate statistics client-side
  * 3. Updates stat labels via direct widget manipulation
  *

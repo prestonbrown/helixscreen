@@ -25,7 +25,7 @@
 namespace helix {
 class PrinterState;
 }
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 // Include for SubjectManager (needed for deinit_subjects_base)
 #include "subject_managed_panel.h"
@@ -34,7 +34,7 @@ class MoonrakerAPI;
  * @brief Abstract base class for all UI panels
  *
  * Provides shared infrastructure for panels including:
- * - Dependency injection (PrinterState, MoonrakerAPI)
+ * - Dependency injection (PrinterState, IMoonrakerAPI)
  * - RAII observer management (automatic cleanup in destructor)
  * - Move semantics support for std::unique_ptr ownership
  * - Two-phase initialization (init_subjects -> XML creation -> setup)
@@ -46,7 +46,7 @@ class MoonrakerAPI;
  * @code
  * class MyPanel : public PanelBase {
  * public:
- *     MyPanel(PrinterState& ps, MoonrakerAPI* api) : PanelBase(ps, api) {}
+ *     MyPanel(PrinterState& ps, IMoonrakerAPI* api) : PanelBase(ps, api) {}
  *
  *     void init_subjects() override {
  *         // Register LVGL subjects for XML binding
@@ -80,9 +80,9 @@ class PanelBase : public IPanelLifecycle {
      * @brief Construct panel with injected dependencies
      *
      * @param printer_state Reference to PrinterState singleton
-     * @param api Pointer to MoonrakerAPI (may be nullptr if not connected)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr if not connected)
      */
-    PanelBase(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    PanelBase(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     /**
      * @brief Virtual destructor - cleans up registered observers
@@ -180,14 +180,14 @@ class PanelBase : public IPanelLifecycle {
     //
 
     /**
-     * @brief Update MoonrakerAPI pointer
+     * @brief Update IMoonrakerAPI pointer
      *
      * Call when API becomes available after initial construction,
      * or when reconnecting to a different printer.
      *
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -215,7 +215,7 @@ class PanelBase : public IPanelLifecycle {
     //
 
     helix::PrinterState& printer_state_;
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     //
     // === Panel State ===

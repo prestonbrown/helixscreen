@@ -7,7 +7,7 @@
 
 #include "app_globals.h"
 #include "http_executor.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -138,11 +138,11 @@ void PrinterRecoveryService::recover(SuccessCallback on_success, ErrorCallback o
 
     // [L072] Capture api_ by value, not `this`. The recovery service is a
     // short-lived holder owned by a widget that may be destroyed between click
-    // and ack; MoonrakerAPI lives as long as MoonrakerManager (well past any
+    // and ack; IMoonrakerAPI lives as long as MoonrakerManager (well past any
     // widget). Caller's on_success/on_error captures are the caller's problem.
     // Note: run_local_recovery and local_recovery_available are static, so the
     // continuation chain never needs `this`.
-    MoonrakerAPI* api = api_;
+    IMoonrakerAPI* api = api_;
 
     auto run_services_restart = [api, on_success, on_error]() {
         spdlog::info("[Recovery] Falling back to machine.services.restart klipper");

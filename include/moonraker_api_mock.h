@@ -520,6 +520,9 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
                                StringCallback on_success, ErrorCallback on_error) override;
 
+    void download_file_tail(const std::string& root, const std::string& path, size_t max_bytes,
+                            StringCallback on_success, ErrorCallback on_error) override;
+
     void download_file_to_path(const std::string& root, const std::string& path,
                                const std::string& dest_path, StringCallback on_success,
                                ErrorCallback on_error,
@@ -589,6 +592,16 @@ class MoonrakerAPIMock : public MoonrakerAPI {
                                   std::function<void(const json&)> callback) override;
     bool unregister_method_callback(const std::string& method, const std::string& name) override;
     void suppress_disconnect_modal(uint32_t duration_ms) override;
+
+    /// Test spy: how many times suppress_disconnect_modal() was called, and
+    /// the duration handed to the last call - lets expected-restart tests
+    /// assert the api-level suppression arm.
+    [[nodiscard]] size_t suppress_disconnect_modal_calls() const {
+        return suppress_disconnect_modal_calls_;
+    }
+    [[nodiscard]] uint32_t last_suppress_disconnect_modal_ms() const {
+        return last_suppress_disconnect_modal_ms_;
+    }
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
                          std::function<void(const MoonrakerError&)> on_error) override;
@@ -850,6 +863,10 @@ class MoonrakerAPIMock : public MoonrakerAPI {
 
     // Mock subscription ID counter
     helix::SubscriptionId mock_next_subscription_id_ = 100;
+
+    // Test spy state for suppress_disconnect_modal()
+    size_t suppress_disconnect_modal_calls_ = 0;
+    uint32_t last_suppress_disconnect_modal_ms_ = 0;
 
     /// Mock database storage: key = "namespace:key", value = JSON
     std::map<std::string, nlohmann::json> mock_db_;

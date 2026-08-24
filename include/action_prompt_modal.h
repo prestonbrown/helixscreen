@@ -129,10 +129,12 @@ class ActionPromptModal : public Modal {
     /**
      * @brief Create a single button inside @p container.
      *
-     * @param equal_width When true (regular buttons, >= 4 of them) the button is
-     *        laid out as an equal-width flex cell (grow=1, width 0) so several
-     *        short labels share one non-wrapping row. When false the legacy
-     *        content-sized layout is used (unchanged for <= 3 regular buttons).
+     * @param equal_width When true (>= 4 regular buttons whose labels all fit an
+     *        even share of the row) the button is laid out as an equal-width flex
+     *        cell (grow=1, width 0) so several short labels share one
+     *        non-wrapping row. When false the legacy content-sized layout is
+     *        used, which row_wrap then spreads over as many lines as the labels
+     *        need.
      */
     void create_button(const PromptButton& btn, lv_obj_t* container, bool equal_width = false);
     lv_color_t get_button_color(const std::string& color_name);
@@ -144,5 +146,26 @@ class ActionPromptModal : public Modal {
     // === Static Callbacks ===
     static void on_button_cb(lv_event_t* e);
 };
+
+/**
+ * @brief Show the user why a prompt button's gcode did not run.
+ *
+ * The modal closes on every button press by design and waits for the firmware
+ * to push a replacement prompt, so a macro that aborts leaves the screen empty.
+ * This toast fills that gap. It is also what makes the send's
+ * `caller_surfaces_errors=true` claim honest: a caller that declares it reports
+ * the failure records the message in rpc_error_correlation, which suppresses
+ * the independent `!!` GcodeError toast for the same rejection — so dropping
+ * this toast would leave the failure with no surface at all. See
+ * include/rpc_error_policy.h.
+ *
+ * Safe to call from the WebSocket background thread - the notification layer
+ * marshals to the main thread itself.
+ *
+ * @param error_message Klipper's message from the failed RPC (MoonrakerError::
+ *                      user_message()). Empty falls back to a generic string so
+ *                      the toast is never blank.
+ */
+void report_action_prompt_gcode_failure(const std::string& error_message);
 
 } // namespace helix::ui

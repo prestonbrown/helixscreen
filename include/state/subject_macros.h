@@ -52,14 +52,22 @@
  * INIT_SUBJECT_INT(my_count, 42, subjects, true);
  * // Equivalent to:
  * //   lv_subject_init_int(&my_count_, 42);
- * //   subjects.register_subject(&my_count_);
+ * //   subjects.register_subject(&my_count_, "my_count");
  * //   lv_xml_register_subject(nullptr, "my_count", &my_count_);
+ *
+ * The XML name is handed to register_subject() as well as registered in the
+ * scope, because SubjectManager::deinit_all() withdraws each name before
+ * freeing its subject. Owners that do not live for the whole process - a
+ * PrinterState held by a stack-allocated test fixture, a torn-down panel -
+ * depend on that: without the name the registry keeps resolving to freed
+ * storage and the next lookup hands out a dangling lv_subject_t.
  */
 #define INIT_SUBJECT_INT(name, default_val, subjects, register_xml)                                \
     do {                                                                                           \
+        const bool helix_reg_xml_ = (register_xml);                                                \
         lv_subject_init_int(&name##_, (default_val));                                              \
-        (subjects).register_subject(&name##_);                                                     \
-        if (register_xml) {                                                                        \
+        (subjects).register_subject(&name##_, helix_reg_xml_ ? #name : nullptr);                   \
+        if (helix_reg_xml_) {                                                                      \
             helix::xml::register_subject_in_current_scope(#name, &name##_);                        \
         }                                                                                          \
     } while (0)
@@ -84,15 +92,18 @@
  * // Equivalent to:
  * //   lv_subject_init_string(&status_text_, status_text_buf_, NULL,
  * //                          sizeof(status_text_buf_), "Ready");
- * //   subjects.register_subject(&status_text_);
+ * //   subjects.register_subject(&status_text_, "status_text");
  * //   lv_xml_register_subject(nullptr, "status_text", &status_text_);
+ *
+ * See INIT_SUBJECT_INT for why the name is passed to register_subject().
  */
 #define INIT_SUBJECT_STRING(name, default_val, subjects, register_xml)                             \
     do {                                                                                           \
+        const bool helix_reg_xml_ = (register_xml);                                                \
         lv_subject_init_string(&name##_, name##_buf_, nullptr, sizeof(name##_buf_),                \
                                (default_val));                                                     \
-        (subjects).register_subject(&name##_);                                                     \
-        if (register_xml) {                                                                        \
+        (subjects).register_subject(&name##_, helix_reg_xml_ ? #name : nullptr);                   \
+        if (helix_reg_xml_) {                                                                      \
             helix::xml::register_subject_in_current_scope(#name, &name##_);                        \
         }                                                                                          \
     } while (0)

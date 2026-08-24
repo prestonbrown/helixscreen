@@ -146,7 +146,7 @@ bool pixel_drawn_at(const ObjectThumbnail& thumb, int x, int y) {
 }
 
 /// Test color: opaque teal (ARGB)
-constexpr uint32_t kTestColor = 0xFF26A69A;
+constexpr uint32_t TEST_COLOR = 0xFF26A69A;
 
 } // namespace
 
@@ -158,7 +158,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: empty gcode produces empty set", "[obje
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_empty_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.empty());
@@ -167,7 +167,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: empty gcode produces empty set", "[obje
 TEST_CASE("GCodeObjectThumbnailRenderer: null gcode produces empty set", "[object-thumbnail]") {
     GCodeObjectThumbnailRenderer renderer;
 
-    auto result = renderer.render_sync(nullptr, 40, 40, kTestColor);
+    auto result = renderer.render_sync(nullptr, 40, 40, TEST_COLOR);
 
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.empty());
@@ -178,7 +178,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: single object produces one thumbnail",
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_single_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.size() == 1);
@@ -195,7 +195,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: thumbnail has drawn pixels", "[object-t
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_single_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.size() == 1);
@@ -213,7 +213,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: multiple objects produce multiple thumb
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_multi_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.size() == 2);
@@ -232,7 +232,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: find by name works", "[object-thumbnail
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_multi_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->find("part_A") != nullptr);
     REQUIRE(result->find("part_B") != nullptr);
@@ -248,20 +248,20 @@ TEST_CASE("GCodeObjectThumbnailRenderer: custom thumbnail size", "[object-thumbn
     auto gcode = make_single_object_gcode();
 
     SECTION("64x64 thumbnails") {
-        auto result = renderer.render_sync(&gcode, 64, 64, kTestColor);
+        auto result = renderer.render_sync(&gcode, 64, 64, TEST_COLOR);
         REQUIRE(result->thumbnails[0].width == 64);
         REQUIRE(result->thumbnails[0].height == 64);
         REQUIRE(result->thumbnails[0].stride == 256);
     }
 
     SECTION("20x20 thumbnails") {
-        auto result = renderer.render_sync(&gcode, 20, 20, kTestColor);
+        auto result = renderer.render_sync(&gcode, 20, 20, TEST_COLOR);
         REQUIRE(result->thumbnails[0].width == 20);
         REQUIRE(result->thumbnails[0].height == 20);
     }
 
     SECTION("non-square thumbnails") {
-        auto result = renderer.render_sync(&gcode, 60, 40, kTestColor);
+        auto result = renderer.render_sync(&gcode, 60, 40, TEST_COLOR);
         REQUIRE(result->thumbnails[0].width == 60);
         REQUIRE(result->thumbnails[0].height == 40);
     }
@@ -288,7 +288,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: object with no segments gets empty thum
     gcode.layers.push_back(std::move(layer));
 
     GCodeObjectThumbnailRenderer renderer;
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->thumbnails.size() == 1);
     REQUIRE(result->thumbnails[0].object_name == "empty_obj");
@@ -328,7 +328,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: segments without object_name are skippe
     gcode.layers.push_back(std::move(layer));
 
     GCodeObjectThumbnailRenderer renderer;
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->thumbnails.size() == 1);
     // Only the named segment should have been drawn
@@ -358,7 +358,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: travel moves are skipped", "[object-thu
     gcode.layers.push_back(std::move(layer));
 
     GCodeObjectThumbnailRenderer renderer;
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->thumbnails.size() == 1);
     // Travel moves should be skipped
@@ -376,7 +376,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: object with empty bounding box is skipp
     gcode.objects["degenerate"] = obj;
 
     GCodeObjectThumbnailRenderer renderer;
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     // Object with empty bbox should be skipped entirely
     REQUIRE(result->thumbnails.empty());
@@ -386,7 +386,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: correct color in pixels", "[object-thum
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_single_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
     REQUIRE(result->thumbnails.size() == 1);
 
     const auto& thumb = result->thumbnails[0];
@@ -399,7 +399,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: correct color in pixels", "[object-thum
         for (int x = 0; x < thumb.width && !found_pixel; ++x) {
             const uint8_t* pixel = thumb.pixels.get() + y * thumb.stride + x * 4;
             if (pixel[3] > 0) {
-                // kTestColor = 0xFF26A69A → A=0xFF, R=0x26, G=0xA6, B=0x9A
+                // TEST_COLOR = 0xFF26A69A → A=0xFF, R=0x26, G=0xA6, B=0x9A
                 // BGRA byte order; depth shading darkens RGB but preserves alpha
                 REQUIRE(pixel[0] > 0);     // B: shaded but non-zero
                 REQUIRE(pixel[0] <= 0x9A); // B: no brighter than input
@@ -430,7 +430,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: cancellation doesn't crash", "[object-t
     REQUIRE_NOTHROW(renderer.cancel());
 
     // Render completes normally after cancelled state cleared
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
     REQUIRE(result != nullptr);
     REQUIRE(result->thumbnails.size() == 2);
 }
@@ -465,7 +465,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: multiple layers are rendered", "[object
     }
 
     GCodeObjectThumbnailRenderer renderer;
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->thumbnails.size() == 1);
     // All layers contribute pixels, so we should have more pixels than a single line
@@ -481,7 +481,7 @@ TEST_CASE("GCodeObjectThumbnailRenderer: byte_size calculation is correct", "[ob
     GCodeObjectThumbnailRenderer renderer;
     auto gcode = make_single_object_gcode();
 
-    auto result = renderer.render_sync(&gcode, 40, 40, kTestColor);
+    auto result = renderer.render_sync(&gcode, 40, 40, TEST_COLOR);
 
     REQUIRE(result->thumbnails[0].byte_size() == 40 * 40 * 4);
 }

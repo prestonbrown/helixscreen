@@ -50,6 +50,23 @@ LVGLTestFixture::LVGLTestFixture() : m_test_screen(nullptr) {
 }
 
 LVGLTestFixture::~LVGLTestFixture() {
+    // Drop every animation still registered, before anything else.
+    //
+    // LVGL's animation list is process-global and is NOT owned by the screen, so
+    // deleting m_test_screen below does not reach an animation whose var is not a
+    // widget. A test that starts an animation and returns before it finishes —
+    // legitimately, e.g. to assert partway progress — leaves it live in that list,
+    // and the NEXT test's process_lvgl() runs it against the previous test's dead
+    // stack frame. ASan caught exactly that as a stack-use-after-return in
+    // test_fixture_animation_pump.cpp: an AnimProbe stack local from one TEST_CASE
+    // written by anim_timer during the following one.
+    //
+    // Clearing here rather than in the offending test kills the whole class: any
+    // test may end with an animation in flight without contaminating its successor.
+    // Safe at teardown — the only callback lv_anim_delete_all() invokes is
+    // deleted_cb, never exec_cb or ready_cb, so it cannot itself touch a dead var.
+    lv_anim_delete_all();
+
     // Clean up the test screen
     if (m_test_screen != nullptr) {
         // Switch to a different screen before deleting if this is active

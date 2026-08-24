@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Shared card for every context menu: the elevated panel, the title +
+       close/Done header row, and the rule under it. Nest it inside the shared
+       backdrop and put the menu's own rows in as children:
+
+         <view name="fan_picker" extends="context_menu_backdrop">
+           <context_menu_card title="Select Fan" title_tag="Select Fan">
+             <lv_obj name="fan_list" .../>
+           </context_menu_card>
+         </view>
+
+       The <view> is named context_menu because that is ContextMenu::menu_card_name()'s
+       default, which is how the C++ side finds the card to size and position. Do NOT
+       set name= at an instance site - the engine warns that it displaces this one.
+       The close control routes through context_menu_close_cb, owned by
+       helix::ui::ContextMenu alongside the backdrop's callback. -->
+  <api>
+    <!-- Header title. text_small everywhere, so every menu's header reads the same. -->
+    <prop name="title" type="string" default=""/>
+    <prop name="title_tag" type="string" default=""/>
+    <!-- Named so C++ can retitle it; three menus rewrite their header at runtime. -->
+    <prop name="title_name" type="string" default="card_title"/>
+    <!-- 1 lets a long title claim the row and ellipsize instead of pushing the X off. -->
+    <prop name="title_grow" type="string" default="0"/>
+    <prop name="title_long_mode" type="string" default="wrap"/>
+    <!-- Icon-only X by default. Menus whose controls apply live pass
+         close_icon="check" close_text="Done" close_text_tag="Done" instead. -->
+    <prop name="close_icon" type="string" default="close"/>
+    <prop name="close_text" type="string" default=""/>
+    <prop name="close_text_tag" type="string" default=""/>
+    <prop name="hide_close" type="string" default="false"/>
+    <!-- Card box. content width unless the menu states a fixed one. -->
+    <prop name="width" type="string" default="content"/>
+    <prop name="min_width" type="string" default="0"/>
+    <prop name="pad_all" type="string" default="#space_sm"/>
+    <prop name="pad_gap" type="string" default="#space_sm"/>
+    <prop name="scrollable" type="string" default="false"/>
+    <!-- Rule under the header. Most menus want it; the ones that put their own
+         content between header and rule pass hide_divider="true" and place it. -->
+    <prop name="hide_divider" type="string" default="false"/>
+  </api>
+  <view name="context_menu"
+        extends="lv_obj" width="$width" height="content" style_min_width="$min_width" style_bg_color="#elevated_bg"
+        style_bg_opa="255" style_radius="#border_radius" style_pad_all="$pad_all" style_pad_gap="$pad_gap"
+        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start" scrollable="$scrollable"
+        clickable="true">
+    <!-- Header row: title + close/Done. Backdrop tap still dismisses. -->
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+            style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
+      <text_small name="$title_name"
+                  text="$title" translation_tag="$title_tag" flex_grow="$title_grow" long_mode="$title_long_mode"
+                  clickable="false" event_bubble="true"/>
+      <ui_button name="btn_close"
+                 width="content" height="content" hidden="$hide_close" variant="ghost" icon="$close_icon"
+                 text="$close_text" translation_tag="$close_text_tag" style_pad_right="0">
+        <event_cb trigger="clicked" callback="context_menu_close_cb"/>
+      </ui_button>
+    </lv_obj>
+    <divider_horizontal color="#text_muted" opacity="38" hidden="$hide_divider" clickable="false" event_bubble="true"/>
+    <!-- Menu-specific rows go here -->
+  </view>
+</component>

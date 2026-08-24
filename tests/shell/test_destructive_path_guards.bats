@@ -55,7 +55,7 @@ setup() {
 }
 
 @test "validate_tmp_dir: accepts the in-app updater's staging dir handoff" {
-    # update_checker.cpp kStagingName — install.sh is exec'd with this TMP_DIR.
+    # update_checker.cpp STAGING_NAME — install.sh is exec'd with this TMP_DIR.
     run validate_tmp_dir "/home/pi/.helix-update-staging"
     [ "$status" -eq 0 ]
 }

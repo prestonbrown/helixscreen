@@ -17,6 +17,7 @@ namespace helix {
  * - cancel_escalation_timeout (dropdown index 0-3 -> 15/30/60/120s)
  * - macro_require_confirmation (0/1)
  * - allow_cold_extrude (0/1)
+ * - min_toast_severity (dropdown index 0=All / 1=Warnings & errors / 2=Errors only, #1213)
  *
  * Thread safety: Single-threaded, main LVGL thread only.
  */
@@ -69,6 +70,13 @@ class SafetySettingsManager {
      * persists) */
     void set_allow_cold_extrude(bool allow);
 
+    /** @brief Get the minimum toast severity index (0=All, 1=Warnings & errors, 2=Errors only) */
+    int get_min_toast_severity() const;
+
+    /** @brief Set the minimum toast severity index (updates subject + persists + pushes to the
+     *         notification toast gate). #1213 */
+    void set_min_toast_severity(int index);
+
     // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
     // =========================================================================
@@ -98,6 +106,11 @@ class SafetySettingsManager {
         return &allow_cold_extrude_subject_;
     }
 
+    /** @brief Minimum toast severity subject (integer: dropdown index 0/1/2, #1213) */
+    lv_subject_t* subject_min_toast_severity() {
+        return &min_toast_severity_subject_;
+    }
+
   private:
     SafetySettingsManager();
     ~SafetySettingsManager() = default;
@@ -109,6 +122,7 @@ class SafetySettingsManager {
     lv_subject_t cancel_escalation_timeout_subject_;
     lv_subject_t macro_require_confirmation_subject_;
     lv_subject_t allow_cold_extrude_subject_;
+    lv_subject_t min_toast_severity_subject_;
 
     bool subjects_initialized_ = false;
 };

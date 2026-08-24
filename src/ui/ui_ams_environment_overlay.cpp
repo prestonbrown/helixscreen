@@ -17,6 +17,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "data_root_resolver.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -97,6 +98,8 @@ void AmsEnvironmentOverlay::init_subjects() {
                                   "ams_env_overlay_target_temp_text", subjects_);
         UI_MANAGED_SUBJECT_STRING(humidity_text_subject_, humidity_text_buf_, "--",
                                   "ams_env_overlay_humidity_text", subjects_);
+        UI_MANAGED_SUBJECT_INT(humidity_visible_subject_, 0, "ams_env_overlay_humidity_visible",
+                               subjects_);
         UI_MANAGED_SUBJECT_STRING(title_text_subject_, title_text_buf_, "",
                                   "ams_env_overlay_title_text", subjects_);
         UI_MANAGED_SUBJECT_INT(dryer_visible_subject_, 0, "ams_env_overlay_dryer_visible",
@@ -150,7 +153,8 @@ lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
     // overlay safe to open directly (e.g. CLI --ams-environment) without first
     // visiting the AMS panel, which is where lazy registration otherwise happens.
     if (!lv_xml_component_get_scope("ams_environment_overlay")) {
-        lv_xml_register_component_from_file("A:ui_xml/ams_environment_overlay.xml");
+        lv_xml_register_component_from_file(
+            helix::asset_component_uri("ui_xml/ams_environment_overlay.xml").c_str());
     }
 
     overlay_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_environment_overlay", nullptr));
@@ -318,6 +322,7 @@ void AmsEnvironmentOverlay::update_from_backend() {
         lv_subject_set_int(&dryer_visible_subject_, 0);
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&drying_active_subject_, 0);
+        lv_subject_set_int(&humidity_visible_subject_, 0);
         return;
     }
 
@@ -343,12 +348,14 @@ void AmsEnvironmentOverlay::update_from_backend() {
     float temp_c = 0.0f;
     float humidity_pct = 0.0f;
     bool has_env = false;
+    bool has_humidity = false;
 
     if (unit_index_ < static_cast<int>(info.units.size())) {
         const auto& unit = info.units[unit_index_];
         if (unit.environment.has_value()) {
             temp_c = unit.environment->temperature_c;
             humidity_pct = unit.environment->humidity_pct;
+            has_humidity = unit.environment->has_humidity;
             has_env = true;
         }
     }
@@ -387,6 +394,11 @@ void AmsEnvironmentOverlay::update_from_backend() {
         snprintf(humidity_text_buf_, sizeof(humidity_text_buf_), "--");
     }
     lv_subject_copy_string(&humidity_text_subject_, humidity_text_buf_);
+
+    // Humidity readout + Material Comfort strip, for THIS unit. Matches the
+    // badge's own rule (AmsState env_ind_humidity_visible): a reading exists
+    // only when the unit reports an environment with a humidity sensor.
+    lv_subject_set_int(&humidity_visible_subject_, (has_env && has_humidity) ? 1 : 0);
 
     // Dryer visibility
     lv_subject_set_int(&dryer_visible_subject_, dryer.supported ? 1 : 0);
@@ -766,7 +778,8 @@ void ensure_ams_env_indicator_registered() {
         overlay.show(lv_screen_active(), unit);
     });
 
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_environment_indicator.xml");
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/components/ams_environment_indicator.xml").c_str());
 
     s_registered = true;
 }

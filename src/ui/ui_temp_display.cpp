@@ -25,6 +25,7 @@
 
 using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::deci_to_degrees_f;
+using helix::ui::temperature::format_temp_number;
 using helix::ui::temperature::get_heating_state_color;
 
 // ============================================================================
@@ -44,17 +45,29 @@ static constexpr uint32_t TEMP_DISPLAY_MAGIC = 0x544D5031;
 struct TempDisplayData {
     uint32_t magic = TEMP_DISPLAY_MAGIC;
     int current_deci = 0; // Decidegrees for precision formatting
-    int current_temp = 0; // Whole degrees (for heating color logic)
-    int target_temp = 0;
+    int current_temp = 0; // Whole degrees (public accessor + trace logging)
+    int target_temp = 0;  // Whole degrees (target label text, off-state gating)
+    // Decidegrees for the heating-state classifier. The color is decided at the
+    // same resolution the number is rendered at (see displayed_deci), so a card
+    // reading "220 / 220" can never be painted heating-red.
+    int target_deci = 0;
     bool show_target = false;                 // Default: hide target (opt-in via prop)
     bool has_target_binding = false;          // True if bind_target was set (heater mode)
     bool target_subjects_initialized = false; // True if target subject was created
+    // hide_target_when_off: the separator+target are built, but stay hidden while
+    // the heater is off. Home-screen tiles want the target only when it means
+    // something; control surfaces (controls panel, temp graph) leave this off so
+    // the "—" placeholder still reads as "this heater is off".
+    bool hide_target_when_off = false;
     // Chamber-mode awareness (opt-in via bind_mode). In Maintaining mode the
     // target is a cooling CEILING, not a heat goal, so heating-red is wrong.
     int current_mode = helix::ChamberMode::Heating; // Default: existing heating behavior
     bool has_mode_binding = false;                  // True if bind_mode was set
     // Responsive hide of separator+target labels below this breakpoint (-1 = never).
     int hide_target_below_bp = -1;
+    // Last value seen from the ui_breakpoint subject. Only meaningful when
+    // hide_target_below_bp >= 0 — that is the only case that subscribes.
+    int current_bp = 0;
 
     // Child label pointers for efficient updates
     lv_obj_t* current_label = nullptr;
@@ -97,12 +110,14 @@ static const lv_font_t* get_font_for_size(const char* size) {
     return font ? font : &noto_sans_18;
 }
 
-/** Apply current breakpoint to separator+target visibility. Safe to call when
-    those labels don't exist (no-op for show_target="false" widgets). */
-static void apply_target_visibility(TempDisplayData* data, int current_bp) {
-    if (!data || data->hide_target_below_bp < 0)
+/** Apply breakpoint + heater-off rules to separator+target visibility. Safe to
+    call when those labels don't exist (no-op for show_target="false" widgets). */
+static void apply_target_visibility(TempDisplayData* data) {
+    if (!data)
         return;
-    bool hide = current_bp < data->hide_target_below_bp;
+    bool hide =
+        (data->hide_target_below_bp >= 0 && data->current_bp < data->hide_target_below_bp) ||
+        (data->hide_target_when_off && data->target_temp == 0);
     if (data->separator_label) {
         if (hide)
             lv_obj_add_flag(data->separator_label, LV_OBJ_FLAG_HIDDEN);
@@ -124,7 +139,8 @@ static void bp_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* data = get_data(container);
     if (!data)
         return;
-    apply_target_visibility(data, lv_subject_get_int(subject));
+    data->current_bp = lv_subject_get_int(subject);
+    apply_target_visibility(data);
 }
 
 /**
@@ -148,6 +164,14 @@ static void update_heating_color(TempDisplayData* data) {
         return;
     }
 
+    // Classified in decidegrees against the reading as rendered, not the raw
+    // sensor value: format_temp_number() drops the decimal at and above 100°C,
+    // so 222.9 prints "223" and must be judged as 223 rather than the truncated
+    // 222 that still sits inside the at-temp band. HeatingIconAnimator already
+    // classifies in decidegrees, so this also makes the label and the icon
+    // byte-identical at every reading rather than only on whole degrees.
+    const int shown_deci = helix::ui::temperature::displayed_deci(data->current_deci);
+
     // Chamber mode-aware path: in Maintaining mode the target is a cooling
     // CEILING, not a heat goal, so classify_heat_state_with_mode() resolves
     // Cooling (above ceiling) or Neutral (at/below ceiling) instead of the
@@ -155,8 +179,9 @@ static void update_heating_color(TempDisplayData* data) {
     // chamber icon uses, so the label and the icon can never disagree.
     if (data->has_mode_binding) {
         auto mode = static_cast<helix::ChamberMode>(data->current_mode);
-        auto state = helix::ui::temperature::classify_heat_state_with_mode(data->current_temp,
-                                                                           data->target_temp, mode);
+        auto state = helix::ui::temperature::classify_heat_state_with_mode(
+            shown_deci, data->target_deci, mode,
+            helix::ui::temperature::DEFAULT_AT_TEMP_TOLERANCE_DECI);
         lv_color_t color = helix::ui::temperature::get_heating_state_color(state);
         lv_obj_set_style_text_color(data->current_label, color, LV_PART_MAIN);
         return;
@@ -164,7 +189,8 @@ static void update_heating_color(TempDisplayData* data) {
 
     // No mode binding (nozzle/bed): plain 4-state behavior. A heater at target=0
     // resolves to Off (muted/gray) via get_heating_state_color(current, 0).
-    lv_color_t color = get_heating_state_color(data->current_temp, data->target_temp);
+    lv_color_t color = get_heating_state_color(
+        shown_deci, data->target_deci, helix::ui::temperature::DEFAULT_AT_TEMP_TOLERANCE_DECI);
     lv_obj_set_style_text_color(data->current_label, color, LV_PART_MAIN);
 }
 
@@ -187,10 +213,9 @@ static void format_target_text(TempDisplayData* data) {
     lv_subject_copy_string(&data->target_text_subject, data->target_text_buf);
 }
 
-/** Format decidegrees as "XX.X" with one decimal place */
+/** Format decidegrees as a compact number (one decimal, dropped when >= 100) */
 static void format_deci_temp(char* buf, size_t buf_size, int deci) {
-    float deg = deci_to_degrees_f(deci);
-    snprintf(buf, buf_size, "%.1f", deg);
+    format_temp_number(deci_to_degrees_f(deci), buf, buf_size);
 }
 
 /** Update the display text based on current values */
@@ -204,6 +229,10 @@ static void update_display(TempDisplayData* data) {
 
     // Update target temp via subject (shows "--" when heater off)
     format_target_text(data);
+
+    // hide_target_when_off drops the separator+target entirely once the heater
+    // is off, so the tile falls back to a bare current reading.
+    apply_target_visibility(data);
 
     // Update heating accent color
     update_heating_color(data);
@@ -311,12 +340,18 @@ static void target_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subje
         return;
     }
 
-    int temp_deg = deci_to_degrees(lv_subject_get_int(subject));
+    const int deci = lv_subject_get_int(subject);
+    int temp_deg = deci_to_degrees(deci);
 
+    data->target_deci = deci;
     data->target_temp = temp_deg;
 
     // Update target text (shows "--" when heater off, actual value when on)
     format_target_text(data);
+
+    // hide_target_when_off keys off target_temp, so re-evaluate here rather than
+    // in update_display() — the XML-bound path never goes through it.
+    apply_target_visibility(data);
 
     // Update color based on 4-state logic
     update_heating_color(data);
@@ -388,6 +423,13 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         data_ptr->show_target = true;
     }
 
+    // Parse hide_target_when_off — build the target labels but keep them hidden
+    // while target == 0. Meaningless without show_target, same as the bp variant.
+    const char* hide_when_off_str = lv_xml_get_value_of(attrs, "hide_target_when_off");
+    if (hide_when_off_str && strcmp(hide_when_off_str, "true") == 0) {
+        data_ptr->hide_target_when_off = true;
+    }
+
     // Parse hide_target_below_bp — drop separator+target on small screens.
     // Value is a breakpoint name (micro|tiny|small|medium|large|xlarge|xxlarge).
     const char* hide_below_str = lv_xml_get_value_of(attrs, "hide_target_below_bp");
@@ -445,9 +487,12 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     if (registered->hide_target_below_bp >= 0) {
         if (lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject()) {
             lv_subject_add_observer_obj(bp_subj, bp_observer_cb, container, nullptr);
-            apply_target_visibility(registered, lv_subject_get_int(bp_subj));
+            registered->current_bp = lv_subject_get_int(bp_subj);
         }
     }
+    // Seed visibility from the initial state — with hide_target_when_off that
+    // means starting hidden, since target_temp is 0 until the first update.
+    apply_target_visibility(registered);
 
     spdlog::trace("[temp_display] Created widget (size={}, show_target={})", size ? size : "md",
                   registered->show_target);
@@ -496,7 +541,8 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                     data->target_label ? data->target_label : data->current_label;
                 lv_subject_add_observer_obj(subject, target_temp_observer_cb, obs_target, nullptr);
                 // Set initial value
-                data->target_temp = deci_to_degrees(lv_subject_get_int(subject));
+                data->target_deci = lv_subject_get_int(subject);
+                data->target_temp = deci_to_degrees(data->target_deci);
                 // Update target label text if it exists
                 format_target_text(data);
                 // Apply initial heating color
@@ -561,6 +607,7 @@ void ui_temp_display_set(lv_obj_t* obj, int current, int target) {
         helix::ui::temperature::degrees_to_deci(current); // Approximate from whole degrees
     data->current_temp = current;
     data->target_temp = target;
+    data->target_deci = helix::ui::temperature::degrees_to_deci(target);
     update_display(data);
 }
 

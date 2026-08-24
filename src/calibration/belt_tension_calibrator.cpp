@@ -12,7 +12,7 @@
 #include "belt_tension_calibrator.h"
 
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "toolhead_homing.h"
@@ -29,7 +29,7 @@ BeltTensionCalibrator::BeltTensionCalibrator() : api_(nullptr) {
     spdlog::debug("[BeltTension] Created without API (test mode)");
 }
 
-BeltTensionCalibrator::BeltTensionCalibrator(MoonrakerAPI* api) : api_(api) {
+BeltTensionCalibrator::BeltTensionCalibrator(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[BeltTension] Created with API");
 }
 

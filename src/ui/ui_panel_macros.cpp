@@ -15,11 +15,11 @@
 
 #include "app_globals.h"
 #include "device_display_name.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_edit_logic.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
-#include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -213,7 +213,7 @@ void MacrosPanel::on_ui_destroyed() {
 // ============================================================================
 
 void MacrosPanel::refresh_macros() {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         // No API (early boot, or a unit test that pre-set all_macros_). Leave
         // the current list intact rather than clobbering it to empty.
@@ -352,9 +352,9 @@ void MacrosPanel::execute_macro(const std::string& macro_name) {
 }
 
 void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
-        spdlog::warn("[{}] No MoonrakerAPI available - cannot fetch params", get_name());
+        spdlog::warn("[{}] No IMoonrakerAPI available - cannot fetch params", get_name());
         return;
     }
 
@@ -456,7 +456,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
 
 void MacrosPanel::execute_with_params(const std::string& macro_name,
                                       const helix::MacroParamResult& result) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     helix::execute_macro_gcode(api, macro_name, result, "[MacrosPanel]");
 }
 

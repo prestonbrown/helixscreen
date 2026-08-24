@@ -2,6 +2,14 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <api>
+    <!-- Which runout subject colors the filament glyph. Defaults to the global
+         all-sensors aggregate; the in-print status panel passes
+         "filament_runout_scoped" so the color reflects only the tools the active
+         print uses (lane truth), matching what filament_sensor_indicator does at
+         its own call sites. -->
+    <prop name="runout_subject" type="subject" default="filament_runout_detected"/>
+  </api>
   <!--
     AMS Current Tool Indicator
 
@@ -22,6 +30,12 @@
     - ams_current_tool_text: string ("T0", "T1", or empty)
     - ams_slot_count: int (0=no AMS, >0=AMS available)
     - ams_current_tool: int (negative=none, 0+=tool index) for visibility
+
+    The leading glyph is filament_sensor_indicator, not a plain icon, so this
+    block carries runout state as well as lane identity — on an AMS printer it
+    is the only filament glyph in the status row, and a muted icon beside a lane
+    number said nothing about whether that lane had run out. Where no sensor is
+    configured the indicator hides itself and the lane number stands alone.
   -->
   <view name="ams_current_tool"
         extends="lv_obj" width="content" height="content" style_pad_all="0" flex_flow="row"
@@ -32,8 +46,8 @@
     <bind_flag_if_lt subject="ams_current_tool" flag="hidden" ref_value="0"/>
     <!-- Click handler registered in C++ -->
     <event_cb trigger="clicked" callback="on_ams_current_tool_clicked"/>
-    <!-- Filament/spool icon -->
-    <icon src="filament" size="sm" variant="muted"/>
+    <!-- Filament/spool glyph, colored by runout state (see note above) -->
+    <filament_sensor_indicator subject="$runout_subject" size="sm"/>
     <!-- Tool label (T0, T1, etc.) -->
     <text_small name="tool_label" text="T0" bind_text="ams_current_tool_text"/>
     <!-- Color swatch showing current filament color (color set via C++) -->

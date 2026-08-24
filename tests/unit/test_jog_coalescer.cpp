@@ -16,8 +16,7 @@ TEST_CASE("JogCoalescer: first tap sends immediately", "[jog_coalescer]") {
     CHECK(c.uncommitted_x() == 1.0); // in-flight counts as uncommitted
 }
 
-TEST_CASE("JogCoalescer: taps while in flight accumulate, ack flushes once",
-          "[jog_coalescer]") {
+TEST_CASE("JogCoalescer: taps while in flight accumulate, ack flushes once", "[jog_coalescer]") {
     JogCoalescer c;
     REQUIRE(c.on_tap({1.0, 0.0, 0.0}).has_value());
     CHECK_FALSE(c.on_tap({1.0, 0.0, 0.0}).has_value());

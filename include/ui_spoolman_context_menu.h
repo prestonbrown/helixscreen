@@ -36,6 +36,8 @@ namespace helix::ui {
  * @endcode
  */
 class SpoolmanContextMenu : public ContextMenu {
+    HELIX_CONTEXT_MENU_KIND(SpoolmanContextMenu)
+
   public:
     enum class MenuAction {
         CANCELLED,   ///< User dismissed menu without action
@@ -85,6 +87,9 @@ class SpoolmanContextMenu : public ContextMenu {
         return "spoolman_context_menu";
     }
     void on_created(lv_obj_t* menu_obj) override;
+    /// A tap outside a single-select action menu chooses nothing, so it reports
+    /// CANCELLED through this menu's own callback rather than the base's.
+    void on_backdrop_clicked() override;
 
   private:
     // === Spoolman-specific state ===
@@ -92,12 +97,11 @@ class SpoolmanContextMenu : public ContextMenu {
     SpoolInfo pending_spool_; ///< Spool info stored between show and on_created
 
     /**
-     * @brief Common dispatch: clear static instance, hide, invoke callback
+     * @brief Common dispatch: hide, then invoke the callback with the spool id
      */
     void dispatch_spoolman_action(MenuAction action);
 
     // === Event Handlers ===
-    void handle_backdrop_clicked();
     void handle_set_active();
     void handle_edit();
     void handle_print_label();
@@ -109,9 +113,9 @@ class SpoolmanContextMenu : public ContextMenu {
     static bool callbacks_registered_;
 
     // === Static Callbacks ===
-    static SpoolmanContextMenu* s_active_instance_;
+    /// The menu on screen as a SpoolmanContextMenu, or nullptr. Thin wrapper over
+    /// ContextMenu::active_as() that also logs the unexpected empty case.
     static SpoolmanContextMenu* get_active_instance();
-    static void on_backdrop_cb(lv_event_t* e);
     static void on_set_active_cb(lv_event_t* e);
     static void on_edit_cb(lv_event_t* e);
     static void on_print_label_cb(lv_event_t* e);

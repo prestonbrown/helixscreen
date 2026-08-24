@@ -60,6 +60,34 @@ class DisplayManagerTestAccess {
         dm.enter_sleep(timeout_sec);
     }
 
+    // Which branch the last enter_sleep() actually took (#1245). Not the same as
+    // re-running select_sleep_mechanism(): the power-off branch can degrade to the
+    // overlay at runtime, so this is the only way to prove enter_sleep() honored
+    // the selector instead of re-deriving the branch itself.
+    static DisplayManager::SleepMechanism last_sleep_mechanism(DisplayManager& dm) {
+        return dm.m_last_sleep_mechanism;
+    }
+
+    // Mirror of the Android window's FLAG_KEEP_SCREEN_ON request (#1245). Must
+    // stay true for the entire lifetime of a non-Android build.
+    static bool keep_screen_on(DisplayManager& dm) {
+        return dm.m_keep_screen_on;
+    }
+
+    // The software sleep overlay, so a test can assert a black rect was (or was
+    // NOT) painted — the whole point of #1245 is that Android stops painting one.
+    static lv_obj_t* sleep_overlay(DisplayManager& dm) {
+        return dm.m_sleep_overlay;
+    }
+
+    // The wake-touch gate wake_display() engages (#1245). Private on the
+    // manager and normally only reachable through a full wake, which also
+    // calls lv_refr_now() — that infinite-loops under the headless test
+    // display, so the gate is driven directly here.
+    static void disable_input_briefly(DisplayManager& dm) {
+        dm.disable_input_briefly();
+    }
+
     // Exercises the wake-side panel restore (power-on / unblank / overlay removal)
     // WITHOUT the post-wake lv_refr_now(), which infinite-loops under the headless
     // test display. Production wake_display() runs this then lv_refr_now().

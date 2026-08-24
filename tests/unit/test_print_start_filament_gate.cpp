@@ -1,117 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file test_print_start_filament_gate.cpp
- * @brief Tests for PrintStartController::check_required_filament_present() — the
- *        shared pre-print filament gate (review issue 1).
+ * @brief Controller-level tests that survived the gate-pipeline migration.
  *
  * Run with: ./build/bin/helix-tests "[print-start][filament-gate]"
  *
- * Regression context: the insufficient-filament "Proceed" continuation used to
- * re-run the lane-truth check WITHOUT the auto_unloads_after_print() suppression
- * that initiate() applied. On AD5X IFS (which retracts filament from the toolhead
- * at end-of-print by design, so lanes read empty at the next print-start) that
- * produced a deterministic FALSE "no filament" warning. The fix factors the
- * suppression + filament-present check into ONE shared method so both paths
- * behave identically. These tests exercise that method directly.
+ * The pre-pipeline test cases lived here because the checks were private
+ * PrintStartController methods; they moved to the pure gate core in Tasks 1-2:
+ *  - the filament-present check        -> tests/unit/test_print_start_gates.cpp
+ *    (required_filament_present gate cases, incl. AD5X IFS auto-unload
+ *    suppression and the non-AMS runout fallback)
+ *  - the unresolved-tool rule          -> tests/unit/test_print_start_gates.cpp
+ *    (unresolved_tools_in / gate unresolved_tools cases, incl. bypass
+ *    suppression and single-color silence)
+ *
+ * What remains here is should_warn_remap_unsupported() — the remap-unsupported
+ * warning discriminator, untouched by the pipeline.
  */
 
 #include "ui_print_start_controller.h"
 
-#include "../helix_test_fixture.h"
-#include "ams_backend_ad5x_ifs.h"
-#include "ams_state.h"
-#include "filament_sensor_manager.h"
-#include "moonraker_api_mock.h"
-#include "moonraker_client_mock.h"
-#include "printer_state.h"
-
-#include <memory>
-
 #include "../catch_amalgamated.hpp"
 
-using namespace helix;
-using namespace helix::ui;
-
-// Friend shim (declared friend in ui_print_start_controller.h) to reach the
-// private pre-print gate + remap-warning decision helper.
-class PrintStartControllerTestAccess {
-  public:
-    static bool check(PrintStartController& c) {
-        return c.check_required_filament_present();
-    }
-    static bool should_warn_remap_unsupported(const helix::printer::ToolMappingCapabilities& caps,
-                                              bool applies_via_preprint) {
-        return PrintStartController::should_warn_remap_unsupported(caps, applies_via_preprint);
-    }
-};
-
-namespace {
-
-// RAII: install a real AD5X IFS backend (auto_unloads_after_print() == true)
-// into AmsState and remove it on scope exit.
-struct ScopedAd5xIfsBackend {
-    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
-    PrinterState state;
-    std::unique_ptr<MoonrakerAPIMock> api;
-    AmsBackendAd5xIfs* backend = nullptr;
-
-    ScopedAd5xIfsBackend() {
-        state.init_subjects(false);
-        api = std::make_unique<MoonrakerAPIMock>(client, state);
-        auto be = std::make_unique<AmsBackendAd5xIfs>(api.get(), nullptr);
-        backend = be.get();
-        AmsState::instance().set_backend(std::move(be));
-    }
-    ~ScopedAd5xIfsBackend() {
-        AmsState::instance().set_backend(nullptr);
-    }
-};
-
-} // namespace
-
-TEST_CASE("print-start gate (issue 1): AD5X IFS auto-unload suppresses the warning",
-          "[print-start][filament-gate]") {
-    HelixTestFixture fx;
-    ScopedAd5xIfsBackend ifs;
-
-    // A fresh IFS backend reports its lanes empty (no filament parsed yet) — the
-    // exact post-auto-unload state that used to false-positive on the
-    // insufficient-filament continuation path. is_present() would be false for
-    // every lane.
-    REQUIRE(ifs.backend->auto_unloads_after_print());
-
-    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
-    PrinterState ps;
-    ps.init_subjects(false);
-    MoonrakerAPIMock api(client, ps);
-    PrintStartController controller(ps, &api);
-    // No detail view set: the suppression branch must return BEFORE touching it.
-
-    // The shared gate must SUPPRESS (return false = no warning) because the
-    // active backend auto-unloads after print. This is the same method the
-    // insufficient-filament Proceed path now calls, so that path is suppressed
-    // identically (issue 1 regression closed).
-    CHECK_FALSE(PrintStartControllerTestAccess::check(controller));
-}
-
-TEST_CASE("print-start gate (issue 1): no backend + no runout sensor -> no warning",
-          "[print-start][filament-gate]") {
-    HelixTestFixture fx;
-    AmsState::instance().set_backend(nullptr);
-    // Clear any RUNOUT sensor left by a prior test in this process (the manager
-    // is a singleton); discover_sensors({}) clears the sensor list + roles.
-    FilamentSensorManager::instance().discover_sensors({});
-
-    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
-    PrinterState ps;
-    ps.init_subjects(false);
-    MoonrakerAPIMock api(client, ps);
-    PrintStartController controller(ps, &api);
-
-    // No AMS backend, no configured runout sensor -> the aggregate fallback finds
-    // nothing to warn about. Gate returns false (proceed).
-    CHECK_FALSE(PrintStartControllerTestAccess::check(controller));
-}
+// Friend shim lives in test_helpers/ — it must be defined exactly once across
+// the test binary (see the header's note on ODR).
+#include "../test_helpers/print_start_controller_test_access.h"
 
 // ============================================================================
 // Remap-unsupported warning discriminator (Snapmaker U1 stale-toast bug).

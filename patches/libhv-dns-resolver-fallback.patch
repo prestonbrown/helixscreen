@@ -288,6 +288,25 @@ index 0000000..e4403a1
 +END_EXTERN_C
 +
 +#endif // DNS_RESOLV_H_
+diff --git a/base/hplatform.h b/base/hplatform.h
+index e75f006..c2ed531 100644
+--- a/base/hplatform.h
++++ b/base/hplatform.h
+@@ -209,6 +209,14 @@
+ #else
+     #include <unistd.h>
+     #include <dirent.h>     // for mkdir,rmdir,chdir,getcwd
++    // Not pulled in transitively by every glibc (jammy's include web is
++    // leaner than newer releases): fcntl/F_SETFL for blocking(), struct stat
++    // for the hv_exists/hv_isdir family, pthread_mutex for hmutex.h's inline
++    // wrappers (PTHREAD_MUTEX_RECURSIVE in hevent.c). Fresh clang builds on
++    // ubuntu 22.04 failed compiling base/ and event/ without these.
++    #include <fcntl.h>
++    #include <sys/stat.h>
++    #include <pthread.h>
+ 
+     // socket
+     #include <sys/socket.h>
 diff --git a/base/hsocket.c b/base/hsocket.c
 index ed87a8c..5d29024 100644
 --- a/base/hsocket.c

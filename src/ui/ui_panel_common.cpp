@@ -186,6 +186,12 @@ void ui_overlay_panel_setup_standard(lv_obj_t* panel, lv_obj_t* parent_screen,
         // ui_component_header_bar.cpp's ui_component_header_bar_setup() is a
         // separate, unreachable path (no caller of ui_panel_setup_header()
         // above exists) — it does not carry this swap.
+        //
+        // DELIBERATELY on detect_layout_type() (physical), NOT LayoutManager —
+        // this must match overlay_animate_slide_in() in ui_nav_manager.cpp,
+        // which animates on the physical axis. A --layout override reshapes the
+        // XML and the canvas-height decisions, but the slide animation still
+        // follows the glass, and the chevron must agree with the slide. #1255.
         if (helix::is_portrait_layout(helix::detect_layout_type(
                 lv_obj_get_width(parent_screen), lv_obj_get_height(parent_screen)))) {
             lv_obj_t* icon = lv_obj_get_child(back_btn, 0);

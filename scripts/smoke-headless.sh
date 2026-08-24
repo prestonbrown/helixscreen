@@ -44,7 +44,10 @@ trap cleanup EXIT
 BIN="$(cd "$(dirname "$BIN")" && pwd)/$(basename "$BIN")"
 
 # No window system needed. The SDL backend falls back to the software renderer
-# on its own when no accelerated one is available.
+# on its own when no accelerated one is available. Audio is silenced the same
+# way automatically — silence_audio_if_headless() in main() forces
+# SDL_AUDIODRIVER=dummy under SDL_VIDEODRIVER=dummy, so the smoke run won't
+# beep through the CI runner's speakers (if it even has any).
 export SDL_VIDEODRIVER=dummy
 
 info "Booting $BIN headless (socket $SOCK)"

@@ -89,12 +89,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // 1. Install a started mock with passive environment sensors and pin
     //    unit-0 temperature to value A (30 C) before building the overlay.
     // ------------------------------------------------------------------
-    constexpr float kTempA = 30.0f;
-    constexpr float kTempB = 45.0f;
+    constexpr float TEMP_A = 30.0f;
+    constexpr float TEMP_B = 45.0f;
 
     auto mock = std::make_unique<TempInjectMock>(4);
     mock->set_environment_mode("passive"); // per-unit temp/humidity, no dryer
-    mock->set_test_temp(kTempA);
+    mock->set_test_temp(TEMP_A);
     REQUIRE(mock->start().success());
 
     auto* backend = mock.get();
@@ -129,7 +129,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     //    path: sync_from_backend() updates env_ind_temp_text_, which the overlay's
     //    observer watches. Drain the queue so the deferred refresh runs.
     // ------------------------------------------------------------------
-    backend->set_test_temp(kTempB);
+    backend->set_test_temp(TEMP_B);
     AmsState::instance().sync_from_backend(); // updates env_ind_temp_text subject
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(10);

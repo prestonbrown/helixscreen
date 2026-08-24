@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
 
@@ -68,10 +69,11 @@ void PostOpCooldownManager::schedule() {
 
                 auto& state = get_printer_state();
 
-                // Skip if printing or paused
-                auto job_state = state.get_print_job_state();
-                if (job_state == helix::PrintJobState::PRINTING ||
-                    job_state == helix::PrintJobState::PAUSED) {
+                // Skip while a job owns the toolhead. Preparing counts: a
+                // print that is starting will heat the nozzle itself, so cooling
+                // it down now is work the pre-start block immediately undoes.
+                const auto lifecycle = state.get_print_lifecycle();
+                if (job_holds_machine(lifecycle)) {
                     spdlog::info("[PostOpCooldown] Skipping cooldown — print active");
                     return;
                 }

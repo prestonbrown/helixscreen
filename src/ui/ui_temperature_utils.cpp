@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 namespace helix {
 namespace ui {
@@ -66,16 +67,29 @@ char* format_temperature_pair(int current, int target, char* buffer, size_t buff
     return buffer;
 }
 
+// Format a temperature number with one decimal place, dropping the decimal when
+// the integer portion is 3 digits or more (>= 100) to keep wide values compact.
+char* format_temp_number(float temp, char* buffer, size_t buffer_size) {
+    snprintf(buffer, buffer_size, temp >= 100.0f ? "%.0f" : "%.1f", temp);
+    return buffer;
+}
+
 char* format_temperature_f(float temp, char* buffer, size_t buffer_size) {
-    snprintf(buffer, buffer_size, "%.1f°C", temp);
+    format_temp_number(temp, buffer, buffer_size);
+    size_t len = strlen(buffer);
+    snprintf(buffer + len, buffer_size - len, "°C");
     return buffer;
 }
 
 char* format_temperature_pair_f(float current, float target, char* buffer, size_t buffer_size) {
+    char current_buf[16];
+    format_temp_number(current, current_buf, sizeof(current_buf));
     if (target == 0.0f) {
-        snprintf(buffer, buffer_size, "%.1f / —°C", current);
+        snprintf(buffer, buffer_size, "%s / —°C", current_buf);
     } else {
-        snprintf(buffer, buffer_size, "%.1f / %.1f°C", current, target);
+        char target_buf[16];
+        format_temp_number(target, target_buf, sizeof(target_buf));
+        snprintf(buffer, buffer_size, "%s / %s°C", current_buf, target_buf);
     }
     return buffer;
 }
@@ -167,8 +181,11 @@ const char* get_heating_state_variant(int current_deg, int target_deg, int toler
 HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     HeaterDisplayResult result;
 
-    // Convert decidegrees to degrees (integer truncation is fine for display)
-    int current_deg = deci_to_degrees(current_deci);
+    // The reading as the UI renders it. Everything below - the string, the
+    // status word, the color - derives from this one value, so a card cannot
+    // print "223 / 220" and call itself Ready at the same time.
+    const int shown_deci = displayed_deci(current_deci);
+    int current_deg = deci_to_degrees(shown_deci);
     int target_deg = deci_to_degrees(target_deci);
 
     // Format temperature string
@@ -188,24 +205,35 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
         result.pct = std::clamp(pct, 0, 100);
     }
 
-    // Determine status using shared tolerance constant
-    if (target_deci <= 0) {
+    // Determine status using shared tolerance constant. Classified in
+    // decidegrees against the displayed reading so the word matches both the
+    // string above and the temp_display card showing the same heater.
+    const HeatState state =
+        classify_heat_state(shown_deci, target_deci, DEFAULT_AT_TEMP_TOLERANCE_DECI);
+    switch (state) {
+    case HeatState::Off:
         result.status = lv_tr("Off");
-    } else if (current_deg < target_deg - DEFAULT_AT_TEMP_TOLERANCE) {
+        break;
+    case HeatState::Heating:
         result.status = lv_tr("Heating...");
-    } else if (current_deg > target_deg + DEFAULT_AT_TEMP_TOLERANCE) {
+        break;
+    case HeatState::Cooling:
         result.status = lv_tr("Cooling");
-    } else {
+        break;
+    case HeatState::Neutral:
+        // classify_heat_state() (mode-unaware) never returns Neutral.
+    case HeatState::AtTemp:
         result.status = lv_tr("Ready");
+        break;
     }
 
     // Get color from the same heating state logic
-    result.color = get_heating_state_color(current_deg, target_deg, DEFAULT_AT_TEMP_TOLERANCE);
+    result.color = get_heating_state_color(state);
 
     return result;
 }
 
-// Used by cooldown's multi-line gcode batch and MoonrakerAPI::set_temperature().
+// Used by cooldown's multi-line gcode batch and IMoonrakerAPI::set_temperature().
 const char* build_heater_gcode(const std::string& heater_full_name, int target_deci, char* buffer,
                                size_t buffer_size, bool use_m141) {
     if (heater_full_name.empty()) {

@@ -2,7 +2,9 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,6 +30,9 @@ struct EffectiveFilament {
 
 /// Transient, on-demand filament catalog. NO resident singleton: construct via a
 /// static loader, query, then let it fall out of scope (frees all parsed data).
+/// The one exception is load_codes_cached(), which keeps a shared snapshot of a
+/// single code-scheme slice alive for callers on a repeating path — see there
+/// for why the transient rule does not fit that case.
 class FilamentCatalog {
   public:
     FilamentCatalog() = default;
@@ -40,6 +45,26 @@ class FilamentCatalog {
     static FilamentCatalog load_full();
     /// Only products carrying a code in `scheme`. For CFS decode (small slice).
     static FilamentCatalog load_codes(const std::string& scheme);
+
+    /**
+     * @brief Cached load_codes(), for callers on a repeating path
+     *
+     * load_codes() re-reads and re-parses the whole 100 KB bundled catalog —
+     * ~872 kB of transient heap — to keep the products carrying `scheme`
+     * (73 of 360 for "cfs", 14 KB serialized). That is fine once, and wrong per
+     * CFS box update, which is why AmsBackendCfs::parse_box_status uses this.
+     *
+     * The result is shared and immutable: a rebuild swaps in a new snapshot and
+     * existing holders keep the one they took, so a reader on the WebSocket
+     * thread cannot have the catalog freed under it by a save on the main
+     * thread. Invalidated by user-overlay writes (save_user_products_to), so a
+     * user-added product still appears without a restart.
+     */
+    static std::shared_ptr<const FilamentCatalog> load_codes_cached(const std::string& scheme);
+
+    /// Bumped by every successful user-overlay write; the cache keys off it.
+    /// Exposed so tests can assert invalidation rather than infer it.
+    static uint64_t user_overlay_generation();
     /// Explicit path (tests / non-default locations).
     static FilamentCatalog load_from_file(const std::string& path, bool codes_only,
                                           const std::string& scheme);

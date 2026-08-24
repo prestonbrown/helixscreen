@@ -9,6 +9,11 @@
 #include "sensor_registry.h"
 #include "subject_managed_panel.h"
 
+// Forward declarations — IMoonrakerAPI is a GLOBAL-scope interface (see
+// i_moonraker_api.h); declaring it inside namespace helix would create a
+// distinct phantom type.
+class IMoonrakerAPI;
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -24,6 +29,11 @@
 // to set per-sensor roles directly, bypassing the single-RUNOUT exclusivity in
 // set_sensor_role() so multi-lane (Snapmaker) runout scenarios can be exercised.
 class RunoutScopeTestAccess;
+class BypassArmingTestAccess;
+// Test-only friend (defined in tests/test_helpers/post_unload_grace_test_access.h)
+// used to put the singleton on a known sensor baseline with the startup grace
+// already expired.
+class PostUnloadGraceTestAccess;
 
 class AmsBackend;
 
@@ -194,6 +204,70 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      * @param enabled Master enable state
      */
     void set_master_enabled(bool enabled);
+
+    // ========================================================================
+    // Bypass runout arming
+    // ========================================================================
+
+    /**
+     * @brief Arm RUNOUT-role sensors at the Klipper firmware level for a bypass print.
+     *
+     * Universal bypass companion, independent of AMS backend: filament fed
+     * through the bypass reaches the toolhead through no backend lane, so
+     * mid-print runout protection falls to the toolhead sensor alone. On
+     * firmwares that leave that sensor disabled outside their own filament
+     * system (e.g. Creality's macros toggle it around every CFS operation),
+     * a bypass print would otherwise run with no runout protection at all.
+     *
+     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1` for every RUNOUT-role
+     * sensor that is present in Klipper and currently DISABLED at the firmware
+     * level, recording what it armed. Idempotent: already-enabled or already
+     * armed sensors are skipped. The HelixScreen-side enabled flag (user
+     * config) is deliberately untouched — arming is a temporary firmware-state
+     * change, not a settings change.
+     *
+     * @param api API handle for the gcode send (may be null — no-op then)
+     * @return number of sensors newly armed
+     */
+    int arm_runout_sensors_for_bypass(class IMoonrakerAPI* api);
+
+    /**
+     * @brief Restore the sensors armed by arm_runout_sensors_for_bypass().
+     *
+     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=0` for exactly the
+     * sensors this manager armed (and that still exist in our config),
+     * returning them to the pre-bypass firmware state. Sensors disabled by
+     * someone else in the meantime are left alone — the armed set is the only
+     * authority we have.
+     *
+     * @param api API handle (may be null — the armed set is kept for a later retry)
+     * @return number of sensors restored
+     */
+    int restore_runout_sensors_after_bypass(class IMoonrakerAPI* api);
+
+    /**
+     * @brief Whether any sensor is currently held armed by bypass
+     */
+    [[nodiscard]] bool has_bypass_armed_sensors() const;
+
+    /**
+     * @brief Bypass-transition entry point — arms on engage, restores on disengage.
+     *
+     * The whole bypass⇄sensor policy lives in this manager (the sensor
+     * abstraction layer); AMS code never implements it, it only reports the
+     * transition. AmsState calls this from its any_bypass_active() edge.
+     *
+     * @param active new bypass state
+     */
+    void on_bypass_active_changed(bool active);
+
+    /**
+     * @brief Supply the API handle used for bypass arming sends
+     *
+     * Wired by MoonrakerManager alongside AmsState::set_moonraker_api().
+     * May be null (mocks, early shutdown) — arming is a no-op then.
+     */
+    void set_moonraker_api(class IMoonrakerAPI* api);
 
     /**
      * @brief Check if master switch is enabled
@@ -457,6 +531,8 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
   private:
     friend class FilamentSensorManagerTestAccess;
     friend class ::RunoutScopeTestAccess;
+    friend class ::BypassArmingTestAccess;
+    friend class ::PostUnloadGraceTestAccess;
 
     FilamentSensorManager();
     ~FilamentSensorManager();
@@ -514,6 +590,19 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     // Configuration
     bool master_enabled_ = true;
     std::vector<FilamentSensorConfig> sensors_;
+
+    /// Klipper names of sensors WE armed for bypass (restore set). Empty when
+    /// no bypass arming is outstanding.
+    std::vector<std::string> bypass_armed_;
+
+    /// API handle for bypass arming sends (not owned). Set by
+    /// MoonrakerManager; may be null.
+    class IMoonrakerAPI* api_ = nullptr;
+
+    /// One SET_FILAMENT_SENSOR send — shared by arm and restore so the
+    /// command shape and error disposition stay identical.
+    void send_firmware_sensor_enable(class IMoonrakerAPI* api, const FilamentSensorConfig& sensor,
+                                     bool enabled);
 
     // Runtime state (keyed by klipper_name)
     std::map<std::string, FilamentSensorState> states_;

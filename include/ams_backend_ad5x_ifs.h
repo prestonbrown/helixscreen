@@ -73,29 +73,60 @@ class Ad5xIfsTestAccess;
 ///                                                   single boolean on stock zMod)
 ///
 /// NOTE: `parse_head_sensor()` currently conflates `ifs_motion_sensor` with the
-/// toolhead switch. That is a known simplification — motion at the hub does not
+/// toolhead switch. That is a known simplification - motion at the hub does not
 /// mean filament has reached the nozzle. Fixing this requires splitting a
 /// hub_output presence from head_filament and updating
 /// `system_info_.filament_loaded` + `detect_load_unload_completion()` accordingly.
+/// Until then, `head_filament_ == false` is NOT evidence the toolhead is empty:
+/// the motion sensor reads `filament_detected=false` on a lane that is loaded but
+/// idle. Anything that needs an authoritative empty head must use the switch pair
+/// `head_switch_seen_ && !head_switch_present_` instead - that is what the #1065
+/// row 28 seated head-gate and the runout detector below both do.
 ///
 /// Ports are 1-based (1-4), slots are 0-based (0-3).
 /// slot_to_port = slot + 1, port_to_slot = port - 1.
 class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
   public:
-    AmsBackendAd5xIfs(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAd5xIfs() override;
 
     static constexpr int NUM_PORTS = 4;
     static constexpr int TOOL_MAP_SIZE = 16;
     static constexpr int UNMAPPED_PORT = 5;
 
+    /// Which auto-switchover macro package is driving the IFS, if any.
+    ///
+    /// `None` is stock zMod, whose own `ANALOG_PRUTOK` (zmod_ifs.py) handles
+    /// runout-triggered switchover with no plugin required — zmod's user-facing
+    /// name is "Infinite Spool Mode". `get_endless_spool_capabilities()`
+    /// reports it as `Available`/`FirmwareManaged`/`provider="zmod"`/always-on,
+    /// NOT through any AD5X-specific subject. `LessWaste`/`Bambufy` add a
+    /// `variable_backup` toggle (default off / on respectively) on top of the
+    /// same type+colour+present rule, surfaced as `PluginReadOnly`.
+    enum class IfsPlugin : int {
+        None = 0,      ///< Stock zMod - no _IFS_VARS macro; ANALOG_PRUTOK runs switchover
+        LessWaste = 1, ///< Hrybmo/lessWaste (`less_waste_*` save_variables)
+        Bambufy = 2    ///< function3d/bambufy (`bambufy_*` save_variables)
+    };
+
+    /// The live switchover state as a tri-state, returned by
+    /// backup_state_locked(). Stock zMod is always ON (ANALOG_PRUTOK has no
+    /// toggle); the plugin path is the variable_backup value, with UNKNOWN
+    /// covering "macro exists but the key was never carried" — and only a
+    /// definite OFF justifies telling the user switchover will not happen.
+    /// Maps onto helix::printer::EndlessSpoolEnabled in
+    /// get_endless_spool_capabilities().
+    static constexpr int BACKUP_UNKNOWN = -1;
+    static constexpr int BACKUP_OFF = 0;
+    static constexpr int BACKUP_ON = 1;
+
     /// Cadence of the Adventurer5M.json freshness poll. Slower while printing:
     /// FFMInfo holds only per-slot colour/type labels, and each poll is a
     /// loopback HTTP GET on a 2-core board that is also feeding the MCU step
     /// queue. PAUSED keeps the fast cadence — a pause is when a user actually
     /// swaps a spool and relabels it.
-    static constexpr std::chrono::seconds kJsonPollIdle{5};
-    static constexpr std::chrono::seconds kJsonPollPrinting{30};
+    static constexpr std::chrono::seconds JSON_POLL_IDLE{5};
+    static constexpr std::chrono::seconds JSON_POLL_PRINTING{30};
 
     /// Should the JSON freshness poll fire now? (public for testing)
     ///
@@ -114,7 +145,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
      * types; the invariant and catalog-selector tests derive their expectations from
      * this array rather than re-typing it, so a change here propagates to its guards.
      */
-    static constexpr std::array<const char*, 7> kStockWhitelist{"PLA", "PLA-CF", "SILK",   "TPU",
+    static constexpr std::array<const char*, 7> STOCK_WHITELIST{"PLA", "PLA-CF", "SILK",   "TPU",
                                                                 "ABS", "PETG",   "PETG-CF"};
 
     /**
@@ -165,24 +196,35 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     /// AD5X IFS is the one backend whose filament macros home inside firmware.
     ///
-    /// `_IFS_REMOVE_CURRENT_PRUTOK` (the unload HelixScreen dispatches for a
-    /// loaded toolhead) runs `_G28` itself before removing the filament — which
-    /// is why unload_filament() sends it via execute_gcode() rather than
-    /// ensure_homed_then(), to avoid homing twice
-    /// (ams_backend_ad5x_ifs.cpp "it homes itself (_G28)";
-    /// docs/devel/printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md). The load
-    /// macro `INSERT_PRUTOK_IFS` is likewise home -> heat -> feed -> purge.
+    /// Both toolhead macros open with `_G28`: `_IFS_REMOVE_CURRENT_PRUTOK` (the
+    /// unload HelixScreen dispatches for a loaded toolhead) and
+    /// `_INSERT_PRUTOK_IFS` (behind the `INSERT_PRUTOK_IFS` load), the latter
+    /// being `_G28` -> heat -> feed -> purge.
     ///
-    /// The AD5X has a loadcell Z: that `_G28` probes the nozzle DOWN into the
-    /// bed. Issued while a job owns the toolhead it drives the nozzle into the
-    /// part, tripping ZMOD's ZCONTROL_AUTO force trip and shutting Klipper down
-    /// — recoverable only by a firmware restart (bundle XWPBR2DX, commit
-    /// 329e731e9). Layer 1 (reject_homing_during_active_print) cannot help: the
-    /// `_G28` is buried in the firmware macro and never crosses our gcode API.
+    /// `_G28` is CONDITIONAL, not an unconditional home. Its whole body is
+    /// `{% if "xyz" not in printer.toolhead.homed_axes %} _HOME {% endif %}`
+    /// (ZMOD 1.7.1 `mod/_mod/translate/*/base.cfg`, identical in all 12 language
+    /// copies). So it homes an unhomed toolhead and no-ops on a homed one, and
+    /// pairing it with ensure_homed_then() does NOT home twice: our `G28`
+    /// (itself `_HOME`, via ZMOD's `G28` override in the same base.cfg) leaves
+    /// `homed_axes` == "xyz", and the macro's `_G28` then falls through. See
+    /// prestonbrown/helixscreen#1248, which read the macro as an unconditional
+    /// home and reported a double home that does not occur.
+    ///
+    /// What this flag is about is the rest of the macro, not the home. The AD5X
+    /// has a loadcell Z, and the macros drive the toolhead across the bed on
+    /// their own authority (`_GOTO_TRASH`, `_SBROS_TRASH`, `_CLEAR_REZINA`
+    /// nozzle wipe) with a `_G28` in front that WILL fire whenever `homed_axes`
+    /// has been cleared - a Klipper error, an `M84`, a cold resume. Issued while
+    /// a job owns the toolhead, that motion reaches the part, tripping ZMOD's
+    /// ZCONTROL_AUTO force trip and shutting Klipper down - recoverable only by
+    /// a firmware restart (bundle XWPBR2DX, commit 329e731e9). Layer 1
+    /// (reject_homing_during_active_print) cannot help: the `_G28` is buried in
+    /// the firmware macro and never crosses our gcode API.
     ///
     /// So this backend keeps refusing load/unload/change_tool while PAUSED as
     /// well as while PRINTING. That protection was earned on a real shutdown and
-    /// must not be relaxed without evidence the macro stopped self-homing.
+    /// must not be relaxed on the strength of the `homed_axes` guard alone.
     [[nodiscard]] bool filament_ops_self_home() const override {
         return true;
     }
@@ -247,6 +289,93 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
+    /// Pre-print unaccounted gate: the SWITCH pair only, never head_filament_
+    /// alone (motion-sensor false negatives, see the block comment above).
+    /// nullopt until the switch has ever published a reading.
+    [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+
+    /// Which auto-switchover plugin the live printer has, from the same two
+    /// signals set_slot_info()/parse_save_variables() already trust: the
+    /// detected variable prefix and the `gcode_macro _ifs_vars` existence latch.
+    /// Returns IfsPlugin::None whenever has_ifs_vars_ is false - stale
+    /// `less_waste_*` rows left behind by an uninstalled plugin must not read as
+    /// "installed", which is exactly what the latch exists to prevent.
+    [[nodiscard]] IfsPlugin get_plugin() const;
+
+    /// The plugin's `variable_backup` setting, or nullopt when there is no
+    /// plugin (stock zMod) or the macro's get_status() dict never carried the
+    /// key (a version that does not declare it). Distinct from
+    /// backup_state_locked(): stock zMod returns nullopt here but backup_state
+    /// reports ON, because ANALOG_PRUTOK is always-on regardless of any plugin.
+    /// nullopt means UNKNOWN for the plugin path and must never be reported as
+    /// "off" - see BACKUP_UNKNOWN.
+    [[nodiscard]] std::optional<bool> plugin_backup_enabled() const;
+
+    /// True while the backend is holding an unattended-runout fault (see
+    /// evaluate_runout_locked). Distinct from `action == ERROR`, which the
+    /// operation-timeout backstop also produces.
+    [[nodiscard]] bool runout_active() const;
+
+    // === Endless spool ===
+    //
+    // The cross-backend view of what get_plugin() / plugin_backup_enabled()
+    // already know, and the ONLY path this state takes to the UI. The
+    // AD5X-specific `ams_ifs_plugin` / `ams_ifs_backup_enabled` subjects are
+    // gone: AmsState now publishes `ams_endless_state` / `ams_endless_text` from
+    // these capabilities for every backend, so a per-firmware subject could only
+    // ever have described one printer's answer.
+
+    /**
+     * @brief IFS auto-switchover as a shared capability.
+     *
+     * Three modes, all `Available` — switchover exists in stock zMod too:
+     *   - stock zMod (`!has_ifs_vars_`): `ANALOG_PRUTOK` runs unconditionally
+     *     on head runout. `FirmwareManaged` / `provider="zmod"` / always-on.
+     *   - bambufy: `variable_backup` (default on) gates `_RUNOUT_HEAD`.
+     *     `PluginReadOnly` / `provider="bambufy"`.
+     *   - lessWaste: `variable_backup` (default off) gates `_RUNOUT_HEAD`.
+     *     `PluginReadOnly` / `provider="lessWaste"`.
+     * `enabled` mirrors `variable_backup` including its genuine Unknown on the
+     * two plugin paths; stock zMod has no toggle, so it reports a definite On.
+     *
+     * Deliberately **read-only** rather than editable: `backup` is never written
+     * today, and `write_ifs_var()` rides the same `_IFS_VARS` unknown-command
+     * latch that has already been seen to drop out from under us mid-session -
+     * an editable toggle would silently stop working with no way to tell.
+     *
+     * get_endless_spool_config() is deliberately NOT overridden either: the
+     * firmware computes the match at runout time (find_backup_slot_locked) and
+     * stores no per-slot relation, so the base's empty relation is the honest
+     * answer. endless_spool_backup_eligibility() is where the rule is exposed.
+     *
+     * @note Takes `mutex_`; callers must NOT hold it.
+     */
+    [[nodiscard]] helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const override;
+
+    /**
+     * @brief The AD5X switchover rule, not the generic material-compatibility one.
+     *
+     * Exact material AND exact colour AND the port reporting filament present -
+     * the same three conditions find_backup_slot_locked() applies, sharing one
+     * implementation so the advertised rule and the enforced rule cannot drift.
+     *
+     * @note Takes `mutex_`; callers must NOT hold it.
+     */
+    [[nodiscard]] helix::printer::BackupEligibility
+    endless_spool_backup_eligibility(int slot_index, int backup_slot) const override;
+
+  protected:
+    /// The recovery buttons for whichever fault is currently latched.
+    ///
+    /// Two shapes: the operation-timeout fault keeps the historical lone
+    /// "Recover" (IFS_UNLOCK), and an unattended runout gets the Resume / Purge
+    /// / Recover set (see the implementation for why there is deliberately no
+    /// "Load" button). Caller holds mutex_ (the base declares that contract;
+    /// mutex_ is non-recursive, so this must not lock).
+    [[nodiscard]] std::vector<helix::RecoveryAction> build_recovery_actions() const override;
+
+  public:
     // Backend-driven step model for the right-side vertical operation tracker.
     // The AD5X synthesizes 3 firmware phases (HEATING→CUTTING→UNLOADING /
     // HEATING→LOADING→PURGING) from extruder temp + head sensor in
@@ -290,6 +419,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // port_presence was true) shares this routine so the field-reset policy
     // stays in one place.
     void clear_slot_override(int slot_index) override;
+
+    /// Publish the external spool as lane{N+1} in the lane_data namespace.
+    /// ZMOD never writes lane_data — our mirror owns the namespace entirely,
+    /// so unlike AFC/HH there is no firmware writer to collide with.
+    void publish_external_spool_lane(const SlotInfo* spool) override;
 
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
@@ -420,6 +554,38 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // often parks in the lane after an unload, leaving the silk sensor present, so
     // that path would leave the slot stuck LOADED. Caller MUST hold mutex_.
     void clear_head_loaded_after_unload_locked();
+    /// Is the toolhead empty, for the purpose of choosing between the heated
+    /// toolhead unload and a cold per-lane eject?
+    ///
+    /// Single source of truth for three sites that MUST agree —
+    /// do_unload_filament()'s router, its context-menu mirror
+    /// slot_unloads_to_toolhead(), and eject_lane()'s seated-lane refusal. If
+    /// they disagreed, "Unload" could route to eject_lane() only for eject_lane()
+    /// to refuse it with "Unload from toolhead first."
+    ///
+    /// The SWITCH pair is the authority when it has ever reported, never the
+    /// conflated head_filament_: parse_head_sensor() writes head_filament_ from
+    /// BOTH the switch AND ifs_motion_sensor, and the motion sensor is
+    /// device-confirmed to read filament_detected=false on a lane that is loaded
+    /// but idle (class-header NOTE). Claiming "empty" off that false negative
+    /// sends seated, un-cut filament to a cold eject, which grinds it (raza616
+    /// #981, bundle 5HR3HHS6). The opposite error - claiming loaded when empty -
+    /// only wastes a firmware no-op, so the predicate is deliberately biased
+    /// toward "loaded."
+    ///
+    /// On motion-only firmware head_switch_seen_ stays false and this falls back
+    /// to !head_filament_ - exactly the historical behaviour, no silent change.
+    ///
+    /// PROXY, not the firmware's own gate. cmd_IFS_REMOVE_CURRENT_PRUTOK
+    /// early-returns on get_extruder_sensor() (zmod_ifs.py:1149), which reads an
+    /// ADC - `temperature_sensor filamentValue`, result = value >= 0.72 when
+    /// value > 0.3, and True otherwise, i.e. a missing reading counts as loaded
+    /// (zmod_ifs.py:353-361). HelixScreen does not subscribe to `filamentValue`
+    /// anywhere. Subscribing to it is the proper fix and would make this
+    /// predicate exact; it needs a real AD5X to confirm the object is actually
+    /// published, and we have neither hardware nor an `ad5x` mock profile.
+    /// Caller MUST hold mutex_.
+    [[nodiscard]] bool head_empty_for_unload_routing_locked() const;
     // One-shot fetch of /mod_data/user.cfg. Parses the [zmod_ifs] section for
     // `filament_<NAME>: <TEMP>` entries — zmod's mechanism for user-defined
     // material types beyond the AD5X firmware whitelist (e.g., PLA+, RPLA,
@@ -595,7 +761,21 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     std::string build_color_list_value() const;
     std::string build_type_list_value() const;
+    /// Shared shape logic for the `_IFS_VARS colors=` / `types=` payloads.
+    /// The two plugins index these arrays differently: bambufy keeps 4-entry
+    /// PORT-indexed lists, while lessWaste keeps TOOL_MAP_SIZE-entry
+    /// TOOL-indexed lists projected through tool_map_ (`variable_tools` — its
+    /// `_RUNOUT_HEAD` backup scan iterates tool slots, not ports, and a
+    /// port-indexed 4-entry payload truncates the arrays wholesale, #1247).
+    /// `colors` selects which per-port array supplies each entry.
+    std::string build_ifs_list_value(bool colors) const;
     std::string build_tool_map_value() const;
+    /// Push a correctly-shaped `colors=`/`types=` pair into `_IFS_VARS` after
+    /// parse_save_variables() observed a truncated lessWaste array (the
+    /// persisted damage from the #1247 bug — SAVE_VARIABLE keeps it across
+    /// reboots). Called from handle_status_update() with mutex_ released
+    /// because execute_gcode() blocks.
+    void dispatch_ifs_vars_repair();
     AmsError write_ifs_var(const std::string& key, const std::string& value);
     AmsError write_adventurer_json(int slot_index);
     // Direct filesystem write to the resolved AD5X-stock-ZMOD config path. Used
@@ -611,6 +791,75 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // back to the Moonraker upload path.
     void detect_local_adventurer_json_path();
     void detect_load_unload_completion(bool head_detected);
+
+    // === Unattended runout detection (#1250, reported as #1247) ===
+    //
+    // The hole this fills: detect_load_unload_completion() only reacts to a head
+    // transition while action is LOADING or UNLOADING, and check_action_timeout()
+    // only runs while an operation phase is active. A head drop at IDLE with no
+    // phase tracking therefore produced nothing at all - the print sat paused with
+    // an empty toolhead and HelixScreen said nothing.
+    //
+    // The authority is the SWITCH pair (head_switch_seen_ && !head_switch_present_),
+    // never head_filament_: the motion sensor also writes head_filament_ and reads
+    // false on a loaded-but-idle lane, so gating on it would fire on healthy idle.
+
+    /// Record a toolhead SWITCH reading and maintain the runout edge state.
+    /// Arms head_empty_since_ only on a genuine present->absent transition, and
+    /// clears both the stamp and any latched runout when filament returns.
+    /// Caller must hold mutex_.
+    void note_head_switch_reading_locked(bool detected);
+
+    /// Stamp "a filament-moving command was just dispatched". Any head-empty
+    /// window that opens within RUNOUT_OP_SUPPRESSION of the stamp belongs to
+    /// that operation, not to a runout. Covers the paths that leave the backend
+    /// IDLE and armless: eject_lane() and the three early returns in
+    /// do_unload_filament() that route to it. Caller must hold mutex_.
+    void note_filament_op_dispatch_locked();
+
+    /// Evaluate the runout predicate and latch/clear the fault. Returns true when
+    /// it changed observable state (so the caller emits EVENT_STATE_CHANGED).
+    /// Caller must hold mutex_.
+    bool evaluate_runout_locked();
+
+    /// Drop the latched runout back to IDLE. Caller must hold mutex_.
+    void clear_runout_locked(const char* why);
+
+    /// Compose the user-facing runout text, including the plugin sentence that
+    /// answers "will the printer switch to a backup spool by itself?".
+    /// Caller must hold mutex_.
+    [[nodiscard]] std::string build_runout_detail_locked() const;
+
+    /// Strict backup-spool match for @p runout_slot: a port qualifies only when
+    /// its filament TYPE and COLOUR both equal the ran-out lane's and its own
+    /// port sensor reads filament present. Returns a 0-based slot index, or -1
+    /// when nothing qualifies. Deliberately strict - this is what the hint text
+    /// promises, and promising more than the plugin delivers is the #1247
+    /// misexpectation. Caller must hold mutex_.
+    [[nodiscard]] int find_backup_slot_locked(int runout_slot) const;
+
+    /// The single-pair form of find_backup_slot_locked()'s rule: could
+    /// @p candidate stand in for @p slot? Both that scan and the public
+    /// endless_spool_backup_eligibility() run through here, so what the UI would
+    /// offer and what the firmware would pick cannot diverge. Caller holds mutex_.
+    [[nodiscard]] bool backup_eligible_locked(int slot, int candidate) const;
+
+    /// How long the toolhead must read authoritatively empty, while paused and
+    /// idle, before the fault is raised. Longer when a plugin with backup
+    /// switching is installed: that plugin's own recovery pauses, unloads and
+    /// loads a replacement lane, which takes minutes and must not be
+    /// interrupted by us declaring a runout on top of it. Caller holds mutex_.
+    [[nodiscard]] std::chrono::seconds runout_confirm_delay_locked() const;
+
+    /// Read the `variable_*` payload out of a `gcode_macro _ifs_vars`
+    /// get_status() dict. Returns true when something we publish changed.
+    /// Caller must hold mutex_.
+    bool parse_ifs_vars_macro_locked(const nlohmann::json& macro_status);
+
+    /// The `variable_backup` tri-state (BACKUP_*). Feeds both the runout warning
+    /// log and get_endless_spool_capabilities()' `enabled` axis, so the number in
+    /// the log and the sentence on screen cannot disagree. Caller holds mutex_.
+    [[nodiscard]] int backup_state_locked() const;
 
     // === Live load/unload progress phase tracker ===
     //
@@ -753,13 +1002,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // Per-port instant of the last optimistic eject clear. On the constrained
     // AD5X the RS-485 silk sensor lags ~1s after IFS_F11 cold-retracts a lane, so
     // the eject follow-up IFS_STATUS/GET_ZCOLOR can still read the just-ejected
-    // lane present and resurrect it. Within kEjectPresenceSuppression of the
+    // lane present and resurrect it. Within EJECT_PRESENCE_SUPPRESSION of the
     // stamp, a false->true presence transition for that lane is ignored so the
     // optimistic clear survives the settling window (#1065 — the last-ejected
     // lane had no later query to re-correct it and kept offering Unload). A
     // present->absent transition and any transition after the window still apply.
     std::array<std::chrono::steady_clock::time_point, NUM_PORTS> last_eject_time_{};
-    static constexpr std::chrono::milliseconds kEjectPresenceSuppression{4000};
+    static constexpr std::chrono::milliseconds EJECT_PRESENCE_SUPPRESSION{4000};
     int active_tool_ = -1; // Current tool (-1 = none)
     // Physically seated port from IFS_STATUS "Chan" (1-4; 0 = none). Persists at
     // the seated port while loaded-idle (when GET_ZCOLOR's "Extruder:" reads
@@ -822,6 +1071,38 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // fires — the seated lane is preserved (fall back to prior behaviour).
     bool head_switch_seen_ = false;
     bool head_switch_present_ = false;
+
+    // --- Unattended runout detection (#1250 / #1247) ---
+    // Set on a genuine head-switch present->absent EDGE; nullopt otherwise. An
+    // edge, not a level, on purpose: a printer that boots already paused with an
+    // empty toolhead has no runout to report, and a level test would invent one.
+    std::optional<std::chrono::steady_clock::time_point> head_empty_since_;
+    // Instant of the last filament-moving dispatch (load / unload / change tool /
+    // eject). Default-constructed = the epoch, so a fresh backend is never
+    // suppressed. See note_filament_op_dispatch_locked().
+    std::chrono::steady_clock::time_point last_filament_op_dispatch_{};
+    // True while system_info_.action == ERROR *because of* a runout rather than
+    // an operation timeout. current_error() and build_recovery_actions() branch
+    // on it; recover()/reset()/cancel() clear it alongside the ERROR itself.
+    bool runout_active_ = false;
+    // 0-based lane that was seated when the toolhead emptied (-1 = unknown). The
+    // firmware routinely drops its active pointer on a runout, so this is
+    // captured at raise time from whichever authority still had it.
+    int runout_slot_ = -1;
+    // Head must read authoritatively empty this long, paused and idle, before the
+    // fault is raised. Long enough to ride out a status-frame hiccup and to give
+    // a firmware-driven sequence a chance to put filament back, short enough that
+    // the user is not left staring at a stopped print with no explanation.
+    static constexpr std::chrono::seconds RUNOUT_CONFIRM_DELAY{30};
+    // The lessWaste backup switchover is itself an unload + load, minutes long,
+    // during which the toolhead is legitimately empty on a paused print. Wait it
+    // out before claiming the runout is unattended.
+    static constexpr std::chrono::seconds RUNOUT_CONFIRM_DELAY_WITH_BACKUP{180};
+    // A head-empty window opening within this long after a filament-moving
+    // dispatch is attributed to that operation. Covers eject_lane() and
+    // do_unload_filament()'s early returns, which leave action IDLE.
+    static constexpr std::chrono::seconds RUNOUT_OP_SUPPRESSION{30};
+
     std::array<bool, NUM_PORTS> dirty_{}; // Per-slot dirty flag to prevent stale overwrites
 
     helix::printer::SlotRegistry slots_;
@@ -849,6 +1130,35 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // missing objects rather than erroring the query, so empty-vs-non-empty
     // is the discriminator, not key presence.
     bool ifs_macro_confirmed_missing_ = true;
+
+    // `variable_backup` from the `gcode_macro _ifs_vars` get_status() dict:
+    // lessWaste's "auto-switch to a matching backup spool on runout" toggle
+    // (docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md § lessWaste-Specific
+    // Variables; a real dump in printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md
+    // shows `variable_backup: 0`, i.e. the feature exists but ships OFF).
+    // nullopt = the dict never carried the key, which is NOT the same as off and
+    // must be reported as unknown. Never observed on a device by us - the value
+    // is read and displayed, nothing branches on it except the wording and the
+    // longer runout confirm delay.
+    std::optional<bool> ifs_backup_variable_;
+
+    // `variable_ifs_unlock_after_boot` from the same dict: lessWaste's own
+    // post-boot `IFS_F18` workaround for the IFS lane clamps sticking after a
+    // power cycle (the "stock screen glitch" its README names). Log-only
+    // visibility — the plugin runs its `_UNLOCK_IFS` delayed gcode itself when
+    // this is on, and HelixScreen must not send hardware motion unprompted.
+    // Recorded because "a plain reboot may itself change IFS behavior" is the
+    // confounder that muddied #1247's screen A/B test; a debug bundle should
+    // answer whether the plugin's unlock was armed (#1247).
+    std::optional<bool> ifs_unlock_after_boot_;
+
+    // Set by parse_save_variables() when a lessWaste `<prefix>_colors` or
+    // `_types` save_variables array arrives with fewer than TOOL_MAP_SIZE
+    // entries — the truncation signature of the #1247 mirror bug. Consumed
+    // (read + cleared) by handle_status_update() under the same lock hold,
+    // then dispatched after unlock. Guarded by mutex_.
+    bool ifs_vars_repair_staged_ = false;
+
     std::atomic<bool> reread_pending_{false};
 
     // Main-thread-only: counts external color-change detections in the gcode
@@ -963,6 +1273,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // after backend start fires a poll immediately.
     std::chrono::steady_clock::time_point last_json_poll_kick_{};
 
+    // RAW_PRINT_STATE_OK: names the wire state this member caches.
     // Was the printer in PrintJobState::PRINTING at the previous status update?
     // Used to spot the printing->done edge and force an off-cadence poll there,
     // so the slower in-print interval never delays seeing the firmware's

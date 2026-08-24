@@ -104,6 +104,7 @@ static const IconMapping ICON_MAP[] = {
     // Dashboard/Database
     {"dashboard",          "\xF3\xB0\x95\xAE"},  // F056E view-dashboard
     {"database",           "\xF3\xB0\x86\xBC"},  // F01BC database
+    {"debug_step_over",    "\xF3\xB0\x86\xB7"},  // F01B7 debug-step-over (skip objects)
     {"delete",             "\xF3\xB0\x86\xB4"},  // F01B4 delete/trash
     {"dots_vertical",      "\xF3\xB0\x87\x99"},  // F01D9 dots-vertical/advanced
     {"download",           "\xF3\xB0\x87\x9A"},  // F01DA download
@@ -135,6 +136,7 @@ static const IconMapping ICON_MAP[] = {
     {"fridge_industrial",  "\xF3\xB1\x97\xAE"},  // F15EE fridge-industrial (chamber)
 
     // Grid icons
+    {"gauge",              "\xF3\xB0\x8A\x9A"},  // F029A gauge
     {"grid_large",         "\xF3\xB0\x9D\x98"},  // F0758 grid-large
     {"grid_off",           "\xF3\xB0\x8B\x82"},  // F02C2 grid-off
     {"grid_view",          "\xF3\xB0\x95\xB0"},  // F0570 view-grid

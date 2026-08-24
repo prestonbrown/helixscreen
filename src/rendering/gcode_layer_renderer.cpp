@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_GCODE_VIEWER
+
 #include "gcode_layer_renderer.h"
 
 #include "config.h"
@@ -28,25 +30,25 @@ namespace gcode {
 namespace {
 
 /// Orange-red color for excluded objects (strikethrough style)
-constexpr uint32_t kExcludedObjectColor = 0xFF6B35;
-constexpr uint8_t kExcludedR = (kExcludedObjectColor >> 16) & 0xFF;
-constexpr uint8_t kExcludedG = (kExcludedObjectColor >> 8) & 0xFF;
-constexpr uint8_t kExcludedB = kExcludedObjectColor & 0xFF;
+constexpr uint32_t EXCLUDED_OBJECT_COLOR = 0xFF6B35;
+constexpr uint8_t EXCLUDED_R = (EXCLUDED_OBJECT_COLOR >> 16) & 0xFF;
+constexpr uint8_t EXCLUDED_G = (EXCLUDED_OBJECT_COLOR >> 8) & 0xFF;
+constexpr uint8_t EXCLUDED_B = EXCLUDED_OBJECT_COLOR & 0xFF;
 
 /// Selection blue for highlighted objects
-constexpr uint32_t kHighlightedObjectColor = 0x42A5F5;
-constexpr uint8_t kHighlightedR = (kHighlightedObjectColor >> 16) & 0xFF;
-constexpr uint8_t kHighlightedG = (kHighlightedObjectColor >> 8) & 0xFF;
-constexpr uint8_t kHighlightedB = kHighlightedObjectColor & 0xFF;
+constexpr uint32_t HIGHLIGHTED_OBJECT_COLOR = 0x42A5F5;
+constexpr uint8_t HIGHLIGHTED_R = (HIGHLIGHTED_OBJECT_COLOR >> 16) & 0xFF;
+constexpr uint8_t HIGHLIGHTED_G = (HIGHLIGHTED_OBJECT_COLOR >> 8) & 0xFF;
+constexpr uint8_t HIGHLIGHTED_B = HIGHLIGHTED_OBJECT_COLOR & 0xFF;
 
 /// Light grey for selection bracket wireframes
-constexpr uint32_t kBracketColor = 0xC0C0C0;
+constexpr uint32_t BRACKET_COLOR = 0xC0C0C0;
 
 /// Object pick distance threshold (pixels)
-constexpr float kPickThresholdPx = 15.0f;
+constexpr float PICK_THRESHOLD_PX = 15.0f;
 
 /// Alpha value for excluded objects (60%)
-constexpr uint8_t kExcludedAlpha = 153;
+constexpr uint8_t EXCLUDED_ALPHA = 153;
 
 /// Ghost-look tuning. The goal is a faint, translucent, see-through apparition — NOT a
 /// dimmer solid copy and NOT a washed-out gray. The transparency cue comes from letting
@@ -56,12 +58,12 @@ constexpr uint8_t kExcludedAlpha = 153;
 /// reads clearly. Hue is kept (low wash) so it still reads as the object's color.
 /// Combined with the reduced blit opacity in blit_ghost_cache(), this gives the ghostly
 /// look. Dial these to taste: lower infill/opacity = fainter, higher wash = paler.
-constexpr int kGhostInfillBrightPercent = 12; // sparse infill nearly vanishes → see-through
-constexpr int kGhostWallBrightPercent = 100;  // solid surfaces = visible washed shell
+constexpr int GHOST_INFILL_BRIGHT_PERCENT = 12; // sparse infill nearly vanishes → see-through
+constexpr int GHOST_WALL_BRIGHT_PERCENT = 100;  // solid surfaces = visible washed shell
 
 /// Ghost wash factor: % blend of the base/tool color toward white. Kept low so the ghost
 /// keeps its hue (teal stays teal) rather than graying out — just a touch of lift.
-constexpr int kGhostWashPercent = 15;
+constexpr int GHOST_WASH_PERCENT = 15;
 
 /// Lerp a single 8-bit channel toward white (255) by pct%.
 inline uint8_t wash_to_white(uint8_t c, int pct) {
@@ -91,14 +93,14 @@ inline bool is_ghost_solid_surface(FeatureType t) {
 }
 
 /// Default extrusion width when metadata is unavailable (mm)
-constexpr float kDefaultExtrusionWidthMm = 0.4f;
+constexpr float DEFAULT_EXTRUSION_WIDTH_MM = 0.4f;
 
 /// Extrusion pixel width clamp range
-constexpr int kMinExtrusionPixelWidth = 1;
-constexpr int kMaxExtrusionPixelWidth = 8;
+constexpr int MIN_EXTRUSION_PIXEL_WIDTH = 1;
+constexpr int MAX_EXTRUSION_PIXEL_WIDTH = 8;
 
 /// Minimum line length for thick line perpendicular computation
-constexpr float kMinLineLength = 0.001f;
+constexpr float MIN_LINE_LENGTH = 0.001f;
 
 } // namespace
 
@@ -191,6 +193,18 @@ void GCodeLayerRenderer::set_canvas_size(int width, int height) {
     canvas_width_ = std::max(1, width);
     canvas_height_ = std::max(1, height);
     bounds_valid_ = false; // Recalculate fit on next render
+}
+
+void GCodeLayerRenderer::set_bottom_occlusion(float occlusion) {
+    const float clamped = std::clamp(occlusion, 0.0f, 1.0f);
+    if (std::abs(clamped - bottom_occlusion_) < 0.001f) {
+        return;
+    }
+    bottom_occlusion_ = clamped;
+    // The occlusion feeds the scale, not just the shift, so the framing has to
+    // be recomputed rather than adjusted.
+    bounds_valid_ = false;
+    invalidate_cache();
 }
 
 void GCodeLayerRenderer::set_content_offset_y(float offset_percent) {
@@ -325,8 +339,15 @@ void GCodeLayerRenderer::auto_fit() {
         // cache churn, no blocking reads, on the auto-fit path.
         const auto& stats = streaming_controller_->get_index_stats();
 
-        bb.min.z = stats.min_z;
-        bb.max.z = stats.max_z;
+        if (stats.has_z_bounds()) {
+            bb.min.z = stats.min_z;
+            bb.max.z = stats.max_z;
+        } else {
+            // No extruding move in the whole file — leaving the sentinel pair in
+            // place would make the box read empty and discard the XY bounds too.
+            bb.min.z = 0.0f;
+            bb.max.z = 0.0f;
+        }
 
         if (stats.has_xy_bounds()) {
             bb.min.x = stats.min_x;
@@ -361,11 +382,13 @@ void GCodeLayerRenderer::auto_fit() {
 
     // Use shared auto-fit computation
     ViewMode current_view = get_view_mode();
-    auto fit = helix::gcode::compute_auto_fit(bb, current_view, canvas_width_, canvas_height_);
+    auto fit = helix::gcode::compute_auto_fit(bb, current_view, canvas_width_, canvas_height_,
+                                              0.05f, bottom_occlusion_);
     scale_ = fit.scale;
     offset_x_ = fit.offset_x;
     offset_y_ = fit.offset_y;
     offset_z_ = fit.offset_z;
+    content_offset_y_percent_ = fit.content_offset_y_percent;
 
     // Store bounds for reference (including Z for depth shading)
     bounds_min_x_ = bb.min.x;
@@ -378,9 +401,11 @@ void GCodeLayerRenderer::auto_fit() {
     bounds_valid_ = true;
 
     spdlog::debug("[GCodeLayerRenderer] auto_fit: canvas={}x{}, mode={}, "
-                  "scale={:.2f}, center=({:.1f},{:.1f},{:.1f})",
+                  "scale={:.2f}, center=({:.1f},{:.1f},{:.1f}), content_h={:.0f}, "
+                  "occlusion={:.0f}%, elongated={}, offset={:.1f}%",
                   canvas_width_, canvas_height_, static_cast<int>(current_view), scale_, offset_x_,
-                  offset_y_, offset_z_);
+                  offset_y_, offset_z_, fit.content_height, bottom_occlusion_ * 100.0f,
+                  fit.elongated, fit.content_offset_y_percent * 100.0f);
 }
 
 void GCodeLayerRenderer::fit_layer() {
@@ -408,11 +433,12 @@ void GCodeLayerRenderer::fit_layer() {
     bounds_min_y_ = bb.min.y;
     bounds_max_y_ = bb.max.y;
 
-    auto fit =
-        helix::gcode::compute_auto_fit(bb, ViewMode::TOP_DOWN, canvas_width_, canvas_height_);
+    auto fit = helix::gcode::compute_auto_fit(bb, ViewMode::TOP_DOWN, canvas_width_, canvas_height_,
+                                              0.05f, bottom_occlusion_);
     scale_ = fit.scale;
     offset_x_ = fit.offset_x;
     offset_y_ = fit.offset_y;
+    content_offset_y_percent_ = fit.content_offset_y_percent;
 
     bounds_valid_ = true;
 }
@@ -611,7 +637,7 @@ void GCodeLayerRenderer::apply_ssao() {
     // For each empty pixel adjacent to a filled pixel, draw a dark outline.
     // Makes the model pop from the background.
     // =========================================================================
-    constexpr float kOutlineDarken = 0.3f; // Outline brightness (0=black, 1=original)
+    constexpr float OUTLINE_DARKEN = 0.3f; // Outline brightness (0=black, 1=original)
 
     for (int y = 1; y < h - 1; y++) {
         for (int x = 1; x < w - 1; x++) {
@@ -627,9 +653,9 @@ void GCodeLayerRenderer::apply_ssao() {
                                ((src[y * stride_px + (x + 1)] >> 24) == 0);
 
                 if (on_edge) {
-                    uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * kOutlineDarken);
-                    uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * kOutlineDarken);
-                    uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * kOutlineDarken);
+                    uint8_t r = static_cast<uint8_t>(((pixel >> 16) & 0xFF) * OUTLINE_DARKEN);
+                    uint8_t g = static_cast<uint8_t>(((pixel >> 8) & 0xFF) * OUTLINE_DARKEN);
+                    uint8_t b = static_cast<uint8_t>((pixel & 0xFF) * OUTLINE_DARKEN);
                     dst[y * stride_px + x] =
                         (static_cast<uint32_t>(alpha) << 24) | (r << 16) | (g << 8) | b;
                 }
@@ -798,12 +824,12 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                         float nx = -dy / len;
                         float ny = dx / len;
                         // Dot product with light direction (-0.707, -0.707)
-                        constexpr float kLightX = -0.707f;
-                        constexpr float kLightY = -0.707f;
-                        float ndotl = nx * kLightX + ny * kLightY;
+                        constexpr float LIGHT_X = -0.707f;
+                        constexpr float LIGHT_Y = -0.707f;
+                        float ndotl = nx * LIGHT_X + ny * LIGHT_Y;
                         // Map [-1, 1] → brightness modifier
-                        constexpr float kNormalStrength = 0.12f;
-                        float normal_mod = 1.0f + ndotl * kNormalStrength;
+                        constexpr float NORMAL_STRENGTH = 0.12f;
+                        float normal_mod = 1.0f + ndotl * NORMAL_STRENGTH;
                         brightness *= normal_mod;
                         if (brightness > 1.0f)
                             brightness = 1.0f;
@@ -823,10 +849,10 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                 if (!obj_name.empty()) {
                     if (excluded_objects_.count(obj_name) > 0) {
                         // Excluded: orange-red with reduced alpha
-                        r = kExcludedR;
-                        g = kExcludedG;
-                        b = kExcludedB;
-                        uint32_t color = (static_cast<uint32_t>(kExcludedAlpha) << 24) | (r << 16) |
+                        r = EXCLUDED_R;
+                        g = EXCLUDED_G;
+                        b = EXCLUDED_B;
+                        uint32_t color = (static_cast<uint32_t>(EXCLUDED_ALPHA) << 24) | (r << 16) |
                                          (g << 8) | b;
                         draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
                         ++segments_rendered;
@@ -834,9 +860,9 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     }
                     if (highlighted_objects_.count(obj_name) > 0) {
                         // Highlighted: selection blue, full alpha
-                        r = kHighlightedR;
-                        g = kHighlightedG;
-                        b = kHighlightedB;
+                        r = HIGHLIGHTED_R;
+                        g = HIGHLIGHTED_G;
+                        b = HIGHLIGHTED_B;
                     }
                 }
             }
@@ -1237,12 +1263,13 @@ void GCodeLayerRenderer::render_segment(lv_layer_t* layer, const ToolpathSegment
         // infill is dimmed so it sits faintly behind the walls. The translucency comes
         // from the 40% ghost-cache blit, not from darkening the color toward black.
         lv_color_t model_color = color_extrusion_;
-        const int bright_pct = is_ghost_solid_surface(seg.feature_type) ? kGhostWallBrightPercent
-                                                                        : kGhostInfillBrightPercent;
+        const int bright_pct = is_ghost_solid_surface(seg.feature_type)
+                                   ? GHOST_WALL_BRIGHT_PERCENT
+                                   : GHOST_INFILL_BRIGHT_PERCENT;
         base_color =
-            lv_color_make(wash_to_white(model_color.red, kGhostWashPercent) * bright_pct / 100,
-                          wash_to_white(model_color.green, kGhostWashPercent) * bright_pct / 100,
-                          wash_to_white(model_color.blue, kGhostWashPercent) * bright_pct / 100);
+            lv_color_make(wash_to_white(model_color.red, GHOST_WASH_PERCENT) * bright_pct / 100,
+                          wash_to_white(model_color.green, GHOST_WASH_PERCENT) * bright_pct / 100,
+                          wash_to_white(model_color.blue, GHOST_WASH_PERCENT) * bright_pct / 100);
     } else {
         base_color = get_segment_color(seg);
     }
@@ -1331,16 +1358,16 @@ std::string GCodeLayerRenderer::resolve_object_name(int16_t index) const {
 /// Case-insensitive check for "support" substring in an object name.
 /// Used by both the main-thread member function and the background ghost thread.
 static bool name_looks_like_support(const std::string& name) {
-    static constexpr const char kSupport[] = "support";
-    static constexpr size_t kSupportLen = 7;
+    static constexpr const char SUPPORT[] = "support";
+    static constexpr size_t SUPPORT_LEN = 7;
 
-    if (name.size() < kSupportLen)
+    if (name.size() < SUPPORT_LEN)
         return false;
 
-    for (size_t i = 0; i <= name.size() - kSupportLen; ++i) {
+    for (size_t i = 0; i <= name.size() - SUPPORT_LEN; ++i) {
         bool match = true;
-        for (size_t j = 0; j < kSupportLen; ++j) {
-            if (std::tolower(static_cast<unsigned char>(name[i + j])) != kSupport[j]) {
+        for (size_t j = 0; j < SUPPORT_LEN; ++j) {
+            if (std::tolower(static_cast<unsigned char>(name[i + j])) != SUPPORT[j]) {
                 match = false;
                 break;
             }
@@ -1368,67 +1395,218 @@ std::optional<std::string> GCodeLayerRenderer::pick_object_at(int screen_x, int 
 
     // Capture transform params (no widget offset for cache coords)
     TransformParams transform = capture_transform_params();
+    const glm::vec2 click_pos(static_cast<float>(screen_x), static_cast<float>(screen_y));
 
-    const float PICK_THRESHOLD = kPickThresholdPx;
-    float closest_distance = std::numeric_limits<float>::max();
-    std::optional<std::string> picked_object;
+    // ------------------------------------------------------------------
+    // Stage 1: candidate objects by projected bounding box.
+    //
+    // render() draws every layer up to current_layer_, so the hit test has to
+    // cover the same volume. Testing current_layer_ alone made a full preview
+    // unpickable: current_layer_ is then the TOP layer, whose segments are a
+    // sliver in one corner, so tap-to-select and long-press-to-exclude both
+    // did nothing. Each GCodeObject carries a 3D bounding box accumulated over
+    // its whole toolpath, so projecting its 8 corners yields the object's
+    // screen footprint for one pass over the object list - no per-pixel
+    // buffer, no heap container, and no layer loads. The box covers the whole
+    // toolpath, though, and render() stops at current_layer_, so it is clamped
+    // to the drawn Z range first: what is not visible must not be pickable.
+    //
+    // Streaming mode has no object list (set_streaming_controller() clears
+    // gcode_), so it falls through to the segment walk with no filter.
+    // ------------------------------------------------------------------
+    constexpr size_t MAX_CANDIDATES = 32;
+    const std::string* candidate_names[MAX_CANDIDATES];
+    size_t candidate_count = 0;
+    bool candidate_overflow = false;
+    const bool objects_known = gcode_ && !gcode_->objects.empty() &&
+                               static_cast<size_t>(current_layer_) < gcode_->layers.size();
 
-    // Get segments for current layer
-    std::shared_ptr<const std::vector<ToolpathSegment>> segments_holder;
-    const std::vector<ToolpathSegment>* segments = nullptr;
+    if (objects_known) {
+        // Only layers 0..current_layer_ are on screen, so an object's pickable
+        // volume ends at the top of the current layer no matter how tall its
+        // bounding box is. Slack of a tenth of a micron absorbs float noise in
+        // the Z the parser stored for a layer versus the Z it stored on that
+        // layer's segments - orders of magnitude below the thinnest layer
+        // height anyone slices, so it can never admit an undrawn layer.
+        constexpr float Z_VISIBLE_EPSILON_MM = 1e-4f;
+        const float visible_top_z =
+            gcode_->layers[static_cast<size_t>(current_layer_)].z_height + Z_VISIBLE_EPSILON_MM;
+        const bool supports_hidden = !show_supports_.load(std::memory_order_relaxed);
 
-    if (streaming_controller_) {
-        // Cache-only: a hit-test must never seek and parse. We are picking
-        // against the layer already on screen, which render() has faulted in, so
-        // this is a hit in practice; a miss costs one unrecognised tap, whereas
-        // loading here froze the UI for seconds on a 2-core board (C2CP6ZAW).
-        segments_holder =
-            streaming_controller_->try_get_layer_segments(static_cast<size_t>(current_layer_));
-        segments = segments_holder.get();
-    } else if (gcode_) {
-        segments = &gcode_->layers[static_cast<size_t>(current_layer_)].segments;
-    }
+        for (const auto& [name, obj] : gcode_->objects) {
+            const AABB& box = obj.bounding_box;
+            // Defined but never extruded (EXCLUDE_OBJECT_DEFINE with no
+            // following move): the corners are +/-inf and projecting them
+            // yields garbage ints, which would swallow every tap.
+            if (box.is_empty())
+                continue;
 
-    if (!segments)
-        return std::nullopt;
+            // Has not started printing: render() has drawn nothing of it, and
+            // selecting geometry you cannot see is not a selection - you cannot
+            // decide to exclude an object that is not on screen.
+            if (box.min.z > visible_top_z)
+                continue;
 
-    glm::vec2 click_pos(static_cast<float>(screen_x), static_cast<float>(screen_y));
+            // Supports hidden, and this object is one. Stage 2 already filters
+            // segments through should_render_segment(), but the single-candidate
+            // fast path never reaches stage 2, so the check has to live here.
+            if (supports_hidden && name_looks_like_support(name))
+                continue;
 
-    for (const auto& seg : *segments) {
-        if (!should_render_segment(seg))
-            continue;
+            // Clamp to the drawn Z range before projecting. In FRONT view a
+            // higher Z maps higher on screen, so projecting the full box would
+            // stretch a partly-printed object's footprint above its drawn top
+            // and swallow clicks on empty space.
+            const AABB visible{box.min,
+                               glm::vec3(box.max.x, box.max.y, std::min(box.max.z, visible_top_z))};
 
-        if (seg.object_name_index < 0)
-            continue;
+            float min_sx = std::numeric_limits<float>::max();
+            float min_sy = std::numeric_limits<float>::max();
+            float max_sx = std::numeric_limits<float>::lowest();
+            float max_sy = std::numeric_limits<float>::lowest();
 
-        const std::string& obj_name = resolve_object_name(seg.object_name_index);
-        if (obj_name.empty())
-            continue;
+            for (const glm::vec3& corner : visible.corners()) {
+                glm::ivec2 p = world_to_screen_raw(transform, corner.x, corner.y, corner.z);
+                min_sx = std::min(min_sx, static_cast<float>(p.x));
+                min_sy = std::min(min_sy, static_cast<float>(p.y));
+                max_sx = std::max(max_sx, static_cast<float>(p.x));
+                max_sy = std::max(max_sy, static_cast<float>(p.y));
+            }
 
-        // Project segment endpoints to screen space
-        glm::ivec2 p1 = world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
-        glm::ivec2 p2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
+            // Inflated by the same slop the segment test uses, so a tap on the
+            // edge of a thin object still lands.
+            if (click_pos.x < min_sx - PICK_THRESHOLD_PX ||
+                click_pos.x > max_sx + PICK_THRESHOLD_PX ||
+                click_pos.y < min_sy - PICK_THRESHOLD_PX ||
+                click_pos.y > max_sy + PICK_THRESHOLD_PX)
+                continue;
 
-        // Calculate distance from click to line segment
-        glm::vec2 v(static_cast<float>(p2.x - p1.x), static_cast<float>(p2.y - p1.y));
-        glm::vec2 w(click_pos.x - static_cast<float>(p1.x), click_pos.y - static_cast<float>(p1.y));
+            if (candidate_count < MAX_CANDIDATES) {
+                candidate_names[candidate_count++] = &name;
+            } else {
+                candidate_overflow = true;
+            }
+        }
 
-        float segment_length_sq = glm::dot(v, v);
-        float t = (segment_length_sq > 0.0001f)
-                      ? std::clamp(glm::dot(w, v) / segment_length_sq, 0.0f, 1.0f)
-                      : 0.0f;
-
-        glm::vec2 closest_point(static_cast<float>(p1.x) + t * v.x,
-                                static_cast<float>(p1.y) + t * v.y);
-        float dist = glm::length(click_pos - closest_point);
-
-        if (dist < PICK_THRESHOLD && dist < closest_distance) {
-            closest_distance = dist;
-            picked_object = obj_name;
+        if (!candidate_overflow) {
+            // Outside every footprint: nothing to pick, and no reason to touch
+            // a single layer's segments.
+            if (candidate_count == 0)
+                return std::nullopt;
+            // The common case - objects are laid out separated on the plate.
+            // O(objects), no segment scan at all.
+            if (candidate_count == 1)
+                return *candidate_names[0];
         }
     }
 
-    return picked_object;
+    // Overlapping footprints only. On overflow (a degenerate plate with >32
+    // objects under one tap) fall back to an unfiltered walk rather than
+    // dropping objects on the floor.
+    int16_t candidate_indices[MAX_CANDIDATES];
+    size_t candidate_index_count = 0;
+    const bool restrict_to_candidates = objects_known && !candidate_overflow && candidate_count > 1;
+
+    if (restrict_to_candidates) {
+        // Map each candidate to its interned index so the segment loop below
+        // compares int16s instead of strings. The name table holds one entry
+        // per object, so this is a handful of compares done once per tap.
+        for (size_t c = 0; c < candidate_count; ++c) {
+            for (size_t i = 0; i < gcode_->object_name_table.size(); ++i) {
+                if (gcode_->object_name_table[i] == *candidate_names[c]) {
+                    candidate_indices[candidate_index_count++] = static_cast<int16_t>(i);
+                    break;
+                }
+            }
+        }
+        // Every candidate is unreferenced by any segment, so no segment can
+        // ever match one.
+        if (candidate_index_count == 0)
+            return std::nullopt;
+    }
+
+    // ------------------------------------------------------------------
+    // Stage 2: disambiguate by segment distance. Walk layers from
+    // current_layer_ downward and stop at the first layer that produces any
+    // hit, so a tap over a stack picks whatever is actually on top of it.
+    // ------------------------------------------------------------------
+    for (int layer_idx = current_layer_; layer_idx >= 0; --layer_idx) {
+        std::shared_ptr<const std::vector<ToolpathSegment>> segments_holder;
+        const std::vector<ToolpathSegment>* segments = nullptr;
+
+        if (streaming_controller_) {
+            // Cache-only: a hit-test must never seek and parse. We are picking
+            // against layers already on screen, which render() has faulted in,
+            // so this is a hit in practice; a miss costs one unrecognised tap,
+            // whereas loading here froze the UI for seconds on a 2-core board
+            // (C2CP6ZAW).
+            segments_holder =
+                streaming_controller_->try_get_layer_segments(static_cast<size_t>(layer_idx));
+            segments = segments_holder.get();
+        } else if (gcode_) {
+            segments = &gcode_->layers[static_cast<size_t>(layer_idx)].segments;
+        }
+
+        // Uncached layer in streaming mode - keep going down.
+        if (!segments)
+            continue;
+
+        float closest_distance = std::numeric_limits<float>::max();
+        int16_t picked_index = -1;
+
+        for (const auto& seg : *segments) {
+            if (seg.object_name_index < 0)
+                continue;
+
+            if (restrict_to_candidates) {
+                bool is_candidate = false;
+                for (size_t c = 0; c < candidate_index_count; ++c) {
+                    if (candidate_indices[c] == seg.object_name_index) {
+                        is_candidate = true;
+                        break;
+                    }
+                }
+                if (!is_candidate)
+                    continue;
+            }
+
+            if (!should_render_segment(seg))
+                continue;
+
+            // Project segment endpoints to screen space
+            glm::ivec2 p1 = world_to_screen_raw(transform, seg.start.x, seg.start.y, seg.start.z);
+            glm::ivec2 p2 = world_to_screen_raw(transform, seg.end.x, seg.end.y, seg.end.z);
+
+            // Calculate distance from click to line segment
+            glm::vec2 v(static_cast<float>(p2.x - p1.x), static_cast<float>(p2.y - p1.y));
+            glm::vec2 w(click_pos.x - static_cast<float>(p1.x),
+                        click_pos.y - static_cast<float>(p1.y));
+
+            float segment_length_sq = glm::dot(v, v);
+            float t = (segment_length_sq > 0.0001f)
+                          ? std::clamp(glm::dot(w, v) / segment_length_sq, 0.0f, 1.0f)
+                          : 0.0f;
+
+            glm::vec2 closest_point(static_cast<float>(p1.x) + t * v.x,
+                                    static_cast<float>(p1.y) + t * v.y);
+            float dist = glm::length(click_pos - closest_point);
+
+            if (dist < PICK_THRESHOLD_PX && dist < closest_distance) {
+                closest_distance = dist;
+                picked_index = seg.object_name_index;
+            }
+        }
+
+        // Resolve the winner only - resolve_object_name() returns by value, so
+        // calling it per segment would allocate across the whole scan.
+        if (picked_index >= 0) {
+            std::string name = resolve_object_name(picked_index);
+            if (!name.empty())
+                return name;
+        }
+    }
+
+    return std::nullopt;
 }
 
 lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) const {
@@ -1437,10 +1615,10 @@ lv_color_t GCodeLayerRenderer::get_segment_color(const ToolpathSegment& seg) con
         const std::string& obj_name = resolve_object_name(seg.object_name_index);
         if (!obj_name.empty()) {
             if (excluded_objects_.count(obj_name) > 0) {
-                return lv_color_hex(kExcludedObjectColor);
+                return lv_color_hex(EXCLUDED_OBJECT_COLOR);
             }
             if (highlighted_objects_.count(obj_name) > 0) {
-                return lv_color_hex(kHighlightedObjectColor);
+                return lv_color_hex(HIGHLIGHTED_OBJECT_COLOR);
             }
         }
     }
@@ -1489,7 +1667,7 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
         // Set up line drawing style
         lv_draw_line_dsc_t dsc;
         lv_draw_line_dsc_init(&dsc);
-        dsc.color = lv_color_hex(kBracketColor);
+        dsc.color = lv_color_hex(BRACKET_COLOR);
         dsc.width = 2;
         dsc.opa = LV_OPA_COVER;
 
@@ -1664,19 +1842,19 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     // then apply per-feature brightness. ARGB8888: A in high byte, RGB lower. Full
     // alpha here — the translucency is applied at blit time. Infill is dimmed;
     // walls keep full washed brightness (silhouette).
-    const uint8_t wash_r = wash_to_white(local_color_extrusion.red, kGhostWashPercent);
-    const uint8_t wash_g = wash_to_white(local_color_extrusion.green, kGhostWashPercent);
-    const uint8_t wash_b = wash_to_white(local_color_extrusion.blue, kGhostWashPercent);
+    const uint8_t wash_r = wash_to_white(local_color_extrusion.red, GHOST_WASH_PERCENT);
+    const uint8_t wash_g = wash_to_white(local_color_extrusion.green, GHOST_WASH_PERCENT);
+    const uint8_t wash_b = wash_to_white(local_color_extrusion.blue, GHOST_WASH_PERCENT);
 
-    uint8_t ghost_r = wash_r * kGhostInfillBrightPercent / 100;
-    uint8_t ghost_g = wash_g * kGhostInfillBrightPercent / 100;
-    uint8_t ghost_b = wash_b * kGhostInfillBrightPercent / 100;
+    uint8_t ghost_r = wash_r * GHOST_INFILL_BRIGHT_PERCENT / 100;
+    uint8_t ghost_g = wash_g * GHOST_INFILL_BRIGHT_PERCENT / 100;
+    uint8_t ghost_b = wash_b * GHOST_INFILL_BRIGHT_PERCENT / 100;
     uint8_t ghost_a = 255; // Full alpha, we'll apply 40% when blitting
     uint32_t ghost_color = (ghost_a << 24) | (ghost_r << 16) | (ghost_g << 8) | ghost_b;
 
-    uint8_t wall_r = wash_r * kGhostWallBrightPercent / 100;
-    uint8_t wall_g = wash_g * kGhostWallBrightPercent / 100;
-    uint8_t wall_b = wash_b * kGhostWallBrightPercent / 100;
+    uint8_t wall_r = wash_r * GHOST_WALL_BRIGHT_PERCENT / 100;
+    uint8_t wall_g = wash_g * GHOST_WALL_BRIGHT_PERCENT / 100;
+    uint8_t wall_b = wash_b * GHOST_WALL_BRIGHT_PERCENT / 100;
     uint32_t ghost_wall_color = (255u << 24) | (wall_r << 16) | (wall_g << 8) | wall_b;
 
     // Render all layers to raw buffer
@@ -1725,22 +1903,23 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
             // Solid/visible surfaces stay at full washed brightness; only sparse infill
             // is dimmed to near-invisible so the shell reads as see-through.
             const bool is_solid = is_ghost_solid_surface(seg.feature_type);
-            const int bright_pct = is_solid ? kGhostWallBrightPercent : kGhostInfillBrightPercent;
+            const int bright_pct =
+                is_solid ? GHOST_WALL_BRIGHT_PERCENT : GHOST_INFILL_BRIGHT_PERCENT;
 
             // Per-segment ghost color (tool palette or single color)
             uint32_t seg_color = is_solid ? ghost_wall_color : ghost_color;
             if (local_tool_palette.has_tool_colors()) {
                 lv_color_t tc = local_tool_palette.resolve(seg.tool_index, local_color_extrusion);
-                uint8_t tr = wash_to_white(tc.red, kGhostWashPercent) * bright_pct / 100;
-                uint8_t tg = wash_to_white(tc.green, kGhostWashPercent) * bright_pct / 100;
-                uint8_t tb = wash_to_white(tc.blue, kGhostWashPercent) * bright_pct / 100;
+                uint8_t tr = wash_to_white(tc.red, GHOST_WASH_PERCENT) * bright_pct / 100;
+                uint8_t tg = wash_to_white(tc.green, GHOST_WASH_PERCENT) * bright_pct / 100;
+                uint8_t tb = wash_to_white(tc.blue, GHOST_WASH_PERCENT) * bright_pct / 100;
                 seg_color = (255u << 24) | (tr << 16) | (tg << 8) | tb;
             }
             if (!obj_name.empty() && local_excluded.count(obj_name) > 0) {
                 // Excluded: dim orange-red
-                uint8_t ex_r = kExcludedR * kGhostInfillBrightPercent / 100;
-                uint8_t ex_g = kExcludedG * kGhostInfillBrightPercent / 100;
-                uint8_t ex_b = kExcludedB * kGhostInfillBrightPercent / 100;
+                uint8_t ex_r = EXCLUDED_R * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_g = EXCLUDED_G * GHOST_INFILL_BRIGHT_PERCENT / 100;
+                uint8_t ex_b = EXCLUDED_B * GHOST_INFILL_BRIGHT_PERCENT / 100;
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
@@ -1948,10 +2127,10 @@ void GCodeLayerRenderer::draw_thick_line_aa_solid(int x0, int y0, int x1, int y1
 
     float dx = static_cast<float>(x1 - x0);
     float dy = static_cast<float>(y1 - y0);
-    constexpr float kMinLineLength = 0.5f;
+    constexpr float MIN_LINE_LENGTH = 0.5f;
     float len = std::sqrt(dx * dx + dy * dy);
 
-    if (len < kMinLineLength) {
+    if (len < MIN_LINE_LENGTH) {
         draw_line_aa_solid(x0, y0, x1, y1, color);
         return;
     }
@@ -1971,7 +2150,7 @@ void GCodeLayerRenderer::draw_thick_line_aa_solid(int x0, int y0, int x1, int y1
 }
 
 int GCodeLayerRenderer::get_extrusion_pixel_width() const {
-    float width_mm = kDefaultExtrusionWidthMm;
+    float width_mm = DEFAULT_EXTRUSION_WIDTH_MM;
 
     if (gcode_) {
         // Full-file mode: prefer extrusion_width_mm, then nozzle_diameter_mm
@@ -1984,7 +2163,7 @@ int GCodeLayerRenderer::get_extrusion_pixel_width() const {
     // Streaming mode: no metadata available, use default 0.4mm
 
     int pixel_width = static_cast<int>(std::round(width_mm * scale_));
-    return std::clamp(pixel_width, kMinExtrusionPixelWidth, kMaxExtrusionPixelWidth);
+    return std::clamp(pixel_width, MIN_EXTRUSION_PIXEL_WIDTH, MAX_EXTRUSION_PIXEL_WIDTH);
 }
 
 void GCodeLayerRenderer::draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color,
@@ -1999,7 +2178,7 @@ void GCodeLayerRenderer::draw_thick_line_bresenham(int x0, int y0, int x1, int y
     float dy = static_cast<float>(y1 - y0);
     float len = std::sqrt(dx * dx + dy * dy);
 
-    if (len < kMinLineLength) {
+    if (len < MIN_LINE_LENGTH) {
         draw_line_bresenham(x0, y0, x1, y1, color);
         return;
     }
@@ -2030,7 +2209,7 @@ void GCodeLayerRenderer::draw_thick_line_bresenham_solid(int x0, int y0, int x1,
     float dy = static_cast<float>(y1 - y0);
     float len = std::sqrt(dx * dx + dy * dy);
 
-    if (len < kMinLineLength) {
+    if (len < MIN_LINE_LENGTH) {
         draw_line_bresenham_solid(x0, y0, x1, y1, color);
         return;
     }
@@ -2209,3 +2388,5 @@ void GCodeLayerRenderer::adapt_layers_per_frame() {
 
 } // namespace gcode
 } // namespace helix
+
+#endif // HELIX_HAS_GCODE_VIEWER

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "thumbnail_load_context.h"
 #include "thumbnail_processor.h"
 #include "thumbnail_write_journal.h"
@@ -51,7 +51,7 @@
  *     });
  * ```
  *
- * @see MoonrakerAPI::download_thumbnail
+ * @see IMoonrakerAPI::download_thumbnail
  */
 
 /**
@@ -81,7 +81,7 @@ struct ThumbnailRequest {
     std::string key;
     helix::ThumbnailTarget target;
     time_t source_modified = 0;
-    MoonrakerAPI* api = nullptr;
+    IMoonrakerAPI* api = nullptr;
     ThumbnailFormat format = ThumbnailFormat::Prescaled;
 };
 
@@ -206,14 +206,14 @@ class ThumbnailCache {
      * 2. Downloads from Moonraker if not cached
      * 3. Calls success callback with LVGL-ready path
      *
-     * @param api MoonrakerAPI instance for downloading
+     * @param api IMoonrakerAPI instance for downloading
      * @param relative_path Moonraker relative path (e.g., ".thumbnails/file.png")
      * @param on_success Called with LVGL path on success (may be called synchronously if cached)
      * @param on_error Called with error message on failure
      *
      * @note Callbacks may be invoked from background thread - use ui_queue_update() for UI updates
      */
-    void fetch(MoonrakerAPI* api, const std::string& relative_path, SuccessCallback on_success,
+    void fetch(IMoonrakerAPI* api, const std::string& relative_path, SuccessCallback on_success,
                ErrorCallback on_error);
 
     /**
@@ -396,7 +396,7 @@ class ThumbnailCache {
      *
      * @note Falls back to PNG on pre-scaling failure - display still works, just slower
      */
-    void fetch_optimized(MoonrakerAPI* api, const std::string& relative_path,
+    void fetch_optimized(IMoonrakerAPI* api, const std::string& relative_path,
                          const helix::ThumbnailTarget& target, SuccessCallback on_success,
                          ErrorCallback on_error, time_t source_modified = 0);
 

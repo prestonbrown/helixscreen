@@ -106,8 +106,10 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj);
 /**
  * @brief Set the available pixel width, for responsive sizing / mode selection.
  *
- * width_px >= W_NORMAL (include/panel_widget_size.h) selects the wide spool
- * view; narrower widths keep the compact bar view. Also drives the bar-width
+ * width_px >= widget_size::w_normal() (include/panel_widget_size.h) selects the
+ * wide spool view; narrower widths keep the compact bar view. The band is
+ * per-tier, so the same pixel width can mean different things on different
+ * panels - what has to fit in the wide view is text. Also drives the bar-width
  * band and the spool count within the wide view.
  *
  * @param obj The ams_mini_status widget

@@ -36,7 +36,7 @@ namespace {
 
 // A sentinel opacity that update_button_text_contrast() never produces
 // (it forces LV_OPA_COVER=255 when enabled, LV_OPA_50=128 when disabled).
-constexpr lv_opa_t kSentinelOpa = 173;
+constexpr lv_opa_t SENTINEL_OPA = 173;
 
 // Build a minimal ui_button-shaped object: a real lv_button carrying a freshly
 // allocated UiButtonData with the production magic and a unique id. Mirrors the
@@ -79,14 +79,14 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_button deferred contrast runs on a matching
     REQUIRE(btn != nullptr);
 
     // Plant the sentinel; a real contrast recompute overwrites it.
-    lv_obj_set_style_opa(btn, kSentinelOpa, LV_PART_MAIN);
+    lv_obj_set_style_opa(btn, SENTINEL_OPA, LV_PART_MAIN);
 
     defer_button_contrast_update(btn);
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
     lv_opa_t after = lv_obj_get_style_opa(btn, LV_PART_MAIN);
-    INFO("sentinel=" << int(kSentinelOpa) << " after=" << int(after));
-    REQUIRE(after != kSentinelOpa); // contrast ran -> opacity forced to COVER/50
+    INFO("sentinel=" << int(SENTINEL_OPA) << " after=" << int(after));
+    REQUIRE(after != SENTINEL_OPA); // contrast ran -> opacity forced to COVER/50
 
     lv_obj_delete(btn);
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
@@ -125,18 +125,18 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Plant the sentinel on the foreign button. If the stale defer runs, the
     // contrast recompute overwrites it; the identity guard must skip it.
-    lv_obj_set_style_opa(btn, kSentinelOpa, LV_PART_MAIN);
+    lv_obj_set_style_opa(btn, SENTINEL_OPA, LV_PART_MAIN);
 
     REQUIRE_NOTHROW(
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
 
     lv_opa_t after = lv_obj_get_style_opa(btn, LV_PART_MAIN);
-    INFO("sentinel=" << int(kSentinelOpa) << " after=" << int(after)
+    INFO("sentinel=" << int(SENTINEL_OPA) << " after=" << int(after)
                      << " original_id=" << original_id << " foreign_id=" << foreign_data->id);
     // With the `d->id != gen` guard the stale defer is rejected and the
     // sentinel survives. Remove that check and update_button_text_contrast()
     // runs against the foreign button, forcing opacity to COVER/50 -> FAIL.
-    REQUIRE(after == kSentinelOpa);
+    REQUIRE(after == SENTINEL_OPA);
 
     lv_obj_delete(btn); // button_delete_cb frees foreign_data
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
@@ -168,15 +168,15 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_set_user_data(btn, reinterpret_cast<void*>(0x2));
 
     // Plant the sentinel; if the stale defer runs it overwrites it.
-    lv_obj_set_style_opa(btn, kSentinelOpa, LV_PART_MAIN);
+    lv_obj_set_style_opa(btn, SENTINEL_OPA, LV_PART_MAIN);
 
     REQUIRE_NOTHROW(
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
 
     lv_opa_t after = lv_obj_get_style_opa(btn, LV_PART_MAIN);
-    INFO("sentinel=" << int(kSentinelOpa) << " after=" << int(after));
+    INFO("sentinel=" << int(SENTINEL_OPA) << " after=" << int(after));
     // The registry check rejects btn before touching user_data: sentinel survives.
-    REQUIRE(after == kSentinelOpa);
+    REQUIRE(after == SENTINEL_OPA);
 
     // Restore a null user_data so button_delete_cb doesn't dereference 0x2.
     lv_obj_set_user_data(btn, nullptr);

@@ -27,7 +27,8 @@ enum class MoonrakerEventSuppression {
     None,
     DiscoveryDeferred, ///< Klippy not yet gate-acceptable; retried automatically
     Wizard,            ///< First connection during the setup wizard, not a reconnect
-    StartupGrace       ///< "Klipper ready" during the startup grace period
+    KlippyReady        ///< Klippy-ready is an internal lifecycle event; the recovery UI owns
+                       ///< the user signal
 };
 
 /**
@@ -48,16 +49,16 @@ struct MoonrakerEventDecision {
 /**
  * @brief Decide how to present a Moonraker event
  *
- * Pure and total: no LVGL, no clock, no globals. The caller samples the clock
- * and the wizard state and passes them in, which is also what lets the startup
- * grace period keep its original meaning across the hop to the main thread.
+ * Pure and total: no LVGL, no clock, no globals. The caller samples the wizard
+ * and modal state and passes them in.
  *
- * @param type               Event type
- * @param is_error           MoonrakerEvent::is_error
- * @param within_grace_period Event arrived inside the startup notification grace period
- * @param wizard_active      Setup wizard is on screen
+ * @param type          Event type
+ * @param is_error      MoonrakerEvent::is_error
+ * @param wizard_active Setup wizard is on screen; suppresses non-error toasts and the
+ *                      connection-failed prompt, never the recovery dialogs
+ * @param modal_active  A modal is already open (see the CONNECTION_FAILED note below)
  */
 MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_error,
-                                              bool within_grace_period, bool wizard_active);
+                                              bool wizard_active, bool modal_active = false);
 
 } // namespace helix

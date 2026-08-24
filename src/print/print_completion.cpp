@@ -4,7 +4,10 @@
 #include "print_completion.h"
 
 #include "ui_confetti.h"
+#include "ui_error_reporting.h"
 #include "ui_filename_utils.h"
+#include "ui_format_utils.h"
+#include "ui_heater_config.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -21,6 +24,7 @@
 #include "printer_state.h"
 #include "sound_manager.h"
 #include "static_subject_registry.h"
+#include "temperature_controller.h"
 
 #include <spdlog/spdlog.h>
 
@@ -30,12 +34,6 @@ using helix::gcode::get_display_filename;
 using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
-
-// Track previous state to detect transitions to terminal states
-static PrintJobState prev_print_state = PrintJobState::STANDBY;
-
-// Guard against false completion on startup - first update may have stale initial state
-static bool has_received_first_update = false;
 
 // --- Subjects for declarative XML bindings in print_completion_modal.xml ---
 static bool s_subjects_initialized = false;
@@ -140,6 +138,70 @@ static void cleanup_helix_temp_file(const std::string& filename) {
 }
 
 // Helper to show the rich print completion modal
+bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome outcome) {
+    const bool is_terminal = (current == PrintState::Complete || current == PrintState::Cancelled ||
+                              current == PrintState::Error);
+    if (!is_terminal) {
+        return false;
+    }
+    if (prev == PrintState::Printing || prev == PrintState::Paused) {
+        return true;
+    }
+
+    // A print that dies INSIDE PRINT_START never passes through Printing: a live
+    // pre-print phase outranks the job state, so the lifecycle holds at Preparing
+    // while print_stats already reads printing, and when the phase clears it goes
+    // straight Preparing -> terminal. Nothing reported those - not here, and not
+    // the preparing-exit observer either, because the preparing job was retired
+    // as Confirmed the moment the printer took it.
+    //
+    // The outcome is what makes this safe to accept. It is recorded on the
+    // job-state transition into a terminal value and cleared by
+    // begin_preparing(), so during a HOST-side block - where print_stats still
+    // holds the previous job's terminal state and clearing the phase would also
+    // derive Preparing -> Complete - it reads NONE. Without that term this arm
+    // would announce "Print Complete!" for a print that ended minutes ago, which
+    // is the stale-badge report this whole branch started from.
+    return prev == PrintState::Preparing && outcome != PrintOutcome::NONE;
+}
+
+PreparingExitAction decide_preparing_exit_action(PreparingExit reason) {
+    PreparingExitAction action;
+    switch (reason) {
+    case PreparingExit::Confirmed:
+    case PreparingExit::Superseded:
+        // A print is running - ours, or the one that superseded ours. Say
+        // nothing and leave the heaters alone.
+        break;
+    case PreparingExit::Cancelled:
+        action.notify_cancelled = true;
+        action.cool_down = true;
+        break;
+    case PreparingExit::Failed:
+    case PreparingExit::TimedOut:
+        action.notify_failure = true;
+        action.cool_down = true;
+        break;
+    }
+    return action;
+}
+
+CompletionStats build_completion_stats(int duration_secs, int estimated_secs, int total_layers,
+                                       int filament_mm) {
+    CompletionStats out;
+    out.duration = format::duration_padded(duration_secs) + " " + lv_tr("elapsed");
+    if (estimated_secs > 0) {
+        out.estimate = std::string("est") + " " + format::duration_padded(estimated_secs);
+    }
+    out.layers =
+        ui::format_layer_count(total_layers > 0 ? static_cast<uint32_t>(total_layers) : 0U);
+    if (filament_mm > 0) {
+        out.filament =
+            format::format_filament_length(static_cast<double>(filament_mm)) + " " + lv_tr("used");
+    }
+    return out;
+}
+
 static void show_rich_completion_modal(PrintJobState state, const char* filename) {
     init_completion_subjects();
 
@@ -183,29 +245,21 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     lv_subject_copy_string(&s_title_subject, lv_tr(title));
     lv_subject_copy_string(&s_filename_subject, filename);
 
-    std::string duration_str = format::duration_padded(duration_secs) + " " + lv_tr("elapsed");
-    lv_subject_copy_string(&s_duration_subject, duration_str.c_str());
+    const CompletionStats stats =
+        build_completion_stats(duration_secs, estimated_secs, total_layers, filament_mm);
 
-    if (estimated_secs > 0) {
-        std::string est_str = std::string("est") + " " + format::duration_padded(estimated_secs);
-        lv_subject_copy_string(&s_estimate_subject, est_str.c_str());
-        lv_subject_set_int(&s_has_estimate_subject, 1);
-    } else {
-        lv_subject_set_int(&s_has_estimate_subject, 0);
+    lv_subject_copy_string(&s_duration_subject, stats.duration.c_str());
+    lv_subject_copy_string(&s_layers_subject, stats.layers.c_str());
+
+    if (!stats.estimate.empty()) {
+        lv_subject_copy_string(&s_estimate_subject, stats.estimate.c_str());
     }
+    lv_subject_set_int(&s_has_estimate_subject, stats.estimate.empty() ? 0 : 1);
 
-    char layers_tmp[32];
-    snprintf(layers_tmp, sizeof(layers_tmp), "%d %s", total_layers, lv_tr("layers"));
-    lv_subject_copy_string(&s_layers_subject, layers_tmp);
-
-    if (filament_mm > 0) {
-        std::string fil_str =
-            format::format_filament_length(static_cast<double>(filament_mm)) + " " + lv_tr("used");
-        lv_subject_copy_string(&s_filament_subject, fil_str.c_str());
-        lv_subject_set_int(&s_has_filament_subject, 1);
-    } else {
-        lv_subject_set_int(&s_has_filament_subject, 0);
+    if (!stats.filament.empty()) {
+        lv_subject_copy_string(&s_filament_subject, stats.filament.c_str());
     }
+    lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
     lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
@@ -239,30 +293,28 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
 static void on_print_state_changed_for_notification(lv_observer_t* observer,
                                                     lv_subject_t* subject) {
     (void)observer;
-    auto current = static_cast<PrintJobState>(lv_subject_get_int(subject));
+    // Both halves of the transition come from PrinterPrintState, which computes
+    // it once. This module used to keep its own previous-state variable and an
+    // arming latch; the latch is unnecessary now because the published previous
+    // value starts at Idle, so booting straight into a terminal state reads as
+    // Idle -> Complete and correctly does not notify.
+    (void)subject; // the lifecycle subject; read through the typed accessor
+    const auto lifecycle = get_printer_state().get_print_lifecycle();
+    const auto prev_lifecycle = static_cast<PrintState>(
+        lv_subject_get_int(get_printer_state().get_print_lifecycle_prev_subject()));
 
-    // Skip first callback - state may be stale on startup
-    // (Observer initializes prev_print_state before Moonraker updates arrive)
-    if (!has_received_first_update) {
-        has_received_first_update = true;
-        prev_print_state = current; // Initialize to ACTUAL state from Moonraker
-        spdlog::debug("[PrintComplete] First update received (state={}), armed for notifications",
-                      static_cast<int>(current));
-        return;
-    }
+    spdlog::debug("[PrintComplete] Lifecycle: {} -> {}", static_cast<int>(prev_lifecycle),
+                  static_cast<int>(lifecycle));
 
-    spdlog::debug("[PrintComplete] State change: {} -> {}", static_cast<int>(prev_print_state),
-                  static_cast<int>(current));
+    const auto outcome = static_cast<PrintOutcome>(
+        lv_subject_get_int(get_printer_state().get_print_outcome_subject()));
 
-    // Check for transitions to terminal states (from active print states)
-    bool was_active =
-        (prev_print_state == PrintJobState::PRINTING || prev_print_state == PrintJobState::PAUSED);
-    bool is_terminal = (current == PrintJobState::COMPLETE || current == PrintJobState::CANCELLED ||
-                        current == PrintJobState::ERROR);
-
-    spdlog::debug("[PrintComplete] was_active={}, is_terminal={}", was_active, is_terminal);
-
-    if (was_active && is_terminal) {
+    if (should_notify_print_ended(prev_lifecycle, lifecycle, outcome)) {
+        // The terminal job state still drives which message and sound are used.
+        const auto current = static_cast<PrintJobState>(
+            // RAW_PRINT_STATE_OK: terminal-outcome formatting is about what the
+            // printer reported, and the outcome enum derives from it directly.
+            lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
         // Get filename from PrinterState and format for display
         const char* raw_filename =
             lv_subject_get_string(get_printer_state().get_print_filename_subject());
@@ -321,14 +373,12 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             }
 
             show_rich_completion_modal(current, display_name.c_str());
-            prev_print_state = current;
             return;
         }
 
         // 2. On print status panel - no notification needed (panel shows state)
         if (on_print_status) {
             spdlog::debug("[PrintComplete] On print status panel - skipping notification");
-            prev_print_state = current;
             return;
         }
 
@@ -360,25 +410,68 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             break;
         }
     }
-
-    prev_print_state = current;
 }
 
 ObserverGuard init_print_completion_observer() {
     // Initialize subjects early so XML bindings are available when modal is shown
     init_completion_subjects();
 
-    // Reset state tracking on (re)initialization
-    // prev_print_state will be set to actual state on first callback
-    has_received_first_update = false;
-    prev_print_state = PrintJobState::STANDBY;
-
     spdlog::debug("[PrintComplete] Observer registered, awaiting first Moonraker update");
-    return ObserverGuard(get_printer_state().get_print_state_enum_subject(),
+    return ObserverGuard(get_printer_state().get_print_lifecycle_subject(),
                          on_print_state_changed_for_notification, nullptr);
 }
 
-void cleanup_stale_helix_temp_files(MoonrakerAPI* api) {
+namespace {
+
+void apply_preparing_exit(PreparingExit reason) {
+    const PreparingExitAction action = decide_preparing_exit_action(reason);
+
+    if (action.notify_cancelled) {
+        NOTIFY_INFO(lv_tr("Print cancelled"));
+    } else if (action.notify_failure) {
+        NOTIFY_ERROR(lv_tr("Print did not start"));
+    }
+
+    if (!action.cool_down) {
+        return;
+    }
+
+    // A pre-start block heats to print temperature. With no print to own that
+    // heat, drop it. Routed through TemperatureController because it is the
+    // single authority for heater targets (lint-enforced); a raw gcode send
+    // would bypass its bookkeeping. Toast suppressed - the notification above
+    // already told the user what happened.
+    if (auto* temps = get_temperature_controller()) {
+        helix::SendOptions opts;
+        opts.toast = false;
+        temps->set_target(HeaterType::Nozzle, 0.0, opts);
+        temps->set_target(HeaterType::Bed, 0.0, opts);
+        spdlog::info("[PrintComplete] Start ended as {} - heaters dropped",
+                     preparing_exit_name(reason));
+    }
+}
+
+void on_preparing_epoch_changed(lv_observer_t*, lv_subject_t* subject) {
+    static int s_prev_epoch = 0;
+    const int epoch = lv_subject_get_int(subject);
+    const int prev = s_prev_epoch;
+    s_prev_epoch = epoch;
+
+    // Only a fall to 0 is a retirement; a bump is a new job starting.
+    if (epoch != 0 || prev == 0) {
+        return;
+    }
+    apply_preparing_exit(get_printer_state().last_preparing_exit());
+}
+
+} // namespace
+
+ObserverGuard init_preparing_exit_observer() {
+    return ObserverGuard(get_printer_state().get_preparing_epoch_subject(),
+                         on_preparing_epoch_changed, nullptr);
+}
+
+void cleanup_stale_helix_temp_files(IMoonrakerAPI* api) {
     if (!api) {
         spdlog::warn("[PrintComplete] Cannot cleanup stale temp files - API not available");
         return;

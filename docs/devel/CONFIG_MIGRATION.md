@@ -292,7 +292,7 @@ If a config file is corrupt (unparseable JSON), `init()` backs it up as `setting
 
 ## Config File Rename (v0.X.X)
 
-The config file was renamed from `helixconfig.json` to `settings.json`. Migration
+The config file was renamed from helixconfig.json to `settings.json`. Migration
 is automatic:
 - C++ `Config::init()` renames the file on disk if the old name is found
 - The installer checks for old names during backup/restore

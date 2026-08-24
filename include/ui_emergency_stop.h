@@ -5,8 +5,8 @@
 
 #include "ui_observer_guard.h"
 
+#include "i_moonraker_api.h"
 #include "lvgl.h"
-#include "moonraker_api.h"
 #include "printer_state.h"
 #include "subject_managed_panel.h"
 
@@ -82,9 +82,9 @@ class EmergencyStopOverlay {
      * and API for operation.
      *
      * @param printer_state Reference to helix::PrinterState for print job state
-     * @param api Pointer to MoonrakerAPI for emergency_stop() calls
+     * @param api Pointer to IMoonrakerAPI for emergency_stop() calls
      */
-    void init(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    void init(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     /**
      * @brief Initialize subjects for XML binding
@@ -187,7 +187,7 @@ class EmergencyStopOverlay {
 
     // Dependencies (set via init())
     helix::PrinterState* printer_state_ = nullptr;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // Confirmation requirement (set via set_require_confirmation())
     bool require_confirmation_ = false;
@@ -226,6 +226,12 @@ class EmergencyStopOverlay {
     lv_subject_t recovery_message_subject_;
     char recovery_message_buf_[512]{};
     lv_subject_t recovery_can_restart_; // 1=show restart buttons, 0=hide (disconnected)
+    // Klipper error code split out of a JSON state_message (e.g. "key1"). Rendered
+    // dim in the dialog header; recovery_has_code_ drives its visibility, since
+    // bind_flag_if_eq compares ints and cannot test a string for emptiness.
+    lv_subject_t recovery_code_subject_;
+    char recovery_code_buf_[64]{};
+    lv_subject_t recovery_has_code_; // 1=code present, 0=none (hides the label)
 
     bool subjects_initialized_ = false;
 
@@ -265,3 +271,38 @@ class EmergencyStopOverlay {
     static void advanced_firmware_restart_clicked(lv_event_t* e);
     static void home_firmware_restart_clicked(lv_event_t* e);
 };
+
+namespace helix {
+namespace ui {
+
+/// Disconnect-modal suppression window armed by begin_expected_klippy_restart().
+/// Mirrors RecoverySuppression::LONG - the reconnect blip from a klippy restart
+/// resolves in roughly the same span as the recovery-dialog window. 15 s is the
+/// value input-shaper armed before the helper existed; it is uniform now.
+constexpr uint32_t EXPECTED_RESTART_DISCONNECT_MODAL_MS = 15000;
+
+/**
+ * @brief Initiate an action that will restart Klipper
+ *
+ * The initiation counterpart of the klippy_state READY observer's completion
+ * in this file's .cpp: arms the recovery-dialog suppression window and the
+ * api-level disconnect-modal window, then shows one INFO toast so the user
+ * knows a restart is coming. The READY observer completes the contract -
+ * dismissing the recovery dialog with a "Printer ready" success toast, or
+ * firing that toast directly when the dialog was suppressed by the flow that
+ * initiated the restart. Mutual coverage: if the recovery window expires
+ * before klippy returns, the recovery dialog shows and the dialog path
+ * completes instead.
+ *
+ * The toast is a direct ToastManager call (no ui_notification_* severity, so
+ * no notification-history row) and hops through the update queue, which makes
+ * this safe from any thread - callers include Moonraker gcode callbacks that
+ * run on the WebSocket thread (z_offset_utils.cpp).
+ *
+ * @param message UNTRANSLATED source string; translated on the main thread
+ *                when the toast is shown
+ */
+void begin_expected_klippy_restart(const char* message);
+
+} // namespace ui
+} // namespace helix

@@ -13,7 +13,7 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- All timelapse settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
-      <setting_group>
+      <setting_group name="group_timelapse">
         <!-- ================================================================== -->
         <!-- ENABLE TIMELAPSE -->
         <!-- ================================================================== -->

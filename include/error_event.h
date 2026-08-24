@@ -22,9 +22,14 @@ enum class ErrorSource {
     TOOLCHANGER
 };
 
-/// A recovery action offered alongside a CRITICAL error. In L0 these are
-/// populated only by classifiers that already know a one-tap fix (the
-/// migrated CFS key840 case); per-backend smart actions arrive in L1.
+/// A one-tap fix offered alongside an error, rendered as a button by
+/// RecoveryModalPresenter. Two kinds of producer populate these: the generic
+/// error_classify::classify() for the cases it recognizes by Klipper error code
+/// (key840 "Reset CFS", key298, plus the paused-print Resume/OK fallbacks), and
+/// the AMS backends' own build_recovery_actions(), which derive a context-aware
+/// set from live hardware state (AFC, Happy Hare, AD5X IFS; QIDI hardcodes a
+/// lone dismiss). An empty list is meaningful, not merely unpopulated — it is
+/// what makes decide_presentation() choose MODAL over MODAL_WITH_RECOVER.
 struct RecoveryAction {
     std::string label;   ///< Button label, e.g. "Unload"
     std::string gcode;   ///< G-code to run on tap

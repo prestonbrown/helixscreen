@@ -1,6 +1,6 @@
 # LVGL 9 XML UI System - Complete Guide
 
-Comprehensive guide to the declarative XML UI system with reactive data binding, based on practical experience building the HelixScreen UI. The XML engine lives in `lib/helix-xml/` — a permanent MIT-licensed fork of LVGL's XML engine taken at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It has no upstream; see `LVGL_XML_SITUATION.md`.
+Comprehensive guide to the declarative XML UI system with reactive data binding, based on practical experience building the HelixScreen UI. The XML engine lives in `lib/helix-xml/` — a permanent MIT-licensed fork of LVGL's XML engine taken at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It has no upstream; see `HELIX_XML_FORK.md`.
 
 **Last Updated:** 2026-07-15
 
@@ -708,14 +708,21 @@ Our theme system sets these defaults on all `lv_obj` containers:
 | `border_width` | `0` | No border by default |
 | `bg_opa` | `0` | Transparent background |
 | `pad_all` | `0` | No internal padding |
+| `scrollable` | **`true`** | **NOT overridden by our theme** - this is LVGL's own default (`LV_OBJ_FLAG_SCROLLABLE`) and it is ON. Write `scrollable="false"` explicitly on any container that is not a real scroll region. |
 
-This means `lv_obj` acts as a pure layout container by default - no visual styling unless explicitly added.
+This means `lv_obj` acts as a pure layout container *visually* by default - no background, border, or padding unless explicitly added. Behaviorally it is not inert: it is still scrollable, so it can absorb drags and qualify for a page-scroll gutter. Turn that off with `scrollable="false"` unless the container is meant to scroll.
 
 ```xml
 <!-- These are equivalent in HelixScreen -->
 <lv_obj flex_flow="row">...</lv_obj>
 <lv_obj flex_flow="row" height="content" style_border_width="0" style_bg_opa="0" style_pad_all="0">...</lv_obj>
+
+<!-- ...but neither of the above is scroll-inert. A pure layout wrapper wants: -->
+<lv_obj flex_flow="row" scrollable="false">...</lv_obj>
 ```
+
+`helix-screen ctl geom <name>` reports the `scrollable` flag and the scroll extents, so it
+tells you directly whether a container is scrollable (see `HELIXCTL.md:566-567`).
 
 ### Flex Layout (Flexbox)
 
@@ -1296,7 +1303,7 @@ lv_xml_register_event_cb(nullptr, "on_slider_changed", [](lv_event_t* e) {
 
 #### 1. Create XML Layout
 
-`ui_xml/example_panel.xml`:
+ui_xml/example_panel.xml:
 
 ```xml
 <component>
@@ -1323,7 +1330,7 @@ lv_xml_register_event_cb(nullptr, "on_slider_changed", [](lv_event_t* e) {
 
 #### 2. Create C++ Wrapper
 
-`include/example_panel.h`:
+include/example_panel.h:
 
 ```cpp
 #pragma once
@@ -1339,7 +1346,7 @@ public:
 };
 ```
 
-`src/example_panel.cpp`:
+src/example_panel.cpp:
 
 ```cpp
 #include "example_panel.h"
@@ -1595,11 +1602,11 @@ lv_obj_t* w = lv_obj_find_by_name(parent, "widget_name");
 ## Resources
 
 - **Subject-Observer:** https://docs.lvgl.io/master/details/auxiliary-modules/observer/
-- **Fork origin and licensing:** `LVGL_XML_SITUATION.md`
+- **Fork origin and licensing:** `HELIX_XML_FORK.md`
 - **Upstream XML docs:** LVGL removed XML from core in v9.5 and now sells it as LVGL Pro. The old
   `docs.lvgl.io/master/details/xml/` link redirects to https://lvgl.io/docs/pro/syntax, which
   documents a different, closed engine — it is *not* authoritative for helix-xml syntax. Read it
-  for background only, and never read LVGL Pro source (see `LVGL_XML_SITUATION.md` § Clean-room rule).
+  for background only, and never read LVGL Pro source (see `HELIX_XML_FORK.md` § Clean-room rule).
 - **Quick Reference:** `LVGL9_XML_ATTRIBUTES_REFERENCE.md`
 - **Example Panels:** `ui_xml/bed_mesh_panel.xml` (gold standard)
 

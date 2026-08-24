@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_context_menu.h"
 #include "ui_observer_guard.h"
 
 #include "ams_error.h"
@@ -28,7 +29,7 @@ class ToolSwitcherWidget : public PanelWidget {
     }
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
     bool has_overlay_open() const override {
-        return picker_backdrop_ != nullptr;
+        return picker_.is_visible();
     }
 
     // Static instance tracker for callbacks from static event handlers
@@ -37,10 +38,28 @@ class ToolSwitcherWidget : public PanelWidget {
   private:
     friend class ToolSwitcherTestAccess;
 
+    /// Single-select list of the printer's tools, raised by a tap on the compact
+    /// tile. Picking a row issues the change; a tap outside it chooses nothing.
+    class ToolPicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(ToolPicker)
+
+      public:
+        explicit ToolPicker(ToolSwitcherWidget& owner) : owner_(owner) {}
+
+      protected:
+        const char* xml_component_name() const override {
+            return "tool_switcher_picker";
+        }
+        void on_created(lv_obj_t* backdrop) override;
+
+      private:
+        ToolSwitcherWidget& owner_;
+    };
+
     PrinterState& printer_state_;
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* picker_backdrop_ = nullptr;
+    ToolPicker picker_{*this};
     /// Compact-mode tool label. Held so the print gate can grey it without
     /// re-running the whole rebuild; nulled by rebuild_pills() and detach().
     lv_obj_t* compact_label_ = nullptr;
@@ -94,7 +113,6 @@ class ToolSwitcherWidget : public PanelWidget {
     void rebuild_pills();
     void rebuild_compact();
     void show_tool_picker();
-    void dismiss_tool_picker();
     void handle_tool_selected(int tool_index);
 
     // Layout predicates over the cached granted size — shared by the readers

@@ -7,7 +7,7 @@
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 /**
  * @file ui_overlay_retraction_settings.h
@@ -32,9 +32,9 @@ class RetractionSettingsOverlay : public OverlayBase {
   public:
     /**
      * @brief Construct RetractionSettingsOverlay
-     * @param api Pointer to MoonrakerAPI for sending G-code
+     * @param api Pointer to IMoonrakerAPI for sending G-code
      */
-    explicit RetractionSettingsOverlay(MoonrakerAPI* api);
+    explicit RetractionSettingsOverlay(IMoonrakerAPI* api);
     ~RetractionSettingsOverlay() override;
 
     //
@@ -98,10 +98,10 @@ class RetractionSettingsOverlay : public OverlayBase {
     }
 
     /**
-     * @brief Update MoonrakerAPI pointer
+     * @brief Update IMoonrakerAPI pointer
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -151,7 +151,7 @@ class RetractionSettingsOverlay : public OverlayBase {
     // === Injected Dependencies ===
     //
 
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // Debounce - don't send G-code while syncing from printer state
     bool syncing_from_state_ = false;
@@ -159,4 +159,4 @@ class RetractionSettingsOverlay : public OverlayBase {
 
 // Global accessor
 RetractionSettingsOverlay& get_global_retraction_settings();
-void init_global_retraction_settings(MoonrakerAPI* api);
+void init_global_retraction_settings(IMoonrakerAPI* api);

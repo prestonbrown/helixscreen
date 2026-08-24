@@ -33,7 +33,7 @@ std::vector<ScrewTiltResult> parse_lines(const std::vector<std::string>& lines) 
  * order). Corner-to-corner error is 0.11125 mm — 8x what the reporter reached
  * by levelling from the console — yet every screw is <= 5 minutes from the base.
  */
-const std::vector<std::string> kOutOfLevelBed = {
+const std::vector<std::string> OUT_OF_LEVEL_BED = {
     "// front_left (base) : x=30.0, y=30.0, z=-0.055125",
     "// front_right : x=200.0, y=30.0, z=-0.111375 : adjust CW 00:05",
     "// rear_right : x=200.0, y=200.0, z=-0.000125 : adjust CCW 00:05",
@@ -41,7 +41,7 @@ const std::vector<std::string> kOutOfLevelBed = {
 };
 
 /// The reporter's follow-up console run: 0.01375 mm spread, genuinely level.
-const std::vector<std::string> kLevelBed = {
+const std::vector<std::string> LEVEL_BED = {
     "// front_left (base) : x=30.0, y=30.0, z=-0.067500",
     "// front_right : x=200.0, y=30.0, z=-0.055000 : adjust CCW 00:01",
     "// rear_right : x=200.0, y=200.0, z=-0.060000 : adjust CCW 00:01",
@@ -232,7 +232,7 @@ TEST_CASE("parse_screws_tilt_line reads Klipper console output",
           "[calibration][screws_tilt][1225]") {
     SECTION("Base screw line") {
         ScrewTiltResult r;
-        REQUIRE(helix::parse_screws_tilt_line(kOutOfLevelBed[0], r));
+        REQUIRE(helix::parse_screws_tilt_line(OUT_OF_LEVEL_BED[0], r));
         REQUIRE(r.screw_name == "front_left");
         REQUIRE(r.is_reference);
         REQUIRE(r.z_height == Catch::Approx(-0.055125f));
@@ -241,7 +241,7 @@ TEST_CASE("parse_screws_tilt_line reads Klipper console output",
 
     SECTION("Adjusted screw line") {
         ScrewTiltResult r;
-        REQUIRE(helix::parse_screws_tilt_line(kOutOfLevelBed[1], r));
+        REQUIRE(helix::parse_screws_tilt_line(OUT_OF_LEVEL_BED[1], r));
         REQUIRE(r.screw_name == "front_right");
         REQUIRE_FALSE(r.is_reference);
         REQUIRE(r.x_pos == Catch::Approx(200.0f));
@@ -260,7 +260,7 @@ TEST_CASE("parse_screws_tilt_line reads Klipper console output",
 TEST_CASE("evaluate_screw_level judges the spread, not each screw's magnitude",
           "[calibration][screws_tilt][1225]") {
     SECTION("The #1225 bed is NOT level on its real M4 thread") {
-        auto results = parse_lines(kOutOfLevelBed);
+        auto results = parse_lines(OUT_OF_LEVEL_BED);
         REQUIRE(results.size() == 4);
 
         auto report = evaluate_screw_level(results, SCREW_PITCH_M4_MM);
@@ -273,7 +273,7 @@ TEST_CASE("evaluate_screw_level judges the spread, not each screw's magnitude",
     }
 
     SECTION("The #1225 bed is NOT level on an M3 thread either") {
-        auto results = parse_lines(kOutOfLevelBed);
+        auto results = parse_lines(OUT_OF_LEVEL_BED);
         auto report = evaluate_screw_level(results, SCREW_PITCH_M3_MM);
         REQUIRE_FALSE(report.is_level());
         REQUIRE(report.spread_minutes == 10);
@@ -300,7 +300,7 @@ TEST_CASE("evaluate_screw_level judges the spread, not each screw's magnitude",
     }
 
     SECTION("A genuinely level bed still reports level") {
-        auto results = parse_lines(kLevelBed);
+        auto results = parse_lines(LEVEL_BED);
         REQUIRE(results.size() == 4);
 
         auto report = evaluate_screw_level(results, SCREW_PITCH_M4_MM);

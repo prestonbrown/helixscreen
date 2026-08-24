@@ -75,6 +75,16 @@ typedef struct _lv_obj_t lv_obj_t;
 void ui_button_init();
 
 /**
+ * @brief Drop the memoized icon_font_sm lookup so the next button re-reads it
+ *
+ * icon_font_sm is responsive, and this widget resolves it once for the whole
+ * process. Called from theme_manager_register_responsive_fonts() so a
+ * breakpoint change reaches button icons too (#1210); see
+ * ui_icon_invalidate_font_cache() for the same problem in <icon>.
+ */
+void ui_button_invalidate_icon_font_cache();
+
+/**
  * @brief Set the text of a ui_button's label
  * @param btn The ui_button widget
  * @param text New label text

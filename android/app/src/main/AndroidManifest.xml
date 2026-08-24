@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="1"
-    android:versionName="1.0"
     android:installLocation="auto">
+
+    <!-- versionCode/versionName are supplied by defaultConfig in build.gradle,
+         derived from VERSION.txt. They are deliberately absent here: AGP
+         overwrites any value declared in this file, so a hardcoded one is
+         invisible in the built APK and only misleads whoever reads it. -->
 
     <!-- Network access for Moonraker WebSocket -->
     <uses-permission android:name="android.permission.INTERNET" />

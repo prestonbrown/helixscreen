@@ -79,7 +79,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     //    slots 1-3 AVAILABLE. Slot 1 is our idle, non-active, AVAILABLE
     //    lane → get_slot_filament_segment(1) returns PREP (tube drawn).
     // ------------------------------------------------------------------
-    constexpr int kIdleSlot = 1;
+    constexpr int IDLE_SLOT = 1;
 
     auto mock = std::make_unique<AmsBackendMock>(4);
     mock->set_afc_mode(true);
@@ -91,7 +91,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // Sanity: the backend reports a tube for the idle lane before any UI.
     auto* backend = static_cast<AmsBackendMock*>(AmsState::instance().get_backend());
     REQUIRE(backend != nullptr);
-    REQUIRE(backend->get_slot_filament_segment(kIdleSlot) != PathSegment::NONE);
+    REQUIRE(backend->get_slot_filament_segment(IDLE_SLOT) != PathSegment::NONE);
 
     // ------------------------------------------------------------------
     // 2. Build the real AmsPanel exactly as production does:
@@ -124,18 +124,18 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* canvas = lv_obj_find_by_name(panel.get_panel(), "path_canvas");
     REQUIRE(canvas != nullptr);
 
-    REQUIRE(ui_filament_path_canvas_get_slot_filament(canvas, kIdleSlot) !=
+    REQUIRE(ui_filament_path_canvas_get_slot_filament(canvas, IDLE_SLOT) !=
             static_cast<int>(PathSegment::NONE));
 
     // ------------------------------------------------------------------
     // 4. Simulate the idle-lane unload: the lane goes EMPTY in the backend.
     // ------------------------------------------------------------------
-    backend->force_slot_status(kIdleSlot, SlotStatus::EMPTY);
+    backend->force_slot_status(IDLE_SLOT, SlotStatus::EMPTY);
     AmsState::instance().sync_from_backend();
     AmsState::instance().bump_slots_version();
 
     // Backend now reports no tube for that lane.
-    REQUIRE(backend->get_slot_filament_segment(kIdleSlot) == PathSegment::NONE);
+    REQUIRE(backend->get_slot_filament_segment(IDLE_SLOT) == PathSegment::NONE);
 
     // ------------------------------------------------------------------
     // 5. Trigger the runtime path — the exact method the slots_version
@@ -149,7 +149,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     //    update_path_canvas_from_backend() in refresh_slots()) the canvas
     //    keeps the stale PREP tube and this fails.
     // ------------------------------------------------------------------
-    REQUIRE(ui_filament_path_canvas_get_slot_filament(canvas, kIdleSlot) ==
+    REQUIRE(ui_filament_path_canvas_get_slot_filament(canvas, IDLE_SLOT) ==
             static_cast<int>(PathSegment::NONE));
 
     // Tear down panel UI before fixture destroys state/subjects.

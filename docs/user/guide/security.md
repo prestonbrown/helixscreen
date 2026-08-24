@@ -41,7 +41,7 @@ Auto-lock only engages after the display has actually gone idle (dimmed or slept
 
 ### Locking manually
 
-You can also lock the screen instantly at any time using the **Lock** widget on the Home dashboard, if it's enabled in your home widgets (**Settings > Display & Sound > Home Widgets**). One tap locks the screen and shows the keypad.
+You can also lock the screen instantly at any time using the **Lock** widget on the Home dashboard, if it's added to your home widgets (long-press the Home panel to enter Edit Mode, then tap **+** to add it from the Widget Catalog). One tap locks the screen and shows the keypad.
 
 The Lock widget shows a closed padlock when a PIN is set and an open padlock when one isn't. If you tap it while no PIN is set, it opens the Security settings so you can create one instead.
 

@@ -41,12 +41,27 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         handle_status_update(notification);
     }
 
+    /// Seed a user override directly (no persist round-trip), as the AFC
+    /// override tests do. Callers hold no lock; this takes mutex_.
+    void set_gate_override(int slot_index, const helix::ams::FilamentSlotOverride& o) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        overrides_[slot_index] = o;
+    }
+
+    [[nodiscard]] bool has_gate_override(int slot_index) const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return overrides_.count(slot_index) > 0;
+    }
+
     void clear_slot_override(int slot_index) {
         AmsBackendHappyHare::clear_slot_override(slot_index);
     }
 
     void initialize_test_gates(int count) {
         system_info_.units.clear();
+        // Real backend reads this from mmu.endless_spool_enabled; GROUPS= writes
+        // are refused while it is off.
+        system_info_.endless_spool_enabled = true;
 
         AmsUnit unit;
         unit.unit_index = 0;
@@ -119,6 +134,7 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
      */
     void initialize_test_gates_multi(const std::vector<int>& gates_per_unit) {
         system_info_.units.clear();
+        system_info_.endless_spool_enabled = true;
         int total = 0;
         int global = 0;
         for (size_t u = 0; u < gates_per_unit.size(); ++u) {
@@ -659,8 +675,9 @@ TEST_CASE("Happy Hare endless spool is editable on single-unit",
     helper.initialize_test_gates(4);
 
     auto caps = helper.get_endless_spool_capabilities();
-    CHECK(caps.supported);
-    CHECK(caps.editable);
+    CHECK(caps.available());
+    CHECK(caps.editable());
+    CHECK(caps.editability == helix::printer::EndlessSpoolEditability::Group);
 }
 
 TEST_CASE("Happy Hare set_endless_spool_backup sends MMU_ENDLESS_SPOOL GROUPS",
@@ -672,8 +689,9 @@ TEST_CASE("Happy Hare set_endless_spool_backup sends MMU_ENDLESS_SPOOL GROUPS",
 
     CHECK(result.success());
     // All gates start ungrouped -> assigned standalone ids 0,1,2,3; joining gate 0
-    // to gate 2's group yields 2,1,2,3. ENABLE=1 is required for HH to apply GROUPS.
-    REQUIRE(helper.has_gcode("MMU_ENDLESS_SPOOL ENABLE=1 QUIET=1 GROUPS=2,1,2,3"));
+    // to gate 2's group yields 2,1,2,3. No ENABLE= on an edit: it would persist a
+    // state change the user did not ask for.
+    REQUIRE(helper.has_gcode("MMU_ENDLESS_SPOOL QUIET=1 GROUPS=2,1,2,3"));
 }
 
 TEST_CASE("Happy Hare set_endless_spool_backup removal makes gate standalone",
@@ -690,7 +708,7 @@ TEST_CASE("Happy Hare set_endless_spool_backup removal makes gate standalone",
 
     CHECK(result.success());
     // Gate 0 moves to a fresh standalone group (max+1 = 2): 2,0,1,1.
-    REQUIRE(helper.has_gcode("MMU_ENDLESS_SPOOL ENABLE=1 QUIET=1 GROUPS=2,0,1,1"));
+    REQUIRE(helper.has_gcode("MMU_ENDLESS_SPOOL QUIET=1 GROUPS=2,0,1,1"));
 }
 
 TEST_CASE("Happy Hare endless spool is read-only on multi-unit",
@@ -699,13 +717,50 @@ TEST_CASE("Happy Hare endless spool is read-only on multi-unit",
     helper.initialize_test_gates_multi({4, 4});
 
     auto caps = helper.get_endless_spool_capabilities();
-    CHECK(caps.supported);
-    CHECK_FALSE(caps.editable);
+    CHECK(caps.available());
+    CHECK_FALSE(caps.editable());
+    CHECK(caps.restriction == helix::printer::EndlessSpoolRestriction::MultiUnit);
 
     // MMU_ENDLESS_SPOOL has no UNIT= param, so editing is refused on multi-unit.
     auto result = helper.set_endless_spool_backup(0, 1);
     CHECK_FALSE(result.success());
     CHECK(result.result == AmsResult::NOT_SUPPORTED);
+}
+
+// Bypass: Happy Hare's selector sits on the bypass position and reports gate -2.
+// do_unload_filament() ignores the slot entirely and sends MMU_UNLOAD, so the
+// sentinel needs no special handling here — but nothing pinned that, and the UI
+// decision layer that DID refuse -2 was fixed by teaching it the sentinel is a
+// real target. This asserts the backend half of that contract.
+TEST_CASE("Happy Hare unload_filament under bypass sends MMU_UNLOAD", "[ams][happy_hare][bypass]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.set_filament_loaded(true);
+    helper.set_current_slot(-2); // bypass sentinel
+
+    auto result = helper.unload_filament(-2);
+
+    REQUIRE(result.success());
+    REQUIRE(helper.has_gcode_containing("MMU_UNLOAD"));
+}
+
+TEST_CASE("Happy Hare unload_filament under bypass still refuses an empty toolhead",
+          "[ams][happy_hare][bypass]") {
+    // Bypass being engaged is not itself evidence of filament: the selector can
+    // sit on the bypass position with nothing fed. The backend's own guard must
+    // still bite, so the UI's affordance and the backend's refusal agree.
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.set_filament_loaded(false);
+    helper.set_current_slot(-2);
+
+    auto result = helper.unload_filament(-2);
+
+    REQUIRE_FALSE(result.success());
+    REQUIRE(result.result == AmsResult::WRONG_STATE);
+    REQUIRE_FALSE(helper.has_gcode_containing("MMU_UNLOAD"));
 }
 
 // ============================================================================
@@ -1039,6 +1094,29 @@ TEST_CASE("Happy Hare gate_spool_id partial array only updates provided slots",
     REQUIRE(helper.get_slot_info(1).spoolman_id == 8);
     REQUIRE(helper.get_slot_info(2).spoolman_id == 0);
     REQUIRE(helper.get_slot_info(3).spoolman_id == 0);
+}
+
+// --- #1281 step 7: external re-bind ---
+
+TEST_CASE("Happy Hare external re-bind clears our override (#1281 step 7)",
+          "[ams][happy_hare][override-merge]") {
+    // merge_override()'s rule matrix pins the pure function; this pins the
+    // wiring on the live gate_spool_id path. Another writer (Mainsail, an HH
+    // macro) re-binds gate 0 to a different spool — firmware truth must win
+    // and our whole override record must drop, never setting-gated.
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(2);
+
+    helix::ams::FilamentSlotOverride o;
+    o.spoolman_id = 42;
+    o.brand = "Polymaker";
+    helper.set_gate_override(0, o);
+
+    helper.feed_mmu_gate_spool_ids({169, 0});
+
+    CHECK(helper.get_slot_info(0).spoolman_id == 169); // firmware truth paints
+    CHECK(helper.get_slot_info(0).brand.empty());      // our stale brand no longer shadows
+    CHECK_FALSE(helper.has_gate_override(0));          // record dropped
 }
 
 // --- Phase 3: Dissimilar multi-unit ---

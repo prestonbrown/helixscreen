@@ -13,10 +13,19 @@ dataset = "helixscreen_telemetry"
 
 [vars]
 CLOUDFLARE_ACCOUNT_ID = "4f3ea9194c32f9ce44bc77916411315e"
+# Zone whose HTTP analytics carry the update-manifest polls (helixscreen.org).
+# Not a secret; the token that reads it is.
+CDN_ZONE_ID = "1e67df337dfd51d36b3e057684ae90c8"
 
 [[routes]]
 pattern = "telemetry.helixscreen.org/*"
 zone_name = "helixscreen.org"
+
+# Daily CDN fleet snapshot. Zone analytics roll off after ~8 days, so this must
+# run often enough to capture each day before it expires. 02:10 UTC snapshots
+# the UTC day that just closed.
+[triggers]
+crons = ["10 2 * * *"]
 
 # Rate limiting: 10 ingest requests per IP per 60 seconds
 # Each request batches up to 20 events, so 200 events/min per IP is plenty

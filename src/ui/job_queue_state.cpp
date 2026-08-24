@@ -3,8 +3,8 @@
 
 #include "job_queue_state.h"
 
-#include "moonraker_api.h"
-#include "moonraker_client.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 
@@ -14,7 +14,7 @@
 #include <cctype>
 #include <cstdio>
 
-JobQueueState::JobQueueState(MoonrakerAPI* api, helix::MoonrakerClient* client)
+JobQueueState::JobQueueState(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : api_(api), client_(client) {
     std::memset(state_buffer_, 0, sizeof(state_buffer_));
     std::memset(summary_buffer_, 0, sizeof(summary_buffer_));
@@ -37,9 +37,6 @@ void JobQueueState::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&job_queue_count_subject_, 0);
-    lv_xml_register_subject(nullptr, "job_queue_count", &job_queue_count_subject_);
-
     lv_subject_init_string(&job_queue_state_subject_, state_buffer_, nullptr, sizeof(state_buffer_),
                            "Ready");
     lv_xml_register_subject(nullptr, "job_queue_state_text", &job_queue_state_subject_);
@@ -48,9 +45,6 @@ void JobQueueState::init_subjects() {
                            sizeof(summary_buffer_), "Queue empty");
     lv_xml_register_subject(nullptr, "job_queue_summary_text", &job_queue_summary_subject_);
 
-    // Register with debug registry for diagnostics
-    SubjectDebugRegistry::instance().register_subject(&job_queue_count_subject_, "job_queue_count",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
     SubjectDebugRegistry::instance().register_subject(&job_queue_state_subject_,
                                                       "job_queue_state_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
@@ -73,7 +67,6 @@ void JobQueueState::deinit_subjects() {
 
     lv_subject_deinit(&job_queue_summary_subject_);
     lv_subject_deinit(&job_queue_state_subject_);
-    lv_subject_deinit(&job_queue_count_subject_);
 
     subjects_initialized_ = false;
     spdlog::debug("[JobQueueState] Subjects deinitialized");
@@ -120,7 +113,6 @@ void JobQueueState::update_subjects() {
         return;
 
     int count = static_cast<int>(cached_jobs_.size());
-    lv_subject_set_int(&job_queue_count_subject_, count);
 
     // State text: capitalize first letter for display
     std::string state_display = queue_state_;

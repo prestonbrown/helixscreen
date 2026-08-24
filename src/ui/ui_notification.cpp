@@ -16,11 +16,13 @@
 #include "ui_modal.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
+#include "ui_notification_threshold.h"
 #include "ui_observer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "fault_modal_registry.h"
 #include "pending_startup_warnings.h"
 
 #include <spdlog/spdlog.h>
@@ -37,6 +39,13 @@ static void show_notification(const char* title, const char* message, ToastSever
 // Thread tracking for auto-detection
 static std::thread::id g_main_thread_id;
 static std::atomic<bool> g_main_thread_id_initialized{false};
+
+// True if `sev` meets the user's toast threshold (#1213). Reads the header-only
+// inline cache that SafetySettingsManager pushes to; safe on any thread.
+static bool should_show_toast(ToastSeverity sev) {
+    return helix::ui::notifications::severity_meets_threshold(
+        static_cast<int>(sev), helix::ui::notifications::get_min_toast_severity_cache());
+}
 
 // RAII observer guard for automatic cleanup
 static ObserverGuard s_notification_observer;
@@ -101,6 +110,7 @@ struct AsyncErrorData {
     char message[256];
     bool modal;
     bool has_title;
+    bool fault; ///< Raised by ui_notification_printer_fault() — track for sweeping
 };
 
 // Format "title: message" (or just message when no title) into caller-provided
@@ -126,7 +136,9 @@ static void async_message_callback(void* user_data) {
             delete data;
             return;
         }
-        ToastManager::instance().show(data->severity, display_buf, data->duration_ms);
+        if (should_show_toast(data->severity)) {
+            ToastManager::instance().show(data->severity, display_buf, data->duration_ms);
+        }
 
         // Add to history
         NotificationHistoryEntry entry = {};
@@ -183,12 +195,19 @@ static void async_error_callback(void* user_data) {
             }
 
             // Show modal dialog for critical errors
-            helix::ui::modal_show_alert(data->title, data->message, ModalSeverity::Error, "OK");
+            lv_obj_t* dialog =
+                helix::ui::modal_show_alert(data->title, data->message, ModalSeverity::Error, "OK");
+            if (data->fault) {
+                helix::ui::track_fault_modal(dialog);
+            }
 
             helix::ui::notification_update(NotificationStatus::ERROR);
         } else {
-            // Show toast for non-critical errors
-            ToastManager::instance().show(ToastSeverity::ERROR, data->message, 6000);
+            // Show toast for non-critical errors (still subject to the user's
+            // min-severity gate; modal errors above bypass it deliberately).
+            if (should_show_toast(ToastSeverity::ERROR)) {
+                ToastManager::instance().show(ToastSeverity::ERROR, data->message, 6000);
+            }
         }
 
         // Add to history
@@ -271,7 +290,9 @@ static void show_notification(const char* title, const char* message, ToastSever
 
     if (is_main_thread()) {
         // Main thread: call LVGL directly
-        ToastManager::instance().show(severity, display_msg.c_str(), duration_ms);
+        if (should_show_toast(severity)) {
+            ToastManager::instance().show(severity, display_msg.c_str(), duration_ms);
+        }
 
         NotificationHistoryEntry entry = {};
         entry.timestamp_ms = lv_tick_get();
@@ -414,8 +435,10 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
         if (try_defer_to_startup_queue(p->severity, joined.c_str()))
             return;
 
-        ToastManager::instance().show_with_detail(p->severity, p->message.c_str(),
-                                                  p->detail.c_str(), p->duration_ms);
+        if (should_show_toast(p->severity)) {
+            ToastManager::instance().show_with_detail(p->severity, p->message.c_str(),
+                                                      p->detail.c_str(), p->duration_ms);
+        }
 
         NotificationHistoryEntry entry = {};
         entry.timestamp_ms = lv_tick_get();
@@ -445,7 +468,11 @@ void ui_notification_warning_with_detail(const char* message, const char* detail
     show_detail_notification(ToastSeverity::WARNING, message, detail, 8000);
 }
 
-void ui_notification_error(const char* title, const char* message, bool modal) {
+// Shared body for ui_notification_error() and ui_notification_printer_fault().
+// @p fault only decides whether the resulting dialog joins the sweep registry;
+// presentation is identical either way.
+static void show_error_notification(const char* title, const char* message, bool modal,
+                                    bool fault) {
     if (!message) {
         spdlog::warn("[Notification] Attempted to show error notification with null message");
         return;
@@ -481,12 +508,19 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
             }
 
             // Show modal dialog for critical errors
-            helix::ui::modal_show_alert(title, message, ModalSeverity::Error, "OK");
+            lv_obj_t* dialog =
+                helix::ui::modal_show_alert(title, message, ModalSeverity::Error, "OK");
+            if (fault) {
+                helix::ui::track_fault_modal(dialog);
+            }
 
             helix::ui::notification_update(NotificationStatus::ERROR);
         } else {
-            // Show toast for non-critical errors
-            ToastManager::instance().show(ToastSeverity::ERROR, message, 6000);
+            // Show toast for non-critical errors (subject to the min-severity gate;
+            // modal errors above bypass it deliberately).
+            if (should_show_toast(ToastSeverity::ERROR)) {
+                ToastManager::instance().show(ToastSeverity::ERROR, message, 6000);
+            }
         }
 
         // Add to history
@@ -531,9 +565,18 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
         data->message[sizeof(data->message) - 1] = '\0';
 
         data->modal = modal;
+        data->fault = fault;
 
         helix::ui::async_call(async_error_callback, data);
     }
+}
+
+void ui_notification_error(const char* title, const char* message, bool modal) {
+    show_error_notification(title, message, modal, /*fault=*/false);
+}
+
+void ui_notification_printer_fault(const char* title, const char* message) {
+    show_error_notification(title, message, /*modal=*/true, /*fault=*/true);
 }
 
 // ============================================================================

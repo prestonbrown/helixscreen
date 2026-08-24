@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -531,6 +532,11 @@ TEST_CASE_METHOD(CrashReporterTestFixture, "CrashReporter: save_to_file returns 
 
 TEST_CASE_METHOD(CrashReporterTestFixture, "CrashReporter: save_to_file returns false on bad path",
                  "[crash_reporter]") {
+    // root bypasses the permission bits this case depends on, so the bad path is still writable
+    // and the assertion below would be asserting the opposite of the point.
+    if (::geteuid() == 0) {
+        SKIP("Test requires non-root euid - root bypasses permission bits");
+    }
     // Re-init with a non-existent directory that cannot be created
     auto& cr = CrashReporter::instance();
     cr.shutdown();

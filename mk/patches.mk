@@ -66,6 +66,7 @@ LVGL_PATCHED_FILES := \
 	src/widgets/label/lv_label.h \
 	src/widgets/label/lv_label_private.h \
 	src/libs/lodepng/lodepng.c \
+	src/others/translation/lv_translation.c \
 	lv_conf_template.h
 # NOTE: src/misc/lv_check_arg.h is deliberately absent — the backport patch
 # CREATES it, so it is untracked upstream and `git checkout` cannot restore it.
@@ -77,9 +78,13 @@ LIBHV_PATCHED_FILES := \
 	Makefile.in \
 	http/client/requests.h \
 	base/hsocket.c \
+	base/hplatform.h \
+	base/hlog.c \
 	base/dns_resolv.c \
 	base/dns_resolv.h \
+	cpputil/hthreadpool.h \
 	evpp/TcpClient.h \
+	http/HttpMessage.h \
 	http/client/WebSocketClient.h \
 	http/client/WebSocketClient.cpp
 
@@ -438,6 +443,16 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 	else \
 		echo "$(GREEN)✓ LVGL DRM set-master patch already applied$(RESET)"; \
 	fi
+# Sentinel is `apply --check`, not a file-dirty test: three other patches already
+# dirty lv_linux_drm.c, so "is the file modified?" answers the wrong question here
+# (see patches/README.md, "Apply-check sentinels").
+	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl-drm-mmap64.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL DRM 64-bit mmap offset patch...$(RESET)"; \
+		git -C $(LVGL_DIR) apply $(PATCH_DIR)/lvgl-drm-mmap64.patch && \
+		echo "$(GREEN)✓ DRM 64-bit mmap offset patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL DRM 64-bit mmap offset patch already applied$(RESET)"; \
+	fi
 	$(Q)if git -C $(LVGL_DIR) diff --quiet src/core/lv_refr.c 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL refr reshape NULL guard patch...$(RESET)"; \
 		if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_refr_reshape_null_guard.patch 2>/dev/null; then \
@@ -605,6 +620,13 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 		echo "$(GREEN)✓ async-delete breadcrumb patch applied$(RESET)"; \
 	else \
 		echo "$(GREEN)✓ LVGL async-delete breadcrumb patch already applied$(RESET)"; \
+	fi
+	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_translation_warn_once.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL translation warn-once patch (missing-language warning once per language)...$(RESET)"; \
+		git -C $(LVGL_DIR) apply $(PATCH_DIR)/lvgl_translation_warn_once.patch && \
+		echo "$(GREEN)✓ translation warn-once patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL translation warn-once patch already applied$(RESET)"; \
 	fi
 	$(Q)if git -C $(LVGL_DIR) diff --quiet src/widgets/label/lv_label.c 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL label text transform patch...$(RESET)"; \
@@ -790,8 +812,56 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 	else \
 		echo "$(GREEN)✓ libhv WebSocket backoff patch already applied$(RESET)"; \
 	fi
+	$(Q)if ! grep -q "PATCH NOTE(helixscreen)" "$(LIBHV_DIR)/cpputil/hthreadpool.h" 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying libhv HThreadPool wait() lock patch...$(RESET)"; \
+		if git -C $(LIBHV_DIR) apply --check $(PATCH_DIR)/libhv-hthreadpool-wait-lock.patch 2>/dev/null; then \
+			git -C $(LIBHV_DIR) apply $(PATCH_DIR)/libhv-hthreadpool-wait-lock.patch && \
+			echo "$(GREEN)✓ libhv HThreadPool wait() lock patch applied$(RESET)"; \
+		else \
+			echo "$(RED)✗ Cannot apply HThreadPool wait() patch — run 'make reapply-patches'. Until then wait() races a worker's pop_front() (nightly TSAN via ThumbnailProcessor::wait_for_completion)$(RESET)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "$(GREEN)✓ libhv HThreadPool wait() lock patch already applied$(RESET)"; \
+	fi
+	$(Q)if ! grep -q "PATCH NOTE(helixscreen)" "$(LIBHV_DIR)/base/hlog.c" 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying libhv hlog localtime_r patch...$(RESET)"; \
+		if git -C $(LIBHV_DIR) apply --check $(PATCH_DIR)/libhv-hlog-thread-safe-localtime.patch 2>/dev/null; then \
+			git -C $(LIBHV_DIR) apply $(PATCH_DIR)/libhv-hlog-thread-safe-localtime.patch && \
+			echo "$(GREEN)✓ libhv hlog localtime_r patch applied$(RESET)"; \
+		else \
+			echo "$(RED)✗ Cannot apply hlog localtime_r patch — run 'make reapply-patches'. Until then every logging thread races on localtime()'s shared struct tm and on tzset's TZ string (nightly TSAN, two reports in logger_print)$(RESET)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "$(GREEN)✓ libhv hlog localtime_r patch already applied$(RESET)"; \
+	fi
+	$(Q)if ! grep -q "PATCH NOTE(helixscreen)" "$(LIBHV_DIR)/http/HttpMessage.h" 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying libhv HttpRequest cancel atomic patch...$(RESET)"; \
+		if git -C $(LIBHV_DIR) apply --check $(PATCH_DIR)/libhv-http-request-cancel-atomic.patch 2>/dev/null; then \
+			git -C $(LIBHV_DIR) apply $(PATCH_DIR)/libhv-http-request-cancel-atomic.patch && \
+			echo "$(GREEN)✓ libhv HttpRequest cancel atomic patch applied$(RESET)"; \
+		else \
+			echo "$(RED)✗ Cannot apply HttpRequest cancel patch — run 'make reapply-patches'. Until then CameraStream::stop() races the stream thread's ParseUrl() (nightly TSAN in HttpRequest::Cancel)$(RESET)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "$(GREEN)✓ libhv HttpRequest cancel atomic patch already applied$(RESET)"; \
+	fi
+	$(Q)if ! grep -q "install the TcpClient-level channel callbacks" "$(LIBHV_DIR)/http/client/WebSocketClient.cpp" 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying libhv WebSocketClient install-once callbacks patch...$(RESET)"; \
+		if git -C $(LIBHV_DIR) apply --check $(PATCH_DIR)/libhv-websocket-open-install-once.patch 2>/dev/null; then \
+			git -C $(LIBHV_DIR) apply $(PATCH_DIR)/libhv-websocket-open-install-once.patch && \
+			echo "$(GREEN)✓ libhv WebSocketClient install-once patch applied$(RESET)"; \
+		else \
+			echo "$(RED)✗ Cannot apply WebSocketClient install-once patch — run 'make reapply-patches'. Until then concurrent connect() can corrupt the heap (SIGABRT free(): invalid next size)$(RESET)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "$(GREEN)✓ libhv WebSocketClient install-once patch already applied$(RESET)"; \
+	fi
 	$(Q)if [ -d "$(LIBHV_DIR)/include/hv" ]; then \
-		for h in evpp/TcpClient.h http/client/WebSocketClient.h; do \
+		for h in evpp/TcpClient.h http/client/WebSocketClient.h cpputil/hthreadpool.h http/HttpMessage.h; do \
 			base=$$(basename $$h); \
 			if ! diff -q "$(LIBHV_DIR)/$$h" "$(LIBHV_DIR)/include/hv/$$base" >/dev/null 2>&1; then \
 				echo "$(YELLOW)→ Syncing patched $$base to include/hv/$(RESET)"; \

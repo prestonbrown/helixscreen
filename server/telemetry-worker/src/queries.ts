@@ -148,6 +148,28 @@ export function overviewQueries(days: number, filters?: FilterParams): string[] 
     FROM ${dataset}
     WHERE timestamp >= NOW() - INTERVAL '${days}' DAY AND index1 = 'session'${f}
     GROUP BY blob1`,
+    // CDN fleet: distinct sources polling the update manifest per day.
+    //
+    // Deliberately unfiltered by platform/version/model - this event is written
+    // by the daily cron from zone HTTP analytics and carries none of those
+    // dimensions, so applying the filter clause would blank the metric out
+    // whenever a dashboard filter is set.
+    //
+    // blob1 is the UTC day described (not a device_id), blob2 the channel.
+    // max() rather than sum() so a re-run or backfill of the same day collapses
+    // instead of double-counting. The window is widened by two days because the
+    // row's own timestamp is the snapshot time, a day after the day it covers.
+    `SELECT
+      blob1 as date,
+      max(double2) as sources,
+      max(double1) as polls,
+      max(double4) as errors
+    FROM ${dataset}
+    WHERE timestamp >= NOW() - INTERVAL '${days + 2}' DAY
+      AND index1 = 'cdn_fleet_daily'
+      AND blob2 = 'stable'
+    GROUP BY date
+    ORDER BY date`,
   ];
 }
 
@@ -438,6 +460,12 @@ export function hardwareQueries(days: number, filters?: FilterParams): string[] 
     ORDER BY ram_mb`,
     // AMS backend distribution (deduplicated by device_id)
     `SELECT blob8 as name, count(DISTINCT blob1) as count FROM ${dataset} WHERE timestamp >= NOW() - INTERVAL '${days}' DAY AND index1 = 'hardware_profile' AND blob8 != ''${f} GROUP BY name ORDER BY count DESC`,
+    // helix_macros.cfg adoption: "1" installed, "0" not. Empty is excluded, so
+    // the denominator is devices that actually reported, not all devices.
+    `SELECT blob9 as name, count(DISTINCT blob1) as count FROM ${dataset} WHERE timestamp >= NOW() - INTERVAL '${days}' DAY AND index1 = 'hardware_profile' AND blob9 != ''${f} GROUP BY name ORDER BY count DESC`,
+    // Moonraker topology: "1" on this machine, "0" over the network. Only
+    // clients new enough to report it are counted (see the blob9 note).
+    `SELECT blob10 as name, count(DISTINCT blob1) as count FROM ${dataset} WHERE timestamp >= NOW() - INTERVAL '${days}' DAY AND index1 = 'hardware_profile' AND blob10 != ''${f} GROUP BY name ORDER BY count DESC`,
   ];
 }
 

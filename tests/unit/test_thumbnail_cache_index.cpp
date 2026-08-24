@@ -47,7 +47,7 @@ namespace {
 /// Smallest valid PNG the cache and the processor will both accept: a 10x10
 /// solid-colour square, 75 bytes. Same bytes as tests/unit/test_thumbnail_scaling.cpp.
 // clang-format off
-const std::vector<uint8_t> kTinyPng = {
+const std::vector<uint8_t> TINY_PNG = {
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
     0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x0A,
     0x08, 0x02, 0x00, 0x00, 0x00, 0x02, 0x50, 0x58, 0xEA, 0x00, 0x00, 0x00,
@@ -159,11 +159,11 @@ helix::ThumbnailTarget target_120() {
     return t;
 }
 
-constexpr size_t kFileBytes = 16 * 1024;
+constexpr size_t FILE_BYTES = 16 * 1024;
 
 /// Comfortably above anything these tests put on disk, so eviction never fires
 /// and the only thing under test is the accounting.
-constexpr size_t kGenerousLimit = 64 * 1024 * 1024;
+constexpr size_t GENEROUS_LIMIT = 64 * 1024 * 1024;
 
 } // namespace
 
@@ -174,10 +174,10 @@ constexpr size_t kGenerousLimit = 64 * 1024 * 1024;
 TEST_CASE("Cold start walks the cache directory exactly once", "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("cold_start");
 
-    constexpr int kFileCount = 24;
-    constexpr size_t kExpected = kFileBytes * kFileCount;
+    constexpr int FILE_COUNT = 24;
+    constexpr size_t EXPECTED = FILE_BYTES * FILE_COUNT;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
 
     // Construction must not walk: the directory is normally populated from a
@@ -185,16 +185,16 @@ TEST_CASE("Cold start walks the cache directory exactly once", "[assets][cache][
     // removing, not adding.
     REQUIRE(cache.get_full_scan_count() == 0);
 
-    seed_cache_files(dir, kFileCount, kFileBytes);
+    seed_cache_files(dir, FILE_COUNT, FILE_BYTES);
 
     // First query has no choice but to walk — nothing has observed this
     // directory. It must report the truth, not a partial sum.
-    REQUIRE(cache.get_cache_size() == kExpected);
+    REQUIRE(cache.get_cache_size() == EXPECTED);
     REQUIRE(cache.get_full_scan_count() == 1);
 
     // Second query answers from the index. This is the whole point: repeat
     // queries against an unchanged cache cost no syscalls.
-    REQUIRE(cache.get_cache_size() == kExpected);
+    REQUIRE(cache.get_cache_size() == EXPECTED);
     REQUIRE(cache.get_full_scan_count() == 1);
 }
 
@@ -202,14 +202,14 @@ TEST_CASE("Steady-state eviction checks do not re-walk the cache directory",
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("steady_state");
 
-    constexpr int kSeedCount = 40;
+    constexpr int SEED_COUNT = 40;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kSeedCount, kFileBytes);
+    seed_cache_files(dir, SEED_COUNT, FILE_BYTES);
 
     // Prime the index off the pre-existing directory.
-    REQUIRE(cache.get_cache_size() == kFileBytes * kSeedCount);
+    REQUIRE(cache.get_cache_size() == FILE_BYTES * SEED_COUNT);
     const size_t walks_before = cache.get_full_scan_count();
     const size_t stats_before = cache.get_stat_count();
 
@@ -217,20 +217,20 @@ TEST_CASE("Steady-state eviction checks do not re-walk the cache directory",
     // calls evict_if_needed() before and after the write, the same shape
     // fetch()/fetch_optimized() use around a download. Nothing here is anywhere
     // near the limit, so every one of these checks should be pure arithmetic.
-    constexpr int kWrites = 30;
-    for (int i = 0; i < kWrites; ++i) {
-        const std::string lvgl = cache.save_raw_png("index_steady_" + std::to_string(i), kTinyPng);
+    constexpr int WRITES = 30;
+    for (int i = 0; i < WRITES; ++i) {
+        const std::string lvgl = cache.save_raw_png("index_steady_" + std::to_string(i), TINY_PNG);
         REQUIRE(!lvgl.empty());
     }
 
     const size_t walks = cache.get_full_scan_count() - walks_before;
     const size_t stats = cache.get_stat_count() - stats_before;
 
-    INFO("full directory walks across " << kWrites << " writes (" << (2 * kWrites)
+    INFO("full directory walks across " << WRITES << " writes (" << (2 * WRITES)
                                         << " eviction checks): " << walks);
     INFO("files stat'd: " << stats);
 
-    // 2 * kWrites eviction checks. The old shape walked on every one of them;
+    // 2 * WRITES eviction checks. The old shape walked on every one of them;
     // an index-backed cache should need none, and is allowed a small allowance
     // for a periodic reconciliation pass.
     REQUIRE(walks <= 2);
@@ -238,7 +238,7 @@ TEST_CASE("Steady-state eviction checks do not re-walk the cache directory",
     // Independent of the walk count: the per-file stat cost must scale with the
     // number of files *written*, not with the size of the cache. One stat per
     // new file, plus whatever a reconcile pass costs.
-    REQUIRE(stats <= 4 * static_cast<size_t>(kWrites));
+    REQUIRE(stats <= 4 * static_cast<size_t>(WRITES));
 
     // Cheap must not mean wrong. The index has to have absorbed its own writes.
     REQUIRE(cache.get_cache_size() == true_dir_size(dir));
@@ -252,14 +252,14 @@ TEST_CASE("A .bin written by ThumbnailProcessor is accounted for without a resca
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("bin_drift");
 
-    constexpr int kSeedCount = 8;
-    constexpr size_t kSeeded = kFileBytes * kSeedCount;
+    constexpr int SEED_COUNT = 8;
+    constexpr size_t SEEDED = FILE_BYTES * SEED_COUNT;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kSeedCount, kFileBytes);
+    seed_cache_files(dir, SEED_COUNT, FILE_BYTES);
 
-    REQUIRE(cache.get_cache_size() == kSeeded);
+    REQUIRE(cache.get_cache_size() == SEEDED);
     const size_t walks_before = cache.get_full_scan_count();
 
     // Constructing a ThumbnailCache re-points the processor at its directory,
@@ -268,7 +268,7 @@ TEST_CASE("A .bin written by ThumbnailProcessor is accounted for without a resca
     auto& processor = helix::ThumbnailProcessor::instance();
     REQUIRE(processor.get_cache_dir() == dir);
 
-    const auto result = processor.process_sync(kTinyPng, "index_bin_source.png", target_120());
+    const auto result = processor.process_sync(TINY_PNG, "index_bin_source.png", target_120());
     REQUIRE(result.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(result.output_path));
 
@@ -281,7 +281,7 @@ TEST_CASE("A .bin written by ThumbnailProcessor is accounted for without a resca
     // Correctness: the cache must see bytes it did not write itself. An index
     // that misses these under-counts, and an under-counting cache stops
     // evicting entirely.
-    REQUIRE(cache.get_cache_size() == kSeeded + bin_bytes);
+    REQUIRE(cache.get_cache_size() == SEEDED + bin_bytes);
 
     // Cost: and it must learn about them without re-walking the directory,
     // otherwise the index has bought nothing on the pre-scaling path — which is
@@ -293,16 +293,16 @@ TEST_CASE("Eviction honours the limit when pre-scaled .bin files dominate the ca
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("bin_evict");
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
 
     auto& processor = helix::ThumbnailProcessor::instance();
     REQUIRE(processor.get_cache_dir() == dir);
 
-    constexpr int kBins = 6;
-    for (int i = 0; i < kBins; ++i) {
+    constexpr int BINS = 6;
+    for (int i = 0; i < BINS; ++i) {
         const auto result = processor.process_sync(
-            kTinyPng, "index_evict_" + std::to_string(i) + ".png", target_120());
+            TINY_PNG, "index_evict_" + std::to_string(i) + ".png", target_120());
         REQUIRE(result.success);
     }
 
@@ -326,15 +326,15 @@ TEST_CASE("An external delete never makes the cache under-report",
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("ext_delete");
 
-    constexpr int kFileCount = 32;
+    constexpr int FILE_COUNT = 32;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kFileCount, kFileBytes);
-    REQUIRE(cache.get_cache_size() == kFileBytes * kFileCount);
+    seed_cache_files(dir, FILE_COUNT, FILE_BYTES);
+    REQUIRE(cache.get_cache_size() == FILE_BYTES * FILE_COUNT);
 
     const size_t freed = delete_seed_files_externally(dir, 0, 8);
-    REQUIRE(freed == 8 * kFileBytes);
+    REQUIRE(freed == 8 * FILE_BYTES);
 
     // Over-counting is the survivable direction — it evicts too eagerly.
     // Under-counting is not: it reads as "well under the limit" and disables
@@ -344,7 +344,7 @@ TEST_CASE("An external delete never makes the cache under-report",
     // And it must not stay wrong forever. Any reconciliation period the
     // implementation picks has to be well inside this many checks.
     for (int i = 0; i < 512; ++i) {
-        cache.set_max_size(kGenerousLimit);
+        cache.set_max_size(GENEROUS_LIMIT);
     }
     REQUIRE(cache.get_cache_size() == true_dir_size(dir));
 }
@@ -353,29 +353,29 @@ TEST_CASE("Entries deleted externally do not cause over-eviction below the limit
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("ghost_evict");
 
-    constexpr int kFileCount = 64;
-    constexpr size_t kLimit = 32 * kFileBytes;
+    constexpr int FILE_COUNT = 64;
+    constexpr size_t LIMIT = 32 * FILE_BYTES;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kFileCount, kFileBytes);
-    REQUIRE(cache.get_cache_size() == kFileBytes * kFileCount);
+    seed_cache_files(dir, FILE_COUNT, FILE_BYTES);
+    REQUIRE(cache.get_cache_size() == FILE_BYTES * FILE_COUNT);
 
     // 20 ghosts: entries the index believes in that are no longer on disk.
     // Oldest-first eviction hits them before anything real, so an index that
     // credits itself for removing them frees nothing and keeps going.
-    REQUIRE(delete_seed_files_externally(dir, 0, 20) == 20 * kFileBytes);
+    REQUIRE(delete_seed_files_externally(dir, 0, 20) == 20 * FILE_BYTES);
 
-    cache.set_max_size(kLimit);
+    cache.set_max_size(LIMIT);
 
     const size_t after = true_dir_size(dir);
-    INFO("true on-disk size: " << after << " limit: " << kLimit);
-    REQUIRE(after <= kLimit);
+    INFO("true on-disk size: " << after << " limit: " << LIMIT);
+    REQUIRE(after <= LIMIT);
 
     // Over-eviction is self-reinforcing — everything discarded past the limit
     // gets re-downloaded on the next scroll. 44 real files remained and the
     // limit holds 32 of them, so a correct pass leaves the cache full, not empty.
-    REQUIRE(after > kLimit / 2);
+    REQUIRE(after > LIMIT / 2);
 
     // Having tripped over ghosts, the index must resynchronise rather than
     // carry a permanent offset.
@@ -386,12 +386,12 @@ TEST_CASE("A writer with no hook at all still converges within the reconcile bou
           "[assets][cache][thumbnail][1207]") {
     ScopedCacheDir scoped("foreign_writer");
 
-    constexpr int kSeedCount = 8;
+    constexpr int SEED_COUNT = 8;
 
-    ThumbnailCache cache(kGenerousLimit);
+    ThumbnailCache cache(GENEROUS_LIMIT);
     const std::string dir = cache.get_cache_dir();
-    seed_cache_files(dir, kSeedCount, kFileBytes);
-    REQUIRE(cache.get_cache_size() == kFileBytes * kSeedCount);
+    seed_cache_files(dir, SEED_COUNT, FILE_BYTES);
+    REQUIRE(cache.get_cache_size() == FILE_BYTES * SEED_COUNT);
 
     // Not the cache, not the processor — a hypothetical future writer, or a
     // human with a shell. The index cannot know about this synchronously, and
@@ -406,9 +406,9 @@ TEST_CASE("A writer with no hook at all still converges within the reconcile bou
     }
 
     for (int i = 0; i < 512; ++i) {
-        cache.set_max_size(kGenerousLimit);
+        cache.set_max_size(GENEROUS_LIMIT);
     }
 
     REQUIRE(cache.get_cache_size() == true_dir_size(dir));
-    REQUIRE(cache.get_cache_size() == kFileBytes * kSeedCount + 64 * 1024);
+    REQUIRE(cache.get_cache_size() == FILE_BYTES * SEED_COUNT + 64 * 1024);
 }

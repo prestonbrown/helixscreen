@@ -1,0 +1,18 @@
+# 16MB flash. OTA A/B from day one: 2x 6.50MB app slots + 2.75MB packed
+# frogfs asset container (`storage`) + NVS. `cfg` is a separate 128KB
+# LittleFS partition for mutable settings - asset reflashes (storage) never
+# wipe it. Amended 2026-07-17 (Stage B fonts->frogfs enabler): 5 cold font
+# faces moved from the compiled app image into `storage`, so slots shrink
+# 6.875->6.50MB (0x6e0000->0x680000) and storage grows 2.0->2.75MB
+# (0x200000->0x2c0000). Sized for the FULL font move (2.75 - 1.73 assets -
+# 0.53 fonts = ~0.49MB free), so Plan A (the remaining faces) needs no second
+# repartition. Ends exactly at 0x1000000. Offsets moved: repartition requires
+# erase_flash + full reflash.
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x6000,
+otadata,  data, ota,     0xf000,   0x2000,
+phy_init, data, phy,     0x11000,  0x1000,
+ota_0,    app,  ota_0,   0x20000,  0x680000,
+ota_1,    app,  ota_1,   0x6a0000, 0x680000,
+storage,  data, spiffs,  0xd20000, 0x2c0000,
+cfg,      data, spiffs,  0xfe0000, 0x20000,

@@ -3,6 +3,8 @@
 
 #include "translation_loader.h"
 
+#include "data_root_resolver.h"
+
 #include <spdlog/spdlog.h>
 
 #include <lvgl.h>
@@ -26,16 +28,20 @@ void ensure_translation_loaded(const std::string& lang) {
     if (lang.empty())
         return;
 
-    // Earlier revision short-circuited for "en" on the theory that tags ARE
-    // English and lv_translation_get returns the tag when no pack matches the
-    // selected language. That's functionally correct but makes every lv_tr()
-    // call log `language is not found` — hundreds of warnings on the device.
-    // Loading en.xml costs ~140 KB of heap; tolerable vs the log spam.
+    // en.xml maps every tag to itself, so registering it buys nothing:
+    // lv_translation_get() already falls back to the tag when no pack matches
+    // the selected language. It was loaded anyway because the fallback path
+    // logged `language is not found` on EVERY lookup; LVGL now reports that
+    // once per language (patches/lvgl_translation_warn_once.patch), so the
+    // ~140 KB of heap has no remaining justification. Skipping it also drops
+    // English lookups from a linear scan of 2739 entries to an empty walk.
+    if (lang == kIdentityLocale)
+        return;
 
     if (loaded_locales().count(lang) > 0)
         return;
 
-    std::string path = "A:ui_xml/translations/" + lang + ".xml";
+    std::string path = "A:" + helix::asset_path("ui_xml/translations/" + lang + ".xml");
     lv_result_t res = lv_xml_register_translation_from_file(path.c_str());
     if (res != LV_RESULT_OK) {
         spdlog::warn("[TranslationLoader] Failed to load '{}' — UI will fall back to English",

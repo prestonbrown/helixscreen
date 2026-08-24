@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "moonraker_performance_source.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "moonraker_types.h"
 
 #include <spdlog/spdlog.h>
@@ -17,9 +17,9 @@ namespace perf {
 using nlohmann::json;
 
 // Handler name used when registering/unregistering persistent method callbacks.
-static constexpr char kHandlerName[] = "MoonrakerPerformanceSource";
+static constexpr char HANDLER_NAME[] = "MoonrakerPerformanceSource";
 
-MoonrakerPerformanceSource::MoonrakerPerformanceSource(MoonrakerAPI* api) : api_(api) {}
+MoonrakerPerformanceSource::MoonrakerPerformanceSource(IMoonrakerAPI* api) : api_(api) {}
 
 MoonrakerPerformanceSource::~MoonrakerPerformanceSource() {
     stop();
@@ -39,7 +39,7 @@ void MoonrakerPerformanceSource::start() {
     // register_method_callback delivers the full WS message to the callback;
     // params are at j["params"][0].
     api_->register_method_callback(
-        "notify_proc_stat_update", kHandlerName,
+        "notify_proc_stat_update", HANDLER_NAME,
         lifetime_.bg_cb("MoonrakerPerformanceSource::notify_proc_stat", [this](const json& j) {
             // Runs on main thread via bg_cb defer.
             if (!j.contains("params") || !j["params"].is_array() || j["params"].empty())
@@ -51,7 +51,7 @@ void MoonrakerPerformanceSource::start() {
 
     // Re-fetch proc_stats on Klippy ready (firmware restart).
     api_->register_method_callback(
-        "notify_klippy_ready", kHandlerName,
+        "notify_klippy_ready", HANDLER_NAME,
         lifetime_.bg_cb("MoonrakerPerformanceSource::notify_klippy_ready", [this](const json&) {
             // Runs on main thread via bg_cb defer.
             run_initial_handshake();
@@ -95,7 +95,7 @@ void MoonrakerPerformanceSource::start() {
     // PerformanceState::set_source(). add_connected_observer fires immediately
     // if already connected, or on the next WS open / Klippy ready transition.
     api_->get_client().add_connected_observer(
-        kHandlerName, lifetime_.bg_cb("MoonrakerPerformanceSource::on_connected", [this]() {
+        HANDLER_NAME, lifetime_.bg_cb("MoonrakerPerformanceSource::on_connected", [this]() {
             // Runs on main thread via bg_cb defer.
             run_initial_handshake();
         }));
@@ -132,9 +132,9 @@ void MoonrakerPerformanceSource::stop() {
     lifetime_.invalidate();
 
     // Unregister persistent method callbacks + the on-connected observer.
-    api_->unregister_method_callback("notify_proc_stat_update", kHandlerName);
-    api_->unregister_method_callback("notify_klippy_ready", kHandlerName);
-    api_->get_client().remove_connected_observer(kHandlerName);
+    api_->unregister_method_callback("notify_proc_stat_update", HANDLER_NAME);
+    api_->unregister_method_callback("notify_klippy_ready", HANDLER_NAME);
+    api_->get_client().remove_connected_observer(HANDLER_NAME);
 
     // Drop the notify_status_update subscription registered for MCU live updates.
     if (status_sub_id_ != 0) {

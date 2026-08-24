@@ -2,7 +2,7 @@
 
 How the sound system works internally, how to extend it with new themes/backends/sounds, and full reference for the JSON theme schema and C++ API.
 
-**User-facing doc**: [Sound Settings](../user/guide/settings.md#sound-settings) (enabling/disabling, choosing themes, troubleshooting)
+**User-facing doc**: [Sound Settings](../user/guide/settings/display-sound.md#sound) (enabling/disabling, choosing themes, troubleshooting)
 
 ---
 
@@ -77,9 +77,10 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 | Order | Backend | Condition | Target Hardware |
 |-------|---------|-----------|-----------------|
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
-| 2 | PWM | `/sys/class/pwm/pwmchip0/pwm6` exists | AD5M hardware buzzer |
-| 3 | M300 | `MoonrakerClient` pointer set via `set_moonraker_client()` | Klipper printers with `output_pin beeper` |
-| 4 | None | All above failed | Sounds silently disabled |
+| 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
+| 3 | PWM | `/sys/class/pwm/pwmchip0/pwm6` exists | AD5M hardware buzzer |
+| 4 | M300 | `MoonrakerClient` pointer set via `set_moonraker_client()` | Klipper printers with `output_pin beeper` |
+| 5 | None | All above failed | Sounds silently disabled |
 
 ### Backend Capabilities
 
@@ -235,7 +236,7 @@ The list of UI sounds is defined in `SoundManager::is_ui_sound()` in `sound_mana
 
 ### Shipped themes (developers)
 
-1. Create `assets/config/sounds/mytheme.json`
+1. Create assets/config/sounds/mytheme.json
 2. Include any subset of the 13 standard sound names (missing sounds just won't play)
 3. Set `name`, `description`, `version` fields at the top level
 4. Theme appears automatically in Settings > Sound Theme dropdown
@@ -298,7 +299,7 @@ If the sound name isn't found in the current theme, `play()` logs a debug messag
 
 ## Adding a New Backend
 
-1. Create header `include/my_backend.h` and source `src/system/my_backend.cpp`
+1. Create header include/my_backend.h and source src/system/my_backend.cpp
 2. Inherit from `SoundBackend` and implement the required interface:
 
 ```cpp

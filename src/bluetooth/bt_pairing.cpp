@@ -86,7 +86,7 @@ extern "C" int helix_bt_pair(helix_bt_context* ctx, const char* mac) {
             // Device1.Connect() lets BlueZ pick the primary profile, which
             // can end up being SPP (succeeds cleanly but HID never attaches,
             // so the kernel creates no evdev node).
-            static constexpr const char* kHidUuid = "00001124-0000-1000-8000-00805f9b34fb";
+            static constexpr const char* HID_UUID = "00001124-0000-1000-8000-00805f9b34fb";
             auto try_connect_profile = [&](sd_bus* b) {
                 // Try HID-specific ConnectProfile first. If the device
                 // doesn't advertise HID, BlueZ returns NotSupported /
@@ -95,7 +95,7 @@ extern "C" int helix_bt_pair(helix_bt_context* ctx, const char* mac) {
                 sd_bus_error hidErr = SD_BUS_ERROR_NULL;
                 fprintf(stderr, "[bt] pair: trying ConnectProfile(HID) for %s\n", mac);
                 int hr = sd_bus_call_method(b, "org.bluez", path.c_str(), "org.bluez.Device1",
-                                            "ConnectProfile", &hidErr, nullptr, "s", kHidUuid);
+                                            "ConnectProfile", &hidErr, nullptr, "s", HID_UUID);
                 if (hr >= 0) {
                     fprintf(stderr, "[bt] pair: ConnectProfile(HID) succeeded for %s\n", mac);
                     sd_bus_error_free(&hidErr);
@@ -365,7 +365,7 @@ extern "C" int helix_bt_remove_device(helix_bt_context* ctx, const char* mac) {
     // long when the device is mid-connect or has an active GATT link (BLE).
     // Disconnect first (best-effort, NotConnected = success), then RemoveDevice
     // with a tighter timeout so the UI fails fast instead of stalling.
-    constexpr uint64_t kCallTimeoutUs = 5'000'000; // 5s
+    constexpr uint64_t CALL_TIMEOUT_US = 5'000'000; // 5s
 
     auto call_with_timeout = [](sd_bus* bus, const char* path, const char* iface,
                                 const char* method, sd_bus_error* error, const char* signature,
@@ -382,7 +382,7 @@ extern "C" int helix_bt_remove_device(helix_bt_context* ctx, const char* mac) {
             }
         }
         sd_bus_message* reply = nullptr;
-        rc = sd_bus_call(bus, m, kCallTimeoutUs, error, &reply);
+        rc = sd_bus_call(bus, m, CALL_TIMEOUT_US, error, &reply);
         sd_bus_message_unref(m);
         if (reply)
             sd_bus_message_unref(reply);

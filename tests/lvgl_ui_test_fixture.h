@@ -48,6 +48,7 @@
 
 #include "lvgl/lvgl.h"
 #include "lvgl_test_fixture.h"
+#include "moonraker_api.h"
 
 #include <memory>
 

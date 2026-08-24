@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 namespace perf {
@@ -27,7 +27,7 @@ namespace perf {
  */
 class MoonrakerPerformanceSource : public IPerformanceSource {
   public:
-    explicit MoonrakerPerformanceSource(MoonrakerAPI* api);
+    explicit MoonrakerPerformanceSource(IMoonrakerAPI* api);
     ~MoonrakerPerformanceSource() override;
 
     void start() override;
@@ -53,7 +53,7 @@ class MoonrakerPerformanceSource : public IPerformanceSource {
     /// Returns a human-readable throttle string or "" if bits == 0.
     static std::string format_throttle_text(uint32_t bits, const std::vector<std::string>& flags);
 
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
     SampleCallback cb_;
     AsyncLifetimeGuard lifetime_;
     bool running_ = false;

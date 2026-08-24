@@ -44,6 +44,7 @@
 #include "../../include/ui_error_reporting.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "gcode_error_router.h"
 #include "recovery_modal_presenter.h"
 
@@ -113,7 +114,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "mock jog rejection surfaces exactly one reada
     state.set_klippy_state_sync(KlippyState::READY);
     lv_subject_set_int(state.get_print_state_enum_subject(),
                        static_cast<int>(PrintJobState::STANDBY));
-    lv_subject_set_int(state.get_idle_timeout_printing_subject(), 0);
+    helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, false);
     mock.connect("ws://mock/websocket", []() {}, []() {});
     MoonrakerAPI api(mock, state);
 

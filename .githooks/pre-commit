@@ -5,6 +5,11 @@
 # This hook runs quality checks before each commit using scripts/quality-checks.sh
 # Files with formatting issues are auto-fixed and staged.
 #
+# --staged-only skips any gate that inspects nothing you staged, so a docs-only
+# commit costs about a second instead of ~17s. The gates it skipped are not
+# dropped: .githooks/pre-push runs the whole sweep, ungated, before anything
+# leaves the machine.
+#
 # Setup (one-time):
 #   git config core.hooksPath .githooks
 #

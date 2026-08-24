@@ -78,6 +78,17 @@ class TouchCalibrationSession {
         return has_backup_;
     }
 
+    /// The calibration snapshotted at the last begin_capture() — valid=false
+    /// once committed, restored, or when no session ever began. Read-only
+    /// access for callers that need the pre-session MAPPING without touching
+    /// the device: capture markers (#1082) are drawn where a press lands under
+    /// this calibration, because raw capture space is not screen space on
+    /// over-reporting digitizers (Qidi Q2, #943). Mutating the device still
+    /// goes through the ICalibrationSink.
+    const TouchCalibration& backup() const {
+        return backup_;
+    }
+
   private:
     TouchCalibration backup_{};
     bool has_backup_ = false;

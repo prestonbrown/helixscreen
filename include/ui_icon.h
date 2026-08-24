@@ -59,6 +59,22 @@
 void ui_icon_register_widget();
 
 /**
+ * Drop the memoized icon_font_* lookups so the next icon re-reads them.
+ *
+ * Each <icon size="..."> resolves its MDI face once per size from the
+ * icon_font_* XML constant and keeps it for the life of the process. Those
+ * constants are responsive: theme_manager_register_responsive_fonts() re-points
+ * them at every breakpoint (icon_font_sm is mdi_icons_16 at micro and
+ * mdi_icons_48 at xxlarge), so a cache filled at one breakpoint hands every
+ * later icon a face sized for a screen that is no longer there (#1210).
+ *
+ * Called from theme_manager_register_responsive_fonts(); nothing else needs it.
+ * Icons that already exist keep the face they were built with — the lv_font_t
+ * objects are static .rodata and are never freed.
+ */
+void ui_icon_invalidate_font_cache();
+
+/**
  * Change the icon source at runtime.
  *
  * @param icon       Icon widget created by ui_icon_register_widget()

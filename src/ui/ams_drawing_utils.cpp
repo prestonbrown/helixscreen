@@ -72,11 +72,11 @@ SlotError::Severity worst_unit_severity(const AmsUnit& unit) {
 
 int fill_percent_from_slot(const SlotInfo& slot, int min_pct) {
     // Canonical fill semantics (SlotInfo::display_fill_pct): real ratio when
-    // both weights are known, 50% when only metadata is present, 0 for an
+    // both weights are known, 100% when only metadata is present, 0 for an
     // absent/ghost lane, and -1 when there is no data at all. -1 is propagated
-    // so callers can skip/keep-previous instead of rendering a phantom bar —
-    // this replaces the old "unknown weight -> 100 (FULL)" divergence that made
-    // every weightless slot look full (masked only by is_present gating).
+    // so callers can skip/keep-previous instead of rendering a phantom bar; it
+    // is what keeps a lane we know nothing about from being painted, which is a
+    // different case from a known lane whose weight nobody tracks.
     int pct = slot.display_fill_pct();
     if (pct < 0) {
         return -1;
@@ -464,16 +464,41 @@ SystemToolLayout compute_system_tool_layout(const AmsSystemInfo& info, const Ams
             total_physical += utl.tool_count;
         } else if (topo != PathTopology::PARALLEL) {
             // HUB/LINEAR: all lanes converge to a single physical nozzle.
-            // Multiple HUB units sharing the same hub_tool_label (e.g., all feeding
-            // into T0 on a single-toolhead printer) share one physical nozzle.
+            // Multiple HUB units feeding one extruder (e.g. a BoxTurtle and a
+            // Claymore both on e0) share one physical nozzle.
+            //
+            // Two independent ways to recognise that. Extruder NAME identity is
+            // the primary one: it is a string compare, so it works on names no
+            // numbering scheme can parse and needs nothing beyond the status
+            // frame. hub_tool_label stays as the fallback for backends that
+            // publish a label but no per-lane extruder name (the mock, and any
+            // future backend that only knows tool numbers).
+            std::string unit_extruder;
+            for (const auto& slot : unit.slots) {
+                if (slot.extruder_name.empty()) {
+                    continue;
+                }
+                if (unit_extruder.empty()) {
+                    unit_extruder = slot.extruder_name;
+                } else if (unit_extruder != slot.extruder_name) {
+                    unit_extruder.clear(); // lanes disagree -> not one nozzle, do not guess
+                    break;
+                }
+            }
+            utl.extruder_identity = unit_extruder;
+
             int shared_phys = -1;
-            if (unit.hub_tool_label >= 0) {
-                // Check if a previous unit already claimed this physical nozzle
-                for (const auto& prev : result.units) {
-                    if (prev.hub_tool_label == unit.hub_tool_label && prev.tool_count == 1) {
-                        shared_phys = prev.first_physical_tool;
-                        break;
-                    }
+            for (const auto& prev : result.units) {
+                if (prev.tool_count != 1) {
+                    continue;
+                }
+                const bool same_extruder =
+                    !unit_extruder.empty() && prev.extruder_identity == unit_extruder;
+                const bool same_label =
+                    unit.hub_tool_label >= 0 && prev.hub_tool_label == unit.hub_tool_label;
+                if (same_extruder || same_label) {
+                    shared_phys = prev.first_physical_tool;
+                    break;
                 }
             }
 
@@ -723,7 +748,7 @@ SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
     }
     sv.spool_size = spool_size;
 
-    int32_t container_size = spool_size + 8; // Extra room for badge
+    int32_t container_size = spool_size + SPOOL_VISUAL_BADGE_MARGIN_PX; // Extra room for badge
     lv_obj_set_size(container, container_size, container_size);
 
     if (sv.use_3d) {

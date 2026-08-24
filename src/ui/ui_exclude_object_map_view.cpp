@@ -5,10 +5,12 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -715,11 +717,10 @@ void ExcludeObjectMapView::build_key_bar() {
         // Summary label
         const auto& excluded = state_->get_excluded_objects();
         int excluded_count = static_cast<int>(excluded.size());
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Tap an object to exclude it | %d objects (%d excluded)", count,
-                 excluded_count);
+        const std::string summary = fmt::format(
+            lv_tr("Tap an object to exclude it | {} objects ({} excluded)"), count, excluded_count);
         lv_obj_t* label = lv_label_create(key_bar_);
-        lv_label_set_text(label, buf);
+        lv_label_set_text(label, summary.c_str());
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
         lv_obj_set_style_text_color(label, theme_manager_get_color("text_muted"), 0);
         lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);

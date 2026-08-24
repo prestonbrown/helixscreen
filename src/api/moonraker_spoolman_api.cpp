@@ -133,7 +133,7 @@ static FilamentInfo parse_filament_info(const nlohmann::json& filament_json) {
 // MoonrakerSpoolmanAPI Implementation
 // ============================================================================
 
-MoonrakerSpoolmanAPI::MoonrakerSpoolmanAPI(MoonrakerClient& client) : client_(client) {}
+MoonrakerSpoolmanAPI::MoonrakerSpoolmanAPI(IMoonrakerClient& client) : client_(client) {}
 
 void MoonrakerSpoolmanAPI::get_spoolman_status(std::function<void(bool, int)> on_success,
                                                ErrorCallback on_error, bool silent) {

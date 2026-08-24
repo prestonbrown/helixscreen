@@ -355,7 +355,7 @@ three-function pass.
 
 ## Topology Renderers
 
-The supported topologies are `PathTopology` (`include/ams_types.h:396`):
+The supported topologies are `PathTopology` (`include/ams_types.h:493`):
 
 ```cpp
 enum class PathTopology {
@@ -367,7 +367,7 @@ enum class PathTopology {
 ```
 
 Filament position along a path is tracked by `PathSegment`
-(`include/ams_types.h:440`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
+(`include/ams_types.h:571`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
 NOZZLE`.
 
 | Topology | Renderer | Shape |
@@ -536,4 +536,4 @@ run without a display and assert exact arc tangents and lane separation.
 - `docs/devel/FILAMENT_MANAGEMENT.md` — AMS/AFC/Happy Hare/ACE/IFS/CFS backends that feed this widget
 - `docs/devel/BED_MESH_RENDERING_INTERNALS.md` — sibling software-renderer doc
 - `docs/devel/LVGL9_XML_GUIDE.md` — XML widget registration and subject bindings
-- `.claude/scratchpad/filament_path_canvas_architecture.md` — original design brainstorm (predates the shipped naming and the dropped feature-flag plan)
+- The original design brainstorm lived in a local `.claude/scratchpad/` note (not tracked, predates the shipped naming and the dropped feature-flag plan)

@@ -66,7 +66,7 @@ setup() {
 #
 # Excluded paths are legitimately historical or out-of-scope:
 #   CHANGELOG.md          - records the old name as part of release history
-#   docs/superpowers/     - archived planning docs
+#   docs/superpowers/     - local working space, never committed
 #   src/generated/        - generated code (regenerated from templates)
 #   lib/                  - vendored submodules (LVGL, libhv, etc.)
 #   */translations/       - translation catalogs (mirror upstream wording)
@@ -131,6 +131,45 @@ setup() {
     local pat100='(target|temp|deci|nozzle|chamber|heater)[A-Za-z_]*(\s*\))?\s*[*/]\s*100(\.0?f?)?([^0-9.]|$)'
     run bash -c "sed -E 's@//.*@@' $files | grep -nE '$pat|$pat100'"
     [ "$status" -ne 0 ]  # non-zero == no inline decidegree conversion found
+}
+
+# --- Concrete Moonraker types must not leak outside the network layer (Plan 3) ---
+# Every consumer of the Moonraker network layer now depends on the interfaces
+# (helix::IMoonrakerClient, IMoonrakerAPI, and the ten IXxxAPI sub-API
+# interfaces in include/i_moonraker_sub_apis.h), not the concrete classes. The
+# concretes live behind MoonrakerManager, which owns them via
+# std::unique_ptr<MoonrakerAPI> (the concrete facade; the mock inherits it) /
+# std::unique_ptr<helix::IMoonrakerClient> and
+# constructs them in create_client()/create_api(). Naming a concrete type
+# outside the allowlist below reintroduces a hard dependency the interface
+# split was meant to remove (mock-parity, and — for the ESP32 port — a
+# non-libhv client swapped in behind the same interface).
+#
+# The allowlist covers the network-layer implementation files themselves
+# (moonraker_client, moonraker_manager, moonraker_api + its split translation
+# units, the ten sub-API pairs, moonraker_request_tracker,
+# moonraker_discovery_sequence) and *_mock.{h,cpp} (mocks legitimately inherit
+# the concretes). It intentionally has no bare "test_" entry: this lint only
+# scans src/ and include/, so a substring that broad would silently exempt any
+# non-test path containing "test_" (e.g. a hypothetical src/foo/test_helpers.cpp)
+# — narrower and cheaper to just not have it.
+#
+# Compile-time-only exceptions NOT covered by this lint (by design, not by
+# gap): a few consumers reference concrete-class static constexpr timeouts
+# (MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS, ::LEVELING_TIMEOUT_MS,
+# MoonrakerJobAPI::CANCEL_TIMEOUT_MS) and the MoonrakerAdvancedAPI::MPCResult
+# qualified-name alias. These aren't runtime polymorphism — MPCResult is
+# actually defined on IAdvancedAPI with the concrete class providing a `using`
+# alias purely so old qualified references keep resolving (see
+# include/i_moonraker_sub_apis.h and include/moonraker_advanced_api.h). The
+# ten sub-API concrete class names are deliberately left out of the grep
+# pattern below rather than allowlisting each of those consumer files, which
+# would blur the "outside the network layer" invariant this test communicates.
+
+@test "no concrete Moonraker types outside the network layer (Plan 3: interfaces are the consumer contract)" {
+    local allowlist='moonraker_client|moonraker_manager|moonraker_api|moonraker_rest_api|moonraker_file_api|moonraker_file_transfer_api|moonraker_advanced_api|moonraker_history_api|moonraker_job_api|moonraker_motion_api|moonraker_queue_api|moonraker_spoolman_api|moonraker_timelapse_api|moonraker_request_tracker|moonraker_discovery_sequence|_mock'
+    run bash -c "grep -rlE 'helix::MoonrakerClient|\bMoonrakerAPI\b' src/ include/ | grep -v -E \"$allowlist\""
+    [ "$status" -ne 0 ]  # non-zero == no concrete-type reference found outside the allowlist
 }
 
 # --- switch_printer must invalidate every per-printer cache ---
@@ -239,6 +278,195 @@ check_switch_printer_clears_caches() {
     [[ "$output" == *"tear_down_printer_state"* ]]
 }
 
+# --- No RTTI code shapes (the firmware builds -fno-rtti) ---
+# The ESP32 firmware compiles with -fno-rtti (~296KB reclaimed), so dynamic_cast,
+# typeid, std::type_index and std::function::target_type() do not compile there at
+# all. This gate is for the DESKTOP side: firmware-compiled RTTI is already a hard
+# compile error, but a desktop-only file can reintroduce a shape that silently
+# blocks the next file getting pulled into the firmware slice.
+#
+# Scope is the shared/portable code — src/, include/, firmware/ and the helix-xml
+# submodule. tests/ is deliberately NOT scanned: test code is desktop-only and
+# never enters a firmware build.
+#
+# Two precision decisions, both forced by real code in the tree:
+#
+#   1. Comments are stripped before matching. The tree's only occurrences of these
+#      tokens today are prose EXPLAINING the RTTI-free replacements
+#      (include/ams_backend.h, include/ui_context_menu.h, include/helix_type_tag.h,
+#      src/application/application.cpp) — three of the four inside /** */ doc
+#      blocks, so a `//`-only strip is not enough. rtti_offenders() therefore runs
+#      a small block-comment state machine.
+#
+#   2. The std::any `.type()` shape gets its OWN test, scoped to files that include
+#      <any>. `.type()` is far too common a method name to match tree-wide —
+#      LayoutManager::type() and lv_layout's lm.type() are ordinary enum getters
+#      and would false-positive. Scoping by `#include <any>` is computed fresh on
+#      every run, so a new file that starts using std::any is covered automatically.
+#
+# Escape hatch: `// RTTI_OK: <reason>` on the same line. The allowlist is empty.
+
+# The forbidden shapes, as one ERE alternation. `\s` is avoided deliberately:
+# it is a GNU extension that mawk (the default awk on Debian) does not support.
+rtti_forbidden_pattern() {
+    printf '%s' 'dynamic_cast[[:space:]]*<|typeid[[:space:]]*\(|std::type_index|\.target_type[[:space:]]*\('
+}
+
+# std::any's RTTI-dependent accessor: `a.type() == …`, `!=`, or `.type().name()`.
+# Pointer-form std::any_cast is the sanctioned idiom — it returns null on a type
+# mismatch and needs no RTTI.
+rtti_any_pattern() {
+    printf '%s' '\.type[[:space:]]*\([[:space:]]*\)[[:space:]]*(==|!=|\.name)'
+}
+
+# C++ sources in the RTTI lint scope. git ls-files rather than find: it keeps
+# firmware/*/build/ and the vendored managed_components/ out with no exclusion
+# list to maintain (both are gitignored). --others --exclude-standard adds files
+# that are new but not yet staged, so the gate fires on a fresh source file
+# before it is committed rather than only after. helix-xml needs its own
+# ls-files — it is a submodule, and in a worktree it is a symlink, so neither the
+# parent's index nor `find` reaches it the same way.
+rtti_lint_files() {
+    git ls-files --cached --others --exclude-standard src include firmware |
+        grep -E '\.(cpp|h)$'
+    git -C lib/helix-xml ls-files --cached --others --exclude-standard |
+        grep -E '\.(cpp|h)$' | sed 's@^@lib/helix-xml/@'
+}
+
+# Print `file:line: text` for each line of $2.. matching the ERE in $1, ignoring
+# comments and `RTTI_OK` opt-outs. The pattern travels through the environment,
+# not `awk -v`: -v runs escape processing over the value, which turns `\.` into a
+# match-anything `.` and emits a warning for every escape.
+rtti_offenders() {
+    local pat="$1"
+    shift
+    RTTI_PAT="$pat" awk '
+        BEGIN { pat = ENVIRON["RTTI_PAT"] }
+        FNR == 1 { in_block = 0 }
+        /RTTI_OK/ { next }
+        {
+            line = $0
+            if (in_block) {
+                i = index(line, "*/")
+                if (i == 0) next
+                line = substr(line, i + 2)
+                in_block = 0
+            }
+            while ((s = index(line, "/*")) > 0) {
+                rest = substr(line, s + 2)
+                e = index(rest, "*/")
+                if (e == 0) { line = substr(line, 1, s - 1); in_block = 1; break }
+                line = substr(line, 1, s - 1) substr(rest, e + 2)
+            }
+            sub(/\/\/.*/, "", line)
+            if (line ~ pat) print FILENAME ":" FNR ": " $0
+        }
+    ' "$@"
+}
+
+rtti_advice() {
+    cat <<'EOF'
+
+RTTI is disabled in firmware builds (-fno-rtti), where these do not compile at all.
+Use instead:
+  - type keys / map lookups   -> helix::type_tag<T>()          (include/helix_type_tag.h)
+  - downcast to a subclass    -> a virtual kind query          (HELIX_CONTEXT_MENU_KIND,
+                                                                include/ui_context_menu.h)
+  - inspecting a std::any     -> pointer-form std::any_cast<T>(&a), null on mismatch
+Genuinely unavoidable and desktop-only? Annotate the line: // RTTI_OK: <reason>
+EOF
+}
+
+check_no_rtti_shapes() {
+    local offenders
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    offenders=$(rtti_offenders "$(rtti_forbidden_pattern)" $(rtti_lint_files))
+    [ -z "$offenders" ] && return 0
+    echo "Forbidden RTTI shapes found:"
+    printf '%s\n' "$offenders"
+    rtti_advice
+    return 1
+}
+
+check_no_any_type_rtti() {
+    local any_files offenders
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    any_files=$(grep -l '#include <any>' $(rtti_lint_files) 2>/dev/null)
+    [ -z "$any_files" ] && return 0
+    # shellcheck disable=SC2086
+    offenders=$(rtti_offenders "$(rtti_any_pattern)" $any_files)
+    [ -z "$offenders" ] && return 0
+    echo "std::any::type() is RTTI-dependent; use pointer-form std::any_cast:"
+    printf '%s\n' "$offenders"
+    rtti_advice
+    return 1
+}
+
+@test "no RTTI code shapes (dynamic_cast / typeid / std::type_index / target_type)" {
+    run check_no_rtti_shapes
+    [ "$status" -eq 0 ]
+}
+
+@test "no std::any::type() RTTI inspection (use pointer-form any_cast)" {
+    run check_no_any_type_rtti
+    [ "$status" -eq 0 ]
+}
+
+@test "the RTTI gate catches each forbidden shape" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local f="${BATS_TEST_TMPDIR}/offender.cpp"
+    cat > "$f" <<'EOF'
+void a(Base* b) { auto* d = dynamic_cast<Derived*>(b); }
+void b(const E& e) { log(typeid(e).name()); }
+std::map<std::type_index, int> registry;
+void c(const std::function<void()>& f) { f.target_type(); }
+EOF
+    run rtti_offenders "$(rtti_forbidden_pattern)" "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 4 ]
+    [[ "$output" == *"dynamic_cast"* ]]
+    [[ "$output" == *"typeid"* ]]
+    [[ "$output" == *"type_index"* ]]
+    [[ "$output" == *"target_type"* ]]
+}
+
+@test "the RTTI gate stays quiet on prose and RTTI_OK opt-outs" {
+    # The silent half matters as much as the loud half: every occurrence in the
+    # tree today is a comment describing the RTTI-free replacement, and a gate
+    # that fires on those gets switched off.
+    local f="${BATS_TEST_TMPDIR}/quiet.cpp"
+    cat > "$f" <<'EOF'
+// Replaces typeid(e).name(), which needs RTTI - the firmware builds -fno-rtti.
+/// Replacement for std::type_index map keys under -fno-rtti.
+/**
+ * stand-in for the `dynamic_cast<AmsBackendMock*>` it used to do - the
+ * RTTI-free stand-in for `typeid(*this)`.
+ */
+void ok() { auto* p = plain_static_cast<T>(q); }
+void hatch() { auto* d = dynamic_cast<Derived*>(b); } // RTTI_OK: desktop tool, never in the firmware slice
+EOF
+    run rtti_offenders "$(rtti_forbidden_pattern)" "$f"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the std::any gate catches type() comparisons but not ordinary type() getters" {
+    local f="${BATS_TEST_TMPDIR}/any_shapes.cpp"
+    cat > "$f" <<'EOF'
+if (value.type() == typeid(bool)) {}
+if (value.type() != typeid(float)) {}
+log(value.type().name());
+const bool portrait = is_portrait_layout(LayoutManager::instance().type());
+switch (lm.type()) { default: break; }
+if (const bool* held = std::any_cast<bool>(&value)) {}
+EOF
+    run rtti_offenders "$(rtti_any_pattern)" "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 3 ]
+    [[ "$output" != *"LayoutManager"* ]]
+    [[ "$output" != *"any_cast"* ]]
+}
+
 @test "filaments.json android mirror matches when present" {
   # The Android mirror is gitignored (generated by `make regen-filaments`, not
   # tracked), so it may be absent on a fresh checkout / CI clone. Only assert
@@ -247,4 +475,28 @@ check_switch_printer_clears_caches() {
     skip "android mirror not generated (gitignored)"
   fi
   diff assets/filaments.json android/app/src/main/assets/assets/filaments.json
+}
+
+# --- Every extractable UI string is already in the translation catalogs ---
+#
+# `translation_sync.py sync` extracts from XML *and* C++, including the static
+# tables that the UI translates through a variable (lv_tr(def.display_name) and
+# friends -- see scripts/translations/cpp_tables.py). If a dry run would still
+# add keys, someone shipped a user-facing string that no locale can translate.
+# That is silent at runtime: lv_translation_get() falls back to the tag, so the
+# string renders in English in all nine languages and only a debug-level log
+# line says so. One bundle carried 1445 of those lines, 294 KB of ring buffer.
+#
+# Fix by running `make translation-sync && make translations`, then translating
+# the new keys (consult translations/GLOSSARY.md and reuse the canonical term).
+# A string that genuinely should not be translated gets `// i18n: do not
+# translate` on its line or the line above.
+
+@test "no user-facing strings are missing from the translation catalogs" {
+  if [ ! -x .venv/bin/python ]; then
+    skip "translations venv not set up (run 'make venv-setup')"
+  fi
+  run .venv/bin/python scripts/translation_sync.py sync --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"All XML strings already in YAML files"* ]]
 }

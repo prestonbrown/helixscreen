@@ -11,6 +11,22 @@
 
 namespace helix {
 
+/// Marks the root object of a home panel widget tile, set once at the single
+/// creation site in PanelWidgetManager::populate_widgets(). A tile is sized by
+/// the home grid and scrolled by dragging it, so page-level affordances do not
+/// belong anywhere inside one: PageScrollAutoInject cuts its tree walk here
+/// rather than descending into a tile's scrollable innards.
+///
+/// LVGL gives us four user flag bits and this repo has now claimed three of
+/// them. Check this ledger before taking another:
+///   USER_1  ui_dialog.cpp        "inside a dialog" elevated-surface marker
+///   USER_2  free
+///   USER_3  here                 home panel widget tile
+///   USER_4  ui_sound_preview_*   suppress the button tap sound
+/// USER_3 deliberately over USER_2: helix-xml's flag_to_enum() maps user_1 and
+/// user_2 for <bind_flag_if_*>, so USER_3 is the one XML cannot reach.
+constexpr lv_obj_flag_t PANEL_WIDGET_TILE_FLAG = LV_OBJ_FLAG_USER_3;
+
 /// Base class for home widgets that need C++ behavioral wiring.
 /// Widgets that are pure XML binding (filament, probe, humidity, etc.) don't need this.
 class PanelWidget {

@@ -16,7 +16,6 @@
 /// shape change.
 
 #include "hardware_fingerprint.h"
-
 #include "printer_discovery.h"
 
 #include "../catch_amalgamated.hpp"
@@ -31,13 +30,10 @@ PrinterDiscovery make_baseline_discovery() {
     PrinterDiscovery hw;
     // Heaters: extruder + bed + chamber
     nlohmann::json objects = nlohmann::json::array(
-        {"extruder", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "bed_mesh", "probe", "quad_gantry_level"});
+        {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+         "controller_fan controller_fan", "temperature_sensor chamber_sensor", "neopixel case_led",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE", "bed_mesh", "probe",
+         "quad_gantry_level"});
     hw.parse_objects(objects);
     hw.set_hostname("voron-350");
     hw.set_mcu("stm32f446");
@@ -61,13 +57,10 @@ TEST_CASE("Hardware fingerprint is order-independent", "[hardware_fingerprint]")
 
     PrinterDiscovery b;
     nlohmann::json shuffled = nlohmann::json::array(
-        {"quad_gantry_level", "probe", "bed_mesh",
-         "gcode_macro CLEAN_NOZZLE",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "neopixel case_led",
-         "temperature_sensor chamber_sensor",
-         "controller_fan controller_fan", "heater_fan hotend_fan", "fan",
-         "heater_generic chamber", "heater_bed", "extruder"});
+        {"quad_gantry_level", "probe", "bed_mesh", "gcode_macro CLEAN_NOZZLE",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "neopixel case_led",
+         "temperature_sensor chamber_sensor", "controller_fan controller_fan",
+         "heater_fan hotend_fan", "fan", "heater_generic chamber", "heater_bed", "extruder"});
     b.parse_objects(shuffled);
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
@@ -80,14 +73,12 @@ TEST_CASE("Hardware fingerprint detects added heater", "[hardware_fingerprint]")
     auto a = make_baseline_discovery();
 
     PrinterDiscovery b;
-    b.parse_objects(nlohmann::json::array(
-        {"extruder", "extruder1", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "bed_mesh", "probe", "quad_gantry_level"}));
+    b.parse_objects(
+        nlohmann::json::array({"extruder", "extruder1", "heater_bed", "heater_generic chamber",
+                               "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
+                               "temperature_sensor chamber_sensor", "neopixel case_led",
+                               "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE",
+                               "bed_mesh", "probe", "quad_gantry_level"}));
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
     b.set_kinematics("corexy");
@@ -100,14 +91,11 @@ TEST_CASE("Hardware fingerprint detects added fan", "[hardware_fingerprint]") {
 
     PrinterDiscovery b;
     b.parse_objects(nlohmann::json::array(
-        {"extruder", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "fan_generic aux_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "bed_mesh", "probe", "quad_gantry_level"}));
+        {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+         "controller_fan controller_fan", "fan_generic aux_fan",
+         "temperature_sensor chamber_sensor", "neopixel case_led",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE", "bed_mesh", "probe",
+         "quad_gantry_level"}));
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
     b.set_kinematics("corexy");
@@ -120,14 +108,10 @@ TEST_CASE("Hardware fingerprint detects added macro", "[hardware_fingerprint]") 
 
     PrinterDiscovery b;
     b.parse_objects(nlohmann::json::array(
-        {"extruder", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "gcode_macro PURGE_LINE",
-         "bed_mesh", "probe", "quad_gantry_level"}));
+        {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+         "controller_fan controller_fan", "temperature_sensor chamber_sensor", "neopixel case_led",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE",
+         "gcode_macro PURGE_LINE", "bed_mesh", "probe", "quad_gantry_level"}));
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
     b.set_kinematics("corexy");
@@ -142,13 +126,10 @@ TEST_CASE("Hardware fingerprint detects capability change", "[hardware_fingerpri
 
     PrinterDiscovery b;
     b.parse_objects(nlohmann::json::array(
-        {"extruder", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "bed_mesh", "probe", "z_tilt"}));
+        {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+         "controller_fan controller_fan", "temperature_sensor chamber_sensor", "neopixel case_led",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE", "bed_mesh", "probe",
+         "z_tilt"}));
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
     b.set_kinematics("corexy");
@@ -223,15 +204,10 @@ TEST_CASE("Hardware fingerprint detects MMU attach", "[hardware_fingerprint]") {
 
     PrinterDiscovery b;
     b.parse_objects(nlohmann::json::array(
-        {"extruder", "heater_bed", "heater_generic chamber",
-         "fan", "heater_fan hotend_fan", "controller_fan controller_fan",
-         "temperature_sensor chamber_sensor",
-         "neopixel case_led",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-         "gcode_macro CLEAN_NOZZLE",
-         "bed_mesh", "probe", "quad_gantry_level",
-         "AFC", "AFC_stepper lane0", "AFC_stepper lane1",
-         "AFC_hub AFC_hub"}));
+        {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+         "controller_fan controller_fan", "temperature_sensor chamber_sensor", "neopixel case_led",
+         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro CLEAN_NOZZLE", "bed_mesh", "probe",
+         "quad_gantry_level", "AFC", "AFC_stepper lane0", "AFC_stepper lane1", "AFC_hub AFC_hub"}));
     b.set_hostname("voron-350");
     b.set_mcu("stm32f446");
     b.set_kinematics("corexy");

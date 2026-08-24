@@ -4,6 +4,9 @@
 <!-- NOTE: Backdrop is created programmatically by the Modal class in C++. -->
 <!-- Buttons are wired programmatically in PreflightCheckModal::on_show() via -->
 <!-- wire_ok_button / wire_cancel_button / wire_tertiary_button. -->
+<!-- Enriched pre-flight filament check modal. Shown before a print starts when
+     the cached PreflightResult reports a blocking condition (a required tool
+     maps to an empty slot). Per-tool rows are populated dynamically in C++. -->
 <component>
   <view name="preflight_check_modal"
         extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"

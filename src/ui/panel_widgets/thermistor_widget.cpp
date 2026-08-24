@@ -35,10 +35,6 @@ void register_thermistor_widget() {
     // Register XML event callbacks at startup (before any XML is parsed)
     lv_xml_register_event_cb(nullptr, "thermistor_clicked_cb",
                              ThermistorWidget::thermistor_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "thermistor_picker_backdrop_cb",
-                             ThermistorWidget::thermistor_picker_backdrop_cb);
-    lv_xml_register_event_cb(nullptr, "thermistor_picker_done_cb",
-                             ThermistorWidget::thermistor_picker_done_cb);
 }
 } // namespace helix
 
@@ -58,7 +54,7 @@ static void strip_temperature_suffix(std::string& name) {
 namespace {
 
 // Thermistor-related icons for the picker grid
-static const char* const kThermistorIcons[] = {
+static const char* const THERMISTOR_ICONS[] = {
     // clang-format off
     "thermometer", "thermometer_lines", "thermometer_plus", "thermometer_minus",
     "thermometer_probe", "thermometer_off",
@@ -66,9 +62,9 @@ static const char* const kThermistorIcons[] = {
     "heat_wave", "heater", "radiator", "cooldown",
     // clang-format on
 };
-static constexpr size_t kThermistorIconCount = std::size(kThermistorIcons);
-static constexpr int kIconCellSize = 36;
-static constexpr const char* kDefaultIcon = "thermometer";
+static constexpr size_t THERMISTOR_ICON_COUNT = std::size(THERMISTOR_ICONS);
+static constexpr int ICON_CELL_SIZE = 36;
+static constexpr const char* DEFAULT_ICON = "thermometer";
 
 // Icons with distinct on/off glyphs. Config stores the ON variant;
 // resolve_icon_for_state() derives the OFF variant from this table.
@@ -76,14 +72,14 @@ struct IconPair {
     const char* on_icon;
     const char* off_icon;
 };
-static const IconPair kIconPairs[] = {
+static const IconPair ICON_PAIRS[] = {
     {"thermometer", "thermometer_off"},
 };
 
 /// Map an off-variant icon name to its on-variant (e.g., "thermometer_off" -> "thermometer").
 /// Returns the input unchanged if it's not an off-variant.
 static const char* to_on_variant(const char* icon) {
-    for (const auto& pair : kIconPairs) {
+    for (const auto& pair : ICON_PAIRS) {
         if (std::strcmp(icon, pair.off_icon) == 0)
             return pair.on_icon;
     }
@@ -107,20 +103,6 @@ void apply_icon_cell_highlight(lv_obj_t* cell, bool selected) {
 int resolve_space_token(const char* name, int fallback) {
     const char* s = lv_xml_get_const(nullptr, name);
     return s ? std::atoi(s) : fallback;
-}
-
-/// Free heap-allocated klipper_name strings stored as user_data on picker rows.
-void cleanup_picker_row_strings(lv_obj_t* backdrop) {
-    lv_obj_t* sensor_list = lv_obj_find_by_name(backdrop, "sensor_list");
-    if (!sensor_list)
-        return;
-    uint32_t count = lv_obj_get_child_count(sensor_list);
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_t* row = lv_obj_get_child(sensor_list, i);
-        auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(row));
-        delete name_ptr;
-        lv_obj_set_user_data(row, nullptr);
-    }
 }
 
 /// Create a sensor row in a picker list. Returns the row object.
@@ -179,42 +161,6 @@ lv_obj_t* create_sensor_row(lv_obj_t* list, const std::string& display_name,
     return row;
 }
 
-/// Position a context_menu card near a widget, clamped to screen.
-void position_picker_card(lv_obj_t* backdrop, lv_obj_t* widget_obj, lv_obj_t* parent_screen,
-                          int card_w) {
-    lv_obj_t* card = lv_obj_find_by_name(backdrop, "context_menu");
-    if (!card || !widget_obj)
-        return;
-
-    int space_xs = resolve_space_token("space_xs", 4);
-    int space_md = resolve_space_token("space_md", 10);
-    int screen_w = lv_obj_get_width(parent_screen);
-    int screen_h = lv_obj_get_height(parent_screen);
-
-    lv_obj_set_width(card, card_w);
-    lv_obj_set_style_max_height(card, screen_h * 80 / 100, 0);
-    lv_obj_update_layout(card);
-    int card_h = lv_obj_get_height(card);
-
-    lv_area_t widget_area;
-    lv_obj_get_coords(widget_obj, &widget_area);
-
-    int card_x = (widget_area.x1 + widget_area.x2) / 2 - card_w / 2;
-    int card_y = widget_area.y2 + space_xs;
-
-    if (card_x < space_md)
-        card_x = space_md;
-    if (card_x + card_w > screen_w - space_md)
-        card_x = screen_w - card_w - space_md;
-    if (card_y + card_h > screen_h - space_md) {
-        card_y = widget_area.y1 - card_h - space_xs;
-        if (card_y < space_md)
-            card_y = space_md;
-    }
-
-    lv_obj_set_pos(card, card_x, card_y);
-}
-
 } // anonymous namespace
 
 ThermistorWidget::ThermistorWidget(const std::string& instance_id) : instance_id_(instance_id) {
@@ -249,7 +195,7 @@ void ThermistorWidget::attach_single() {
     // Apply custom icon
     lv_obj_t* icon_obj = lv_obj_find_by_name(widget_obj_, "thermistor_icon");
     if (icon_obj) {
-        const char* icon = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         ui_icon_set_source(icon_obj, icon);
     }
 
@@ -390,7 +336,7 @@ void ThermistorWidget::bind_carousel_sensors() {
         lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
 
         // Thermometer icon (use custom icon if configured)
-        const char* icon_src = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* icon_src = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         const char* icon_attrs[] = {"src", icon_src, "size", "sm", "variant", "secondary", nullptr};
         lv_xml_create(page, "icon", icon_attrs);
 
@@ -476,7 +422,8 @@ void ThermistorWidget::bind_carousel_sensors() {
 
 void ThermistorWidget::detach() {
     lifetime_.invalidate();
-    dismiss_sensor_picker();
+    sensor_picker_.hide();
+    configure_picker_.hide();
     {
         auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze();
         helix::ui::UpdateQueue::instance().drain();
@@ -563,34 +510,19 @@ void ThermistorWidget::select_sensor(const std::string& klipper_name) {
 void ThermistorWidget::select_icon(const std::string& name) {
     // Store the ON variant so display can derive the OFF icon from the pair table
     std::string canonical(to_on_variant(name.c_str()));
-    icon_name_ = (canonical == kDefaultIcon) ? "" : canonical;
+    icon_name_ = (canonical == DEFAULT_ICON) ? "" : canonical;
     save_config();
 
     // Update the widget icon immediately (single mode)
     lv_obj_t* icon_obj =
         widget_obj_ ? lv_obj_find_by_name(widget_obj_, "thermistor_icon") : nullptr;
     if (icon_obj) {
-        const char* effective = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* effective = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         ui_icon_set_source(icon_obj, effective);
     }
 
-    // Update icon grid highlights if picker is still open
-    if (picker_backdrop_) {
-        lv_obj_t* icon_grid = lv_obj_find_by_name(picker_backdrop_, "thermistor_icon_grid");
-        if (icon_grid) {
-            std::string effective_icon =
-                icon_name_.empty() ? std::string(kDefaultIcon) : icon_name_;
-            uint32_t grid_count = lv_obj_get_child_count(icon_grid);
-            for (uint32_t i = 0; i < grid_count; ++i) {
-                lv_obj_t* cell = lv_obj_get_child(icon_grid, i);
-                auto idx =
-                    static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(cell)));
-                if (idx < kThermistorIconCount) {
-                    apply_icon_cell_highlight(cell, kThermistorIcons[idx] == effective_icon);
-                }
-            }
-        }
-    }
+    // Move the selection ring if the grid that raised this is still on screen
+    configure_picker_.refresh_icon_highlights();
 
     spdlog::info("[ThermistorWidget] {} selected icon: {}", instance_id_,
                  icon_name_.empty() ? "thermometer (default)" : icon_name_);
@@ -665,7 +597,7 @@ void ThermistorWidget::set_config(const nlohmann::json& config) {
         }
         spdlog::debug("[ThermistorWidget] Config: {} sensors, mode={} icon={}", sensors_.size(),
                       is_carousel_mode() ? "carousel" : "single",
-                      icon_name_.empty() ? kDefaultIcon : icon_name_);
+                      icon_name_.empty() ? DEFAULT_ICON : icon_name_);
     }
 }
 
@@ -706,164 +638,131 @@ void ThermistorWidget::save_config() {
     save_widget_config(config);
     spdlog::debug("[ThermistorWidget] Saved config: {} sensors, mode={} icon={}", sensors_.size(),
                   is_carousel_mode() ? "carousel" : "single",
-                  icon_name_.empty() ? kDefaultIcon : icon_name_);
+                  icon_name_.empty() ? DEFAULT_ICON : icon_name_);
 }
 
 void ThermistorWidget::show_sensor_picker() {
-    if (picker_backdrop_ || !parent_screen_) {
+    if (sensor_picker_.is_visible() || !parent_screen_ || !widget_obj_) {
+        return;
+    }
+
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    if (tsm.get_sensors_sorted().empty()) {
+        spdlog::warn("[ThermistorWidget] No sensors available for picker");
+        return;
+    }
+
+    // The card hangs under the widget tile, centred on it, flipping above when the
+    // tile sits low on the screen.
+    sensor_picker_.show_below_widget(parent_screen_, widget_obj_,
+                                     helix::ui::ContextMenu::AnchorAlign::Center);
+}
+
+void ThermistorWidget::SensorPicker::on_created(lv_obj_t* backdrop) {
+    lv_obj_t* sensor_list = lv_obj_find_by_name(backdrop, "sensor_list");
+    if (!sensor_list) {
+        spdlog::error("[ThermistorWidget] sensor_list not found in picker XML");
         return;
     }
 
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     auto sensors = tsm.get_sensors_sorted();
-    if (sensors.empty()) {
-        spdlog::warn("[ThermistorWidget] No sensors available for picker");
-        return;
-    }
-
-    // Create picker from existing single-select XML
-    picker_backdrop_ =
-        static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "thermistor_sensor_picker", nullptr));
-    if (!picker_backdrop_) {
-        spdlog::error("[ThermistorWidget] Failed to create sensor picker from XML");
-        return;
-    }
-
-    lv_obj_t* sensor_list = lv_obj_find_by_name(picker_backdrop_, "sensor_list");
-    if (!sensor_list) {
-        spdlog::error("[ThermistorWidget] sensor_list not found in picker XML");
-        helix::ui::safe_delete(picker_backdrop_);
-        picker_backdrop_ = nullptr;
-        return;
-    }
 
     int space_xs = resolve_space_token("space_xs", 4);
     int space_sm = resolve_space_token("space_sm", 6);
-    int screen_h = lv_obj_get_height(parent_screen_);
-    lv_obj_set_style_max_height(sensor_list, screen_h * 35 / 100, 0);
+
+    // Cap the list at a share of the screen so a printer with a dozen sensors
+    // scrolls the list instead of growing the card past the panel.
+    lv_obj_set_style_max_height(sensor_list, screen_height_pct(35), 0);
 
     for (const auto& sensor : sensors) {
-        bool is_selected = (sensor.klipper_name == selected_sensor_);
+        bool is_selected = (sensor.klipper_name == owner_.selected_sensor_);
         lv_obj_t* row = create_sensor_row(sensor_list, sensor.display_name, sensor.klipper_name,
                                           is_selected, false, space_sm, space_xs);
 
-        // Store klipper_name for click handler
-        auto* klipper_name_copy = new std::string(sensor.klipper_name);
-        lv_obj_set_user_data(row, klipper_name_copy);
+        lv_obj_set_user_data(row, new RowPayload{this, sensor.klipper_name});
 
         lv_obj_add_event_cb(
             row,
             [](lv_event_t* e) {
                 LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] sensor_row_cb");
-                auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(target));
-                if (!name_ptr)
+                auto* target = lv_event_get_current_target_obj(e);
+                auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
+                if (!payload)
                     return;
 
-                if (ThermistorWidget::s_active_picker_) {
-                    std::string sensor_name = *name_ptr;
-                    ThermistorWidget::s_active_picker_->select_sensor(sensor_name);
-                    ThermistorWidget::s_active_picker_->dismiss_sensor_picker();
-                }
+                // Copy the name: hide() takes the row - and this payload - with it.
+                std::string sensor_name = payload->klipper_name;
+                SensorPicker* picker = payload->picker;
+                picker->hide();
+                picker->owner_.select_sensor(sensor_name);
                 LVGL_SAFE_EVENT_CB_END();
             },
             LV_EVENT_CLICKED, nullptr);
+
+        lv_obj_add_event_cb(
+            row,
+            [](lv_event_t* e) {
+                LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] sensor_row_delete_cb");
+                auto* target = lv_event_get_current_target_obj(e);
+                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
+                lv_obj_set_user_data(target, nullptr);
+                LVGL_SAFE_EVENT_CB_END();
+            },
+            LV_EVENT_DELETE, nullptr);
     }
 
-    s_active_picker_ = this;
-
-    // Self-clearing delete callback with heap string cleanup
-    lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<ThermistorWidget*>(lv_event_get_user_data(e));
-            if (self) {
-                lv_obj_t* backdrop = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                cleanup_picker_row_strings(backdrop);
-                self->picker_backdrop_ = nullptr;
-                if (s_active_picker_ == self) {
-                    s_active_picker_ = nullptr;
-                }
-            }
-        },
-        LV_EVENT_DELETE, this);
-
-    // Position card
-    int screen_w = lv_obj_get_width(parent_screen_);
-    int card_w = std::clamp(screen_w * 3 / 10, 160, 240);
-    position_picker_card(picker_backdrop_, widget_obj_, parent_screen_, card_w);
-
-    spdlog::debug("[ThermistorWidget] Sensor picker shown with {} sensors", sensors.size());
-}
-
-void ThermistorWidget::dismiss_sensor_picker() {
-    if (!picker_backdrop_) {
-        return;
-    }
-
-    // Nullify pointers BEFORE delete — the DELETE handler does cleanup
-    // as a safety net (also handles parent-deletion case)
-    lv_obj_t* backdrop = picker_backdrop_;
-    picker_backdrop_ = nullptr;
-    s_active_picker_ = nullptr;
-
-    if (lv_obj_is_valid(backdrop)) {
-        helix::ui::safe_delete_deferred(backdrop);
-    }
-
-    spdlog::debug("[ThermistorWidget] Sensor picker dismissed");
+    spdlog::debug("[ThermistorWidget] Sensor picker built with {} sensors", sensors.size());
 }
 
 void ThermistorWidget::show_configure_picker() {
-    if (picker_backdrop_ || !parent_screen_) {
+    if (configure_picker_.is_visible() || !parent_screen_ || !widget_obj_) {
+        return;
+    }
+
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    if (tsm.get_sensors_sorted().empty()) {
+        spdlog::warn("[ThermistorWidget] No sensors available for picker");
+        return;
+    }
+
+    configure_picker_.show_below_widget(parent_screen_, widget_obj_,
+                                        helix::ui::ContextMenu::AnchorAlign::Center);
+}
+
+void ThermistorWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
+    lv_obj_t* sensor_list = lv_obj_find_by_name(backdrop, "sensor_list");
+    if (!sensor_list) {
+        spdlog::error("[ThermistorWidget] sensor_list not found in picker XML");
         return;
     }
 
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     auto sensors = tsm.get_sensors_sorted();
-    if (sensors.empty()) {
-        spdlog::warn("[ThermistorWidget] No sensors available for picker");
-        return;
-    }
-
-    // Create picker from new XML with header + Done button
-    picker_backdrop_ = static_cast<lv_obj_t*>(
-        lv_xml_create(parent_screen_, "thermistor_configure_picker", nullptr));
-    if (!picker_backdrop_) {
-        spdlog::error("[ThermistorWidget] Failed to create configure picker from XML");
-        return;
-    }
-
-    lv_obj_t* sensor_list = lv_obj_find_by_name(picker_backdrop_, "sensor_list");
-    if (!sensor_list) {
-        spdlog::error("[ThermistorWidget] sensor_list not found in picker XML");
-        helix::ui::safe_delete(picker_backdrop_);
-        picker_backdrop_ = nullptr;
-        return;
-    }
 
     int space_xs = resolve_space_token("space_xs", 4);
     int space_sm = resolve_space_token("space_sm", 6);
-    int screen_h = lv_obj_get_height(parent_screen_);
-    lv_obj_set_style_max_height(sensor_list, screen_h * 35 / 100, 0);
+
+    // Cap the list at a share of the screen so the icon grid below it stays on
+    // screen however many sensors the printer reports.
+    lv_obj_set_style_max_height(sensor_list, screen_height_pct(35), 0);
 
     // Build set of currently selected sensors
-    std::set<std::string> selected_set(sensors_.begin(), sensors_.end());
+    std::set<std::string> selected_set(owner_.sensors_.begin(), owner_.sensors_.end());
 
     for (const auto& sensor : sensors) {
         bool selected = selected_set.count(sensor.klipper_name) > 0;
         lv_obj_t* row = create_sensor_row(sensor_list, sensor.display_name, sensor.klipper_name,
                                           selected, true, space_sm, space_xs);
 
-        // Store klipper_name for Done handler to read back
-        auto* klipper_name_copy = new std::string(sensor.klipper_name);
-        lv_obj_set_user_data(row, klipper_name_copy);
+        lv_obj_set_user_data(row, new RowPayload{this, sensor.klipper_name});
 
         // Click row to toggle checkbox
         lv_obj_add_event_cb(
             row,
             [](lv_event_t* e) {
-                auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] sensor_toggle_cb");
+                auto* target = lv_event_get_current_target_obj(e);
                 uint32_t count = lv_obj_get_child_count(target);
                 for (uint32_t i = 0; i < count; ++i) {
                     lv_obj_t* child = lv_obj_get_child(target, static_cast<int32_t>(i));
@@ -876,24 +775,25 @@ void ThermistorWidget::show_configure_picker() {
                         break;
                     }
                 }
+                LVGL_SAFE_EVENT_CB_END();
             },
             LV_EVENT_CLICKED, nullptr);
+
+        lv_obj_add_event_cb(
+            row,
+            [](lv_event_t* e) {
+                LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] sensor_row_delete_cb");
+                auto* target = lv_event_get_current_target_obj(e);
+                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
+                lv_obj_set_user_data(target, nullptr);
+                LVGL_SAFE_EVENT_CB_END();
+            },
+            LV_EVENT_DELETE, nullptr);
     }
 
-    // Icon picker section
-    lv_obj_t* context_menu = lv_obj_find_by_name(picker_backdrop_, "context_menu");
+    // Icon picker section - the divider above it comes from the XML
+    lv_obj_t* context_menu = card();
     if (context_menu) {
-        // Icon section divider
-        lv_obj_t* icon_divider = lv_obj_create(context_menu);
-        lv_obj_set_width(icon_divider, LV_PCT(100));
-        lv_obj_set_height(icon_divider, 1);
-        lv_obj_set_style_bg_color(icon_divider, theme_manager_get_color("text_muted"), 0);
-        lv_obj_set_style_bg_opa(icon_divider, 38, 0);
-        lv_obj_set_style_pad_all(icon_divider, 0, 0);
-        lv_obj_set_style_border_width(icon_divider, 0, 0);
-        lv_obj_remove_flag(icon_divider, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(icon_divider, LV_OBJ_FLAG_CLICKABLE);
-
         // Icon section title
         lv_obj_t* icon_title = lv_label_create(context_menu);
         lv_label_set_text(icon_title, lv_tr("Icon"));
@@ -915,11 +815,12 @@ void ThermistorWidget::show_configure_picker() {
         lv_obj_set_style_border_width(icon_grid, 0, 0);
         lv_obj_remove_flag(icon_grid, LV_OBJ_FLAG_SCROLLABLE);
 
-        std::string effective_icon = icon_name_.empty() ? std::string(kDefaultIcon) : icon_name_;
+        std::string effective_icon =
+            owner_.icon_name_.empty() ? std::string(DEFAULT_ICON) : owner_.icon_name_;
 
-        for (size_t i = 0; i < kThermistorIconCount; ++i) {
+        for (size_t i = 0; i < THERMISTOR_ICON_COUNT; ++i) {
             lv_obj_t* cell = lv_obj_create(icon_grid);
-            lv_obj_set_size(cell, kIconCellSize, kIconCellSize);
+            lv_obj_set_size(cell, ICON_CELL_SIZE, ICON_CELL_SIZE);
             lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_set_style_bg_opa(cell, 0, 0);
@@ -931,10 +832,10 @@ void ThermistorWidget::show_configure_picker() {
                                       LV_PART_MAIN | LV_STATE_PRESSED);
             lv_obj_set_style_bg_opa(cell, LV_OPA_20, LV_PART_MAIN | LV_STATE_PRESSED);
 
-            apply_icon_cell_highlight(cell, kThermistorIcons[i] == effective_icon);
+            apply_icon_cell_highlight(cell, THERMISTOR_ICONS[i] == effective_icon);
 
             // Icon glyph
-            const char* cp = ui_icon::lookup_codepoint(kThermistorIcons[i]);
+            const char* cp = ui_icon::lookup_codepoint(THERMISTOR_ICONS[i]);
             if (cp) {
                 lv_obj_t* icon = lv_label_create(cell);
                 lv_label_set_text(icon, cp);
@@ -948,46 +849,87 @@ void ThermistorWidget::show_configure_picker() {
             // Store index as user_data
             lv_obj_set_user_data(cell, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
 
+            // The cell's user_data is the icon index, so the picker travels as the
+            // event's user_data instead. Both are needed to act on a tap.
             lv_obj_add_event_cb(
                 cell,
                 [](lv_event_t* e) {
                     LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] icon_cell_cb");
-                    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                    auto* picker = static_cast<ConfigurePicker*>(lv_event_get_user_data(e));
+                    auto* target = lv_event_get_current_target_obj(e);
                     auto idx = static_cast<size_t>(
                         reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-                    if (idx < kThermistorIconCount && ThermistorWidget::s_active_picker_) {
-                        ThermistorWidget::s_active_picker_->select_icon(kThermistorIcons[idx]);
+                    if (picker && idx < THERMISTOR_ICON_COUNT) {
+                        picker->owner_.select_icon(THERMISTOR_ICONS[idx]);
                     }
                     LVGL_SAFE_EVENT_CB_END();
                 },
-                LV_EVENT_CLICKED, nullptr);
+                LV_EVENT_CLICKED, this);
         }
     }
 
-    s_active_picker_ = this;
+    spdlog::debug("[ThermistorWidget] Configure picker built with {} sensors", sensors.size());
+}
 
-    // Self-clearing delete callback with heap string cleanup
-    lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<ThermistorWidget*>(lv_event_get_user_data(e));
-            if (self) {
-                lv_obj_t* backdrop = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                cleanup_picker_row_strings(backdrop);
-                self->picker_backdrop_ = nullptr;
-                if (s_active_picker_ == self) {
-                    s_active_picker_ = nullptr;
+void ThermistorWidget::ConfigurePicker::refresh_icon_highlights() {
+    lv_obj_t* backdrop = menu();
+    if (!backdrop) {
+        return;
+    }
+    lv_obj_t* icon_grid = lv_obj_find_by_name(backdrop, "thermistor_icon_grid");
+    if (!icon_grid) {
+        return;
+    }
+
+    std::string effective_icon =
+        owner_.icon_name_.empty() ? std::string(DEFAULT_ICON) : owner_.icon_name_;
+    uint32_t grid_count = lv_obj_get_child_count(icon_grid);
+    for (uint32_t i = 0; i < grid_count; ++i) {
+        lv_obj_t* cell = lv_obj_get_child(icon_grid, i);
+        auto idx = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(cell)));
+        if (idx < THERMISTOR_ICON_COUNT) {
+            apply_icon_cell_highlight(cell, THERMISTOR_ICONS[idx] == effective_icon);
+        }
+    }
+}
+
+void ThermistorWidget::ConfigurePicker::on_backdrop_clicked() {
+    commit();
+}
+
+void ThermistorWidget::ConfigurePicker::commit() {
+    lv_obj_t* backdrop = menu();
+    lv_obj_t* sensor_list = backdrop ? lv_obj_find_by_name(backdrop, "sensor_list") : nullptr;
+    if (!sensor_list) {
+        hide();
+        return;
+    }
+
+    // Read the checkbox states back off the rows.
+    std::vector<std::string> selected;
+    uint32_t count = lv_obj_get_child_count(sensor_list);
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_obj_t* row = lv_obj_get_child(sensor_list, static_cast<int32_t>(i));
+        auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(row));
+        if (!payload)
+            continue;
+
+        uint32_t row_children = lv_obj_get_child_count(row);
+        for (uint32_t j = 0; j < row_children; ++j) {
+            lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(j));
+            if (lv_obj_check_type(child, &lv_checkbox_class)) {
+                if (lv_obj_has_state(child, LV_STATE_CHECKED)) {
+                    selected.push_back(payload->klipper_name);
                 }
+                break;
             }
-        },
-        LV_EVENT_DELETE, this);
+        }
+    }
 
-    // Position card — wider for the header + icon grid
-    int screen_w = lv_obj_get_width(parent_screen_);
-    int card_w = std::clamp(screen_w * 40 / 100, 200, 320);
-    position_picker_card(picker_backdrop_, widget_obj_, parent_screen_, card_w);
-
-    spdlog::debug("[ThermistorWidget] Configure picker shown with {} sensors", sensors.size());
+    // Close before applying: a selection that changes the display mode asks the
+    // manager to rebuild the widget, and this menu belongs to it.
+    hide();
+    owner_.apply_sensor_selection(selected);
 }
 
 void ThermistorWidget::apply_sensor_selection(const std::vector<std::string>& selected) {
@@ -1036,47 +978,6 @@ void ThermistorWidget::apply_sensor_selection(const std::vector<std::string>& se
                  sensors_.size(), is_carousel_mode() ? "carousel" : "single");
 }
 
-void ThermistorWidget::thermistor_picker_done_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] thermistor_picker_done_cb");
-    (void)e;
-    if (!s_active_picker_)
-        return;
-
-    auto* self = s_active_picker_;
-    auto* backdrop = self->picker_backdrop_;
-    if (!backdrop)
-        return;
-
-    // Collect selected sensors from checkboxes
-    lv_obj_t* sensor_list = lv_obj_find_by_name(backdrop, "sensor_list");
-    if (!sensor_list)
-        return;
-
-    std::vector<std::string> selected;
-    uint32_t count = lv_obj_get_child_count(sensor_list);
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_t* row = lv_obj_get_child(sensor_list, static_cast<int32_t>(i));
-        auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(row));
-        if (!name_ptr)
-            continue;
-
-        uint32_t row_children = lv_obj_get_child_count(row);
-        for (uint32_t j = 0; j < row_children; ++j) {
-            lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(j));
-            if (lv_obj_check_type(child, &lv_checkbox_class)) {
-                if (lv_obj_has_state(child, LV_STATE_CHECKED)) {
-                    selected.push_back(*name_ptr);
-                }
-                break;
-            }
-        }
-    }
-
-    self->apply_sensor_selection(selected);
-    self->dismiss_sensor_picker();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 // Static callbacks
 void ThermistorWidget::thermistor_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] thermistor_clicked_cb");
@@ -1086,15 +987,3 @@ void ThermistorWidget::thermistor_clicked_cb(lv_event_t* e) {
     }
     LVGL_SAFE_EVENT_CB_END();
 }
-
-void ThermistorWidget::thermistor_picker_backdrop_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] thermistor_picker_backdrop_cb");
-    (void)e;
-    if (s_active_picker_) {
-        s_active_picker_->dismiss_sensor_picker();
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-// Static instance for picker callbacks
-ThermistorWidget* ThermistorWidget::s_active_picker_ = nullptr;

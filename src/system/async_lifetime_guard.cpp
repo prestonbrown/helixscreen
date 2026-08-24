@@ -57,17 +57,17 @@ std::atomic<bool> g_strict_bg_check{false};
 /// most one anomaly per session. Multiple bg threads hitting the same LR
 /// each get one report — interesting because each is a separate race vs.
 /// the main thread. Table-full is silently dropped (no spam fallback).
-constexpr size_t kSeenSlots = 64;
-thread_local void* tls_seen_lrs[kSeenSlots] = {};
+constexpr size_t SEEN_SLOTS = 64;
+thread_local void* tls_seen_lrs[SEEN_SLOTS] = {};
 
 /// Returns true if this is the first time `lr` has been reported on the
 /// calling thread; false otherwise (already seen or table full).
 bool record_first_fire(void* lr) noexcept {
     if (lr == nullptr)
         return false;
-    const auto h = static_cast<size_t>(reinterpret_cast<uintptr_t>(lr) >> 4) & (kSeenSlots - 1);
-    for (size_t step = 0; step < kSeenSlots; ++step) {
-        const size_t slot = (h + step) & (kSeenSlots - 1);
+    const auto h = static_cast<size_t>(reinterpret_cast<uintptr_t>(lr) >> 4) & (SEEN_SLOTS - 1);
+    for (size_t step = 0; step < SEEN_SLOTS; ++step) {
+        const size_t slot = (h + step) & (SEEN_SLOTS - 1);
         if (tls_seen_lrs[slot] == lr)
             return false;
         if (tls_seen_lrs[slot] == nullptr) {
@@ -180,7 +180,7 @@ bool on_main_thread() noexcept {
 //   * Slots are claimed by CAS on the `tag` pointer and released again by
 //     `take_snapshot` whenever a slot drains to zero. Releasing is what keeps
 //     the table a *per-window* view: without it the slots silt up with the
-//     first kMaxTrackedTags tags the process ever sees, and every producer
+//     first MAX_TRACKED_TAGS tags the process ever sees, and every producer
 //     that turns hot later is anonymised into "(other)" — losing exactly the
 //     tag this telemetry exists to surface.
 //   * All three skip paths fire on the LVGL main thread (they run inside
@@ -203,22 +203,22 @@ struct Counter {
     std::atomic<uint64_t> count{0};
 };
 
-// +1 slot for the synthetic "(other)" overflow bucket at index kMaxTrackedTags.
-Counter g_counters[kMaxTrackedTags + 1];
+// +1 slot for the synthetic "(other)" overflow bucket at index MAX_TRACKED_TAGS.
+Counter g_counters[MAX_TRACKED_TAGS + 1];
 
-constexpr const char* kOtherTag = "(other)";
-constexpr const char* kNullTag = "(null)";
+constexpr const char* OTHER_TAG = "(other)";
+constexpr const char* NULL_TAG = "(null)";
 
 } // namespace
 
 void note_skipped(const char* tag) noexcept {
     // nullptr is normalised once, up front, so the hot-path scan and the claim
     // path agree on the key and two nullptr skips can never land in two slots.
-    const char* key = tag ? tag : kNullTag;
+    const char* key = tag ? tag : NULL_TAG;
 
     // Hot path: a tag already holding a slot this window. Cache-friendly linear
     // scan over a 1 KB table. Acquire-load pairs with the CAS release below.
-    for (size_t i = 0; i < kMaxTrackedTags; ++i) {
+    for (size_t i = 0; i < MAX_TRACKED_TAGS; ++i) {
         if (g_counters[i].tag.load(std::memory_order_acquire) == key) {
             g_counters[i].count.fetch_add(1, std::memory_order_relaxed);
             return;
@@ -229,7 +229,7 @@ void note_skipped(const char* tag) noexcept {
     // are freed on drain, so "free" is common — this is not a once-per-process
     // allocation. fetch_add (not store) publishes the count so a concurrent
     // hot-path increment on the same slot cannot be clobbered.
-    for (size_t i = 0; i < kMaxTrackedTags; ++i) {
+    for (size_t i = 0; i < MAX_TRACKED_TAGS; ++i) {
         const char* expected = nullptr;
         if (g_counters[i].tag.compare_exchange_strong(expected, key, std::memory_order_acq_rel,
                                                       std::memory_order_acquire)) {
@@ -244,9 +244,9 @@ void note_skipped(const char* tag) noexcept {
     }
 
     // Every slot is held by a different tag. A non-zero `other_count` in a
-    // snapshot is itself a signal: more than kMaxTrackedTags distinct producers
+    // snapshot is itself a signal: more than MAX_TRACKED_TAGS distinct producers
     // skipped within this one window.
-    g_counters[kMaxTrackedTags].count.fetch_add(1, std::memory_order_relaxed);
+    g_counters[MAX_TRACKED_TAGS].count.fetch_add(1, std::memory_order_relaxed);
 }
 
 SkipSnapshot take_snapshot() noexcept {
@@ -254,11 +254,11 @@ SkipSnapshot take_snapshot() noexcept {
 
     // Drain the overflow bucket first so the per-tag loop below can early-exit
     // on empty slots without worrying about ordering vs. the overflow read.
-    uint64_t other = g_counters[kMaxTrackedTags].count.exchange(0, std::memory_order_acq_rel);
+    uint64_t other = g_counters[MAX_TRACKED_TAGS].count.exchange(0, std::memory_order_acq_rel);
 
     // Coalesce slots that may hold the same tag (two threads can each CAS a
     // different free slot for the same first-sighting tag — see note_skipped).
-    for (size_t i = 0; i < kMaxTrackedTags; ++i) {
+    for (size_t i = 0; i < MAX_TRACKED_TAGS; ++i) {
         const char* tag = g_counters[i].tag.load(std::memory_order_acquire);
         if (tag == nullptr)
             continue;
@@ -278,7 +278,7 @@ SkipSnapshot take_snapshot() noexcept {
         if (c == 0)
             continue;
         // Linear-find; the slot population is bounded so this stays
-        // O(kMaxTrackedTags^2) worst case = 4096 compares, negligible.
+        // O(MAX_TRACKED_TAGS^2) worst case = 4096 compares, negligible.
         bool merged = false;
         for (auto& e : snap.entries) {
             if (e.tag == tag) {
@@ -294,7 +294,7 @@ SkipSnapshot take_snapshot() noexcept {
     }
 
     if (other > 0) {
-        snap.entries.push_back({kOtherTag, other});
+        snap.entries.push_back({OTHER_TAG, other});
         snap.total += other;
         snap.other_count = other;
     }

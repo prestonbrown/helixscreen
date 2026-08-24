@@ -359,9 +359,14 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         }
     }
 
-    // Disable a widget that could not be placed, sending it back to the catalog
-    // as an available widget, and tell the user WHICH condition failed — "grid
-    // full" is a lie when the widget is simply wider than the whole grid (#1216).
+    // Disable a widget that does not fit the grid AT ALL — it is wider or taller
+    // than the whole grid even at its declared minimum, so no arrangement of the
+    // other widgets could ever seat it. Sending it back to the catalog as an
+    // available widget is the only outcome it has. Tell the user WHICH condition
+    // failed: "grid full" is a lie here (#1216).
+    //
+    // GridFull is the other branch and is deliberately NOT routed here — see
+    // evict_for_full_grid below.
     auto disable_unplaceable = [&](const std::string& widget_id,
                                    GridLayout::PlacementFailure reason) {
         auto& mut_entries = widget_config.page_entries_mut(page_index);
@@ -374,6 +379,51 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         }
         const char* why = GridLayout::failure_text(reason);
         spdlog::info("[PanelWidgetManager] Disabled widget '{}' — {}", widget_id, why);
+        const auto* def = find_widget_def(widget_id);
+        const char* name = def ? def->display_name : widget_id.c_str();
+        ui_notification_warning(fmt::format("'{}' removed — {}", name, why).c_str());
+    };
+
+    // Drop a widget that fits the grid fine but has no free cell left. Unlike
+    // TooLargeForGrid this is a property of THIS screen's occupancy, not of the
+    // widget: remove any other widget, close a hardware gate, or lay the same
+    // config out on a taller grid and it seats without complaint.
+    //
+    // So it must never write enabled=false. The layout is stored once per printer
+    // (/printers/<id>/panel_widgets/<panel>) with no breakpoint key, so a disable
+    // forced by one screen's occupancy takes the widget away at EVERY size — the
+    // same mistake the span write-back already refuses to make (#1216). Worse, it
+    // was not even deterministic: the disable only reached disk if some unrelated
+    // save() happened to follow, so whether the user permanently lost the widget
+    // depended on what they did next.
+    //
+    // What IS recorded is that the widget has no position. That is the truth (it
+    // is configured, it just has nowhere to go), it lets the widget re-place
+    // itself the moment a cell frees, and it doubles as the memo that stops the
+    // nagging: a widget with no saved position was never on the user's screen, so
+    // announcing a removal would be false. Bundle XGVDYEB5 — 6x4 grid, ten
+    // widgets filling all 24 cells — toasted "'Fan Speeds' removed — grid full"
+    // on every single launch because the in-memory disable never reached disk.
+    bool evicted_position = false;
+    auto evict_for_full_grid = [&](const std::string& widget_id) {
+        auto& mut_entries = widget_config.page_entries_mut(page_index);
+        auto cfg_it = std::find_if(mut_entries.begin(), mut_entries.end(),
+                                   [&](const PanelWidgetEntry& e) { return e.id == widget_id; });
+        const bool was_on_screen = cfg_it != mut_entries.end() && cfg_it->has_grid_position();
+        const char* why = GridLayout::failure_text(GridLayout::PlacementFailure::GridFull);
+
+        if (!was_on_screen) {
+            spdlog::debug("[PanelWidgetManager] Widget '{}' has no cell — {} (stays enabled)",
+                          widget_id, why);
+            return;
+        }
+
+        cfg_it->col = -1;
+        cfg_it->row = -1;
+        evicted_position = true;
+        spdlog::info("[PanelWidgetManager] Evicted widget '{}' — {} (stays enabled; returns when "
+                     "a cell frees)",
+                     widget_id, why);
         const auto* def = find_widget_def(widget_id);
         const char* name = def ? def->display_name : widget_id.c_str();
         ui_notification_warning(fmt::format("'{}' removed — {}", name, why).c_str());
@@ -520,6 +570,8 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             spdlog::info("[PanelWidgetManager] Skipping widget '{}' — grid full due to "
                          "temporary firmware_restart injection",
                          f.widget_id);
+        } else if (f.reason == GridLayout::PlacementFailure::GridFull) {
+            evict_for_full_grid(f.widget_id);
         } else {
             disable_unplaceable(f.widget_id, f.reason);
         }
@@ -577,7 +629,11 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
                 }
             }
         }
-        if (any_written) {
+        // `evicted_position` is the other reason to save: a widget that lost its
+        // cell this pass changed nothing about the widgets that WERE placed, so
+        // any_written stays false and the eviction would never reach disk — which
+        // is exactly how the "grid full" toast came back on every launch.
+        if (any_written || evicted_position) {
             widget_config.save();
         }
     }
@@ -610,6 +666,10 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
     // Generate grid descriptors sized to actual content
     // Columns: use breakpoint column count (fills available width)
     // Rows: use max of current and cached row count for stable sizing
+    // Installing a fresh generation for this key is the first moment a
+    // previously-retired one is unreferenced (the container's style re-points
+    // to the new arrays at the end of this populate) — drop it now.
+    retired_grid_descriptors_.erase(make_cache_key(panel_id, page_index));
     auto& dsc = grid_descriptors_[make_cache_key(panel_id, page_index)];
     dsc.col_dsc = GridLayout::make_col_dsc(breakpoint);
     dsc.row_dsc.clear();
@@ -820,6 +880,10 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             // Tag widget with its config ID so GridEditMode can identify it
             lv_obj_set_name(widget, slot.widget_id.c_str());
 
+            // Mark the tile root so tree walks that only make sense at page
+            // level stop here. See PANEL_WIDGET_TILE_FLAG in panel_widget.h.
+            lv_obj_add_flag(widget, PANEL_WIDGET_TILE_FLAG);
+
             spdlog::debug("[PanelWidgetManager] Placed widget '{}' at ({},{} {}x{})",
                           slot.widget_id, p.col, p.row, p.colspan, p.rowspan);
 
@@ -831,12 +895,26 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
             if (slot.hardware_gated) {
                 lv_obj_set_style_opa(widget, LV_OPA_40, 0);
                 lv_obj_add_state(widget, LV_STATE_DISABLED);
+                // LV_STATE_DISABLED alone is not enough. A tile's tap handler is
+                // usually declared as an <event_cb> on its XML component root, so
+                // it is bound when the tile is PLACED - independent of gating -
+                // and a gated tile could still open a panel describing hardware
+                // that is not there. Clearing CLICKABLE takes it out of the
+                // indev hit test entirely, so the press walks up to the parent
+                // instead. Safe without a restore path: an un-gate rebuilds the
+                // tile from scratch (see the gate observers' rebuild).
+                lv_obj_remove_flag(widget, LV_OBJ_FLAG_CLICKABLE);
 
                 const auto* gated_def = find_widget_def(slot.widget_id);
                 const char* type_icon = (gated_def && gated_def->icon) ? gated_def->icon : "cancel";
 
+                // One step down from the badge (lg 48px vs xl 64px). Both glyphs
+                // are round, so at equal size they coincide almost exactly and
+                // the pair reads as one muddy shape rather than "this widget,
+                // unavailable" - the badge has to ring the type icon, not sit on
+                // top of it.
                 const char* type_icon_attrs[] = {
-                    "src",    type_icon,   "size",  "xl",           "variant", "muted", "align",
+                    "src",    type_icon,   "size",  "lg",           "variant", "muted", "align",
                     "center", "clickable", "false", "event_bubble", "true",    nullptr};
                 if (auto* type_overlay =
                         static_cast<lv_obj_t*>(lv_xml_create(widget, "icon", type_icon_attrs))) {
@@ -1103,14 +1181,12 @@ void PanelWidgetManager::clear_panel_config(const std::string& panel_id) {
             ++it;
         }
     }
-    // Also erase grid descriptors for all pages of this panel
-    for (auto it = grid_descriptors_.begin(); it != grid_descriptors_.end();) {
-        if (it->first.compare(0, prefix.size(), prefix) == 0) {
-            it = grid_descriptors_.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    // Also erase grid descriptors for all pages of this panel. The vectors are
+    // RETIRED, not freed: the containers laid out with them may still exist and
+    // their grid style holds the raw dsc pointers (LVGL does not copy them).
+    // Freeing here was the 2026-08-17 nightly's heap-use-after-free —
+    // GridEditMode::current_metrics -> grid_count_tracks read the freed arrays.
+    retire_grid_descriptors_matching(prefix);
 }
 
 void PanelWidgetManager::clear_all_panel_configs() {
@@ -1123,9 +1199,29 @@ void PanelWidgetManager::clear_all_panel_configs() {
         config.mark_dirty();
     }
     // Drop the per-page derived caches wholesale — they key on "panel:page" and
-    // describe the old printer's resolved widget list / grid geometry.
+    // describe the old printer's resolved widget list / grid geometry. Descriptors
+    // are retired (see clear_panel_config) so grids laid out for the previous
+    // printer keep reading valid memory until their containers are destroyed.
     active_configs_.clear();
-    grid_descriptors_.clear();
+    retire_grid_descriptors_matching({});
+}
+
+void PanelWidgetManager::retire_grid_descriptors_matching(const std::string& prefix) {
+    // Move descriptor arrays whose cache key starts with `prefix` (empty prefix:
+    // all of them) out of grid_descriptors_ and into the retirement map. LVGL's
+    // grid style holds the raw dsc pointers without copying, and the clear paths
+    // have no container handle to unstyle, so an array must outlive every
+    // container still laid out with it. populate_page() drops the retired entry
+    // for a key at the same moment it installs a fresh one — the re-point of the
+    // container's style is what makes the old array unreferenced.
+    for (auto it = grid_descriptors_.begin(); it != grid_descriptors_.end();) {
+        if (prefix.empty() || it->first.compare(0, prefix.size(), prefix) == 0) {
+            retired_grid_descriptors_[it->first] = std::move(it->second);
+            it = grid_descriptors_.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& panel_id) {

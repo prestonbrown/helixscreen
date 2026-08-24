@@ -26,6 +26,7 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
+#include "data_root_resolver.h"
 #if HELIX_HAS_CFS
 #include "ams_backend_cfs.h"
 #endif
@@ -35,8 +36,8 @@
 #include "buffer_status_modal.h"
 #include "color_utils.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -65,7 +66,7 @@ static constexpr int32_t DEFAULT_SLOT_WIDTH = 80;
 // scope to or -1 for "every unit". This panel is always the whole-system view:
 // the AMS Overview panel owns the per-unit presentation, via its own inline
 // detail view rather than through here.
-static constexpr int kAllUnits = -1;
+static constexpr int ALL_UNITS = -1;
 
 // Logo path mapping moved to AmsState::get_logo_path()
 
@@ -119,17 +120,24 @@ static void ensure_ams_widgets_registered() {
     // Register XML components
     // NOTE: Old AMS settings panels removed - Device Operations overlay is registered in
     // xml_registration.cpp
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_loaded_card.xml");
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/components/ams_unit_detail.xml").c_str());
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/components/ams_loaded_card.xml").c_str());
     // ams_environment_indicator registered above via ensure_ams_env_indicator_registered()
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_sidebar.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_panel.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_selector_menu.xml");
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/components/ams_sidebar.xml").c_str());
+    lv_xml_register_component_from_file(helix::asset_component_uri("ui_xml/ams_panel.xml").c_str());
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/ams_context_menu.xml").c_str());
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/ams_selector_menu.xml").c_str());
     // NOTE: spoolman_spool_item.xml and ams_edit_overlay.xml are registered
     // globally in xml_registration.cpp (needed by FilamentPanel without AMS lazy init)
-    lv_xml_register_component_from_file("A:ui_xml/ams_loading_error_modal.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_environment_overlay.xml");
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/ams_environment_overlay.xml").c_str());
     // NOTE: color_picker.xml is registered at startup in xml_registration.cpp
 
     s_ams_widgets_registered = true;
@@ -144,7 +152,8 @@ static void ensure_ams_widgets_registered() {
 // Construction
 // ============================================================================
 
-AmsPanel::AmsPanel(PrinterState& printer_state, MoonrakerAPI* api) : PanelBase(printer_state, api) {
+AmsPanel::AmsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
+    : PanelBase(printer_state, api) {
     spdlog::debug("[AmsPanel] Constructed");
 }
 
@@ -241,6 +250,8 @@ void AmsPanel::init_subjects() {
     //
     // The lifetime token is mandatory: PrinterState is a separate singleton and
     // its subjects can be torn down while this guard is still alive (#705).
+    // RAW_PRINT_STATE_OK: subscribes to the WIRE deliberately - paired with the keep-raw
+    // comparison below; see the marker there for the full reason.
     print_state_observer_ = observe_int_sync<AmsPanel>(
         printer_state_.get_print_state_enum_subject(), this,
         [](AmsPanel* self, int print_state) {
@@ -256,6 +267,12 @@ void AmsPanel::init_subjects() {
             if (prev_state < 0)
                 return;
 
+            // RAW_PRINT_STATE_OK: a value question about what the printer
+            // reports, not the capability question job_holds_machine() answers.
+            // print_lifecycle stays Preparing for the whole of a firmware-side
+            // PRINT_START, so reading it here would move this dismissal to the
+            // END of PRINT_START. Pinned by the keep-raw case in
+            // tests/unit/test_ams_error_modal_autodismiss.cpp.
             constexpr int printing = static_cast<int>(helix::PrintJobState::PRINTING);
             if (print_state != printing || prev_state == printing)
                 return;
@@ -682,11 +699,11 @@ void AmsPanel::create_slots(int count) {
 
     // Pre-show environment indicator so flex layout accounts for its width
     // when calculating slot sizes. Must happen BEFORE slot creation.
-    ams_detail_pre_show_env_indicator(detail_widgets_, kAllUnits);
+    ams_detail_pre_show_env_indicator(detail_widgets_, ALL_UNITS);
 
     // Create new slots
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, MAX_VISIBLE_SLOTS,
-                                          kAllUnits, on_slot_clicked, this);
+                                          ALL_UNITS, on_slot_clicked, this);
 
     current_slot_count_ = result.slot_count;
 
@@ -776,13 +793,13 @@ void AmsPanel::setup_path_canvas() {
     ui_filament_path_canvas_set_buffer_callback(path_canvas_, on_buffer_clicked, this);
 
     // Configure from backend using shared helper
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, false);
+    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, ALL_UNITS, false);
 
     spdlog::debug("[{}] Path canvas setup complete", get_name());
 }
 
 void AmsPanel::update_path_canvas_from_backend() {
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, false);
+    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, ALL_UNITS, false);
 }
 
 void AmsPanel::setup_bypass_spool() {
@@ -908,47 +925,39 @@ void AmsPanel::update_endless_arrows_from_backend() {
 
     // Check if endless spool is supported
     auto capabilities = backend->get_endless_spool_capabilities();
-    if (!capabilities.supported) {
+    if (!capabilities.available()) {
         ui_endless_spool_arrows_clear(endless_arrows_);
         lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
-    // Get the endless spool configuration
-    auto configs = backend->get_endless_spool_config();
-    if (configs.empty()) {
+    // Get the endless spool relation and flatten it to one arrow per slot. The
+    // group-to-edge projection lives in helix::printer, shared with the context
+    // menu's dropdown, so a Happy Hare group and an AFC chain cannot disagree
+    // about which arrow to draw.
+    static constexpr int MAX_ARROW_SLOTS = 16;
+    const auto config = backend->get_endless_spool_config();
+    int slot_count = std::min(backend->get_system_info().total_slots, MAX_ARROW_SLOTS);
+    if (config.empty() || slot_count <= 0) {
         ui_endless_spool_arrows_clear(endless_arrows_);
         lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
-    // Check if any backup is configured
-    bool has_any_backup = false;
-    for (const auto& config : configs) {
-        if (config.backup_slot >= 0) {
-            has_any_backup = true;
-            break;
-        }
-    }
-
-    if (!has_any_backup) {
+    const std::vector<int> edges = helix::printer::endless_spool_backup_edges(config, slot_count);
+    if (std::none_of(edges.begin(), edges.end(), [](int backup) { return backup >= 0; })) {
         spdlog::trace("[{}] No endless spool backups configured - hiding arrows", get_name());
         ui_endless_spool_arrows_clear(endless_arrows_);
         lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
-    spdlog::trace("[{}] Endless spool has {} configs with backups", get_name(), configs.size());
-
-    // Build backup slots array
-    int backup_slots[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-    int slot_count = 0;
-    for (const auto& config : configs) {
-        if (config.slot_index >= 0 && config.slot_index < 16) {
-            backup_slots[config.slot_index] = config.backup_slot;
-            slot_count = std::max(slot_count, config.slot_index + 1);
-        }
+    int backup_slots[MAX_ARROW_SLOTS];
+    for (int i = 0; i < slot_count; ++i) {
+        backup_slots[i] = edges[static_cast<size_t>(i)];
     }
+    spdlog::trace("[{}] Endless spool relation has {} group(s) over {} slots", get_name(),
+                  config.groups.size(), slot_count);
 
     // Get slot width and overlap from current layout
     int32_t slot_width = DEFAULT_SLOT_WIDTH;
@@ -1343,6 +1352,12 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
                                               int slot) {
         AmsBackend* backend = AmsState::instance().get_backend();
 
+        // EJECT / RECOVER_POSITION / SELECT_GATE / CHECK_GATE / CLEAR_SPOOL are
+        // identical in both AMS panels — see ams_dispatch_backend_action().
+        if (helix::ui::ams_dispatch_backend_action(action, slot, path_canvas_)) {
+            return;
+        }
+
         switch (action) {
         case helix::ui::AmsContextMenu::MenuAction::LOAD:
             if (!backend) {
@@ -1381,64 +1396,6 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
             }
             break;
 
-        case helix::ui::AmsContextMenu::MenuAction::EJECT:
-            if (!backend) {
-                NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-                return;
-            }
-            {
-                if (path_canvas_) {
-                    ui_filament_path_canvas_set_eject_mode(path_canvas_, true);
-                }
-                AmsError error = backend->eject_lane(slot);
-                if (error.result != AmsResult::SUCCESS) {
-                    helix::ui::notify_ams_error(error, lv_tr("Eject failed"));
-                    if (path_canvas_) {
-                        ui_filament_path_canvas_set_eject_mode(path_canvas_, false);
-                    }
-                }
-            }
-            break;
-
-        case helix::ui::AmsContextMenu::MenuAction::RECOVER_POSITION:
-            if (!backend) {
-                NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-                return;
-            }
-            {
-                AmsError error = backend->recover_lane_position(slot);
-                if (error.result != AmsResult::SUCCESS) {
-                    helix::ui::notify_ams_error(error, lv_tr("Recovery failed"));
-                }
-            }
-            break;
-
-        case helix::ui::AmsContextMenu::MenuAction::SELECT_GATE:
-            if (!backend) {
-                NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-                return;
-            }
-            {
-                AmsError error = backend->select_gate(slot);
-                if (error.result != AmsResult::SUCCESS) {
-                    helix::ui::notify_ams_error(error, lv_tr("Select slot failed"));
-                }
-            }
-            break;
-
-        case helix::ui::AmsContextMenu::MenuAction::CHECK_GATE:
-            if (!backend) {
-                NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-                return;
-            }
-            {
-                AmsError error = backend->check_gate(slot);
-                if (error.result != AmsResult::SUCCESS) {
-                    helix::ui::notify_ams_error(error, lv_tr("Check slot failed"));
-                }
-            }
-            break;
-
         case helix::ui::AmsContextMenu::MenuAction::EDIT:
             show_edit_modal(slot);
             break;
@@ -1448,59 +1405,28 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
             break;
 
         case helix::ui::AmsContextMenu::MenuAction::SCAN_QR: {
+#if HELIX_HAS_CAMERA
             auto& scanner = helix::ui::get_qr_scanner_overlay();
-            scanner.show(parent_screen_, slot, [this, slot](const SpoolInfo& spool) {
+            scanner.show(parent_screen_, slot, [slot](const SpoolInfo& spool) {
                 AmsBackend* be = AmsState::instance().get_backend();
                 if (!be)
                     return;
 
-                SlotInfo info = be->get_slot_info(slot);
-                apply_spool_to_slot(info, spool);
-                AmsError err = be->set_slot_info(slot, info);
+                // Capture the pre-edit slot BEFORE the commit — its unlink arm
+                // (clear the server active spool) needs the old link.
+                SlotInfo original = be->get_slot_info(slot);
+                SlotInfo applied = original;
+                apply_spool_to_slot(applied, spool);
+                AmsError err = AmsState::instance().commit_slot_edit(slot, original, applied);
                 if (!err.success()) {
                     helix::ui::notify_ams_error(err);
                     return;
                 }
-                AmsState::instance().sync_from_backend();
                 spdlog::info("[AmsPanel] QR scan assigned spool #{} to slot {}", spool.id, slot);
             });
+#endif // HELIX_HAS_CAMERA
             break;
         }
-
-        case helix::ui::AmsContextMenu::MenuAction::CLEAR_SPOOL:
-            if (!backend) {
-                NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-                return;
-            }
-            {
-                // Clear spool assignment: reset material/color/spool data, keep slot status
-                SlotInfo cleared = backend->get_slot_info(slot);
-                cleared.material.clear();
-                cleared.color_rgb = AMS_DEFAULT_SLOT_COLOR;
-                cleared.color_name.clear();
-                cleared.multi_color_hexes.clear();
-                cleared.brand.clear();
-                // Drops spoolman_id AND the filament/vendor handles — leaving
-                // those behind fed a later repoint comparison against a spool
-                // this lane is no longer linked to.
-                cleared.clear_spoolman_link();
-                cleared.remaining_weight_g = -1;
-                cleared.total_weight_g = -1;
-                auto error = backend->set_slot_info(slot, cleared);
-                if (error.success()) {
-#if HELIX_HAS_CFS
-                    if (backend->get_type() == AmsType::CFS) {
-                        static_cast<helix::printer::AmsBackendCfs*>(backend)
-                            ->clear_box_slot_profile(slot);
-                    }
-#endif
-                    AmsState::instance().sync_from_backend();
-                    NOTIFY_INFO(lv_tr("Slot {} spool cleared"), slot + 1);
-                } else {
-                    helix::ui::notify_ams_error(error, lv_tr("Clear failed"));
-                }
-            }
-            break;
 
         case helix::ui::AmsContextMenu::MenuAction::CANCELLED:
         default:
@@ -1545,7 +1471,7 @@ void AmsPanel::show_edit_modal(int slot_index, bool open_on_picker) {
             parent_screen_, -2, initial_info, api_,
             [](const helix::ui::AmsEditOverlay::EditResult& result) {
                 if (result.saved) {
-                    AmsState::instance().set_external_spool_info(result.slot_info);
+                    AmsState::instance().commit_external_spool_edit(result.slot_info);
                     // bypass display update handled reactively by external_spool_observer_
                     NOTIFY_INFO(lv_tr("External spool updated"));
                 }
@@ -1567,27 +1493,17 @@ void AmsPanel::show_edit_modal(int slot_index, bool open_on_picker) {
         parent_screen_, slot_index, initial_info, api_,
         [this](const helix::ui::AmsEditOverlay::EditResult& result) {
             if (result.saved && result.slot_index >= 0) {
-                // Apply the edited slot info to the backend
                 AmsBackend* backend = AmsState::instance().get_backend();
                 if (backend) {
-                    AmsError err = backend->set_slot_info(result.slot_index, result.slot_info);
+                    // Capture the pre-edit slot BEFORE the commit — its unlink
+                    // arm (clear the server active spool) needs the old link.
+                    SlotInfo original = backend->get_slot_info(result.slot_index);
+                    AmsError err = AmsState::instance().commit_slot_edit(
+                        result.slot_index, original, result.slot_info);
                     if (!err.success()) {
                         helix::ui::notify_ams_error(err);
                         return;
                     }
-
-                    // Sync Spoolman active spool if edited slot is currently loaded.
-                    // Backends like AFC only sync on physical load/unload, not UI edits.
-                    AmsState::instance().sync_active_spool_after_edit(result.slot_index,
-                                                                      result.slot_info.spoolman_id);
-
-                    // sync_from_backend() re-reads every slot; a material delta
-                    // now bumps slots_version on its own (#1065), so refresh_slots()
-                    // refreshes the material label even when only the material
-                    // changed and the color stayed the same — no manual color
-                    // subject re-notification needed.
-                    AmsState::instance().sync_from_backend();
-
                     NOTIFY_INFO(lv_tr("Slot {} updated"), result.slot_index + 1);
                 }
             }

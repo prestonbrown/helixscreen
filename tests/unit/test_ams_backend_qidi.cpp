@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_qidi.h"
 #include "ams_error.h"
 #include "ams_types.h"
@@ -1262,7 +1263,7 @@ TEST_CASE("QIDI Box stop_drying falls back to TARGET=0", "[ams][qidi_box][dryer]
 // A trimmed-but-real excerpt of the stock file: a few fila sections plus
 // the colordict and vendor_list tail. Mirrors the real ConfigParser
 // alignment (key/value separated by a run of spaces around `=`).
-static const char* kStockFilasExcerpt = R"INI(
+static const char* STOCK_FILAS_EXCERPT = R"INI(
 [fila1]
 filament                       = PLA Rapido
 min_temp                       = 190
@@ -1301,7 +1302,7 @@ type                           = PETG-CF
 
 TEST_CASE("QIDI Box apply_filas_list captures filament name and type", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     auto p1 = QidiBoxTestAccess::get_profile(backend, 1);
     REQUIRE(p1.has_value());
@@ -1324,7 +1325,7 @@ TEST_CASE("QIDI Box apply_filas_list captures filament name and type", "[ams][qi
 
 TEST_CASE("QIDI Box apply_filas_list parses colordict to packed RGB", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     REQUIRE(QidiBoxTestAccess::get_color(backend, 1) == 0xFAFAFA);
     REQUIRE(QidiBoxTestAccess::get_color(backend, 2) == 0x060606);
@@ -1335,7 +1336,7 @@ TEST_CASE("QIDI Box apply_filas_list parses colordict to packed RGB", "[ams][qid
 
 TEST_CASE("QIDI Box apply_filas_list parses vendor_list", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     REQUIRE(QidiBoxTestAccess::get_vendor(backend, 0) == "Generic");
     REQUIRE(QidiBoxTestAccess::get_vendor(backend, 1) == "QIDI");
@@ -1354,7 +1355,7 @@ TEST_CASE("QIDI Box apply_filas_list ignores bad sections and atomically swaps",
           "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
     // First load populates all three maps.
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     REQUIRE(QidiBoxTestAccess::get_color(backend, 1).has_value());
 
     // Reload with only fila data + a typo'd section — colordict/vendor should
@@ -1379,7 +1380,7 @@ max_temp = 240
 
 TEST_CASE("QIDI Box apply_filas_list still parses temps (regression)", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     auto p11 = QidiBoxTestAccess::get_profile(backend, 11);
     REQUIRE(p11.has_value());
     REQUIRE(p11->nozzle_min == 240);
@@ -1398,7 +1399,7 @@ TEST_CASE("QIDI Box apply_filas_list still parses temps (regression)", "[ams][qi
 
 TEST_CASE("QIDI Box read-path resolves material/color/brand from filas list", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     QidiBoxTestAccess::parse_vars(backend, json{
                                                {"filament_slot0", 11}, // ABS Rapido / ABS
@@ -1418,7 +1419,7 @@ TEST_CASE("QIDI Box read-path resolves material/color/brand from filas list", "[
 
 TEST_CASE("QIDI Box read-path leaves fields unchanged when ids miss", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     // Unknown filament id (not in the cfg) + unknown color/vendor ids.
     QidiBoxTestAccess::parse_vars(backend, json{
@@ -1505,7 +1506,7 @@ TEST_CASE("QIDI Box resolve_vendor_id matches name, falls back to Generic", "[am
 TEST_CASE("QIDI Box set_slot_info emits SAVE_VARIABLE for all three ids",
           "[ams][qidi_box][write_path]") {
     RecordingQidiBackend backend;
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     SlotInfo info;
     info.material = "ABS";
@@ -1535,7 +1536,7 @@ TEST_CASE("QIDI Box set_slot_info emits SAVE_VARIABLE for all three ids",
 
 TEST_CASE("QIDI Box set_slot_info skips fields with no mapping", "[ams][qidi_box][write_path]") {
     RecordingQidiBackend backend;
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     // Material that doesn't map to any fila; valid color + vendor.
     SlotInfo info;
@@ -1562,7 +1563,7 @@ TEST_CASE("QIDI Box set_slot_info skips fields with no mapping", "[ams][qidi_box
 
 TEST_CASE("QIDI Box set_slot_info rejects out-of-range slot index", "[ams][qidi_box][write_path]") {
     RecordingQidiBackend backend;
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     SlotInfo info;
     info.material = "PLA";
@@ -1575,7 +1576,7 @@ TEST_CASE("QIDI Box set_slot_info accepts global slots from later boxes",
           "[ams][qidi_box][write_path]") {
     RecordingQidiBackend backend;
     QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 2}});
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
 
     SlotInfo info;
     info.material = "ABS";
@@ -1789,7 +1790,7 @@ struct QidiHomingGuardFixture : public LVGLTestFixture {
         QidiBoxTestAccess::set_fw_caps(*backend, /*m603=*/true, /*clear_nozzle=*/false);
     }
     void set_print_state(helix::PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
+        helix::test::set_wire_state(state, s);
     }
     MoonrakerClientMock mock_client;
     helix::PrinterState state;

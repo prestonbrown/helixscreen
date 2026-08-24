@@ -130,6 +130,17 @@ struct MockWifiGuard {
         cfg->use_real_wifi = false;
     }
     ~MockWifiGuard() {
+        // Drain BEFORE restoring the config, for the same reason
+        // WiFiManagerTestFixture drains in its destructor body: starting a
+        // backend fires READY, whose handler defers a
+        // WiFiManager::reassert_stored_radio_state closure. Tests that take the
+        // global manager hold it through this guard alone rather than through
+        // the fixture, so without this the closure is still queued when the test
+        // ends and lands on whichever test drains next (#1166 ratchet). Draining
+        // first also runs it while the mock backend is still selected, which is
+        // the world it was queued under.
+        helix::ui::UpdateQueue::instance().drain();
+
         auto* cfg = get_runtime_config();
         cfg->test_mode = prev_test_mode;
         cfg->use_real_wifi = prev_use_real_wifi;
@@ -160,6 +171,14 @@ class WiFiManagerTestFixture {
             wifi_manager->stop_scan();
             wifi_manager->set_enabled(false);
         }
+        // Every backend start fires READY, whose handler defers a
+        // WiFiManager::reassert_stored_radio_state closure through
+        // AsyncLifetimeGuard. Drain here, in the destructor BODY, while
+        // wifi_manager is still alive: the base fixture's reset_all() drain
+        // runs after this object's members are gone, so anything still queued
+        // at that point survives into the next test as an isolation leak.
+        // Same reasoning as the explicit drain in the radio-toggle test below.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // Helper: Scan callback that captures results
@@ -877,6 +896,56 @@ TEST_CASE_METHOD(WiFiManagerTestFixture,
 // connected to wpa_supplicant" because there was nothing left to query.
 // set_enabled must now drive the radio directly and leave the backend
 // running so the connection survives a toggle.
+// init_self_reference() exists so async callbacks can check whether the
+// manager is still alive - ScanCallbackData and ConnectCallbackData both hold
+// a std::weak_ptr for exactly that. Storing the self-reference in an OWNING
+// shared_ptr instead makes the manager immortal: the only strong reference
+// that could ever drop is the one it holds to itself, so ~WiFiManager never
+// runs and the backend threads it stops there stay live for the life of the
+// process. In the test binary that is visible as the thread count climbing
+// across the [network] cases; on a device it is a permanent leak of a
+// wpa_supplicant/NM backend per manager built.
+// The process-wide instance from get_wifi_manager() is the one exception to the
+// rule above: callers dropping their shared_ptr must not take it down, because
+// the next get_wifi_manager() has to hand back the same live backend.
+//
+// It is also never released at exit -- ~WiFiManager stops the backend, which
+// logs through spdlog, and from __run_exit_handlers that runs after spdlog's
+// static sinks are gone and segfaults inside sink::should_log(). That half is
+// NOT what this case proves: a plain `static shared_ptr` holder passes here and
+// only detonates at process exit. `make test-hidden` is the guard for it (the
+// binary exits 139 instead of 0), which quality-checks.sh runs whenever the
+// test binary is current.
+TEST_CASE("the global WiFiManager outlives every shared_ptr its callers hold",
+          "[wifi][manager][lifetime]") {
+    MockWifiGuard mock_guard;
+    std::weak_ptr<WiFiManager> observer;
+    {
+        auto manager = helix::get_wifi_manager();
+        REQUIRE(manager != nullptr);
+        observer = manager;
+        // A second caller gets the same instance, not a fresh one.
+        CHECK(helix::get_wifi_manager() == manager);
+    }
+    // Every caller-held reference is gone; the global holder still owns it.
+    CHECK_FALSE(observer.expired());
+}
+
+TEST_CASE("a self-referencing WiFiManager is still destroyed when its owner drops",
+          "[wifi][manager][lifetime]") {
+    std::weak_ptr<WiFiManager> observer;
+    {
+        auto manager = std::make_shared<WiFiManager>(std::make_unique<WifiBackendMock>());
+        manager->init_self_reference(manager);
+        observer = manager;
+        REQUIRE_FALSE(observer.expired());
+    }
+    // The owning scope is gone. Anything still holding the manager alive here
+    // is a reference cycle, not a legitimate observer.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(observer.expired());
+}
+
 TEST_CASE("set_enabled(false) turns the radio off without stopping the backend",
           "[wifi][manager][radio]") {
     auto backend = std::make_unique<WifiBackendMock>();

@@ -76,8 +76,7 @@ std::string slot0_material_text(AmsPanel& panel) {
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture,
-                 "AmsPanel slot material stays correct across nav-away/back (#981)",
+TEST_CASE_METHOD(XMLTestFixture, "AmsPanel slot material stays correct across nav-away/back (#981)",
                  "[ui_integration][ams][regression][981]") {
     // 1. AFC mock backend (single HUB unit, 4 slots, slot 0 LOADED/present).
     //    Pin slot 0's material to PLA, leaving its color at the mock default.

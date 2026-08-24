@@ -80,6 +80,13 @@
               <!-- Shared spool grid + tray + labels component -->
               <ams_unit_detail name="unit_detail"/>
             </lv_obj>
+            <!-- Endless-spool status: the sentence that explains the arrows at
+                 the top of this same slot_area (or their absence). Inside
+                 slot_area rather than directly in ams_unit_card because the card
+                 has no flex_flow - a second child there stacks on top of the
+                 slots instead of below them. Self-hiding when the backend has no
+                 such mechanism. -->
+            <ams_endless_status name="endless_status"/>
           </lv_obj>
         </ui_card>
         <!-- Path Canvas - shows routing from slots to nozzle (no card border)

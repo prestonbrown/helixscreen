@@ -1,0 +1,114 @@
+menu "HelixScreen Network"
+
+# WiFi + Moonraker endpoint the firmware uses at boot. Interim credential source
+# until the UI-driven WifiBackend (Plan 4 Task 13) and the runtime settings
+# surface (Task 12) land — supplied via a git-ignored sdkconfig.local, NEVER
+# committed. Shared by the production app connect path (app_boot.cpp) and the
+# test-only network HIL scenario below. Symbol names keep the HELIX_HIL_ prefix
+# for continuity with the Plan 3 HIL config; they are no longer HIL-only.
+
+config HELIX_HIL_WIFI_SSID
+    string "WiFi SSID"
+    default ""
+    help
+        WiFi SSID the firmware associates to at boot (station mode). Empty in the
+        committed tree; supply the real value via a git-ignored sdkconfig.local.
+        Never commit real credentials.
+
+config HELIX_HIL_WIFI_PASS
+    string "WiFi password"
+    default ""
+    help
+        WiFi password. NEVER commit a real value — supply via sdkconfig.local.
+
+config HELIX_HIL_MOONRAKER_URL
+    string "Moonraker WebSocket URL"
+    default ""
+    help
+        Moonraker WebSocket endpoint used ONLY as the first-boot seed for
+        settings.json. Empty in the committed tree — a bench printer's address
+        is site-local, so supply it via a git-ignored sdkconfig.local. Left
+        empty, the device boots into the not-ready UI and the host is set in
+        Settings > System > Host.
+
+endmenu
+
+menu "HelixScreen Network HIL (test-only)"
+
+config HELIX_NET_HIL
+    bool "Enable network HIL scenario (live Moonraker session)"
+    default n
+    help
+        Test-only. Brings up a raw WiFi station and drives a live Moonraker
+        WebSocket session through EspMoonrakerClient to validate the transport
+        on real K-Touch hardware (Plan 3 Task 10). Uses the WiFi SSID/PASS and
+        Moonraker URL from the "HelixScreen Network" menu. Disabled by default
+        so it never ships; the production app connect path (app_boot.cpp,
+        Plan 4 Task 8) supersedes it and owns WiFi + connect when this is off.
+
+config HELIX_HTTP_HIL
+    bool "Enable HTTP lane HIL probe (one-shot thumbnail fetch)"
+    default n
+    help
+        Test-only. Plan 4 Task 10: once the production connect path
+        (app_boot.cpp) reaches on_discovery_complete, lists the gcodes root,
+        fetches metadata for the first file found, and pulls its best
+        thumbnail through the Task 10 HTTP lane (ITransfersAPI::
+        download_file_partial), logging the resolved thumbnail path,
+        dimensions, byte count, and internal/PSRAM free heap. Lets the
+        controller flash-and-verify the HTTP lane on real hardware without
+        writing any code. Runs once per boot; does not repeat. Disabled by
+        default so it never ships. Independent of CONFIG_HELIX_NET_HIL (which
+        owns its own WiFi bring-up) — this probe rides the real app's already-
+        connected client.
+
+endmenu
+
+menu "HelixScreen App Core"
+
+config HELIX_LOG_STRIP_DEBUG
+    bool "Strip spdlog::debug/trace format strings from the binary"
+    default y
+    help
+        The app core carries ~3,949 spdlog::debug/trace call sites, which
+        can never
+        print on shipped firmware, which runs at INFO level. Each one still
+        costs a format-string literal plus per-call-site fmt argument-packing
+        code, together worth several hundred KB against a partition slot with
+        very little headroom to spare. When enabled, the spdlog shim compiles
+        spdlog::debug/trace down to empty inline functions, so the compiler
+        drops the format strings and their fmt instantiation entirely. Turn
+        this off to get full debug/trace formatting back for on-device
+        debugging; info/warn/error/critical are unaffected either way.
+
+config HELIX_MOCK_PRINTER
+    bool "Compile the mock Moonraker client into the app core"
+    default n
+    help
+        Adds the mock client/API sources to the helixapp component and defines
+        HELIX_ENABLE_MOCKS=1, so the UI can be driven from synthetic printer
+        state with no live Moonraker. Off by default: production firmware talks
+        to a real printer over EspMoonrakerClient. Development-only.
+
+config HELIX_AMS_HTTP_POLL_BACKENDS
+    bool "Enable HTTP-polling AMS backends (ACE, AD5X IFS)"
+    default n
+    help
+        Plan 4 Task 15 R2. Every AMS backend except two rides the WebSocket
+        JSON-RPC transport (AFC, Happy Hare, Toolchanger, CFS, Snapmaker,
+        QIDI Box) and is unaffected by this flag. The two exceptions poll
+        Moonraker over raw HTTP instead: ACE polls /server/ace/{info,status,
+        slots} every 500ms, and AD5X IFS polls a whole generated JSON config
+        file every 5s. Both ride the Task 10 HTTP lane (EspHttpLane) — a
+        single dedicated worker thread with a bounded, capped fetch model —
+        rather than a full HTTP client stack.
+
+        Off by default: detecting an ACE or AD5X IFS system logs "AMS backend
+        '<name>' unsupported on this screen" (once) instead of constructing
+        the backend. Turn on to let the controller measure the HTTP lane's
+        real-world latency/budget impact on real hardware; flipping this flag
+        is the only code-level difference between the two outcomes. The
+        ship/no-ship decision for these two backends is made after that
+        on-device measurement, not by this flag alone.
+
+endmenu

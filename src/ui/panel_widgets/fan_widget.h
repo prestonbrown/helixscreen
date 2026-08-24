@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_context_menu.h"
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
@@ -41,9 +42,40 @@ class FanWidget : public PanelWidget {
 
     // Static event callbacks (XML-registered)
     static void fan_widget_clicked_cb(lv_event_t* e);
-    static void fan_picker_backdrop_cb(lv_event_t* e);
 
   private:
+    /// Single-select list of the printer's fans, raised by the edit-mode gear.
+    /// The card hangs under the widget tile and carries the shared backdrop,
+    /// positioning and dismissal behaviour from ContextMenu.
+    class FanPicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(FanPicker)
+
+      public:
+        explicit FanPicker(FanWidget& owner) : owner_(owner) {}
+
+      protected:
+        const char* xml_component_name() const override {
+            return "fan_picker";
+        }
+        /// 30% of the screen, clamped so the list stays readable on a 480px panel
+        /// and does not sprawl on a 1024px one.
+        CardWidth card_width() const override {
+            return {30, 160, 240};
+        }
+        void on_created(lv_obj_t* menu) override;
+
+      private:
+        /// What a row needs to act on a tap: which fan it names, and the picker
+        /// that owns it. Heap-allocated per row, hung off the row's user_data and
+        /// freed by that row's own LV_EVENT_DELETE handler.
+        struct RowPayload {
+            FanPicker* picker;
+            std::string object_name;
+        };
+
+        FanWidget& owner_;
+    };
+
     std::string instance_id_;
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
@@ -61,7 +93,7 @@ class FanWidget : public PanelWidget {
     char speed_buffer_[16] = {};
 
     // Fan picker context menu (edit-mode gear only)
-    lv_obj_t* picker_backdrop_ = nullptr;
+    FanPicker picker_{*this};
 
     // Cached fan-control overlay opened on normal tap
     lv_obj_t* fan_control_panel_ = nullptr;
@@ -72,11 +104,7 @@ class FanWidget : public PanelWidget {
     void update_display();
     void save_config();
     void show_fan_picker();
-    void dismiss_fan_picker();
     void resolve_display_name();
-
-    // Static active instance for picker event routing
-    static FanWidget* s_active_picker_;
 };
 
 } // namespace helix

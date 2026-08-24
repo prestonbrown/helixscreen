@@ -243,6 +243,13 @@ class FilamentMappingCard {
     /// update() so a set pushed before a later update() survives the rebuild.
     std::optional<std::set<int>> used_tools_;
 
+    /// Fingerprint of the inputs (tools + mappings + slot state) behind the
+    /// last render of the compact view. rebuild_compact_view() skips the
+    /// destroy/recreate when a freshly computed fingerprint matches this and
+    /// children still exist. Cleared in on_ui_destroyed() — a recycled card
+    /// must re-render against fresh widgets even with identical data.
+    std::string last_render_fingerprint_;
+
     FilamentMappingModal mapping_modal_;
     MappingsChangedCallback on_mappings_changed_;
     TapCallback on_tap_; ///< If set, tap fires this instead of opening the internal modal

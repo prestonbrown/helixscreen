@@ -16,8 +16,13 @@ class PrinterImageWidget : public PanelWidget {
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
+    /// Factory-registration key. Exposed so callers scanning a heterogeneous
+    /// widget list can match on id() and static_cast, instead of dynamic_cast —
+    /// the firmware builds -fno-rtti.
+    static constexpr const char* WIDGET_ID = "printer_image";
+
     const char* id() const override {
-        return "printer_image";
+        return WIDGET_ID;
     }
 
     /// Called when panel activates — re-check if printer image changed in settings

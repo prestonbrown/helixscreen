@@ -9,26 +9,6 @@
     <!-- Nozzle temperature graph series color (red) -->
     <const name="temp_graph_nozzle_light" value="#FF4444"/>
     <const name="temp_graph_nozzle_dark" value="#FF6666"/>
-    <!-- Graph visualization colors -->
-    <color name="graph_line_primary" value="#bf616a"/>
-    <!-- nord11 - Aurora red -->
-    <color name="graph_line_secondary" value="#ebcb8b"/>
-    <!-- nord13 - Aurora yellow -->
-    <color name="graph_line_target" value="#88c0d0"/>
-    <!-- nord8 - Frost cyan -->
-    <color name="graph_bg_dark" value="#2e3440"/>
-    <!-- nord0 - Polar Night -->
-    <color name="graph_bg_light" value="#eceff4"/>
-    <!-- nord6 - Snow Storm -->
-    <!-- Heater-specific colors (theme-aware) -->
-    <color name="heating_color_light" value="#bf616a"/>
-    <!-- nord11 -->
-    <color name="heating_color_dark" value="#bf616a"/>
-    <!-- nord11 -->
-    <color name="cooling_color_light" value="#88c0d0"/>
-    <!-- nord8 -->
-    <color name="cooling_color_dark" value="#88c0d0"/>
-    <!-- nord8 -->
   </consts>
   <!-- Uses shared backdrop from navigation system -->
   <view name="nozzle_temp_panel" extends="overlay_panel" title="Nozzle Temperature" title_tag="Nozzle Temperature">

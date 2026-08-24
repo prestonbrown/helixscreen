@@ -16,12 +16,12 @@ using Clock = std::chrono::steady_clock;
 /// See the header for why 3 s: it has to span `!!` broadcast -> AFC
 /// pause_print() -> Moonraker status delta -> AmsAction::ERROR edge, which is
 /// a full round trip on the slowest supported hardware.
-constexpr auto kCausalWindow = std::chrono::milliseconds(3000);
+constexpr auto CAUSAL_WINDOW = std::chrono::milliseconds(3000);
 
 /// Runaway guard. Nothing prunes on a write-only workload — a printer spraying
 /// distinct error strings would otherwise grow this without bound between
 /// queries. Well above the ~5 entries one multi-line fault produces.
-constexpr size_t kMaxEntries = 64;
+constexpr size_t MAX_ENTRIES = 64;
 
 struct Entry {
     std::string detail;
@@ -41,7 +41,7 @@ std::deque<Entry>& entries() {
 // Caller must hold mu().
 void prune_locked() {
     const auto now = Clock::now();
-    while (!entries().empty() && (now - entries().front().recorded_at) > kCausalWindow) {
+    while (!entries().empty() && (now - entries().front().recorded_at) > CAUSAL_WINDOW) {
         entries().pop_front();
     }
 }
@@ -53,7 +53,7 @@ void record_surfaced(const std::string& detail) {
         return;
     std::lock_guard<std::mutex> lock(mu());
     prune_locked();
-    while (entries().size() >= kMaxEntries) {
+    while (entries().size() >= MAX_ENTRIES) {
         entries().pop_front();
     }
     entries().push_back(Entry{detail, Clock::now()});

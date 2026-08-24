@@ -16,6 +16,18 @@ _HELIX_MAIN_SOURCED=1
 # shellcheck disable=SC3047
 trap 'error_handler $LINENO' ERR 2>/dev/null || true
 
+# Remove the scratch dir however the installer ends.
+#
+# The ERR trap above is a bash extension and is silently discarded on the
+# ash/dash shells every embedded platform runs, so an interrupted or failing
+# install used to leak the whole download: a K2 was found holding a 60MB
+# helixscreen.zip from four months earlier, on a 240MB overlay partition.
+#
+# cleanup_on_success is idempotent (it tests for the directory first) so the
+# explicit call on the success path is unaffected, and it routes through
+# _safe_remove_tmp_dir, which is what refuses to rm -rf a mountpoint.
+trap 'cleanup_on_success' EXIT INT TERM
+
 # Print usage
 usage() {
     echo "HelixScreen Installer"
@@ -220,6 +232,7 @@ main() {
                 # ASSUME_YES is read by clean_old_installation (uninstall.sh);
                 # it is deliberately NOT inferred from a non-TTY stdin, since
                 # the documented `curl ... | sh` invocation always has one.
+                # shellcheck disable=SC2034  # consumed by uninstall.sh (clean_old_installation)
                 ASSUME_YES=true
                 shift
                 ;;
@@ -464,6 +477,7 @@ main() {
     # Start service
     start_service "$platform"
     cleanup_old_install
+    cleanup_stale_cache_dirs
 
     # Cleanup on success
     cleanup_on_success

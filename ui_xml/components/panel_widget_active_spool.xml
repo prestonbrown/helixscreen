@@ -13,20 +13,26 @@
       <lv_obj name="spoolman_wide_layout"
               width="100%" height="100%" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
               style_flex_track_place="center" style_pad_column="#space_md" style_pad_left="#space_md"
-              style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_bg_opa="0"
-              scrollable="false" clickable="false" event_bubble="true" hidden="true">
+              style_pad_right="#space_md" style_pad_top="0" style_pad_bottom="0" style_bg_opa="0" scrollable="false"
+              clickable="false" event_bubble="true" hidden="true">
         <spool_canvas name="spool_wide" size="64" clickable="false" event_bubble="true"/>
         <lv_obj name="spoolman_text_stack"
                 width="0" height="content" flex_flow="column" flex_grow="1" style_pad_row="#space_xxs" style_bg_opa="0"
                 scrollable="false" clickable="false" event_bubble="true">
+          <!-- scroll_circular, like ams_loaded_card's material line: the composed
+               vendor+filament label (Spoolman identity, #1264) can exceed the
+               text column on small tiers. One line per label also keeps the
+               three-row stack's height deterministic, which is what fits the
+               single-row card at Micro (#1286). -->
           <text_body name="spoolman_material"
-                     width="100%" text="" style_text_align="left" clickable="false" event_bubble="true"/>
-          <text_small name="spoolman_brand_color"
-                      width="100%" text="" style_text_color="#text_muted" style_text_align="left" clickable="false"
-                      event_bubble="true"/>
-          <text_tiny name="spoolman_weight"
-                     width="100%" text="" style_text_color="#text_muted" style_text_align="left" clickable="false"
+                     width="100%" text="" style_text_align="left" long_mode="scroll_circular" clickable="false"
                      event_bubble="true"/>
+          <text_small name="spoolman_brand_color"
+                      width="100%" text="" style_text_color="#text_muted" style_text_align="left"
+                      long_mode="scroll_circular" clickable="false" event_bubble="true"/>
+          <text_tiny name="spoolman_weight"
+                     width="100%" text="" style_text_color="#text_muted" style_text_align="left"
+                     long_mode="scroll_circular" clickable="false" event_bubble="true"/>
         </lv_obj>
       </lv_obj>
 

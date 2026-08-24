@@ -25,7 +25,7 @@
       <!-- ================================================================== -->
       <!-- APPEARANCE SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_appearance">
         <setting_group_header title="APPEARANCE" title_tag="APPEARANCE" icon="light" hide_icon="false"/>
         <!-- Language Dropdown -->
         <setting_dropdown_row name="row_language"
@@ -88,8 +88,20 @@
       <!-- ================================================================== -->
       <!-- DISPLAY SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_display">
         <setting_group_header title="DISPLAY" title_tag="DISPLAY" icon="light" hide_icon="false"/>
+        <!-- Screen Rotation: first in the group so a user staring at a sideways
+             screen reaches it with the least scrolling. Hidden where the display
+             backend ignores /display/rotate (SDL desktop builds). -->
+        <setting_dropdown_row name="row_display_rotation"
+                              label="Screen Rotation" label_tag="Screen Rotation" icon="rotate_right"
+                              description="Turn the picture to match how the screen is mounted. Applies after restart."
+                              description_tag="Turn the picture to match how the screen is mounted. Applies after restart."
+                              options="Normal&#10;90° Clockwise&#10;180° Upside Down&#10;270° Clockwise"
+                              options_tag="Normal&#10;90° Clockwise&#10;180° Upside Down&#10;270° Clockwise"
+                              callback="on_display_rotation_changed">
+          <bind_flag_if_eq subject="settings_rotation_available" flag="hidden" ref_value="0"/>
+        </setting_dropdown_row>
         <!-- Dark Mode Toggle -->
         <setting_toggle_row name="row_dark_mode"
                             label="Dark Mode" label_tag="Dark Mode" icon="light_off"
@@ -164,9 +176,9 @@
                               callback="on_screensaver_changed"/>
         <!-- Test Screensaver button (hidden when Off is selected) -->
         <lv_obj name="container_test_screensaver"
-                width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-                style_pad_bottom="#space_md" style_pad_gap="0" flex_flow="row" style_flex_main_place="end"
-                scrollable="false">
+                width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
+                style_pad_top="#space_sm" style_pad_bottom="#space_md" style_pad_gap="0" flex_flow="row"
+                style_flex_main_place="end" scrollable="false">
           <bind_flag_if_eq subject="settings_screensaver_type" flag="hidden" ref_value="0"/>
           <ui_button name="btn_test_screensaver"
                      width="content" height="#button_height_sm" variant="outline" text="Test Screensaver"
@@ -188,7 +200,7 @@
       <!-- ================================================================== -->
       <!-- SOUND SECTION -->
       <!-- ================================================================== -->
-      <setting_group>
+      <setting_group name="group_sound">
         <bind_flag_if_eq subject="printer_has_speaker" flag="hidden" ref_value="0"/>
         <setting_group_header title="SOUND" title_tag="SOUND" icon="notifications" hide_icon="false"/>
         <!-- Master Sounds Toggle -->
@@ -222,10 +234,13 @@
                                 label="Sound Theme" label_tag="Sound Theme" icon="tune" description="Choose sound style"
                                 description_tag="Choose sound style" callback="on_sound_theme_changed"/>
         </lv_obj>
-        <!-- Output Device Dropdown (hidden when master sounds off; also hidden in
-           C++ when the active backend is not ALSA) -->
+        <!-- Output Device Dropdown: shown only when sounds are on AND an ALSA
+             backend with device selection is active. The compound cond replaces
+             the old split (XML sounds-enabled gate + C++ imperative hide) whose
+             two mechanisms raced — the binding re-showed the row on ALSA-less
+             backends whenever sounds were enabled. -->
         <lv_obj name="container_audio_device" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="settings_sounds_enabled" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="settings_sounds_enabled eq 0 or settings_audio_device_available eq 0" flag="hidden"/>
           <setting_dropdown_row name="row_audio_device"
                                 label="Output Device" label_tag="Output Device" icon="volume_high"
                                 description="Where UI sounds play" description_tag="Where UI sounds play"

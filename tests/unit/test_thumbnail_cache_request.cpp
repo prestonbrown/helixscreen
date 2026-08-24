@@ -43,7 +43,7 @@ namespace {
 /// Smallest valid PNG the cache and the processor will both accept: a 10x10
 /// solid-colour square, 75 bytes. Same bytes as tests/unit/test_thumbnail_scaling.cpp.
 // clang-format off
-const std::vector<uint8_t> kTinyPng = {
+const std::vector<uint8_t> TINY_PNG = {
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
     0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x0A,
     0x08, 0x02, 0x00, 0x00, 0x00, 0x02, 0x50, 0x58, 0xEA, 0x00, 0x00, 0x00,
@@ -106,7 +106,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ThumbnailRequest: fetch delivers when the con
     const helix::ThumbnailTarget target = target_120();
     const std::string key = unique_key("live");
 
-    const auto planted = processor.process_sync(kTinyPng, key, target);
+    const auto planted = processor.process_sync(TINY_PNG, key, target);
     REQUIRE(planted.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(planted.output_path));
 
@@ -139,7 +139,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ThumbnailRequest: fetch suppresses a supersed
     const helix::ThumbnailTarget target = target_120();
     const std::string key = unique_key("stale");
 
-    const auto planted = processor.process_sync(kTinyPng, key, target);
+    const auto planted = processor.process_sync(TINY_PNG, key, target);
     REQUIRE(planted.success);
 
     ThumbnailRequest req;
@@ -186,7 +186,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Detail);
     const std::string key = unique_key("detail_mtime");
 
-    const auto planted = processor.process_sync(kTinyPng, key, target);
+    const auto planted = processor.process_sync(TINY_PNG, key, target);
     REQUIRE(planted.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(planted.output_path));
 
@@ -262,14 +262,14 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Entry A: pre-scaled .bin, no cached PNG.
     const std::string bin_key = unique_key("fmt_bin");
     cache.invalidate(bin_key);
-    const auto planted = processor.process_sync(kTinyPng, bin_key, target);
+    const auto planted = processor.process_sync(TINY_PNG, bin_key, target);
     REQUIRE(planted.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(planted.output_path));
 
     // Entry B: full-resolution PNG, no .bin.
     const std::string png_key = unique_key("fmt_png");
     cache.invalidate(png_key);
-    plant_cached_png(cache, png_key, kTinyPng);
+    plant_cached_png(cache, png_key, TINY_PNG);
     const std::string png_path = ThumbnailCache::to_lvgl_path(cache.get_cache_path(png_key));
 
     ThumbnailRequest bin_req;
@@ -308,8 +308,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ThumbnailRequest: format selects PNG or pre-s
     const std::string png_key = unique_key("fetchfmt_png");
     cache.invalidate(pre_key);
     cache.invalidate(png_key);
-    plant_cached_png(cache, pre_key, kTinyPng);
-    plant_cached_png(cache, png_key, kTinyPng);
+    plant_cached_png(cache, pre_key, TINY_PNG);
+    plant_cached_png(cache, png_key, TINY_PNG);
 
     std::atomic<uint32_t> gen{0};
     helix::AsyncLifetimeGuard guard;
@@ -374,7 +374,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ThumbnailRequest: format selects PNG or pre-s
     // --- The staleness guard must still apply on the FullPng branch. ---
     const std::string stale_key = unique_key("fetchfmt_stale");
     cache.invalidate(stale_key);
-    plant_cached_png(cache, stale_key, kTinyPng);
+    plant_cached_png(cache, stale_key, TINY_PNG);
 
     ThumbnailRequest stale_req;
     stale_req.key = stale_key;
@@ -406,7 +406,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ThumbnailCache: a completed pre-scale reports
     const std::string key = unique_key("degraded_false");
     cache.invalidate(key);
 
-    plant_cached_png(cache, key, kTinyPng);
+    plant_cached_png(cache, key, TINY_PNG);
 
     ThumbnailRequest req;
     req.key = key;

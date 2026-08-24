@@ -70,25 +70,11 @@ bool FilamentMapper::colors_match(uint32_t color_a, uint32_t color_b) {
 }
 
 bool FilamentMapper::materials_match(const std::string& a, const std::string& b) {
-    // Empty vs non-empty is always a mismatch
-    if (a.empty() != b.empty()) {
-        return false;
-    }
-
-    // Case-insensitive exact match
-    if (a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char ca, char cb) {
-            return std::tolower(static_cast<unsigned char>(ca)) ==
-                   std::tolower(static_cast<unsigned char>(cb));
-        })) {
-        return true;
-    }
-
-    // Resolve compound names to base materials (e.g., "PLA SnapSpeed" → "PLA",
-    // "PLA-CF" → "PLA") then check compatibility groups. Shared with the
-    // catalog picker's family grouping — see filament_variants.h.
-    auto base_a = filament::extract_base_material(a);
-    auto base_b = filament::extract_base_material(b);
-    return filament::are_materials_compatible(base_a, base_b);
+    // One implementation of "same polymer?", shared with endless-spool backup
+    // eligibility. It lives in filament_variants beside the family reduction it
+    // depends on rather than here, so a backend can ask the question without
+    // depending on the mapper.
+    return filament::materials_compatible(a, b);
 }
 
 SlotKey FilamentMapper::find_closest_color_slot(uint32_t target_color,

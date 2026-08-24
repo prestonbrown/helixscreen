@@ -16,8 +16,9 @@
 #include "app_globals.h"
 #include "config.h"
 #include "device_display_name.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 
@@ -30,13 +31,22 @@
 
 using namespace helix;
 
-PowerPanel::PowerPanel(PrinterState& printer_state, MoonrakerAPI* api)
+PowerPanel::PowerPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Loading devices..."));
     load_selected_devices();
 }
 
 PowerPanel::~PowerPanel() {
+    // The widget tree normally outlives this panel: StaticPanelRegistry::destroy_all()
+    // runs before lv_deinit(), so the LV_EVENT_DELETE hook setup() installed would
+    // fire on freed memory when lv_deinit() finally tears the tree down. Uninstall it
+    // while the object is still valid. A non-null panel_ means the tree is still
+    // alive — forget_widget_tree() nulls it when the tree dies first.
+    if (panel_ && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(panel_, on_panel_deleted, this);
+    }
+
     deinit_subjects();
     // Guard against static destruction order fiasco (spdlog may be gone)
     if (!StaticPanelRegistry::is_destroyed()) {
@@ -77,6 +87,12 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     spdlog::info("[{}] Setting up event handlers...", get_name());
 
+    // The panel/navigation layer owns this tree; nothing tells the panel when it
+    // dies. Without this hook the cached child pointers below outlive the widgets
+    // and the deferred rebuilds run on freed memory.
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+    lv_obj_add_event_cb(panel_, on_panel_deleted, LV_EVENT_DELETE, this);
+
     // Register XML event callback (once)
     static bool callbacks_registered = false;
     if (!callbacks_registered) {
@@ -109,7 +125,7 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
 void PowerPanel::fetch_devices() {
     if (!api_) {
-        spdlog::warn("[{}] No MoonrakerAPI available - cannot fetch devices", get_name());
+        spdlog::warn("[{}] No IMoonrakerAPI available - cannot fetch devices", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Not connected to printer"));
         lv_subject_copy_string(&status_subject_, status_buf_);
         return;
@@ -145,9 +161,14 @@ void PowerPanel::fetch_devices() {
 }
 
 void PowerPanel::clear_device_list() {
-    // Remove all device row widgets
+    // Deferred, never synchronous: the only caller is populate_device_list(),
+    // which runs from the deferred get_power_devices reply. N sync deletions in
+    // one UpdateQueue batch corrupt LVGL's global event linked list (#776, #190,
+    // #80 — THREADING.md invariant 3). safe_delete_deferred() detaches each row
+    // immediately, so the container is empty for the rebuild that follows, and
+    // hands the deletion to LVGL's own async list outside our drain.
     for (auto& row : device_rows_) {
-        helix::ui::safe_delete(row.container);
+        helix::ui::safe_delete_deferred(row.container);
     }
     device_rows_.clear();
 }
@@ -228,10 +249,12 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         lv_obj_remove_state(toggle, LV_STATE_CHECKED);
     }
 
-    // Check if device is locked during printing
-    PrintJobState job_state = printer_state_.get_print_job_state();
-    bool is_printing = (job_state == PrintJobState::PRINTING || job_state == PrintJobState::PAUSED);
-    bool is_locked = device.locked_while_printing && is_printing;
+    // Check if device is locked during printing. job_holds_machine() rather
+    // than the wire: the lock has to cover the pre-print window, where the
+    // printer still reports standby while the toolhead homes and probes, and
+    // cutting the PSU there is what the flag exists to prevent.
+    bool is_locked =
+        device.locked_while_printing && job_holds_machine(printer_state_.get_print_lifecycle());
 
     if (is_locked) {
         // Disable toggle interaction
@@ -269,7 +292,7 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
 
 void PowerPanel::handle_device_toggle(const std::string& device, bool power_on) {
     if (!api_) {
-        spdlog::warn("[{}] No MoonrakerAPI available - cannot toggle device", get_name());
+        spdlog::warn("[{}] No IMoonrakerAPI available - cannot toggle device", get_name());
         return;
     }
 
@@ -406,6 +429,44 @@ void PowerPanel::on_devices_discovered(const std::vector<PowerDevice>& devices) 
             set_selected_devices(pruned); // Save pruned list
         }
     }
+}
+
+void PowerPanel::on_panel_deleted(lv_event_t* e) {
+    auto* self = static_cast<PowerPanel*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    auto* dying = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+
+    // Only the tree the panel is currently pointing at matters. A root the panel
+    // has already replaced is deleted asynchronously, so its event can land after
+    // a later setup() installed the successor's pointers — clearing them then
+    // would blank a live tree.
+    if (dying != self->panel_) {
+        return;
+    }
+
+    self->forget_widget_tree();
+    spdlog::debug("[PowerPanel] Widget tree deleted - cached pointers dropped");
+}
+
+void PowerPanel::forget_widget_tree() {
+    // panel_ and cached_overlay_ are the same widget: get_or_create_overlay() is
+    // the only site that creates the tree and the only caller of setup().
+    panel_ = nullptr;
+    cached_overlay_ = nullptr;
+    device_list_container_ = nullptr;
+    empty_state_container_ = nullptr;
+    chip_container_ = nullptr;
+
+    // The rows are children of device_list_container_ and died with it. Keeping
+    // them would leave clear_device_list() calling safe_delete() on freed widgets
+    // and on_power_device_toggle() indexing rows whose toggles no longer exist.
+    device_rows_.clear();
+
+    // status_label_ is deliberately left alone: setup() caches it and no code
+    // reads it, so no path can dereference it. The status message reaches the XML
+    // through the power_status subject, not through this pointer.
 }
 
 void PowerPanel::populate_device_chips() {

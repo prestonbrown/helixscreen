@@ -20,12 +20,19 @@ namespace helix::ui {
  * cycles between languages during a session, multiple packs accumulate, but
  * typical usage touches one or two.
  *
- * English IS loaded too (even though tags ARE English) — otherwise every
- * lv_tr() call that doesn't find a matching pack logs a warning. The ~140 KB
- * heap cost of en.xml is tolerable vs. warning-per-call log spam.
+ * English is deliberately NOT loaded. Our tags ARE the English strings, so
+ * en.xml maps all 2739 of them to themselves and carries no information;
+ * lv_translation_get() already returns the tag when no pack matches. Skipping
+ * it saves ~140 KB of heap and makes every English lookup an empty pack-list
+ * walk instead of a linear scan of 2739 entries.
  *
  * @param lang Locale code, e.g. "en", "de", "zh"
  */
 void ensure_translation_loaded(const std::string& lang);
+
+/**
+ * @brief Locale whose translations are the tags themselves, so it needs no pack.
+ */
+inline constexpr const char* kIdentityLocale = "en";
 
 } // namespace helix::ui

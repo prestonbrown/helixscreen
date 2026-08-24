@@ -115,43 +115,43 @@ TEST_CASE("Concurrent thumbnail decode survives eviction unlinking beneath it",
 
     // Small enough that eviction fires on essentially every pass, which is the
     // state the reporter's device was in (22 MB against a 20 MB limit).
-    constexpr size_t kCacheLimitBytes = 256 * 1024;
-    ThumbnailCache cache(kCacheLimitBytes);
+    constexpr size_t CACHE_LIMIT_BYTES = 256 * 1024;
+    ThumbnailCache cache(CACHE_LIMIT_BYTES);
 
     auto& processor = helix::ThumbnailProcessor::instance();
     processor.set_cache_dir(scoped.path().string());
 
-    constexpr int kDecoderThreads = 4;
-    constexpr int kEvictorThreads = 2;
-    constexpr int kRounds = 40;
+    constexpr int DECODER_THREADS = 4;
+    constexpr int EVICTOR_THREADS = 2;
+    constexpr int ROUNDS = 40;
 
     // Mixed targets on purpose: the crash window had 164/200/300 in flight at
     // once, so every worker writes a differently-sized .bin into one directory.
-    constexpr uint8_t kArgb8888 = 0x10;
+    constexpr uint8_t ARGB8888 = 0x10;
     const std::vector<helix::ThumbnailTarget> targets = {
-        {164, 164, kArgb8888}, {200, 200, kArgb8888}, {300, 300, kArgb8888}, {120, 120, kArgb8888}};
+        {164, 164, ARGB8888}, {200, 200, ARGB8888}, {300, 300, ARGB8888}, {120, 120, ARGB8888}};
 
     std::atomic<bool> stop{false};
     std::atomic<int> decodes{0};
 
     std::vector<std::thread> evictors;
-    evictors.reserve(kEvictorThreads);
-    for (int e = 0; e < kEvictorThreads; ++e) {
+    evictors.reserve(EVICTOR_THREADS);
+    for (int e = 0; e < EVICTOR_THREADS; ++e) {
         evictors.emplace_back([&] {
             // set_max_size() is the public entry point that runs an eviction
             // pass; same idiom as test_thumbnail_cache_concurrency.cpp. The
             // value never changes, so all churn comes from the pass itself.
             while (!stop.load(std::memory_order_relaxed)) {
-                cache.set_max_size(kCacheLimitBytes);
+                cache.set_max_size(CACHE_LIMIT_BYTES);
             }
         });
     }
 
     std::vector<std::thread> decoders;
-    decoders.reserve(kDecoderThreads);
-    for (int t = 0; t < kDecoderThreads; ++t) {
+    decoders.reserve(DECODER_THREADS);
+    for (int t = 0; t < DECODER_THREADS; ++t) {
         decoders.emplace_back([&, t] {
-            for (int r = 0; r < kRounds; ++r) {
+            for (int r = 0; r < ROUNDS; ++r) {
                 const auto& target = targets[static_cast<size_t>((t + r) % targets.size())];
                 // Distinct source identifiers so each thread hashes to its own
                 // output filename most of the time, and collides sometimes —

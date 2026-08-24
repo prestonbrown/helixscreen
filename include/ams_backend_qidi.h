@@ -47,7 +47,7 @@
 /// returns a sensible no-op / NOT_SUPPORTED error.
 class AmsBackendQidi : public AmsSubscriptionBackend {
   public:
-    AmsBackendQidi(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendQidi() override;
 
     /// Single-box default. Chainable up to 16 slots (4 boxes × 4 slots) on

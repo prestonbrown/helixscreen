@@ -54,8 +54,8 @@ inline bool splash_should_continue(const SplashLifetimePolicy& p, long start_mon
 // Returns -1 if the field is absent (caller must then NOT enforce a floor —
 // we never guess memory pressure).
 inline long parse_meminfo_available_kb(const std::string& meminfo) {
-    static const char* kKey = "MemAvailable:";
-    const size_t key_at = meminfo.find(kKey);
+    static const char* KEY = "MemAvailable:";
+    const size_t key_at = meminfo.find(KEY);
     if (key_at == std::string::npos) {
         return -1;
     }

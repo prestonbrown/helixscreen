@@ -3063,6 +3063,16 @@ struct TarballTestEnv {
         std::ofstream o(backup_dir + "/settings.json.backup");
         o << content;
     }
+
+    /// The installer's "this packaged config is here on purpose" marker,
+    /// written beside settings.json.
+    std::filesystem::path fresh_marker() const {
+        return dir / AppConstants::Update::FRESH_INSTALL_MARKER;
+    }
+
+    void write_fresh_marker() {
+        std::ofstream o(fresh_marker());
+    }
 };
 
 } // namespace
@@ -3127,6 +3137,134 @@ TEST_CASE("Config::init() keeps tarball default when backup is also a tarball de
     test_config.init(env.config_path);
 
     REQUIRE(test_config.is_wizard_required());
+}
+
+TEST_CASE("Config::init() keeps a shipped preset when the installer marked a fresh install",
+          "[core][config][moonraker-update]") {
+    TarballTestEnv env("tarball_fresh_marker");
+
+    // assets/config/presets/k1.json in shape: a platform preset carrying the
+    // display rotation the panel physically needs.
+    env.write_config({{"preset", "k1"},
+                      {"wizard_completed", false},
+                      {"display", {{"rotate", 270}, {"rotation_probed", true}}},
+                      {"printer", {{"heaters", {{"bed", "heater_bed"}}}}}});
+
+    // A stale rolling backup left behind by an earlier install. Without the
+    // marker this would replace the preset wholesale.
+    env.write_backup({{"config_version", CURRENT_CONFIG_VERSION},
+                      {"active_printer_id", "other"},
+                      {"wizard_completed", true},
+                      {"brightness", 80},
+                      {"display", {{"rotate", 0}}},
+                      {"printers", {{"other", {{"moonraker_host", "192.168.1.50"}}}}}});
+
+    env.write_fresh_marker();
+
+    Config test_config;
+    test_config.init(env.config_path);
+
+    REQUIRE(test_config.get<int>("/display/rotate", -1) == 270);
+    REQUIRE(test_config.get<int>("/brightness", -1) == -1);
+    REQUIRE(test_config.is_wizard_required());
+}
+
+TEST_CASE("Config::init() consumes the fresh-install marker", "[core][config][moonraker-update]") {
+    TarballTestEnv env("tarball_marker_consumed");
+
+    env.write_config({{"preset", "k1"},
+                      {"wizard_completed", false},
+                      {"display", {{"rotate", 270}}},
+                      {"printer", {{"heaters", {{"bed", "heater_bed"}}}}}});
+    env.write_backup({{"config_version", CURRENT_CONFIG_VERSION},
+                      {"active_printer_id", "other"},
+                      {"brightness", 80},
+                      {"printers", {{"other", {{"moonraker_host", "192.168.1.50"}}}}}});
+    env.write_fresh_marker();
+    REQUIRE(std::filesystem::exists(env.fresh_marker()));
+
+    Config test_config;
+    test_config.init(env.config_path);
+
+    // One-shot: the marker only ever answers for the config it shipped beside,
+    // so a later unversioned document must not inherit its verdict.
+    REQUIRE_FALSE(std::filesystem::exists(env.fresh_marker()));
+}
+
+TEST_CASE("Config::init() keeps a shipped preset when the marker cannot be deleted",
+          "[core][config][moonraker-update]") {
+    // root bypasses the permission bits this case depends on, so the marker cannot be deleted
+    // and the assertion below would be asserting the opposite of the point.
+    if (::geteuid() == 0) {
+        SKIP("Test requires non-root euid - root bypasses permission bits");
+    }
+    TarballTestEnv env("tarball_marker_readonly");
+
+    env.write_config({{"preset", "k1"},
+                      {"wizard_completed", false},
+                      {"display", {{"rotate", 270}}},
+                      {"printer", {{"heaters", {{"bed", "heater_bed"}}}}}});
+    env.write_backup({{"config_version", CURRENT_CONFIG_VERSION},
+                      {"active_printer_id", "other"},
+                      {"brightness", 80},
+                      {"printers", {{"other", {{"moonraker_host", "192.168.1.50"}}}}}});
+    env.write_fresh_marker();
+
+    // Read-only storage: the marker survives because unlink needs write on the
+    // directory. Restore the mode however the test exits so the fixture can
+    // still clean up.
+    struct ModeGuard {
+        std::filesystem::path p;
+        ~ModeGuard() {
+            std::error_code ec;
+            std::filesystem::permissions(p, std::filesystem::perms::owner_all,
+                                         std::filesystem::perm_options::add, ec);
+        }
+    } guard{env.dir};
+    std::filesystem::permissions(env.dir, std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::remove);
+
+    Config test_config;
+    REQUIRE_NOTHROW(test_config.init(env.config_path));
+
+    // The delete really did fail - otherwise this test proves nothing about
+    // the read-only path.
+    REQUIRE(std::filesystem::exists(env.fresh_marker()));
+
+    // fs::remove takes an error_code, so a failed delete is not fatal. The
+    // config also cannot be stamped on read-only storage, so the marker keeps
+    // answering for the same undeletable document on every later boot - which
+    // is the stable outcome, not a stale verdict about a different one.
+    REQUIRE(test_config.get<int>("/display/rotate", -1) == 270);
+    REQUIRE(test_config.get<int>("/brightness", -1) == -1);
+}
+
+TEST_CASE("Config::init() discards a shipped preset with no fresh-install marker",
+          "[core][config][moonraker-update]") {
+    TarballTestEnv env("tarball_no_marker_clobber");
+
+    // Byte-for-byte what a fresh install ships - but Moonraker's type:web
+    // rmtree() + re-extract puts the identical file here after destroying the
+    // user's config, and takes the installer's marker with it.
+    env.write_config({{"preset", "k1"},
+                      {"wizard_completed", false},
+                      {"display", {{"rotate", 270}, {"rotation_probed", true}}},
+                      {"printer", {{"heaters", {{"bed", "heater_bed"}}}}}});
+
+    env.write_backup({{"config_version", CURRENT_CONFIG_VERSION},
+                      {"active_printer_id", "my-k1"},
+                      {"wizard_completed", true},
+                      {"brightness", 80},
+                      {"display", {{"rotate", 90}}},
+                      {"printers", {{"my-k1", {{"moonraker_host", "192.168.1.50"}}}}}});
+
+    Config test_config;
+    test_config.init(env.config_path);
+
+    REQUIRE(test_config.get<std::string>("/printers/my-k1/moonraker_host") == "192.168.1.50");
+    REQUIRE(test_config.get<int>("/brightness", -1) == 80);
+    REQUIRE(test_config.get<int>("/display/rotate", -1) == 90);
+    REQUIRE_FALSE(test_config.is_wizard_required());
 }
 
 TEST_CASE("Config::init() keeps tarball default when backup is corrupt",
@@ -3928,6 +4066,64 @@ TEST_CASE("Config::save() does refresh the rolling backup once the wizard is com
     REQUIRE(env.primary_backup_exists());
     REQUIRE(env.read_primary_backup().value("brightness", 0) == 9);
     REQUIRE(env.read_primary_backup().value("active_printer_id", "") == "fresh");
+}
+
+TEST_CASE("Config::resolve_path applies HELIX_CONFIG_DIR without losing the filename",
+          "[core][config]") {
+    ConfigDirEnvGuard config_dir_guard; // start from a known-unset env
+
+    // ConfigDirEnvGuard only restores a value that already existed, so it
+    // cannot clean up what this test sets on a shard where the var was unset.
+    // Without this the override leaks into every later test in the shard.
+    struct UnsetOnExit {
+        ~UnsetOnExit() {
+            unsetenv("HELIX_CONFIG_DIR");
+        }
+    } unset_on_exit;
+
+    SECTION("unset env returns the caller's path verbatim") {
+        REQUIRE(Config::resolve_path("config/settings.json") == "config/settings.json");
+        REQUIRE(Config::resolve_path("config/settings-test.json") == "config/settings-test.json");
+    }
+
+    SECTION("empty env is treated as unset") {
+        setenv("HELIX_CONFIG_DIR", "", 1);
+        REQUIRE(Config::resolve_path("config/settings.json") == "config/settings.json");
+    }
+
+    SECTION("override swaps the directory and keeps the filename") {
+        setenv("HELIX_CONFIG_DIR", "/tmp/helix-resolve-path", 1);
+        // The test/prod distinction rides on the filename, so it must survive.
+        REQUIRE(Config::resolve_path("config/settings.json") ==
+                "/tmp/helix-resolve-path/settings.json");
+        REQUIRE(Config::resolve_path("config/settings-test.json") ==
+                "/tmp/helix-resolve-path/settings-test.json");
+    }
+
+    SECTION("a trailing slash on the override does not double the separator") {
+        setenv("HELIX_CONFIG_DIR", "/tmp/helix-resolve-path/", 1);
+        REQUIRE(Config::resolve_path("config/settings.json") ==
+                "/tmp/helix-resolve-path/settings.json");
+    }
+
+    SECTION("resolve_path agrees with the path init() actually persists to") {
+        // The banner and init() must never disagree about where settings live.
+        std::filesystem::path dir =
+            std::filesystem::temp_directory_path() / "helix-resolve-path-init";
+        std::filesystem::remove_all(dir);
+        setenv("HELIX_CONFIG_DIR", dir.string().c_str(), 1);
+
+        Config cfg;
+        cfg.init("config/settings-test.json");
+        cfg.set("/brightness", 5);
+        REQUIRE(cfg.save());
+
+        std::string expected = Config::resolve_path("config/settings-test.json");
+        REQUIRE(expected == (dir / "settings-test.json").string());
+        REQUIRE(std::filesystem::exists(expected));
+
+        std::filesystem::remove_all(dir);
+    }
 }
 
 // ============================================================================

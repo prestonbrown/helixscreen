@@ -41,6 +41,64 @@ REQUIRED_FUNCTIONS="platform_stop_competing_uis platform_enable_backlight platfo
       done )
 }
 
+# The ad5m-zmod hook is shared by AD5M-ZMOD and AD5X (scripts/lib/installer/main.sh
+# maps platform ad5x -> hook ad5m-zmod). Its app-log path must stay under
+# /opt/config: ghzserg's TAR_CONFIG archiver collects /opt/config/ (plus
+# /usr/prog/config/, /usr/data/logs/ on AD5X and /data/logFiles/ on AD5M) and
+# nothing under /data/helixscreen/, so moving the log back to /data makes it
+# invisible to every support archive a user can send us. That is the exact
+# regression that reopens #1249.
+@test "zmod hook logs under /opt/config so ZMOD's TAR_CONFIG archives it" {
+    run sh -c '
+        HOOKS_DIR="'"$HOOKS_DIR"'"
+        . "$HOOKS_DIR/hooks-ad5m-zmod.sh"
+        # Neutralize the hook side effects; we only want the exported vars.
+        mkdir() { :; }
+        touch() { :; }
+        platform_pre_start >/dev/null 2>&1
+        echo "dest=$HELIX_LOG_DEST"
+        echo "file=$HELIX_LOG_FILE"
+    '
+    [ "$status" -eq 0 ]
+
+    # The file sink must be explicitly selected — "auto" never resolves to File.
+    [[ "$output" == *"dest=file"* ]]
+
+    log_file=$(echo "$output" | sed -n 's/^file=//p')
+    [ -n "$log_file" ]
+    case "$log_file" in
+        /opt/config/*) ;;
+        *) echo "HELIX_LOG_FILE must live under /opt/config/ (got '$log_file')" >&2
+           return 1 ;;
+    esac
+
+    # NOT helixscreen.log: ghzserg's S80helixscreen init script owns that name
+    # in the same directory for the launcher/stderr redirect stream.
+    case "$log_file" in
+        */helixscreen.log)
+           echo "HELIX_LOG_FILE collides with ghzserg's launcher redirect target" >&2
+           return 1 ;;
+    esac
+}
+
+@test "zmod hook creates its log directory before the app needs it" {
+    grep -q 'mkdir -p "/opt/config/mod_data/log"' "$HOOKS_DIR/hooks-ad5m-zmod.sh"
+}
+
+@test "zmod hook keeps rotation tight for the 107 MB AD5M" {
+    run sh -c '
+        HOOKS_DIR="'"$HOOKS_DIR"'"
+        . "$HOOKS_DIR/hooks-ad5m-zmod.sh"
+        mkdir() { :; }
+        touch() { :; }
+        platform_pre_start >/dev/null 2>&1
+        echo "bytes=$HELIX_LOG_ROTATE_BYTES files=$HELIX_LOG_ROTATE_FILES"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"bytes=1048576"* ]]
+    [[ "$output" == *"files=3"* ]]
+}
+
 @test "k1 hooks define all required functions" {
     ( . "$HOOKS_DIR/hooks-k1.sh"
       for func in $REQUIRED_FUNCTIONS; do

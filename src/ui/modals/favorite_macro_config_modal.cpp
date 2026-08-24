@@ -10,7 +10,7 @@
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "static_subject_registry.h"
@@ -30,17 +30,17 @@ lv_subject_t s_skip_subject;
 bool s_subjects_registered = false;
 
 // Curated icon list for the picker grid (matches FavoriteMacroWidget).
-static const char* const kCuratedIcons[] = {
+static const char* const CURATED_ICONS[] = {
     "play",        "pause",     "stop",  "refresh",     "home",
     "cog",         "wrench",    "fan",   "thermometer", "lightbulb_outline",
     "power",       "bell",      "flash", "water",       "fire",
     "printer_3d",  "check",     "bed",   "filament",    "cooldown",
     "script_text", "hourglass", "speed", "arrow_up",    "arrow_down",
 };
-static constexpr size_t kCuratedIconCount = std::size(kCuratedIcons);
+static constexpr size_t CURATED_ICON_COUNT = std::size(CURATED_ICONS);
 
 // Color palette — first entry (0) = theme secondary sentinel.
-static constexpr uint32_t kIconColors[] = {
+static constexpr uint32_t ICON_COLORS[] = {
     0xE53935, // Red
     0xFF5722, // Deep Orange
     0xFF9800, // Orange
@@ -58,10 +58,10 @@ static constexpr uint32_t kIconColors[] = {
     0x808080, // Gray
     0x000000, // sentinel: theme default (secondary variant)
 };
-static constexpr size_t kIconColorCount = std::size(kIconColors);
+static constexpr size_t ICON_COLOR_COUNT = std::size(ICON_COLORS);
 
-static constexpr int kIconCellSize = 36;
-static constexpr int kColorSwatchSize = 28;
+static constexpr int ICON_CELL_SIZE = 36;
+static constexpr int COLOR_SWATCH_SIZE = 28;
 
 void apply_icon_cell_highlight(lv_obj_t* cell, bool selected) {
     if (selected) {
@@ -180,14 +180,14 @@ void FavoriteMacroConfigModal::skip_params_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-MoonrakerAPI* FavoriteMacroConfigModal::get_api() const {
+IMoonrakerAPI* FavoriteMacroConfigModal::get_api() const {
     return get_moonraker_api();
 }
 
 void FavoriteMacroConfigModal::populate_macro_list() {
     if (!macro_list_)
         return;
-    MoonrakerAPI* api = get_api();
+    IMoonrakerAPI* api = get_api();
     if (!api) {
         spdlog::warn("[FavoriteMacroConfigModal] No API available for macro list");
         return;
@@ -247,9 +247,9 @@ void FavoriteMacroConfigModal::populate_icon_grid() {
 
     std::string effective = icon_name_.empty() ? "play" : icon_name_;
 
-    for (size_t i = 0; i < kCuratedIconCount; ++i) {
+    for (size_t i = 0; i < CURATED_ICON_COUNT; ++i) {
         lv_obj_t* cell = lv_obj_create(icon_grid_);
-        lv_obj_set_size(cell, kIconCellSize, kIconCellSize);
+        lv_obj_set_size(cell, ICON_CELL_SIZE, ICON_CELL_SIZE);
         lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_bg_opa(cell, 0, 0);
@@ -260,9 +260,9 @@ void FavoriteMacroConfigModal::populate_icon_grid() {
                                   LV_PART_MAIN | LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(cell, LV_OPA_20, LV_PART_MAIN | LV_STATE_PRESSED);
 
-        apply_icon_cell_highlight(cell, kCuratedIcons[i] == effective);
+        apply_icon_cell_highlight(cell, CURATED_ICONS[i] == effective);
 
-        const char* cp = ui_icon::lookup_codepoint(kCuratedIcons[i]);
+        const char* cp = ui_icon::lookup_codepoint(CURATED_ICONS[i]);
         if (cp) {
             lv_obj_t* icon = lv_label_create(cell);
             lv_label_set_text(icon, cp);
@@ -278,39 +278,40 @@ void FavoriteMacroConfigModal::populate_icon_grid() {
                             nullptr);
     }
 
-    spdlog::debug("[FavoriteMacroConfigModal] Populated icon grid ({} icons)", kCuratedIconCount);
+    spdlog::debug("[FavoriteMacroConfigModal] Populated icon grid ({} icons)", CURATED_ICON_COUNT);
 }
 
 void FavoriteMacroConfigModal::populate_color_grid() {
     if (!color_grid_)
         return;
 
-    for (size_t i = 0; i < kIconColorCount; ++i) {
+    for (size_t i = 0; i < ICON_COLOR_COUNT; ++i) {
         lv_obj_t* swatch = lv_obj_create(color_grid_);
-        lv_obj_set_size(swatch, kColorSwatchSize, kColorSwatchSize);
+        lv_obj_set_size(swatch, COLOR_SWATCH_SIZE, COLOR_SWATCH_SIZE);
         lv_obj_remove_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(swatch, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_radius(swatch, 4, 0);
         lv_obj_set_style_pad_all(swatch, 0, 0);
 
-        if (kIconColors[i] == 0) {
+        if (ICON_COLORS[i] == 0) {
             lv_obj_set_style_bg_color(swatch, theme_manager_get_color("secondary"), 0);
         } else {
-            lv_obj_set_style_bg_color(swatch, lv_color_hex(kIconColors[i]), 0);
+            lv_obj_set_style_bg_color(swatch, lv_color_hex(ICON_COLORS[i]), 0);
         }
         lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
 
         lv_obj_set_style_bg_opa(swatch, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
 
-        apply_color_swatch_highlight(swatch, kIconColors[i] == icon_color_);
+        apply_color_swatch_highlight(swatch, ICON_COLORS[i] == icon_color_);
 
         lv_obj_set_user_data(swatch,
-                             reinterpret_cast<void*>(static_cast<uintptr_t>(kIconColors[i])));
+                             reinterpret_cast<void*>(static_cast<uintptr_t>(ICON_COLORS[i])));
         lv_obj_add_event_cb(swatch, FavoriteMacroConfigModal::color_swatch_cb, LV_EVENT_CLICKED,
                             nullptr);
     }
 
-    spdlog::debug("[FavoriteMacroConfigModal] Populated color grid ({} swatches)", kIconColorCount);
+    spdlog::debug("[FavoriteMacroConfigModal] Populated color grid ({} swatches)",
+                  ICON_COLOR_COUNT);
 }
 
 void FavoriteMacroConfigModal::refresh_highlights() {
@@ -331,7 +332,7 @@ void FavoriteMacroConfigModal::refresh_highlights() {
             lv_obj_t* cell = lv_obj_get_child(icon_grid_, i);
             auto idx = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(cell)));
             apply_icon_cell_highlight(cell,
-                                      idx < kCuratedIconCount && kCuratedIcons[idx] == effective);
+                                      idx < CURATED_ICON_COUNT && CURATED_ICONS[idx] == effective);
         }
     }
 
@@ -387,8 +388,8 @@ void FavoriteMacroConfigModal::icon_cell_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] icon_cell_cb");
     auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     auto idx = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-    if (idx < kCuratedIconCount && s_active_) {
-        s_active_->select_icon(kCuratedIcons[idx]);
+    if (idx < CURATED_ICON_COUNT && s_active_) {
+        s_active_->select_icon(CURATED_ICONS[idx]);
     }
     LVGL_SAFE_EVENT_CB_END();
 }

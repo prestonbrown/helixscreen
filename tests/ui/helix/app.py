@@ -55,8 +55,8 @@ def _short_socket_path(path: Path) -> tuple[Path, str | None]:
 # wherever that local file happened to have animations_enabled=false — on a
 # fresh checkout without one (or one that had simply never had the setting
 # toggled), goldens captured mid cross-fade at ~100% pixel diff (main went
-# red over exactly this, see
-# docs/devel/specs/2026-07-25-helixctl-ui-test-harness-design.md).
+# red over exactly this, see "Golden corpus scope" in
+# docs/devel/UI_TESTING.md).
 #
 # Every key below is something the 8 committed goldens are actually
 # sensitive to — not accumulated state. Anything not listed here falls
@@ -110,7 +110,8 @@ class HelixApp:
     BOOT_TIMEOUT = 30.0
 
     def __init__(self, binary: Path, socket_path: Path, log_path: Path,
-                 extra_args: list[str] | None = None):
+                 extra_args: list[str] | None = None,
+                 extra_env: dict[str, str] | None = None):
         self.binary = Path(binary)
         # The instance's own directory, for config and anything else that
         # wants to sit beside the caller's files — kept even when the socket
@@ -119,12 +120,18 @@ class HelixApp:
         self.socket_path, self._socket_tmpdir = _short_socket_path(Path(socket_path))
         self.log_path = Path(log_path)
         self.extra_args = list(extra_args or [])
+        # Mock scenario knobs (HELIX_MOCK_*) for a test that needs printer state
+        # the default mock does not produce. Applied over the inherited
+        # environment at start(), so it stays scoped to this instance instead of
+        # leaking into a session-scoped app spawned by another test.
+        self.extra_env = dict(extra_env or {})
         self.proc: subprocess.Popen | None = None
 
     # -- lifecycle ---------------------------------------------------------
 
     def start(self) -> "HelixApp":
         env = os.environ.copy()
+        env.update(self.extra_env)
         # Default to SDL's headless driver: a visible window steals focus and
         # swallows the developer's keystrokes every time a test spawns an app,
         # and a suite run spawns many. Verified that dummy renders normally —
@@ -405,6 +412,10 @@ class HelixApp:
     def text(self, target: str) -> str:
         """Read a widget's text. Raises if the widget carries no text at all."""
         return self.ctl("text", target)["text"]
+
+    def state(self, target: str) -> dict:
+        """Read a widget's LVGL states/flags (checked, disabled, hidden, ...)."""
+        return self.ctl("state", target)
 
     def get(self, subject: str) -> Any:
         return self.ctl("get", subject)

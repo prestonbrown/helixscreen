@@ -23,8 +23,11 @@
 #include <memory>
 #include <vector>
 
-// Maximum number of series supported
-static constexpr int MAX_SERIES = 8;
+// Maximum number of series supported: raw PSD + every fitted shaper curve the
+// panel can overlay (MAX_SHAPERS = 11) + the live-before "was" curve. Fitted
+// CSVs from Kalico carry up to 11 columns; too few slots here silently drops
+// the last-added series (chips without curves, no "was" overlay).
+static constexpr int MAX_SERIES = 13;
 
 // Maximum series name length
 static constexpr size_t MAX_NAME_LEN = 32;
@@ -33,10 +36,11 @@ static constexpr size_t MAX_NAME_LEN = 32;
  * @brief Internal series data structure
  */
 struct FrequencySeriesData {
-    int id = -1;                            ///< Series ID (-1 = unused slot)
-    char name[MAX_NAME_LEN] = {0};          ///< Series name
-    lv_color_t color = {};                  ///< Line color
-    bool visible = true;                    ///< Visibility state
+    int id = -1;                   ///< Series ID (-1 = unused slot)
+    char name[MAX_NAME_LEN] = {0}; ///< Series name
+    lv_color_t color = {};         ///< Line color
+    bool visible = true;           ///< Visibility state
+    bool muted = false;            ///< Draw thin/translucent instead of via the LVGL series
     lv_chart_series_t* lv_series = nullptr; ///< LVGL chart series (chart mode only)
 
     // Peak marker data
@@ -304,6 +308,10 @@ int ui_frequency_response_chart_add_series(ui_frequency_response_chart_t* chart,
     series->id = chart->next_series_id++;
     series->color = color;
     series->visible = true;
+    // A slot previously used by a muted series (the live-before overlay) must
+    // not stay muted: the new series would be double-drawn (1px copy over its
+    // LVGL series) and could never be hidden by a chip toggle.
+    series->muted = false;
     series->has_peak = false;
     series->lv_series = nullptr;
     series->frequencies.clear();
@@ -367,13 +375,46 @@ void ui_frequency_response_chart_show_series(ui_frequency_response_chart_t* char
 
     series->visible = visible;
 
-    // Update LVGL series visibility if in chart mode
-    if (chart->chart && series->lv_series) {
+    // Update LVGL series visibility if in chart mode. Muted series never use
+    // their LVGL series (the draw-post pass renders them), so theirs stays
+    // hidden regardless of the visibility flag.
+    if (chart->chart && series->lv_series && !series->muted) {
         lv_chart_hide_series(chart->chart, series->lv_series, !visible);
+        lv_obj_invalidate(chart->chart);
+    } else if (chart->chart) {
         lv_obj_invalidate(chart->chart);
     }
 
     spdlog::debug("[FreqChart] Series {} visibility: {}", series_id, visible);
+}
+
+void ui_frequency_response_chart_set_series_muted(ui_frequency_response_chart_t* chart,
+                                                  int series_id, bool muted) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->muted = muted;
+
+    if (chart->chart && series->lv_series) {
+        // Muted series are drawn by draw_muted_series_cb(); keep the built-in
+        // LVGL series hidden so the curve is not drawn twice.
+        lv_chart_hide_series(chart->chart, series->lv_series, muted ? true : !series->visible);
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Series {} muted: {}", series_id, muted);
+}
+
+bool ui_frequency_response_chart_is_series_muted(ui_frequency_response_chart_t* chart,
+                                                 int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->muted : false;
 }
 
 // ============================================================================
@@ -770,6 +811,87 @@ static void draw_peak_dots_cb(lv_event_t* e) {
 }
 
 // ============================================================================
+// Muted Series Drawing
+// ============================================================================
+
+/**
+ * @brief Draw muted series as thin translucent polylines on top of chart data
+ *
+ * Muted series carry reference curves that must stay visually secondary to
+ * the fitted curves, so they bypass their LVGL chart series (kept hidden) and
+ * are drawn here at 1px with reduced opacity. Point placement mirrors the
+ * built-in renderer and draw_peak_dots_cb(): X from the point index over the
+ * content width, Y from the stored amplitude over the amplitude range.
+ */
+static void draw_muted_series_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart || !chart->chart) {
+        return;
+    }
+
+    lv_area_t chart_coords;
+    lv_obj_get_coords(chart->chart, &chart_coords);
+
+    int32_t pad_top = lv_obj_get_style_pad_top(chart->chart, LV_PART_MAIN);
+    int32_t pad_left = lv_obj_get_style_pad_left(chart->chart, LV_PART_MAIN);
+    int32_t pad_right = lv_obj_get_style_pad_right(chart->chart, LV_PART_MAIN);
+    int32_t pad_bottom = lv_obj_get_style_pad_bottom(chart->chart, LV_PART_MAIN);
+
+    const int32_t content_x1 = chart_coords.x1 + pad_left;
+    const int32_t content_x2 = chart_coords.x2 - pad_right;
+    const int32_t content_y1 = chart_coords.y1 + pad_top;
+    const int32_t content_y2 = chart_coords.y2 - pad_bottom;
+    const int32_t content_width = content_x2 - content_x1;
+    const int32_t content_height = content_y2 - content_y1;
+
+    if (content_width <= 0 || content_height <= 0) {
+        return;
+    }
+
+    const float amp_range = chart->amp_max - chart->amp_min;
+    if (!(amp_range > 0.0f)) {
+        return;
+    }
+
+    lv_draw_line_dsc_t line_dsc;
+    lv_draw_line_dsc_init(&line_dsc);
+    line_dsc.width = 1;
+    line_dsc.opa = 170; // ~66% - present but behind the 2px fitted curves
+
+    for (int i = 0; i < MAX_SERIES; i++) {
+        const FrequencySeriesData* series = &chart->series[i];
+        if (series->id == -1 || !series->muted || !series->visible) {
+            continue;
+        }
+
+        const size_t total_pts = series->amplitudes.size();
+        if (total_pts < 2) {
+            continue;
+        }
+
+        line_dsc.color = series->color;
+        for (size_t j = 1; j < total_pts; j++) {
+            float x_frac_prev = static_cast<float>(j - 1) / static_cast<float>(total_pts - 1);
+            float x_frac = static_cast<float>(j) / static_cast<float>(total_pts - 1);
+            float amp_frac_prev = (series->amplitudes[j - 1] - chart->amp_min) / amp_range;
+            float amp_frac = (series->amplitudes[j] - chart->amp_min) / amp_range;
+            amp_frac_prev = std::max(0.0f, std::min(1.0f, amp_frac_prev));
+            amp_frac = std::max(0.0f, std::min(1.0f, amp_frac));
+
+            line_dsc.p1.x = content_x1 + static_cast<int32_t>(x_frac_prev * content_width);
+            line_dsc.p1.y = content_y2 - static_cast<int32_t>(amp_frac_prev * content_height);
+            line_dsc.p2.x = content_x1 + static_cast<int32_t>(x_frac * content_width);
+            line_dsc.p2.y = content_y2 - static_cast<int32_t>(amp_frac * content_height);
+            lv_draw_line(layer, &line_dsc);
+        }
+
+        spdlog::trace("[FreqChart] Drew muted series '{}' ({} points)", series->name, total_pts);
+    }
+}
+
+// ============================================================================
 // Axis Label Draw Callbacks
 // ============================================================================
 
@@ -1016,11 +1138,13 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
             lv_obj_set_style_width(chart->chart, 0, LV_PART_INDICATOR);
             lv_obj_set_style_height(chart->chart, 0, LV_PART_INDICATOR);
 
-            // Register draw callbacks for grid lines, axis labels, and peak dots
+            // Register draw callbacks for grid lines, axis labels, peak dots,
+            // and muted reference curves
             lv_obj_add_event_cb(chart->chart, draw_freq_grid_lines_cb, LV_EVENT_DRAW_MAIN, chart);
             lv_obj_add_event_cb(chart->chart, draw_x_axis_labels_cb, LV_EVENT_DRAW_POST, chart);
             lv_obj_add_event_cb(chart->chart, draw_y_axis_labels_cb, LV_EVENT_DRAW_POST, chart);
             lv_obj_add_event_cb(chart->chart, draw_peak_dots_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_muted_series_cb, LV_EVENT_DRAW_POST, chart);
 
             // Create LVGL series for existing series data
             for (int i = 0; i < MAX_SERIES; i++) {

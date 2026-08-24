@@ -20,7 +20,7 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 class AmsEditOverlayTestAccess;
 class AmsEditOverlayViewTestAccess;
 
@@ -63,10 +63,10 @@ class AmsEditOverlay : public OverlayBase {
     using CompletionCallback = std::function<void(const EditResult& result)>;
 
     // View states for the ams_edit_view subject (spec §13 / review §3)
-    static constexpr int kViewOverview = 0;
-    static constexpr int kViewSpoolPicker = 1;
-    static constexpr int kViewSpoolEdit = 2; // unified identity + color + logistics
-    static constexpr int kViewColor = 3;
+    static constexpr int VIEW_OVERVIEW = 0;
+    static constexpr int VIEW_SPOOL_PICKER = 1;
+    static constexpr int VIEW_SPOOL_EDIT = 2; // unified identity + color + logistics
+    static constexpr int VIEW_COLOR = 3;
 
     AmsEditOverlay();
     ~AmsEditOverlay() override;
@@ -95,13 +95,13 @@ class AmsEditOverlay : public OverlayBase {
      * @param parent Parent screen (fallback if no active screen)
      * @param slot_index Slot being edited (0-based; -2 = external spool)
      * @param initial_info Initial slot info to populate the overview
-     * @param api MoonrakerAPI for Spoolman sync (may be nullptr)
+     * @param api IMoonrakerAPI for Spoolman sync (may be nullptr)
      * @param on_complete Fired exactly once when the editor closes
      * @param open_on_picker Open directly on the Spoolman picker (#1071)
      * @return true if the overlay was pushed
      */
     bool show_for_slot(lv_obj_t* parent, int slot_index, const SlotInfo& initial_info,
-                       MoonrakerAPI* api, CompletionCallback on_complete,
+                       IMoonrakerAPI* api, CompletionCallback on_complete,
                        bool open_on_picker = false);
 
   private:
@@ -126,14 +126,14 @@ class AmsEditOverlay : public OverlayBase {
     // picker is re-entered the normal way (Change Filament -> switch_to_picker),
     // which restores today's return-to-overview behavior.
     bool opened_on_picker_ = false;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
     bool completion_fired_ = false; ///< Guards single-fire completion
 
     /// Cached overlay widget for lazy_create_and_push_overlay
     lv_obj_t* cached_overlay_widget_ = nullptr;
 
-    // === Spool logistics (managed-slot fields inside kViewSpoolEdit) ===
+    // === Spool logistics (managed-slot fields inside VIEW_SPOOL_EDIT) ===
     SpoolInfo detail_original_; ///< as fetched on view entry
     SpoolInfo detail_working_;  ///< live field edits
 
@@ -141,12 +141,12 @@ class AmsEditOverlay : public OverlayBase {
     void read_detail_fields();
     static void on_detail_field_changed_cb(lv_event_t* e);
 
-    // === Spool-edit view (kViewSpoolEdit): identity + color + logistics ===
+    // === Spool-edit view (VIEW_SPOOL_EDIT): identity + color + logistics ===
     FilamentCatalogSelector details_selector_;
     uint32_t details_color_ = 0;     ///< pending color chosen in the details view
     bool details_color_set_ = false; ///< true once the user picked a color there
 
-    // === Color view (kViewColor): one screen, presets + custom HSV ===
+    // === Color view (VIEW_COLOR): one screen, presets + custom HSV ===
     // Always returns to the spool-edit view — the only entry point is the
     // spool-edit "custom color" pencil (the overview swatch was retired in
     // Task 6), so there is no return-view state to track.

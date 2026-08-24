@@ -15,7 +15,7 @@
     <style name="active_style" selector="checked"/>
     <event_cb trigger="clicked" callback="on_spoolman_spool_row_clicked"/>
     <!-- LEFT: 3D Spool Canvas (48x48 fixed size) -->
-    <spool_canvas name="spool_canvas" size="#button_height" color="#text_muted" fill_level="0.5"/>
+    <spool_canvas name="spool_canvas" size="#button_height" color="#text_muted" fill_level="1.0"/>
     <!-- Spool Number -->
     <text_small name="spool_id_label"
                 width="content" text="" style_text_color="#text_muted" style_pad_all="0" clickable="false"/>
@@ -44,8 +44,8 @@
             style_flex_cross_place="end" style_pad_gap="#space_xs" clickable="false">
       <!-- Remaining Weight (e.g., "850g") -->
       <text_body name="weight_text"
-                 width="100%" text="850g" translation_tag="850g" style_text_color="#text" style_text_align="right"
-                 style_pad_all="0" clickable="false"/>
+                 width="100%" text="850g" style_text_color="#text" style_text_align="right" style_pad_all="0"
+                 clickable="false"/>
       <!-- Percentage (e.g., "85%") -->
       <text_small name="percent_text"
                   width="100%" text="85%" style_text_color="#text_muted" style_text_align="right" style_pad_all="0"

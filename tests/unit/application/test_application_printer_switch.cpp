@@ -57,7 +57,7 @@
 
 namespace {
 
-constexpr const char* kProbeName = "ApplicationPrinterSwitchTestProbe";
+constexpr const char* PROBE_NAME = "ApplicationPrinterSwitchTestProbe";
 
 /**
  * @brief Two-printer config + a per-printer cache-invalidation counter
@@ -82,7 +82,7 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
 
         // Count per-printer cache invalidations without caring who triggers them.
         helix::PrinterCacheRegistry::instance().register_invalidator(
-            kProbeName, [this]() { ++invalidations_; });
+            PROBE_NAME, [this]() { ++invalidations_; });
 
         // ~Application() calls shutdown() unconditionally, which tears down
         // TelemetryManager / UpdateChecker / SoundManager / NavigationManager and the
@@ -93,7 +93,7 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
 
     ~PrinterSwitchFixture() override {
         // The registry outlives the fixture; the invalidator closes over `this`.
-        helix::PrinterCacheRegistry::instance().unregister(kProbeName);
+        helix::PrinterCacheRegistry::instance().unregister(PROBE_NAME);
         // cancel_add_printer_wizard() defers its teardown through AsyncLifetimeGuard;
         // that callback closes over app_, so drop it rather than run it.
         helix::ui::UpdateQueueTestAccess::discard_pending(helix::ui::UpdateQueue::instance());

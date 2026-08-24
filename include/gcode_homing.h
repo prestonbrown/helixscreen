@@ -8,7 +8,7 @@
  * Used to block app-initiated homing while a print is active. On loadcell-Z
  * printers (e.g. AD5X) a G28 probes the nozzle DOWN into the bed; issued
  * mid-print it drives the nozzle into the part -> collision. See the guards in
- * MoonrakerAPI::execute_gcode / MoonrakerMotionAPI::execute_gcode.
+ * IMoonrakerAPI::execute_gcode / MoonrakerMotionAPI::execute_gcode.
  */
 
 #pragma once

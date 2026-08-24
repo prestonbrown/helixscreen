@@ -129,7 +129,9 @@ void bypass_spool_set_has_spool(BypassSpoolWidgets& w, bool has_spool) {
         return;
     }
     w.cached_has_spool = has_spool;
-    ui_spool_canvas_set_fill_level(w.spool_canvas, has_spool ? 0.75f : 0.0f);
+    // The bypass spool is hand-fed and has no weight behind it, so it draws full
+    // whenever one is present — same answer as any other unweighed spool.
+    ui_spool_canvas_set_fill_level(w.spool_canvas, has_spool ? 1.0f : 0.0f);
     ui_spool_canvas_redraw(w.spool_canvas);
 }
 

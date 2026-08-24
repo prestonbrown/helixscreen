@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <regex>
 #include <string>
+#include <vector>
 
 namespace helix {
 
@@ -131,9 +133,15 @@ inline std::optional<ProbePosition> parse_probe_position(const std::string& line
 }
 
 /// Two probe samples are the same mesh point if they land this close (mm).
-/// Repeated samples report byte-identical coordinates, and real grid spacing is
-/// orders of magnitude larger, so the exact value is not delicate.
-inline constexpr double PROBE_POSITION_TOLERANCE_MM = 0.05;
+///
+/// Repeated samples report byte-identical coordinates, so 0.05 was enough while
+/// the only thing being collapsed was `samples: N`. Re-verification passes are
+/// not that tidy: the K2 Plus `G29_RE_CHECK` re-touches a corner at the four
+/// +/-0.25mm quadrant offsets around it, putting two samples of one point up to
+/// 0.5mm apart. Real grid spacing is millimetres at the very tightest (tens of
+/// mm on the beds that actually run re-check passes), so 0.5 separates
+/// neighbours with room to spare.
+inline constexpr double PROBE_POSITION_TOLERANCE_MM = 0.5;
 
 /**
  * @brief Counts distinct mesh points from Klipper's per-sample probe output
@@ -144,9 +152,16 @@ inline constexpr double PROBE_POSITION_TOLERANCE_MM = 0.05;
  * The Qidi Q2 touches the bed twice per point and showed a 36-point mesh running
  * past 36 (#1224).
  *
- * Primary strategy is positional: consecutive lines at the same (x,y) are
- * samples of one point. That needs no configuration, so it works on any firmware
- * and also absorbs tolerance retries, which a fixed divisor cannot.
+ * Primary strategy is positional: a line whose (x,y) matches any point already
+ * seen this mesh is another sample of that point. That needs no configuration,
+ * so it works on any firmware and also absorbs tolerance retries, which a fixed
+ * divisor cannot.
+ *
+ * Matching against every point seen, rather than only the previous one, is what
+ * makes it survive a firmware that leaves a point and comes back. The K2 Plus
+ * closes its mesh with eight `G29_RE_CHECK` rounds alternating between two
+ * corners it already probed; against the last point alone every one of those
+ * touches read as new, and a 67-point mesh reported 147.
  *
  * The configured sample count remains a fallback for lines whose coordinates do
  * not parse. It is only as good as our knowledge of the printer's probe section
@@ -175,12 +190,14 @@ class ProbePointCounter {
         ++sample_lines_;
 
         if (auto pos = parse_probe_position(line)) {
-            if (!has_last_ || std::fabs(pos->x - last_x_) > PROBE_POSITION_TOLERANCE_MM ||
-                std::fabs(pos->y - last_y_) > PROBE_POSITION_TOLERANCE_MM) {
+            const bool seen_before =
+                std::any_of(seen_.begin(), seen_.end(), [&](const ProbePosition& p) {
+                    return std::fabs(pos->x - p.x) <= PROBE_POSITION_TOLERANCE_MM &&
+                           std::fabs(pos->y - p.y) <= PROBE_POSITION_TOLERANCE_MM;
+                });
+            if (!seen_before) {
+                seen_.push_back(*pos);
                 ++points_;
-                last_x_ = pos->x;
-                last_y_ = pos->y;
-                has_last_ = true;
             }
             return points_;
         }
@@ -206,18 +223,17 @@ class ProbePointCounter {
     void reset() {
         points_ = 0;
         sample_lines_ = 0;
-        has_last_ = false;
-        last_x_ = 0.0;
-        last_y_ = 0.0;
+        seen_.clear();
     }
 
   private:
     int samples_;
     int points_ = 0;
     int sample_lines_ = 0;
-    bool has_last_ = false;
-    double last_x_ = 0.0;
-    double last_y_ = 0.0;
+    /// Every distinct point seen this mesh. Bounded by the grid size (a few
+    /// hundred at the very largest), and cleared by reset() between meshes, so
+    /// the linear scan per sample stays cheaper than the probe move it follows.
+    std::vector<ProbePosition> seen_;
 };
 
 } // namespace helix

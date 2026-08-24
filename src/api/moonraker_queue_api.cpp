@@ -10,7 +10,7 @@
 // MoonrakerQueueAPI Implementation
 // ============================================================================
 
-MoonrakerQueueAPI::MoonrakerQueueAPI(helix::MoonrakerClient& client) : client_(client) {}
+MoonrakerQueueAPI::MoonrakerQueueAPI(helix::IMoonrakerClient& client) : client_(client) {}
 
 // ============================================================================
 // Queue Operations

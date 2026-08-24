@@ -12,7 +12,7 @@
 #include <functional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -50,10 +50,10 @@ class SpoolEditModal : public Modal {
      * @brief Show modal for editing a spool
      * @param parent Parent screen
      * @param spool Spool info to edit
-     * @param api MoonrakerAPI for PATCH calls
+     * @param api IMoonrakerAPI for PATCH calls
      * @return true if modal was created successfully
      */
-    bool show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, MoonrakerAPI* api);
+    bool show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, IMoonrakerAPI* api);
 
     /**
      * @brief Set callback for when editing completes
@@ -76,7 +76,7 @@ class SpoolEditModal : public Modal {
     // === State ===
     SpoolInfo original_spool_;
     SpoolInfo working_spool_;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
     ColorPicker color_picker_;
 

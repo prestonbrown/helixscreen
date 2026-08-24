@@ -14,7 +14,7 @@ TEST_CASE("material mismatch is advisory, not block", "[preflight_validator]") {
     std::vector<GcodeToolInfo> tools = {{0, 0xED1C24, "PLA"}};
     std::vector<AvailableSlot> slots = {{0, 0, 0xED1C24, "PETG", false, -1, 0, 0, ""}};
     std::vector<ToolMapping> mapping = {{0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}};
-    auto r = PreflightValidator::validate(tools, slots, mapping);
+    auto r = PreflightValidator::validate(tools, slots, mapping, false);
     CHECK(r.checks[0].severity == Severity::MaterialMismatch);
     CHECK_FALSE(r.checks[0].material_ok);
     CHECK(r.has_advisory());
@@ -26,7 +26,7 @@ TEST_CASE("color mismatch is display-only (no block, no advisory)", "[preflight_
     std::vector<AvailableSlot> slots = {
         {0, 0, 0x2233FF, "PLA", false, -1, 0, 0, ""}}; // blue loaded
     std::vector<ToolMapping> mapping = {{0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}};
-    auto r = PreflightValidator::validate(tools, slots, mapping);
+    auto r = PreflightValidator::validate(tools, slots, mapping, false);
     CHECK(r.checks[0].severity == Severity::ColorMismatch);
     CHECK_FALSE(r.checks[0].color_ok);
     CHECK_FALSE(r.has_advisory()); // color is NOT advisory — display-only
@@ -37,7 +37,7 @@ TEST_CASE("exact match is Ok", "[preflight_validator]") {
     std::vector<GcodeToolInfo> tools = {{0, 0xED1C24, "PLA"}};
     std::vector<AvailableSlot> slots = {{0, 0, 0xED1C24, "PLA", false, -1, 0, 0, ""}};
     std::vector<ToolMapping> mapping = {{0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}};
-    auto r = PreflightValidator::validate(tools, slots, mapping);
+    auto r = PreflightValidator::validate(tools, slots, mapping, false);
     CHECK(r.checks[0].severity == Severity::Ok);
 }
 
@@ -55,7 +55,7 @@ TEST_CASE("empty required slot is flagged and blocks", "[preflight_validator]") 
         {0, 0, 0, false, false, ToolMapping::MatchReason::AUTO},
         {2, 1, 0, false, false, ToolMapping::MatchReason::AUTO}, // green mapped to EMPTY slot 1
     };
-    auto result = PreflightValidator::validate(tools, slots, mapping);
+    auto result = PreflightValidator::validate(tools, slots, mapping, false);
     REQUIRE(result.checks.size() == 2);
     CHECK(result.checks[0].severity == Severity::Ok);
     CHECK(result.checks[1].severity == Severity::EmptySlot);
@@ -70,14 +70,14 @@ TEST_CASE("tool with no mapping is treated as empty/block", "[preflight_validato
     std::vector<GcodeToolInfo> tools = {{3, 0xFFFFFF, "PLA"}};
     std::vector<AvailableSlot> slots = {{0, 0, 0xFFFFFF, "PLA", false, -1, 0, 0, ""}};
     std::vector<ToolMapping> mapping = {}; // tool 3 unmapped
-    auto r = PreflightValidator::validate(tools, slots, mapping);
+    auto r = PreflightValidator::validate(tools, slots, mapping, false);
     CHECK(r.checks[0].severity == Severity::EmptySlot);
     CHECK(r.checks[0].mapped_slot == -1);
     CHECK(r.has_block());
 }
 
 TEST_CASE("no tools yields empty, non-blocking result", "[preflight_validator]") {
-    auto r = PreflightValidator::validate({}, {}, {});
+    auto r = PreflightValidator::validate({}, {}, {}, false);
     CHECK(r.checks.empty());
     CHECK_FALSE(r.has_block());
     CHECK_FALSE(r.has_advisory());
@@ -94,7 +94,7 @@ TEST_CASE("no AMS system (empty slots) does not block", "[preflight_validator]")
     std::vector<GcodeToolInfo> tools = {{0, 0x2233FF, "PLA"}}; // slicer emitted a T0 color
     std::vector<AvailableSlot> slots = {};                     // no AMS backend → zero slots
     auto mapping = helix::FilamentMapper::compute_defaults(tools, slots); // yields slot -1 for T0
-    auto r = PreflightValidator::validate(tools, slots, mapping);
+    auto r = PreflightValidator::validate(tools, slots, mapping, false);
     CHECK_FALSE(r.has_block());
     CHECK_FALSE(r.has_advisory());
 }
@@ -123,7 +123,7 @@ TEST_CASE("U1 toolchanger: empty non-required head does not block",
             {0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}, // tool 0 → slot 0
             {2, 2, 0, false, false, ToolMapping::MatchReason::AUTO}, // tool 2 → slot 2
         };
-        auto result = PreflightValidator::validate(tools, slots, mapping);
+        auto result = PreflightValidator::validate(tools, slots, mapping, false);
         CHECK_FALSE(result.has_block());
         CHECK_FALSE(result.has_advisory());
         REQUIRE(result.checks.size() == 2);
@@ -142,7 +142,7 @@ TEST_CASE("U1 toolchanger: empty non-required head does not block",
             {0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}, // tool 0 → slot 0
             {2, 2, 0, false, false, ToolMapping::MatchReason::AUTO}, // tool 2 → slot 2 (empty)
         };
-        auto result = PreflightValidator::validate(tools, slots, mapping);
+        auto result = PreflightValidator::validate(tools, slots, mapping, false);
         CHECK(result.has_block());
         REQUIRE(result.checks.size() == 2);
         CHECK(result.checks[0].severity == Severity::Ok);
@@ -150,4 +150,73 @@ TEST_CASE("U1 toolchanger: empty non-required head does not block",
         CHECK(result.checks[1].tool_index == 2);
         CHECK(result.checks[1].mapped_slot == 2);
     }
+}
+
+// Regression: printing from the AFC hardware bypass. AFC's own rule is that a loaded
+// bypass deactivates toolchanges entirely ("Filament loaded in bypass, toolchanges
+// deactivated", AFC_prep.py) — the print is fed from the bypass spool, not from a lane.
+// The gcode still says T0, so the mapping resolves T0 to a lane that is empty (or to
+// nothing at all), and without this guard every bypass print is blocked by a
+// "T0 has no filament loaded — this print will run out." modal that the user cannot
+// clear by any configuration, because bypass is never a slot in
+// AmsState::collect_available_slots().
+TEST_CASE("bypass engaged: slot-based checks do not apply", "[preflight_validator][bypass]") {
+    std::vector<GcodeToolInfo> tools = {{0, 0xED1C24, "PLA"}};
+    std::vector<AvailableSlot> slots = {
+        {0, 0, 0x000000, "", true, -1, 0, 0, ""},     // lane 0: EMPTY
+        {1, 0, 0x00C1AE, "PETG", false, -1, 0, 0, ""} // lane 1: loaded, wrong material
+    };
+
+    SECTION("T0 mapped to an empty lane blocks when bypass is OFF") {
+        std::vector<ToolMapping> mapping = {
+            {0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}}; // T0 -> empty lane 0
+        auto r = PreflightValidator::validate(tools, slots, mapping, false);
+        REQUIRE(r.checks.size() == 1);
+        CHECK(r.checks[0].severity == Severity::EmptySlot);
+        CHECK(r.has_block());
+    }
+
+    SECTION("same mapping does NOT block when bypass is ON") {
+        std::vector<ToolMapping> mapping = {
+            {0, 0, 0, false, false, ToolMapping::MatchReason::AUTO}};
+        auto r = PreflightValidator::validate(tools, slots, mapping, true);
+        CHECK(r.checks.empty());
+        CHECK_FALSE(r.has_block());
+        CHECK_FALSE(r.has_advisory());
+    }
+
+    SECTION("unmapped T0 does not block when bypass is ON") {
+        // The reporter's case: nothing maps T0, so mapped_slot == -1 and the modal takes
+        // its "T%d has no filament loaded" branch.
+        std::vector<ToolMapping> mapping = {};
+        auto blocked = PreflightValidator::validate(tools, slots, mapping, false);
+        REQUIRE(blocked.checks.size() == 1);
+        CHECK(blocked.checks[0].mapped_slot == -1);
+        CHECK(blocked.has_block()); // pins the bug being fixed
+
+        auto r = PreflightValidator::validate(tools, slots, mapping, true);
+        CHECK(r.checks.empty());
+        CHECK_FALSE(r.has_block());
+    }
+
+    SECTION("material mismatch is also suppressed under bypass") {
+        // The seated lane material is meaningless when the filament comes from the
+        // bypass spool, so the advisory must go too, not just the block.
+        std::vector<ToolMapping> mapping = {
+            {0, 1, 0, false, false, ToolMapping::MatchReason::AUTO}}; // T0 -> PETG lane 1
+        auto advisory = PreflightValidator::validate(tools, slots, mapping, false);
+        CHECK(advisory.has_advisory());
+
+        auto r = PreflightValidator::validate(tools, slots, mapping, true);
+        CHECK(r.checks.empty());
+        CHECK_FALSE(r.has_advisory());
+    }
+}
+
+// Bypass must not suppress checks on a machine that simply has no AMS — that path is
+// already covered by the slots.empty() early-out and must stay independent of bypass.
+TEST_CASE("bypass off with no AMS still does not block", "[preflight_validator][bypass]") {
+    std::vector<GcodeToolInfo> tools = {{0, 0x2233FF, "PLA"}};
+    auto r = PreflightValidator::validate(tools, {}, {}, false);
+    CHECK_FALSE(r.has_block());
 }

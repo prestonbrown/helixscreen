@@ -9,8 +9,6 @@
 #include "fan_gcode.h"
 #include "gcode_classify.h"
 #include "gcode_homing.h"
-#include "http_executor.h"
-#include "hv/requests.h"
 #include "json_utils.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
@@ -32,7 +30,8 @@ using namespace moonraker_internal;
 // ============================================================================
 
 void MoonrakerAPI::set_temperature(const std::string& heater, double temperature,
-                                   SuccessCallback on_success, ErrorCallback on_error) {
+                                   SuccessCallback on_success, ErrorCallback on_error,
+                                   bool caller_surfaces_errors) {
     // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({temperature}, "set_temperature", on_error)) {
         return;
@@ -90,7 +89,8 @@ void MoonrakerAPI::set_temperature(const std::string& heater, double temperature
     spdlog::info("[Moonraker API] Setting {} temperature to {}°C{}", heater, temperature,
                  use_m141 ? " (via M141)" : "");
 
-    execute_gcode(gcode, on_success, on_error);
+    execute_gcode(gcode, on_success, on_error, /*timeout_ms=*/0, /*silent=*/false,
+                  /*on_queued=*/nullptr, caller_surfaces_errors);
 }
 
 void MoonrakerAPI::set_fan_speed(const std::string& fan, double speed, SuccessCallback on_success,
@@ -131,197 +131,6 @@ void MoonrakerAPI::set_fan_speed(const std::string& fan, double speed, SuccessCa
     spdlog::debug("[MoonrakerAPI] set_fan_speed('{}', {:.0f}%) -> {}", fan, speed, gcode);
 
     execute_gcode(gcode, on_success, on_error);
-}
-
-// ============================================================================
-// Power Device Control Operations
-// ============================================================================
-
-void MoonrakerAPI::get_power_devices(PowerDevicesCallback on_success, ErrorCallback on_error) {
-    if (http_base_url_.empty()) {
-        spdlog::error("[Moonraker API] HTTP base URL not configured for power devices");
-        if (on_error) {
-            MoonrakerError err =
-                MoonrakerError::connection_lost("get_power_devices", "Not connected to Moonraker");
-            on_error(err);
-        }
-        return;
-    }
-
-    std::string url = http_base_url_ + "/machine/device_power/devices";
-    spdlog::debug("[Moonraker API] Fetching power devices from: {}", url);
-
-    helix::http::HttpExecutor::fast().submit([url, on_success, on_error]() {
-        auto resp = requests::get(url.c_str());
-
-        if (!resp) {
-            spdlog::error("[Moonraker API] HTTP request failed for power devices");
-            if (on_error) {
-                MoonrakerError err =
-                    MoonrakerError::connection_lost("get_power_devices", "HTTP request failed");
-                on_error(err);
-            }
-            return;
-        }
-
-        if (resp->status_code != 200) {
-            spdlog::error("[Moonraker API] Power devices request failed: HTTP {}",
-                          static_cast<int>(resp->status_code));
-            if (on_error) {
-                MoonrakerError err = MoonrakerError::http_status_error(
-                    "get_power_devices", static_cast<int>(resp->status_code));
-                on_error(err);
-            }
-            return;
-        }
-
-        // Parse JSON response. Only the parse belongs in the try: with
-        // on_success() inside it, a throw from the caller's own handler would be
-        // reported back through on_error as if Moonraker had sent us garbage,
-        // firing on_error after on_success already ran.
-        std::vector<PowerDevice> devices;
-        try {
-            json j = json::parse(resp->body);
-
-            if (j.contains("result") && j["result"].contains("devices") &&
-                j["result"]["devices"].is_array()) {
-                for (const auto& info : j["result"]["devices"]) {
-                    if (!info.is_object()) {
-                        continue;
-                    }
-                    // json_util::safe_* rather than .value(): nlohmann's .value()
-                    // throws type_error.302 on a JSON null, and one null field
-                    // would drop the whole device list.
-                    PowerDevice dev;
-                    dev.device = helix::json_util::safe_string(info, "device");
-                    dev.type = helix::json_util::safe_string(info, "type", "unknown");
-                    dev.status = helix::json_util::safe_string(info, "status", "off");
-                    dev.locked_while_printing =
-                        helix::json_util::safe_bool(info, "locked_while_printing", false);
-                    if (!dev.device.empty()) {
-                        devices.push_back(dev);
-                    }
-                }
-            }
-        } catch (const std::exception& e) {
-            spdlog::error("[Moonraker API] Failed to parse power devices: {}", e.what());
-            if (on_error) {
-                MoonrakerError err = MoonrakerError::unknown(e.what(), "get_power_devices");
-                on_error(err);
-            }
-            return;
-        }
-
-        spdlog::info("[Moonraker API] Found {} power devices", devices.size());
-        if (on_success) {
-            on_success(devices);
-        }
-    });
-}
-
-void MoonrakerAPI::set_device_power(const std::string& device, const std::string& action,
-                                    SuccessCallback on_success, ErrorCallback on_error) {
-    // Validate device name. Power devices are named by their Moonraker config section
-    // (`[power -Power-]`, `[power Printer PSU]`), so the identifier allowlist is far too
-    // narrow here — it rejected every hyphenated name (prestonbrown/helixscreen#1241).
-    // The name is percent-encoded into the query string below and never reaches G-code,
-    // so only control characters need rejecting.
-    if (!is_safe_url_param(device)) {
-        // Escape before logging: the rejected class is exactly the bytes that would
-        // otherwise forge extra log lines.
-        std::string escaped;
-        for (char c : device) {
-            auto byte = static_cast<unsigned char>(c);
-            if (byte < 0x20 || byte == 0x7F) {
-                char buf[5];
-                std::snprintf(buf, sizeof(buf), "\\x%02X", byte);
-                escaped += buf;
-            } else {
-                escaped += c;
-            }
-        }
-        // No NOTIFY_ERROR here: every caller already surfaces the failure through
-        // on_error (a toast in PowerDeviceWidget, a status line in PowerPanel), and
-        // toasting from the API layer too would double-report the same rejection.
-        spdlog::warn("[Moonraker API] Rejected power device name '{}' — contains control "
-                     "characters",
-                     escaped);
-        if (on_error) {
-            MoonrakerError err =
-                MoonrakerError::validation_error("set_device_power", "Invalid device name");
-            on_error(err);
-        }
-        return;
-    }
-
-    // Validate action
-    if (action != "on" && action != "off" && action != "toggle") {
-        spdlog::error("[Moonraker API] Invalid power action: {}", action);
-        if (on_error) {
-            MoonrakerError err = MoonrakerError::validation_error(
-                "set_device_power", "Invalid action (must be on, off, or toggle)");
-            on_error(err);
-        }
-        return;
-    }
-
-    if (http_base_url_.empty()) {
-        spdlog::error("[Moonraker API] HTTP base URL not configured for power device control");
-        if (on_error) {
-            MoonrakerError err =
-                MoonrakerError::connection_lost("set_device_power", "Not connected to Moonraker");
-            on_error(err);
-        }
-        return;
-    }
-
-    // URL-encode device name (spaces, special chars) for safe query param
-    std::string encoded_device;
-    for (char c : device) {
-        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.') {
-            encoded_device += c;
-        } else {
-            char buf[4];
-            std::snprintf(buf, sizeof(buf), "%%%02X", static_cast<unsigned char>(c));
-            encoded_device += buf;
-        }
-    }
-
-    // Build URL with query params
-    std::string url = http_base_url_ + "/machine/device_power/device?device=" + encoded_device +
-                      "&action=" + action;
-
-    spdlog::info("[Moonraker API] Setting power device '{}' to '{}'", device, action);
-
-    helix::http::HttpExecutor::fast().submit([url, device, action, on_success, on_error]() {
-        auto resp = requests::post(url.c_str(), "");
-
-        if (!resp) {
-            spdlog::error("[Moonraker API] HTTP request failed for power device");
-            if (on_error) {
-                MoonrakerError err =
-                    MoonrakerError::connection_lost("set_device_power", "HTTP request failed");
-                on_error(err);
-            }
-            return;
-        }
-
-        if (resp->status_code != 200) {
-            spdlog::error("[Moonraker API] Power device command failed: HTTP {}",
-                          static_cast<int>(resp->status_code));
-            if (on_error) {
-                MoonrakerError err = MoonrakerError::http_status_error(
-                    "set_device_power", static_cast<int>(resp->status_code));
-                on_error(err);
-            }
-            return;
-        }
-
-        spdlog::info("[Moonraker API] Power device '{}' set to '{}' successfully", device, action);
-        if (on_success) {
-            on_success();
-        }
-    });
 }
 
 // ============================================================================
@@ -392,7 +201,7 @@ void MoonrakerAPI::get_sensors(SensorsCallback on_success, ErrorCallback on_erro
 
 void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_success,
                                  ErrorCallback on_error, uint32_t timeout_ms, bool silent,
-                                 SuccessCallback on_queued) {
+                                 SuccessCallback on_queued, bool caller_surfaces_errors) {
     // G-code leaves here VERBATIM. Nothing is appended, rewritten, or stripped —
     // see moonraker_gcode_guards.h and tests/unit/test_gcode_verbatim.cpp.
     //
@@ -555,6 +364,16 @@ void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_su
 
     spdlog::trace("[Moonraker API] Executing G-code: {}", gcode);
 
+    // Capture the error-reporting intent from the CALLER's own on_error, BEFORE
+    // the activity-counter wrapping below. That wrapper makes error_wrapper
+    // non-null for every non-discretionary gcode even when the caller passed
+    // nullptr, so intent derived after it reads our own bookkeeping as a promise
+    // the caller never made — and silences Klipper's `!!` broadcast for an error
+    // nobody would otherwise see. See include/rpc_error_policy.h.
+    const helix::rpc_error_policy::CallerIntent intent{/*silent=*/silent,
+                                                       /*surfaces_errors=*/(on_error != nullptr) &&
+                                                           caller_surfaces_errors};
+
     // Stamp app-initiated macro activity so the busy-queue toast above can tell
     // "the user just pressed Unload here" from "something else started a bed
     // mesh" (#1206). The complement of the discretionary set is exactly the
@@ -605,12 +424,12 @@ void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_su
         };
     }
     client_.send_jsonrpc("printer.gcode.script", params, std::move(success_wrapper),
-                         std::move(error_wrapper), timeout_ms, silent);
+                         std::move(error_wrapper), timeout_ms, silent, intent);
 }
 
-bool MoonrakerAPI::is_safe_gcode_param(const std::string& str) {
-    return moonraker_internal::is_safe_identifier(str);
-}
+// IMoonrakerAPI::is_safe_gcode_param() lives in moonraker_api_validation.cpp —
+// split out before this file itself became HTTP-free (the two device_power REST
+// calls now live in moonraker_api_power.cpp), so both TUs compile for ESP32.
 
 // ============================================================================
 // Object Exclusion Operations

@@ -251,3 +251,45 @@ regen-xml-schema:
 		--theme-dirs assets/config/themes/defaults \
 		-o $(XML_LINTER_SCHEMA)
 	$(ECHO) "$(GREEN)✓ schema regenerated — commit $(XML_LINTER_SCHEMA) if it changed$(RESET)"
+
+# ==============================================================================
+# Theme token table (Python)
+# ==============================================================================
+# Build-time snapshot of every <color>/<px>/<string> design token in ui_xml/,
+# mirroring theme_manager.cpp's runtime scan (top-level files, sorted,
+# last-wins). Committed artifact consumed by src/generated/theme_token_table.cpp
+# callers; staleness is caught by the Task 4 parity test, not this target.
+#
+# Targets:
+#   make regen-tokens        — regenerate src/generated/theme_token_table.cpp
+#                              from ui_xml/*.xml
+
+.PHONY: regen-tokens
+
+regen-tokens:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) regenerating src/generated/theme_token_table.cpp"
+	$(Q)python3 scripts/gen_theme_tokens.py
+	$(ECHO) "$(GREEN)✓ token table regenerated — commit src/generated/theme_token_table.cpp if it changed$(RESET)"
+
+# ==============================================================================
+# Architecture-guide file links (Python)
+# ==============================================================================
+# The guide's backticked citations (`src/printer/printer_state.cpp:622`) are the
+# source of truth; the markdown link around each one is derived from that text on
+# every run. Write plain backticks, run this, commit. A renamed file is fixed in
+# one place — the citation — and every link follows.
+#
+# Targets:
+#   make regen-doc-links     — rewrite docs/devel/ARCHITECTURE.md and
+#                              docs/devel/architecture/*.md in place
+#   make check-doc-links     — report-only; what quality-checks.sh runs
+
+.PHONY: regen-doc-links check-doc-links
+
+regen-doc-links:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) linking architecture-guide citations"
+	$(Q)python3 scripts/gen_doc_links.py
+	$(ECHO) "$(GREEN)✓ doc links regenerated — commit the guide if it changed$(RESET)"
+
+check-doc-links:
+	$(Q)python3 scripts/gen_doc_links.py --check

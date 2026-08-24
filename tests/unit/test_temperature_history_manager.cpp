@@ -570,3 +570,107 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     REQUIRE(callback1_count.load() == 1); // Unchanged
     REQUIRE(callback2_count.load() == 2); // Incremented
 }
+
+// ============================================================================
+// Test Case: Per-Extruder Recording (multi-tool changers)
+// ============================================================================
+//
+// A tool changer exposes extruder, extruder1..extruderN. Each one needs its own
+// history bucket keyed by its real Klipper name, because TempGraphController's
+// backfill asks for history by that name. Recording every tool's reading into a
+// single "extruder" bucket puts the ACTIVE tool's trace under Nozzle 1 and
+// leaves every idle tool frozen at whatever seed_from_store loaded.
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager records each discovered extruder under its own key",
+                 "[temperature_history][multi_tool]") {
+    // Given: a 3-tool changer discovered AFTER the manager was constructed
+    // (the real ordering — the manager is built at startup, discovery lands
+    // once the WebSocket connects)
+    printer_state_.init_extruders({"extruder", "extruder1", "extruder2"});
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // When: each extruder reports its own temperature
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder"), 438);
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder1"), 419);
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder2"), 2295);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // Then: each lands in its own bucket, unmixed
+    REQUIRE(manager_->get_sample_count("extruder") == 1);
+    REQUIRE(manager_->get_sample_count("extruder1") == 1);
+    REQUIRE(manager_->get_sample_count("extruder2") == 1);
+    REQUIRE(manager_->get_samples("extruder").back().temp_deci == 438);
+    REQUIRE(manager_->get_samples("extruder1").back().temp_deci == 419);
+    REQUIRE(manager_->get_samples("extruder2").back().temp_deci == 2295);
+}
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager keeps the active tool out of the extruder bucket",
+                 "[temperature_history][multi_tool]") {
+    // Given: a 5-tool changer printing on T4 (bundle 5ZVLLHK2 — T4 at 229.5C
+    // while extruder itself sits cold at 43.8C)
+    printer_state_.init_extruders({"extruder", "extruder1", "extruder2", "extruder3", "extruder4"});
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // When: the ACTIVE-extruder subject carries T4's hot reading
+    lv_subject_set_int(printer_state_.get_active_extruder_temp_subject(), 2295);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // Then: it does NOT get filed under "extruder" — that bucket belongs to
+    // extruder's own sensor, and backfilling it into Nozzle 1 is what pinned
+    // the red trace at 230C on the reporter's graph
+    for (const auto& sample : manager_->get_samples("extruder")) {
+        REQUIRE(sample.temp_deci != 2295);
+    }
+
+    // And: extruder4's own subject is what feeds extruder4's bucket
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder4"), 2295);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(manager_->get_sample_count("extruder4") == 1);
+    REQUIRE(manager_->get_samples("extruder4").back().temp_deci == 2295);
+}
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager tracks per-extruder targets independently",
+                 "[temperature_history][multi_tool]") {
+    printer_state_.init_extruders({"extruder", "extruder1"});
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // Given: two tools with different setpoints
+    lv_subject_set_int(printer_state_.get_extruder_target_subject("extruder"), 0);
+    lv_subject_set_int(printer_state_.get_extruder_target_subject("extruder1"), 2300);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // When: both report a temperature
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder"), 438);
+    lv_subject_set_int(printer_state_.get_extruder_temp_subject("extruder1"), 2295);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // Then: each sample carries its OWN tool's target, not a shared cache
+    REQUIRE(manager_->get_samples("extruder").back().target_deci == 0);
+    REQUIRE(manager_->get_samples("extruder1").back().target_deci == 2300);
+}
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager drops the pre-discovery extruder fallback",
+                 "[temperature_history][multi_tool]") {
+    // Before discovery there are no per-extruder subjects, so the active
+    // subject is the only source — keep recording it so a graph opened during
+    // startup still has a trace.
+    lv_subject_set_int(printer_state_.get_active_extruder_temp_subject(), 2000);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(manager_->get_sample_count("extruder") == 1);
+
+    // Once discovery lands, the per-extruder subjects take over and the
+    // fallback must go away, or a tool change reintroduces the mixing bug.
+    printer_state_.init_extruders({"extruder", "extruder1"});
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    lv_subject_set_int(printer_state_.get_active_extruder_temp_subject(), 2295);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    for (const auto& sample : manager_->get_samples("extruder")) {
+        REQUIRE(sample.temp_deci != 2295);
+    }
+}

@@ -185,8 +185,8 @@ TEST_CASE("PrinterTemperatureState: latch is per-extruder and honors the active 
     state.init_subjects(false);
     state.init_extruders({"extruder", "extruder1"});
 
-    state.update_from_status({{"extruder", {{"target", 250.0}}},
-                              {"extruder1", {{"target", 210.0}}}});
+    state.update_from_status(
+        {{"extruder", {{"target", 250.0}}}, {"extruder1", {{"target", 210.0}}}});
 
     // Active defaults to "extruder" → its latch.
     REQUIRE(state.get_active_extruder_last_nonzero_target() == Catch::Approx(250.0));

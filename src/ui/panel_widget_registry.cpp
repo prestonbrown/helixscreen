@@ -44,6 +44,7 @@ void register_temp_graph_widget();
 void register_tool_switcher_widget();
 void register_nozzle_temps_widget();
 void register_active_spool_widget();
+void register_bypass_widget();
 #if HELIX_HAS_CAMERA
 void register_camera_widget();
 #endif
@@ -53,47 +54,48 @@ void register_camera_widget();
 // NOT during static initialization. Do not add file-scope self-registration.
 // clang-format off
 static std::vector<PanelWidgetDef> s_widget_defs = {
-    //                                                                                                                                          hint                                en  col row min_c min_r max_c max_r  multi  half_c half_r
-    {"printer_image",    "Printer Image",    "rotate_3d",        "3D printer visualization",                     "Printer Image",    nullptr,              nullptr,                               true,  2, 2, 1, 1, 4, 3},
-    {"print_status",     "Print Status",     "printer_3d",       "Print progress and file selection",            "Print Status",     nullptr,              nullptr,                               true,  2, 2, 2, 1, 4, 3},
-    {"shutdown",         "Shutdown/Reboot",   "power",            "Shutdown or reboot the printer host",          "Shutdown/Reboot",  nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1, false, true, false},
-    {"lock",             "Lock Screen",       "lock",             "PIN-protected screen lock",                    "Lock Screen",      nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1, false, true, false},
-    {"power_device",     "Power",            "power_cycle",      "Toggle Moonraker power devices",               "Power",            "power_device_count", "Requires Moonraker power device",     false, 1, 1, 1, 1, 1, 1, true},
-    {"network",          "Network",          "wifi_strength_4",  "Wi-Fi and ethernet connection status",         "Network",          nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1},
-    {"firmware_restart", "Firmware Restart",  "refresh",          "Restart Klipper firmware",                     "Firmware Restart", nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1, false, true, false},
-    {"tool_switcher",    "Tool Switcher",     "arrow_left_right", "Quick tool switching for multi-tool printers",  "Tool Switcher",    nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 2},
-    {"led",              "LED Light",         "lightbulb_outline","Quick toggle, long press for full control",    "LED Light",        "led_controllable",   "No LED strips detected",              true,  1, 1, 1, 1, 2, 1},
-    {"led_controls",     "LED Controls",      "led_strip",        "Open LED color and brightness controls",       "LED Controls",     "led_controllable",   "No LED strips detected",              false, 1, 1, 1, 1, 1, 1, false, true, false},
-    {"fan_stack",        "Fan Speeds",        "fan",              "Part, hotend, and auxiliary fan speeds",        "Fan Speeds",       nullptr,              nullptr,                               true,  1, 1, 1, 1, 3, 2, true},
-    {"fan",              "Fan",               "fan",              "Monitor a single fan speed",                   "Fan",              nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1, true},
-    {"temperature",      "Nozzle Temperature","thermometer",      "Monitor and set nozzle temperature",           "Nozzle Temperature", nullptr,            nullptr,                               true,  1, 1, 1, 1, 2, 2},
-    {"nozzle_temps",     "Nozzle Temperatures","thermometer",      "All extruder temperatures with progress bars",  "Nozzle Temperatures", nullptr,           nullptr,                               false, 1, 2, 1, 1, 2, 3},
-    {"bed_temperature",  "Bed Temperature",   "radiator",         "Monitor and set bed temperature",              "Bed Temperature",    nullptr,            nullptr,                               false, 1, 1, 1, 1, 2, 2},
-    {"chamber_temperature", "Chamber Temperature", "fridge_industrial", "Monitor and set chamber temperature",       "Chamber Temperature", "printer_has_chamber", "No chamber temperature sensor detected", false, 1, 1, 1, 1, 2, 2},
-    {"temp_stack",       "Temperatures",      "thermometer",      "Nozzle, bed, and chamber temps stacked",       "Temperatures",     nullptr,              nullptr,                               false, 1, 1, 1, 1, 3, 2},
-    {"thermistor",       "Temperature Sensors", "thermometer",    "Monitor temperature sensors (single or carousel)", "Temperature Sensors", "temp_sensor_count", "No temperature sensors detected", false, 1, 1, 1, 1, 2, 1, true},
-    {"temp_graph",       "Temperature Graph", "chart_line",       "Live temperature graph with configurable sensors", "Temperature Graph", nullptr,         nullptr,                               false, 2, 2, 1, 1, 6, 4, true},
-    {"preheat",          "Preheat",           "heat_wave",        "Quick preheat with material selection",        "Preheat",            nullptr,            nullptr,                               false, 3, 1, 2, 1, 4, 1},
-    {"ams",              "Multi-Filament System Status",        "filament",         "Multi-Filament System spool status and control",      "AMS Status",       "ams_slot_count",     "Requires Multi-Filament System or MMU hardware",        false, 1, 1, 1, 1, 4, 2},
-    {"active_spool",     "Active Spool",      "inventory",  "Currently loaded spool info",                  "Active Spool",     nullptr,                  nullptr,                           false, 1, 1, 1, 1, 4, 2},
-    {"filament",         "Filament Sensor",   "filament_alert",   "Filament runout detection status",             "Filament Sensor",  "filament_sensor_count", "No filament sensor detected",      true, 1, 1, 1, 1, 2, 1},
-    {"humidity",         "Humidity",          "water",            "Enclosure humidity sensor readings",           "Humidity",         "humidity_sensor_count", "No humidity sensor detected",       false, 1, 1, 1, 1, 2, 2},
-    {"width_sensor",     "Width Sensor",      "ruler",            "Filament width sensor readings",               "Width Sensor",     "width_sensor_count", "No width sensor detected",            false, 1, 1, 1, 1, 2, 2},
-    {"favorite_macro", "Macro Button",    "play",             "Run a configured macro with one tap",          "Macro Button",     nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1, true},
-    {"macros",           "Macros",            "script_text",      "Browse and execute Klipper macros",            "Macros",           nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
-    {"motion",           "Motion",            "cursor_move",      "Jump directly to motion control / jogging",    "Motion",           nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
-    {"clock",            "Digital Clock",     "clock",            "Current time and date",                       "Digital Clock",    nullptr,              nullptr,                               false, 2, 1, 1, 1, 3, 3, false, true, true},
-    {"control_buttons",  "Print Controls",    "pause",            "Pause/resume and stop the active print",       "Print Controls",   nullptr,              nullptr,                               false, 2, 1, 2, 1, 2, 1},
-    {"job_queue",        "Job Queue",         "progress_clock",   "Queued print jobs",                           "Job Queue",        nullptr,              nullptr,                               false, 2, 2, 2, 1, 4, 3},
-    //                                                                                                                                          hint                                en  col row min_c min_r max_c max_r  multi  half_c half_r
-    {"tips",             "Tips",              "help_circle",      "Rotating tips and helpful information",        "Tips",             nullptr,              nullptr,                               true,  4, 2, 2, 1, 6, 2},
-    {"clog_detection",   "Clog Detection",    "water",            "Filament clog/flow detection meter",           "Clog Detection",   "clog_meter_mode",    "Requires clog detection hardware",    false, 1, 1, 1, 1, 2, 2},
-    {"print_stats",      "Print Stats",       "printer_3d",       "Print history statistics",                     "Print Stats",      nullptr,              nullptr,                               false, 2, 2, 2, 1, 3, 2},
-    {"gcode_console",    "GCode Console",     "console",          "Open G-code command console",                  "GCode Console",    nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
+    //                                                                                                        gate_subject          gate_hint                              default col row min_c min_r max_c max_r  multi  half_c half_r
+    {"printer_image",    "Printer Image",    "rotate_3d",        "3D printer visualization",    nullptr,              nullptr,                               true,  2, 2, 1, 1, 4, 3},
+    {"print_status",     "Print Status",     "printer_3d",       "Print progress and file selection",     nullptr,              nullptr,                               true,  2, 2, 2, 1, 4, 3},
+    {"shutdown",         "Shutdown/Reboot",   "power",            "Shutdown or reboot the printer host",  "platform_host_power_supported", "Not available on Android",       false, 1, 1, 1, 1, 1, 1, false, true, false},
+    {"lock",             "Lock Screen",       "lock",             "PIN-protected screen lock",      nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1, false, true, false},
+    {"power_device",     "Power",            "power_cycle",      "Toggle Moonraker power devices",            "power_device_count", "Requires Moonraker power device",     false, 1, 1, 1, 1, 1, 1, true},
+    {"network",          "Network",          "wifi_strength_4",  "Wi-Fi and ethernet connection status",          nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1},
+    {"firmware_restart", "Firmware Restart",  "refresh",          "Restart Klipper firmware", nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1, false, true, false},
+    {"tool_switcher",    "Tool Switcher",     "arrow_left_right", "Quick tool switching for multi-tool printers",    nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 2},
+    {"led",              "LED Light",         "lightbulb_outline","Quick toggle, long press for full control",        "led_controllable",   "No LED strips detected",              true,  1, 1, 1, 1, 2, 1},
+    {"led_controls",     "LED Controls",      "led_strip",        "Open LED color and brightness controls",     "led_controllable",   "No LED strips detected",              false, 1, 1, 1, 1, 1, 1, false, true, false},
+    {"fan_stack",        "Fan Speeds",        "fan",              "Part, hotend, and auxiliary fan speeds",       nullptr,              nullptr,                               true,  1, 1, 1, 1, 3, 2, true},
+    {"fan",              "Fan",               "fan",              "Monitor a single fan speed",              nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1, true},
+    {"temperature",      "Nozzle Temperature","thermometer",      "Monitor and set nozzle temperature", nullptr,            nullptr,                               true,  1, 1, 1, 1, 2, 2},
+    {"nozzle_temps",     "Nozzle Temperatures","thermometer",      "All extruder temperatures with progress bars", nullptr,           nullptr,                               false, 1, 2, 1, 1, 2, 3},
+    {"bed_temperature",  "Bed Temperature",   "radiator",         "Monitor and set bed temperature",    nullptr,            nullptr,                               false, 1, 1, 1, 1, 2, 2},
+    {"chamber_temperature", "Chamber Temperature", "fridge_industrial", "Monitor and set chamber temperature", "printer_has_chamber", "No chamber temperature sensor detected", false, 1, 1, 1, 1, 2, 2},
+    {"temp_stack",       "Temperatures",      "thermometer",      "Nozzle, bed, and chamber temps stacked",     nullptr,              nullptr,                               false, 1, 1, 1, 1, 3, 2},
+    {"thermistor",       "Temperature Sensors", "thermometer",    "Monitor temperature sensors (single or carousel)", "temp_sensor_count", "No temperature sensors detected", false, 1, 1, 1, 1, 2, 1, true},
+    {"temp_graph",       "Temperature Graph", "chart_line",       "Live temperature graph with configurable sensors", nullptr,         nullptr,                               false, 2, 2, 1, 1, 6, 4, true},
+    {"preheat",          "Preheat",           "heat_wave",        "Quick preheat with material selection",            nullptr,            nullptr,                               false, 3, 1, 2, 1, 4, 1},
+    {"ams",              "Multi-Filament System Status",        "filament",         "Multi-Filament System spool status and control",       "ams_slot_count",     "Requires Multi-Filament System or MMU hardware",        false, 1, 1, 1, 1, 4, 2},
+    {"bypass",           "Bypass",            "source_branch",    "Toggle external spool bypass",  "ams_supports_bypass", "Requires a filament system with bypass", false, 1, 1, 1, 1, 2, 1},
+    {"active_spool",     "Active Spool",      "inventory",  "Currently loaded spool info",     nullptr,                  nullptr,                           false, 1, 1, 1, 1, 4, 2},
+    {"filament",         "Filament Sensor",   "filament_alert",   "Filament runout detection status",  "filament_sensor_count", "No filament sensor detected",      true, 1, 1, 1, 1, 2, 1},
+    {"humidity",         "Humidity",          "water",            "Enclosure humidity sensor readings",         "humidity_sensor_count", "No humidity sensor detected",       false, 1, 1, 1, 1, 2, 2},
+    {"width_sensor",     "Width Sensor",      "ruler",            "Filament width sensor readings",     "width_sensor_count", "No width sensor detected",            false, 1, 1, 1, 1, 2, 2},
+    {"favorite_macro", "Macro Button",    "play",             "Run a configured macro with one tap",     nullptr,              nullptr,                               false, 1, 1, 1, 1, 2, 1, true},
+    {"macros",           "Macros",            "script_text",      "Browse and execute Klipper macros",           nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
+    {"motion",           "Motion",            "cursor_move",      "Jump directly to motion control / jogging",           nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
+    {"clock",            "Digital Clock",     "clock",            "Current time and date",    nullptr,              nullptr,                               false, 2, 1, 1, 1, 3, 3, false, true, true},
+    {"control_buttons",  "Print Controls",    "pause",            "Pause/resume and stop the active print",   nullptr,              nullptr,                               false, 2, 1, 2, 1, 2, 1},
+    {"job_queue",        "Job Queue",         "progress_clock",   "Queued print jobs",        nullptr,              nullptr,                               false, 2, 2, 2, 1, 4, 3},
+    //                                                                                                        gate_subject          gate_hint                              default col row min_c min_r max_c max_r  multi  half_c half_r
+    {"tips",             "Tips",              "help_circle",      "Rotating tips and helpful information",             nullptr,              nullptr,                               true,  4, 2, 2, 1, 6, 2},
+    {"clog_detection",   "Clog Detection",    "gauge",            "Filament clog/flow detection meter",   "clog_meter_mode",    "Requires clog detection hardware",    false, 1, 1, 1, 1, 2, 2},
+    {"print_stats",      "Print Stats",       "printer_3d",       "Print history statistics",      nullptr,              nullptr,                               false, 2, 2, 2, 1, 3, 2},
+    {"gcode_console",    "GCode Console",     "console",          "Open G-code command console",    nullptr,              nullptr,                               false, 1, 1, 1, 1, 1, 1},
 #if HELIX_HAS_CAMERA
-    {"camera",           "Camera",            "video",            "Live webcam feed",                             "Camera",           nullptr,              nullptr,                               false, 2, 2, 1, 1, 4, 3},
+    {"camera",           "Camera",            "video",            "Live webcam feed",           nullptr,              nullptr,                               false, 2, 2, 1, 1, 4, 3},
 #endif
-    {"notifications",    "Notifications",     "notifications",    "Pending alerts and system messages",           "Notifications",    nullptr,              nullptr,                               true,  1, 1, 1, 1, 2, 1},
+    {"notifications",    "Notifications",     "notifications",    "Pending alerts and system messages",    nullptr,              nullptr,                               true,  1, 1, 1, 1, 2, 1},
 };
 // clang-format on
 
@@ -181,6 +183,7 @@ void init_widget_registrations() {
     register_motion_widget();
     register_preheat_widget();
     register_active_spool_widget();
+    register_bypass_widget();
     register_tool_switcher_widget();
     register_nozzle_temps_widget();
 #if HELIX_HAS_CAMERA

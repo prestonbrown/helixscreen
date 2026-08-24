@@ -131,7 +131,14 @@ void PageScrollController::scroll_by_page(int32_t direction) {
     lv_anim_enable_t anim = helix::DisplaySettingsManager::instance().get_animations_enabled()
                                 ? LV_ANIM_ON
                                 : LV_ANIM_OFF;
-    lv_obj_scroll_by(container_, 0, -direction * step, anim);
+    // Bounded, not lv_obj_scroll_by(): the last page has less than a full step of
+    // room left, and an unbounded delta parks the view past the content end, leaving
+    // a sliver of content up top and dead space filling the rest. The bounded variant
+    // clamps against scroll_top + scroll_bottom, so a full step still moves a full
+    // page and only the final one is shortened to land on the content edge. It also
+    // makes a press at either end a no-op, which matters because LV_STATE_DISABLED
+    // does not suppress LV_EVENT_CLICKED on the dimmed chevron.
+    lv_obj_scroll_by_bounded(container_, 0, -direction * step, anim);
     refresh_reach_state();
 }
 

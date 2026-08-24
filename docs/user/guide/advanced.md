@@ -239,13 +239,13 @@ HelixScreen automatically discovers power devices from Moonraker when it connect
 
 A power device can be **locked while a print is running** so you can't accidentally cut power mid-job. This is controlled by Moonraker, not HelixScreen: any device configured with `locked_while_printing` in your `moonraker.conf` is affected.
 
-A locked device behaves as follows **only while the printer is actively printing or paused**:
+A locked device behaves as follows **for the whole time a job owns the printer** — starting the moment you tap Start Print. The preparing phase counts too (heating, homing, and leveling before the first layer): the toolhead is already moving then, so cutting power mid-preparation is just as destructive as cutting it mid-print. Printing and paused states are covered as well:
 
 - Its toggle switch is **disabled** — tapping it does nothing
 - A **lock icon** appears on the row
 - The status text reads **"Locked during print"**
 
-When the print finishes (or if `locked_while_printing` isn't set for that device), the device unlocks and toggles normally again. Devices without `locked_while_printing` are never locked.
+When no job is running, the device unlocks and toggles normally again — that includes cancelling during preparation, which unlocks the device without a print ever having started. Devices without `locked_while_printing` are never locked.
 
 ---
 

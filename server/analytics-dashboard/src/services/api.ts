@@ -11,6 +11,12 @@ export interface OverviewData {
   events_over_time: { date: string; count: number }[]
   daily_active_devices: { date: string; devices: number }[]
   cumulative_devices: { date: string; total: number }[]
+  // Fleet size derived from CDN update-manifest polls. Unlike active_devices,
+  // this does not depend on the user having opted into telemetry, so it counts
+  // installs the rest of this payload cannot see. `sources` is distinct client
+  // IPs for the day: NAT hides devices behind one address, dynamic IPs split
+  // one device across several, so treat it as an estimate rather than a count.
+  cdn_fleet: { date: string; sources: number; polls: number; errors: number }[]
 }
 
 export interface AdoptionData {
@@ -113,6 +119,10 @@ export interface HardwareData {
   avg_counts: { fans: number; sensors: number; macros: number }
   ram_distribution: { name: string; count: number }[]
   ams_backends: { name: string; count: number }[]
+  // `reported` is the denominator: devices that actually sent the field.
+  // Clients too old to report it are excluded rather than counted as a "no".
+  helix_macros: { installed: number; not_installed: number; reported: number }
+  moonraker_locality: { local: number; remote: number; reported: number }
 }
 
 export interface EngagementData {

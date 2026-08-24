@@ -38,10 +38,13 @@ void reset_config_singleton();
 // Derive test-specific fixtures from this (LVGLTestFixture does). Plain
 // non-LVGL unit tests can use it directly via TEST_CASE_METHOD.
 //
-// Note: the first reset_all() call initializes SystemSettingsManager's subjects,
+// Note: the first reset_all() call initializes the subjects of the settings
+// sub-managers a test is known to tear down (System, Display, Audio, Safety),
 // which self-register with StaticSubjectRegistry for process-lifetime. Once
 // initialized, they stay initialized — that's intentional and harmless, but
-// worth knowing for future derived fixtures.
+// worth knowing for future derived fixtures. Restoring them is what keeps a
+// deinit_subjects() in one test from withdrawing those XML subject names for
+// the rest of the binary; see the rationale in reset_all().
 class HelixTestFixture {
   public:
     HelixTestFixture();          // calls reset_all() on entry — idempotent

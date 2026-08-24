@@ -163,6 +163,14 @@ class PrePrintOptionsRenderer {
      */
     [[nodiscard]] lv_obj_t* get_switch(const std::string& id) const;
 
+    /// Look up the i18n string for an option's label, falling back to a
+    /// humanized version of the id when no `label_key` is set in the DB.
+    /// Public because the option label is the user's name for the feature
+    /// wherever it is referenced, not just on the toggle row —
+    /// PrintPreparationManager uses it to name the features a dropped
+    /// modification affects.
+    static std::string label_for(const PrePrintOption& opt);
+
   private:
     friend class PrePrintOptionsRendererTestAccess;
 
@@ -180,10 +188,6 @@ class PrePrintOptionsRenderer {
     /// the raw key for the XML row's `label_tag`, so language changes can
     /// re-resolve the label via `lv_label_set_translation_tag`).
     static std::string label_key_for(const PrePrintOption& opt);
-
-    /// Look up the i18n string for an option's label, falling back to a
-    /// humanized version of the id when no `label_key` is set in the DB.
-    static std::string label_for(const PrePrintOption& opt);
 
     void make_row(lv_obj_t* container, const PrePrintOption& opt,
                   const VisibilitySubjectLookup& visibility_lookup);

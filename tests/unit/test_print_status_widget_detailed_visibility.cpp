@@ -16,6 +16,7 @@
 #include "app_globals.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 
@@ -87,7 +88,8 @@ class PrintStatusDetailedVisibilityFixture : public LVGLTestFixture {
 //   2. attach() runs first-pass update_view_subject and queues observer cbs.
 //   3. process_lvgl drains those queued cbs (so attach-time STANDBY observer
 //      doesn't override our forced state later).
-//   4. on_print_state_changed_for_test forces is_active_ and rewrites the
+//   4. on_print_state_changed_for_test forces is_active_ (job_holds_machine
+//      of the passed lifecycle) and rewrites the
 //      view subject deterministically.
 
 TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
@@ -99,7 +101,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::PRINTING);
+    w.on_print_state_changed_for_test(PrintState::Printing);
     REQUIRE(view_value() == 4);
     w.detach();
 }
@@ -113,7 +115,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::PRINTING);
+    w.on_print_state_changed_for_test(PrintState::Printing);
     REQUIRE(view_value() == 3);
     w.detach();
 }
@@ -127,7 +129,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::PRINTING);
+    w.on_print_state_changed_for_test(PrintState::Printing);
     REQUIRE(view_value() == 3);
     w.set_config(nlohmann::json{{"layout_style", "detailed"}});
     REQUIRE(view_value() == 4);
@@ -144,7 +146,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::PRINTING);
+    w.on_print_state_changed_for_test(PrintState::Printing);
     REQUIRE(view_value() == 3);
     w.detach();
 }
@@ -158,7 +160,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::STANDBY);
+    w.on_print_state_changed_for_test(PrintState::Idle);
     REQUIRE(view_value() == 2);
     w.detach();
 }
@@ -173,7 +175,7 @@ TEST_CASE_METHOD(PrintStatusDetailedVisibilityFixture,
     lv_obj_t* container = create_mock_tree(test_screen());
     w.attach(container, test_screen());
     process_lvgl(50);
-    w.on_print_state_changed_for_test(PrintJobState::STANDBY);
+    w.on_print_state_changed_for_test(PrintState::Idle);
     REQUIRE(view_value() == 1);
     w.detach();
 }

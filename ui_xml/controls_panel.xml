@@ -15,8 +15,13 @@
     <style name="slider_compact" pad_left="#space_md" pad_right="#space_md"/>
     <style name="slider_container_compact" pad_top="6" pad_bottom="6"/>
     <style name="slider_container_standard" pad_top="#space_xs" pad_bottom="#space_xs"/>
-    <!-- temp_row_gap_standard / temp_row_gap_tiny now live in globals.xml (shared
-         with temp_card_unified.xml) -->
+    <!-- Icon-to-label gap: wider on tiny breakpoint (labels hidden/cramped, icons
+         too close), tighter once the layout has room. Duplicated verbatim in
+         temp_card_unified.xml rather than shared via globals.xml: globals.xml is
+         registered before theme_manager_init publishes the space_* consts, so a
+         style defined there resolves #space_xs to nothing. -->
+    <style name="temp_row_gap_standard" pad_column="#space_xs"/>
+    <style name="temp_row_gap_tiny" pad_column="#space_md"/>
     <!-- Homing indicator styles for Position card -->
     <style name="indicator_homed" bg_color="#success"/>
     <style name="indicator_unhomed" bg_color="#text_muted"/>
@@ -100,7 +105,7 @@
                      width="100%" height="#button_height_sm" variant="success" icon="check" text="Save Z-Offset"
                      translation_tag="Save Z-Offset" hidden="true">
             <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
           </ui_button>
         </lv_obj>
@@ -288,12 +293,12 @@
         </lv_obj>
       </lv_obj>
     </lv_obj>
-    <!-- Row 2: Calibration & Tools (40%) | Quick Actions (60%) -->
+    <!-- Row 2: Calibration & Tools (50%) | Quick Actions (50%) -->
     <!-- Using flex_grow here since Row 1 has explicit 55% height -->
     <lv_obj width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-      <!-- Card 4: Calibration & Tools (40% width, 2x2 grid) -->
+      <!-- Card 4: Calibration & Tools (50% width, 3x2 grid) -->
       <ui_card name="card_calibration"
-               width="0" height="100%" flex_grow="2" flex_flow="column" style_flex_main_place="start"
+               width="0" height="100%" flex_grow="3" flex_flow="column" style_flex_main_place="start"
                style_radius="#border_radius" style_border_width="0" style_pad_all="#space_sm" style_pad_gap="#space_xs"
                scrollable="false">
         <!-- Header Row -->
@@ -308,7 +313,12 @@
         <!-- 2x2 Grid Container -->
         <lv_obj width="100%"
                 flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <!-- Row 1: Bed Mesh | Z-Offset -->
+          <!-- Row 1: Bed Mesh | Z Calibration | QGL or Z-Tilt -->
+          <!-- The gantry-levelling button lives here rather than row 2. Row 2 carries
+               the three remaining cells (Bed Screws, Motors Off, Light), so adding a
+               fourth there clipped its labels. QGL and Z-Tilt are mutually exclusive
+               kinematics - a printer configures quad_gantry_level or z_tilt_adjust,
+               never both - so row 1 renders at most three cells too. -->
           <lv_obj width="100%"
                   flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                   style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
@@ -323,22 +333,8 @@
             <ui_button name="btn_z_calibration"
                        height="100%" flex_grow="1" icon="z_closer" text="Z Calibration" translation_tag="Z Calibration"
                        icon_position="top" style_bg_opa="0" style_border_width="0">
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
-            </ui_button>
-          </lv_obj>
-          <!-- Row 2: Bed Screws | QGL | Z-Tilt | Motors Off -->
-          <lv_obj width="100%"
-                  flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
-
-            <!-- Bed Screws Button (hidden if screws_tilt_adjust not configured) -->
-            <ui_button name="btn_screws"
-                       height="100%" flex_grow="1" icon="wrench" text="Bed Screws" translation_tag="Bed Screws"
-                       icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
-              <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
-              <event_cb trigger="clicked" callback="on_calibration_screws"/>
             </ui_button>
 
             <!-- QGL button - visible only if printer has quad_gantry_level -->
@@ -346,7 +342,7 @@
                        height="100%" flex_grow="1" icon="spirit_level" text="QGL" translation_tag="QGL"
                        icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_qgl"/>
             </ui_button>
@@ -356,9 +352,23 @@
                        height="100%" flex_grow="1" icon="spirit_level" text="Z-Tilt" translation_tag="Z-Tilt"
                        icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_z_tilt"/>
+            </ui_button>
+          </lv_obj>
+          <!-- Row 2: Bed Screws | Motors Off | Light -->
+          <lv_obj width="100%"
+                  flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                  style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+
+            <!-- Bed Screws Button (hidden if screws_tilt_adjust not configured) -->
+            <ui_button name="btn_screws"
+                       height="100%" flex_grow="1" icon="wrench" text="Bed Screws" translation_tag="Bed Screws"
+                       icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
+              <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_calibration_screws"/>
             </ui_button>
 
             <!-- Motors On/Off Button (disabled when motors already off) -->
@@ -399,7 +409,7 @@
           </lv_obj>
         </lv_obj>
       </ui_card>
-      <!-- Card 5: Quick Actions (60% width) -->
+      <!-- Card 5: Quick Actions (50% width) -->
       <ui_card name="card_quick_actions"
                width="0" height="100%" flex_grow="3" flex_flow="column" style_flex_main_place="space_between"
                style_radius="#border_radius" style_pad_all="#space_sm" scrollable="false">
@@ -476,14 +486,18 @@
                        width="0" height="#button_height" flex_grow="1" bind_text="macro_1_name" variant="secondary"
                        style_text_font="#font_small" long_mode="wrap">
               <bind_flag_if_eq subject="macro_1_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_1_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="0"/>
             </ui_button>
             <ui_button name="btn_macro_2"
                        width="0" height="#button_height" flex_grow="1" bind_text="macro_2_name" variant="secondary"
                        style_text_font="#font_small" long_mode="wrap">
               <bind_flag_if_eq subject="macro_2_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_2_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="1"/>
             </ui_button>
           </lv_obj>
@@ -494,14 +508,18 @@
                        width="0" height="#button_height" flex_grow="1" bind_text="macro_3_name" variant="secondary"
                        style_text_font="#font_small" long_mode="wrap">
               <bind_flag_if_eq subject="macro_3_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_3_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="2"/>
             </ui_button>
             <ui_button name="btn_macro_4"
                        width="0" height="#button_height" flex_grow="1" bind_text="macro_4_name" variant="secondary"
                        style_text_font="#font_small" long_mode="wrap">
               <bind_flag_if_eq subject="macro_4_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_4_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="3"/>
             </ui_button>
           </lv_obj>

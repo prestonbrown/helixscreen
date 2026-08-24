@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct MoonrakerError;
 
 namespace helix::system {
@@ -97,25 +97,25 @@ class KlipperConfigEditor {
     /// Load all config files from printer via Moonraker and resolve includes.
     /// Downloads printer.cfg + all included files, builds section map.
     /// Results are cached in section_map_ and file_cache_.
-    void load_config_files(MoonrakerAPI& api, SectionMapCallback on_complete,
+    void load_config_files(IMoonrakerAPI& api, SectionMapCallback on_complete,
                            ErrorCallback on_error);
 
     /// Edit a value in the correct config file with backup.
     /// Finds the file containing the section, backs it up, applies the edit,
     /// and uploads the modified content.
-    void edit_value(MoonrakerAPI& api, const std::string& section, const std::string& key,
+    void edit_value(IMoonrakerAPI& api, const std::string& section, const std::string& key,
                     const std::string& new_value, SuccessCallback on_success,
                     ErrorCallback on_error);
 
     /// Create backup of a config file (file.cfg -> file.cfg.helix_backup)
-    void backup_file(MoonrakerAPI& api, const std::string& file_path, SuccessCallback on_success,
+    void backup_file(IMoonrakerAPI& api, const std::string& file_path, SuccessCallback on_success,
                      ErrorCallback on_error);
 
     /// Restore all .helix_backup files to their original names
-    void restore_backups(MoonrakerAPI& api, SuccessCallback on_complete, ErrorCallback on_error);
+    void restore_backups(IMoonrakerAPI& api, SuccessCallback on_complete, ErrorCallback on_error);
 
     /// Delete all .helix_backup files (cleanup after successful edit)
-    void cleanup_backups(MoonrakerAPI& api, SuccessCallback on_complete);
+    void cleanup_backups(IMoonrakerAPI& api, SuccessCallback on_complete);
 
     /// Get cached section map from last load_config_files() call
     std::map<std::string, SectionLocation> get_section_map() const;
@@ -133,7 +133,7 @@ class KlipperConfigEditor {
     /// @param on_success Called when edit is confirmed working
     /// @param on_error Called with error message if edit failed and was reverted
     /// @param restart_timeout_ms How long to wait for Klipper to come back (default 15000ms)
-    void safe_edit_value(MoonrakerAPI& api, const std::string& section, const std::string& key,
+    void safe_edit_value(IMoonrakerAPI& api, const std::string& section, const std::string& key,
                          const std::string& new_value, SuccessCallback on_success,
                          ErrorCallback on_error, int restart_timeout_ms = 15000);
 
@@ -145,7 +145,7 @@ class KlipperConfigEditor {
 
     /// Safe multi-edit: load config, apply edits, backup, upload, restart, monitor health.
     /// If Klipper fails to restart, auto-restore backups.
-    void safe_multi_edit(MoonrakerAPI& api, const std::string& section,
+    void safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
                          const std::vector<ConfigEdit>& edits, SuccessCallback on_success,
                          ErrorCallback on_error, int restart_timeout_ms = 15000);
 
@@ -165,7 +165,7 @@ class KlipperConfigEditor {
     /// @param pending Shared counter of pending downloads
     /// @param on_all_done Called when all downloads complete (pending reaches 0)
     /// @param on_error Called on download failure
-    void download_with_includes(MoonrakerAPI& api, const std::string& file_path,
+    void download_with_includes(IMoonrakerAPI& api, const std::string& file_path,
                                 std::shared_ptr<std::atomic<int>> pending,
                                 std::function<void()> on_all_done, ErrorCallback on_error);
 };

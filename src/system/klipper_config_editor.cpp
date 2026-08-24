@@ -4,8 +4,8 @@
 #include "klipper_config_editor.h"
 
 #include "http_executor.h"
+#include "i_moonraker_api.h"
 #include "klipper_config_includes.h"
-#include "moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -398,7 +398,7 @@ std::optional<std::string> KlipperConfigEditor::get_cached_file(const std::strin
     return it->second;
 }
 
-void KlipperConfigEditor::download_with_includes(MoonrakerAPI& api, const std::string& file_path,
+void KlipperConfigEditor::download_with_includes(IMoonrakerAPI& api, const std::string& file_path,
                                                  std::shared_ptr<std::atomic<int>> pending,
                                                  std::function<void()> on_all_done,
                                                  ErrorCallback on_error) {
@@ -464,7 +464,7 @@ void KlipperConfigEditor::download_with_includes(MoonrakerAPI& api, const std::s
         });
 }
 
-void KlipperConfigEditor::load_config_files(MoonrakerAPI& api, SectionMapCallback on_complete,
+void KlipperConfigEditor::load_config_files(IMoonrakerAPI& api, SectionMapCallback on_complete,
                                             ErrorCallback on_error) {
     spdlog::info("[ConfigEditor] Loading config files from printer");
 
@@ -530,7 +530,7 @@ void KlipperConfigEditor::load_config_files(MoonrakerAPI& api, SectionMapCallbac
         });
 }
 
-void KlipperConfigEditor::backup_file(MoonrakerAPI& api, const std::string& file_path,
+void KlipperConfigEditor::backup_file(IMoonrakerAPI& api, const std::string& file_path,
                                       SuccessCallback on_success, ErrorCallback on_error) {
     std::string source = "config/" + file_path;
     std::string dest = "config/" + file_path + ".helix_backup";
@@ -551,7 +551,7 @@ void KlipperConfigEditor::backup_file(MoonrakerAPI& api, const std::string& file
         });
 }
 
-void KlipperConfigEditor::edit_value(MoonrakerAPI& api, const std::string& section,
+void KlipperConfigEditor::edit_value(IMoonrakerAPI& api, const std::string& section,
                                      const std::string& key, const std::string& new_value,
                                      SuccessCallback on_success, ErrorCallback on_error) {
     // Look up section in cached section map
@@ -634,7 +634,7 @@ void KlipperConfigEditor::edit_value(MoonrakerAPI& api, const std::string& secti
         on_error);
 }
 
-void KlipperConfigEditor::restore_backups(MoonrakerAPI& api, SuccessCallback on_complete,
+void KlipperConfigEditor::restore_backups(IMoonrakerAPI& api, SuccessCallback on_complete,
                                           ErrorCallback on_error) {
     spdlog::info("[ConfigEditor] Restoring backup files");
 
@@ -697,7 +697,7 @@ void KlipperConfigEditor::restore_backups(MoonrakerAPI& api, SuccessCallback on_
         });
 }
 
-void KlipperConfigEditor::cleanup_backups(MoonrakerAPI& api, SuccessCallback on_complete) {
+void KlipperConfigEditor::cleanup_backups(IMoonrakerAPI& api, SuccessCallback on_complete) {
     spdlog::debug("[ConfigEditor] Cleaning up backup files");
 
     api.files().list_files(
@@ -817,7 +817,7 @@ KlipperConfigEditor::apply_edits(const std::string& content, const std::string& 
     return current;
 }
 
-void KlipperConfigEditor::safe_multi_edit(MoonrakerAPI& api, const std::string& section,
+void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
                                           const std::vector<ConfigEdit>& edits,
                                           SuccessCallback on_success, ErrorCallback on_error,
                                           int restart_timeout_ms) {
@@ -1008,7 +1008,7 @@ void KlipperConfigEditor::safe_multi_edit(MoonrakerAPI& api, const std::string& 
         on_error);
 }
 
-void KlipperConfigEditor::safe_edit_value(MoonrakerAPI& api, const std::string& section,
+void KlipperConfigEditor::safe_edit_value(IMoonrakerAPI& api, const std::string& section,
                                           const std::string& key, const std::string& new_value,
                                           SuccessCallback on_success, ErrorCallback on_error,
                                           int restart_timeout_ms) {

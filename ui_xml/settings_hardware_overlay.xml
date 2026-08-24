@@ -12,7 +12,7 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- All hardware settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
-      <setting_group>
+      <setting_group name="group_hardware">
         <!-- ================================================================== -->
         <!-- HARDWARE HEALTH (always visible — forensic surface for the user) -->
         <!-- ================================================================== -->
@@ -37,7 +37,14 @@
           <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
           <setting_action_row name="row_camera"
                               label="Camera" label_tag="Camera" icon="video" description="View live camera feed"
-                              description_tag="View live camera feed" callback="on_camera_view_clicked"/>
+                              description_tag="View live camera feed" callback="on_camera_view_clicked">
+            <!-- Hidden on the v1 (ESP32/K-Touch) cut — camera streaming is
+                 compiled out (HELIX_HAS_CAMERA=0); printer_has_webcam alone
+                 would still show this row (and an inert tap) for any printer
+                 with a webcam configured in Moonraker. Desktop
+                 (platform_extras_available==1) renders it exactly as before. -->
+            <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
+          </setting_action_row>
         </lv_obj>
         <!-- ================================================================== -->
         <!-- MULTI-FILAMENT MANAGEMENT (hidden if no AMS detected) -->

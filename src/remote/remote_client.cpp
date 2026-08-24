@@ -65,7 +65,7 @@ struct HelpEntry {
     const char* detail;  ///< extra CLI-only lines ("\n"-separated), or nullptr
 };
 
-static const HelpEntry kHelp[] = {
+static const HelpEntry HELP[] = {
     {"Navigation (fs metaphor)", "help, ?", "Show this help", nullptr},
     {nullptr, "ping", "Health check", nullptr},
     {nullptr, "navigate <panel>", "Go to a base panel", nullptr},
@@ -111,6 +111,11 @@ static const HelpEntry kHelp[] = {
      "scope defaults to 'globals'."},
     {nullptr, "text <target>", "Read a widget's text (label/textarea/dropdown)",
      "Descends into a composite (e.g. a button) to find it."},
+    {nullptr, "state <target>", "Read a widget's LVGL states and flags",
+     "checked/disabled/focused/pressed as booleans + an active-states\n"
+     "array, plus hidden/clickable/scrollable flags. Descends a composite\n"
+     "row to its control, matching what click/set_value act on. A hidden\n"
+     "widget still resolves — assert bind_flag_if contracts here."},
     {nullptr, "click <target>", "Click (toggles switches/checkboxes)",
      "On a composite row, descends to the control inside it."},
     {nullptr, "set_value <target> <v>", "Set value (slider, switch, dropdown, textarea)", nullptr},
@@ -144,27 +149,27 @@ static const HelpEntry kHelp[] = {
     {"Interactive", "repl", "Interactive REPL with line editing and history", nullptr},
 };
 
-static constexpr int kHelpUsageWidth = 26;
+static constexpr int HELP_USAGE_WIDTH = 26;
 
 /// Render the shared table. `verbose` adds each entry's `detail` lines, which
 /// the REPL omits so its in-session listing stays scannable.
 static void print_help_table(bool verbose) {
-    for (const HelpEntry& e : kHelp) {
+    for (const HelpEntry& e : HELP) {
         if (e.section) {
             printf("\n%s:\n", e.section);
         }
-        int pad = kHelpUsageWidth - 2 - static_cast<int>(strlen(e.usage));
+        int pad = HELP_USAGE_WIDTH - 2 - static_cast<int>(strlen(e.usage));
         if (pad > 0) {
             printf("  %s%*s%s\n", e.usage, pad, "", e.summary);
         } else {
             // Usage too long to share a line — summary goes underneath.
-            printf("  %s\n%*s%s\n", e.usage, kHelpUsageWidth, "", e.summary);
+            printf("  %s\n%*s%s\n", e.usage, HELP_USAGE_WIDTH, "", e.summary);
         }
         if (verbose && e.detail) {
             for (const char* p = e.detail; p;) {
                 const char* nl = strchr(p, '\n');
                 int len = nl ? static_cast<int>(nl - p) : static_cast<int>(strlen(p));
-                printf("%*s%.*s\n", kHelpUsageWidth, "", len, p);
+                printf("%*s%.*s\n", HELP_USAGE_WIDTH, "", len, p);
                 p = nl ? nl + 1 : nullptr;
             }
         }
@@ -630,6 +635,20 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
             params["y"] = std::atoi(tokens[2].c_str());
         }
         return build_request("pointer_release", params);
+    } else if (cmd == "long_press") {
+        if (tokens.size() < 3) {
+            fprintf(stderr, "Error: long_press requires x and y coordinates\n");
+            return {};
+        }
+        nlohmann::json params;
+        params["x"] = std::atoi(tokens[1].c_str());
+        params["y"] = std::atoi(tokens[2].c_str());
+        // Optional hold in ms; the server defaults it from the live long-press
+        // threshold rather than a number duplicated here.
+        if (tokens.size() >= 4) {
+            params["hold_ms"] = std::atoi(tokens[3].c_str());
+        }
+        return build_request("pointer_long_press", params);
     } else if (cmd == "set_value") {
         if (tokens.size() < 3) {
             fprintf(stderr, "Error: set_value requires a widget name/@path and value\n");
@@ -677,6 +696,26 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
             return {};
         }
         return build_request("text", target_param(tokens[1]));
+    } else if (cmd == "state") {
+        if (tokens.size() < 2) {
+            fprintf(stderr, "Error: state requires a widget name/@path\n");
+            return {};
+        }
+        return build_request("state", target_param(tokens[1]));
+    } else if (cmd == "set_text") {
+        if (tokens.size() < 3) {
+            fprintf(stderr, "Error: set_text requires a widget name/@path and text\n");
+            return {};
+        }
+        nlohmann::json p = target_param(tokens[1]);
+        // Join the rest so an unquoted multi-word string still arrives intact
+        // from the REPL, where the line is split on spaces.
+        std::string text = tokens[2];
+        for (size_t i = 3; i < tokens.size(); ++i) {
+            text += " " + tokens[i];
+        }
+        p["text"] = text;
+        return build_request("set_text", p);
     } else if (cmd == "geom") {
         if (tokens.size() < 2) {
             fprintf(stderr, "Error: geom requires a widget name/@path [depth]\n");
@@ -746,6 +785,7 @@ static const char* REPL_COMMANDS[] = {"ping",
                                       "press",
                                       "move",
                                       "release",
+                                      "long_press",
                                       "scroll",
                                       "scenario",
                                       "list_scenarios",
@@ -756,6 +796,8 @@ static const char* REPL_COMMANDS[] = {"ping",
                                       "reset",
                                       "geom",
                                       "text",
+                                      "state",
+                                      "set_text",
                                       "get_const",
                                       "quit",
                                       "exit",
@@ -835,8 +877,8 @@ static void repl_completion(const char* buf, linenoiseCompletions* lc) {
         } else if (cmd == "navigate") {
             candidates = &g_cached_panels;
         } else if (cmd == "cd" || cmd == "ls" || cmd == "click" || cmd == "focus" ||
-                   cmd == "text" || cmd == "geom" || cmd == "set_value" || cmd == "scroll" ||
-                   cmd == "resolve") {
+                   cmd == "text" || cmd == "set_text" || cmd == "state" || cmd == "geom" ||
+                   cmd == "set_value" || cmd == "scroll" || cmd == "resolve") {
             // Widget names are re-read every time rather than cached: the tree
             // changes under the REPL constantly (navigation, hot reload, the
             // printer's own state), so a cache would offer completions for
@@ -871,6 +913,10 @@ static char* repl_hints(const char* buf, int* color, int* bold) {
         return strdup(" <widget>");
     if (input == "text")
         return strdup(" <widget>");
+    if (input == "state")
+        return strdup(" <widget>");
+    if (input == "set_text")
+        return strdup(" <widget> <text>");
     if (input == "set_value")
         return strdup(" <widget> <value>");
     if (input == "scenario")

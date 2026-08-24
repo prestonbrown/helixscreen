@@ -475,6 +475,21 @@ class DisplayBackend {
     }
 
     /**
+     * @brief Check whether the manual calibration entry point should be offered
+     *
+     * Separate from needs_touch_calibration(), which means "auto-fire the wizard
+     * on first boot". This one means "a human can reach the wizard from
+     * Settings", and is true for any real touch device. See
+     * helix::device_supports_calibration() for why the two must not share a
+     * flag (prestonbrown/helixscreen#1259).
+     *
+     * @return true if the Settings entry point should be reachable
+     */
+    virtual bool supports_touch_calibration() const {
+        return false;
+    }
+
+    /**
      * @brief Temporarily disable affine calibration for recalibration
      */
     virtual void disable_affine_calibration() {}

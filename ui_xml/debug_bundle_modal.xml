@@ -96,11 +96,12 @@
     <lv_obj name="consent_buttons"
             width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row">
       <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="0"/>
-      <ui_button height="100%" text="Cancel" translation_tag="Cancel" flex_grow="1" style_radius="0">
+      <ui_button name="btn_cancel" height="100%" text="Cancel" translation_tag="Cancel" flex_grow="1" style_radius="0">
         <event_cb trigger="clicked" callback="on_debug_bundle_cancel"/>
       </ui_button>
       <divider_vertical/>
-      <ui_button height="100%" text="Upload" translation_tag="Upload" flex_grow="1" style_radius="0" variant="primary">
+      <ui_button name="btn_upload"
+                 height="100%" text="Upload" translation_tag="Upload" flex_grow="1" style_radius="0" variant="primary">
         <event_cb trigger="clicked" callback="on_debug_bundle_upload"/>
       </ui_button>
     </lv_obj>
@@ -109,7 +110,8 @@
     <lv_obj name="success_buttons"
             width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row">
       <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="2"/>
-      <ui_button height="100%" text="Done" translation_tag="Done" flex_grow="1" style_radius="0" variant="primary">
+      <ui_button name="btn_done"
+                 height="100%" text="Done" translation_tag="Done" flex_grow="1" style_radius="0" variant="primary">
         <event_cb trigger="clicked" callback="on_debug_bundle_done"/>
       </ui_button>
     </lv_obj>
@@ -118,7 +120,7 @@
     <lv_obj name="error_buttons"
             width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row">
       <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="3"/>
-      <ui_button height="100%" text="Close" translation_tag="Close" flex_grow="1" style_radius="0">
+      <ui_button name="btn_close" height="100%" text="Close" translation_tag="Close" flex_grow="1" style_radius="0">
         <event_cb trigger="clicked" callback="on_debug_bundle_close"/>
       </ui_button>
     </lv_obj>

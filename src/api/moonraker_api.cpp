@@ -6,6 +6,7 @@
 #include "ui_update_queue.h"
 
 #include "moonraker_api_internal.h"
+#include "runtime_config.h"
 #include "spdlog/spdlog.h"
 
 #include <chrono>
@@ -21,7 +22,7 @@ using namespace moonraker_internal;
 // MoonrakerAPI Implementation
 // ============================================================================
 
-MoonrakerAPI::MoonrakerAPI(MoonrakerClient& client, PrinterState& state)
+MoonrakerAPI::MoonrakerAPI(IMoonrakerClient& client, PrinterState& state)
     : client_(client), state_(state) {
     // Create sub-APIs
     advanced_api_ = std::make_unique<MoonrakerAdvancedAPI>(client, *this);
@@ -54,8 +55,33 @@ MoonrakerAPI::MoonrakerAPI(MoonrakerClient& client, PrinterState& state)
         });
 
     // Wire up bed mesh callback: Client pushes data to advanced API when it arrives from WebSocket
-    client_.set_bed_mesh_callback(
-        [this](const json& bed_mesh) { this->advanced_api_->update_bed_mesh(bed_mesh); });
+    client_.set_bed_mesh_callback([this](const json& bed_mesh) {
+        this->advanced_api_->update_bed_mesh(bed_mesh);
+        // Presence verdicts only when the update actually speaks about
+        // probed_matrix (klippy sends it as null on clear); partial updates
+        // carry no information about presence. Copy the observer under the
+        // mutex: it is set on the main thread and read here on the
+        // WebSocket thread, and on weakly-ordered targets an unsynchronized
+        // read can stay stale-null for the process lifetime.
+        std::function<void(bool)> observer;
+        {
+            std::lock_guard<std::mutex> lock(bed_mesh_presence_mutex_);
+            observer = bed_mesh_presence_observer_;
+        }
+        if (bed_mesh.contains("probed_matrix")) {
+            const auto& matrix = bed_mesh["probed_matrix"];
+            const bool present = matrix.is_array() && !matrix.empty();
+            if (observer) {
+                observer(present);
+            } else {
+                // Diagnostic for the on-device flap silence: distinguishes
+                // "observer never wired/replaced" from downstream gating.
+                spdlog::debug("[MoonrakerAPI] bed-mesh presence verdict dropped: no observer "
+                              "(present={})",
+                              present);
+            }
+        }
+    });
 }
 
 MoonrakerAPI::~MoonrakerAPI() {
@@ -77,6 +103,16 @@ MoonrakerAPI::~MoonrakerAPI() {
 bool MoonrakerAPI::ensure_http_base_url() {
     if (!http_base_url_.empty()) {
         return true;
+    }
+
+    // Never derive a real HTTP endpoint from a simulated connection. The mock
+    // records the URL it was "connected" to so topology consumers can read it,
+    // but deriving an HTTP base from it would point file transfers at the
+    // operator's actual printer from a --test run that is supposed to touch
+    // nothing. An explicitly configured base URL (above) still wins.
+    if (get_runtime_config()->should_mock_moonraker()) {
+        spdlog::debug("[Moonraker API] Mock Moonraker: not deriving HTTP base URL");
+        return false;
     }
 
     // Try to derive from WebSocket URL

@@ -3,6 +3,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
+#include "../test_helpers/recovery_modal_presenter_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_error_bridge.h"
@@ -13,10 +14,10 @@
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
 
-#include "../catch_amalgamated.hpp"
-
 #include <string>
 #include <vector>
+
+#include "../catch_amalgamated.hpp"
 
 namespace {
 class ErrorReportingBackend : public AmsBackendMock {
@@ -393,8 +394,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not toast on non-ERROR 
     bridge.start();
 
     ToastCapture toasts;
-    for (auto action : {AmsAction::LOADING, AmsAction::HEATING, AmsAction::UNLOADING,
-                        AmsAction::IDLE}) {
+    for (auto action :
+         {AmsAction::LOADING, AmsAction::HEATING, AmsAction::UNLOADING, AmsAction::IDLE}) {
         ams.set_action(action);
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(20);
@@ -430,7 +431,7 @@ void park_printer_idle() {
 /// AFC emits `!! <msg>` and AFC_logger.error() queues the byte-identical
 /// string, so the router's detail and the backend's operation_detail are the
 /// same string. That equality is what the correlation matches on.
-constexpr const char* kAfcFault = "lane1 filament failed to trigger toolhead sensor";
+constexpr const char* AFC_FAULT = "lane1 filament failed to trigger toolhead sensor";
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -442,7 +443,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
     auto backend = std::make_unique<ErrorReportingBackend>(4); // current_error() == nullopt
-    backend->set_operation_detail(kAfcFault);
+    backend->set_operation_detail(AFC_FAULT);
     ams.set_backend(std::move(backend));
 
     park_action_idle(*this);
@@ -456,7 +457,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Klipper's broadcast lands first — AFC emits `!!` before it calls
     // pause_print(), so this is the real ordering on hardware.
     helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
-    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + kAfcFault);
+    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + AFC_FAULT);
 
     // Then AFC's status delta raises error_state and the action edges to ERROR.
     ams.set_action(AmsAction::ERROR);
@@ -465,7 +466,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     REQUIRE_FALSE(presenter.is_visible()); // toast path: no modal to see
     CHECK(toasts.messages().size() == 1);  // the router's, not two
-    CHECK(toasts.messages()[0].find(kAfcFault) != std::string::npos);
+    CHECK(toasts.messages()[0].find(AFC_FAULT) != std::string::npos);
 
     ams.set_backend(nullptr);
 }
@@ -493,7 +494,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ToastCapture toasts;
 
     helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
-    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + kAfcFault);
+    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + AFC_FAULT);
 
     ams.set_action(AmsAction::ERROR);
     helix::ui::UpdateQueue::instance().drain();
@@ -503,7 +504,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     bool saw_router = false;
     bool saw_bridge = false;
     for (const auto& m : toasts.messages()) {
-        saw_router |= m.find(kAfcFault) != std::string::npos;
+        saw_router |= m.find(AFC_FAULT) != std::string::npos;
         saw_bridge |= m.find("Unloading lane 2 (timed out)") != std::string::npos;
     }
     CHECK(saw_router);
@@ -524,7 +525,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
     auto backend = std::make_unique<ErrorReportingBackend>(4);
-    backend->set_operation_detail(kAfcFault);
+    backend->set_operation_detail(AFC_FAULT);
     ams.set_backend(std::move(backend));
 
     park_action_idle(*this);
@@ -540,7 +541,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(toasts.messages().size() == 1); // the fallback fired
 
     helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
-    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + kAfcFault);
+    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + AFC_FAULT);
     process_lvgl(300);
 
     CHECK(toasts.messages().size() == 1);
@@ -556,14 +557,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // toast" as reason enough to skip the modal would drop the only thing the
     // user can act on. Paused + uncoded `!!` classifies CRITICAL and, since
     // #1152, carries a generic Resume action -> MODAL_WITH_RECOVER.
-    get_printer_state().update_from_status(
-        nlohmann::json{{"pause_resume", {{"is_paused", true}}}});
+    get_printer_state().update_from_status(nlohmann::json{{"pause_resume", {{"is_paused", true}}}});
     REQUIRE(get_printer_state().is_paused());
 
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
     auto backend = std::make_unique<ErrorReportingBackend>(4);
-    backend->set_operation_detail(kAfcFault);
+    backend->set_operation_detail(AFC_FAULT);
     ams.set_backend(std::move(backend));
 
     park_action_idle(*this);
@@ -579,10 +579,272 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(toasts.messages().size() == 1); // fallback claimed the fault
 
     helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
-    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + kAfcFault);
+    GcodeErrorRouterTestAccess::process_line(router, std::string("!! ") + AFC_FAULT);
     process_lvgl(300);
 
     CHECK(presenter.is_visible()); // modal still shown despite the prior claim
+
+    presenter.dismiss();
+    process_lvgl(20);
+    ams.set_backend(nullptr);
+}
+
+// Without the ams_action_detail observer, a fault whose text changes while
+// AmsAction stays ERROR never re-presents and the user keeps reading the first
+// message. The bridge now re-consults current_error() on a detail change, and
+// RecoveryModalPresenter::present() dedups so an unchanged fault is a no-op.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsErrorBridge re-presents when fault detail changes mid-ERROR",
+                 "[error-center][ams-bridge]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto backend = std::make_unique<ErrorReportingBackend>(4);
+    auto* raw = backend.get();
+
+    helix::ErrorEvent first;
+    first.source = helix::ErrorSource::IFS;
+    first.severity = helix::ErrorSeverity::CRITICAL;
+    first.detail = "IFS unload timed out";
+    first.recovery_actions = {{"Recover", "IFS_UNLOCK", "ifs::unlock", "primary"}};
+    raw->set_error(first);
+    raw->set_operation_detail(first.detail);
+    ams.set_backend(std::move(backend));
+
+    park_action_idle(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    helix::AmsErrorBridge bridge(presenter);
+    bridge.start();
+
+    // Rising edge: present the first fault.
+    ams.set_action(AmsAction::ERROR);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+    REQUIRE(presenter.is_visible());
+    REQUIRE(RecoveryModalPresenterTestAccess::shown_detail(presenter) == first.detail);
+
+    // Mid-ERROR: the backend's fault text moves on while action stays ERROR.
+    helix::ErrorEvent second;
+    second.source = helix::ErrorSource::IFS;
+    second.severity = helix::ErrorSeverity::CRITICAL;
+    second.detail = "IFS load failed at extruder";
+    second.recovery_actions = {{"Recover", "IFS_UNLOCK", "ifs::unlock", "primary"}};
+    raw->set_error(second);
+    raw->set_operation_detail(second.detail);
+    // Drive the ams_action_detail subject the way sync_from_backend() does in
+    // production when the backend's operation_detail moves on — without re-
+    // reading the backend's action (the mock still reports IDLE, which would
+    // reset the action subject and falsely dismiss).
+    ams.set_action_detail(second.detail);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    // The stale read: without the detail observer this would still be first.detail.
+    REQUIRE(presenter.is_visible()); // same ERROR episode
+    REQUIRE(RecoveryModalPresenterTestAccess::shown_detail(presenter) == second.detail);
+
+    // Falling edge still dismisses.
+    raw->set_error(std::nullopt);
+    ams.set_action(AmsAction::IDLE);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+    CHECK_FALSE(presenter.is_visible());
+
+    ams.set_backend(nullptr);
+}
+
+// ============================================================================
+// A dismissal has to stick for the rest of the ERROR episode.
+//
+// The detail observer above re-consults current_error() on every
+// ams_action_detail change, and AmsState::recompute_action_detail() notifies on
+// any strcmp difference — so a latched fault re-reaches present() on every
+// cosmetic wording change the backend makes. Meanwhile a dismiss-only event
+// carries a single {"OK", ""} action, and ActionPromptModal treats an empty
+// gcode as "close, send nothing": the tap never reaches the presenter's gcode
+// callback. With the presenter's only dedup keyed on the modal still being
+// visible, the dialog the user just closed came straight back.
+// ============================================================================
+
+namespace {
+/// The uncoded-`!!` shape from error_classify: one action whose empty gcode is
+/// the dismiss spelling (#1172).
+helix::ErrorEvent dismiss_only_event(std::string detail) {
+    helix::ErrorEvent e;
+    e.source = helix::ErrorSource::IFS;
+    e.severity = helix::ErrorSeverity::CRITICAL;
+    e.detail = std::move(detail);
+    e.recovery_actions = {{"OK", "", "error_classify::dismiss"}};
+    return e;
+}
+
+/// Rising edge into ERROR with @p e latched on the backend, presented.
+void raise_error(LVGLUITestFixture& fx, ErrorReportingBackend& backend,
+                 const helix::ErrorEvent& e) {
+    backend.set_error(e);
+    backend.set_operation_detail(e.detail);
+    AmsState::instance().set_action(AmsAction::ERROR);
+    helix::ui::UpdateQueue::instance().drain();
+    fx.process_lvgl(20);
+}
+
+/// The backend re-notifying the SAME latched fault: operation_detail moves, so
+/// AmsState re-publishes ams_action_detail and the bridge re-consults
+/// current_error(), which still answers the same event.
+void churn_detail(LVGLUITestFixture& fx, const char* cosmetic) {
+    AmsState::instance().set_action_detail(cosmetic);
+    helix::ui::UpdateQueue::instance().drain();
+    fx.process_lvgl(20);
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not re-present a fault the user dismissed",
+                 "[error-center][ams-bridge]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto backend = std::make_unique<ErrorReportingBackend>(4);
+    auto* raw = backend.get();
+    ams.set_backend(std::move(backend));
+
+    park_action_idle(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    helix::AmsErrorBridge bridge(presenter);
+    bridge.start();
+
+    const auto fault = dismiss_only_event("IFS unload timed out");
+    raise_error(*this, *raw, fault);
+    REQUIRE(presenter.is_visible());
+
+    // The user taps OK. No gcode callback fires; the modal just closes.
+    RecoveryModalPresenterTestAccess::user_dismiss(presenter);
+    process_lvgl(20);
+    REQUIRE_FALSE(presenter.is_visible());
+    REQUIRE(RecoveryModalPresenterTestAccess::handled_detail(presenter) == fault.detail);
+
+    // The fault is still latched and the backend keeps re-narrating it. None of
+    // these may put the dismissed dialog back on screen.
+    churn_detail(*this, "IFS unload timed out ");
+    CHECK_FALSE(presenter.is_visible());
+    churn_detail(*this, "IFS unload timed out (retrying)");
+    CHECK_FALSE(presenter.is_visible());
+
+    ams.set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsErrorBridge still presents a NEW fault after the user dismissed the first",
+                 "[error-center][ams-bridge]") {
+    // The other half of the boundary: the suppression is keyed on the fault the
+    // user actually answered, so a different fault arriving mid-episode is still
+    // news and must reach the screen.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto backend = std::make_unique<ErrorReportingBackend>(4);
+    auto* raw = backend.get();
+    ams.set_backend(std::move(backend));
+
+    park_action_idle(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    helix::AmsErrorBridge bridge(presenter);
+    bridge.start();
+
+    raise_error(*this, *raw, dismiss_only_event("IFS unload timed out"));
+    REQUIRE(presenter.is_visible());
+    RecoveryModalPresenterTestAccess::user_dismiss(presenter);
+    process_lvgl(20);
+    REQUIRE_FALSE(presenter.is_visible());
+
+    // A genuinely different fault the user has never seen.
+    const auto second = dismiss_only_event("IFS load failed at extruder");
+    raw->set_error(second);
+    churn_detail(*this, second.detail.c_str());
+
+    CHECK(presenter.is_visible());
+    CHECK(RecoveryModalPresenterTestAccess::shown_detail(presenter) == second.detail);
+    // Showing something new retires the earlier answer.
+    CHECK(RecoveryModalPresenterTestAccess::handled_detail(presenter).empty());
+
+    presenter.dismiss();
+    process_lvgl(20);
+    ams.set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsErrorBridge does not re-offer a recovery the user already tapped",
+                 "[error-center][ams-bridge]") {
+    // The worse variant. The modal closes on the tap and the recovery may still
+    // be in flight (begin_preheat's toast is the only sign of it). A re-present
+    // puts live buttons back over it, and a second tap would clear_preheat() and
+    // re-arm the whole recovery on top of the one already running.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto backend = std::make_unique<ErrorReportingBackend>(4);
+    auto* raw = backend.get();
+    ams.set_backend(std::move(backend));
+
+    park_action_idle(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    helix::AmsErrorBridge bridge(presenter);
+    bridge.start();
+
+    helix::ErrorEvent fault;
+    fault.source = helix::ErrorSource::IFS;
+    fault.severity = helix::ErrorSeverity::CRITICAL;
+    fault.detail = "IFS jam at lane 2";
+    fault.recovery_actions = {{"Recover", "IFS_UNLOCK", "ifs::unlock", "primary"}};
+    raise_error(*this, *raw, fault);
+    REQUIRE(presenter.is_visible());
+
+    // handle_button_click: run the callback, then close.
+    RecoveryModalPresenterTestAccess::tap(presenter, "IFS_UNLOCK");
+    RecoveryModalPresenterTestAccess::user_dismiss(presenter);
+    process_lvgl(20);
+    REQUIRE_FALSE(presenter.is_visible());
+
+    churn_detail(*this, "IFS jam at lane 2 (recovering)");
+    CHECK_FALSE(presenter.is_visible());
+
+    ams.set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsErrorBridge presents again when the same fault opens a NEW ERROR episode",
+                 "[error-center][ams-bridge]") {
+    // The suppression is scoped to one episode, not forever. A fault the user
+    // dismissed, that clears and then recurs, is new information.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto backend = std::make_unique<ErrorReportingBackend>(4);
+    auto* raw = backend.get();
+    ams.set_backend(std::move(backend));
+
+    park_action_idle(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    helix::AmsErrorBridge bridge(presenter);
+    bridge.start();
+
+    const auto fault = dismiss_only_event("IFS unload timed out");
+    raise_error(*this, *raw, fault);
+    REQUIRE(presenter.is_visible());
+    RecoveryModalPresenterTestAccess::user_dismiss(presenter);
+    process_lvgl(20);
+    REQUIRE_FALSE(presenter.is_visible());
+
+    // Episode ends.
+    raw->set_error(std::nullopt);
+    ams.set_action(AmsAction::IDLE);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+    REQUIRE(RecoveryModalPresenterTestAccess::handled_detail(presenter).empty());
+
+    // Same fault, new episode.
+    raise_error(*this, *raw, fault);
+    CHECK(presenter.is_visible());
+    CHECK(RecoveryModalPresenterTestAccess::shown_detail(presenter) == fault.detail);
 
     presenter.dismiss();
     process_lvgl(20);

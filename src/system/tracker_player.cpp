@@ -522,14 +522,14 @@ void TrackerPlayer::apply_to_backend() {
 
     // When the module has PCM samples AND the backend supports direct audio
     // rendering, render_audio() handles output. Just compute sample_speed here.
-    static constexpr double kAmigaClock = 3546895.0; // PAL clock
+    static constexpr double AMIGA_CLOCK = 3546895.0; // PAL clock
     if (module_.has_samples && backend_->supports_render_source()) {
         for (int ch = 0; ch < 4; ++ch) {
             auto& cs = channels_[static_cast<size_t>(ch)];
             if (cs.active && cs.period > 0 && cs.current_instrument &&
                 cs.current_instrument->has_sample()) {
                 // Paula chip: playback_rate = clock / period
-                cs.sample_speed = kAmigaClock / static_cast<double>(cs.period);
+                cs.sample_speed = AMIGA_CLOCK / static_cast<double>(cs.period);
             }
         }
         std::atomic_thread_fence(std::memory_order_release);
@@ -547,7 +547,7 @@ void TrackerPlayer::apply_to_backend() {
         // Use period-derived freq for accuracy when period is available
         float freq = cs.freq;
         if (cs.period > 0) {
-            freq = static_cast<float>(kAmigaClock / static_cast<double>(cs.period));
+            freq = static_cast<float>(AMIGA_CLOCK / static_cast<double>(cs.period));
         }
         if (cs.active && freq > 0 && cs.volume > 0) {
             backend_->set_voice(ch, freq, cs.volume * master_vol, cs.duty);

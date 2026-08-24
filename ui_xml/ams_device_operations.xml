@@ -73,8 +73,16 @@
                             translation_tag="Feed filament directly to extruder"/>
               </lv_obj>
             </lv_obj>
+            <!-- Checked state follows the live ams_bypass_active subject (the
+                 one AmsState publishes from the backends), not an overlay-local
+                 snapshot: the enable can complete asynchronously behind an
+                 unload-first chain, and a snapshot written optimistically on
+                 "success" reports a fire-and-forget gcode as done. Dims while a
+                 job owns the toolhead, same binding as panel_widget_bypass.xml;
+                 the shared controller still enforces that guard on every tap. -->
             <ui_switch name="bypass_toggle" size="small">
-              <bind_state_if_eq subject="ams_device_ops_bypass_active" state="checked" ref_value="1"/>
+              <bind_state_if_eq subject="ams_bypass_active" state="checked" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <event_cb trigger="value_changed" callback="on_ams_device_ops_bypass_toggled"/>
             </ui_switch>
           </lv_obj>
@@ -134,6 +142,32 @@
                             subject="ams_always_show_bypass_spool" callback="on_ams_always_show_bypass_spool_toggled">
           <bind_flag_if_eq subject="ams_device_ops_is_afc" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
+
+        <!-- Retention across eject: keep the previously assigned spool details
+             so reloading the same spool after maintenance needs no re-selection
+             (default on). Turn off to start fresh whenever a lane empties.
+             Meaningful on systems whose firmware reports spool ids per lane
+             (AFC, Happy Hare); other systems clear on a detected spool swap
+             regardless of this toggle. When the firmware retains spools itself
+             (AFC's per-lane remember_spool = true everywhere) it keeps
+             reporting the spool id across ejects, so this toggle has no
+             observable effect — it is shown disabled with the note below
+             instead of silently lying. -->
+        <setting_toggle_row name="row_ams_keep_spool_info_on_eject"
+                            label="Keep Spool Info on Eject" label_tag="Keep Spool Info on Eject" icon="filament"
+                            description="Remember lane spool details across an eject"
+                            description_tag="Remember lane spool details across an eject"
+                            subject="ams_keep_spool_info_on_eject" callback="on_ams_keep_spool_info_toggled"
+                            disabled="ams_device_ops_printer_retains_spool_info">
+          <bind_flag_if_eq subject="ams_device_ops_reports_spool_ids" flag="hidden" ref_value="0"/>
+        </setting_toggle_row>
+        <text_small name="label_printer_retains_note"
+                    text="AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle"
+                    translation_tag="AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle"
+                    style_text_color="#text_subtle">
+          <bind_flag_if_eq subject="ams_device_ops_printer_retains_spool_info" flag="hidden" ref_value="0"/>
+          <bind_flag_if_eq subject="ams_device_ops_reports_spool_ids" flag="hidden" ref_value="0"/>
+        </text_small>
 
         <!-- Offer the bypass controls on a machine whose firmware reports none.
              Shown only while the firmware says no, so it stays available for the
@@ -218,6 +252,22 @@
             <text_small width="40" text="300"/>
           </lv_obj>
         </lv_obj>
+
+        <!-- Reset Endless Spool failover (shown only on backends whose
+             endless-spool mapping the UI may write — AFC per-slot edges,
+             single-unit Happy Hare groups, and the mock. Read-only systems
+             like CFS and AD5X IFS hide the row). The base reset_endless_spool()
+             loops set_endless_spool_backup(slot, -1) over every slot; Happy
+             Hare overrides it with MMU_ENDLESS_SPOOL RESET=1. Wipes ALL failover
+             config, so the tap opens a confirmation modal rather than firing
+             immediately. -->
+        <setting_action_row name="row_reset_endless_spool"
+                            label="Reset Endless Spool" label_tag="Reset Endless Spool" icon="restart"
+                            description="Clear all spool failover assignments"
+                            description_tag="Clear all spool failover assignments"
+                            callback="on_ams_reset_endless_spool_clicked">
+          <bind_flag_if_eq subject="ams_device_ops_can_reset_endless_spool" flag="hidden" ref_value="0"/>
+        </setting_action_row>
 
         <!-- Status Row -->
         <lv_obj name="status_row"

@@ -8,8 +8,8 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_state.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -74,7 +74,7 @@ std::string MacroModificationManager::compute_hash(const std::string& content) {
 // Construction / Destruction
 // ============================================================================
 
-MacroModificationManager::MacroModificationManager(Config* config, MoonrakerAPI* api)
+MacroModificationManager::MacroModificationManager(Config* config, IMoonrakerAPI* api)
     : config_(config), api_(api) {
     spdlog::debug("[MacroModificationManager] Created");
 }

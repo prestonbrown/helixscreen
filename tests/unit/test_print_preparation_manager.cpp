@@ -14,8 +14,9 @@ class PrintPreparationManagerTestAccess {
         return m.collect_macro_skip_params();
     }
     static std::vector<std::string>
-    get_pre_start_gcode_lines(const helix::ui::PrintPreparationManager& m) {
-        return m.collect_pre_start_gcode_lines();
+    get_pre_start_gcode_lines(const helix::ui::PrintPreparationManager& m,
+                              const std::string& filename = {}) {
+        return m.collect_pre_start_gcode_lines(filename);
     }
     static std::vector<gcode::OperationType>
     get_ops_to_disable(const helix::ui::PrintPreparationManager& m) {
@@ -27,6 +28,25 @@ class PrintPreparationManagerTestAccess {
         return helix::ui::PrintPreparationManager::build_pre_start_gcode_block(setup_gcode, lines,
                                                                                emit_setup);
     }
+    /// The modify route's first synchronous bail-out. Private because nothing
+    /// outside the manager should dispatch it, but it is the cheapest reachable
+    /// failure exit and every other one retires the job the same way.
+    static void modify_and_print(helix::ui::PrintPreparationManager& m,
+                                 const std::string& file_path) {
+        m.modify_and_print(file_path, {}, {}, nullptr);
+    }
+    /// Age the pre-start send timestamp. Production stamps it when the
+    /// pre-start gcode RPC leaves; a test models a backed-up ack by winding
+    /// it back past the staleness bound.
+    static void set_pre_start_sent_ago(helix::ui::PrintPreparationManager& m,
+                                       std::chrono::seconds ago) {
+        m.pre_start_sent_at_ = std::chrono::steady_clock::now() - ago;
+    }
+    /// Drive the shared continuation every pre-start path funnels through.
+    static void continue_print_start(helix::ui::PrintPreparationManager& m, const std::string& file,
+                                     helix::ui::PrintCompletionCallback on_completion) {
+        m.continue_print_start(file, {}, nullptr, on_completion);
+    }
 };
 
 #include "../mocks/mock_websocket_server.h"
@@ -36,7 +56,9 @@ class PrintPreparationManagerTestAccess {
 #include "gcode_ops_detector.h"
 #include "hv/EventLoopThread.h"
 #include "moonraker_api.h"
+#include "moonraker_api_mock.h"
 #include "moonraker_client.h"
+#include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "operation_registry.h"
 #include "print_start_analyzer.h"
@@ -70,6 +92,22 @@ using namespace helix::ui;
 // ============================================================================
 // Tests: Macro Analysis Formatting
 // ============================================================================
+
+namespace {
+/// The pre-start block carries a line per applicable PreStartGcode option, so a
+/// test about one option must not assert the whole vector's shape — the K2 Plus
+/// also emits its bed_mesh macro. Returns the single line containing `needle`.
+std::string line_containing(const std::vector<std::string>& lines, const std::string& needle) {
+    std::string found;
+    for (const auto& l : lines) {
+        if (l.find(needle) != std::string::npos) {
+            REQUIRE(found.empty()); // exactly one match expected
+            found = l;
+        }
+    }
+    return found;
+}
+} // namespace
 
 TEST_CASE("PrintPreparationManager: has_macro_analysis when no analysis available",
           "[print_preparation][macro]") {
@@ -854,20 +892,20 @@ TEST_CASE_METHOD(HelixTestFixture,
     SECTION("ai_detect ON emits SWITCH=1") {
         ai_detect_on = true;
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines == std::vector<std::string>{"LOAD_AI_RUN SWITCH=1"});
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=1");
     }
 
     SECTION("ai_detect OFF still emits, with SWITCH=0") {
         ai_detect_on = false;
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines == std::vector<std::string>{"LOAD_AI_RUN SWITCH=0"});
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
     }
 
     SECTION("ai_detect skipped entirely when LOAD_AI_RUN macro is absent") {
         MacroParamCache::instance().clear();
         ai_detect_on = true;
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines.empty());
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN").empty());
     }
 }
 
@@ -2726,8 +2764,7 @@ TEST_CASE_METHOD(
             return -1;
         });
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines.size() == 1);
-        REQUIRE(lines[0] == "LOAD_AI_RUN SWITCH=1");
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=1");
     }
 
     SECTION("Provider says DISABLED -> SWITCH=0 emitted") {
@@ -2737,16 +2774,14 @@ TEST_CASE_METHOD(
             return -1;
         });
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines.size() == 1);
-        REQUIRE(lines[0] == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
     }
 
     SECTION("No provider -> uses default_enabled (false) -> SWITCH=0") {
         // ai_detect default_enabled is false; with no UI binding it should still
         // emit SWITCH=0 because PreStartGcode emits regardless of state.
         auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(lines.size() == 1);
-        REQUIRE(lines[0] == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
     }
 }
 
@@ -2837,14 +2872,17 @@ TEST_CASE_METHOD(HelixTestFixture,
     }
 }
 
-TEST_CASE_METHOD(
-    HelixTestFixture,
-    "PrintPreparationManager: K2 Plus DB-driven bed_mesh emits PREPARE=1 when disabled",
-    "[print_preparation][framework][k2_plus]") {
-    // T2: Full pipeline test — provider DISABLES K2 Plus's bed_mesh
-    // (MacroParam strategy with PREPARE=0/1). collect_macro_skip_params()
-    // should emit ("PREPARE", "1") via the LAYER 1 (DB) path, with no
-    // duplicate from macro analysis.
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: K2 bed_mesh runs the mesh macro only when enabled",
+                 "[print_preparation][framework][k2_plus]") {
+    // The K2's mesh lives in BED_MESH_CALIBRATE_START_PRINT, which START_PRINT
+    // never calls. The option used to map to a PREPARE param that the pipeline
+    // deliberately never sends (it is only a visibility sentinel), so the
+    // toggle homed and wiped the nozzle and never produced a mesh at all.
+    //
+    // The macro has no "off" form, so disabled must emit nothing rather than a
+    // zero — hence emit_when_disabled=false. GCODE_FILE keeps the sweep trimmed
+    // to the object.
     lv_init_safe();
     PrinterState& printer_state = get_printer_state();
     PrinterStateTestAccess::reset(printer_state);
@@ -2853,21 +2891,87 @@ TEST_CASE_METHOD(
 
     PrintPreparationManager manager;
     manager.set_dependencies(nullptr, &printer_state);
-    manager.set_option_state_provider([](const std::string& id) {
-        if (id == "bed_mesh")
-            return 0; // disabled -> emit skip param
-        return -1;
-    });
 
-    auto params = PrintPreparationManagerTestAccess::get_skip_params(manager);
-    bool found_prepare = false;
-    for (const auto& [k, v] : params) {
-        if (k == "PREPARE") {
-            REQUIRE(v == "1"); // skip_value for K2 Plus bed_mesh
-            found_prepare = true;
+    SECTION("enabled emits the adaptive mesh macro") {
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "bed_mesh" ? 1 : -1; });
+        auto lines =
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager, "part.gcode");
+        bool found = false;
+        for (const auto& l : lines) {
+            if (l.find("BED_MESH_CALIBRATE_START_PRINT") != std::string::npos) {
+                found = true;
+                REQUIRE(l.find("GCODE_FILE='part.gcode'") != std::string::npos);
+            }
+        }
+        REQUIRE(found);
+    }
+
+    SECTION("disabled emits nothing for bed_mesh") {
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "bed_mesh" ? 0 : -1; });
+        auto lines =
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager, "part.gcode");
+        for (const auto& l : lines) {
+            REQUIRE(l.find("BED_MESH_CALIBRATE_START_PRINT") == std::string::npos);
         }
     }
-    REQUIRE(found_prepare);
+
+    SECTION("no PREPARE skip param is emitted any more") {
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "bed_mesh" ? 0 : -1; });
+        for (const auto& [k, v] : PrintPreparationManagerTestAccess::get_skip_params(manager)) {
+            REQUIRE(k != "PREPARE");
+        }
+    }
+
+    SECTION("job temps come from the file's own START_PRINT call") {
+        // The gcode file's START_PRINT line is the source of truth for temps
+        // (Moonraker metadata lies on multi-material files). The scanner
+        // extracts them into print_start; the pre-start renderer must use
+        // them when the scanned file is the file being printed.
+        gcode::ScanResult scan;
+        scan.print_start.found = true;
+        scan.print_start.macro_name = "START_PRINT";
+        scan.print_start.raw_line = "START_PRINT EXTRUDER_TEMP=260 BED_TEMP=105";
+        scan.print_start.extruder_temp = 260;
+        scan.print_start.bed_temp = 105;
+        manager.set_cached_scan_result(scan, "part.gcode");
+
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "bed_mesh" ? 1 : -1; });
+        auto lines =
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager, "part.gcode");
+        bool found = false;
+        for (const auto& l : lines) {
+            if (l.find("BED_MESH_CALIBRATE_START_PRINT") != std::string::npos) {
+                found = true;
+                REQUIRE(l.find("BED_TEMP=105") != std::string::npos);
+                REQUIRE(l.find("EXTRUDER_TEMP=260") != std::string::npos);
+            }
+        }
+        REQUIRE(found);
+    }
+
+    SECTION("temps render 0 when the scan cache is for a different file") {
+        gcode::ScanResult scan;
+        scan.print_start.found = true;
+        scan.print_start.bed_temp = 105;
+        scan.print_start.extruder_temp = 260;
+        manager.set_cached_scan_result(scan, "other.gcode");
+
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "bed_mesh" ? 1 : -1; });
+        auto lines =
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager, "part.gcode");
+        for (const auto& l : lines) {
+            if (l.find("BED_MESH_CALIBRATE_START_PRINT") != std::string::npos) {
+                // 0 lets the firmware macro keep its own default (>= 50 guard)
+                REQUIRE(l.find("BED_TEMP=0") != std::string::npos);
+                REQUIRE(l.find("EXTRUDER_TEMP=0") != std::string::npos);
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
@@ -3095,4 +3199,109 @@ TEST_CASE_METHOD(
         GateFixture fx(std::move(set));
         REQUIRE(fx.requires_plugin("timelapse") == false);
     }
+}
+
+// ============================================================================
+// A start that dies inside the manager must retire the preparing job
+//
+// The modify and remap routes take NO completion callback — continue_print_start()
+// calls modify_and_print() and returns — so PrintStartController's
+// retire_preparing(Failed) is unreachable from them. Nothing else can retire the
+// job, and `print_in_progress` is now PUBLISHED from that job rather than set by
+// hand, so a leak latches the flag until the 1800s watchdog: can_start_new_print()
+// refuses every later print, job_holds_machine stays 1 (greying jog, levelling,
+// macros and the bypass tile), and the panel sits on "Preparing".
+//
+// Mutation check: delete the abandon_start() call from the exit this drives and
+// the REQUIRE_FALSE below fails.
+// ============================================================================
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a start that dies inside the manager retires the "
+                 "preparing job",
+                 "[print_preparation][lifecycle][preparing]") {
+    helix::PrinterState state;
+    state.init_subjects(false);
+
+    helix::ui::PrintPreparationManager manager;
+    manager.set_dependencies(nullptr, &state);
+
+    state.begin_preparing(helix::PrintJobRef{"doomed.gcode", "gcodes", ""});
+    REQUIRE(state.has_preparing_job());
+    REQUIRE(lv_subject_get_int(state.get_print_in_progress_subject()) == 1);
+
+    // api_ is null, so the modify route bails on its FIRST guard. Both of its
+    // synchronous guards are real reachable exits — continue_print_start()
+    // dispatches here whenever the user disabled an embedded operation, and the
+    // connection can drop between arming and dispatch — and every deferred
+    // failure exit further in retires the job the same way.
+    //
+    // Mutation-verified: deleting abandon_start("modify_no_api") fails the
+    // REQUIRE_FALSE below. (Deleting the OTHER guard's call does not, which is
+    // the point of naming which exit this drives rather than guessing.)
+    PrintPreparationManagerTestAccess::modify_and_print(manager, "doomed.gcode");
+
+    REQUIRE_FALSE(state.has_preparing_job());
+    REQUIRE(lv_subject_get_int(state.get_print_in_progress_subject()) == 0);
+    REQUIRE(state.last_preparing_exit() == helix::PreparingExit::Failed);
+
+    // And the machine is released — this is the user-visible half of the latch.
+    REQUIRE(lv_subject_get_int(state.get_job_holds_machine_subject()) == 0);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: the scan-result guard retires the preparing job too",
+                 "[print_preparation][lifecycle][preparing]") {
+    // The sibling exit, reached with a live api_ and no cached scan. Separate
+    // case because a single test can only ever prove the FIRST guard it hits.
+    MoonrakerClientMock mock_client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(mock_client, state);
+
+    helix::ui::PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+
+    state.begin_preparing(helix::PrintJobRef{"doomed.gcode", "gcodes", ""});
+    REQUIRE(state.has_preparing_job());
+
+    PrintPreparationManagerTestAccess::modify_and_print(manager, "doomed.gcode");
+
+    REQUIRE_FALSE(state.has_preparing_job());
+    REQUIRE(lv_subject_get_int(state.get_print_in_progress_subject()) == 0);
+    REQUIRE(state.last_preparing_exit() == helix::PreparingExit::Failed);
+}
+
+// ============================================================================
+// STALE PRE-START ACK GUARD
+// ============================================================================
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: stale pre-start ack does not relaunch a print",
+                 "[preparation][stale]") {
+    // K1C capture 2026-08-20: klippy's gcode response path backed up behind
+    // the prep chain, so the pre-start ack arrived 370s after the send - at
+    // cancel time - and the success continuation relaunched the print the
+    // user had just cancelled. A pre-start block takes seconds; an
+    // continuation hearing back minutes later must drop the start intent.
+    std::atomic<int> starts{0};
+    server_->clear_handlers();
+    server_->on_method("printer.print.start", [&](const json&) -> json {
+        starts++;
+        return json{{"result", "ok"}};
+    });
+
+    PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::minutes(4));
+
+    bool completed = false;
+    bool success = true;
+    helix::ui::PrintCompletionCallback cb = [&](bool ok, const std::string&) {
+        completed = true;
+        success = ok;
+    };
+    PrintPreparationManagerTestAccess::continue_print_start(manager_, "test.gcode", cb);
+
+    REQUIRE(completed);
+    REQUIRE_FALSE(success);
+    REQUIRE(starts.load() == 0);
 }

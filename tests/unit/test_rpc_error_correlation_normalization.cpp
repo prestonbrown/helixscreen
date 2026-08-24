@@ -111,14 +111,17 @@ class LogCapture {
     spdlog::level::level_enum prev_level_;
 };
 
-/// A PendingRequest shaped like a jog: caller supplies its own error_cb, so the
-/// tracker treats it as caller-handles-UI and records the correlation.
+/// A PendingRequest shaped like a jog: the caller raises its own error toast, so
+/// the tracker treats it as caller-handles-UI and records the correlation.
 PendingRequest make_caller_handled_request(std::shared_ptr<std::atomic<bool>> error_cb_fired) {
     PendingRequest req;
     req.id = 0; // caller supplies the map key
     req.method = "printer.gcode.script";
     req.timeout_ms = 5000;
-    req.silent = false;
+    // A jog error handler renders a real toast, so it owns the report and the
+    // `!!` copy of the same rejection must dedup against it.
+    req.intent = helix::rpc_error_policy::CallerIntent{/*silent=*/false,
+                                                       /*surfaces_errors=*/true};
     req.timestamp = std::chrono::steady_clock::now();
     req.error_callback = [error_cb_fired](const MoonrakerError&) { error_cb_fired->store(true); };
     return req;
@@ -132,6 +135,10 @@ struct ChannelResult {
     int router_toasts = 0;
     int suppressions = 0;
     bool caller_cb_fired = false;
+    /// Generic "Printer command '...' failed" RPC_ERROR events the tracker
+    /// emitted — the OTHER user-visible surface. Counted so a test can pin that
+    /// exactly one surface speaks per rejection, not zero and not two.
+    int generic_toasts = 0;
 };
 
 /// Fixture wrapper: run_both_channels() needs LVGLTestFixture::process_lvgl()
@@ -186,6 +193,65 @@ class CorrelationFixture : public LVGLTestFixture {
         rpc_error_correlation::clear_for_test();
         return out;
     }
+
+    /// Same two channels, but with a caller-declared intent supplied by the test
+    /// and BOTH user-visible surfaces counted. Used to pin the core invariant:
+    /// one Klipper rejection produces exactly one report, never zero, never two.
+    ChannelResult run_both_channels_with_intent(const std::string& klipper_message,
+                                                helix::rpc_error_policy::CallerIntent intent,
+                                                bool with_error_cb) {
+        rpc_error_correlation::clear_for_test();
+
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        PrinterState state;
+        state.init_subjects(false);
+        MoonrakerAPI api(mock, state);
+        helix::ui::RecoveryModalPresenter presenter(nullptr);
+        helix::GcodeErrorRouter router(&api, &mock, presenter);
+
+        ChannelResult out;
+        {
+            LogCapture log;
+
+            MoonrakerRequestTracker tracker;
+            PendingRequest req;
+            req.id = 0;
+            req.method = "printer.gcode.script";
+            req.timeout_ms = 5000;
+            req.intent = intent;
+            req.timestamp = std::chrono::steady_clock::now();
+            auto err_fired = std::make_shared<std::atomic<bool>>(false);
+            if (with_error_cb) {
+                req.error_callback = [err_fired](const MoonrakerError&) { err_fired->store(true); };
+            }
+            MoonrakerRequestTrackerTestAccess::inject_request(tracker, /*id=*/701, std::move(req));
+
+            int generic = 0;
+            tracker.route_response(
+                make_error_response(701, klipper_message),
+                [&generic](MoonrakerEventType t, const std::string&, bool, const std::string&) {
+                    if (t == MoonrakerEventType::RPC_ERROR) {
+                        ++generic;
+                    }
+                },
+                nullptr);
+            out.caller_cb_fired = err_fired->load();
+            out.generic_toasts = generic;
+
+            GcodeErrorRouterTestAccess::process_line(router, "!! " + klipper_message);
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(400);
+            helix::ui::UpdateQueue::instance().drain();
+
+            out.router_toasts = log.count_containing("ui_notification_error: Klipper Error");
+            out.suppressions = log.count_containing("Suppressing deferred `!!` toast") +
+                               log.count_containing("Suppressing duplicate (RPC-handled)");
+        }
+
+        mock.stop_temperature_simulation();
+        rpc_error_correlation::clear_for_test();
+        return out;
+    }
 };
 
 } // namespace
@@ -197,9 +263,9 @@ TEST_CASE_METHOD(CorrelationFixture,
     // wording, sent identically on both channels) becomes "Must home axes
     // first" on the router side only. The RPC side records Klipper's wording,
     // so the exact-string dedup misses and BOTH toasts fire.
-    const std::string kRewritten = "Must home axis first";
+    const std::string REWRITTEN = "Must home axis first";
 
-    auto r = run_both_channels(kRewritten);
+    auto r = run_both_channels(REWRITTEN);
 
     INFO("router toasts: " << r.router_toasts << " suppressions: " << r.suppressions);
     CHECK(r.caller_cb_fired);
@@ -227,14 +293,67 @@ TEST_CASE_METHOD(CorrelationFixture, "cross-channel dedup is unaffected by toast
     // on a copy -- the compared text (ErrorEvent::detail / DeferredCtx::clean)
     // is never truncated. This >80-char message must therefore dedup on the
     // untruncated text. Pins that truncation stays out of the compared path.
-    const std::string kLong = "Move out of range: X=400.000000 Y=400.000000 Z=400.000000 exceeds "
-                              "the configured axis maximum for this printer";
-    REQUIRE(kLong.size() > 80);
+    const std::string LONG = "Move out of range: X=400.000000 Y=400.000000 Z=400.000000 exceeds "
+                             "the configured axis maximum for this printer";
+    REQUIRE(LONG.size() > 80);
 
-    auto r = run_both_channels(kLong);
+    auto r = run_both_channels(LONG);
 
     INFO("router toasts: " << r.router_toasts << " suppressions: " << r.suppressions);
     CHECK(r.caller_cb_fired);
     CHECK(r.router_toasts == 0);
     CHECK(r.suppressions >= 1);
+}
+
+// ============================================================================
+// The invariant, stated directly: ONE Klipper rejection produces exactly ONE
+// user-visible report. Zero is the silent-failure bug; two is the key69 bug.
+// Both surfaces are counted here, so neither can regress unnoticed.
+// ============================================================================
+
+TEST_CASE_METHOD(CorrelationFixture, "a gcode rejection nobody claims reports exactly once",
+                 "[moonraker][tracker][dedup][errors]") {
+    // The dominant macro-send shape: on_error == nullptr, not silent. Klipper
+    // broadcasts `!!` for the same rejection, so the router is a strictly better
+    // surface than the generic "Printer command '...' failed" fallback — but if
+    // BOTH speak the user gets two toasts for one failure.
+    auto r = run_both_channels_with_intent(
+        "Must home axis first",
+        helix::rpc_error_policy::CallerIntent{/*silent=*/false,
+                                              /*surfaces_errors=*/false},
+        /*with_error_cb=*/false);
+
+    INFO("generic: " << r.generic_toasts << " router: " << r.router_toasts);
+    CHECK(r.generic_toasts + r.router_toasts == 1);
+}
+
+TEST_CASE_METHOD(CorrelationFixture, "a silent log-only caller still reports exactly once",
+                 "[moonraker][tracker][dedup][errors]") {
+    // AmsSubscriptionBackend's shape: silent, error_cb logs only. The generic
+    // fallback is opted out, so the `!!` router must be the one that speaks.
+    auto r =
+        run_both_channels_with_intent("AFC_UNLOAD: lane not loaded",
+                                      helix::rpc_error_policy::CallerIntent{/*silent=*/true,
+                                                                            /*surfaces_errors=*/
+                                                                            false},
+                                      /*with_error_cb=*/true);
+
+    INFO("generic: " << r.generic_toasts << " router: " << r.router_toasts);
+    CHECK(r.generic_toasts == 0);
+    CHECK(r.router_toasts == 1);
+}
+
+TEST_CASE_METHOD(CorrelationFixture, "a caller that surfaces errors reports exactly once",
+                 "[moonraker][tracker][dedup][errors]") {
+    // The caller's own contextual toast is the single report; both the generic
+    // fallback and the `!!` copy must stay quiet (key69).
+    auto r = run_both_channels_with_intent(
+        "The value 'chamber' is not valid for HEATER",
+        helix::rpc_error_policy::CallerIntent{/*silent=*/false, /*surfaces_errors=*/true},
+        /*with_error_cb=*/true);
+
+    INFO("generic: " << r.generic_toasts << " router: " << r.router_toasts);
+    CHECK(r.generic_toasts == 0);
+    CHECK(r.router_toasts == 0);
+    CHECK(r.caller_cb_fired);
 }

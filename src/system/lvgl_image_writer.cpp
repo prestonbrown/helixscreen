@@ -16,6 +16,24 @@ namespace helix {
 
 bool write_lvgl_bin(const std::string& path, int width, int height, uint8_t color_format,
                     const uint8_t* pixel_data, size_t data_size) {
+#if defined(HELIX_PLATFORM_ESP32)
+    // No disk-cache materialization on ESP32 (Task 10 R6 rider). LittleFS
+    // partitions are tiny (128KB-3.75MB) and every caller here already treats
+    // a false return as "cache generation failed, use the scaled source
+    // instead" (printer_image_manager.cpp, prerendered_images.cpp,
+    // thumbnail_processor.cpp all just propagate the bool) — refusing
+    // upfront reuses that existing fallback instead of adding a new one.
+    // Task 9 soak observed this exact path churning "No more free space"
+    // errors + an LVGL-callback filesystem exception every boot
+    // (soak_t9_confirm.log lines ~132-137, 244).
+    (void)path;
+    (void)width;
+    (void)height;
+    (void)color_format;
+    (void)pixel_data;
+    (void)data_size;
+    return false;
+#else
     // Use atomic write: write to temp file, then rename
     // This prevents partial/corrupted files if process crashes mid-write.
     //
@@ -83,6 +101,7 @@ bool write_lvgl_bin(const std::string& path, int width, int height, uint8_t colo
     spdlog::trace("[LvglImageWriter] Wrote {} bytes to {}", sizeof(header) + data_size, path);
 
     return true;
+#endif // HELIX_PLATFORM_ESP32
 }
 
 } // namespace helix

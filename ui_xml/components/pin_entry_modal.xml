@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  PIN Entry Modal — numeric keypad for PIN set/change/remove flows.
+  Same landscape/portrait reflow as lock_screen.xml, but inside a modal card
+  that carries its own header row.
+  Dots and heading are updated imperatively from C++ (PinEntryModal).
+-->
 <component>
   <consts>
     <!-- Dot indicator size — same as lock screen -->

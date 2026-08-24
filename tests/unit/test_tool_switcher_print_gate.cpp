@@ -26,6 +26,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -118,7 +119,13 @@ struct ToolSwitcherGateFixture : public LVGLTestFixture {
     }
 
     void set_print_state(helix::PrintJobState s) {
-        lv_subject_set_int(printer_state.get_print_state_enum_subject(), static_cast<int>(s));
+        helix::test::set_wire_state(printer_state, s);
+    }
+
+    /// A host-side pre-print block: the wire still reads standby.
+    void set_preprint_phase(helix::PrintStartPhase phase) {
+        printer_state.set_print_start_state(phase, "", 0);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
     helix::PrinterState printer_state;
@@ -201,6 +208,21 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture,
 
     ToolSwitcherWidget widget(printer_state);
     CHECK(ToolSwitcherTestAccess::refusal(widget).success());
+}
+
+TEST_CASE_METHOD(ToolSwitcherGateFixture, "PREPARING refuses the tool change on every backend",
+                 "[ams][tool-switcher][safety][preparing]") {
+    // A host-side pre-start block owns the toolhead and print_stats cannot say
+    // so. The backend's self-homing capability is irrelevant here: the app's own
+    // block is already moving the toolhead.
+    set_print_state(helix::PrintJobState::STANDBY);
+    set_preprint_phase(helix::PrintStartPhase::BED_MESH);
+
+    for (bool self_homes : {false, true}) {
+        backend->self_homes = self_homes;
+        ToolSwitcherWidget widget(printer_state);
+        CHECK_FALSE(ToolSwitcherTestAccess::refusal(widget).success());
+    }
 }
 
 TEST_CASE_METHOD(ToolSwitcherGateFixture, "PAUSED refuses on a self-homing backend (AD5X IFS)",

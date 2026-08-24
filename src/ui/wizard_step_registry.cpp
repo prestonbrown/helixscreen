@@ -30,7 +30,7 @@ std::vector<Step*> steps() {
     // Step, crashing (SIGSEGV, vtable jump to heap). The accessors recreate a
     // destroyed singleton on demand, so fetching fresh is always valid + cheap.
     std::vector<Step*> v;
-    v.reserve(kStepCount);
+    v.reserve(STEP_COUNT);
     v.push_back(get_wizard_touch_calibration_step());      // TouchCalibration = 0
     v.push_back(get_wizard_language_chooser_step());       // Language
     v.push_back(get_wizard_wifi_step());                   // Wifi
@@ -49,7 +49,7 @@ std::vector<Step*> steps() {
 
 Step* step_by_id(StepId id) {
     const int i = static_cast<int>(id);
-    if (i < 0 || i >= kStepCount) {
+    if (i < 0 || i >= STEP_COUNT) {
         return nullptr;
     }
     return steps()[i];
@@ -66,7 +66,7 @@ StepContext build_context() {
     // install-time-seeded fast path and the in-run collapse intact.
     bool preset_marker = c.config && c.config->has_preset();
     bool provisional =
-        c.config && c.config->get<bool>(c.config->df() + helix::kWizardPresetProvisional, false);
+        c.config && c.config->get<bool>(c.config->df() + helix::WIZARD_PRESET_PROVISIONAL, false);
     bool wizard_completed = c.config && !c.config->is_wizard_required();
     bool has_preset = helix::wizard_preset_is_authoritative(
         preset_marker, provisional, wizard_completed, helix::wizard_preset_applied_this_session());

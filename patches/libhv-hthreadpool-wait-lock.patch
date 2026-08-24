@@ -1,0 +1,35 @@
+diff --git a/cpputil/hthreadpool.h b/cpputil/hthreadpool.h
+index 8df9871..402bd96 100644
+--- a/cpputil/hthreadpool.h
++++ b/cpputil/hthreadpool.h
+@@ -109,8 +109,16 @@ public:
+ 
+     int wait() {
+         while (status != STOP) {
+-            if (tasks.empty() && idle_thread_num == cur_thread_num) {
+-                break;
++            // PATCH NOTE(helixscreen): tasks is guarded by task_mutex on every
++            // other path (commit, worker pop). Reading it here unlocked raced
++            // a worker's pop_front() — flagged by ThreadSanitizer via
++            // ThumbnailProcessor::wait_for_completion(). idle_thread_num and
++            // cur_thread_num are atomics, so only the deque needs the lock.
++            {
++                std::lock_guard<std::mutex> locker(task_mutex);
++                if (tasks.empty() && idle_thread_num == cur_thread_num) {
++                    break;
++                }
+             }
+             std::this_thread::yield();
+         }
+@@ -127,7 +135,10 @@ public:
+     template<class Fn, class... Args>
+     auto commit(Fn&& fn, Args&&... args) -> std::future<decltype(fn(args...))> {
+         if (status == STOP) start();
+-        if (idle_thread_num <= tasks.size() && cur_thread_num < max_thread_num) {
++        // PATCH NOTE(helixscreen): size via the locked taskNum() — the bare
++        // tasks.size() read here raced a worker's pop() under task_mutex
++        // (ThreadSanitizer via ThumbnailProcessor::process_async).
++        if (idle_thread_num <= (int)taskNum() && cur_thread_num < max_thread_num) {
+             createThread();
+         }
+         using RetType = decltype(fn(args...));

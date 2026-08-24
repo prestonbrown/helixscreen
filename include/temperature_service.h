@@ -24,7 +24,7 @@ namespace helix {
 class PrinterState;
 class TemperatureController;
 } // namespace helix
-class MoonrakerAPI;
+class IMoonrakerAPI;
 class TemperatureService;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ struct PresetButtonData {
  */
 class TemperatureService {
   public:
-    TemperatureService(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    TemperatureService(helix::PrinterState& printer_state, IMoonrakerAPI* api);
     ~TemperatureService();
 
     // Non-copyable, non-movable (has reference member and LVGL subject state)
@@ -236,7 +236,7 @@ class TemperatureService {
         return heaters_[static_cast<int>(helix::HeaterType::Bed)].current;
     }
 
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -301,7 +301,7 @@ class TemperatureService {
     static void keypad_value_cb(float value, void* user_data);
 
     helix::PrinterState& printer_state_;
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
     helix::TemperatureController* controller_ = nullptr;
 
     // ── Per-heater state (indexed by HeaterType) ────────────────────────

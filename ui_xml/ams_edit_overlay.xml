@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- AMS slot editor overlay. One overlay, internal views selected by the
+     ams_edit_view int subject: 0=overview (form), 1=Spoolman spool picker.
+     Header bar: back button (per-view routing via ams_edit_back_cb) and a
+     dirty-gated Save action (ams_edit_save_disabled subject), hidden outside
+     the overview via ams_edit_save_hidden. Both subjects are written
+     exclusively by AmsEditOverlay::set_view(). -->
 <component>
   <consts>
     <px name="left_column_width" value="120"/>

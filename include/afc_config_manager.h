@@ -8,12 +8,12 @@
 #include <optional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 /**
  * @brief Manages AFC configuration files with download/upload and dirty tracking
  *
- * Wraps KlipperConfigParser with file transfer operations via MoonrakerAPI
+ * Wraps KlipperConfigParser with file transfer operations via IMoonrakerAPI
  * and tracks whether the in-memory config has unsaved modifications.
  *
  * Usage:
@@ -27,8 +27,8 @@ class AfcConfigManager {
   public:
     using Callback = std::function<void(bool success, const std::string& error)>;
 
-    explicit AfcConfigManager(MoonrakerAPI* api);
-    AfcConfigManager(MoonrakerAPI* api, helix::LifetimeToken token);
+    explicit AfcConfigManager(IMoonrakerAPI* api);
+    AfcConfigManager(IMoonrakerAPI* api, helix::LifetimeToken token);
     ~AfcConfigManager() = default;
 
     /// Load a config file from the printer via Moonraker.
@@ -62,7 +62,7 @@ class AfcConfigManager {
     const std::string& loaded_filename() const;
 
   private:
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
     std::optional<helix::LifetimeToken> token_; ///< Lifetime token from owning backend
     KlipperConfigParser parser_;
     std::string original_content_; ///< Content at last load/save (baseline for discard)

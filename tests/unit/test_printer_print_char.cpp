@@ -48,6 +48,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "print_lifecycle_state.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -1810,4 +1811,349 @@ TEST_CASE("Print characterization: edge cases", "[characterization][print][edge]
         const char* stored = lv_subject_get_string(state.get_print_filename_subject());
         REQUIRE(std::strlen(stored) > 0);
     }
+}
+
+// ============================================================================
+// Authoritative lifecycle subject
+// ============================================================================
+
+TEST_CASE("print_lifecycle subject publishes the derived UI state",
+          "[characterization][print][lifecycle]") {
+    // Three components used to re-derive the UI-level print state from the raw
+    // job-state enum, each with its own rules. This subject is the one value
+    // they observe instead.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto lifecycle = [&state]() { return state.get_print_lifecycle(); };
+
+    SECTION("follows print_stats.state when no phase is running") {
+        state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        REQUIRE(lifecycle() == PrintState::Printing);
+
+        state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+        REQUIRE(lifecycle() == PrintState::Paused);
+
+        state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+        REQUIRE(lifecycle() == PrintState::Complete);
+
+        state.update_from_status(json{{"print_stats", {{"state", "standby"}}}});
+        REQUIRE(lifecycle() == PrintState::Idle);
+    }
+
+    SECTION("a live pre-print phase reads Preparing even from a terminal job state") {
+        // This is the reported K2 shape: the previous job is still COMPLETE in
+        // print_stats while a host-side pre-start block runs.
+        state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+        REQUIRE(lifecycle() == PrintState::Complete);
+
+        state.set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing Print...", 0);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(lifecycle() == PrintState::Preparing);
+    }
+
+    SECTION("clearing the phase returns to the job state") {
+        state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        state.set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing Print...", 0);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(lifecycle() == PrintState::Preparing);
+
+        state.reset_print_start_state();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(lifecycle() == PrintState::Printing);
+    }
+}
+
+// ============================================================================
+// Preparing-job ownership
+// ============================================================================
+
+TEST_CASE("A live preparing job keeps phase updates flowing while the printer is inactive",
+          "[characterization][print][phase][preparing]") {
+    // Preparing used to be a sub-state of Moonraker PRINTING: every phase update
+    // after the first was dropped while print_active == 0. That is fine when all
+    // pre-print work happens inside PRINT_START, but a host-side pre-start block
+    // runs before the printer is handed the job at all, so print_stats still
+    // holds the previous job's terminal state for its whole duration. Without
+    // this, a commit-armed overlay freezes on the first phase.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto phase = [&state]() {
+        return static_cast<PrintStartPhase>(
+            lv_subject_get_int(state.get_print_start_phase_subject()));
+    };
+
+    // The previous job finished; the printer is idle and reports COMPLETE.
+    state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_active_subject()) == 0);
+
+    state.begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(state.has_preparing_job());
+    REQUIRE(phase() == PrintStartPhase::INITIALIZING);
+
+    SECTION("subsequent phases still land while the printer is inactive") {
+        state.set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(phase() == PrintStartPhase::HOMING);
+
+        state.set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...", 40);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(phase() == PrintStartPhase::HEATING_BED);
+    }
+
+    SECTION("retiring the job stops accepting phases again") {
+        state.retire_preparing(helix::PreparingExit::Cancelled);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE_FALSE(state.has_preparing_job());
+        REQUIRE(phase() == PrintStartPhase::IDLE);
+
+        state.set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(phase() == PrintStartPhase::HOMING); // first phase from IDLE still lands
+    }
+}
+
+TEST_CASE("begin_preparing clears the previous job's terminal state synchronously",
+          "[characterization][print][preparing]") {
+    // The reported symptom: the completion badge and the finished job's frozen
+    // progress stayed on screen for the whole pre-start block. Commit arming
+    // happens on the main thread, so the clear does not wait for a queue drain -
+    // the panel must never render a Preparing state alongside the old job's
+    // numbers.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+            static_cast<int>(PrintOutcome::COMPLETE));
+
+    state.begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
+
+    // No drain: the clear is synchronous on the commit path.
+    REQUIRE(lv_subject_get_int(state.get_print_outcome_subject()) ==
+            static_cast<int>(PrintOutcome::NONE));
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 0);
+}
+
+TEST_CASE("A preparing job reconciles against what the printer eventually reports",
+          "[characterization][print][preparing]") {
+    // The printer is the authority on what is actually printing. When it finally
+    // names a job, either it is ours (hand off) or somebody else started a
+    // different print while ours was preparing (drop our claim). Nothing could
+    // tell those apart before, because there was no recorded identity to compare.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    SECTION("the printer reporting our job confirms it, without ending preparation") {
+        // Confirmed means the printer took OUR job, not that preparation is
+        // over. PRINT_START keeps running its homing/heating/mesh inside the
+        // job, so the phase - and the overlay - legitimately outlive the
+        // handoff. Only a non-Confirmed exit means no print is coming.
+        state.begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        state.update_from_status(
+            json{{"print_stats", {{"state", "printing"}, {"filename", "mine.gcode"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+
+        REQUIRE_FALSE(state.has_preparing_job()); // claim settled
+        REQUIRE(lv_subject_get_int(state.get_print_start_phase_subject()) !=
+                static_cast<int>(PrintStartPhase::IDLE)); // phase survives
+        REQUIRE(lv_subject_get_int(state.get_print_lifecycle_subject()) ==
+                static_cast<int>(PrintState::Preparing));
+    }
+
+    SECTION("the phase completing after confirmation lands in Printing") {
+        state.begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        state.update_from_status(
+            json{{"print_stats", {{"state", "printing"}, {"filename", "mine.gcode"}}}});
+        state.reset_print_start_state();
+        helix::ui::UpdateQueue::instance().drain();
+
+        REQUIRE(lv_subject_get_int(state.get_print_lifecycle_subject()) ==
+                static_cast<int>(PrintState::Printing));
+    }
+
+    SECTION("a path-qualified report still matches the bare name we committed") {
+        state.begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        state.update_from_status(
+            json{{"print_stats", {{"state", "printing"}, {"filename", "subdir/mine.gcode"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+
+        REQUIRE_FALSE(state.has_preparing_job());
+    }
+
+    SECTION("the printer reporting a different job supersedes ours") {
+        state.begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        state.update_from_status(
+            json{{"print_stats", {{"state", "printing"}, {"filename", "someone_elses.gcode"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+
+        REQUIRE_FALSE(state.has_preparing_job());
+        REQUIRE(lv_subject_get_int(state.get_print_lifecycle_subject()) ==
+                static_cast<int>(PrintState::Printing));
+    }
+
+    SECTION("a terminal state does not confirm a preparing job") {
+        // The previous job going complete while ours prepares is exactly the
+        // reported scenario, and must leave our claim intact.
+        state.begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        state.update_from_status(
+            json{{"print_stats", {{"state", "complete"}, {"filename", "previous.gcode"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+
+        REQUIRE(state.has_preparing_job());
+        REQUIRE(lv_subject_get_int(state.get_print_lifecycle_subject()) ==
+                static_cast<int>(PrintState::Preparing));
+    }
+}
+
+TEST_CASE("print_lifecycle publishes the previous state alongside the current one",
+          "[characterization][print][lifecycle]") {
+    // Consumers used to each keep a private prev-state variable and re-derive
+    // transitions with slightly different rules - eight of them, disagreeing at
+    // the edges. Publishing the previous value from the one place that already
+    // computes the transition means a consumer can ask "what just happened?"
+    // without keeping state.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto cur = [&state]() { return state.get_print_lifecycle(); };
+    auto prev = [&state]() {
+        return static_cast<PrintState>(
+            lv_subject_get_int(state.get_print_lifecycle_prev_subject()));
+    };
+
+    state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    REQUIRE(cur() == PrintState::Printing);
+    REQUIRE(prev() == PrintState::Idle);
+
+    state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(cur() == PrintState::Complete);
+    REQUIRE(prev() == PrintState::Printing);
+
+    SECTION("an unchanged state does not rewrite the previous value") {
+        // Otherwise prev collapses to equal current and every consumer sees a
+        // self-transition.
+        state.update_from_status(json{{"print_stats", {{"state", "complete"}}}});
+        REQUIRE(cur() == PrintState::Complete);
+        REQUIRE(prev() == PrintState::Printing);
+    }
+}
+
+// ============================================================================
+// The preparing window has one owner
+//
+// `print_in_progress` documents itself as "true from when start_print() is
+// called until the print actually starts or fails" - the preparing window,
+// exactly. It used to be set by hand from PrintPreparationManager and cleared on
+// eighteen separate exit paths, so a missed path left it stuck true and
+// can_start_new_print() refused every subsequent print for the rest of the
+// session. It is now published from the preparing job itself.
+// ============================================================================
+
+namespace {
+
+/// Fresh PrinterState with subjects up, matching this file's convention.
+PrinterState& fresh_state() {
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    return state;
+}
+
+} // namespace
+
+TEST_CASE("print_in_progress follows the preparing job", "[print][preparing]") {
+    PrinterState& state = fresh_state();
+    lv_subject_t* subj = state.get_print_in_progress_subject();
+
+    REQUIRE(lv_subject_get_int(subj) == 0);
+
+    state.begin_preparing(helix::PrintJobRef{"job.gcode", "", ""});
+    REQUIRE(lv_subject_get_int(subj) == 1);
+    REQUIRE(state.is_print_in_progress());
+
+    state.retire_preparing(helix::PreparingExit::Confirmed);
+    REQUIRE(lv_subject_get_int(subj) == 0);
+    REQUIRE_FALSE(state.is_print_in_progress());
+}
+
+TEST_CASE("every preparing exit reason clears print_in_progress", "[print][preparing]") {
+    // The stuck-true failure mode is what this replaces, so assert the FALSE
+    // edge on every reason rather than just the happy path.
+    PrinterState& state = fresh_state();
+    lv_subject_t* subj = state.get_print_in_progress_subject();
+
+    for (auto reason : {helix::PreparingExit::Confirmed, helix::PreparingExit::Superseded,
+                        helix::PreparingExit::Failed, helix::PreparingExit::Cancelled,
+                        helix::PreparingExit::TimedOut}) {
+        state.begin_preparing(helix::PrintJobRef{"job.gcode", "", ""});
+        REQUIRE(lv_subject_get_int(subj) == 1);
+        state.retire_preparing(reason);
+        INFO("exit reason: " << helix::preparing_exit_name(reason));
+        REQUIRE(lv_subject_get_int(subj) == 0);
+    }
+}
+
+TEST_CASE("a preparing job blocks a second start until it retires", "[print][preparing]") {
+    // Deriving the flag closes a real gap. It used to clear when the start RPC
+    // was ACCEPTED, which is before print_stats reports the job - so for that
+    // window can_start_new_print() said yes while a print was already committed,
+    // and a double tap could start a second one.
+    PrinterState& state = fresh_state();
+    auto& pps = PrinterStateTestAccess::get_print_state(state);
+
+    REQUIRE(pps.can_start_new_print());
+
+    state.begin_preparing(helix::PrintJobRef{"job.gcode", "", ""});
+    REQUIRE_FALSE(pps.can_start_new_print());
+
+    state.retire_preparing(helix::PreparingExit::Failed);
+    REQUIRE(pps.can_start_new_print());
+}
+
+TEST_CASE("a preparing job that never confirms times out", "[print][preparing]") {
+    // Without this the derived flag would be a one-way latch: a job the printer
+    // never acknowledges would leave print_in_progress true forever and the user
+    // could not start another print until the app restarted. PreparingExit::
+    // TimedOut existed and was handled everywhere, but nothing ever produced it.
+    PrinterState& state = fresh_state();
+    auto& pps = PrinterStateTestAccess::get_print_state(state);
+
+    state.begin_preparing(helix::PrintJobRef{"job.gcode", "", ""});
+    REQUIRE(helix::PrinterPrintStateTestAccess::has_preparing_watchdog(pps));
+
+    REQUIRE(helix::PrinterPrintStateTestAccess::fire_preparing_watchdog(pps));
+
+    REQUIRE_FALSE(pps.has_preparing_job());
+    REQUIRE(pps.last_preparing_exit() == helix::PreparingExit::TimedOut);
+    REQUIRE(lv_subject_get_int(state.get_print_in_progress_subject()) == 0);
+    REQUIRE(pps.can_start_new_print());
+}
+
+TEST_CASE("retiring a preparing job disarms its watchdog", "[print][preparing]") {
+    // Otherwise a confirmed print would be retired a second time, half an hour
+    // in, as a timeout - cooling the heaters mid-print.
+    PrinterState& state = fresh_state();
+    auto& pps = PrinterStateTestAccess::get_print_state(state);
+
+    state.begin_preparing(helix::PrintJobRef{"job.gcode", "", ""});
+    state.retire_preparing(helix::PreparingExit::Confirmed);
+
+    REQUIRE_FALSE(helix::PrinterPrintStateTestAccess::has_preparing_watchdog(pps));
+    REQUIRE_FALSE(helix::PrinterPrintStateTestAccess::fire_preparing_watchdog(pps));
+    REQUIRE(pps.last_preparing_exit() == helix::PreparingExit::Confirmed);
 }

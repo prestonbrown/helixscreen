@@ -8,7 +8,7 @@
 #include <functional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -47,7 +47,7 @@ class PrinterRecoveryService {
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
 
-    explicit PrinterRecoveryService(MoonrakerAPI* api) : api_(api) {}
+    explicit PrinterRecoveryService(IMoonrakerAPI* api) : api_(api) {}
 
     /// Run the full recovery chain (see class doc).
     void recover(SuccessCallback on_success, ErrorCallback on_error);
@@ -73,7 +73,7 @@ class PrinterRecoveryService {
     /// destroyed mid-chain; [L072]).
     static void run_local_recovery(SuccessCallback on_success, ErrorCallback on_error);
 
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 };
 
 } // namespace helix

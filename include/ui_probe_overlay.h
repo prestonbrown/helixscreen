@@ -13,7 +13,7 @@
 #include <memory>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 /**
  * @file ui_probe_overlay.h
@@ -63,7 +63,7 @@ class ProbeOverlay : public OverlayBase {
     //
 
     void show();
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     //
     // === Event Handlers (public for XML event_cb callbacks) ===
@@ -193,7 +193,7 @@ class ProbeOverlay : public OverlayBase {
 
     // Widget/client references
     lv_obj_t* parent_screen_ = nullptr;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // Type-specific panel container
     lv_obj_t* type_panel_container_ = nullptr;

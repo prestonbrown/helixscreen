@@ -8,7 +8,7 @@
 
 #include "app_globals.h"
 #include "hv/requests.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "stb_image.h"
@@ -20,10 +20,29 @@
 #include <string_view>
 
 // TurboJPEG pixel format and flag constants (avoid header dependency)
-static constexpr int kTJPF_BGR = 1;
-static constexpr int kTJFLAG_FASTDCT = 2048;
+static constexpr int TJ_PIXELFORMAT_BGR = 1;
+static constexpr int TJ_FLAG_FASTDCT = 2048;
 
 namespace helix {
+
+namespace {
+
+/// Runs a callable when the enclosing scope unwinds, on every path including
+/// exceptions. Local to this file — nothing else in the tree needs one yet.
+template <typename F> class ScopeExit {
+  public:
+    explicit ScopeExit(F fn) : fn_(std::move(fn)) {}
+    ~ScopeExit() {
+        fn_();
+    }
+    ScopeExit(const ScopeExit&) = delete;
+    ScopeExit& operator=(const ScopeExit&) = delete;
+
+  private:
+    F fn_;
+};
+
+} // namespace
 
 // ============================================================================
 // Construction / Destruction
@@ -32,7 +51,16 @@ namespace helix {
 CameraStream::CameraStream() {
     // Try to load libturbojpeg at runtime for SIMD-accelerated JPEG decode.
     // Falls back to stb_image (scalar) if the library isn't installed.
-    tj_lib_ = dlopen("libturbojpeg.so.0", RTLD_LAZY);
+    // Versioned soname first — that is what every Linux target installs, so
+    // nothing about their resolution changes. The unversioned name is the
+    // Android case: the APK packager only accepts plain lib*.so, so the copy we
+    // build into the APK is libturbojpeg.so (prestonbrown/helixscreen#1245).
+    for (const char* soname : {"libturbojpeg.so.0", "libturbojpeg.so"}) {
+        tj_lib_ = dlopen(soname, RTLD_LAZY);
+        if (tj_lib_) {
+            break;
+        }
+    }
     if (tj_lib_) {
         auto fn_init = reinterpret_cast<TjInitDecompress_t>(dlsym(tj_lib_, "tjInitDecompress"));
         fn_decompress_header_ =
@@ -108,7 +136,10 @@ bool CameraStream::configure_from_printer(std::string& stream_url, std::string& 
 
 void CameraStream::start(const std::string& stream_url, const std::string& snapshot_url,
                          FrameCallback on_frame, ErrorCallback on_error) {
-    if (running_.load()) {
+    // A worker that exited on its own leaves running_ false but the std::thread
+    // object still joinable — and assigning a fresh thread over a joinable one
+    // is std::terminate. Reap it before rebuilding any state.
+    if (running_.load() || stream_thread_.joinable()) {
         stop();
     }
 
@@ -125,7 +156,7 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
         spdlog::info("[CameraStream] Using MJPEG streaming mode");
         stream_thread_ = std::thread(&CameraStream::stream_thread_func, this);
     } else if (!snapshot_url_.empty()) {
-        spdlog::info("[CameraStream] Using snapshot mode (interval={}ms)", kSnapshotIntervalMs);
+        spdlog::info("[CameraStream] Using snapshot mode (interval={}ms)", SNAPSHOT_INTERVAL_MS);
         stream_thread_ = std::thread(&CameraStream::snapshot_poll_loop, this);
     } else {
         spdlog::warn("[CameraStream] No stream or snapshot URL provided");
@@ -152,6 +183,12 @@ void CameraStream::stop() {
         }
     }
 
+    // Snapshot before the join below clears joinability. The worker clears
+    // running_ itself on every exit path, so `was_running` alone no longer
+    // proves there is state to reclaim — a worker that gave up on its own
+    // still leaves draw buffers and callbacks behind.
+    bool had_thread = stream_thread_.joinable();
+
     // Join the stream thread with periodic re-cancellation. Use a helper
     // thread for timed join — destroying a joinable std::thread is fatal.
     bool thread_joined = true;
@@ -177,9 +214,9 @@ void CameraStream::stop() {
             thread_detached_ = true;
         }
         if (helper_spawned) {
-            constexpr auto kJoinTimeout = std::chrono::seconds(5);
-            constexpr auto kCancelInterval = std::chrono::milliseconds(200);
-            auto deadline = std::chrono::steady_clock::now() + kJoinTimeout;
+            constexpr auto JOIN_TIMEOUT = std::chrono::seconds(5);
+            constexpr auto CANCEL_INTERVAL = std::chrono::milliseconds(200);
+            auto deadline = std::chrono::steady_clock::now() + JOIN_TIMEOUT;
 
             while (!joined->load()) {
                 if (std::chrono::steady_clock::now() > deadline) {
@@ -199,7 +236,7 @@ void CameraStream::stop() {
                         req->Cancel();
                     }
                 }
-                std::this_thread::sleep_for(kCancelInterval);
+                std::this_thread::sleep_for(CANCEL_INTERVAL);
             }
 
             if (join_helper.joinable()) {
@@ -208,7 +245,7 @@ void CameraStream::stop() {
         } // end if (helper_spawned)
     }
 
-    if (was_running) {
+    if (was_running || had_thread) {
         if (thread_joined) {
             // Thread exited — safe to free everything
             free_buffers();
@@ -276,6 +313,18 @@ void CameraStream::stream_thread_func() {
     // object validity even after CameraStream may be destroyed
     auto thread_token = lifetime_.token();
 
+    // running_ means "the worker is alive", so it has to be cleared wherever
+    // the worker actually stops — not only in stop(). The body below exits on
+    // its own in several ways (failure budget exhausted with no snapshot URL
+    // to fall back to, std::bad_alloc, any other exception), and leaving the
+    // flag set on those paths makes the camera permanently unrevivable:
+    // CameraWidget::start_stream() skips the restart while is_running() is
+    // true, so the feed stays dead until the user switches tabs (#1245).
+    // Scope-level so no future early return can regress it; it fires after
+    // the snapshot fallback below, which needs the flag to stay set while it
+    // is legitimately polling.
+    ScopeExit clear_running([this] { running_.store(false); });
+
     try {
         spdlog::debug("[CameraStream] Stream thread started for {}", stream_url_);
         recv_buf_.clear();
@@ -284,14 +333,14 @@ void CameraStream::stream_thread_func() {
         got_stream_data_.store(false);
         bool ever_connected = false;
 
-        while (running_.load() && stream_fail_count_ < kMaxStreamFailures) {
+        while (running_.load() && stream_fail_count_ < MAX_STREAM_FAILURES) {
             auto req = std::make_shared<HttpRequest>();
             req->method = HTTP_GET;
             req->url = stream_url_;
             // Short timeout until the first successful connection, then long
             // timeout for the persistent stream. MJPEG responses are infinite —
             // the timeout just drives periodic reconnection.
-            int timeout = ever_connected ? kStreamTimeoutSec : kStreamConnectTimeoutSec;
+            int timeout = ever_connected ? STREAM_TIMEOUT_SEC : STREAM_CONNECT_TIMEOUT_SEC;
             req->timeout = timeout;
             spdlog::debug(
                 "[CameraStream] Attempting stream connection to {} (timeout={}s, attempt={})",
@@ -313,7 +362,7 @@ void CameraStream::stream_thread_func() {
                                             const char* data, size_t size) {
                 // Check lifetime first — object may be destroyed or shutting down.
                 // L081_OK: dtor joins libhv handler; buf+boundary exclusive to stream-thread.
-                if (cb_token.expired())
+                if (cb_token.expired_no_lvgl())
                     return; // L081_OK
 
                 if (!running_.load()) {
@@ -394,7 +443,7 @@ void CameraStream::stream_thread_func() {
             boundary_.clear();
             got_stream_data_.store(false);
 
-            if (running_.load() && stream_fail_count_ < kMaxStreamFailures) {
+            if (running_.load() && stream_fail_count_ < MAX_STREAM_FAILURES) {
                 // Brief backoff before reconnecting
                 int backoff_ms = std::min(1000 * stream_fail_count_, 5000);
                 if (backoff_ms > 0) {
@@ -406,7 +455,7 @@ void CameraStream::stream_thread_func() {
         }
 
         // Fall back to snapshot mode if streaming failed
-        if (running_.load() && stream_fail_count_ >= kMaxStreamFailures) {
+        if (running_.load() && stream_fail_count_ >= MAX_STREAM_FAILURES) {
             spdlog::warn("[CameraStream] Stream failed {} times, falling back to snapshot mode",
                          stream_fail_count_);
             if (!snapshot_url_.empty()) {
@@ -420,8 +469,8 @@ void CameraStream::stream_thread_func() {
         spdlog::debug("[CameraStream] Stream thread exiting");
     } catch (const std::bad_alloc& e) {
         spdlog::error("[CameraStream] Out of memory in stream thread: {}", e.what());
-        if (!thread_token
-                 .expired()) { // L081_OK: stream_thread_ dtor-joined; recv_buf_ thread-exclusive
+        if (!thread_token.expired_no_lvgl()) { // L081_OK: stream_thread_ dtor-joined; recv_buf_
+                                               // thread-exclusive
             recv_buf_.clear();
             recv_buf_.shrink_to_fit();
             report_error(thread_token, "Out of memory");
@@ -514,12 +563,15 @@ void CameraStream::snapshot_poll_loop() {
     // destroyed, the token detects invalidation for safe checking.
     auto poll_token = lifetime_.token();
 
-    spdlog::info("[CameraStream] Starting snapshot poll loop (interval={}ms)", kSnapshotIntervalMs);
+    spdlog::info("[CameraStream] Starting snapshot poll loop (interval={}ms)",
+                 SNAPSHOT_INTERVAL_MS);
 
-    while (!poll_token.expired() && running_.load()) {
+    // L081_OK: loop conditions on the thread the owner joins; no LVGL below.
+    while (!poll_token.expired_no_lvgl() && running_.load()) {
         fetch_snapshot();
         // Sleep in small increments to check running_ flag
-        for (int i = 0; i < kSnapshotIntervalMs / 100 && !poll_token.expired() && running_.load();
+        for (int i = 0;
+             i < SNAPSHOT_INTERVAL_MS / 100 && !poll_token.expired_no_lvgl() && running_.load();
              i++) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -556,7 +608,7 @@ void CameraStream::fetch_snapshot() {
     auto req = std::make_shared<HttpRequest>();
     req->method = HTTP_GET;
     req->url = snapshot_url_;
-    req->timeout = kStreamTimeoutSec;
+    req->timeout = STREAM_TIMEOUT_SEC;
 
     // Store weak reference for cancellation by stop()
     {
@@ -568,7 +620,7 @@ void CameraStream::fetch_snapshot() {
 
     // After the blocking HTTP call, stop() may have run and the CameraStream
     // may be destroyed (detached thread). Check lifetime BEFORE touching members.
-    if (snap_token.expired()) {
+    if (snap_token.expired_no_lvgl()) { // L081_OK: guards members, not LVGL
         return;
     }
 
@@ -780,9 +832,9 @@ bool CameraStream::decode_jpeg(const uint8_t* data, size_t len) {
     // A valid JPEG needs SOI (2) + at least one marker segment (4) + EOI (2) = 8 bytes minimum.
     // In practice, camera frames should be much larger — reject suspiciously tiny payloads
     // that can cause NULL dereferences inside turbojpeg (see issue #552).
-    constexpr size_t kMinJpegSize = 64;
-    if (len < kMinJpegSize || data[0] != 0xFF || data[1] != 0xD8) {
-        spdlog::debug("[CameraStream] Invalid JPEG data (len={}, need >= {})", len, kMinJpegSize);
+    constexpr size_t MIN_JPEG_SIZE = 64;
+    if (len < MIN_JPEG_SIZE || data[0] != 0xFF || data[1] != 0xD8) {
+        spdlog::debug("[CameraStream] Invalid JPEG data (len={}, need >= {})", len, MIN_JPEG_SIZE);
         return false;
     }
     // After SOI, the next byte must be 0xFF (start of a marker segment).
@@ -838,7 +890,7 @@ bool CameraStream::decode_jpeg_turbojpeg(const uint8_t* data, size_t len) {
         auto* dst = static_cast<uint8_t*>(back_buf_->data);
         int dst_stride = static_cast<int>(back_buf_->header.stride);
         if (fn_decompress_(tj_, data, static_cast<unsigned long>(len), dst, decode_w, dst_stride,
-                           decode_h, kTJPF_BGR, kTJFLAG_FASTDCT) != 0) {
+                           decode_h, TJ_PIXELFORMAT_BGR, TJ_FLAG_FASTDCT) != 0) {
             spdlog::debug("[CameraStream] JPEG decode failed: {}", fn_get_error_(tj_));
             return false;
         }
@@ -852,7 +904,7 @@ bool CameraStream::decode_jpeg_turbojpeg(const uint8_t* data, size_t len) {
         }
 
         if (fn_decompress_(tj_, data, static_cast<unsigned long>(len), decode_temp_.get(), decode_w,
-                           src_stride, decode_h, kTJPF_BGR, kTJFLAG_FASTDCT) != 0) {
+                           src_stride, decode_h, TJ_PIXELFORMAT_BGR, TJ_FLAG_FASTDCT) != 0) {
             spdlog::debug("[CameraStream] JPEG decode failed: {}", fn_get_error_(tj_));
             return false;
         }

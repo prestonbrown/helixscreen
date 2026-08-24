@@ -5,6 +5,7 @@
 
 #include "gcode_parser.h" // For AABB
 
+#include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -20,8 +21,6 @@
  * - World space: +X right, +Y front, +Z up (print bed at Z=0)
  * - Camera space: Looking down at print bed from angle
  * - Screen space: Origin at top-left, +X right, +Y down
- *
- * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
 namespace helix {
@@ -92,12 +91,37 @@ class GCodeCamera {
 
     /**
      * @brief Fit camera to view entire bounding box
-     * @param bounds Model bounding box to fit
+     * @param raw_bounds Model bounding box to fit. Normalized internally, so an
+     *                   axis that arrived inverted does not discard the axes
+     *                   that were valid.
      *
      * Automatically adjusts zoom and pan to frame the model.
      * Preserves current azimuth and elevation angles.
      */
-    void fit_to_bounds(const AABB& bounds);
+    void fit_to_bounds(const AABB& raw_bounds);
+
+    /// Fraction of viewport height covered by UI along the bottom (0..1). Feeds
+    /// the same shape rule the 2D path uses: a squat model is framed above the
+    /// strip, an elongated one keeps the full viewport. Takes effect on the next
+    /// fit_to_bounds().
+    void set_bottom_occlusion(float occlusion) {
+        bottom_occlusion_ = std::clamp(occlusion, 0.0f, 1.0f);
+    }
+
+    /**
+     * @brief Fraction of viewport height the fitted model occupies (0..1).
+     *
+     * The 3D analogue of AutoFitResult::content_height: multiplied by the
+     * viewport height it gives the same "how tall does this model draw"
+     * quantity, so both renderers feed one
+     * helix::gcode::compute_content_offset_y(). 0 before the first fit.
+     */
+    float get_content_height_fraction() const {
+        if (distance_ <= 0.0f) {
+            return 0.0f;
+        }
+        return std::clamp(content_height_world_ * zoom_level_ / distance_, 0.0f, 1.0f);
+    }
 
     // ==============================================
     // Preset Views
@@ -289,11 +313,13 @@ class GCodeCamera {
     glm::vec3 compute_camera_position() const;
 
     // Camera parameters
-    float azimuth_{45.0f};      ///< Horizontal rotation (degrees)
-    float elevation_{30.0f};    ///< Vertical rotation (degrees)
-    glm::vec3 target_{0, 0, 0}; ///< Look-at point
-    float distance_{100.0f};    ///< Distance from target
-    float zoom_level_{1.0f};    ///< Zoom multiplier
+    float azimuth_{45.0f};             ///< Horizontal rotation (degrees)
+    float elevation_{30.0f};           ///< Vertical rotation (degrees)
+    glm::vec3 target_{0, 0, 0};        ///< Look-at point
+    float content_height_world_{0.0f}; ///< Fitted model's projected height, world units
+    float bottom_occlusion_{0.0f};     ///< Fraction of viewport height covered by UI
+    float distance_{100.0f};           ///< Distance from target
+    float zoom_level_{1.0f};           ///< Zoom multiplier
 
     // Projection parameters
     ProjectionType projection_type_{ProjectionType::ORTHOGRAPHIC};

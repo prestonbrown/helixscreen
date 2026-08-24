@@ -56,7 +56,7 @@ struct MappingCardFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(MappingCardFixture,
                  "rebuild_compact_view: survives the container dying inside its own drain",
-                 "[filament][mapping][crash][1221]") {
+                 "[filament][mapping][filament_mapping][crash][1221]") {
     // Stand in for the deferred NavigationManager::go_back() that pops the
     // print-detail overlay: a callback already sitting in the queue, performing
     // the same two steps destroy_overlay_ui() does and in the same order —
@@ -82,7 +82,7 @@ TEST_CASE_METHOD(MappingCardFixture,
 
 TEST_CASE_METHOD(MappingCardFixture,
                  "rebuild_compact_view: still rebuilds normally when nothing is queued",
-                 "[filament][mapping][1221]") {
+                 "[filament][mapping][filament_mapping][1221]") {
     // Mutation guard for the fix: a bare early-return added after the drain
     // would satisfy the crash test above while silently disabling the card.
     // With an empty queue the container must survive and stay styled.

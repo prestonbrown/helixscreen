@@ -1,6 +1,6 @@
 # Filament Slot Metadata — `lane_data` Convention
 
-**Status**: Informational, v1.5 (2026-07). See [Changelog](#changelog).
+**Status**: Informational, v1.7 (2026-08). See [Changelog](#changelog).
 
 This document describes HelixScreen's use of the `lane_data` Moonraker database
 namespace to share per-slot filament metadata with OrcaSlicer and other tools.
@@ -213,11 +213,12 @@ key's base depends on the writer's key style.
 
 | Key style | Outer DB key | Outer base | Inner `lane` field | Example for slot 0 | Written by |
 |-----------|--------------|------------|--------------------|--------------------|------------|
-| `laneN` | `"lane" + (i+1)` | 1-based | `std::to_string(i)` (0-based string) | key `"lane1"`, field `"0"` | HelixScreen (filament systems), AFC, Happy Hare |
-| `T<n>` | `"T" + i` | 0-based | `std::to_string(i)` (0-based string) | key `"T0"`, field `"0"` | HelixScreen (tool changers), Mainsail #2510 |
+| `laneN` | `"lane" + (i+1)` | 1-based | `std::to_string(i)` (0-based string) | key `"lane1"`, field `"0"` | HelixScreen (filament systems), Happy Hare, AFC before its virtual-tools firmware |
+| `T<n>` | `"T" + i` | 0-based | `std::to_string(i)` (0-based string) | key `"T0"`, field `"0"` | HelixScreen (tool changers), Mainsail #2510, AFC since its virtual-tools firmware |
 
 The `laneN` style matches AFC's on-disk layout (AFC labels its lanes `lane1`,
-`lane2`, … in its own config). The `T<n>` style matches the tool-index naming
+`lane2`, … in its own config — that config naming is unaffected by AFC's move
+to `T<n>` *keys*, which is a `lane_data` change only). The `T<n>` style matches the tool-index naming
 Mainsail and OrcaSlicer use (`T0`, `T1`, …). **Both styles carry the identical
 0-based stringified inner `lane` field** — the only difference is the outer key
 and its base, which readers treat as opaque.
@@ -228,6 +229,32 @@ also wrote `laneN` for the same slot would produce **two records with the same
 inner `lane`** — which OrcaSlicer ingests as duplicate trays (it does not
 dedup; see §8). Converging on the `T<n>` key makes the two writers overwrite
 one shared key instead of colliding.
+
+### The external / bypass spool lane (`i == num_gates`)
+
+HelixScreen publishes the external (bypass) spool as the lane **one past the
+last physical slot** — inner `lane` field `"N"`, outer key in the writer's
+normal style for that index — so a slicer renders it as one more tray beyond
+the physical bays (T4 beside T0–T3, `lane5` beside `lane1`–`lane4`). This is
+what makes "print this single-tool file from the external spool" a *selectable*
+choice in OrcaSlicer rather than an error.
+
+Rules:
+
+- **Written by HelixScreen only.** No filament-system plugin publishes its own
+  extern entry (verified in AFC's `AFC_lane.send_lane_data` — mapped lanes
+  only — and Happy Hare's `mmu_server.py push_lane_data` — gates only).
+- **Ephemerality is expected and self-healing.** AFC deletes the whole
+  namespace at boot (`AFC.py delete_lane_data()`) and Happy Hare's boot-time
+  cleanup deletes any record with `lane >= num_gates`. HelixScreen does NOT
+  fight either writer: it re-publishes on its triggers (bypass engage,
+  external-spool identity change), accepting that the entry disappears until
+  then after a firmware-plugin restart.
+- **Identity-gated.** A record with no Spoolman id, no material, and no picked
+  color (default-gray) clears the lane instead of publishing a phantom tray;
+  pure black is a real pick.
+- Backends with no bypass capability (`supports_bypass` false) never publish
+  one — there is no external feed to select.
 
 HelixScreen's writer produces the key via
 `format_lane_key(i, style)` (`"T"+i` for Tool, `"lane"+(i+1)` for Lane) and the
@@ -259,6 +286,12 @@ The merge rule is **override-wins, field-by-field**:
 - User edits are committed to the override record atomically on save; there is
   no partial-edit state on disk.
 
+**Amendment (v1.7):** when firmware itself reports a per-lane `spool_id` that
+differs from a reader's stored override, the firmware value is authoritative —
+HelixScreen drops its whole override record for that lane rather than shadowing
+the external write. An override survives only an absent/zero firmware id
+(ejection), which HelixScreen makes user-configurable per system (§6).
+
 A tool reading these records does not need to replicate HelixScreen's merge
 rule — it is documented here so third parties understand why we emit only the
 fields we do, and why we omit defaulted fields rather than writing zeros.
@@ -280,10 +313,20 @@ Per backend:
 | Snapmaker U1 | `CARD_UID` change on the RFID tag | Snapmaker tags every spool with a unique UID — the cleanest available fingerprint. |
 | CFS | Per-slot composite `material_type|color_value` fingerprint change | CFS rewrites both fields from a server-side RFID lookup, so their concatenation is a stable spool fingerprint. |
 | ACE | Slot status transition `EMPTY → present` | ACE has no RFID or stable tag; the only reliable "different spool" proxy is an empty-to-loaded transition. |
+| AFC | Per-lane `spool_id` reported by the AFC plugin: a *different positive* id, or `0`/absent | The plugin owns the lane↔spool binding and reports the loaded spool's id. A different positive id is a re-bind, cleared via the §5 amendment; `0`/absent is the plugin's own eject signal. |
+| Happy Hare | Per-gate `spool_id` (SPOOLID) reported by the MMU: same split as AFC | Same authority argument as AFC — the MMU reports the bound spool's id per gate. |
 
 Clearing is a `DELETE` on the slot's `lane_data` key. The first observation
 after startup establishes the baseline fingerprint and is NOT treated as a
 swap — otherwise every app launch would wipe overrides.
+
+Where firmware reports a spool id while a spool is loaded (AFC, Happy Hare),
+the eject half of that signal is user-configurable in HelixScreen: the
+"Keep Spool Info on Eject" setting (default on) retains the record across an
+eject when enabled and clears it when disabled. The re-bind half is not
+configurable — a firmware-reported *different positive* `spool_id` clears via
+the §5 amendment on **any** backend whose firmware reports one, including CFS
+firmware variants that publish a per-slot `spool_id` (flat schema).
 
 Third-party writers do **not** need to implement this behavior. It is
 documented here for transparency so readers understand why HelixScreen-authored
@@ -395,9 +438,55 @@ re-verify against the cited source lines rather than this table.
 | Writer | Key style | Notes |
 |--------|-----------|-------|
 | **HelixScreen** | `T<n>` on tool changers, `laneN` otherwise | `format_lane_key(i, style)` in `filament_slot_override_store.cpp`. Style is derived from the AMS type (`lane_key_style_for`), not hardcoded per backend. |
-| **AFC** (Armored Turtle) | `laneN` | Its Klipper plugin's `send_lane_data` writes 1-based lane keys. |
+| **AFC** (AFCProject) | `T<n>` since the virtual-tools firmware (DEV 2026-08, Klipper-Add-On #832); `laneN` before | `AFC_lane.py` `send_lane_data` writes one record **per T(n) mapping**, so a multi-mapped lane appears once per tool. Inner `lane` field is the tool number string. See below. |
 | **Happy Hare** | `laneN` | `components/mmu_server.py` `push_lane_data`; also emits `vendor_name` / `name` / `filament_id` inner fields. |
 | **Mainsail #2510** | `T<n>` | Writes `lane_data` records for plain Spoolman + tool changer setups, keyed by tool (`T0`, `T1`, …). This is why HelixScreen tool changers converge on `T<n>`. |
+
+#### Shipped: AFC moved from `laneN` to `T<n>` (virtual-tools firmware)
+
+**Status: on upstream `DEV` as of 2026-08-16** (Klipper-Add-On #832, which
+also became the 1.3 release line). Verified in source: `AFC_lane.py`
+`send_lane_data` now iterates `_mapped_keys()` and POSTs one record per `T(n)`
+currently mapped to the lane, keyed by that `T(n)` — a lane mapped to
+`T16,T17` produces two records with identical contents. A lane-name key cannot
+express that, which is why the key changed. The inner `lane` field changed
+meaning with it: it now carries the **tool number** string
+(`key.replace("T", "")`), not a lane index. Stale `T(n)` keys are removed
+incrementally when no lane claims them anymore (`_sent_lane_data_keys`), in
+addition to the boot-time full-namespace wipe (`AFC.py` `delete_lane_data`).
+
+Same firmware, same records: #808 adds `vendor_name`, `name`, and
+`initial_weight`, using Happy Hare's spelling for the first two. That closes
+the gap where Spoolman knows a lane's brand but `lane_data` only carried its
+material.
+
+Consequences, in order of importance:
+
+1. **Readers that join on the inner `lane` field are unaffected on 1:1
+   mappings** — tool *n*'s record says `"lane": "<n>"`, which is where a
+   sequential mapping put it anyway. Upstream verified OrcaSlicer's filament
+   sync still works against this shape. On remapped or virtual-tool setups the
+   tray grid follows the *tool* numbering, which is the correct behavior for a
+   slicer-side view.
+2. **A reader must not treat a `T(n)` outer key as a lane name.** A reader
+   that bootstraps its slot model from the namespace's keys would create
+   "slots" named after tools. HelixScreen's live-data reader resolves `T(n)`
+   keys through the tool mapping the firmware reports in its status objects —
+   and parks (replays later) any payload that arrives before a mapping does,
+   because the namespace query is one-shot. Its override-store reader
+   (`from_lane_data_record`) was already key-agnostic and needed no change;
+   HelixScreen does not author records for AFC printers either way.
+3. **The upgrade window is self-clearing.** The boot-time
+   `delete_lane_data()` removes every key in the namespace before
+   republishing, so stale `laneN` records cannot linger alongside new `T<n>`
+   ones and produce the duplicate-tray collision described in §8.
+4. **Key-space overlap with tool-changer writers.** `laneN` and `T<n>`
+   previously kept AFC and the tool-changer writers (Mainsail, HelixScreen) in
+   disjoint key spaces. With AFC on `T<n>`, an AFC lane and a tool-changer slot
+   with the same index become the *same key*, and AFC's boot-time delete will
+   remove a foreign `T<n>` record. Unlikely to bite in practice (an AFC user is
+   not also running a tool-changer writer on the same printer) but it is a
+   failure mode that did not exist before.
 
 ### Readers
 
@@ -436,6 +525,30 @@ reader can resolve.
 
 ## Changelog
 
+- **v1.7 (2026-08-17)**: §5 amendment — firmware-authoritative re-bind: when
+  firmware reports a per-lane `spool_id` that differs from a stored override,
+  HelixScreen drops its whole override record for that lane instead of
+  shadowing the external write. The rule fires on any backend whose firmware
+  reports a positive id (AFC, Happy Hare, and flat-schema CFS firmware that
+  publishes a per-slot `spool_id`). §6 gained the AFC and Happy Hare rows —
+  their firmware-reported spool id doubles as the hardware-event signal
+  (different positive id → §5 re-bind clear; `0`/absent → eject, there
+  user-configurable via HelixScreen's "Keep Spool Info on Eject", default on).
+- **v1.7 (2026-08-18)**: Documented the **external / bypass spool lane**
+  (§4): HelixScreen publishes the extern spool as the lane one past the last
+  physical slot (`lane == num_gates`) on backends whose bypass it controls
+  (CFS, AD5X IFS via their mirror stores; AFC and Happy Hare via dedicated
+  shared-namespace stores). No third-party plugin publishes its own extern
+  entry, and both AFC's boot-time namespace delete and Happy Hare's boot-time
+  `lane >= num_gates` cleanup are documented as expected, self-healing
+  ephemerality. No wire-format change.
+- **v1.6 (2026-08-16)**: AFC's virtual-tools firmware (Klipper-Add-On #832, on
+  `DEV`, 1.3 release line) switched its `lane_data` keys from `laneN` to
+  `T<n>`, one record per mapped tool, with the inner `lane` field now the tool
+  number string. The "announced" subsection became "shipped", re-verified
+  against the upstream source (`AFC_lane.py` `send_lane_data` /
+  `clear_lane_data` / `_mapped_keys`). Also records #808: AFC now publishes
+  `vendor_name`, `name`, and `initial_weight` in the same records.
 - **v1.5 (2026-07-20)**: Split filament material identity into two fields.
   `material` is now the **slicer-matchable** string (OrcaSlicer matches a lane
   to a preset by it alone; an unmatched value resolves to a Generic PLA preset,

@@ -17,6 +17,7 @@ namespace helix {
 
 struct ToolInfo;
 class PrinterState;
+class PreheatWidgetTestAccess;
 
 class PreheatWidget : public PanelWidget {
   public:
@@ -46,6 +47,8 @@ class PreheatWidget : public PanelWidget {
     static std::string label_for_slot(int slot, bool heaters_active, int32_t width_px);
 
   private:
+    friend class PreheatWidgetTestAccess;
+
     PrinterState& printer_state_;
     nlohmann::json config_;
 

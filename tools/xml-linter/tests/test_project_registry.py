@@ -625,3 +625,61 @@ class TestCLITwoPass:
 
         exit_code = main(["-s", str(schema_path), str(user_xml)])
         assert exit_code == 1  # Should have errors
+
+
+class TestComponentPropTypeOverride:
+    """A component's <api> prop declaration overrides the base-widget schema.
+
+    setting_toggle_row redeclares `disabled` as a string (a subject name),
+    shadowing lv_obj's boolean of the same name. The bool-value check must
+    not fire on a prop the component itself re-typed — and must still fire
+    on the base attribute everywhere else.
+    """
+
+    def test_retyped_prop_accepts_subject_name(
+        self, schema: Schema, tmp_path: Path
+    ) -> None:
+        comp_xml = tmp_path / "setting_toggle_row.xml"
+        comp_xml.write_text(
+            '<component>'
+            '<api><prop name="disabled" type="string" default=""/></api>'
+            '<view name="setting_row" extends="lv_obj" width="100%" height="content"/>'
+            '</component>',
+            encoding="utf-8",
+        )
+        user_xml = tmp_path / "user.xml"
+        user_xml.write_text(
+            '<component>'
+            '<view name="v" extends="lv_obj" width="100%" height="content">'
+            '<setting_toggle_row name="row" disabled="ams_device_ops_fw_retains_spool_info"/>'
+            '</view></component>',
+            encoding="utf-8",
+        )
+
+        registry = ProjectRegistry.from_files([comp_xml, user_xml])
+        for name, extends in registry.component_view_names.items():
+            schema.register_custom_widget(name, extends)
+
+        linter = Linter(schema, LinterConfig(enable_xref=False), project_registry=registry)
+        result = linter.lint_file(user_xml)
+        bool_errors = [
+            d for d in result.diagnostics if d.check == CheckType.INVALID_BOOL_VALUE
+        ]
+        assert len(bool_errors) == 0, [d.message for d in bool_errors]
+
+    def test_base_bool_attribute_still_validated(self, schema: Schema) -> None:
+        """Without a component prop override, the base bool check fires."""
+        from helix_xml_linter.xml_parser import ParsedElement
+
+        linter = Linter(schema, LinterConfig(enable_xref=False))
+        elem = ParsedElement(
+            tag="lv_obj",
+            attributes={"disabled": "some_subject_name"},
+            line=1,
+            column=1,
+            source_file=Path("test.xml"),
+        )
+        diagnostics = linter.lint_element(elem)
+        bool_errors = [d for d in diagnostics if d.check == CheckType.INVALID_BOOL_VALUE]
+        assert len(bool_errors) == 1
+        assert "disabled" in bool_errors[0].message

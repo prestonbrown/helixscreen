@@ -13,6 +13,27 @@ namespace helix {
 enum class StartCondition { COLD, WARM };
 
 /**
+ * @brief Which measurement window a timing entry describes
+ *
+ * The pre-print collector is armed either when the printer reports its own
+ * print-start edge, or at user commit. Commit arming places any host-side
+ * pre-start block - a forced bed mesh, a printer setup macro - inside the
+ * measured window, which on some printers is minutes of extra work. The two
+ * populations must not be averaged together: doing so produces an estimate
+ * wrong for both, and feeds a too-small predicted total into the collector's
+ * adaptive timeout, which can then complete the pre-print while it is still
+ * running.
+ *
+ * As a *filter*, Unknown means "no window filter" - the same dual meaning
+ * `temp_bucket == 0` already carries.
+ */
+enum class PreprintWindow : int {
+    Unknown = 0,      ///< Legacy entry, recorded before commit arming existed
+    PrinterEdge = 1,  ///< Measured from the printer's own print-start edge
+    HostPreStart = 2, ///< Window includes a host-side pre-start block
+};
+
+/**
  * @brief A single recorded pre-print timing entry
  *
  * Captures per-phase durations from one print start sequence.
@@ -22,7 +43,9 @@ struct PreprintEntry {
     int total_seconds;                  ///< Total pre-print duration
     int64_t timestamp;                  ///< Unix timestamp when entry was recorded
     std::map<int, int> phase_durations; ///< phase_enum -> seconds
-    int temp_bucket{0}; ///< Nozzle target temp rounded to nearest 25°C (0 = unknown)
+    int temp_bucket{
+        0}; ///< Bed temp at start: 1 = cold (<40°C), 2 = warm (≥40°C); 0 = unknown/legacy
+    PreprintWindow window{PreprintWindow::Unknown}; ///< Which window this entry measured
 };
 
 /**
@@ -56,7 +79,15 @@ class PreprintPredictor {
      * bucket 0 = no filter, bucket 1 = cold, bucket 2 = warm,
      * other values use simplified mapping.
      */
-    void load_entries(const std::vector<PreprintEntry>& entries, int temp_bucket);
+    void load_entries(const std::vector<PreprintEntry>& entries, int temp_bucket,
+                      PreprintWindow window = PreprintWindow::Unknown);
+
+    /**
+     * @brief Does this entry belong to the requested measurement window?
+     *
+     * Exposed for testing the legacy-entry asymmetry directly.
+     */
+    [[nodiscard]] static bool entry_matches_window(const PreprintEntry& e, PreprintWindow filter);
 
     /**
      * @brief Add a single entry, enforcing FIFO trim to MAX_ENTRIES

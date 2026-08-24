@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_notification_threshold.h"
+
 #include "../lvgl_test_fixture.h"
 #include "config.h"
 #include "safety_settings_manager.h"
@@ -21,6 +23,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after in
     Config::get_instance()->set<bool>("/safety/cancel_escalation_enabled", false);
     Config::get_instance()->set<int>("/safety/cancel_escalation_timeout_seconds", 30);
     Config::get_instance()->set<bool>("/safety/allow_cold_extrude", false);
+    Config::get_instance()->set<int>("/notifications/min_toast_severity", 0);
     SafetySettingsManager::instance().deinit_subjects();
     SafetySettingsManager::instance().init_subjects();
 
@@ -40,6 +43,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after in
         // Gating filament load/unload on min_extrude_temp is the safe default;
         // bypassing it is opt-in for users whose macros heat the nozzle (#978).
         REQUIRE(SafetySettingsManager::instance().get_allow_cold_extrude() == false);
+    }
+
+    SECTION("min_toast_severity defaults to 0 (All) - no change for existing users") {
+        // #1213: the gate must not suppress anything out of the box. Defaults to
+        // the "All" rung so existing toast behaviour is unchanged until the user
+        // opts in to a quieter setting.
+        REQUIRE(SafetySettingsManager::instance().get_min_toast_severity() == 0);
+        REQUIRE(helix::ui::notifications::get_min_toast_severity_cache() == 0);
     }
 
     SafetySettingsManager::instance().deinit_subjects();
@@ -86,6 +97,27 @@ TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager set/get round trips",
 
         SafetySettingsManager::instance().set_allow_cold_extrude(false);
         REQUIRE(SafetySettingsManager::instance().get_allow_cold_extrude() == false);
+    }
+
+    SECTION("min_toast_severity round-trips and pushes to the toast gate cache") {
+        // #1213: each valid index sets the subject, persists, and updates the
+        // header-only cache the toast sites read. Out-of-range clamps to 0.
+        SafetySettingsManager::instance().set_min_toast_severity(2);
+        REQUIRE(SafetySettingsManager::instance().get_min_toast_severity() == 2);
+        REQUIRE(helix::ui::notifications::get_min_toast_severity_cache() == 2);
+
+        SafetySettingsManager::instance().set_min_toast_severity(1);
+        REQUIRE(SafetySettingsManager::instance().get_min_toast_severity() == 1);
+        REQUIRE(helix::ui::notifications::get_min_toast_severity_cache() == 1);
+
+        SafetySettingsManager::instance().set_min_toast_severity(0);
+        REQUIRE(SafetySettingsManager::instance().get_min_toast_severity() == 0);
+        REQUIRE(helix::ui::notifications::get_min_toast_severity_cache() == 0);
+
+        // A corrupt value clamps to "All" rather than silently suppressing.
+        SafetySettingsManager::instance().set_min_toast_severity(7);
+        REQUIRE(SafetySettingsManager::instance().get_min_toast_severity() == 0);
+        REQUIRE(helix::ui::notifications::get_min_toast_severity_cache() == 0);
     }
 
     SECTION("cancel_escalation_timeout snaps to bucket by threshold") {

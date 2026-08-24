@@ -7,6 +7,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace helix::android {
 
@@ -19,6 +20,15 @@ namespace helix::android {
 /// and the second element carries a short error message instead of a body.
 std::pair<int, std::string> https_get(const std::string& url, const std::string& user_agent,
                                       const std::string& accept, int timeout_sec);
+
+/// HTTP(S) POST with a raw binary body via Android's Java HttpURLConnection.
+/// Used by the debug-bundle upload, which sends gzip-compressed bytes that
+/// cannot round-trip through a Java String. Returns {status_code, body_or_error}
+/// with the same contract as https_get.
+std::pair<int, std::string>
+https_post_binary(const std::string& url, const std::vector<unsigned char>& body,
+                  const std::string& content_type, const std::string& content_encoding,
+                  const std::string& user_agent, const std::string& api_key, int timeout_sec);
 
 } // namespace helix::android
 

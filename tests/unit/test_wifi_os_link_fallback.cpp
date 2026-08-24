@@ -62,6 +62,15 @@ class WiFiManagerTestAccess {
             wm.backend_->stop();
         }
     }
+    // Backdate the association stamp past ASSOCIATION_GRACE so the expiry side
+    // of the suppression is testable without a 5-second sleep.
+    static void expire_association_grace(WiFiManager& wm) {
+        wm.last_association_change_ = std::chrono::steady_clock::now() -
+                                      WiFiManager::ASSOCIATION_GRACE - std::chrono::seconds(1);
+    }
+    static bool in_association_grace(const WiFiManager& wm) {
+        return wm.in_association_grace();
+    }
 };
 } // namespace helix
 
@@ -305,4 +314,54 @@ TEST_CASE("start_scan with OS link up suppresses the scan-failed user warning",
 
     helix::ui::set_test_notification_warning_hook(nullptr);
     wm->stop_scan();
+}
+
+TEST_CASE("A scan that fails right after our own forget does not warn the user",
+          "[wifi][unit][ad5x]") {
+    // AD5X bundle TAU4PW4H: the user taps Forget on the CONNECTED network, that
+    // disassociates, the overlay restarts scanning immediately, the trigger
+    // fails while the link is mid-teardown — and because the link genuinely is
+    // down at that instant, the os_link_up() suppression above does not apply.
+    // The user got "WiFi scan failed. Try again." 48 ms after their own tap, for
+    // something the app did.
+    OsLinkBehaviorFixture fx;
+    auto wm = fx.make_manager();
+    helix::WiFiManagerTestAccess::stop_backend(*wm);
+    helix::WiFiManagerTestAccess::set_os_link_probe([]() { return false; });
+
+    int warnings = 0;
+    helix::ui::set_test_notification_warning_hook([&](const std::string&) { warnings++; });
+
+    // Go through the real entry point, so the test covers the stamp being taken
+    // and not just the predicate.
+    wm->forget("SomeNetwork", nullptr);
+    REQUIRE(helix::WiFiManagerTestAccess::in_association_grace(*wm));
+
+    wm->start_scan([](const std::vector<WiFiNetwork>&) {});
+    REQUIRE(warnings == 0);
+
+    // Sanity / mutation guard: once the grace has passed, the same failing scan
+    // with the same down link DOES warn. Without this the test would also pass
+    // if suppression became unconditional.
+    warnings = 0;
+    helix::WiFiManagerTestAccess::expire_association_grace(*wm);
+    REQUIRE_FALSE(helix::WiFiManagerTestAccess::in_association_grace(*wm));
+    wm->start_scan([](const std::vector<WiFiNetwork>&) {});
+    REQUIRE(warnings >= 1);
+
+    helix::ui::set_test_notification_warning_hook(nullptr);
+    wm->stop_scan();
+    // forget()/start_scan() on a stopped backend queue notification work through
+    // UpdateQueue; drain before the manager goes out of scope so nothing leaks
+    // into the next test (scripts/check_update_queue_leaks.py).
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE("The association grace is not armed before any association change",
+          "[wifi][unit][ad5x]") {
+    // A fresh manager must not start life suppressing scan failures — the boot
+    // -race warning path (#1059's other half) still has to reach the user.
+    OsLinkBehaviorFixture fx;
+    auto wm = fx.make_manager();
+    REQUIRE_FALSE(helix::WiFiManagerTestAccess::in_association_grace(*wm));
 }

@@ -13,6 +13,7 @@
 #include "demo_overlays.h"
 #include "display_settings_manager.h"
 #include "http_executor.h"
+#include "input_settings_manager.h"
 #include "logging_init.h"
 #include "mock_scenarios.h"
 #include "panel_factory.h"
@@ -51,10 +52,10 @@ namespace helix {
 // names ("home", "print-select") — strip a trailing "_panel" and map '_' -> '-'.
 static std::string panel_short_name(int idx) {
     std::string n = PanelFactory::PANEL_NAMES[idx];
-    static const std::string kSuffix = "_panel";
-    if (n.size() > kSuffix.size() &&
-        n.compare(n.size() - kSuffix.size(), kSuffix.size(), kSuffix) == 0) {
-        n.erase(n.size() - kSuffix.size());
+    static const std::string SUFFIX = "_panel";
+    if (n.size() > SUFFIX.size() &&
+        n.compare(n.size() - SUFFIX.size(), SUFFIX.size(), SUFFIX) == 0) {
+        n.erase(n.size() - SUFFIX.size());
     }
     std::replace(n.begin(), n.end(), '_', '-');
     return n;
@@ -329,11 +330,16 @@ void RemoteControlServer::register_builtin_handlers() {
         return handle_pointer_press(p);
     };
     handlers_["pointer_move"] = [this](const nlohmann::json& p) { return handle_pointer_move(p); };
+    handlers_["pointer_long_press"] = [this](const nlohmann::json& p) {
+        return handle_pointer_long_press(p);
+    };
     handlers_["pointer_release"] = [this](const nlohmann::json& p) {
         return handle_pointer_release(p);
     };
     handlers_["geom"] = [this](const nlohmann::json& p) { return handle_geom(p); };
     handlers_["text"] = [this](const nlohmann::json& p) { return handle_text(p); };
+    handlers_["state"] = [this](const nlohmann::json& p) { return handle_state(p); };
+    handlers_["set_text"] = [this](const nlohmann::json& p) { return handle_set_text(p); };
     handlers_["get_const"] = [this](const nlohmann::json& p) { return handle_get_const(p); };
     handlers_["wake"] = [this](const nlohmann::json& p) { return handle_wake(p); };
 
@@ -354,13 +360,44 @@ nlohmann::json RemoteControlServer::handle_navigate(const nlohmann::json& params
 
     std::string target = params["panel"];
 
-    // 1. Base panel -> switch to it.
+    // 1. Base panel -> take the same path a navbar tap takes.
+    //
+    // NOT set_active(), which deliberately preserves the overlay stack so the
+    // base panel can be swapped underneath an open overlay. Driving it that way
+    // left the overlay (and its opaque snapshot backdrop) covering the screen
+    // while reporting a successful navigation — every screenshot after it came
+    // back identical, which reads as broken rendering rather than "you are
+    // still inside an overlay". A finger on the navbar clears the stack; so
+    // does this now.
     auto panel_id = name_to_panel_id(target);
     if (panel_id) {
         return execute_on_ui_thread([panel_id]() -> nlohmann::json {
             wake_display();
-            NavigationManager::instance().set_active(*panel_id);
-            return {{"navigated_to", panel_id_to_name(*panel_id)}, {"kind", "panel"}};
+            using PanelRequest = NavigationManager::PanelRequest;
+            // Inline: this lambda already runs inside an UpdateQueue callback,
+            // which is the context switch_to_panel_impl() is written for. That
+            // keeps navigate synchronous — `current` right after it reports the
+            // new panel instead of racing a queued switch.
+            auto result = NavigationManager::instance().request_panel(
+                *panel_id, NavigationManager::SwitchDispatch::Inline);
+
+            // A declined request must not answer like a successful one. The
+            // gating is silent for a finger (the button simply does nothing),
+            // but a script that gets {"navigated_to": ...} back and then
+            // screenshots the panel it never reached has no way to tell.
+            if (result == PanelRequest::BlockedDisconnected) {
+                throw std::runtime_error("Navigation to '" + panel_id_to_name(*panel_id) +
+                                         "' blocked: printer not connected");
+            }
+            if (result == PanelRequest::BlockedKlippyNotReady) {
+                throw std::runtime_error("Navigation to '" + panel_id_to_name(*panel_id) +
+                                         "' blocked: Klipper not ready");
+            }
+
+            return {{"navigated_to", panel_id_to_name(*panel_id)},
+                    {"kind", "panel"},
+                    {"switched", result == PanelRequest::Switched},
+                    {"home_retapped", result == PanelRequest::HomeRetapped}};
         });
     }
 
@@ -416,8 +453,8 @@ nlohmann::json RemoteControlServer::handle_reset(const nlohmann::json& /*params*
         // non-exiting entries, so it flips to true as soon as every modal has
         // been marked -- no need to wait out the exit animation here.
         int modals_cleared = 0;
-        constexpr int kMaxModalDepth = 16; // matching kMaxDepth's reasoning below
-        while (!ModalStack::instance().empty() && modals_cleared < kMaxModalDepth) {
+        constexpr int MAX_MODAL_DEPTH = 16; // matching MAX_DEPTH's reasoning below
+        while (!ModalStack::instance().empty() && modals_cleared < MAX_MODAL_DEPTH) {
             lv_obj_t* top = Modal::get_top();
             if (!top) {
                 break;
@@ -425,10 +462,10 @@ nlohmann::json RemoteControlServer::handle_reset(const nlohmann::json& /*params*
             Modal::hide(top);
             modals_cleared++;
         }
-        if (modals_cleared == kMaxModalDepth && !ModalStack::instance().empty()) {
+        if (modals_cleared == MAX_MODAL_DEPTH && !ModalStack::instance().empty()) {
             spdlog::warn("[RemoteControlServer] reset: modal stack still non-empty after "
                          "{} dismissals -- hit the safety cap, something isn't draining",
-                         kMaxModalDepth);
+                         MAX_MODAL_DEPTH);
         }
 
         // Toasts: ToastManager::hide() dismisses every visible toast (also via
@@ -446,18 +483,18 @@ nlohmann::json RemoteControlServer::handle_reset(const nlohmann::json& /*params*
         // UpdateQueue::process_pending() tick. So overlay_stack_names() must be
         // read exactly once, before any go_back() call, to get the true depth --
         // rereading it in a loop condition would never observe a decrease within
-        // this same callback and would just spin to kMaxDepth every time.
+        // this same callback and would just spin to MAX_DEPTH every time.
         // Bounded rather than unbounded: a nav stack that will not drain is a
         // bug, and spinning forever here would hang the UI thread.
         auto& nav = NavigationManager::instance();
-        constexpr int kMaxDepth = 32;
+        constexpr int MAX_DEPTH = 32;
         int actual_depth = static_cast<int>(nav.overlay_stack_names().size());
-        int overlays_popped = std::min(actual_depth, kMaxDepth);
-        if (actual_depth > kMaxDepth) {
+        int overlays_popped = std::min(actual_depth, MAX_DEPTH);
+        if (actual_depth > MAX_DEPTH) {
             spdlog::warn("[RemoteControlServer] reset: overlay stack depth {} exceeds the "
                          "safety cap of {} -- popping {} and leaving the rest, something "
                          "isn't draining",
-                         actual_depth, kMaxDepth, kMaxDepth);
+                         actual_depth, MAX_DEPTH, MAX_DEPTH);
         }
         for (int i = 0; i < overlays_popped; ++i) {
             nav.go_back();
@@ -635,11 +672,11 @@ nlohmann::json RemoteControlServer::handle_screenshot(const nlohmann::json& para
     // UI thread would block the very redraws it is waiting to observe.
     int stable_frames = 0;
     if (stable) {
-        constexpr int kRequired = 3;
-        constexpr int kMaxSamples = 180; // ~3s at 16ms
+        constexpr int REQUIRED = 3;
+        constexpr int MAX_SAMPLES = 180; // ~3s at 16ms
         uint64_t last = 0;
         int run = 0;
-        for (int i = 0; i < kMaxSamples; i++) {
+        for (int i = 0; i < MAX_SAMPLES; i++) {
             uint64_t h = execute_on_ui_thread([resolve_crop]() -> nlohmann::json {
                              lv_obj_t* crop = resolve_crop();
                              helix::CapturedFrame f;
@@ -651,15 +688,15 @@ nlohmann::json RemoteControlServer::handle_screenshot(const nlohmann::json& para
 
             run = (i > 0 && h == last) ? run + 1 : 1;
             last = h;
-            if (run >= kRequired) {
+            if (run >= REQUIRED) {
                 stable_frames = run;
                 break;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
-        if (stable_frames < kRequired) {
+        if (stable_frames < REQUIRED) {
             throw std::runtime_error(
-                "Screen never stabilized: no " + std::to_string(kRequired) +
+                "Screen never stabilized: no " + std::to_string(REQUIRED) +
                 " identical consecutive frames within 3s. Try `freeze` first.");
         }
     }
@@ -1044,7 +1081,18 @@ static bool glob_match(const char* pat, const char* str) {
     return *pat == '\0';
 }
 
-// Every visible, named widget in a subtree whose name matches the pattern.
+// Every visible widget in a subtree whose name matches the pattern.
+//
+// A widget the author never named is not nameless: lv_obj_get_name_resolved()
+// crafts "<class>_<index>" for it ("lv_label_0"), and lv_obj_find_by_name()
+// already matches that form, so it was addressable all along and only this
+// walker hid it. Reporting it costs nothing — the crafted name is built on
+// demand, never stored, which matters on the ESP32 target where naming every
+// widget for real would be paid in heap.
+//
+// Explicit names are still the better answer for anything a test drives: a
+// crafted index counts siblings, so inserting a widget renumbers the ones
+// after it.
 static void collect_glob_matches(lv_obj_t* parent, const std::string& pattern,
                                  std::vector<lv_obj_t*>& out) {
     if (!parent) {
@@ -1056,14 +1104,12 @@ static void collect_glob_matches(lv_obj_t* parent, const std::string& pattern,
         if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
             continue; // hidden subtree — not on screen, same rule as describe_walk
         }
+        char resolved[128];
+        lv_obj_get_name_resolved(child, resolved, sizeof(resolved));
         const char* raw = lv_obj_get_name(child);
-        if (raw && raw[0] != '\0') {
-            char resolved[128];
-            lv_obj_get_name_resolved(child, resolved, sizeof(resolved));
-            const char* name = resolved[0] != '\0' ? resolved : raw;
-            if (glob_match(pattern.c_str(), name)) {
-                out.push_back(child);
-            }
+        const char* name = resolved[0] != '\0' ? resolved : raw;
+        if (name && name[0] != '\0' && glob_match(pattern.c_str(), name)) {
+            out.push_back(child);
         }
         collect_glob_matches(child, pattern, out);
     }
@@ -1166,27 +1212,30 @@ static std::string active_screen_label() {
 
 // Collect every visible widget with this exact resolved name. Mirrors
 // collect_glob_matches: hidden subtrees are skipped, because a widget the user
-// cannot see is never what `click <name>` meant.
-static void collect_by_name(lv_obj_t* parent, const std::string& name,
-                            std::vector<lv_obj_t*>& out) {
+// cannot see is never what `click <name>` meant. `state` asks
+// include_hidden=true for its retry: asking "is it hidden?" requires finding
+// the hidden widget first.
+static void collect_by_name(lv_obj_t* parent, const std::string& name, std::vector<lv_obj_t*>& out,
+                            bool include_hidden = false) {
     if (!parent) {
         return;
     }
     uint32_t count = lv_obj_get_child_count(parent);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(parent, i);
-        if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!child || (!include_hidden && lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))) {
             continue;
         }
+        // Unnamed widgets match on LVGL's crafted "<class>_<index>" — see the
+        // note on collect_glob_matches.
+        char resolved[128];
+        lv_obj_get_name_resolved(child, resolved, sizeof(resolved));
         const char* raw = lv_obj_get_name(child);
-        if (raw && raw[0] != '\0') {
-            char resolved[128];
-            lv_obj_get_name_resolved(child, resolved, sizeof(resolved));
-            if (name == (resolved[0] != '\0' ? resolved : raw)) {
-                out.push_back(child);
-            }
+        const char* candidate = resolved[0] != '\0' ? resolved : raw;
+        if (candidate && name == candidate) {
+            out.push_back(child);
         }
-        collect_by_name(child, name, out);
+        collect_by_name(child, name, out, include_hidden);
     }
 }
 
@@ -1928,6 +1977,126 @@ nlohmann::json RemoteControlServer::handle_text(const nlohmann::json& params) {
     });
 }
 
+nlohmann::json RemoteControlServer::handle_set_text(const nlohmann::json& params) {
+    if (!params.contains("name") && !params.contains("path")) {
+        throw std::invalid_argument("Missing required parameter: name or path");
+    }
+    if (!params.contains("text") || !params["text"].is_string()) {
+        throw std::invalid_argument("Missing required parameter: text");
+    }
+    const std::string text = params["text"].get<std::string>();
+
+    return execute_on_ui_thread([params, text]() -> nlohmann::json {
+        lv_obj_t* widget = resolve_widget(params);
+        if (!widget) {
+            throw std::invalid_argument("Widget not found: " + target_label(params));
+        }
+        // Resolve the same way `text` reads it: the named widget is often a
+        // wrapper whose label is a descendant.
+        lv_obj_t* holder = widget;
+        std::string existing, source;
+        if (!read_widget_text(holder, existing, source)) {
+            holder = find_text_descendant(widget);
+            if (!holder || !read_widget_text(holder, existing, source)) {
+                throw std::invalid_argument("Widget has no text: " + target_label(params));
+            }
+        }
+        if (!lv_obj_check_type(holder, &lv_label_class)) {
+            throw std::invalid_argument("Not a label, cannot set text: " + target_label(params));
+        }
+        // Writes straight to the label. A label driven by bind_text is restored
+        // the next time its subject changes — set the subject instead when one
+        // exists. This exists for text the app sets imperatively, which is
+        // otherwise unreachable from a test (e.g. the AMS loading-error message,
+        // which comes from a backend field rather than a subject).
+        lv_label_set_text(holder, text.c_str());
+        return {{"set", text}, {"path", path_of(holder)}};
+    });
+}
+
+nlohmann::json RemoteControlServer::handle_state(const nlohmann::json& params) {
+    if (!params.contains("name") && !params.contains("path")) {
+        throw std::invalid_argument("Missing required parameter: name or path");
+    }
+
+    return execute_on_ui_thread([params]() -> nlohmann::json {
+        lv_obj_t* target = resolve_widget(params);
+        if (!target && params.contains("name") && params["name"].is_string()) {
+            // Name lookup skips hidden subtrees so `click <name>` never hits an
+            // invisible widget — but "is it hidden?" is a question `state`
+            // exists to answer. Retry with hidden matches included (plain
+            // names only: a @path already resolves hidden widgets, and a glob
+            // is a discovery aid like `ls`, which also filters).
+            const std::string name = params["name"].get<std::string>();
+            if (!is_glob(name)) {
+                std::vector<lv_obj_t*> matches;
+                if (lv_obj_t* scope = scope_root(params)) {
+                    collect_by_name(scope, name, matches, /*include_hidden=*/true);
+                } else {
+                    if (lv_obj_t* screen = lv_screen_active()) {
+                        collect_by_name(screen, name, matches, /*include_hidden=*/true);
+                    }
+                    collect_by_name(lv_layer_top(), name, matches, /*include_hidden=*/true);
+                }
+                if (!matches.empty()) {
+                    target = topmost_visible(matches);
+                }
+            }
+        }
+        if (!target) {
+            throw std::invalid_argument("Widget not found: " + target_label(params));
+        }
+        // Same container-to-control descent as click/set_value: `state <row>`
+        // reports on the switch/slider the row wraps, because that is what
+        // those commands would act on.
+        lv_obj_t* descended = nullptr;
+        lv_obj_t* widget = resolve_actionable(target, &descended, nullptr);
+
+        nlohmann::json result;
+        nlohmann::json states = nlohmann::json::array();
+        const struct {
+            lv_state_t bit;
+            const char* name;
+        } state_table[] = {
+            {LV_STATE_CHECKED, "checked"}, {LV_STATE_DISABLED, "disabled"},
+            {LV_STATE_FOCUSED, "focused"}, {LV_STATE_FOCUS_KEY, "focus_key"},
+            {LV_STATE_PRESSED, "pressed"}, {LV_STATE_HOVERED, "hovered"},
+            {LV_STATE_EDITED, "edited"},
+        };
+        for (const auto& entry : state_table) {
+            const bool on = lv_obj_has_state(widget, entry.bit);
+            result[entry.name] = on; // flat booleans for jq-friendly assertions
+            if (on) {
+                states.push_back(entry.name);
+            }
+        }
+        result["states"] = states; // and the set form for human eyes in the REPL
+
+        result["path"] = path_of(widget);
+        if (descended) {
+            result["descended_to"] = path_of(descended);
+        }
+        // Flags answer "why won't it show up / respond": a HIDDEN widget is
+        // still resolvable by name (only `ls` filters hidden subtrees), so
+        // bind_flag_if contracts are assertable here.
+        auto flags_of = [](lv_obj_t* w) {
+            return nlohmann::json{
+                {"hidden", lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN)},
+                {"clickable", lv_obj_has_flag(w, LV_OBJ_FLAG_CLICKABLE)},
+                {"scrollable", lv_obj_has_flag(w, LV_OBJ_FLAG_SCROLLABLE)},
+            };
+        };
+        result["flags"] = flags_of(widget);
+        if (descended) {
+            // What you named vs what was driven can differ in visibility: a
+            // row hides itself while its inner switch carries no flag of its
+            // own, so `flags` alone would call a hidden row's control visible.
+            result["target"] = {{"path", path_of(target)}, {"flags", flags_of(target)}};
+        }
+        return result;
+    });
+}
+
 nlohmann::json RemoteControlServer::apply_pointer_state(int32_t x, int32_t y, bool pressed,
                                                         const char* what) {
     uint64_t baseline = 0;
@@ -1989,6 +2158,45 @@ nlohmann::json RemoteControlServer::handle_pointer_release(const nlohmann::json&
     const int32_t x = params.contains("x") ? params["x"].get<int32_t>() : pointer.x();
     const int32_t y = params.contains("y") ? params["y"].get<int32_t>() : pointer.y();
     return apply_pointer_state(x, y, false, "release");
+}
+
+nlohmann::json RemoteControlServer::handle_pointer_long_press(const nlohmann::json& params) {
+    if (!params.contains("x") || !params.contains("y")) {
+        throw std::invalid_argument("Missing required parameters: x and y");
+    }
+    const int32_t x = params["x"].get<int32_t>();
+    const int32_t y = params["y"].get<int32_t>();
+
+    // Default the hold to comfortably past LVGL's own threshold rather than
+    // hardcoding a duration here: the threshold is a user setting (Touch & Input)
+    // and a hold tuned to the default would silently stop being a long press if
+    // someone raised it.
+    int32_t hold_ms = params.contains("hold_ms") ? params["hold_ms"].get<int32_t>() : 0;
+    if (hold_ms <= 0) {
+        hold_ms = helix::remote::pointer_long_press_hold_ms(
+            helix::InputSettingsManager::instance().get_long_press_time());
+    }
+
+    nlohmann::json result = apply_pointer_state(x, y, true, "long_press");
+
+    // Hold without touching the pointer. The press is already latched in
+    // RemotePointer and LVGL keeps sampling it on its own timer, so the gesture
+    // accumulates here exactly as it does under a resting finger. Doing this
+    // server-side is the whole point: a shell doing press / sleep / release spends
+    // the hold with no client connected, and any command that lands in between
+    // resamples the device and can restart the press.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(hold_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (!running_.load()) {
+            throw std::runtime_error("remote server shutting down");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    nlohmann::json release = apply_pointer_state(x, y, false, "long_press");
+    result["held_ms"] = hold_ms;
+    result["reads"] = release["reads"];
+    return result;
 }
 
 nlohmann::json RemoteControlServer::handle_scroll(const nlohmann::json& params) {

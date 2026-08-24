@@ -7,7 +7,7 @@
 
 #include "ams_backend.h"
 #include "ams_state.h"
-#include "moonraker_client.h"
+#include "i_moonraker_client.h"
 
 #include <spdlog/spdlog.h>
 
@@ -21,11 +21,11 @@ namespace helix {
 
 namespace {
 
-constexpr const char* kNotifyHandlerName = "gcode_narration_router";
+constexpr const char* NOTIFY_HANDLER_NAME = "gcode_narration_router";
 
 } // namespace
 
-GcodeNarrationRouter::GcodeNarrationRouter(MoonrakerAPI* api, MoonrakerClient* client)
+GcodeNarrationRouter::GcodeNarrationRouter(IMoonrakerAPI* api, IMoonrakerClient* client)
     : api_(api), client_(client) {
     if (!client_) {
         spdlog::warn("[GcodeNarrationRouter] Null client — handler not registered");
@@ -43,14 +43,14 @@ GcodeNarrationRouter::GcodeNarrationRouter(MoonrakerAPI* api, MoonrakerClient* c
     // thread — the direct AmsState::set_narration_phase write is therefore
     // thread-safe with no second defer.
     client_->register_method_callback(
-        "notify_gcode_response", kNotifyHandlerName,
+        "notify_gcode_response", NOTIFY_HANDLER_NAME,
         lifetime_.bg_cb("GcodeNarrationRouter::on_notify",
                         [this](const nlohmann::json& msg) { on_notify_gcode_response(msg); }));
 }
 
 GcodeNarrationRouter::~GcodeNarrationRouter() {
     if (client_) {
-        client_->unregister_method_callback("notify_gcode_response", kNotifyHandlerName);
+        client_->unregister_method_callback("notify_gcode_response", NOTIFY_HANDLER_NAME);
     }
 }
 
@@ -60,16 +60,16 @@ std::optional<std::string> parse_unknown_command(const std::string& body) {
     // Moonraker still answers `ok` for the enclosing script. Anchored at the
     // start of the body so an ordinary narration line that happens to mention
     // the phrase cannot claim to be one.
-    static constexpr std::string_view kPrefix = "unknown command";
-    if (body.size() <= kPrefix.size())
+    static constexpr std::string_view PREFIX = "unknown command";
+    if (body.size() <= PREFIX.size())
         return std::nullopt;
-    for (size_t i = 0; i < kPrefix.size(); ++i) {
-        if (static_cast<char>(std::tolower(static_cast<unsigned char>(body[i]))) != kPrefix[i])
+    for (size_t i = 0; i < PREFIX.size(); ++i) {
+        if (static_cast<char>(std::tolower(static_cast<unsigned char>(body[i]))) != PREFIX[i])
             return std::nullopt;
     }
 
     // Only a colon and whitespace may separate the phrase from the quoted name.
-    size_t i = kPrefix.size();
+    size_t i = PREFIX.size();
     while (i < body.size() && (body[i] == ':' || body[i] == ' ' || body[i] == '\t'))
         ++i;
     if (i >= body.size() || body[i] != '"')

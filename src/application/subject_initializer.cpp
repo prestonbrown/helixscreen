@@ -65,6 +65,7 @@
 #include "probe_sensor_manager.h"
 #include "settings_manager.h"
 #include "spoolman_manager.h"
+#include "standard_macros.h"
 #include "system/telemetry_manager.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
@@ -254,7 +255,8 @@ void SubjectInitializer::init_core_and_state() {
     spdlog::debug("[SubjectInitializer] Core and state subjects initialized");
 }
 
-void SubjectInitializer::init_panels(MoonrakerAPI* api, const RuntimeConfig& /* runtime_config */) {
+void SubjectInitializer::init_panels(IMoonrakerAPI* api,
+                                     const RuntimeConfig& /* runtime_config */) {
     spdlog::debug("[SubjectInitializer] Initializing panel subjects (api={})...",
                   api ? "valid" : "nullptr");
 
@@ -327,6 +329,10 @@ void SubjectInitializer::init_ams_subjects() {
     // Initialize ToolState subjects (tool changer state tracking)
     helix::ToolState::instance().init_subjects();
 
+    // Macro-slot resolution version. Published before any panel is built so
+    // surfaces that gate buttons on macro availability can observe it.
+    StandardMacros::instance().init_subjects();
+
     // Initialize sensor manager subjects BEFORE panels so XML bindings can work
     // Note: Each manager self-registers cleanup with StaticSubjectRegistry in init_subjects()
     helix::FilamentSensorManager::instance().init_subjects();
@@ -338,7 +344,7 @@ void SubjectInitializer::init_ams_subjects() {
     helix::sensors::TemperatureSensorManager::instance().init_subjects();
 }
 
-void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
+void SubjectInitializer::init_panel_subjects(IMoonrakerAPI* api) {
     spdlog::trace("[SubjectInitializer] Initializing panel subjects");
 
     // Initialize widget-owned subjects before any panel XML is created.
@@ -383,8 +389,15 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
     init_global_timelapse_install(api);
     get_global_timelapse_install().init_subjects();
 
+#if !defined(HELIX_PLATFORM_ESP32)
+    // Timelapse videos overlay is excluded from the ESP32 v1 Core+AMS cut: its
+    // TU is not compiled and the accessor is a link stub over uninitialized
+    // storage. init_subjects() is pure-virtual, so calling it here would
+    // dispatch through a null vtable (LoadProhibited). Nothing on ESP navigates
+    // to it, so skip init. (Timelapse settings/install above are real on ESP.)
     init_global_timelapse_videos(api);
     get_global_timelapse_videos().init_subjects();
+#endif
 
     init_global_retraction_settings(api);
     get_global_retraction_settings().init_subjects();
@@ -439,6 +452,13 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
     m_motion_panel = &get_global_motion_panel();
     m_motion_panel->init_subjects();
 
+#if !defined(HELIX_PLATFORM_ESP32)
+    // Bed-mesh and calibration (PID / Z-offset) panels are excluded from the
+    // ESP32 v1 Core+AMS cut: their TUs are not compiled and the accessors are
+    // link stubs over uninitialized storage. init_subjects() is pure-virtual,
+    // so calling it on that storage dispatches through a null vtable
+    // (LoadProhibited). Nothing on ESP navigates to them; skip boot init.
+    // m_bed_mesh_panel stays nullptr — its getter is never called on ESP.
     m_bed_mesh_panel = &get_global_bed_mesh_panel();
     m_bed_mesh_panel->init_subjects();
 
@@ -447,6 +467,7 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
     get_global_pid_cal_panel().init_subjects();
 
     get_global_zoffset_cal_panel().init_subjects();
+#endif
 
     // TemperatureController (owned by SubjectInitializer — stateless wiring, no subjects)
     m_temp_controller = std::make_unique<helix::TemperatureController>(get_printer_state(), api);
@@ -469,7 +490,7 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
     helix::PanelWidgetManager::instance().register_shared_resource<TemperatureService>(
         m_temp_control_panel.get());
     if (api) {
-        helix::PanelWidgetManager::instance().register_shared_resource<MoonrakerAPI>(api);
+        helix::PanelWidgetManager::instance().register_shared_resource<IMoonrakerAPI>(api);
     }
 
     // E-Stop overlay — cleanup self-registered inside init_subjects()
@@ -489,6 +510,7 @@ void SubjectInitializer::init_observers() {
 
     // Print completion notification observer
     m_observers.push_back(helix::init_print_completion_observer());
+    m_observers.push_back(helix::init_preparing_exit_observer());
 
     // Print start navigation observer (auto-navigate to print status)
     m_observers.push_back(helix::init_print_start_navigation_observer());

@@ -54,11 +54,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ccache \
     && rm -rf /var/lib/apt/lists/*
 
+# Hardened download wrapper. A bare `wget -q` gives up on a DNS failure in ~24 ms
+# and on a refused connection in ~4 ms, without retrying either, which is how a
+# valid zlib URL failed the v0.99.111 cc1 release build 52 ms in. See fetch.sh.
+COPY fetch.sh /usr/local/bin/fetch
+
 # Download Bootlin's mips32el musl toolchain (stable-2024.02-1)
 # This is the same toolchain used by pellcorp/grumpyscreen for K1 support
 # Musl-based for clean static linking
 WORKDIR /opt
-RUN wget -q "https://toolchains.bootlin.com/downloads/releases/toolchains/mips32el/tarballs/mips32el--musl--stable-2024.02-1.tar.bz2" && \
+RUN fetch "https://toolchains.bootlin.com/downloads/releases/toolchains/mips32el/tarballs/mips32el--musl--stable-2024.02-1.tar.bz2" && \
     tar xjf "mips32el--musl--stable-2024.02-1.tar.bz2" && \
     rm "mips32el--musl--stable-2024.02-1.tar.bz2" && \
     mv "mips32el--musl--stable-2024.02-1" mips-toolchain
@@ -70,7 +75,7 @@ RUN wget -q "https://toolchains.bootlin.com/downloads/releases/toolchains/mips32
 # toolchain sysroot so cross-compilation finds them automatically.
 WORKDIR /tmp
 RUN export PATH="/opt/mips-toolchain/bin:$PATH" && \
-    wget -q https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    fetch https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
     tar xzf openssl-1.1.1w.tar.gz && \
     cd openssl-1.1.1w && \
     ./Configure linux-mips32 no-shared \
@@ -88,7 +93,7 @@ RUN export PATH="/opt/mips-toolchain/bin:$PATH" && \
 # Bootlin's musl toolchain doesn't include zlib, so we build it from source.
 WORKDIR /tmp
 RUN export PATH="/opt/mips-toolchain/bin:$PATH" && \
-    wget -q https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
+    fetch https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
     tar xzf zlib-1.3.2.tar.gz && \
     cd zlib-1.3.2 && \
     CHOST=mipsel-buildroot-linux-musl ./configure --static \

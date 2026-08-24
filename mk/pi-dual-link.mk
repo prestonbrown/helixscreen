@@ -183,9 +183,23 @@ FBDEV_LDFLAGS := $(filter-out -ldrm -linput -lEGL -lGLESv2 -lgbm,$(LDFLAGS))
 # Fbdev link target
 # =============================================================================
 
+# The `| $(TARGET)` is an ORDER-ONLY prerequisite, and it is here for memory, not
+# correctness: it serialises the two links. Both binaries are independent
+# prerequisites of `all` (mk/rules.mk), and the fbdev object set is the DRM set
+# minus 7 files plus 9 variant rebuilds — so under `make -j` both become ready
+# within seconds of each other and make starts TWO whole-program `ld` processes
+# at once. Each one peaks at multiple GB, which is what OOM-killed the v0.99.110
+# pi release (exit 137, moments after the small splash/watchdog links finished).
+# Ordering them halves peak RSS for free: no extra compilation, since the fbdev
+# link reuses the DRM objects either way.
+#
+# Order-only (after the `|`) rather than a normal prerequisite on purpose — the
+# fbdev binary must not be considered out of date merely because the DRM binary
+# is newer, which would relink it on every incremental build.
 $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FBDEV_CRASH_OBJ) \
                  $(FBDEV_LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(LV_MARKDOWN_OBJS) \
-                 $(QUIRC_OBJS) $(FONT_OBJS) $(TRANS_OBJS) $(DISPLAY_LIB_FBDEV) $(WPA_DEPS)
+                 $(QUIRC_OBJS) $(FONT_OBJS) $(TRANS_OBJS) $(DISPLAY_LIB_FBDEV) $(WPA_DEPS) \
+                 | $(TARGET)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD/fbdev]$(RESET) $@"
 	$(Q)$(CXX) $(CXXFLAGS) \

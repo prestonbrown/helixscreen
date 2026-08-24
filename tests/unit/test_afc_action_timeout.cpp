@@ -20,12 +20,12 @@
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 
-#include "../catch_amalgamated.hpp"
-
 #include <chrono>
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix;
 using namespace std::chrono;

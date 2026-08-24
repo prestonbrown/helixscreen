@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_coordinate_transform.h"
 
 #include <algorithm>
@@ -84,3 +86,5 @@ WallBounds compute_wall_bounds(double z_min_world, double z_max_world, double be
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

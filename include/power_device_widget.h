@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -92,7 +92,7 @@ class PowerDeviceWidget : public PanelWidget {
     void handle_all_devices_toggle();
     void update_all_devices_display(bool any_on);
 
-    MoonrakerAPI* get_api() const;
+    IMoonrakerAPI* get_api() const;
     void update_display(int status);
     void show_device_picker();
     void dismiss_device_picker();

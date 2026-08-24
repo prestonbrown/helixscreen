@@ -10,20 +10,20 @@
 // preset slot. These tests pin the unified behavior; each fails if its part of
 // the unification is reverted.
 
-#include "../helix_test_fixture.h"
+#include "ui_ams_environment_overlay.h"
 
+#include "../helix_test_fixture.h"
 #include "filament_database.h"
 #include "material_settings_manager.h"
 #include "preheat_widget.h"
 #include "preset_materials.h"
 #include "temperature_controller.h"
-#include "ui_ams_environment_overlay.h"
-
-#include "../catch_amalgamated.hpp"
 
 #include <algorithm>
 #include <array>
 #include <string>
+
+#include "../catch_amalgamated.hpp"
 
 using helix::HeaterType;
 using helix::MaterialSettingsManager;
@@ -225,7 +225,8 @@ TEST_CASE_METHOD(HelixTestFixture, "AMS environment fallback uses the unified pr
 // CHAMBER — deliberately NOT material-derived
 // ---------------------------------------------------------------------------
 
-TEST_CASE_METHOD(HelixTestFixture, "Chamber presets are a sane enclosure ladder, not inline literals",
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Chamber presets are a sane enclosure ladder, not inline literals",
                  "[presets][chamber]") {
     PresetSlotGuard guard;
 

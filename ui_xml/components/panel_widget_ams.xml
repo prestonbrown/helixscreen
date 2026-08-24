@@ -6,7 +6,7 @@
         extends="lv_obj" height="#button_height_lg" flex_grow="1" style_pad_all="0" style_pad_left="#space_xxs"
         style_pad_right="#space_xxs" scrollable="false">
     <!-- Hardware gate (ams_slot_count) checked in C++ populate_widgets() -->
-    <ams_mini_status/>
+    <ams_mini_status name="ams_mini_status_widget"/>
     <text_tiny text="Multi-Filament"
                style_text_color="#text_muted" style_text_align="center" align="bottom_mid" y="-#space_md">
       <bind_flag_if_eq subject="show_widget_labels" flag="hidden" ref_value="0"/>

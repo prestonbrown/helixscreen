@@ -16,6 +16,7 @@
 #include "async_lifetime_guard.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 /**
@@ -32,7 +33,7 @@
  */
 class AmsOverviewPanel : public PanelBase {
   public:
-    AmsOverviewPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    AmsOverviewPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
     ~AmsOverviewPanel() override = default;
 
     // === PanelBase Interface ===
@@ -95,6 +96,11 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         int unit_index = -1;
+        /// Untruncated display name. name_label uses long_mode="dots", and LVGL
+        /// rewrites that label's own buffer with the ellipsized text - so
+        /// lv_label_get_text() cannot answer "how wide does this name want to
+        /// be?", which is exactly what the compact rule has to measure.
+        std::string display_name;
     };
 
     std::vector<UnitCard> unit_cards_;
@@ -131,6 +137,15 @@ class AmsOverviewPanel : public PanelBase {
     void update_unit_card(UnitCard& card, const AmsUnit& unit);
     void create_mini_bars(UnitCard& card, const AmsUnit& unit);
     void refresh_system_path(const AmsSystemInfo& info, int current_slot);
+    /// Re-sample every unit card's centre and push it to the path canvas. Must run
+    /// on every card-row scroll, not just on refresh - see on_cards_row_scrolled().
+    /// @param relayout flush pending layout first; false on the scroll path, where
+    ///                 coordinates are already current and a relayout would re-enter
+    ///                 LVGL's layout pass every scroll step.
+    void push_unit_anchors(bool relayout);
+    static void on_cards_row_scrolled(lv_event_t* e);
+    /// Publish ams_cards_compact from the measured narrowest card width.
+    void publish_cards_compact(int32_t narrowest_card_w);
 
     // === Detail View Helpers ===
     void refresh_detail_if_needed(); ///< Lightweight refresh — only rebuilds on structural change

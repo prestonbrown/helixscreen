@@ -15,7 +15,7 @@
     <!-- Panel Title (plain heading, not carded — this is the top-level menu) -->
     <setting_section_header title="SETTINGS" title_tag="SETTINGS" icon="settings"/>
     <!-- Category navigation rows grouped in one card -->
-    <setting_group>
+    <setting_group name="group_settings">
       <!-- ================================================================== -->
       <!-- DISPLAY & SOUND -->
       <!-- ================================================================== -->

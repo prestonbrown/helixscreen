@@ -30,6 +30,10 @@ namespace wizard {
 // Printer identification
 constexpr const char* PRINTER_NAME = "printer_name";
 constexpr const char* PRINTER_TYPE = "type";
+// Which saved printer type the one-time saved-vs-detected mismatch warning
+// (Application::maybe_warn_type_mismatch) was last shown for. Changing the
+// saved type re-arms the warning once.
+constexpr const char* TYPE_MISMATCH_SHOWN_FOR = "type_mismatch_shown_for";
 
 // Bed hardware
 constexpr const char* BED_HEATER = "heaters/bed";

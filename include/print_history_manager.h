@@ -12,10 +12,11 @@
 #include <unordered_map>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
-class MoonrakerClient;
-}
+class IMoonrakerClient;
+class PrintHistoryManagerTestAccess;
+} // namespace helix
 
 /**
  * @brief Per-filename aggregated print history stats
@@ -81,10 +82,10 @@ class PrintHistoryManager {
     /**
      * @brief Construct PrintHistoryManager with API and client references
      *
-     * @param api MoonrakerAPI for fetching history
-     * @param client helix::MoonrakerClient for notification subscription
+     * @param api IMoonrakerAPI for fetching history
+     * @param client helix::IMoonrakerClient for notification subscription
      */
-    PrintHistoryManager(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    PrintHistoryManager(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~PrintHistoryManager();
 
@@ -103,6 +104,26 @@ class PrintHistoryManager {
     [[nodiscard]] const std::vector<PrintHistoryJob>& get_jobs() const {
         return cached_jobs_;
     }
+
+    /**
+     * @brief Newest cached job whose gcode file is still on the printer
+     *
+     * Moonraker recomputes each job's `exists` flag per history request
+     * (`history.py` `_prep_requested_job` -> `file_manager.check_file_exists`),
+     * so the flag is accurate as of the last completed fetch. Every consumer
+     * that means "the last print the user can still act on" - reprint
+     * availability, the idle tile's filename/when/meta, the idle thumbnail key
+     * and its freshness stamp - must select through this rather than taking
+     * `get_jobs().front()`, which may name a file that was deleted.
+     *
+     * Cached jobs keep Moonraker's newest-first order, so the first match is
+     * the newest one.
+     *
+     * @return Pointer into the cached jobs vector, or nullptr when history is
+     *         not loaded or every job's file is gone. Invalidated by the next
+     *         fetch completion.
+     */
+    [[nodiscard]] const PrintHistoryJob* get_newest_existing_job() const;
 
     /**
      * @brief Get per-filename stats map (for PrintSelectPanel)
@@ -204,16 +225,31 @@ class PrintHistoryManager {
     void notify_observers();
 
     /**
-     * @brief Subscribe to Moonraker's notify_history_changed
+     * @brief Subscribe to the Moonraker notifications that stale the cache
      *
-     * Called in constructor. When notification fires, invalidates
-     * cache and triggers re-fetch.
+     * Called in constructor. Two of them:
+     * - `notify_history_changed` - a job was added or history was cleared.
+     * - `notify_filelist_changed` - filtered to the actions that can orphan a
+     *   job (see filelist_action_affects_history); a delete or move flips a
+     *   cached job's `exists` flag and Moonraker never reports that through
+     *   the history notification.
+     *
+     * Both invalidate the cache and re-fetch, on the main thread.
      */
     void subscribe_to_notifications();
 
+    /**
+     * @brief Whether a notify_filelist_changed action can orphan a history job
+     *
+     * Uploads, metadata scans and directory listings fire the same
+     * notification and cannot change any job's `exists` flag, so they must not
+     * trigger a history round-trip.
+     */
+    [[nodiscard]] static bool filelist_action_affects_history(const std::string& action);
+
     // Dependencies
-    MoonrakerAPI* api_;
-    helix::MoonrakerClient* client_;
+    IMoonrakerAPI* api_;
+    helix::IMoonrakerClient* client_;
 
     // Cached data
     std::vector<PrintHistoryJob> cached_jobs_;
@@ -228,8 +264,15 @@ class PrintHistoryManager {
     // main-thread defer) to survive UpdateQueue freeze-drops — otherwise a dropped
     // fetch_success strands the guard and blocks every subsequent fetch.
     std::atomic<bool> is_fetching_{false};
+    // Set when fetch() is dropped because one is already in flight. The
+    // in-flight response predates whatever prompted the dropped call, so the
+    // completion handler re-issues exactly one more fetch. Atomic for the same
+    // reason as is_fetching_: written from the WebSocket thread's parse side.
+    std::atomic<bool> refetch_pending_{false};
 
     /// Guard for async callback safety
     /// Prevents use-after-free when callbacks fire after destruction
     helix::AsyncLifetimeGuard lifetime_;
+
+    friend class helix::PrintHistoryManagerTestAccess;
 };

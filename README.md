@@ -133,12 +133,15 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 | Elegoo Centauri Carbon | armv7-a | Tested² |
 | x86 Mini PC (Debian) | x86_64 | Tested |
 | macOS / Linux desktop | x86_64 / ARM64 | Development / CI |
+| Android phone / tablet | arm64 / x86_64 | Experimental⁴ |
 
 ¹ QIDI models with Linux framebuffer displays (Q2, Max 4) only. Stock firmware runs standard Moonraker and works directly; community firmware like [FreeDi](https://github.com/Phil1988/FreeDi), [53Aries/Q2-Firmware](https://github.com/53Aries/Q2-Firmware), or [FreeQIDI](https://github.com/Phil1988/FreeQIDI) is optional. Older models (X-Smart 3, X-Plus 3, X-Max 3, Q1 Pro, Plus 4) ship with QIDI's MKS PI smart-panel (a TJC serial HMI that *is* the UI; TJC is the Chinese OEM that Nextion licenses globally) and are **not compatible for on-device install** without a screen replacement — see [QIDI_SUPPORT.md → Display Compatibility](docs/devel/printers/QIDI_SUPPORT.md#display-compatibility) for why. Remote-control mode works on all six QIDI models regardless.
 
 ² Elegoo Centauri Carbon requires the community [OpenCentauri COSMOS](https://github.com/OpenCentauri/cosmos) firmware ([docs](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/); stock Elegoo firmware has no SSH, Klipper, or Moonraker). Ships with factory white-balance calibration for the 4.3" panel.
 
 ³ Snapmaker U1 needs SSH access. Stock firmware (1.2+) provides it via the **Root access** option in printer settings; the community [PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware) enables SSH by default and is the easiest path. Tested on PAXX 1.3.x/1.4.x; stock-firmware support is newly added. Reinstall HelixScreen after any firmware update — it resets system files and the stock screen returns until you reinstall.
+
+⁴ Android is a **remote** client only. It monitors and controls a printer over your network and does not replace a printer's own panel. Needs Android 9.0 or newer, and runs in landscape. Not on Google Play yet, so you install the APK yourself from a [GitHub release](https://github.com/prestonbrown/helixscreen/releases/latest). See [Android app](docs/user/INSTALL.md#android-app-experimental).
 
 ## Installation
 
@@ -158,18 +161,24 @@ curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/script
 
 To install or roll back to a specific release (e.g. a last-known-good version), pass `--version` with the tag:
 ```bash
-curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh -s -- --version v0.99.106
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh -s -- --version v0.99.111
 ```
 
-Add `--clean` to wipe HelixScreen's settings and start fresh (it asks for confirmation first; your Klipper/Moonraker config and G-code are untouched). Combine the two to reinstall a specific version with default settings: `--clean --version v0.99.106`.
+Add `--clean` to wipe HelixScreen's settings and start fresh (it asks for confirmation first; your Klipper/Moonraker config and G-code are untouched). Combine the two to reinstall a specific version with default settings: `--clean --version v0.99.111`.
 
 Also available through [KIAUH](https://github.com/dw-0/kiauh) as an extension.
 
 **Flashforge AD5M/Pro:** We provide a [ready-made firmware image](https://github.com/prestonbrown/ff5m) (Forge-X fork with HelixScreen pre-configured) — just flash from a USB drive. Or install manually on an existing Forge-X/Klipper Mod setup.
 
+**Android (experimental):** There is an Android build for watching and controlling a printer from a phone or tablet. It is not on Google Play yet, so download the APK from the [latest release](https://github.com/prestonbrown/helixscreen/releases/latest) and install it. `helixscreen-android-arm64-v<VERSION>.apk` covers essentially any modern phone or tablet. Nothing gets installed on the printer; the app just needs to reach Moonraker on your network. See [Android app](docs/user/INSTALL.md#android-app-experimental).
+
 See the [Installation Guide](docs/user/INSTALL.md) for detailed instructions, display configuration, and troubleshooting.
 
 ## Development
+
+**Want to contribute? Start at [CONTRIBUTING.md](CONTRIBUTING.md)** — it routes you by what you want to do. New contributors follow a marked path: onboarding (environment + build + a 15-minute mental model) → an annotated first contribution → the per-subsystem architecture guide.
+
+The short version, if you just want to see it run:
 
 ```bash
 # Check/install dependencies
@@ -178,24 +187,19 @@ make check-deps && make install-deps
 # Build
 make -j
 
-# Run with mock printer (no hardware needed)
-./build/bin/helix-screen --test -vv
-
-# Run with real printer
-./build/bin/helix-screen
-
-# XML hot reload is ON by default for native builds (edit XML, save, see changes live)
+# Run with mock printer (no hardware needed) — 'S' takes a screenshot;
+# -v (INFO), -vv (DEBUG), -vvv (TRACE) for logging
 ./build/bin/helix-screen --test -vv
 
 # Run tests
 make test-run
 ```
 
-**Controls:** Click navigation icons, press 'S' for screenshot, use `-v` (INFO), `-vv` (DEBUG), or `-vvv` (TRACE) for logging.
+XML layouts hot-reload by default on native builds — edit `ui_xml/*.xml`, save, watch the running UI update live.
 
 **Test suite:** 5,000+ test cases across 600+ test files covering printer state, UI components, XML parsing, multi-material, and more.
 
-See [docs/devel/DEVELOPMENT.md](docs/devel/DEVELOPMENT.md) for detailed setup, cross-compilation, and contributing guidelines.
+For the daily-workflow reference (run flags, logging, config, IDE setup), see [docs/devel/DEVELOPMENT.md](docs/devel/DEVELOPMENT.md).
 
 ## FAQ
 
@@ -246,12 +250,12 @@ See [docs/user/TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md) for more soluti
 ### Developer Guides
 | Guide | Description |
 |-------|-------------|
-| [Development](docs/devel/DEVELOPMENT.md) | Build system, workflow, contributing |
-| [Architecture](docs/devel/ARCHITECTURE.md) | System design, patterns |
+| [Development](docs/devel/DEVELOPMENT.md) | Daily workflow: run flags, logging, config, IDE setup |
+| [Architecture](docs/devel/ARCHITECTURE.md) | Whole-app model + guide to the 15 architecture chapters |
 | [LVGL9 XML Guide](docs/devel/LVGL9_XML_GUIDE.md) | XML syntax reference |
 | [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md) | Breakpoints, tokens, colors, widgets |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Roadmap](docs/devel/ROADMAP.md) | Feature timeline |
+| [Roadmap](https://github.com/prestonbrown/helixscreen/issues) | Feature timeline (labeled issues) |
 
 ## Community
 

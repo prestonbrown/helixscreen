@@ -11,7 +11,7 @@
  * 3. Run resonance sweeps on belt paths A and B
  * 4. Compute PSD, find peaks, calculate similarity
  *
- * This is a state machine that coordinates MoonrakerAPI calls and
+ * This is a state machine that coordinates IMoonrakerAPI calls and
  * provides progress/error callbacks to the UI layer.
  *
  * @see InputShaperCalibrator for the equivalent input shaper workflow
@@ -24,7 +24,7 @@
 #include <string>
 
 // Forward declaration
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::calibration {
 
@@ -52,9 +52,9 @@ class BeltTensionCalibrator {
     /**
      * @brief Constructor with API dependency injection
      *
-     * @param api Non-owning pointer to MoonrakerAPI instance
+     * @param api Non-owning pointer to IMoonrakerAPI instance
      */
-    explicit BeltTensionCalibrator(MoonrakerAPI* api);
+    explicit BeltTensionCalibrator(IMoonrakerAPI* api);
 
     ~BeltTensionCalibrator();
 
@@ -150,7 +150,7 @@ class BeltTensionCalibrator {
     static std::string belt_path_to_name(BeltPath path);
 
     std::atomic<State> state_{State::IDLE};
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     BeltTensionResult results_;
     BeltTensionHardware hardware_;
 

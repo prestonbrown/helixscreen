@@ -46,6 +46,10 @@ class WifiBackendNetworkManager : public WifiBackend {
     WifiBackendNetworkManager();
     ~WifiBackendNetworkManager();
 
+    bool is_network_manager() const override {
+        return true;
+    }
+
     // ========================================================================
     // WifiBackend Interface Implementation
     // ========================================================================

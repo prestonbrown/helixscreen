@@ -13,7 +13,7 @@
 #include <memory>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -68,7 +68,7 @@ class FavoriteMacroWidget : public PanelWidget {
 
     std::unique_ptr<FavoriteMacroConfigModal> config_modal_;
 
-    MoonrakerAPI* get_api() const;
+    IMoonrakerAPI* get_api() const;
 
     void update_display();
     void save_config();

@@ -17,7 +17,7 @@
  * @pattern Overlay (two-phase init: init_subjects -> create -> callbacks)
  * @threading Main thread only
  *
- * @see MoonrakerAPI::set_machine_limits for gcode generation
+ * @see IMoonrakerAPI::set_machine_limits for gcode generation
  * @see MachineLimits struct in calibration_types.h
  */
 
@@ -29,7 +29,7 @@
 #include "subject_managed_panel.h"
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::settings {
 
@@ -76,9 +76,9 @@ class MachineLimitsOverlay : public OverlayBase {
     /**
      * @brief Set the API for querying/setting limits
      *
-     * @param api Pointer to MoonrakerAPI (may be nullptr)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     //
     // === Initialization ===
@@ -257,7 +257,7 @@ class MachineLimitsOverlay : public OverlayBase {
     // === Dependencies ===
     //
 
-    MoonrakerAPI* api_{nullptr};
+    IMoonrakerAPI* api_{nullptr};
 
     //
     // === State Tracking ===
@@ -314,8 +314,8 @@ MachineLimitsOverlay& get_machine_limits_overlay();
  *
  * Convenience function to initialize and configure the overlay.
  *
- * @param api Pointer to MoonrakerAPI
+ * @param api Pointer to IMoonrakerAPI
  */
-void init_machine_limits_overlay(MoonrakerAPI* api);
+void init_machine_limits_overlay(IMoonrakerAPI* api);
 
 } // namespace helix::settings

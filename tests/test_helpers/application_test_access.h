@@ -68,4 +68,19 @@ class ApplicationTestAccess {
     static void cancel_add_printer_wizard(Application& app) {
         app.cancel_add_printer_wizard();
     }
+
+    /// Android pause/resume hooks. Production reaches these only from inside
+    /// run()'s main loop, which is unreachable in a unit test, so the only way
+    /// to pin the pause/resume contract is to call them directly.
+    static void on_enter_background(Application& app) {
+        app.on_enter_background();
+    }
+
+    static void on_enter_foreground(Application& app) {
+        app.on_enter_foreground();
+    }
+
+    static bool backgrounded(const Application& app) {
+        return app.m_backgrounded;
+    }
 };

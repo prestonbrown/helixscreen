@@ -625,8 +625,7 @@ TEST_CASE("Console: find_entry_by_id returns null for an unknown id", "[ui][tap_
     REQUIRE(ConsolePanel::find_entry_by_id(entries, 9999) == nullptr);
 }
 
-TEST_CASE("Console: find_entry_by_id returns null once the entry is pruned",
-          "[ui][tap_to_paste]") {
+TEST_CASE("Console: find_entry_by_id returns null once the entry is pruned", "[ui][tap_to_paste]") {
     std::deque<GcodeEntry> entries;
     uint64_t next_id = 1;
 

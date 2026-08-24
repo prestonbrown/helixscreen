@@ -40,7 +40,7 @@ TEST_CASE("SnapshotQrScanner destructor stops cleanly", "[qr][slow]") {
     // deterministically (instant ECONNREFUSED) on every host. The previous
     // RFC 5737 TEST-NET address (192.0.2.1) is non-routable, but networks that
     // black-hole it (drop the SYN rather than reject it) make the poll thread's
-    // connect block for the full kHttpTimeoutSec — the destructor join then
+    // connect block for the full HTTP_TIMEOUT_SEC — the destructor join then
     // stalls up to 10s. CI happens to reject it quickly; a closed localhost port
     // guarantees the fast path everywhere. The test still exercises what matters:
     // the scanner starts, reports running, and the destructor joins the poll

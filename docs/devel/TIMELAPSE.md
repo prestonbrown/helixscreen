@@ -243,4 +243,4 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 | `tests/unit/test_timelapse_videos.cpp` | Playback argument and localhost detection tests |
 | `include/ui_format_utils.h` | `format_short_date()` for smart date display |
 | `src/ui/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |
-| `docs/archive/plans/2026-02-15-timelapse-feature.md` | Archived design doc with future phases |
+| Archived timelapse design doc (no longer in-tree) | Future phases |

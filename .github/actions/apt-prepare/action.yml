@@ -1,0 +1,36 @@
+name: Prepare apt for a reliable install
+description: |
+  Points apt at archive.ubuntu.com and gives it its own timeouts, so a wedged
+  mirror fails fast instead of hanging the job.
+
+  Background: GitHub's Ubuntu runners default to azure.archive.ubuntu.com,
+  which intermittently stops answering. apt then sits in `Ign:` retry loops for
+  many minutes. The install steps wrap apt in nick-fields/retry, but that
+  cannot rescue this case: apt runs under sudo, so when the timeout fires the
+  action's `process.kill` gets EPERM and the whole step dies with
+  `Error: kill EPERM` rather than retrying. Raising timeout_minutes only moves
+  the failure later -- observed hitting the ceiling at both 10 and 20 minutes.
+
+  So prevent the hang instead of bounding it: drop the azure mirror, and cap
+  apt's own connection attempts so a bad mirror surfaces in seconds.
+
+runs:
+  using: composite
+  steps:
+    - name: Point apt away from the azure mirror
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Both layouts: 22.04 uses sources.list, deb822 lands in .sources.
+        for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+                 /etc/apt/sources.list.d/*.list; do
+          [ -f "$f" ] || continue
+          sudo sed -i 's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f"
+        done
+        sudo tee /etc/apt/apt.conf.d/99-helix-retries >/dev/null <<'CONF'
+        Acquire::Retries "3";
+        Acquire::http::Timeout "15";
+        Acquire::https::Timeout "15";
+        CONF
+        echo "apt mirrors after rewrite:"
+        grep -rhoE 'https?://[a-z0-9.]+/ubuntu' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort -u || true

@@ -175,14 +175,23 @@ These two streams do **not** overlap. spdlog never writes to the launcher file (
 
 ## spdlog Sinks & Auto-Detection
 
-`Application::init_logging()` builds a spdlog logger with one or more sinks. Implementation: `src/system/logging_init.cpp`.
+Logging is brought up in **two phases**, both implemented in `src/system/logging_init.cpp`:
+
+1. `helix::logging::init_early()`, called at the top of `Application::run()` before any
+   startup phase, so nothing can log into a void.
+2. `helix::logging::init(config)`, called from `Application::init_logging()` in **Phase 3**,
+   once CLI args (Phase 1) and `settings.json` (Phase 2) have been read. This builds the
+   full sink set for the resolved target.
+
+Everything below the "Target Resolution" heading describes phase 2. Phase 1 and the handoff
+between them are in "Ring-Buffer Sink Lifecycle".
 
 ### Target Resolution
 
 The runtime target is set by precedence (highest → lowest):
 
 1. `--log-dest=<dest>` CLI flag (passed through by `helix-launcher.sh`)
-2. `HELIX_LOG_DEST` env var (read by launcher)
+2. `HELIX_LOG_DEST` env var — read **twice, independently**: `helix-launcher.sh` translates it into `--log-dest=`, and `Application::init_logging()` also reads it directly via `helix::logging::log_env_override()`. The direct read is what makes the variable work under a systemd unit's `Environment=`, a hand-run binary, or a third-party init script that execs helix-screen without our launcher (#1249). An unrecognized value warns and is ignored — never fatal, because a typo in `helixscreen.env` must not crash-loop an appliance.
 3. `/log_dest` in `settings.json`
 4. `LogTarget::Auto` (default) → resolved by `detect_best_target()`:
    - **`HELIX_PLATFORM_ANDROID`** → `Android` (`__android_log_print`)
@@ -213,40 +222,92 @@ A console/file line now looks like:
 [14:32:07.918] [debug] [140351827234560] [PrinterState] Initialized 6 fans (version 1)
 ```
 
+### Ring-Buffer Sink Lifecycle
+
+The in-memory ring (`MonotonicRingSink`, process-global `g_ring_sink`) is what the debug
+bundle's `log_tail` and `helix-screen ctl log` read. It is installed by **`init_early()`**,
+and `init()` **adopts that same instance** rather than constructing a new one.
+
+That ordering is the whole point. `Application::run()` does Phase 2 `init_config()` before
+Phase 3 `init_logging()`, so the entire config diagnostic trail - corrupt `settings.json`,
+restore-from-backup, parse failures, migration output - is emitted while only the early
+logger exists. With the ring created in `init()`, every one of those lines was already gone
+by the time a ring existed, and no bundle could ever show them. Bundle XGVDYEB5 is the case:
+a user-visible "settings were corrupted, restored from backup" toast, and not one line of
+the config trail anywhere in a 20,000-line `log_tail`.
+
+| | `init_early()` | `init(config)` |
+|---|---|---|
+| Console sink level | Pinned at WARN (`EARLY_CONSOLE_LEVEL`) | `config.level` |
+| Ring sink level | `debug`, or WARN when `HELIX_BUNDLE_LOG_DEBUG=0` | `debug`, or `config.level` when `HELIX_BUNDLE_LOG_DEBUG=0` |
+| Logger floor | The more verbose of the two above | Same rule |
+| Ring instance | Created | Adopted if one exists, else created |
+
+Three things fall out of this that are easy to get wrong:
+
+- **The early console sink must pin its level explicitly.** The logger floor now drops to
+  debug so the ring can capture it, and spdlog gates at the logger *before* any sink sees a
+  message - a sink's own default level is trace. Without the explicit pin the early console
+  would start echoing debug to stdout, which a daemonized launch redirects straight into the
+  journal or the log file. Stdout volume is unchanged from before the ring moved.
+- **`HELIX_BUNDLE_LOG_DEBUG=0` still works, with one wrinkle.** Before `init()` there is no
+  configured level to fall back to, so the early ring matches the console at WARN. That
+  leaves the early phase behaving exactly as it did when no early ring existed at all.
+- **Adoption is one-shot.** The flag is cleared on adoption, so a *later* `init()` rebuilds
+  the ring exactly as it always did. Production calls `init()` once
+  (`Application::init_logging`, `helix_watchdog`), but tests re-initialize the logger
+  constantly and rely on each `init()` handing them a clean buffer. The watchdog build has
+  no early phase at all, so `init()` creates the ring there.
+
+Adopting rather than replacing also keeps `set_runtime_level()`'s identity check against
+`g_ring_sink` valid, keeps `tail_ring_buffer()`'s `shared_ptr` copy pointing at live data
+across the handoff, and keeps the sink's clock-step detector's memory continuous.
+
+Capacity (`HELIX_LOG_RING_LINES`, else scaled from total RAM) is resolved in `init_early()`.
+That is safe this early: `resolve_ring_capacity()` reads only the env var and
+`/proc/meminfo`, neither of which needs Config. The cost is one extra
+`PlatformCapabilities::detect()` at startup, not extra memory - there is still exactly one
+ring.
+
 ### Console Sink (Stdout) — When It's Attached
 
-The console sink is **opt-in by detection**. Logic in `logging_init.cpp::init()`:
+The console sink is **opt-in by detection**. The whole decision is the pure function `helix::logging::should_add_console(target, enable_console, force_console, test_mode, stdout_kind)` (`logging_init.cpp`), which `init()` calls with `classify_stdout()` — the only part that touches the real fd. `classify_stdout()` distinguishes **Tty / Pipe / File / Socket / Other**, which is more than `isatty()` can tell you and is what the gate below turns on.
 
 | Resolved target | Console sink? |
 |---|---|
 | `Console` | Always — it's the only sink |
-| `Android` | Never — stdout is invisible to logcat |
-| `Syslog` / `Journal` / `File` | **Only when `isatty(STDOUT_FILENO)`** |
+| `Android` | Never — stdout is invisible to logcat, and `test_mode` does not override this |
+| `Syslog` / `Journal` / `File` | `test_mode` (`--test`) → **any** stdout kind. Otherwise: a **Tty** always; a **Pipe** only with `force_console`; a regular **File**, **Socket**, or **Other** → never |
 
-The TTY check means:
-- Dev workstation running `./build/bin/helix-screen --test -vv` from a shell → console sink on, colored output to terminal.
+`enable_console = false` vetoes every row.
+
+`force_console` is set by an explicit `-v`/`--log-level`, or by `HELIX_LOG_LEVEL` (which the launcher also translates into `--log-level=`, so it has always reached this flag on a launcher-started device).
+
+What that yields in practice:
+- `./build/bin/helix-screen --test -vv` from a shell → console sink on, colored output to terminal.
 - `ssh -t pi 'helix-screen ...'` → tty allocated → console sink on.
-- SysV daemon launch where stdout is redirected to a file → not a tty → console sink **off**.
-- systemd daemon launch where stdout is captured by journald → not a tty → console sink off (journald already has the structured stream via the journal sink).
+- `helix-screen -vv | tee run.log` → pipe + `force_console` → console sink **on**. A human is watching through `tee`; discarding the output there was #1105.
+- `helix-screen --test > out.log` → regular file, but `test_mode` → console sink **on**.
+- `helix-screen -vv > out.log` **without** `--test` → regular file, no test mode → console sink **off**. A plain redirect is indistinguishable from the daemon redirect, so this is an accepted tradeoff; use `| tee` instead.
+- SysV daemon launch where stdout is redirected to a file → console sink **off**, even though the launcher passed `--log-level`.
+- systemd daemon launch where stdout is a journald socket → console sink off (journald already has the structured stream via the journal sink).
 
-This prevents the "double-log" mode that caused the Snapmaker U1 print failure where spdlog at trace wrote ~35 lines/sec to stdout, the init script captured stdout to a tmpfs file, and 498 MB filled `/tmp`.
+The file/socket exclusions prevent the "double-log" mode that caused the Snapmaker U1 print failure where spdlog at trace wrote ~35 lines/sec to stdout, the init script captured stdout to a tmpfs file, and 498 MB filled `/tmp`. They are also why the ZMOD AD5X launcher redirect (`>> /opt/config/mod_data/log/helixscreen.log 2>&1`) contains no app log: stdout there is a regular file.
 
 ### Reading `--test` Logs When stdout Isn't a TTY
 
-The same `isatty(STDOUT_FILENO)` gate bites dev runs too: launch `./build/bin/helix-screen --test` with stdout **redirected or piped** (background run, `> log.txt`, `| grep`, a non-interactive agent shell) and there's no TTY, so the **console sink is not attached** — nothing prints to the pipe. The logs still land in the resolved system sink (syslog/journal on Linux dev boxes), not on stdout.
+`--test` sets `LogConfig::test_mode`, and `should_add_console()` attaches the console sink for **any** stdout kind under test mode — pipe, regular file, socket, background run, non-interactive agent shell. So `./build/bin/helix-screen --test -vv > run.log 2>&1 &` captures the logs in `run.log`, and `| tee` / `| grep` work too. That is safe because `--test` never runs in production: no systemd unit, init script, procd shim, or launcher passes it, so test mode cannot reach a daemonized double-log path.
 
-Read them from syslog instead:
+Without `--test` the narrower gate applies (see the table above): a pipe needs `-v`/`--log-level` to force the sink, and a plain `> file` redirect gets nothing. Read the resolved system sink instead:
 
 ```bash
-HELIX_MOCK_PRINTER=ad5m ./build/bin/helix-screen --test -v &   # boots, runs headless
+HELIX_MOCK_PRINTER=ad5m ./build/bin/helix-screen -v &   # note: no --test
 sleep 6 && kill %1
 journalctl --since "1 min ago" | grep helix          # all lines
 journalctl --since "1 min ago" | grep '\[PrinterDetector\]'   # one subsystem
 ```
 
-Run it from an interactive shell (or `ssh -t`) and the console sink **is** attached — output goes straight to the terminal as usual.
-
-Don't reach for `--log-dest file` to work around this: it writes `/var/log/helix-screen.log`, which is **not writable by a non-root user**, so the run fails. For redirected/background dev runs, syslog (`journalctl`) is the way.
+`--log-dest=file` is a workable dev escape hatch too. With no `--log-file`, `resolve_log_file_path()` probes `/var/log` for writability and falls back to `$XDG_DATA_HOME/helix-screen/helix.log` when it is not writable, so a non-root run lands in `~/.local/share/helix-screen/helix.log` rather than failing. An explicit `--log-file` at an unopenable path is not fatal either: the sink construction is caught, and the platform's normal system sink takes over with a warning.
 
 Verbosity still applies (`-v`=info, `-vv`=debug, `-vvv`=trace). Detection lines such as `[PrinterState] Printer type set to: '…'` are **info-level**, so `-v` is enough to see them.
 
@@ -257,14 +318,22 @@ Verbosity still applies (`-v`=info, `-vv`=debug, `-vvv`=trace). Detection lines 
 | Raspberry Pi (systemd) | Journal | systemd journal | `journalctl -u helixscreen -f` |
 | x86/x86_64 (systemd) | Journal | systemd journal | `journalctl -u helixscreen -f` |
 | Snapmaker U1 (Debian Trixie, SysV) | Syslog | `/var/log/messages` (rsyslogd persists on overlay) | `grep helix-screen /var/log/messages` or `journalctl -t helix-screen` if journald-only |
-| AD5M Forge-X/KMod (BusyBox SysV) | Syslog | `/var/log/messages` (BusyBox syslogd) | `grep helix-screen /var/log/messages` |
-| AD5X (ZMOD MIPS, BusyBox) | Syslog | `/var/log/messages` | `grep helix-screen /var/log/messages` |
-| Creality K1/K1C (BusyBox, in-memory syslog) | Syslog | in-memory ring buffer | `logread \| grep helix-screen` |
-| Creality K2 (BusyBox procd) | Syslog | in-memory ring buffer | `logread \| grep helix-screen` |
-| Elegoo CC1 / COSMOS (BusyBox) | Syslog | in-memory ring buffer | `logread \| grep helix-screen` |
+| AD5M Forge-X/KMod (BusyBox SysV) | **File** (hook) | `/data/helixscreen/logs/helix.log` | `tail -f /data/helixscreen/logs/helix.log` |
+| AD5M ZMOD / AD5X (ZMOD MIPS, BusyBox) | **File** (hook) | `/opt/config/mod_data/log/helix.log` — under `/opt/config` so ZMOD's `TAR_CONFIG` archives it (#1249) | `tail -f /opt/config/mod_data/log/helix.log` |
+| Creality K1/K1C (BusyBox, in-memory syslog) | **File** (hook) | `/usr/data/helixscreen/logs/helix.log` | `tail -f /usr/data/helixscreen/logs/helix.log` |
+| Creality K2 (BusyBox procd) | **File** (hook) | `/mnt/UDISK/helixscreen/logs/helix.log` | `tail -f /mnt/UDISK/helixscreen/logs/helix.log` |
+| Elegoo CC1 / COSMOS (BusyBox) | **File** (hook) | `/user-resource/helixscreen/logs/helix.log` | `tail -f /user-resource/helixscreen/logs/helix.log` |
 | SonicPad (Debian) | Syslog | `/var/log/syslog` | `grep helix-screen /var/log/syslog` |
 | Android | Android | logcat | `adb logcat -s HelixScreen` |
 | Dev workstation (macOS / interactive Linux) | Console | stdout in terminal | visible directly |
+
+"**File** (hook)" means `platform_pre_start` in that platform's
+`assets/config/platform/hooks-*.sh` exports `HELIX_LOG_DEST=file` +
+`HELIX_LOG_FILE` (plus a 1–2 MiB × 3 rotation cap). Without the hook these
+targets would all fall back to `detect_best_target()` → `Syslog`, which on the
+BusyBox boxes is an in-memory ring that dies with the reboot you are trying to
+diagnose. `logread | grep helix-screen` still shows anything logged before the
+hook takes effect, and remains the right command on Snapmaker U1 / SonicPad.
 
 ### Debugging the C / libhv Layer On-Device
 
@@ -308,7 +377,7 @@ compiled in," not "not reached." See BUILD_SYSTEM.md § Patch Gotchas.
 | AD5M Forge-X/KMod | `/opt/helixscreen/logs/launcher.log` (`/var/log` is tmpfs on BusyBox) |
 | K1 / K1C | `/usr/data/helixscreen/logs/launcher.log` |
 | K2 | `/usr/data/helixscreen/logs/launcher.log` |
-| AD5X (ZMOD) | `/usr/data/helixscreen/logs/launcher.log` (ghzserg's S80 also redirects to `/opt/config/mod_data/log/helixscreen.log`) |
+| AD5X (ZMOD) | `/opt/config/mod_data/log/helixscreen.log` — ghzserg ships their own fork of the init script with `LOGFILE` hardcoded, so the `/var/log` probe above never runs. `INSTALL_DIR` is `/srv/helixscreen`, not `/usr/data/helixscreen`. The **app** log is a separate file, `/opt/config/mod_data/log/helix.log` (see below) |
 | CC1 / COSMOS | `/user-resource/helixscreen/logs/launcher.log` |
 
 Size is capped at 5 MB at every `start` (the init script truncates if larger). This is belt-and-suspenders; the file shouldn't grow that big now that the console sink is gated off in daemon mode.
@@ -342,6 +411,10 @@ HELIX_LOG_FILE=        # path; only used when HELIX_LOG_DEST=file
 
 Precedence: `--log-*` CLI flag > `HELIX_LOG_*` env > `/log_*` in `settings.json` > defaults (production: `warn`; test mode: `debug`).
 
+The env tier is enforced in C++ (`Application::init_logging()` → `helix::logging::log_env_override()` / `resolve_log_setting()`), not just by the launcher's flag translation, so it holds however the binary was started. Validation is shared with the CLI parser (`is_valid_log_target()` / `is_valid_log_level()` in `logging_init.h`) so the accepted sets cannot drift, but the two disagree on what to do with a bad value on purpose: a bad **flag** is fatal (the user is at a prompt and can retry), a bad **env value** logs a warning and falls through to the next tier (a typo in `helixscreen.env` must not turn every boot of an appliance into a crash-loop).
+
+Note the platform hooks are the real source of `HELIX_LOG_DEST` / `HELIX_LOG_FILE` on most embedded targets — six of the seven `assets/config/platform/hooks-*.sh` export them from `platform_pre_start`. `helix-launcher.sh` therefore resolves `LOG_DEST`/`LOG_FILE`/`LOG_LEVEL`/`DEBUG_MODE` **after** sourcing the hooks; resolving before them read unset variables (#1249).
+
 ### Runtime (in-app)
 
 The Settings → System → Log Level dropdown calls `helix::logging::set_runtime_level()`, which is `spdlog::set_level()` globally + persists to `settings.json`. This survives restart via the precedence chain (config-file level applies on next launch if no CLI/env override is set).
@@ -352,15 +425,51 @@ On Klipper-based platforms (Pi, AD5M, K1, K2, Snapmaker U1, etc.), `setup_config
 
 ## Debug Bundles
 
-`src/system/log_collector.cpp` assembles a debug bundle on user request (Settings → About → Generate Debug Bundle, or the `helix_debug` Moonraker shell command). It captures:
+`DebugBundleCollector::collect()` (`src/system/debug_bundle_collector.cpp`) assembles a debug bundle on user request (Settings → About → Generate Debug Bundle, or the `helix_debug` Moonraker shell command), reading the on-disk log cascade through `src/system/log_collector.cpp`. It captures:
 
+- `log_tail` - the structured app log, read from the in-memory ring rather than from disk (`src/system/debug_bundle_collector.cpp`), so it is always the live process and always fresh. Because the ring is installed in `init_early()` it reaches back past Phase 2 config load; see "Ring-Buffer Sink Lifecycle". The companion `log_meta` field records the active sink target, the level the persistent sinks were configured at (which the ring may have been more verbose than), and whether the tail came from the live ring or the on-disk fallback
 - Last N lines from each candidate launcher-log path (`/var/log/helixscreen/launcher.log`, `${install_dir}/logs/launcher.log`, legacy `/tmp/helixscreen.log`, etc.)
 - Last N lines of syslog (`/var/log/messages`, `/var/log/syslog`)
 - systemd journal entries when available (`journalctl -u helixscreen`)
 - Crash report (if recent)
 - `settings.json` (sanitized)
+- `printer_config` — Klipper's `printer.cfg` and every config it `[include]`s, fetched from
+  `/server/files/config/<path>` and sanitized per line (see below)
+- `filament_system.gcode_macros` — bare `gcode_macro` names from `/printer/objects/list`
 
-Bundles are uploaded to `crash.helixscreen.org` with a 6-char share code. Retrieval: `./scripts/debug-bundle.sh <CODE> --save`. Note that `--save` writes `debug-bundle-<code>.json` to the current working directory — run it from `/tmp` (`cd /tmp && …`) so bundles never land in the repo, and don't commit them.
+### Why `printer_config` is its own field
+
+Klipper re-dumps `printer.cfg` into `klippy.log` on every start, so the log tail used to carry it
+for free. It no longer does: every line of a config is a unique shape, so it survived
+`condense_klipper_log()`'s shape-collapse intact and spent the whole line budget on config —
+84/63/58% of `klipper_log` on AD5X bundles `4QA7SZAM` / `LYGVE39Y` / `XSNN7PX5`. `ce4f21914` added
+`strip_klipper_config_dumps()` to elide it so the incident window survives.
+
+Fetching the files into a separate field gives the content back without putting it back in
+competition with the incident, and beats the log copy anyway — that one arrives head-truncated
+whenever the byte window slices through the dump.
+
+Budget: `MAX_CONFIG_BYTES` (512 KB) and `MAX_CONFIG_FILES` (40). A full ZMOD AD5X config is ~250 KB
+across its includes, so it fits whole. Hitting either cap records `printer_config.truncated` with
+the reason rather than silently shortening.
+
+### Sanitizing config bodies
+
+Config bodies go through `sanitize_text_block()`, which applies `sanitize_value()` **per line**.
+This is not interchangeable with calling `sanitize_value()` on the file: that function replaces any
+single string over 4 KB with `[REDACTED_LONG_VALUE]`, so a whole-file call would redact every
+config in the bundle. Line granularity still catches what actually turns up in a `printer.cfg` —
+notification macros carrying Pushover/Telegram tokens, camera and Spoolman URLs with embedded
+credentials, emails, MACs.
+
+What it does **not** redact: filesystem paths, so an `[include /home/<user>/printer_data/…]` ships
+the username. That is the same exposure `update.install_root` has always had, not a new class, but
+it is worth knowing before pasting a config excerpt into a public issue. The existing rule applies
+unchanged — scrub bundle excerpts before they go anywhere public.
+
+Bundles are uploaded to `crash.helixscreen.org` with an 8-char uppercase alphanumeric share code
+(e.g. `UK9QCFY3`, `CGR6C7PA`). The code is minted server-side; nothing in this repo validates its
+length, so treat the server as the authority if that ever changes. Retrieval: `./scripts/debug-bundle.sh <CODE> --save`. Note that `--save` writes `debug-bundle-<code>.json` to the current working directory — run it from `/tmp` (`cd /tmp && …`) so bundles never land in the repo, and don't commit them.
 
 ---
 

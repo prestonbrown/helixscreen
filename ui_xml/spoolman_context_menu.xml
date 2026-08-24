@@ -6,18 +6,13 @@
     <prop name="spool_id" type="int" default="0"/>
   </api>
   <!-- Full-screen backdrop overlay - tap to dismiss -->
-  <view name="context_backdrop"
-        extends="lv_obj" width="100%" height="100%" style_bg_opa="128" style_bg_color="0x000000" style_border_width="0"
-        style_pad_all="0" style_radius="0" clickable="true">
-    <event_cb trigger="clicked" callback="spoolman_context_backdrop_cb"/>
-    <!-- Context menu card - positioned by C++ -->
-    <lv_obj name="context_menu"
-            width="220" height="content" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
-            style_pad_all="#space_sm" style_pad_gap="#space_sm" flex_flow="column" style_flex_main_place="start"
-            style_flex_cross_place="start" scrollable="false" clickable="true">
-      <!-- Header: spool material name (e.g., "Polymaker PLA") -->
-      <text_body name="spool_header"
-                 width="100%" text="Spool" translation_tag="Spool" long_mode="dots" style_text_color="#text"/>
+  <view name="context_backdrop" extends="context_menu_backdrop">
+    <!-- Context menu card - positioned by C++. The header carries the spool's
+         material name (e.g. "Polymaker PLA"); the colour and vendor subtitles sit
+         between it and the rule, so the card's own rule is suppressed. -->
+    <context_menu_card width="220"
+                       title="Spool" title_tag="Spool" title_name="spool_header" title_grow="1" title_long_mode="dots"
+                       hide_divider="true">
       <!-- Color name (e.g., "Jet Black") -->
       <text_small name="spool_color_label" width="100%" text="" long_mode="dots" style_text_color="#text_muted"/>
       <!-- Vendor subtitle -->
@@ -61,6 +56,6 @@
                  style_text_color="#danger">
         <event_cb trigger="clicked" callback="spoolman_context_delete_cb"/>
       </ui_button>
-    </lv_obj>
+    </context_menu_card>
   </view>
 </component>

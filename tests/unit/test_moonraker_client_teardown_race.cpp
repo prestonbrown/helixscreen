@@ -42,10 +42,10 @@ namespace {
 // A port nothing listens on, so connect() fails fast and libhv arms its
 // auto-reconnect timer. Deliberately distinct from the 19999 other client
 // tests share, so a stray listener there cannot influence these.
-constexpr const char* kDeadUrl = "ws://127.0.0.1:19997/websocket";
+constexpr const char* DEAD_URL = "ws://127.0.0.1:19997/websocket";
 
 // MoonrakerClient's reconnect_min_delay_ms_ default (moonraker_client.cpp).
-constexpr int kReconnectMinDelayMs = 200;
+constexpr int RECONNECT_MIN_DELAY_MS = 200;
 
 } // namespace
 
@@ -66,7 +66,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     // Reaches createsocket() -> hio_get(NULL, fd). Without the null guard this
     // is the SIGSEGV above, so a regression kills the process rather than
     // failing the assertion.
-    int rc = client.connect(kDeadUrl, []() {}, []() {});
+    int rc = client.connect(DEAD_URL, []() {}, []() {});
 
     REQUIRE(rc < 0);
     REQUIRE(client.get_connection_state() != ConnectionState::CONNECTED);
@@ -80,11 +80,11 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     MoonrakerClient client(loop_thread->loop());
 
-    client.connect(kDeadUrl, []() {}, []() {});
+    client.connect(DEAD_URL, []() {}, []() {});
 
     // Long enough for the connect to be refused and libhv to arm the retry,
     // short enough that the retry has not yet fired.
-    std::this_thread::sleep_for(std::chrono::milliseconds(kReconnectMinDelayMs / 2));
+    std::this_thread::sleep_for(std::chrono::milliseconds(RECONNECT_MIN_DELAY_MS / 2));
 
     client.disconnect();
     const hv::WebSocketChannel* channel_at_disconnect = client.channel.get();
@@ -92,7 +92,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     // Well past the retry delay. A live timer runs startConnect(), whose
     // createsocket() installs a brand-new channel — observable proof that the
     // cancelled reconnect ran anyway.
-    std::this_thread::sleep_for(std::chrono::milliseconds(kReconnectMinDelayMs * 3));
+    std::this_thread::sleep_for(std::chrono::milliseconds(RECONNECT_MIN_DELAY_MS * 3));
 
     CHECK(client.channel.get() == channel_at_disconnect);
     CHECK(client.get_connection_state() == ConnectionState::DISCONNECTED);

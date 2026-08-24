@@ -45,12 +45,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /**
      * @brief Construct Happy Hare backend
      *
-     * @param api Pointer to MoonrakerAPI (for sending G-code commands)
-     * @param client Pointer to helix::MoonrakerClient (for subscribing to updates)
+     * @param api Pointer to IMoonrakerAPI (for sending G-code commands)
+     * @param client Pointer to helix::IMoonrakerClient (for subscribing to updates)
      *
      * @note Both pointers must remain valid for the lifetime of this backend.
      */
-    AmsBackendHappyHare(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    AmsBackendHappyHare(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendHappyHare() override;
 
     /**
@@ -152,6 +152,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
+    /// mmu.filament "Loaded" while mmu.gate names no gate (-1). Gate -2 is
+    /// bypass — accounted there (the gate layer also silences under bypass).
+    [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
     /// Happy Hare users have a console; the screen passes their command through
     /// rather than synthesising a prerequisite operation they never asked for
     /// (#1229).
@@ -159,12 +162,21 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return false;
     }
 
-    // Endless Spool support (read-only - configured in Happy Hare config)
+    // === Endless Spool ===
+    //
+    // Group-based and settable at RUNTIME - not a config-file read. `mmu.
+    // endless_spool_groups` gives one group id per gate and `MMU_ENDLESS_SPOOL
+    // GROUPS=<csv>` rewrites the whole array, so a write is a Group edit that
+    // can move other gates' relations. Editing is refused on a multi-unit rig
+    // because the G-code has no `UNIT=` and acts on the selected unit
+    // (Happy-Hare extras/mmu/mmu.py cmd_MMU_ENDLESS_SPOOL).
+
+    /// @note Takes `mutex_`; callers must NOT hold it.
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
-    [[nodiscard]] std::vector<helix::printer::EndlessSpoolConfig>
-    get_endless_spool_config() const override;
-    AmsError set_endless_spool_backup(int slot_index, int backup_slot) override;
+
+    /// @note Takes `mutex_`; callers must NOT hold it.
+    [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
 
     /**
      * @brief Reset all tool mappings to defaults
@@ -177,12 +189,18 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError reset_tool_mappings() override;
 
     /**
-     * @brief Reset all endless spool backup mappings
+     * @brief Restore the endless-spool groups to their config defaults.
      *
-     * Happy Hare endless spool is read-only (configured in mmu_vars.cfg).
-     * Returns not_supported error.
+     * Overrides the base's clear-every-slot loop because Happy Hare has a real
+     * primitive: `MMU_ENDLESS_SPOOL ENABLE=1 RESET=1 QUIET=1`.
      *
-     * @return AmsError with not_supported result
+     * `ENABLE=1` is required and is NOT the silent side effect the edit path
+     * had: `cmd_MMU_ENDLESS_SPOOL` early-returns before honouring `RESET` while
+     * endless spool is disabled, and `_reset_endless_spool()` then assigns AND
+     * persists `default_endless_spool_enabled`, so the momentary enable is
+     * overwritten by the config default (mmu.py `_persist_endless_spool`).
+     *
+     * @note Holds no lock.
      */
     AmsError reset_endless_spool() override;
 
@@ -198,8 +216,20 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// inherited the no-op default, so the button did nothing here.
     void clear_slot_override(int slot_index) override;
 
+    /// Publish the external spool as lane{N+1} in the SHARED lane_data
+    /// namespace — Happy Hare's plugin never publishes its bypass/external
+    /// spool (verified: push_lane_data iterates gates only), and its boot-time
+    /// cleanup deletes records with lane >= num_gates. Our entry is wiped at
+    /// HH boot; the AmsState event triggers (bypass engage, external-spool
+    /// edit) re-publish.
+    void publish_external_spool_lane(const SlotInfo* spool) override;
+
     [[nodiscard]] bool has_firmware_spool_persistence() const override {
         return true; // Happy Hare persists via MMU_GATE_MAP SPOOLID
+    }
+
+    [[nodiscard]] bool printer_reports_spool_ids() const override {
+        return true; // Happy Hare publishes gate spool_id in mmu status
     }
 
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
@@ -226,6 +256,16 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
      */
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
+    /// Happy Hare publishes the complete ttg_map in printer.mmu status, so a
+    /// restore can be confirmed against firmware truth rather than our own
+    /// optimistic write (#1270). Cleaner than a per-lane echo: the whole map
+    /// lands in one update, so there is no partial-match intermediate state.
+    [[nodiscard]] bool reports_firmware_tool_mapping() const override {
+        return true;
+    }
+
+    [[nodiscard]] uint64_t firmware_tool_mapping_generation() const override;
+
     // NOTE: has_per_slot_loaded_authority() is deliberately NOT overridden.
     // printer.mmu.gate and printer.mmu.filament are Happy Hare's own values,
     // parsed verbatim from one object into the aggregate pair, so the aggregate
@@ -243,6 +283,24 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
                                    const std::any& value = {}) override;
 
   protected:
+    /**
+     * @brief Transport for one endless-spool edge: `MMU_ENDLESS_SPOOL GROUPS=`.
+     *
+     * Rebuilds the whole gate->group array and joins @p slot_index to
+     * @p backup_slot's group (or moves it to a fresh standalone group when
+     * @p backup_slot is -1).
+     *
+     * Refuses when endless spool is switched OFF instead of silently switching
+     * it on. `cmd_MMU_ENDLESS_SPOOL` ignores `GROUPS` while disabled, so the old
+     * unconditional `ENABLE=1` was the only thing making the write land - and it
+     * turned the feature on as a side effect of editing one backup, persisting
+     * that through `mmu_state_enable_endless_spool`. Enabling is a separate
+     * decision the user has to make.
+     *
+     * @note Takes `mutex_` to build the CSV, releases it before the G-code send.
+     */
+    AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
+
     // Allow test helper access to private members
     friend class AmsBackendHappyHareTestHelper;
     friend class AmsBackendHappyHareEndlessSpoolHelper;
@@ -250,6 +308,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     friend class HappyHareErrorStateHelper;
     friend class HappyHareCharHelper;
     friend class HHToolchangeTestHelper;
+    friend class HhFaultEventCharHelper;
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
@@ -269,8 +328,11 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // AFC. See AmsBackendAfc for the full rationale.
     //
     // Written blind — no Happy Hare hardware on hand; mirrors AFC exactly.
-    static constexpr const char* kOverrideNamespace = "helix-screen-hh-overrides";
+    static constexpr const char* OVERRIDE_NAMESPACE = "helix-screen-hh-overrides";
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
+    /// Store on the SHARED lane_data namespace, used only by
+    /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
     void apply_overrides(SlotInfo& slot, int slot_index);
     void persist_override(int slot_index, const SlotInfo& info);
@@ -281,8 +343,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // Locks mutex_ internally — call with no lock held.
     [[nodiscard]] std::string gates_suffix_for_unit(int unit) const;
 
-    // Build context-aware recovery actions from live MMU state. Caller holds mutex_.
-    [[nodiscard]] std::vector<helix::RecoveryAction> build_recovery_actions() const;
+    // Build context-aware recovery actions from live MMU state. Caller holds mutex_
+    // (the base declares that contract; mutex_ is non-recursive, so this must not
+    // lock).
+    [[nodiscard]] std::vector<helix::RecoveryAction> build_recovery_actions() const override;
 
     // Synthesize a toolchange step index from the current AmsAction and push it
     // to AmsState's step subject (deferred to the main thread). Happy Hare emits

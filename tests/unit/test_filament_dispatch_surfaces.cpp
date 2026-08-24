@@ -63,7 +63,7 @@ namespace {
 
 /// Gcode the tier-3 load fallback must contain. execute_gcode() annotates the
 /// script, so tests match on a substring rather than the whole string.
-constexpr const char* kLoadFallbackMarker = "G1 E56";
+constexpr const char* LOAD_FALLBACK_MARKER = "G1 E56";
 
 class DispatchSurfaceFixture : public LVGLTestFixture {
   public:
@@ -167,7 +167,7 @@ class DispatchSurfaceFixture : public LVGLTestFixture {
     MacroExecuteCallback pending_execute;
 
   private:
-    MoonrakerAPI* previous_api_ = nullptr;
+    IMoonrakerAPI* previous_api_ = nullptr;
 };
 
 } // namespace
@@ -256,7 +256,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     sidebar.handle_load_with_preheat(0);
 
     CHECK(prompt_count == 0);
-    CHECK(gcode_sent_containing(kLoadFallbackMarker));
+    CHECK(gcode_sent_containing(LOAD_FALLBACK_MARKER));
 }
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
@@ -365,7 +365,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(prompt_count == 0);
-    CHECK(gcode_sent_containing(kLoadFallbackMarker));
+    CHECK(gcode_sent_containing(LOAD_FALLBACK_MARKER));
 }
 
 // -----------------------------------------------------------------------------

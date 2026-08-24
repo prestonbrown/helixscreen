@@ -37,23 +37,51 @@ void PreprintPredictor::load_entries(const std::vector<PreprintEntry>& entries,
     }
 }
 
-void PreprintPredictor::load_entries(const std::vector<PreprintEntry>& entries, int temp_bucket) {
+bool PreprintPredictor::entry_matches_window(const PreprintEntry& e, PreprintWindow filter) {
+    if (filter == PreprintWindow::Unknown) {
+        return true; // no window filter requested
+    }
+    if (e.window == filter) {
+        return true;
+    }
+    // A legacy entry carries no window because commit arming did not exist when
+    // it was recorded, which means it can only have measured a printer-edge
+    // window. Treating it as such is a fact about the data, not a guess - and
+    // the asymmetry is the point: legacy history stays usable for externally
+    // started prints, but must never stand in for a window that included a
+    // host-side pre-start block it never saw.
+    return e.window == PreprintWindow::Unknown && filter == PreprintWindow::PrinterEdge;
+}
+
+void PreprintPredictor::load_entries(const std::vector<PreprintEntry>& entries, int temp_bucket,
+                                     PreprintWindow window) {
+    // Window filtering runs first so the temp-bucket paths below - including the
+    // ones that delegate and return - all see the same already-narrowed set.
+    std::vector<PreprintEntry> windowed;
+    windowed.reserve(entries.size());
+    for (const auto& e : entries) {
+        if (entry_matches_window(e, window)) {
+            windowed.push_back(e);
+        }
+    }
+    const std::vector<PreprintEntry>& in_window = windowed;
+
     entries_.clear();
 
     if (temp_bucket == 0) {
-        // No filter — load all entries
-        entries_ = entries;
+        // No temp filter — load everything left in the window
+        entries_ = in_window;
     } else if (temp_bucket == 1) {
         // Cold start bucket
-        load_entries(entries, StartCondition::COLD);
+        load_entries(in_window, StartCondition::COLD);
         return;
     } else if (temp_bucket == 2) {
         // Warm start bucket
-        load_entries(entries, StartCondition::WARM);
+        load_entries(in_window, StartCondition::WARM);
         return;
     } else {
         // Legacy temp_bucket values (e.g. 200, 250): filter by matching bucket or legacy 0
-        for (const auto& e : entries) {
+        for (const auto& e : in_window) {
             if (e.temp_bucket == temp_bucket || e.temp_bucket == 0) {
                 entries_.push_back(e);
             }
@@ -284,6 +312,11 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
             entry.total_seconds = ej.value("total", 0);
             entry.timestamp = ej.value("timestamp", static_cast<int64_t>(0));
             entry.temp_bucket = ej.value("temp_bucket", 0);
+            const int window_raw = ej.value("window", static_cast<int>(PreprintWindow::Unknown));
+            entry.window = (window_raw == static_cast<int>(PreprintWindow::PrinterEdge) ||
+                            window_raw == static_cast<int>(PreprintWindow::HostPreStart))
+                               ? static_cast<PreprintWindow>(window_raw)
+                               : PreprintWindow::Unknown;
             // Drop legacy entries that predate the cold/warm bucket scheme.
             // Older versions stored the raw nozzle target temperature here
             // (e.g. 200, 225, 250). Only 0 (unknown), 1 (cold), and 2 (warm)

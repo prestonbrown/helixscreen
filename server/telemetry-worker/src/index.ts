@@ -24,6 +24,14 @@ import {
   type QueryConfig,
   type FilterParams,
 } from "./queries";
+import {
+  snapshotDay,
+  snapshotToDataPoints,
+  snapshotR2Key,
+  previousUtcDay,
+  utcDay,
+  type FleetDaySnapshot,
+} from "./cdn_fleet";
 
 // Rate limiting binding type (added in @cloudflare/workers-types after our pinned version)
 interface RateLimiter {
@@ -47,6 +55,8 @@ interface Env {
   TELEMETRY_ANALYTICS?: AnalyticsEngineDataset; // Analytics Engine (see wrangler.toml)
   CLOUDFLARE_ACCOUNT_ID: string; // Set in wrangler.toml [vars]
   HELIX_ANALYTICS_READ_TOKEN?: string; // Cloudflare secret: wrangler secret put HELIX_ANALYTICS_READ_TOKEN
+  CDN_ZONE_ID?: string; // Set in wrangler.toml [vars]
+  CF_ZONE_ANALYTICS_TOKEN?: string; // Cloudflare secret: needs Zone Analytics:Read on helixscreen.org
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -135,6 +145,44 @@ function parseFilters(searchParams: URLSearchParams): FilterParams {
   if (version) filters.version = version;
   if (model) filters.model = model;
   return filters;
+}
+
+/**
+ * Snapshot one UTC day of CDN manifest polls and persist it both ways: R2 for
+ * permanence, Analytics Engine so the dashboard can read it alongside the
+ * telemetry metrics.
+ *
+ * R2 is written first and is the durable copy - an Analytics Engine failure
+ * must not lose the day, because zone analytics will not still have it
+ * tomorrow.
+ */
+async function captureCdnFleetDay(env: Env, date: string): Promise<FleetDaySnapshot> {
+  // Zone analytics needs Zone Analytics:Read, which is a different permission
+  // from the Account Analytics:Read that the dashboard's SQL token carries. If
+  // one token happens to hold both, the fallback means no new secret is needed;
+  // otherwise set CF_ZONE_ANALYTICS_TOKEN and it takes precedence.
+  const token = env.CF_ZONE_ANALYTICS_TOKEN || env.HELIX_ANALYTICS_READ_TOKEN;
+  if (!env.CDN_ZONE_ID || !token) {
+    throw new Error("CDN fleet snapshot not configured (CDN_ZONE_ID / CF_ZONE_ANALYTICS_TOKEN)");
+  }
+
+  const snap = await snapshotDay(token, env.CDN_ZONE_ID, date);
+
+  await env.TELEMETRY_BUCKET.put(snapshotR2Key(date), JSON.stringify(snap), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+  if (env.TELEMETRY_ANALYTICS) {
+    try {
+      for (const point of snapshotToDataPoints(snap)) {
+        env.TELEMETRY_ANALYTICS.writeDataPoint(point);
+      }
+    } catch {
+      // R2 already holds the day; a failed AE write is recoverable by backfill.
+    }
+  }
+
+  return snap;
 }
 
 export default {
@@ -313,8 +361,10 @@ export default {
         // GET /v1/dashboard/overview
         if (url.pathname === "/v1/dashboard/overview") {
           const queries = overviewQueries(days, filters);
-          const [devicesRes, totalRes, rateRes, printRes, timeRes, dailyActiveRes, firstSeenRes] =
-            await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
+          const [
+            devicesRes, totalRes, rateRes, printRes, timeRes, dailyActiveRes, firstSeenRes,
+            cdnFleetRes,
+          ] = await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
 
           const devicesData = devicesRes as { data: Array<{ active_devices: number }> };
           const totalData = totalRes as { data: Array<{ total_events: number }> };
@@ -323,6 +373,9 @@ export default {
           const timeData = timeRes as { data: Array<{ date: string; count: number }> };
           const dailyActiveData = dailyActiveRes as { data: Array<{ date: string; devices: number }> };
           const firstSeenData = firstSeenRes as { data: Array<{ first_seen: string; new_devices: number }> };
+          const cdnFleetData = cdnFleetRes as {
+            data: Array<{ date: string; sources: number; polls: number; errors: number }>;
+          };
 
           const crashRow = rateData.data?.[0] ?? { crash_count: 0, session_count: 0 };
           const printRow = printData.data?.[0] ?? { successes: 0, total: 0 };
@@ -355,6 +408,16 @@ export default {
               devices: r.devices,
             })),
             cumulative_devices: cumulativeGrowth,
+            // Fleet estimate from CDN update-manifest polls. Independent of the
+            // opt-in telemetry above, so it sees installs `active_devices`
+            // never will. Latest closed day is the headline; the series backs
+            // the trend line.
+            cdn_fleet: (cdnFleetData.data ?? []).map((r) => ({
+              date: r.date,
+              sources: r.sources,
+              polls: r.polls,
+              errors: r.errors,
+            })),
           });
         }
 
@@ -711,12 +774,22 @@ export default {
         // GET /v1/dashboard/hardware
         if (url.pathname === "/v1/dashboard/hardware") {
           const queries = hardwareQueries(days, filters);
-          const [modelsRes, kinematicsRes, mcuRes, capsRes, volRes, countsRes, ramRes, amsRes] =
+          const [modelsRes, kinematicsRes, mcuRes, capsRes, volRes, countsRes, ramRes, amsRes, helixMacrosRes, moonrakerLocalityRes] =
             await Promise.all(queries.map((q) => executeQuery(queryConfig, q)));
 
           const toList = (res: unknown) => {
             const d = res as { data: Array<{ name: string; count: number }> };
             return (d.data ?? []).map((r) => ({ name: r.name, count: r.count }));
+          };
+
+          // Collapse a "1"/"0" tri-state column into a labelled yes/no split.
+          // Rows with an empty name never reach here (the query filters them),
+          // so `reported` counts only devices that actually answered.
+          const toYesNo = (res: unknown, yesKey: string, noKey: string) => {
+            const rows = toList(res);
+            const yes = rows.find((r) => r.name === "1")?.count ?? 0;
+            const no = rows.find((r) => r.name === "0")?.count ?? 0;
+            return { [yesKey]: yes, [noKey]: no, reported: yes + no };
           };
 
           const capsData = capsRes as { data: Array<Record<string, number>> };
@@ -790,6 +863,12 @@ export default {
               };
               return { name: AMS_NAMES[r.name] ?? r.name, count: r.count };
             }),
+            // Both are yes/no splits over the devices that reported the field.
+            // `reported` is the denominator: it excludes clients too old to
+            // send it, so a small number here means "not enough data yet"
+            // rather than "nobody has it".
+            helix_macros: toYesNo(helixMacrosRes, "installed", "not_installed"),
+            moonraker_locality: toYesNo(moonrakerLocalityRes, "local", "remote"),
           });
         }
 
@@ -1332,7 +1411,78 @@ export default {
       return json({ version, platforms });
     }
 
+    // CDN fleet snapshot - manual run or backfill within the retention window.
+    // POST /v1/admin/cdn-snapshot?date=YYYY-MM-DD   (one specific UTC day)
+    // POST /v1/admin/cdn-snapshot?days=3            (the last N closed days, max 3)
+    // Requires ADMIN_API_KEY. Re-running a day is safe: reads aggregate with
+    // max(), so duplicate rows collapse rather than double-count.
+    if (url.pathname === "/v1/admin/cdn-snapshot" && request.method === "POST") {
+      const apiKey = request.headers.get("x-api-key") ?? "";
+      if (!env.ADMIN_API_KEY || apiKey !== env.ADMIN_API_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+
+      const dateParam = url.searchParams.get("date");
+      const dates: string[] = [];
+
+      if (dateParam) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+          return json({ error: "date must be YYYY-MM-DD" }, 400);
+        }
+        dates.push(dateParam);
+      } else {
+        // Clamped to 3 days, not the ~8 the retention window allows.
+        //
+        // Analytics Engine silently drops writeDataPoint calls past a ceiling
+        // within a single invocation. Measured 2026-08-15: a days=8 backfill
+        // (8 days x 3 channels = 24 points) persisted only the first four days
+        // and reported all eight as captured, because the R2 write and the
+        // snapshot both succeeded - only the AE write was dropped, and that one
+        // is deliberately fire-and-forget. Re-running the missing days one
+        // request at a time persisted them fine.
+        //
+        // 3 days x 3 channels = 9 points stays well inside the ceiling. For a
+        // longer backfill, call this repeatedly rather than raising the clamp.
+        const n = Math.min(Math.max(parseInt(url.searchParams.get("days") ?? "1", 10) || 1, 1), 3);
+        const now = new Date();
+        for (let i = 1; i <= n; i++) {
+          dates.push(utcDay(new Date(Date.UTC(
+            now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i))));
+        }
+      }
+
+      const captured: FleetDaySnapshot[] = [];
+      const failed: Array<{ date: string; error: string }> = [];
+      for (const d of dates) {
+        try {
+          captured.push(await captureCdnFleetDay(env, d));
+        } catch (e) {
+          failed.push({ date: d, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+
+      return json({ status: "ok", captured, failed }, failed.length && !captured.length ? 500 : 200);
+    }
+
     // Everything else
     return json({ error: "Not found" }, 404);
+  },
+
+  /**
+   * Daily CDN fleet snapshot (see wrangler.toml [triggers]).
+   *
+   * Snapshots the UTC day that just closed. Zone analytics retain roughly 8
+   * days, so a missed run is recoverable via POST /v1/admin/cdn-snapshot for
+   * a few days and unrecoverable after that.
+   *
+   * Failures are deliberately NOT caught. An expired or re-scoped token would
+   * otherwise stop the metric silently and the tile would simply stop advancing
+   * with nothing to explain why - which is the exact failure mode this whole
+   * metric exists to avoid. Letting it reject marks the cron invocation as
+   * errored in Cloudflare's observability, where it can be seen.
+   */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const date = previousUtcDay(new Date());
+    ctx.waitUntil(captureCdnFleetDay(env, date));
   },
 } satisfies ExportedHandler<Env>;

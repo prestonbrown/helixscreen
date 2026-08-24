@@ -11,14 +11,15 @@
 #include "app_globals.h"
 #include "calibration_types.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_utils.h"
-#include "moonraker_api.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <cstring>
@@ -56,6 +57,11 @@ WizardInputShaperStep::WizardInputShaperStep()
 }
 
 WizardInputShaperStep::~WizardInputShaperStep() {
+    // Stop the elapsed timer before the subject it refreshes goes away (the
+    // helper's own cancel-safe destructor would too; doing it here keeps the
+    // ordering explicit).
+    cancel_analysis_display();
+
     // Deinitialize subjects to disconnect observers before destruction
     // NOTE: lv_subject_deinit() is safe to call even during shutdown
     if (subjects_initialized_) {
@@ -63,6 +69,7 @@ WizardInputShaperStep::~WizardInputShaperStep() {
         lv_subject_deinit(&calibration_progress_);
         lv_subject_deinit(&calibration_started_);
         lv_subject_deinit(&calibration_active_);
+        lv_subject_deinit(&calibration_indeterminate_);
         subjects_initialized_ = false;
     }
 
@@ -100,6 +107,11 @@ void WizardInputShaperStep::init_subjects() {
     // calibration is in flight; cleared on complete / cancel / error)
     helix::ui::wizard::init_int_subject(&calibration_active_, 0, "wizard_input_shaper_active");
 
+    // Initialize indeterminate subject (1 during the offline analysis phase:
+    // hides the bar, shows the spinner)
+    helix::ui::wizard::init_int_subject(&calibration_indeterminate_, 0,
+                                        "wizard_input_shaper_indeterminate");
+
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
 }
@@ -109,15 +121,39 @@ void WizardInputShaperStep::init_subjects() {
 // ============================================================================
 
 // Helper to safely update subjects from async callbacks
-// Captures alive flag and queues update to UI thread
-static void safe_update_status(helix::LifetimeToken token, const std::string& msg) {
-    helix::ui::queue_update([token, msg]() {
+// Captures alive flag and queues update to UI thread. The translation lookup
+// runs INSIDE the queued lambda: these callbacks fire on the libhv WebSocket
+// thread, and lv_tr() touches LVGL state (threading rule 1). Unregistered
+// keys fall back to the key itself, so plain untranslated strings pass through
+// unchanged.
+static void safe_update_status(helix::LifetimeToken token, const std::string& msg_key) {
+    helix::ui::queue_update([token, msg_key]() {
         if (token.expired()) {
             return; // Step was cleaned up
         }
         WizardInputShaperStep* step = get_wizard_input_shaper_step();
         if (step) {
-            lv_subject_copy_string(step->get_status_subject(), msg.c_str());
+            lv_subject_copy_string(step->get_status_subject(), lv_tr(msg_key.c_str()));
+        }
+    });
+}
+
+// Switches the progress area between the determinate bar and the analysis
+// treatment (spinner + "Analyzing data... Ns" elapsed label). Queued for the
+// same threading reason as safe_update_status.
+static void safe_set_analysis_phase(helix::LifetimeToken token, bool analyzing) {
+    helix::ui::queue_update([token, analyzing]() {
+        if (token.expired()) {
+            return;
+        }
+        WizardInputShaperStep* step = get_wizard_input_shaper_step();
+        if (step) {
+            lv_subject_set_int(step->get_indeterminate_subject(), analyzing ? 1 : 0);
+            if (analyzing) {
+                step->begin_analysis_display();
+            } else {
+                step->cancel_analysis_display();
+            }
         }
     });
 }
@@ -141,6 +177,10 @@ static void safe_set_complete(helix::LifetimeToken token) {
         }
         WizardInputShaperStep* step = get_wizard_input_shaper_step();
         if (step) {
+            // Defensive: complete can be reported without a trailing
+            // determinate progress tick, so stop any armed elapsed label.
+            step->cancel_analysis_display();
+            lv_subject_set_int(step->get_indeterminate_subject(), 0);
             lv_subject_copy_string(step->get_status_subject(), lv_tr("Calibration complete!"));
             lv_subject_set_int(step->get_progress_subject(), 100);
             // Calibration finished — hide the Cancel button
@@ -162,6 +202,10 @@ static void safe_handle_error(helix::LifetimeToken token) {
         // and hide the Cancel button (nothing to cancel anymore).
         WizardInputShaperStep* step = get_wizard_input_shaper_step();
         if (step) {
+            // An error can land mid-analysis; stop the elapsed label before it
+            // overwrites the error message on its next tick, and drop the spinner.
+            step->cancel_analysis_display();
+            lv_subject_set_int(step->get_indeterminate_subject(), 0);
             lv_subject_set_int(step->get_active_subject(), 0);
             lv_subject_set_int(step->get_started_subject(), 0);
         }
@@ -214,7 +258,19 @@ static void begin_is_calibration_flow(WizardInputShaperStep* step) {
                 InputShaperCalibrator* cal = step->get_calibrator();
                 if (cal) {
                     cal->run_calibration(
-                        'X', [token](int percent) { safe_update_progress(token, percent / 2); },
+                        'X',
+                        [token](int percent, ShaperCalibrationPhase phase) {
+                            const int bar =
+                                WizardInputShaperStep::combined_bar_value(percent, phase, false);
+                            if (bar < 0) {
+                                // Analysis reports no percent: spinner on, and
+                                // the elapsed label keeps the step visibly alive.
+                                safe_set_analysis_phase(token, true);
+                                return;
+                            }
+                            safe_set_analysis_phase(token, false);
+                            safe_update_progress(token, bar);
+                        },
                         [token](const InputShaperResult& result) {
                             (void)result;
                             if (token.expired()) {
@@ -234,8 +290,15 @@ static void begin_is_calibration_flow(WizardInputShaperStep* step) {
                             if (cal2) {
                                 cal2->run_calibration(
                                     'Y',
-                                    [token](int percent) {
-                                        safe_update_progress(token, 50 + percent / 2);
+                                    [token](int percent, ShaperCalibrationPhase phase) {
+                                        const int bar = WizardInputShaperStep::combined_bar_value(
+                                            percent, phase, true);
+                                        if (bar < 0) {
+                                            safe_set_analysis_phase(token, true);
+                                            return;
+                                        }
+                                        safe_set_analysis_phase(token, false);
+                                        safe_update_progress(token, bar);
                                     },
                                     [token](const InputShaperResult& result) {
                                         (void)result;
@@ -375,6 +438,16 @@ lv_obj_t* WizardInputShaperStep::create(lv_obj_t* parent) {
 // Cleanup
 // ============================================================================
 
+void WizardInputShaperStep::begin_analysis_display() {
+    analysis_elapsed_.begin(&calibration_status_, [](uint32_t elapsed_seconds) {
+        return fmt::format(lv_tr("Analyzing data... {}s"), elapsed_seconds);
+    });
+}
+
+void WizardInputShaperStep::cancel_analysis_display() {
+    analysis_elapsed_.cancel();
+}
+
 void WizardInputShaperStep::cleanup() {
     spdlog::debug("[{}] Cleaning up resources", get_name());
 
@@ -397,6 +470,11 @@ void WizardInputShaperStep::cleanup() {
     // (abort_in_progress_calibration already invalidated, but invalidate
     //  is idempotent and we still need it on the non-active path).
     lifetime_.invalidate();
+
+    // Stop the analysis elapsed timer and drop the spinner before the
+    // subjects it drives are reset below.
+    cancel_analysis_display();
+    lv_subject_set_int(&calibration_indeterminate_, 0);
 
     // Cancel any in-progress calibration (local state — covers the non-active
     // path as well as defensively redundant when aborted above).

@@ -70,9 +70,9 @@ class FilamentPanel : public PanelBase {
      * @brief Construct FilamentPanel with injected dependencies
      *
      * @param printer_state Reference to helix::PrinterState
-     * @param api Pointer to MoonrakerAPI (for future temp commands)
+     * @param api Pointer to IMoonrakerAPI (for future temp commands)
      */
-    FilamentPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    FilamentPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     ~FilamentPanel() override;
 
@@ -271,11 +271,11 @@ class FilamentPanel : public PanelBase {
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
     lv_subject_t nozzle_heating_subject_;
 
-    // Purge amount button active subjects (boolean: 0=inactive, 1=active)
+    // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values
-    lv_subject_t purge_5mm_active_subject_;
-    lv_subject_t purge_10mm_active_subject_;
-    lv_subject_t purge_25mm_active_subject_;
+    lv_subject_t extrude_length_5mm_active_subject_;
+    lv_subject_t extrude_length_10mm_active_subject_;
+    lv_subject_t extrude_length_25mm_active_subject_;
 
     // Per-op button feedback state (int: 0=idle, 1=busy/spinner, 2=done/check).
     // Drives ui_button bind_op_state so the triggering button shows on-button
@@ -316,8 +316,8 @@ class FilamentPanel : public PanelBase {
     void begin_operation_guard();    ///< arm operation_guard_ with the shared timeout handler
     void handle_operation_timeout(); ///< main-thread: toast + tear down the stalled op
 
-    // Purge amount state
-    int purge_amount_ = 10; // Default 10mm
+    // Extrude length state
+    int extrude_length_ = 10; // Default 10mm
 
     // Preset slot identity and the name/temps label subjects now live in
     // helix::presets (include/preset_materials.h). They used to be panel-scoped
@@ -491,7 +491,7 @@ class FilamentPanel : public PanelBase {
     void handle_extrude_button();
     void handle_purge_button();
     void handle_retract_button();
-    void handle_purge_amount_select(int amount);
+    void handle_extrude_length_select(int amount);
     void handle_cooldown();
     void update_material_temp_display();
     void update_chamber_temp_display();
@@ -546,10 +546,10 @@ class FilamentPanel : public PanelBase {
     static void on_bed_target_tap_clicked(lv_event_t* e);
     static void on_filament_chamber_target_tap(lv_event_t* e);
 
-    // Purge amount callbacks (XML event_cb)
-    static void on_purge_5mm_clicked(lv_event_t* e);
-    static void on_purge_10mm_clicked(lv_event_t* e);
-    static void on_purge_25mm_clicked(lv_event_t* e);
+    // Extrude length callbacks (XML event_cb)
+    static void on_extrude_length_5mm_clicked(lv_event_t* e);
+    static void on_extrude_length_10mm_clicked(lv_event_t* e);
+    static void on_extrude_length_25mm_clicked(lv_event_t* e);
 
     // Cooldown callback (XML event_cb)
     static void on_cooldown_clicked(lv_event_t* e);

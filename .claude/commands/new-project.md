@@ -65,7 +65,7 @@ Based on feedback:
 - **APPROVED** → step 6b
 
 ### 6b. CREATE PLAN DOC
-Write to `docs/plans/[project-name]-plan.md`:
+Write to `docs/devel/plans/[project-name]-plan.md`:
 ```markdown
 # [Feature Name]
 
@@ -111,7 +111,7 @@ Check CLAUDE.md for conventions. Run:
 ---
 
 ## PLAN LOCATION
-Prefer `docs/plans/` (in project, versioned). Use `~/.claude/plans/` only if project disallows.
+Prefer `docs/devel/plans/` (in project, versioned). Use `~/.claude/plans/` only if project disallows.
 
 ## DEFAULTS
 Delegation: main coordinates, agents research | TDD: backend=yes, UI=skip | Commits: 1/phase

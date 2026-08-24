@@ -475,3 +475,80 @@ G1 X10 Y10 E1
         REQUIRE(s.filament_palette[1] == "#112233");
     }
 }
+
+TEST_CASE("GCodeLayerIndex - prologue Z move before the first marker is not a layer",
+          "[gcode][layer_index]") {
+    // OrcaSlicer emits its START_PRINT prologue - including a tall Z clearance
+    // move - before the first ;LAYER_CHANGE. use_layer_markers only latches on
+    // that first marker, so until then the Z-change heuristic is live and
+    // happily turns the prologue lift into layer 0.
+    //
+    // Two consequences, both observed on a K1C printing flowrate_0_PLA_36m5s:
+    //   1. One phantom layer (11 entries for a 10-layer file).
+    //   2. stats_.min_z latches the prologue height (3.0), while max_z ends up
+    //      at the last layer's Z-hop (2.4). min_z > max_z makes the renderer's
+    //      AABB report is_empty(), so compute_auto_fit() bails to its
+    //      degenerate default (scale 1.0, offset 0,0,0) and the 2D preview
+    //      renders unscaled around the world origin - clipped off the top of
+    //      the viewport.
+    std::string gcode = R"(
+START_PRINT EXTRUDER_TEMP=220 BED_TEMP=55
+G1 Z3 F600
+G1 Z1 F600
+;LAYER_CHANGE
+;Z:0.2
+G1 Z0.6 F30000
+G1 Z0.2
+G1 X10 Y10 E0.1
+;LAYER_CHANGE
+;Z:0.4
+G1 Z0.8 F30000
+G1 Z0.4
+G1 X20 Y20 E0.2
+;LAYER_CHANGE
+;Z:0.6
+G1 Z1.0 F30000
+G1 Z0.6
+G1 X30 Y30 E0.3
+)";
+
+    TempGCodeFile file(gcode);
+    GCodeLayerIndex index;
+    REQUIRE(index.build_from_file(file.path()));
+
+    // The prologue lift must not become a layer.
+    REQUIRE(index.get_layer_count() == 3);
+
+    const auto& stats = index.get_stats();
+    // Z bounds must stay orderable - an inverted pair silently disables
+    // auto-fit for the whole model.
+    REQUIRE(stats.min_z <= stats.max_z);
+    // And must describe the model, not the prologue clearance height.
+    REQUIRE(stats.min_z < 3.0f);
+}
+
+TEST_CASE("GCodeLayerIndex - Z stats stay ordered when layer Z decreases", "[gcode][layer_index]") {
+    // Belt and braces for the pair above: whatever the detection mode decides
+    // is a layer, min_z/max_z must bracket every layer Z seen rather than
+    // recording "first" and "last".
+    std::string gcode = R"(
+;LAYER_CHANGE
+G1 Z0.6 E0.1
+G1 X10 E0.2
+;LAYER_CHANGE
+G1 Z0.4 E0.3
+G1 X20 E0.4
+;LAYER_CHANGE
+G1 Z0.2 E0.5
+G1 X30 E0.6
+)";
+
+    TempGCodeFile file(gcode);
+    GCodeLayerIndex index;
+    REQUIRE(index.build_from_file(file.path()));
+
+    const auto& stats = index.get_stats();
+    REQUIRE(stats.min_z <= stats.max_z);
+    REQUIRE(stats.min_z == Approx(0.2f));
+    REQUIRE(stats.max_z == Approx(0.6f));
+}

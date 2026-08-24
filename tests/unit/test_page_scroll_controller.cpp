@@ -2,6 +2,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "display_settings_manager.h"
 #include "page_scroll_controller.h"
+#include "page_scroll_math.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -66,6 +67,43 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController disables up at top and
     ctl.refresh_reach_state();
     CHECK(lv_obj_has_state(ctl.down_button(), LV_STATE_DISABLED));
     CHECK_FALSE(lv_obj_has_state(ctl.up_button(), LV_STATE_DISABLED));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController clamps the last page to the content end",
+                 "[page_scroll_buttons][ui]") {
+    helix::DisplaySettingsManager::instance().init_subjects();
+    helix::DisplaySettingsManager::instance().set_animations_enabled(false);
+
+    lv_obj_t* c = make_scroll_container(test_screen(), 1, 10);
+    lv_obj_t* row = lv_obj_get_child(c, 0);
+
+    PageScrollController ctl;
+    REQUIRE(ctl.attach(c));
+    lv_obj_update_layout(c);
+
+    // Overflow by far less than one page step, so a full-page delta would overshoot
+    // the content end and leave dead space below the last row.
+    constexpr int32_t OVERFLOW_PX = 30;
+    lv_obj_set_height(row, lv_obj_get_content_height(c) + OVERFLOW_PX);
+    lv_obj_update_layout(c);
+    REQUIRE(lv_obj_get_scroll_bottom(c) == OVERFLOW_PX);
+    REQUIRE(page_scroll_step(lv_obj_get_content_height(c)) > OVERFLOW_PX);
+
+    ctl.page_down();
+    lv_obj_update_layout(c);
+    CHECK(lv_obj_get_scroll_y(c) == OVERFLOW_PX); // stopped exactly at the content end
+    CHECK(lv_obj_get_scroll_bottom(c) == 0);      // no empty space scrolled past the content
+
+    // A press against the already-reached end must not move it further.
+    ctl.page_down();
+    lv_obj_update_layout(c);
+    CHECK(lv_obj_get_scroll_y(c) == OVERFLOW_PX);
+
+    // Symmetric on the way back up: the partial last page lands on the content start.
+    ctl.page_up();
+    lv_obj_update_layout(c);
+    CHECK(lv_obj_get_scroll_y(c) == 0);
+    CHECK(lv_obj_get_scroll_top(c) == 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController hides gutter when content fits",

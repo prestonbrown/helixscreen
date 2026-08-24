@@ -13,14 +13,36 @@
 
 #pragma once
 
+#include "config_storage.h"
 #include "json_fwd.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace helix {
+
+namespace config_detail {
+
+/// JSON type that Config::get<T>(ptr, default) needs the stored value to hold.
+/// Used only to name the expectation in the warning logged when a persisted
+/// value has the wrong type; not a conversion rule.
+template <typename T> constexpr const char* expected_json_type() {
+    if constexpr (std::is_same_v<T, bool>) {
+        return "boolean";
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        return "string";
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        return "number";
+    } else {
+        return "value";
+    }
+}
+
+} // namespace config_detail
 
 /**
  * @brief Configuration for a user-customizable macro button
@@ -63,8 +85,19 @@ class Config {
   private:
     static Config* instance;
     std::string path;
-    std::string active_printer_id_; ///< Currently active printer slug ID
-    bool read_only_mode_ = false;   ///< Config directory is on a read-only filesystem
+    std::string active_printer_id_;          ///< Currently active printer slug ID
+    bool read_only_mode_ = false;            ///< Config directory is on a read-only filesystem
+    std::unique_ptr<ConfigStorage> storage_; ///< Document-level persistence backend
+    /// True when storage_ was auto-created from `path` rather than injected by
+    /// set_storage(). Only an auto-created backend may be rebuilt when `path`
+    /// moves — an injected one is the caller's, and its target is not `path`.
+    bool storage_is_default_ = false;
+
+    /// Point storage_ at `path`, rebuilding a stale auto-created backend.
+    /// `path` moves whenever init() runs against a different file (printer
+    /// switch, and every test that re-points the singleton); without this the
+    /// first backend keeps writing to the original file forever.
+    void ensure_storage();
 
     /**
      * @brief Point active_printer_id_ at a printer that actually exists
@@ -84,6 +117,16 @@ class Config {
 
     /// Drop the oldest /removed_printers entries beyond MAX_ARCHIVED_PRINTERS
     void prune_archived_printers();
+
+    /// Warn that the value at @p json_ptr could not be read as the requested
+    /// type and the caller's default was substituted. Out-of-line so this
+    /// very widely included header does not pull in spdlog.
+    static void log_type_mismatch(const std::string& json_ptr, const char* stored_type,
+                                  const char* expected_type, const char* detail);
+
+    /// Warn that a set() could not store its value, so the setting will not
+    /// persist. Out-of-line for the same reason as log_type_mismatch().
+    static void log_set_failed(const std::string& json_ptr, const char* detail);
 
   protected:
     json data;
@@ -113,6 +156,21 @@ class Config {
     void init(const std::string& config_path);
 
     /**
+     * @brief The settings path init() will actually use for @p config_path
+     *
+     * Applies the HELIX_CONFIG_DIR override — the directory comes from the
+     * env var, the filename from @p config_path, so the
+     * settings.json / settings-test.json distinction survives. Pure: creates
+     * nothing and touches no state, so callers that only want to *report* the
+     * effective path (the --test banner) resolve it the same way init() does
+     * instead of printing the unresolved compile-time constant.
+     *
+     * @param config_path Default path, e.g. RuntimeConfig::TEST_CONFIG_PATH
+     * @return @p config_path when HELIX_CONFIG_DIR is unset or empty
+     */
+    static std::string resolve_path(const std::string& config_path);
+
+    /**
      * @brief Reset state set by init() for test isolation
      *
      * Empties the persistence path and the active-printer slug so
@@ -128,6 +186,19 @@ class Config {
     void clear_path() {
         path.clear();
         active_printer_id_.clear();
+        storage_.reset();
+        storage_is_default_ = false;
+    }
+
+    /**
+     * @brief Inject a persistence backend (call BEFORE init()).
+     *
+     * Default when unset: make_file_config_storage(resolved path). Embedded
+     * targets substitute NVS/LittleFS; tests substitute an in-memory mock.
+     */
+    void set_storage(std::unique_ptr<ConfigStorage> storage) {
+        storage_ = std::move(storage);
+        storage_is_default_ = false;
     }
 
     /**
@@ -151,19 +222,37 @@ class Config {
     /**
      * @brief Get configuration value with default fallback
      *
-     * Safe accessor that returns default_value if path doesn't exist.
+     * Safe accessor that returns default_value if the path doesn't exist, holds
+     * null, or holds a value of a JSON type that cannot convert to T.
+     *
+     * The type check matters because settings.json is user-editable: a value
+     * like `"home_edit_mode_enabled": "true"` (string where a boolean belongs)
+     * makes nlohmann's get<T>() throw type_error.302. That exception used to
+     * escape into whatever was reading config at the time, typically a
+     * manager's init_subjects() partway through registering its subjects, so a
+     * single mistyped key took the whole app down instead of one setting.
      *
      * @tparam T Value type to retrieve
      * @param json_ptr JSON pointer path (e.g., "/printer/moonraker_host")
-     * @param default_value Fallback value if path not found
+     * @param default_value Fallback value if path not found or wrongly typed
      * @return Configuration value or default_value
      */
     template <typename T> T get(const std::string& json_ptr, const T& default_value) const {
         json::json_pointer ptr(json_ptr);
-        if (data.contains(ptr) && !data.at(ptr).is_null()) {
-            return data.at(ptr).template get<T>();
+        if (!data.contains(ptr)) {
+            return default_value;
         }
-        return default_value;
+        const json& node = data.at(ptr);
+        if (node.is_null()) {
+            return default_value;
+        }
+        try {
+            return node.template get<T>();
+        } catch (const json::exception& e) {
+            log_type_mismatch(json_ptr, node.type_name(), config_detail::expected_json_type<T>(),
+                              e.what());
+            return default_value;
+        }
     };
 
     /**
@@ -182,13 +271,24 @@ class Config {
      * Creates intermediate paths if they don't exist.
      * Changes are in-memory only until save() is called.
      *
+     * A path cannot be created through a component that a corrupted config
+     * stores as a scalar (`"input": "oops"` blocks /input/scroll_guard), which
+     * nlohmann reports as out_of_range.404. That is logged and the value is
+     * dropped rather than thrown: the setting fails to persist, but toggling it
+     * does not take the app down.
+     *
      * @tparam T Value type to store
      * @param json_ptr JSON pointer path (e.g., "/printer/moonraker_port")
      * @param v Value to set
      * @return The value that was set
      */
     template <typename T> T set(const std::string& json_ptr, T v) {
-        return data[json::json_pointer(json_ptr)] = v;
+        try {
+            return data[json::json_pointer(json_ptr)] = v;
+        } catch (const json::exception& e) {
+            log_set_failed(json_ptr, e.what());
+            return v;
+        }
     };
 
     /**

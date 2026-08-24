@@ -442,10 +442,30 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
         lv_subject_set_int(&data->thumbnail_state_subject, 2);
     } else {
         bool has_real_thumb = has_real_thumbnail(file.thumbnail_path);
+#if defined(HELIX_PLATFORM_ESP32)
+        // No disk thumbnail cache on this platform (Task 10 R6) — a fetched
+        // thumbnail lives in file.esp_thumbnail (PSRAM) instead of a file at
+        // file.thumbnail_path, so has_real_thumbnail()'s std::filesystem::exists
+        // check alone would always report false here.
+        bool has_psram_thumb = static_cast<bool>(file.esp_thumbnail);
+        has_real_thumb = has_real_thumb || has_psram_thumb;
+#endif
         if (has_real_thumb) {
             lv_obj_t* thumb_img = lv_obj_find_by_name(card, "thumbnail");
             if (thumb_img) {
-                lv_image_set_src(thumb_img, file.thumbnail_path.c_str());
+#if defined(HELIX_PLATFORM_ESP32)
+                if (has_psram_thumb) {
+                    // Keep the buffer alive in this pool slot for as long as
+                    // the widget's `src` references it (see CardWidgetData
+                    // comment) — assigning here also drops the previous
+                    // slot's thumbnail, if any.
+                    data->esp_thumbnail = file.esp_thumbnail;
+                    lv_image_set_src(thumb_img, data->esp_thumbnail->dsc());
+                } else
+#endif
+                {
+                    lv_image_set_src(thumb_img, file.thumbnail_path.c_str());
+                }
                 // Size widget to match pre-scaled .bin target so LVGL uses 1:1 blit
                 // instead of the scaled transform path (avoids per-frame bilinear scaling).
                 // Re-read per update rather than caching in a function-local static: the

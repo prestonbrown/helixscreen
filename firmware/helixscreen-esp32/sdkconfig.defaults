@@ -1,0 +1,167 @@
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=0
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
+# Allow static .bss to be placed in PSRAM via EXT_RAM_BSS_ATTR. Reclaims
+# internal DRAM: the app core's static footprint (LVGL draw buffers, excluded-
+# panel stub storage) grew enough that the largest contiguous internal block
+# fell below the 48KB UI-pthread stack, boot-failing with ENOMEM before WiFi
+# even started. Moving those large statics to PSRAM restores the internal
+# headroom. Without this, EXT_RAM_BSS_ATTR is a silent no-op.
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+
+# RTTI off (IDF's own default; stated explicitly because it is a deliberate
+# constraint on the app, not an inherited value). The firmware is RTTI-free by
+# construction: shared-resource keys and "is this the concrete subclass I mean"
+# questions go through type tags and virtual kind queries instead of
+# dynamic_cast/typeid — see include/helix_type_tag.h and the kind_tag idiom on
+# ContextMenu/PanelWidget. Measured: app image 6,440,480 -> 6,132,240 bytes
+# (-301KB, 97.4% -> 92.8% of the OTA slot), almost all of it .flash.rodata
+# (1,313,948 -> 1,017,952) shedding the typeinfo name string and descriptor
+# every polymorphic type used to carry — 2,076 _ZTSZ* symbols in the map, now
+# zero. -fno-rtti also goes on the link line, which selects the no-rtti multilib
+# (lib/esp32s3/no-rtti/) so nothing pulls in the RTTI libstdc++/libc copies.
+#
+# Exceptions stay ON. GCC still emits typeinfo for thrown and caught types, so
+# catch-by-base keeps working; only the runtime *query* forms are gone. That is
+# why .eh_frame barely moves here (396,560 -> 396,200).
+#
+# Consequence to know before reintroducing either: a dynamic_cast or typeid in
+# any firmware translation unit is now a hard compile error, not a size
+# regression. Desktop still builds -frtti, and the tag-based code is
+# unconditional, so there is no per-platform divergence to maintain.
+CONFIG_COMPILER_CXX_RTTI=n
+
+# Flash reclaim (Plan 4 budget cliff). IPv6 is unused — Moonraker is IPv4 on the
+# LAN, provisioning/mdns run v4. Assertions to SILENT keeps the asserts firing
+# but drops the __FILE__/__LINE__/expr strings they embed.
+CONFIG_LWIP_IPV6=n
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=8192
+
+# app_main is now tiny: it mounts storage, spawns the UI pthread (expat/XML
+# recursion runs on THAT 48KB pthread stack, not here — see lvgl_glue.c) and the
+# net task, then returns. 8KB is ample; the old 32KB was a straight 24KB of
+# internal DRAM we can't spare given the app core's static footprint.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
+
+# OTA A/B with rollback: new image must confirm healthy boot or the
+# bootloader reverts to the previous slot.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# TLS to Moonraker is optional/LAN; the default cert bundle costs ~636KB.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
+
+# Separate TX lock for esp_websocket_client: without it a send can block 10s+
+# behind an in-progress receive (esp-idf#14918), and Moonraker traffic is
+# bidirectional (RPCs out while status streams in). Required by helixnet.
+CONFIG_ESP_WS_CLIENT_SEPARATE_TX_LOCK=y
+
+# WiFi + display + octal-PSRAM coexistence (2026-07-15 boot-reliability
+# investigation, 20-reset harness verified; mirrors stock K-Touch firmware's
+# published Arduino-ESP32/IDF-5.1.1 config). WiFi/LWIP buffers allocate from
+# PSRAM so WiFi's variable internal-heap appetite cannot fragment internal
+# SRAM out from under the UI (the draw buffers + UI task stack are static in
+# .bss — see main/lvgl_glue.c). Static TX/RX buffer counts make the WiFi
+# internal footprint deterministic.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER=y
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_CACHE_TX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=8
+
+# Stock parity: adaptively drop PHY TX power after a brownout event — the
+# board's 5V path is marginal under full-power TX bursts (weak-RSSI worst
+# case), and stock ships this mitigation.
+CONFIG_ESP_PHY_REDUCE_TX_POWER=y
+
+# Stock parity: DOUT flash header — the shipped stock image runs DOUT@80m,
+# not the QIO its build config nominally requested. (Stock's 32B data-cache
+# line was tried and worsened scan-out: 64B lines give longer, more efficient
+# PSRAM bursts for the framebuffer reads.)
+CONFIG_ESPTOOLPY_FLASHMODE_DOUT=y
+
+# RESTART_IN_VSYNC must stay OFF (measured 2026-08-14, IDF v5.5.5 driver bug):
+# the bounce refill targets bounce_buffer[bb_eof_count % 2], and the driver
+# resets bb_eof_count each vsync ONLY in the non-RESTART_IN_VSYNC branch. With
+# it on, the DMA re-aligns to buffer 0 every vsync while the count never
+# resyncs, so ONE coalesced EOF interrupt (6-34 per boot measured under the
+# panel-build burst) flips the parity and every refill then writes the buffer
+# the DMA is TRANSMITTING — permanent whole-screen banding until the next odd
+# miss or reboot. That was the per-boot "sometimes it glitches constantly"
+# coin toss on the K-Touch. The default (off) branch resets the count every
+# vsync AND still restarts on a detected desync (bb_eof_count < expected), so
+# recovery survives the cache-disabled flash windows (WiFi PHY cal, OTA
+# otadata) that motivated the old =y: interrupts resume, the next vsync sees
+# the miss, and the panel restarts cleanly instead of latching corrupt.
+# LCD_RGB_ISR_IRAM_SAFE remains unusable: the refill ISR reads the PSRAM
+# framebuffer, unreachable while cache is off (panic, measured).
+# CONFIG_LCD_RGB_RESTART_IN_VSYNC is not set
+
+# Task WDT window: default 5s. Deferred panels are built on first navigation via
+# a single un-yieldable lv_xml_create on the UI thread that starves the idle task
+# for the build's duration (PanelFactory::build_deferred_panel). HIL tap-through
+# measured every panel's first build well under 5s (max ~2.4s: advanced 2414ms,
+# filament 2403ms, controls 1769ms, print_select 1224ms, settings 642ms), so the
+# temporary 8s margin is no longer needed and the default 5s stands.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+
+# mbedTLS ECP curve trim (flash diet): the only TLS peer this device ever
+# contacts is api.github.com/objects.githubusercontent.com for OTA/version
+# checks, which negotiates TLS1.3 X25519 with a P-256 leaf / P-384 chain
+# (probed 2026-07-16). Keep exactly those three; the other 9 curves are dead
+# code (~30-70KB). Moonraker traffic is plain ws:// on LAN. Re-widen only if a
+# new TLS endpoint appears.
+CONFIG_MBEDTLS_ECP_DP_SECP192R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP224R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP521R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP192K1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP224K1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_SECP256K1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP256R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP384R1_ENABLED=n
+CONFIG_MBEDTLS_ECP_DP_BP512R1_ENABLED=n
+
+# Event + timer task stacks, raised from the IDF defaults (2304 / 3584).
+# The system event task runs wifi_event_handler, whose handlers reach
+# on_got_ip() and on_scan_done() (wifi_backend_esp.cpp) — std::string and
+# std::vector work, plus the scan-result marshalling, all on that stack. The
+# esp_timer task runs housekeeping_trampoline -> process_timeouts(), which now
+# also drives execute_reconnect(): the websocket transport stop/start happens on
+# the timer task, so its stack demand is deeper than when these defaults were
+# inherited. Today the only signal that either has overflowed is the FreeRTOS
+# canary, i.e. a reboot with no attribution.
+#
+# These values are conservative headroom, not measured minimums — the
+# [stack:steady-60s] watermark log in app_boot.cpp reports what both tasks
+# actually consume, and these should be retuned down once that data exists.
+# The cost is ~4.3KB of internal DRAM (flash is unaffected); internal DRAM is
+# the contended resource on this board, so it is not free.
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+CONFIG_ESP_TIMER_TASK_STACK_SIZE=6144
+
+# WiFi IRAM speed opts OFF: on the S3, IRAM and DRAM heap share one SRAM pool,
+# and these two buy ~31KB of packet-path speed we don't need (light JSON-RPC
+# traffic only). Freed SRAM lands in the internal heap — measured necessary to
+# hold the >=100KB internal steady-state budget with the radio + live
+# Moonraker session up (84KB without; spec 2026-07-13 budget table).
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n

@@ -15,7 +15,7 @@ namespace {
 
 /// Data roots to try for the Creality recovery sidecar. K1-class images mount
 /// user storage at /usr/data; the OpenWrt-class K2 uses /mnt/UDISK.
-constexpr std::array<const char*, 2> kCrealityDataRoots = {"/usr/data", "/mnt/UDISK"};
+constexpr std::array<const char*, 2> CREALITY_DATA_ROOTS = {"/usr/data", "/mnt/UDISK"};
 
 /// Characters that would end the gcode command or break out of the quoted
 /// `FILENAME="<f>"` value. Klipper tokenizes extended parameters with `shlex`
@@ -23,10 +23,10 @@ constexpr std::array<const char*, 2> kCrealityDataRoots = {"/usr/data", "/mnt/UD
 /// `;`/`#` are shlex comment introducers and `*` is a checksum marker, all of
 /// which older regex-path forks strip before shlex ever runs. Spaces are NOT
 /// here — that is exactly what the quoting buys us.
-constexpr const char* kGcodeParamBreakers = "\n\r;#*=\"\\";
+constexpr const char* GCODE_PARAM_BREAKERS = "\n\r;#*=\"\\";
 
 /// Path segment that ends the virtual_sdcard root in every Creality image.
-constexpr const char* kGcodesDirMarker = "/gcodes/";
+constexpr const char* GCODES_DIR_MARKER = "/gcodes/";
 
 } // namespace
 
@@ -36,7 +36,7 @@ std::string plr_creality_sdcard_relative_name(const std::string& path) {
     }
     // Preferred: the exact roots we know, so a directory that merely happens to
     // be called "gcodes" deeper in the tree cannot win.
-    for (const char* root : kCrealityDataRoots) {
+    for (const char* root : CREALITY_DATA_ROOTS) {
         std::string prefix = std::string(root) + "/printer_data/gcodes/";
         if (path.rfind(prefix, 0) == 0) {
             return path.substr(prefix.size());
@@ -45,9 +45,9 @@ std::string plr_creality_sdcard_relative_name(const std::string& path) {
     // Fallback for a relocated virtual_sdcard path: first "/gcodes/" segment.
     // First, not last — a job really stored in a "gcodes" subfolder must keep
     // that subfolder in its relative name.
-    size_t pos = path.find(kGcodesDirMarker);
+    size_t pos = path.find(GCODES_DIR_MARKER);
     if (pos != std::string::npos) {
-        return path.substr(pos + std::string(kGcodesDirMarker).size());
+        return path.substr(pos + std::string(GCODES_DIR_MARKER).size());
     }
     spdlog::warn("[PLR] Creality recovery path '{}' has no recognizable gcodes root — "
                  "sending it unchanged",
@@ -99,7 +99,7 @@ bool plr_is_safe_recovery_filename(const std::string& name) {
     if (name.empty()) {
         return false;
     }
-    return name.find_first_of(kGcodeParamBreakers) == std::string::npos;
+    return name.find_first_of(GCODE_PARAM_BREAKERS) == std::string::npos;
 }
 
 PlrRecoveryPlan plr_build_plan(PlrBackendType backend, const std::string& recovery_file,
@@ -113,13 +113,13 @@ PlrRecoveryPlan plr_build_plan(PlrBackendType backend, const std::string& recove
         // Passive backend: pl_env_valid already IS the firmware's own
         // validation of the snapshot, so there is nothing further to confirm.
         // The gcode carries no parameters, so the filename is display-only.
-        plan.resume_gcode = kSnapmakerResumeGcode;
-        plan.discard_gcode = kSnapmakerDiscardGcode;
+        plan.resume_gcode = SNAPMAKER_RESUME_GCODE;
+        plan.discard_gcode = SNAPMAKER_DISCARD_GCODE;
         break;
 
     case PlrBackendType::CREALITY:
         // Discard is always safe to expose — it touches no motion.
-        plan.discard_rpc_method = kCrealityDiscardRpc;
+        plan.discard_rpc_method = CREALITY_DISCARD_RPC;
 
         // SAFETY GATE. Resume is authorized ONLY by a completed probe reporting
         // both states. The probe is what sets print_stats.power_loss=1, which
@@ -183,8 +183,8 @@ std::string plr_parse_creality_sidecar(const std::string& json_text) {
 }
 
 std::string plr_read_creality_recovery_filename() {
-    for (const char* root : kCrealityDataRoots) {
-        std::string path = std::string(root) + "/" + kCrealitySidecarRelPath;
+    for (const char* root : CREALITY_DATA_ROOTS) {
+        std::string path = std::string(root) + "/" + CREALITY_SIDECAR_REL_PATH;
         std::ifstream in(path, std::ios::binary);
         if (!in) {
             continue;
@@ -199,7 +199,7 @@ std::string plr_read_creality_recovery_filename() {
         spdlog::debug("[PLR] Creality sidecar {} present but yielded no file_path", path);
     }
     spdlog::debug("[PLR] No readable Creality recovery sidecar (looked for {})",
-                  kCrealitySidecarRelPath);
+                  CREALITY_SIDECAR_REL_PATH);
     return {};
 }
 

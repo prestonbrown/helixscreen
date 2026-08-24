@@ -1,0 +1,1966 @@
+{
+ "object_list": [
+  "filament_motion_sensor e0_filament",
+  "filament_motion_sensor e1_filament",
+  "filament_motion_sensor e2_filament",
+  "filament_motion_sensor e3_filament",
+  "AFC",
+  "AFC_stepper HTLF_claymore_drive",
+  "AFC_stepper HTLF_claymore_selector",
+  "AFC_Claymore HTLF_claymore_1",
+  "filament_switch_sensor lane11_load",
+  "filament_switch_sensor lane11_selector",
+  "AFC_lane lane11",
+  "filament_switch_sensor lane12_load",
+  "filament_switch_sensor lane12_selector",
+  "AFC_lane lane12",
+  "filament_switch_sensor lane13_load",
+  "filament_switch_sensor lane13_selector",
+  "AFC_lane lane13",
+  "filament_switch_sensor lane14_load",
+  "filament_switch_sensor lane14_selector",
+  "AFC_lane lane14",
+  "filament_switch_sensor HTLF_claymore_Hub",
+  "AFC_hub HTLF_claymore",
+  "filament_switch_sensor HTLF_claymore_buffer_expanded",
+  "filament_switch_sensor HTLF_claymore_buffer_compressed",
+  "AFC_buffer HTLF_claymore_buffer",
+  "AFC_led HTLF_claymore_Indicator_1",
+  "AFC_EMU EMU_1",
+  "filament_switch_sensor lane9_prep",
+  "filament_switch_sensor lane9_load",
+  "AFC_stepper lane9",
+  "filament_switch_sensor lane10_prep",
+  "filament_switch_sensor lane10_load",
+  "filament_switch_sensor EMU_HUB_2_Hub",
+  "AFC_hub EMU_HUB_2",
+  "AFC_stepper lane10",
+  "filament_switch_sensor EMU_1_buffer_expanded",
+  "filament_switch_sensor EMU_1_buffer_compressed",
+  "AFC_buffer EMU_1_buffer",
+  "AFC_hub EMU_HUB_1",
+  "AFC_led EMU_Indicator_1",
+  "AFC_led EMU_Indicator_2",
+  "filament_switch_sensor FPS_buffer1_expanded",
+  "filament_switch_sensor FPS_buffer1_compressed",
+  "AFC_buffer FPS_buffer1",
+  "AFC_Toolchanger Tools",
+  "AFC_extruder e0",
+  "AFC_lane e1",
+  "AFC_extruder e1",
+  "AFC_lane e2",
+  "AFC_extruder e2",
+  "AFC_extruder e3",
+  "AFC_BoxTurtle Turtle_1",
+  "filament_switch_sensor lane1_prep",
+  "filament_switch_sensor lane1_load",
+  "AFC_stepper lane1",
+  "filament_switch_sensor lane2_prep",
+  "filament_switch_sensor lane2_load",
+  "AFC_stepper lane2",
+  "filament_switch_sensor lane3_prep",
+  "filament_switch_sensor lane3_load",
+  "AFC_stepper lane3",
+  "filament_switch_sensor lane4_prep",
+  "filament_switch_sensor lane4_load",
+  "AFC_stepper lane4",
+  "filament_switch_sensor Turtle_1_Hub",
+  "AFC_hub Turtle_1",
+  "AFC_led AFC_Indicator",
+  "filament_switch_sensor Turtle_1_expanded",
+  "filament_switch_sensor Turtle_1_compressed",
+  "AFC_buffer Turtle_1",
+  "AFC_led AFC_Indicator2",
+  "AFC_led AFC_Indicator3",
+  "AFC_stepper Vivid_1_drive",
+  "AFC_stepper Vivid_1_selector",
+  "AFC_vivid Vivid_1",
+  "filament_switch_sensor lane5_prep",
+  "filament_switch_sensor lane5_load",
+  "filament_switch_sensor lane5_selector",
+  "AFC_lane lane5",
+  "filament_switch_sensor lane7_prep",
+  "filament_switch_sensor lane7_load",
+  "filament_switch_sensor lane7_selector",
+  "AFC_lane lane7",
+  "filament_switch_sensor lane8_prep",
+  "filament_switch_sensor lane8_load",
+  "filament_switch_sensor lane8_selector",
+  "AFC_lane lane8",
+  "filament_switch_sensor lane6_prep",
+  "filament_switch_sensor lane6_load",
+  "filament_switch_sensor lane6_selector",
+  "AFC_lane lane6",
+  "filament_switch_sensor Vivid_1_buffer_expanded",
+  "filament_switch_sensor Vivid_1_buffer_compressed",
+  "AFC_buffer Vivid_1_buffer",
+  "AFC_hub Vivid_1",
+  "AFC_led AFC_ViViD_Indicator_1",
+  "AFC_led AFC_ViViD_Indicator_2",
+  "filament_switch_sensor virtual_bypass",
+  "filament_switch_sensor quiet_mode"
+ ],
+ "status": {
+  "AFC": {
+   "buffers": [
+    "HTLF_claymore_buffer",
+    "EMU_1_buffer",
+    "FPS_buffer1",
+    "Turtle_1",
+    "Vivid_1_buffer"
+   ],
+   "bypass_state": false,
+   "current_lane": null,
+   "current_load": "lane10",
+   "current_state": "Idle",
+   "current_toolchange": 0,
+   "error_state": false,
+   "extruders": [
+    "e0",
+    "e1",
+    "e2",
+    "e3"
+   ],
+   "hubs": [
+    "HTLF_claymore",
+    "EMU_HUB_2",
+    "EMU_HUB_1",
+    "Turtle_1",
+    "Vivid_1"
+   ],
+   "lane_data_enabled": false,
+   "lanes": [
+    "lane11",
+    "lane12",
+    "lane13",
+    "lane14",
+    "lane9",
+    "lane10",
+    "e1",
+    "e2",
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4",
+    "lane5",
+    "lane7",
+    "lane8",
+    "lane6"
+   ],
+   "led_state": true,
+   "maps": [
+    "T12",
+    "T13",
+    "T14",
+    "T15",
+    "T11",
+    "T10",
+    "T1",
+    "T2",
+    "T3",
+    "T0",
+    "T4",
+    "T5",
+    "T6",
+    "T8",
+    "T9",
+    "T7"
+   ],
+   "message": {
+    "message": "",
+    "type": ""
+   },
+   "next_lane": null,
+   "number_of_toolchanges": 0,
+   "position_saved": false,
+   "quiet_mode": false,
+   "spoolman": "http://spoolman.local:7912/",
+   "td1_present": false,
+   "units": [
+    "Box_Turtle Turtle_1",
+    "ViViD Vivid_1",
+    "EMU EMU_1",
+    "Claymore HTLF_claymore_1",
+    "Toolchanger Tools"
+   ],
+   "version": "1.2.4"
+  },
+  "AFC_BoxTurtle Turtle_1": {
+   "buffers": [
+    "Turtle_1"
+   ],
+   "extruders": [
+    "e0"
+   ],
+   "hubs": [
+    "Turtle_1"
+   ],
+   "lanes": [
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4"
+   ]
+  },
+  "AFC_Claymore HTLF_claymore_1": {
+   "buffers": [
+    "HTLF_claymore_buffer"
+   ],
+   "extruders": [
+    "e0"
+   ],
+   "hubs": [
+    "HTLF_claymore"
+   ],
+   "lanes": [
+    "lane11",
+    "lane12",
+    "lane13",
+    "lane14"
+   ]
+  },
+  "AFC_EMU EMU_1": {
+   "buffers": [
+    "FPS_buffer1"
+   ],
+   "extruders": [
+    "e3"
+   ],
+   "hubs": [
+    "EMU_HUB_1",
+    "EMU_HUB_2"
+   ],
+   "lanes": [
+    "lane9",
+    "lane10"
+   ]
+  },
+  "AFC_Toolchanger Tools": {
+   "buffers": [],
+   "extruders": [
+    "e1",
+    "e2"
+   ],
+   "hubs": [],
+   "lanes": [
+    "e1",
+    "e2"
+   ]
+  },
+  "AFC_buffer EMU_1_buffer": {
+   "active_lane": null,
+   "distance_to_fault": null,
+   "enabled": false,
+   "error_sensitivity": 0,
+   "fault_detection_enabled": false,
+   "fault_timer": null,
+   "lanes": [],
+   "multiplier": 1,
+   "multiplier_high": 1.15,
+   "multiplier_low": 0.9,
+   "rotation_distance": null,
+   "state": "Unknown"
+  },
+  "AFC_buffer FPS_buffer1": {
+   "active_lane": "lane10",
+   "distance_to_fault": null,
+   "enabled": true,
+   "error_sensitivity": 0,
+   "fault_detection_enabled": false,
+   "fault_timer": null,
+   "fps_value": 0.406,
+   "lanes": [
+    "lane9",
+    "lane10"
+   ],
+   "multiplier": 1.0353166868713957,
+   "multiplier_high": 1.15,
+   "multiplier_low": 0.85,
+   "rotation_distance": 21.98110036144609,
+   "set_point": 0.5,
+   "smoothed_fps": 0.406,
+   "state": "Neutral"
+  },
+  "AFC_buffer HTLF_claymore_buffer": {
+   "active_lane": null,
+   "distance_to_fault": null,
+   "enabled": false,
+   "error_sensitivity": 0,
+   "fault_detection_enabled": false,
+   "fault_timer": null,
+   "lanes": [
+    "lane11",
+    "lane12",
+    "lane13",
+    "lane14"
+   ],
+   "multiplier": 1,
+   "multiplier_high": 1.15,
+   "multiplier_low": 0.9,
+   "rotation_distance": null,
+   "state": "Advancing"
+  },
+  "AFC_buffer Turtle_1": {
+   "active_lane": "lane1",
+   "distance_to_fault": null,
+   "enabled": true,
+   "error_sensitivity": 0,
+   "fault_detection_enabled": false,
+   "fault_timer": null,
+   "lanes": [
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4"
+   ],
+   "multiplier": 1.05,
+   "multiplier_high": 1.05,
+   "multiplier_low": 0.95,
+   "rotation_distance": 51.96576028571429,
+   "state": "Advancing"
+  },
+  "AFC_buffer Vivid_1_buffer": {
+   "active_lane": null,
+   "distance_to_fault": null,
+   "enabled": false,
+   "error_sensitivity": 0,
+   "fault_detection_enabled": false,
+   "fault_timer": null,
+   "lanes": [
+    "lane5",
+    "lane7",
+    "lane8",
+    "lane6"
+   ],
+   "multiplier": 1,
+   "multiplier_high": 1.15,
+   "multiplier_low": 0.9,
+   "rotation_distance": null,
+   "state": "Advancing"
+  },
+  "AFC_extruder e0": {
+   "buffer": null,
+   "is_standalone": false,
+   "lane_loaded": "lane1",
+   "lanes": [
+    "lane11",
+    "lane12",
+    "lane13",
+    "lane14",
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4"
+   ],
+   "next_pickup": false,
+   "on_shuttle": false,
+   "status": "Idle",
+   "tool_end": null,
+   "tool_end_status": false,
+   "tool_load_speed": 25.0,
+   "tool_sensor_after_extruder": 0.0,
+   "tool_start": "buffer",
+   "tool_start_status": false,
+   "tool_stn": 50.0,
+   "tool_stn_unload": 10.0,
+   "tool_unload_speed": 25.0
+  },
+  "AFC_extruder e1": {
+   "buffer": null,
+   "is_standalone": true,
+   "lane_loaded": "e1",
+   "lanes": [
+    "e1"
+   ],
+   "next_pickup": false,
+   "on_shuttle": false,
+   "status": "Idle",
+   "tool_end": null,
+   "tool_end_status": false,
+   "tool_load_speed": 25.0,
+   "tool_sensor_after_extruder": 0.0,
+   "tool_start": null,
+   "tool_start_status": true,
+   "tool_stn": 50.0,
+   "tool_stn_unload": 60.0,
+   "tool_unload_speed": 25.0
+  },
+  "AFC_extruder e2": {
+   "buffer": null,
+   "is_standalone": true,
+   "lane_loaded": "e2",
+   "lanes": [
+    "e2"
+   ],
+   "next_pickup": false,
+   "on_shuttle": false,
+   "status": "Idle",
+   "tool_end": null,
+   "tool_end_status": false,
+   "tool_load_speed": 25.0,
+   "tool_sensor_after_extruder": 0.0,
+   "tool_start": null,
+   "tool_start_status": true,
+   "tool_stn": 50.0,
+   "tool_stn_unload": 60.0,
+   "tool_unload_speed": 25.0
+  },
+  "AFC_extruder e3": {
+   "buffer": null,
+   "is_standalone": false,
+   "lane_loaded": "lane10",
+   "lanes": [
+    "lane9",
+    "lane10",
+    "lane5",
+    "lane7",
+    "lane8",
+    "lane6"
+   ],
+   "next_pickup": false,
+   "on_shuttle": true,
+   "status": "Idle",
+   "tool_end": null,
+   "tool_end_status": false,
+   "tool_load_speed": 25.0,
+   "tool_sensor_after_extruder": 0.0,
+   "tool_start": "buffer",
+   "tool_start_status": false,
+   "tool_stn": 50.0,
+   "tool_stn_unload": 60.0,
+   "tool_unload_speed": 25.0
+  },
+  "AFC_hub EMU_HUB_1": {
+   "afc_bowden_length": 900,
+   "cut": false,
+   "cut_clear": 120,
+   "cut_cmd": null,
+   "cut_dist": 50,
+   "cut_min_length": 200,
+   "cut_servo_clip_angle": 160,
+   "cut_servo_pass_angle": 0,
+   "cut_servo_prep_angle": 75,
+   "lanes": [
+    "lane9"
+   ],
+   "state": false
+  },
+  "AFC_hub EMU_HUB_2": {
+   "afc_bowden_length": 1779.83,
+   "cut": false,
+   "cut_clear": 120,
+   "cut_cmd": null,
+   "cut_dist": 50,
+   "cut_min_length": 200,
+   "cut_servo_clip_angle": 160,
+   "cut_servo_pass_angle": 0,
+   "cut_servo_prep_angle": 75,
+   "lanes": [
+    "lane10"
+   ],
+   "state": true
+  },
+  "AFC_hub HTLF_claymore": {
+   "afc_bowden_length": 1968.5,
+   "cut": false,
+   "cut_clear": 120,
+   "cut_cmd": null,
+   "cut_dist": 50,
+   "cut_min_length": 200,
+   "cut_servo_clip_angle": 160,
+   "cut_servo_pass_angle": 0,
+   "cut_servo_prep_angle": 75,
+   "lanes": [
+    "lane11",
+    "lane12",
+    "lane13",
+    "lane14"
+   ],
+   "state": false
+  },
+  "AFC_hub Turtle_1": {
+   "afc_bowden_length": 1435.25,
+   "cut": false,
+   "cut_clear": 120.0,
+   "cut_cmd": "AFC",
+   "cut_dist": 50.0,
+   "cut_min_length": 300.0,
+   "cut_servo_clip_angle": 180.0,
+   "cut_servo_pass_angle": 10.0,
+   "cut_servo_prep_angle": 80.0,
+   "lanes": [
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4"
+   ],
+   "state": true
+  },
+  "AFC_hub Vivid_1": {
+   "afc_bowden_length": 1632.21,
+   "cut": false,
+   "cut_clear": 120,
+   "cut_cmd": null,
+   "cut_dist": 50,
+   "cut_min_length": 200,
+   "cut_servo_clip_angle": 160,
+   "cut_servo_pass_angle": 0,
+   "cut_servo_prep_angle": 75,
+   "lanes": [
+    "lane5",
+    "lane7",
+    "lane8",
+    "lane6"
+   ],
+   "state": false
+  },
+  "AFC_lane e1": {
+   "_map": [
+    "T1"
+   ],
+   "bed_temp": 0,
+   "buffer": null,
+   "buffer_status": null,
+   "color": "#000000",
+   "current_map": "T1",
+   "dist_hub": 60,
+   "extruder": "e1",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "In Tool",
+   "filament_status_led": "#0000ff",
+   "hub": "direct",
+   "initial_weight": 1000,
+   "lane": 0,
+   "load": true,
+   "loaded_to_hub": false,
+   "map": [
+    "T1"
+   ],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "e1",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": true,
+   "unit": "Tools",
+   "weight": 99.54168648056142
+  },
+  "AFC_lane e2": {
+   "_map": [
+    "T2"
+   ],
+   "bed_temp": 55,
+   "buffer": null,
+   "buffer_status": null,
+   "color": "#080808",
+   "current_map": "T2",
+   "dist_hub": 60,
+   "extruder": "e2",
+   "extruder_temp": 220,
+   "filament_name": "Black Rapid PLA+",
+   "filament_status": "In Tool",
+   "filament_status_led": "#0000ff",
+   "hub": "direct",
+   "initial_weight": 1000.0,
+   "lane": 0,
+   "load": true,
+   "loaded_to_hub": false,
+   "map": [
+    "T2"
+   ],
+   "material": "PLA+",
+   "multi_color_hexes": [],
+   "name": "e2",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 63,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": true,
+   "unit": "Tools",
+   "weight": 234.6160447854504
+  },
+  "AFC_lane lane11": {
+   "_map": [],
+   "bed_temp": 0,
+   "buffer": "HTLF_claymore_buffer",
+   "buffer_status": "Advancing",
+   "color": null,
+   "current_map": "T12",
+   "dist_hub": 5000.0,
+   "extruder": "e0",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 1,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T12"
+   ],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "lane11",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_lane lane12": {
+   "_map": [],
+   "bed_temp": 0,
+   "buffer": "HTLF_claymore_buffer",
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "T13",
+   "dist_hub": 125.75,
+   "extruder": "e0",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 2,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T13"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane12",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "selector": true,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_lane lane13": {
+   "_map": [],
+   "bed_temp": 0,
+   "buffer": "HTLF_claymore_buffer",
+   "buffer_status": "Advancing",
+   "color": null,
+   "current_map": "T14",
+   "dist_hub": 128.07,
+   "extruder": "e0",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 3,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T14"
+   ],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "lane13",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_lane lane14": {
+   "_map": [],
+   "bed_temp": 0,
+   "buffer": "HTLF_claymore_buffer",
+   "buffer_status": "Advancing",
+   "color": null,
+   "current_map": "T15",
+   "dist_hub": 193.4,
+   "extruder": "e0",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 4,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T15"
+   ],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "lane14",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_lane lane5": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": "Vivid_1_buffer",
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "T6",
+   "dist_hub": 842.64,
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 1,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T6"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane5",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0
+  },
+  "AFC_lane lane6": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": "Vivid_1_buffer",
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "T7",
+   "dist_hub": 746.93,
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 2,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T7"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane6",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0
+  },
+  "AFC_lane lane7": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": "Vivid_1_buffer",
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "T8",
+   "dist_hub": 765.63,
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 3,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T8"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane7",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0
+  },
+  "AFC_lane lane8": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": "Vivid_1_buffer",
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "T9",
+   "dist_hub": 2000.0,
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 4,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "T9"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane8",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0
+  },
+  "AFC_led AFC_Indicator": {
+   "color_data": [
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led AFC_Indicator2": {
+   "color_data": [
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ],
+    [
+     0.4,
+     0.4,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led AFC_Indicator3": {
+   "color_data": [
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.8,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led AFC_ViViD_Indicator_1": {
+   "color_data": [
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led AFC_ViViD_Indicator_2": {
+   "color_data": [
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led EMU_Indicator_1": {
+   "color_data": [
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led EMU_Indicator_2": {
+   "color_data": [
+    [
+     0.0,
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_led HTLF_claymore_Indicator_1": {
+   "color_data": [
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  },
+  "AFC_stepper HTLF_claymore_drive": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": null,
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "",
+   "dist_hub": 60,
+   "endstops": "hub,tool_start,buffer_advance,buffer_trailing,lane11_load,lane12_load,lane13_load,lane14_load",
+   "extruder": "e0",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 0,
+   "load": true,
+   "loaded_to_hub": false,
+   "map": [],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "HTLF_claymore_drive",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_stepper HTLF_claymore_selector": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": null,
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "",
+   "dist_hub": 60,
+   "endstops": "hub,tool_start,buffer_advance,buffer_trailing,lane11_selector,lane12_selector,lane13_selector,lane14_selector",
+   "extruder": "e0",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "HTLF_claymore",
+   "initial_weight": 1000,
+   "lane": 0,
+   "load": true,
+   "loaded_to_hub": false,
+   "map": [],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "HTLF_claymore_selector",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "HTLF_claymore_1",
+   "weight": 0.0
+  },
+  "AFC_stepper Vivid_1_drive": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": null,
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "",
+   "dist_hub": 60,
+   "endstops": "tool_start,buffer_advance,buffer_trailing,lane5_prep,lane5_load,lane7_prep,lane7_load,lane8_prep,lane8_load,lane6_prep,lane6_load",
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 0,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "Vivid_1_drive",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0.0
+  },
+  "AFC_stepper Vivid_1_selector": {
+   "_map": [],
+   "bed_temp": null,
+   "buffer": null,
+   "buffer_status": "Advancing",
+   "color": "",
+   "current_map": "",
+   "dist_hub": 60,
+   "endstops": "tool_start,buffer_advance,buffer_trailing,lane5_selector,lane7_selector,lane8_selector,lane6_selector",
+   "extruder": "e3",
+   "extruder_temp": null,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "Vivid_1",
+   "initial_weight": 1000,
+   "lane": 0,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [],
+   "material": null,
+   "multi_color_hexes": [],
+   "name": "Vivid_1_selector",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Vivid_1",
+   "weight": 0.0
+  },
+  "AFC_stepper lane1": {
+   "_map": [],
+   "bed_temp": 60,
+   "buffer": "Turtle_1",
+   "buffer_status": "Advancing",
+   "color": "#d2c3c3",
+   "current_map": "T3",
+   "dist_hub": 154.64,
+   "endstops": "load,hub,tool_start,buffer_advance,buffer_trailing,lane1_prep,lane1_load",
+   "extruder": "e0",
+   "extruder_temp": 220,
+   "filament_name": "Cool Grey Pearl",
+   "filament_status": "In Tool",
+   "filament_status_led": "#0000ff",
+   "hub": "Turtle_1",
+   "initial_weight": 1000.0,
+   "lane": 1,
+   "load": true,
+   "loaded_to_hub": true,
+   "map": [
+    "T3",
+    "T0"
+   ],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "lane1",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 59,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": true,
+   "unit": "Turtle_1",
+   "weight": 767.099078933436
+  },
+  "AFC_stepper lane10": {
+   "_map": [],
+   "bed_temp": 60,
+   "buffer": "FPS_buffer1",
+   "buffer_status": "Neutral",
+   "color": "#dd00ff",
+   "current_map": "T11",
+   "dist_hub": 207.43,
+   "endstops": "load,hub,lane10_prep,lane10_load,lane10_hub,tool_start,buffer_advance,buffer_trailing",
+   "extruder": "e3",
+   "extruder_temp": 220,
+   "filament_name": "Pink",
+   "filament_status": "In Tool",
+   "filament_status_led": "#0000ff",
+   "hub": "EMU_HUB_2",
+   "initial_weight": 1000.0,
+   "lane": 2,
+   "load": true,
+   "loaded_to_hub": true,
+   "map": [
+    "T11",
+    "T10"
+   ],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "lane10",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 43,
+   "status": "Tooled",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": true,
+   "unit": "EMU_1",
+   "weight": 536.2378012984796
+  },
+  "AFC_stepper lane2": {
+   "_map": [],
+   "bed_temp": 55,
+   "buffer": "Turtle_1",
+   "buffer_status": "Advancing",
+   "color": "#0004ff",
+   "current_map": "",
+   "dist_hub": 97.58,
+   "endstops": "load,hub,tool_start,buffer_advance,buffer_trailing,lane2_prep,lane2_load",
+   "extruder": "e0",
+   "extruder_temp": 220,
+   "filament_name": "Cosmic Shimmer",
+   "filament_status": "Ready",
+   "filament_status_led": "#00cc00",
+   "hub": "Turtle_1",
+   "initial_weight": 1000.0,
+   "lane": 2,
+   "load": true,
+   "loaded_to_hub": true,
+   "map": [],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "lane2",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 44,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Turtle_1",
+   "weight": 609.3906518056517
+  },
+  "AFC_stepper lane3": {
+   "_map": [],
+   "bed_temp": 55,
+   "buffer": "Turtle_1",
+   "buffer_status": "Advancing",
+   "color": "#9000ff",
+   "current_map": "T4",
+   "dist_hub": 100.49,
+   "endstops": "load,hub,tool_start,buffer_advance,buffer_trailing,lane3_prep,lane3_load",
+   "extruder": "e0",
+   "extruder_temp": 220,
+   "filament_name": "Rainbow Dolos",
+   "filament_status": "Ready",
+   "filament_status_led": "#00cc00",
+   "hub": "Turtle_1",
+   "initial_weight": 1000.0,
+   "lane": 3,
+   "load": true,
+   "loaded_to_hub": true,
+   "map": [
+    "T4"
+   ],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "lane3",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 50,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Turtle_1",
+   "weight": 609.7099373097392
+  },
+  "AFC_stepper lane4": {
+   "_map": [],
+   "bed_temp": 60,
+   "buffer": "Turtle_1",
+   "buffer_status": "Advancing",
+   "color": "#0084ff",
+   "current_map": "T5",
+   "dist_hub": 157.9,
+   "endstops": "load,hub,tool_start,buffer_advance,buffer_trailing,lane4_prep,lane4_load",
+   "extruder": "e0",
+   "extruder_temp": 220,
+   "filament_name": "Starlight Neptune",
+   "filament_status": "Ready",
+   "filament_status_led": "#00cc00",
+   "hub": "Turtle_1",
+   "initial_weight": 1000.0,
+   "lane": 4,
+   "load": true,
+   "loaded_to_hub": true,
+   "map": [
+    "T5"
+   ],
+   "material": "PLA",
+   "multi_color_hexes": [],
+   "name": "lane4",
+   "prep": true,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": 58,
+   "status": "Loaded",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "Turtle_1",
+   "weight": 769.2571594475487
+  },
+  "AFC_stepper lane9": {
+   "_map": [],
+   "bed_temp": 0,
+   "buffer": "FPS_buffer1",
+   "buffer_status": "Neutral",
+   "color": "",
+   "current_map": "",
+   "dist_hub": 1911.96,
+   "endstops": "load,lane9_prep,lane9_load,tool_start,buffer_advance,buffer_trailing",
+   "extruder": "e3",
+   "extruder_temp": 0,
+   "filament_name": "",
+   "filament_status": "Not Ready",
+   "filament_status_led": "#ff0000",
+   "hub": "EMU_HUB_1",
+   "initial_weight": 1000,
+   "lane": 1,
+   "load": false,
+   "loaded_to_hub": false,
+   "map": [
+    "NONE"
+   ],
+   "material": "",
+   "multi_color_hexes": [],
+   "name": "lane9",
+   "prep": false,
+   "remember_spool": false,
+   "runout_lane": null,
+   "spool_id": null,
+   "status": "None",
+   "td1_color": "",
+   "td1_scan_time": "",
+   "td1_td": "",
+   "tool_loaded": false,
+   "unit": "EMU_1",
+   "weight": 0.0
+  },
+  "AFC_vivid Vivid_1": {
+   "buffers": [
+    "Vivid_1_buffer"
+   ],
+   "extruders": [
+    "e3"
+   ],
+   "hubs": [
+    "Vivid_1"
+   ],
+   "lanes": [
+    "lane5",
+    "lane6",
+    "lane7",
+    "lane8"
+   ]
+  },
+  "filament_motion_sensor e0_filament": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_motion_sensor e1_filament": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_motion_sensor e2_filament": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_motion_sensor e3_filament": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor EMU_1_buffer_compressed": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor EMU_1_buffer_expanded": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor EMU_HUB_2_Hub": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor FPS_buffer1_compressed": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor FPS_buffer1_expanded": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor HTLF_claymore_Hub": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor HTLF_claymore_buffer_compressed": {
+   "enabled": false,
+   "filament_detected": true
+  },
+  "filament_switch_sensor HTLF_claymore_buffer_expanded": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor Turtle_1_Hub": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor Turtle_1_compressed": {
+   "enabled": false,
+   "filament_detected": true
+  },
+  "filament_switch_sensor Turtle_1_expanded": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor Vivid_1_buffer_compressed": {
+   "enabled": false,
+   "filament_detected": true
+  },
+  "filament_switch_sensor Vivid_1_buffer_expanded": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane10_load": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane10_prep": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane11_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane11_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane12_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane12_selector": {
+   "enabled": false,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane13_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane13_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane14_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane14_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane1_load": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane1_prep": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane2_load": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane2_prep": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane3_load": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane3_prep": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane4_load": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane4_prep": {
+   "enabled": true,
+   "filament_detected": true
+  },
+  "filament_switch_sensor lane5_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane5_prep": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane5_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane6_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane6_prep": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane6_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane7_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane7_prep": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane7_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane8_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane8_prep": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane8_selector": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane9_load": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor lane9_prep": {
+   "enabled": true,
+   "filament_detected": false
+  },
+  "filament_switch_sensor quiet_mode": {
+   "enabled": false,
+   "filament_detected": false
+  },
+  "filament_switch_sensor virtual_bypass": {
+   "enabled": false,
+   "filament_detected": false
+  }
+ }
+}

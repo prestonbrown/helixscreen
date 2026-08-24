@@ -134,8 +134,7 @@ TEST_CASE("ACE stamps LOADED on the slot current_filament names", "[ams][ace][11
     CHECK_FALSE(ace.slot_is_actively_loaded(0));
 }
 
-TEST_CASE("ACE LOADED stamp survives a status frame and follows a toolchange",
-          "[ams][ace][1199]") {
+TEST_CASE("ACE LOADED stamp survives a status frame and follows a toolchange", "[ams][ace][1199]") {
     AcePerSlotLoadedHelper ace;
     ace.feed("filament_hub", native_hub("0-1"));
     REQUIRE(ace.get_slot_info(1).status == SlotStatus::LOADED);
@@ -217,8 +216,7 @@ TEST_CASE("ACE clears the LOADED stamp when nothing is seated", "[ams][ace][1199
 // REST fallback: /status and /slots are separate polls
 // ============================================================================
 
-TEST_CASE("ACE REST /slots poll does not wipe the seated stamp from /status",
-          "[ams][ace][1199]") {
+TEST_CASE("ACE REST /slots poll does not wipe the seated stamp from /status", "[ams][ace][1199]") {
     AcePerSlotLoadedHelper ace;
 
     json slots{{"slots", json::array({json{{"status", "ready"}, {"material", "PLA"}},
@@ -252,8 +250,7 @@ TEST_CASE("ACE REST /slots poll does not wipe the seated stamp from /status",
 // Equivalence with the aggregate rule it replaces
 // ============================================================================
 
-TEST_CASE("ACE per-slot rule agrees with the aggregate pair it derives from",
-          "[ams][ace][1199]") {
+TEST_CASE("ACE per-slot rule agrees with the aggregate pair it derives from", "[ams][ace][1199]") {
     AcePerSlotLoadedHelper ace;
     ace.feed("filament_hub", native_hub(""));
 
@@ -262,10 +259,9 @@ TEST_CASE("ACE per-slot rule agrees with the aggregate pair it derives from",
             ace.force_aggregate(seated, loaded);
             // A frame that carries no seated field re-derives the stamp from
             // whatever the aggregate currently holds.
-            ace.feed_rest_slots(json{{"slots", json::array({json{{"status", "ready"}},
-                                                            json{{"status", "ready"}},
-                                                            json{{"status", "ready"}},
-                                                            json{{"status", "ready"}}})}});
+            ace.feed_rest_slots(json{
+                {"slots", json::array({json{{"status", "ready"}}, json{{"status", "ready"}},
+                                       json{{"status", "ready"}}, json{{"status", "ready"}}})}});
 
             for (int i = 0; i < 4; ++i) {
                 const bool aggregate_answer = (i == seated) && loaded;

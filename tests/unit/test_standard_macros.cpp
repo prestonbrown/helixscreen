@@ -211,6 +211,35 @@ TEST_CASE("StandardMacros - auto-detection", "[standard_macros]") {
         REQUIRE(macros.get(StandardMacroSlot::Resume).detected_macro == "M602");
     }
 
+    SECTION("Helix override beats Creality QUIT_MATERIAL, not native macros") {
+        // The Creality K1 family's stock "unload" (QUIT_MATERIAL) purges
+        // filament FORWARD and retracts only part of it — a melt-zone
+        // clearer for manually-cut filament, not an unload. With our macro
+        // pack installed, HELIX_UNLOAD_FILAMENT takes the slot.
+        helix::PrinterDiscovery k1c;
+        json objects = {"extruder", "gcode_macro LOAD_MATERIAL", "gcode_macro QUIT_MATERIAL",
+                        "gcode_macro HELIX_UNLOAD_FILAMENT"};
+        k1c.parse_objects(objects);
+        macros.init(k1c);
+        REQUIRE(macros.get(StandardMacroSlot::UnloadFilament).detected_macro ==
+                "HELIX_UNLOAD_FILAMENT");
+
+        // Without the override installed, the stock macro keeps the slot.
+        helix::PrinterDiscovery stock;
+        json stock_objects = {"extruder", "gcode_macro LOAD_MATERIAL", "gcode_macro QUIT_MATERIAL"};
+        stock.parse_objects(stock_objects);
+        macros.init(stock);
+        REQUIRE(macros.get(StandardMacroSlot::UnloadFilament).detected_macro == "QUIT_MATERIAL");
+
+        // A printer's own UNLOAD_FILAMENT always outranks the override.
+        helix::PrinterDiscovery native;
+        json native_objects = {"extruder", "gcode_macro UNLOAD_FILAMENT",
+                               "gcode_macro HELIX_UNLOAD_FILAMENT"};
+        native.parse_objects(native_objects);
+        macros.init(native);
+        REQUIRE(macros.get(StandardMacroSlot::UnloadFilament).detected_macro == "UNLOAD_FILAMENT");
+    }
+
     SECTION("Detects alternative bed level patterns") {
         helix::PrinterDiscovery hardware;
 

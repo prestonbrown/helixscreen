@@ -31,7 +31,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::ui::kExternalSpoolSlot;
+using helix::ui::EXTERNAL_SPOOL_SLOT;
 using helix::ui::load_preheat_temp;
 using helix::ui::PreheatTarget;
 using helix::ui::resolve_load_preheat_material;
@@ -133,7 +133,7 @@ TEST_CASE("External spool is consulted when the load has no AMS lane of its own"
     SECTION("bypass sentinel goes straight to the spool, ignoring any lane") {
         const SlotInfo lane_that_must_not_win = lane("ABS");
         auto resolved =
-            resolve_load_preheat_material(kExternalSpoolSlot, &lane_that_must_not_win, &ext);
+            resolve_load_preheat_material(EXTERNAL_SPOOL_SLOT, &lane_that_must_not_win, &ext);
         REQUIRE(resolved.has_value());
         CHECK(resolved->temp_c == db_recommended("PETG"));
     }
@@ -146,7 +146,7 @@ TEST_CASE("External spool is consulted when the load has no AMS lane of its own"
 
     SECTION("bypass with no spool assigned resolves nothing") {
         CHECK_FALSE(
-            resolve_load_preheat_material(kExternalSpoolSlot, nullptr, nullptr).has_value());
+            resolve_load_preheat_material(EXTERNAL_SPOOL_SLOT, nullptr, nullptr).has_value());
     }
 
     SECTION("a lane that names nothing does not mask the spool") {
@@ -244,14 +244,14 @@ TEST_CASE("FilamentPanel and AmsOperationSidebar agree on the load temp",
         const SlotInfo selected = lane(c.selected);
         const SlotInfo ext = lane(c.external);
         const SlotInfo* ext_ptr = *c.external ? &ext : nullptr;
-        constexpr int kSelectedSlot = 3;
+        constexpr int SELECTED_SLOT = 3;
 
-        const int sidebar = sidebar_load_temp(kSelectedSlot, &selected, ext_ptr);
+        const int sidebar = sidebar_load_temp(SELECTED_SLOT, &selected, ext_ptr);
         // The panel is given a preset and a min_extrude_temp deliberately
         // DIFFERENT from every material in the table above: if either of the
         // panel's own tiers is reachable the equality breaks loudly instead of
         // coinciding by luck. PC is 260-300 (recommended 280); no case uses it.
-        const PreheatTarget panel = panel_preheat(kSelectedSlot, &selected, ext_ptr,
+        const PreheatTarget panel = panel_preheat(SELECTED_SLOT, &selected, ext_ptr,
                                                   /*preset=*/"PC", /*min_extrude=*/170);
 
         CHECK(panel.temp_c == sidebar);

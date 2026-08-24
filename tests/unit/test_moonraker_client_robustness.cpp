@@ -220,14 +220,20 @@ TEST_CASE_METHOD(MoonrakerRobustnessFixture,
     }
 }
 
-// FIXME: Flaky on Linux CI — concurrent connect()/disconnect() from multiple
-// threads occasionally triggers SIGABRT inside libhv's internal state machine.
-// Same class of flake as "handles concurrent send_jsonrpc calls" (a1084e971).
-// Hidden via [.] until the underlying libhv race is diagnosed — invoke with
-// helix-tests "MoonrakerClient handles concurrent connect/disconnect".
+// WAS flaky on Linux CI: concurrent connect()/disconnect() from multiple
+// threads intermittently triggered SIGABRT (heap corruption) inside libhv.
+// Root cause: WebSocketClient::open() reassigned its onConnection/onMessage
+// std::function members from the CALLER's thread while the event loop could
+// be mid-invoke on the previous attempt's closures — freed the function
+// storage under the running lambda. Fixed by
+// patches/libhv-websocket-open-install-once.patch (callbacks installed once
+// in the constructor, b153c5f57). Re-enlisted 2026-08-17: 4 consecutive green
+// local runs plus the [eventloop] suite after the fix; measured 2.56s
+// (2.01s SECTION 1 connect-timeout window + 0.55s SECTION 2 churn), so no
+// [slow] tag — comparable to the job's existing 3-9s cases.
 TEST_CASE_METHOD(MoonrakerRobustnessFixture,
                  "MoonrakerClient handles concurrent connect/disconnect",
-                 "[.][connection][edge][concurrent][eventloop][priority1]") {
+                 "[connection][edge][concurrent][priority1][eventloop]") {
     SECTION("Multiple threads calling connect() simultaneously") {
         constexpr int NUM_THREADS = 5;
         std::atomic<int> connect_attempts{0};
@@ -292,9 +298,12 @@ TEST_CASE_METHOD(MoonrakerRobustnessFixture,
     }
 }
 
+// 6ms measured — the [slow] tag was folklore (it presumably predates the
+// ephemeral-port fix and used to sit in connect-timeout waits). Still
+// [.]-hidden for the event-loop concurrency itself, matching the siblings.
 TEST_CASE_METHOD(MoonrakerRobustnessFixture,
                  "MoonrakerClient handles concurrent callback registration",
-                 "[.][connection][edge][concurrent][priority1][eventloop][slow]") {
+                 "[.][connection][edge][concurrent][priority1][eventloop]") {
     SECTION("Multiple threads registering notify callbacks") {
         constexpr int NUM_THREADS = 10;
         std::atomic<int> registered{0};

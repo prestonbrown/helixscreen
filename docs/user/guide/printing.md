@@ -93,7 +93,36 @@ These options modify the G-code on-the-fly — if you disable "Auto Bed Mesh" bu
 
 The UI switches to the Print Status panel automatically.
 
-> **Note:** On a multi-color print, HelixScreen checks your loaded filament before it starts and will stop with a **Check filament** dialog if a required tool maps to an empty slot. On printers with camera-based failure detection, it can also react to a print going wrong mid-job. See [Print Monitoring & Failure Detection](print-monitoring.md).
+### Before the print actually begins
+
+Some printers do a lot of work before the first layer: homing, heating a bed to
+soak temperature, and on some machines a full bed mesh. Depending on the printer,
+that work runs either inside its own `PRINT_START` macro or ahead of the job. On a
+K2 Plus with **Auto Bed Mesh** enabled it regularly takes seven to ten minutes.
+
+The Print Status panel shows the pre-print steps and an estimated time for this
+whole period, with the new file's name and preview - the previous job's result is
+cleared the moment you tap Start Print.
+
+While the pre-print steps are showing:
+
+- **Cancel** is available and always stops the print from starting. If the printer
+  is mid-way through a leveling pass it will finish that motion first, because a
+  running macro cannot be interrupted - but the print will not begin, and the
+  screen reports it as cancelled rather than as a failure.
+- **Pause** is unavailable, since there is no print to pause yet.
+- **Tune** works. Speed and flow adjustments carry into the print. A Z-offset
+  change made here may be overwritten by the printer's own start macro, so it is
+  usually better to adjust once printing has begun.
+
+The rest of the screen tracks this window too. The home panel's print card shows
+the preparing job from the moment you tap **Start Print** — thumbnail, a progress
+bar for the pre-print steps, and the current step — and tapping it opens the
+Print Status panel rather than the file browser. Controls that would move the
+toolhead (jog controls, filament load/unload, tool changes) stay unavailable
+until the first layer actually begins.
+
+> **Note:** On a multi-color print, HelixScreen checks your loaded filament before it starts and will stop with a **Check filament** dialog if a required tool maps to an empty slot. Printing from bypass skips that check, since the filament never passes through a slot. On printers with camera-based failure detection, it can also react to a print going wrong mid-job. See [Print Monitoring & Failure Detection](print-monitoring.md).
 
 ---
 
@@ -132,7 +161,9 @@ When the G-code viewer is active during a print, a small floating button appears
 
 The icon shows a cube (tap to see the complete model) or stacked layers (tap to return to progress view). The toggle resets automatically when a new print starts.
 
-If the print contains multiple objects, an **objects list** button also appears in that corner; the view toggle shifts to the right to make room.
+If the print contains multiple objects, an **objects button** (a skip-objects icon) also appears in that corner. Tap it to open the Objects list — one of the two ways to exclude an object, see [Exclude Object](#exclude-object) below. The view toggle shifts to the right to make room.
+
+![The viewer's top-left corner on a multi-object print: objects button (left) beside the view toggle](../../images/screenshot-objects-icon.png)
 
 ### Timelapse Toggle
 
@@ -160,7 +191,7 @@ The overlay also includes Z-Offset / baby-step controls (see below).
 - **Speed %**: Slow down (60-80%) for intricate details or if you see layer separation. Speed up for large infill areas.
 - **Flow %**: Increase (105-110%) if you see gaps between extrusion lines. Decrease (95-98%) for blobs or over-packed lines.
 
-> **Note:** Tune adjustments are temporary and only affect the current print. The next print uses your slicer's original values.
+> **Note:** Speed and Flow adjustments are temporary and only affect the current print. The next print uses your slicer's original values. Z-Offset is the exception - see below.
 
 > **Fan speed:** Part cooling fan speed is not adjusted from the Tune overlay. Current fan speeds are shown on the Print Status panel; tap that fan row to open the separate fan control overlay.
 
@@ -168,7 +199,12 @@ The overlay also includes Z-Offset / baby-step controls (see below).
 
 ## Z-Offset / Baby Steps
 
-Fine-tune your first layer height while printing:
+Fine-tune your first layer height, during a print or while idle.
+
+**Getting there:**
+
+- **During a print:** the **Tune** button on the Print Status screen.
+- **Any time:** the **Z-Offset** row on the Controls panel. It shows the current offset and opens the same controls.
 
 **Adjusting:**
 
@@ -189,20 +225,39 @@ Choose a step size (0.05 / 0.025 / 0.01 / 0.005 mm), then tap up/down to raise o
 2. Tap **Save Z-Offset** to write to Klipper config
 3. Future prints use this as the starting point
 
+**If there is no Save Z-Offset button**, your printer's firmware stores the offset
+itself and there is nothing to save - what you dialed in is already kept and is
+re-applied at the start of the next print. This is the case on the FlashForge
+AD5M / AD5X running ZMOD, and on the Snapmaker U1.
+
+> **AD5M / AD5X (ZMOD):** the firmware clears the *live* offset when a print
+> ends, so other interfaces can show 0.000 while idle even though your real
+> offset is stored and will be used. HelixScreen shows the stored value instead,
+> so the number on the Z-Offset row is what your next print will actually use.
+
 > **Tip:** Make small adjustments (0.01mm) and wait for the printer to complete a few moves before judging the result.
 
 ---
 
 ## Exclude Object
 
-If your slicer supports object labels (OrcaSlicer, SuperSlicer):
+On a multi-object print you can stop printing a single object and let the rest finish — the way to salvage a job when one part fails or detaches. Your slicer must label the objects in the G-code (OrcaSlicer and SuperSlicer do this); on a file without labels there is nothing to pick and the feature stays out of your way.
 
-1. Tap **Exclude Object** during a print
-2. See a list of printable objects
-3. Select an object to skip (e.g., a failed part)
-4. **Undo** is available for 5 seconds after exclusion
+There are two ways to exclude an object during a print:
 
-This lets you salvage a print when one object fails without canceling the entire job.
+**Press and hold the object in the viewer.** In the G-code viewer (2D or 3D), press and hold your finger on the failing object for about a second — deliberately longer than a normal tap, so an accidental touch can't cancel a part. A confirmation appears: *"Stop printing "name"? This cannot be undone after 5 seconds."*
+
+**Use the Objects list.** Tap the **objects button** — the skip-objects icon in the viewer's top-left corner, shown only on multi-object prints. An **Objects** list slides in beside the viewer; in thumbnail mode you also get an overhead bed map with numbered objects matching the list. Tap the object you want to skip and the same confirmation appears.
+
+![The Objects list slides in beside the G-code viewer](../../images/screenshot-objects-side-list.png)
+
+After you confirm:
+
+- The object is drawn red and translucent in the viewer
+- A toast offers **Undo** for 5 seconds — tap it in that window and nothing is sent to the printer
+- Once the 5 seconds pass, the exclusion is sent and is final
+
+When the Objects list is closed, a short tap on an object in the viewer (no hold) doesn't exclude anything — it just draws corner brackets around the object so you can see which one is which. With the list open, a short tap behaves like tapping the object's row in the list and asks for confirmation.
 
 ---
 
@@ -211,12 +266,29 @@ This lets you salvage a print when one object fails without canceling the entire
 When a print completes, a **completion modal** appears showing:
 
 - **Total print time** and slicer estimate comparison
-- **Layers printed** (current / total)
+- **Layers printed** — the job's total layer count
 - **Filament consumed** (formatted as mm, meters, or km)
 - Notification sound plays (if enabled in Sound Settings)
 - Print is logged to history
 
 Once a print has finished — whether it completed, was cancelled, or failed — a **Reprint** button replaces the Cancel button in the print controls. Tap it to start the same file again without browsing back to it.
+
+---
+
+## Recovering After a Power Loss
+
+If the power dies mid-print, some printers keep a recovery point of the interrupted job. When HelixScreen connects to one of these printers and finds a recovery waiting, a dialog offers to pick the print back up:
+
+- **Resume** — continues the interrupted file from where the power failed
+- **Discard** — clears the recovery data so the printer starts fresh next time
+
+The dialog names the file and warns that the layer in progress when the power dropped may not line up perfectly — a small seam at the resume point is normal.
+
+This works on Creality's Klipper firmware (K1, K1C, K1 Max, K2 Plus, Ender 3 V3, Hi, and i7) and on the Snapmaker U1. On the Creality printers, HelixScreen asks the printer itself to confirm that a recoverable print exists before offering Resume — if the printer's own check does not pass, the offer never appears, because resuming without it can make the printer home straight through the part left on the bed.
+
+The offer appears once per connection while the printer is idle; if it went unanswered, it comes back the next time HelixScreen connects.
+
+For everything else HelixScreen watches for during and around a print, see [Print Monitoring & Failure Detection](print-monitoring.md).
 
 ---
 

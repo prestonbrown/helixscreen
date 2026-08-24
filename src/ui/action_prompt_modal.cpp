@@ -3,6 +3,8 @@
 
 #include "action_prompt_modal.h"
 
+#include "ui_error_reporting.h"
+
 #include "sound_manager.h"
 #include "theme_manager.h"
 
@@ -11,6 +13,66 @@
 #include <cstdlib>
 
 namespace helix::ui {
+
+namespace {
+
+/**
+ * @brief Width the button label needs to render in full, in pixels.
+ */
+int32_t label_width_px(const std::string& label, const lv_font_t* font) {
+    lv_point_t size{};
+    lv_text_get_size(&size, label.c_str(), font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    return size.x;
+}
+
+/**
+ * @brief Can every regular button show its label on one equal-width row?
+ *
+ * The equal-width row divides the container evenly, so it only works while the
+ * widest label still fits its share. AFC's four short "Lane N" buttons do fit,
+ * which is what #1043 needed; a preheat macro that offers seven "PLA 220/60"
+ * material presets does not, and forcing those onto one row shrinks each cell
+ * to a few dozen pixels and clips every label.
+ *
+ * Returns false when the container width cannot be measured yet — wrapping is
+ * the safe answer, because it never clips.
+ */
+bool equal_width_row_fits(lv_obj_t* container, const std::vector<PromptButton>& buttons,
+                          int regular_count) {
+    if (regular_count <= 0) {
+        return false;
+    }
+
+    const lv_font_t* font = theme_manager_get_font("font_body");
+    if (font == nullptr) {
+        return false;
+    }
+
+    // Resolve geometry: the container is width=100% of a card whose own width is
+    // a percentage of the screen, so the content width is only real after a
+    // layout pass.
+    lv_obj_update_layout(container);
+    const int32_t available = lv_obj_get_content_width(container);
+    if (available <= 0) {
+        return false;
+    }
+
+    const int32_t gap = lv_obj_get_style_pad_column(container, LV_PART_MAIN);
+    const int32_t cell_pad = theme_manager_get_spacing("space_sm"); // per side, see create_button()
+    const int32_t cell_width = (available - gap * (regular_count - 1)) / regular_count;
+
+    for (const auto& btn : buttons) {
+        if (btn.is_footer) {
+            continue;
+        }
+        if (label_width_px(btn.label, font) + 2 * cell_pad > cell_width) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
 
 // ============================================================================
 // Construction / Destruction
@@ -167,13 +229,21 @@ void ActionPromptModal::create_buttons() {
     // button_container to a non-wrapping row of equal-width cells so they all fit
     // on ONE line. With <= 3 regular buttons keep the existing row_wrap behaviour
     // byte-for-byte (this container is shared with L1's recovery modal).
+    //
+    // The count alone is not sufficient: an equal-width row divides the container
+    // evenly, so it is only usable while the labels still fit their share. A
+    // macro that offers many long labels (seven "PLA 220/60" material presets)
+    // gets a few dozen pixels per cell and every label clips, so those fall back
+    // to row_wrap and take the extra lines they need.
     int regular_count = 0;
     for (const auto& btn : prompt_data_.buttons) {
         if (!btn.is_footer) {
             ++regular_count;
         }
     }
-    const bool equal_width_row = regular_count >= 4;
+    const bool equal_width_row =
+        regular_count >= 4 &&
+        equal_width_row_fits(button_container, prompt_data_.buttons, regular_count);
     // Set the flow explicitly for BOTH cases so a reused modal instance never
     // inherits the wrong flow from a previous prompt: row_wrap restores the
     // legacy <= 3 look (matching the XML default); plain row drives the >= 4
@@ -238,20 +308,22 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
         lv_obj_set_flex_grow(button, 1);
         lv_obj_set_style_radius(button, 0, LV_PART_MAIN);
     } else if (equal_width) {
-        // Regular buttons, >= 4 of them: equal-width cells on a non-wrapping row
-        // (R2 / #1043). grow=1 with width 0 lets short labels ("Lane 1".."Lane 4")
-        // share the fixed-width row instead of overflowing and wrapping. Trim the
-        // horizontal padding to space_sm so the equal cells stay compact; the
-        // label stays centered.
+        // Regular buttons, >= 4 of them and all short enough to share a row:
+        // equal-width cells on a non-wrapping row (R2 / #1043). grow=1 with
+        // width 0 lets short labels ("Lane 1".."Lane 4") share the fixed-width
+        // row instead of overflowing and wrapping. Trim the horizontal padding
+        // to space_sm so the equal cells stay compact; the label stays centered.
         lv_obj_set_width(button, 0);
-        lv_obj_set_height(button, theme_manager_get_spacing("space_xl") * 2);
+        lv_obj_set_height(button, theme_manager_get_spacing("button_height"));
         lv_obj_set_flex_grow(button, 1);
         lv_obj_set_style_pad_left(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
         lv_obj_set_style_pad_right(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
         lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
     } else {
-        // Regular buttons (<= 3): content-sized with padding (legacy row_wrap)
-        lv_obj_set_size(button, LV_SIZE_CONTENT, theme_manager_get_spacing("space_xl") * 2);
+        // Everything else: content-sized with padding, which row_wrap spreads
+        // over as many lines as the labels need (<= 3 buttons, or more than
+        // three that are too wide to share one row).
+        lv_obj_set_size(button, LV_SIZE_CONTENT, theme_manager_get_spacing("button_height"));
         lv_obj_set_style_pad_left(button, theme_manager_get_spacing("space_lg"), LV_PART_MAIN);
         lv_obj_set_style_pad_right(button, theme_manager_get_spacing("space_lg"), LV_PART_MAIN);
         lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
@@ -383,6 +455,22 @@ void ActionPromptModal::on_button_cb(lv_event_t* e) {
 
     SoundManager::instance().play("button_tap");
     cbd->modal->handle_button_click(cbd->gcode);
+}
+
+// ============================================================================
+// Failure reporting
+// ============================================================================
+
+void report_action_prompt_gcode_failure(const std::string& error_message) {
+    // Same presentation as every other failed macro in the UI (ui_panel_controls,
+    // ui_panel_filament). NOTIFY_ERROR marshals to the main thread itself, which
+    // matters here: the RPC error callback fires on the WebSocket thread.
+    //
+    // Klipper's own wording is the useful part ("Extruder not hot enough"); the
+    // generic string only stands in when the transport gave us nothing.
+    const std::string detail =
+        error_message.empty() ? std::string(lv_tr("Unknown error")) : error_message;
+    NOTIFY_ERROR(lv_tr("Macro failed: {}"), detail);
 }
 
 } // namespace helix::ui

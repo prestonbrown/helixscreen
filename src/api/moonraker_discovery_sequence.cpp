@@ -5,6 +5,7 @@
 
 #include "ui_update_queue.h"
 
+#include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "config.h"
 #include "helix_version.h"
@@ -20,6 +21,7 @@
 #include "probe_sensor_manager.h"
 #include "sensor_state.h"
 #include "unit_conversions.h"
+#include "z_offset_persistence.h"
 
 #include <algorithm>
 #include <cctype>
@@ -70,8 +72,8 @@ bool probe_snapshot_reachable(const std::string& snapshot_url) {
     auto req = std::make_shared<HttpRequest>();
     req->method = HTTP_GET;
     req->url = snapshot_url;
-    req->connect_timeout = kSnapshotProbeConnectTimeoutSec;
-    req->timeout = kSnapshotProbeTotalTimeoutSec;
+    req->connect_timeout = SNAPSHOT_PROBE_CONNECT_TIMEOUT_SEC;
+    req->timeout = SNAPSHOT_PROBE_TOTAL_TIMEOUT_SEC;
     auto resp = requests::request(req);
     if (resp && resp->status_code == 200) {
         return true;
@@ -85,7 +87,8 @@ bool probe_snapshot_reachable(const std::string& snapshot_url) {
     } else {
         spdlog::debug("[Discovery] Snapshot probe of {} got no response within {}s "
                       "(connect budget {}s)",
-                      snapshot_url, kSnapshotProbeTotalTimeoutSec, kSnapshotProbeConnectTimeoutSec);
+                      snapshot_url, SNAPSHOT_PROBE_TOTAL_TIMEOUT_SEC,
+                      SNAPSHOT_PROBE_CONNECT_TIMEOUT_SEC);
     }
     return false;
 }
@@ -676,20 +679,28 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                             spdlog::info("[Moonraker Client] Printer state: {}", state_message);
                         }
 
-                        // Set klippy state based on printer.info response
-                        // This ensures we recognize shutdown/error states at startup
+                        // Seed klippy state from the printer.info response so
+                        // shutdown/error at startup is recognised before any
+                        // webhooks frame arrives.
+                        //
+                        // SEED only, never override: this RPC's response describes
+                        // the printer as of when Moonraker answered, and discovery
+                        // runs concurrently with live WebSocket traffic. Klipper can
+                        // shut down between the request and the response, and the
+                        // stale answer would then re-enable everything against a
+                        // dead printer.
                         if (state == "shutdown" || state == "disconnected") {
                             spdlog::warn("[Moonraker Client] Printer is in {} state at startup",
                                          state);
-                            get_printer_state().set_klippy_state(KlippyState::SHUTDOWN);
+                            get_printer_state().set_klippy_state_if_unseeded(KlippyState::SHUTDOWN);
                         } else if (state == "error") {
                             spdlog::warn("[Moonraker Client] Printer is in ERROR state at startup");
-                            get_printer_state().set_klippy_state(KlippyState::ERROR);
+                            get_printer_state().set_klippy_state_if_unseeded(KlippyState::ERROR);
                         } else if (state == "startup") {
                             spdlog::info("[Moonraker Client] Printer is starting up");
-                            get_printer_state().set_klippy_state(KlippyState::STARTUP);
+                            get_printer_state().set_klippy_state_if_unseeded(KlippyState::STARTUP);
                         } else if (state == "ready") {
-                            get_printer_state().set_klippy_state(KlippyState::READY);
+                            get_printer_state().set_klippy_state_if_unseeded(KlippyState::READY);
                         }
                     }
 
@@ -722,11 +733,19 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
 
                                 // Seed probe sensor z_offset from configfile (some probe
                                 // modules like flashforge_loadcell return null in status).
-                                // Must run on main thread — update_subjects() sets LVGL subjects.
-                                nlohmann::json cfg_for_probe = cfg;
-                                helix::ui::queue_update([cfg_for_probe]() {
+                                // Accelerometers have no get_status(), so configfile.config
+                                // is the ONLY place they appear — this is the sole caller
+                                // that fills AccelSensorManager, which Settings > Sensors,
+                                // telemetry and detect_belt_hardware() all read.
+                                // Both must run on main thread — update_subjects() sets
+                                // LVGL subjects. discover_from_config() rebuilds its list
+                                // from scratch, so a reconnect re-run cannot duplicate.
+                                nlohmann::json cfg_for_sensors = cfg;
+                                helix::ui::queue_update([cfg_for_sensors]() {
                                     helix::sensors::ProbeSensorManager::instance()
-                                        .discover_from_config(cfg_for_probe);
+                                        .discover_from_config(cfg_for_sensors);
+                                    helix::sensors::AccelSensorManager::instance()
+                                        .discover_from_config(cfg_for_sensors);
                                 });
 
                                 // Update LED controller with configfile data (effect targets +
@@ -752,6 +771,26 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     "settings")) {
                                 const auto& settings =
                                     config_response["result"]["status"]["configfile"]["settings"];
+
+                                // Build volume from the [stepper_*] travel limits. This is
+                                // the only place it can be filled before discovery completes:
+                                // the safety-limits fetch that also writes it is kicked off
+                                // from the discovery-complete handler, i.e. after
+                                // PrinterDetector::auto_detect() has already run and read an
+                                // empty volume. Two thirds of the printer database discriminate
+                                // on build_volume_range, so detection was declining without its
+                                // single most decisive input.
+                                //
+                                // Pure data write under the same mutex the config parse above
+                                // takes — no LVGL and no subject is touched here. The API-side
+                                // fetch still runs later and still calls
+                                // notify_build_volume_changed(), so any UI that observes the
+                                // volume is refreshed from the main thread as before.
+                                {
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.parse_build_volume(settings);
+                                }
+
                                 helix::MacroFanAnalyzer analyzer;
                                 auto macro_result = analyzer.analyze(settings);
 
@@ -1196,6 +1235,9 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // Subscribe to specific fields only — nullptr means ALL fields, which causes
     // excessive notifications and Klipper-side serialization cost (#388)
     if (hw.has_mmu()) {
+        // endless_spool_enabled is the ENABLE bit for endless_spool_groups. Happy Hare
+        // ignores a GROUPS= write while it is 0, so an edit sent without reading it first
+        // fails silently.
         subscription_objects["mmu"] = json::array({"gate",
                                                    "tool",
                                                    "filament",
@@ -1217,6 +1259,7 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
                                                    "unit",
                                                    "ttg_map",
                                                    "endless_spool_groups",
+                                                   "endless_spool_enabled",
                                                    "sensors",
                                                    "bowden_progress",
                                                    "clog_detection_enabled",
@@ -1274,10 +1317,15 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
                                                       "hubs",
                                                       "extruders",
                                                       "buffers"});
+    // "current_map" (AFC virtual tools, #605) names which of a multi-tool lane's
+    // T-commands is active. The subscription is a strict allowlist, so a field
+    // missing here never reaches parse_afc_stepper at all. Older AFC simply does not
+    // publish it and Moonraker omits what an object does not have, so asking for it
+    // is safe against every version.
     static const json afc_stepper_fields =
-        json::array({"buffer_status", "color", "dist_hub", "extruder", "filament_status", "hub",
-                     "load", "loaded_to_hub", "map", "material", "prep", "runout_lane", "spool_id",
-                     "status", "tool_loaded", "weight"});
+        json::array({"buffer_status", "color", "current_map", "dist_hub", "extruder",
+                     "filament_status", "hub", "load", "loaded_to_hub", "map", "material", "prep",
+                     "runout_lane", "spool_id", "status", "tool_loaded", "weight"});
     static const json afc_hub_fields = json::array({"state", "afc_bowden_length"});
     static const json afc_buffer_fields = json::array(
         {"state", "distance_to_fault", "error_sensitivity", "fault_detection_enabled", "lanes"});
@@ -1311,6 +1359,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // AD5X IFS requires save_variables for filament state (colors, types, tool mapping)
     if (hw.mmu_type() == AmsType::AD5X_IFS) {
         subscription_objects["save_variables"] = nullptr;
+    }
+
+    // Firmware that keeps the authoritative z-offset outside gcode_move needs
+    // whatever object stores it; without this the Z-offset row reads 0.000
+    // whenever such a printer is idle. See include/z_offset_persistence.h.
+    for (const auto& obj : helix::zoffset::required_status_objects(hw)) {
+        subscription_objects[obj] = nullptr;
     }
 
     // ACE (Anycubic ACE Pro — ValgACE/BunnyACE/DuckACE Klipper drivers, native
@@ -1451,6 +1506,10 @@ void MoonrakerDiscoverySequence::complete_discovery_subscription(uint64_t seq) {
     }
     if (hw.mmu_type() == AmsType::AD5X_IFS) {
         spdlog::info("[Moonraker Client] Subscribing to save_variables (AD5X IFS)");
+    }
+    if (helix::zoffset::firmware_persists_z_offset(hw)) {
+        spdlog::info("[Moonraker Client] Subscribing persisted z-offset objects ({})",
+                     helix::zoffset::persistence_provider_name(hw));
     }
     if (hw.mmu_type() == AmsType::ACE) {
         spdlog::info("[Moonraker Client] Subscribing to ace object (Anycubic ACE)");

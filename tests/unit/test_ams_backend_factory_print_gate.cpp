@@ -43,6 +43,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
@@ -64,14 +65,14 @@ namespace {
 /// last value is what makes discovery automatic: create() returns nullptr for
 /// anything it does not know, so an added type is picked up the moment the
 /// factory learns to build it, and no list in this file needs touching.
-constexpr int kAmsTypeProbeLimit = 64;
+constexpr int AMS_TYPE_PROBE_LIMIT = 64;
 
 /// Backends that are compiled unconditionally. AD5X IFS and CFS are feature
 /// gated (HELIX_HAS_IFS / HELIX_HAS_CFS are 0 on the space-constrained cross
 /// builds), so they are not part of the floor. This is a lower bound that
 /// catches "create() silently stopped producing anything" — it is NOT the
 /// coverage list; the loops below cover whatever exists.
-constexpr int kUnconditionalBackendCount = 6;
+constexpr int UNCONDITIONAL_BACKEND_COUNT = 6;
 
 /// True when @p e is the Layer 2 print-active refusal specifically, as opposed
 /// to any other failure a backend might return first. Derived from the error
@@ -126,7 +127,7 @@ struct FactoryGateFixture : public LVGLTestFixture {
     }
 
     void set_print_state(helix::PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
+        helix::test::set_wire_state(state, s);
     }
 
     /// Build one backend through the production factory and get it to the state
@@ -185,7 +186,7 @@ struct FactoryGateFixture : public LVGLTestFixture {
     /// Every AmsType this build can actually produce.
     std::vector<AmsType> buildable_types() {
         std::vector<AmsType> types;
-        for (int raw = 1; raw < kAmsTypeProbeLimit; ++raw) {
+        for (int raw = 1; raw < AMS_TYPE_PROBE_LIMIT; ++raw) {
             const auto type = static_cast<AmsType>(raw);
             if (AmsBackend::create(type, api.get(), &mock_client)) {
                 types.push_back(type);
@@ -214,7 +215,7 @@ TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backe
                  "[ams][safety][factory]") {
     const auto types = buildable_types();
     CAPTURE(types.size());
-    CHECK(types.size() >= kUnconditionalBackendCount);
+    CHECK(types.size() >= UNCONDITIONAL_BACKEND_COUNT);
 
     for (AmsType type : types) {
         CAPTURE(ams_type_to_string(type));
@@ -251,7 +252,7 @@ TEST_CASE_METHOD(FactoryGateFixture,
             ++checked;
         }
     }
-    CHECK(checked >= kUnconditionalBackendCount * static_cast<int>(motion_ops().size()));
+    CHECK(checked >= UNCONDITIONAL_BACKEND_COUNT * static_cast<int>(motion_ops().size()));
 }
 
 // ============================================================================

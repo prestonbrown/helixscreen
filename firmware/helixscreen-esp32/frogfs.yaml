@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# frogfs (jkent/frogfs) packer config for the ESP32 `storage` partition.
+# Consumed by scripts/esp32_pack_assets.py, which invokes mkfrogfs.py
+# directly (not via frogfs's own CMake macros — see that script's docstring
+# for why). $staging is set from the FROGFS_STAGING_DIR env var the packer
+# script exports, pointing at build/littlefs_staging/ (the staging tree
+# scripts/esp32_stage_assets.py assembles).
+
+define:
+  staging: ${ENV:FROGFS_STAGING_DIR}
+
+collect:
+  $staging/: ""
+
+filter:
+  # Text assets (ui_xml, JSON config) deflate well; store them compressed.
+  "*":
+    - compress zlib:
+        level: 9
+  # PNGs are already compressed (DEFLATE-based); re-compressing wastes CPU
+  # at read time for no space win, so store them raw-in-container.
+  "*.png":
+    - no compress
+  # .bin font faces (lv_binfont_create): the binfont loader does backward
+  # lv_fs_seek, and a zlib-compressed frogfs entry pays inflateReset +
+  # re-inflate-from-0 on every backward seek (seconds). Stored raw, a backward
+  # seek is O(1) mmap. The faces are already RLE-compact internally, so raw in
+  # frogfs costs almost no extra space.
+  "*.bin":
+    - no compress

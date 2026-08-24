@@ -29,9 +29,13 @@ void FilamentConsumptionTracker::start() {
     }
     PrinterState& printer = get_printer_state();
 
-    print_state_obs_ = helix::ui::observe_int_sync<FilamentConsumptionTracker>(
+    // RAW_PRINT_STATE_OK: subscribes to the WIRE deliberately - tracks material actually
+    // extruded; nothing is consumed during a preparing window.
+    print_state_obs_ = helix::ui::observe_print_state<FilamentConsumptionTracker>(
         printer.get_print_state_enum_subject(), this,
-        [](FilamentConsumptionTracker* self, int state) { self->on_print_state_changed(state); });
+        [](FilamentConsumptionTracker* self, PrintJobState state) {
+            self->on_print_state_changed(state);
+        });
 
     filament_used_obs_ = helix::ui::observe_int_sync<FilamentConsumptionTracker>(
         printer.get_print_filament_used_subject(), this,
@@ -40,7 +44,7 @@ void FilamentConsumptionTracker::start() {
     // Per-extruder filament_used_mm observers. These are dynamic subjects
     // ([L077]) and share one lifetime token so a single reset() in stop()
     // invalidates every observer before the subjects are deinit'd.
-    for (int idx = 0; idx < kMaxTrackedExtruders; ++idx) {
+    for (int idx = 0; idx < MAX_TRACKED_EXTRUDERS; ++idx) {
         auto* subj = printer.get_extruder_filament_used_subject(idx, extruder_lifetime_);
         if (!subj) {
             continue;
@@ -156,11 +160,13 @@ void FilamentConsumptionTracker::unregister_sink(SinkHandle handle) {
     sinks_.erase(it);
 }
 
-void FilamentConsumptionTracker::on_print_state_changed(int job_state) {
-    auto state = static_cast<PrintJobState>(job_state);
+void FilamentConsumptionTracker::on_print_state_changed(PrintJobState state) {
     auto* printer_mm = get_printer_state().get_print_filament_used_subject();
     const float mm = static_cast<float>(lv_subject_get_int(printer_mm));
 
+    // RAW_PRINT_STATE_OK: this tracks material actually extruded, so it keys on
+    // the printer's own report. print_filament_used is 0 for the whole of a
+    // preparing window - there is nothing to snapshot or flush there.
     switch (state) {
     case PrintJobState::PRINTING:
         if (!print_in_progress_) {
@@ -179,11 +185,12 @@ void FilamentConsumptionTracker::on_print_state_changed(int job_state) {
             flush_all_sinks();
             spdlog::info("[FilamentTracker] Print ended in state {}; "
                          "flushed sinks",
-                         job_state);
+                         static_cast<int>(state));
         }
         active_ = false;
         print_in_progress_ = false;
         break;
+    // RAW_PRINT_STATE_OK: see the note on the switch - material, not intent.
     case PrintJobState::PAUSED:
         if (print_in_progress_) {
             flush_all_sinks(); // crash-safety snapshot
@@ -220,7 +227,7 @@ void FilamentConsumptionTracker::on_filament_used_changed(int filament_mm) {
         // Skip if ANY extruder on this backend claims a slot mapping — the
         // per-extruder routing path owns this backend.
         bool has_mapping = false;
-        for (int e = 0; e < kMaxTrackedExtruders; ++e) {
+        for (int e = 0; e < MAX_TRACKED_EXTRUDERS; ++e) {
             if (backend->slot_for_extruder(e)) {
                 has_mapping = true;
                 break;

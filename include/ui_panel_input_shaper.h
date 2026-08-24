@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_frequency_response_chart.h"
+#include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "calibration_types.h" // For InputShaperResult
@@ -20,9 +21,15 @@
 #include <vector>
 
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 }
-class MoonrakerAPI;
+class IMoonrakerAPI;
+
+namespace helix {
+namespace ui {
+struct InputShaperPanelTestAccess; // test-only friend (tests/test_helpers/)
+} // namespace ui
+} // namespace helix
 
 /**
  * @file ui_panel_input_shaper.h
@@ -53,6 +60,8 @@ class MoonrakerAPI;
  * ```
  */
 class InputShaperPanel : public OverlayBase {
+    friend struct helix::ui::InputShaperPanelTestAccess;
+
   public:
     /**
      * @brief Panel state machine states
@@ -148,10 +157,10 @@ class InputShaperPanel : public OverlayBase {
      *
      * Creates InputShaperCalibrator instance with the API.
      *
-     * @param client helix::MoonrakerClient (kept for potential future use)
-     * @param api MoonrakerAPI for G-code execution
+     * @param client helix::IMoonrakerClient (kept for potential future use)
+     * @param api IMoonrakerAPI for G-code execution
      */
-    void set_api(helix::MoonrakerClient* client, MoonrakerAPI* api);
+    void set_api(helix::IMoonrakerClient* client, IMoonrakerAPI* api);
 
     /**
      * @brief Get current panel state
@@ -205,7 +214,16 @@ class InputShaperPanel : public OverlayBase {
     void continue_calibrate_all_y();
     void apply_y_after_x();
 
-    // Result callbacks (from MoonrakerAPI)
+    // Live-before snapshot: the config active when the current run began, so
+    // the results cards can show what changed. Queried fresh at run start - the
+    // config may have changed since the panel opened, and what SAVE_CONFIG
+    // later writes can differ from what was live (some forks overwrite the
+    // staged X result with Y's values).
+    void snapshot_config_before();
+    [[nodiscard]] bool get_before_axis(char axis, std::string& type, float& freq) const;
+    [[nodiscard]] double before_damping_ratio(char axis) const;
+
+    // Result callbacks (from IMoonrakerAPI)
     void on_calibration_result(const InputShaperResult& result);
     void on_calibration_error(const std::string& message);
 
@@ -213,16 +231,25 @@ class InputShaperPanel : public OverlayBase {
     void populate_current_config(const InputShaperConfig& config);
     void clear_results();
 
+    // Analysis-phase display: spinner + elapsed-seconds step label. Shared
+    // cancel_analysis_display() runs from every path that stops showing the
+    // analysis (phase transitions out of Analyzing, state changes away from
+    // MEASURING, cleanup/deactivate, destructor) so the timer is never left
+    // armed on a stale label.
+    void begin_analysis_display();
+    void cancel_analysis_display();
+
     // Per-axis result helpers
     static const char* get_shaper_explanation(const std::string& type);
     static int get_vibration_quality(float vibrations);
     static const char* get_quality_description(float vibrations);
     void populate_axis_result(char axis, const InputShaperResult& result);
+    void populate_axis_delta(char axis, const InputShaperResult& result);
 
     // Widget/client references (overlay_root_ inherited from OverlayBase)
     lv_obj_t* parent_screen_ = nullptr;
-    helix::MoonrakerClient* client_ = nullptr;
-    MoonrakerAPI* api_ = nullptr;
+    helix::IMoonrakerClient* client_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // Private setup helper (called by create())
     void setup_widgets();
@@ -272,6 +299,13 @@ class InputShaperPanel : public OverlayBase {
     lv_subject_t
         is_measuring_has_progress_{}; // 0=indeterminate (spinner), 1=determinate (progress bar)
 
+    // Analysis-phase elapsed label. The analysis reports no percent, so while
+    // its spinner is shown a 1 Hz timer refreshes the step label
+    // ("Analyzing data... Ns") from the tick stored when the phase began.
+    // ElapsedLabelTimer (ui_timer_guard.h) owns the timer; its destructor and
+    // cancel() are both cancel-safe from every teardown path.
+    helix::ui::ElapsedLabelTimer analysis_elapsed_;
+
     // Per-axis result subjects
     lv_subject_t is_results_has_x_{};
     lv_subject_t is_results_has_y_{};
@@ -286,6 +320,11 @@ class InputShaperPanel : public OverlayBase {
     // Number of shapers per axis (controls table row visibility)
     lv_subject_t is_x_num_shapers_{};
     lv_subject_t is_y_num_shapers_{};
+    /// Chart chips actually backed by a curve, per axis. The XML declares a
+    /// fixed MAX_SHAPERS of them, so the surplus must be hidden or they render
+    /// as empty outlines.
+    lv_subject_t is_x_num_chips_{};
+    lv_subject_t is_y_num_chips_{};
 
     // X axis result display
     char is_result_x_shaper_buf_[48] = {};
@@ -309,6 +348,27 @@ class InputShaperPanel : public OverlayBase {
     lv_subject_t is_result_y_max_accel_{};
     lv_subject_t is_result_y_quality_{};
 
+    // Live-before delta display per axis: the was -> measured line and the old
+    // setting's residual-vibration verdict against the freshly measured PSD.
+    // Each row is gated by a has-subject so it hides when the inputs are
+    // missing (no before-config, no PSD data, or an unported shaper type).
+    char is_x_delta_buf_[64] = {};
+    lv_subject_t is_x_delta_text_{};
+    char is_y_delta_buf_[64] = {};
+    lv_subject_t is_y_delta_text_{};
+    lv_subject_t is_x_has_delta_{};
+    lv_subject_t is_y_has_delta_{};
+    char is_x_verdict_buf_[96] = {};
+    lv_subject_t is_x_verdict_text_{};
+    char is_y_verdict_buf_[96] = {};
+    lv_subject_t is_y_verdict_text_{};
+    lv_subject_t is_x_has_verdict_{};
+    lv_subject_t is_y_has_verdict_{};
+
+    // Firmware overwrote the staged X result with Y's values during the Y run
+    // (1 = show the warning row on the X results card)
+    lv_subject_t is_x_fw_overwrite_warn_{};
+
     // Low-RAM warning modal before resonance calibration (see memory_utils.h)
     lv_obj_t* low_ram_warn_dialog_ = nullptr;
     char pending_calib_axis_ = 'X';
@@ -316,8 +376,16 @@ class InputShaperPanel : public OverlayBase {
     // Calibrate All flow tracking
     bool calibrate_all_mode_ = false; ///< True when doing X+Y sequential calibration
     InputShaperResult x_result_;      ///< Stored X result when doing Calibrate All
+    /// True when the Y run reported the firmware's copy_TestAxis_y_to_x
+    /// marker: the saved X value is Y's, and the measured X result the X card
+    /// shows was discarded by the firmware.
+    bool x_saved_value_overwritten_ = false;
     helix::AsyncLifetimeGuard
         calibration_lifetime_; ///< Generation guard to discard stale calibration callbacks
+
+    // Live-before configuration snapshot (see snapshot_config_before())
+    InputShaperConfig config_before_{};
+    bool has_config_before_ = false;
 
     // Results data
     char current_axis_ = 'X';
@@ -333,6 +401,7 @@ class InputShaperPanel : public OverlayBase {
         int raw_series_id = -1;
         int shaper_series_ids[MAX_SHAPERS]; // initialized to -1 in constructor
         bool shaper_visible[MAX_SHAPERS] = {};
+        int old_setting_series_id = -1; ///< Muted overlay of the live-before shaper curve
 
         AxisChartData() {
             std::fill(shaper_series_ids, shaper_series_ids + MAX_SHAPERS, -1);
@@ -402,6 +471,19 @@ class InputShaperPanel : public OverlayBase {
      */
     [[nodiscard]] helix::calibration::InputShaperCalibrator* get_calibrator() const {
         return calibrator_.get();
+    }
+
+    /**
+     * @brief Test seam: raw handle of the analysis elapsed timer
+     *
+     * The unit-test harness (lv_timer_handler_safe) only executes timers with
+     * a finite repeat count, so the 1 Hz elapsed timer - periodic by design -
+     * never fires there. Tests use this handle to lend the timer a temporary
+     * finite repeat count so the harness can run it, restoring -1 afterwards.
+     * Mirrors PIDCalibrationPanel::eta_timer_for_test().
+     */
+    [[nodiscard]] lv_timer_t* analysis_elapsed_timer_for_test() const {
+        return analysis_elapsed_.timer_for_test();
     }
 };
 

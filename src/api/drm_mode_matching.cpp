@@ -14,12 +14,12 @@ int find_matching_mode(const std::vector<DrmModeInfo>& modes, uint32_t requested
             return static_cast<int>(i);
         }
     }
-    return DrmModeMatch::kNoMatch;
+    return DrmModeMatch::NO_MATCH;
 }
 
 int find_preferred_mode_index(const std::vector<DrmModeInfo>& modes) {
     if (modes.empty()) {
-        return DrmModeMatch::kNoMatch;
+        return DrmModeMatch::NO_MATCH;
     }
     for (size_t i = 0; i < modes.size(); i++) {
         if (modes[i].is_preferred) {
@@ -31,22 +31,22 @@ int find_preferred_mode_index(const std::vector<DrmModeInfo>& modes) {
 
 int find_best_downscale_mode(const std::vector<DrmModeInfo>& modes, uint32_t max_axis) {
     if (modes.empty()) {
-        return DrmModeMatch::kNoMatch;
+        return DrmModeMatch::NO_MATCH;
     }
 
     // Find the preferred mode to check if downscaling is needed.
     int pref_idx = find_preferred_mode_index(modes);
-    if (pref_idx == DrmModeMatch::kNoMatch) {
-        return DrmModeMatch::kNoMatch;
+    if (pref_idx == DrmModeMatch::NO_MATCH) {
+        return DrmModeMatch::NO_MATCH;
     }
 
     const auto& pref = modes[pref_idx];
     if (pref.hdisplay <= max_axis && pref.vdisplay <= max_axis) {
-        return DrmModeMatch::kNoMatch; // No downscaling needed
+        return DrmModeMatch::NO_MATCH; // No downscaling needed
     }
 
     // Preferred exceeds threshold — find the best sub-threshold alternative.
-    int best = DrmModeMatch::kNoMatch;
+    int best = DrmModeMatch::NO_MATCH;
     uint64_t best_pixels = 0;
     uint32_t best_refresh = 0;
 

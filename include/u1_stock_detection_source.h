@@ -20,8 +20,12 @@ class U1StockSource : public DetectionSource {
   public:
     explicit U1StockSource(helix::PrinterState* state) : state_(state) {}
 
+    /// Unique registration key. Exposed so DetectionManager can match on id()
+    /// and static_cast instead of dynamic_cast — the firmware builds -fno-rtti.
+    static constexpr const char* SOURCE_ID = "u1_stock";
+
     std::string id() const override {
-        return "u1_stock";
+        return SOURCE_ID;
     }
     bool available() const override {
         return capable_;

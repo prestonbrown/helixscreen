@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../helix_test_fixture.h"
 #include "lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
@@ -7,7 +8,14 @@
 #include "../catch_amalgamated.hpp"
 
 #if HELIX_HAS_CAMERA
+#include "ui_update_queue.h"
+
+#include "../test_helpers/camera_stream_test_access.h"
 #include "camera_stream.h"
+
+#include <atomic>
+#include <chrono>
+#include <thread>
 #endif
 
 using namespace helix;
@@ -65,9 +73,60 @@ TEST_CASE("CameraStream: compute_scaled_size picks smallest sufficient scale", "
         CHECK(s.w == 800);
         CHECK(s.h == 480);
     }
+}
 
-    // Remaining scaling factor tests require libturbojpeg at runtime.
-    // compute_scaled_size gracefully returns source dims if unavailable.
+// Decode-time downscaling is gated on tjGetScalingFactors, so a platform with
+// no libturbojpeg decodes every frame at full camera resolution and then pays
+// for an LVGL software rescale. That was Android until the APK started shipping
+// its own libturbojpeg (prestonbrown/helixscreen#1245). The gate is what these
+// tests pin down; the table is injected so the result does not depend on
+// whether the host running the suite happens to have libturbojpeg installed.
+TEST_CASE("CameraStream: decode-time downscale is gated on the turbojpeg scaling table",
+          "[camera][1245]") {
+    CameraStream stream;
+
+    SECTION("no scaling-factor symbol decodes at full resolution") {
+        CameraStreamTestAccess::clear_scaling_factors(stream);
+        stream.set_target_size(800, 480);
+        auto s = stream.compute_scaled_size(1920, 1080);
+        CHECK(s.w == 1920);
+        CHECK(s.h == 1080);
+    }
+
+    SECTION("smallest factor still covering the target is chosen") {
+        CameraStreamTestAccess::install_turbojpeg_scaling_factors(stream);
+        stream.set_target_size(800, 480);
+        auto s = stream.compute_scaled_size(1920, 1080);
+        CHECK(s.w == 960); // 1/2 — 3/8 would be 720x405, under the 800px target
+        CHECK(s.h == 540);
+    }
+
+    SECTION("a larger target stops at a larger factor") {
+        CameraStreamTestAccess::install_turbojpeg_scaling_factors(stream);
+        stream.set_target_size(1280, 720);
+        auto s = stream.compute_scaled_size(1920, 1080);
+        CHECK(s.w == 1440); // 3/4 — 5/8 would be 1200x675, under 1280x720
+        CHECK(s.h == 810);
+    }
+
+    SECTION("90 degree rotation compares against transposed targets") {
+        CameraStreamTestAccess::install_turbojpeg_scaling_factors(stream);
+        stream.set_rotation(CameraRotation::Rotate90);
+        // Portrait widget: the decoder still sees a landscape frame, so the
+        // target must be swapped back into camera space before comparing.
+        stream.set_target_size(480, 800);
+        auto s = stream.compute_scaled_size(1920, 1080);
+        CHECK(s.w == 960);
+        CHECK(s.h == 540);
+    }
+
+    SECTION("source already below target is never upscaled") {
+        CameraStreamTestAccess::install_turbojpeg_scaling_factors(stream);
+        stream.set_target_size(1920, 1080);
+        auto s = stream.compute_scaled_size(640, 480);
+        CHECK(s.w == 640);
+        CHECK(s.h == 480);
+    }
 }
 
 // ============================================================================
@@ -271,6 +330,108 @@ TEST_CASE("CameraStream: parse_boundary extracts boundary from Content-Type", "[
         auto b = CameraStream::parse_boundary("");
         CHECK(b.empty());
     }
+}
+
+// ============================================================================
+// Worker-thread liveness — running_ must mean "the worker is alive" (#1245)
+// ============================================================================
+
+/// Bounded, real-clock wait for the worker to drop its liveness flag. Bounded
+/// so a regression fails the assertion instead of hanging the suite; the
+/// worker does no I/O on this path and normally clears it within microseconds.
+static bool wait_for_worker_exit(const CameraStream& s, int timeout_ms = 2000) {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (!s.is_running()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return !s.is_running();
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: worker clears is_running() when it gives up",
+                 "[camera][1245]") {
+    CameraStream stream;
+    REQUIRE_FALSE(stream.is_running());
+
+    // Failure budget exhausted, no snapshot URL: the worker reports the error
+    // and the thread returns. Nothing else will ever run on this object again.
+    CameraStreamTestAccess::spawn_worker_to_exhaustion(stream);
+
+    // is_running() is exactly what CameraWidget::start_stream() consults before
+    // deciding a restart would be redundant. A worker that has exited but still
+    // reports true makes the camera unrevivable — the feed stays dead until the
+    // user switches tabs, which is what issue #1245 item 4 describes.
+    CHECK(wait_for_worker_exit(stream));
+    CHECK_FALSE(stream.is_running());
+
+    stream.stop(); // reap the thread; also the "worker already gone" stop() path
+    CHECK_FALSE(stream.is_running());
+
+    helix::ui::UpdateQueue::instance().drain(); // report_error()'s deferred callback
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: restart after the worker gave up spawns again",
+                 "[camera][1245]") {
+    CameraStream stream;
+    CameraStreamTestAccess::spawn_worker_to_exhaustion(stream);
+    REQUIRE(wait_for_worker_exit(stream));
+    REQUIRE_FALSE(stream.is_running());
+    // The dead worker is still attached to the std::thread object — nothing
+    // has joined it, exactly as in production.
+    REQUIRE(CameraStreamTestAccess::worker_joinable(stream));
+
+    // start() must reap it before assigning a new one — assigning over a
+    // joinable std::thread is std::terminate, and with is_running() now false
+    // the old "if (running_) stop();" guard would sail straight past it.
+    std::atomic<int> frames{0};
+    stream.start("http://127.0.0.1:9/stream", "", [&](lv_draw_buf_t*) { frames.fetch_add(1); });
+    CHECK(stream.is_running());
+
+    stream.stop();
+    CHECK_FALSE(stream.is_running());
+    CHECK(frames.load() == 0); // nothing is listening on port 9
+
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: snapshot fallback keeps is_running() true",
+                 "[camera][1245]") {
+    CameraStream stream;
+    // Paused: fetch_snapshot() returns before issuing any HTTP request, so the
+    // poll loop spins on its sleep alone and the test touches no network.
+    stream.set_max_fps(0);
+
+    std::atomic<bool> saw_running{false};
+    std::atomic<bool> released{false};
+    std::thread watcher([&] {
+        for (int i = 0; i < 200 && !saw_running.load(); ++i) {
+            if (stream.is_running()) {
+                saw_running.store(true);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        // Let the poll loop actually run for a beat before releasing it.
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        CameraStreamTestAccess::release_worker(stream);
+        released.store(true);
+    });
+
+    // Blocks in snapshot_poll_loop() until the watcher releases it. Clearing
+    // running_ where the reconnect loop gives up (rather than where the worker
+    // body actually returns) would skip the fallback entirely and this would
+    // return with saw_running still false.
+    CameraStreamTestAccess::run_worker_inline_with_snapshot(stream,
+                                                            "http://127.0.0.1:9/snapshot.jpg");
+    watcher.join();
+
+    CHECK(saw_running.load());
+    CHECK(released.load());
+    CHECK_FALSE(stream.is_running());
+
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 #else // !HELIX_HAS_CAMERA

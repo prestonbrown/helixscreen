@@ -3,20 +3,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- Full-screen backdrop overlay - tap to dismiss -->
-  <view name="selector_backdrop"
-        extends="lv_obj" width="100%" height="100%" style_bg_opa="128" style_bg_color="0x000000" style_border_width="0"
-        style_pad_all="0" style_radius="0" clickable="true">
-    <event_cb trigger="clicked" callback="ams_selector_backdrop_cb"/>
+  <view name="selector_backdrop" extends="context_menu_backdrop">
     <!-- Selector context menu card - positioned by C++ -->
-    <lv_obj name="selector_menu"
-            width="content" height="content" style_bg_color="#elevated_bg" style_bg_opa="255"
-            style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_xs" flex_flow="column"
-            style_flex_main_place="start" scrollable="false" clickable="true">
-      <!-- Header -->
-      <text_small name="menu_header" text="Selector" translation_tag="Selector"/>
-      <!-- Header Divider -->
-      <lv_obj width="100%"
-              height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"/>
+    <context_menu_card title="Selector" title_tag="Selector" title_name="menu_header" pad_gap="#space_xs">
       <!-- Home selector -->
       <ui_button name="btn_home_selector"
                  height="#button_height_sm" icon="home" text="Home selector" translation_tag="Home selector"
@@ -32,10 +21,9 @@
       <!-- Servo row (hidden on Type B / virtual selector) -->
       <!-- Servo row sizes to content (Servo label + 3 natural-width buttons); as
            the widest row it drives the card's content width, so the menu scales
-           with font/button size per resolution instead of a hardcoded width. -->
-      <!-- Servo row sizes to content (the widest row) so it anchors the card's
-           responsive width. Up/Down use directional arrows; Move is a named servo
-           position (intermediate, for selector travel). -->
+           with font/button size per resolution instead of a hardcoded width.
+           Up/Down use directional arrows; Move is a named servo position
+           (intermediate, for selector travel). -->
       <lv_obj name="servo_row"
               width="content" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
               style_flex_cross_place="center" scrollable="false">
@@ -80,6 +68,6 @@
                  clickable="true" style_flex_main_place="start">
         <event_cb trigger="clicked" callback="ams_selector_recover_cb"/>
       </ui_button>
-    </lv_obj>
+    </context_menu_card>
   </view>
 </component>

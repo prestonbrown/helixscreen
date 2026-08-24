@@ -24,6 +24,16 @@ void AmsErrorBridge::start() {
         AmsState::instance().get_ams_action_subject(), this,
         [](AmsErrorBridge* self, int action) { self->on_action_changed(action); },
         AmsState::instance().get_subjects_lifetime());
+
+    // Re-consult current_error() when the operation detail moves while the
+    // action is still ERROR. Without this, a fault whose text changes while
+    // AmsAction stays ERROR never re-presents and the user keeps reading the
+    // first message. present() dedups on (detail, action-set), so a detail
+    // change that does not move current_error() is absorbed as a no-op.
+    detail_observer_ = helix::ui::observe_string<AmsErrorBridge>(
+        AmsState::instance().get_ams_action_detail_subject(), this,
+        [](AmsErrorBridge* self, const char* detail) { self->on_detail_changed(detail); },
+        AmsState::instance().get_subjects_lifetime());
 }
 
 void AmsErrorBridge::on_action_changed(int action) {
@@ -42,6 +52,11 @@ void AmsErrorBridge::on_action_changed(int action) {
         // its own — so anything placed after that check would not run on the
         // path this cancel exists for.
         PostOpCooldownManager::instance().cancel();
+
+        // A new fault episode opens here. Anything the user dismissed or acted
+        // on during an earlier one stops suppressing, so a fault identical to a
+        // previously answered one is shown again instead of being swallowed.
+        presenter_.forget_handled_fault();
 
         auto* backend = AmsState::instance().get_backend();
 
@@ -76,6 +91,40 @@ void AmsErrorBridge::on_action_changed(int action) {
         presenter_.dismiss();
         presented_ = false;
     }
+}
+
+void AmsErrorBridge::on_detail_changed(const char* /*detail*/) {
+    // Only mid-episode: the rising edge is on_action_changed's job, and a detail
+    // change outside ERROR is normal operation chatter (Loading/Unloading/etc.).
+    // present_ gates the edge-had-no-ErrorEvent case: if the edge produced no
+    // modal (AFC's stuck-action latch), surface_unhandled_error() toasted the
+    // detail and re-presenting an ErrorEvent that arrived later would stack a
+    // modal on top of that toast.
+    if (lv_subject_get_int(AmsState::instance().get_ams_action_subject()) !=
+            static_cast<int>(AmsAction::ERROR) ||
+        !presented_) {
+        return;
+    }
+    auto* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+    auto ev = backend->current_error();
+    if (!ev) {
+        // The fault cleared under our feet before the action subject fell; leave
+        // the existing modal and let the falling-edge dismiss handle it.
+        return;
+    }
+    spdlog::debug("[AmsErrorBridge] re-consulting error on detail change mid-episode: {}",
+                  ev->detail);
+    // present() decides whether this is actually new. It suppresses both a fault
+    // already on screen and one the user has answered this episode — the latter
+    // matters here because a dismiss-only event's single {"OK",""} action closes
+    // the modal without any callback, so every subsequent detail change would
+    // otherwise pop the identical dialog straight back up.
+    presenter_.present(*ev);
+    // presented_ stays true: this is the same ERROR episode, and the falling-edge
+    // dismiss in on_action_changed still fires when action exits ERROR.
 }
 
 void AmsErrorBridge::surface_unhandled_error() {

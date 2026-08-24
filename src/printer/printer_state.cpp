@@ -19,15 +19,17 @@
 #include "async_helpers.h"
 #include "capability_overrides.h"
 #include "color_sensor_manager.h"
+#include "connection_state.h" // For ConnectionState enum
 #include "device_display_name.h"
 #include "filament_sensor_manager.h"
 #include "hardware_validator.h"
 #include "humidity_sensor_manager.h"
+#include "i_moonraker_client.h" // for helix::CACHED_SNAPSHOT_MARKER
+#include "json_utils.h"
 #include "led/led_controller.h"
 #include "lvgl.h"
 #include "lvgl/src/display/lv_display_private.h" // For rendering_in_progress check
 #include "lvgl_debug_invalidate.h"
-#include "moonraker_client.h" // For ConnectionState enum
 #include "printer_cache_registry.h"
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
@@ -55,6 +57,8 @@ PrintJobState parse_print_job_state(const char* state_str) {
         return PrintJobState::STANDBY;
     }
 
+    // RAW_PRINT_STATE_OK: whole function. This IS the wire parse. Everything
+    // downstream that wants the derived axis gets it from derive_print_state().
     if (std::strcmp(state_str, "standby") == 0) {
         return PrintJobState::STANDBY;
     } else if (std::strcmp(state_str, "printing") == 0) {
@@ -76,6 +80,7 @@ PrintJobState parse_print_job_state(const char* state_str) {
 }
 
 const char* print_job_state_to_string(PrintJobState state) {
+    // RAW_PRINT_STATE_OK: whole function - the wire enum's own name table.
     switch (state) {
     case PrintJobState::STANDBY:
         return "Standby";
@@ -359,19 +364,29 @@ void PrinterState::update_from_notification(const json& notification) {
     // when subject updates trigger lv_obj_invalidate() during rendering
     auto params = notification["params"];
     if (params.is_array() && !params.empty()) {
-        async_lifetime_.defer("PrinterState::on_status_update", [this, state_json = params[0]]() {
+        // params[1] is Klipper's eventtime. It is monotonic-clock derived, so it
+        // survives a Klipper restart and only rewinds on a host reboot — a usable
+        // freshness key within one connection. Absent or non-numeric means the
+        // frame was synthesized rather than received.
+        const double eventtime =
+            (params.size() > 1 && params[1].is_number()) ? params[1].get<double>() : 0.0;
+        const bool from_cached_snapshot = notification.value(helix::CACHED_SNAPSHOT_MARKER, false);
+        async_lifetime_.defer("PrinterState::on_status_update", [this, state_json = params[0],
+                                                                 eventtime,
+                                                                 from_cached_snapshot]() {
             // Debug check: log if we're somehow in render phase (should never happen)
             if (lvgl_is_rendering()) {
                 spdlog::error("[PrinterState] async status update running during render phase!");
                 spdlog::error("[PrinterState] This should not happen - lv_async_call should run "
                               "between frames");
             }
-            update_from_status(state_json);
+            update_from_status(state_json, eventtime, from_cached_snapshot);
         });
     }
 }
 
-void PrinterState::update_from_status(const json& state) {
+void PrinterState::update_from_status(const json& state, double eventtime,
+                                      bool from_cached_snapshot) {
     std::lock_guard<std::mutex> lock(state_mutex_);
 
     // Debug: Check if we're in render phase (this should never be true)
@@ -497,29 +512,88 @@ void PrinterState::update_from_status(const json& state) {
         }
     }
 
-    // Update klippy state from webhooks (shutdown/error detection)
+    // Update klippy state from webhooks (shutdown/error detection).
+    //
+    // Klippy state is a liveness signal written by two queues that are not ordered
+    // against each other: live WebSocket frames, and the discovery subscription
+    // snapshot replayed at the end of discovery. Last-write-wins let the replay
+    // resurrect READY over a live SHUTDOWN — nav re-enabled, the recovery dialog
+    // auto-dismissed, and the gcode guards re-opened against a dead printer.
+    //
+    // The state_message is gated with the state because they arrive in the same
+    // blob: a snapshot too stale to set the state carries an equally stale reason.
     if (state.contains("webhooks")) {
         const auto& webhooks = state["webhooks"];
-        if (webhooks.contains("state") && webhooks["state"].is_string()) {
-            std::string klippy_state_str = webhooks["state"].get<std::string>();
-            KlippyState new_state = KlippyState::READY; // default
 
-            if (klippy_state_str == "ready") {
-                new_state = KlippyState::READY;
-            } else if (klippy_state_str == "startup") {
-                new_state = KlippyState::STARTUP;
-            } else if (klippy_state_str == "shutdown") {
-                new_state = KlippyState::SHUTDOWN;
-            } else if (klippy_state_str == "error") {
-                new_state = KlippyState::ERROR;
+        // Provenance is STATED by the caller, never inferred from a zero eventtime:
+        // the mock client drives its simulated shutdown/recovery through the same
+        // untimestamped dispatch, and those are the current truth for their session.
+        // The eventtime watermark covers the other case — two genuinely live frames
+        // arriving out of order across the queues.
+        const bool stale = (from_cached_snapshot && klippy_state_from_live_) ||
+                           (eventtime > 0.0 && eventtime < klippy_state_eventtime_);
+
+        if (stale) {
+            spdlog::debug("[PrinterState] Ignoring stale klippy webhooks (state='{}', "
+                          "eventtime={} vs watermark={}, cached_snapshot={})",
+                          helix::json_util::safe_string(webhooks, "state", "<absent>"), eventtime,
+                          klippy_state_eventtime_, from_cached_snapshot);
+        } else {
+            bool applied_state = false;
+
+            if (webhooks.contains("state") && webhooks["state"].is_string()) {
+                std::string klippy_state_str = webhooks["state"].get<std::string>();
+                KlippyState new_state = KlippyState::READY;
+                bool recognized = true;
+
+                if (klippy_state_str == "ready") {
+                    new_state = KlippyState::READY;
+                } else if (klippy_state_str == "startup") {
+                    new_state = KlippyState::STARTUP;
+                } else if (klippy_state_str == "shutdown") {
+                    new_state = KlippyState::SHUTDOWN;
+                } else if (klippy_state_str == "error") {
+                    new_state = KlippyState::ERROR;
+                } else {
+                    // Klipper documents exactly ready/startup/shutdown/error. An
+                    // unrecognised value used to resolve to READY, which is
+                    // fail-OPEN on a liveness signal: an unknown string re-enabled
+                    // nav and re-opened the gcode guards. Leave the current state
+                    // alone instead — a stale-but-known state is safer than an
+                    // invented READY. Deduped on the string so a value Klipper
+                    // repeats every frame warns once, not per frame.
+                    recognized = false;
+                    if (last_unknown_klippy_state_ != klippy_state_str) {
+                        last_unknown_klippy_state_ = klippy_state_str;
+                        spdlog::warn("[PrinterState] Unrecognised webhooks.state '{}' — leaving "
+                                     "klippy state unchanged",
+                                     klippy_state_str);
+                    }
+                }
+
+                if (recognized) {
+                    set_klippy_state_internal(new_state);
+                    applied_state = true;
+                }
             }
 
-            set_klippy_state_internal(new_state);
-        }
+            // Capture state_message (error/shutdown reason text)
+            if (webhooks.contains("state_message") && webhooks["state_message"].is_string()) {
+                network_state_.set_klippy_state_message(
+                    webhooks["state_message"].get<std::string>());
+            }
 
-        // Capture state_message (error/shutdown reason text)
-        if (webhooks.contains("state_message") && webhooks["state_message"].is_string()) {
-            network_state_.set_klippy_state_message(webhooks["state_message"].get<std::string>());
+            // Only a frame that actually carried a usable state moves the guard.
+            // A delta carrying just state_message must not latch "live seen" and
+            // lock out the snapshot that still has to seed the state.
+            if (applied_state) {
+                if (eventtime > 0.0) {
+                    klippy_state_eventtime_ = eventtime;
+                }
+                if (!from_cached_snapshot) {
+                    klippy_state_from_live_ = true;
+                }
+            }
         }
     }
 
@@ -586,13 +660,55 @@ void PrinterState::set_network_status(int status) {
 }
 
 void PrinterState::set_klippy_state(KlippyState state) {
+    // These are the notify_klippy_ready / _shutdown / _disconnected paths: live,
+    // authoritative, and they must outrank any replayed snapshot from here on.
+    mark_klippy_state_live();
+
     // Thread-safe wrapper: defer LVGL subject updates to main thread
     helix::async::call_method(this, &PrinterState::set_klippy_state_internal, state);
 }
 
 void PrinterState::set_klippy_state_sync(KlippyState state) {
+    mark_klippy_state_live();
+
     // Direct call for main-thread use (testing, or when already on main thread)
     set_klippy_state_internal(state);
+}
+
+void PrinterState::set_klippy_state_if_unseeded(KlippyState state) {
+    // Deferred so the "has anything live landed?" check runs on the main thread,
+    // in the same serialized order as the webhooks parse. Checking on the caller's
+    // thread would race: a live frame could land between the check and the apply,
+    // and printer.info's older answer would win anyway.
+    helix::async::call_method(this, &PrinterState::set_klippy_state_if_unseeded_internal, state);
+}
+
+void PrinterState::set_klippy_state_if_unseeded_internal(KlippyState state) {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (klippy_state_from_live_) {
+            spdlog::debug("[PrinterState] Ignoring printer.info klippy state {} — a live state "
+                          "has already been applied",
+                          static_cast<int>(state));
+            return;
+        }
+    }
+
+    // Deliberately does NOT mark the state live: printer.info is a seed, and the
+    // subscription snapshot that follows it on the same connection is strictly
+    // newer, so it must still be allowed to correct this value.
+    set_klippy_state_internal(state);
+}
+
+void PrinterState::mark_klippy_state_live() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    klippy_state_from_live_ = true;
+}
+
+void PrinterState::reset_klippy_state_freshness() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    klippy_state_eventtime_ = 0.0;
+    klippy_state_from_live_ = false;
 }
 
 void PrinterState::set_klippy_state_internal(KlippyState state) {
@@ -840,10 +956,21 @@ bool PrinterState::is_blocking_operation_active() {
     // idle_timeout.state == "Printing" is Klipper's canonical busy flag. It is
     // also true during a real file print, so exclude PRINTING/PAUSED — mid-print
     // fan/temp changes are legitimate and Klipper queues them between moves.
-    if (lv_subject_get_int(calibration_state_.get_idle_timeout_printing_subject()) == 0) {
+    //
+    // Debounced, not the raw subject: the flag is equally true for a one-shot
+    // housekeeping macro, and a printer with delayed_gcode loops would otherwise
+    // refuse a jog for ~7% of its idle life (bundle L53W5PKG).
+    if (!calibration_state_.idle_timeout_busy().blocking()) {
         return false;
     }
 
+    // RAW_PRINT_STATE_OK: this predicate is INVERTED — the print state is used
+    // to SUPPRESS the blocking answer, not to assert it — so job_holds_machine()
+    // would flip it the wrong way. During a host-side pre-print block
+    // idle_timeout reads "Printing" (the host is running G-code) while
+    // print_stats still reads standby, and answering "blocked" there is correct:
+    // the toolhead really is busy. Widening to Preparing would make this return
+    // false and ADMIT jogs during the bed mesh.
     const PrintJobState pstate = get_print_job_state();
     return pstate != PrintJobState::PRINTING && pstate != PrintJobState::PAUSED;
 }
@@ -943,6 +1070,12 @@ void PrinterState::reset_print_start_state() {
 void PrinterState::set_print_thumbnail(const std::string& for_file, const std::string& path) {
     print_domain_.set_print_thumbnail(for_file, path);
 }
+
+#if defined(HELIX_PLATFORM_ESP32)
+void PrinterState::set_print_psram_thumbnail(std::shared_ptr<helix::ui::EspPsramThumbnail> thumb) {
+    print_domain_.set_print_psram_thumbnail(std::move(thumb));
+}
+#endif
 
 void PrinterState::set_print_display_filename(const std::string& name) {
     print_domain_.set_print_display_filename(name);
@@ -1082,7 +1215,7 @@ void PrinterState::apply_dynamic_options() {
     if (lv_subject_get_int(capabilities_state_.get_printer_has_timelapse_subject()) == 1) {
         PrePrintOption tl;
         tl.id = "timelapse";
-        tl.label_key = "pre_print_option.timelapse.label";
+        tl.label_key = "Timelapse";
         tl.category = PrePrintCategory::Monitoring;
         tl.order = 100;
         // Default reflects the global moonraker-timelapse `enabled` setting

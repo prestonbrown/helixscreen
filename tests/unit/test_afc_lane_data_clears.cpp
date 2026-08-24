@@ -156,12 +156,22 @@ TEST_CASE("AFC lane_data applies the user's slot overrides", "[ams][afc][1195]")
     o.spoolman_id = 77;
     afc.set_override(0, o);
 
-    SECTION("override wins over the DB record's firmware truth") {
-        afc.feed_lane_data(
-            both_lanes(nlohmann::json{{"material", "PLA"}, {"spool_id", 5}, {"color", "#FF0000"}}));
+    SECTION("override wins where firmware echoes the same spool") {
+        afc.feed_lane_data(both_lanes(
+            nlohmann::json{{"material", "PLA"}, {"spool_id", 77}, {"color", "#FF0000"}}));
         CHECK(afc.brand(0) == "Polymaker");
         CHECK(afc.material(0) == "ASA");
         CHECK(afc.spool_id(0) == 77);
+    }
+
+    SECTION("a different firmware id is an external re-bind — the record drops (#1281)") {
+        // Another writer set spool 5 on this lane; our stale override for 77
+        // must not shadow it. Mirrors the status-path test in
+        // test_override_rebind.cpp through the DB parser.
+        afc.feed_lane_data(
+            both_lanes(nlohmann::json{{"material", "PLA"}, {"spool_id", 5}, {"color", "#FF0000"}}));
+        CHECK(afc.spool_id(0) == 5);
+        CHECK(afc.brand(0).empty());
     }
 
     SECTION("override re-supplies identity across the null clear") {
@@ -183,10 +193,12 @@ TEST_CASE("AFC lane_data applies the user's slot overrides", "[ams][afc][1195]")
 }
 
 TEST_CASE("AFC lane_data adopts the filament name, like the status path", "[ams][afc][1195]") {
-    // The DB record carries filament_name just as AFC_lane.get_status() does,
-    // but only the status parser read it — so a lane whose data arrived solely
-    // through the lane_data path had no name at all, and the loaded card fell
-    // back to the algorithmic colour name.
+    // These sections use `filament_name`, the defensive spelling — see the #833
+    // case below for `name`, which is what AFC actually publishes into
+    // lane_data. Either key reaches the same slot field. The bug being pinned
+    // here is that only the status parser read a name at all, so a lane whose
+    // data arrived solely through the lane_data path had none, and the loaded
+    // card fell back to the algorithmic colour name.
     AfcLaneDataClearHelper afc;
 
     SECTION("a name in the DB record reaches the slot") {
@@ -232,6 +244,55 @@ TEST_CASE("AFC lane_data adopts the filament name, like the status path", "[ams]
                                       nlohmann::json{{"filament_name", "Galaxy Black"}}));
         CHECK(afc.spool_name(0) == "Ambrosia Pink");
         CHECK(afc.spool_name(1) == "Galaxy Black");
+    }
+}
+
+TEST_CASE("AFC lane_data reads the shared #833 key spellings", "[ams][afc][833]") {
+    // AFCProject/AFC-Klipper-Add-On#833 publishes brand and product name into
+    // lane_data under the keys Happy Hare established for that shared namespace
+    // — `vendor_name` and `name` — NOT under AFCLane's own attribute names.
+    // (Its get_status dict does use the attribute names, `spool_vendor` and
+    // `filament_name`; the surfaces differ on purpose.) A reader that only knew
+    // the attribute spellings would see every #833 lane as unbranded and
+    // unnamed, which is the whole point of the upstream change.
+    AfcLaneDataClearHelper afc;
+
+    SECTION("`name` reaches the slot's spool name") {
+        afc.feed_lane_data(
+            both_lanes(nlohmann::json{{"material", "PLA"}, {"name", "Ambrosia Pink"}}));
+        CHECK(afc.spool_name(0) == "Ambrosia Pink");
+    }
+
+    SECTION("`vendor_name` reaches the slot's brand") {
+        afc.feed_lane_data(
+            both_lanes(nlohmann::json{{"material", "PLA"}, {"vendor_name", "Polymaker"}}));
+        CHECK(afc.brand(0) == "Polymaker");
+    }
+
+    SECTION("an empty `name` is a deliberate clear, as with the other spelling") {
+        afc.feed_lane_data(both_lanes(nlohmann::json{{"name", "Ambrosia Pink"}}));
+        REQUIRE(afc.spool_name(0) == "Ambrosia Pink");
+
+        afc.feed_lane_data(both_lanes(nlohmann::json{{"name", ""}}));
+        CHECK(afc.spool_name(0).empty());
+    }
+
+    SECTION("`name` wins when a record somehow carries both spellings") {
+        afc.feed_lane_data(both_lanes(
+            nlohmann::json{{"name", "Ambrosia Pink"}, {"filament_name", "Galaxy Black"}}));
+        CHECK(afc.spool_name(0) == "Ambrosia Pink");
+    }
+
+    SECTION("a user's override still wins over both") {
+        helix::ams::FilamentSlotOverride o;
+        o.brand = "Elegoo";
+        o.spool_name = "My Pink Spool";
+        afc.set_override(0, o);
+
+        afc.feed_lane_data(
+            both_lanes(nlohmann::json{{"name", "Ambrosia Pink"}, {"vendor_name", "Polymaker"}}));
+        CHECK(afc.spool_name(0) == "My Pink Spool");
+        CHECK(afc.brand(0) == "Elegoo");
     }
 }
 

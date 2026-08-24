@@ -35,6 +35,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_qidi.h"
 #include "ams_error.h"
@@ -177,7 +178,7 @@ struct ClaimFixture : public LVGLTestFixture {
     }
 
     void set_print_state(helix::PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
+        helix::test::set_wire_state(state, s);
     }
 
     /// Concurrency doubles get a NULL api on purpose: refuse_if_printing() reads
@@ -255,7 +256,7 @@ TEST_CASE_METHOD(ClaimFixture, "AMS filament op: the loser is refused, never blo
 
 TEST_CASE_METHOD(ClaimFixture, "AMS filament op: exactly one of many concurrent ops wins",
                  "[ams][threading][claim]") {
-    constexpr int kThreads = 8;
+    constexpr int THREADS = 8;
 
     // Model the real shape of the window on AFC / ACE / CFS / AD5X: the op wins
     // the gate, does work, and only THEN publishes the busy action. Without the
@@ -265,10 +266,10 @@ TEST_CASE_METHOD(ClaimFixture, "AMS filament op: exactly one of many concurrent 
     backend->publish_busy_action = true;
 
     std::atomic<bool> go{false};
-    std::vector<AmsError> results(kThreads, AmsErrorHelper::busy("not yet run"));
+    std::vector<AmsError> results(THREADS, AmsErrorHelper::busy("not yet run"));
     std::vector<std::thread> threads;
-    threads.reserve(kThreads);
-    for (int i = 0; i < kThreads; ++i) {
+    threads.reserve(THREADS);
+    for (int i = 0; i < THREADS; ++i) {
         threads.emplace_back([&, i] {
             while (!go.load(std::memory_order_acquire)) {
                 std::this_thread::yield();

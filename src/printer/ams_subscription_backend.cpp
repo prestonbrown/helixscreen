@@ -5,6 +5,7 @@
 
 #include "filament_op_router.h"
 #include "moonraker_error.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "toolhead_homing.h"
 
@@ -12,7 +13,7 @@
 
 #include "hv/json.hpp"
 
-AmsSubscriptionBackend::AmsSubscriptionBackend(MoonrakerAPI* api, helix::MoonrakerClient* client)
+AmsSubscriptionBackend::AmsSubscriptionBackend(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : api_(api), client_(client) {
     // Common defaults -- derived constructors set type-specific fields
     system_info_.version = "unknown";
@@ -43,8 +44,8 @@ AmsError AmsSubscriptionBackend::start() {
         }
 
         if (!api_) {
-            spdlog::error("{} Cannot start: MoonrakerAPI is null", backend_log_tag());
-            return AmsErrorHelper::not_connected("MoonrakerAPI not provided");
+            spdlog::error("{} Cannot start: IMoonrakerAPI is null", backend_log_tag());
+            return AmsErrorHelper::not_connected("IMoonrakerAPI not provided");
         }
 
         // Derived class extra checks (e.g., ToolChanger requires tools discovered)
@@ -308,16 +309,25 @@ AmsError AmsSubscriptionBackend::refuse_if_printing() const {
     // emits one when toolhead.homed_axes lacks "xyz" — which a paused print,
     // homed by construction, never does.
     //
+    // PREPARING is refused like PRINTING. Asked of the raw print_stats.state
+    // this window was invisible — a host-side pre-start block reads STANDBY (or
+    // the previous job's terminal state) for its whole duration — so a filament
+    // op was accepted while the pre-start G-code homed and probed. Note that
+    // Layer 1 deliberately does NOT extend to Preparing: it would refuse the
+    // app's own pre-start block, which is itself sent through execute_gcode()
+    // and may contain a G28. That is why this guard has to cover the window.
+    //
     // api_ can be null in unit tests / cold-boot; when it is, print state is
     // unknown and we do not block (mirrors ensure_homed_then's null-client path).
     if (!api_) {
         return AmsErrorHelper::success();
     }
-    const helix::PrintJobState pstate = api_->printer_state().get_print_job_state();
-    if (!helix::print_occupies_toolhead(pstate)) {
+    const auto lifecycle = static_cast<PrintState>(
+        lv_subject_get_int(api_->printer_state().get_print_lifecycle_subject()));
+    if (!job_holds_machine(lifecycle)) {
         return AmsErrorHelper::success();
     }
-    const bool is_paused = (pstate == helix::PrintJobState::PAUSED);
+    const bool is_paused = (lifecycle == PrintState::Paused);
     const bool self_homes = filament_ops_self_home();
     if (is_paused && !self_homes) {
         spdlog::info("{} Allowing filament operation on a PAUSED print "
@@ -325,8 +335,9 @@ AmsError AmsSubscriptionBackend::refuse_if_printing() const {
                      backend_log_tag());
         return AmsErrorHelper::success();
     }
-    spdlog::warn("{} Refusing filament operation while a print is active (state={}, self_homes={})",
-                 backend_log_tag(), static_cast<int>(pstate), self_homes);
+    spdlog::warn("{} Refusing filament operation while a print is active (lifecycle={}, "
+                 "self_homes={})",
+                 backend_log_tag(), static_cast<int>(lifecycle), self_homes);
     // A non-self-homing backend that reaches here is PRINTING, and pausing is a
     // recovery it can actually offer — say so instead of "finish or cancel".
     return AmsErrorHelper::print_active(is_paused, /*pause_allows_ops=*/!self_homes);
@@ -354,21 +365,24 @@ bool AmsSubscriptionBackend::toolhead_homed() const {
 AmsError
 AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void()> on_complete,
                                           std::function<void(const MoonrakerError&)> on_error,
-                                          uint32_t timeout_ms, bool skip_homing, bool silent) {
+                                          uint32_t timeout_ms, bool skip_homing, bool silent,
+                                          std::optional<bool> caller_surfaces_errors) {
     // The homed answer comes from the live homed_axes subject, not an RPC:
     // toolhead is in the standing objects.subscribe set, so querying it again
     // was a redundant round trip. skip_homing short-circuits the check
     // entirely -- toolhead_homed() is never called -- for firmware macros that
-    // home themselves (CFS Fork variant).
+    // home themselves (CFS Fork variant). delegates_homing_to_printer()
+    // short-circuits the same way when the printer-side system homes (AFC
+    // auto_home) — neither prompt nor G28.
     //
     // home_preconfirmed_ is intentionally NOT consulted here: it must never
     // substitute for the toolhead_homed() answer (that would skip the G28
     // itself, changing what the printer does), only for the PROMPT below. See
     // the std::exchange() consume further down, which only runs once this
     // branch has already proven the toolhead genuinely needs a G28.
-    if (skip_homing || toolhead_homed()) {
+    if (skip_homing || delegates_homing_to_printer() || toolhead_homed()) {
         return dispatch_payload(std::move(gcode), std::move(on_complete), std::move(on_error),
-                                timeout_ms, silent);
+                                timeout_ms, silent, caller_surfaces_errors);
     }
 
     auto gcode_copy = std::move(gcode);
@@ -383,7 +397,7 @@ AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void(
     // this same call for all of them.
     auto token = lifetime_.token();
     auto send_g28_then_dispatch = [this, token, gcode_copy, on_complete, on_error, timeout_ms,
-                                   silent]() {
+                                   silent, caller_surfaces_errors]() {
         // Runs either inline in this call (no prompter, or a synchronous
         // test prompter) or later from an LVGL confirm-button event
         // callback. Both cases are on the main thread -- the modal only
@@ -415,30 +429,37 @@ AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void(
                 handle_dispatch_error(synthetic, on_error);
                 return;
             }
-            dispatch_payload(gcode_copy, on_complete, on_error, timeout_ms, silent);
+            dispatch_payload(gcode_copy, on_complete, on_error, timeout_ms, silent,
+                             caller_surfaces_errors);
             return;
         }
 
-        // MoonrakerAPI::execute_gcode() returns void (it's inherently
+        // IMoonrakerAPI::execute_gcode() returns void (it's inherently
         // async); dispatch_payload()'s result on the success leg mirrors
         // the pre-refactor behavior of the query path this replaces (it
         // never returned the send_jsonrpc() call either).
         api_->execute_gcode(
             "G28",
-            [this, token, gcode_copy, on_complete, on_error, timeout_ms, silent]() {
+            [this, token, gcode_copy, on_complete, on_error, timeout_ms, silent,
+             caller_surfaces_errors]() {
                 // L081 Mechanism C: the ack lands on a bg thread and
                 // dispatch_payload touches api_/members. Marshal to main.
                 token.defer("AmsSubscriptionBackend::ensure_homed_then_g28_success",
-                            [this, gcode_copy, on_complete, on_error, timeout_ms, silent]() {
+                            [this, gcode_copy, on_complete, on_error, timeout_ms, silent,
+                             caller_surfaces_errors]() {
                                 dispatch_payload(gcode_copy, on_complete, on_error, timeout_ms,
-                                                 silent);
+                                                 silent, caller_surfaces_errors);
                             });
             },
             [this, token, on_error](const MoonrakerError& err) {
                 token.defer("AmsSubscriptionBackend::ensure_homed_then_g28_error",
                             [this, err, on_error]() { handle_dispatch_error(err, on_error); });
             },
-            MoonrakerAPI::HOMING_TIMEOUT_MS);
+            IMoonrakerAPI::HOMING_TIMEOUT_MS, /*silent=*/false, /*on_queued=*/nullptr,
+            // The G28 error leg lands in handle_dispatch_error(), which without
+            // a caller on_error only logs and resets the action to IDLE. Its
+            // ownership answer is the caller's, not this wrapper's.
+            caller_surfaces_errors.value_or(on_error != nullptr));
     };
 
     // Single-shot consume: a UI surface that already asked "home printer
@@ -486,7 +507,8 @@ void AmsSubscriptionBackend::handle_dispatch_error(
 AmsError
 AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()> on_complete,
                                          std::function<void(const MoonrakerError&)> on_error,
-                                         uint32_t timeout_ms, bool silent) {
+                                         uint32_t timeout_ms, bool silent,
+                                         std::optional<bool> caller_surfaces_errors) {
     // Legacy shape: dispatch through the SAME two virtuals as before this
     // method grew these parameters. ~20 fixtures override ONLY
     // execute_gcode(gcode) / execute_gcode(gcode, on_complete) (see the
@@ -495,25 +517,34 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
     // capturing anything. All 8 pre-existing callers never pass
     // on_error/timeout_ms/silent, so they always land here, byte-for-byte the
     // pre-widening behaviour.
-    if (!on_error && timeout_ms == MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS && silent) {
+    if (!on_error && timeout_ms == IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS && silent) {
         return on_complete ? execute_gcode(gcode, std::move(on_complete)) : execute_gcode(gcode);
     }
 
     // A caller asked for its own error/timeout/toast policy -- the hardcoded
     // virtuals above can't carry that (they fix AMS_OPERATION_TIMEOUT_MS and
-    // silent=true, and their error handling only logs). Talk to MoonrakerAPI
+    // silent=true, and their error handling only logs). Talk to IMoonrakerAPI
     // directly, the same way AmsBackendCfs::dispatch_action_script used to
     // before this method existed to replace its fork.
     if (!api_) {
         MoonrakerError synthetic;
         synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
-        synthetic.message = "MoonrakerAPI not available";
+        synthetic.message = "IMoonrakerAPI not available";
         handle_dispatch_error(synthetic, on_error);
-        return AmsErrorHelper::not_connected("MoonrakerAPI not available");
+        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
 
     const char* tag = backend_log_tag();
     auto token = lifetime_.token();
+
+    // Captured from the CALLER's on_error, before the wrapper below makes the
+    // callback we hand to IMoonrakerAPI unconditionally non-null. A caller that
+    // passed none gets handle_dispatch_error()'s log-and-reset-to-IDLE, which no
+    // user ever sees, so the `!!` router must keep the report. A caller whose
+    // own on_error also only logs overrides this explicitly (CFS does). See
+    // include/rpc_error_policy.h.
+    const bool caller_surfaces = caller_surfaces_errors.value_or(on_error != nullptr);
+
     api_->execute_gcode(
         gcode,
         [tag, on_complete = std::move(on_complete)]() {
@@ -529,13 +560,13 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
             token.defer("AmsSubscriptionBackend::dispatch_payload_error",
                         [this, err, on_error]() { handle_dispatch_error(err, on_error); });
         },
-        timeout_ms, silent);
+        timeout_ms, silent, /*on_queued=*/nullptr, caller_surfaces);
     return AmsErrorHelper::success();
 }
 
 AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
     if (!api_) {
-        return AmsErrorHelper::not_connected("MoonrakerAPI not available");
+        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
     const char* tag = backend_log_tag();
     spdlog::info("{} Executing G-code: {}", tag, gcode);
@@ -545,7 +576,7 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
             if (err.type == MoonrakerErrorType::TIMEOUT) {
                 spdlog::warn("{} G-code response timed out (may still be running): {}", tag, gcode);
             } else if (err.type == MoonrakerErrorType::NOT_READY) {
-                // MoonrakerAPI already logs a [warning] when refusing g-code on a halted
+                // IMoonrakerAPI already logs a [warning] when refusing g-code on a halted
                 // Klipper. AD5X-IFS retries _IFS_VARS on every Adventurer5M.json poll, so
                 // duplicating at [error] floods the log post-halt.
                 spdlog::debug("{} G-code skipped (Klipper halted): {}", tag, gcode);
@@ -553,23 +584,27 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
                 spdlog::error("{} G-code failed: {} - {}", tag, gcode, err.message);
             }
         },
-        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
+        IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
         // silent=true: the phase tracker + IFS_STATUS own operation completion,
         // so the RPC timeout is advisory for these long macros. A cold-start
         // load can legitimately run past the 300s ceiling (bundle 77TDH9N6:
         // heat-from-cold + load + double purge + clean), completing fine ~47s
-        // later — silent suppresses ONLY the false REQUEST_TIMEOUT toast. The
-        // error_cb above still logs "may still be running", and genuine Klipper
-        // RPC-error toasts stay suppressed anyway via the error_cb
-        // caller_handles_ui path in the request tracker.
-        /*silent=*/true);
+        // later — silent suppresses ONLY the false REQUEST_TIMEOUT toast and the
+        // tracker's generic fallback.
+        /*silent=*/true, /*on_queued=*/nullptr,
+        // caller_surfaces_errors=false: the error_cb above only writes to the
+        // log, which the user never sees. Declaring otherwise would silence
+        // GcodeErrorRouter, so a real AFC/Happy Hare/CFS macro rejection would
+        // reach nobody. With this false, Klipper's `!!` broadcast stays free to
+        // surface it. See include/rpc_error_policy.h.
+        /*caller_surfaces_errors=*/false);
     return AmsErrorHelper::success();
 }
 
 AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                std::function<void()> on_complete) {
     if (!api_) {
-        return AmsErrorHelper::not_connected("MoonrakerAPI not available");
+        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
     const char* tag = backend_log_tag();
     spdlog::info("{} Executing G-code: {}", tag, gcode);
@@ -592,11 +627,17 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                 spdlog::error("{} G-code failed: {} - {}", tag, gcode, err.message);
             }
         },
-        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
+        IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
         // silent=true: completion is owned by the phase tracker + IFS_STATUS, not
         // the RPC return, so the advisory 300s timeout must not surface a false
-        // "timed out" toast for a legitimately-long macro (bundle 77TDH9N6).
-        // Genuine RPC-error toasts remain suppressed via the error_cb path.
-        /*silent=*/true);
+        // "timed out" toast for a legitimately-long macro (bundle 77TDH9N6),
+        // along with the tracker's generic fallback.
+        /*silent=*/true, /*on_queued=*/nullptr,
+        // caller_surfaces_errors=false: the error_cb above only writes to the
+        // log, which the user never sees. Declaring otherwise would silence
+        // GcodeErrorRouter, so a real AFC/Happy Hare/CFS macro rejection would
+        // reach nobody. With this false, Klipper's `!!` broadcast stays free to
+        // surface it. See include/rpc_error_policy.h.
+        /*caller_surfaces_errors=*/false);
     return AmsErrorHelper::success();
 }

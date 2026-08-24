@@ -15,9 +15,9 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_modification_manager.h"
-#include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_manager.h"
 #include "panel_widgets/shutdown_widget.h"
@@ -42,7 +42,7 @@ AdvancedPanel& get_global_advanced_panel() {
 }
 
 // Called by main.cpp to initialize the global instance
-void init_global_advanced_panel(PrinterState& printer_state, MoonrakerAPI* api) {
+void init_global_advanced_panel(PrinterState& printer_state, IMoonrakerAPI* api) {
     g_advanced_panel = std::make_unique<AdvancedPanel>(printer_state, api);
     StaticPanelRegistry::instance().register_destroy("AdvancedPanel",
                                                      []() { g_advanced_panel.reset(); });
@@ -52,7 +52,7 @@ void init_global_advanced_panel(PrinterState& printer_state, MoonrakerAPI* api) 
 // CONSTRUCTOR
 // ============================================================================
 
-AdvancedPanel::AdvancedPanel(PrinterState& printer_state, MoonrakerAPI* api)
+AdvancedPanel::AdvancedPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::trace("[{}] Constructor", get_name());
 }
@@ -97,6 +97,19 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     // Event handlers are now declaratively bound via XML event_cb elements
     // No imperative lv_obj_add_event_cb() calls needed
+
+#if defined(HELIX_PLATFORM_ESP32)
+    // v1 Core+AMS cut has no camera → no timelapse. Force-hide the Timelapse
+    // Videos row (its open handler is a no-op stub on this build). Imperative
+    // rather than a stacked bind_flag because the row already carries a
+    // printer_has_timelapse binding and this helix-xml build has no
+    // compound-condition (subject_expr/cond) support. Compiled out on desktop →
+    // zero desktop impact.
+    if (auto* timelapse_row = lv_obj_find_by_name(panel_, "row_timelapse_videos")) {
+        // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
+        lv_obj_add_flag(timelapse_row, LV_OBJ_FLAG_HIDDEN);
+    }
+#endif
 
     spdlog::debug("[{}] Setup complete", get_name());
 }
@@ -169,6 +182,13 @@ void AdvancedPanel::handle_configure_print_start_clicked() {
 
 void AdvancedPanel::handle_pid_tuning_clicked() {
     spdlog::debug("[{}] PID Tuning clicked - opening calibration panel", get_name());
+
+#if defined(HELIX_PLATFORM_ESP32)
+    // PID calibration is excluded from the v1 Core+AMS cut; get_global_pid_cal_panel()
+    // returns a null-vtable link stub, so init_subjects() below would LoadProhibited.
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
 
     auto& overlay = get_global_pid_cal_panel();
 

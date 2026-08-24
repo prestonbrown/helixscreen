@@ -52,6 +52,19 @@ Tap to open a standalone fullscreen camera viewer showing the live feed from you
 
 Tap to open Device Operations for quick actions, calibration, and speed settings for multi-material systems. Supports AFC, Happy Hare, ACE, and other detected filament systems.
 
+Most of what's inside varies by hardware, but four toggles appear here regardless of which system you have:
+
+| Toggle | When it appears | What it does |
+|--------|-----------------|--------------|
+| **Unloads After Print** | AFC systems only | Retract filament back to its lane when a print finishes |
+| **Keep Spool Info on Eject** | Systems whose firmware tracks spool ids per lane (AFC, Happy Hare) | Remember lane spool details across an eject, so reloading the same spool after maintenance needs no re-selection (on by default). Applies only to spools selected in HelixScreen; spools assigned elsewhere clear with the lane (for those, use the firmware's own retention, e.g. AFC's `remember_spool`). When that firmware retention covers every lane, it takes precedence and the toggle shows as disabled |
+| **Always Show Bypass Spool** | AFC systems only | Keep the external spool visible on the filament path even while bypass is disengaged. AFC reports a bypass sensor whether or not one is wired, so it's hidden by default until bypass is actually engaged |
+| **Enable Bypass Controls** | Only when your firmware reports **no** bypass | Show the bypass controls and the external spool anyway, for machines where you feed filament straight to the extruder. Applies to Anycubic ACE Pro, Snapmaker U1, tool changers, QIDI Box, and any Happy Hare config with `has_bypass: 0` |
+
+What **Enable Bypass Controls** does depends on the system. On Happy Hare, `MMU_SELECT_BYPASS` works whether or not `[mmu_machine] has_bypass` is set, so the bypass becomes usable - relevant for `mmu_vendor: Other` setups such as a QIDI Box driven through Happy Hare, and for an uncalibrated type-A selector. On the Creality CFS the bypass works and is always shown, so this setting never appears there. On ACE, Snapmaker, tool changers, and QIDI Box there is no bypass command, so the Bypass toggle reports that the operation is not supported; there the setting only lets you record the material and color you loaded by hand, which keeps filament tracking and temperature presets correct.
+
+See [Filament → When Bypass Doesn't Appear](../filament.md#when-bypass-doesnt-appear).
+
 ---
 
 ## Fans
@@ -76,6 +89,8 @@ Tap to open the Sensor Settings overlay. Each detected filament sensor can be as
 | **Entry** | Monitors filament at the entry to the extruder path |
 
 Whether a sensor is a switch or a motion sensor is detected automatically — it is not something you choose. Other detected sensors (accelerometers, probes, humidity, width, color) are listed as read-only information.
+
+Role assignments control what HelixScreen *watches*. One thing switches at the printer itself: when you engage bypass on a filament system, HelixScreen turns the toolhead runout sensor on at the printer if the filament system's own software had left it off (common on Creality printers), and turns it back off when you disengage — so a bypass print is still protected against running out. This is automatic and doesn't change your settings here.
 
 See [Sensors](../sensors.md) for the full guide.
 

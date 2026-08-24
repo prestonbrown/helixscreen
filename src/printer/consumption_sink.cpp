@@ -17,13 +17,13 @@
 namespace helix {
 
 namespace {
-constexpr uint32_t kPersistIntervalMs = 60'000;
-constexpr float kDeltaWriteThresholdG = 0.05f;
-constexpr float kRebaselineThresholdG = 0.5f;
+constexpr uint32_t PERSIST_INTERVAL_MS = 60'000;
+constexpr float DELTA_WRITE_THRESHOLD_G = 0.05f;
+constexpr float REBASELINE_THRESHOLD_G = 0.5f;
 // TODO(filament-diameter): SlotInfo/external-spool don't carry filament
 // diameter yet. 1.75 mm is correct for ~99% of hobbyist setups; wire from
 // a per-spool field once Spoolman exposes it.
-constexpr float kDefaultDiameterMm = 1.75f;
+constexpr float DEFAULT_DIAMETER_MM = 1.75f;
 } // namespace
 
 std::string_view ExternalSpoolSink::name() const {
@@ -35,7 +35,7 @@ bool ExternalSpoolSink::is_trackable() const {
 }
 
 uint32_t ExternalSpoolSink::persist_interval_ms() const {
-    return persist_interval_override_ms_ ? persist_interval_override_ms_ : kPersistIntervalMs;
+    return persist_interval_override_ms_ ? persist_interval_override_ms_ : PERSIST_INTERVAL_MS;
 }
 
 void ExternalSpoolSink::snapshot(float filament_used_mm) {
@@ -58,7 +58,7 @@ void ExternalSpoolSink::snapshot(float filament_used_mm) {
         return;
     }
     density_g_cm3_ = material->density_g_cm3;
-    diameter_mm_ = kDefaultDiameterMm;
+    diameter_mm_ = DEFAULT_DIAMETER_MM;
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info.remaining_weight_g;
     last_written_weight_g_ = info.remaining_weight_g;
@@ -82,7 +82,7 @@ void ExternalSpoolSink::apply_delta(float filament_used_mm) {
 
     // External-write detection: someone other than us updated remaining_weight_g.
     // Treat as authoritative and rebase our snapshot from it.
-    if (std::abs(info.remaining_weight_g - last_written_weight_g_) > kRebaselineThresholdG) {
+    if (std::abs(info.remaining_weight_g - last_written_weight_g_) > REBASELINE_THRESHOLD_G) {
         spdlog::info("[ConsumptionSink:external] External write detected (was {} g, now "
                      "{} g); rebaselining",
                      last_written_weight_g_, info.remaining_weight_g);
@@ -106,7 +106,7 @@ void ExternalSpoolSink::apply_delta(float filament_used_mm) {
     }
 
     // Avoid noise writes for sub-gram changes the UI can't show anyway.
-    if (std::abs(new_remaining_g - info.remaining_weight_g) < kDeltaWriteThresholdG) {
+    if (std::abs(new_remaining_g - info.remaining_weight_g) < DELTA_WRITE_THRESHOLD_G) {
         return;
     }
 
@@ -160,7 +160,7 @@ bool AmsSlotSink::is_trackable() const {
 }
 
 uint32_t AmsSlotSink::persist_interval_ms() const {
-    return persist_interval_override_ms_ ? persist_interval_override_ms_ : kPersistIntervalMs;
+    return persist_interval_override_ms_ ? persist_interval_override_ms_ : PERSIST_INTERVAL_MS;
 }
 
 std::optional<SlotInfo> AmsSlotSink::current_info() const {
@@ -205,7 +205,7 @@ void AmsSlotSink::snapshot(float filament_used_mm) {
         return;
     }
     density_g_cm3_ = material->density_g_cm3;
-    diameter_mm_ = kDefaultDiameterMm;
+    diameter_mm_ = DEFAULT_DIAMETER_MM;
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info.remaining_weight_g;
     last_written_weight_g_ = info.remaining_weight_g;
@@ -247,7 +247,7 @@ void AmsSlotSink::apply_delta(float filament_used_mm) {
     // External-write detection: someone other than us changed
     // remaining_weight_g between ticks (user edit, Spoolman poll that didn't
     // also set spoolman_id, etc.). Rebase from their value.
-    if (std::abs(info.remaining_weight_g - last_written_weight_g_) > kRebaselineThresholdG) {
+    if (std::abs(info.remaining_weight_g - last_written_weight_g_) > REBASELINE_THRESHOLD_G) {
         spdlog::info("[ConsumptionSink:{}] External write detected (was {} g, now "
                      "{} g); rebaselining",
                      name_, last_written_weight_g_, info.remaining_weight_g);
@@ -267,7 +267,7 @@ void AmsSlotSink::apply_delta(float filament_used_mm) {
     float consumed_g = filament::length_to_weight_g(consumed_mm, density_g_cm3_, diameter_mm_);
     float new_remaining_g = std::max(0.0f, snapshot_weight_g_ - consumed_g);
 
-    if (std::abs(new_remaining_g - info.remaining_weight_g) < kDeltaWriteThresholdG) {
+    if (std::abs(new_remaining_g - info.remaining_weight_g) < DELTA_WRITE_THRESHOLD_G) {
         return;
     }
 

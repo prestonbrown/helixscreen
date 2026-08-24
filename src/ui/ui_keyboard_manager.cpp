@@ -809,13 +809,13 @@ constexpr float HINT_MAX_KEY_FRACTION = 0.32f;
 /// when even the smallest is too big, in which case the caller draws no hint rather
 /// than one that overlaps the key's letter.
 const lv_font_t* pick_hint_font(int32_t btn_h, int32_t btn_w) {
-    static const char* const kCandidates[] = {"font_xs", "font_small", "font_body", "font_heading"};
+    static const char* const CANDIDATES[] = {"font_xs", "font_small", "font_body", "font_heading"};
 
     const int32_t max_h = static_cast<int32_t>(static_cast<float>(btn_h) * HINT_MAX_KEY_FRACTION);
     const lv_font_t* chosen = nullptr;
     const lv_font_t* smallest = nullptr;
 
-    for (const char* token : kCandidates) {
+    for (const char* token : CANDIDATES) {
         const lv_font_t* font = theme_manager_get_font(token);
         if (!font) {
             continue;
@@ -980,6 +980,22 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
 // KEYBOARD MANAGER IMPLEMENTATION
 // ============================================================================
 
+namespace {
+// Keyboard slide-up / screen-shift animations, gated once for all four call
+// sites in show()/hide(). Hard-off on ESP32 regardless of the user setting:
+// each animation frame moves the keyboard (near-half-screen invalidation) or
+// every screen child (full-screen invalidation), and the software-rendered
+// 32Hz pipeline pays 100ms-2s per such frame — the "animation" degrades into
+// a multi-second input-dropping stall. Desktop keeps the setting's behavior.
+bool keyboard_animations_enabled() {
+#if defined(ESP_PLATFORM)
+    return false;
+#else
+    return DisplaySettingsManager::instance().get_animations_enabled();
+#endif
+}
+} // namespace
+
 void KeyboardManager::init(lv_obj_t* parent) {
     if (keyboard_ != nullptr) {
         spdlog::warn("[KeyboardManager] Already initialized, skipping");
@@ -1014,7 +1030,55 @@ void KeyboardManager::init(lv_obj_t* parent) {
     lv_obj_remove_event_cb(keyboard_, lv_keyboard_def_event_cb);
 
     lv_keyboard_set_mode(keyboard_, LV_KEYBOARD_MODE_TEXT_LOWER);
+#if defined(ESP_PLATFORM)
+    // Popovers double each key's invalidated height (the preview bubble extends
+    // a full key-height above the pressed key) and add a per-press draw pass —
+    // measurable input-latency cost on the software-rendered 32Hz pipeline.
+    lv_keyboard_set_popovers(keyboard_, false);
+#else
     lv_keyboard_set_popovers(keyboard_, true);
+#endif
+
+#if defined(ESP_PLATFORM)
+    // lv_theme_default installs an animated style transition on pressed states.
+    // Style-transition ticks can't be localized to one button, so every frame
+    // of that animation invalidates the ENTIRE keyboard widget — per tap, on
+    // press AND release. On embedded software renderers a full-matrix repaint
+    // is 100ms-2s, so the transition turns each keypress into a multi-second
+    // stall that also starves the polled touch indev (type-ahead drops).
+    // Pressed feedback stays (instant color swap) — only the fade goes.
+    //
+    // The override must be a VALID descriptor with an empty prop list — a
+    // local style entry wins over the theme's, and zero props means zero
+    // transition anims. Passing nullptr instead is a crash: update_obj_state
+    // dereferences the descriptor without a NULL check (LoadProhibited on the
+    // first key press, on-device).
+    static const lv_style_prop_t NO_TRANSITION_PROPS[] = {LV_STYLE_PROP_INV};
+    static lv_style_transition_dsc_t s_no_transition;
+    lv_style_transition_dsc_init(&s_no_transition, NO_TRANSITION_PROPS, lv_anim_path_linear, 0, 0,
+                                 nullptr);
+    lv_obj_set_style_transition(keyboard_, &s_no_transition, LV_PART_MAIN);
+    lv_obj_set_style_transition(keyboard_, &s_no_transition, LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_transition(keyboard_, &s_no_transition, LV_PART_ITEMS);
+    lv_obj_set_style_transition(keyboard_, &s_no_transition, LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_set_style_transition(keyboard_, &s_no_transition, LV_PART_ITEMS | LV_STATE_CHECKED);
+
+    // Even with transitions gone, LVGL's state compare is STRUCTURAL: any
+    // style entry whose selector includes PRESSED makes lv_obj_add_state()
+    // invalidate the ENTIRE widget on every press AND release — measured
+    // ~400ms per full-matrix repaint on the S3, i.e. ~0.8s per tap, which
+    // still drops type-ahead. lv_theme_default attaches exactly these
+    // state-selector styles to lv_keyboard (lv_theme_default.c, keyboard
+    // branch); removing them makes press/release a style no-op, so a tap
+    // costs one small per-button invalidation instead of two full-matrix
+    // passes. Tradeoff: keys don't flash on press — on this renderer the
+    // instant character insert IS the feedback. Desktop keeps the flash.
+    lv_obj_remove_style(keyboard_, nullptr, LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_remove_style(keyboard_, nullptr, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    lv_obj_remove_style(keyboard_, nullptr, LV_PART_MAIN | LV_STATE_EDITED);
+    lv_obj_remove_style(keyboard_, nullptr, LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
+    lv_obj_remove_style(keyboard_, nullptr, LV_PART_ITEMS | LV_STATE_EDITED);
+#endif
 
     lv_keyboard_set_map(keyboard_, LV_KEYBOARD_MODE_NUMBER, kb_map_num_improved,
                         kb_ctrl_num_improved);
@@ -1042,10 +1106,17 @@ void KeyboardManager::init(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(keyboard_, LV_OPA_COVER, LV_PART_ITEMS);
     lv_obj_set_style_radius(keyboard_, 8, LV_PART_ITEMS);
 
+#if defined(ESP_PLATFORM)
+    // No per-key shadows: software shadow blur is LVGL's most expensive
+    // primitive, and 30+ keys pay it on every matrix repaint — measured ~10x
+    // per-pixel render cost vs normal content on the ESP32-S3 pipeline.
+    lv_obj_set_style_shadow_width(keyboard_, 0, LV_PART_ITEMS);
+#else
     lv_obj_set_style_shadow_width(keyboard_, 2, LV_PART_ITEMS);
     lv_obj_set_style_shadow_opa(keyboard_, LV_OPA_30, LV_PART_ITEMS);
     lv_obj_set_style_shadow_offset_y(keyboard_, 1, LV_PART_ITEMS);
     lv_obj_set_style_shadow_color(keyboard_, lv_color_black(), LV_PART_ITEMS);
+#endif
 
     lv_obj_set_style_bg_color(keyboard_, key_special_bg, LV_PART_ITEMS | LV_STATE_CHECKED);
     lv_obj_set_style_text_color(keyboard_, key_special_text, LV_PART_ITEMS | LV_STATE_CHECKED);
@@ -1182,7 +1253,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     lv_obj_update_layout(screen);
 
     // Animate keyboard sliding up from bottom
-    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+    if (keyboard_animations_enabled()) {
         int32_t keyboard_height = lv_obj_get_height(keyboard_);
         lv_obj_set_style_translate_y(keyboard_, keyboard_height, LV_PART_MAIN);
 
@@ -1220,7 +1291,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
         spdlog::debug("[KeyboardManager] Shifting screen UP by {} px", shift_up);
 
         uint32_t child_count = lv_obj_get_child_count(screen);
-        bool animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
+        bool animations_enabled = keyboard_animations_enabled();
 
         for (uint32_t i = 0; i < child_count; i++) {
             lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
@@ -1281,7 +1352,7 @@ void KeyboardManager::hide() {
     lv_keyboard_set_textarea(keyboard_, nullptr);
 
     // Animate keyboard sliding down (or hide instantly if animations disabled)
-    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+    if (keyboard_animations_enabled()) {
         int32_t keyboard_height = lv_obj_get_height(keyboard_);
 
         lv_anim_t slide_anim;
@@ -1304,7 +1375,7 @@ void KeyboardManager::hide() {
     }
 
     uint32_t child_count = lv_obj_get_child_count(screen);
-    bool animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
+    bool animations_enabled = keyboard_animations_enabled();
 
     spdlog::debug("[KeyboardManager] Restoring screen children to y=0");
 

@@ -1,6 +1,0 @@
-Added:
-- Niimbot B-series support (B1 / B18 / B3S) — added to the brand table with the shared 384-dot printhead profile. Previously these models were unsupported.
-- New label sizes — 30×20, 30×40, 40×40, 25×30, 14×40, 14×60. Fixes "feeds but prints blank" on B1 with 30×20 stock, where the printer previously defaulted to a 50×30 template and advanced 50 mm of material across 2.5 of the user's actual labels per print.
-
-Fixed:
-- Dual-mode Bluetooth label printers no longer fail to connect —…

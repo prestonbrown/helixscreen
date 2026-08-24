@@ -47,8 +47,8 @@ namespace {
 // logging a miss. Deliberately NOT benchy_thumbnail_white.png, which is the
 // no-thumbnail placeholder — a test that used it could not tell "print A's
 // image" apart from "nothing to show".
-constexpr const char* kThumbA = "A:assets/images/printer.png";
-constexpr const char* kThumbB = "A:assets/images/folder.png";
+constexpr const char* THUMB_A = "A:assets/images/printer.png";
+constexpr const char* THUMB_B = "A:assets/images/folder.png";
 
 /// One PrinterState, one ActivePrintMediaManager, one PrintStatusPanel.
 ///
@@ -130,12 +130,12 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     set_print_filename("model_a.gcode");
     // Stands in for the resolved thumbnail (PrintStartController's USB pre-set
     // takes this exact route; a Moonraker fetch lands on the same subject).
-    media().set_thumbnail_path("model_a.gcode", kThumbA);
+    media().set_thumbnail_path("model_a.gcode", THUMB_A);
     drain();
 
     REQUIRE(state().get_print_thumbnail_file() == "model_a.gcode");
-    REQUIRE(subject_path() == kThumbA);
-    REQUIRE(panel_src() == kThumbA);
+    REQUIRE(subject_path() == THUMB_A);
+    REQUIRE(panel_src() == THUMB_A);
     REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "model_a.gcode");
 
     // --- Print A ends: the display is deliberately preserved ---------------
@@ -144,8 +144,8 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     // print flash to a blank card before the user could read it.
     set_print_filename("");
 
-    CHECK(subject_path() == kThumbA);
-    CHECK(panel_src() == kThumbA);
+    CHECK(subject_path() == THUMB_A);
+    CHECK(panel_src() == THUMB_A);
 
     // --- Print B starts, thumbnail not resolved yet ------------------------
     set_print_filename("model_b.gcode");
@@ -154,29 +154,29 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     // and A's path is gone. Whatever stands in for "nothing yet" (empty string
     // or an explicit placeholder), it is not A's image.
     CHECK(state().get_print_thumbnail_file() == "model_b.gcode");
-    CHECK(subject_path() != kThumbA);
+    CHECK(subject_path() != THUMB_A);
     // "Nothing yet" is the placeholder, published explicitly, so the panel
     // actually repaints instead of leaving A's pixels on B's card.
-    CHECK(subject_path() == ActivePrintMediaManager::kNoThumbnailPlaceholder);
-    CHECK(panel_src() == ActivePrintMediaManager::kNoThumbnailPlaceholder);
-    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) != kThumbA);
+    CHECK(subject_path() == ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK(panel_src() == ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) != THUMB_A);
 
     // --- Print B's thumbnail resolves --------------------------------------
-    media().set_thumbnail_path("model_b.gcode", kThumbB);
+    media().set_thumbnail_path("model_b.gcode", THUMB_B);
     drain();
 
-    CHECK(subject_path() == kThumbB);
-    CHECK(panel_src() == kThumbB);
+    CHECK(subject_path() == THUMB_B);
+    CHECK(panel_src() == THUMB_B);
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "model_b.gcode");
 
     // --- A stale in-flight result for A lands late -------------------------
     // A fetch started for A can still complete after B took over. The panel
     // compares the identity the subject carries against the file it is showing,
     // so this must not repaint B's card with A's image.
-    state().set_print_thumbnail("model_a.gcode", kThumbA);
+    state().set_print_thumbnail("model_a.gcode", THUMB_A);
     drain();
 
-    CHECK(panel_src() == kThumbB);
+    CHECK(panel_src() == THUMB_B);
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "model_b.gcode");
 }
 
@@ -187,16 +187,16 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     // print's path and identity, but this manager has no history of its own.
     // The clear must key off the path's identity, not off whether THIS manager
     // has loaded anything before.
-    state().set_print_thumbnail("model_a.gcode", kThumbA);
+    state().set_print_thumbnail("model_a.gcode", THUMB_A);
 
     start_consumers();
-    REQUIRE(subject_path() == kThumbA);
+    REQUIRE(subject_path() == THUMB_A);
 
     set_print_filename("model_b.gcode");
 
     CHECK(state().get_print_thumbnail_file() == "model_b.gcode");
-    CHECK(subject_path() != kThumbA);
-    CHECK(panel_src() != kThumbA);
+    CHECK(subject_path() != THUMB_A);
+    CHECK(panel_src() != THUMB_A);
 }
 
 TEST_CASE_METHOD(ActivePrintThumbnailFixture,
@@ -206,16 +206,16 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     start_consumers();
 
     set_print_filename("model_a.gcode");
-    media().set_thumbnail_path("model_a.gcode", kThumbA);
+    media().set_thumbnail_path("model_a.gcode", THUMB_A);
     drain();
-    REQUIRE(panel_src() == kThumbA);
+    REQUIRE(panel_src() == THUMB_A);
 
     // Print B has no thumbnail: nothing pre-set, and no API to fetch one.
     set_print_filename("no_thumb.gcode");
 
     const std::string shown = subject_path();
     CHECK_FALSE(shown.empty());
-    CHECK(shown == ActivePrintMediaManager::kNoThumbnailPlaceholder);
+    CHECK(shown == ActivePrintMediaManager::no_thumbnail_placeholder());
     CHECK(panel_src() == shown);
 }
 
@@ -228,7 +228,7 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     // LV_IMAGE_SRC_VARIABLE, so LVGL dereferences the one-byte literal as an
     // lv_image_dsc_t. A consumer without a guard is only safe if the subject
     // genuinely never carries "".
-    CHECK(subject_path() == ActivePrintMediaManager::kNoThumbnailPlaceholder);
+    CHECK(subject_path() == ActivePrintMediaManager::no_thumbnail_placeholder());
 
     start_consumers();
     CHECK_FALSE(subject_path().empty());

@@ -8,6 +8,7 @@
 #include "wifi_backend.h"
 #include "wifi_scan_scheduler.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -84,7 +85,7 @@ class WiFiManager {
      *
      * Scans for available networks and invokes callback with results.
      * Scanning continues automatically, on an interval that backs off from
-     * ScanScheduler::kBaseIntervalMs up to ScanScheduler::kMaxIntervalMs as
+     * ScanScheduler::BASE_INTERVAL_MS up to ScanScheduler::MAX_INTERVAL_MS as
      * results stay unchanged (and suppresses entirely once connected and
      * stable), until stop_scan() is called. See ScanScheduler.
      *
@@ -315,14 +316,17 @@ class WiFiManager {
     /// Expires the backend-swap callback deferred out of the NetworkManager init
     /// worker thread. Declared after `backend_` so reverse-order member
     /// destruction expires the guard before the backend that callback touches.
-    /// Like MoonrakerAPI, this class has no deinit_subjects() — it owns no
+    /// Like IMoonrakerAPI, this class has no deinit_subjects() — it owns no
     /// subjects — so the destructor really is the only teardown point, and the
     /// guard's own dtor covers it (#1165).
     helix::AsyncLifetimeGuard async_lifetime_;
 
-    // Self-reference for async callback safety
-    // Weak pointers in async callbacks can safely check if manager still exists
-    std::shared_ptr<WiFiManager> self_;
+    // Self-reference for async callback safety: the source a callback copies a
+    // weak_ptr from so it can check whether the manager still exists. NON-OWNING
+    // by necessity -- an owning self-reference is a cycle nothing can break, so
+    // ~WiFiManager never runs and the backend threads it stops there stay live
+    // for the life of the process.
+    std::weak_ptr<WiFiManager> self_;
 
     // Guards the callback/flag state below, which is read on the libhv backend
     // thread (handle_scan_complete / handle_connected / handle_disconnected /
@@ -371,6 +375,21 @@ class WiFiManager {
     void deliver_auth_failure();                          // grace elapsed — failure is real
     static void auth_fail_grace_timer_cb(lv_timer_t* timer);
 
+    // Connect watchdog. The wpa_supplicant backend's connect_network() returns as soon as
+    // SELECT_NETWORK is accepted; whether the attempt ever resolves depends entirely on a
+    // CONNECTED or AUTH_FAILED arriving on the monitor socket. Events that map to neither
+    // (CTRL-EVENT-ASSOC-REJECT, CTRL-EVENT-NETWORK-NOT-FOUND, a bare 4-way-handshake-timeout
+    // DISCONNECTED) leave the attempt pending forever — and handle_disconnected() deliberately
+    // swallows DISCONNECTED while connecting_in_progress_ is set, so nothing else can clear it.
+    // That hung the first-run wizard on "Connecting" on AD5X. NetworkManager cannot hit this:
+    // nmcli carries its own timeout. Touched on the UI thread only (connect()/disconnect(), the
+    // queue_update apply lambdas, and the timer callback).
+    lv_timer_t* connect_timeout_timer_ = nullptr;
+    void start_connect_timeout();   // arm once the async connect path is entered
+    void cancel_connect_timeout();  // attempt resolved, superseded, or aborted
+    void deliver_connect_timeout(); // watchdog elapsed — report failure to the caller
+    static void connect_timeout_timer_cb(lv_timer_t* timer);
+
     // Event handling
     void handle_scan_complete(const std::string& event_data);
     void handle_connected(const std::string& event_data);
@@ -410,6 +429,21 @@ class WiFiManager {
     // real sysfs/proc probe; tests inject a stub via WiFiManagerTestAccess.
     static std::function<bool()> os_link_probe_;
     static bool os_link_up();
+
+    // A scan trigger that fails immediately after WE tore the association down
+    // is our own doing, not a fault the user can act on. Forgetting the
+    // connected network disassociates, and start_scan() runs again right after,
+    // so wpa_supplicant answers FAIL while the link is mid-teardown and
+    // os_link_up() is legitimately false — bundle TAU4PW4H shows "WiFi scan
+    // failed. Try again." 48 ms after the user's own Forget tap. Suppress the
+    // toast for a short window after any association change we initiated; the
+    // periodic timer (10 s base) surfaces a genuinely broken scan on its next
+    // tick. Main-thread only: connect/forget/disconnect and start_scan() are
+    // all UI-initiated, as is the scan timer callback.
+    static constexpr auto ASSOCIATION_GRACE = std::chrono::seconds(5);
+    std::chrono::steady_clock::time_point last_association_change_{};
+    void mark_association_change();
+    bool in_association_grace() const;
 
     // Drives the backend radio change. Blocking, and safe to call from any
     // thread — it touches only backend_, which the destructor barrier below

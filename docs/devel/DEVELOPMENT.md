@@ -1,69 +1,32 @@
 # Development Guide
 
-Development environment setup, build processes, and workflows for HelixScreen.
+The daily-workflow reference for HelixScreen development: running the app, test
+mode, logging, config, screenshots, and the contribution process.
+
+New here? The entry path is [CONTRIBUTING.md](../../CONTRIBUTING.md) →
+[ONBOARDING.md](ONBOARDING.md) (environment setup + build + the 15-minute mental
+model) → [YOUR_FIRST_CONTRIBUTION.md](YOUR_FIRST_CONTRIBUTION.md). This doc is the
+reference you return to; each topic lives in exactly one place:
+
+| Topic | Lives in |
+|-------|----------|
+| Environment setup, first build | [ONBOARDING.md](ONBOARDING.md) |
+| Makefile internals, cross-compilation, worktrees, fonts/icons | [BUILD_SYSTEM.md](BUILD_SYSTEM.md) |
+| Architecture, subsystem deep dives | [ARCHITECTURE.md](ARCHITECTURE.md) + [architecture/](architecture/README.md) |
+| Installer scripts | [INSTALLER.md](INSTALLER.md) |
 
 ## Quick Start
 
 ```bash
-# Install dependencies (see platform-specific below)
-npm install && make venv-setup
-
-# Build and run
 make -j
 ./build/bin/helix-screen --test -vv  # Mock printer + DEBUG logs
 ```
 
-## Development Environment
+Environment setup and dependencies per OS: → [ONBOARDING.md](ONBOARDING.md).
+Build targets beyond `make -j` (`make build`, `make dev`, `make V=1`, clean
+targets, cross-compilation): → [BUILD_SYSTEM.md](BUILD_SYSTEM.md).
 
-### macOS (Homebrew)
-```bash
-brew install cmake bear imagemagick python3 node shellcheck bats-core
-npm install         # lv_font_conv and lv_img_conv
-make venv-setup     # Python venv with pypng/lz4
-```
-**Minimum:** macOS 10.15 (Catalina) for CoreWLAN/CoreLocation WiFi APIs.
-
-### Debian/Ubuntu
-```bash
-sudo apt install cmake bear imagemagick python3 python3-venv clang make npm \
-    shellcheck bats libnl-3-dev libnl-genl-3-dev libssl-dev
-npm install && make venv-setup
-```
-
-### Fedora/RHEL
-```bash
-sudo dnf install cmake bear ImageMagick python3 clang make npm \
-    ShellCheck bats libnl3-devel openssl-devel
-npm install && make venv-setup
-```
-
-### Dependencies
-
-| Category | Components | Notes |
-|----------|------------|-------|
-| **Required** | clang, cmake 3.16+, make, python3, node/npm | Core build tools |
-| **Auto-built** | SDL2, spdlog, libhv | Built from submodules if not system-installed |
-| **Always submodule** | lvgl | Project-specific patches required |
-| **Optional** | bear, imagemagick, shellcheck, bats-core | IDE support, screenshots, shell linting/testing |
-
-```bash
-make check-deps      # Check what's missing
-make install-deps    # Auto-install (interactive)
-```
-
-## Build System
-
-### Core Commands
-
-```bash
-make -j              # Parallel incremental build (recommended)
-make build           # Clean parallel build with progress/timing
-make clean && make -j  # Full rebuild (only when needed)
-make V=1             # Verbose mode (shows full commands)
-make compile_commands  # Generate compile_commands.json for IDE/LSP
-```
-
-### Running the Application
+## Running the Application
 
 ```bash
 ./build/bin/helix-screen                    # Production mode
@@ -88,7 +51,10 @@ make compile_commands  # Generate compile_commands.json for IDE/LSP
 | `--no-ams` | Disable mock AMS (for runout modal testing) |
 | `--disconnected` | Simulate a disconnected printer |
 
-**Test mode keyboard shortcuts:** S=screenshot, P=test prompt, N=test notification, Q/Esc=quit
+**Test mode keyboard shortcuts** (SDL builds): S=screenshot, M=memory stats,
+D=toggle dark/light, Z=cycle screensavers, Cmd/Win+Q=quit; test-mode-only:
+A=test action prompt, N=test notification, P=cycle configured printers,
+F=filament-runout simulation.
 
 ### Wizard Flags
 
@@ -169,6 +135,9 @@ For cross-compilation, patches, and advanced options, see **[BUILD_SYSTEM.md](BU
 | DEBUG | `-vv` | Troubleshooting, summaries |
 | TRACE | `-vvv` | Per-item loops, wire protocol |
 
+When to use each level in your own code, and the spdlog-only rule (never
+`printf`/`cout`/`LV_LOG_*`): → [LOGGING.md](LOGGING.md).
+
 ### Log Destinations
 
 ```bash
@@ -183,15 +152,8 @@ journalctl -t helix -f              # systemd
 tail -f /var/log/helix-screen.log   # file
 ```
 
-### Code Usage
-
-**ALWAYS use spdlog** - never printf/cout/LV_LOG_*:
-```cpp
-spdlog::info("[ComponentName] Message: {}", value);
-spdlog::debug("[Theme] Registered {} items", count);
-```
-
-**spdlog submodule:** Uses fmt-11.2.0 branch. Initialize with `git submodule update --init --recursive`.
+Logging on target devices (backend auto-detection, systemd service):
+→ [BUILD_SYSTEM.md](BUILD_SYSTEM.md) § "Logging on Target".
 
 ## Configuration
 
@@ -239,12 +201,8 @@ LVGL scales UI based on DPI. Default: 160 (reference, no scaling).
 
 ## Multi-Display (macOS)
 
-```bash
-./build/bin/helix-screen --display 1     # Secondary display
-./build/bin/helix-screen -d 1 -s small   # Combined options
-```
-
-Uses `SDL_GetDisplayBounds()` for proper positioning on multi-monitor setups.
+`-d <n>` picks the display (`./build/bin/helix-screen -d 1 -s small`), `--x-pos`/`--y-pos`
+position the window exactly. Details: → [BUILD_SYSTEM.md](BUILD_SYSTEM.md) § "Multi-Display Support".
 
 ## Screenshots
 
@@ -252,7 +210,7 @@ Uses `SDL_GetDisplayBounds()` for proper positioning on multi-monitor setups.
 # Interactive: Press 'S' in running UI
 
 # Automated:
-./scripts/screenshot.sh helix-screen output-name [panel] [options]
+./scripts/screenshot.sh helix-screen output-name [token] [options]
 ./scripts/screenshot.sh helix-screen home-screen home
 ./scripts/screenshot.sh helix-screen motion motion -s small
 
@@ -270,15 +228,11 @@ flags are gone), drive a running instance with `helix-screen ctl` — see
 ## Icon & Font Workflow
 
 ```bash
-# Canonical path: regenerate MDI fonts + icon constants together
-make regen-fonts
-
-# Or run the icon-constant generator directly (parses include/ui_icon_codepoints.h)
-python3 scripts/gen_icon_consts.py
-make icon                                 # Generate platform icons
+make regen-fonts   # Regenerate MDI fonts + icon constants together (canonical path)
 ```
 
-See **[BUILD_SYSTEM.md](BUILD_SYSTEM.md)** for complete font generation details.
+Adding a new icon glyph, font generation internals, and `make icon`:
+→ [BUILD_SYSTEM.md](BUILD_SYSTEM.md) § "Font Generation" / "Icon Generation".
 
 ## IDE Setup
 
@@ -295,7 +249,7 @@ make compile_commands  # Generates compile_commands.json (requires bear)
 1. **Edit code** in `src/` or `include/`
 2. **Edit XML** in `ui_xml/` — **no rebuild, no restart needed** (hot reload is ON by default; see below)
 3. **Build** with `make -j` (only when C++ changes)
-4. **Test** with `./build/bin/helix-screen --test -vv [panel]`
+4. **Test** with `./build/bin/helix-screen --test -vv`
 5. **Screenshot** with S key or `./scripts/screenshot.sh`
 6. **Commit** working incremental changes
 
@@ -352,7 +306,7 @@ Key points for UI contributors:
 
 | Path | Contents |
 |------|----------|
-| `ui_xml/` | All XML layouts (~170 files) |
+| `ui_xml/` | All XML layouts (230+ files) |
 | `ui_xml/components/` | Reusable XML components |
 | `ui_xml/ultrawide/` | Ultrawide layout overrides |
 | `ui_xml/globals.xml` | Design tokens and global variables (shared, never override) |
@@ -362,13 +316,16 @@ Key points for UI contributors:
 
 ## Worktrees
 
-For major feature work, use git worktrees to isolate your changes:
+Use a worktree for any multi-file or risky change — rule of thumb: 4+ files, or
+anything touching shutdown, threading, or the XML engine. A worktree isolates the
+change (and its build) from main:
 
 ```bash
 scripts/setup-worktree.sh feature/my-branch   # Creates in .worktrees/
 ```
 
-This creates a worktree with symlinked dependencies and a ready-to-build environment. Worktrees keep `main` clean while you experiment.
+What the script shares/symlinks for fast builds, ccache configuration, and
+worktree cleanup: → [BUILD_SYSTEM.md](BUILD_SYSTEM.md) § "Git Worktrees".
 
 ---
 
@@ -425,8 +382,20 @@ void ui_panel_motion_init(lv_obj_t* parent);
 
 **Naming conventions:**
 - Functions/variables: `snake_case` (`ui_panel_home_init`, `temp_target`)
-- XML files: `kebab-case` (`nozzle-temp-panel.xml`)
-- Constants: `UPPER_SNAKE_CASE` (`MAX_TEMP`)
+- XML files: `snake_case` (`bed_temp_panel.xml`)
+- Constants: `UPPER_SNAKE_CASE` (`MAX_TEMP`) — including `constexpr`, file-scope
+  `static const`, and enum enumerators. **Not** Google's `kCamelCase`: the tree
+  drifted into it for a while and was swept back, so a `kFoo` you find in a diff
+  is a mistake to fix, not a precedent to follow. The exceptions are names that
+  mirror a third-party API verbatim (Apple's `kCWSecurityWPA2Personal`) — match
+  the foreign spelling there rather than inventing a local one.
+
+**Namespace organization:** all HelixScreen code lives under `helix::` (UI
+helpers in `helix::ui::`, sensor managers in `helix::sensors`):
+- No `using` declarations in headers — always fully-qualified names in `.h`
+  files; `using namespace helix;` is acceptable in `.cpp` files only
+- Enums are `enum class` within `helix::` (e.g., `helix::PanelId`, `helix::PrintState`)
+- JSON forward declarations come from `#include "json_fwd.h"`
 
 **Critical patterns:**
 ```cpp
@@ -488,69 +457,22 @@ docs(readme): update build instructions
 
 ## Installer Scripts
 
-The installation system is modular for maintainability and BusyBox compatibility.
-
-### Structure
-
-```
-scripts/
-├── install.sh                    # Auto-generated for curl|sh (user-facing)
-├── install-dev.sh                # Modular version (requires lib/installer/)
-├── uninstall.sh                  # Standalone uninstaller
-├── lib/installer/                # Shared modules (17 total; subset shown)
-│   ├── main.sh                   # Orchestrator: arg parsing, install flow
-│   ├── common.sh                 # Logging, colors, error handling
-│   ├── platform.sh               # Platform/firmware detection
-│   ├── permissions.sh            # Root/sudo handling
-│   ├── requirements.sh           # Pre-flight checks
-│   ├── forgex.sh                 # ForgeX-specific functions
-│   ├── competing_uis.sh          # Stop GuppyScreen, KlipperScreen, etc.
-│   ├── release.sh                # Download and extract
-│   ├── service.sh                # Systemd/SysV service management
-│   ├── moonraker.sh              # Moonraker update_manager config
-│   ├── klipper_include.sh        # Klipper config include management
-│   ├── printer_seed.sh           # Seed default printer config
-│   ├── audio.sh                  # Audio device setup
-│   ├── camera.sh                 # Camera setup
-│   ├── recovery.sh               # Recovery/rollback support
-│   ├── kiauh.sh                  # KIAUH extension install
-│   └── uninstall.sh              # Uninstall/clean functions
-└── bundle-installer.sh           # Generate install.sh from modules
-```
-
-### BusyBox Compatibility
-
-All modules use POSIX `#!/bin/sh` (not bash) for AD5M's BusyBox environment:
-- `[ ]` instead of `[[ ]]`
-- `command -v X >/dev/null 2>&1` instead of `&>`
-- No arrays (use space-separated strings)
-- `ps -ef` instead of `ps aux`
-
-### Generating Bundled Installer
-
-```bash
-./scripts/bundle-installer.sh -o ./scripts/install.sh
-```
-
-The bundled version inlines all modules for curl|sh usage.
-
-### Testing Installers
-
-```bash
-./scripts/install-dev.sh --help       # Test modular version (from repo)
-./scripts/install.sh --help           # Test bundled version (for users)
-./scripts/uninstall.sh --help         # Test uninstaller
-sh -n scripts/install.sh              # Check POSIX syntax
-```
+The installation system is modular POSIX shell (`scripts/lib/installer/`, 17
+modules) bundled into the one-line `scripts/install.sh` for BusyBox-compatible
+`curl | sh` distribution. Module structure, BusyBox rules, bundle regeneration,
+and installer testing: → **[INSTALLER.md](INSTALLER.md)**.
 
 ---
 
 ## Related Documentation
 
-- **[README.md](../README.md)** - Documentation index
+- **[CONTRIBUTING.md](../../CONTRIBUTING.md)** - The front door for contributors
+- **[ONBOARDING.md](ONBOARDING.md)** - Fresh checkout → first change
+- **[YOUR_FIRST_CONTRIBUTION.md](YOUR_FIRST_CONTRIBUTION.md)** - Annotated walkthrough of a real contribution
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - The 15-minute whole-app model + routing into the chapter series
 - **[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md)** - Start here for UI/layout work
 - **[BUILD_SYSTEM.md](BUILD_SYSTEM.md)** - Complete build reference
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design
+- **[INSTALLER.md](INSTALLER.md)** - Installer system
 - **[LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md)** - XML syntax reference
 - **[DEVELOPER_QUICK_REFERENCE.md](DEVELOPER_QUICK_REFERENCE.md)** - Common patterns
 - **[TESTING.md](TESTING.md)** - Test infrastructure and Catch2 usage

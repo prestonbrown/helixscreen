@@ -1,6 +1,14 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Compact label-plus-switch row. Bare-bones sibling of setting_toggle_row —
+     no icon, no description, no info button, zero padding. Matches the
+     minimal row styling used by PrePrintOptionsRenderer::make_row() so a
+     single-purpose toggle can sit flush against neighbouring rows instead
+     of paying setting_toggle_row's 20px touch-target padding. Use
+     setting_toggle_row instead when the row lives in a scrollable settings
+     list where the larger touch target and optional icon/description are
+     wanted. -->
 <component>
   <api>
     <prop name="label" type="string" default="Setting"/>

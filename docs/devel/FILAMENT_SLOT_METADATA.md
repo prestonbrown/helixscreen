@@ -149,11 +149,11 @@ AFC, Happy Hare, Tool Changer, and Mock inherit the no-op
 `clear_slot_override` default from `AmsBackend`. They manage their own
 override semantics independently — AFC and Happy Hare write `lane_data`
 directly from their Klipper plugins, and HelixScreen does not touch those
-records. For AFC that is not merely etiquette: `AFC.py` `delete_lane_data()`
+records. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
 wipes the whole namespace at the start of every PREP and refills it one lane at
 a time, so the namespace is non-durable across reboots *and* transiently
 incomplete during them. AFC/HH overrides go to a private namespace
-(`kOverrideNamespace`) — see prestonbrown/helixscreen#1158.
+(`OVERRIDE_NAMESPACE`) — see prestonbrown/helixscreen#1158.
 
 ---
 
@@ -194,9 +194,36 @@ incomplete during them. AFC/HH overrides go to a private namespace
 
 The merge rule (firmware vs override) is documented in
 [`../specs/filament_slots.md`](../specs/filament_slots.md#5-merge-policy).
-Implementation-side: each backend's `apply_overrides` helper walks the
-override's fields and replaces the firmware-reported `SlotInfo` fields when
-the override has a non-default value. Sentinel values that fall through:
+Implementation-side there is exactly **one** implementation:
+`helix::ams::merge_override()` (`include/filament_slot_override_store.h` +
+`src/printer/filament_slot_override_store.cpp`). All six backends'
+`apply_overrides` delegate to it (CFS keeps only its presence-promotion tail
+locally) — the per-backend hand-rolled field-walk loops are gone. It carries
+spec §5 (override wins field-by-field, sentinels fall through) plus the two
+cross-field rules that can drop the **whole record** instead of merging:
+
+- **Rule 1 — external re-bind.** Firmware reports a positive `spoolman_id`
+  different from the override's → the whole record drops, firmware truth
+  paints. Not gated by any capability or setting; can fire on any backend
+  whose firmware reports a positive spool id (AFC, Happy Hare, and
+  flat-schema CFS, which parses a per-slot id). Our own in-flight writes are
+  exempt: backends record them via `AmsBackend::record_own_spool_write()` and
+  feed `AmsBackend::own_write_expectation()` into `MergeOptions`'
+  `suppress_rebind_firmware_{old,new}_id` — the id firmware last reported
+  before the write and the just-written id don't fire; a third id fires and
+  consumes the expectation.
+- **Rule 2 — eject.** `AmsBackend::printer_reports_spool_ids()` (true only
+  on AFC and Happy Hare) arms **only** this rule: there a firmware id ≤ 0
+  while the override holds a positive id is the plugin's own eject signal,
+  and it clears the record only when the `ams/keep_spool_info_on_eject`
+  setting is off (default on — "Keep Spool Info on Eject" toggle in the AMS
+  Management overlay, shown only where the capability is true). Caveat: with
+  AFC's own retention on (`remember_spool = true` everywhere) firmware never
+  reports the eject zero, so this rule cannot fire and the toggle is a no-op —
+  `printer_retains_spool_info()` detects that shape and the overlay disables
+  the toggle with a note instead.
+
+Sentinel values that fall through to firmware:
 
 | Field type | "Unset" sentinel |
 |------------|------------------|
@@ -214,7 +241,7 @@ a sentinel that a user could never legitimately enter for that field.
 
 ## 6. Clear semantics
 
-Three distinct clear paths, handled separately:
+Four distinct clear paths, handled separately:
 
 - **User-initiated clear.** The edit modal's "Clear metadata" button calls
   `AmsBackend::clear_slot_override(slot_index)`. This is the public API
@@ -224,6 +251,11 @@ Three distinct clear paths, handled separately:
   "different spool". The baseline is recorded on first observation after
   startup and NEVER triggers a clear on its own — otherwise every app launch
   would wipe overrides.
+- **Merge-rule clears (re-bind / eject).** The two cross-field rules in
+  `merge_override()` (§5) can drop the whole record during `apply_overrides`:
+  an external re-bind (firmware reports a different positive spool id), or —
+  only where `printer_reports_spool_ids()` is true and the setting is off —
+  a firmware eject signal.
 - **Self-wipe prevention.** When the user edits the color on IFS, the IFS
   backend pre-updates `last_firmware_color_` to the user's new RGB before
   pushing the override. Without this, the next `Adventurer5M.json` read
@@ -279,7 +311,7 @@ The migration is idempotent: once records exist under `lane_data`, the
 "`lane_data` empty" guard fails and the legacy path is skipped. After a
 successful migration, the legacy MR DB entry is best-effort deleted via
 `database_delete_item`, and the pre-Task-6 per-backend JSON cache file
-(`ace_slot_overrides.json` / `cfs_slot_overrides.json`) is also removed from
+(ace_slot_overrides.json / cfs_slot_overrides.json) is also removed from
 the user config dir. Delete failures are logged at warn but do not break the
 migrated result — a lingering legacy blob is harmless because the idempotence
 guard would short-circuit on the next startup anyway. Migration also deletes

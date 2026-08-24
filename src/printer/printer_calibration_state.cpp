@@ -112,6 +112,12 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
             int new_printing = (it_state == "Printing") ? 1 : 0;
             int old_printing = lv_subject_get_int(&idle_timeout_printing_);
 
+            // Feed the debounce on every report, not only on the edge: it needs
+            // the repeats to stay idempotent, and it is what the blocking-op
+            // guard reads (the raw subject stays the literal Klipper state for
+            // display consumers).
+            idle_timeout_busy_.set_printing(new_printing != 0);
+
             if (old_printing != new_printing) {
                 lv_subject_set_int(&idle_timeout_printing_, new_printing);
                 spdlog::debug("[PrinterCalibrationState] idle_timeout printing: {} -> {} "

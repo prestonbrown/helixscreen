@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct MoonrakerError;
 
 namespace helix::system {
@@ -67,13 +67,13 @@ using ActiveFilesWithContentCallback =
 /// all included files, then resolves the active file set.
 /// Unlike KlipperConfigEditor::download_with_includes, this handles glob includes
 /// by cross-referencing the full file listing.
-void resolve_active_config_files(MoonrakerAPI& api, ActiveFilesCallback on_complete,
+void resolve_active_config_files(IMoonrakerAPI& api, ActiveFilesCallback on_complete,
                                  ErrorCallback on_error);
 
 /// Async wrapper that also returns file contents for the active files.
 /// Identical to resolve_active_config_files() but the callback also receives
 /// the map of filename -> content for all downloaded config files.
-void resolve_active_config_files_with_content(MoonrakerAPI& api,
+void resolve_active_config_files_with_content(IMoonrakerAPI& api,
                                               ActiveFilesWithContentCallback on_complete,
                                               ErrorCallback on_error);
 

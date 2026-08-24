@@ -175,6 +175,11 @@ class GCodeLayerRenderer {
      */
     void set_content_offset_y(float offset_percent);
 
+    /// Tell the renderer how much of the canvas bottom the UI covers (0..1).
+    /// Both the fit and the vertical shift depend on it, so changing it
+    /// re-runs auto-fit rather than only nudging the existing framing.
+    void set_bottom_occlusion(float occlusion);
+
     // =========================================================================
     // Display Options
     // =========================================================================
@@ -539,6 +544,7 @@ class GCodeLayerRenderer {
     int canvas_width_ = 400;
     int canvas_height_ = 400;
     float content_offset_y_percent_ = 0.0f; // Vertical content offset (-1.0 to 1.0)
+    float bottom_occlusion_ = 0.0f;         // Fraction of canvas height covered by UI
 
     // Viewport transform (world → screen)
     float scale_ = 1.0f;

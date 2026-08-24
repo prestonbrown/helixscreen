@@ -10,6 +10,7 @@
  * the internal state machine via the SpoolmanManagerTestAccess friend class.
  */
 
+#include "ui_spoolman_overlay.h"
 #include "ui_update_queue.h"
 
 #include "../test_helpers/update_queue_test_access.h"
@@ -17,7 +18,6 @@
 #include "app_globals.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
-#include "ui_spoolman_overlay.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -30,6 +30,21 @@ class SpoolmanManagerTestAccess {
   public:
     static int poll_refcount(SpoolmanManager& m) {
         return m.poll_refcount_;
+    }
+    /// nullptr until something both wants polling and can be served.
+    static lv_timer_t* poll_timer(SpoolmanManager& m) {
+        return m.poll_timer_;
+    }
+    /// Bind the availability observer for this test; init_subjects() is
+    /// idempotent, so a prior call would otherwise leave it unbound here.
+    static void rewire_subjects(SpoolmanManager& m) {
+        {
+            std::lock_guard<std::recursive_mutex> lock(m.mutex_);
+            m.print_state_observer_.reset();
+            m.spoolman_availability_observer_.reset();
+            m.initialized_ = false;
+        }
+        m.init_subjects();
     }
     static bool cb_open(SpoolmanManager& m) {
         return m.cb_open_;
@@ -256,32 +271,58 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_cb_open toggles circuit 
 // Spoolman Availability Gating
 // ============================================================================
 
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: start_polling gates on spoolman availability",
+TEST_CASE_METHOD(SpoolmanFixture,
+                 "SpoolmanManager: start_polling defers until spoolman is available",
                  "[spoolman]") {
+    // Wanting to poll and being able to poll arrive in either order, and at boot
+    // it is always want-first: panels activate synchronously inside init_ui()
+    // while set_spoolman_available() is still sitting in the UpdateQueue. The
+    // request is therefore recorded and acted on later, never discarded.
     auto& mgr = SpoolmanManager::instance();
+    TA::rewire_subjects(mgr);
 
-    SECTION("start is ignored when spoolman is unavailable") {
+    SECTION("a start while unavailable is remembered, not dropped") {
         set_spoolman_available(false);
 
         mgr.start_spoolman_polling();
-        REQUIRE(TA::poll_refcount(mgr) == 0);
+        CHECK(TA::poll_refcount(mgr) == 1);    // the wish survives
+        CHECK(TA::poll_timer(mgr) == nullptr); // but nothing polls yet
     }
 
-    SECTION("start succeeds when spoolman is available") {
+    SECTION("start polls immediately when spoolman is already available") {
         set_spoolman_available(true);
 
         mgr.start_spoolman_polling();
-        REQUIRE(TA::poll_refcount(mgr) == 1);
+        CHECK(TA::poll_refcount(mgr) == 1);
+        CHECK(TA::poll_timer(mgr) != nullptr);
     }
 
-    SECTION("unavailable then available — second attempt succeeds") {
+    SECTION("availability arriving later arms the deferred request on its own") {
         set_spoolman_available(false);
         mgr.start_spoolman_polling();
-        REQUIRE(TA::poll_refcount(mgr) == 0);
+        REQUIRE(TA::poll_timer(mgr) == nullptr);
 
+        // No second start_spoolman_polling() here on purpose: in production
+        // nothing makes that call, which is why the poll never armed at boot.
+        set_spoolman_available(true);
+
+        CHECK(TA::poll_refcount(mgr) == 1);
+        CHECK(TA::poll_timer(mgr) != nullptr);
+    }
+
+    SECTION("losing spoolman stops the timer but keeps the request") {
         set_spoolman_available(true);
         mgr.start_spoolman_polling();
-        REQUIRE(TA::poll_refcount(mgr) == 1);
+        REQUIRE(TA::poll_timer(mgr) != nullptr);
+
+        set_spoolman_available(false);
+        CHECK(TA::poll_timer(mgr) == nullptr);
+        // The panel is still up and still wants polling, so a Spoolman that
+        // comes back must resume without it having to ask again.
+        CHECK(TA::poll_refcount(mgr) == 1);
+
+        set_spoolman_available(true);
+        CHECK(TA::poll_timer(mgr) != nullptr);
     }
 }
 
@@ -367,7 +408,8 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanOverlay: repeated sync apply takes on
     REQUIRE(TA::poll_refcount(mgr) == 0);
 }
 
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanOverlay: release never steals another holder's reference",
+TEST_CASE_METHOD(SpoolmanFixture,
+                 "SpoolmanOverlay: release never steals another holder's reference",
                  "[spoolman][overlay]") {
     auto& mgr = SpoolmanManager::instance();
     set_spoolman_available(true);

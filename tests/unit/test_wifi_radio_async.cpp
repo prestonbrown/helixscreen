@@ -56,10 +56,11 @@ class LatchedRadioBackend : public WifiBackendMock {
     }
 
     void release() {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            released_ = true;
-        }
+        // Notify under the lock: the parked set_radio_enabled() returns as soon
+        // as released_ flips, and this backend is destroyed with the manager, so
+        // notifying after the unlock races cv_'s destructor.
+        std::lock_guard<std::mutex> lock(mutex_);
+        released_ = true;
         cv_.notify_all();
     }
 

@@ -1,0 +1,9 @@
+# 16MB flash. Factory sized 9.5MB for the Task 3 measurement build — the
+# audit's job is to MEASURE the slice, not fit it; the report compares the
+# binary against the plan's 6MB/9MB gate lines (a real product build would
+# need OTA A/B slots, which this image size clearly informs).
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  0x990000,
+storage,  data, spiffs,  0x9a0000, 0x650000,

@@ -50,13 +50,13 @@ struct LargeGCode {
         // vacuously. On a desktop should_use_gcode_streaming() is false (its
         // threshold scales with available RAM), so these take the full-load
         // path, which is the one with the cancellable getline loop.
-        static const char* kCandidates[] = {
+        static const char* CANDIDATES[] = {
             "assets/test_gcodes/Night Spirit_v1_2_og.gcode",
             "assets/test_gcodes/vaso_voronoi_V2_abajo.gcode",
             "assets/test_gcodes/Low poly vase v1.1 flat top.gcode",
             "assets/test_gcodes/Benchbin_MK4_MMU3.gcode",
         };
-        for (const char* c : kCandidates) {
+        for (const char* c : CANDIDATES) {
             std::error_code ec;
             if (fs::exists(c, ec)) {
                 path = c;

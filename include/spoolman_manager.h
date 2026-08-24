@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 /**
  * @brief Centralized Spoolman weight polling, circuit breaker, and identity cache
@@ -71,12 +71,26 @@ class SpoolmanManager {
     void init_subjects();
     void deinit_subjects();
 
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     void refresh_spoolman_weights();
     void start_spoolman_polling();
     void stop_spoolman_polling();
 
+  private:
+    /**
+     * @brief Create the poll timer if something wants polling and Spoolman can serve it
+     *
+     * The wish to poll and the ability to serve it arrive in either order, and
+     * at boot it is always wish-first: panels activate synchronously inside
+     * `init_ui()`, while `set_spoolman_available()` defers through the
+     * UpdateQueue and has not drained yet. So `start_spoolman_polling()` records
+     * the wish unconditionally and this decides when it can be acted on, called
+     * again from the availability observer when Spoolman appears.
+     */
+    void ensure_poll_timer();
+
+  public:
     // ========================================================================
     // Spoolman identity side channel
     // ========================================================================
@@ -102,8 +116,14 @@ class SpoolmanManager {
      * what keeps identity extraction to once per id while weight keeps polling.
      * Clears any unresolvable mark for the id. A record with nothing a label can
      * use (`SpoolIdentity::valid() == false`) is not stored.
+     *
+     * @return true when a new identity was stored, i.e. when some label that
+     *         previously resolved without it can now resolve better. Callers
+     *         use this to refresh label consumers **once**, rather than on
+     *         every poll -- see the weights-unchanged early return in
+     *         refresh_spoolman_weights(), which this deliberately runs before.
      */
-    static void cache_identity(const SpoolInfo& spool);
+    static bool cache_identity(const SpoolInfo& spool);
 
     /// Mark a spool id as unresolvable (Spoolman answered "no such spool").
     static void note_identity_unresolvable(int spool_id);
@@ -128,7 +148,7 @@ class SpoolmanManager {
     static std::atomic<bool> s_shutdown_flag;
 
     mutable std::recursive_mutex mutex_;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     bool initialized_ = false;
 
     // Polling

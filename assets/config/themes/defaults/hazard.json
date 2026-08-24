@@ -1,0 +1,27 @@
+{
+  "name": "Hazard",
+  "dark": {
+    "screen_bg": "#0B0B09",
+    "overlay_bg": "#141310",
+    "card_bg": "#201F1A",
+    "elevated_bg": "#2E2C25",
+    "border": "#7A6E4F",
+    "text": "#F0EDE4",
+    "text_muted": "#B3AE9F",
+    "text_subtle": "#7A7566",
+    "primary": "#FFD100",
+    "secondary": "#C99A0A",
+    "tertiary": "#A8BCC9",
+    "info": "#3FA0E8",
+    "success": "#4CB050",
+    "warning": "#FF8C1A",
+    "danger": "#F0392B",
+    "focus": "#FFD100"
+  },
+  "border_radius_size": 0,
+  "border_width": 2,
+  "border_opacity": 120,
+  "shadow_intensity": 0,
+  "shadow_opa": 0,
+  "shadow_offset_y": 2
+}

@@ -148,13 +148,13 @@ TEST_CASE_METHOD(WizardStressFixture, "Wizard stress: full sweep 1..N",
     // navigation merely misbehaves - and on the one path where it *could* be
     // null the loop fell out with last_valid == 1, collapsing the whole sweep
     // to a single step that still reported success. Nothing about the probe
-    // could fail. kStepCount is the honest bound and it comes from
+    // could fail. STEP_COUNT is the honest bound and it comes from
     // wizard_step.h, not from this test.
     //
     // Step 0 (TouchCalibration) is excluded on purpose: navigate_to_step
     // forwards past it when it is skipped, so it is the one id that legitimately
     // does not land where it was asked to.
-    const int last_valid = helix::wizard::kStepCount - 1;
+    const int last_valid = helix::wizard::STEP_COUNT - 1;
     REQUIRE(last_valid >= 3); // Wifi + Connection at minimum, or the sweep is meaningless
     spdlog::info("[wizard-stress] sweep range: 1..{}", last_valid);
 

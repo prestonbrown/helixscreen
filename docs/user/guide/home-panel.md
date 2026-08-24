@@ -72,6 +72,8 @@ The dashboard supports up to **8 pages**. Once you reach the limit, the "+" tile
 
 Edit Mode is how you customize your dashboard layout. While in Edit Mode, all normal widget interactions (tapping to open overlays, etc.) are disabled so you can freely rearrange things.
 
+> **Edit Mode is on by default.** If it triggers accidentally when a finger rests on the screen (common on a tablet lying flat), you have two options: turn it off entirely with **Allow Home Screen Editing** under **Settings → System → Touch & Input**, or raise the **Long Press Time** slider in the same page so a longer hold is required. Both take effect immediately.
+
 **Page swiping in Edit Mode:** Swiping between pages is disabled while in Edit Mode so you can drag widgets without accidentally changing pages. The one exception is swiping past the last page to reach the "+" add-page tile. When you exit Edit Mode, normal page swiping is re-enabled.
 
 ### Entering Edit Mode
@@ -209,13 +211,15 @@ On a portrait screen the defaults differ: Printer Image and Print Status stack f
 | Widget | Description | Default | Min | Max | Resizable | Hardware Required |
 |--------|-------------|---------|-----|-----|-----------|-------------------|
 | **Printer Image** | Your printer's photo. Tap to open the Printer Manager overlay where you can change the name, image, and see hardware info. | 2x2 | 1x1 | 4x3 | Yes | — |
-| **Print Status** | Current print progress with filename, percentage, ETA, and elapsed time. Tap to open the full Print Status overlay when printing, or navigate to the file browser when idle. | 2x2 | 2x1 | 4x3 | Yes | — |
+| **Print Status** | Tracks the print job in all three of its states — idle (pick a file), preparing (pre-print steps with a progress bar), and printing (filename, percentage, ETA, elapsed time). Tap opens the full Print Status overlay whenever a job is preparing or printing, or the file browser when idle. | 2x2 | 2x1 | 4x3 | Yes | — |
 | **Print Stats** | Print history statistics — total prints, success rate, and total print time. Tap to open the full print history overlay. | 2x2 | 2x1 | 3x2 | Yes | — |
 | **Job Queue** | Shows the number of queued print jobs. Tap to open the Job Queue Manager modal (see [Job Queue Manager](#job-queue-manager) below). | 2x2 | 2x1 | 4x3 | Yes | — |
 | **Digital Clock** | Current time and date. Respects your 12/24-hour preference from display settings. Content adapts to size: time only at 1x1, time + date at 2x1, time + date + system uptime at 2x2+. | 2x1 | 1x1 | 3x3 | Yes | — |
 | **Notifications** | Shows pending notification count with a severity badge (info/warning/error). Tap to open the notification history overlay. | 1x1 | 1x1 | 2x1 | Horizontal only | — |
 | **Tips** | Rotating helpful tips about 3D printing and HelixScreen features. Tap any tip to see the full article. Tips rotate automatically. | 4x2 | 2x1 | 6x2 | Horizontal only | — |
 | **Network** | Current network connection status — WiFi signal strength (with bar indicator) or Ethernet. | 1x1 | 1x1 | 2x1 | Horizontal only | — |
+
+![The Print Status widget during pre-print: current step, progress bar and ETA](../../images/screenshot-preparing-card.png)
 | **Camera** | Live webcam feed from your MJPEG stream. Tap to go fullscreen. Automatically detects webcams configured in Moonraker. See [Camera Widget](#camera-widget) below for setup tips. | 2x2 | 1x1 | 4x3 | Yes | Webcam configured |
 
 ### Temperature & Climate
@@ -248,6 +252,7 @@ On a portrait screen the defaults differ: Printer Image and Print Status stack f
 | **Filament Sensor** | Filament runout detection status. Shows whether filament is loaded. | 1x1 | 1x1 | 2x1 | Horizontal only | Filament sensor |
 | **Width Sensor** | Live filament width reading from a diameter sensor. | 1x1 | 1x1 | 2x2 | Yes | Width sensor |
 | **Clog Detection** | Filament clog and flow health monitor. Shows a clog/flow arc meter, and a buffer sync meter on Happy Hare printers. Tap to open the Buffer Status detail modal. Configurable via the gear icon in Edit Mode. See [Clog Detection Widget](#clog-detection-widget) below. | 1x1 | 1x1 | 2x2 | Yes | AMS/MMU detected |
+| **Bypass** | One-tap toggle for external-spool bypass. Shows the bypass state (icon changes, and the external spool's color and material while engaged) — tap to toggle. Same guards as the AMS panel's bypass toggle: if filament is loaded from a lane it unloads first, and while a job holds the printer (preparing, printing, or paused) the tap is refused with a "Bypass cannot be changed while printing" warning. | 1x1 | 1x1 | 2x1 | Horizontal only | Filament system with bypass |
 
 ### Lighting
 
@@ -274,6 +279,10 @@ On a portrait screen the defaults differ: Printer Image and Print Status stack f
 | **Firmware Restart** | Restart the Klipper firmware. Useful when Klipper enters SHUTDOWN state. This widget automatically appears during firmware errors even if disabled. | 1x1 | 1x1 | 1x1 | No | — |
 | **Lock Screen** | Locks the screen immediately with PIN protection. Only appears in the Widget Catalog after setting a PIN in Settings > Security. | 1x1 | 1x1 | 1x1 | No | PIN set in Settings |
 
+#### Shutdown/Reboot Widget
+
+The Shutdown/Reboot widget puts one-tap host shutdown/reboot on your home panel — a faster alternative to the **Settings > Advanced** shutdown entry. A confirmation dialog always appears first, so there's no risk of an accidental shutdown. For switching a PSU or smart plug instead, see the **Power** widget above.
+
 
 ### Hardware-Gated Widgets
 
@@ -288,6 +297,7 @@ Some widgets depend on specific hardware being detected by Klipper. If the hardw
 | Camera | Webcam configured in Moonraker (crowsnest, camera-streamer, etc.) |
 | Chamber Temperature | A chamber temperature sensor (`[temperature_sensor chamber]`) or chamber heater (`[heater_generic chamber]`) in Klipper |
 | AMS Status | AMS, AFC (Box Turtle), Happy Hare, ACE (Anycubic ACE Pro), or compatible MMU system |
+| Bypass | A filament system with a bypass — Creality CFS, FlashForge AD5X IFS, AFC (Box Turtle), or Happy Hare with `has_bypass` enabled |
 | Clog Detection | AMS, AFC, Happy Hare, or compatible MMU with clog/flow detection |
 | LED Light / LED Controls | Any LED strip configured in Klipper (neopixel, dotstar, output_pin) |
 | Power | Moonraker power devices (PSU control, smart plugs) |
@@ -330,7 +340,7 @@ While **not** in Edit Mode, widgets respond to taps and other gestures:
 | Widget | Tap Action |
 |--------|------------|
 | Printer Image | Opens Printer Manager overlay |
-| Print Status | Opens Print Status overlay (printing) or File Browser (idle) |
+| Print Status | Opens Print Status overlay (preparing or printing) or File Browser (idle) |
 | Print Stats | Opens print history overlay |
 | Job Queue | Opens Job Queue Manager modal |
 | Digital Clock | — (display only) |
@@ -389,7 +399,7 @@ Below the state indicator, all queued jobs are listed with:
 
 ### Actions
 
-**Start a print:** Tap any job in the list. If the printer is idle, the job is removed from the queue and printing begins immediately. If the printer is already printing, HelixScreen will let you know.
+**Start a print:** Tap any job in the list to start it. The start only goes through when the printer is genuinely free — not just finished with the last print, but also not busy starting one (the heating, homing, and leveling before the first layer count as busy). While a job is preparing or printing, the tap is ignored and the job stays in the queue. There's no on-screen notice when this happens, so if tapping a job does nothing, check whether a print is still preparing or running, and try again once it's done.
 
 **Delete a job:** Tap the **trash icon** on the right side of any job row. The job is immediately removed from the queue.
 
@@ -545,6 +555,21 @@ When widgets don't have an explicit position (newly added, or after a reset), He
 2. Smaller widgets (1x1) fill the remaining gaps
 3. Placement scans from top-left to bottom-right
 
+### When the Grid Is Full
+
+If every cell is taken, a widget that has nowhere to sit is set aside rather than switched
+off. It stays enabled and comes back on its own the moment a cell frees up - when you remove
+another widget, when hardware another widget depends on goes away, or when the same layout is
+shown on a screen with a bigger grid. You do not have to re-add it from the catalog.
+
+You will see a *"'Fan Speeds' removed — grid full"* message only when the widget was actually
+on your screen and lost its spot. A widget that never had a spot is set aside quietly.
+
+A widget that is simply **too big for the grid at any size** is a different case: it cannot
+be placed no matter what you remove, so it is switched off and put back in the Widget
+Catalog, and the message tells you that is the reason. See
+[A widget disappeared from the home screen](../TROUBLESHOOTING.md#a-widget-disappeared-from-the-home-screen).
+
 ### What Happens on Upgrade
 
 When you update HelixScreen and new widgets are added:
@@ -552,7 +577,10 @@ When you update HelixScreen and new widgets are added:
 - **Your existing layout is preserved** — nothing moves
 - New widgets are appended with their default enabled/disabled state
 - If a new widget is enabled by default, it auto-places into available grid space
-- If the grid is full, new widgets stay disabled until you make room
+- If the grid is full, a new widget stays enabled but unplaced until you make room. It still
+  appears in the Widget Catalog as available, so you can try to place it and get a
+  *"Not enough room for this widget"* message rather than silence, and it drops into place by
+  itself as soon as a cell frees up
 
 If you downgrade and a widget type no longer exists, it's silently removed from your layout. Upgrading again restores it.
 
@@ -708,6 +736,19 @@ The name defaults to "My Printer" if left empty. It's saved to your config file 
 > **Sync:** When you rename your printer in HelixScreen, the new name is automatically pushed to Mainsail and Fluidd so all your interfaces stay in sync.
 
 > **Tip:** You can also set the name directly in the config file under the `printer_name` key — see [Configuration Reference](../CONFIGURATION.md#name).
+
+### Correcting the Printer Model
+
+Directly below the printer name, the **model row** shows the model HelixScreen has recorded for this printer — or nothing at all, when detection could not identify it with confidence. Tap the row to change it:
+
+1. Tap the **printer image** on the Home Panel to open the Printer Manager
+2. Tap the **model row** (marked with a pencil icon)
+3. Pick the model that matches your printer from the list
+4. The overlay closes and the choice is saved immediately
+
+The list is filtered to your printer's motion type, the same way the setup wizard filters it. Picking a model loads that printer's known behaviour — the print macros HelixScreen calls, which fans it treats as part cooling versus hotend, and how its calibration flows behave.
+
+**When you need this:** automatic detection declines to guess when the evidence is inconclusive, and on printers that look identical over the network it can settle on the wrong sibling. Correcting the model here fixes both cases — no need to delete the printer and run setup again. Detection will not overwrite a model you chose yourself.
 
 ### Changing the Printer Image
 

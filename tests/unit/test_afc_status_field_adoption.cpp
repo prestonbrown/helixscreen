@@ -22,9 +22,11 @@
  *   - `version` exists only on upstream DEV (extras/AFC.py `str['version']`),
  *     not in v1.2.0, the latest release, and not on the live BoxTurtle at .112
  *     (AFC v1.1.0-4-g2921371, whose get_status() has no such key).
- *   - `vendor_name` exists on no branch at all. DEV carries `spool_vendor` as an
- *     internal member (AFC_lane.py:128) that no status or lane_data payload
- *     publishes.
+ *   - no released branch publishes a vendor at all. DEV carries `spool_vendor`
+ *     as an internal member (AFC_lane.py:128) that no status or lane_data
+ *     payload emitted. #833 is the PR that publishes it — as `spool_vendor` in
+ *     get_status (this file's surface) and as `vendor_name` in lane_data (see
+ *     test_afc_lane_data_clears.cpp).
  * Neither reader can be exercised against hardware, so the contract to lock is
  * that they stay no-ops: absence must not clobber what we already knew.
  */
@@ -81,15 +83,20 @@ namespace {
 
 /// The envelope Moonraker sends for server.database.get_item.
 json db_envelope(const json& value) {
-    return {{"jsonrpc", "2.0"}, {"id", 1}, {"result", {{"namespace", "afc-install"}, {"value", value}}}};
+    return {{"jsonrpc", "2.0"},
+            {"id", 1},
+            {"result", {{"namespace", "afc-install"}, {"value", value}}}};
 }
 
 /// A clean AFC status object shaped like the live v1.1.0 capture — note it
 /// carries no "version" key, because no released AFC emits one.
 json pre_807_state() {
-    return json{{"current_load", "lane1"},   {"current_lane", nullptr},
-                {"current_state", "Idle"},   {"error_state", false},
-                {"bypass_state", false},     {"lanes", json::array({"lane1", "lane2"})},
+    return json{{"current_load", "lane1"},
+                {"current_lane", nullptr},
+                {"current_state", "Idle"},
+                {"error_state", false},
+                {"bypass_state", false},
+                {"lanes", json::array({"lane1", "lane2"})},
                 {"message", {{"message", ""}, {"type", ""}}}};
 }
 
@@ -214,10 +221,11 @@ TEST_CASE("the vendor reader neither invents nor wipes a brand", "[ams][afc][117
     afc.feed_lane({{"material", "PETG"}});
     CHECK(afc.get_slot_info(0).brand.empty());
 
-    afc.feed_lane({{"vendor_name", "Polymaker"}});
+    // `spool_vendor` is the get_status spelling; lane_data uses `vendor_name`.
+    afc.feed_lane({{"spool_vendor", "Polymaker"}});
     REQUIRE(afc.get_slot_info(0).brand == "Polymaker");
 
-    afc.feed_lane({{"vendor_name", ""}});
+    afc.feed_lane({{"spool_vendor", ""}});
     CHECK(afc.get_slot_info(0).brand == "Polymaker");
 
     afc.feed_lane({{"material", "PLA"}});

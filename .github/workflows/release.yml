@@ -49,7 +49,21 @@ jobs:
     name: Build (${{ matrix.display_name }})
     needs: [validate-shell]
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    # The pi-both / pi32-both / x86-both cross-compiles are the long poles here:
+    # a full DRM+GLES+thorvg build that lands at 58-70 min and grows with the
+    # codebase, so 90 left almost no headroom (v0.99.108's pi64 job died at ~75
+    # min). ccache does not reliably survive between releases — 9 platform
+    # ccaches plus the type=gha toolchain caches overrun GitHub's 10 GB/repo
+    # cache budget and get evicted LRU — so builds run near-cold every time.
+    # 120 is margin, not a fix; the durable fix is cache survival (or splitting
+    # the Pi build). Other platforms finish in ~35-47 min and never approach it.
+    #
+    # Raised to 180 after v0.99.110: a cold pi-both now runs ~115-125 min, so 120
+    # failed even when the runner survived. The cache-survival half is handled in
+    # ccache-warm.yml (which needed its own, larger budget to ever succeed), but
+    # this job must still tolerate a cold build whenever that cache is missing or
+    # has been evicted, rather than turning a slow build into a failed release.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -102,21 +116,46 @@ jobs:
         sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
         df -h /
 
+    # What actually failed every pi leg of v0.99.110 was the OOM killer, not the
+    # clock: exit 137 roughly two minutes after helix-splash and helix-watchdog
+    # link, i.e. during the main helix-screen link, which pi-both performs twice
+    # (one per display variant). It fit on v0.99.108 at ~82 min and no longer
+    # does. A warm ccache does NOT avoid this — the link still runs — so the
+    # cache work in ccache-warm.yml could not have fixed it alone. -j is not the
+    # lever either: the spike is one ld process. Swap lets the link page rather
+    # than be killed, and costs wall time only when the peak is exceeded.
+    - name: Add swap for the link peak
+      run: |
+        free -h
+        sudo fallocate -l 16G /swapfile-helix || sudo dd if=/dev/zero of=/swapfile-helix bs=1M count=16384
+        sudo chmod 600 /swapfile-helix
+        sudo mkswap /swapfile-helix
+        sudo swapon /swapfile-helix
+        free -h
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
-    - name: Compute ccache bucket
-      id: ccache-bucket
-      run: echo "month=$(date -u +%Y-%m)" >> $GITHUB_OUTPUT
-
-    - name: Cache ccache
-      uses: actions/cache@v5
+    # Restore-only, and it reads a cache warmed on the default branch — never one
+    # from a sibling release. A release runs on a tag ref (refs/tags/vX.Y.Z),
+    # whose only readable cache scopes are its own (always empty — every tag is
+    # new) and the default branch. Tag runs can never see each other's caches, so
+    # keying by SHA, by tag, or by month made no difference: every release built
+    # 100% cold (measured ~1% ccache hit across all platforms, v0.99.107 logs).
+    # The ccache-warm workflow now compiles the heavy platforms on `main` and
+    # saves ccache-release-<plat>-* into the default-branch scope; this restore
+    # picks it up via the prefix. depend_mode is intentionally NOT set (here or in
+    # the warmer): the global -DHELIX_VERSION changes each release and would sink
+    # direct-mode hits, but ccache's preprocessed fallback excludes -D from its
+    # hash, so the ~99% of TUs that don't read the version macro still hit.
+    - name: Restore ccache (warmed on main — see ccache-warm.yml)
+      uses: actions/cache/restore@v5
       with:
         path: /tmp/.ccache-${{ matrix.docker_image || matrix.platform }}
-        # Monthly bucket so the primary key is stable across tag pushes (prior
-        # SHA-based keys never hit on tag-scoped cache and the cache never
-        # warmed). Restore-keys still fall through to any older bucket.
-        key: ccache-release-${{ matrix.docker_image || matrix.platform }}-${{ steps.ccache-bucket.outputs.month }}
+        # Restore-only on purpose: a release must not SAVE a cache. Its save would
+        # land in the unreadable tag scope, and 9 platforms x ~1.7 GB of such dead
+        # caches would evict the warmed ones under GitHub's 10 GB per-repo budget.
+        key: ccache-release-${{ matrix.docker_image || matrix.platform }}-restore
         restore-keys: |
           ccache-release-${{ matrix.docker_image || matrix.platform }}-
 
@@ -239,8 +278,14 @@ jobs:
         KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       run: |
         if [ -z "$KEYSTORE_B64" ]; then
-          echo "::warning::ANDROID_KEYSTORE_BASE64 not set — build will sign with the debug keystore. Play Store will reject the resulting AAB. See docs/devel/ANDROID_PLAY_STORE.md."
-          echo "keystore_path=" >> $GITHUB_OUTPUT
+          # A release tag has no business producing unsigned or debug-signed
+          # artifacts. This used to be a ::warning:: and the build carried on
+          # with the debug keystore — that is how v0.99.43 shipped a
+          # debug-signed AAB that Play Store rejects. Gradle refuses the same
+          # case now, but failing here names the missing secret instead of
+          # surfacing as a build error 40 minutes later.
+          echo "::error::ANDROID_KEYSTORE_BASE64 is not set. A release build must be signed with the upload keystore; see docs/devel/ANDROID_PLAY_STORE.md for the four ANDROID_KEYSTORE_* / ANDROID_KEY_* secrets."
+          exit 1
         else
           mkdir -p "$RUNNER_TEMP/keystore"
           printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keystore/upload.jks"
@@ -265,6 +310,81 @@ jobs:
         ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       run: ./gradlew bundleRelease -PuseCcache
+
+    # Runs before anything is renamed or uploaded, so a debug-signed artifact
+    # can never reach an artifact store or a GitHub release. Gradle already
+    # refuses to build the release variant without a keystore; this verifies
+    # the signature that actually landed on the bytes, which is the thing Play
+    # Store checks.
+    - name: Verify release artifacts are signed with the upload key
+      run: |
+        set -euo pipefail
+
+        # apksigner lives under a versioned build-tools dir. Pick the highest
+        # installed version rather than pinning one the runner image may drop.
+        APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f 2>/dev/null | sort -V | tail -1)"
+        if [ -z "$APKSIGNER" ]; then
+          echo "::error::apksigner not found under $ANDROID_HOME/build-tools"
+          exit 1
+        fi
+        echo "Using $APKSIGNER"
+
+        fail=0
+
+        # Fails on the debug keystore's well-known DN. Every Android SDK ships
+        # the same one, so matching CN=Android Debug catches the fallback no
+        # matter which machine produced it.
+        check_certs() {
+          local label="$1" certs="$2"
+          printf '%s\n' "$certs"
+
+          # Positive evidence first. Absence of the debug DN is NOT proof of a
+          # good signature: `keytool -printcert -jarfile` prints "Not a signed
+          # jar file" and still EXITS 0, so a bundle that lost its v1 signature
+          # would sail through a check that only looks for CN=Android Debug.
+          # Requiring a fingerprint turns "no debug key seen" into "a real
+          # certificate was read, and it is not the debug one".
+          local fp
+          # Require hex after the label. A bare 'SHA-?256' also matches
+          # keytool's "Signature algorithm name: SHA256withRSA" line, which
+          # would satisfy the presence check without any fingerprint present.
+          fp="$(printf '%s\n' "$certs" | grep -iE 'SHA-?256[^:]*:[[:space:]]*[0-9A-Fa-f]{2}' || true)"
+          if [ -z "$fp" ]; then
+            echo "::error::$label — no SHA-256 certificate fingerprint found. The artifact is unsigned, or the tool could not read its signature."
+            fail=1
+            return
+          fi
+
+          if printf '%s\n' "$certs" | grep -q 'CN=Android Debug'; then
+            echo "::error::$label is signed with the Android debug keystore"
+            fail=1
+          fi
+
+          # The SHA-256 fingerprint is what Play Console and Android developer
+          # verification register against the package name, so keep it easy to
+          # read off a release run.
+          printf '%s\n' "$fp" | sed "s|^|  ${label} SHA-256: |"
+        }
+
+        for apk in android/app/build/outputs/apk/release/*.apk; do
+          [ -f "$apk" ] || continue
+          echo "--- $(basename "$apk")"
+          check_certs "$(basename "$apk")" "$("$APKSIGNER" verify --print-certs "$apk")"
+        done
+
+        # apksigner cannot read a bundle (an .aab is not an APK), so the AAB
+        # goes through keytool's jar-signature reader instead.
+        for aab in android/app/build/outputs/bundle/release/*.aab; do
+          [ -f "$aab" ] || continue
+          echo "--- $(basename "$aab")"
+          check_certs "$(basename "$aab")" "$(keytool -printcert -jarfile "$aab")"
+        done
+
+        if [ "$fail" -ne 0 ]; then
+          echo "::error::Refusing to publish debug-signed Android artifacts. See docs/devel/ANDROID_PLAY_STORE.md."
+          exit 1
+        fi
+        echo "All Android artifacts are signed with a non-debug key."
 
     - name: Extract version
       id: version
@@ -320,14 +440,24 @@ jobs:
         mkdir -p release-whatsnew
         # Play Store uploader (r0adkll) expects whatsnew-<locale> files in a flat dir.
         # Fastlane source of truth is android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
-        VERSION_CODE=$(awk -F. '{print $1*10000 + $2*100 + ($3+0)}' VERSION.txt)
+        # Same packing as the script that just wrote the file. Both sides call
+        # scripts/android-version-code.sh; when this step re-derived it locally
+        # the two drifted (10014 vs 99114) and the copy below silently missed.
+        VERSION_CODE=$(scripts/android-version-code.sh)
         SRC="android/fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
         if [ -f "$SRC" ]; then
           cp "$SRC" release-whatsnew/whatsnew-en-US
           echo "What's new (en-US, ${VERSION_CODE}):"
           cat release-whatsnew/whatsnew-en-US
         else
-          echo "::warning::No whatsnew generated — $SRC missing; Play upload will use the AAB's default"
+          # generate-whatsnew.sh wrote this exact path a moment ago, so a miss
+          # means the two disagree about the versionCode — a bug, not a
+          # tolerable condition. publish-android's download-artifact step
+          # hard-fails on the missing artifact anyway; fail here where the
+          # cause is visible.
+          echo "::error::$SRC is missing right after scripts/generate-whatsnew.sh wrote it — the versionCode used to name the file and the one used to read it disagree."
+          ls -la android/fastlane/metadata/android/en-US/changelogs/ || true
+          exit 1
         fi
 
     - name: Upload Play Store whatsnew artifact
@@ -336,7 +466,9 @@ jobs:
         name: release-android-whatsnew
         path: release-whatsnew/
         retention-days: 7
-        if-no-files-found: ignore
+        # publish-android downloads this by name; an empty upload turns into a
+        # hard failure there, with no clue as to why.
+        if-no-files-found: error
 
   # ============================================================================
   # Publish Android AAB to Google Play Store (internal track)
@@ -344,9 +476,19 @@ jobs:
   # Inert until the PLAY_SERVICE_ACCOUNT_JSON secret is configured. See
   # docs/devel/ANDROID_PLAY_STORE.md for one-time setup (service account,
   # first manual upload, Play App Signing enrollment).
+  # Gated on `release`, not just `build-android`, and that ordering is load-bearing:
+  # a Play Store versionCode can never be reused or lowered. v0.99.109 and v0.99.110
+  # both published here while their GitHub releases never materialised (109 died on a
+  # non-GLES compile error that Android, being a GLES build, never hit; 110 lost its
+  # Raspberry Pi link to the OOM killer). That burned versionCodes 10009 and 10010 on
+  # builds nobody could download, and made both tags impossible to re-cut — the only
+  # way forward was to skip a version. Depending on `release` (which itself needs the
+  # full build-platforms matrix) means Play only ever receives a version that users
+  # can also download from GitHub. If a platform build fails, this job is skipped and
+  # the version number stays free to re-cut.
   publish-android:
     name: Publish to Play Store (internal)
-    needs: [build-android]
+    needs: [build-android, release]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -401,9 +543,23 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build-platforms]
+    # build-android is a dependency, not just a co-runner. This job downloads
+    # every artifact unfiltered and globs *.apk / *.aab with
+    # fail_on_unmatched_files: false, so with build-android still running (90
+    # min budget, against the platform matrix's 82) the release was created
+    # with no Android assets and nothing went red.
+    # No cycle: publish-android needs [build-android, release], and build-android
+    # needs only validate-shell.
+    needs: [build-platforms, build-android]
     permissions:
       contents: write  # Required to create releases
+    outputs:
+      # Declared by RELEASE_CHANNEL on the branch being tagged, NOT derived from
+      # the tag string. Downstream jobs (upload-r2, notify-website) consume these
+      # so the channel is resolved exactly once, from one source.
+      channel: ${{ steps.channel.outputs.channel }}
+      channels: ${{ steps.channel.outputs.channels }}
+      prerelease: ${{ steps.channel.outputs.prerelease }}
 
     steps:
     - name: Checkout repository
@@ -436,6 +592,34 @@ jobs:
         cp scripts/install.sh release-files/
         echo "Release files:"
         ls -lh release-files/
+
+    # softprops/action-gh-release runs with fail_on_unmatched_files: false —
+    # deliberately, because several of its globs are optional — so a missing
+    # Android artifact would publish a release with no Android downloads and
+    # still report success. Assert the four by name instead of flipping that
+    # flag globally. The names must stay in step with the rename steps in
+    # build-android and with the download instructions in the release notes.
+    - name: Verify Android artifacts are present
+      run: |
+        set -euo pipefail
+        VERSION="${GITHUB_REF_NAME#v}"
+        missing=""
+        for f in "helixscreen-android-arm64-v${VERSION}.apk" \
+                 "helixscreen-android-x86_64-v${VERSION}.apk" \
+                 "helixscreen-android-universal-v${VERSION}.apk" \
+                 "helixscreen-android-v${VERSION}.aab"; do
+          if [ -f "release-files/$f" ]; then
+            echo "  ok: $f"
+          else
+            missing="$missing $f"
+          fi
+        done
+        if [ -n "$missing" ]; then
+          echo "::error::Android artifacts missing from the release:$missing"
+          echo "Present:"
+          ls -1 release-files/*android* 2>/dev/null || echo "  (no android artifacts at all)"
+          exit 1
+        fi
 
     - name: Prepare symbol files for release
       run: |
@@ -507,6 +691,20 @@ jobs:
         VERSION="${GITHUB_REF_NAME}"
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
+
+    - name: Resolve release channel
+      id: channel
+      run: |
+        # The channel comes from the RELEASE_CHANNEL file on the branch being
+        # tagged, not from whether the tag has a hyphen. That old rule forced
+        # every devel build to carry a -devN suffix, which helix::version
+        # discards -- so consecutive devel builds compared EQUAL and the in-app
+        # updater went quiet after the first install.
+        # pipefail is required: without it `tee` supplies the pipeline's exit
+        # status and an invalid RELEASE_CHANNEL would pass as a green step,
+        # leaving every downstream channel expression empty.
+        set -o pipefail
+        scripts/release-channel.sh --tag "$GITHUB_REF_NAME" | tee -a "$GITHUB_OUTPUT"
 
     - name: Generate release notes
       id: notes
@@ -635,7 +833,7 @@ jobs:
         name: ${{ steps.version.outputs.version }}
         body_path: release-notes.md
         draft: false
-        prerelease: ${{ contains(github.ref_name, '-') }}  # v1.0.0-beta -> prerelease
+        prerelease: ${{ steps.channel.outputs.prerelease }}  # from RELEASE_CHANNEL
         files: |
           release-files/*.tar.gz
           release-files/*.zip
@@ -652,6 +850,7 @@ jobs:
       continue-on-error: true
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        RELEASE_CHANNEL: ${{ steps.channel.outputs.channel }}
       run: |
         [ -z "$DISCORD_WEBHOOK_URL" ] && { echo "No webhook configured, skipping"; exit 0; }
 
@@ -680,14 +879,22 @@ jobs:
         # Escape for JSON: backslashes, double quotes, newlines
         CHANGELOG_JSON=$(printf '%s' "$CHANGELOG" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
-        # Determine embed color: green for stable, yellow for prerelease
-        if [[ "$VERSION" == *-* ]]; then
-          COLOR=16761095  # #FFD700 gold
-          TITLE="HelixScreen ${VERSION} (Pre-release)"
-        else
-          COLOR=3066993   # #2ECC71 green
-          TITLE="HelixScreen ${VERSION} Released"
-        fi
+        # Determine embed color from the declared channel: green for stable,
+        # gold for the devel/bleeding-edge tracks.
+        case "$RELEASE_CHANNEL" in
+          stable)
+            COLOR=3066993   # #2ECC71 green
+            TITLE="HelixScreen ${VERSION} Released"
+            ;;
+          beta)
+            COLOR=16761095  # #FFD700 gold
+            TITLE="HelixScreen ${VERSION} (Devel Channel)"
+            ;;
+          *)
+            COLOR=16761095  # #FFD700 gold
+            TITLE="HelixScreen ${VERSION} (${RELEASE_CHANNEL})"
+            ;;
+        esac
 
         # Build and send Discord webhook payload
         curl -s -o /dev/null -w "%{http_code}" \
@@ -799,17 +1006,70 @@ jobs:
 
     - name: Determine upload channels
       id: channels
+      env:
+        CHANNEL: ${{ needs.release.outputs.channel }}
+        CHANNELS: ${{ needs.release.outputs.channels }}
       run: |
-        TAG="${GITHUB_REF_NAME}"
-        if [[ "$TAG" == *-* ]]; then
-          # Prerelease tag (v1.0.0-beta, v1.0.0-rc.1) -> beta + dev
-          CHANNELS="beta dev"
-        else
-          # Stable tag (v0.9.5) -> stable + dev
-          CHANNELS="stable dev"
+        # Resolved once by the release job from RELEASE_CHANNEL. Re-resolving it
+        # here would let the two jobs disagree if the file ever changed mid-run.
+        if [ -z "$CHANNELS" ]; then
+          echo "::error::release job produced no channel list -- RELEASE_CHANNEL missing or invalid"
+          exit 1
         fi
         echo "channels=$CHANNELS" >> $GITHUB_OUTPUT
+        echo "Declared channel: $CHANNEL"
         echo "Upload channels: $CHANNELS"
+
+    - name: Guard against channel downgrade
+      env:
+        RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
+        ALLOW_DOWNGRADE: ${{ vars.ALLOW_CHANNEL_DOWNGRADE }}
+      run: |
+        # A channel manifest must only ever move forward. The in-app updater
+        # offers an update when manifest_version > installed_version, so
+        # republishing an OLDER version to a channel does not roll anyone back --
+        # it strands the channel silently: everyone already on the newer build
+        # sees "Already up to date" forever, and the workflow reports success.
+        #
+        # This is reachable whenever two release lines share a channel (a 1.0.x
+        # hotfix landing on a channel that already serves 1.1.x), and by
+        # re-tagging an old commit. Republishing the SAME version is allowed --
+        # that is how a partially-failed upload is retried.
+        FAILED=0
+        for CHANNEL in $UPLOAD_CHANNELS; do
+          MANIFEST_URL="${R2_PUBLIC_URL}/${CHANNEL}/manifest.json"
+          SERVED=$(curl -fsS --max-time 30 "$MANIFEST_URL" 2>/dev/null | jq -r '.version // empty' || true)
+
+          if [ -z "$SERVED" ]; then
+            echo "${CHANNEL}: no manifest served yet -- nothing to downgrade"
+            continue
+          fi
+
+          if [ "$SERVED" = "$RELEASE_VERSION" ]; then
+            echo "${CHANNEL}: currently serves ${SERVED} (republishing the same version)"
+            continue
+          fi
+
+          OLDEST=$(printf '%s\n%s\n' "$SERVED" "$RELEASE_VERSION" | sort -V | head -n1)
+          if [ "$OLDEST" = "$RELEASE_VERSION" ]; then
+            echo "::error::${CHANNEL} currently serves ${SERVED}; publishing ${RELEASE_VERSION} would move it BACKWARD."
+            echo "::error::Clients on ${SERVED} would never be offered another ${CHANNEL} update."
+            FAILED=1
+          else
+            echo "${CHANNEL}: ${SERVED} -> ${RELEASE_VERSION} (forward)"
+          fi
+        done
+
+        if [ "$FAILED" -eq 1 ]; then
+          if [ "$ALLOW_DOWNGRADE" = "true" ]; then
+            echo "::warning::ALLOW_CHANNEL_DOWNGRADE=true -- proceeding with a backward channel move"
+          else
+            echo "::error::Set the ALLOW_CHANNEL_DOWNGRADE repository variable to 'true' to override."
+            exit 1
+          fi
+        fi
 
     - name: Upload artifacts and manifests to R2
       env:
@@ -1204,15 +1464,17 @@ jobs:
 
   # ============================================================================
   # Trigger docs rebuild + deploy on helixscreen-website for stable releases.
-  # Skipped for prereleases (tags containing a hyphen, e.g. v1.0.0-rc.1) so that
-  # helixscreen.org tracks the latest stable docs, not in-flight RC content.
+  # Gated on the channel declared by RELEASE_CHANNEL, so helixscreen.org tracks
+  # the latest stable docs rather than in-flight devel content. The old gate was
+  # `tag has no hyphen`, which would deploy devel-track docs the moment that
+  # track started tagging plain vX.Y.Z versions.
   # Requires WEBSITE_DISPATCH_TOKEN: PAT with contents:write on helixscreen-website.
   # ============================================================================
   notify-website:
     name: Trigger Docs Deploy
     runs-on: ubuntu-latest
     needs: [release]
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release.outputs.channel == 'stable'
 
     steps:
     - name: Record dispatch time

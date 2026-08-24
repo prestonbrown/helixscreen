@@ -97,8 +97,8 @@ class PinEntryModal {
     lv_obj_t* backdrop_ = nullptr;
     lv_obj_t* dialog_ = nullptr;
 
-    static constexpr int kMinDigits = 4;
-    static constexpr int kMaxDigits = 6;
+    static constexpr int MIN_DIGITS = 4;
+    static constexpr int MAX_DIGITS = 6;
 
     // Singleton active instance — only one PIN modal at a time
     static PinEntryModal* g_active_modal;

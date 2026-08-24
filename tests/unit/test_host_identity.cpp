@@ -16,6 +16,19 @@ TEST_CASE("host_identity — localhost strings", "[host_identity]") {
     REQUIRE(helix::is_moonraker_on_same_host(""));
 }
 
+TEST_CASE("host_identity — loopback literals are case-insensitive", "[host_identity]") {
+    // DNS names are case-insensitive, so a host spelled "LocalHost" in config is
+    // the same machine. The three call sites folded into this predicate used to
+    // compare literally and answered false here.
+    REQUIRE(helix::is_moonraker_on_same_host("LOCALHOST"));
+    REQUIRE(helix::is_moonraker_on_same_host("LocalHost"));
+}
+
+TEST_CASE("host_identity — loopback-lookalikes are not same-host", "[host_identity]") {
+    // Substrings of a loopback literal must not pass.
+    REQUIRE_FALSE(helix::is_moonraker_on_same_host("127.0.0.1.example.invalid"));
+}
+
 TEST_CASE("host_identity — gethostname matches", "[host_identity]") {
     char buf[256] = {};
     REQUIRE(gethostname(buf, sizeof(buf)) == 0);

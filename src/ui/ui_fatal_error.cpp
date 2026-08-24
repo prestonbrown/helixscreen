@@ -24,22 +24,22 @@
 // are available via theme_manager_get_color().
 //
 // Color mapping to theme tokens:
-//   kBootstrapDangerDark  -> "danger" (dark variant, screen background)
-//   kBootstrapCardBg      -> "card_bg" (container background)
-//   kBootstrapDanger      -> "danger" (border, icon)
-//   kBootstrapText        -> "text" (title text)
-//   kBootstrapTextMuted   -> "text_muted" (message text)
-//   kBootstrapWarning     -> "warning" (troubleshooting header)
-//   kBootstrapTextSubtle  -> "text_subtle" (suggestion text)
+//   BOOTSTRAP_DANGER_DARK  -> "danger" (dark variant, screen background)
+//   BOOTSTRAP_CARD_BG      -> "card_bg" (container background)
+//   BOOTSTRAP_DANGER      -> "danger" (border, icon)
+//   BOOTSTRAP_TEXT        -> "text" (title text)
+//   BOOTSTRAP_TEXT_MUTED   -> "text_muted" (message text)
+//   BOOTSTRAP_WARNING     -> "warning" (troubleshooting header)
+//   BOOTSTRAP_TEXT_SUBTLE  -> "text_subtle" (suggestion text)
 // =============================================================================
 namespace {
-constexpr uint32_t kBootstrapDangerDark = 0x8B0000; // Dark red for error screen background
-constexpr uint32_t kBootstrapCardBg = 0x2D2D2D;     // Dark gray card background
-constexpr uint32_t kBootstrapDanger = 0xFF4444;     // Bright red for danger/error emphasis
-constexpr uint32_t kBootstrapText = 0xFFFFFF;       // White text (light variant)
-constexpr uint32_t kBootstrapTextMuted = 0xCCCCCC;  // Muted gray for secondary text
-constexpr uint32_t kBootstrapWarning = 0xFFCC00;    // Yellow/gold for warnings
-constexpr uint32_t kBootstrapTextSubtle = 0xAAAAAA; // Subtle gray for tertiary text
+constexpr uint32_t BOOTSTRAP_DANGER_DARK = 0x8B0000; // Dark red for error screen background
+constexpr uint32_t BOOTSTRAP_CARD_BG = 0x2D2D2D;     // Dark gray card background
+constexpr uint32_t BOOTSTRAP_DANGER = 0xFF4444;      // Bright red for danger/error emphasis
+constexpr uint32_t BOOTSTRAP_TEXT = 0xFFFFFF;        // White text (light variant)
+constexpr uint32_t BOOTSTRAP_TEXT_MUTED = 0xCCCCCC;  // Muted gray for secondary text
+constexpr uint32_t BOOTSTRAP_WARNING = 0xFFCC00;     // Yellow/gold for warnings
+constexpr uint32_t BOOTSTRAP_TEXT_SUBTLE = 0xAAAAAA; // Subtle gray for tertiary text
 } // namespace
 
 // Portable timing functions
@@ -70,16 +70,16 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_t* screen = lv_screen_active();
 
     // Red background to indicate error
-    lv_obj_set_style_bg_color(screen, lv_color_hex(kBootstrapDangerDark), 0);
+    lv_obj_set_style_bg_color(screen, lv_color_hex(BOOTSTRAP_DANGER_DARK), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
     // Container for content
     lv_obj_t* container = lv_obj_create(screen);
     lv_obj_set_size(container, LV_PCT(90), LV_PCT(90));
     lv_obj_center(container);
-    lv_obj_set_style_bg_color(container, lv_color_hex(kBootstrapCardBg), 0);
+    lv_obj_set_style_bg_color(container, lv_color_hex(BOOTSTRAP_CARD_BG), 0);
     lv_obj_set_style_border_width(container, 2, 0);
-    lv_obj_set_style_border_color(container, lv_color_hex(kBootstrapDanger), 0);
+    lv_obj_set_style_border_color(container, lv_color_hex(BOOTSTRAP_DANGER), 0);
     lv_obj_set_style_radius(container, 8, 0);
     lv_obj_set_style_pad_all(container, 20, 0);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
@@ -90,20 +90,20 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_t* icon = lv_label_create(container);
     lv_label_set_text(icon, ICON_TRIANGLE_EXCLAMATION);
     lv_obj_set_style_text_font(icon, &mdi_icons_32, 0);
-    lv_obj_set_style_text_color(icon, lv_color_hex(kBootstrapDanger), 0);
+    lv_obj_set_style_text_color(icon, lv_color_hex(BOOTSTRAP_DANGER), 0);
 
     // Title
     lv_obj_t* title_label = lv_label_create(container);
     lv_label_set_text(title_label, title);
     lv_obj_set_style_text_font(title_label, &noto_sans_24, 0);
-    lv_obj_set_style_text_color(title_label, lv_color_hex(kBootstrapText), 0);
+    lv_obj_set_style_text_color(title_label, lv_color_hex(BOOTSTRAP_TEXT), 0);
     lv_obj_set_style_pad_top(title_label, 10, 0);
 
     // Message
     lv_obj_t* msg_label = lv_label_create(container);
     lv_label_set_text(msg_label, message);
     lv_obj_set_style_text_font(msg_label, &noto_sans_16, 0);
-    lv_obj_set_style_text_color(msg_label, lv_color_hex(kBootstrapTextMuted), 0);
+    lv_obj_set_style_text_color(msg_label, lv_color_hex(BOOTSTRAP_TEXT_MUTED), 0);
     lv_obj_set_style_pad_top(msg_label, 15, 0);
     lv_obj_set_width(msg_label, LV_PCT(100));
     lv_label_set_long_mode(msg_label, LV_LABEL_LONG_WRAP);
@@ -113,7 +113,7 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
         lv_obj_t* suggest_header = lv_label_create(container);
         lv_label_set_text(suggest_header, lv_tr("Troubleshooting:"));
         lv_obj_set_style_text_font(suggest_header, &noto_sans_14, 0);
-        lv_obj_set_style_text_color(suggest_header, lv_color_hex(kBootstrapWarning), 0);
+        lv_obj_set_style_text_color(suggest_header, lv_color_hex(BOOTSTRAP_WARNING), 0);
         lv_obj_set_style_pad_top(suggest_header, 20, 0);
 
         // List suggestions
@@ -121,7 +121,7 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
             lv_obj_t* suggest = lv_label_create(container);
             lv_label_set_text_fmt(suggest, "• %s", suggestions[i]);
             lv_obj_set_style_text_font(suggest, &noto_sans_12, 0);
-            lv_obj_set_style_text_color(suggest, lv_color_hex(kBootstrapTextSubtle), 0);
+            lv_obj_set_style_text_color(suggest, lv_color_hex(BOOTSTRAP_TEXT_SUBTLE), 0);
             lv_obj_set_style_pad_top(suggest, 5, 0);
             lv_obj_set_width(suggest, LV_PCT(100));
             lv_label_set_long_mode(suggest, LV_LABEL_LONG_WRAP);

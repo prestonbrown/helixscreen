@@ -12,6 +12,7 @@
  */
 
 #include "ui_update_queue.h"
+
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
@@ -243,8 +244,7 @@ TEST_CASE("PrintSelectUsbSource on_drive_inserted does nothing when symlink acti
     REQUIRE(usb_source.get_current_source() == FileSource::PRINTER);
 }
 
-TEST_CASE("PrintSelectUsbSource on_drive_removed switches from USB to PRINTER",
-          "[usb][symlink]") {
+TEST_CASE("PrintSelectUsbSource on_drive_removed switches from USB to PRINTER", "[usb][symlink]") {
     helix::ui::PrintSelectUsbSource usb_source;
 
     FileSource last_source = FileSource::PRINTER;

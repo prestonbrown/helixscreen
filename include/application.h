@@ -13,6 +13,7 @@
 #include "wizard_step.h" // helix::wizard::StepId
 #include "xml_hot_reloader.h"
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@ class ActionPromptManager;
 class AmsErrorBridge;
 class GcodeErrorRouter;
 class GcodeNarrationRouter;
+class PrinterDiscovery;
 } // namespace helix
 namespace helix::ui {
 class ActionPromptModal;
@@ -139,6 +141,19 @@ class Application {
     void launch_deferred_hardware_setup();
     // Clear this printer's deferred-hardware-setup marker and persist it.
     void settle_deferred_hardware_setup();
+    // Saved-vs-detected printer type check (bundle F2LNLQCC: a Voron Trident
+    // saved as AD5M Pro silently received AD5M pre-print options and presets).
+    // Shows the one-time actionable mismatch modal; guarded to once per session
+    // and once per saved type (TYPE_MISMATCH_SHOWN_FOR). Main thread only.
+    void maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardware);
+    // Run the accepted re-identify as a targeted wizard session (PrinterIdentify
+    // step ONLY — never a full wizard run), fired by a one-shot timer so the
+    // wizard is built after the modal's exit animation rather than underneath it.
+    void launch_type_reidentify_wizard();
+    // Record + persist the mismatch decision for the current saved type. Both
+    // modal arms call this before anything else: a crash mid-wizard must not
+    // leave the prompt pending forever.
+    void settle_type_mismatch_warning();
     lv_obj_t* create_overlay_panel(lv_obj_t* screen, const char* component_name,
                                    const char* display_name);
     void init_action_prompt();
@@ -236,6 +251,12 @@ class Application {
     void on_enter_foreground();
     bool m_backgrounded = false;
 
+    // Debounce for force_reconnect: on_enter_foreground and the DisplayManager
+    // sleep callback can both fire for the same wake event. Without this, the
+    // second call bumps the connection generation and makes the first
+    // discovery's subscription stale — leaving the temp overlay dead (#1245).
+    std::chrono::steady_clock::time_point m_last_force_reconnect{};
+
     // State
     bool m_running = false;
     bool m_wizard_active = false;
@@ -246,12 +267,18 @@ class Application {
     // session cannot re-ask. The persisted per-printer marker is what stops it
     // across sessions — cleared as soon as the user answers either way.
     bool m_hardware_setup_prompt_shown = false;
+    // Guards the saved-vs-detected printer type mismatch warning so it shows at
+    // most once per session, whichever button dismisses it. The persisted
+    // TYPE_MISMATCH_SHOWN_FOR flag covers cross-boot; intentionally NOT reset on
+    // reconnect.
+    bool m_type_mismatch_shown = false;
     // Steps the deferred hardware-setup offer will run if accepted. Held here
     // because modal_show_confirmation() carries a single void* user_data.
     std::vector<helix::wizard::StepId> m_pending_hardware_setup_steps;
-    // Guards the ZMOD persistent-z-offset enablement (SAVE_ZMOD_DATA LOAD_ZOFFSET=1)
-    // so it is sent at most once per app session. Intentionally NOT reset on reconnect.
-    bool m_zmod_zoffset_enabled = false;
+    // Guards the firmware z-offset persistence enablement (see
+    // include/z_offset_persistence.h) so it is sent at most once per app session.
+    // Intentionally NOT reset on reconnect.
+    bool m_zoffset_persistence_enabled = false;
     // Hardware-shape fingerprint from the most recent on_discovery_complete.
     // When a reconnect's fingerprint matches (hardware unchanged), expensive
     // user-facing side-effects (LED chip population, hardware validation

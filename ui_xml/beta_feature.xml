@@ -7,11 +7,29 @@
 <component>
   <styles>
     <style name="beta_accent" border_width="3" border_side="left" border_color="#warning"/>
+    <!-- Reserve a right gutter for the floating badge so a wrapped row's own
+         right-hand controls (info icon, chevron) never sit under it.
+         `floating` aligns to the content area, so padding alone would drag the
+         badge along with the row — the badge translate_x must track pad_right
+         (translate_x = pad_right - 4) to land in the gutter, 4px inset from the
+         frame edge. Narrow bps show the info icon so they get a small gutter;
+         wider bps use a gutter that fits the largest badge. The pairs must stay
+         in sync. See prestonbrown/helixscreen#1244. -->
+    <style name="gutter_narrow" pad_right="40"/>
+    <style name="gutter_wide" pad_right="72"/>
+    <style name="badge_pos_narrow" translate_x="36"/>
+    <style name="badge_pos_wide" translate_x="68"/>
   </styles>
-  <view extends="lv_obj" width="100%" height="content" style_pad_all="0" scrollable="false">
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_top="0" style_pad_left="0" style_pad_bottom="0" scrollable="false">
     <bind_flag_if_eq subject="show_beta_features" flag="hidden" ref_value="0"/>
     <bind_style name="beta_accent" subject="show_beta_features" ref_value="1"/>
-    <!-- Floating BETA badge, top-right corner -->
-    <beta_badge floating="true" align="top_right" style_translate_x="-48" style_translate_y="4"/>
+    <bind_style_if_lt name="gutter_narrow" subject="ui_breakpoint" ref_value="2"/>
+    <bind_style_if_ge name="gutter_wide" subject="ui_breakpoint" ref_value="2"/>
+    <!-- Floating BETA badge sits in the reserved right gutter, vertically centered -->
+    <beta_badge floating="true" align="right_mid">
+      <bind_style_if_lt name="badge_pos_narrow" subject="ui_breakpoint" ref_value="2"/>
+      <bind_style_if_ge name="badge_pos_wide" subject="ui_breakpoint" ref_value="2"/>
+    </beta_badge>
   </view>
 </component>

@@ -1,0 +1,4 @@
+dependencies:
+  espressif/esp_lcd_touch_gt911: "^1"
+  joltwallet/littlefs: "^1"
+  jkent/frogfs: "^5"

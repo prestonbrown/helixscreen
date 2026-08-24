@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
@@ -22,7 +23,7 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 } // namespace helix
 
 /**
@@ -44,7 +45,7 @@ class MoonrakerClient;
  *   rest.call_rest_get("/server/ace/status",
  *       [](const RestResponse& resp) { ... });
  */
-class MoonrakerRestAPI {
+class MoonrakerRestAPI : public IRestAPI {
   public:
     using SuccessCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
@@ -56,7 +57,7 @@ class MoonrakerRestAPI {
      * @param client MoonrakerClient instance (must remain valid during API lifetime)
      * @param http_base_url Reference to HTTP base URL string (owned by MoonrakerAPI)
      */
-    MoonrakerRestAPI(helix::MoonrakerClient& client, const std::string& http_base_url);
+    MoonrakerRestAPI(helix::IMoonrakerClient& client, const std::string& http_base_url);
     virtual ~MoonrakerRestAPI();
 
     // ========================================================================
@@ -75,7 +76,7 @@ class MoonrakerRestAPI {
      * @param endpoint REST endpoint path (e.g., "/server/ace/status")
      * @param on_complete Callback with response (success or failure)
      */
-    virtual void call_rest_get(const std::string& endpoint, RestCallback on_complete);
+    void call_rest_get(const std::string& endpoint, RestCallback on_complete) override;
 
     /**
      * @brief Call a Moonraker extension REST endpoint with POST
@@ -89,8 +90,8 @@ class MoonrakerRestAPI {
      * @param params JSON parameters to POST
      * @param on_complete Callback with response (success or failure)
      */
-    virtual void call_rest_post(const std::string& endpoint, const json& params,
-                                RestCallback on_complete);
+    void call_rest_post(const std::string& endpoint, const json& params,
+                        RestCallback on_complete) override;
 
     // ========================================================================
     // WLED Control Operations (Moonraker WLED Bridge)
@@ -104,7 +105,7 @@ class MoonrakerRestAPI {
      * @param on_success Callback with RestResponse containing strip data
      * @param on_error Error callback
      */
-    virtual void wled_get_strips(RestCallback on_success, ErrorCallback on_error);
+    void wled_get_strips(RestCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Control a WLED strip via Moonraker bridge
@@ -119,8 +120,8 @@ class MoonrakerRestAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    virtual void wled_set_strip(const std::string& strip, const std::string& action, int brightness,
-                                int preset, SuccessCallback on_success, ErrorCallback on_error);
+    void wled_set_strip(const std::string& strip, const std::string& action, int brightness,
+                        int preset, SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Get WLED strip status via Moonraker bridge
@@ -131,7 +132,7 @@ class MoonrakerRestAPI {
      * @param on_success Callback with RestResponse containing status data
      * @param on_error Error callback
      */
-    virtual void wled_get_status(RestCallback on_success, ErrorCallback on_error);
+    void wled_get_status(RestCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Fetch server configuration from Moonraker
@@ -142,9 +143,9 @@ class MoonrakerRestAPI {
      * @param on_success Callback with RestResponse containing config data
      * @param on_error Error callback
      */
-    virtual void get_server_config(RestCallback on_success, ErrorCallback on_error);
+    void get_server_config(RestCallback on_success, ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
     const std::string& http_base_url_;
 };

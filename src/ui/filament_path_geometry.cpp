@@ -11,19 +11,19 @@ namespace ui {
 namespace pathgeo {
 
 namespace {
-constexpr float kPi = 3.14159265358979323846f;
-constexpr float kHalfPi = kPi / 2.0f;
+constexpr float PI = 3.14159265358979323846f;
+constexpr float HALF_PI = PI / 2.0f;
 
 // Minimum horizontal offset before we bother routing around a corner.
-constexpr float kMinDx = 2.0f;
+constexpr float MIN_DX = 2.0f;
 // Minimum effective fillet radius before arcs are worthwhile.
-constexpr float kMinFillet = 2.0f;
+constexpr float MIN_FILLET = 2.0f;
 // Extra straight room (px) reserved on each leg adjoining a merge-fan corner,
 // on top of the fillet radius itself. route_polyline_filleted clamps the fillet
 // trim to half the shorter adjoining leg, so a leg of length >= fillet_r + slack
 // guarantees the corner can sweep at (close to) the full radius instead of
 // collapsing to a starved arc or a sharp miter.
-constexpr float kFilletSlack = 4.0f;
+constexpr float FILLET_SLACK = 4.0f;
 } // namespace
 
 void FilamentPath::add_line(float x0, float y0, float x1, float y1) {
@@ -151,7 +151,7 @@ void route_orthogonal(FilamentPath& out, float x0, float y0, float x1, float y1,
     }
 
     // Negligible horizontal offset: a single vertical run.
-    if (std::fabs(dx) < kMinDx) {
+    if (std::fabs(dx) < MIN_DX) {
         out.add_line(x0, y0, x1, y1);
         return;
     }
@@ -160,7 +160,7 @@ void route_orthogonal(FilamentPath& out, float x0, float y0, float x1, float y1,
     float r_eff = std::min({fillet_r, std::fabs(dx) / 2.0f, dy / 2.0f});
 
     // Fillet too small to draw meaningful arcs: 45-degree jog (3 straight lines).
-    if (r_eff < kMinFillet) {
+    if (r_eff < MIN_FILLET) {
         float y_a = y0 + dy / 3.0f;
         float y_b = y0 + 2.0f * dy / 3.0f;
         out.add_line(x0, y0, x0, y_a);  // vertical
@@ -182,8 +182,8 @@ void route_orthogonal(FilamentPath& out, float x0, float y0, float x1, float y1,
     {
         float cx = x0 + dir * r;
         float cy = ymid - r;
-        float a0 = (dir > 0.0f) ? kPi : 0.0f;
-        float sweep = -dir * kHalfPi;
+        float a0 = (dir > 0.0f) ? PI : 0.0f;
+        float sweep = -dir * HALF_PI;
         out.add_arc(cx, cy, r, a0, sweep);
     }
 
@@ -194,8 +194,8 @@ void route_orthogonal(FilamentPath& out, float x0, float y0, float x1, float y1,
     {
         float cx = x1 - dir * r;
         float cy = ymid + r;
-        float a0 = -kHalfPi;
-        float sweep = dir * kHalfPi;
+        float a0 = -HALF_PI;
+        float sweep = dir * HALF_PI;
         out.add_arc(cx, cy, r, a0, sweep);
     }
 
@@ -254,7 +254,7 @@ void route_polyline_filleted(FilamentPath& out, const PathPoint* pts, int n, flo
         // angle(-d1, d2): cos = (-d1).d2 = -dot ; the turn angle theta between
         // legs has cos(theta) = dot, and alpha = (pi - theta)/2.
         float theta = std::atan2(std::fabs(cross), dot); // [0, pi]
-        float alpha = (kPi - theta) / 2.0f;              // (0, pi/2)
+        float alpha = (PI - theta) / 2.0f;               // (0, pi/2)
 
         float tan_a = std::tan(alpha);
         float sin_a = std::sin(alpha);
@@ -287,7 +287,7 @@ void route_polyline_filleted(FilamentPath& out, const PathPoint* pts, int n, flo
         // real turn, so advance the cursor THROUGH V (emit cursor->V) — a plain
         // `continue` here would let the next emitted line run from the stale
         // cursor straight to the following trim point, cutting this corner off.
-        if (r_eff < kMinFillet) {
+        if (r_eff < MIN_FILLET) {
             out.add_line(cursor.x, cursor.y, V.x, V.y);
             cursor = V;
             continue;
@@ -338,7 +338,7 @@ void build_merge_fan(const MergeLaneIn* lanes, int n, float hub_cx, float hub_to
     // vertical (approach_y -> hub_top) and the first vertical (start_y -> y_bend)
     // must each be at least this long so route_polyline_filleted's half-leg trim
     // clamp can't starve the corner down to a sharp miter (#... merge-fan notch).
-    const float leg_reserve = fillet_r + kFilletSlack;
+    const float leg_reserve = fillet_r + FILLET_SLACK;
 
     // Common approach height above the hub top; every lane's short final vertical
     // drops from here into its own entry_x at one clean level. Pushed up by the

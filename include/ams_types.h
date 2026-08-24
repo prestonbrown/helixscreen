@@ -4,6 +4,7 @@
 #pragma once
 
 #include "filament_database.h"
+#include "klipper_extruder_naming.h"
 
 #include <algorithm>
 #include <any>
@@ -349,7 +350,7 @@ inline AmsAction ams_action_from_string(std::string_view action_str,
     };
     // Known vocabulary, normalized. Happy Hare and AFC share this table; a
     // token appearing in only one firmware is harmless to the other.
-    static constexpr Entry kExact[] = {
+    static constexpr Entry EXACT[] = {
         {"idle", AmsAction::IDLE},
         {"initialized", AmsAction::IDLE},
         {"loading", AmsAction::LOADING},
@@ -377,7 +378,7 @@ inline AmsAction ams_action_from_string(std::string_view action_str,
         {"paused", AmsAction::PAUSED},
         {"error", AmsAction::ERROR},
     };
-    for (const auto& e : kExact) {
+    for (const auto& e : EXACT) {
         if (t == e.token) {
             recognize(true);
             return e.action;
@@ -917,10 +918,12 @@ struct SlotInfo {
      * EMPTY/UNKNOWN lanes render empty (0.0) — even when a Spoolman link and
      * material were deliberately RETAINED across an eject (#1071), so a ghost
      * lane never shows a phantom fill (#1071 BUG-1). Present lanes use the real
-     * remaining/total ratio when both weights are known; else fall back to 50%
+     * remaining/total ratio when both weights are known; else fall back to full
      * when any filament metadata is present (some backends, e.g. Snapmaker RFID,
-     * report a total but never a remaining) — an indeterminate half-bar, not a
-     * misleadingly-full one; else nullopt (leave unchanged).
+     * report a total but never a remaining, and a lane outside Spoolman has no
+     * weights at all). Full is what every other printer UI shows for an unweighed
+     * spool, and matching them beats a half-bar nobody reads as "unknown". Else
+     * nullopt (leave unchanged).
      */
     [[nodiscard]] std::optional<float> display_fill_level() const {
         if (!is_present()) {
@@ -930,7 +933,7 @@ struct SlotInfo {
             return remaining_weight_g / total_weight_g;
         }
         if (has_filament_info()) {
-            return 0.50f;
+            return 1.0f;
         }
         return std::nullopt;
     }
@@ -942,7 +945,7 @@ struct SlotInfo {
      * per-slot fill subjects (AmsState::get_slot_fill_subject): -1 when
      * display_fill_level() is nullopt (no data — leave the render untouched),
      * otherwise the ratio rounded to 0-100 (absent lane -> 0, metadata-only
-     * fallback -> 50, real ratio -> lround(ratio*100)). Implemented in terms of
+     * fallback -> 100, real ratio -> lround(ratio*100)). Implemented in terms of
      * display_fill_level() so the two never drift.
      */
     [[nodiscard]] int display_fill_pct() const {
@@ -1138,8 +1141,18 @@ struct AmsSystemInfo {
     /// Tool number on the carriage when mount_state == MOUNTED, else -1.
     int mounted_tool = -1;
 
-    int pending_target_slot = -1;  ///< Target slot during tool change (-1=none)
-    int current_toolchange = -1;   ///< Current tool change number (-1=none yet, 0-based)
+    int pending_target_slot = -1; ///< Target slot during tool change (-1=none)
+    /// Current tool change number: 0-based index, -1 = none yet. Backends
+    /// normalize their firmware's own counter into this form (AFC publishes a
+    /// 1-based "changes started" count; Happy Hare a completed-change count);
+    /// the UI adds one back when it formats "N / total".
+    ///
+    /// The arithmetic is unified; the MEANING is not. Index 0 is "the first
+    /// change is under way" on AFC and "the first change has finished" on Happy
+    /// Hare, so identical rendered text describes states half a toolchange
+    /// apart. Do not build logic that treats this as a completion count without
+    /// checking which backend produced it.
+    int current_toolchange = -1;
     int number_of_toolchanges = 0; ///< Total expected tool changes this print
     bool filament_loaded = false;  ///< Filament at extruder
 
@@ -1179,7 +1192,22 @@ struct AmsSystemInfo {
     int total_slots = 0;        ///< Sum of all slots across units
 
     // Capability flags
-    bool supports_endless_spool = false;
+    /// Is endless spool switched ON? The ENABLE axis only - it says nothing
+    /// about whether the printer HAS the feature.
+    ///
+    /// This is the transport-parsed carrier for the enable bit (CFS
+    /// `auto_refill` / `runout_swap_enabled`, Happy Hare `endless_spool_enabled`,
+    /// AD5X `variable_backup`): the WebSocket parse builds an AmsSystemInfo off
+    /// the main thread and commits it under the backend mutex, so the bit needs
+    /// a home in this struct. It replaced `supports_endless_spool`, which
+    /// answered the *availability* question a second time and provably disagreed
+    /// with get_endless_spool_capabilities() (CFS whenever auto-refill was off).
+    ///
+    /// **`AmsBackend::get_endless_spool_capabilities()` is the single source of
+    /// truth for every axis, and it DERIVES `EndlessSpoolCapabilities::enabled`
+    /// from this field** rather than answering independently, so the two cannot
+    /// diverge. Read the capabilities, not this.
+    bool endless_spool_enabled = false;
     bool supports_tool_mapping = false;
     bool supports_bypass = false;            ///< Has bypass selector position
     bool has_hardware_bypass_sensor = false; ///< true=auto-detect sensor, false=virtual/manual
@@ -1387,46 +1415,6 @@ namespace helix {
     return allows_implicit_chaining && info.current_slot >= 0 && info.filament_loaded;
 }
 
-/**
- * @brief Tool number implied by a Klipper extruder name: "extruder" = 0, "extruderN" = N.
- *
- * A positional convention, and the third of three numbering systems that can all
- * disagree on one machine: Klipper's `tool T<n>` objects, AFC's per-lane `map`
- * aliases, and extruder-name position. On the reporter's toolchanger AFC maps T0
- * to the `extruder5` lane while Klipper's `tool T0` is `extruder`
- * (prestonbrown/helixscreen#1229).
- *
- * Returns nullopt rather than a fallback for anything that is not an
- * `extruder`-prefixed name, so callers must decide what an unidentifiable
- * extruder means. Badge rendering needs that distinction: silently mapping an
- * empty name to 0 would label every toolhead "E0" on backends that never
- * populate SlotInfo::extruder_name at all.
- *
- * @param ext_name Klipper extruder object name, e.g. "extruder" or "extruder5"
- * @return Tool number, or nullopt if @p ext_name is not a valid extruder name
- */
-[[nodiscard]] inline std::optional<int> tool_number_for_extruder(std::string_view ext_name) {
-    constexpr std::string_view kPrefix = "extruder";
-    if (ext_name == kPrefix) {
-        return 0;
-    }
-    if (ext_name.size() <= kPrefix.size() || ext_name.substr(0, kPrefix.size()) != kPrefix) {
-        return std::nullopt;
-    }
-    const std::string_view digits = ext_name.substr(kPrefix.size());
-    // No real machine has a four-digit extruder index; the bound also keeps the
-    // accumulate below well clear of overflow without pulling in <climits>.
-    if (digits.size() > 3 || !std::all_of(digits.begin(), digits.end(),
-                                          [](unsigned char c) { return std::isdigit(c) != 0; })) {
-        return std::nullopt;
-    }
-    int value = 0;
-    for (const char c : digits) {
-        value = value * 10 + (c - '0');
-    }
-    return value;
-}
-
 } // namespace helix
 
 /**
@@ -1565,32 +1553,282 @@ inline std::vector<DryingPreset> get_default_drying_presets() {
 namespace helix::printer {
 
 /**
- * @brief Capabilities for endless spool feature
+ * @brief Does the endless-spool mechanism exist on this printer at all?
  *
- * Describes whether endless spool is supported and whether the UI can modify
- * the configuration. Different backends have different capabilities:
- * - AFC: Fully editable, per-slot backup configuration
- * - Happy Hare: Read-only, group-based (configured via mmu_vars.cfg)
- * - Mock: Configurable for testing both modes
+ * Three states rather than a bool because "the printer could do this but the
+ * optional package that exposes the live toggle is not installed" is a real
+ * answer on plugin-gated backends. No backend currently uses `RequiresPlugin`
+ * (AD5X stock zMod's `ANALOG_PRUTOK` switchover is always-on, reported as
+ * `Available`/`FirmwareManaged`); the value is retained for a future backend
+ * whose package genuinely can be missing.
  */
-struct EndlessSpoolCapabilities {
-    bool supported = false; ///< Does backend support endless spool?
-    bool editable = false;  ///< Can UI modify configuration?
-    std::string
-        description; ///< Human-readable description (e.g., "Per-slot backup", "Group-based")
+enum class EndlessSpoolAvailability : int {
+    Unsupported = 0,    ///< No such feature. Offer nothing.
+    RequiresPlugin = 1, ///< Mechanism exists; its optional package is absent.
+    Available = 2       ///< Present and usable.
 };
 
 /**
- * @brief Configuration for a single slot's endless spool backup
+ * @brief May this lane stand in for another when that one runs out?
  *
- * Represents which slot will be used as a backup when the primary slot runs out.
- * This provides a unified view regardless of backend (AFC's runout_lane or
- * Happy Hare's endless_spool_groups).
+ * Tri-state because the honest answer has three cases, and flattening the
+ * middle one loses either safety or the feature itself:
+ *
+ *  - `Eligible` - same polymer, same grade. Nothing to say.
+ *  - `GradeDiffers` - same polymer, different filler (PLA-CF behind PLA). The
+ *    swap WILL work, so refusing it would let a print die at a runout with a
+ *    usable spool one lane over. But filled filament is abrasive and runs at a
+ *    lower flow rate, and an endless-spool swap happens mid-print with nobody
+ *    watching, so the user is told before choosing it.
+ *  - `Incompatible` - a different polymer, or a backend-specific rule the
+ *    firmware enforces. Tagged and refused.
+ *
+ * Backends own the verdict. Only the base rule ever answers `GradeDiffers`: a
+ * backend whose firmware matches the type string exactly (AD5X IFS) has no soft
+ * case to express, because a lane its firmware will not select is not a choice
+ * worth offering.
+ */
+enum class BackupEligibility : int { Eligible = 0, GradeDiffers = 1, Incompatible = 2 };
+
+/**
+ * @brief Is endless spool switched on right now?
+ *
+ * Tri-state on purpose: "we could not read it" is a different answer from "it
+ * is off", and only the latter justifies telling the user that no automatic
+ * switchover will happen. AD5X genuinely needs Unknown - the plugin's
+ * `variable_backup` reaches us only through a macro `get_status()` dict that
+ * older plugin versions do not declare, and the `_IFS_VARS` unknown-command
+ * latch can leave us with no reading at all.
+ */
+enum class EndlessSpoolEnabled : int {
+    Unknown = -1, ///< Not readable from this backend / not read yet.
+    Off = 0,
+    On = 1
+};
+
+/**
+ * @brief What the UI may change, and in what shape.
+ *
+ * The shape matters to the UI, not just the yes/no: a PerSlot write touches one
+ * slot, a Group write can move other slots' relations as a side effect because
+ * the transport rewrites the whole partition (Happy Hare `GROUPS=<csv>`).
+ */
+enum class EndlessSpoolEditability : int {
+    ReadOnly = 0, ///< Display only.
+    PerSlot = 1,  ///< One named successor per slot (AFC `SET_RUNOUT`).
+    Group = 2     ///< Membership of an undirected group (Happy Hare `GROUPS=`).
+};
+
+/**
+ * @brief Why editing is restricted.
+ *
+ * An enum, not prose. The old `description` field carried load-bearing state as
+ * untranslated English ("Auto-refill enabled", "...read-only on multi-unit"),
+ * which no UI could safely display in any language but ours. Display text comes
+ * from endless_spool_restriction_text(), which is where lv_tr() lives.
+ */
+enum class EndlessSpoolRestriction : int {
+    None = 0,
+    /// The write command cannot target a unit (Happy Hare's
+    /// `MMU_ENDLESS_SPOOL` has no `UNIT=` and acts on the selected unit), so it
+    /// is unsafe on a multi-unit rig.
+    MultiUnit,
+    /// The firmware chooses the backup itself and exposes nothing to configure
+    /// (Creality CFS auto-refill; stock zMod's `ANALOG_PRUTOK`; the AD5X
+    /// plugin's type+colour match when backup is on).
+    FirmwareManaged,
+    /// The backend has not received enough state to answer yet.
+    NotReady,
+    /// No auto-switchover package is installed.
+    PluginMissing,
+    /// A package is installed but exposes no write path we can drive.
+    PluginReadOnly
+};
+
+/**
+ * @brief The restriction reason as display text, translated.
+ *
+ * Returns an empty string for EndlessSpoolRestriction::None. Defined in
+ * src/printer/ams_endless_spool.cpp so ams_types.h stays free of lv_tr().
+ */
+[[nodiscard]] std::string endless_spool_restriction_text(EndlessSpoolRestriction restriction);
+
+/**
+ * @brief What a backend can do about endless spool, on three independent axes.
+ *
+ * Availability, enablement and editability are genuinely orthogonal and the old
+ * two-bool struct could not hold them: CFS is available-and-read-only whether
+ * auto-refill is on or off, so `supported=true` rendered both states
+ * identically. Every field is either an enum or a proper noun - nothing here is
+ * translatable prose, so nothing here can leak English into the UI.
+ */
+struct EndlessSpoolCapabilities {
+    EndlessSpoolAvailability availability = EndlessSpoolAvailability::Unsupported;
+    EndlessSpoolEnabled enabled = EndlessSpoolEnabled::Unknown;
+    EndlessSpoolEditability editability = EndlessSpoolEditability::ReadOnly;
+    EndlessSpoolRestriction restriction = EndlessSpoolRestriction::None;
+
+    /// Proper noun of the package implementing the feature ("lessWaste",
+    /// "bambufy"); empty when the backend or firmware implements it natively.
+    /// A product name is never translated, which is why this is the one
+    /// free-text field left on the struct.
+    std::string provider;
+
+    /// The feature exists and is usable. Replaces the old `supported` bool.
+    [[nodiscard]] bool available() const {
+        return availability == EndlessSpoolAvailability::Available;
+    }
+
+    /// The UI may write. Replaces the old `editable` bool.
+    [[nodiscard]] bool editable() const {
+        return available() && editability != EndlessSpoolEditability::ReadOnly;
+    }
+};
+
+/**
+ * @brief One endless-spool group: slots that stand in for each other.
+ *
+ * @see EndlessSpoolConfig for why the shared model is groups and not edges.
+ */
+struct EndlessSpoolGroup {
+    /// The backend's own group id when it has one (a Happy Hare group number),
+    /// otherwise -1 for a group we synthesised from directed edges.
+    int id = -1;
+
+    /// Global slot indices. For an `ordered` group this IS the succession
+    /// order; otherwise it is ascending and carries no order.
+    std::vector<int> members;
+
+    /// true  - members[i] hands off to members[i+1]; the last member has no
+    ///         successor. AFC's `SET_RUNOUT` edge and the AD5X firmware match
+    ///         are directed, and become two-member ordered groups.
+    /// false - any member substitutes for any other. Happy Hare's gate group is
+    ///         an undirected clique of arbitrary size.
+    bool ordered = false;
+};
+
+/**
+ * @brief The whole system's endless-spool relation.
+ *
+ * Membership, not a single successor. A Happy Hare 4-gate group is ONE entry
+ * here rather than four arbitrary arrows, which is what the old per-slot
+ * `{slot_index, backup_slot}` vector forced the backend to invent (its
+ * `// Use first match` loop). Projection down to one-successor-per-slot is a
+ * rendering concern and lives in exactly one place -
+ * endless_spool_backup_edges() / endless_spool_backup_for().
+ *
+ * Overlapping groups are legal when `ordered`: AFC permits 0->2 and 1->2, which
+ * is two ordered pairs sharing slot 2. An unordered relation is a partition.
  */
 struct EndlessSpoolConfig {
-    int slot_index = 0;   ///< Slot this config applies to
-    int backup_slot = -1; ///< Backup slot index (-1 = no backup)
+    std::vector<EndlessSpoolGroup> groups;
+
+    [[nodiscard]] bool empty() const {
+        return groups.empty();
+    }
 };
+
+/**
+ * @brief Build a config from per-slot directed backup edges.
+ *
+ * @param edges edges[slot] = backup slot, or -1 for none.
+ * @return One two-member ordered group per non-empty edge.
+ */
+[[nodiscard]] EndlessSpoolConfig endless_spool_config_from_edges(const std::vector<int>& edges);
+
+/**
+ * @brief Build a config from per-slot group ids (Happy Hare's shape).
+ *
+ * @param group_ids group_ids[slot] = group number, or negative for ungrouped.
+ * @return One unordered group per id that has at least two members. A lone
+ *         member is dropped: a group of one backs nothing up, and emitting it
+ *         would make "grouped" and "has a backup" disagree.
+ */
+[[nodiscard]] EndlessSpoolConfig
+endless_spool_config_from_groups(const std::vector<int>& group_ids);
+
+/**
+ * @brief Project a group relation onto one successor per slot.
+ *
+ * The single group-to-edge projection in the codebase. Used by the arrow
+ * renderer and by the single-successor dropdown; never re-derive it.
+ *
+ * Ordered group:   members[i] -> members[i+1]; the last member gets nothing.
+ * Unordered group: a ring - members[i] -> members[i+1], last -> first. Every
+ *                  member gets exactly one successor and following the arrows
+ *                  visits the whole group, which is the closest a
+ *                  one-target-per-source edge view can get to "any member
+ *                  substitutes for any other". Pointing every member at the
+ *                  first other member instead (the pre-Phase-2 shape) drew an
+ *                  N-gate Happy Hare group as "slot 1 backs up everything",
+ *                  which a clique does not say.
+ *
+ * @param cfg        The relation.
+ * @param slot_count Length of the returned vector.
+ * @return edges[slot] = successor slot, or -1. Out-of-range members ignored.
+ */
+[[nodiscard]] std::vector<int> endless_spool_backup_edges(const EndlessSpoolConfig& cfg,
+                                                          int slot_count);
+
+/**
+ * @brief The single successor of one slot under the same projection.
+ * @return Backup slot index, or -1 when the slot has none.
+ */
+[[nodiscard]] int endless_spool_backup_for(const EndlessSpoolConfig& cfg, int slot);
+
+/**
+ * @brief What the endless-spool status line says, as a code the UI can bind to.
+ *
+ * Published on the `ams_endless_state` XML subject, so the numeric values are a
+ * UI contract - append, never renumber. `Hidden` is 0 so a single
+ * `bind_flag_if_eq ref_value="0"` hides the whole row, which is the only state
+ * where there is nothing truthful to say.
+ *
+ * The distinction that matters is Off vs Unknown: only Off justifies telling the
+ * user that nothing will switch. Unknown means we could not read the setting,
+ * and saying "off" there is a promise we cannot keep.
+ */
+enum class EndlessSpoolStatusKind : int {
+    Hidden = 0,     ///< Unsupported - render nothing.
+    On = 1,         ///< A runout will switch to a backup spool.
+    Off = 2,        ///< A runout will NOT switch. The print stops.
+    Unknown = 3,    ///< The backend could not tell us. Not the same as Off.
+    NeedsPlugin = 4 ///< The mechanism exists; its package is not installed.
+};
+
+/**
+ * @brief The endless-spool state as one bindable code plus one display string.
+ *
+ * Deliberately two fields and not four subjects: on a 480x272 panel there is
+ * one line of room, so the reason is folded into `text` behind a newline and the
+ * label wraps. `kind` exists separately because visibility (and any future icon
+ * or colour choice) must be expressible as an XML binding rather than a C++
+ * observer.
+ */
+struct EndlessSpoolStatus {
+    EndlessSpoolStatusKind kind = EndlessSpoolStatusKind::Hidden;
+    std::string text; ///< Empty iff kind == Hidden.
+};
+
+/**
+ * @brief Turn a backend's capabilities into the user-facing status line.
+ *
+ * The one place capability enums become a sentence. Pure: no backend, no mutex,
+ * no widgets - only `lv_tr()` and `provider`, so it is directly unit-testable
+ * against every corner of the capability struct.
+ *
+ * Wording rules this encodes:
+ *  - `Unsupported` says nothing at all rather than "off": a printer with no such
+ *    mechanism is not a printer with the mechanism switched off.
+ *  - `RequiresPlugin` names `provider` when the backend knows which package to
+ *    install, and otherwise falls back to the restriction text.
+ *  - A non-`None` restriction is appended on its own line, because "it will not
+ *    switch" and "and here is why you cannot change that from here" are two
+ *    different facts and the user needs both.
+ *  - A non-empty `provider` is appended parenthetically. A proper noun needs no
+ *    translation, so this costs no string.
+ */
+[[nodiscard]] EndlessSpoolStatus endless_spool_status(const EndlessSpoolCapabilities& caps);
 
 /**
  * @brief Capabilities for tool mapping feature

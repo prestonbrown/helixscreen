@@ -48,6 +48,16 @@ lv_flex_flow_t card_flow(lv_obj_t* comp) {
     return lv_obj_get_style_flex_flow(layout, LV_PART_MAIN);
 }
 
+// Tri-state so a missing child is distinguishable from a cleared flag after the
+// deferred-assert dance below: -1 = child not found, 0 = not scrollable, 1 = scrollable.
+int scrollable_state(lv_obj_t* comp, const char* name) {
+    lv_obj_t* child = lv_obj_find_by_name(comp, name);
+    if (child == nullptr) {
+        return -1;
+    }
+    return lv_obj_has_flag(child, LV_OBJ_FLAG_SCROLLABLE) ? 1 : 0;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture, "print_status card keeps row layout after attach at 3x2",
@@ -72,6 +82,35 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status card keeps row layout after at
     }
     PrintStatusWidget::destroy_formatter_for_test();
     REQUIRE(flow == LV_FLEX_FLOW_ROW);
+}
+
+/**
+ * The idle containers hold the benchy placeholder thumbnail and were never meant
+ * to scroll, but they carried no `scrollable` attribute, so they inherited LVGL's
+ * scrollable-ON default. That made them qualify for a page-scroll gutter, and on
+ * an 800x480 K-Touch (where /display/page_scroll_buttons defaults on) the gutter
+ * chevrons drew straight over the thumbnail. Assert the runtime flag rather than
+ * the XML text: the flag is what the gutter injector actually tests.
+ */
+TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle containers are not scrollable",
+                 "[print_status][panel_widget][scroll]") {
+    int idle = -2;
+    int idle_compact = -2;
+    {
+        PrintStatusWidget widget;
+        widget.set_config({{"layout_style", "library"}});
+
+        lv_obj_t* comp = make_print_status(test_screen());
+        REQUIRE(comp != nullptr);
+        widget.attach(comp, test_screen());
+        process_lvgl(30);
+
+        idle = scrollable_state(comp, "print_card_idle");
+        idle_compact = scrollable_state(comp, "print_card_idle_compact");
+    }
+    PrintStatusWidget::destroy_formatter_for_test();
+    REQUIRE(idle == 0);
+    REQUIRE(idle_compact == 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "print_status card layout survives instance recycle",

@@ -198,11 +198,13 @@ void WidgetCatalogOverlay::populate_rows(lv_obj_t* scroll, const PanelWidgetConf
                                          WidgetSelectedCallback /*on_select*/) {
     const auto& defs = get_all_widget_defs();
 
-    // Pre-pass: count placed instances per multi_instance base ID
+    // Pre-pass: count placed instances per multi_instance base ID.
+    // "Placed" means holding a grid cell, not merely enabled — an instance at
+    // (-1,-1) is on no dashboard and counting it overstates what the user sees.
     std::unordered_map<std::string, int> multi_placed_count;
     for (const auto& entry : config.entries()) {
         auto colon_pos = entry.id.find(':');
-        if (colon_pos != std::string::npos && entry.enabled) {
+        if (colon_pos != std::string::npos && entry.enabled && entry.has_grid_position()) {
             std::string base = entry.id.substr(0, colon_pos);
             multi_placed_count[base]++;
         }
@@ -248,8 +250,11 @@ void WidgetCatalogOverlay::populate_rows(lv_obj_t* scroll, const PanelWidgetConf
                 },
                 LV_EVENT_CLICKED, const_cast<char*>(def.id));
         } else {
-            // Single-instance widget
-            bool already_placed = config.is_enabled(def.id);
+            // Single-instance widget.
+            // is_placed(), not is_enabled(): a widget enabled at (-1,-1) is on
+            // no grid, and the catalog is the only surface that can give it a
+            // cell back. Dimming it there left it with no UI at all.
+            bool already_placed = config.is_placed(def.id);
 
             const char* display_name = def.display_name ? lv_tr(def.display_name) : def.id;
 

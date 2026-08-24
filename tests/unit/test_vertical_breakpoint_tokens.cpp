@@ -11,7 +11,7 @@
  * everything vertical: a 320x1480 panel classifies from 320 (TINY) and inherits
  * 32px buttons despite having 1480px of height to spend.
  *
- * Seven tokens now resolve from a second, vertical ladder. Both ladders share
+ * Nine tokens now resolve from a second, vertical ladder. Both ladders share
  * breakpoint_for() and theme_manager_get_breakpoint_suffix() verbatim; only the
  * scalar fed in differs. On landscape and square displays min(w,h) == h, so the
  * two ladders agree by construction and nothing moves — the landscape cases here
@@ -35,8 +35,11 @@
 
 namespace {
 
-/// The seven tokens migrated to the vertical ladder in #1209, with their
-/// declared values from ui_xml/globals.xml at the tiers this file exercises.
+/// Height tokens on the vertical ladder: the seven migrated in #1209 plus the
+/// two dialog content-cap siblings (values from ui_xml/globals.xml at the tiers
+/// this file exercises). The pinned/tall ladders are 85%-cap minus measured
+/// chrome (#1277) — both are vertical maxima and were briefly missing here,
+/// which made them resolve from the cramped axis on portrait panels.
 struct HeightToken {
     const char* name;
     const char* tiny;    // narrow axis 273-390
@@ -45,7 +48,7 @@ struct HeightToken {
     const char* xxlarge; // > 1000   (the 1480px axis of a 320x1480 panel)
 };
 
-constexpr HeightToken kHeightTokens[] = {
+constexpr HeightToken HEIGHT_TOKENS[] = {
     {"button_height", "32", "52", "72", "96"},
     {"button_height_sm", "28", "40", "40", "56"},
     {"button_height_lg", "40", "70", "96", "128"},
@@ -53,6 +56,8 @@ constexpr HeightToken kHeightTokens[] = {
     {"input_height", "48", "52", "56", "64"},
     {"temp_card_height", "48", "72", "80", "112"},
     {"dialog_content_max", "200", "320", "440", "800"},
+    {"dialog_content_pinned_max", "139", "207", "272", "414"},
+    {"dialog_content_tall_chrome_max", "146", "229", "282", "545"},
     // spinner_lg has no _micro/_tiny variant, so TINY falls back inward to
     // spinner_lg_small = 48 — which is exactly why the two tight portrait sizes
     // (240x320, 480x272) are unchanged by putting it on this ladder.
@@ -129,7 +134,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "responsive_vertical_dimension returns the ver
 
 TEST_CASE("Only the declared height tokens follow the vertical ladder",
           "[theme][breakpoints][1209]") {
-    for (const auto& t : kHeightTokens) {
+    for (const auto& t : HEIGHT_TOKENS) {
         INFO("token: " << t.name);
         CHECK(theme_manager_token_uses_vertical_axis(t.name));
     }
@@ -154,7 +159,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A tall portrait panel gets full-height control
     lv_display_t* d = make_test_display(320, 1480);
     const auto tokens = theme_manager_resolve_px_tokens(d);
 
-    for (const auto& t : kHeightTokens) {
+    for (const auto& t : HEIGHT_TOKENS) {
         INFO("token: " << t.name);
         CHECK(resolved(tokens, t.name) == t.xxlarge);
     }
@@ -172,7 +177,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Landscape token resolution is byte-identical t
     SECTION("800x480 — MEDIUM on both axes") {
         lv_display_t* d = make_test_display(800, 480);
         const auto tokens = theme_manager_resolve_px_tokens(d);
-        for (const auto& t : kHeightTokens) {
+        for (const auto& t : HEIGHT_TOKENS) {
             INFO("token: " << t.name);
             CHECK(resolved(tokens, t.name) == t.medium);
         }
@@ -184,7 +189,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Landscape token resolution is byte-identical t
     SECTION("1024x600 — LARGE on both axes") {
         lv_display_t* d = make_test_display(1024, 600);
         const auto tokens = theme_manager_resolve_px_tokens(d);
-        for (const auto& t : kHeightTokens) {
+        for (const auto& t : HEIGHT_TOKENS) {
             INFO("token: " << t.name);
             CHECK(resolved(tokens, t.name) == t.large);
         }
@@ -196,7 +201,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Landscape token resolution is byte-identical t
     SECTION("480x320 — TINY on both axes, the smallest shipping panel") {
         lv_display_t* d = make_test_display(480, 320);
         const auto tokens = theme_manager_resolve_px_tokens(d);
-        for (const auto& t : kHeightTokens) {
+        for (const auto& t : HEIGHT_TOKENS) {
             INFO("token: " << t.name);
             CHECK(resolved(tokens, t.name) == t.tiny);
         }
@@ -219,7 +224,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Startup registration matches the shared resolv
     // (theme_manager_init → theme_manager_register_responsive_spacing) at the
     // fixture's 800x480. They must be exactly what the resolver says.
     const auto tokens = theme_manager_resolve_px_tokens(disp);
-    for (const auto& t : kHeightTokens) {
+    for (const auto& t : HEIGHT_TOKENS) {
         INFO("token: " << t.name);
         CHECK(token(t.name) == resolved(tokens, t.name));
         CHECK(token(t.name) == t.medium);

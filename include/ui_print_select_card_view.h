@@ -5,6 +5,10 @@
 
 #include "ui_observer_guard.h"
 
+#if defined(HELIX_PLATFORM_ESP32)
+#include "esp_psram_thumbnail.h"
+#endif
+
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -72,6 +76,15 @@ struct CardWidgetData {
     lv_observer_t* parent_dir_icon_observer = nullptr; ///< Shows parent dir icon for ".."
     lv_observer_t* thumbnail_observer = nullptr;       ///< Shows thumbnail when state==0
     lv_observer_t* no_thumb_icon_observer = nullptr;   ///< Shows placeholder icon when state==1
+
+#if defined(HELIX_PLATFORM_ESP32)
+    /// Keeps the PSRAM thumbnail buffer alive for as long as this card's
+    /// `thumbnail` image widget's `src` still points at its lv_image_dsc_t,
+    /// independent of the source PrintFileData entry's own lifetime (which
+    /// may be replaced by a list refresh/sort while this widget still shows
+    /// the old image). See esp_psram_thumbnail.h.
+    std::shared_ptr<helix::ui::EspPsramThumbnail> esp_thumbnail;
+#endif
 };
 
 /**

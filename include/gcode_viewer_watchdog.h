@@ -28,9 +28,9 @@ struct WatchdogDecision {
 /// @param max_stall_kicks consecutive confirmed-stall ticks tolerated before
 ///                        giving up (stop kicking, signal error)
 inline WatchdogDecision watchdog_evaluate(const WatchdogObservation& obs, int max_stall_kicks) {
-    constexpr int kNeverSampled = -2;
+    constexpr int NEVER_SAMPLED = -2;
 
-    const bool first_sample = (obs.prev_cached == kNeverSampled);
+    const bool first_sample = (obs.prev_cached == NEVER_SAMPLED);
     const bool behind_target = (obs.cached < obs.target);
     const bool same_state = (obs.cached == obs.prev_cached) && (obs.target == obs.prev_target);
 

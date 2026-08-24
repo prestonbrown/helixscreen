@@ -15,13 +15,13 @@
  * would pass or fail depending on which other test ran first.
  */
 
+#include "ui_keyboard_manager.h"
+
 #include <algorithm>
 #include <set>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
-
-#include "ui_keyboard_manager.h"
 
 namespace {
 
@@ -39,8 +39,7 @@ std::multiset<char> alt_set(char key) {
 
 } // namespace
 
-TEST_CASE("Keyboard alternates: letters carry their documented character",
-          "[ui][keyboard_alt]") {
+TEST_CASE("Keyboard alternates: letters carry their documented character", "[ui][keyboard_alt]") {
     // The mapping the user guide publishes. If these change, the table in
     // docs/user/guide/getting-started.md is wrong and must change with them.
     REQUIRE(alts('f') == "_");
@@ -52,8 +51,7 @@ TEST_CASE("Keyboard alternates: letters carry their documented character",
     REQUIRE(alts('m') == "?");
 }
 
-TEST_CASE("Keyboard alternates: uppercase maps the same as lowercase",
-          "[ui][keyboard_alt]") {
+TEST_CASE("Keyboard alternates: uppercase maps the same as lowercase", "[ui][keyboard_alt]") {
     // Shift must not change which alternate a key offers.
     for (char lower = 'a'; lower <= 'z'; ++lower) {
         const char upper = static_cast<char>(lower - 'a' + 'A');
@@ -90,8 +88,7 @@ TEST_CASE("Keyboard MRU: promoting moves a character to the front", "[ui][keyboa
     REQUIRE(alts(',').front() == '=');
 }
 
-TEST_CASE("Keyboard MRU: promoting never loses or duplicates a character",
-          "[ui][keyboard_alt]") {
+TEST_CASE("Keyboard MRU: promoting never loses or duplicates a character", "[ui][keyboard_alt]") {
     auto& kb = KeyboardManager::instance();
     const std::multiset<char> before = alt_set(',');
 

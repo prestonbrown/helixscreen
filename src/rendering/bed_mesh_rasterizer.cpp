@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 /**
  * @file bed_mesh_rasterizer.cpp
  * @brief Triangle rasterization implementation for bed mesh visualization
@@ -271,3 +273,5 @@ void fill_triangle_gradient(PixelBuffer& buf, int x1, int y1, lv_color_t c1, int
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

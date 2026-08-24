@@ -59,6 +59,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ccache \
     && rm -rf /var/lib/apt/lists/*
 
+# Hardened download wrapper. A bare `wget -q` gives up on a DNS failure in ~24 ms
+# and on a refused connection in ~4 ms, without retrying either, which is how a
+# valid zlib URL failed the v0.99.111 cc1 release build 52 ms in. See fetch.sh.
+COPY fetch.sh /usr/local/bin/fetch
+
 # Download ARM's pre-built GCC 10.3-2021.07 toolchain
 # ARM provides both x86_64-hosted and aarch64-hosted variants - we select based on TARGETARCH
 # Both produce identical armv7-a output binaries, just the compiler itself differs
@@ -74,7 +79,7 @@ RUN HOSTARCH=$(case "$TARGETARCH" in \
     esac) && \
     TOOLCHAIN_NAME="gcc-arm-10.3-2021.07-${HOSTARCH}-arm-none-linux-gnueabihf" && \
     echo "Downloading ${TOOLCHAIN_NAME} for ${TARGETARCH} host..." && \
-    wget -q "https://developer.arm.com/-/media/Files/downloads/gnu-a/10.3-2021.07/binrel/${TOOLCHAIN_NAME}.tar.xz" && \
+    fetch "https://developer.arm.com/-/media/Files/downloads/gnu-a/10.3-2021.07/binrel/${TOOLCHAIN_NAME}.tar.xz" && \
     tar xf "${TOOLCHAIN_NAME}.tar.xz" && \
     rm "${TOOLCHAIN_NAME}.tar.xz" && \
     mv "${TOOLCHAIN_NAME}" arm-toolchain
@@ -89,7 +94,7 @@ RUN HOSTARCH=$(case "$TARGETARCH" in \
 # Must set PATH here since ENV PATH comes later in the Dockerfile
 WORKDIR /tmp
 RUN export PATH="/opt/arm-toolchain/bin:$PATH" && \
-    wget -q https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    fetch https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
     tar xzf openssl-1.1.1w.tar.gz && \
     cd openssl-1.1.1w && \
     ./Configure linux-armv4 no-shared \
@@ -107,7 +112,7 @@ RUN export PATH="/opt/arm-toolchain/bin:$PATH" && \
 # The ARM GCC toolchain doesn't include zlib, so we build it from source.
 WORKDIR /tmp
 RUN export PATH="/opt/arm-toolchain/bin:$PATH" && \
-    wget -q https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
+    fetch https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
     tar xzf zlib-1.3.2.tar.gz && \
     cd zlib-1.3.2 && \
     CHOST=arm-none-linux-gnueabihf ./configure --static \

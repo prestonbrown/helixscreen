@@ -1,5 +1,5 @@
 diff --git a/src/drivers/evdev/lv_evdev.c b/src/drivers/evdev/lv_evdev.c
-index 1b8319e04..24c7d2971 100644
+index 1b8319e04..1fdc9a191 100644
 --- a/src/drivers/evdev/lv_evdev.c
 +++ b/src/drivers/evdev/lv_evdev.c
 @@ -12,6 +12,7 @@
@@ -314,3 +314,40 @@ index 1b8319e04..24c7d2971 100644
  }
  
  static void _evdev_indev_delete_cb(lv_event_t * e)
+@@ -562,6 +739,36 @@ lv_indev_t * lv_evdev_create_fd(lv_indev_type_t indev_type, int fd)
+         else {
+             LV_LOG_INFO("ioctl EVIOCGABS(ABS_Y) failed: %s", strerror(errno));
+         }
++
++        /* MT protocol B panels may expose no single-touch axes at all: the
++         * digitizer reports only ABS_MT_POSITION_X/Y and the kernel emulates
++         * ABS_X/ABS_Y only when the driver asks it to. _evdev_read already
++         * accepts either code, but the range query above did not, so such a
++         * panel left min==max==0. _evdev_calibrate skips scaling entirely when
++         * in_min == in_max, so raw digitizer units were passed through and
++         * merely clamped to the panel — every coordinate past the screen width
++         * saturated at the edge and touch read as badly misaligned.
++         *
++         * A degenerate range is the signal, not ioctl failure: querying an
++         * unsupported code commonly succeeds with an all-zero absinfo rather
++         * than returning an error. Fall back per axis, so a panel that reports
++         * one axis conventionally and the other only via MT still calibrates. */
++        if(dsc->max_x <= dsc->min_x &&
++           ioctl(dsc->fd, EVIOCGABS(ABS_MT_POSITION_X), &absinfo) == 0 &&
++           absinfo.maximum > absinfo.minimum) {
++            dsc->min_x = absinfo.minimum;
++            dsc->max_x = absinfo.maximum;
++            LV_LOG_INFO("evdev: ABS_X range empty, using ABS_MT_POSITION_X [%d..%d]",
++                        dsc->min_x, dsc->max_x);
++        }
++        if(dsc->max_y <= dsc->min_y &&
++           ioctl(dsc->fd, EVIOCGABS(ABS_MT_POSITION_Y), &absinfo) == 0 &&
++           absinfo.maximum > absinfo.minimum) {
++            dsc->min_y = absinfo.minimum;
++            dsc->max_y = absinfo.maximum;
++            LV_LOG_INFO("evdev: ABS_Y range empty, using ABS_MT_POSITION_Y [%d..%d]",
++                        dsc->min_y, dsc->max_y);
++        }
+     }
+ 
+     lv_indev_t * indev = lv_indev_create();

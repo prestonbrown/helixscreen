@@ -501,7 +501,11 @@ void AmsDeviceSectionDetailOverlay::on_action_clicked(lv_event_t* e) {
 
                 AmsError result = backend->execute_device_action(action_id);
                 if (result.success()) {
-                    NOTIFY_INFO("{} {}", lv_tr(label.c_str()), lv_tr("started"));
+                    // Whole sentence, not "{} {}" over two separately translated
+                    // words: German sends the participle to the end of the
+                    // clause and Japanese renders this as 〜を開始しました, and
+                    // neither can be reached by concatenating "label" + "started".
+                    NOTIFY_INFO(lv_tr("{} started"), lv_tr(label.c_str()));
                 } else {
                     helix::ui::notify_ams_error(result);
                 }
@@ -547,8 +551,8 @@ void AmsDeviceSectionDetailOverlay::on_toggle_changed(lv_event_t* e) {
                 // For toggles, pass the new value as a parameter
                 AmsError result = backend->execute_device_action(action_id, std::any(new_value));
                 if (result.success()) {
-                    NOTIFY_INFO("{} {}", lv_tr(label.c_str()),
-                                new_value ? lv_tr("enabled") : lv_tr("disabled"));
+                    NOTIFY_INFO(new_value ? lv_tr("{} enabled") : lv_tr("{} disabled"),
+                                lv_tr(label.c_str()));
                 } else {
                     helix::ui::notify_ams_error(result);
                     // Revert the toggle state on failure
@@ -639,10 +643,9 @@ void AmsDeviceSectionDetailOverlay::on_slider_released(lv_event_t* e) {
                 AmsError result = backend->execute_device_action(action_id, std::any(float_val));
                 if (result.success()) {
                     if (!unit.empty()) {
-                        NOTIFY_INFO("{} {} {} {}", lv_tr(label.c_str()), lv_tr("set to"), int_val,
-                                    unit);
+                        NOTIFY_INFO(lv_tr("{} set to {} {}"), lv_tr(label.c_str()), int_val, unit);
                     } else {
-                        NOTIFY_INFO("{} {} {}", lv_tr(label.c_str()), lv_tr("set to"), int_val);
+                        NOTIFY_INFO(lv_tr("{} set to {}"), lv_tr(label.c_str()), int_val);
                     }
                 } else {
                     helix::ui::notify_ams_error(result);
@@ -724,10 +727,10 @@ void AmsDeviceSectionDetailOverlay::on_value_input_ready(lv_event_t* e) {
                     AmsError result = backend->execute_device_action(action_id, std::any(val));
                     if (result.success()) {
                         if (!unit.empty()) {
-                            NOTIFY_INFO("{} {} {} {}", lv_tr(label.c_str()), lv_tr("set to"),
+                            NOTIFY_INFO(lv_tr("{} set to {} {}"), lv_tr(label.c_str()),
                                         static_cast<int32_t>(val), unit);
                         } else {
-                            NOTIFY_INFO("{} {} {}", lv_tr(label.c_str()), lv_tr("set to"),
+                            NOTIFY_INFO(lv_tr("{} set to {}"), lv_tr(label.c_str()),
                                         static_cast<int32_t>(val));
                         }
                     } else {
@@ -782,7 +785,7 @@ void AmsDeviceSectionDetailOverlay::on_dropdown_changed(lv_event_t* e) {
             } else {
                 AmsError result = backend->execute_device_action(action_id, std::any(selected_str));
                 if (result.success()) {
-                    NOTIFY_INFO("{} {} {}", lv_tr(label.c_str()), lv_tr("set to"), selected_str);
+                    NOTIFY_INFO(lv_tr("{} set to {}"), lv_tr(label.c_str()), selected_str);
                 } else {
                     helix::ui::notify_ams_error(result);
                 }

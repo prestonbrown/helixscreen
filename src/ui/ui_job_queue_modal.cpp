@@ -9,12 +9,15 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "i_moonraker_api.h"
 #include "job_queue_state.h"
-#include "moonraker_api.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <lvgl/lvgl.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <cstdio>
@@ -159,11 +162,10 @@ void JobQueueModal::update_queue_state_ui() {
     const auto& state = jqs->get_queue_state();
     bool is_paused = (state == "paused");
 
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "Queue: %s", is_paused ? "Paused" : "Ready");
-    lv_label_set_text(state_label, buf);
+    // Whole strings, not "Queue: %s" over an untranslated state word.
+    lv_label_set_text(state_label, is_paused ? lv_tr("Queue: Paused") : lv_tr("Queue: Ready"));
     if (toggle_btn) {
-        ui_button_set_text(toggle_btn, is_paused ? "Start" : "Pause");
+        ui_button_set_text(toggle_btn, is_paused ? lv_tr("Start") : lv_tr("Pause"));
     }
 }
 
@@ -275,15 +277,15 @@ void JobQueueModal::populate_job_list() {
             int mins = static_cast<int>(job.time_in_queue / 60);
             int hours = mins / 60;
             mins = mins % 60;
-            char time_buf[64];
+            std::string queued;
             if (hours > 0) {
-                std::snprintf(time_buf, sizeof(time_buf), "Queued %dh %dm ago", hours, mins);
+                queued = fmt::format(lv_tr("Queued {}h {}m ago"), hours, mins);
             } else if (mins > 0) {
-                std::snprintf(time_buf, sizeof(time_buf), "Queued %dm ago", mins);
+                queued = fmt::format(lv_tr("Queued {}m ago"), mins);
             } else {
-                std::snprintf(time_buf, sizeof(time_buf), "Just queued");
+                queued = lv_tr("Just queued");
             }
-            lv_label_set_text(time_label, time_buf);
+            lv_label_set_text(time_label, queued.c_str());
             if (small_font)
                 lv_obj_set_style_text_font(time_label, small_font, 0);
             lv_obj_set_style_text_color(time_label, muted_color, 0);
@@ -381,12 +383,13 @@ void JobQueueModal::start_job(const std::string& job_id, const std::string& file
     if (!api)
         return;
 
+    // The queue entry is removed BEFORE the start is attempted, so an
+    // incomplete refusal loses the job: it is deleted and the print then fails.
+    // can_start_new_print() covers both axes — what the printer reports AND a
+    // start this app has already committed to but the printer has not confirmed,
+    // which is the whole of a host-side pre-print block.
     auto& ps = get_printer_state();
-    auto state = ps.get_print_job_state();
-
-    if (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED) {
-        // Printer is busy — move job to front of queue (position 0)
-        // For now, just show a log message; full reorder API would be future work
+    if (!ps.can_start_new_print()) {
         spdlog::info("[JobQueueModal] Printer busy, cannot start '{}' now", filename);
         // TODO: Moonraker doesn't have a reorder API — could delete+re-add at position 0
         return;

@@ -25,9 +25,8 @@
  * colour-type test fails.
  */
 
-#include "screenshot.h"
-
 #include "../lvgl_test_fixture.h"
+#include "screenshot.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -40,8 +39,7 @@
 namespace {
 
 /// One ARGB8888 pixel in LVGL's memory order (B, G, R, A).
-void put_bgra(std::vector<uint8_t>& buf, size_t index, uint8_t b, uint8_t g, uint8_t r,
-              uint8_t a) {
+void put_bgra(std::vector<uint8_t>& buf, size_t index, uint8_t b, uint8_t g, uint8_t r, uint8_t a) {
     size_t o = index * 4;
     buf[o + 0] = b;
     buf[o + 1] = g;
@@ -75,10 +73,10 @@ TEST_CASE("argb8888_to_rgba swaps red and blue, leaving green and alpha alone",
           "[screenshot][png]") {
     std::vector<uint8_t> argb(4 * 4);
     // Asymmetric colours: an R/B swap must change every one of these.
-    put_bgra(argb, 0, /*b=*/0, /*g=*/0, /*r=*/255, /*a=*/255);   // red
-    put_bgra(argb, 1, /*b=*/0, /*g=*/255, /*r=*/0, /*a=*/255);   // green
-    put_bgra(argb, 2, /*b=*/255, /*g=*/0, /*r=*/0, /*a=*/255);   // blue
-    put_bgra(argb, 3, /*b=*/10, /*g=*/20, /*r=*/30, /*a=*/128);  // all four differ
+    put_bgra(argb, 0, /*b=*/0, /*g=*/0, /*r=*/255, /*a=*/255);  // red
+    put_bgra(argb, 1, /*b=*/0, /*g=*/255, /*r=*/0, /*a=*/255);  // green
+    put_bgra(argb, 2, /*b=*/255, /*g=*/0, /*r=*/0, /*a=*/255);  // blue
+    put_bgra(argb, 3, /*b=*/10, /*g=*/20, /*r=*/30, /*a=*/128); // all four differ
 
     std::vector<uint8_t> rgba = helix::argb8888_to_rgba(argb.data(), 4);
     REQUIRE(rgba.size() == argb.size());

@@ -29,7 +29,9 @@ set -eu
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 
 # Configuration
+# shellcheck disable=SC2034  # consumed by lib/installer/common.sh and release.sh (sourced below)
 GITHUB_REPO="prestonbrown/helixscreen"
+# shellcheck disable=SC2034  # consumed by lib/installer/common.sh, service.sh, uninstall.sh (sourced below)
 SERVICE_NAME="helixscreen"
 
 # Source modules (if running from repo, not bundled)

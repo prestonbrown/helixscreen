@@ -45,7 +45,7 @@
  * - Sortable columns: filename, size, modified date, print time
  * - Detail overlay with file metadata and action buttons
  * - Delete confirmation dialog
- * - MoonrakerAPI integration for file listing, deletion, and print start
+ * - IMoonrakerAPI integration for file listing, deletion, and print start
  *
  * ## Reactive Subjects (6):
  * - selected_filename - Currently selected file name
@@ -183,6 +183,29 @@ inline bool dir_error_should_reset_to_root(const std::string& error_message, boo
 }
 
 /**
+ * @brief Whether a notify_filelist_changed payload can change what this panel lists.
+ *
+ * PrintSelectFileProvider requests the "gcodes" root and nothing else, so a
+ * change under any other root cannot alter this list. Moonraker fires the same
+ * notification for every registered directory, and printers write to `config`
+ * constantly: an AFC unit rewrites `AFC/AFC.var.unit` on every SET_* command and
+ * a SAVE_VARIABLE delayed_gcode rewrites `saved_variables.cfg`, which together
+ * cost 113 full server.files.get_directory round trips in one session in debug
+ * bundle L53W5PKG — all while the user sat on the print-status panel.
+ *
+ * An empty root means the payload had no shape we recognise; refresh in that
+ * case, because going stale is worse than one extra round trip.
+ *
+ * Exact match, not a prefix: a separately registered root such as
+ * "gcodes_backup" is a different directory and would reintroduce the storm.
+ * Extracted as a pure function so it can be tested without the full
+ * PrintSelectPanel/LVGL fixture.
+ */
+inline bool filelist_change_affects_gcodes(const std::string& root) {
+    return root.empty() || root == "gcodes";
+}
+
+/**
  * @brief Value to publish to a thumbnail POINTER subject (lv_image_bind_src).
  *
  * Returns @p buffer only when it holds a real (non-empty) thumbnail path;
@@ -200,6 +223,8 @@ inline char* thumbnail_subject_value(char* buffer) {
     return (buffer && buffer[0] != '\0') ? buffer : nullptr;
 }
 
+struct PrintSelectPanelTestAccess; // test-only friend (tests/test_helpers/)
+
 /**
  * @brief Print file selection panel with card/list views
  *
@@ -215,9 +240,9 @@ class PrintSelectPanel : public PanelBase {
      * @brief Construct PrintSelectPanel with injected dependencies
      *
      * @param printer_state Reference to helix::PrinterState for mock detection
-     * @param api Pointer to MoonrakerAPI for file operations
+     * @param api Pointer to IMoonrakerAPI for file operations
      */
-    PrintSelectPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    PrintSelectPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     /**
      * @brief Destructor - cleanup observers
@@ -371,13 +396,13 @@ class PrintSelectPanel : public PanelBase {
     }
 
     /**
-     * @brief Set MoonrakerAPI and trigger file refresh
+     * @brief Set IMoonrakerAPI and trigger file refresh
      *
      * Overrides base class to automatically refresh file list when API becomes available.
      *
-     * @param api Pointer to MoonrakerAPI (may be nullptr to disconnect)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr to disconnect)
      */
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     /**
      * @brief Set selected file data and update subjects
@@ -536,6 +561,8 @@ class PrintSelectPanel : public PanelBase {
     void hide_delete_confirmation();
 
   private:
+    friend struct PrintSelectPanelTestAccess;
+
     // Single unified remap entry point. Builds the picker UNIFORMLY for every
     // backend (tool_info from preflight checks, slots from AmsState) and shows
     // the one shared remap_modal_. Called by on_preflight_remap(), the detail
@@ -626,8 +653,10 @@ class PrintSelectPanel : public PanelBase {
     std::string selected_filament_type_; ///< Filament type of selected file (for dropdown default)
     std::vector<std::string> selected_filament_colors_; ///< Tool colors of selected file
     std::vector<std::string>
-        selected_filament_materials_;     ///< Per-tool material types of selected file
-    size_t selected_file_size_bytes_ = 0; ///< File size of selected file (for safety checks)
+        selected_filament_materials_;        ///< Per-tool material types of selected file
+    size_t selected_file_size_bytes_ = 0;    ///< File size of selected file (for safety checks)
+    time_t selected_modified_timestamp_ = 0; ///< mtime of selected file (tools-used cache key)
+    uint64_t selected_gcode_end_byte_ = 0;   ///< G-code body end offset (sizes the footer read)
     FileHistoryStatus selected_history_status_ =
         FileHistoryStatus::NEVER_PRINTED; ///< History status of selected file
     int selected_success_count_ = 0;      ///< Success count of selected file
@@ -887,10 +916,10 @@ class PrintSelectPanel : public PanelBase {
  * @brief Get or create the global PrintSelectPanel instance
  *
  * @param printer_state Reference to helix::PrinterState
- * @param api Pointer to MoonrakerAPI (may be nullptr)
+ * @param api Pointer to IMoonrakerAPI (may be nullptr)
  * @return Pointer to the global instance
  */
-PrintSelectPanel* get_print_select_panel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+PrintSelectPanel* get_print_select_panel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
 /**
  * @brief Get reference to the global PrintSelectPanel instance

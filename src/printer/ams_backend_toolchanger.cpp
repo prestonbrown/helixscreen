@@ -5,8 +5,8 @@
 
 #include "ams_error.h"
 #include "ams_tool_map_sync.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -20,16 +20,15 @@ using namespace helix;
 // Construction / Destruction
 // ============================================================================
 
-AmsBackendToolChanger::AmsBackendToolChanger(MoonrakerAPI* api, MoonrakerClient* client)
+AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
     // Initialize system info with tool changer defaults
     system_info_.type = AmsType::TOOL_CHANGER;
     system_info_.type_name = "Tool Changer";
 
     // Tool changer capabilities
-    system_info_.supports_endless_spool = false; // Not applicable
-    system_info_.supports_tool_mapping = true;   // Via klipper-toolchanger ASSIGN_TOOL
-    system_info_.supports_bypass = false;        // No bypass on tool changers
+    system_info_.supports_tool_mapping = true; // Via klipper-toolchanger ASSIGN_TOOL
+    system_info_.supports_bypass = false;      // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
 
     spdlog::debug("[AMS ToolChanger] Backend created");
@@ -548,7 +547,7 @@ AmsError AmsBackendToolChanger::dispatch_operation(std::string gcode, AmsAction 
     });
 
     if (!result) {
-        // The gcode never left: no MoonrakerAPI, or the send was refused. No ack
+        // The gcode never left: no IMoonrakerAPI, or the send was refused. No ack
         // will ever arrive, so undo the optimistic action instead of leaving the
         // UI busy and every later operation locked out by is_busy().
         spdlog::warn("[AMS ToolChanger] Dispatch #{} failed to send ({}), reverting optimistic "

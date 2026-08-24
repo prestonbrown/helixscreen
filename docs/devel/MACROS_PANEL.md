@@ -117,10 +117,16 @@ Parameters come in two types, handled differently at execution time:
 
 ### Resolution Priority
 
-1. User configured (via Settings)
+1. User configured (via Settings) — verified to exist on the printer before it is trusted
 2. Auto-detected (pattern matching against discovered macros)
 3. HELIX fallback (built-in helper macros from `helix_macros.cfg`)
 4. Empty (slot not available)
+
+A configured name the printer does not define is demoted at init and the slot
+resolves as though unconfigured. In the Controls panel a demoted slot keeps its
+button in place but greys it out — a button that disappears reads as a bug in
+the screen, while a disabled one points at the assignment that needs fixing —
+rather than sending a command Klipper would reject with "Unknown command".
 
 See `STANDARD_MACROS_SPEC.md` for the full specification.
 

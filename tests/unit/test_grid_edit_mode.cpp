@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/grid_edit_mode_test_access.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
 #include "panel_widget_config.h"
@@ -1138,47 +1139,113 @@ TEST_CASE("Drag threshold: small movement should not start drag", "[grid_edit][d
     CHECK(exceeds);
 }
 
-TEST_CASE("Drag start touch margin: finger drift within margin is accepted", "[grid_edit][drag]") {
-    // handle_drag_start allows TOUCH_MARGIN pixels of drift outside the widget bounds.
-    // This prevents drag failures when the finger moves slightly during a long-press.
-    constexpr int TOUCH_MARGIN = 15; // Must match handle_drag_start's TOUCH_MARGIN
+TEST_CASE("Drag start touch margin: finger drift within margin is accepted",
+          "[grid_edit][drag][resize][1169]") {
+    // handle_drag_start allows the edge grab band of drift outside the widget
+    // bounds, so a press that lands slightly off still owns the widget. Calls
+    // the real predicate rather than restating it.
+    GridEditMode em;
+    const int band = GridEditModeTestAccess::edge_hit_band(em); // no container → fallback
 
     // Widget bounds: (100, 50) → (200, 150)
-    int x1 = 100, y1 = 50, x2 = 200, y2 = 150;
+    const lv_area_t area = {100, 50, 200, 150};
+    auto owns = [&](int x, int y) {
+        return GridEditModeTestAccess::press_owns_widget(em, lv_point_t{x, y}, area);
+    };
 
-    // Point exactly on boundary — accepted
-    int px = 200, py = 100;
-    bool outside = (px < x1 - TOUCH_MARGIN || px > x2 + TOUCH_MARGIN || py < y1 - TOUCH_MARGIN ||
-                    py > y2 + TOUCH_MARGIN);
-    CHECK_FALSE(outside);
+    CHECK(owns(150, 100));              // dead centre
+    CHECK(owns(200, 100));              // exactly on the right boundary
+    CHECK(owns(200 + band, 100));       // exactly at the outward limit
+    CHECK_FALSE(owns(201 + band, 100)); // one past it
+    CHECK(owns(150, 50 - band));        // outward limit above the top edge
+    CHECK_FALSE(owns(150, 49 - band));
+    CHECK(owns(100 - band, 100)); // outward limit left of the left edge
+    CHECK_FALSE(owns(99 - band, 100));
+    CHECK(owns(150, 150 + band)); // outward limit below the bottom edge
+    CHECK_FALSE(owns(150, 151 + band));
+}
 
-    // Point 5px outside right edge — within margin, accepted
-    px = 205;
-    py = 100;
-    outside = (px < x1 - TOUCH_MARGIN || px > x2 + TOUCH_MARGIN || py < y1 - TOUCH_MARGIN ||
-               py > y2 + TOUCH_MARGIN);
-    CHECK_FALSE(outside);
+// ============================================================================
+// Grow-resize gesture: guard is anchored at the press origin (#1169)
+// ============================================================================
 
-    // Point 15px outside right edge — exactly at margin boundary, accepted
-    px = 215;
-    py = 100;
-    outside = (px < x1 - TOUCH_MARGIN || px > x2 + TOUCH_MARGIN || py < y1 - TOUCH_MARGIN ||
-               py > y2 + TOUCH_MARGIN);
-    CHECK_FALSE(outside);
+TEST_CASE("press_owns_widget: a grow-resize press still owns the widget after the pointer leaves",
+          "[grid_edit][resize][1169]") {
+    // A resize that GROWS a widget drags away from it. By the time the drag
+    // threshold is met the live pointer is well outside the bounds, but the
+    // press origin is still on the edge. handle_drag_start must judge by the
+    // origin — testing the live pointer drops exactly these gestures.
+    GridEditMode em;
+    const int band = GridEditModeTestAccess::edge_hit_band(em);
 
-    // Point 16px outside right edge — beyond margin, rejected
-    px = 216;
-    py = 100;
-    outside = (px < x1 - TOUCH_MARGIN || px > x2 + TOUCH_MARGIN || py < y1 - TOUCH_MARGIN ||
-               py > y2 + TOUCH_MARGIN);
-    CHECK(outside);
+    const lv_area_t area = {100, 100, 300, 300};
 
-    // Point 10px outside top edge — within margin, accepted
-    px = 150;
-    py = 40;
-    outside = (px < x1 - TOUCH_MARGIN || px > x2 + TOUCH_MARGIN || py < y1 - TOUCH_MARGIN ||
-               py > y2 + TOUCH_MARGIN);
-    CHECK_FALSE(outside);
+    // Finger lands 5px inside the right edge — squarely in the grab band.
+    const lv_point_t origin{295, 200};
+    REQUIRE(GridEditModeTestAccess::press_owns_widget(em, origin, area));
+    REQUIRE(em.detect_resize_edge(origin.x, origin.y, area) == GridEditMode::ResizeEdge::Right);
+
+    // The pointer has since travelled 34px past the right edge — beyond the
+    // band, so a live-pointer guard would reject the gesture here.
+    const lv_point_t live{334, 200};
+    REQUIRE(live.x > area.x2 + band); // the drift really is out of range
+    CHECK_FALSE(GridEditModeTestAccess::press_owns_widget(em, live, area));
+
+    // The origin still owns the widget, so the resize is allowed to start and
+    // the edge classification (which already reads press_origin_) still fires.
+    CHECK(GridEditModeTestAccess::press_owns_widget(em, origin, area));
+    CHECK(em.detect_resize_edge(origin.x, origin.y, area) == GridEditMode::ResizeEdge::Right);
+}
+
+TEST_CASE("press_owns_widget: a press that never touched the widget is rejected",
+          "[grid_edit][resize][1169]") {
+    // The guard is anchored at the origin, not disabled: an origin nowhere near
+    // the widget must still be turned away even if the pointer has drifted back.
+    GridEditMode em;
+    const int band = GridEditModeTestAccess::edge_hit_band(em);
+    const lv_area_t area = {100, 100, 300, 300};
+
+    const lv_point_t far_origin{300 + band + 40, 200};
+    CHECK_FALSE(GridEditModeTestAccess::press_owns_widget(em, far_origin, area));
+
+    // Pointer now sits dead centre — irrelevant, the origin is what decides.
+    CHECK(GridEditModeTestAccess::press_owns_widget(em, lv_point_t{200, 200}, area));
+}
+
+// ============================================================================
+// Edge grab band derivation
+// ============================================================================
+
+TEST_CASE("edge_hit_band: falls back to 18 with no container", "[grid_edit][resize][1169]") {
+    // current_metrics() returns zeroed metrics without a container, so there is
+    // no cell size to derive from. The fallback is what keeps the fixed-pixel
+    // detect_resize_edge expectations below valid.
+    GridEditMode em;
+    CHECK(GridEditModeTestAccess::edge_hit_band(em) == 18);
+}
+
+TEST_CASE("edge_hit_band_for_cell: derives from cell size and clamps both ends",
+          "[grid_edit][resize][1169]") {
+    // Band is cell/6, clamped to [14, 32] so it stays finger-sized on any panel.
+    auto band = [](float cell) { return GridEditModeTestAccess::edge_hit_band_for_cell(cell); };
+
+    // Mid-range: proportional to the cell.
+    CHECK(band(120.0f) == 20);
+    CHECK(band(150.0f) == 25);
+
+    // Below the floor: a small cell would give a band too thin to hit.
+    CHECK(band(60.0f) == 14); // 10 → clamped up
+    CHECK(band(30.0f) == 14); // 5  → clamped up
+    CHECK(band(84.0f) == 14); // 14 → exactly the floor, unclamped
+
+    // Above the ceiling: a large cell would swallow the widget interior.
+    CHECK(band(300.0f) == 32); // 50 → clamped down
+    CHECK(band(192.0f) == 32); // 32 → exactly the ceiling, unclamped
+    CHECK(band(186.0f) == 31); // 31 → just under, unclamped
+
+    // Non-positive cell size (no grid yet) → fallback, not a clamped zero.
+    CHECK(band(0.0f) == 18);
+    CHECK(band(-5.0f) == 18);
 }
 
 TEST_CASE("Drag end uses snap preview position, not release point", "[grid_edit][drag]") {

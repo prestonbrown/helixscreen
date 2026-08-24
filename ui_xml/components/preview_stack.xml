@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Shared G-code preview stack: the three mutually-exclusive renderings of one
+  file - pre-rendered thumbnail, 2D layer view, 3D view - plus the rotate hint,
+  stacked in a single 100%x100% container.
+
+  Hosts: print_status_preview_card.xml and print_file_detail.xml. Both drive the
+  same C++ wiring (helix::ui::apply_preview_render_mode() /
+  set_preview_bottom_occluder(), include/gcode_preview_setup.h), so the stack has
+  to be one definition or the two drift.
+
+  WHICH layer is visible is NOT decided here. Each host passes a condition
+  expression per layer, because the hosts key off different subjects: print
+  status hides the art while the exclude-object map covers the card, and the
+  detail view keeps the thumbnail up until the viewer's first frame lands rather
+  than swapping on mode. Passing the whole expression (rather than a subject name
+  plus a ref value) also collapses what used to be two independent bind_flag
+  observers on the same `hidden` flag into one - two of them raced at startup
+  (L042).
+
+  Percentage sizes resolve against the parent's CONTENT box, so all three
+  renderings fill exactly the area the host leaves for them and inner_align
+  scales the image into what is actually visible.
+-->
+<component>
+  <api>
+    <!-- Widget names. C++ resolves every one of these with
+         lv_obj_find_by_name(), which recurses, so the extra nesting this
+         component introduces is invisible to the existing lookups - but the
+         names themselves must survive verbatim. -->
+    <prop name="gradient_name" type="string" default="preview_gradient"/>
+    <prop name="viewer_name" type="string" default="preview_viewer"/>
+    <prop name="thumbnail_name" type="string" default="preview_thumbnail"/>
+    <prop name="hint_name" type="string" default="preview_rotate_hint"/>
+    <!-- Per-layer hide conditions, as bind_flag_if expressions. -->
+    <prop name="gradient_hidden" type="string"/>
+    <prop name="viewer_hidden" type="string"/>
+    <prop name="thumbnail_hidden" type="string"/>
+    <prop name="hint_hidden" type="string"/>
+    <!-- Optional. Deliberately declared WITHOUT a default: an unset prop with no
+         default has its attribute dropped entirely, where an empty default would
+         reach lv_xml_get_subject("") and log "No subject was found" on every
+         create. Print status sets its art with lv_image_set_src(); only the
+         detail view binds a subject. -->
+    <prop name="thumbnail_src" type="string"/>
+    <prop name="thumbnail_offset_y" type="string"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+
+    <!-- Pre-rendered gradient backdrop. Hidden under the 3D viewer so it gets a
+         clean black background; shown behind the 2D view and the thumbnail. -->
+    <ui_gradient_canvas name="$gradient_name" width="100%" height="100%">
+      <bind_flag_if cond="$gradient_hidden" flag="hidden"/>
+    </ui_gradient_canvas>
+
+    <!-- Starts hidden so nothing flashes between create and the binding's first
+         evaluation; lv_xml_expr_bind fires immediately, so a viewer that should
+         be up is unhidden before the first draw. -->
+    <gcode_viewer name="$viewer_name" width="100%" height="100%" hidden="true">
+      <bind_flag_if cond="$viewer_hidden" flag="hidden"/>
+    </gcode_viewer>
+
+    <!-- Declared after the viewer so it draws on top of it: the detail view
+         leaves the thumbnail up until the viewer's first frame lands. -->
+    <lv_image name="$thumbnail_name"
+              width="100%" height="100%" align="center" inner_align="contain" bind_src="$thumbnail_src"
+              style_translate_y="$thumbnail_offset_y">
+      <bind_flag_if cond="$thumbnail_hidden" flag="hidden"/>
+    </lv_image>
+
+    <!-- 3D-only affordance. Top-right of the stack, which is the top-right of
+         the host card: every host puts its metadata strip at the bottom. -->
+    <lv_label name="$hint_name"
+              text="#icon_rotate_3d" style_text_font="mdi_icons_24" style_text_color="#text_muted" style_text_opa="180"
+              align="top_right" style_translate_x="-12" style_translate_y="#space_md">
+      <bind_flag_if cond="$hint_hidden" flag="hidden"/>
+    </lv_label>
+  </view>
+</component>

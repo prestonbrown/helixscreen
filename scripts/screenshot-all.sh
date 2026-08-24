@@ -68,6 +68,7 @@ PANELS=(
 
     # Sample-data modals
     "preflight-check:preflight-check"
+    "color-mismatch:color-mismatch"
     "runout-modal:runout-modal"
 )
 

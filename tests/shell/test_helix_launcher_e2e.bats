@@ -75,6 +75,13 @@ fi
 unset _helix_env_file
 
 # Resolve debug/logging settings: CLI flags > env vars (incl. env file) > defaults
+#
+# HAND-COPIED from helix-launcher.sh. This snippet deliberately omits the
+# platform-hook sourcing that the real launcher does immediately BEFORE these
+# four lines, so it cannot be used to test hook-exported HELIX_LOG_*. The
+# hook-ordering contract is covered end-to-end against the real script by
+# "e2e: platform hook HELIX_LOG_DEST/FILE reach helix-screen" below; keep that
+# test, not this copy, as the source of truth for ordering.
 DEBUG_MODE="${CLI_DEBUG:-${HELIX_DEBUG:-0}}"
 LOG_DEST="${CLI_LOG_DEST:-${HELIX_LOG_DEST:-auto}}"
 LOG_FILE="${CLI_LOG_FILE:-${HELIX_LOG_FILE:-}}"
@@ -325,6 +332,100 @@ EOF
 
     if [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]; then
         refute grep -q '^--log-level' "$MOCK_INSTALL/helix_screen_args.txt"
+    fi
+}
+
+# =============================================================================
+# Platform hooks: platform_pre_start exports HELIX_LOG_DEST / HELIX_LOG_FILE on
+# six of the seven platforms, so the launcher must resolve LOG_DEST/LOG_FILE
+# AFTER sourcing platform/hooks.sh. Resolving first reads unset variables and
+# the flags never reach the binary (#1249).
+# =============================================================================
+
+# Install a platform/hooks.sh into the mock layout whose platform_pre_start
+# exports the logging vars, the way assets/config/platform/hooks-*.sh do.
+install_logging_hook() {
+    mkdir -p "$MOCK_INSTALL/platform"
+    cat > "$MOCK_INSTALL/platform/hooks.sh" << 'HOOKEOF'
+#!/bin/sh
+platform_pre_start() {
+    export HELIX_LOG_DEST=file
+    export HELIX_LOG_FILE=/tmp/x.log
+}
+HOOKEOF
+    chmod +x "$MOCK_INSTALL/platform/hooks.sh"
+}
+
+@test "e2e: platform hook HELIX_LOG_DEST/FILE reach helix-screen" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    rm -f "$MOCK_INSTALL/config/helixscreen.env"
+    unset HELIX_LOG_DEST HELIX_LOG_FILE HELIX_DEBUG HELIX_LOG_LEVEL
+    install_logging_hook
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
+    grep -q '^--log-dest=file$' "$MOCK_INSTALL/helix_screen_args.txt"
+    grep -q '^--log-file=/tmp/x.log$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+@test "e2e: an ambient HELIX_LOG_FILE still wins over the hook's export" {
+    # The hook uses plain `export`, so a value already in the environment is
+    # overwritten by it — but the init script and helixscreen.env paths set the
+    # variable BEFORE the hook runs, and several platforms rely on the operator
+    # being able to override. Pin the resolution actually in effect: whatever
+    # the environment holds after platform_pre_start is what gets forwarded.
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    rm -f "$MOCK_INSTALL/config/helixscreen.env"
+    unset HELIX_DEBUG HELIX_LOG_LEVEL
+    mkdir -p "$MOCK_INSTALL/platform"
+    cat > "$MOCK_INSTALL/platform/hooks.sh" << 'HOOKEOF'
+#!/bin/sh
+platform_pre_start() {
+    export HELIX_LOG_DEST=file
+    [ -n "${HELIX_LOG_FILE:-}" ] || export HELIX_LOG_FILE=/tmp/hook-default.log
+}
+HOOKEOF
+
+    HELIX_LOG_FILE=/tmp/operator.log MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
+    grep -q '^--log-file=/tmp/operator.log$' "$MOCK_INSTALL/helix_screen_args.txt"
+    refute_grep '^--log-file=/tmp/hook-default.log$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+@test "e2e: CLI --log-dest still beats a platform hook export" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    rm -f "$MOCK_INSTALL/config/helixscreen.env"
+    unset HELIX_LOG_DEST HELIX_LOG_FILE HELIX_DEBUG HELIX_LOG_LEVEL
+    install_logging_hook
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" --log-dest=console 2>/dev/null || true
+
+    [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
+    grep -q '^--log-dest=console$' "$MOCK_INSTALL/helix_screen_args.txt"
+    refute_grep '^--log-dest=file$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+@test "e2e: no platform hook means no --log-dest/--log-file flags" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    rm -f "$MOCK_INSTALL/config/helixscreen.env"
+    rm -rf "$MOCK_INSTALL/platform"
+    unset HELIX_LOG_DEST HELIX_LOG_FILE HELIX_DEBUG HELIX_LOG_LEVEL
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    if [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]; then
+        refute grep -q '^--log-dest' "$MOCK_INSTALL/helix_screen_args.txt"
+        refute grep -q '^--log-file' "$MOCK_INSTALL/helix_screen_args.txt"
     fi
 }
 

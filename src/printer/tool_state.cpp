@@ -15,9 +15,10 @@
 
 #include "ams_state.h"
 #include "data_root_resolver.h"
+#include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
@@ -144,8 +145,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         // Collect extruder names from heaters (sorted for index mapping)
         std::vector<std::string> extruder_names;
         for (const auto& h : hardware.heaters()) {
-            if (h == "extruder" ||
-                (h.size() > 8 && h.rfind("extruder", 0) == 0 && std::isdigit(h[8]))) {
+            if (helix::is_extruder_name(h)) {
                 extruder_names.push_back(h);
             }
         }
@@ -174,8 +174,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         // No tool changer: enumerate extruder heaters to support multi-extruder setups
         std::vector<std::string> extruder_names;
         for (const auto& h : hardware.heaters()) {
-            if (h == "extruder" ||
-                (h.size() > 8 && h.rfind("extruder", 0) == 0 && std::isdigit(h[8]))) {
+            if (helix::is_extruder_name(h)) {
                 // Deduplicate (mock can produce duplicates from dual parse_objects calls)
                 if (std::find(extruder_names.begin(), extruder_names.end(), h) ==
                     extruder_names.end()) {
@@ -418,6 +417,16 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     }
 }
 
+int ToolState::extruder_count() const {
+    std::set<std::string> names;
+    for (const auto& t : tools_) {
+        if (t.extruder_name && !t.extruder_name->empty()) {
+            names.insert(*t.extruder_name);
+        }
+    }
+    return static_cast<int>(names.size());
+}
+
 const ToolInfo* ToolState::active_tool() const {
     if (active_tool_index_ < 0 || active_tool_index_ >= static_cast<int>(tools_.size())) {
         return nullptr;
@@ -426,7 +435,13 @@ const ToolInfo* ToolState::active_tool() const {
 }
 
 std::string ToolState::nozzle_label() const {
-    if (!is_multi_tool()) {
+    // Gated on physical extruders, not tool count: the label sits beside a
+    // nozzle temperature readout in the controls and filament panels, so it
+    // answers "which nozzle is this". set_ams_topology() expands tools_ to one
+    // entry per filament lane, and every lane on a single-hotend printer feeds
+    // the same nozzle - naming it after the loaded lane says nothing. Matches
+    // the nozzle_icon badge gate in ui_ams_tool_text.
+    if (!has_multiple_extruders()) {
         return lv_tr("Nozzle");
     }
     const auto* tool = active_tool();
@@ -447,7 +462,7 @@ std::string ToolState::tool_name_for_extruder(const std::string& extruder_name) 
     return {};
 }
 
-void ToolState::request_tool_change(int tool_index, MoonrakerAPI* api,
+void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
                                     std::function<void()> on_success,
                                     std::function<void(const std::string&)> on_error) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
@@ -528,6 +543,22 @@ static constexpr const char* SPOOL_JSON_FILENAME = "tool_spools.json";
 static constexpr const char* MOONRAKER_DB_NAMESPACE = "helix-screen";
 static constexpr const char* MOONRAKER_DB_KEY = "tool_spool_assignments";
 
+/**
+ * @brief Whether two spool weights render identically.
+ *
+ * Weights reach the UI as whole grams, so anything finer is noise nothing
+ * downstream can observe. Compares against the LAST STORED value rather than a
+ * running accumulator, so a slow slide still fires exactly once per gram.
+ * The -1.0f "unknown" sentinel and non-finite values compare by exact equality
+ * so they never round into a real weight.
+ */
+static bool same_displayed_weight(float a, float b) {
+    if (!std::isfinite(a) || !std::isfinite(b) || a < 0.0f || b < 0.0f) {
+        return a == b || (!std::isfinite(a) && !std::isfinite(b));
+    }
+    return std::lround(a) == std::lround(b);
+}
+
 void ToolState::assign_spool(int tool_index, int spoolman_id, const std::string& spool_name,
                              float remaining_g, float total_g) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
@@ -540,9 +571,22 @@ void ToolState::assign_spool(int tool_index, int spoolman_id, const std::string&
 
     auto& tool = tools_[tool_index];
 
-    // Skip if nothing changed (avoids unnecessary saves from frequent syncs)
-    if (tool.spoolman_id == spoolman_id && tool.spool_name == spool_name &&
-        tool.remaining_weight_g == remaining_g && tool.total_weight_g == total_g) {
+    // Which spool is mounted. This is the durable half of the record: it is what
+    // survives a restart and what tool_spools.json plus the Moonraker DB key
+    // exist to remember.
+    const bool identity_changed = tool.spoolman_id != spoolman_id || tool.spool_name != spool_name;
+
+    // Weights are a cache. Firmware reports them as continuous floats — an AFC
+    // lane sends e.g. 627.685056380799 g and moves by hundredths on every status
+    // update — so an exact compare treats sensor noise as a change. AmsState
+    // calls this from the status path and then saves if dirty, which on bundle
+    // L53W5PKG meant 590 rewrites of tool_spools.json, 590 Moonraker DB POSTs
+    // and 590 filament-panel rebuilds in one session. Compare at whole grams,
+    // the resolution the UI actually renders.
+    const bool weight_changed = !same_displayed_weight(tool.remaining_weight_g, remaining_g) ||
+                                !same_displayed_weight(tool.total_weight_g, total_g);
+
+    if (!identity_changed && !weight_changed) {
         return;
     }
 
@@ -550,10 +594,18 @@ void ToolState::assign_spool(int tool_index, int spoolman_id, const std::string&
     tool.spool_name = spool_name;
     tool.remaining_weight_g = remaining_g;
     tool.total_weight_g = total_g;
-    spool_dirty_ = true;
 
-    spdlog::info("[ToolState] Assigned spool {} ({}) to tool {}", spoolman_id, spool_name,
-                 tool_index);
+    // Persist only for an identity change. A weight refresh is re-fetched from
+    // AFC/Spoolman within seconds of the next connect, so writing flash and
+    // POSTing the DB for each gram consumed during a print buys nothing.
+    if (identity_changed) {
+        spool_dirty_ = true;
+        spdlog::info("[ToolState] Assigned spool {} ({}) to tool {}", spoolman_id, spool_name,
+                     tool_index);
+    } else {
+        spdlog::debug("[ToolState] Spool {} on tool {} now {:.0f}g", spoolman_id, tool_index,
+                      remaining_g);
+    }
 
     // Bump version so UI observers update
     if (subjects_initialized_) {
@@ -739,14 +791,14 @@ bool ToolState::load_spool_json() {
     }
 }
 
-void ToolState::save_spool_assignments_if_dirty(MoonrakerAPI* api) {
+void ToolState::save_spool_assignments_if_dirty(IMoonrakerAPI* api) {
     if (!spool_dirty_) {
         return;
     }
     save_spool_assignments(api);
 }
 
-void ToolState::save_spool_assignments(MoonrakerAPI* api) {
+void ToolState::save_spool_assignments(IMoonrakerAPI* api) {
     // Always save to local JSON (fast, reliable)
     save_spool_json();
     spool_dirty_ = false;
@@ -763,7 +815,7 @@ void ToolState::save_spool_assignments(MoonrakerAPI* api) {
     }
 }
 
-void ToolState::load_spool_assignments(MoonrakerAPI* api) {
+void ToolState::load_spool_assignments(IMoonrakerAPI* api) {
     if (spool_assignments_loaded_) {
         spdlog::debug("[ToolState] Spool assignments already loaded, skipping");
         return;

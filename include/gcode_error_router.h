@@ -14,14 +14,14 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 // Test-only accessor (tests/test_helpers/gcode_error_router_test_access.h),
 // forward-declared here so the friend grant below can name it explicitly.
 struct GcodeErrorRouterTestAccess;
 
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 
 namespace ui {
 class RecoveryModalPresenter;
@@ -91,7 +91,7 @@ class GcodeErrorRouter {
     /// api and client may be nullptr (test/mock builds). presenter must
     /// outlive this router -- Application owns both and destroys the router
     /// before the presenter.
-    GcodeErrorRouter(MoonrakerAPI* api, MoonrakerClient* client,
+    GcodeErrorRouter(IMoonrakerAPI* api, IMoonrakerClient* client,
                      helix::ui::RecoveryModalPresenter& presenter);
     ~GcodeErrorRouter();
 
@@ -114,7 +114,7 @@ class GcodeErrorRouter {
     ///   - the age cannot be positively determined (`entry_time <= 0`, an
     ///     absent/zero timestamp) -- we never suppress a possibly-fresh
     ///     error on missing data, or
-    ///   - the error is recent (age <= kReplayMaxAgeSeconds).
+    ///   - the error is recent (age <= REPLAY_MAX_AGE_SECONDS).
     /// Returns `false` (suppress, log at debug) only when age is positively
     /// known to exceed the threshold -- the stale-after-restart case.
     static bool should_surface_replay(double entry_time, double now);
@@ -162,8 +162,8 @@ class GcodeErrorRouter {
     /// full text -- they wrap to multiple lines.
     static std::string truncate_for_toast(std::string text);
 
-    MoonrakerAPI* api_;
-    MoonrakerClient* client_;
+    IMoonrakerAPI* api_;
+    IMoonrakerClient* client_;
 
     /// Shared modal presenter. Not owned; must outlive this router.
     helix::ui::RecoveryModalPresenter& presenter_;

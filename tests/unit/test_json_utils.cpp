@@ -259,8 +259,7 @@ TEST_CASE("safe_bool honors the whitelisted string spellings", "[json_utils]") {
     }
 }
 
-TEST_CASE("safe_bool does NOT treat an arbitrary non-empty string as true",
-          "[json_utils]") {
+TEST_CASE("safe_bool does NOT treat an arbitrary non-empty string as true", "[json_utils]") {
     // This is the whole point of the closed whitelist: the naive `!s.empty()`
     // shorthand reads "false" as TRUE. An unrecognized spelling must fall back
     // to the caller's default instead of being guessed at.
@@ -284,7 +283,7 @@ TEST_CASE("safe_bool returns default for object and array types", "[json_utils]"
 
 TEST_CASE("safe_int returns default for values outside int range", "[json_utils]") {
     json j;
-    j["big"] = static_cast<std::int64_t>(5000000000);   // > INT32_MAX
+    j["big"] = static_cast<std::int64_t>(5000000000);    // > INT32_MAX
     j["small"] = static_cast<std::int64_t>(-5000000000); // < INT32_MIN
     CHECK(ju::safe_int(j, "big", -1) == -1);
     CHECK(ju::safe_int(j, "small", -1) == -1);
@@ -382,8 +381,7 @@ TEST_CASE("safe_uint64 rejects negative numbers rather than wrapping", "[json_ut
     CHECK(ju::safe_uint64(j, "v", 5u) == 5u);
 }
 
-TEST_CASE("safe_uint64 rejects a negative numeric STRING rather than wrapping",
-          "[json_utils]") {
+TEST_CASE("safe_uint64 rejects a negative numeric STRING rather than wrapping", "[json_utils]") {
     // std::stoull("-1") returns 18446744073709551615 without throwing. Guarding
     // this is the reason the string path scans for a sign first.
     json j = {{"v", "-1"}};

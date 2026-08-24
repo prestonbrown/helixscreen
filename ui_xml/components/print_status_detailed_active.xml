@@ -5,6 +5,13 @@
   <view name="print_status_detailed_active"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
         scrollable="false" clickable="false" event_bubble="true">
+    <!-- Filename header: spans the whole card so a long name has the full width
+         to scroll through instead of just the ~3/7 the data column gives it.
+         Content-sized, so the main row below simply flex_grows into what is
+         left and the thumbnail/arc shrink to make room. -->
+    <text_body name="detailed_filename"
+               width="100%" bind_text="print_display_filename" long_mode="scroll_circular" style_text_align="center"
+               clickable="false" event_bubble="true"/>
     <!-- Main row: thumb | arc | data -->
     <lv_obj name="detailed_main_row"
             width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_column="#space_md"
@@ -27,20 +34,17 @@
                print_status_arc_thickness_tier_subject_ this widget owns. -->
           <helix_progress_arc name="detailed_progress_arc" width="80" height="80" align="center" event_bubble="true"/>
           <text_body name="detailed_progress_pct"
-                     align="center" bind_text="print_status_progress_pct" clickable="false" event_bubble="true"/>
+                     align="center" bind_text="print_progress_text" clickable="false" event_bubble="true"/>
         </lv_obj>
       </lv_obj>
       <lv_obj name="detailed_data_col"
               height="100%" flex_grow="3" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="start" style_pad_row="#space_xs" scrollable="false" clickable="false"
               event_bubble="true">
-        <text_body name="detailed_filename"
-                   width="100%" bind_text="print_display_filename" long_mode="scroll_circular" clickable="false"
-                   event_bubble="true"/>
         <text_small bind_text="print_status_layer_text" clickable="false" event_bubble="true"/>
         <text_small bind_text="print_status_time_text" clickable="false" event_bubble="true"/>
-        <text_small width="100%"
-                    bind_text="print_status_filament_text" long_mode="scroll_circular" clickable="false"
+        <text_small name="detailed_filament_text"
+                    width="100%" bind_text="print_status_filament_text" long_mode="scroll_circular" clickable="false"
                     event_bubble="true">
           <bind_flag_if_eq subject="print_status_show_filament_active" flag="hidden" ref_value="0"/>
         </text_small>
@@ -77,8 +81,8 @@
         <!-- Bound to formatter-driven proxy subjects so pinning to a specific tool
              (via the chevron picker) actually changes the displayed temperature.
              The formatter rebinds its underlying observer on pin change. -->
-        <temp_display size="xs"
-                      show_target="true" bind_current="print_status_nozzle_current"
+        <temp_display name="detailed_nozzle_temp"
+                      size="xs" show_target="true" bind_current="print_status_nozzle_current"
                       bind_target="print_status_nozzle_target" hide_target_below_bp="small"
                       event_cb="on_print_status_nozzle_temp_clicked"/>
       </lv_obj>
@@ -86,9 +90,9 @@
               height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
               style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
         <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="sm"/>
-        <temp_display size="xs"
-                      show_target="true" bind_current="bed_temp" bind_target="bed_target" hide_target_below_bp="small"
-                      event_cb="on_print_status_bed_temp_clicked"/>
+        <temp_display name="detailed_bed_temp"
+                      size="xs" show_target="true" bind_current="bed_temp" bind_target="bed_target"
+                      hide_target_below_bp="small" event_cb="on_print_status_bed_temp_clicked"/>
       </lv_obj>
       <lv_obj width="content"
               height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
@@ -98,14 +102,15 @@
         <!-- Two variants: with target when a chamber heater exists, current-only
              for sensor-only chambers (passive enclosure). Mutually exclusive on
              printer_has_chamber_heater. -->
-        <temp_display size="xs"
-                      show_target="true" bind_current="chamber_temp" bind_target="chamber_effective_target"
+        <temp_display name="detailed_chamber_temp"
+                      size="xs" show_target="true" bind_current="chamber_temp" bind_target="chamber_effective_target"
                       bind_mode="chamber_mode" hide_target_below_bp="small"
                       event_cb="on_print_status_chamber_temp_clicked">
           <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
         </temp_display>
-        <temp_display size="xs"
-                      show_target="false" bind_current="chamber_temp" event_cb="on_print_status_chamber_temp_clicked">
+        <temp_display name="detailed_chamber_temp_sensor_only"
+                      size="xs" show_target="false" bind_current="chamber_temp"
+                      event_cb="on_print_status_chamber_temp_clicked">
           <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="1"/>
         </temp_display>
       </lv_obj>

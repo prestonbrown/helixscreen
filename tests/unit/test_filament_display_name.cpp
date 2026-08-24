@@ -521,3 +521,79 @@ TEST_CASE("resolve_filament_label: the AFC writer and the picker writer agree",
               "Polymaker Ambrosia Pink PLA");
     }
 }
+
+// ============================================================================
+// resolve_filament_label_parts — the split form
+// ============================================================================
+
+TEST_CASE("resolve_filament_label_parts: exposes the resolved fields separately",
+          "[filament][label]") {
+    // The Active Spool home widget prints the material on its own row, so it
+    // needs the same precedence as the AMS card but must join brand and name
+    // without re-appending the material underneath a row that already says it.
+    const SlotInfo slot = make_afc_slot();
+
+    SpoolIdentity identity;
+    identity.vendor = "Polymaker";
+    identity.filament_name = "PolyTerra Ambrosia Pink";
+    identity.material = "PLA";
+    REQUIRE(identity.valid());
+
+    const auto parts = helix::resolve_filament_label_parts(slot, &identity, "Light Pink");
+
+    CHECK(parts.brand == "Polymaker");    // filled from the identity — AFC has none
+    CHECK(parts.name == "Ambrosia Pink"); // slot.spool_name outranks identity.filament_name
+    CHECK(parts.material == "PLA");
+
+    SECTION("joining brand and name alone drops the material") {
+        CHECK(compose_filament_label(parts.brand, parts.name, "") == "Polymaker Ambrosia Pink");
+    }
+
+    SECTION("the full resolver is the same parts, composed") {
+        CHECK(resolve_filament_label(slot, &identity, "Light Pink") ==
+              compose_filament_label(parts.brand, parts.name, parts.material));
+    }
+}
+
+TEST_CASE("resolve_filament_label_parts: color name is the last naming layer",
+          "[filament][label][regression]") {
+    // #1264: the widget hid its brand row whenever brand, color_name and
+    // spool_name were all blank. A slot that knows only its color still has a
+    // name to show, and a Spoolman-linked lane still has a vendor to show.
+    SlotInfo bare;
+    bare.slot_index = 0;
+    bare.status = SlotStatus::LOADED;
+    bare.material = "PLA";
+    bare.color_rgb = 0xFFB6C1;
+
+    SECTION("cold cache — the algorithmic color name carries the row") {
+        const auto parts = helix::resolve_filament_label_parts(bare, nullptr, "Light Pink");
+        CHECK(parts.brand.empty());
+        CHECK(parts.name == "Light Pink");
+        CHECK(compose_filament_label(parts.brand, parts.name, "") == "Light Pink");
+    }
+
+    SECTION("Spoolman supplies the vendor the backend never reported") {
+        SpoolIdentity identity;
+        identity.vendor = "Polymaker";
+        identity.filament_name = "PolyTerra Ambrosia Pink";
+        REQUIRE(identity.valid());
+
+        const auto parts = helix::resolve_filament_label_parts(bare, &identity, "Light Pink");
+        CHECK(parts.brand == "Polymaker");
+        CHECK(parts.name == "PolyTerra Ambrosia Pink");
+        // "Polymaker" is not a word inside "PolyTerra", so brand-dedup leaves it
+        // alone -- the same boundary rule that keeps "Sun" out of "Sunlu".
+        CHECK(compose_filament_label(parts.brand, parts.name, "") ==
+              "Polymaker PolyTerra Ambrosia Pink");
+    }
+
+    SECTION("nothing at all — the caller gets empties and can hide the row") {
+        SlotInfo empty;
+        empty.slot_index = 0;
+        const auto parts = helix::resolve_filament_label_parts(empty, nullptr, "");
+        CHECK(parts.brand.empty());
+        CHECK(parts.name.empty());
+        CHECK(compose_filament_label(parts.brand, parts.name, "").empty());
+    }
+}

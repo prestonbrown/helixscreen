@@ -7,13 +7,17 @@
 #include "ui_panel_base.h"
 
 #include "async_lifetime_guard.h"
-#include "moonraker_api.h" // Need full definition for PowerDevice
+#include "i_moonraker_api.h" // Need full definition for PowerDevice
 #include "subject_managed_panel.h"
 
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+namespace helix::ui {
+struct PowerPanelTestAccess; // test-only friend (tests/test_helpers/)
+} // namespace helix::ui
 
 /**
  * @brief Power device control panel
@@ -24,7 +28,7 @@
  */
 class PowerPanel : public PanelBase {
   public:
-    PowerPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    PowerPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
     ~PowerPanel() override;
 
     void init_subjects() override;
@@ -76,10 +80,11 @@ class PowerPanel : public PanelBase {
     lv_subject_t status_subject_;
     char status_buf_[128] = "Loading devices...";
 
-    // Widget references
+    // Widget references into a tree this panel does not own. forget_widget_tree()
+    // drops them when that tree is deleted — see on_panel_deleted().
     lv_obj_t* device_list_container_ = nullptr;
     lv_obj_t* empty_state_container_ = nullptr;
-    lv_obj_t* status_label_ = nullptr;
+    lv_obj_t* status_label_ = nullptr; ///< Write-only: cached by setup(), never read
 
     // Device state tracking
     struct DeviceRow {
@@ -98,6 +103,13 @@ class PowerPanel : public PanelBase {
     // Chip selector widgets
     lv_obj_t* chip_container_ = nullptr;
 
+    /// Drop every cached pointer into the widget tree (called when it is deleted)
+    void forget_widget_tree();
+
+    /// LV_EVENT_DELETE hook on the panel root — the only notice this panel gets
+    /// that its widget tree died.
+    static void on_panel_deleted(lv_event_t* e);
+
     // Chip selector helpers
     void populate_device_chips();
     void populate_device_chips_impl();
@@ -115,6 +127,8 @@ class PowerPanel : public PanelBase {
 
     // Static callback for XML event_cb
     static void on_power_device_toggle(lv_event_t* e);
+
+    friend struct helix::ui::PowerPanelTestAccess;
 };
 
 /**

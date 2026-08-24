@@ -30,7 +30,7 @@ using namespace helix;
 // CONSTRUCTOR
 // ============================================================================
 
-NotificationHistoryPanel::NotificationHistoryPanel(PrinterState& printer_state, MoonrakerAPI* api,
+NotificationHistoryPanel::NotificationHistoryPanel(PrinterState& printer_state, IMoonrakerAPI* api,
                                                    NotificationHistory& history)
     : PanelBase(printer_state, api), history_(history) {
     // Dependencies stored for use in refresh()

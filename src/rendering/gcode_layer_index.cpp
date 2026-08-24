@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_GCODE_VIEWER
+
 #include "gcode_layer_index.h"
 
 #include "gcode_color_metadata.h"
@@ -246,6 +248,18 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
 
         // Check for layer marker
         if (is_layer_marker(line.c_str(), line_len)) {
+            if (!use_layer_markers) {
+                // First marker in the file. Marker mode cannot be known until
+                // one appears, so the Z-change heuristic has been live over the
+                // prologue — and a START_PRINT that lifts to a bed-clearance
+                // height (OrcaSlicer emits `G1 Z3 F600` before the first
+                // ;LAYER_CHANGE) looks exactly like a layer to it. Drop whatever
+                // it guessed: none of it is a real layer, and layer 0 is about
+                // to be created by this marker.
+                entries_.clear();
+                first_layer_started = false;
+                current_layer_lines = 0;
+            }
             use_layer_markers = true;
             pending_layer_start = true;
             // We'll start the new layer when we see the next Z move
@@ -353,11 +367,7 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
                     entry.start_e = current_e;
                     entries_.push_back(entry);
 
-                    if (!first_layer_started) {
-                        stats_.min_z = z;
-                        first_layer_started = true;
-                    }
-                    stats_.max_z = z;
+                    first_layer_started = true;
 
                     current_z = z;
                     current_layer_start = current_offset;
@@ -408,6 +418,15 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
                 stats_.max_x = std::max(stats_.max_x, current_x);
                 stats_.min_y = std::min(stats_.min_y, current_y);
                 stats_.max_y = std::max(stats_.max_y, current_y);
+                // Z rides the same gate as X/Y so the index reports the height
+                // of extruded geometry, matching what the full-file parser puts
+                // in global_bounding_box (the 3D path's input). Reading Z off
+                // layer entries instead measured travel: it caught prologue
+                // clearance moves and per-layer Z-hops, and because it recorded
+                // "first entry" and "last entry" rather than min and max, a file
+                // whose last hop sat below its prologue lift produced min > max.
+                stats_.min_z = std::min(stats_.min_z, current_seen_z);
+                stats_.max_z = std::max(stats_.max_z, current_seen_z);
             }
             if (moved) {
                 any_position_seen = true;
@@ -520,3 +539,5 @@ float GCodeLayerIndex::get_layer_z(size_t layer_index) const {
 
 } // namespace gcode
 } // namespace helix
+
+#endif // HELIX_HAS_GCODE_VIEWER

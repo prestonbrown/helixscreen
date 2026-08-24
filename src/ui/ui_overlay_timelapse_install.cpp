@@ -11,8 +11,8 @@
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_config_manager.h"
 #include "moonraker_types.h"
@@ -39,7 +39,7 @@ TimelapseInstallOverlay& get_global_timelapse_install() {
     return *g_timelapse_install;
 }
 
-void init_global_timelapse_install(MoonrakerAPI* api) {
+void init_global_timelapse_install(IMoonrakerAPI* api) {
     if (g_timelapse_install) {
         spdlog::warn("[Timelapse Install] Already initialized, skipping");
         return;
@@ -93,7 +93,7 @@ static void open_timelapse_install_overlay() {
 // CONSTRUCTOR & LIFECYCLE
 // ============================================================================
 
-TimelapseInstallOverlay::TimelapseInstallOverlay(MoonrakerAPI* api) : api_(api) {}
+TimelapseInstallOverlay::TimelapseInstallOverlay(IMoonrakerAPI* api) : api_(api) {}
 
 void TimelapseInstallOverlay::init_subjects() {
     lv_xml_register_event_cb(nullptr, "on_timelapse_install_action", on_action_clicked);

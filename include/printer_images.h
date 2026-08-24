@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "data_root_resolver.h"
 #include "lvgl/lvgl.h"
 #include "prerendered_images.h"
 #include "printer_detector.h"
@@ -35,6 +36,14 @@ inline constexpr const char* DEFAULT_IMAGE = "A:assets/images/printers/generic-c
 
 /// Default image filename (without path)
 inline constexpr const char* DEFAULT_IMAGE_FILENAME = "generic-corexy.png";
+
+/// Resolve the generic fallback image through the asset root. Identity on
+/// desktop (asset_root "."); on ESP32 (asset_root "/assets") it prepends the
+/// mount that a raw "A:assets/..." literal misses. Used wherever DEFAULT_IMAGE
+/// would otherwise be returned raw.
+inline std::string default_printer_image_path() {
+    return helix::asset_component_uri("assets/images/printers/generic-corexy.png");
+}
 
 /// Pre-rendered image size for wizard/home (300px width, maintains aspect ratio)
 inline constexpr int PRERENDERED_SIZE = 300;
@@ -122,15 +131,17 @@ inline std::string get_image_path_for_name(const std::string& printer_name) {
             return prerendered;
         }
 
-        // Fall back to original PNG
-        std::string full_path = std::string(IMAGE_BASE_PATH) + image_filename;
+        // Fall back to original PNG (routed through the asset root so the
+        // /assets mount is applied on ESP32; identity on desktop).
+        std::string full_path =
+            helix::asset_component_uri("assets/images/printers/" + image_filename);
         if (image_file_exists(full_path)) {
             return full_path;
         }
     }
 
     // Fall back to default
-    return DEFAULT_IMAGE;
+    return default_printer_image_path();
 }
 
 /**
@@ -150,13 +161,13 @@ inline std::string get_image_path_for_name(const std::string& printer_name) {
  */
 inline std::string get_best_printer_image(const std::string& printer_type) {
     if (printer_type.empty()) {
-        return DEFAULT_IMAGE;
+        return default_printer_image_path();
     }
 
     // Look up image filename from printer database
     std::string image_filename = PrinterDetector::get_image_for_printer(printer_type);
     if (image_filename.empty()) {
-        return DEFAULT_IMAGE;
+        return default_printer_image_path();
     }
 
     // Strip .png extension to get base name for prerendered lookup

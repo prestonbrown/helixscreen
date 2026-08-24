@@ -1115,3 +1115,132 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 phase weights sum reasonably",
     REQUIRE(profile->get_phase_weight(PrintStartPhase::CLEANING) == 5);
     REQUIRE(profile->get_phase_weight(PrintStartPhase::PURGING) == 5);
 }
+
+// ============================================================================
+// Creality K2 Profile Tests
+// ============================================================================
+
+static std::shared_ptr<PrintStartProfile> get_creality_k2_profile() {
+    return PrintStartProfile::load("creality_k2");
+}
+
+/**
+ * Every line below is a verbatim gcode_response captured from a K2 Plus
+ * pre-print on 2026-08-16 (klippy.log 12:18:50-12:29:02, print
+ * quattrobox_bottom_cover_ASA-GF). The profile that shipped before this was
+ * written against the macro *names* in gcode_macro.cfg rather than against
+ * what the firmware actually echoes, so four of its seven patterns never
+ * matched anything on a real print.
+ */
+TEST_CASE("PrintStartProfile: creality_k2 patterns match real K2 Plus gcode responses",
+          "[profile][print][k2]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    if (profile->name().find("K2") == std::string::npos) {
+        SKIP("creality_k2.json not available");
+    }
+
+    PrintStartProfile::MatchResult result;
+
+    struct TestCase {
+        std::string line;
+        PrintStartPhase expected_phase;
+        const char* description;
+    };
+
+    // clang-format off
+    std::vector<TestCase> k2_lines = {
+        {"// [DEBUG]_handle_home_rails_begin",        PrintStartPhase::HOMING,   "G28 at 12:18:50"},
+        {"// x_park = 175.0 ",                        PrintStartPhase::HOMING,   "home complete at 12:19:13"},
+        {"// send query_z_align cur_retries:0 oid=4", PrintStartPhase::Z_TILT,   "z align at 12:19:15"},
+        {"// [NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0", PrintStartPhase::CLEANING, "clean at 12:20:50"},
+        {"// [GCODE]BOX_NOZZLE_CLEAN",                PrintStartPhase::CLEANING, "clean at 12:21:02"},
+        {"// exist_points[81], config_points[81]",    PrintStartPhase::BED_MESH, "mesh start at 12:22:28"},
+        {"// flush_temp: 220",                        PrintStartPhase::PURGING,  "purge at 12:34:39"},
+        {"// flush_len: 101.250000",                  PrintStartPhase::PURGING,  "purge at 12:35:24"},
+    };
+    // clang-format on
+
+    for (const auto& tc : k2_lines) {
+        CAPTURE(tc.description, tc.line);
+        REQUIRE(profile->try_match_pattern(tc.line, result));
+        REQUIRE(result.phase == tc.expected_phase);
+    }
+}
+
+TEST_CASE("PrintStartProfile: creality_k2 does not claim homing on the post-clean Z recheck",
+          "[profile][print][k2][negative]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    if (profile->name().find("K2") == std::string::npos) {
+        SKIP("creality_k2.json not available");
+    }
+
+    // [G28_RE_CHECK] is the Z re-verify that runs AFTER the nozzle clean, 3.5
+    // minutes past the real G28. A bare "G28" pattern matched it and nothing
+    // earlier, so HOMING was announced in the middle of bed levelling.
+    PrintStartProfile::MatchResult result;
+    REQUIRE_FALSE(profile->try_match_pattern("// [G28_RE_CHECK]", result));
+}
+
+TEST_CASE("PrintStartProfile: creality_k2 keeps the M109 latch that the heater correction needs",
+          "[profile][print][k2][heating]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    if (profile->name().find("K2") == std::string::npos) {
+        SKIP("creality_k2.json not available");
+    }
+
+    // BOX_NOZZLE_CLEAN issues M109 S170 then M109 S140 to soften filament for
+    // the wipe, so this fires during CLEANING rather than at the real heat.
+    // It must stay anyway: it is the ONLY route into a heating phase on this
+    // firmware, which emits no M190 and no M109 at print temp. Proactive
+    // temperature detection cannot cover the gap — it is gated off the moment
+    // any real firmware signal is seen (real_signal_seen_), and the HOMING
+    // pattern trips that within a second of the collector starting. Once
+    // latched here, the heater correction in check_fallback_completion()
+    // re-derives the shown phase from live temps, bed-first, which is what
+    // actually puts "Heating Bed" on screen during the soak.
+    //
+    // Removing this pattern showed "Cleaning Nozzle" for the whole 4-minute
+    // ASA bed soak on hardware, then timed out before the mesh (2026-08-16).
+    PrintStartProfile::MatchResult result;
+    REQUIRE(profile->try_match_pattern("// [GCODE]M109 S170", result));
+    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
+}
+
+TEST_CASE("PrintStartProfile: creality_k2 uses adaptive meshing", "[profile][print][k2][mesh]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    if (profile->name().find("K2") == std::string::npos) {
+        SKIP("creality_k2.json not available");
+    }
+
+    // The configured grid is 9x9 = 81, but the firmware trims the sweep to the
+    // print area: the 2026-08-16 run probed 67 points and skipped five cells of
+    // the Y=5 row outright. A fixed 81 denominator can only ever be wrong, so
+    // the count renders as "Bed Mesh (N)" with no total.
+    REQUIRE(profile->adaptive_meshing());
+}
+
+TEST_CASE("PrintStartProfile: creality_k2 rejects noise from K2 responses",
+          "[profile][print][k2][negative]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    if (profile->name().find("K2") == std::string::npos) {
+        SKIP("creality_k2.json not available");
+    }
+
+    PrintStartProfile::MatchResult result;
+    for (const auto& noise : {
+             "// cmd: GET_BOX_STATE",
+             "// [DISTUURB_CTL]SET_FANS=0.60 bak_fans=1.00",
+             "// z1 Photoelectric switch triggered",
+             "// [GCODE]G1 X175.00 Y175.00 Z5.00 F6000.00",
+             "// [WHY_DEBUG]get_z_now_comp now_comp:0.017 target_temp:140.00 G28_temp:139.21",
+             "// temp_pos:0.29644158299197443",
+         }) {
+        CAPTURE(noise);
+        REQUIRE_FALSE(profile->try_match_pattern(noise, result));
+    }
+}

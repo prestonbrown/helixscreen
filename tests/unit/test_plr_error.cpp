@@ -7,14 +7,14 @@ using helix::snapmaker_extract_coded_msg;
 
 TEST_CASE("snapmaker_extract_coded_msg: well-formed coded JSON extracts msg", "[plr][error]") {
     std::string raw = R"({"coded":"0001-0531-0000-0005","msg":"Printer is not idle, cannot )"
-                       R"(restore power loss print","action":"none"})";
+                      R"(restore power loss print","action":"none"})";
     REQUIRE(snapmaker_extract_coded_msg(raw, "fallback") ==
             "Printer is not idle, cannot restore power loss print");
 }
 
 TEST_CASE("snapmaker_extract_coded_msg: 0006 clear-env variant extracts msg", "[plr][error]") {
     std::string raw = R"({"coded":"0001-0531-0000-0006","msg":"Printer is printing, cannot )"
-                       R"(clear power loss env","action":"none"})";
+                      R"(clear power loss env","action":"none"})";
     REQUIRE(snapmaker_extract_coded_msg(raw, "fallback") ==
             "Printer is printing, cannot clear power loss env");
 }
@@ -22,8 +22,8 @@ TEST_CASE("snapmaker_extract_coded_msg: 0006 clear-env variant extracts msg", "[
 TEST_CASE("snapmaker_extract_coded_msg: JSON embedded in a longer gcode error string",
           "[plr][error]") {
     std::string raw = R"(!! Error executing script SDCARD_PRINT_PL_RESTORE: )"
-                       R"({"coded":"0001-0531-0000-0005","msg":"Printer is not idle, cannot )"
-                       R"(restore power loss print","action":"none"} (gcode line 42))";
+                      R"({"coded":"0001-0531-0000-0005","msg":"Printer is not idle, cannot )"
+                      R"(restore power loss print","action":"none"} (gcode line 42))";
     REQUIRE(snapmaker_extract_coded_msg(raw, "fallback") ==
             "Printer is not idle, cannot restore power loss print");
 }

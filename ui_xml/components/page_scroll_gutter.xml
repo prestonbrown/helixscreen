@@ -1,5 +1,12 @@
 <?xml version="1.0"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Reserved-gutter page-scroll chevron column. Positioned + wired by
+     PageScrollController; do not place directly in screen XML.
+     Buttons are tall (responsive #button_height_lg) with a generous gap so they
+     are easy tap targets on small touch screens; width stays #button_height so
+     the reserved gutter costs no extra horizontal space.
+     style_opa="170" (~67%) keeps the chevrons subtle at rest; ui_button's pressed
+     state brightens them on touch. -->
 <component>
   <view extends="lv_obj"
         width="#button_height" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"

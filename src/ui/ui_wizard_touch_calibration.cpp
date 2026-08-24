@@ -359,7 +359,13 @@ bool WizardTouchCalibrationStep::should_skip() const {
 #endif
 
     // Skip if touch device doesn't need calibration (e.g., USB HID touchscreen)
-    // USB HID touchscreens (HDMI displays) report mapped coordinates natively
+    // USB HID touchscreens (HDMI displays) report mapped coordinates natively.
+    //
+    // needs_ is deliberate here and must NOT become supports_: this is the
+    // auto-fire decision, and it stays conservative so the wizard doesn't
+    // ambush users whose touch already works. supports_ is the wider predicate
+    // behind the manual Settings entry point, which is how a user with an
+    // undetectable orientation mismatch gets in (prestonbrown/helixscreen#1259).
     DisplayManager* dm = DisplayManager::instance();
     if (dm && !dm->needs_touch_calibration()) {
         spdlog::info("[{}] Skipping touch calibration: device doesn't require it", get_name());

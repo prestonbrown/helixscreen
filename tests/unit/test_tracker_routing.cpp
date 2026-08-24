@@ -73,7 +73,7 @@ struct TrackerRoutingFixture : LVGLTestFixture {
         }
 
         // Zero the aggregate + per-extruder subjects. PrinterPrintState
-        // pre-populates kMaxExtruderScan subjects that persist across tests;
+        // pre-populates MAX_EXTRUDER_SCAN subjects that persist across tests;
         // stale values from a prior test would fire the observers immediately
         // on registration with the OLD value (LVGL subjects notify on add),
         // consuming filament from the wrong slot before print-start snapshot.

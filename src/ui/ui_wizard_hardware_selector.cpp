@@ -10,7 +10,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "device_display_name.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_hardware.h"
 
 #include <spdlog/spdlog.h>
@@ -34,7 +34,7 @@ void wizard_hardware_dropdown_changed_cb(lv_event_t* e) {
 bool wizard_populate_hardware_dropdown(
     lv_obj_t* root, const char* dropdown_name, lv_subject_t* subject,
     std::vector<std::string>& items_out,
-    std::function<const std::vector<std::string>&(MoonrakerAPI*)> moonraker_getter,
+    std::function<const std::vector<std::string>&(IMoonrakerAPI*)> moonraker_getter,
     const char* prefix_filter, bool allow_none, const char* config_key,
     std::function<std::string(const PrinterHardware&)> guess_fallback, const char* log_prefix,
     std::optional<helix::DeviceType> device_type) {
@@ -44,7 +44,7 @@ bool wizard_populate_hardware_dropdown(
     }
 
     // Get Moonraker API for hardware discovery
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
 
     // Clear and build items list
     items_out.clear();

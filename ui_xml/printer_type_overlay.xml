@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Printer Model Selection Overlay: scrollable list of database models.
+
+     Reached from the Printer Manager's model row. Detection deliberately
+     declines to guess below its confidence bar, so this is the path by which
+     an undetected or mis-detected printer gets the right model. -->
+<component>
+  <view name="printer_type_overlay"
+        extends="overlay_panel" title="Printer Model" title_tag="Printer Model" bg_color="#card_bg">
+
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_sm" flex_flow="column" style_pad_gap="#space_sm"
+            scrollable="false">
+
+      <info_note icon="info"
+                 text="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behaviour HelixScreen uses."
+                 translation_tag="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behaviour HelixScreen uses."/>
+
+      <!-- Model rows are created in C++ from the printer database, filtered by
+           the detected kinematics the same way the setup wizard filters them. -->
+      <lv_obj name="printer_type_list"
+              width="100%" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_top="#space_xs"
+              scrollable="true" style_bg_opa="0" style_border_width="0"/>
+    </lv_obj>
+  </view>
+</component>

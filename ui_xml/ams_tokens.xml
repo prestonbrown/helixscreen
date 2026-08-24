@@ -1,6 +1,20 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  AMS feature tokens.
+
+  All ams_* responsive px tokens live here. Following the same convention as
+  fan_tokens.xml — feature-scoped tokens go in their own file rather than
+  bloating globals.xml or living inside a "consumer" panel like ams_panel.xml
+  (where they used to live, but were also referenced from ams_overview_panel.xml
+  and ams_slot_view.xml — backward-coupling).
+
+  theme_manager scans every file in ui_xml/ for responsive px tokens and
+  registers the bare base name (e.g. `ams_right_col_w`) into the globals scope
+  per current breakpoint, so any component can reference `#ams_right_col_w`
+  regardless of which file the *_tiny/*_small/etc. variants are defined in.
+-->
 <component>
   <consts>
     <!-- ===================================================================== -->
@@ -83,6 +97,17 @@
     <px name="ams_card_min_width_large" value="120"/>
     <px name="ams_card_min_width_xlarge" value="140"/>
     <px name="ams_card_min_width_xxlarge" value="180"/>
+
+    <!-- Unit card title: ONE line of font_body, so long_mode="dots" ellipsizes
+         rather than wrapping the card taller (which steals height from the path
+         canvas below). Track font_body: 12/14/18/20/24/32 px + ~40% leading. -->
+    <px name="ams_unit_name_h_micro" value="17"/>
+    <px name="ams_unit_name_h_tiny" value="17"/>
+    <px name="ams_unit_name_h_small" value="20"/>
+    <px name="ams_unit_name_h_medium" value="25"/>
+    <px name="ams_unit_name_h_large" value="28"/>
+    <px name="ams_unit_name_h_xlarge" value="34"/>
+    <px name="ams_unit_name_h_xxlarge" value="45"/>
 
     <px name="ams_card_max_width_small" value="160"/>
     <px name="ams_card_max_width_medium" value="200"/>

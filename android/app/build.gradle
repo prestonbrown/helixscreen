@@ -3,10 +3,25 @@ apply plugin: 'com.android.application'
 // Read version from project root VERSION.txt to stay in sync with embedded builds
 def versionFile = file("../../VERSION.txt")
 def helix_version = versionFile.text.trim()
-def versionParts = helix_version.split("\\.")
-def vMajor = versionParts[0].toInteger()
-def vMinor = versionParts[1].toInteger()
-def vPatch = versionParts[2].replaceAll("-.*", "").toInteger()
+
+// versionCode comes from scripts/android-version-code.sh, which is the single
+// definition of the packing (major * 1000000 + minor * 1000 + patch) and of the
+// lane-overflow guard. scripts/generate-whatsnew.sh and
+// .github/workflows/release.yml read the same number from the same place; the
+// arithmetic used to be written out in all three and they diverged.
+// The script's own stderr carries the reason for any rejection, so it is
+// forwarded verbatim rather than restated here.
+def versionCodeScript = file("../../scripts/android-version-code.sh")
+def vCodeOut = new ByteArrayOutputStream()
+def vCodeErr = new ByteArrayOutputStream()
+def vCodeProc = ["bash", versionCodeScript.absolutePath].execute()
+vCodeProc.waitForProcessOutput(vCodeOut, vCodeErr)
+if (vCodeProc.exitValue() != 0) {
+    throw new GradleException(
+        "${versionCodeScript} failed for VERSION.txt '${helix_version}':\n" +
+        vCodeErr.toString().trim())
+}
+def vCode = vCodeOut.toString().trim().toInteger()
 
 android {
     namespace "org.helixscreen.app"
@@ -17,7 +32,7 @@ android {
         applicationId "org.helixscreen.app"
         minSdkVersion 28
         targetSdkVersion 35
-        versionCode vMajor * 10000 + vMinor * 100 + vPatch  // 0.10.4 → 1004
+        versionCode vCode  // 0.99.113 → 99113, 1.0.0 → 1000000
         versionName helix_version
 
         externalNativeBuild {
@@ -49,6 +64,11 @@ android {
 
     buildTypes {
         release {
+            // With no upload keystore this stays on the debug keystore so the
+            // -PallowDebugSigning escape hatch below still produces an
+            // installable local APK. Without that property, the release build
+            // is failed outright in the taskGraph hook further down — a debug
+            // signature is only ever acceptable for a local smoke build.
             signingConfig signingConfigs.release.storeFile ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             shrinkResources false
@@ -80,21 +100,179 @@ android {
 
 }
 
+// Print the resolved versionCode and nothing else, so CI and humans can query
+// it without parsing build output:  ./gradlew -q printVersionCode
+task printVersionCode {
+    doLast {
+        println vCode
+    }
+}
+
+// A release build must never silently fall back to the debug keystore.
+//
+// That is exactly how v0.99.43 shipped a debug-signed AAB: the keystore
+// secrets landed hours after the tag was cut, the build fell through to
+// signingConfigs.debug, and nothing failed. Play Store rejects such an
+// artifact, but only once a human tries to upload it — days later.
+//
+// The check runs on the task graph rather than at configuration time on
+// purpose. Configuration is shared with the debug variant, and
+// .github/workflows/build.yml runs `assembleDebug` on every PR; throwing
+// during configuration would fail that too. Here nothing fires unless a
+// release-signing task is actually scheduled.
+def keystoreConfigured = android.signingConfigs.release.storeFile != null
+def allowDebugSigning = project.hasProperty('allowDebugSigning')
+
+gradle.taskGraph.whenReady { graph ->
+    if (keystoreConfigured || allowDebugSigning) {
+        return
+    }
+    // Only the tasks that actually emit a signed artifact. lintRelease and
+    // friends carry "Release" in the name but produce nothing installable.
+    def signingTasks = graph.allTasks.findAll { t ->
+        t.project == project && t.name ==~ /^(assemble|bundle|package|install|sign).*Release$/
+    }
+    if (signingTasks.isEmpty()) {
+        return
+    }
+    throw new GradleException(
+        "Release build refused: no upload keystore is configured, so " +
+        "${signingTasks*.name.join(', ')} would be signed with the Android " +
+        "debug keystore. The Play Store rejects debug-signed artifacts, and a " +
+        "debug-signed APK cannot upgrade a properly signed install.\n" +
+        "\n" +
+        "Set all four of:\n" +
+        "  ANDROID_KEYSTORE_PATH      path to the upload .jks\n" +
+        "  ANDROID_KEYSTORE_PASSWORD  keystore password\n" +
+        "  ANDROID_KEY_ALIAS          key alias (helixscreen-upload)\n" +
+        "  ANDROID_KEY_PASSWORD       key password\n" +
+        "\n" +
+        "In CI these come from the matching GitHub secrets; " +
+        "ANDROID_KEYSTORE_PATH is produced by the 'Materialize upload " +
+        "keystore' step that decodes ANDROID_KEYSTORE_BASE64.\n" +
+        "\n" +
+        "For a local smoke build that does not need a real signature, pass " +
+        "-PallowDebugSigning. Never use it for anything that leaves your " +
+        "machine.\n" +
+        "\n" +
+        "See docs/devel/ANDROID_PLAY_STORE.md.")
+}
+
+// Files under config/ that belong to whoever ran the build, not to the package.
+// This mirrors the config/ section of the project .gitignore — every entry here
+// is untracked local state:
+//
+//   settings.json / settings-test.json / helixconfig*  a working config carries
+//     a real moonraker_host on the packager's LAN, an active_printer_id, and
+//     wizard_completed=true. Shipping one would skip first-run setup on every
+//     install and point it at a stranger's network. Nothing needs a shipped
+//     seed: Config::init() synthesizes defaults when the file is absent, and
+//     config/settings.json.template is documentation, not an input.
+//   crash*, .crash_restart_count           resurrect a dismissed crash dialog
+//   tool_spools.json, telemetry_*.json     per-device runtime state
+//   .helix-screen.lock, *.corrupt          runtime scratch
+def nonShippableConfig = [
+    'settings.json', 'settings-test.json', 'helixconfig*',
+    'crash*.txt', 'crash_history.json', '.crash_restart_count',
+    'tool_spools.json', 'telemetry_*.json',
+    '.helix-screen.lock', '*.corrupt'
+]
+
+// Host-only service plumbing. Unlike nonShippableConfig above these ARE tracked
+// files and are correct to ship on a Linux install — they are simply inert in an
+// APK. Android has no systemd, no SysV init, no polkit, no udev, and the two
+// binaries that would consume any of it (helix_splash.cpp, helix_watchdog.cpp)
+// are excluded from the Android build in app/jni/CMakeLists.txt.
+//
+// Deliberately narrow: every entry here has zero references from src/ or
+// include/. helixscreen.env, helixscreen.init and helixscreen-update.service
+// are NOT listed — they are named from translation units that Android does
+// compile (config.cpp, log_collector.cpp, update_checker.cpp), so dropping them
+// would be a behaviour change rather than a packaging one.
+def hostOnlyConfig = [
+    'helixscreen.service',              // systemd unit
+    'refresh-service-units.sh',         // systemd unit maintenance
+    'ensure-polkit-rule.sh',            // polkit
+    'helixscreen-network.pkla',         // polkit
+    '99-helixscreen-backlight.rules',   // udev
+    '99-helixscreen-usb-printers.rules',// udev
+    'helixscreen-k2-procd-shim.sh',     // Creality K2 procd
+    'helixscreen-ustreamer-k2.sh'       // Creality K2 camera
+]
+
+// Same globs as regexes, for the post-copy audit below. Only '*' appears in
+// these patterns; everything around it is quoted literally.
+def nonShippableConfigPatterns = nonShippableConfig.collect {
+    java.util.regex.Pattern.compile('\\Q' + it.replace('*', '\\E.*\\Q') + '\\E')
+}
+
+// Destinations resolved at configuration time so the task actions below never
+// reach back through `project`.
+def stagedAssetRoot = file('src/main/assets')
+def stagedAssetDirs = ['ui_xml', 'assets', 'config'].collect { new File(stagedAssetRoot, it) }
+def stagedConfigDir = new File(stagedAssetRoot, 'config')
+
 // Copy project assets into APK assets directory, preserving directory structure.
 // The asset extractor on Android reads these and copies them to internal storage.
+//
+// The destination trees are deleted first because Gradle's Copy is purely
+// additive: it never removes a file an earlier build left behind, so adding an
+// exclusion does nothing about a destination that already holds the file. Only
+// the three copied trees are wiped — BUILD_STAMP and MANIFEST.txt sit at the
+// assets root and are produced by the tasks below.
 task copyAssets(type: Copy) {
+    doFirst {
+        stagedAssetDirs.each { it.deleteDir() }
+    }
     from('../../ui_xml') { into 'ui_xml' }
     from('../../assets') { into 'assets' }
-    from('../../config') { into 'config' }
+    from('../../config') {
+        into 'config'
+        exclude nonShippableConfig
+        exclude hostOnlyConfig
+    }
     into 'src/main/assets'
 }
+
+// Last line of defense: sweep local state out of the staged assets, whatever
+// the incremental-build state left behind.
+//
+// This cannot live in copyAssets. That task shares its destination with
+// genBuildStamp and genPackagingManifest, so Gradle sees overlapping outputs,
+// stops tracking files it did not itself create, and reports UP-TO-DATE with a
+// stale settings.json sitting in the destination — skipping copyAssets' own
+// doFirst/doLast along with it. A separate never-up-to-date task always runs,
+// and only walks config/, so it costs nothing.
+//
+// It deletes rather than failing the build: a stale staged file is not a
+// mistake the developer can fix in source, and the packaging must be correct
+// either way. The removals are logged at warn so they are not silent.
+task purgeStagedLocalState {
+    outputs.upToDateWhen { false }
+    doLast {
+        if (!stagedConfigDir.isDirectory()) {
+            return
+        }
+        def leaked = []
+        stagedConfigDir.eachFileRecurse(groovy.io.FileType.FILES) { f ->
+            if (nonShippableConfigPatterns.any { p -> p.matcher(f.name).matches() }) {
+                leaked << f
+            }
+        }
+        leaked.each {
+            logger.warn("purgeStagedLocalState: removing local state staged into the APK: {}", it)
+            it.delete()
+        }
+    }
+}
+purgeStagedLocalState.dependsOn copyAssets
 
 // Generate MANIFEST.txt listing every source-tree directory shipped in the APK.
 // android_asset_extractor.cpp iterates this at first launch — the Android
 // AAssetDir API can only enumerate files, not subdirs, so without the manifest
 // the extractor has to hardcode the tree (which silently rots when new dirs
 // are added; see bug that motivated this). Regenerated on every build.
-task genPackagingManifest(dependsOn: copyAssets) {
+task genPackagingManifest(dependsOn: purgeStagedLocalState) {
     def manifestOut = file('src/main/assets/MANIFEST.txt')
     def script = file('../../scripts/gen-packaging-manifest.sh')
     def projectRoot = file('../..')
@@ -115,6 +293,24 @@ task genPackagingManifest(dependsOn: copyAssets) {
 }
 
 preBuild.dependsOn genPackagingManifest
+
+// Per-build stamp: written into the APK assets on every build. The native
+// asset extractor compares it to the on-disk stamp and re-extracts on
+// mismatch, so iterating on XML/assets on a connected device always picks
+// up edits. Without this, same-version dev rebuilds silently serve stale
+// extracted assets — the bare version gate cannot tell them apart, and the
+// git hash is regenerated at CMake configure-time only.
+task genBuildStamp {
+    def stampOut = file('src/main/assets/BUILD_STAMP')
+    outputs.file(stampOut)
+    outputs.upToDateWhen { false }
+    doLast {
+        stampOut.parentFile.mkdirs()
+        stampOut.text = String.valueOf(System.currentTimeMillis())
+    }
+}
+
+preBuild.dependsOn genBuildStamp
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')

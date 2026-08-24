@@ -3,6 +3,8 @@
 
 #include "plugin_manager.h"
 
+#if HELIX_HAS_PLUGINS
+
 #include "config.h"
 #include "helix_version.h"
 #include "injection_point_manager.h"
@@ -42,7 +44,7 @@ PluginManager::~PluginManager() {
 // Configuration
 // ============================================================================
 
-void PluginManager::set_core_services(MoonrakerAPI* api, MoonrakerClient* client,
+void PluginManager::set_core_services(IMoonrakerAPI* api, IMoonrakerClient* client,
                                       PrinterState& state, Config* config) {
     moonraker_api_ = api;
     moonraker_client_ = client;
@@ -436,7 +438,7 @@ void PluginManager::on_moonraker_disconnected() {
     EventDispatcher::instance().emit(events::PRINTER_DISCONNECTED);
 }
 
-void PluginManager::update_moonraker_services(MoonrakerAPI* api, MoonrakerClient* client) {
+void PluginManager::update_moonraker_services(IMoonrakerAPI* api, IMoonrakerClient* client) {
     moonraker_api_ = api;
     moonraker_client_ = client;
 
@@ -724,3 +726,76 @@ void PluginManager::add_error(const std::string& plugin_id, PluginError::Type ty
 }
 
 } // namespace helix::plugin
+
+#else // !HELIX_HAS_PLUGINS
+
+// Compiled-out build (HELIX_HAS_PLUGINS=0): no dlopen/manifest-scanning
+// infrastructure exists on this target. Stub keeps PluginManager's public API
+// so Application and SettingsPluginsOverlay need no source changes — it just
+// always reports zero discovered/loaded plugins.
+
+#include <spdlog/spdlog.h>
+
+namespace helix::plugin {
+
+PluginManager::PluginManager() {
+    spdlog::debug("[plugin] Plugin system compiled out (HELIX_HAS_PLUGINS=0)");
+}
+
+PluginManager::~PluginManager() = default;
+
+void PluginManager::set_core_services(IMoonrakerAPI*, IMoonrakerClient*, PrinterState&, Config*) {}
+
+void PluginManager::set_enabled_plugins(const std::vector<std::string>&) {}
+
+bool PluginManager::discover_plugins(const std::string&) {
+    return true;
+}
+
+bool PluginManager::load_all() {
+    return true;
+}
+
+bool PluginManager::load_plugin(const std::string&) {
+    return false;
+}
+
+void PluginManager::unload_all() {}
+
+bool PluginManager::unload_plugin(const std::string&) {
+    return false;
+}
+
+bool PluginManager::disable_plugin(const std::string&) {
+    return false;
+}
+
+void PluginManager::on_moonraker_connected() {}
+
+void PluginManager::on_moonraker_disconnected() {}
+
+void PluginManager::update_moonraker_services(IMoonrakerAPI*, IMoonrakerClient*) {}
+
+std::vector<PluginInfo> PluginManager::get_discovered_plugins() const {
+    return {};
+}
+
+std::vector<PluginInfo> PluginManager::get_loaded_plugins() const {
+    return {};
+}
+
+std::vector<PluginError> PluginManager::get_load_errors() const {
+    return {};
+}
+
+bool PluginManager::is_loaded(const std::string&) const {
+    return false;
+}
+
+const PluginInfo* PluginManager::get_plugin(const std::string&) const {
+    return nullptr;
+}
+
+} // namespace helix::plugin
+
+#endif // HELIX_HAS_PLUGINS

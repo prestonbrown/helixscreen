@@ -9,7 +9,17 @@
       <div v-else-if="error" class="error">{{ error }}</div>
       <template v-else-if="data">
         <div class="metrics-row">
-          <MetricCard title="Active Devices" :value="data.active_devices" />
+          <MetricCard
+            title="Active Devices"
+            :value="data.active_devices"
+            subtitle="telemetry opt-in only"
+          />
+          <MetricCard
+            title="Fleet (CDN)"
+            :value="cdnFleetLatest !== null ? cdnFleetLatest.toLocaleString() : '-'"
+            :subtitle="cdnFleetSubtitle"
+            color="var(--accent-blue)"
+          />
           <MetricCard title="Total Events" :value="data.total_events.toLocaleString()" />
           <MetricCard
             title="Crash Rate"
@@ -92,6 +102,26 @@ const cumulativeChartData = computed(() => ({
   }]
 }))
 
+// Most recent closed day in the CDN series. The cron snapshots the previous
+// UTC day, so this lags "now" by up to a day; null until the first run lands.
+const cdnFleetLatest = computed<number | null>(() => {
+  const series = data.value?.cdn_fleet
+  if (!series?.length) return null
+  return series[series.length - 1].sources
+})
+
+const cdnFleetSubtitle = computed(() => {
+  const series = data.value?.cdn_fleet
+  if (!series?.length) return 'awaiting first snapshot'
+  const latest = series[series.length - 1]
+  // Errors here mean installs on the stable channel asked for a manifest and
+  // did not get one, which is worth surfacing rather than averaging away.
+  if (latest.errors > 0) {
+    return `${latest.date} · ${latest.errors.toLocaleString()} failed polls`
+  }
+  return `${latest.date} · est. from update polls`
+})
+
 async function fetchData() {
   loading.value = true
   error.value = ''
@@ -122,7 +152,7 @@ watch(() => filters.queryString, fetchData, { immediate: true })
 
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }

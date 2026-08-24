@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_GCODE_VIEWER
+
 #include "gcode_layer_cache.h"
 
 #include "system/crash_handler.h"
@@ -537,3 +539,5 @@ int64_t GCodeLayerCache::ms_since_last_pressure_check() const {
 
 } // namespace gcode
 } // namespace helix
+
+#endif // HELIX_HAS_GCODE_VIEWER

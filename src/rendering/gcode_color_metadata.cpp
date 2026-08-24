@@ -3,37 +3,14 @@
 
 #include "gcode_color_metadata.h"
 
+#include "operation_patterns.h"
+
 #include <cctype>
 #include <cstring>
 
 namespace helix::gcode {
 
 namespace {
-
-// Case-insensitive substring search within a bounded view.
-bool contains_ci(std::string_view haystack, std::string_view needle) {
-    if (needle.empty() || needle.size() > haystack.size()) {
-        return false;
-    }
-    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
-        bool match = true;
-        for (size_t j = 0; j < needle.size(); ++j) {
-            char hc = haystack[i + j];
-            char nc = needle[j];
-            if (hc >= 'A' && hc <= 'Z')
-                hc = static_cast<char>(hc + 32);
-            if (nc >= 'A' && nc <= 'Z')
-                nc = static_cast<char>(nc + 32);
-            if (hc != nc) {
-                match = false;
-                break;
-            }
-        }
-        if (match)
-            return true;
-    }
-    return false;
-}
 
 bool is_hex_digit(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');

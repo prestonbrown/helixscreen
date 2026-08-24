@@ -92,7 +92,7 @@
                      width="100%" height="#button_height_sm" variant="success" icon="check" text="Save Z-Offset"
                      translation_tag="Save Z-Offset" hidden="true">
             <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
           </ui_button>
         </lv_obj>
@@ -279,7 +279,7 @@
             <ui_button name="btn_z_calibration"
                        height="100%" flex_grow="1" icon="z_closer" text="Z Calibration" translation_tag="Z Calibration"
                        icon_position="top" style_bg_opa="0" style_border_width="0">
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
             </ui_button>
           </lv_obj>
@@ -293,7 +293,7 @@
                        height="100%" flex_grow="1" icon="wrench" text="Bed Screws" translation_tag="Bed Screws"
                        icon_position="top" style_bg_opa="0" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_screws"/>
             </ui_button>
 
@@ -412,7 +412,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" text="Quad Gantry Level"
                        translation_tag="Quad Gantry Level" variant="secondary" hidden="true">
               <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_qgl"/>
             </ui_button>
@@ -421,14 +421,16 @@
                        width="0" height="#button_height_sm" flex_grow="1" text="Z-Tilt Adjust"
                        translation_tag="Z-Tilt Adjust" variant="secondary" hidden="true">
               <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_z_tilt"/>
             </ui_button>
             <ui_button name="btn_macro_1"
                        width="0" height="#button_height_sm" flex_grow="1" bind_text="macro_1_name" variant="secondary">
               <bind_flag_if_eq subject="macro_1_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_1_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="0"/>
             </ui_button>
           </lv_obj>
@@ -438,19 +440,25 @@
             <ui_button name="btn_macro_2"
                        width="0" height="#button_height_sm" flex_grow="1" bind_text="macro_2_name" variant="secondary">
               <bind_flag_if_eq subject="macro_2_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_2_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="1"/>
             </ui_button>
             <ui_button name="btn_macro_3"
                        width="0" height="#button_height_sm" flex_grow="1" bind_text="macro_3_name" variant="secondary">
               <bind_flag_if_eq subject="macro_3_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_3_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="2"/>
             </ui_button>
             <ui_button name="btn_macro_4"
                        width="0" height="#button_height_sm" flex_grow="1" bind_text="macro_4_name" variant="secondary">
               <bind_flag_if_eq subject="macro_4_visible" flag="hidden" ref_value="0"/>
-              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+              <!-- One state bind, two reasons. Each bind_state_* sets OR clears the state,
+                   so a second "disabled" bind on the same widget undoes the first. -->
+              <bind_state_if cond="job_holds_machine eq 1 or macro_4_available eq 0" state="disabled"/>
               <event_cb trigger="clicked" callback="on_controls_macro" user_data="3"/>
             </ui_button>
           </lv_obj>

@@ -109,7 +109,7 @@ class CameraStream {
      * @brief Configure stream URLs from printer state.
      *
      * Reads webcam URLs from PrinterState and resolves relative URLs via
-     * MoonrakerAPI. Flip/rotation must be set separately by the caller.
+     * IMoonrakerAPI. Flip/rotation must be set separately by the caller.
      *
      * @param[out] stream_url Resolved stream URL (empty if no webcam)
      * @param[out] snapshot_url Resolved snapshot URL (empty if no webcam)
@@ -174,6 +174,8 @@ class CameraStream {
     ScaledSize compute_scaled_size(int src_w, int src_h) const;
 
   private:
+    friend class CameraStreamTestAccess;
+
     int process_stream_data();
     void stream_thread_func();
     void snapshot_poll_loop();
@@ -258,10 +260,10 @@ class CameraStream {
     bool thread_detached_ = false; // Set by stop() if thread join times out
     std::thread stream_thread_;
 
-    static constexpr int kMaxStreamFailures = 3;
-    static constexpr int kSnapshotIntervalMs = 2000;
-    static constexpr int kStreamConnectTimeoutSec = 5; // Initial connection attempt
-    static constexpr int kStreamTimeoutSec = 300;      // Active stream — reconnects on timeout
+    static constexpr int MAX_STREAM_FAILURES = 3;
+    static constexpr int SNAPSHOT_INTERVAL_MS = 2000;
+    static constexpr int STREAM_CONNECT_TIMEOUT_SEC = 5; // Initial connection attempt
+    static constexpr int STREAM_TIMEOUT_SEC = 300;       // Active stream — reconnects on timeout
 
     // libturbojpeg runtime loading (dlopen) — nullptr if unavailable
     void* tj_lib_ = nullptr; // dlopen handle

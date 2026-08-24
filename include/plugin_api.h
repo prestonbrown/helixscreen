@@ -33,9 +33,9 @@
 #include <vector>
 
 // Forward declarations - plugins don't need full definitions
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 }
 namespace helix {
 class PrinterState;
@@ -93,13 +93,13 @@ class PluginAPI {
     /**
      * @brief Construct PluginAPI with core service references
      *
-     * @param api MoonrakerAPI instance (may be nullptr if not connected)
+     * @param api IMoonrakerAPI instance (may be nullptr if not connected)
      * @param client MoonrakerClient instance (may be nullptr if not connected)
      * @param state PrinterState reference
      * @param config Config instance
      * @param plugin_id ID of the plugin this API belongs to
      */
-    PluginAPI(MoonrakerAPI* api, MoonrakerClient* client, PrinterState& state, Config* config,
+    PluginAPI(IMoonrakerAPI* api, IMoonrakerClient* client, PrinterState& state, Config* config,
               const std::string& plugin_id);
 
     ~PluginAPI();
@@ -113,11 +113,11 @@ class PluginAPI {
     // ========================================================================
 
     /**
-     * @brief Get MoonrakerAPI for high-level printer operations
+     * @brief Get IMoonrakerAPI for high-level printer operations
      *
      * May return nullptr if Moonraker is not connected. Always check before use.
      */
-    MoonrakerAPI* moonraker_api() const {
+    IMoonrakerAPI* moonraker_api() const {
         return moonraker_api_;
     }
 
@@ -126,7 +126,7 @@ class PluginAPI {
      *
      * May return nullptr if Moonraker is not connected. Always check before use.
      */
-    MoonrakerClient* moonraker_client() const {
+    IMoonrakerClient* moonraker_client() const {
         return moonraker_client_;
     }
 
@@ -365,10 +365,10 @@ class PluginAPI {
      * Called by PluginManager when Moonraker connects. Applies any
      * deferred subscriptions.
      *
-     * @param api New MoonrakerAPI pointer
+     * @param api New IMoonrakerAPI pointer
      * @param client New MoonrakerClient pointer
      */
-    void set_moonraker(MoonrakerAPI* api, MoonrakerClient* client);
+    void set_moonraker(IMoonrakerAPI* api, IMoonrakerClient* client);
 
     /**
      * @brief Apply deferred Moonraker subscriptions
@@ -387,8 +387,8 @@ class PluginAPI {
 
   private:
     // Core services
-    MoonrakerAPI* moonraker_api_;
-    MoonrakerClient* moonraker_client_;
+    IMoonrakerAPI* moonraker_api_;
+    IMoonrakerClient* moonraker_client_;
     PrinterState& printer_state_;
     Config* config_;
     std::string plugin_id_;

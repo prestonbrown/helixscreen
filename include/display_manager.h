@@ -194,6 +194,103 @@ class DisplayManager : public helix::ICalibrationSink {
     }
 
     /**
+     * @brief How enter_sleep() actually cuts the panel on this device.
+     *
+     * Selected by select_sleep_mechanism(); recorded in m_last_sleep_mechanism so
+     * the wake path and the logs agree on what was done.
+     */
+    enum class SleepMechanism {
+        HardwareBlank,   ///< FBIOBLANK at the display controller (AD5M/Allwinner)
+        PanelPowerOff,   ///< FB_BLANK_POWERDOWN / DRM DPMS-off (#1049)
+        HostSleep,       ///< Let the OS power the panel off (Android, #1245)
+        SoftwareOverlay, ///< Black LVGL rect over a lit panel — universal fallback
+    };
+
+    /** @brief Human-readable name for a mechanism (logging + test failure output). */
+    static const char* sleep_mechanism_name(SleepMechanism m) {
+        switch (m) {
+        case SleepMechanism::HardwareBlank:
+            return "hardware blank";
+        case SleepMechanism::PanelPowerOff:
+            return "panel power-off";
+        case SleepMechanism::HostSleep:
+            return "host sleep (keep-screen-on cleared)";
+        case SleepMechanism::SoftwareOverlay:
+            break;
+        }
+        return "software overlay";
+    }
+
+    /** @brief True when this binary was built for Android. Compile-time constant. */
+    static constexpr bool platform_is_android() {
+#ifdef __ANDROID__
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    /**
+     * @brief Decide how idle entry should cut the panel (#1245). Pure, no side effects.
+     *
+     * Ordering is "most direct control first": if we can blank or power the panel
+     * ourselves we always do, because that honors the user's timeout exactly.
+     * Host sleep is the Android last resort — no backlight sysfs is reachable from
+     * an untrusted app and DisplayBackendSDL has no blank/power-off, so the only
+     * real way to darken the panel is to stop asserting FLAG_KEEP_SCREEN_ON and
+     * let Android's own display timeout run. Everything else keeps the software
+     * overlay, which is what every platform did before.
+     *
+     * @p sleep_timeout_sec is the configured Display Sleep value; 0 (and any
+     * non-positive value) means "Never", and must never select HostSleep — a
+     * wall-mounted tablet has to stay lit even though the panel is idle.
+     *
+     * With @p platform_is_android false this reduces exactly to the pre-#1245
+     * if/else-if/else chain, so non-Android platforms are unaffected.
+     *
+     * @param platform_is_android  Built for Android (see platform_is_android())
+     * @param use_hardware_blank   A hardware backlight blank is in use
+     * @param can_power_off        Panel power-off is enabled AND a backend exists
+     * @param sleep_timeout_sec    Configured Display Sleep timeout (0 = Never)
+     */
+    static SleepMechanism select_sleep_mechanism(bool platform_is_android, bool use_hardware_blank,
+                                                 bool can_power_off, int sleep_timeout_sec) {
+        if (use_hardware_blank) {
+            return SleepMechanism::HardwareBlank;
+        }
+        if (can_power_off) {
+            return SleepMechanism::PanelPowerOff;
+        }
+        if (platform_is_android && sleep_timeout_sec > 0) {
+            return SleepMechanism::HostSleep;
+        }
+        return SleepMechanism::SoftwareOverlay;
+    }
+
+    /**
+     * @brief Whether a host-sleeping display must self-wake (#1245). Pure.
+     *
+     * Android pauses the app when it powers the panel down and resumes it when the
+     * panel comes back — and neither transition is a touch, so the normal
+     * activity-based wake never fires. Left alone, m_display_sleeping would stay
+     * true with keep-screen-on still cleared: the device would immediately re-sleep
+     * and the sleep callbacks (camera suspend) would never resume.
+     * HelixActivity.onResume() bumps a counter; a change in it while host-sleeping
+     * means the panel is on again.
+     *
+     * Only meaningful while HostSleep is the active mechanism — a resume must not
+     * spuriously wake a hardware-blank / power-off / overlay device.
+     *
+     * @param sleeping_via_host   Currently asleep via SleepMechanism::HostSleep
+     * @param resume_seq_at_sleep Resume counter captured when sleep was entered
+     * @param resume_seq_now      Resume counter right now
+     */
+    static bool host_sleep_needs_wake(bool sleeping_via_host, int resume_seq_at_sleep,
+                                      int resume_seq_now) {
+        return sleeping_via_host && resume_seq_now != resume_seq_at_sleep;
+    }
+
+    /**
      * @brief Check inactivity and trigger display sleep if timeout exceeded
      *
      * Call this from the main event loop. Uses LVGL's built-in inactivity
@@ -382,6 +479,18 @@ class DisplayManager : public helix::ICalibrationSink {
     bool needs_touch_calibration() const;
 
     /**
+     * @brief Check whether the manual calibration entry point should be offered
+     *
+     * True for any real touch panel. needs_touch_calibration() answers a
+     * narrower question — "auto-fire the wizard on first boot" — and its
+     * name/range heuristic cannot see an orientation mismatch, so it must not
+     * gate the manual path (prestonbrown/helixscreen#1259).
+     *
+     * @return true if the Settings entry point should be reachable
+     */
+    bool supports_touch_calibration() const;
+
+    /**
      * @brief Temporarily disable affine calibration for recalibration
      *
      * During recalibration, touch coordinates must be raw (pre-affine) to avoid
@@ -504,6 +613,31 @@ class DisplayManager : public helix::ICalibrationSink {
      */
     void register_resize_callback(ResizeCallback callback);
 
+    /**
+     * @brief Suspend/resume the debounced resize-callback fanout
+     *
+     * While suspended, a SIZE_CHANGED on the monitored screen arms no debounce
+     * timer and an already-armed one expires without fanning out. The rotation
+     * probe holds this for its whole run: every rotation it tests would
+     * otherwise fire the registered callbacks, and the theme layout refresh
+     * among them takes seconds on a slow panel (measured 2.9s on a K1C) inside
+     * the lv_timer_handler() call that the probe's tap poll loop makes on every
+     * iteration. The probe re-applies the confirmed rotation when it finishes
+     * and Application::run_rotation_probe_and_layout() refreshes the theme and
+     * the LayoutManager after it returns, so the suppressed intermediate
+     * refreshes are not needed.
+     *
+     * @param suspended True to suspend fanout, false to resume
+     */
+    void set_resize_fanout_suspended(bool suspended);
+
+    /**
+     * @brief Whether the debounced resize-callback fanout is suspended
+     */
+    bool resize_fanout_suspended() const {
+        return m_resize_fanout_suspended;
+    }
+
   private:
     // Test-only seam (#1049): grants the test harness access to the private
     // sleep/wake/power-off members so the idle paths can be exercised without a
@@ -559,6 +693,24 @@ class DisplayManager : public helix::ICalibrationSink {
     bool m_sleep_backlight_off = true; // Whether to power off backlight during sleep
     lv_obj_t* m_sleep_overlay = nullptr;
 
+    // Which branch the most recent enter_sleep() actually took (#1245). Not just
+    // the selector's answer: the power-off branch can degrade to the overlay when
+    // power_off() refuses at runtime, and the Android self-wake must only fire for
+    // a sleep that really handed the panel to the OS.
+    SleepMechanism m_last_sleep_mechanism = SleepMechanism::SoftwareOverlay;
+
+    // Mirror of the Android window's FLAG_KEEP_SCREEN_ON state (#1245). SDL asserts
+    // the flag at video init (SDL_video.c disables the screensaver unless
+    // SDL_HINT_VIDEO_ALLOW_SCREENSAVER is set), so true is the startup truth. Used
+    // to make set_keep_screen_on() transition-guarded — JNI is only crossed when
+    // the state actually changes. Always true off Android.
+    bool m_keep_screen_on = true;
+
+    // HelixActivity.onResume() counter captured at host-sleep entry, so a
+    // suspend/resume round trip can be detected without a touch. See
+    // host_sleep_needs_wake().
+    int m_resume_seq_at_sleep = 0;
+
     // Power-off sleep flush suppression (#1049 regression guard). When the panel
     // is powered down via DRM DPMS-off / FB_BLANK_POWERDOWN, the very next LVGL
     // page-flip re-asserts DPMS-on and relights the panel on the home screen.
@@ -584,6 +736,7 @@ class DisplayManager : public helix::ICalibrationSink {
     // Resize handler state
     std::vector<ResizeCallback> m_resize_callbacks;
     lv_timer_t* m_resize_debounce_timer = nullptr;
+    bool m_resize_fanout_suspended = false;
     static constexpr uint32_t RESIZE_DEBOUNCE_MS = 250;
 
     static void resize_event_cb(lv_event_t* e);
@@ -618,6 +771,18 @@ class DisplayManager : public helix::ICalibrationSink {
      *        path), so wake/shutdown paths can call it unconditionally.
      */
     void restore_flush_after_sleep();
+
+    /**
+     * @brief Assert or release the host window's "keep screen on" request (#1245).
+     *
+     * Android only — a no-op everywhere else, where nothing but us decides when
+     * the panel goes dark. Transition-guarded against m_keep_screen_on so the JNI
+     * boundary is only crossed on a real change; safe to call unconditionally from
+     * any sleep/wake path.
+     *
+     * @param keep_on true to hold the screen awake, false to let the OS sleep it
+     */
+    void set_keep_screen_on(bool keep_on);
 
     /**
      * @brief Create fullscreen black overlay on lv_layer_top() for software sleep

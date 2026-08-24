@@ -14,6 +14,7 @@
 #include "wifi_manager.h"
 
 #include "ui_error_reporting.h"
+#include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 
 #include "http_executor.h"
@@ -25,7 +26,10 @@
 #include "wifi_interface.h"
 #include "wifi_ui_utils.h"
 
-#if !defined(__APPLE__) && !defined(__ANDROID__)
+#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
+// NetworkManager/wpa_supplicant fallback (handle_init_failed, below) is a
+// Linux-desktop-only concern — ESP32 has a single esp_wifi backend with no
+// fallback path (see wifi_backend_esp.cpp).
 #include "wifi_backend_networkmanager.h"
 #include "wifi_backend_wpa_supplicant.h"
 #endif
@@ -45,6 +49,16 @@ std::function<bool()> WiFiManager::os_link_probe_ = []() {
 
 bool WiFiManager::os_link_up() {
     return os_link_probe_ && os_link_probe_();
+}
+
+void WiFiManager::mark_association_change() {
+    last_association_change_ = std::chrono::steady_clock::now();
+}
+
+bool WiFiManager::in_association_grace() const {
+    if (last_association_change_.time_since_epoch().count() == 0)
+        return false;
+    return (std::chrono::steady_clock::now() - last_association_change_) < ASSOCIATION_GRACE;
 }
 
 // Overridable in tests via WiFiManagerTestAccess so has_non_wifi_network_path()
@@ -194,9 +208,8 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
     // but NM daemon masked/dead), transparently fall back to wpa_supplicant
     // so users aren't left WiFi-less because of a dormant NM install. Guarded
     // by tried_fallback_ to avoid infinite loops if wpa_supplicant also fails.
-#if !defined(__APPLE__) && !defined(__ANDROID__)
-    if (!tried_fallback_ && backend_ &&
-        dynamic_cast<WifiBackendNetworkManager*>(backend_.get()) != nullptr) {
+#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
+    if (!tried_fallback_ && backend_ && backend_->is_network_manager()) {
         tried_fallback_ = true;
         spdlog::warn("[WiFiManager] NetworkManager backend INIT_FAILED ({}); "
                      "falling back to wpa_supplicant",
@@ -207,7 +220,7 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
         // std::system_error(resource_deadlock_would_occur). Defer the swap to
         // the main/UI thread via UpdateQueue so the init thread can unwind
         // before stop() joins it. The shared instance is owned by
-        // g_shared_wifi_manager for the life of the process, but tests build
+        // the never-freed global holder for the life of the process, but tests build
         // their own on the stack, so the swap is routed through the guard rather
         // than relying on that (#1165).
         async_lifetime_.defer("WiFiManager::fallback_to_wpa_supplicant", [this, silent]() {
@@ -262,6 +275,10 @@ WiFiManager::~WiFiManager() {
         lv_timer_delete(auth_fail_grace_timer_);
     }
     auth_fail_grace_timer_ = nullptr;
+
+    // Same for the connect watchdog: StaticPanelRegistry::destroy_all() runs before
+    // lv_deinit(), so an armed timer would still be in LVGL's list holding a freed `this`.
+    cancel_connect_timeout();
 
     // Clear callbacks BEFORE stopping backend
     // Pending lv_async_call operations check for null callbacks before invoking
@@ -328,18 +345,20 @@ void WiFiManager::start_scan(
     spdlog::debug("[WiFiManager] Scan callback registered");
 
     spdlog::info("[WiFiManager] Starting periodic network scan (interval backs off {}ms-{}ms)",
-                 helix::wifi::ScanScheduler::kBaseIntervalMs,
-                 helix::wifi::ScanScheduler::kMaxIntervalMs);
+                 helix::wifi::ScanScheduler::BASE_INTERVAL_MS,
+                 helix::wifi::ScanScheduler::MAX_INTERVAL_MS);
 
     // A fresh scan session (e.g. the user opening network settings) is a
     // manual refresh: clear any suppression/backoff left over from a prior
-    // session and start this one's timer at the base interval. Safe to call
-    // directly — start_scan() runs on the main/LVGL thread.
+    // session and start this one's timer at the base interval. Touching
+    // scan_scheduler_ directly is safe because start_scan() is LVGL-thread-only
+    // — it creates the scan lv_timer below, and stop_scan() deletes it. Callers
+    // on any other thread must marshal via helix::ui::queue_update().
     scan_scheduler_.on_user_refresh();
 
     // Create timer for periodic scanning
     scan_timer_ =
-        lv_timer_create(scan_timer_callback, helix::wifi::ScanScheduler::kBaseIntervalMs, this);
+        lv_timer_create(scan_timer_callback, helix::wifi::ScanScheduler::BASE_INTERVAL_MS, this);
     spdlog::debug("[WiFiManager] Timer created: {}", (void*)scan_timer_);
 
     // Trigger immediate scan
@@ -366,6 +385,11 @@ void WiFiManager::start_scan(
         // scanning permanently — exactly backwards for the case this exists
         // to diagnose.
         scan_scheduler_.on_scan_failed();
+        // Keep the backend's own account of the failure. NOTIFY_WARNING logs
+        // only the user-facing string, so before this the actual wpa_supplicant
+        // reply never reached the log — the AD5X bundles carry the toast with no
+        // way to tell FAIL-BUSY from a wedged control socket.
+        spdlog::warn("[WiFiManager] Scan trigger failed: {}", scan_result.technical_msg);
         // If the OS reports the wireless link is actually up, the managed
         // backend simply can't reach its control socket (the link is system-
         // managed and live). Nagging the user with a failure toast is wrong —
@@ -373,6 +397,10 @@ void WiFiManager::start_scan(
         if (os_link_up()) {
             spdlog::debug("[WiFiManager] Scan trigger failed but OS link is up "
                           "(system-managed) — suppressing user warning");
+        } else if (in_association_grace()) {
+            spdlog::debug("[WiFiManager] Scan trigger failed within {}s of an association change "
+                          "we initiated — suppressing user warning",
+                          ASSOCIATION_GRACE.count());
         } else {
             NOTIFY_WARNING("WiFi scan failed. Try again.");
         }
@@ -458,10 +486,15 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
     }
 
     spdlog::info("[WiFiManager] Connecting to '{}'", helix::redact::ssid(ssid));
+    // Selecting a network disassociates from the current one; any scan trigger
+    // that lands in the gap is collateral, not a user-actionable failure.
+    mark_association_change();
 
     // Drop any grace timer left over from a prior attempt so it can't deliver a stale
-    // failure against this new connect (helixscreen#1050).
+    // failure against this new connect (helixscreen#1050). Same for the watchdog: a
+    // leftover one would time out this attempt on the previous attempt's schedule.
     cancel_auth_fail_grace();
+    cancel_connect_timeout();
 
     {
         std::lock_guard<std::mutex> lock(callback_mutex_);
@@ -486,8 +519,11 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
         if (cb) {
             cb(false, result.user_msg.empty() ? result.technical_msg : result.user_msg);
         }
+        return; // the callback is already delivered — nothing left for the watchdog to guard
     }
-    // Success/failure will be reported via CONNECTED/AUTH_FAILED events
+    // Success/failure will be reported via CONNECTED/AUTH_FAILED events — or, when the
+    // backend never produces either, by the watchdog armed here.
+    start_connect_timeout();
 }
 
 void WiFiManager::disconnect() {
@@ -497,6 +533,23 @@ void WiFiManager::disconnect() {
     }
 
     spdlog::info("[WiFiManager] Disconnecting");
+    mark_association_change();
+
+    // An explicit disconnect aborts whatever connect is in flight. Leaving
+    // connecting_in_progress_ set would make handle_disconnected() swallow the very
+    // DISCONNECTED this call is about to produce, latching the state machine with no
+    // event left that can clear it. The user cancelled deliberately, so the pending
+    // callback is dropped rather than invoked with a failure. Both pending resolvers go
+    // with it: an armed grace window would otherwise still fire ~4s later against an
+    // attempt the user already abandoned.
+    cancel_connect_timeout();
+    cancel_auth_fail_grace();
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        connecting_in_progress_ = false;
+        connect_callback_ = nullptr;
+    }
+
     WiFiError result = backend_->disconnect_network();
     if (!result.success()) {
         NOTIFY_WARNING("Could not disconnect from WiFi");
@@ -514,6 +567,9 @@ void WiFiManager::forget(const std::string& ssid,
     }
 
     spdlog::info("[WiFiManager] Forgetting '{}'", helix::redact::ssid(ssid));
+    // Forgetting the CONNECTED network disassociates as a side effect, and the
+    // overlay restarts scanning immediately afterwards.
+    mark_association_change();
 
     WiFiError result = backend_->forget_network(ssid);
     if (!result.success()) {
@@ -713,10 +769,16 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
             }
 
             {
+                // Notify under the lock, not after it. wait_for_radio_ops() wakes
+                // as soon as the count reaches zero, and ~WiFiManager() destroys
+                // radio_op_cv_ right after it returns -- which would be while this
+                // thread was still inside notify_all(). Holding the mutex across
+                // the notify keeps the waiter blocked on reacquiring it until we
+                // are done touching the condition variable.
                 std::lock_guard<std::mutex> lock(radio_op_mutex_);
                 --radio_ops_inflight_;
+                radio_op_cv_.notify_all();
             }
-            radio_op_cv_.notify_all();
         });
 }
 
@@ -902,6 +964,8 @@ void WiFiManager::handle_connected(const std::string& event_data) {
                 // CONNECTED is the real outcome, so cancel it before delivering success
                 // (helixscreen#1050).
                 manager->cancel_auth_fail_grace();
+                // The attempt resolved — disarm the watchdog before delivering success.
+                manager->cancel_connect_timeout();
                 std::function<void(bool, const std::string&)> cb;
                 {
                     std::lock_guard<std::mutex> lock(manager->callback_mutex_);
@@ -950,11 +1014,16 @@ void WiFiManager::handle_disconnected(const std::string& event_data) {
     // on). Without it the queued lambda can never resolve to a live manager
     // anyway — and skipping the enqueue matters concretely: backend_->stop()
     // in the destructor fires this same DISCONNECTED path synchronously,
-    // with scan_timer_ already torn down and self_ never set in tests that
-    // construct WiFiManager directly (self_ is singleton-only), so an
-    // unconditional enqueue there outlives the test with nothing left to
-    // drain it — an UpdateQueue isolation leak.
-    if (self_) {
+    // with scan_timer_ already torn down and self_ either never set (tests that
+    // construct WiFiManager directly) or already expired (the weak self-
+    // reference goes flat the moment refcount hits zero), so an unconditional
+    // enqueue there outlives the test with nothing left to drain it — an
+    // UpdateQueue isolation leak.
+    // std::weak_ptr::expired(), not LifetimeToken::expired(), so there is no
+    // TOCTOU on `this`: the backend thread running this handler is joined by
+    // backend_->stop() before ~WiFiManager returns, and the member access the
+    // gate sees is inside the queued lambda's weak_self.lock() on the main thread.
+    if (!self_.expired()) { // L081_OK: std::weak_ptr expiry, not a LifetimeToken
         std::weak_ptr<WiFiManager> weak_self = self_;
         helix::ui::queue_update("WiFiManager::handle_disconnected(scan_scheduler)", [weak_self]() {
             if (auto manager = weak_self.lock()) {
@@ -1055,6 +1124,9 @@ constexpr uint32_t AUTH_FAIL_GRACE_MS = 4000;
 
 void WiFiManager::start_auth_fail_grace(const std::string& error) {
     pending_auth_error_ = error;
+    // The grace window now owns resolving this attempt (either a CONNECTED preempts it or
+    // deliver_auth_failure() reports the failure), so the watchdog must stand down.
+    cancel_connect_timeout();
     if (auth_fail_grace_timer_) {
         lv_timer_delete(auth_fail_grace_timer_);
         auth_fail_grace_timer_ = nullptr;
@@ -1067,8 +1139,10 @@ void WiFiManager::start_auth_fail_grace(const std::string& error) {
 
 void WiFiManager::cancel_auth_fail_grace() {
     if (auth_fail_grace_timer_) {
-        spdlog::debug("[WiFiManager] CONNECTED preempted pending AUTH_FAILED — transient "
-                      "handshake failure ignored");
+        // Reached from handle_connected() (a CONNECTED preempted the failure, so it was
+        // a transient handshake error), from connect() (a new attempt supersedes it), and
+        // from disconnect() (the user abandoned the attempt). Kept neutral for all three.
+        spdlog::debug("[WiFiManager] Pending AUTH_FAILED grace window cancelled");
         lv_timer_delete(auth_fail_grace_timer_);
         auth_fail_grace_timer_ = nullptr;
     }
@@ -1104,6 +1178,70 @@ void WiFiManager::auth_fail_grace_timer_cb(lv_timer_t* timer) {
     self->deliver_auth_failure();
 }
 
+// ----------------------------------------------------------------------------
+// Connect watchdog — UI thread only
+// ----------------------------------------------------------------------------
+
+namespace {
+// Upper bound on how long a connect may stay pending with no terminal event. A
+// wpa_supplicant association plus DHCP on a slow embedded radio can legitimately take
+// ~30s, so anything tighter would abort connects that were about to succeed; 45s clears
+// that comfortably without leaving the user staring at a spinner that never resolves.
+constexpr uint32_t CONNECT_TIMEOUT_MS = 45000;
+} // namespace
+
+void WiFiManager::start_connect_timeout() {
+    cancel_connect_timeout();
+    connect_timeout_timer_ = lv_timer_create(connect_timeout_timer_cb, CONNECT_TIMEOUT_MS, this);
+    lv_timer_set_repeat_count(connect_timeout_timer_, 1); // one-shot
+    spdlog::debug("[WiFiManager] Connect watchdog armed ({}ms)", CONNECT_TIMEOUT_MS);
+}
+
+void WiFiManager::cancel_connect_timeout() {
+    if (connect_timeout_timer_) {
+        helix::ui::lv_timer_cancel_safe(connect_timeout_timer_);
+        connect_timeout_timer_ = nullptr;
+    }
+}
+
+void WiFiManager::deliver_connect_timeout() {
+    // Neither CONNECTED nor AUTH_FAILED ever arrived. Resolve the attempt as a failure so
+    // the caller stops waiting, and clear connecting_in_progress_ so a later DISCONNECTED
+    // is no longer swallowed by handle_disconnected().
+    bool was_pending = false;
+    std::function<void(bool, const std::string&)> cb;
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        was_pending = connecting_in_progress_ || static_cast<bool>(connect_callback_);
+        if (was_pending) {
+            connecting_in_progress_ = false;
+            cb = std::move(connect_callback_);
+            connect_callback_ = nullptr;
+        }
+    }
+    if (!was_pending) {
+        return; // resolved between the timer firing and this callback running
+    }
+
+    LOG_WARN_INTERNAL("Connect produced no terminal event within {}ms — reporting timeout",
+                      CONNECT_TIMEOUT_MS);
+    notify_state_observers();
+    // Invoke OUTSIDE callback_mutex_ — the callback re-enters WiFiManager.
+    if (cb) {
+        cb(false, lv_tr("Connection timeout"));
+    }
+}
+
+void WiFiManager::connect_timeout_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<WiFiManager*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+    // One-shot: LVGL deletes the timer after this callback returns, so just drop our handle.
+    self->connect_timeout_timer_ = nullptr;
+    self->deliver_connect_timeout();
+}
+
 // ============================================================================
 // State Observers
 // ============================================================================
@@ -1124,9 +1262,14 @@ void WiFiManager::notify_state_observers() {
     std::vector<StateObserver> snapshot;
     {
         std::lock_guard<std::mutex> lock(state_observers_mutex_);
+        // L081_OK: sweeping *observers'* tokens to drop dead entries, not
+        // gating our own `this` access — structurally not Mechanism C, and
+        // the backend fires READY from its init worker on nearly every
+        // launch, which made this the single largest bg_tok_expired_check
+        // emitter in the field.
         state_observers_.erase(
             std::remove_if(state_observers_.begin(), state_observers_.end(),
-                           [](const StateObserver& obs) { return obs.token.expired(); }),
+                           [](const StateObserver& obs) { return obs.token.expired_no_lvgl(); }),
             state_observers_.end());
         snapshot = state_observers_;
     }
@@ -1139,9 +1282,24 @@ void WiFiManager::notify_state_observers() {
 // Shared Singleton Instance
 // ============================================================================
 
-// Global shared WiFiManager instance
-// Using static local ensures thread-safe lazy initialization (C++11 guarantee)
-static std::shared_ptr<WiFiManager> g_shared_wifi_manager;
+// Global shared WiFiManager instance.
+//
+// DELIBERATELY NEVER DESTROYED. The holder is heap-allocated and never freed, so
+// the manager it owns outlives static destruction instead of racing it. A plain
+// static shared_ptr would release its last use from __run_exit_handlers, running
+// ~WiFiManager -> backend_->stop() -> spdlog::info() after spdlog's own static
+// sinks have been destroyed: a use-after-free that segfaults inside
+// sink::should_log(). The manager is process-lifetime state that the app never
+// tears down on purpose, so leaking it at exit is the intended trade -- the same
+// reason the destructor reports through fprintf rather than spdlog.
+//
+// This is NOT a licence for the class to leak generally: a WiFiManager built by
+// anyone else (every test fixture, for one) is still owned by its caller and
+// destroyed normally, which is what self_ being a weak_ptr buys.
+static std::shared_ptr<WiFiManager>& shared_wifi_manager() {
+    static auto* holder = new std::shared_ptr<WiFiManager>();
+    return *holder;
+}
 static std::mutex g_wifi_manager_mutex;
 
 namespace helix {
@@ -1149,16 +1307,17 @@ namespace helix {
 std::shared_ptr<WiFiManager> get_wifi_manager() {
     std::lock_guard<std::mutex> lock(g_wifi_manager_mutex);
 
-    if (!g_shared_wifi_manager) {
+    auto& instance = shared_wifi_manager();
+    if (!instance) {
         spdlog::debug("[WiFiManager] Creating global instance");
         // Use silent=true for global instance since it's used for passive status monitoring
         // (e.g., home panel WiFi icon). Avoids modal popup when WiFi hardware is unavailable
         // on development machines or when WiFi is simply turned off.
-        g_shared_wifi_manager = std::make_shared<WiFiManager>(/*silent=*/true);
-        g_shared_wifi_manager->init_self_reference(g_shared_wifi_manager);
+        instance = std::make_shared<WiFiManager>(/*silent=*/true);
+        instance->init_self_reference(instance);
     }
 
-    return g_shared_wifi_manager;
+    return instance;
 }
 
 } // namespace helix

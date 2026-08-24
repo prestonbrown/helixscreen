@@ -773,6 +773,65 @@ class TestYamlSurgicalDeletion:
         assert "    onto a second physical line\n" in content
         assert "  Zebra: Zebra\n" in content
 
+    def test_delete_of_comment_separated_neighbours_spares_the_next_key(self, tmp_path):
+        """
+        Two obsolete keys separated only by a `# Source:` comment must not take
+        the live key that follows them.
+
+        Entry spans run to the next entry's start, so the comment between two
+        entries lies inside the earlier one's span AND gets absorbed into the
+        later one's. Deleting bottom-up, the second splice ran against a list
+        the first had already shortened and over-reached by exactly the shared
+        lines. Real damage: cleaning `0h`/`0m` out of translations/*.yml also
+        destroyed `0°` and `1 day ago`, in all nine locales, while reporting
+        only the keys asked for.
+        """
+        from translations.obsolete import delete_obsolete_keys
+        from translations.yaml_manager import load_yaml_file
+
+        yaml_dir = tmp_path / "translations"
+        yaml_dir.mkdir()
+        (yaml_dir / "en.yml").write_text(
+            "locale: en\n"
+            "translations:\n"
+            "  # Source: history_dashboard_panel.xml:83\n"
+            "  0h: 0h\n"
+            "  # Source: print_status_panel.xml:252\n"
+            "  0m: 0m\n"
+            "  0deg: 0deg\n"
+            "  Alpha: Alpha\n"
+        )
+
+        deleted = delete_obsolete_keys(yaml_dir, {"0h", "0m"})
+
+        keys = load_yaml_file(yaml_dir / "en.yml")["translations"]
+        assert "0h" not in keys and "0m" not in keys
+        assert "0deg" in keys, "a live key following the deleted pair was destroyed"
+        assert "Alpha" in keys
+        assert deleted == 2
+
+    def test_delete_leaves_a_survivors_source_comment_attached(self, tmp_path):
+        """A comment documents the entry BELOW it, so deleting the entry above
+        must not carry it off."""
+        from translations.obsolete import delete_obsolete_keys
+
+        yaml_dir = tmp_path / "translations"
+        yaml_dir.mkdir()
+        (yaml_dir / "en.yml").write_text(
+            "locale: en\n"
+            "translations:\n"
+            "  Dead: Dead\n"
+            "  # Source: live_panel.xml:7\n"
+            "  Live: Live\n"
+        )
+
+        delete_obsolete_keys(yaml_dir, {"Dead"})
+
+        content = (yaml_dir / "en.yml").read_text()
+        assert "  # Source: live_panel.xml:7\n" in content
+        assert "  Live: Live\n" in content
+        assert "Dead" not in content
+
     def test_delete_dry_run_no_change(self, folded_yaml_dir):
         from translations.obsolete import delete_obsolete_keys
 
@@ -972,34 +1031,34 @@ class TestObsoleteDetection:
     def test_indirect_tag_in_struct_initializer_is_not_obsolete(self, tmp_path):
         """A key named as a bare literal (resolved later via lv_tr(var)) is in use.
 
-        Mirrors src/ui/tour/tour_steps.cpp, whose tour.step.* tags the
+        Mirrors src/ui/tour/tour_steps.cpp, whose English-text tags the
         lv_tr("literal") extractor pattern cannot see.
         """
-        xml_dir, yaml_dir = self._repo(tmp_path, ["Used Key", "tour.step.welcome.title"])
+        xml_dir, yaml_dir = self._repo(tmp_path, ["Used Key", "Welcome to HelixScreen"])
         (tmp_path / "src" / "tour_steps.cpp").write_text(
-            'steps.push_back({"", "tour.step.welcome.title", Anchor::Center});\n'
+            'steps.push_back({"", "Welcome to HelixScreen", Anchor::Center});\n'
         )
 
         from translations.obsolete import find_obsolete_keys
 
         result = find_obsolete_keys(xml_dir, yaml_dir, cpp_dir=tmp_path / "src",
                                     repo_root=tmp_path)
-        assert "tour.step.welcome.title" not in result
+        assert "Welcome to HelixScreen" not in result
 
     def test_tag_stored_as_json_data_is_not_obsolete(self, tmp_path):
         """Tags living in assets/config/printer_database.json are in use."""
         xml_dir, yaml_dir = self._repo(
-            tmp_path, ["Used Key", "pre_print_option.ai_detect.label"]
+            tmp_path, ["Used Key", "AI detection"]
         )
         (tmp_path / "assets" / "printer_database.json").write_text(
-            '{"label_tag": "pre_print_option.ai_detect.label"}\n'
+            '{"label_tag": "AI detection"}\n'
         )
 
         from translations.obsolete import find_obsolete_keys
 
         result = find_obsolete_keys(xml_dir, yaml_dir, cpp_dir=tmp_path / "src",
                                     repo_root=tmp_path)
-        assert "pre_print_option.ai_detect.label" not in result
+        assert "AI detection" not in result
 
     def test_label_text_in_header_is_not_obsolete(self, tmp_path):
         """include/ is scanned — cpp_dir only ever pointed at src/."""

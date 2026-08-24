@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "main_loop_heartbeat.h"
 #include "memory_utils.h"
 
 #include <spdlog/common.h>
@@ -161,6 +162,33 @@ class MemoryMonitor {
         return pressure_level_.load();
     }
 
+    /// Fired from the monitor thread when the LVGL main loop has been stuck
+    /// past the hang threshold. Argument is the stall duration in ms.
+    using HangCallback = std::function<void(uint32_t stalled_ms)>;
+
+    /**
+     * @brief Watch the LVGL main loop for a hang, alongside memory sampling.
+     *
+     * This rides the existing monitor thread rather than spawning its own.
+     * Thread creation is not free on the memory-constrained ARM targets — an
+     * EAGAIN there terminates the process (#724, #837) — and this loop already
+     * wakes on exactly the cadence a liveness check wants.
+     *
+     * Called from the monitor thread, at most once per stall; the loop
+     * recovering re-arms it.
+     */
+    void set_hang_callback(HangCallback cb);
+
+    /**
+     * @brief Set the main-loop hang threshold. 0 disables detection.
+     *
+     * Default is MainLoopHangDetector::DEFAULT_THRESHOLD_MS. It has to clear the
+     * longest legitimate main-thread block, and those are real: the startup XML
+     * parse alone runs ~8s on AD5M.
+     */
+    void set_hang_threshold_ms(uint32_t ms);
+    uint32_t hang_threshold_ms() const;
+
   private:
     MemoryMonitor() = default;
     ~MemoryMonitor();
@@ -169,6 +197,7 @@ class MemoryMonitor {
     MemoryMonitor& operator=(const MemoryMonitor&) = delete;
 
     void monitor_loop();
+    void check_main_loop_liveness();
     void evaluate_thresholds(const MemoryStats& stats);
     void fire_warning(MemoryPressureLevel level, const std::string& reason,
                       const MemoryStats& stats, const MemoryInfo& sys_info, int64_t growth_kb);
@@ -182,6 +211,13 @@ class MemoryMonitor {
     std::atomic<MemoryPressureLevel> pressure_level_{MemoryPressureLevel::none};
     WarningCallback warning_callback_;
     std::mutex callback_mutex_;
+
+    // Main-loop hang detection. hang_detector_ is touched only by the monitor
+    // thread; the threshold is atomic because it is set from the UI thread at
+    // startup, and the callback is guarded by callback_mutex_ like the others.
+    MainLoopHangDetector hang_detector_{};
+    std::atomic<uint32_t> hang_threshold_ms_{MainLoopHangDetector::DEFAULT_THRESHOLD_MS};
+    HangCallback hang_callback_;
     std::vector<std::pair<PressureResponderId, std::function<void(MemoryPressureLevel)>>>
         pressure_responders_;
     std::atomic<uint32_t> next_responder_id_{1};

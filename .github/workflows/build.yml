@@ -25,13 +25,20 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install dependencies
       uses: nick-fields/retry@v4
       with:
-        # Bumped to 10 min: slow apt mirrors can push the download phase past a
-        # 5-min cap, and on timeout retry@v4 crashes with "kill EPERM" (Node 24)
-        # instead of retrying — so the longer window keeps us off that path.
-        timeout_minutes: 10
+        # The window is a backstop, not the fix. When apt wedges on a bad
+        # mirror, retry@v4 cannot rescue it: apt runs under sudo, so the
+        # timeout's process.kill returns EPERM and the step dies with
+        # "Error: kill EPERM" instead of retrying. Widening the cap only moves
+        # the failure later -- Compile hit the ceiling at 10 minutes and then
+        # again at 20. The Prepare apt step above is what actually prevents the
+        # hang, by dropping the azure mirror and capping apt's own timeouts.
+        timeout_minutes: 20
         max_attempts: 3
         command: |
           sudo apt-get update
@@ -165,6 +172,9 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     # This job only ever gets the -dev-free runtime closure, so every library the
     # compile job picked up transitively via a -dev package has to be named here.
     # libgles2 is the one that is easy to miss: ENABLE_GLES_3D links -lGLESv2 for
@@ -245,6 +255,16 @@ jobs:
     # them inside a fixed container with pinned fonts — don't "fix" this by
     # dropping the --ignore; that trades a green build for flaky pixel diffs
     # unrelated to whatever change actually broke it.
+    # The Moonraker plugin runs on the printer inside Moonraker, so no C++ test
+    # reaches it and these are its only coverage. They need no binary and no
+    # printer -- the Moonraker component surface is mocked -- which is why they
+    # can run here rather than in a hardware job. Previously nothing ran them at
+    # all, and moonraker-plugin/install.sh sat pointing at a config file that had
+    # been deleted for months (prestonbrown/helixscreen#1268).
+    - name: Run Moonraker plugin tests (pytest)
+      timeout-minutes: 2
+      run: pytest moonraker-plugin/tests/ -v
+
     - name: Run out-of-process UI tests (pytest, excluding goldens)
       timeout-minutes: 5
       run: pytest tests/ui/ -v --ignore=tests/ui/test_screens.py
@@ -416,10 +436,14 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 10
+        # See the note on the first Install dependencies step above.
+        timeout_minutes: 20
         max_attempts: 3
         command: |
           sudo apt-get update

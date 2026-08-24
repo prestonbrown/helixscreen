@@ -29,7 +29,13 @@ The Standard Macros system provides a unified registry that maps semantic operat
 | Slot | Purpose | Auto-Detect Patterns | HELIX Fallback |
 |------|---------|---------------------|----------------|
 | `load_filament` | Load filament | LOAD_FILAMENT, M701 | — |
-| `unload_filament` | Unload filament | UNLOAD_FILAMENT, M702 | — |
+| `unload_filament` | Unload filament | UNLOAD_FILAMENT, M702, **HELIX_UNLOAD_FILAMENT**, QUIT_MATERIAL | HELIX_UNLOAD_FILAMENT |
+
+> **Unload ordering note:** `QUIT_MATERIAL` (Creality K1 family) is matched
+> LAST and deliberately below `HELIX_UNLOAD_FILAMENT`: the stock macro purges
+> ~100mm forward and retracts only ~62mm — it clears the melt zone for
+> manually-cut filament rather than unloading. A printer's own
+> `UNLOAD_FILAMENT`/`UNLOAD_MATERIAL`/`M702` always outrank the override.
 | `purge` | Purge/prime | PURGE, PURGE_LINE, PRIME_LINE, PURGE_FILAMENT, LINE_PURGE | — |
 | `pause` | Pause print | PAUSE, M601 | — |
 | `resume` | Resume print | RESUME, M602 | — |
@@ -46,6 +52,18 @@ Each slot can be in one of four states:
 - **Auto-detected**: System found a matching macro on the printer
 - **Fallback**: Using HELIX_* macro (installed by HelixScreen)
 - **Empty**: No macro available; functionality is disabled
+
+A **Configured** entry is verified against the printer's macro list at
+`init()` (`StandardMacros::validate_configured()`). A name the printer does not
+define — a preset that seeded a template machine's macros, or a Klipper config
+change that retired one — is **demoted**: the name moves out of
+`configured_macro` into `missing_macro`, and the slot answers as though it were
+unconfigured. Dispatch then falls through to the detected macro, the HELIX
+fallback, or the caller's own fallback path, instead of sending a command
+Klipper will reject. The name is kept rather than dropped — `save_to_config()`
+round-trips what the user asked for (the printer may just be mid-restart), and
+`requested_macro()` still reports it so Settings can show "you configured this
+and it is broken" as distinct from "nothing is assigned here".
 
 ### Adaptive bed mesh: `ADAPTIVE` parameter forwarding
 
@@ -143,7 +161,7 @@ private:
 ### Resolution Order
 
 When executing a macro, the system checks in order:
-1. **User configured** - Explicit selection in Settings
+1. **User configured** - Explicit selection in Settings (verified to exist on the printer; a name that fails verification is demoted to `missing_macro` and skipped here)
 2. **Auto-detected** - Found on printer via pattern matching
 3. **HELIX fallback** - HelixScreen's helper macro (if available)
 4. **Empty** - No macro; `execute()` returns false, caller should disable UI

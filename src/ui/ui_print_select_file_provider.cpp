@@ -7,7 +7,7 @@
 #include "ui_print_select_card_view.h"
 #include "ui_update_queue.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "print_file_data.h"
 #include "thumbnail_cache.h"
 
@@ -34,7 +34,7 @@ bool PrintSelectFileProvider::is_ready() const {
 void PrintSelectFileProvider::refresh_files(const std::string& current_path,
                                             const std::vector<PrintFileData>& existing_files) {
     if (!api_) {
-        spdlog::warn("[FileProvider] Cannot refresh files: MoonrakerAPI not initialized");
+        spdlog::warn("[FileProvider] Cannot refresh files: IMoonrakerAPI not initialized");
         return;
     }
 

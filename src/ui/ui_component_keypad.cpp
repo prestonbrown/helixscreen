@@ -38,6 +38,8 @@ static SubjectManager subjects_;
 
 // Widget reference (for showing/hiding via nav system)
 static lv_obj_t* keypad_widget = nullptr;
+// Parent captured at init; the widget tree itself is built on first show.
+static lv_obj_t* keypad_parent = nullptr;
 
 // Current config and input state
 static ui_keypad_config_t current_config;
@@ -67,6 +69,7 @@ void ui_keypad_init_subjects() {
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticPanelRegistry::instance().register_destroy("KeypadSubjects", []() {
         keypad_widget = nullptr;
+        keypad_parent = nullptr;
         ui_keypad_deinit_subjects();
     });
 
@@ -96,28 +99,46 @@ void ui_keypad_init(lv_obj_t* parent) {
         return;
     }
 
-    // Ensure subjects are initialized first
+    // Subjects MUST stay eager: XML elsewhere binds "keypad_display" by name at
+    // parse time, so the subject has to exist before any component referencing
+    // it is built. Only the widget tree is deferred.
     ui_keypad_init_subjects();
 
-    // Create keypad from XML component
-    keypad_widget = (lv_obj_t*)lv_xml_create(parent, "numeric_keypad_panel", nullptr);
-    if (!keypad_widget) {
-        spdlog::error("[Keypad] Failed to create keypad from XML");
-        return;
+    keypad_parent = parent;
+    spdlog::debug("[Keypad] Numeric keypad registered (tree deferred to first show)");
+}
+
+// Build the keypad tree on demand. Plenty of sessions never touch a numeric
+// field, and this is a ~15-button subtree whose XML the engine also retains.
+static bool ensure_keypad_built() {
+    if (keypad_widget) {
+        return true;
+    }
+    if (!keypad_parent) {
+        spdlog::error("[Keypad] Cannot build keypad: never initialized with a parent");
+        return false;
     }
 
-    // Wire button events
-    wire_button_events();
+    keypad_widget = (lv_obj_t*)lv_xml_create(keypad_parent, "numeric_keypad_panel", nullptr);
+    if (!keypad_widget) {
+        spdlog::error("[Keypad] Failed to create keypad from XML");
+        return false;
+    }
 
-    spdlog::debug("[Keypad] Numeric keypad initialized");
+    wire_button_events();
+    spdlog::debug("[Keypad] Numeric keypad built on first use");
+    return true;
 }
 
 // ============================================================================
 // Public API
 // ============================================================================
 void ui_keypad_show(const ui_keypad_config_t* config) {
-    if (!keypad_widget || !config) {
-        spdlog::error("[Keypad] Cannot show keypad: not initialized or invalid config");
+    if (!config) {
+        spdlog::error("[Keypad] Cannot show keypad: invalid config");
+        return;
+    }
+    if (!ensure_keypad_built()) {
         return;
     }
 

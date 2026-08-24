@@ -12,7 +12,7 @@
 
 // Forward declarations
 struct PrintFileData;
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -75,9 +75,9 @@ class PrintSelectFileProvider {
     // === Setup ===
 
     /**
-     * @brief Set MoonrakerAPI dependency
+     * @brief Set IMoonrakerAPI dependency
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -119,7 +119,7 @@ class PrintSelectFileProvider {
 
   private:
     // === Dependencies ===
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     // === Callbacks ===
     FilesReadyCallback on_files_ready_;

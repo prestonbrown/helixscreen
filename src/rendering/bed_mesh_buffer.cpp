@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 /**
  * @file bed_mesh_buffer.cpp
  * @brief ARGB8888 pixel buffer with drawing primitives for off-screen rendering
@@ -406,3 +408,5 @@ void PixelBuffer::fill_triangle_gradient(int x1, int y1, uint8_t r1, uint8_t g1,
 
 } // namespace mesh
 } // namespace helix
+
+#endif // HELIX_HAS_BED_MESH_3D

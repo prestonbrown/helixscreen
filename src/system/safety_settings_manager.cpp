@@ -3,6 +3,8 @@
 
 #include "safety_settings_manager.h"
 
+#include "ui_notification_threshold.h"
+
 #include "config.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
@@ -67,6 +69,15 @@ void SafetySettingsManager::init_subjects() {
     bool allow_cold_extrude = config->get<bool>("/safety/allow_cold_extrude", false);
     UI_MANAGED_SUBJECT_INT(allow_cold_extrude_subject_, allow_cold_extrude ? 1 : 0,
                            "settings_allow_cold_extrude", subjects_);
+
+    // Minimum toast severity (default: 0 = All, no change for existing users). #1213.
+    int min_toast_severity = config->get<int>("/notifications/min_toast_severity", 0);
+    min_toast_severity =
+        (min_toast_severity == 1 || min_toast_severity == 2) ? min_toast_severity : 0;
+    UI_MANAGED_SUBJECT_INT(min_toast_severity_subject_, min_toast_severity,
+                           "settings_min_toast_severity", subjects_);
+    // Push the persisted value to the toast gate (header-only inline cache).
+    helix::ui::notifications::set_min_toast_severity_cache(min_toast_severity);
 
     subjects_initialized_ = true;
 
@@ -191,4 +202,24 @@ void SafetySettingsManager::set_allow_cold_extrude(bool allow) {
 
     spdlog::debug("[SafetySettingsManager] Allow cold extrude {} and saved",
                   allow ? "enabled" : "disabled");
+}
+
+int SafetySettingsManager::get_min_toast_severity() const {
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&min_toast_severity_subject_));
+}
+
+void SafetySettingsManager::set_min_toast_severity(int index) {
+    int clamped = (index == 1 || index == 2) ? index : 0;
+    spdlog::info("[SafetySettingsManager] set_min_toast_severity({} -> {})", index, clamped);
+
+    lv_subject_set_int(&min_toast_severity_subject_, clamped);
+
+    Config* config = Config::get_instance();
+    config->set<int>("/notifications/min_toast_severity", clamped);
+    config->save();
+
+    // Keep the toast gate in sync so the change takes effect immediately.
+    helix::ui::notifications::set_min_toast_severity_cache(clamped);
+
+    spdlog::debug("[SafetySettingsManager] Min toast severity set to index {} and saved", clamped);
 }

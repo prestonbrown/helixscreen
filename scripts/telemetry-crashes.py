@@ -135,6 +135,11 @@ R2_BASE_URL = os.environ.get("HELIX_R2_URL", "https://releases.helixscreen.org")
 GH_RELEASE_BASE = (
     "https://github.com/" + os.environ.get("HELIX_REPO", "prestonbrown/helixscreen") + "/releases/download"
 )
+# 32-bit ARM targets built in Thumb mode. Their return addresses have bit 0 set
+# as the Thumb marker; nm addresses never do. Everything else (aarch64 pi, MIPS
+# k1/ad5x) is unaffected by the mask, but listing only the ARM32 targets keeps
+# the intent explicit.
+THUMB_PLATFORMS = frozenset({"ad5m", "cc1", "pi32"})
 
 
 def _http_download(url: str, dest: Path) -> Optional[int]:
@@ -210,9 +215,14 @@ class SymbolCache:
         if have_zstd:
             candidates.append((f"{R2_BASE_URL}/v{version}/{platform}.sym.zst", True))
         candidates.append((f"{R2_BASE_URL}/v{version}/{platform}.sym", False))
-        if have_zstd:
-            candidates.append((f"{GH_RELEASE_BASE}/v{version}/{platform}.sym.zst", True))
-        candidates.append((f"{GH_RELEASE_BASE}/v{version}/{platform}.sym", False))
+        # GitHub release assets carry a `symbols-` prefix on newer releases and
+        # a bare <platform> name on older ones; R2 uses the bare name only.
+        # Trying just the bare name made every version whose R2 upload was
+        # missing resolve to raw hex instead of symbols, silently.
+        for asset in (f"symbols-{platform}", platform):
+            if have_zstd:
+                candidates.append((f"{GH_RELEASE_BASE}/v{version}/{asset}.sym.zst", True))
+            candidates.append((f"{GH_RELEASE_BASE}/v{version}/{asset}.sym", False))
 
         last_code = None
         for url, compressed in candidates:
@@ -232,6 +242,12 @@ class SymbolCache:
                     continue
             return True
 
+        # Draft releases 404 on the public download URL but are reachable with
+        # the authenticated gh CLI, so a version that never left draft is still
+        # resolvable for whoever can see it.
+        if self._fetch_symbols_via_gh(version, platform, sym_path, have_zstd):
+            return True
+
         if not have_zstd:
             self._warnings.append(
                 f"v{version}/{platform}: symbols not available (HTTP {last_code}); "
@@ -239,6 +255,43 @@ class SymbolCache:
             )
         else:
             self._warnings.append(f"v{version}/{platform}: symbols not available (HTTP {last_code})")
+        return False
+
+    def _fetch_symbols_via_gh(
+        self, version: str, platform: str, sym_path: Path, have_zstd: bool
+    ) -> bool:
+        """Last-resort fetch through the gh CLI (handles draft/private releases)."""
+        if shutil.which("gh") is None:
+            return False
+        repo = os.environ.get("HELIX_REPO", "prestonbrown/helixscreen")
+        assets = [f"symbols-{platform}", platform]
+        suffixes = [".sym.zst"] if have_zstd else []
+        suffixes.append(".sym")
+        for asset in assets:
+            for suffix in suffixes:
+                name = asset + suffix
+                dest = sym_path.with_name(name)
+                try:
+                    subprocess.run(
+                        ["gh", "release", "download", f"v{version}", "--repo", repo,
+                         "--pattern", name, "--output", str(dest), "--clobber"],
+                        check=True, capture_output=True,
+                    )
+                except (subprocess.CalledProcessError, OSError):
+                    continue
+                if suffix == ".sym":
+                    if dest != sym_path:
+                        dest.replace(sym_path)
+                    return True
+                try:
+                    subprocess.run(
+                        ["zstd", "-d", "--rm", "-q", "-f", str(dest), "-o", str(sym_path)],
+                        check=True,
+                    )
+                except subprocess.CalledProcessError:
+                    dest.unlink(missing_ok=True)
+                    continue
+                return True
         return False
 
 
@@ -415,9 +468,17 @@ def resolve_backtrace(
     addrs = []
     for addr_str in backtrace:
         try:
-            addrs.append(int(addr_str, 16))
+            addr = int(addr_str, 16)
         except ValueError:
-            addrs.append(0)
+            addr = 0
+        # On Thumb-mode ARM the return address carries the Thumb bit in bit 0,
+        # while nm addresses do not. _derive_anomaly_base already masks the
+        # anchor; masking here keeps the frames themselves consistent with it
+        # (an unmasked LR resolves one byte high and lands in the previous
+        # symbol whenever the callsite is a function's first instruction).
+        if platform in THUMB_PLATFORMS:
+            addr &= ~1
+        addrs.append(addr)
 
     frames: list[dict] = []
 
@@ -431,7 +492,12 @@ def resolve_backtrace(
             for name in anchor_names)
     )
 
-    if symbols is None or not have_anchor:
+    # An anchor is only needed to *derive* a base. When the caller already
+    # supplies one (anomaly mode always does — see _derive_anomaly_base) the
+    # anchor is irrelevant, and gating on it silently downgraded a fully
+    # resolvable trace to raw hex whenever the default crash_signal_handler
+    # was absent from the symbol map.
+    if symbols is None or (not have_anchor and load_base is None):
         # Can't resolve — return raw addresses with platform-aware lib detection
         lb = 0
         if load_base is not None:
@@ -909,7 +975,7 @@ def _derive_anomaly_base(
         # set (1) to mark Thumb encoding, while .sym addresses do not.
         # Mask it on 32-bit ARM platforms so the derived base aligns.
         # Harmless on aarch64 / static (LSB is already 0 there).
-        if platform in ("ad5m", "cc1", "pi32") and (anchor_runtime & 1):
+        if platform in THUMB_PLATFORMS and (anchor_runtime & 1):
             anchor_runtime &= ~1
         anchor_off = symbols.find_offset("helix_lvgl_anomaly")
         if anchor_runtime > 0 and anchor_off is not None:
@@ -1073,12 +1139,24 @@ def analyze_anomalies(
 
         # Build a stable group key. Prefer the resolved LR symbol (with
         # offset stripped) so renames between versions don't fragment the
-        # group; fall back to the raw LR address when symbols aren't
-        # available (still groups identical-LR events together for that
-        # device, which is useful even unresolved).
+        # group. Without symbols, the raw LR is useless as a key on PIE
+        # platforms — ASLR re-randomizes it every launch, so N events from
+        # one callsite report as N distinct callsites. The LR's distance
+        # from `runtime_anchor` is the same arithmetic minus the unknown
+        # load base, which makes it ASLR-invariant and stable for as long
+        # as the binary is (i.e. per version).
         lr_resolved = lr_frames[0]["resolved"] if lr_frames else lr_hex
         plus_idx = lr_resolved.rfind("+0x")
-        group_key = lr_resolved[:plus_idx] if plus_idx > 0 else lr_resolved
+        if plus_idx > 0:
+            group_key = lr_resolved[:plus_idx]
+        elif runtime_anchor_hex:
+            try:
+                delta = int(lr_hex, 16) - int(runtime_anchor_hex, 16)
+                group_key = f"<unresolved v{version}/{platform} anchor{delta:+#x}>"
+            except ValueError:
+                group_key = lr_resolved
+        else:
+            group_key = lr_resolved
 
         if sig_filter and sig_filter not in group_key:
             continue

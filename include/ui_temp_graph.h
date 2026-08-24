@@ -35,6 +35,8 @@
 
 #include "lvgl/lvgl.h"
 
+struct temp_graph_tooltip_t; // owned by src/ui/temp_graph_tooltip.cpp
+
 // Default configuration
 #define UI_TEMP_GRAPH_MAX_SERIES 16      // Maximum concurrent temperature series
 #define UI_TEMP_GRAPH_DISPLAY_MINUTES 20 // Display period in minutes (primary constant)
@@ -153,6 +155,26 @@ struct ui_temp_graph_t {
     int32_t gradient_cache_w;          // cached content width  (realloc buf when viewport changes)
     int32_t gradient_cache_h;          // cached content height
     bool gradient_cache_dirty;         // true => recompute on next draw; false => blit cached buf
+    // Content signature of the last gradient actually rendered into the buffer.
+    // A pushed sample shifts the curve and so dirties the cache, but the RENDERED
+    // result is frequently identical - most obviously on an idle printer, where a
+    // flat trace shifted by one column is the same picture. Hashing the render's
+    // inputs lets an unchanged frame skip the per-column fill entirely. Not valid
+    // until a render has happened, and reset whenever the buffer is reallocated
+    // (a fresh buffer is uninitialised, so a matching hash must NOT skip it).
+    uint64_t gradient_cache_sig = 0;
+    bool gradient_cache_sig_valid = false;
+    // Per-instance, deliberately NOT static: several graphs are alive at once
+    // (the home tile, the print-status card, the overlay), so process-wide
+    // counters would blend their timings into a mean that describes none of
+    // them. Also what the unit tests assert the skip against.
+    uint64_t gradient_render_count = 0;
+    uint64_t gradient_skip_count = 0;
+    uint64_t gradient_render_us_total = 0;
+
+    // Tap-to-caption state. nullptr = tooltip disabled (the default). Owned and
+    // defined by temp_graph_tooltip.cpp so no tooltip state leaks into this struct.
+    struct temp_graph_tooltip_t* tooltip = nullptr;
 };
 
 /**
@@ -415,6 +437,22 @@ void ui_temp_graph_set_features(ui_temp_graph_t* graph, uint32_t features);
  * @return Bitmask of ui_temp_graph_feature flags (0 if graph is NULL)
  */
 uint32_t ui_temp_graph_get_features(ui_temp_graph_t* graph);
+
+/**
+ * Tap-to-Caption API
+ */
+
+/**
+ * Enable or disable tap-to-caption on this graph. Disabled by default.
+ *
+ * Enabling makes the chart clickable and installs the press + draw callbacks.
+ * Disabling clears any pinned caption. Only the full-screen temperature overlay
+ * enables this: the home-panel mini graph uses a tap to open that overlay.
+ */
+void ui_temp_graph_set_tooltip_enabled(ui_temp_graph_t* graph, bool enabled);
+
+/** @return true if tap-to-caption is enabled on this graph. */
+bool ui_temp_graph_tooltip_is_enabled(const ui_temp_graph_t* graph);
 
 /**
  * Gradient cache test/introspection API (#979)

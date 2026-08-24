@@ -233,8 +233,8 @@ TEST_CASE("UI Utils: ui_get_header_content_padding - returns space_lg value",
         // space_lg at breakpoints: tiny=8, small=12, medium=16, large=20,
         // xlarge=24, xxlarge=32; fallback is 16 when the theme is uninitialized.
         lv_coord_t padding = ui_get_header_content_padding();
-        REQUIRE((padding == 8 || padding == 12 || padding == 16 || padding == 20 ||
-                 padding == 24 || padding == 32));
+        REQUIRE((padding == 8 || padding == 12 || padding == 16 || padding == 20 || padding == 24 ||
+                 padding == 32));
     }
 }
 

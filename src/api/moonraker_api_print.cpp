@@ -59,10 +59,10 @@ void MoonrakerAPI::check_continue_print_state(
     // Deliberately logged at info: this is a SIDE-EFFECTFUL, at-most-once-per-
     // connection call, so a second line in a session's log is itself a bug
     // report. See the header warning and docs/devel/POWER_LOSS_RECOVERY.md.
-    spdlog::info("[Moonraker API] Creality PLR probe -> {}", helix::kCrealityDetectRpc);
+    spdlog::info("[Moonraker API] Creality PLR probe -> {}", helix::CREALITY_DETECT_RPC);
 
     client_.send_jsonrpc(
-        helix::kCrealityDetectRpc, json::object(),
+        helix::CREALITY_DETECT_RPC, json::object(),
         [on_result](json response) {
             helix::PlrDetectResult result;
             if (!helix::plr_parse_check_continue_response(response, result)) {
@@ -82,9 +82,9 @@ void MoonrakerAPI::check_continue_print_state(
 
 void MoonrakerAPI::cancel_continue_print(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::info("[Moonraker API] Discarding Creality PLR snapshot -> {}",
-                 helix::kCrealityDiscardRpc);
+                 helix::CREALITY_DISCARD_RPC);
     client_.send_jsonrpc(
-        helix::kCrealityDiscardRpc, json::object(),
+        helix::CREALITY_DISCARD_RPC, json::object(),
         [on_success](const json&) {
             if (on_success) {
                 on_success();

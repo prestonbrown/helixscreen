@@ -56,9 +56,13 @@
           <icon src="source_branch" size="sm"/>
           <text_body text="Bypass"/>
         </lv_obj>
-        <!-- Right side: toggle switch - state bound to ams_bypass_active subject -->
+        <!-- Right side: toggle switch - state bound to ams_bypass_active subject.
+             Dims while a job owns the toolhead, same binding as
+             panel_widget_bypass.xml; BypassToggleController still enforces that
+             guard on every tap. -->
         <ui_switch name="bypass_switch" size="small">
           <bind_state_if_eq subject="ams_bypass_active" state="checked" ref_value="1"/>
+          <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
           <event_cb trigger="value_changed" callback="ams_sidebar_bypass_toggled"/>
         </ui_switch>
       </lv_obj>

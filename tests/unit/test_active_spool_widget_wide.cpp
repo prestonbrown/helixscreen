@@ -12,16 +12,16 @@
  * real filament color, not the DEFAULT_COLOR (0xE0E0E0) white.
  */
 
-#include "ams_state.h"
-#include "ams_types.h"
-#include "src/ui/panel_widgets/active_spool_widget.h"
 #include "ui_spool_canvas.h"
 
+#include "../lvgl_ui_test_fixture.h"
+#include "ams_state.h"
+#include "ams_types.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
+#include "src/ui/panel_widgets/active_spool_widget.h"
 
 #include "../catch_amalgamated.hpp"
-#include "../lvgl_ui_test_fixture.h"
 
 using namespace helix;
 
@@ -49,8 +49,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool wide canvas is colored after r
     AmsState::instance().set_external_spool_info_in_memory(ext);
 
     // Build the component + controller the way the panel manager does.
-    lv_obj_t* comp = static_cast<lv_obj_t*>(
-        lv_xml_create(test_screen(), "panel_widget_active_spool", nullptr));
+    lv_obj_t* comp =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_active_spool", nullptr));
     REQUIRE(comp != nullptr);
 
     ActiveSpoolWidget widget(api());
@@ -64,8 +64,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool wide canvas is colored after r
     // 1x1 (default): compact canvas carries the real color.
     widget.on_size_changed(1, 1, 100, 100);
     process_lvgl(30);
-    INFO("compact color after 1x1: " << std::hex
-                                     << ui_spool_canvas_get_color(spool_compact).red);
+    INFO("compact color after 1x1: " << std::hex << ui_spool_canvas_get_color(spool_compact).red);
     REQUIRE(color_is(ui_spool_canvas_get_color(spool_compact), TEST_SPOOL_COLOR));
 
     // Resize to 2x1 — the reporter's repro. The wide canvas must be colored,
@@ -88,8 +87,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool wide canvas is colored after r
 // spool_compact visible. Because is_wide_ persists as true, on_size_changed(2)
 // early-returns and never unhides wide_layout, so the default-white spool_compact
 // is left visible — the reported "static white spool".
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "active_spool stays colored after a 2x1 instance is recycled",
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a 2x1 instance is recycled",
                  "[active_spool][panel_widget][1109]") {
     SlotInfo ext;
     ext.color_rgb = TEST_SPOOL_COLOR;

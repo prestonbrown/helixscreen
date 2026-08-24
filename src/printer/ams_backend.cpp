@@ -22,7 +22,8 @@
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
 #include "filament_database.h"
-#include "moonraker_api.h"
+#include "filament_variants.h"
+#include "i_moonraker_api.h"
 #include "printer_discovery.h"
 #include "runtime_config.h"
 
@@ -34,6 +35,153 @@
 #include <string_view>
 
 using namespace helix;
+
+namespace {
+// Task 15 R2: ACE (500ms REST poll) and AD5X IFS (5s whole-file HTTP poll)
+// are the only AMS backends that need a raw HTTP transport instead of the
+// WebSocket JSON-RPC channel every other backend rides. On ESP32 that
+// transport is the Task 10 HTTP lane (EspHttpLane) — a single dedicated
+// worker thread with a bounded, capped fetch model — still an evaluation arm
+// pending a real-hardware budget/latency measurement, so it's gated by
+// CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS (default n). Flipping the flag is the
+// only delta between "unsupported on this screen" and a real backend.
+// Desktop always supports both (unconditional real HTTP stack).
+#if defined(ESP_PLATFORM)
+bool http_poll_ams_backends_supported() {
+    // A Kconfig bool set to 'n' (the default) is OMITTED from sdkconfig.h
+    // entirely, not defined as 0 — so this must be a preprocessor #if, not a
+    // runtime return of the macro's value (the latter fails to compile when
+    // off: the token is simply undeclared).
+#if CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS
+    return true;
+#else
+    return false;
+#endif
+}
+#else
+constexpr bool http_poll_ams_backends_supported() {
+    return true;
+}
+#endif
+} // namespace
+
+// ============================================================================
+// Endless Spool - shared validation, reset loop and eligibility rule
+// ============================================================================
+
+namespace {
+
+/// The one self-backup rejection. Three backends used to phrase this three
+/// different ways for the same condition.
+AmsError endless_spool_self_backup_error(int slot_index) {
+    return AmsError(AmsResult::INVALID_SLOT,
+                    "Slot " + std::to_string(slot_index) +
+                        " cannot be its own endless spool backup",
+                    "A slot cannot back itself up", "Select a different backup slot", slot_index);
+}
+
+/// The one read-only rejection, carrying the backend's translated reason.
+AmsError endless_spool_read_only_error(helix::printer::EndlessSpoolRestriction restriction) {
+    std::string reason = helix::printer::endless_spool_restriction_text(restriction);
+    return AmsError(AmsResult::NOT_SUPPORTED,
+                    "Endless spool is read-only on this backend" +
+                        (reason.empty() ? std::string() : " (" + reason + ")"),
+                    reason.empty() ? std::string("Endless spool cannot be changed here") : reason,
+                    "");
+}
+
+} // namespace
+
+int AmsBackend::endless_spool_slot_count() const {
+    return get_system_info().total_slots;
+}
+
+AmsError AmsBackend::set_endless_spool_backup(int slot_index, int backup_slot) {
+    const auto caps = get_endless_spool_capabilities();
+    if (!caps.available()) {
+        return AmsErrorHelper::not_supported("Endless spool");
+    }
+    if (!caps.editable()) {
+        return endless_spool_read_only_error(caps.restriction);
+    }
+
+    const int slot_count = endless_spool_slot_count();
+    if (slot_count <= 0) {
+        return endless_spool_read_only_error(helix::printer::EndlessSpoolRestriction::NotReady);
+    }
+    const int max_slot = slot_count - 1;
+
+    if (slot_index < 0 || slot_index > max_slot) {
+        return AmsErrorHelper::invalid_slot(slot_index, max_slot);
+    }
+    if (backup_slot != -1) {
+        if (backup_slot < 0 || backup_slot > max_slot) {
+            return AmsErrorHelper::invalid_slot(backup_slot, max_slot);
+        }
+        if (backup_slot == slot_index) {
+            return endless_spool_self_backup_error(slot_index);
+        }
+    }
+
+    return apply_endless_spool_backup(slot_index, backup_slot);
+}
+
+AmsError AmsBackend::reset_endless_spool() {
+    const auto caps = get_endless_spool_capabilities();
+    if (!caps.available()) {
+        return AmsErrorHelper::not_supported("Reset endless spool");
+    }
+    if (!caps.editable()) {
+        return endless_spool_read_only_error(caps.restriction);
+    }
+
+    // Same guard as set_endless_spool_backup(): a backend that is editable() but
+    // has not yet reported total_slots would otherwise skip the loop entirely and
+    // hand back success() — the user confirms a destructive warning, nothing is
+    // cleared, and nothing says so.
+    const int slot_count = endless_spool_slot_count();
+    if (slot_count <= 0) {
+        return endless_spool_read_only_error(helix::printer::EndlessSpoolRestriction::NotReady);
+    }
+    spdlog::info("[AMS Backend] Clearing endless spool backups for {} slots", slot_count);
+
+    // Continue past failures so as many slots as possible end up cleared, and
+    // report the first error.
+    AmsError first_error = AmsErrorHelper::success();
+    for (int slot = 0; slot < slot_count; ++slot) {
+        AmsError result = set_endless_spool_backup(slot, -1);
+        if (!result.success()) {
+            spdlog::error("[AMS Backend] Failed to clear endless spool backup for slot {}: {}",
+                          slot, result.technical_msg);
+            if (first_error.success()) {
+                first_error = result;
+            }
+        }
+    }
+    return first_error;
+}
+
+helix::printer::BackupEligibility
+AmsBackend::endless_spool_backup_eligibility(int slot_index, int backup_slot) const {
+    using helix::printer::BackupEligibility;
+    if (slot_index < 0 || backup_slot < 0 || slot_index == backup_slot) {
+        return BackupEligibility::Incompatible;
+    }
+    // An unknown material on either side is eligible rather than blocking a
+    // slot the user has simply not labelled yet.
+    const std::string material = get_slot_info(slot_index).material;
+    const std::string backup_material = get_slot_info(backup_slot).material;
+    if (material.empty() || backup_material.empty()) {
+        return BackupEligibility::Eligible;
+    }
+    if (!filament::materials_compatible(material, backup_material)) {
+        return BackupEligibility::Incompatible;
+    }
+    // Same polymer. A filled grade still prints, so this is a heads-up rather
+    // than a refusal - see BackupEligibility's own note.
+    return filament::grades_match(material, backup_material) ? BackupEligibility::Eligible
+                                                             : BackupEligibility::GradeDiffers;
+}
 
 lv_subject_t* AmsBackend::get_operation_step_index_subject(StepOperationType op) {
     // Narration-capable backends drive their step index through the
@@ -55,6 +203,48 @@ AmsError AmsBackend::unload_active_filament() {
     // documents its own behavior for that case (Snapmaker: bare leaf macro,
     // Toolchanger: not_loaded, AFC: bare TOOL_UNLOAD).
     return unload_filament(get_system_info().current_slot);
+}
+
+// Own-write spool-id expectations. Both methods run under the subclass's
+// mutex_ (see the @warning in ams_backend.h) — the same discipline as every
+// other protected hook on this base.
+void AmsBackend::record_own_spool_write(int slot_index, int new_id, int previous_firmware_id) {
+    // An unlink: nothing will echo but an id Rule 1 already ignores, so a
+    // pending expectation must not outlive the write it belonged to.
+    if (new_id <= 0) {
+        own_write_expectations_.erase(slot_index);
+        return;
+    }
+    auto it = own_write_expectations_.find(slot_index);
+    if (it != own_write_expectations_.end() && previous_firmware_id == it->second.second) {
+        // Chained re-link before the first echo landed (42->169 then
+        // 169->180): the caller's "previous" is our own prior write mirrored
+        // back, not firmware truth. Keep the ORIGINAL previous id so stale
+        // 42 frames stay suppressed too.
+        it->second.second = new_id;
+        return;
+    }
+    own_write_expectations_[slot_index] = {previous_firmware_id, new_id};
+}
+
+std::pair<int, int> AmsBackend::own_write_expectation(int slot_index, int firmware_id) {
+    auto it = own_write_expectations_.find(slot_index);
+    if (it == own_write_expectations_.end())
+        return {0, 0};
+
+    const int old_id = it->second.first;
+    const int new_id = it->second.second;
+    if (firmware_id == new_id || (firmware_id > 0 && firmware_id != old_id)) {
+        // Either the echo landed (firmware now agrees with the override) or
+        // firmware moved to a third id — a genuine external change. Both end
+        // the expectation; neither frame needs Rule-1 suppression.
+        own_write_expectations_.erase(it);
+        return {0, 0};
+    }
+    // firmware_id == old_id: a stale pre-echo frame — suppress Rule 1 for
+    // this poll, keep the entry for the next one. firmware_id <= 0: no
+    // signal; the echo may still be in flight, so the entry survives.
+    return {old_id, new_id};
 }
 
 std::string AmsBackend::normalize_material(const std::string& material) const {
@@ -116,21 +306,27 @@ static std::string to_lower(const std::string& s) {
 
 // Helper to create mock backend with optional features.
 //
-// `mock_client` (when non-null) is the MoonrakerClientMock driving the
-// simulated printer. The AMS mock subscribes to its active-gcode-tool
-// notifications so the active-tool indicator follows the gcode (mock-side
-// proxy for production's printer.mmu.tool / toolchanger.tool_number).
+// `mock_client` (when non-null) is the client the caller wants the AMS mock
+// bound to. The AMS mock subscribes to its active-gcode-tool notifications so
+// the active-tool indicator follows the gcode (mock-side proxy for production's
+// printer.mmu.tool / toolchanger.tool_number).
 static std::unique_ptr<AmsBackendMock>
-create_mock_with_features(int gate_count, MoonrakerClient* mock_client = nullptr) {
+create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullptr) {
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
-    // Find the moonraker mock to subscribe to. Caller may pass it explicitly;
-    // otherwise fall back to the global registered by MoonrakerManager. The
-    // AmsState init path calls AmsBackend::create(NONE, null, null) before the
-    // factory hooks up specific backends, so the global is the only handle we
-    // have at that point.
-    MoonrakerClient* mc_raw = mock_client ? mock_client : get_moonraker_client();
-    if (auto* mc = dynamic_cast<::MoonrakerClientMock*>(mc_raw)) {
+    // Find the moonraker mock to subscribe to. get_moonraker_client_mock() is
+    // the registered client narrowed to the concrete mock type — non-null only
+    // when the client really is a MoonrakerClientMock, which is what the
+    // dynamic_cast here used to establish (the firmware builds -fno-rtti).
+    // When the caller named a client explicitly, it only counts if it is that
+    // same object. The AmsState init path calls AmsBackend::create(NONE, null,
+    // null) before the factory hooks up specific backends, so the registered
+    // mock is the only handle we have at that point.
+    ::MoonrakerClientMock* mc = get_moonraker_client_mock();
+    if (mc && mock_client && static_cast<IMoonrakerClient*>(mc) != mock_client) {
+        mc = nullptr;
+    }
+    if (mc) {
         AmsBackendMock* mock_ptr = mock.get();
         mc->add_active_gcode_tool_observer([mock_ptr](int tool, uint32_t color) {
             mock_ptr->on_simulated_gcode_tool_changed(tool, color);
@@ -165,6 +361,9 @@ create_mock_with_features(int gate_count, MoonrakerClient* mock_client = nullptr
         } else if (ams_type == "multi") {
             mock->set_multi_unit_mode(true);
             spdlog::info("[AMS Backend] Mock multi-unit mode enabled");
+        } else if (ams_type == "torture") {
+            mock->set_torture_mode(true);
+            spdlog::info("[AMS Backend] Mock torture profile enabled (5 units / 16 lanes)");
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");
@@ -248,7 +447,7 @@ create_mock_with_features(int gate_count, MoonrakerClient* mock_client = nullptr
 }
 
 // Check if mock mode is requested and not explicitly disabled via HELIX_MOCK_AMS=none
-static std::unique_ptr<AmsBackend> try_create_mock(MoonrakerClient* mock_client = nullptr) {
+static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client = nullptr) {
     const auto* config = get_runtime_config();
     if (!config->should_mock_ams()) {
         return nullptr;
@@ -390,8 +589,8 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
     }
 }
 
-std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerAPI* api,
-                                               MoonrakerClient* client) {
+std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonrakerAPI* api,
+                                               IMoonrakerClient* client) {
 #ifdef HELIX_ENABLE_MOCKS
     if (auto mock = try_create_mock(client)) {
         return mock;
@@ -401,7 +600,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
     switch (detected_type) {
     case AmsType::HAPPY_HARE:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] Happy Hare requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] Happy Hare requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating Happy Hare backend");
@@ -409,7 +608,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
 
     case AmsType::AFC:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] AFC requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] AFC requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating AFC backend");
@@ -417,7 +616,11 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
 
     case AmsType::ACE:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] ACE requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] ACE requires IMoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        if (!http_poll_ams_backends_supported()) {
+            spdlog::info("[AMS Backend] AMS backend 'ACE' unsupported on this screen");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating ACE backend");
@@ -425,7 +628,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
 
     case AmsType::TOOL_CHANGER:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] Tool changer requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] Tool changer requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating Tool Changer backend");
@@ -435,7 +638,11 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
     case AmsType::AD5X_IFS:
 #if HELIX_HAS_IFS
         if (!api || !client) {
-            spdlog::error("[AMS Backend] AD5X IFS requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] AD5X IFS requires IMoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        if (!http_poll_ams_backends_supported()) {
+            spdlog::info("[AMS Backend] AMS backend 'AD5X IFS' unsupported on this screen");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating AD5X IFS backend");
@@ -448,7 +655,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
     case AmsType::CFS:
 #if HELIX_HAS_CFS
         if (!api || !client) {
-            spdlog::error("[AMS Backend] CFS requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] CFS requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating CFS backend");
@@ -460,7 +667,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
 
     case AmsType::SNAPMAKER:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] Snapmaker requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] Snapmaker requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating Snapmaker SnapSwap backend");
@@ -468,7 +675,7 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
 
     case AmsType::QIDI_BOX:
         if (!api || !client) {
-            spdlog::error("[AMS Backend] QIDI Box requires MoonrakerAPI and MoonrakerClient");
+            spdlog::error("[AMS Backend] QIDI Box requires IMoonrakerAPI and MoonrakerClient");
             return nullptr;
         }
         spdlog::debug("[AMS Backend] Creating QIDI Box backend (stub)");

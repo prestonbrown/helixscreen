@@ -185,6 +185,17 @@ Creality:   power_loss key ──> one-shot probe ──> both ─┘
 other three inputs (`printer_idle`, `already_prompted`, `wizard_active`) are
 unchanged.
 
+The `printer_idle` input comes from the derived lifecycle, not the wire: the
+controller computes `idle = !job_holds_machine(get_print_lifecycle())`
+(`src/ui/ui_plr_offer_controller.cpp:88`). During a host-side pre-print block
+`print_stats` still reads `standby` — it describes the previous job — so an
+idle check derived from the wire would offer "Resume interrupted print?" on top
+of a start the user has already committed to, and the Resume button would start
+a different file than the one they chose. Anchoring idle to the lifecycle means
+a committed start never gets the offer. (`PRINT_STATE_MACHINE.md` § "Asking
+whether a job owns the machine" covers the predicate and why `print_active` is
+the wrong signal for this question.)
+
 The one-shot latch, the wizard-close re-evaluation, and the disconnect re-arm
 are documented at the decision site, `PlrOfferController::evaluate_offer()`.
 
@@ -221,14 +232,21 @@ looked up:
 
 Spaces are the common case, not the exotic one — slicers put the model and
 filament names in the filename. Moonraker's own print-start path quotes it
-identically (`klippy_apis.py`, `SDCARD_PRINT_FILE FILENAME="{filename}"`).
+identically (klippy_apis.py, `SDCARD_PRINT_FILE FILENAME="{filename}"`).
 
 Inside the quotes, `\n`, `\r`, `;`, `#`, `*`, `=`, `"` and `\` are still
 rejected: `"` closes the value early, `\` is shlex's POSIX escape, and the rest
 are comment/terminator characters that older regex-path Klipper forks strip
 before shlex ever runs. `plr_is_safe_recovery_filename()` enforces that;
 `MoonrakerAPI::is_safe_gcode_param()` is the wrong helper here because it
-rejects whitespace.
+rejects whitespace. `IMoonrakerAPI::is_safe_material_param()` allows whitespace
+but is the wrong helper too, and in the other direction: it is an **allowlist**
+(alphanumerics plus `+ - _ . ( ) /`), while a slicer filename legitimately
+carries commas, brackets, percent signs and non-ASCII. `GCODE_PARAM_BREAKERS`
+is the **blocklist** form of the same idea - `\n\r;#*="\` - which is what a
+free-form filename needs. Same shlex mechanism, three call-site-specific
+charsets; the material one is in `FILAMENT_MANAGEMENT.md` § "Material names as
+G-code parameter values".
 
 > A trailing ` ; from helixscreen` comment would ALSO break this command, and
 > for a non-obvious reason: Creality special-cases `SDCARD_PRINT_FILE` to use a
@@ -275,7 +293,7 @@ beginning**.
 first (`/usr/data`, `/mnt/UDISK`), then the first `/gcodes/` segment as a
 fallback for a relocated `virtual_sdcard: path`.
 
-Verified by reading `klippy/extras/virtual_sdcard.py` and `klippy/gcode.py` on a
+Verified by reading klippy/extras/virtual_sdcard.py and klippy/gcode.py on a
 physical K1C.
 
 With no resolvable filename there is no safe command to send, so the offer is

@@ -771,6 +771,67 @@ TEST_CASE("chamber mode without resting config treats any fan target as Maintain
     REQUIRE(lv_subject_get_int(ts.get_chamber_mode_subject()) == helix::ChamberMode::Maintaining);
 }
 
+// K1C single-object chamber: with no heater_generic, discovery promotes the
+// chamber-named temperature_fan into the heater slot (so M141 sets work) AND it
+// fills the cooling-fan role. Klipper's temperature_fan is a thermostat whose
+// status always carries `target` - on the K1C the default target_temp 40, the
+// fan spin-up threshold - even at speed 0. That target must not enter the heater
+// slot's chamber_target_: it flows through the cooling-fan branch and the
+// resting-target comparison, so an idle K1C chamber reads Off, not Heating to 40.
+TEST_CASE("K1C chamber temperature_fan in the heater slot reads idle as Off",
+          "[temperature][chamber][k1c]") {
+    LVGLTestFixture fixture;
+
+    helix::PrinterTemperatureState ts;
+    ts.init_subjects(false);
+    ts.set_chamber_heater_name("temperature_fan chamber_fan");
+    ts.set_chamber_cooling_fan_name("temperature_fan chamber_fan");
+    ts.set_chamber_fan_resting(400); // 40C x10, the scraped configfile target_temp
+
+    ts.update_from_status(
+        {{"temperature_fan chamber_fan", {{"temperature", 30.3}, {"target", 40.0}}}});
+    // Temperature still ingests from the heater-slot object.
+    REQUIRE(lv_subject_get_int(ts.get_chamber_temp_subject()) == 303);
+    // Fan target 400 == resting 400 -> Off, effective 0 (no target shown).
+    REQUIRE(lv_subject_get_int(ts.get_chamber_mode_subject()) == helix::ChamberMode::Off);
+    REQUIRE(lv_subject_get_int(ts.get_chamber_effective_target_subject()) == 0);
+}
+
+// Same K1C single-object chamber after `M141 S35`: the thermostat target moves to
+// 350, which differs from the resting 400, so the combined setpoint reads as a
+// deliberate maintain at 35C.
+TEST_CASE("K1C chamber temperature_fan M141 set reads as Maintaining",
+          "[temperature][chamber][k1c]") {
+    LVGLTestFixture fixture;
+
+    helix::PrinterTemperatureState ts;
+    ts.init_subjects(false);
+    ts.set_chamber_heater_name("temperature_fan chamber_fan");
+    ts.set_chamber_cooling_fan_name("temperature_fan chamber_fan");
+    ts.set_chamber_fan_resting(400);
+
+    ts.update_from_status(
+        {{"temperature_fan chamber_fan", {{"temperature", 30.3}, {"target", 35.0}}}});
+    REQUIRE(lv_subject_get_int(ts.get_chamber_mode_subject()) == helix::ChamberMode::Maintaining);
+    REQUIRE(lv_subject_get_int(ts.get_chamber_effective_target_subject()) == 350);
+}
+
+// Over-suppression guard: a real chamber heater (heater_generic, the K2 shape)
+// still ingests its target into the heater slot and reads as Heating.
+TEST_CASE("chamber heater_generic target still reads as Heating", "[temperature][chamber][k1c]") {
+    LVGLTestFixture fixture;
+
+    helix::PrinterTemperatureState ts;
+    ts.init_subjects(false);
+    ts.set_chamber_heater_name("heater_generic chamber");
+    ts.set_chamber_cooling_fan_name("temperature_fan chamber_fan");
+    ts.set_chamber_fan_resting(400);
+
+    ts.update_from_status({{"heater_generic chamber", {{"temperature", 27.2}, {"target", 50.0}}}});
+    REQUIRE(lv_subject_get_int(ts.get_chamber_mode_subject()) == helix::ChamberMode::Heating);
+    REQUIRE(lv_subject_get_int(ts.get_chamber_effective_target_subject()) == 500);
+}
+
 TEST_CASE("chamber_effective_setpoint picks the active control", "[temperature][m141]") {
     using helix::ui::temperature::chamber_effective_setpoint;
 

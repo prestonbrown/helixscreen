@@ -9,11 +9,11 @@
 #include "audio_settings_manager.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "i_moonraker_client.h"
 #include "input_settings_manager.h"
 #include "led/led_controller.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "material_settings_manager.h"
-#include "moonraker_client.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "runtime_config.h"
@@ -177,6 +177,14 @@ void SettingsManager::init_subjects() {
                            ams_always_show_bypass_spool ? 1 : 0, "ams_always_show_bypass_spool",
                            subjects_);
 
+    // Keep Spoolman spool info on a slot the firmware reports as ejected
+    // (default: on — retention is the designed behavior; the eject rule only
+    // arms on backends whose firmware reports spool ids). Per-printer setting.
+    bool ams_keep_spool_info =
+        config->get<bool>(config->df() + "ams/keep_spool_info_on_eject", true);
+    UI_MANAGED_SUBJECT_INT(ams_keep_spool_info_on_eject_subject_, ams_keep_spool_info ? 1 : 0,
+                           "ams_keep_spool_info_on_eject", subjects_);
+
     // Show the bypass controls even when the firmware reports no bypass (default:
     // off). Happy Hare's [mmu_machine] has_bypass defaults to 0 for mmu_vendor
     // "Other" — what a Qidi Box under Happy Hare reports — so machines that can
@@ -267,7 +275,7 @@ void SettingsManager::deinit_subjects() {
     spdlog::trace("[SettingsManager] Subjects deinitialized");
 }
 
-void SettingsManager::set_moonraker_client(MoonrakerClient* client) {
+void SettingsManager::set_moonraker_client(IMoonrakerClient* client) {
     moonraker_client_ = client;
     spdlog::debug("[SettingsManager] Moonraker client set: {}", client ? "connected" : "nullptr");
 }
@@ -550,6 +558,26 @@ void SettingsManager::set_ams_always_show_bypass_spool(bool enabled) {
     config->save();
 }
 
+bool SettingsManager::get_ams_keep_spool_info_on_eject() const {
+    lv_subject_t* subject = const_cast<lv_subject_t*>(&ams_keep_spool_info_on_eject_subject_);
+    // Before init_subjects() (app startup; plain unit tests without a fixture)
+    // the subject carries no value yet — the documented default (retain)
+    // applies. Otherwise an uninitialized read would report "off" and the
+    // backends' eject rule would clear overrides nobody asked to clear.
+    if (subject->type != LV_SUBJECT_TYPE_INT) {
+        return true;
+    }
+    return lv_subject_get_int(subject) != 0;
+}
+
+void SettingsManager::set_ams_keep_spool_info_on_eject(bool enabled) {
+    spdlog::info("[SettingsManager] set_ams_keep_spool_info_on_eject({})", enabled);
+    lv_subject_set_int(&ams_keep_spool_info_on_eject_subject_, enabled ? 1 : 0);
+    Config* config = Config::get_instance();
+    config->set<bool>(config->df() + "ams/keep_spool_info_on_eject", enabled);
+    config->save();
+}
+
 bool SettingsManager::get_ams_force_bypass_controls() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&ams_force_bypass_controls_subject_)) != 0;
 }
@@ -559,6 +587,17 @@ void SettingsManager::set_ams_force_bypass_controls(bool enabled) {
     lv_subject_set_int(&ams_force_bypass_controls_subject_, enabled ? 1 : 0);
     Config* config = Config::get_instance();
     config->set<bool>(config->df() + "ams/force_bypass_controls", enabled);
+    config->save();
+}
+
+bool SettingsManager::get_bypass_declared() const {
+    Config* config = Config::get_instance();
+    return config->get<bool>(config->df() + "ams/bypass_declared", false);
+}
+
+void SettingsManager::set_bypass_declared(bool declared) {
+    Config* config = Config::get_instance();
+    config->set<bool>(config->df() + "ams/bypass_declared", declared);
     config->save();
 }
 

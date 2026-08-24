@@ -26,6 +26,7 @@
 #include "../../include/printer_calibration_state.h"
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -40,8 +41,12 @@ class BlockingOpFixture : public LVGLTestFixture {
         state.set_klippy_state_sync(KlippyState::READY);
     }
 
+    // Every case here means "a blocking op is under way", i.e. one that has
+    // already outlasted the IdleTimeoutBusy settle window. Back-date the
+    // debounce so these read as sustained rather than just-started; the settle
+    // behaviour itself is covered in test_idle_timeout_busy.cpp.
     void set_idle_timeout_printing(int v) {
-        lv_subject_set_int(state.get_idle_timeout_printing_subject(), v);
+        helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, v != 0);
     }
 
     void set_manual_probe(int v) {

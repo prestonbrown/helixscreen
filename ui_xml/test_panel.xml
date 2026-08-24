@@ -57,7 +57,7 @@
               flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" style_bg_opa="0"
               style_border_width="0" style_pad_all="0">
         <text_body text="Error switch"/>
-        <ui_switch bind_checked="demo_error"/>
+        <ui_switch name="demo_error_switch" bind_checked="demo_error"/>
       </lv_obj>
       <divider_horizontal/>
       <!-- COMPUTED subject_expr: demo_alarm = demo_error OR demo_temp > demo_threshold -->
@@ -84,7 +84,7 @@
         <text_body text="Temp is over threshold  (direct cond=)"/>
       </lv_obj>
       <!-- bind_state_if: button goes disabled while alarm -->
-      <ui_button text="Action  (disabled when alarm)">
+      <ui_button name="btn_demo_action" text="Action  (disabled when alarm)">
         <bind_state_if cond="demo_alarm" state="disabled"/>
       </ui_button>
       <!-- bind_style_if: card background turns warning-colored while alarm -->
@@ -195,10 +195,10 @@
     <ui_card width="100%"
              height="100" style_radius="#border_radius" style_pad_all="#space_lg" flex_flow="row"
              style_flex_main_place="space_evenly" style_flex_cross_place="center">
-      <spool_canvas color="0xE53935" fill_level="1.0" size="64"/>
-      <spool_canvas color="0x1E88E5" fill_level="0.75" size="64"/>
-      <spool_canvas color="0x43A047" fill_level="0.40" size="64"/>
-      <spool_canvas color="0xFDD835" fill_level="0.10" size="64"/>
+      <spool_canvas name="test_spool_canvas_0" color="0xE53935" fill_level="1.0" size="64"/>
+      <spool_canvas name="test_spool_canvas_1" color="0x1E88E5" fill_level="0.75" size="64"/>
+      <spool_canvas name="test_spool_canvas_2" color="0x43A047" fill_level="0.40" size="64"/>
+      <spool_canvas name="test_spool_canvas_3" color="0xFDD835" fill_level="0.10" size="64"/>
     </ui_card>
     <text_small text="Fill: 100% / 75% / 40% / 10%" translation_tag="Fill: 100% / 75% / 40% / 10%"/>
     <text_heading text="Flat Concentric Rings (existing ams_slot)"
@@ -206,10 +206,10 @@
     <ui_card width="100%"
              height="100" style_radius="#border_radius" style_pad_all="#space_lg" flex_flow="row"
              style_flex_main_place="space_evenly" style_flex_cross_place="center">
-      <ams_slot slot_index="0" fill_level="1.0"/>
-      <ams_slot slot_index="1" fill_level="0.75"/>
-      <ams_slot slot_index="2" fill_level="0.40"/>
-      <ams_slot slot_index="3" fill_level="0.10"/>
+      <ams_slot name="test_ams_slot_0" slot_index="0" fill_level="1.0"/>
+      <ams_slot name="test_ams_slot_1" slot_index="1" fill_level="0.75"/>
+      <ams_slot name="test_ams_slot_2" slot_index="2" fill_level="0.40"/>
+      <ams_slot name="test_ams_slot_3" slot_index="3" fill_level="0.10"/>
     </ui_card>
     <text_small text="Fill: 100% / 75% / 40% / 10%" translation_tag="Fill: 100% / 75% / 40% / 10%"/>
     <divider_horizontal/>

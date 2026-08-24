@@ -158,6 +158,14 @@ std::optional<int> parse_box_unit_index(const std::string& key) {
 // known.
 constexpr int QIDI_DEFAULT_LOAD_TEMP_C = 250;
 
+// Task 15 R2: cap for the officiall_filas_list.cfg fetch below. The file is a
+// small generated INI (fila<N>/colordict/vendor_list sections); this is
+// generous enough that a real stock file never hits it. download_file_partial
+// fails loud on an over-cap response rather than silently truncating (see
+// esp_http_lane.cpp on ESP32), so an oversized file degrades exactly like any
+// other fetch failure here — non-fatal, temps stay at defaults.
+constexpr size_t QIDI_FILAS_LIST_CAP_BYTES = 32 * 1024;
+
 // Manual lane-eject via FORCE_MOVE on the box_stepper (#1041). Distance/velocity
 // from the QIDI Discord (xenon) + Camden's Q2 measurement: 878 mm fully ejects,
 // ~100 mm/s matches the stock feel. These are now user-configurable via
@@ -175,7 +183,7 @@ int load_temp_for_slot(const SlotInfo& slot) {
 }
 } // namespace
 
-AmsBackendQidi::AmsBackendQidi(MoonrakerAPI* api, helix::MoonrakerClient* client)
+AmsBackendQidi::AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
     // Populate system_info_ so get_system_info() returns a self-consistent
     // empty-but-initialised snapshot even before any status update arrives.
@@ -184,7 +192,6 @@ AmsBackendQidi::AmsBackendQidi(MoonrakerAPI* api, helix::MoonrakerClient* client
     system_info_.total_slots = NUM_SLOTS;
     system_info_.supports_bypass = false;
     system_info_.supports_tool_mapping = true;
-    system_info_.supports_endless_spool = false;
     system_info_.supports_purge = false;
     system_info_.tip_method = TipMethod::CUT;
 
@@ -286,10 +293,16 @@ void AmsBackendQidi::on_started() {
     // Also fetch officiall_filas_list.cfg so the temperature profile cache
     // is ready by the time filament_slot<N> entries arrive. The path is the
     // canonical Klipper config location used by box_extras.py.
+    //
+    // download_file_partial (bounded, in-memory), not download_file
+    // (unbounded): the latter is a hard stub on ESP32 (Task 10's HTTP lane
+    // only supports capped fetches — see esp_rest_api.cpp). Same Range-GET
+    // semantics on desktop (moonraker_file_transfer_api.cpp), so this isn't
+    // an ESP-only change.
     if (api_) {
         auto fila_token = lifetime_.token();
-        api_->transfers().download_file(
-            "config", "officiall_filas_list.cfg",
+        api_->transfers().download_file_partial(
+            "config", "officiall_filas_list.cfg", QIDI_FILAS_LIST_CAP_BYTES,
             [this, fila_token](const std::string& body) {
                 // [L081] Defer apply onto main thread — apply_filas_list
                 // touches member state under mutex_.
@@ -436,9 +449,9 @@ void AmsBackendQidi::apply_config_settings(const nlohmann::json& settings) {
 }
 
 void AmsBackendQidi::apply_heater_status(const nlohmann::json& notification) {
-    constexpr std::string_view kHeaterPrefix = "heater_generic heater_box";
-    constexpr std::string_view kAht20Prefix = "aht20_f heater_box";
-    constexpr std::string_view kBoxTempSensorPrefix = "temperature_sensor heater_temp_";
+    constexpr std::string_view HEATER_PREFIX = "heater_generic heater_box";
+    constexpr std::string_view AHT20_PREFIX = "aht20_f heater_box";
+    constexpr std::string_view BOX_TEMP_SENSOR_PREFIX = "temperature_sensor heater_temp_";
 
     struct BoxReading {
         std::optional<float> temp;
@@ -452,10 +465,10 @@ void AmsBackendQidi::apply_heater_status(const nlohmann::json& notification) {
             continue;
         }
         const std::string& key = it.key();
-        const bool is_heater = key.rfind(kHeaterPrefix, 0) == 0;
-        const bool is_aht = key.rfind(kAht20Prefix, 0) == 0;
+        const bool is_heater = key.rfind(HEATER_PREFIX, 0) == 0;
+        const bool is_aht = key.rfind(AHT20_PREFIX, 0) == 0;
         const bool is_box_temp_sensor =
-            key.rfind(kBoxTempSensorPrefix, 0) == 0 && key.find("_box") != std::string::npos;
+            key.rfind(BOX_TEMP_SENSOR_PREFIX, 0) == 0 && key.find("_box") != std::string::npos;
         if (!is_heater && !is_aht && !is_box_temp_sensor) {
             continue;
         }

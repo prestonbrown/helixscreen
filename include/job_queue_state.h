@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 }
 
 /**
@@ -27,7 +27,7 @@ class MoonrakerClient;
  */
 class JobQueueState {
   public:
-    JobQueueState(MoonrakerAPI* api, helix::MoonrakerClient* client);
+    JobQueueState(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~JobQueueState();
 
     // Non-copyable
@@ -63,8 +63,8 @@ class JobQueueState {
     void update_subjects();
     void deinit_subjects();
 
-    MoonrakerAPI* api_;
-    helix::MoonrakerClient* client_;
+    IMoonrakerAPI* api_;
+    helix::IMoonrakerClient* client_;
 
     // Cached data
     std::vector<JobQueueEntry> cached_jobs_;
@@ -78,7 +78,6 @@ class JobQueueState {
     bool subjects_initialized_ = false;
 
     // LVGL subjects
-    lv_subject_t job_queue_count_subject_;
     lv_subject_t job_queue_state_subject_;
     char state_buffer_[64];
     lv_subject_t job_queue_summary_subject_;

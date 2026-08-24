@@ -15,8 +15,9 @@
  * it lives in test_overlay_width_push.cpp.
  */
 
-#include "overlay_class.h"
 #include "ui_nav_manager.h"
+
+#include "overlay_class.h"
 
 #include "../catch_amalgamated.hpp"
 

@@ -14,7 +14,7 @@
 #include <mutex>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -99,10 +99,10 @@ class AbortManager {
      * Must be called before start_abort(). Sets up references to API
      * and printer state for operation.
      *
-     * @param api Pointer to MoonrakerAPI for G-code execution
+     * @param api Pointer to IMoonrakerAPI for G-code execution
      * @param state Pointer to PrinterState for klippy_state observation
      */
-    void init(MoonrakerAPI* api, PrinterState* state);
+    void init(IMoonrakerAPI* api, PrinterState* state);
 
     /**
      * @brief Initialize subjects for XML binding
@@ -241,7 +241,7 @@ class AbortManager {
     AbortManager& operator=(const AbortManager&) = delete;
 
     // Dependencies (set via init())
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
 
     // State machine

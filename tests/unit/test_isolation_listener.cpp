@@ -27,6 +27,9 @@
 #include "http_executor.h"
 #include "thumbnail_processor.h"
 
+#include <spdlog/sinks/null_sink.h>
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -105,6 +108,20 @@ class IsolationListener : public Catch::EventListenerBase {
     using Catch::EventListenerBase::EventListenerBase;
 
     void testRunStarting(Catch::TestRunInfo const& /*info*/) override {
+        // Route the default spdlog logger to a null sink BEFORE any worker
+        // thread starts. spdlog's default-logger API (spdlog::debug/info/...)
+        // reads the registry pointer WITHOUT a lock, so set_default_logger()
+        // may never race a logging thread — including the process-lifetime
+        // HttpExecutor/ThumbnailProcessor workers started just below
+        // (nightly TSAN: data race on registry::s_instance from the
+        // ActivePrintMediaManager fixtures, which used to swap the default
+        // logger per test). Installed exactly once here, single-threaded.
+        // Capture-style tests still swap in their own logger and restore this
+        // one — those swaps stay, but this baseline removes the per-test one.
+        auto null_sink = std::make_shared<spdlog::sinks::null_sink_mt>();
+        auto null_logger = std::make_shared<spdlog::logger>("null", null_sink);
+        spdlog::set_default_logger(std::move(null_logger));
+
         // Pre-warm process-wide worker pools ONCE before any per-test thread
         // baseline is captured. ThumbnailProcessor is a Meyer's singleton whose
         // constructor eagerly starts an HThreadPool worker (MIN_WORKER_THREADS=1)

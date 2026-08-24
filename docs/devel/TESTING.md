@@ -44,7 +44,7 @@ Tests are tagged by **feature/importance**, not layer/speed. This enables runnin
 | `[gcode]` | ~118 | G-code parsing, streaming, geometry |
 | `[ams]` | ~117 | AMS/MMU backends |
 | `[print]` | ~72 | Print workflow: start, pause, cancel, progress |
-| `[state]` | ~57 | PrinterState singleton, LVGL subjects, observers |
+| `[state]` | ~57 | PrinterState singleton, LVGL subjects, observers - drive state via `tests/test_helpers/print_state_test_drivers.h` (see "Test Fixtures") |
 | `[filament]` | ~53 | Spoolman, filament sensors |
 | `[application]` | ~51 | Application lifecycle |
 | `[config]` | ~50 | Configuration loading, validation |
@@ -439,7 +439,7 @@ submodule to work around it - the application needs those patches.
 
 `scripts/quality-checks.sh` runs the suite, but only when staged changes touch
 `lib/helix-xml/` - in practice the pointer bump itself, which is exactly the change that
-alters what the suite tests. It **never configures**: if `build/helix-xml-tests/CMakeCache.txt`
+alters what the suite tests. It **never configures**: if build/helix-xml-tests/CMakeCache.txt
 is missing it skips with an instruction to run `make test-xml` once by hand, so a multi-minute
 LVGL fetch never fires from a commit hook. Once the build tree exists, a failing suite is a
 hard failure like any other test gate.
@@ -483,7 +483,7 @@ the suite.
 
 Remember the inverted submodule workflow: edit in place, commit and push **inside**
 `lib/helix-xml/`, then commit the bumped pointer here. Never write a `patches/*.patch` for it.
-See `LVGL_XML_SITUATION.md`.
+See `HELIX_XML_FORK.md`.
 
 ---
 
@@ -496,6 +496,8 @@ See `LVGL_XML_SITUATION.md`.
 `LVGLTestFixture` (`tests/lvgl_test_fixture.h`) inherits `HelixTestFixture` and adds a headless DRM display + test screen. Use it for tests that touch LVGL widgets.
 
 `XMLTestFixture` (`tests/test_fixtures.h`) inherits `LVGLTestFixture` and owns per-instance `PrinterState`, `MoonrakerClient`, and `MoonrakerAPI` — no shared static state between tests. Reach for it whenever you need to exercise XML bindings. XML subjects register into LVGL's global scope; each test's `init_subjects(true)` overwrites prior entries with fresh pointers, and the destructor tears the screen down before deinitializing subjects to avoid dangling observer references.
+
+**Driving print state in a test:** use `tests/test_helpers/print_state_test_drivers.h`, never a hand-written `print_state_enum` value. Consumers gate on the derived `print_lifecycle` subject, which is republished only inside `PrinterState::update_from_status()`; writing the raw enum subject by hand leaves the lifecycle stale, lifecycle consumers never re-gate, and the assertion fails as though the production guard were missing. `set_wire_state()` drives the real input path; `lifecycle_from_bools()` adapts suites that feed bool pairs. Hand-written enum writes are what broke ~90 assertions when the lifecycle migration landed.
 
 ### Catch2 v3 Basics
 
@@ -587,7 +589,7 @@ UITest::wait_until([]{ return done; });    // Pump timers until a condition
 UITest::cleanup();
 ```
 
-See UI_TESTING.md for the full utility list and the mandated base fixtures.
+See UI_TESTING.md for the full utility list.
 
 ---
 
@@ -651,5 +653,5 @@ lldb build/bin/helix-tests
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md):** Thread safety patterns
 - **[BUILD_SYSTEM.md](BUILD_SYSTEM.md):** Build configuration
-- **[LVGL_XML_SITUATION.md](LVGL_XML_SITUATION.md):** Why the XML engine is its own repo, with its own tests and CI
+- **[HELIX_XML_FORK.md](HELIX_XML_FORK.md):** Why the XML engine is its own repo, with its own tests and CI
 - **[DEVELOPMENT.md#contributing](DEVELOPMENT.md#contributing):** Code standards

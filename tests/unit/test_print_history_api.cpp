@@ -80,8 +80,7 @@ class PrintHistoryTestFixture {
 // get_history_list Tests
 // ============================================================================
 
-TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list returns mock jobs",
-                 "[history][api]") {
+TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list returns mock jobs", "[history][api]") {
     std::atomic<bool> success_called{false};
     std::atomic<bool> error_called{false};
     std::vector<PrintHistoryJob> captured_jobs;
@@ -113,6 +112,49 @@ TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list returns mock jobs",
     REQUIRE(first_job.start_time > 0.0);
     REQUIRE_FALSE(first_job.duration_str.empty());
     REQUIRE_FALSE(first_job.date_str.empty());
+}
+
+// get_history_list() releases the response DOM as soon as the jobs are built,
+// because that document is the largest the app parses (714 KB / ~3.9 MB of heap
+// for 500 jobs on a printer with real history). Everything read out of the
+// response must therefore be read BEFORE the release — this pins that ordering,
+// so moving the release earlier fails here instead of silently zeroing the
+// count or truncating the jobs.
+TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list reads the response before releasing it",
+                 "[history][api]") {
+    std::atomic<bool> success_called{false};
+    std::vector<PrintHistoryJob> captured_jobs;
+    uint64_t captured_total = 0;
+
+    api_->history().get_history_list(
+        50, 0, 0.0, 0.0,
+        [&](const std::vector<PrintHistoryJob>& jobs, uint64_t total) {
+            captured_jobs = jobs;
+            captured_total = total;
+            success_called.store(true);
+        },
+        [&](const MoonrakerError&) {});
+
+    for (int i = 0; i < 50 && !success_called.load(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    REQUIRE(success_called.load());
+    REQUIRE(captured_jobs.size() > 1);
+
+    // The count comes straight off the DOM; releasing before reading it zeroes it.
+    CHECK(captured_total > 0);
+    CHECK(captured_total >= captured_jobs.size());
+
+    // EVERY job must be fully populated, not just the first — a release that
+    // landed mid-loop would leave later entries blank while the early ones pass.
+    for (const auto& job : captured_jobs) {
+        CHECK_FALSE(job.job_id.empty());
+        CHECK_FALSE(job.filename.empty());
+        CHECK(job.start_time > 0.0);
+        // Derived display strings are built per job during the same walk.
+        CHECK_FALSE(job.duration_str.empty());
+        CHECK_FALSE(job.date_str.empty());
+    }
 }
 
 TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list jobs have valid status",

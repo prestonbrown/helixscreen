@@ -55,11 +55,14 @@ struct SystemPathData {
     int unit_count = 0;
     static constexpr int MAX_UNITS = 8;
     static constexpr int MAX_TOOLS = 16;
-    int32_t unit_x_positions[MAX_UNITS] = {}; // X center of each unit card
-    int active_unit = -1;                     // -1 = none active
-    uint32_t active_color = 0x4488FF;         // Filament color of active path
-    bool filament_loaded = false;             // Whether filament reaches nozzle
-    char status_text[64] = {};                // Status label drawn to left of nozzle
+    // X centre of each unit's card, relative to this canvas's left edge. Pushed
+    // by the panel and re-pushed whenever the card row scrolls, so a stem stays
+    // under the card it belongs to. Clamped at draw time by unit_stem_x().
+    int32_t unit_x_positions[MAX_UNITS] = {};
+    int active_unit = -1;             // -1 = none active
+    uint32_t active_color = 0x4488FF; // Filament color of active path
+    bool filament_loaded = false;     // Whether filament reaches nozzle
+    char status_text[64] = {};        // Status label drawn to left of nozzle
 
     // Bypass support
     bool has_bypass = false;          // Whether to show bypass path
@@ -313,7 +316,7 @@ static void draw_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int
 static void draw_routed_tube_parallel(lv_layer_t* layer, int32_t sx, int32_t sy, int32_t ex,
                                       int32_t ey, int32_t horiz_y, lv_color_t color, int32_t width,
                                       bool active) {
-    constexpr float kFilletR = 9.0f;
+    constexpr float FILLET_R = 9.0f;
 
     // Clamp the bend so it leaves room for both fillets.
     int32_t lo = sy + 4;
@@ -337,7 +340,7 @@ static void draw_routed_tube_parallel(lv_layer_t* layer, int32_t sx, int32_t sy,
                             {(float)ex, (float)y_approach},
                             {(float)ex, (float)ey}};
     pg::FilamentPath path;
-    pg::route_polyline_filleted(path, pts, 4, kFilletR);
+    pg::route_polyline_filleted(path, pts, 4, FILLET_R);
     helix::ui::draw_lane(layer, path, sp_lane_style(color, width, active));
 }
 
@@ -489,6 +492,17 @@ static void draw_tool_badge(lv_layer_t* layer, int32_t cx, int32_t nozzle_y, int
 //   draw_unit_columns (incl. shared merge fan) → draw_bypass_merge_line →
 //   draw_combiner_hub → draw_output_to_nozzle → draw_status_beside_nozzle
 
+// Helper: horizontal X position of a unit's entry stem.
+//
+// The stems are distributed evenly across the canvas, NOT tracked to the unit
+// cards above. The card row is an independently scrollable container: an anchor
+// sampled from a card's coordinates goes stale the instant the row scrolls, and
+// once the row overflows (5 units on a 800x480) some cards sit outside the
+// canvas entirely, so their stems were drawn off-canvas and survived only as
+// clipped horizontal stubs running off the edge. Even distribution is stable
+// under scroll, always on screen for every unit, and at 2-3 units lands within a
+// few pixels of where the cards sit anyway. draw_unit_stem_labels() carries the
+// stem-to-card identity that the positional tie used to imply.
 // Helper: calculate horizontal X position for a tool in the tools row
 static int32_t calc_tool_x(int tool_index, int total_tools, int32_t x_off, int32_t width) {
     if (total_tools <= 1) {
@@ -586,6 +600,25 @@ static SysLayout compute_sys_layout(SystemPathData* data, const lv_area_t& obj_c
     return L;
 }
 
+// Horizontal position of unit `i`'s entry stem: the centre of its unit card,
+// clamped into the canvas.
+//
+// The anchor is pushed by the panel and re-pushed on every card-row scroll -
+// unit_cards_row is an independently scrollable container, and a stale anchor
+// left every stem pointing at where its card used to be. The clamp covers the
+// rest: once the row overflows, a scrolled-off card's centre lands outside the
+// canvas, and an unclamped stem was drawn off-canvas where LVGL kept only a
+// clipped horizontal stub running off the edge. Clamped, the stem parks at the
+// edge it went out of, which reads as "this unit is off to that side".
+static int32_t unit_stem_x(const SystemPathData* data, const SysLayout& L, int i) {
+    if (i < 0 || i >= SystemPathData::MAX_UNITS) {
+        return L.x_off + L.width / 2;
+    }
+    int32_t margin = LV_MIN(8, L.width / 4);
+    return LV_CLAMP(L.x_off + data->unit_x_positions[i], L.x_off + margin,
+                    L.x_off + L.width - margin);
+}
+
 // ----------------------------------------------------------------------------
 // Multi-tool pipeline (per-unit routing to individual tool positions).
 // Note: Bypass rendering is intentionally omitted in this mode — bypass is not
@@ -607,7 +640,8 @@ struct GlobalRoute {
 
 // Per-unit mini-hub info, deferred so hub boxes draw on top of the routes.
 struct HubInfo {
-    int32_t tool_x;
+    int32_t hub_x;  // centre of the hub box
+    int32_t tool_x; // nozzle the hub feeds (== hub_x when nothing is shared)
     int32_t mini_hub_y;
     int32_t mini_hub_w;
     int32_t mini_hub_h;
@@ -616,6 +650,35 @@ struct HubInfo {
     bool valid;
 };
 
+// Where unit `unit_index` sits among the HUB units that feed the SAME physical
+// nozzle, and how many there are.
+//
+// compute_system_tool_layout() deliberately merges two HUB units onto one
+// physical tool when they name the same extruder (a Box Turtle and a Claymore
+// both wired to e0). Each unit still owns a real, separate hub though, so
+// drawing both boxes at the shared nozzle's X stacked them pixel-for-pixel:
+// four hub units rendered as two visible "Hub" badges, and their routes landed
+// on the identical point. Fanning the boxes out around the nozzle keeps every
+// hub visible and its route distinguishable.
+//
+// Returns rank 0 / count 1 for the overwhelmingly common unshared case, which
+// puts the box exactly where it has always been.
+static void hub_group_position(const SystemPathData* data, int unit_index, int* rank, int* count) {
+    *rank = 0;
+    *count = 0;
+    const int my_tool = data->unit_first_tool[unit_index];
+    for (int u = 0; u < data->unit_count && u < SystemPathData::MAX_UNITS; ++u) {
+        // PARALLEL (2) and MIXED (3) do not place a hub box on a nozzle.
+        if (data->unit_topology[u] == 2 || data->unit_topology[u] == 3)
+            continue;
+        if (data->unit_tool_count[u] <= 0 || data->unit_first_tool[u] != my_tool)
+            continue;
+        if (u < unit_index)
+            (*rank)++;
+        (*count)++;
+    }
+}
+
 // PASS 1a: PARALLEL / MIXED unit — one route per unique tool position. For
 // MIXED, tool_count already reflects unique nozzles (not lanes), so hub lanes
 // sharing a mapped_tool produce a single route; the hub group's mini-hub is
@@ -623,13 +686,23 @@ struct HubInfo {
 static int collect_parallel_mixed_routes(SystemPathData* data, const SysLayout& L, int i,
                                          GlobalRoute* all_routes, int total_routes,
                                          HubInfo* hub_infos) {
-    int32_t unit_x = L.x_off + data->unit_x_positions[i];
+    int32_t unit_x = unit_stem_x(data, L, i);
     int topology = data->unit_topology[i];
     int tool_count = data->unit_tool_count[i];
     int first_tool = data->unit_first_tool[i];
     bool is_active = (i == data->active_unit);
 
-    int32_t spread = LV_MIN(L.width / 6, tool_count > 1 ? 60 : 0);
+    // Fan the lane start points apart just enough that their verticals do not
+    // overlap, and no further: a wide fan detached each lane from the unit it
+    // belongs to, so a toolchanger's lanes read as lines starting out of thin air
+    // next to whatever hub box happened to sit there. Keep the whole fan inside
+    // the unit's own column, under its label.
+    int32_t column_w = (data->unit_count > 1) ? (L.width / data->unit_count) : L.width;
+    int32_t spread = 0;
+    if (tool_count > 1) {
+        spread = LV_MIN(column_w - 8, (tool_count - 1) * LV_MAX(8, L.line_idle * 3));
+        spread = LV_MAX(spread, 0);
+    }
     for (int t = 0; t < tool_count && (first_tool + t) < data->total_tools; ++t) {
         int tool_idx = first_tool + t;
         int32_t tool_x = calc_tool_x(tool_idx, data->total_tools, L.x_off, L.width);
@@ -660,7 +733,9 @@ static int collect_parallel_mixed_routes(SystemPathData* data, const SysLayout& 
         if (hub_has_filament) {
             mini_bg = sp_blend(L.hub_bg, L.active_color_lv, 0.33f);
         }
-        hub_infos[i] = {hub_start_x, mhy, mhw, mhh, mini_bg, hub_tool_idx, true};
+        // MIXED hubs sit on the unit's own stem, not on a nozzle, so hub_x and
+        // tool_x are the same point and draw_mini_hubs() skips the outlet line.
+        hub_infos[i] = {hub_start_x, hub_start_x, mhy, mhw, mhh, mini_bg, hub_tool_idx, true};
     }
     return total_routes;
 }
@@ -671,7 +746,7 @@ static int collect_parallel_mixed_routes(SystemPathData* data, const SysLayout& 
 static int collect_hub_route_and_draw_stem(lv_layer_t* layer, SystemPathData* data,
                                            const SysLayout& L, int i, GlobalRoute* all_routes,
                                            int total_routes, HubInfo* hub_infos) {
-    int32_t unit_x = L.x_off + data->unit_x_positions[i];
+    int32_t unit_x = unit_stem_x(data, L, i);
     int tool_count = data->unit_tool_count[i];
     int first_tool = data->unit_first_tool[i];
     bool is_active = (i == data->active_unit);
@@ -684,6 +759,14 @@ static int collect_hub_route_and_draw_stem(lv_layer_t* layer, SystemPathData* da
     int32_t mini_hub_h = L.hub_h * 2 / 3;
     int32_t mini_hub_y = L.merge_y + (L.tools_y - L.merge_y) / 3;
     int32_t end_y_mh = mini_hub_y - mini_hub_h / 2;
+
+    // Fan the box away from the nozzle centre when another HUB unit feeds the
+    // same one. rank 0 / count 1 (nothing shared) leaves hub_x == tool_x.
+    int hub_rank = 0;
+    int hub_group = 1;
+    hub_group_position(data, i, &hub_rank, &hub_group);
+    int32_t hub_pitch = mini_hub_w + LV_MAX(4, L.line_idle * 2);
+    int32_t hub_x = tool_x + (2 * hub_rank - (hub_group - 1)) * hub_pitch / 2;
 
     // Hub sensor dot and short vertical beneath it
     // Use a shorter merge point for HUB units to leave more room
@@ -708,8 +791,10 @@ static int collect_hub_route_and_draw_stem(lv_layer_t* layer, SystemPathData* da
                            /*active=*/is_active);
     }
 
-    int32_t dist = unit_x > tool_x ? (unit_x - tool_x) : (tool_x - unit_x);
-    all_routes[total_routes++] = {i, first_tool, unit_x, hub_merge_y, tool_x, end_y_mh, dist, true};
+    // The route lands on this unit's own hub box, not on the nozzle - with a
+    // shared nozzle those are different X positions.
+    int32_t dist = unit_x > hub_x ? (unit_x - hub_x) : (hub_x - unit_x);
+    all_routes[total_routes++] = {i, first_tool, unit_x, hub_merge_y, hub_x, end_y_mh, dist, true};
 
     // Save hub info for deferred drawing
     bool hub_has_filament = is_active && data->filament_loaded;
@@ -717,7 +802,8 @@ static int collect_hub_route_and_draw_stem(lv_layer_t* layer, SystemPathData* da
     if (hub_has_filament) {
         mini_hub_bg = sp_blend(L.hub_bg, L.active_color_lv, 0.33f);
     }
-    hub_infos[i] = {tool_x, mini_hub_y, mini_hub_w, mini_hub_h, mini_hub_bg, first_tool, true};
+    hub_infos[i] = {hub_x,      tool_x,      mini_hub_y, mini_hub_w,
+                    mini_hub_h, mini_hub_bg, first_tool, true};
     return total_routes;
 }
 
@@ -854,7 +940,7 @@ static void draw_mini_hubs(lv_layer_t* layer, SystemPathData* data, const SysLay
 
         int topology = data->unit_topology[i];
         const char* hub_label = (topology == 3) ? "H" : "Hub";
-        draw_hub_box(layer, hi.tool_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h, hi.hub_bg_color,
+        draw_hub_box(layer, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h, hi.hub_bg_color,
                      L.hub_border, data->color_text, data->label_font, data->border_radius,
                      hub_label);
 
@@ -863,8 +949,17 @@ static void draw_mini_hubs(lv_layer_t* layer, SystemPathData* data, const SysLay
             bool tool_active = is_active && (hi.first_tool == data->active_tool);
             lv_color_t out_color = tool_active ? L.active_color_lv : L.idle_color;
             int32_t out_w = tool_active ? L.line_active : L.line_idle;
-            draw_vertical_line(layer, hi.tool_x, hi.mini_hub_y + hi.mini_hub_h / 2, L.tools_y,
-                               out_color, out_w, /*active=*/tool_active);
+            int32_t out_y = hi.mini_hub_y + hi.mini_hub_h / 2;
+            if (hi.hub_x == hi.tool_x) {
+                draw_vertical_line(layer, hi.tool_x, out_y, L.tools_y, out_color, out_w,
+                                   /*active=*/tool_active);
+            } else {
+                // Shared nozzle: this hub sits beside it, so the outlet angles in.
+                helix::ui::MergeFanLane lane{hi.hub_x, out_y,
+                                             sp_lane_style(out_color, out_w, tool_active), nullptr};
+                helix::ui::draw_merge_fan(layer, &lane, 1, hi.tool_x, L.tools_y,
+                                          /*hub_w=*/0, /*fillet_r=*/9.0f);
+            }
         }
     }
 }
@@ -932,7 +1027,7 @@ static void draw_unit_columns(lv_layer_t* layer, SystemPathData* data, const Sys
     // Draw unit entry lines (one per unit, from entry to merge point) and
     // collect each unit's convergence lane for one shared draw_merge_fan call.
     for (int i = 0; i < data->unit_count && i < SystemPathData::MAX_UNITS; i++) {
-        int32_t unit_x = L.x_off + data->unit_x_positions[i];
+        int32_t unit_x = unit_stem_x(data, L, i);
         bool is_active = (i == data->active_unit);
 
         lv_color_t line_color = is_active ? L.active_color_lv : L.idle_color;

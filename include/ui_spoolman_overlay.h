@@ -19,6 +19,7 @@
 
 #include "moonraker_config_manager.h"
 #include "overlay_base.h"
+#include "system/moonraker_local_probe.h"
 
 #include <lvgl/lvgl.h>
 
@@ -29,7 +30,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 class SpoolmanOverlayTestAccess;
 
 namespace helix::ui {
@@ -153,11 +154,11 @@ class SpoolmanOverlay : public OverlayBase {
     void refresh();
 
     /**
-     * @brief Set MoonrakerAPI for database access
+     * @brief Set IMoonrakerAPI for database access
      *
-     * @param api MoonrakerAPI instance (not owned)
+     * @param api IMoonrakerAPI instance (not owned)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -265,8 +266,8 @@ class SpoolmanOverlay : public OverlayBase {
     /// Subject for refresh interval in seconds
     lv_subject_t refresh_interval_subject_;
 
-    /// MoonrakerAPI for database access (not owned)
-    MoonrakerAPI* api_ = nullptr;
+    /// IMoonrakerAPI for database access (not owned)
+    IMoonrakerAPI* api_ = nullptr;
 
     /// True while this overlay holds one SpoolmanManager poll reference
     bool holds_poll_ref_ = false;
@@ -288,6 +289,17 @@ class SpoolmanOverlay : public OverlayBase {
     /// "helixscreen.conf" is exactly the silent assumption that made Remove no-op
     /// against a natively-configured Moonraker while reporting success.
     std::string spoolman_config_path_;
+
+    /// Absolute path of the file manager's writable "config" root, from
+    /// server.files.roots. Empty when Moonraker did not report one, which is the
+    /// pre-existing behaviour: an absolute config path is then out of reach.
+    std::string config_root_abs_;
+
+    /// The local-write fallback in force for the current setup attempt.
+    ///
+    /// Non-viable for every ordinary printer. Cleared at the start of each attempt
+    /// so a plan from a previous one can never redirect a healthy write to disk.
+    helix::diag::LocalIncludePlan local_plan_;
 
     /// Default values
     static constexpr bool DEFAULT_SYNC_ENABLED = true;
@@ -333,6 +345,18 @@ class SpoolmanOverlay : public OverlayBase {
         std::string path;    ///< config-root-relative path of the target file
         std::string content; ///< contents of `path` (Defined only)
         std::string detail;  ///< operator-facing explanation for Ambiguous / Unreachable
+
+        /// Unreachable only: the file API was ASKED and answered, and the answer was
+        /// that Moonraker's config is not under a root it serves.
+        ///
+        /// The distinction matters because Unreachable also covers "we could not
+        /// tell" — a dropped WebSocket, a 500 from the file manager, a build that
+        /// reports no section list. Those must not license
+        /// try_local_config_fallback() to edit a vendor firmware file and restart
+        /// Moonraker, because the ordinary path might well succeed on the next try.
+        /// Set it only where every candidate was actually downloaded and judged, or
+        /// where no addressable path exists at all.
+        bool proved_out_of_reach = false;
     };
 
   private:
@@ -353,22 +377,80 @@ class SpoolmanOverlay : public OverlayBase {
      */
     void resolve_spoolman_target(SpoolmanTargetCallback on_done);
 
+    /**
+     * @brief Resolution proper, once the file manager's config root is known
+     *
+     * Split out only so the root can be fetched first: Moonraker names a config
+     * outside the root config's own directory by absolute path, and without the
+     * root there is nothing to judge such a path against.
+     *
+     * @param config_root_abs Absolute path of the writable "config" root, or ""
+     *                        when Moonraker did not report one — in which case
+     *                        an absolute config path is treated as unreachable,
+     *                        exactly as before.
+     */
+    void resolve_spoolman_target_with_root(const std::string& config_root_abs,
+                                           SpoolmanTargetCallback on_done);
+
+    /// Look up the writable "config" root, then run @p next on the MAIN thread.
+    /// Delivers "" — never fails — when the roots are unavailable.
+    void with_config_root(std::function<void(const std::string&)> next);
+
+    /**
+     * @brief Last resort when Moonraker's config is unreachable but it runs here
+     *
+     * Stock Creality K2 loads /usr/share/moonraker/moonraker.conf while the file
+     * manager's config root is /mnt/UDISK/printer_data/config, so no Moonraker
+     * call can edit the config. HelixScreen runs on that printer, so the file is
+     * reachable as an ordinary local file. Falls back to fail_config_unreachable()
+     * whenever it cannot prove all of that.
+     */
+    void try_local_config_fallback(const std::string& detail, const std::string& host,
+                                   const std::string& port);
+
+    /// Append the planned `[include]` to Moonraker's config on the local disk.
+    void append_include_locally();
+
     /// Shared error surface: log the detail, show a status line and a red toast.
     void report_spoolman_error(const char* status_text, const char* toast_text,
                                const std::string& detail);
 
     /**
-     * @brief Confirm the config file Moonraker loaded is the one we would write to
+     * @brief Prove by content which candidate path is the config Moonraker loaded
      *
-     * Most Moonraker builds never expose their config file's absolute path, so the path
-     * check alone cannot prove reachability. This downloads the candidate file through
-     * the file API's "config" root and confirms it defines every section Moonraker
-     * reported loading from it. A missing file — or one whose sections don't match —
-     * means the real config lives somewhere we cannot write, and setup aborts.
+     * Most Moonraker builds never expose their config file's absolute path, and the
+     * name they do report cannot be trusted as a file-API path — so the path check
+     * alone can prove nothing. This walks `candidates` from
+     * MoonrakerConfigManager::candidate_config_paths(), downloading each through the
+     * file API's "config" root and confirming it defines the sections Moonraker
+     * reported. That content proof is what makes a speculative candidate safe.
+     *
+     * Moves to the next candidate ONLY on a genuine 404 or a Mismatch verdict; any
+     * other error aborts, because walking the whole list on a flaky link would turn
+     * a transport problem into a wrong-file write. Each step logs at info level, and
+     * so does the winner — a live log has to say which path was chosen and why.
+     *
+     * Two candidates are held to a stricter standard than a plain Drifted verdict:
+     * a `speculative` one, whose path was inferred from the tail of a foreign
+     * absolute path rather than derived from the config root, must match Moonraker's
+     * section list EXACTLY — drift tolerance and a guessed path compound into a
+     * confident write to an unrelated file of the same name. And on the in-place
+     * path the candidate must actually define `[spoolman]`, since that section is
+     * the whole reason this file was selected.
+     *
+     * @param reported_name The name Moonraker gave, for messages and logs.
+     * @param candidates    Ranked file-API paths, most trustworthy first.
+     * @param index         Which candidate to try; callers start at 0.
+     * @param speculative   From MoonrakerConfigManager::candidates_are_speculative().
+     * @param last_detail   Why the previous candidate was rejected, carried forward so
+     *                      the final "nothing matched" message can say which it was and
+     *                      whether it was absent or merely the wrong file.
      */
-    void verify_config_reachable(const std::string& target_path,
+    void verify_config_reachable(const std::string& reported_name,
+                                 const std::vector<std::string>& candidates, size_t index,
                                  const std::vector<std::string>& required_sections, bool in_place,
-                                 SpoolmanTargetCallback on_done);
+                                 bool speculative, SpoolmanTargetCallback on_done,
+                                 const std::string& last_detail = "");
 
     /**
      * @brief Guard against a stale, not-yet-loaded helixscreen.conf before writing in place

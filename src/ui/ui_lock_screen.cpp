@@ -112,8 +112,8 @@ void LockScreenOverlay::on_digit(int digit) {
         return;
     }
 
-    if (static_cast<int>(digit_buffer_.size()) >= kMaxDigits) {
-        spdlog::debug("[LockScreen] Max digits ({}) reached, ignoring", kMaxDigits);
+    if (static_cast<int>(digit_buffer_.size()) >= MAX_DIGITS) {
+        spdlog::debug("[LockScreen] Max digits ({}) reached, ignoring", MAX_DIGITS);
         return;
     }
 
@@ -125,7 +125,7 @@ void LockScreenOverlay::on_digit(int digit) {
 
     // Auto-submit when max digits reached — defer to avoid UB if on_confirm()
     // destroys the overlay while we're still in on_digit()
-    if (static_cast<int>(digit_buffer_.size()) == kMaxDigits) {
+    if (static_cast<int>(digit_buffer_.size()) == MAX_DIGITS) {
         lv_async_call([](void*) { LockScreenOverlay::instance().on_confirm(); }, nullptr);
     }
 }
@@ -147,9 +147,9 @@ void LockScreenOverlay::on_confirm() {
         return;
     }
 
-    if (static_cast<int>(digit_buffer_.size()) < kMinDigits) {
+    if (static_cast<int>(digit_buffer_.size()) < MIN_DIGITS) {
         spdlog::debug("[LockScreen] PIN too short ({} digits, need {})", digit_buffer_.size(),
-                      kMinDigits);
+                      MIN_DIGITS);
         clear_digits();
         show_error("PIN must be at least 4 digits");
         return;
@@ -174,7 +174,7 @@ void LockScreenOverlay::on_confirm() {
 // ============================================================================
 
 void LockScreenOverlay::update_dots() {
-    update_pin_dots(overlay_, "lock_dot_", kMaxDigits, static_cast<int>(digit_buffer_.size()));
+    update_pin_dots(overlay_, "lock_dot_", MAX_DIGITS, static_cast<int>(digit_buffer_.size()));
 }
 
 void LockScreenOverlay::clear_digits() {

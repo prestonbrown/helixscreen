@@ -68,18 +68,7 @@ void populate_discovery(helix::PrinterDiscovery& disc, const nlohmann::json& obj
     if (cfg.is_object() && cfg.contains("configfile") && cfg["configfile"].contains("settings")) {
         const auto& s = cfg["configfile"]["settings"];
         disc.parse_config_keys(s);
-
-        BuildVolume bv{};
-        auto rd = [&](const char* k, const char* f, float& out) {
-            if (s.contains(k) && s[k].is_object() && s[k].contains(f) && s[k][f].is_number())
-                out = s[k][f].get<float>();
-        };
-        rd("stepper_x", "position_min", bv.x_min);
-        rd("stepper_x", "position_max", bv.x_max);
-        rd("stepper_y", "position_min", bv.y_min);
-        rd("stepper_y", "position_max", bv.y_max);
-        rd("stepper_z", "position_max", bv.z_max);
-        disc.set_build_volume(bv);
+        disc.parse_build_volume(s);
     }
 }
 

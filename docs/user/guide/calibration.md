@@ -66,6 +66,12 @@ Assisted manual bed leveling:
 - **Yellow**: Minor adjustment needed
 - **Red**: Significant adjustment needed
 
+### Sharing the Results
+
+Next to **Done** and **Re-probe** in the results view, a **share button** (QR icon) opens a card with every screw's name, probed height, and adjustment spelled out, plus a QR code alongside. The QR encodes exactly the same results as plain text — scan it with any phone camera and the numbers appear there, ready to paste into your notes or a forum post. A printer has no clipboard to copy from, so the QR is how the values leave the screen.
+
+The reference screw is labeled **base** (it is the one everything else is measured against), and a screw needing no adjustment shows `--`.
+
 ---
 
 ## Input Shaper
@@ -78,15 +84,24 @@ Tune vibration compensation for smoother, faster prints:
 2. Review your current shaper configuration displayed at the top
 3. Pre-flight check verifies accelerometer is connected
 4. Select axis to test (X or Y)
-5. Tap **Calibrate** to run the resonance test (5-minute timeout applies)
+5. Tap **Calibrate** to run the resonance test. While the printer sweeps, a progress bar fills from 0 to 100%; once the sweep finishes it is replaced by a spinner with an "Analyzing data... Ns" counter while the printer's host crunches the samples. On slower printers the analysis alone can take a few minutes per axis — that wait is why the whole run gets a 10-minute timeout
 6. View **frequency response chart** with interactive shaper overlay toggles
 7. Review the **comparison table** showing recommended shaper and alternatives (frequency, vibration reduction, smoothing)
-8. Tap **Apply** to use for this session or **Save Config** to persist
+8. Check the **change summary** under the table: it shows what was active before the run ("ei @ 69.8 Hz -> mzv @ 53.8 Hz") and, when the chart has data, how much vibration the old setting would leave on today's measurements versus the new one ("Old setting on today's data: 8.4% residual - now: 7.8%")
+9. Tap **Apply** to use for this session or **Save Config** to persist
+
+![Mid-sweep: the progress bar fills as frequencies are tested (step 5)](../../images/screenshot-shaper-sweep.png)
+![After the sweep: the spinner counts analysis seconds (step 5)](../../images/screenshot-shaper-analysis.png)
+![The change summary under the comparison table (step 8)](../../images/screenshot-shaper-delta.png)
 
 **Chart features:**
+- The chart plots **relative vibration** (see the caption above each chart): lower is less residual vibration
+- The legend keys all three curve kinds: **Measured (shaper off)** is the raw vibration your printer produced during the test, the shaper chips show the vibration each shaper would leave behind, and **Previous** shows what your old setting would have left behind (only shown when a previous setting existed)
 - Toggle different shaper types on/off to compare their frequency response curves
 - Platform-adaptive: full interactive charts on desktop, simplified on embedded hardware
 - Per-axis results shown independently
+
+> **Creality K1/K2 note:** some Creality firmware versions overwrite the saved X-axis result with the Y-axis values when you calibrate both axes. HelixScreen detects this and shows a warning on the X results card — the X values it measured were correct, but the printer's saved config discards them. (On a Y-only run the warning appears on the Y card instead, since there is no X card to carry it.) Re-run **Calibrate X** alone and save if you want the measured X values kept.
 
 ![Input Shaper Results](../../images/screenshot-shaper-results.png)
 
@@ -233,7 +248,7 @@ Calibrate temperature controllers for stable heating. HelixScreen supports two c
 - **Live temperature graph** shows the heater cycling in real-time
 - **Progress percentage** updates as calibration proceeds
 - **Abort button** available if you need to stop early
-- A **15-minute timeout** acts as a safety net for stuck calibrations
+- A **20-minute timeout** acts as a safety net for stuck calibrations (slow-cooling beds can legitimately take longer than 15 minutes, so the limit sits above that)
 
 **When complete:**
 - View new PID values (Kp, Ki, Kd) with **old-to-new deltas** so you can see what changed

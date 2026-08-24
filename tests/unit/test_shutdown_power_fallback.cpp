@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../../src/ui/panel_widgets/shutdown_widget.h"
+#include "../helix_test_fixture.h"
 
 #include "../catch_amalgamated.hpp"
-#include "../helix_test_fixture.h"
 
 /**
  * Local-fallback policy for a failed Moonraker machine.reboot / machine.shutdown.
@@ -68,8 +68,7 @@ TEST_CASE_METHOD(ShutdownFallbackFixture, "Remote-printer machine action failure
     // this device down instead would kill the screen and leave the printer up.
     int calls = 0;
     const bool handled = helix::handle_machine_power_failure(
-        "Klippy Request Timed Out", /*is_reboot=*/true, /*allow_local_fallback=*/false,
-        [&calls]() {
+        "Klippy Request Timed Out", /*is_reboot=*/true, /*allow_local_fallback=*/false, [&calls]() {
             ++calls;
             return true;
         });

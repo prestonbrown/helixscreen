@@ -293,10 +293,14 @@ tree_count() {
     # The wiring is the thing that actually gates commits, so pin it rather than
     # a number duplicated here. Converting a site lowers the count; this keeps
     # passing, and the recorded baseline can be ratcheted down at leisure.
+    #
+    # --staged-only scans the post-commit tree (HEAD when nothing is staged, as
+    # in CI), so a dirty local working tree — another session's WIP — cannot
+    # false-fail this the way a whole-WT scan would.
     baseline=$(grep -oE 'check_hardcoded_pixels\.py --max-allowed [0-9]+' \
                  scripts/quality-checks.sh | grep -oE '[0-9]+$')
     [ -n "$baseline" ]
-    run python3 "$GATE" --max-allowed "$baseline" --summary
+    run python3 "$GATE" --staged-only --max-allowed "$baseline" --summary
     [ "$status" -eq 0 ]
 }
 
@@ -315,4 +319,62 @@ tree_count() {
     # ui_fatal_error.cpp renders before theme init, where a token read returns 0.
     run python3 "$GATE" --list src/ui/ui_fatal_error.cpp
     [ "$status" -eq 0 ]
+}
+
+# ----------------------------------------------------- post-commit tree (--staged-only)
+#
+# --staged-only is NOT "only staged files" — it scans the tree the commit WILL
+# create (index applied over HEAD via `git write-tree`). The pre-commit hook
+# uses it so another session's unstaged WIP cannot trip the ratchet on a clean
+# commit (the failure that forced a stash workaround, violating the never-touch-
+# WIP rule). These pin the three load-bearing properties.
+
+GATE_ABS="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/check_hardcoded_pixels.py"
+
+# Build a throwaway git repo with a clean baseline. xml-pad fires on any
+# style_pad_* literal >=2, so no globals.xml token table is needed.
+setup_tmp_repo() {
+    TMP_REPO="$(mktemp -d "${BATS_TEST_TMPDIR:-${BATS_TMPDIR:-/tmp}}/pixels-XXXXXX")"
+    cd "$TMP_REPO" || return 1
+    git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test"
+    mkdir -p ui_xml
+    printf '<component><view>\n  <lv_obj width="#x"/>\n</view></component>\n' > ui_xml/base.xml
+    git add -A && git commit -qm base
+}
+
+@test "--staged-only counts a violation in a STAGED file" {
+    setup_tmp_repo
+    printf '<component><view>\n  <lv_obj style_pad_all="12"/>\n</view></component>\n' > ui_xml/base.xml
+    git add ui_xml/base.xml
+    run python3 "$GATE_ABS" --staged-only --list
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"[xml-pad]"* ]]
+    [[ "$output" == *"ui_xml/base.xml"* ]]
+}
+
+@test "--staged-only ignores a violation left as UNSTAGED WIP (the bug)" {
+    # The exact shape that forced the stash: another session's dirty file trips
+    # the whole-tree scan. The post-commit tree does not contain it, so a clean
+    # commit must not see it.
+    setup_tmp_repo
+    printf '<component><view>\n  <lv_obj style_pad_all="12"/>\n</view></component>\n' > ui_xml/dirty.xml
+    run python3 "$GATE_ABS" --staged-only --list
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"dirty.xml"* ]]
+    [[ "$output" != *"[xml-pad]"* ]]
+}
+
+@test "--staged-only sees the STAGED version, not unstaged dirt heaped on top" {
+    # A file can be staged clean and then gather more WT edits. The commit will
+    # ship the staged (clean) blob; the hook must evaluate that one, not the
+    # dirty WT copy a plain `read()` would pick up.
+    setup_tmp_repo
+    printf '<component><view>\n  <lv_obj width="#x"/>\n</view></component>\n' > ui_xml/base.xml
+    git add ui_xml/base.xml
+    printf '<component><view>\n  <lv_obj style_pad_all="12"/>\n</view></component>\n' > ui_xml/base.xml
+    run python3 "$GATE_ABS" --staged-only --list
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"[xml-pad]"* ]]
 }

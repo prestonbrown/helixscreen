@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 
+#include "data_root_resolver.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 
@@ -27,7 +28,20 @@ TipsManager* TipsManager::get_instance() {
     if (instance == nullptr) {
         instance = new TipsManager();
     }
+    instance->ensure_loaded();
     return instance;
+}
+
+void TipsManager::ensure_loaded() {
+    {
+        std::lock_guard<std::mutex> lock(tips_mutex);
+        if (load_attempted_) {
+            return;
+        }
+        load_attempted_ = true;
+    }
+    // Deliberately outside the lock above: init() takes tips_mutex itself.
+    init(helix::find_readable("printing_tips.json"));
 }
 
 bool TipsManager::init(const std::string& tips_path) {
@@ -59,11 +73,22 @@ bool TipsManager::init(const std::string& tips_path) {
         }
 
         // Build cache for fast access
-        build_tips_cache();
+        // Cache the two things the DOM was still being kept alive for, then
+        // release it. `data` and tips_cache held the same 105 KB twice for the
+        // whole session; only get_version() and get_all_categories() still read
+        // the DOM, and both are satisfied by these.
+        version_ = helix::json_util::safe_string(data, "version", "unknown");
+        categories_.clear();
+        for (auto& [category_key, _] : data["categories"].items()) {
+            categories_.push_back(category_key);
+        }
 
+        build_tips_cache();
+        data = json();
+
+        // Reads the cached members, not `data` — it has just been released.
         spdlog::trace("[TipsManager] Loaded {} tips from {} categories (version: {})",
-                      tips_cache.size(), data["categories"].size(),
-                      helix::json_util::safe_string(data, "version", "unknown"));
+                      tips_cache.size(), categories_.size(), version_);
 
         return true;
     } catch (const json::parse_error& e) {
@@ -384,17 +409,7 @@ PrintingTip TipsManager::get_tip_by_id(const std::string& id) {
 
 std::vector<std::string> TipsManager::get_all_categories() {
     std::lock_guard<std::mutex> lock(tips_mutex);
-    std::vector<std::string> categories;
-
-    if (!data.contains("categories") || !data["categories"].is_object()) {
-        return categories;
-    }
-
-    for (auto& [category_key, _] : data["categories"].items()) {
-        categories.push_back(category_key);
-    }
-
-    return categories;
+    return categories_;
 }
 
 std::vector<std::string> TipsManager::get_all_tags() {
@@ -424,8 +439,6 @@ size_t TipsManager::get_total_tips() {
 
 std::string TipsManager::get_version() {
     std::lock_guard<std::mutex> lock(tips_mutex);
-    // No try/catch on this path at all — `data` is default-constructed (null)
-    // before a successful init(), which is exactly the non-object receiver
-    // .value() throws type_error.306 on.
-    return helix::json_util::safe_string(data, "version", "unknown");
+    // Captured at load; `data` is released once the cache is built.
+    return version_;
 }

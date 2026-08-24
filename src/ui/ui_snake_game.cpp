@@ -19,10 +19,12 @@
 #include "config.h"
 #include "display_backend.h"
 #include "display_manager.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "sound_manager.h"
 #include "sound_theme.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -610,9 +612,9 @@ void place_food() {
         }
 
         if (g_gameover_label) {
-            char buf[96];
-            snprintf(buf, sizeof(buf), "YOU WIN!\nScore: %d\nTap to play again", g_game.score);
-            lv_label_set_text(g_gameover_label, buf);
+            const std::string msg =
+                fmt::format(lv_tr("YOU WIN!\nScore: {}\nTap to play again"), g_game.score);
+            lv_label_set_text(g_gameover_label, msg.c_str());
             lv_obj_remove_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
         }
         update_score_label();
@@ -765,11 +767,11 @@ void render_tick(lv_timer_t* /*timer*/) {
 void update_score_label() {
     if (g_score_label) {
         char buf[48];
-        if (g_game.high_score > 0) {
-            snprintf(buf, sizeof(buf), "Score: %d  |  Best: %d", g_game.score, g_game.high_score);
-        } else {
-            snprintf(buf, sizeof(buf), "Score: %d", g_game.score);
-        }
+        const std::string text =
+            g_game.high_score > 0
+                ? fmt::format(lv_tr("Score: {}  |  Best: {}"), g_game.score, g_game.high_score)
+                : fmt::format(lv_tr("Score: {}"), g_game.score);
+        snprintf(buf, sizeof(buf), "%s", text.c_str());
         lv_label_set_text(g_score_label, buf);
     }
 }
@@ -1082,13 +1084,11 @@ void draw_cb(lv_event_t* e) {
         if (g_gameover_label && lv_obj_has_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN)) {
             bool new_high = g_game.score > 0 &&
                             g_game.score >= g_game.high_score; // already saved in show_game_over
-            char buf[96];
-            if (new_high) {
-                snprintf(buf, sizeof(buf), "NEW HIGH SCORE!\n%d\nTap to play again", g_game.score);
-            } else {
-                snprintf(buf, sizeof(buf), "Game Over!\nScore: %d\nTap to restart", g_game.score);
-            }
-            lv_label_set_text(g_gameover_label, buf);
+            const std::string msg =
+                new_high
+                    ? fmt::format(lv_tr("NEW HIGH SCORE!\n{}\nTap to play again"), g_game.score)
+                    : fmt::format(lv_tr("Game Over!\nScore: {}\nTap to restart"), g_game.score);
+            lv_label_set_text(g_gameover_label, msg.c_str());
             lv_obj_set_style_opa(g_gameover_label, LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_remove_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
         }

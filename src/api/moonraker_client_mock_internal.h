@@ -71,6 +71,7 @@ using MethodHandler = std::function<bool(MoonrakerClientMock* self, const json& 
  * - server.files.metascan
  * - server.files.get_file
  * - server.files.delete
+ * - server.files.delete_file
  * - server.files.move
  * - server.files.copy
  * - server.files.post_directory
@@ -151,6 +152,36 @@ void register_queue_handlers(std::unordered_map<std::string, MethodHandler>& reg
  * populate_capabilities() and the objects.query/subscribe handlers.
  */
 json get_mock_gcode_macro_config();
+
+/**
+ * @brief Get mock accelerometer configfile entries
+ *
+ * Accelerometer modules have no get_status(), so Klipper never lists them in
+ * printer.objects.list — configfile.config is the only place they appear.
+ * Single source of truth for populate_capabilities(), discover_printer() and
+ * the objects.query / objects.subscribe handlers, which previously carried
+ * separate copies and disagreed: the query handler omitted it entirely.
+ */
+json get_mock_accel_config();
+
+/**
+ * @brief Get the mock probe's configfile.config section
+ *
+ * Keyed off HELIX_MOCK_PROBE_TYPE — the same variable that picks the probe
+ * object in populate_capabilities() and the probe status in
+ * dispatch_initial_state() — so all three stay in step. Returns an empty object
+ * for "none".
+ *
+ * Values are STRINGS, matching Klipper: configfile.config is the verbatim
+ * printer.cfg text, and ProbeSensorManager::discover_from_config() parses
+ * z_offset with std::stof.
+ *
+ * The "loadcell" profile deliberately disagrees with the status payload, which
+ * reports z_offset: null. That is the flashforge_loadcell shape the config
+ * seeding exists for, and it is the only profile where the seeded value is
+ * observably different from what a status update would have produced.
+ */
+json get_mock_probe_config();
 
 /**
  * @brief Get mock Happy Hare "mmu" status (--real-ams)

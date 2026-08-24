@@ -8,6 +8,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_manual_pull_prompt.h"
 #include "ui_step_progress.h"
 #include "ui_temperature_utils.h"
 
@@ -44,8 +45,9 @@ namespace {
 /// UpdateQueue tags for the guarded home-confirm callbacks in
 /// handle_load_with_preheat(). String literals: the skip counter interns by
 /// pointer identity.
-constexpr const char* kHomeConfirmLoadTag = "AmsOperationSidebar::home_confirm_load";
-constexpr const char* kHomeConfirmLoadDeclineTag = "AmsOperationSidebar::home_confirm_load_decline";
+constexpr const char* HOME_CONFIRM_LOAD_TAG = "AmsOperationSidebar::home_confirm_load";
+constexpr const char* HOME_CONFIRM_LOAD_DECLINE_TAG =
+    "AmsOperationSidebar::home_confirm_load_decline";
 
 /**
  * @brief Drives the sidebar Unload button's disabled state (1 = disabled).
@@ -221,7 +223,7 @@ bool AmsOperationSidebar::setup(lv_obj_t* panel) {
     // Independent stall watchdog for the indeterminate "Working…" state (#1065
     // row 14). Runs on the main loop; the callback no-ops unless an op is active.
     if (!stall_watchdog_timer_) {
-        stall_watchdog_timer_ = lv_timer_create(stall_watchdog_cb, kStallWatchdogPeriodMs, this);
+        stall_watchdog_timer_ = lv_timer_create(stall_watchdog_cb, STALL_WATCHDOG_PERIOD_MS, this);
     }
 
     sync_reset_button_label();
@@ -286,27 +288,21 @@ void AmsOperationSidebar::init_observers() {
                 self->handle_load_complete();
             }
 
-            // Detect UNLOADING -> IDLE or UNLOADING -> ERROR: the pending-bypass
-            // flag is armed by the unload we started, so it must be disarmed by
-            // whichever way that unload ends. Clearing it only on IDLE left a
-            // failed unload's flag set, and the next unrelated unload completion
-            // then enabled bypass out of nowhere. Only IDLE actually chains.
-            if (self->pending_bypass_enable_ && self->prev_ams_action_ == AmsAction::UNLOADING &&
-                (action == AmsAction::IDLE || action == AmsAction::ERROR)) {
-                self->pending_bypass_enable_ = false;
-                AmsBackend* backend = AmsState::instance().get_backend();
-                if (action == AmsAction::ERROR) {
-                    spdlog::warn("[AmsSidebar] Unload failed — cancelling pending bypass enable");
-                } else if (backend) {
-                    spdlog::info("[AmsSidebar] Unload complete — enabling bypass");
-                    AmsError err = backend->enable_bypass();
-                    if (err.result == AmsResult::SUCCESS) {
-                        NOTIFY_INFO(lv_tr("Bypass enabled"));
-                    } else {
-                        helix::ui::notify_ams_error(err, lv_tr("Bypass failed"));
-                    }
+            // Same UNLOADING -> IDLE/ERROR edge closes out the manual-pull
+            // prompt. No-op unless handle_unload() armed it, and unless the
+            // toolhead sensor already spoke at the earlier, truer moment.
+            if (self->prev_ams_action_ == AmsAction::UNLOADING) {
+                if (action == AmsAction::IDLE) {
+                    helix::ui::manual_pull_unload_finished();
+                } else if (action == AmsAction::ERROR) {
+                    helix::ui::disarm_manual_pull_prompt();
                 }
             }
+
+            // No bypass feed here: the shared BypassToggleController now
+            // observes the ams_action subject itself (armed only while a
+            // pending unload→enable chain runs), so this sidebar instance
+            // feeding its own controller would process the edge twice.
 
             // Update step progress (BEFORE updating prev_ams_action_)
             self->update_action_display(action);
@@ -336,17 +332,19 @@ void AmsOperationSidebar::init_observers() {
     // used to bind on its own; print state is the one whose absence let Unload
     // dispatch mid-print and eat a backend refusal.
     //
-    // print_state_enum, not print_active: PRINTING -> PAUSED is a gating edge
-    // (a pause UNGATES Unload on every backend but AD5X) and print_active reads
-    // 1 across both, so it never fires on that transition. PrinterState is a
-    // separate singleton whose subjects tests deinit between cases, so its
-    // observer takes the lifetime token (#705); AmsState's does not.
+    // print_lifecycle: PRINTING -> PAUSED is a gating edge (a pause UNGATES Unload
+    // on every backend but AD5X, and print_active reads 1 across both so it never
+    // fires there), and Idle -> Preparing is one too — read_unload_gating_state()
+    // now refuses during a host-side pre-print block, which the raw enum does not
+    // move on at all. PrinterState is a separate singleton whose subjects tests
+    // deinit between cases, so its observer takes the lifetime token (#705);
+    // AmsState's does not.
     filament_loaded_observer_ = observe_int_sync<AmsOperationSidebar>(
         AmsState::instance().get_filament_loaded_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_unload_gating(); },
         AmsState::instance().get_subjects_lifetime());
     print_state_observer_ = observe_int_sync<AmsOperationSidebar>(
-        printer_state_.get_print_state_enum_subject(), this,
+        printer_state_.get_print_lifecycle_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_unload_gating(); },
         printer_state_.get_static_print_subjects_lifetime());
 
@@ -477,7 +475,7 @@ void AmsOperationSidebar::cleanup() {
     // but now-abandoned pre-load home prompt (panel closing mid-preheat) so
     // consent doesn't leak into a later, unrelated operation on this backend
     // -- idempotent no-op when nothing was armed.
-    pending_bypass_enable_ = false;
+    bypass_toggle_.cancel_pending();
     pending_load_slot_ = -1;
     pending_load_target_temp_ = 0;
     ui_initiated_heat_ = false;
@@ -1058,11 +1056,9 @@ helix::ui::OpButtonState AmsOperationSidebar::read_unload_gating_state() const {
     // entire recovery workflow — and the sidebar had no print term at all
     // before, so it went straight from "always tappable" to "correct" only if
     // this asks the same question the backend does.
-    const auto job_state = static_cast<helix::PrintJobState>(
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
+    const auto lifecycle = printer_state_.get_print_lifecycle();
     state.print_blocks_op = helix::ui::print_blocks_filament_op(
-        job_state == helix::PrintJobState::PRINTING, job_state == helix::PrintJobState::PAUSED,
-        backend && backend->filament_ops_self_home());
+        lifecycle, backend && backend->filament_ops_self_home());
 
     if (backend) {
         // AmsSystemInfo::is_busy() — the same predicate check_preconditions()
@@ -1146,16 +1142,16 @@ void AmsOperationSidebar::handle_unload(int slot_index) {
     bool loaded = false;
     if (caps.present) {
         AmsBackend* backend = AmsState::instance().get_backend();
-        loaded =
-            target_slot >= 0 && backend &&
-            helix::ui::unload_target_is_loaded(backend->slot_is_actively_loaded(target_slot),
-                                               backend->slot_has_filament_at_toolhead(target_slot),
-                                               info.current_slot == target_slot);
+        loaded = backend && helix::ui::unload_target_is_loaded(
+                                target_slot, backend->slot_is_actively_loaded(target_slot),
+                                backend->slot_has_filament_at_toolhead(target_slot),
+                                info.current_slot == target_slot, info.filament_loaded);
     }
 
     const auto& macro_info = StandardMacros::instance().get(StandardMacroSlot::UnloadFilament);
     const helix::ui::FilamentOpPlan plan =
-        helix::ui::plan_unload(caps, target_slot, loaded, !macro_info.is_empty());
+        helix::ui::plan_unload(caps, target_slot, loaded, !macro_info.is_empty(),
+                               macro_info.get_source() == MacroSource::CONFIGURED);
 
     if (plan.tier == helix::ui::FilamentTier::Refused) {
         // NothingLoaded is plan_unload's only refusal.
@@ -1184,8 +1180,26 @@ void AmsOperationSidebar::handle_unload(int slot_index) {
     // own Unload button means "the active one" and the IFS backend keys on that
     // -1 to send its current-channel toolhead unload.
     AmsBackend* backend = AmsState::instance().get_backend();
+
+    // Nothing reels a bypass spool back down a lane, so the user finishes by
+    // hand. Armed before dispatch so the toolhead sensor's clear edge is already
+    // watched when the retract starts; the action observer closes it out.
+    //
+    // Deliberately scoped to the tier-1 path: dispatch_unload_outside_backend()
+    // returns above, and that no-AMS case belongs to FilamentPanel, which owns a
+    // real per-tier completion signal. The sidebar has only this action edge, and
+    // with no backend the action never moves.
+    const bool needs_pull =
+        helix::ui::unload_needs_manual_pull(/*backend_present=*/true, target_slot);
+    if (needs_pull) {
+        helix::ui::arm_manual_pull_prompt();
+    }
+
     AmsError error = backend->unload_filament(slot_index);
     if (error.result != AmsResult::SUCCESS) {
+        if (needs_pull) {
+            helix::ui::disarm_manual_pull_prompt();
+        }
         helix::ui::notify_ams_error(error);
     }
 }
@@ -1229,60 +1243,16 @@ void AmsOperationSidebar::handle_check_gates() {
 }
 
 void AmsOperationSidebar::handle_bypass_toggle() {
-    spdlog::info("[AmsSidebar] Bypass toggle requested");
+    bypass_toggle_.toggle();
 
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend) {
-        NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
-        return;
-    }
-
-    AmsSystemInfo info = backend->get_system_info();
-    if (info.has_hardware_bypass_sensor) {
-        NOTIFY_WARNING(lv_tr("Bypass controlled by sensor"));
-        spdlog::warn("[AmsSidebar] Bypass toggle blocked — hardware sensor controls bypass");
-        return;
-    }
-
-    bool currently_bypassed = backend->is_bypass_active();
-    AmsError error;
-
-    if (currently_bypassed) {
-        error = backend->disable_bypass();
-        if (error.result == AmsResult::SUCCESS) {
-            NOTIFY_INFO(lv_tr("Bypass disabled"));
-        }
-    } else {
-        // If filament is loaded from an AMS slot, unload first (full animation),
-        // then enable bypass after unload completes via action observer. Only
-        // backends that permit implicit chaining get that courtesy — on AFC and
-        // Happy Hare the toggle sends exactly one command and lets the firmware
-        // refuse it, rather than ejecting filament the user never asked to eject
-        // (#1229).
-        if (should_unload_before_bypass(info, backend->allows_implicit_chaining())) {
-            spdlog::info("[AmsSidebar] Unloading slot {} before enabling bypass",
-                         info.current_slot);
-            pending_bypass_enable_ = true;
-            error = backend->unload_active_filament();
-            if (error.result == AmsResult::SUCCESS) {
-                NOTIFY_INFO(lv_tr("Unloading before bypass..."));
-            } else {
-                pending_bypass_enable_ = false;
-                helix::ui::notify_ams_error(error);
-            }
-            return;
-        }
-
-        // No filament loaded — enable bypass directly
-        error = backend->enable_bypass();
-        if (error.result == AmsResult::SUCCESS) {
-            NOTIFY_INFO(lv_tr("Bypass enabled"));
-        }
-    }
-
-    if (error.result != AmsResult::SUCCESS) {
-        helix::ui::notify_ams_error(error, lv_tr("Bypass toggle failed"));
-    }
+    // ui_switch flips its own CHECKED state before the handler runs, so a
+    // refusal (print active, hardware sensor, backend precondition) leaves the
+    // switch claiming a bypass state the backend never entered. Republish and
+    // force the binding to re-apply — lv_subject_set_int does not notify when
+    // the value is unchanged, which is precisely the refusal case. Same two
+    // lines as the Device Operations switch.
+    AmsState::instance().sync_from_backend();
+    lv_subject_notify(AmsState::instance().get_bypass_active_subject());
 }
 
 // ============================================================================
@@ -1322,7 +1292,8 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
 
     const auto& macro_info = StandardMacros::instance().get(StandardMacroSlot::LoadFilament);
     const helix::ui::FilamentOpPlan plan =
-        helix::ui::plan_load(info, caps, slot_index, !macro_info.is_empty());
+        helix::ui::plan_load(info, caps, slot_index, !macro_info.is_empty(),
+                             macro_info.get_source() == MacroSource::CONFIGURED);
 
     if (plan.tier == helix::ui::FilamentTier::Refused) {
         // Silent on THIS surface. The AMS panel already highlights the mounted
@@ -1413,7 +1384,8 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
     // G28 still fires later, inside AmsSubscriptionBackend::ensure_homed_then()
     // right before the tier-1 dispatch (unchanged) -- only the confirmation
     // moves earlier, so a decline never wastes a preheat cycle.
-    if (!helix::toolhead_is_homed(printer_state_)) {
+    if (!helix::toolhead_is_homed(printer_state_) &&
+        !(backend && backend->delegates_homing_to_printer())) {
         spdlog::info("[AmsSidebar] Toolhead not homed -- asking before starting preheat for "
                      "slot {} load",
                      slot_index);
@@ -1423,7 +1395,7 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
         auto token = lifetime_.token();
         helix::ui::request_home_confirmation(
             [this, token, start_preheat]() {
-                token.defer(kHomeConfirmLoadTag, [this, start_preheat]() {
+                token.defer(HOME_CONFIRM_LOAD_TAG, [this, start_preheat]() {
                     if (AmsBackend* backend = AmsState::instance().get_backend()) {
                         backend->arm_home_preconfirmed();
                     }
@@ -1431,7 +1403,7 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
                 });
             },
             [this, token]() {
-                token.defer(kHomeConfirmLoadDeclineTag, [this]() {
+                token.defer(HOME_CONFIRM_LOAD_DECLINE_TAG, [this]() {
                     spdlog::info("[AmsSidebar] User declined pre-load home; no heat commanded");
                 });
             });
@@ -1469,7 +1441,8 @@ void AmsOperationSidebar::check_pending_load() {
         const helix::ui::BackendCaps caps = read_backend_caps(preheat_info, slot);
         const auto& macro_info = StandardMacros::instance().get(StandardMacroSlot::LoadFilament);
         const helix::ui::FilamentOpPlan plan =
-            helix::ui::plan_load(preheat_info, caps, slot, !macro_info.is_empty());
+            helix::ui::plan_load(preheat_info, caps, slot, !macro_info.is_empty(),
+                                 macro_info.get_source() == MacroSource::CONFIGURED);
 
         if (plan.tier != helix::ui::FilamentTier::AmsBackend) {
             // The preheat only ever starts on the tier-1 path, so anything else
@@ -1538,8 +1511,8 @@ void AmsOperationSidebar::dispatch_backend_load(const helix::ui::FilamentOpPlan&
 namespace {
 /// UpdateQueue tags for the guarded param-modal callbacks. String literals: the
 /// skip counter interns by pointer identity.
-constexpr const char* kLoadMacroTag = "AmsOperationSidebar::load_macro";
-constexpr const char* kUnloadMacroTag = "AmsOperationSidebar::unload_macro";
+constexpr const char* LOAD_MACRO_TAG = "AmsOperationSidebar::load_macro";
+constexpr const char* UNLOAD_MACRO_TAG = "AmsOperationSidebar::unload_macro";
 } // namespace
 
 void AmsOperationSidebar::dispatch_load_outside_backend(const helix::ui::FilamentOpPlan& plan) {
@@ -1559,7 +1532,7 @@ void AmsOperationSidebar::dispatch_load_outside_backend(const helix::ui::Filamen
     helix::ui::dispatch_filament_macro(
         macro_name, helix::ui::ParamPolicy::Prompt,
         [this, token](const helix::MacroParamResult& result) {
-            token.defer(kLoadMacroTag, [this, params = result.params]() {
+            token.defer(LOAD_MACRO_TAG, [this, params = result.params]() {
                 send_standard_filament_macro(/*is_load=*/true, params);
             });
         });
@@ -1578,7 +1551,7 @@ void AmsOperationSidebar::dispatch_unload_outside_backend(const helix::ui::Filam
     helix::ui::dispatch_filament_macro(
         macro_name, helix::ui::ParamPolicy::Prompt,
         [this, token](const helix::MacroParamResult& result) {
-            token.defer(kUnloadMacroTag, [this, params = result.params]() {
+            token.defer(UNLOAD_MACRO_TAG, [this, params = result.params]() {
                 send_standard_filament_macro(/*is_load=*/false, params);
             });
         });
@@ -1586,7 +1559,7 @@ void AmsOperationSidebar::dispatch_unload_outside_backend(const helix::ui::Filam
 
 void AmsOperationSidebar::send_standard_filament_macro(
     bool is_load, const std::map<std::string, std::string>& params) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
         return;
@@ -1610,7 +1583,7 @@ void AmsOperationSidebar::send_standard_filament_macro(
 }
 
 void AmsOperationSidebar::send_filament_fallback_gcode(bool is_load) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
         return;
@@ -1628,7 +1601,7 @@ void AmsOperationSidebar::send_filament_fallback_gcode(bool is_load) {
                 NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
             }
         },
-        MoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+        IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
 }
 
 void AmsOperationSidebar::handle_load_complete() {

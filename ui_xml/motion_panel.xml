@@ -140,14 +140,14 @@
           <ui_button name="btn_qgl"
                      width="0" height="#button_height" flex_grow="1" text="QGL" variant="secondary" hidden="true">
             <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_motion_qgl"/>
           </ui_button>
           <ui_button name="btn_z_tilt"
                      width="0" height="#button_height" flex_grow="1" text="Z-Tilt" variant="secondary" hidden="true">
             <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="job_holds_machine" state="disabled" ref_value="1"/>
             <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_motion_z_tilt"/>
           </ui_button>

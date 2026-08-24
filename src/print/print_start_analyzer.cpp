@@ -3,8 +3,8 @@
 
 #include "print_start_analyzer.h"
 
+#include "i_moonraker_api.h"
 #include "klipper_config_includes.h"
-#include "moonraker_api.h"
 #include "moonraker_types.h"
 #include "operation_patterns.h"
 
@@ -184,7 +184,7 @@ void PrintStartAnalyzer::analyze(const std::set<std::string>& active_files,
     }
 }
 
-void PrintStartAnalyzer::analyze(MoonrakerAPI* api, AnalysisCallback on_complete,
+void PrintStartAnalyzer::analyze(IMoonrakerAPI* api, AnalysisCallback on_complete,
                                  ErrorCallback on_error) {
     if (!api) {
         if (on_error) {

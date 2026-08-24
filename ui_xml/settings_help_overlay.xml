@@ -12,7 +12,7 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- All help/about actions live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
-      <setting_group>
+      <setting_group name="group_help">
         <setting_action_row name="row_replay_tour"
                             label="Replay Welcome Tour" label_tag="Replay Welcome Tour" icon="play_circle"
                             description="See the quick tour of HelixScreen again"

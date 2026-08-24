@@ -85,7 +85,7 @@ ui_xml/
 ```
 
 **The rule is simple:** to override `controls_panel.xml` for ultrawide screens, create
-`ui_xml/ultrawide/controls_panel.xml`. That's it. HelixScreen will automatically pick it up.
+ui_xml/ultrawide/controls_panel.xml. That's it. HelixScreen will automatically pick it up.
 
 ---
 
@@ -120,7 +120,7 @@ cp ui_xml/controls_panel.xml ui_xml/ultrawide/controls_panel.xml
 
 **3. Edit the override to rearrange the layout**
 
-Open `ui_xml/ultrawide/controls_panel.xml` and restructure it for the target screen shape.
+Open ui_xml/ultrawide/controls_panel.xml and restructure it for the target screen shape.
 The key rules are listed below in [Layout Override Rules](#layout-override-rules).
 
 **4. Test it**
@@ -294,7 +294,7 @@ Not every panel needs a layout-specific version. Start with the ones that matter
 - **`flex_flow="row"`** = horizontal layout, **`flex_flow="column"`** = vertical layout.
 - **`flex_grow="1"`** makes an element stretch to fill available space.
 - **`width="50%"` / `height="100%"`** for fixed proportions.
-- **`scrollable="false"`** prevents unintended scroll behavior on containers.
+- **`scrollable="false"`** is **required** on any container that is not a real scroll region. LVGL's scrollable default is ON and our `lv_obj` theme does not override it, so a plain layout wrapper absorbs drags and qualifies for a page-scroll gutter - which is how chevrons end up drawn over content. See `CONTRIBUTOR_GOTCHAS.md` and `PAGE_SCROLL_BUTTONS.md`.
 - **`hidden="true"`** + `bind_flag_if_*` = conditional visibility (driven by data).
 - See `LVGL9_XML_GUIDE.md` for the full XML reference.
 
@@ -459,9 +459,11 @@ Auto-placement (`PanelWidgetManager`, `src/ui/panel_widget_manager.cpp`) runs tw
 **This makes `min_colspan` the field that decides whether your widget survives on a narrow
 grid.** A portrait grid can be 2 columns wide. A widget that leaves `min_colspan` at 0 is
 declaring that its authored span is also its minimum, so a 4-wide widget on a 2-wide grid
-does not fit *at any size* — the manager gives up, disables it, and persists that disable to
-`settings.json`. That was exactly #1216: the widget did not come back on its own, and the
-user had to re-add it from the catalog by hand.
+does not fit *at any size* - the manager classifies that as `TooLargeForGrid`, gives up,
+disables it, and persists that disable to `settings.json`. That was exactly #1216: the
+widget did not come back on its own, and the user had to re-add it from the catalog by
+hand. (A widget that would fit but finds every cell taken is the *other* failure and is
+handled differently - see below.)
 
 So when adding a home widget:
 
@@ -472,9 +474,69 @@ So when adding a home widget:
   grid is then correct behaviour, not a bug. `tips` is the honest example: authored 4 wide,
   minimum 2, and deliberately absent from the portrait defaults because even at its minimum
   it costs a third to a half of a portrait row for rotating hints.
+- Mark every non-scrolling container in the widget's XML `scrollable="false"`. A tile is
+  scrolled by dragging it, not by a chevron gutter, so `PageScrollAutoInject` stops its walk
+  at the tile root (`src/ui/page_scroll_auto_inject.cpp:67`) - but a scrollable container
+  inside a tile still absorbs the drags the grid wants, and LVGL's scrollable default is ON
+  unless you say otherwise.
 
-`GridLayout::PlacementFailure` distinguishes `GridFull` from `TooLargeForGrid` so the toast
-and the log say which condition actually failed.
+### The two placement failures have different outcomes
+
+`GridLayout::PlacementFailure` distinguishes `GridFull` from `TooLargeForGrid`, and
+`PanelWidgetManager::populate_widgets()` treats them differently on purpose. They are not
+two spellings of "did not fit".
+
+| Failure | What it means | What gets persisted | Toast |
+|---------|---------------|---------------------|-------|
+| `TooLargeForGrid` | The widget exceeds the whole grid even at its declared minimum span. No arrangement of the other widgets could ever seat it | `enabled = false` - back to the catalog as an available widget | Always |
+| `GridFull` | The widget fits fine; this screen's cells are simply all taken | `col = -1`, `row = -1`, `enabled` untouched | Only when the widget actually **was** on screen and lost its cell |
+
+**`GridFull` must never write `enabled = false`.** The layout is stored once per printer
+(`/printers/<id>/panel_widgets/<panel>`) with **no breakpoint key**, so a disable forced by
+one screen's occupancy removes the widget at *every* size - the same mistake the span
+write-back already refuses to make (#1216). It was not even deterministic: the disable only
+reached disk if some unrelated `save()` happened to follow, so whether the user permanently
+lost a widget depended on what they did next.
+
+Clearing the position is the honest record instead. The widget is configured, it just has
+nowhere to go right now, so it re-places itself the moment a cell frees - remove another
+widget, close a hardware gate, or lay the same config out on a taller grid. The cleared
+position doubles as the memo that stops the nagging: a widget with **no** saved position was
+never on the user's screen, so announcing a removal for it would be false. Bundle XGVDYEB5
+is the case - a 6x4 grid with ten widgets filling all 24 cells toasted
+*"'Fan Speeds' removed — grid full"* on every single launch, because the in-memory disable
+never reached disk and the next launch re-ran the same failed placement.
+
+An eviction is its own reason to `save()`. It changes nothing about the widgets that *were*
+placed, so the manager's `any_written` flag stays false and the cleared position would
+otherwise never reach disk.
+
+**The catalog must ask `is_placed()`, not `is_enabled()`.** An enabled widget at `(-1,-1)` is
+on no dashboard, and the Widget Catalog is the only surface that can hand it a cell back.
+Asking `PanelWidgetConfig::is_enabled()` dimmed it as *"Placed"* and stripped its click
+handler, leaving it invisible on the grid, unselectable in edit mode (`remove_selected_widget`
+needs an on-screen object) and unreachable in the catalog - no UI surface at all. That state
+is not hypothetical: `include/panel_widget_config.h` carries a one-shot migration
+(`migrate_stuck_ams_filament_swap`) written to rescue installs already stuck in it.
+`is_placed()` is `enabled && has_grid_position()`; `is_enabled()` keeps meaning "configured
+on" for everyone else. The multi-instance `(N Placed)` count needs the same guard.
+
+Note the asymmetry that made this easy to miss: `is_enabled()` was the *only* occupancy-blind
+consumer of `enabled` in the widget system. Every other site already pairs it with
+`has_grid_position()`, and all of those are occupancy-map builders where skipping a `(-1,-1)`
+entry is correct.
+
+A clickable row routes into `GridEditMode::place_widget_from_catalog()`, which tries the
+origin cell, then `find_available`, then shrinks toward `effective_min_colspan/rowspan`, and
+only then refuses with *"Not enough room for this widget."* Because the catalog offers a
+widget that holds no cell on **any** page, that function has to **move** an entry it finds on
+another page rather than push a second one with the same ID - two entries would render the
+widget on two pages, and `delete_entry()` only ever removes the first. Per-widget `config`
+travels with the entry, since those settings belong to the widget and not to the page it sat
+on.
+
+A third case is neither: when placement failed only because the temporary `firmware_restart`
+widget was injected, the widget is skipped and logged, with nothing written at all.
 
 ---
 

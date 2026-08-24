@@ -220,10 +220,10 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
     // Repeated because it is a timing window: with the fix every iteration is
     // clean; without it, ASAN/TSAN trip and even an uninstrumented build
     // eventually faults.
-    constexpr int kIterations = 40;
-    constexpr int kSubmitters = 4;
+    constexpr int ITERATIONS = 40;
+    constexpr int SUBMITTERS = 4;
 
-    for (int iter = 0; iter < kIterations; ++iter) {
+    for (int iter = 0; iter < ITERATIONS; ++iter) {
         ProcHandle proc;
 
         helix::ThumbnailProcessor* raw = proc.get();
@@ -233,9 +233,9 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
         auto resolved = std::make_shared<std::atomic<int>>(0);
         std::atomic<bool> go{false};
         std::vector<std::thread> threads;
-        threads.reserve(kSubmitters + 1);
+        threads.reserve(SUBMITTERS + 1);
 
-        for (int t = 0; t < kSubmitters; ++t) {
+        for (int t = 0; t < SUBMITTERS; ++t) {
             threads.emplace_back([raw, resolved, &go, t] {
                 while (!go.load(std::memory_order_acquire)) {
                 }
@@ -269,5 +269,5 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
-    SUCCEED("Completed " << kIterations << " shutdown races without faulting");
+    SUCCEED("Completed " << ITERATIONS << " shutdown races without faulting");
 }

@@ -37,7 +37,7 @@
                     style_pad_gap="#space_sm">
               <text_body text="WiFi"/>
               <!-- Band limitation indicator -->
-              <text_small text="(2.4GHz)" translation_tag="(2.4GHz)">
+              <text_small text="(2.4GHz)">
                 <bind_flag_if_eq subject="wifi_only_24ghz" flag="hidden" ref_value="0"/>
               </text_small>
             </lv_obj>

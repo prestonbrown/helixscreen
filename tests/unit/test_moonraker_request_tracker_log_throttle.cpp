@@ -89,12 +89,13 @@ class LogCapture {
 /// A request that is still in flight (nowhere near its timeout) but has been
 /// pending for `age`. Generous timeout so check_timeouts() counts it as pending
 /// rather than timing it out.
-PendingRequest make_pending_request(const std::string& method, std::chrono::milliseconds age) {
+PendingRequest make_pending_request(const std::string& method, std::chrono::milliseconds age,
+                                    uint32_t timeout_ms = 120000) {
     PendingRequest req;
     req.id = 0; // caller supplies the map key
     req.method = method;
-    req.timeout_ms = 120000;
-    req.silent = false;
+    req.timeout_ms = timeout_ms;
+    req.intent.silent = false;
     req.timestamp = std::chrono::steady_clock::now() - age;
     return req;
 }
@@ -106,7 +107,7 @@ auto ignore_events() {
 
 /// Matches only the periodic pending-count line, not the tracker's other
 /// "[Request Tracker] ..." output (cancellations, timeouts).
-constexpr const char* kPendingLine = "pending request(s); oldest";
+constexpr const char* PENDING_LINE = "pending request(s); oldest";
 
 } // namespace
 
@@ -131,7 +132,7 @@ TEST_CASE("check_timeouts stays silent for a queue that is draining normally",
     REQUIRE(tracker.cancel(2));
     tracker.check_timeouts(ignore_events());
 
-    REQUIRE(logs.count_containing(kPendingLine) == 0);
+    REQUIRE(logs.count_containing(PENDING_LINE) == 0);
 }
 
 TEST_CASE("check_timeouts logs once the oldest pending request ages past the floor",
@@ -147,12 +148,12 @@ TEST_CASE("check_timeouts logs once the oldest pending request ages past the flo
         tracker, 1, make_pending_request("printer.objects.query", age));
 
     tracker.check_timeouts(ignore_events());
-    REQUIRE(logs.count_containing(kPendingLine) == 1);
+    REQUIRE(logs.count_containing(PENDING_LINE) == 1);
 
     // Signature unchanged on the next tick — the existing throttle still applies,
     // so an aging request does not turn into a per-tick stream.
     tracker.check_timeouts(ignore_events());
-    REQUIRE(logs.count_containing(kPendingLine) == 1);
+    REQUIRE(logs.count_containing(PENDING_LINE) == 1);
 }
 
 TEST_CASE("check_timeouts still escalates a stuck request to warn",
@@ -166,6 +167,42 @@ TEST_CASE("check_timeouts still escalates a stuck request to warn",
 
     tracker.check_timeouts(ignore_events());
 
-    REQUIRE(logs.count_containing(kPendingLine) == 1);
+    REQUIRE(logs.count_containing(PENDING_LINE) == 1);
+    REQUIRE(logs.count_containing("warning") == 1);
+}
+
+TEST_CASE("check_timeouts does not warn on a blocking G-code script that is merely slow",
+          "[moonraker][tracker][logging][regression]") {
+    MoonrakerRequestTracker tracker;
+    LogCapture logs;
+
+    // printer.gcode.script does not return until Klipper finishes the macro. An
+    // AFC toolchange over a 2 m bowden is legitimately over a minute, and at the
+    // generic 30 s threshold it made the tracker the loudest thing in an AFC
+    // user's log — 77 warnings in one debug bundle, every one of them healthy.
+    MoonrakerRequestTrackerTestAccess::inject_request(
+        tracker, 1, make_pending_request("printer.gcode.script", std::chrono::seconds(90)));
+
+    tracker.check_timeouts(ignore_events());
+
+    REQUIRE(logs.count_containing(PENDING_LINE) == 1);
+    REQUIRE(logs.count_containing("warning") == 0);
+}
+
+TEST_CASE("check_timeouts still warns on a G-code script past its own longer threshold",
+          "[moonraker][tracker][logging][regression]") {
+    MoonrakerRequestTracker tracker;
+    LogCapture logs;
+
+    // The exemption raises the bar, it does not remove it: past five minutes a
+    // script really has stopped and #909's leading indicator has to still fire.
+    const auto age =
+        std::chrono::milliseconds(MoonrakerRequestTracker::PENDING_WARN_AGE_GCODE_MS + 1000);
+    MoonrakerRequestTrackerTestAccess::inject_request(
+        tracker, 1, make_pending_request("printer.gcode.script", age, /*timeout_ms=*/900000));
+
+    tracker.check_timeouts(ignore_events());
+
+    REQUIRE(logs.count_containing(PENDING_LINE) == 1);
     REQUIRE(logs.count_containing("warning") == 1);
 }

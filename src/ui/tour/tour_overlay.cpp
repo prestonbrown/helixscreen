@@ -15,11 +15,11 @@
 namespace helix::tour {
 
 namespace {
-constexpr int kHighlightOutlineWidth = 3;
-constexpr int kTooltipMaxWidth = 480;
+constexpr int HIGHLIGHT_OUTLINE_WIDTH = 3;
+constexpr int TOOLTIP_MAX_WIDTH = 480;
 
 // Per-screen dim fill with ~55% opacity.
-constexpr uint8_t kDimOpa = 140;
+constexpr uint8_t DIM_OPA = 140;
 
 // Spacing tokens resolved at call time from the theme (responsive per breakpoint).
 inline int highlight_outline_pad() {
@@ -65,7 +65,7 @@ void TourOverlay::build_tree() {
     lv_obj_set_pos(dim_, 0, 0);
     lv_obj_set_size(dim_, screen_w, screen_h);
     lv_obj_set_style_bg_color(dim_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(dim_, kDimOpa, 0);
+    lv_obj_set_style_bg_opa(dim_, DIM_OPA, 0);
     lv_obj_set_style_border_width(dim_, 0, 0);
     lv_obj_set_style_pad_all(dim_, 0, 0);
     lv_obj_set_style_radius(dim_, 0, 0);
@@ -76,7 +76,7 @@ void TourOverlay::build_tree() {
     highlight_ = lv_obj_create(root_);
     lv_obj_set_style_bg_opa(highlight_, 0, 0);
     lv_obj_set_style_border_width(highlight_, 0, 0);
-    lv_obj_set_style_outline_width(highlight_, kHighlightOutlineWidth, 0);
+    lv_obj_set_style_outline_width(highlight_, HIGHLIGHT_OUTLINE_WIDTH, 0);
     lv_obj_set_style_outline_color(highlight_, theme_manager_get_color("primary"), 0);
     lv_obj_set_style_outline_pad(highlight_, highlight_outline_pad(), 0);
     lv_obj_set_style_shadow_width(highlight_, 24, 0);
@@ -155,7 +155,7 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
     const int screen_h = lv_display_get_vertical_resolution(nullptr);
 
     // Cap tooltip width responsively for small screens.
-    const int max_w = std::min(kTooltipMaxWidth, screen_w - 32);
+    const int max_w = std::min(TOOLTIP_MAX_WIDTH, screen_w - 32);
     lv_obj_set_style_max_width(tooltip_, max_w, 0);
     lv_obj_update_layout(tooltip_);
     const int tw = lv_obj_get_width(tooltip_);

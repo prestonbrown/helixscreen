@@ -6,28 +6,40 @@
 <component>
   <!-- Dialog card -->
   <view name="ams_loading_error_modal"
-        extends="ui_dialog" width="70%" height="content" style_min_width="300" style_max_width="400" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
+        extends="ui_dialog" width="70%" height="content" style_min_width="300" style_max_width="400"
+        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
+        scrollable="false">
     <!-- Header: danger icon + title + close. Close wired in C++ via wire_cancel_button("btn_close"). -->
     <modal_header icon_src="alert_circle"
                   icon_variant="danger" title="Loading Error" title_tag="Loading Error" hide_close="false"/>
     <!-- Horizontal divider -->
     <divider_horizontal/>
-    <!-- Error message content -->
-    <lv_obj width="100%"
-            height="content" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_md" scrollable="false">
+    <!-- Error text. Capped + scrollable so a long backend fault string scrolls inside
+         the card instead of growing it off both screen edges. -->
+    <lv_obj name="ams_error_text_scroll"
+            width="100%" height="content" style_max_height="#dialog_content_pinned_max" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_md" flex_flow="column"
+            style_pad_gap="#space_md" scrollable="true" scroll_snap_y="none">
       <!-- Error message text -->
       <text_body name="error_message"
                  width="100%" text="An error occurred while loading filament."
                  translation_tag="An error occurred while loading filament." long_mode="wrap"/>
-      <!-- AFC filament position diagram — self-hides unless AmsPanel recognised
-           the fault message (prestonbrown/helixscreen#1184). -->
-      <afc_fault_path name="fault_path"/>
       <!-- Hint text -->
       <text_small name="error_hint"
                   width="100%" text="Check the filament path and try again."
                   translation_tag="Check the filament path and try again." style_text_color="#text_muted"
                   long_mode="wrap"/>
+    </lv_obj>
+    <!-- AFC filament position diagram — self-hides unless AmsPanel recognised the fault
+         message (prestonbrown/helixscreen#1184). Outside the scrollable text area so the
+         graphic never scrolls out of view, matching action_prompt_modal. The wrapper
+         repeats the subject binding so its padding collapses too when there is no
+         diagram, rather than leaving a dead gap above the buttons. -->
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_lg" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <bind_flag_if_eq subject="afc_fault_segment" flag="hidden" ref_value="0"/>
+      <afc_fault_path name="fault_path"/>
     </lv_obj>
     <!-- Action buttons (wired in C++ via wire_ok/cancel_button) -->
     <modal_button_row secondary_text="Close"

@@ -45,6 +45,11 @@ class SDLSoundBackend : public SoundBackend {
     /// Shutdown SDL audio device.
     void shutdown();
 
+    // Device lifecycle — the sequencer suspends when idle so the render
+    // callback stops streaming silence (Android AudioTrack churn, #1253).
+    void suspend() override;
+    void resume() override;
+
     // Legacy voice interface (non-note-event callers)
     void set_voice(int slot, float freq_hz, float amplitude, float duty_cycle) override;
     void set_voice_waveform(int slot, Waveform w) override;

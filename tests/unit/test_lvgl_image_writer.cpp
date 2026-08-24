@@ -199,19 +199,19 @@ TEST_CASE("Concurrent writers to one path do not interleave into a shared temp f
     std::filesystem::create_directories(tmp_dir);
     const std::string out_path = (tmp_dir / "contended.bin").string();
 
-    constexpr int kWidth = 512;
-    constexpr int kHeight = 512;
-    constexpr size_t kPixelBytes = kWidth * kHeight * 4;
-    constexpr int kWriters = 8;
+    constexpr int WIDTH = 512;
+    constexpr int HEIGHT = 512;
+    constexpr size_t PIXEL_BYTES = WIDTH * HEIGHT * 4;
+    constexpr int WRITERS = 8;
 
     std::vector<std::thread> writers;
-    writers.reserve(kWriters);
-    for (int w = 0; w < kWriters; ++w) {
+    writers.reserve(WRITERS);
+    for (int w = 0; w < WRITERS; ++w) {
         writers.emplace_back([&, w] {
             // Each writer fills with its own distinct byte.
-            std::vector<uint8_t> pixels(kPixelBytes, static_cast<uint8_t>(0x10 + w));
+            std::vector<uint8_t> pixels(PIXEL_BYTES, static_cast<uint8_t>(0x10 + w));
             for (int rep = 0; rep < 30; ++rep) {
-                write_lvgl_bin(out_path, kWidth, kHeight,
+                write_lvgl_bin(out_path, WIDTH, HEIGHT,
                                static_cast<uint8_t>(LV_COLOR_FORMAT_ARGB8888), pixels.data(),
                                pixels.size());
             }
@@ -222,13 +222,13 @@ TEST_CASE("Concurrent writers to one path do not interleave into a shared temp f
     }
 
     auto data = read_file_bytes(out_path);
-    REQUIRE(data.size() == sizeof(lv_image_header_t) + kPixelBytes);
+    REQUIRE(data.size() == sizeof(lv_image_header_t) + PIXEL_BYTES);
 
     // Every pixel byte must come from ONE writer. A torn file mixes fills.
     const uint8_t* px = data.data() + sizeof(lv_image_header_t);
     const uint8_t first = px[0];
     bool uniform = true;
-    for (size_t i = 0; i < kPixelBytes; ++i) {
+    for (size_t i = 0; i < PIXEL_BYTES; ++i) {
         if (px[i] != first) {
             uniform = false;
             break;
@@ -236,7 +236,7 @@ TEST_CASE("Concurrent writers to one path do not interleave into a shared temp f
     }
     CHECK(uniform);
     CHECK(first >= 0x10);
-    CHECK(first < static_cast<uint8_t>(0x10 + kWriters));
+    CHECK(first < static_cast<uint8_t>(0x10 + WRITERS));
 
     // No staging files left behind.
     int leftovers = 0;

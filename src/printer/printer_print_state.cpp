@@ -9,8 +9,13 @@
 
 #include "printer_print_state.h"
 
+#include "ui_filename_utils.h"
+#include "ui_timer_guard.h" // lv_timer_cancel_safe
 #include "ui_update_queue.h"
 
+#include "data_root_resolver.h"
+#include "format_utils.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
 #include "state/subject_macros.h"
 #include "unit_conversions.h"
@@ -23,11 +28,18 @@
 
 namespace helix {
 
+const char* PrinterPrintState::no_thumbnail_placeholder() {
+    static const std::string path =
+        helix::asset_component_uri("assets/images/benchy_thumbnail_white.png");
+    return path.c_str();
+}
+
 PrinterPrintState::PrinterPrintState() {
     // Initialize string buffers
     std::memset(print_filename_buf_, 0, sizeof(print_filename_buf_));
     std::memset(print_display_filename_buf_, 0, sizeof(print_display_filename_buf_));
     std::memset(print_thumbnail_path_buf_, 0, sizeof(print_thumbnail_path_buf_));
+    std::memset(print_progress_text_buf_, 0, sizeof(print_progress_text_buf_));
     std::memset(print_state_buf_, 0, sizeof(print_state_buf_));
     std::memset(print_start_message_buf_, 0, sizeof(print_start_message_buf_));
     std::memset(print_start_time_left_buf_, 0, sizeof(print_start_time_left_buf_));
@@ -53,8 +65,11 @@ void PrinterPrintState::init_subjects(bool register_xml) {
 
     // Print progress subjects
     INIT_SUBJECT_INT(print_progress, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(print_progress_display, 0, subjects_, register_xml);
+    INIT_SUBJECT_STRING(print_progress_text, "0%", subjects_, register_xml);
     INIT_SUBJECT_STRING(print_filename, "", subjects_, register_xml);
     INIT_SUBJECT_STRING(print_state, "standby", subjects_, register_xml);
+    // RAW_PRINT_STATE_OK: declaring the wire subject itself.
     INIT_SUBJECT_INT(print_state_enum, static_cast<int>(PrintJobState::STANDBY), subjects_,
                      register_xml);
     INIT_SUBJECT_INT(print_outcome, static_cast<int>(PrintOutcome::NONE), subjects_, register_xml);
@@ -64,8 +79,11 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // Seeded with the placeholder rather than "": consumers bind this subject
     // straight to lv_image_set_src and observers fire once at registration, so
     // an empty initial value would be delivered to every consumer before the
-    // first print. See kNoThumbnailPlaceholder for why "" is unsafe there.
-    INIT_SUBJECT_STRING(print_thumbnail_path, kNoThumbnailPlaceholder, subjects_, register_xml);
+    // first print. See no_thumbnail_placeholder() for why "" is unsafe there.
+    INIT_SUBJECT_STRING(print_thumbnail_path, no_thumbnail_placeholder(), subjects_, register_xml);
+#if defined(HELIX_PLATFORM_ESP32)
+    INIT_SUBJECT_INT(print_psram_thumb_gen, 0, subjects_, register_xml);
+#endif
 
     // Layer tracking subjects
     INIT_SUBJECT_INT(print_layer_current, 0, subjects_, register_xml);
@@ -81,6 +99,10 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // Print start progress subjects
     INIT_SUBJECT_INT(print_start_phase, static_cast<int>(PrintStartPhase::IDLE), subjects_,
                      register_xml);
+    INIT_SUBJECT_INT(print_lifecycle, static_cast<int>(PrintState::Idle), subjects_, register_xml);
+    INIT_SUBJECT_INT(job_holds_machine, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(preparing_epoch, 0, subjects_, false);
+    INIT_SUBJECT_INT(print_lifecycle_prev, static_cast<int>(PrintState::Idle), subjects_, false);
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_start_progress, 0, subjects_, register_xml);
 
@@ -111,7 +133,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // here eliminates the BG-thread emplace vs UI-thread read rehash race
     // (see header). update_from_status and the accessor both do direct
     // lookups and never mutate the map after this point.
-    for (int idx = 0; idx < kMaxExtruderScan; ++idx) {
+    for (int idx = 0; idx < MAX_EXTRUDER_SCAN; ++idx) {
         create_extruder_filament_entry(idx);
     }
 
@@ -155,6 +177,13 @@ void PrinterPrintState::deinit_subjects() {
     }
     extruder_filament_used_.clear();
 
+#if defined(HELIX_PLATFORM_ESP32)
+    // Release the PSRAM thumbnail while LVGL is still initialized — the
+    // destructor calls lv_image_cache_drop(), which is only valid before
+    // lv_deinit(). StaticSubjectRegistry runs this on the main thread.
+    print_psram_thumbnail_.reset();
+#endif
+
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }
@@ -174,12 +203,43 @@ lv_subject_t* PrinterPrintState::get_extruder_filament_used_subject(int extruder
     auto it = extruder_filament_used_.find(extruder_idx);
     if (it == extruder_filament_used_.end()) {
         spdlog::warn("[PrinterPrintState] get_extruder_filament_used_subject({}) out of range or "
-                     "subjects not initialized (kMaxExtruderScan={})",
-                     extruder_idx, kMaxExtruderScan);
+                     "subjects not initialized (MAX_EXTRUDER_SCAN={})",
+                     extruder_idx, MAX_EXTRUDER_SCAN);
         return nullptr;
     }
     lifetime = it->second.lifetime;
     return it->second.subject.get();
+}
+
+void PrinterPrintState::publish_progress_display(int percent) {
+    if (progress_frozen_) {
+        return;
+    }
+    if (lv_subject_get_int(&print_progress_display_) != percent) {
+        lv_subject_set_int(&print_progress_display_, percent);
+    }
+    char buf[sizeof(print_progress_text_buf_)];
+    helix::format::format_percent(percent, buf, sizeof(buf));
+    if (strcmp(lv_subject_get_string(&print_progress_text_), buf) != 0) {
+        lv_subject_copy_string(&print_progress_text_, buf);
+    }
+}
+
+void PrinterPrintState::freeze_progress_display(bool complete) {
+    if (complete) {
+        // A finished print is 100% even when the last virtual_sdcard sample
+        // Moonraker sent was a fraction short.
+        progress_frozen_ = false;
+        publish_progress_display(100);
+    }
+    progress_frozen_ = true;
+    spdlog::debug("[PrinterPrintState] Progress display frozen at {}%",
+                  lv_subject_get_int(&print_progress_display_));
+}
+
+void PrinterPrintState::unfreeze_progress_display() {
+    progress_frozen_ = false;
+    publish_progress_display(0);
 }
 
 void PrinterPrintState::reset_for_new_print() {
@@ -189,6 +249,7 @@ void PrinterPrintState::reset_for_new_print() {
     // Clearing filename triggers ActivePrintMediaManager to wipe the thumbnail we just set.
     // Filename is Moonraker's source of truth - it updates when the print actually starts.
     lv_subject_set_int(&print_progress_, 0);
+    unfreeze_progress_display();
     lv_subject_set_int(&print_layer_current_, 0);
     has_real_layer_data_ = false;
     // Commanded Z belongs to the print run, not the file — clear it. Do NOT
@@ -304,14 +365,21 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                 if (new_state == PrintJobState::COMPLETE) {
                     spdlog::info("[PrinterPrintState] Print completed - setting outcome=COMPLETE");
                     lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::COMPLETE));
+                    freeze_progress_display(true);
                 } else if (new_state == PrintJobState::CANCELLED) {
                     spdlog::debug(
                         "[PrinterPrintState] Print cancelled - setting outcome=CANCELLED");
                     lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::CANCELLED));
+                    freeze_progress_display(false);
                 } else if (new_state == PrintJobState::ERROR) {
                     spdlog::info("[PrinterPrintState] Print error - setting outcome=ERROR");
                     lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::ERROR));
+                    freeze_progress_display(false);
                 }
+                // RAW_PRINT_STATE_OK: this runs INSIDE the wire-state handler,
+                // one statement before publish_lifecycle_state() derives the
+                // lifecycle from it. Reading the derived value here would read
+                // the previous tick's answer.
                 // Starting a NEW print: clear the previous outcome and slicer state
                 // (only when transitioning TO PRINTING from a non-PAUSED state)
                 else if (new_state == PrintJobState::PRINTING &&
@@ -320,6 +388,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                         spdlog::info("[PrinterPrintState] New print starting - clearing outcome");
                         lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
                     }
+                    unfreeze_progress_display();
                     // Reset slicer progress for the new print
                     slicer_progress_ = 0.0;
                     slicer_progress_active_ = false;
@@ -353,6 +422,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                 // PRINTING/PAUSED, so it's excluded here and the END_PRINT
                 // macro's farewell message (set after the COMPLETE clear above)
                 // survives.
+                // RAW_PRINT_STATE_OK: same handler, same reason as above.
                 if (new_state == PrintJobState::COMPLETE || new_state == PrintJobState::CANCELLED ||
                     new_state == PrintJobState::ERROR ||
                     (new_state == PrintJobState::STANDBY &&
@@ -370,6 +440,8 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                               state_str, static_cast<int>(new_state),
                               static_cast<int>(current_state));
                 lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
+                publish_lifecycle_state();
+                reconcile_preparing();
             }
 
             // Update string subject AFTER enum so observers see consistent state
@@ -389,7 +461,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
 
                 // Safety: When print becomes inactive, ensure print_start_phase is IDLE
                 // This prevents "Preparing Print" from showing when print is finished
-                if (!is_active) {
+                if (!is_active && !has_preparing_job()) {
                     int phase = lv_subject_get_int(&print_start_phase_);
                     if (phase != static_cast<int>(PrintStartPhase::IDLE)) {
                         spdlog::warn(
@@ -398,6 +470,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                             phase);
                         lv_subject_set_int(&print_start_phase_,
                                            static_cast<int>(PrintStartPhase::IDLE));
+                        publish_lifecycle_state();
                         lv_subject_copy_string(&print_start_message_, "");
                         lv_subject_set_int(&print_start_progress_, 0);
                         update_display_message_visible();
@@ -414,6 +487,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
             if (strcmp(lv_subject_get_string(&print_filename_), filename.c_str()) != 0) {
                 lv_subject_copy_string(&print_filename_, filename.c_str());
             }
+            reconcile_preparing();
         }
 
         // print_stats.message — populated by Klipper to describe pause/error reason
@@ -642,18 +716,19 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
             current_progress != progress_pct) {
             lv_subject_set_int(&print_progress_, progress_pct);
         }
+        publish_progress_display(progress_pct);
     }
 
     // Per-extruder filament_used (from Klipper's extruder/extruder1/... objects).
     // Keys live at the top level of the status payload, NOT under print_stats.
-    // We scan a small fixed range (0..kMaxExtruderScan-1) — Klipper toolchanger
+    // We scan a small fixed range (0..MAX_EXTRUDER_SCAN-1) — Klipper toolchanger
     // setups max out well below that. Missing keys are silently skipped.
     //
     // All map entries are pre-populated by init_subjects(). We do a direct
     // lookup and only mutate the int value inside the subject, so this runs
     // safely on the WebSocket background thread without racing the UI
     // accessor (no rehash, lv_subject_set_int is atomic on the int).
-    for (int idx = 0; idx < kMaxExtruderScan; ++idx) {
+    for (int idx = 0; idx < MAX_EXTRUDER_SCAN; ++idx) {
         std::string key = (idx == 0) ? "extruder" : "extruder" + std::to_string(idx);
         auto json_it = status.find(key);
         if (json_it == status.end() || !json_it->is_object()) {
@@ -752,6 +827,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                     current_progress != progress_pct) {
                     lv_subject_set_int(&print_progress_, progress_pct);
                 }
+                publish_progress_display(progress_pct);
             }
 
             // virtual_sdcard.layer / layer_count are the FALLBACK source —
@@ -953,6 +1029,18 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     }
 }
 
+#if defined(HELIX_PLATFORM_ESP32)
+void PrinterPrintState::set_print_psram_thumbnail(
+    std::shared_ptr<helix::ui::EspPsramThumbnail> thumb) {
+    // Main thread only (see header). The assignment below may run the previous
+    // thumbnail's destructor, which calls lv_image_cache_drop().
+    print_psram_thumbnail_ = std::move(thumb);
+    spdlog::debug("[PrinterPrintState] PSRAM thumbnail {}",
+                  print_psram_thumbnail_ ? "installed" : "cleared");
+    lv_subject_set_int(&print_psram_thumb_gen_, lv_subject_get_int(&print_psram_thumb_gen_) + 1);
+}
+#endif
+
 void PrinterPrintState::set_print_display_filename(const std::string& name) {
     // Display filename is set from PrintStatusPanel's main-thread callback.
     spdlog::trace("[PrinterPrintState] Setting print display filename: {}", name);
@@ -1010,8 +1098,12 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         // while still allowing new prints to start from an inactive state.
         int current_phase = lv_subject_get_int(&print_start_phase_);
         bool is_new_print_start = (current_phase == static_cast<int>(PrintStartPhase::IDLE));
+        // A live preparing job means WE started this and the printer has not
+        // caught up yet - print_active is legitimately 0 for the whole
+        // host-side pre-start block, and dropping these updates freezes the
+        // overlay on its first phase.
         if (phase != PrintStartPhase::IDLE && lv_subject_get_int(&print_active_) == 0 &&
-            !is_new_print_start) {
+            !is_new_print_start && !has_preparing_job()) {
             spdlog::debug("[PrinterPrintState] Ignoring stale phase {} (print inactive)",
                           static_cast<int>(phase));
             return;
@@ -1033,6 +1125,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         }
         if (lv_subject_get_int(&print_start_phase_) != static_cast<int>(phase)) {
             lv_subject_set_int(&print_start_phase_, static_cast<int>(phase));
+            publish_lifecycle_state();
             update_display_message_visible();
         }
         if (!msg.empty() &&
@@ -1053,6 +1146,7 @@ void PrinterPrintState::reset_print_start_state() {
         if (phase != static_cast<int>(PrintStartPhase::IDLE)) {
             spdlog::debug("[PrinterPrintState] Resetting print start state to IDLE");
             lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
+            publish_lifecycle_state();
             lv_subject_copy_string(&print_start_message_, "");
             lv_subject_set_int(&print_start_progress_, 0);
             update_print_show_progress();
@@ -1133,10 +1227,17 @@ void PrinterPrintState::set_print_in_progress_internal(bool in_progress) {
 // State queries
 // ============================================================================
 
+// RAW_PRINT_STATE_OK: the wire accessor itself. get_print_lifecycle() below is
+// the derived one, and each is paired with its own subject on purpose.
 PrintJobState PrinterPrintState::get_print_job_state() const {
     // Note: lv_subject_get_int is thread-safe (atomic read)
     return static_cast<PrintJobState>(
         lv_subject_get_int(const_cast<lv_subject_t*>(&print_state_enum_)));
+}
+
+PrintState PrinterPrintState::get_print_lifecycle() const {
+    return static_cast<PrintState>(
+        lv_subject_get_int(const_cast<lv_subject_t*>(&print_lifecycle_)));
 }
 
 bool PrinterPrintState::can_start_new_print() const {
@@ -1146,7 +1247,9 @@ bool PrinterPrintState::can_start_new_print() const {
         return false;
     }
 
-    // Check printer's physical state
+    // Check printer's physical state. RAW_PRINT_STATE_OK: the preparing window
+    // is already covered by the is_print_in_progress() early-return above, so
+    // this arm answers the narrower question of what the printer itself reports.
     PrintJobState state = get_print_job_state();
     // A new print can be started when printer is idle or previous print finished
     switch (state) {
@@ -1166,6 +1269,172 @@ bool PrinterPrintState::can_start_new_print() const {
 
 bool PrinterPrintState::is_print_in_progress() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&print_in_progress_)) != 0;
+}
+
+const char* preparing_exit_name(PreparingExit reason) {
+    switch (reason) {
+    case PreparingExit::Confirmed:
+        return "confirmed";
+    case PreparingExit::Superseded:
+        return "superseded";
+    case PreparingExit::Failed:
+        return "failed";
+    case PreparingExit::Cancelled:
+        return "cancelled";
+    case PreparingExit::TimedOut:
+        return "timed out";
+    }
+    return "?";
+}
+
+void PrinterPrintState::reconcile_preparing() {
+    if (preparing_job_.empty()) {
+        return;
+    }
+    // RAW_PRINT_STATE_OK: reconciliation requires an actually-running print -
+    // that is the whole point of reconciling a preparing claim against it.
+    const auto job_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
+    if (job_state != PrintJobState::PRINTING) {
+        return; // Only an actually-running print settles this.
+    }
+    const char* reported = lv_subject_get_string(&print_filename_);
+    if (!reported || reported[0] == '\0') {
+        return; // Printing, but not yet named - wait for the name.
+    }
+
+    // Compare on the bare name: the report may be path-qualified, and a
+    // modification rewrite hands the printer a temp file standing in for the
+    // file the user chose.
+    auto bare = [](const std::string& p) {
+        const std::string resolved = gcode::resolve_gcode_filename(p);
+        const size_t slash = resolved.find_last_of('/');
+        return slash == std::string::npos ? resolved : resolved.substr(slash + 1);
+    };
+
+    const bool mine = bare(reported) == bare(preparing_job_.filename);
+    retire_preparing(mine ? PreparingExit::Confirmed : PreparingExit::Superseded);
+}
+
+void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
+    if (job.empty()) {
+        spdlog::warn("[PrinterPrintState] begin_preparing called with no job");
+        return;
+    }
+    spdlog::info("[PrinterPrintState] Preparing '{}'", job.filename);
+    preparing_job_ = job;
+
+    // Synchronous: see the header. The previous job's terminal state has to be
+    // gone before any observer can paint a Preparing state beside it.
+    reset_for_new_print();
+    unfreeze_progress_display();
+    if (static_cast<PrintOutcome>(lv_subject_get_int(&print_outcome_)) != PrintOutcome::NONE) {
+        lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
+    }
+    lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::INITIALIZING));
+    lv_subject_set_int(&print_start_progress_, 0);
+    publish_lifecycle_state();
+    update_display_message_visible();
+
+    // The preparing window IS what print_in_progress documents itself as - true
+    // from the start request until the print actually starts or fails. It used
+    // to be set by hand and cleared on eighteen separate exit paths in
+    // PrintPreparationManager; a missed path latched it true and
+    // can_start_new_print() then refused every later print for the session.
+    set_print_in_progress_internal(true);
+    arm_preparing_watchdog();
+
+    // Published last: observers of the epoch read preparing_job() and the
+    // cleared state, so everything they can see is already consistent.
+    lv_subject_set_int(&preparing_epoch_, ++preparing_epoch_counter_);
+}
+
+PrinterPrintState::~PrinterPrintState() {
+    cancel_preparing_watchdog();
+}
+
+void PrinterPrintState::arm_preparing_watchdog() {
+    cancel_preparing_watchdog();
+    preparing_watchdog_ = lv_timer_create(preparing_watchdog_cb, PREPARING_WATCHDOG_MS, this);
+    if (preparing_watchdog_) {
+        lv_timer_set_repeat_count(preparing_watchdog_, 1); // one-shot
+    }
+}
+
+void PrinterPrintState::cancel_preparing_watchdog() {
+    if (!preparing_watchdog_) {
+        return;
+    }
+    // lv_timer_cancel_safe self-guards on lv_is_initialized() and neuters
+    // instead of unlinking, so this is safe from a destructor and from inside
+    // lv_timer_handler (#750/#751).
+    helix::ui::lv_timer_cancel_safe(preparing_watchdog_);
+    preparing_watchdog_ = nullptr;
+}
+
+void PrinterPrintState::preparing_watchdog_cb(lv_timer_t* timer) {
+    auto* self = static_cast<PrinterPrintState*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+    // One-shot: LVGL deletes the timer after this returns, so drop our handle
+    // first rather than cancelling an object about to be freed.
+    self->preparing_watchdog_ = nullptr;
+    spdlog::warn("[PrinterPrintState] Preparing job '{}' never confirmed - timing out",
+                 self->preparing_job_.filename);
+    self->retire_preparing(PreparingExit::TimedOut);
+}
+
+void PrinterPrintState::retire_preparing(PreparingExit reason) {
+    if (preparing_job_.empty()) {
+        return;
+    }
+    spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
+                 preparing_exit_name(reason));
+    preparing_job_ = {};
+    last_preparing_exit_ = reason;
+    cancel_preparing_watchdog();
+    set_print_in_progress_internal(false);
+
+    // Confirmed hands off to a real print, which owns the phase from here. Every
+    // other reason means no print is coming, so the pre-print UI must come down.
+    if (reason != PreparingExit::Confirmed) {
+        lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
+        lv_subject_copy_string(&print_start_message_, "");
+        lv_subject_set_int(&print_start_progress_, 0);
+        update_display_message_visible();
+    }
+    publish_lifecycle_state();
+    lv_subject_set_int(&preparing_epoch_, 0);
+}
+
+void PrinterPrintState::publish_lifecycle_state() {
+    const auto job_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
+    const int phase = lv_subject_get_int(&print_start_phase_);
+    const int derived = static_cast<int>(derive_print_state(job_state, phase));
+    const int current = lv_subject_get_int(&print_lifecycle_);
+
+    // Written BEFORE print_lifecycle, not after, and not from an observer on it.
+    //
+    // lv_subject_set_int() notifies synchronously, so any consumer reached by
+    // print_lifecycle's observers runs before a later write here would land -
+    // publishing the boolean second would let a widget built inside such an
+    // observer see the stale value. Ordering it first closes that, and is safe
+    // in the other direction because job_holds_machine has only XML consumers
+    // (bind_state_if_eq), none of which reads print_lifecycle back.
+    //
+    // Written only-if-changed for the same reason print_lifecycle is: several
+    // lifecycle values map to the same boolean.
+    const int holds = job_holds_machine(static_cast<PrintState>(derived)) ? 1 : 0;
+    if (lv_subject_get_int(&job_holds_machine_) != holds) {
+        lv_subject_set_int(&job_holds_machine_, holds);
+    }
+
+    if (current != derived) {
+        // Previous first, so an observer of the current value already sees a
+        // consistent pair when it fires.
+        lv_subject_set_int(&print_lifecycle_prev_, current);
+        lv_subject_set_int(&print_lifecycle_, derived);
+    }
 }
 
 bool PrinterPrintState::is_in_print_start() const {

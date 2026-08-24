@@ -9,8 +9,8 @@
 #include "ui_update_queue.h"
 
 #include "format_utils.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 
@@ -35,7 +35,7 @@ MachineLimitsOverlay& get_machine_limits_overlay() {
     return *g_machine_limits_overlay;
 }
 
-void init_machine_limits_overlay(MoonrakerAPI* api) {
+void init_machine_limits_overlay(IMoonrakerAPI* api) {
     auto& overlay = get_machine_limits_overlay();
     overlay.set_api(api);
 }
@@ -60,7 +60,7 @@ MachineLimitsOverlay::~MachineLimitsOverlay() {
 // CONFIGURATION
 // ============================================================================
 
-void MachineLimitsOverlay::set_api(MoonrakerAPI* api) {
+void MachineLimitsOverlay::set_api(IMoonrakerAPI* api) {
     api_ = api;
 }
 

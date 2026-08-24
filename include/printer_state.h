@@ -31,6 +31,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -89,29 +90,6 @@ enum class PrintJobState {
     CANCELLED = 4, ///< Print cancelled by user (Moonraker: "cancelled")
     ERROR = 5      ///< Print failed with error (Moonraker: "error")
 };
-
-/**
- * @brief True while a print job still owns the toolhead — PRINTING or PAUSED.
- *
- * A paused print is NOT a safe state for toolhead motion: the nozzle is parked
- * over (or in) the part and the job resumes from wherever it is left. On
- * loadcell-Z printers a G28 probes the nozzle DOWN into the bed, so a homing
- * move issued while paused collides with the print exactly as it would
- * mid-print (bundle XWPBR2DX, commit 329e731e9).
- *
- * Single source of truth for the AMS backend guard AND the UI affordances that
- * must agree with it — a button that is offered but always refused is a dead
- * end for the user (bundle JX2FVRB9).
- *
- * The `print_active` subject (get_print_active_subject()) is the subject-shaped
- * equivalent, derived from the raw print_stats.state string by
- * PrinterPrintState::status_indicates_active_print(). The two agree by
- * construction; UI code that already has a subject should read that instead of
- * reaching for the enum.
- */
-[[nodiscard]] constexpr bool print_occupies_toolhead(PrintJobState state) {
-    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
-}
 
 /**
  * @brief Terminal outcome of a print job (for UI persistence)
@@ -276,8 +254,17 @@ class PrinterState {
      * This is the core update logic used by both initial state and notifications.
      *
      * @param status Printer status object (e.g., from result.status or params[0])
+     * @param eventtime Klipper's monotonic event timestamp (notification params[1]).
+     *        0.0 means "no timestamp" — a synthesized status rather than a Klipper
+     *        frame. Only the klippy-state freshness guard reads it; every other
+     *        field is still last-write-wins.
+     * @param from_cached_snapshot true when this payload was captured earlier and is
+     *        being replayed (the discovery subscription response). Provenance is
+     *        STATED, never inferred from a zero eventtime — the mock client also
+     *        dispatches untimestamped status, and those ARE current.
      */
-    void update_from_status(const json& status);
+    void update_from_status(const json& status, double eventtime = 0.0,
+                            bool from_cached_snapshot = false);
 
     //
     // Subject accessors for XML binding
@@ -393,6 +380,12 @@ class PrinterState {
     lv_subject_t* get_print_progress_subject() {
         return print_domain_.get_print_progress_subject();
     } // 0-100
+    lv_subject_t* get_print_progress_display_subject() {
+        return print_domain_.get_print_progress_display_subject();
+    } // 0-100, frozen after a print ends
+    lv_subject_t* get_print_progress_text_subject() {
+        return print_domain_.get_print_progress_text_subject();
+    } // "N%" for the display value
     lv_subject_t* get_print_filename_subject() {
         return print_domain_.get_print_filename_subject();
     }
@@ -436,6 +429,38 @@ class PrinterState {
      * @param path LVGL-compatible path (e.g., "A:/tmp/thumbnail_xxx.bin"), "" to clear
      */
     void set_print_thumbnail(const std::string& for_file, const std::string& path);
+
+#if defined(HELIX_PLATFORM_ESP32)
+    /**
+     * @brief Get the PSRAM thumbnail generation subject for UI binding
+     *
+     * Integer subject bumped whenever the current print's PSRAM-resident
+     * thumbnail is replaced. ESP32 has no disk thumbnail cache, so
+     * print_thumbnail_path stays empty there and consumers observe this
+     * counter, then read get_print_psram_thumbnail().
+     */
+    lv_subject_t* get_print_psram_thumb_gen_subject() {
+        return print_domain_.get_print_psram_thumb_gen_subject();
+    }
+
+    /**
+     * @brief Get the current print's PSRAM-resident thumbnail (may be nullptr)
+     *
+     * Main thread only. Hold the returned shared_ptr for as long as a widget's
+     * image src points at its descriptor.
+     */
+    [[nodiscard]] std::shared_ptr<helix::ui::EspPsramThumbnail> get_print_psram_thumbnail() const {
+        return print_domain_.get_print_psram_thumbnail();
+    }
+
+    /**
+     * @brief Install the current print's PSRAM-resident thumbnail
+     *
+     * Main thread only — bumps the generation subject and may destroy the
+     * previous thumbnail (which calls lv_image_cache_drop()).
+     */
+    void set_print_psram_thumbnail(std::shared_ptr<helix::ui::EspPsramThumbnail> thumb);
+#endif
 
     /**
      * @brief Get print job state enum subject
@@ -565,6 +590,13 @@ class PrinterState {
      * @return Current PrintJobState
      */
     PrintJobState get_print_job_state() const;
+
+    /// The derived print lifecycle. Prefer this over reading
+    /// get_print_lifecycle_subject() by hand — see
+    /// PrinterPrintState::get_print_lifecycle() for why the hand-cast is a trap.
+    [[nodiscard]] PrintState get_print_lifecycle() const {
+        return print_domain_.get_print_lifecycle();
+    }
 
     /**
      * @brief Check if a new print can be started
@@ -814,6 +846,38 @@ class PrinterState {
      * Integer subject holding PrintStartPhase enum value.
      * Use with bind_flag_if_eq/not_eq in XML to show/hide progress overlay.
      */
+    void begin_preparing(const PrintJobRef& job) {
+        print_domain_.begin_preparing(job);
+    }
+    void retire_preparing(PreparingExit reason) {
+        print_domain_.retire_preparing(reason);
+    }
+    [[nodiscard]] bool has_preparing_job() const {
+        return print_domain_.has_preparing_job();
+    }
+    [[nodiscard]] const PrintJobRef& preparing_job() const {
+        return print_domain_.preparing_job();
+    }
+    lv_subject_t* get_preparing_epoch_subject() {
+        return print_domain_.get_preparing_epoch_subject();
+    }
+    lv_subject_t* get_print_lifecycle_prev_subject() {
+        return print_domain_.get_print_lifecycle_prev_subject();
+    }
+    [[nodiscard]] PreparingExit last_preparing_exit() const {
+        return print_domain_.last_preparing_exit();
+    }
+
+    lv_subject_t* get_print_lifecycle_subject() {
+        return print_domain_.get_print_lifecycle_subject();
+    }
+
+    /// Boolean form of job_holds_machine(print_lifecycle). See
+    /// PrinterPrintState::get_job_holds_machine_subject().
+    lv_subject_t* get_job_holds_machine_subject() {
+        return print_domain_.get_job_holds_machine_subject();
+    }
+
     lv_subject_t* get_print_start_phase_subject() {
         return print_domain_.get_print_start_phase_subject();
     }
@@ -1092,6 +1156,44 @@ class PrinterState {
      */
     lv_subject_t* get_gcode_z_offset_subject() {
         return motion_state_.get_gcode_z_offset_subject();
+    }
+
+    /**
+     * @brief Get the firmware-persisted Z-offset subject (microns)
+     *
+     * ZMOD stores the offset the next print will apply in
+     * save_variables.gcode_offsets.z and zeroes gcode_move's live offset outside
+     * a print, so this - not get_gcode_z_offset_subject() - is the truthful
+     * reading while idle. Only meaningful when
+     * get_persisted_z_offset_valid_subject() reads 1.
+     * Delegated to PrinterMotionState component.
+     */
+    lv_subject_t* get_persisted_z_offset_subject() {
+        return motion_state_.get_persisted_z_offset_subject();
+    }
+
+    /**
+     * @brief Get whether a firmware-persisted Z-offset has been reported (0/1)
+     *
+     * Separate from the value because 0 microns is a legitimate stored offset.
+     * Reads 0 on every non-ZMOD printer.
+     * Delegated to PrinterMotionState component.
+     */
+    lv_subject_t* get_persisted_z_offset_valid_subject() {
+        return motion_state_.get_persisted_z_offset_valid_subject();
+    }
+
+    /**
+     * @brief Firmware-persisted Z-offset in microns, or nullopt when unknown
+     *
+     * Convenience wrapper over the two subjects above for the display/adjust
+     * helpers in helix::zoffset.
+     */
+    std::optional<int> get_persisted_z_offset_microns() {
+        if (lv_subject_get_int(motion_state_.get_persisted_z_offset_valid_subject()) == 0) {
+            return std::nullopt;
+        }
+        return lv_subject_get_int(motion_state_.get_persisted_z_offset_subject());
     }
 
     // ========================================================================
@@ -1379,6 +1481,30 @@ class PrinterState {
      * @param state KlippyState enum value
      */
     void set_klippy_state_sync(KlippyState state);
+
+    /**
+     * @brief Seed Klipper firmware state, but never override a live value
+     *
+     * For startup-only sources that describe the printer as it was when the
+     * request was issued — `printer.info`'s `state` field, whose response can
+     * land seconds after the WebSocket has already reported a newer state.
+     * No-ops once any live source (a webhooks frame carrying an eventtime, or a
+     * notify_klippy_* message) has set the state.
+     *
+     * @param state KlippyState enum value
+     */
+    void set_klippy_state_if_unseeded(KlippyState state);
+
+    /**
+     * @brief Forget the klippy-state freshness watermark
+     *
+     * Klipper's eventtime is monotonic within one host uptime. A host reboot
+     * rewinds it, and every reboot drops the WebSocket, so the connection close
+     * is the point where the watermark stops being comparable. Without this the
+     * next session's genuinely-current frames would look older than the previous
+     * session's and be rejected forever.
+     */
+    void reset_klippy_state_freshness();
 
     /**
      * @brief Set network connectivity status
@@ -1717,6 +1843,19 @@ class PrinterState {
     }
 
     /**
+     * @brief Get capability subject for Spoolman availability
+     *
+     * Returns 1 when Moonraker reports a reachable Spoolman, 0 otherwise. The
+     * int form of is_spoolman_available(), for observers. Prefer this over
+     * `lv_xml_get_subject(nullptr, "printer_has_spoolman")`: the XML lookup
+     * misses whenever subjects were initialised without XML registration, and
+     * it misses *silently*, leaving the caller with no observer at all.
+     */
+    lv_subject_t* get_printer_has_spoolman_subject() {
+        return capabilities_state_.get_printer_has_spoolman_subject();
+    }
+
+    /**
      * @brief Get capability subject for purge line (priming)
      */
     lv_subject_t* get_printer_has_purge_line_subject() {
@@ -1806,10 +1945,21 @@ class PrinterState {
      *
      * Returns 1 when Klipper's idle_timeout.state == "Printing" (its canonical
      * busy flag — true for the whole duration of any blocking op or file print),
-     * 0 otherwise. Feeds is_blocking_operation_active().
+     * 0 otherwise. This is the literal Klipper state; is_blocking_operation_active()
+     * reads the debounced view below instead.
      */
     lv_subject_t* get_idle_timeout_printing_subject() {
         return calibration_state_.get_idle_timeout_printing_subject();
+    }
+
+    /**
+     * @brief Debounced idle_timeout busy flag backing is_blocking_operation_active()
+     *
+     * Exposed so tests can drive the guard the way the parse path does. See
+     * IdleTimeoutBusy for why the raw subject cannot be used as a gate.
+     */
+    helix::IdleTimeoutBusy& idle_timeout_busy() {
+        return calibration_state_.idle_timeout_busy();
     }
 
     /**
@@ -1837,7 +1987,7 @@ class PrinterState {
      * @brief Like is_blocking_operation_active(), but attributes self-inflicted busy
      *
      * Treats busy-ness attributable to the app's own recent jog activity (in
-     * flight, or acked within AppMotionActivity::kGraceWindow) as NOT blocking.
+     * flight, or acked within AppMotionActivity::GRACE_WINDOW) as NOT blocking.
      * Manual probe remains an absolute block. Guards for discretionary gcode use
      * THIS predicate so back-to-back jogs don't self-block — idle_timeout reports
      * "Printing" during any move, including our own jog (spec 2026-07-15).
@@ -1855,7 +2005,7 @@ class PrinterState {
     /// App-initiated macro/homing/calibration/filament-op activity tracker.
     ///
     /// Consulted ONLY by the busy-queue toast decision in
-    /// MoonrakerAPI::execute_gcode, which suppresses the "printer is busy"
+    /// IMoonrakerAPI::execute_gcode, which suppresses the "printer is busy"
     /// notification when the blocking op is one the user just started here
     /// (prestonbrown/helixscreen#1206).
     ///
@@ -2263,6 +2413,28 @@ class PrinterState {
     /// Klipper pause_resume.is_paused: true when the print is paused via PAUSE gcode
     bool is_paused_ = false;
 
+    /// Freshness watermark for klippy state. Guarded by state_mutex_ — the webhooks
+    /// parse reads/writes them while already holding it; every other accessor takes
+    /// it via mark_klippy_state_live() / reset_klippy_state_freshness().
+    ///
+    /// Highest Klipper eventtime that has carried a webhooks klippy state. Klipper
+    /// derives it from the monotonic clock, so it survives a Klipper restart and only
+    /// rewinds on a host reboot.
+    double klippy_state_eventtime_ = 0.0;
+
+    /// True once a live-sourced klippy state has been applied. Latches the state
+    /// against replayed snapshots (discovery re-dispatches its subscription
+    /// response at the end of discovery) while still allowing that same snapshot
+    /// to SEED the state when nothing live has arrived yet — which is the normal
+    /// cold-start ordering.
+    bool klippy_state_from_live_ = false;
+    /// Last unrecognised webhooks.state string, so the warning fires once per
+    /// distinct value rather than once per status frame.
+    std::string last_unknown_klippy_state_;
+
+    /// Last unrecognised webhooks.state string, so the warning fires on change
+    /// rather than on every status frame. Main-thread only (webhooks parse).
+
     /// Default state for the synthesized timelapse pre-print option, seeded from
     /// the global moonraker-timelapse `enabled` setting at discovery (#1094).
     /// Main-thread-only: written and read inside apply_dynamic_options() and its
@@ -2287,6 +2459,14 @@ class PrinterState {
     void set_os_version_internal(const std::string& version);
     void set_klippy_state_internal(KlippyState state);
     void set_printer_type_internal(const std::string& type);
+
+    /// Latch "a live klippy state has been applied". Takes state_mutex_, so it must
+    /// NOT be called from update_from_status(), which already holds it.
+    void mark_klippy_state_live();
+
+    /// Main-thread half of set_klippy_state_if_unseeded(): re-checks the guard in
+    /// the same serialized order as the webhooks parse, then applies.
+    void set_klippy_state_if_unseeded_internal(KlippyState state);
 
     /**
      * @brief Synthesize runtime-dependent options (timelapse, etc.) into the

@@ -210,6 +210,33 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - cali
     }
 }
 
+TEST_CASE_METHOD(WizardInputShaperStepTestFixture,
+                 "WizardInputShaperStep - analysis phase counts elapsed seconds",
+                 "[wizard][input-shaper][analysis]") {
+    // The offline analysis reports no percent; the step's only liveness signal
+    // is the elapsed label refreshed by the shared 1 Hz timer.
+    WizardInputShaperStep step;
+    step.init_subjects();
+
+    step.begin_analysis_display();
+    REQUIRE(step.analysis_timer_for_test() != nullptr);
+    CHECK(std::string(lv_subject_get_string(step.get_status_subject())) == "Analyzing data... 0s");
+
+    // The harness only runs finite-repeat timers; lend this one a count.
+    lv_timer_set_repeat_count(step.analysis_timer_for_test(), 1000);
+    lv_tick_inc(1500);
+    lv_timer_handler_safe();
+    CHECK(std::string(lv_subject_get_string(step.get_status_subject())) == "Analyzing data... 1s");
+
+    // Cancel freezes the label; further virtual time changes nothing.
+    step.cancel_analysis_display();
+    const std::string frozen = lv_subject_get_string(step.get_status_subject());
+    lv_tick_inc(5000);
+    lv_timer_handler_safe();
+    CHECK(std::string(lv_subject_get_string(step.get_status_subject())) == frozen);
+    CHECK(step.analysis_timer_for_test() == nullptr);
+}
+
 // ============================================================================
 // Wizard Flow Integration Tests
 // ============================================================================
@@ -383,6 +410,40 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - life
 
         // Token should report expired (guard was invalidated)
         REQUIRE(token.expired());
+    }
+}
+
+// ============================================================================
+// Combined Progress Bar Mapping Tests
+// ============================================================================
+
+TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - combined bar mapping",
+                 "[wizard][input-shaper][progress]") {
+    using Phase = ShaperCalibrationPhase;
+
+    SECTION("Sweep reports map onto the first half of the bar for X") {
+        CHECK(WizardInputShaperStep::combined_bar_value(0, Phase::Sweeping, false) == 0);
+        CHECK(WizardInputShaperStep::combined_bar_value(80, Phase::Sweeping, false) == 40);
+        CHECK(WizardInputShaperStep::combined_bar_value(100, Phase::Sweeping, false) == 50);
+    }
+
+    SECTION("Sweep reports map onto the second half of the bar for Y") {
+        CHECK(WizardInputShaperStep::combined_bar_value(0, Phase::Sweeping, true) == 50);
+        CHECK(WizardInputShaperStep::combined_bar_value(80, Phase::Sweeping, true) == 90);
+        CHECK(WizardInputShaperStep::combined_bar_value(100, Phase::Sweeping, true) == 100);
+    }
+
+    SECTION("Completion maps like a sweep report") {
+        CHECK(WizardInputShaperStep::combined_bar_value(100, Phase::Complete, false) == 50);
+        CHECK(WizardInputShaperStep::combined_bar_value(100, Phase::Complete, true) == 100);
+    }
+
+    SECTION("Analysis reports never move the bar") {
+        // The analysis phase reports no percent (0 is the phase-change signal
+        // only), so the bar holds its last sweep value; -1 tells the callback
+        // to update the status label instead of the bar.
+        CHECK(WizardInputShaperStep::combined_bar_value(0, Phase::Analyzing, false) == -1);
+        CHECK(WizardInputShaperStep::combined_bar_value(0, Phase::Analyzing, true) == -1);
     }
 }
 

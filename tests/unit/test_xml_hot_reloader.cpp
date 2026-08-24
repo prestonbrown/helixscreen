@@ -9,9 +9,8 @@
  * that changes are detected and the correct component names are derived.
  */
 
-#include "xml_hot_reloader.h"
-
 #include "layout_manager.h"
+#include "xml_hot_reloader.h"
 
 #include <chrono>
 #include <filesystem>
@@ -573,8 +572,7 @@ static void overwrite_xml(const fs::path& path, const std::string& content) {
     f << content;
 }
 
-TEST_CASE_METHOD(HotReloadFixture, "invalid XML is skipped without firing reload",
-                 "[hot-reload]") {
+TEST_CASE_METHOD(HotReloadFixture, "invalid XML is skipped without firing reload", "[hot-reload]") {
     create_xml("motion_panel.xml", "<component/>");
 
     std::atomic<int> reload_count{0};
@@ -622,8 +620,7 @@ TEST_CASE_METHOD(HotReloadFixture, "invalid XML does not update mtime cache (ret
     hr.stop();
 }
 
-TEST_CASE_METHOD(HotReloadFixture, "empty file is deferred (editor mid-write)",
-                 "[hot-reload]") {
+TEST_CASE_METHOD(HotReloadFixture, "empty file is deferred (editor mid-write)", "[hot-reload]") {
     create_xml("home_panel.xml", "<component/>");
 
     std::atomic<int> reload_count{0};

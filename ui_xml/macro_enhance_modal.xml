@@ -179,9 +179,9 @@
       <!-- Only visible when show_applying == 1 (hide when 0) -->
       <bind_flag_if_eq subject="macro_enhance_show_applying" flag="hidden" ref_value="0"/>
       <!-- Placeholder - buttons disabled during apply -->
-      <ui_button height="100%"
-                 text="Applying..." translation_tag="Applying..." flex_grow="1" clickable="false" style_radius="0"
-                 style_bg_opa="128"/>
+      <ui_button name="btn_applying"
+                 height="100%" text="Applying..." translation_tag="Applying..." flex_grow="1" clickable="false"
+                 style_radius="0" style_bg_opa="128"/>
     </lv_obj>
     <!-- ============================================================ -->
     <!-- BUTTONS: Success/Error state (Close) -->

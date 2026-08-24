@@ -60,6 +60,7 @@ MDI_ICONS+=",0xF009A"    # bell (notifications)
 MDI_ICONS+=",0xF00AD"    # block-helper (prohibited)
 MDI_ICONS+=",0xF00E4"    # bug (debug bundle)
 MDI_ICONS+=",0xF0232"    # filter (funnel)
+MDI_ICONS+=",0xF029A"    # gauge (clog/flow meter tile)
 MDI_ICONS+=",0xF00AF"    # bluetooth
 MDI_ICONS+=",0xF00B1"    # bluetooth-connect
 MDI_ICONS+=",0xF0B5C"    # backspace-outline
@@ -87,6 +88,7 @@ MDI_ICONS+=",0xF018D"    # console
 MDI_ICONS+=",0xF018F"    # content-copy (duplicate)
 MDI_ICONS+=",0xF01A4"    # crosshairs-gps (probe)
 MDI_ICONS+=",0xF01B4"    # delete (trash)
+MDI_ICONS+=",0xF01B7"    # debug-step-over (skip objects)
 MDI_ICONS+=",0xF01BC"    # database
 MDI_ICONS+=",0xF01D9"    # dots-vertical (advanced)
 MDI_ICONS+=",0xF01DA"    # download
@@ -339,6 +341,22 @@ for SIZE in $SIZES; do
         --range "$MDI_ICONS" \
         --no-compress \
         -o "$OUTPUT"
+
+    # De-const mdi_icons_16/24/32/48/64: these five faces are runtime-populated
+    # on embedded targets (ESP32 loads their glyph data from a .bin and
+    # struct-copies into the symbol at boot; Plan A fonts->frogfs move), so
+    # ui_fonts.h declares them non-const. The .c definition must match or gcc
+    # errors with "conflicting type qualifiers". The remaining sizes (14/80/96/
+    # 128) are NOT moved and stay const. Mirrors the strip in
+    # scripts/regen_text_fonts.sh.
+    if [ "$SIZE" = "16" ] || [ "$SIZE" = "24" ] || [ "$SIZE" = "32" ] || \
+       [ "$SIZE" = "48" ] || [ "$SIZE" = "64" ]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' 's/^const lv_font_t /lv_font_t /' "$OUTPUT"
+        else
+            sed -i 's/^const lv_font_t /lv_font_t /' "$OUTPUT"
+        fi
+    fi
 done
 
 echo ""

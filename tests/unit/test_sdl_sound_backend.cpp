@@ -7,7 +7,6 @@
 #include "sound_synthesis.h"
 
 #include <SDL.h>
-
 #include <cmath>
 #include <vector>
 
@@ -69,8 +68,7 @@ static int count_positive(const float* buffer, int num_samples) {
 // That race is timing-dependent and reproduced in roughly 1 run in 14, so this
 // test does NOT try to catch it. It locks the property that is deterministic and
 // verifiable: init and quit are balanced.
-TEST_CASE("SDL sound backend releases the audio subsystem on shutdown",
-          "[sound][sdl][lifecycle]") {
+TEST_CASE("SDL sound backend releases the audio subsystem on shutdown", "[sound][sdl][lifecycle]") {
     // Run with no sound hardware — CI machines have none.
     SDL_setenv("SDL_AUDIODRIVER", "dummy", 1);
 

@@ -73,7 +73,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
     REQUIRE_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
     REQUIRE(std::string(lv_label_get_text(label)) == "+2");
 
-    // Medium band: 100 <= width_px < W_NORMAL -> 10px bars, all 8 slots shown
+    // Medium band: 100 <= width_px < w_normal() -> 10px bars, all 8 slots shown
     // (the old <150 branch's min(max_visible, 8) was a no-op; removing it
     // must not change this — max_visible was already clamped to 8).
     ui_ams_mini_status_set_width(w, 110);
@@ -86,23 +86,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
     lv_obj_delete(w);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini mode dispatch: width_px vs W_NORMAL boundary",
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini mode dispatch: width_px vs w_normal() boundary",
                  "[ui][ams_mini][widget_size]") {
     ui_ams_mini_status_init();
     lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
     helix::ui::UpdateQueue::instance().drain();
     fill_slots(w, 2);
 
-    // Just below W_NORMAL: bar view.
-    ui_ams_mini_status_set_width(w, helix::widget_size::W_NORMAL - 1);
+    // Just below w_normal(): bar view.
+    ui_ams_mini_status_set_width(w, helix::widget_size::w_normal() - 1);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(UITest::find_by_name(w, "ams_spools_container") == nullptr);
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
     REQUIRE_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
 
-    // At W_NORMAL: spool view.
-    ui_ams_mini_status_set_width(w, helix::widget_size::W_NORMAL);
+    // At w_normal(): spool view.
+    ui_ams_mini_status_set_width(w, helix::widget_size::w_normal());
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
@@ -122,7 +122,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini mode dispatch: width_px vs W_NORMA
 // trust for this calculation -- see the avail_w comment in rebuild_spools).
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell width derives from real width",
                  "[ui][ams_mini][widget_size]") {
-    constexpr int kMinSpoolW = 60; // mirrors MIN_SPOOL_W in ui_ams_mini_status.cpp
+    constexpr int MIN_SPOOL_W = 60; // mirrors MIN_SPOOL_W in ui_ams_mini_status.cpp
 
     ui_ams_mini_status_init();
 
@@ -152,11 +152,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell width derives fro
     int gap = theme_manager_get_spacing("space_xxs");
     REQUIRE(avail_w > 0);
 
-    int expected_visible = (avail_w + gap) / (kMinSpoolW + gap);
+    int expected_visible = (avail_w + gap) / (MIN_SPOOL_W + gap);
     expected_visible = std::clamp(expected_visible, 1, 6);
     int expected_cell_px = (avail_w - (expected_visible - 1) * gap - 2) / expected_visible;
-    if (expected_cell_px < kMinSpoolW)
-        expected_cell_px = kMinSpoolW;
+    if (expected_cell_px < MIN_SPOOL_W)
+        expected_cell_px = MIN_SPOOL_W;
 
     REQUIRE(lv_obj_get_width(cell0) == expected_cell_px);
     // With a 300px real container the row fits more than one spool -- this is
@@ -202,4 +202,81 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_delete(w);
     lv_obj_delete(wide_parent);
+}
+
+/**
+ * The spool cell reserves a text column (`text_w`) for the material label and
+ * shrinks the spool graphic to make room for it. How much room "enough" is was
+ * a flat `min_text = 34`, chosen against the Small tier's ~14px type — but the
+ * label is drawn in `font_small`, which runs 10/11/12/16/18/20/26px across the
+ * tiers. At the top of that ladder "PLA" is wider than 34px, so the reservation
+ * under-reserved, `LV_LABEL_LONG_WRAP` broke the string at whatever fit, and the
+ * label came out one glyph per line, spilling over its neighbour.
+ *
+ * A container width that produces cells at the MIN_SPOOL_W floor is the worst
+ * case and the one a user actually hits: an 8-lane AMS in a two-cell widget.
+ */
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits its reserved column",
+                 "[ui][ams_mini][widget_size]") {
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+
+    // Narrow axis 1080 -> XXLarge, where font_small is noto_sans_light_26.
+    // The refresh is what actually moves the font tokens and the breakpoint
+    // subject; ScopedResolution alone only changes the pixel dimensions.
+    ScopedResolution xxlarge(disp, 1080, 1920);
+    theme_manager_refresh_layout_constants(disp);
+
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
+    lv_obj_set_size(parent, 480, 120);
+
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(parent, 120);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(parent);
+    fill_slots(w, 8);
+
+    // Comfortably past w_normal() at every tier, so this is the spool view on
+    // both sides of the fix rather than a mode flip in disguise.
+    ui_ams_mini_status_set_width(w, 480);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(parent);
+
+    lv_obj_t* sc = UITest::find_by_name(w, "ams_spools_container");
+    REQUIRE(sc != nullptr);
+    lv_obj_t* mat = UITest::find_by_name(w, "spool_material_0");
+    REQUIRE(mat != nullptr);
+
+    const lv_font_t* font = lv_obj_get_style_text_font(mat, LV_PART_MAIN);
+    REQUIRE(font != nullptr);
+
+    lv_point_t text_size;
+    lv_text_get_size(&text_size, lv_label_get_text(mat), font,
+                     lv_obj_get_style_text_letter_space(mat, LV_PART_MAIN),
+                     lv_obj_get_style_text_line_space(mat, LV_PART_MAIN), LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+
+    lv_obj_t* cell0 = UITest::find_by_name(w, "spool_cell_0");
+    REQUIRE(cell0 != nullptr);
+    INFO("cell " << lv_obj_get_width(cell0) << "px, text column " << lv_obj_get_content_width(mat)
+                 << "px, '" << lv_label_get_text(mat) << "' measures " << text_size.x
+                 << "px, font line height " << lv_font_get_line_height(font) << "px");
+
+    // The reserved column must hold the string the cell is about to draw.
+    CHECK(text_size.x <= lv_obj_get_content_width(mat));
+
+    // ...and the symptom that follows from it: a label that fits renders on one
+    // line. LV_LABEL_LONG_WRAP breaking "PLA" into three lines is exactly the
+    // failure this guards, and it is measured off the laid-out object rather
+    // than re-deriving the arithmetic under test.
+    CHECK(lv_obj_get_height(mat) < 2 * lv_font_get_line_height(font));
+
+    lv_obj_delete(w);
+    lv_obj_delete(parent);
+
+    // Put the token table back where the rest of the suite expects it.
+    theme_manager_refresh_layout_constants(disp);
 }

@@ -497,21 +497,21 @@ std::string ThumbnailProcessor::generate_cache_filename(const std::string& sourc
 // glibc abort on the main thread (debug bundle 783DVYKD). Reject non-PNG and
 // truncated data before stb_image ever touches it.
 static bool is_complete_png(const std::vector<uint8_t>& data) {
-    static const unsigned char kSig[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
-    static const unsigned char kIend[4] = {0x49, 0x45, 0x4E, 0x44}; // "IEND"
+    static const unsigned char SIG[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+    static const unsigned char IEND[4] = {0x49, 0x45, 0x4E, 0x44}; // "IEND"
 
     if (data.size() < 16) {
         return false; // too small to hold signature + a terminating IEND chunk
     }
-    if (std::memcmp(data.data(), kSig, sizeof(kSig)) != 0) {
+    if (std::memcmp(data.data(), SIG, sizeof(SIG)) != 0) {
         return false; // not a PNG
     }
     // A complete stream ends with [len=0]["IEND"][CRC], so the IEND marker sits in
     // the last 12 bytes; scan the final 16 to tolerate a stray trailing byte.
     constexpr size_t window = 16;
     const unsigned char* tail = data.data() + (data.size() - window);
-    for (size_t i = 0; i + sizeof(kIend) <= window; ++i) {
-        if (std::memcmp(tail + i, kIend, sizeof(kIend)) == 0) {
+    for (size_t i = 0; i + sizeof(IEND) <= window; ++i) {
+        if (std::memcmp(tail + i, IEND, sizeof(IEND)) == 0) {
             return true;
         }
     }

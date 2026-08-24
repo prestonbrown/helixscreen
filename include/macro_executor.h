@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_set>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -18,10 +18,10 @@ namespace helix {
 [[nodiscard]] std::string build_macro_gcode(const std::string& macro_name,
                                             const MacroParamResult& result);
 
-/// Execute a macro via MoonrakerAPI with the given parameters.
+/// Execute a macro via IMoonrakerAPI with the given parameters.
 /// Builds gcode via build_macro_gcode() and sends via api->execute_gcode().
 /// @param caller_tag Log tag for spdlog messages (e.g., "[MacrosPanel]")
-void execute_macro_gcode(MoonrakerAPI* api, const std::string& macro_name,
+void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                          const MacroParamResult& result, const char* caller_tag);
 
 /// Check if a macro name is potentially dangerous (SAVE_CONFIG, FIRMWARE_RESTART, etc.).

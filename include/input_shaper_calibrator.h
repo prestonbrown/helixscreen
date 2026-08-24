@@ -13,7 +13,7 @@
  * 4. Apply chosen settings to printer
  * 5. Save configuration to printer.cfg
  *
- * This is a state machine that coordinates MoonrakerAPI calls and
+ * This is a state machine that coordinates IMoonrakerAPI calls and
  * provides progress/error callbacks to the UI layer.
  */
 
@@ -25,7 +25,7 @@
 #include <string>
 
 // Forward declaration
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct MoonrakerError;
 
 namespace helix {
@@ -45,7 +45,11 @@ struct ApplyConfig {
  * @brief Callback types for InputShaperCalibrator
  */
 using AccelCheckCallback = std::function<void(float noise_level)>;
-using ProgressCallback = std::function<void(int percent)>;
+
+/// Progress during a resonance run. The phase says whether the toolhead is
+/// still sweeping or Klipper has moved on to fitting shapers; it is reported
+/// explicitly because the percentage alone cannot distinguish the two.
+using ProgressCallback = std::function<void(int percent, ShaperCalibrationPhase phase)>;
 using ResultCallback = std::function<void(const InputShaperResult& result)>;
 using SuccessCallback = std::function<void()>;
 using ErrorCallback = std::function<void(const std::string& message)>;
@@ -69,7 +73,7 @@ using ErrorCallback = std::function<void(const std::string& message)>;
  *   });
  *
  *   calibrator.run_calibration('X',
- *       [](int pct) { update_progress(pct); },
+ *       [](int pct, ShaperCalibrationPhase phase) { update_progress(pct, phase); },
  *       [](const InputShaperResult& r) { show_result(r); },
  *       [](const std::string& err) { show_error(err); });
  * @endcode
@@ -127,9 +131,9 @@ class InputShaperCalibrator {
     /**
      * @brief Constructor with API dependency injection
      *
-     * @param api Non-owning pointer to MoonrakerAPI instance
+     * @param api Non-owning pointer to IMoonrakerAPI instance
      */
-    explicit InputShaperCalibrator(MoonrakerAPI* api);
+    explicit InputShaperCalibrator(IMoonrakerAPI* api);
 
     /**
      * @brief Destructor
@@ -188,7 +192,7 @@ class InputShaperCalibrator {
      * frequency response data and all fitted shaper alternatives.
      *
      * @param axis Axis to test ('X' or 'Y')
-     * @param on_progress Called with percentage (0-100) during test
+     * @param on_progress Called with percentage (0-100) and the current phase
      * @param on_complete Called with calibration result on success
      * @param on_error Called with error message on failure
      */
@@ -275,7 +279,7 @@ class InputShaperCalibrator {
      */
     static std::string homing_error_message(const MoonrakerError& err);
 
-    MoonrakerAPI* api_ = nullptr; ///< Non-owning pointer to API
+    IMoonrakerAPI* api_ = nullptr; ///< Non-owning pointer to API
     State state_ = State::IDLE;
     CalibrationResults results_;
 

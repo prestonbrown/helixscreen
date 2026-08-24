@@ -87,9 +87,20 @@ struct SpoolVisual {
     lv_obj_t* error_indicator = nullptr;   ///< error dot, top-right (hidden)
 };
 
+/// Slack create_spool_visual() adds around the spool graphic so the lane badge,
+/// which is aligned to the container's bottom-right corner, is not clipped.
+///
+/// Exported because it is the difference between the spool size a caller asks
+/// for and the width the container actually occupies in a flex row. A caller
+/// laying out a fixed-width cell around the spool has to subtract it to know
+/// what is left for anything beside it; ui_ams_mini_status.cpp's spool cells do
+/// exactly that, and used to carry their own copy of the literal.
+inline constexpr int32_t SPOOL_VISUAL_BADGE_MARGIN_PX = 8;
+
 /**
  * @brief Build a spool visualization into @p container, honoring /ams/spool_style.
- * @param container Parent to populate (its size is set to spool_size + 8).
+ * @param container Parent to populate (its size is set to
+ *        spool_size + SPOOL_VISUAL_BADGE_MARGIN_PX, square).
  * @param spool_size Spool graphic size in px; <= 0 uses the "ams_slot_spool_size" token.
  */
 SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size = 0);
@@ -207,6 +218,11 @@ struct UnitToolLayout {
     int min_virtual_tool = -1;   ///< Minimum mapped_tool value (for labeling)
     int hub_tool_label =
         -1; ///< Override label for HUB units (from extruder index, -1 = use min_virtual_tool)
+    /// Extruder this unit's single nozzle belongs to, as an opaque name. Set
+    /// only for one-nozzle units whose lanes all agree; empty otherwise. Two
+    /// units naming the same extruder feed one nozzle — that is string
+    /// identity, so it holds for names no numbering scheme can parse.
+    std::string extruder_identity;
 };
 
 /**

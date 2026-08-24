@@ -167,10 +167,10 @@ class BedMeshRenderThread {
     std::atomic<float> last_render_time_ms_{0.0f};
 
     // Adaptive quality degradation
-    static constexpr int kFrameHistorySize = 5;
-    static constexpr float kDegradeThresholdMs = 200.0f; // Switch to solid at ~5 FPS
-    static constexpr float kRestoreThresholdMs = 100.0f; // Restore gradient at ~10 FPS
-    std::array<float, kFrameHistorySize> recent_frame_times_{};
+    static constexpr int FRAME_HISTORY_SIZE = 5;
+    static constexpr float DEGRADE_THRESHOLD_MS = 200.0f; // Switch to solid at ~5 FPS
+    static constexpr float RESTORE_THRESHOLD_MS = 100.0f; // Restore gradient at ~10 FPS
+    std::array<float, FRAME_HISTORY_SIZE> recent_frame_times_{};
     int frame_count_{0};
     bool degraded_mode_{false};
 };

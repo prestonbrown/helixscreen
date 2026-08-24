@@ -16,7 +16,7 @@
 #include "ui_spoolman_overlay.h"
 
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "static_panel_registry.h"
 
 #if HELIX_HAS_CAMERA
@@ -225,7 +225,7 @@ void HardwareSettingsOverlay::on_spoolman_settings_clicked(lv_event_t* /*e*/) {
         overlay.init_subjects();
         overlay.register_callbacks();
     }
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         overlay.set_api(api);
     }

@@ -11,8 +11,8 @@
 #include "ui_z_offset_indicator.h"
 
 #include "format_utils.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
@@ -119,7 +119,7 @@ PrintTuneOverlay::~PrintTuneOverlay() {
 // SHOW (PUBLIC ENTRY POINT)
 // ============================================================================
 
-void PrintTuneOverlay::show(lv_obj_t* parent_screen, MoonrakerAPI* api,
+void PrintTuneOverlay::show(lv_obj_t* parent_screen, IMoonrakerAPI* api,
                             PrinterState& printer_state) {
     spdlog::debug("[PrintTuneOverlay] show() called");
 
@@ -275,9 +275,13 @@ void PrintTuneOverlay::sync_to_state() {
     flow_percent_ = flow;
     update_display();
 
-    // Sync Z offset from PrinterState
-    int z_offset_microns = lv_subject_get_int(printer_state_->get_gcode_z_offset_subject());
+    // Sync Z offset from PrinterState. Firmware that persists the offset itself
+    // (ZMOD) zeroes the live one outside a print, so adjusting from it while idle
+    // would baby-step away from a phantom zero.
+    int z_offset_microns = helix::zoffset::displayed_z_offset_microns(*printer_state_);
     update_z_offset_display(z_offset_microns);
+    // Opening the overlay starts a new tuning session; travel is bounded from here.
+    session_base_z_offset_ = current_z_offset_;
 
     // Sync the visual indicator
     lv_obj_t* indicator = lv_obj_find_by_name(tune_panel_, "z_offset_indicator");
@@ -344,7 +348,10 @@ void PrintTuneOverlay::update_speed_flow_display(int speed_percent, int flow_per
 }
 
 void PrintTuneOverlay::update_z_offset_display(int microns) {
-    // Update display from PrinterState (microns -> mm)
+    // Update display from PrinterState (microns -> mm). Deliberately does NOT
+    // re-baseline the travel guard: PrintStatusPanel calls this from a
+    // gcode_z_offset observer, which our own adjust fires, so re-baselining
+    // here would reset the guard after every single step.
     current_z_offset_ = microns / 1000.0;
 
     if (subjects_initialized_) {
@@ -456,12 +463,21 @@ void PrintTuneOverlay::handle_reset() {
 }
 
 void PrintTuneOverlay::handle_z_offset_changed(double delta) {
-    // Clamp to safe range to prevent accidental bed crashes or huge offsets
+    // Bound how far one session may travel from the offset it opened on, so a
+    // stuck button cannot walk the nozzle into the bed. Clamping the absolute
+    // offset instead snapped a legitimately large one down to the limit on the
+    // first tap -- a nose dive rather than a guard rail. The window is widened
+    // to always contain the current offset, so should the base ever go stale
+    // the worst outcome is a refused step rather than a jump.
+    const double min_offset =
+        std::min(session_base_z_offset_ - Z_OFFSET_MAX_SESSION_TRAVEL, current_z_offset_);
+    const double max_offset =
+        std::max(session_base_z_offset_ + Z_OFFSET_MAX_SESSION_TRAVEL, current_z_offset_);
     double new_offset = current_z_offset_ + delta;
-    if (new_offset < Z_OFFSET_MIN || new_offset > Z_OFFSET_MAX) {
-        spdlog::warn("[PrintTuneOverlay] Z-offset {:.3f}mm clamped to [{}, {}]", new_offset,
-                     Z_OFFSET_MIN, Z_OFFSET_MAX);
-        new_offset = std::clamp(new_offset, Z_OFFSET_MIN, Z_OFFSET_MAX);
+    if (new_offset < min_offset || new_offset > max_offset) {
+        spdlog::warn("[PrintTuneOverlay] Z-offset {:.3f}mm clamped to [{:.3f}, {:.3f}]", new_offset,
+                     min_offset, max_offset);
+        new_offset = std::clamp(new_offset, min_offset, max_offset);
         delta = new_offset - current_z_offset_;
         if (std::abs(delta) < 0.0005)
             return; // Already at limit
@@ -473,16 +489,31 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
                                       sizeof(tune_z_offset_buf_));
     lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
 
+    const int delta_microns = static_cast<int>(std::lround(delta * 1000.0));
+    const int current_microns = static_cast<int>(std::lround(current_z_offset_ * 1000.0));
+    const int base_microns = current_microns - delta_microns;
+    // Read the live offset before the optimistic write below overwrites it.
+    const int live_microns =
+        printer_state_ ? lv_subject_get_int(printer_state_->get_gcode_z_offset_subject()) : 0;
+    const bool adjusting_from_persisted = printer_state_ && base_microns != live_microns;
+
     // Track pending delta for "unsaved adjustment" notification in Controls panel
     if (printer_state_) {
-        int delta_microns = static_cast<int>(std::lround(delta * 1000.0));
         printer_state_->add_pending_z_offset_delta(delta_microns);
 
         // Immediately update the gcode_z_offset subject so Controls panel reflects the change
         // (otherwise it waits for Moonraker to broadcast the status update)
-        int current_microns = static_cast<int>(std::lround(current_z_offset_ * 1000.0));
         if (auto* subj = printer_state_->get_gcode_z_offset_subject()) {
             lv_subject_set_int(subj, current_microns);
+        }
+        // When the base came from the firmware-persisted value we are about to
+        // send an absolute Z=, which ZMOD's override stores verbatim. Move the
+        // persisted subject with it so the Controls row does not show the stale
+        // number until save_variables is broadcast back.
+        if (adjusting_from_persisted) {
+            if (auto* subj = printer_state_->get_persisted_z_offset_subject()) {
+                lv_subject_set_int(subj, current_microns);
+            }
         }
     }
 
@@ -499,11 +530,11 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
         }
     }
 
-    // Send SET_GCODE_OFFSET Z_ADJUST command to Klipper.
-    // MOVE=1 makes the toolhead physically move to the new offset immediately,
-    // which is essential for baby stepping during a print. Without it, the offset
-    // only takes effect on the next Z move in gcode. Only add MOVE=1 when all
-    // axes are homed (matching Mainsail behavior) to avoid Klipper errors.
+    // Send the offset change to Klipper. MOVE=1 makes the toolhead physically
+    // move to the new offset immediately, which is essential for baby stepping
+    // during a print. Without it, the offset only takes effect on the next Z move
+    // in gcode. Only add MOVE=1 when all axes are homed (matching Mainsail
+    // behavior) to avoid Klipper errors.
     if (api_) {
         bool all_homed = false;
         if (printer_state_) {
@@ -511,9 +542,11 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
             all_homed = axes && strchr(axes, 'x') && strchr(axes, 'y') && strchr(axes, 'z');
         }
 
-        char gcode[96];
-        std::snprintf(gcode, sizeof(gcode), "SET_GCODE_OFFSET Z_ADJUST=%.3f%s", delta,
-                      all_homed ? " MOVE=1" : "");
+        // Relative Z_ADJUST resolves against homing_origin, so it is only right
+        // when the base we adjusted from IS the live offset. See
+        // helix::zoffset::build_z_adjust_gcode().
+        std::string gcode = helix::zoffset::build_z_adjust_gcode(base_microns, live_microns,
+                                                                 delta_microns, all_homed);
         api_->execute_gcode(
             gcode, [delta]() { spdlog::debug("[PrintTuneOverlay] Z adjusted {:+.3f}mm", delta); },
             [](const MoonrakerError& err) {

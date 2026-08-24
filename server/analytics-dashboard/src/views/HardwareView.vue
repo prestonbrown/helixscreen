@@ -60,6 +60,38 @@
           <h3>AMS Backend Distribution</h3>
           <BarChart :data="amsChartData" :options="horizontalBarOpts" />
         </div>
+
+        <div class="split-row">
+          <div class="chart-section">
+            <h3>Helix Macros Installed</h3>
+            <template v-if="helixMacros.reported > 0">
+              <PieChart :data="helixMacrosChartData" />
+              <p class="chart-note">
+                {{ pct(helixMacros.installed, helixMacros.reported) }} of
+                {{ helixMacros.reported }} reporting devices have
+                <code>helix_macros.cfg</code>
+              </p>
+            </template>
+            <p v-else class="chart-note empty">No devices have reported this yet.</p>
+          </div>
+
+          <div class="chart-section">
+            <h3>Moonraker Topology</h3>
+            <template v-if="moonrakerLocality.reported > 0">
+              <PieChart :data="moonrakerLocalityChartData" />
+              <p class="chart-note">
+                {{ pct(moonrakerLocality.remote, moonrakerLocality.reported) }} of
+                {{ moonrakerLocality.reported }} reporting devices drive Moonraker
+                over the network
+              </p>
+            </template>
+            <!-- The day-one state. An empty chart here would read as "0% remote",
+                 which is a conclusion rather than an absence of data. -->
+            <p v-else class="chart-note empty">
+              No devices have reported this yet. Requires a client release.
+            </p>
+          </div>
+        </div>
       </template>
     </div>
   </AppLayout>
@@ -174,6 +206,34 @@ const amsChartData = computed(() => ({
   }]
 }))
 
+// Defensive defaults: the dashboard can be served against a worker that predates
+// these fields, and an undefined here would blank the whole view.
+const ZERO_SPLIT = { installed: 0, not_installed: 0, local: 0, remote: 0, reported: 0 }
+
+const helixMacros = computed(() => data.value?.helix_macros ?? ZERO_SPLIT)
+const moonrakerLocality = computed(() => data.value?.moonraker_locality ?? ZERO_SPLIT)
+
+function pct(part: number, total: number): string {
+  if (!total) return '0%'
+  return `${Math.round((part / total) * 100)}%`
+}
+
+const helixMacrosChartData = computed(() => ({
+  labels: ['Installed', 'Not installed'],
+  datasets: [{
+    data: [helixMacros.value.installed, helixMacros.value.not_installed],
+    backgroundColor: ['#10b981', '#64748b']
+  }]
+}))
+
+const moonrakerLocalityChartData = computed(() => ({
+  labels: ['On the printer', 'Over the network'],
+  datasets: [{
+    data: [moonrakerLocality.value.local, moonrakerLocality.value.remote],
+    backgroundColor: ['#3b82f6', '#f59e0b']
+  }]
+}))
+
 async function fetchData() {
   loading.value = true
   error.value = ''
@@ -211,6 +271,28 @@ watch(() => filters.queryString, fetchData, { immediate: true })
 
 .chart-section {
   margin-bottom: 24px;
+}
+
+.split-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.chart-note {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.chart-note.empty {
+  padding: 24px 0;
+  text-align: center;
+}
+
+.chart-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
 }
 
 .chart-section h3 {

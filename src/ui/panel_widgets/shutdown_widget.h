@@ -11,13 +11,13 @@
 #include <functional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
 class ShutdownWidget : public PanelWidget {
   public:
-    explicit ShutdownWidget(MoonrakerAPI* api);
+    explicit ShutdownWidget(IMoonrakerAPI* api);
     ~ShutdownWidget() override;
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
@@ -30,7 +30,7 @@ class ShutdownWidget : public PanelWidget {
     static void shutdown_clicked_cb(lv_event_t* e);
 
   private:
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* shutdown_btn_ = nullptr;
@@ -53,7 +53,7 @@ void register_shutdown_widget();
 /// Caller owns @p modal and @p lifetime; both must outlive the modal. The
 /// lifetime guard is required for the "shutdown both" / "reboot both" flows
 /// that defer the local SystemPower call until the printer-side ack.
-void show_shutdown_dialog(MoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
+void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen);
 
 /// Handle a failed Moonraker machine.reboot / machine.shutdown.

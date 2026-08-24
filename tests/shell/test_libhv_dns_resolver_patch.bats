@@ -103,6 +103,8 @@ setup() {
     # the blob this test actually reads (line below) exists in *this* HEAD.
     git -C "$REPO_ROOT/lib/libhv" cat-file -e HEAD:base/hsocket.c 2>/dev/null \
         || skip "libhv submodule not checked out"
+    git -C "$REPO_ROOT/lib/libhv" cat-file -e HEAD:base/hplatform.h 2>/dev/null \
+        || skip "libhv submodule not checked out"
 
     local work="$BATS_TEST_TMPDIR/libhv"
     mkdir -p "$work/base"
@@ -110,10 +112,14 @@ setup() {
     git -C "$work" config user.email t@t
     git -C "$work" config user.name t
 
-    # Seed the work tree with the PRISTINE (unpatched) hsocket.c from libhv HEAD,
-    # so the real patch's context lines match.
+    # Seed the work tree with every file the patch touches, PRISTINE (unpatched)
+    # from libhv HEAD, so the real patch's context lines match. hplatform.h joined
+    # the patch when the jammy POSIX includes (fcntl.h/sys/stat.h/pthread.h) landed
+    # there; seeding only hsocket.c made `git apply` fail with
+    # "base/hplatform.h: No such file or directory" and this test go red.
     git -C "$REPO_ROOT/lib/libhv" show HEAD:base/hsocket.c > "$work/base/hsocket.c"
-    git -C "$work" add base/hsocket.c
+    git -C "$REPO_ROOT/lib/libhv" show HEAD:base/hplatform.h > "$work/base/hplatform.h"
+    git -C "$work" add base/hsocket.c base/hplatform.h
     git -C "$work" commit -qm pristine
 
     # Manufacture the broken state: orphan resolver files + pristine hsocket.c.
@@ -125,7 +131,7 @@ setup() {
     # Heal sequence — mirrors the recipe in mk/patches.mk.
     if ! grep -q 'dns_resolv_resolve' "$work/base/hsocket.c"; then
         rm -f "$work/base/dns_resolv.c" "$work/base/dns_resolv.h"
-        git -C "$work" checkout -- base/hsocket.c 2>/dev/null || true
+        git -C "$work" checkout -- base/hsocket.c base/hplatform.h 2>/dev/null || true
         git -C "$work" apply "$PATCH"
     fi
 

@@ -183,10 +183,11 @@ if [ "$FILE_MODE" = true ]; then
     echo "Checking ${#FILES[@]} file(s)"
     echo "========================================"
 
-    # Get filtered file lists
-    cpp_files=($(filter_cpp_files))
-    ui_cpp_files=($(filter_ui_cpp_files))
-    xml_files=($(filter_xml_files))
+    # Get filtered file lists (filter_* echo one space-joined line; read -ra
+    # reproduces the word splitting the old array assignment did)
+    read -ra cpp_files <<< "$(filter_cpp_files)"
+    read -ra ui_cpp_files <<< "$(filter_ui_cpp_files)"
+    read -ra xml_files <<< "$(filter_xml_files)"
 
     if [ ${#cpp_files[@]} -eq 0 ] && [ ${#xml_files[@]} -eq 0 ]; then
         echo "No auditable files (.cpp, .xml) in changeset"

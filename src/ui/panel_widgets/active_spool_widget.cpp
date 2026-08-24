@@ -4,6 +4,8 @@
 #include "active_spool_widget.h"
 
 #include "ui_ams_edit_overlay.h"
+#include "ui_color_picker.h"
+#include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_spool_canvas.h"
 #include "ui_toast_manager.h"
@@ -12,25 +14,29 @@
 #include "active_material_provider.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "filament_display_name.h"
+#include "i_moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
+#include "spoolman_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
+
+#include <optional>
 
 namespace helix {
 
 void register_active_spool_widget() {
     register_widget_factory("active_spool", [](const std::string&) {
-        auto* api = PanelWidgetManager::instance().shared_resource<MoonrakerAPI>();
+        auto* api = PanelWidgetManager::instance().shared_resource<IMoonrakerAPI>();
         return std::make_unique<ActiveSpoolWidget>(api);
     });
 }
 
-ActiveSpoolWidget::ActiveSpoolWidget(MoonrakerAPI* api) : api_(api) {}
+ActiveSpoolWidget::ActiveSpoolWidget(IMoonrakerAPI* api) : api_(api) {}
 
 ActiveSpoolWidget::~ActiveSpoolWidget() {
     detach();
@@ -191,36 +197,26 @@ void ActiveSpoolWidget::update_spool_display() {
     auto active = helix::get_active_material();
     bool has_spool = active.has_value();
 
-    // Also try to get weight info from the source SlotInfo
+    // Also try to get weight and naming info from the source SlotInfo
     float remaining_weight = 0;
     float total_weight = 0;
-    std::string brand;
-    std::string color_name;
-    std::string spool_name;
+    std::optional<SlotInfo> source_slot;
 
     if (has_spool) {
-        // Get weight from the source slot (AMS or external)
+        // Get the source slot (AMS or external)
         auto& ams = AmsState::instance();
         AmsBackend* backend = ams.get_backend();
         if (backend && backend->is_filament_loaded()) {
             int current = backend->get_current_slot();
             if (current >= 0) {
-                SlotInfo slot = backend->get_slot_info(current);
-                remaining_weight = slot.remaining_weight_g;
-                total_weight = slot.total_weight_g;
-                brand = slot.brand;
-                color_name = slot.color_name;
-                spool_name = slot.spool_name;
+                source_slot = backend->get_slot_info(current);
             }
         } else {
-            auto ext = ams.get_external_spool_info();
-            if (ext) {
-                remaining_weight = ext->remaining_weight_g;
-                total_weight = ext->total_weight_g;
-                brand = ext->brand;
-                color_name = ext->color_name;
-                spool_name = ext->spool_name;
-            }
+            source_slot = ams.get_external_spool_info();
+        }
+        if (source_slot) {
+            remaining_weight = source_slot->remaining_weight_g;
+            total_weight = source_slot->total_weight_g;
         }
     }
 
@@ -261,14 +257,18 @@ void ActiveSpoolWidget::update_spool_display() {
     }
     if (brand_color_label_) {
         std::string brand_color_str;
-        if (has_spool) {
-            if (!brand.empty() && !color_name.empty()) {
-                brand_color_str = brand + " " + color_name;
-            } else if (!brand.empty()) {
-                brand_color_str = brand;
-            } else if (!spool_name.empty()) {
-                brand_color_str = spool_name;
-            }
+        if (has_spool && source_slot) {
+            // Same precedence as the AMS "currently loaded" card. Spoolman keeps
+            // vendor and filament name out of SlotInfo on purpose (see
+            // filament_display_name.h), so a Spoolman-linked lane on a backend
+            // that reports no brand of its own -- AFC -- can only be named
+            // through the identity cache.
+            const auto identity = SpoolmanManager::find_identity(source_slot->spoolman_id);
+            const auto parts =
+                resolve_filament_label_parts(*source_slot, identity ? &*identity : nullptr,
+                                             get_color_name_from_hex(source_slot->color_rgb));
+            // The material has its own row above this one, so it is joined out.
+            brand_color_str = compose_filament_label(parts.brand, parts.name, "");
         }
         lv_label_set_text(brand_color_label_, brand_color_str.c_str());
         if (brand_color_str.empty()) {
@@ -316,11 +316,20 @@ void ActiveSpoolWidget::handle_clicked() {
             helix::ui::get_ams_edit_overlay().show_for_slot(
                 parent_screen_, current, slot, api_,
                 [current](const helix::ui::AmsEditOverlay::EditResult& result) {
-                    if (result.saved) {
-                        AmsBackend* be = AmsState::instance().get_backend();
-                        if (be) {
-                            be->set_slot_info(current, result.slot_info);
-                        }
+                    if (!result.saved) {
+                        return;
+                    }
+                    AmsBackend* be = AmsState::instance().get_backend();
+                    if (!be) {
+                        return;
+                    }
+                    // Capture the pre-edit slot BEFORE the commit — its unlink
+                    // arm (clear the server active spool) needs the old link.
+                    SlotInfo original = be->get_slot_info(current);
+                    AmsError err =
+                        AmsState::instance().commit_slot_edit(current, original, result.slot_info);
+                    if (!err.success()) {
+                        helix::ui::notify_ams_error(err);
                     }
                 });
             return;
@@ -343,11 +352,9 @@ void ActiveSpoolWidget::open_external_spool_edit() {
         parent_screen_, -2, initial_info, api_,
         [](const helix::ui::AmsEditOverlay::EditResult& result) {
             if (result.saved) {
-                if (result.slot_info.spoolman_id > 0 || !result.slot_info.material.empty()) {
-                    AmsState::instance().set_external_spool_info(result.slot_info);
-                } else {
-                    AmsState::instance().clear_external_spool_info();
-                }
+                // Owns S1 (server active-spool sync) + the S5 emptiness
+                // predicate + settings persist/erase.
+                AmsState::instance().commit_external_spool_edit(result.slot_info);
             }
         });
 }

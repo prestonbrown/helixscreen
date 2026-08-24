@@ -63,6 +63,23 @@ class SpoolmanIdentityTestAccess {
         m.cb_open_ = false;
         m.cb_tripped_at_ms_ = 0;
         m.unavailable_notified_ = false;
+        if (m.poll_timer_ != nullptr && lv_is_initialized()) {
+            lv_timer_delete(m.poll_timer_);
+        }
+        m.poll_timer_ = nullptr;
+        m.poll_refcount_ = 0;
+    }
+
+    /// init_subjects() is idempotent by design, so a prior test file's call
+    /// leaves the availability observer bound to a stale run. Re-arm it.
+    static void rewire_subjects(SpoolmanManager& m) {
+        {
+            std::lock_guard<std::recursive_mutex> lock(m.mutex_);
+            m.print_state_observer_.reset();
+            m.spoolman_availability_observer_.reset();
+            m.initialized_ = false;
+        }
+        m.init_subjects();
     }
 
     /// refresh_spoolman_weights() debounces itself for 5s; tests poll twice.
@@ -628,4 +645,90 @@ TEST_CASE_METHOD(IdentityCacheFixture,
 
     ams.clear_backends();
     ams.deinit_subjects();
+}
+
+// ============================================================================
+// 4. Arming the poll, and telling the UI when an identity lands
+// ============================================================================
+
+TEST_CASE_METHOD(IdentityCacheFixture,
+                 "SpoolmanManager polling: a request made before Spoolman is available still arms",
+                 "[spoolman][identity][polling]") {
+    // At boot the Home panel activates synchronously inside init_ui(), while
+    // printer_has_spoolman is still 0 because set_spoolman_available() defers
+    // through the UpdateQueue. The wish to poll therefore always arrives before
+    // the ability to serve it, and discarding it left the Home panel polling
+    // nothing for the rest of the session.
+    set_spoolman_available(false);
+    IdTA::rewire_subjects(SpoolmanManager::instance());
+    REQUIRE(IdTA::observes_availability(SpoolmanManager::instance()));
+
+    PollHarness h;
+    SlotInfo slot = h.backend->get_slot_info(0);
+    slot.spoolman_id = 1;
+    slot.remaining_weight_g = 111.0f;
+    h.backend->set_slot_info(0, slot);
+
+    SpoolmanManager::instance().start_spoolman_polling();
+    drain();
+    CHECK_FALSE(SpoolmanManager::find_identity(1).has_value()); // nothing to poll yet
+
+    set_spoolman_available(true);
+    // The poll runs inside the availability drain and re-queues its API
+    // callback, so the identity lands on the following pass.
+    drain();
+    drain();
+
+    // The deferred request is honoured the moment Spoolman shows up.
+    CHECK(SpoolmanManager::find_identity(1).has_value());
+
+    SpoolmanManager::instance().stop_spoolman_polling();
+}
+
+TEST_CASE_METHOD(IdentityCacheFixture,
+                 "SpoolmanManager identity: a new identity refreshes labels even when the weight "
+                 "never moves",
+                 "[spoolman][identity][1264]") {
+    // cache_identity() deliberately runs before the weights-unchanged early
+    // return, so the name lands. Nothing then told the UI to recompose, so the
+    // Active Spool widget kept rendering the pre-identity label.
+    set_spoolman_available(true);
+    PollHarness h;
+
+    SlotInfo slot = h.backend->get_slot_info(0);
+    slot.spoolman_id = 1;
+    // Exactly what mock spool 1 reports, so the early return fires.
+    slot.remaining_weight_g = 850.0f;
+    slot.total_weight_g = 1000.0f;
+    h.backend->set_slot_info(0, slot);
+
+    const int before = lv_subject_get_int(AmsState::instance().get_slots_version_subject());
+    REQUIRE_FALSE(SpoolmanManager::find_identity(1).has_value());
+
+    h.poll();
+
+    REQUIRE(SpoolmanManager::find_identity(1).has_value());
+    CHECK(lv_subject_get_int(AmsState::instance().get_slots_version_subject()) > before);
+}
+
+TEST_CASE_METHOD(IdentityCacheFixture,
+                 "SpoolmanManager identity: a poll that learns nothing new does not churn the UI",
+                 "[spoolman][identity][1264]") {
+    // The other half of the contract. Bumping on every poll would re-enter the
+    // refresh cascade the weights-unchanged early return exists to prevent.
+    set_spoolman_available(true);
+    PollHarness h;
+
+    SlotInfo slot = h.backend->get_slot_info(0);
+    slot.spoolman_id = 1;
+    slot.remaining_weight_g = 850.0f;
+    slot.total_weight_g = 1000.0f;
+    h.backend->set_slot_info(0, slot);
+
+    h.poll();
+    REQUIRE(SpoolmanManager::find_identity(1).has_value());
+
+    const int settled = lv_subject_get_int(AmsState::instance().get_slots_version_subject());
+    h.poll(); // identity already cached, weights still unchanged
+    CHECK(lv_subject_get_int(AmsState::instance().get_slots_version_subject()) == settled);
 }

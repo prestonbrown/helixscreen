@@ -24,7 +24,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
-#include "../lvgl_test_fixture.h"
+#include "../busy_guard_fixture.h"
 
 #include <chrono>
 
@@ -34,43 +34,10 @@ using namespace helix;
 
 namespace {
 
-class MotionPairingFixture : public LVGLTestFixture {
+class MotionPairingFixture : public helix::BusyGuardFixture {
   public:
-    MotionPairingFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
-        state.init_subjects(false);
-        // Subjects initialize to SHUTDOWN; the klippy gate would reject everything.
-        state.set_klippy_state_sync(KlippyState::READY);
-        // Default to idle/standby: nothing blocking, so sends reach the client.
-        set_print_state(PrintJobState::STANDBY);
-        set_idle_printing(false);
-        mock_client.connect("ws://mock/websocket", []() {}, []() {});
-        api = std::make_unique<MoonrakerAPI>(mock_client, state);
-    }
-
-    ~MotionPairingFixture() override {
-        mock_client.stop_temperature_simulation();
-        mock_client.disconnect();
-        api.reset();
-    }
-
-    void set_print_state(PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
-    }
-    void set_idle_printing(bool on) {
-        lv_subject_set_int(state.get_idle_timeout_printing_subject(), on ? 1 : 0);
-    }
-
-    /**
-     * recently_active(now) is `inflight_ > 0 || (now - last_done_ < kGraceWindow)`.
-     * Passing a `now` past the grace window retires the second term, collapsing
-     * the call to a pure `inflight_ > 0` read. AppMotionActivity exposes no
-     * inflight getter; this is the supported way to isolate the counter (the
-     * same trick test_app_motion_activity.cpp uses).
-     */
     bool motion_inflight() {
-        return state.app_motion_activity().recently_active(AppMotionActivity::clock::now() +
-                                                           AppMotionActivity::kGraceWindow +
-                                                           std::chrono::seconds(1));
+        return helix::activity_inflight(state.app_motion_activity());
     }
 
     /**
@@ -82,32 +49,10 @@ class MotionPairingFixture : public LVGLTestFixture {
         return state.app_motion_activity().recently_active();
     }
 
-    /**
-     * Exact inflight count, using the only read the public API allows: the
-     * far-future call is a pure `inflight_ > 0`, so retiring the counter one
-     * note_done() at a time and counting the steps yields the exact value.
-     * Destructive — call it last in a test.
-     */
+    /// Destructive — call it last in a test.
     int drain_inflight() {
-        int n = 0;
-        while (motion_inflight() && n < 100) {
-            state.app_motion_activity().note_done();
-            ++n;
-        }
-        return n;
+        return helix::drain_activity_inflight(state.app_motion_activity());
     }
-
-    void error_cb(const MoonrakerError& err) {
-        error_called = true;
-        captured_error = err;
-    }
-
-    MoonrakerClientMock mock_client;
-    PrinterState state;
-    std::unique_ptr<MoonrakerAPI> api;
-
-    bool error_called = false;
-    MoonrakerError captured_error;
 };
 
 } // namespace

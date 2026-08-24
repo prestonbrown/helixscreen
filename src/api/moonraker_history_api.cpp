@@ -18,6 +18,10 @@
 #include <iomanip>
 #include <sstream>
 
+#ifdef __GLIBC__
+#include <malloc.h> // malloc_trim() after dropping the history DOM
+#endif
+
 #include "hv/json.hpp"
 
 using namespace helix;
@@ -155,7 +159,7 @@ PrintHistoryJob parse_history_job(const json& job_json) {
 // MoonrakerHistoryAPI Implementation
 // ============================================================================
 
-MoonrakerHistoryAPI::MoonrakerHistoryAPI(MoonrakerClient& client) : client_(client) {}
+MoonrakerHistoryAPI::MoonrakerHistoryAPI(IMoonrakerClient& client) : client_(client) {}
 
 void MoonrakerHistoryAPI::get_history_list(int limit, int start, double since, double before,
                                            HistoryListCallback on_success, ErrorCallback on_error) {
@@ -196,6 +200,22 @@ void MoonrakerHistoryAPI::get_history_list(int limit, int start, double since, d
 
             spdlog::debug("[HistoryAPI] get_history_list returned {} jobs (total: {})", jobs.size(),
                           total_count);
+
+            // This is the largest response the app parses: 500 jobs measured at
+            // 714 KB of JSON on a printer with real history, which costs ~3.9 MB
+            // of heap as a DOM. Everything worth keeping is already in `jobs`,
+            // so drop the DOM here rather than holding it across the whole
+            // callback chain — on_success() copies the job vector and hands it
+            // to the main thread, so the peak would otherwise stack the DOM, the
+            // vector, and its copy at once.
+            response = json();
+#ifdef __GLIBC__
+            // Freeing the DOM returns its pages to glibc's free lists, not to
+            // the OS — measured at 0 kB of RSS recovered without this call, and
+            // ~3.4 MB with it. Worth the arena walk here because a history fetch
+            // happens at boot and once per finished print, not per message.
+            malloc_trim(0);
+#endif
 
             if (on_success) {
                 on_success(jobs, total_count);

@@ -4,7 +4,13 @@
 #include "ui_observer_guard.h" // SubjectLifetime
 
 #include "async_lifetime_guard.h"
+#include "print_job_ref.h"
+#include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
+
+#if defined(HELIX_PLATFORM_ESP32)
+#include "esp_psram_thumbnail.h"
+#endif
 
 #include <atomic>
 #include <lvgl.h>
@@ -41,7 +47,11 @@ namespace helix {
 class PrinterPrintState {
   public:
     PrinterPrintState();
-    ~PrinterPrintState() = default;
+    /// Defined in the .cpp so it cancels the preparing watchdog. CLAUDE.md
+    /// threading rule 5: a raw lv_timer_t cancelled in a teardown path must also
+    /// be cancelled in the destructor, or the timer stays armed on freed `this`
+    /// when StaticPanelRegistry::destroy_all() runs before lv_deinit().
+    ~PrinterPrintState();
 
     // Non-copyable
     PrinterPrintState(const PrinterPrintState&) = delete;
@@ -80,9 +90,25 @@ class PrinterPrintState {
     // Subject accessors (18 subjects)
     // ========================================================================
 
-    /// Print progress as 0-100 percent
+    /// Print progress as 0-100 percent, straight from Moonraker.
+    /// Drives time estimates, which key off progress being 0 before a print.
     lv_subject_t* get_print_progress_subject() {
         return &print_progress_;
+    }
+
+    /// Progress for display: tracks print_progress_ until the print reaches a
+    /// terminal state, then holds its final value (100 on completion) until the
+    /// next print starts. Moonraker zeroes print_progress_ in the same batch as
+    /// STANDBY, so a display bound to the raw value drops to 0 the instant a
+    /// print finishes.
+    lv_subject_t* get_print_progress_display_subject() {
+        return &print_progress_display_;
+    }
+
+    /// print_progress_display_ rendered as "N%". Written by the same call that
+    /// writes the int, so a bar and its label can never disagree.
+    lv_subject_t* get_print_progress_text_subject() {
+        return &print_progress_text_;
     }
 
     /// Raw filename from Moonraker
@@ -96,6 +122,12 @@ class PrinterPrintState {
     }
 
     /// Integer enum value for type-safe logic (PrintJobState)
+    ///
+    /// RAW_PRINT_STATE_OK: this IS the wire subject. Consumers asking a
+    /// capability question want get_print_lifecycle_subject() instead - this one
+    /// cannot express a start the app has committed to but the printer has not
+    /// reported. Pair it with observe_print_state(), never the lifecycle
+    /// factory: the two enums do not share numbering.
     lv_subject_t* get_print_state_enum_subject() {
         return &print_state_enum_;
     }
@@ -139,6 +171,22 @@ class PrinterPrintState {
         return &print_thumbnail_path_;
     }
 
+#if defined(HELIX_PLATFORM_ESP32)
+    /// Bumped every time the PSRAM thumbnail below is replaced. ESP32 has no
+    /// disk thumbnail cache, so print_thumbnail_path_ stays empty there and
+    /// consumers observe this counter instead, then pull the shared_ptr.
+    lv_subject_t* get_print_psram_thumb_gen_subject() {
+        return &print_psram_thumb_gen_;
+    }
+
+    /// Current print's PSRAM-resident thumbnail, or nullptr when none is
+    /// loaded. UI thread only — the returned shared_ptr keeps the buffer alive
+    /// for as long as a widget's image src points at its descriptor.
+    [[nodiscard]] std::shared_ptr<helix::ui::EspPsramThumbnail> get_print_psram_thumbnail() const {
+        return print_psram_thumbnail_;
+    }
+#endif
+
     /**
      * @brief Image the print-thumbnail subject carries when there is no thumbnail
      *
@@ -150,11 +198,17 @@ class PrinterPrintState {
      * own guard against that; publishing an explicit placeholder removes the
      * input instead of the guards' need to disagree about it.
      *
-     * Re-exported as ActivePrintMediaManager::kNoThumbnailPlaceholder, which is
-     * the name the sole writer of this subject publishes it under.
+     * Re-exported as ActivePrintMediaManager::no_thumbnail_placeholder(), which
+     * is the name the sole writer of this subject publishes it under.
+     *
+     * Resolved through helix::asset_component_uri() rather than spelled as a
+     * literal: on firmware the bundle mounts at a configured root, so a raw
+     * "A:assets/images/..." misses the mount and lv_image_set_src fails to open
+     * it — LVGL then clears the widget. Identity on desktop (asset root ".").
+     * The resolved string is cached on first call, which is safe because every
+     * caller runs after helix::set_asset_root().
      */
-    static constexpr const char* kNoThumbnailPlaceholder =
-        "A:assets/images/benchy_thumbnail_white.png";
+    static const char* no_thumbnail_placeholder();
 
     /**
      * @brief Gcode filename the current thumbnail path was produced for
@@ -206,7 +260,7 @@ class PrinterPrintState {
      * `print_stats.filament_used` stream.
      *
      * Map entries are **pre-populated** in `init_subjects()` for all indices
-     * `0 .. kMaxExtruderScan-1`, so the map structure is frozen after init.
+     * `0 .. MAX_EXTRUDER_SCAN-1`, so the map structure is frozen after init.
      * This eliminates the WebSocket-BG-thread vs UI-thread rehash race that
      * lazy emplace would expose (only subject values change during status
      * updates, and `lv_subject_set_int` is atomic for the int value).
@@ -218,16 +272,97 @@ class PrinterPrintState {
      *
      * @param extruder_idx 0-based extruder index (0 = "extruder", 1 = "extruder1", ...)
      * @param[out] lifetime Token whose expiration signals subject death
-     * @return Non-null subject pointer for `0 <= idx < kMaxExtruderScan` once
+     * @return Non-null subject pointer for `0 <= idx < MAX_EXTRUDER_SCAN` once
      *         `init_subjects()` has run; `nullptr` otherwise (lifetime untouched).
      */
     lv_subject_t* get_extruder_filament_used_subject(int extruder_idx, SubjectLifetime& lifetime);
 
     /// Maximum number of per-extruder filament subjects pre-populated at init.
     /// Klipper toolchanger setups max out well below this.
-    static constexpr int kMaxExtruderScan = 16;
+    static constexpr int MAX_EXTRUDER_SCAN = 16;
 
     /// Current PrintStartPhase enum value
+    /**
+     * @brief Begin preparing a job, on the main thread
+     *
+     * The commit path: the user has chosen this job and work has started, but
+     * the printer has not been handed it yet. Clears the previous job's
+     * terminal state and raises the first pre-print phase.
+     *
+     * Synchronous by design. set_print_start_state() defers because it is
+     * called from WebSocket callbacks; a button press is already on the main
+     * thread, so the clear lands before anything can render a Preparing state
+     * next to the finished job's numbers.
+     */
+    void begin_preparing(const PrintJobRef& job);
+
+    /// Stop preparing. Every reason routes through here; see PreparingExit.
+    void retire_preparing(PreparingExit reason);
+
+    [[nodiscard]] bool has_preparing_job() const {
+        return !preparing_job_.empty();
+    }
+    [[nodiscard]] const PrintJobRef& preparing_job() const {
+        return preparing_job_;
+    }
+
+    /**
+     * @brief Bumped each time a job starts preparing; 0 when none is
+     *
+     * Consumers that must adopt the new job's identity - the media manager
+     * above all - observe this instead of relying on every start path
+     * remembering to tell them. An epoch rather than a flag, so two
+     * back-to-back prints of the SAME file are still distinguishable.
+     */
+    lv_subject_t* get_preparing_epoch_subject() {
+        return &preparing_epoch_;
+    }
+
+    /**
+     * @brief The UI-level print state as it was before the current one
+     *
+     * Published from the same place that computes the transition, so a consumer
+     * can ask "what just happened?" without keeping a private previous-state
+     * variable. Eight of those existed, and they disagreed at the edges.
+     *
+     * Only rewritten when the state actually changes - otherwise it collapses
+     * to equal the current state and every consumer sees a self-transition.
+     */
+    lv_subject_t* get_print_lifecycle_prev_subject() {
+        return &print_lifecycle_prev_;
+    }
+
+    /// Why the last preparing job ended. Meaningful once the epoch reads 0.
+    [[nodiscard]] PreparingExit last_preparing_exit() const {
+        return last_preparing_exit_;
+    }
+
+    /**
+     * @brief The authoritative UI-level print state (PrintState enum)
+     *
+     * Derived from print_stats.state and the pre-print phase by
+     * derive_print_state(). Consumers observe this instead of re-deriving
+     * their own answer from the raw job-state enum.
+     */
+    lv_subject_t* get_print_lifecycle_subject() {
+        return &print_lifecycle_;
+    }
+
+    /**
+     * @brief Boolean form of job_holds_machine(), for XML bindings
+     *
+     * 1 whenever the lifecycle is Preparing, Printing or Paused. This is what
+     * motion, jog and extrude controls bind to; `print_active` is the same
+     * question asked of the wire, so it reads 0 for the whole of a host-side
+     * pre-print block while the toolhead is homing and probing.
+     *
+     * C++ callers should prefer `job_holds_machine(lifecycle)` on the value they
+     * already hold. The subject exists because XML cannot call a predicate.
+     */
+    lv_subject_t* get_job_holds_machine_subject() {
+        return &job_holds_machine_;
+    }
+
     lv_subject_t* get_print_start_phase_subject() {
         return &print_start_phase_;
     }
@@ -358,6 +493,21 @@ class PrinterPrintState {
      * @param path LVGL-compatible path (e.g., "A:/tmp/thumbnail_xxx.bin"), "" to clear
      */
     void set_print_thumbnail(const std::string& for_file, const std::string& path);
+
+#if defined(HELIX_PLATFORM_ESP32)
+    /**
+     * @brief Install the current print's PSRAM-resident thumbnail
+     *
+     * MAIN THREAD ONLY. Two reasons, both hard: the subject bump notifies
+     * observers that call LVGL widget APIs, and replacing the shared_ptr can
+     * drop the last reference to the previous thumbnail, whose destructor
+     * calls lv_image_cache_drop(). Background callers must marshal via
+     * tok.defer()/ui_queue_update() first.
+     *
+     * @param thumb New thumbnail (may be nullptr to clear)
+     */
+    void set_print_psram_thumbnail(std::shared_ptr<helix::ui::EspPsramThumbnail> thumb);
+#endif
 
     /**
      * @brief Set display-ready print filename for UI binding
@@ -525,8 +675,33 @@ class PrinterPrintState {
     /**
      * @brief Get current print job state as enum
      * @return Current PrintJobState
+     *
+     * RAW_PRINT_STATE_OK: this IS the wire accessor; get_print_lifecycle() is
+     * the derived one.
      */
     PrintJobState get_print_job_state() const;
+
+    /**
+     * @brief Get the derived print lifecycle
+     *
+     * The typed counterpart to get_print_job_state(), and the ONLY way call
+     * sites should read `print_lifecycle`. Reading the subject by hand means
+     * hand-casting the subject's int, and because
+     * lv_subject_get_int() returns int that cast compiles against whichever
+     * subject you happened to name - so pairing it with the raw
+     * print_state_enum subject is silent, and the two enums do NOT share
+     * numbering past index 0:
+     *
+     *     PrintJobState  STANDBY=0 PRINTING=1 PAUSED=2 COMPLETE=3 ...
+     *     PrintState     Idle=0    Preparing=1 Printing=2 Paused=3 ...
+     *
+     * so a COMPLETE job reads back as Paused and a PRINTING one as Preparing.
+     * That mistake was made twice while migrating guards onto the lifecycle
+     * (ams_backend_ad5x_ifs, power_device_state) and was invisible both times
+     * until a test caught it. This accessor removes the cast, and with it the
+     * opportunity.
+     */
+    [[nodiscard]] PrintState get_print_lifecycle() const;
 
     /**
      * @brief Check if a new print can be started
@@ -545,6 +720,19 @@ class PrinterPrintState {
      * @return true if phase is not IDLE
      */
     [[nodiscard]] bool is_in_print_start() const;
+
+    /// Recompute and publish print_lifecycle from job state + pre-print phase.
+    void publish_lifecycle_state();
+
+    /**
+     * @brief Settle a live preparing job against what the printer reports
+     *
+     * Idempotent, and called from both the job-state and filename parse points
+     * because either can arrive first. Only a PRINTING report settles anything:
+     * the previous job going terminal while ours prepares is the whole reason
+     * this exists, so it must leave the claim intact.
+     */
+    void reconcile_preparing();
 
   private:
     friend class PrinterPrintStateTestAccess;
@@ -565,6 +753,18 @@ class PrinterPrintState {
      * so there is nothing here to duplicate.
      */
     void update_display_message_visible();
+
+    /// Write print_progress_display_ and print_progress_text_ together. The sole
+    /// writer of both, so the int and its rendered string cannot drift apart.
+    /// No-ops while progress_frozen_ is set.
+    void publish_progress_display(int percent);
+
+    /// Hold the current display progress until the next print starts. Called on
+    /// the transition into COMPLETE/CANCELLED/ERROR; completion pins 100 first.
+    void freeze_progress_display(bool complete);
+
+    /// Resume tracking print_progress_ and reset the display to 0.
+    void unfreeze_progress_display();
 
     /**
      * @brief Internal setter for print-in-progress flag
@@ -591,6 +791,8 @@ class PrinterPrintState {
 
     // Print progress subjects
     lv_subject_t print_progress_{};         // Integer 0-100
+    lv_subject_t print_progress_display_{}; // Integer 0-100, frozen after completion
+    lv_subject_t print_progress_text_{};    // String: print_progress_display_ as "N%"
     lv_subject_t print_filename_{};         // String buffer
     lv_subject_t print_state_{};            // String buffer (for UI display)
     lv_subject_t print_state_enum_{};       // Integer: PrintJobState enum
@@ -599,6 +801,14 @@ class PrinterPrintState {
     lv_subject_t print_show_progress_{};    // Integer: 1 when active AND not starting
     lv_subject_t print_display_filename_{}; // String: clean filename
     lv_subject_t print_thumbnail_path_{};   // String: LVGL thumbnail path
+
+#if defined(HELIX_PLATFORM_ESP32)
+    // ESP32 thumbnail route (Task 11 R2): no disk cache on this platform, so
+    // the image lives in PSRAM behind a shared_ptr instead of at a path. The
+    // counter subject is what UI code observes; the pointer is what it reads.
+    lv_subject_t print_psram_thumb_gen_{}; // Integer: bumped on every install
+    std::shared_ptr<helix::ui::EspPsramThumbnail> print_psram_thumbnail_;
+#endif
 
     // Layer tracking subjects
     lv_subject_t print_layer_current_{}; // Current layer (0-based)
@@ -624,7 +834,7 @@ class PrinterPrintState {
     lv_subject_t print_filament_used_{}; // Filament used in mm (from Moonraker print_stats)
 
     // Per-extruder filament_used (mm) — heap-allocated for stable pointers.
-    // Map entries are pre-populated by init_subjects() for indices 0..kMaxExtruderScan-1,
+    // Map entries are pre-populated by init_subjects() for indices 0..MAX_EXTRUDER_SCAN-1,
     // freezing the map structure so the WebSocket background thread cannot trigger
     // a rehash while a UI-thread caller is reading. Only the int value inside
     // each subject is mutated during status updates (atomic via lv_subject_set_int).
@@ -644,11 +854,37 @@ class PrinterPrintState {
 
     // Print start progress subjects
     lv_subject_t print_start_phase_{};    // Integer: PrintStartPhase enum
+    lv_subject_t print_lifecycle_{};      // Integer: PrintState enum (derived)
+    lv_subject_t print_lifecycle_prev_{}; // Integer: PrintState enum, value before the current
+    lv_subject_t job_holds_machine_{};    // Integer 0/1: job_holds_machine(print_lifecycle)
+
+    /// The job we are preparing; empty when none. See begin_preparing().
+    PrintJobRef preparing_job_{};
+    lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
+    int preparing_epoch_counter_ = 0;
+    PreparingExit last_preparing_exit_ = PreparingExit::Confirmed;
     lv_subject_t print_start_message_{};  // String: phase message
     lv_subject_t print_start_progress_{}; // Integer: 0-100%
 
     // Print workflow in-progress subject
     lv_subject_t print_in_progress_{};
+
+    /// Backstop for a preparing job the printer never acknowledges.
+    ///
+    /// `print_in_progress` is published from the preparing job, and
+    /// `can_start_new_print()` refuses while it is set - so without a bound, a
+    /// job that never confirms would lock out every later print for the rest of
+    /// the session. Armed by begin_preparing(), disarmed by retire_preparing().
+    lv_timer_t* preparing_watchdog_ = nullptr;
+
+    /// Half an hour. Must sit above the slowest legitimate pre-print: the K2
+    /// Plus runs ~1140s with a forced mesh, and PrintStartCollector uses the
+    /// same 1800s as its own "definitely stuck" ceiling.
+    static constexpr uint32_t PREPARING_WATCHDOG_MS = 1800U * 1000U;
+
+    void arm_preparing_watchdog();
+    void cancel_preparing_watchdog();
+    static void preparing_watchdog_cb(lv_timer_t* timer);
 
     // Pre-print duration prediction subjects
     lv_subject_t print_start_time_left_{};
@@ -703,6 +939,10 @@ class PrinterPrintState {
     // only, updated from update_from_status.
     bool sdcard_active_ = false;
 
+    /// True between a terminal print state and the start of the next print,
+    /// while print_progress_display_ holds its final value.
+    bool progress_frozen_ = false;
+
     // virtual_sdcard.pl_env_valid — Snapmaker-fork Power-Loss-Recovery flag.
     lv_subject_t pl_env_valid_{}; // Integer: 1 when a validated PLR snapshot exists
     // virtual_sdcard.file_path — companion to pl_env_valid_. Not a subject:
@@ -743,6 +983,7 @@ class PrinterPrintState {
     // Identity for print_thumbnail_path_: the gcode filename that path was
     // produced for. Plain member (no XML binding), written before the subject.
     std::string print_thumbnail_file_;
+    char print_progress_text_buf_[16]{};
     char print_state_buf_[32]{};
     char print_start_message_buf_[64]{};
     char print_start_time_left_buf_[32]{};

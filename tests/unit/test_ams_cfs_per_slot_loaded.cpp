@@ -105,8 +105,7 @@ TEST_CASE("CFS claims per-slot load authority", "[ams][cfs][1199]") {
 // The parse stamps LOADED on the seated bay
 // ============================================================================
 
-TEST_CASE("CFS parse stamps LOADED on the lane the toolhead is fed from",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS parse stamps LOADED on the lane the toolhead is fed from", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
 
     // Letter alone is a lane selection, not a seated lane — the toolhead switch
@@ -154,8 +153,7 @@ TEST_CASE("CFS parse stamps LOADED on the lane the toolhead is fed from",
     }
 }
 
-TEST_CASE("CFS LOADED stamp follows the active lane across a toolchange",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS LOADED stamp follows the active lane across a toolchange", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
     cfs.feed_box(make_box("A"));
     cfs.feed_toolhead_sensor(true);
@@ -171,8 +169,7 @@ TEST_CASE("CFS LOADED stamp follows the active lane across a toolchange",
     CHECK_FALSE(cfs.slot_is_actively_loaded(0));
 }
 
-TEST_CASE("CFS LOADED stamp honours the per-unit global-index offset",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS LOADED stamp honours the per-unit global-index offset", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
 
     // T2's lane A is global slot 4, not 0 — the offset is (n-1)*4.
@@ -191,8 +188,7 @@ TEST_CASE("CFS LOADED stamp honours the per-unit global-index offset",
 // Un-stamping restores what firmware said, not a guess
 // ============================================================================
 
-TEST_CASE("CFS clears the LOADED stamp when the toolhead switch opens",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS clears the LOADED stamp when the toolhead switch opens", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
     cfs.feed_box(make_box("B"));
     cfs.feed_toolhead_sensor(true);
@@ -207,8 +203,7 @@ TEST_CASE("CFS clears the LOADED stamp when the toolhead switch opens",
     CHECK_FALSE(cfs.can_unload_from_toolhead(1));
 }
 
-TEST_CASE("CFS un-stamping restores EMPTY rather than inventing a spool",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS un-stamping restores EMPTY rather than inventing a spool", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
 
     // Bay 2 reads EMPTY (no RFID vendor, no remaining length) while the unit
@@ -229,8 +224,7 @@ TEST_CASE("CFS un-stamping restores EMPTY rather than inventing a spool",
     CHECK_FALSE(cfs.get_slot_info(2).is_present());
 }
 
-TEST_CASE("CFS drops the LOADED stamp when no unit names an active lane",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS drops the LOADED stamp when no unit names an active lane", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
     cfs.feed_box(make_box("B"));
     cfs.feed_toolhead_sensor(true);
@@ -253,8 +247,7 @@ TEST_CASE("CFS drops the LOADED stamp when no unit names an active lane",
 // Equivalence with the aggregate rule it replaces
 // ============================================================================
 
-TEST_CASE("CFS per-slot rule agrees with the aggregate pair it derives from",
-          "[ams][cfs][1199]") {
+TEST_CASE("CFS per-slot rule agrees with the aggregate pair it derives from", "[ams][cfs][1199]") {
     CfsPerSlotLoadedHelper cfs;
     cfs.feed_box(make_box("None"));
 

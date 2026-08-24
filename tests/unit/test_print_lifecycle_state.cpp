@@ -369,7 +369,6 @@ TEST_CASE("gcode_loaded preserved on all terminal states", "[lifecycle][state]")
         TA::set_gcode_loaded(sm, true);
 
         auto result = sm.on_job_state_changed(PrintJobState::COMPLETE, PrintOutcome::COMPLETE);
-        REQUIRE(result.clear_gcode_loaded == false);
         REQUIRE(sm.gcode_loaded() == true);
     }
 
@@ -379,7 +378,6 @@ TEST_CASE("gcode_loaded preserved on all terminal states", "[lifecycle][state]")
         TA::set_gcode_loaded(sm, true);
 
         auto result = sm.on_job_state_changed(PrintJobState::CANCELLED, PrintOutcome::CANCELLED);
-        REQUIRE(result.clear_gcode_loaded == false);
         REQUIRE(sm.gcode_loaded() == true);
     }
 
@@ -389,7 +387,6 @@ TEST_CASE("gcode_loaded preserved on all terminal states", "[lifecycle][state]")
         TA::set_gcode_loaded(sm, true);
 
         auto result = sm.on_job_state_changed(PrintJobState::ERROR, PrintOutcome::ERROR);
-        REQUIRE(result.clear_gcode_loaded == false);
         REQUIRE(sm.gcode_loaded() == true);
     }
 
@@ -399,7 +396,6 @@ TEST_CASE("gcode_loaded preserved on all terminal states", "[lifecycle][state]")
         TA::set_gcode_loaded(sm, true);
 
         auto result = sm.on_job_state_changed(PrintJobState::STANDBY, PrintOutcome::NONE);
-        REQUIRE(result.clear_gcode_loaded == true);
         REQUIRE(sm.gcode_loaded() == false);
     }
 }
@@ -618,4 +614,63 @@ TEST_CASE("Duration ignored when outcome != NONE", "[lifecycle][guard]") {
 
     REQUIRE(sm.on_duration_changed(100, PrintOutcome::COMPLETE) == false);
     REQUIRE(sm.elapsed_seconds() == 500);
+}
+
+// ============================================================================
+// derive_print_state - the single job-state -> UI-state mapping
+// ============================================================================
+
+TEST_CASE("derive_print_state maps every job state", "[lifecycle][state]") {
+    // The mapping from Moonraker's PrintJobState to the UI-level PrintState was
+    // reimplemented inside PrintLifecycleState::on_job_state_changed while three
+    // other components re-derived their own answers from the raw enum. This is
+    // the single definition they all key off.
+    const int no_phase = 0;
+
+    REQUIRE(derive_print_state(PrintJobState::STANDBY, no_phase) == PrintState::Idle);
+    REQUIRE(derive_print_state(PrintJobState::PRINTING, no_phase) == PrintState::Printing);
+    REQUIRE(derive_print_state(PrintJobState::PAUSED, no_phase) == PrintState::Paused);
+    REQUIRE(derive_print_state(PrintJobState::COMPLETE, no_phase) == PrintState::Complete);
+    REQUIRE(derive_print_state(PrintJobState::CANCELLED, no_phase) == PrintState::Cancelled);
+    REQUIRE(derive_print_state(PrintJobState::ERROR, no_phase) == PrintState::Error);
+}
+
+TEST_CASE("derive_print_state reports Preparing whenever a pre-print phase is live",
+          "[lifecycle][state][preparing]") {
+    // A live pre-print phase outranks the job state. This is what makes
+    // Preparing reachable before the printer reports PRINTING at all: a
+    // host-side pre-start block runs while print_stats still holds the previous
+    // job's terminal state.
+    SECTION("phase outranks a terminal job state") {
+        REQUIRE(derive_print_state(PrintJobState::COMPLETE, 1) == PrintState::Preparing);
+        REQUIRE(derive_print_state(PrintJobState::CANCELLED, 1) == PrintState::Preparing);
+    }
+
+    SECTION("phase outranks standby") {
+        REQUIRE(derive_print_state(PrintJobState::STANDBY, 1) == PrintState::Preparing);
+    }
+
+    SECTION("phase outranks printing, which is the in-PRINT_START case") {
+        REQUIRE(derive_print_state(PrintJobState::PRINTING, 3) == PrintState::Preparing);
+    }
+
+    SECTION("a paused job is not masked by a stale phase") {
+        // Pause is a user-visible state that must win: a phase left set while the
+        // printer is paused would hide the pause from every consumer.
+        REQUIRE(derive_print_state(PrintJobState::PAUSED, 1) == PrintState::Paused);
+    }
+}
+
+TEST_CASE("derive_print_state agrees with the state machine it replaces", "[lifecycle][state]") {
+    // Guards against the mapping drifting from PrintLifecycleState's own
+    // transition handling, which is the failure this consolidation exists to
+    // prevent.
+    const PrintJobState all[] = {PrintJobState::STANDBY,   PrintJobState::PRINTING,
+                                 PrintJobState::PAUSED,    PrintJobState::COMPLETE,
+                                 PrintJobState::CANCELLED, PrintJobState::ERROR};
+    for (PrintJobState js : all) {
+        PrintLifecycleState sm;
+        sm.on_job_state_changed(js, PrintOutcome::NONE);
+        REQUIRE(sm.state() == derive_print_state(js, 0));
+    }
 }

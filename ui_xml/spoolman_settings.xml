@@ -137,13 +137,21 @@
                           label="Label Printer" label_tag="Label Printer" icon="print"
                           description="Configure label printer and auto-discovery"
                           description_tag="Configure label printer and auto-discovery"
-                          callback="on_spoolman_label_printer_clicked"/>
+                          callback="on_spoolman_label_printer_clicked">
+        <!-- Hidden on the v1 (ESP32/K-Touch) cut — no label printer. Desktop
+             (platform_extras_available==1) renders it exactly as before. -->
+        <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
+      </setting_action_row>
       <!-- ================================================================== -->
       <!-- Barcode Scanner (opens device picker)                              -->
       <!-- ================================================================== -->
       <setting_action_row name="row_barcode_scanner"
                           label="Barcode Scanner" label_tag="Barcode Scanner" icon="qrcode_scan"
-                          bind_description="scanner_device_status" callback="on_barcode_scanner_clicked"/>
+                          bind_description="scanner_device_status" callback="on_barcode_scanner_clicked">
+        <!-- Hidden on the v1 (ESP32/K-Touch) cut — no barcode scanner. Desktop
+             (platform_extras_available==1) renders it exactly as before. -->
+        <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
+      </setting_action_row>
     </lv_obj>
   </view>
 </component>

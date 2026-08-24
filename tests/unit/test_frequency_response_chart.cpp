@@ -165,6 +165,36 @@ TEST_CASE_METHOD(FrequencyResponseChartTestFixture, "Remove series cleans up",
         REQUIRE(id2 >= 0);
     }
 
+    SECTION("Reused slot does not inherit the muted flag") {
+        // The live-before overlay marks its series muted; after removal the
+        // slot must come back clean or a later fitted series would be
+        // double-drawn and could never be hidden by a chip toggle.
+        int id = ui_frequency_response_chart_add_series(chart, "Was", lv_color_hex(0x888888));
+        REQUIRE(id >= 0);
+        ui_frequency_response_chart_set_series_muted(chart, id, true);
+        REQUIRE(ui_frequency_response_chart_is_series_muted(chart, id));
+
+        ui_frequency_response_chart_remove_series(chart, id);
+
+        int id2 = ui_frequency_response_chart_add_series(chart, "Fitted", lv_color_hex(0x00FF00));
+        REQUIRE(id2 >= 0);
+        CHECK_FALSE(ui_frequency_response_chart_is_series_muted(chart, id2));
+    }
+
+    SECTION("Every series the results card needs fits without exhaustion") {
+        // Raw PSD + up to MAX_SHAPERS (11) fitted curves + the live-before
+        // overlay: a Kalico CSV with 11 fitted columns must not silently drop
+        // the last-added series.
+        int last_id = -1;
+        for (int i = 0; i < 13; i++) {
+            INFO("series index " << i);
+            last_id = ui_frequency_response_chart_add_series(chart, "S", lv_color_hex(0x00FF00));
+            REQUIRE(last_id >= 0);
+        }
+        // The 14th exceeds the slot budget and must fail loudly, not wrap.
+        CHECK(ui_frequency_response_chart_add_series(chart, "S", lv_color_hex(0x00FF00)) == -1);
+    }
+
     SECTION("Remove series from middle maintains others") {
         int id1 = ui_frequency_response_chart_add_series(chart, "Series1", lv_color_hex(0xFF4444));
         int id2 = ui_frequency_response_chart_add_series(chart, "Series2", lv_color_hex(0x44FF44));

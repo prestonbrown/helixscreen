@@ -96,10 +96,10 @@ EOF
     grep -q 'Alice \\"Ace\\" Example' build/generated/contributors.h
 }
 
-@test "generated header declares kContributorCount" {
+@test "generated header declares CONTRIBUTOR_COUNT" {
     cd "$WORK_DIR"
     echo "Alice Example" > CONTRIBUTORS.txt
     BUILD_DIR=build ./scripts/gen-contributors.sh
-    grep -q 'kContributorCount' build/generated/contributors.h
-    grep -q 'kContributors\[\]' build/generated/contributors.h
+    grep -q 'CONTRIBUTOR_COUNT' build/generated/contributors.h
+    grep -q 'CONTRIBUTORS\[\]' build/generated/contributors.h
 }

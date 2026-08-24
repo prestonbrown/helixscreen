@@ -17,7 +17,7 @@ namespace helix {
  * thread.
  *
  * SCOPE: consulted ONLY by the busy-toast decision in
- * MoonrakerAPI::execute_gcode. Neither PrinterState::is_blocking_operation_active()
+ * IMoonrakerAPI::execute_gcode. Neither PrinterState::is_blocking_operation_active()
  * nor is_external_blocking_operation_active() reads it, and neither may start:
  * those predicates also gate motion, and letting a late jog through during a
  * filament op is a toolhead-collision hazard (#1108). Blast radius is one
@@ -29,14 +29,14 @@ namespace helix {
  * in the gap between "Moonraker acked the macro" and "idle_timeout finally
  * cleared" would still see a blocking op with nothing outstanding, and toast.
  *
- * Invariant: MoonrakerAPI::execute_gcode wraps BOTH the success and error
+ * Invariant: IMoonrakerAPI::execute_gcode wraps BOTH the success and error
  * callback of every stamped send — including when the caller supplied neither,
  * which is the common case for macro sends — so inflight_ stays balanced.
  */
 class AppMacroActivity {
   public:
     using clock = std::chrono::steady_clock;
-    static constexpr std::chrono::seconds kGraceWindow{2};
+    static constexpr std::chrono::seconds GRACE_WINDOW{2};
 
     /**
      * Ceiling on how long a single in-flight send may keep the tracker active.
@@ -55,7 +55,7 @@ class AppMacroActivity {
      * 10-minute ceiling sits safely above any legitimate in-flight macro and
      * converts a permanent wedge into a bounded, self-healing one.
      */
-    static constexpr std::chrono::minutes kMaxInflightAge{10};
+    static constexpr std::chrono::minutes MAX_INFLIGHT_AGE{10};
 
     void note_sent(clock::time_point now = clock::now()) {
         last_sent_ns_.store(now.time_since_epoch().count(), std::memory_order_relaxed);
@@ -74,13 +74,13 @@ class AppMacroActivity {
     bool recently_active(clock::time_point now = clock::now()) const {
         if (inflight_.load(std::memory_order_relaxed) > 0) {
             // Self-healing ceiling: if even the NEWEST send is older than
-            // kMaxInflightAge, the counter is stuck, not busy. Treat it as
+            // MAX_INFLIGHT_AGE, the counter is stuck, not busy. Treat it as
             // inactive so the toast comes back rather than staying suppressed
             // for the rest of the session.
             const auto sent_ns = last_sent_ns_.load(std::memory_order_relaxed);
             if (sent_ns != 0) {
                 const clock::time_point sent{clock::duration{sent_ns}};
-                if ((now - sent) < kMaxInflightAge) {
+                if ((now - sent) < MAX_INFLIGHT_AGE) {
                     return true;
                 }
             }
@@ -90,7 +90,7 @@ class AppMacroActivity {
             return false;
         }
         const clock::time_point last{clock::duration{last_ns}};
-        return (now - last) < kGraceWindow;
+        return (now - last) < GRACE_WINDOW;
     }
 
   private:

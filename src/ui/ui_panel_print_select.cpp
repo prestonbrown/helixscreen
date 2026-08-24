@@ -27,20 +27,21 @@
 #include "ui_print_select_history.h"
 #include "ui_print_select_path_navigator.h"
 #include "ui_subject_registry.h"
+#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "connection_state.h" // For ConnectionState enum
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "gcode_parser.h" // For extract_thumbnails_from_content (USB thumbnail fallback)
 #include "helix-xml/src/xml/lv_xml.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h" // For ConnectionState enum
 #include "observer_factory.h"
 #include "preprint_predictor.h"
 #include "print_history_manager.h"
@@ -99,7 +100,7 @@ static std::vector<uint8_t> read_file_bytes(const std::string& path) {
 
 static std::unique_ptr<PrintSelectPanel> g_print_select_panel;
 
-PrintSelectPanel* get_print_select_panel(PrinterState& printer_state, MoonrakerAPI* api) {
+PrintSelectPanel* get_print_select_panel(PrinterState& printer_state, IMoonrakerAPI* api) {
     if (!g_print_select_panel) {
         g_print_select_panel = std::make_unique<PrintSelectPanel>(printer_state, api);
         // Register both deinit AND destruction in one callback (consistent with other panels)
@@ -194,7 +195,7 @@ static void on_print_detail_back_clicked(lv_event_t* e) {
 // Constructor / Destructor
 // ============================================================================
 
-PrintSelectPanel::PrintSelectPanel(PrinterState& printer_state, MoonrakerAPI* api)
+PrintSelectPanel::PrintSelectPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::trace("[{}] Constructed", get_name());
 }
@@ -559,6 +560,25 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             }
 
             panel->apply_sort();
+
+#if defined(HELIX_PLATFORM_ESP32)
+            // Task 11 R1: cap the browsable list to the newest N files. No
+            // local disk/pagination UI on this platform — an unbounded list
+            // from a printer with years of prints would be an unusable
+            // scroll and a PSRAM/RAM cost for card recycling metadata.
+            // apply_sort() above has just guaranteed dirs-first + newest-
+            // files-first, so a straight tail-truncate keeps the newest N.
+            // Cap runs every refresh (needed for correctness even when
+            // nothing else changed), but the toast is deferred until we know
+            // below whether the list actually changed — this poll fires
+            // every 5s and frequently returns identical data, and
+            // ToastManager has no dedup, so toasting here unconditionally
+            // would spam the same message on every poll (review finding).
+            constexpr size_t ESP32_MAX_FILE_COUNT = 50;
+            bool esp32_list_capped =
+                cap_print_file_list_to_newest(panel->file_list_, ESP32_MAX_FILE_COUNT);
+#endif
+
             panel->merge_history_into_file_list(); // Populate history status for each file
             panel->update_sort_indicators();
 
@@ -581,6 +601,13 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
             if (list_changed) {
                 spdlog::debug("[{}] File list changed, repopulating", panel->get_name());
+#if defined(HELIX_PLATFORM_ESP32)
+                if (esp32_list_capped) {
+                    ToastManager::instance().show(
+                        ToastSeverity::INFO,
+                        lv_tr("Showing the 50 newest files. See more in the printer's web UI."));
+                }
+#endif
                 if (panel->current_view_mode_ == PrintSelectViewMode::CARD) {
                     panel->populate_card_view(same_dir);
                 } else {
@@ -679,7 +706,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (api_) {
         refresh_files();
     } else {
-        spdlog::debug("[{}] MoonrakerAPI not available yet, waiting for set_api()", get_name());
+        spdlog::debug("[{}] IMoonrakerAPI not available yet, waiting for set_api()", get_name());
         update_empty_state();
     }
 
@@ -725,6 +752,8 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Register observer on print job state enum to enable/disable print button
     // Prevents starting a new print while one is already in progress
     // NOTE: get_print_state_enum_subject() is INT, get_print_state_subject() is STRING
+    // RAW_PRINT_STATE_OK: pairs with the print_filename read below, which still
+    // holds the PREVIOUS job during a preparing window.
     lv_subject_t* print_state_subject = printer_state_.get_print_state_enum_subject();
     if (print_state_subject) {
         print_state_observer_ = observe_int_sync<PrintSelectPanel>(
@@ -1128,6 +1157,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
     // Copy filament colors (per-tool hex colors parsed from Moonraker)
     std::vector<std::string> filament_colors = metadata.filament_colors;
     uint32_t layer_count = metadata.layer_count;
+    uint64_t gcode_end_byte = metadata.gcode_end_byte;
     double object_height = metadata.object_height;
     double layer_height = metadata.layer_height;
     std::string uuid = metadata.uuid;
@@ -1180,6 +1210,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
         std::string print_time_str;
         std::string filament_str;
         uint32_t layer_count;
+        uint64_t gcode_end_byte;
         std::string layer_count_str;
         double object_height;
         std::string print_height_str;
@@ -1213,6 +1244,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                                                                        print_time_str,
                                                                        filament_str,
                                                                        layer_count,
+                                                                       gcode_end_byte,
                                                                        layer_count_str,
                                                                        object_height,
                                                                        print_height_str,
@@ -1261,6 +1293,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
             self->file_list_[d->index].print_time_str = d->print_time_str;
             self->file_list_[d->index].filament_str = d->filament_str;
             self->file_list_[d->index].layer_count = d->layer_count;
+            self->file_list_[d->index].gcode_end_byte = d->gcode_end_byte;
             self->file_list_[d->index].layer_count_str = d->layer_count_str;
             self->file_list_[d->index].object_height = d->object_height;
             self->file_list_[d->index].print_height_str = d->print_height_str;
@@ -1360,6 +1393,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                             });
                     }
                 } else {
+#if !defined(HELIX_PLATFORM_ESP32)
                     // Remote path - use semantic API for card view thumbnails
                     spdlog::debug("[{}] Fetching card thumbnail for {}: {}", self->get_name(),
                                   d->filename, d->thumb_path);
@@ -1443,6 +1477,56 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                             spdlog::warn("[{}] Failed to fetch thumbnail for {}: {}",
                                          self->get_name(), filename_copy, error);
                         });
+#else
+                    // ESP32 (Task 11 R2): no disk thumbnail cache on this platform
+                    // (Task 10 R6), so bypass ThumbnailCache/ThumbnailProcessor
+                    // entirely and fetch the PNG bytes directly via the HTTP lane,
+                    // decoding into a PSRAM-backed lv_image_dsc_t instead of a
+                    // cache file (see esp_psram_thumbnail.h).
+                    //
+                    // MANDATORY threading: EspHttpLane invokes on_success/on_error
+                    // directly on its own worker thread with no built-in
+                    // marshaling. This callback therefore does only local
+                    // byte-copy/PSRAM work on the worker thread and defers every
+                    // `self`/file_list_ touch via panel_tok.defer() — `self` is
+                    // captured here only to pass into that deferred lambda, never
+                    // dereferenced on this thread.
+                    spdlog::debug("[{}] Fetching PSRAM thumbnail for {}: {}", self->get_name(),
+                                  d->filename, d->thumb_path);
+
+                    size_t file_idx = d->index;
+                    std::string filename_copy = d->filename;
+                    constexpr size_t ESP32_THUMBNAIL_MAX_BYTES = 512 * 1024;
+
+                    self->api_->transfers().download_file_partial(
+                        "gcodes", d->thumb_path, ESP32_THUMBNAIL_MAX_BYTES,
+                        // Success callback — runs on the EspHttpLane worker thread.
+                        [self, panel_tok, file_idx, filename_copy](const std::string& png_bytes) {
+                            auto thumb = helix::ui::EspPsramThumbnail::create(png_bytes);
+                            if (!thumb) {
+                                spdlog::warn("[PrintSelectPanel] PSRAM alloc failed for "
+                                             "thumbnail: {}",
+                                             filename_copy);
+                                return;
+                            }
+                            panel_tok.defer(
+                                "PrintSelectPanel::on_psram_thumbnail_fetched",
+                                [self, file_idx, filename_copy,
+                                 thumb = std::move(thumb)]() mutable {
+                                    if (file_idx < self->file_list_.size() &&
+                                        self->file_list_[file_idx].filename == filename_copy) {
+                                        self->file_list_[file_idx].esp_thumbnail = std::move(thumb);
+                                        self->schedule_view_refresh();
+                                    }
+                                });
+                        },
+                        // Error callback — bg thread, log only, no member access.
+                        [filename_copy](const MoonrakerError& error) {
+                            spdlog::debug(
+                                "[PrintSelectPanel] PSRAM thumbnail fetch failed for {}: {}",
+                                filename_copy, error.message);
+                        });
+#endif
                 }
             } else if (self->api_) {
                 // No thumbnail from metadata - try extracting from gcode file directly
@@ -1593,7 +1677,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
     }
 }
 
-void PrintSelectPanel::set_api(MoonrakerAPI* api) {
+void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
     api_ = api;
 
     // Update file provider's API reference (it was created with nullptr in setup())
@@ -1628,9 +1712,34 @@ void PrintSelectPanel::set_api(MoonrakerAPI* api) {
         auto* self = this;
         api_->register_method_callback(
             "notify_filelist_changed", filelist_handler_name_, [self](const json& msg) {
-                spdlog::info(
-                    "[{}] notify_filelist_changed received: {}", self->get_name(),
-                    msg.dump(-1, ' ', false, json::error_handler_t::replace).substr(0, 500));
+                // Action + path only, never the raw payload. The full dump ran
+                // ~344 bytes a line, and an AFC printer fires this constantly
+                // (AFC rewrites AFC/AFC.var.unit on every SET_* command), so on
+                // one debug bundle it burned 97 KB of a ring that has to hold
+                // the whole session. Nothing downstream reads the other fields.
+                std::string action = "?";
+                std::string root;
+                std::string path;
+                if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty()) {
+                    const json& p = msg["params"][0];
+                    action = p.value("action", "?");
+                    if (p.contains("item") && p["item"].is_object()) {
+                        const json& item = p["item"];
+                        root = item.value("root", "");
+                        path = root + ":" + item.value("path", "");
+                    }
+                }
+
+                // Roots other than "gcodes" cannot change this list, and the
+                // config root churns constantly on an AFC printer. Log those at
+                // debug so the ring still shows they arrived without one line
+                // per 10 s of print time.
+                if (!filelist_change_affects_gcodes(root)) {
+                    spdlog::debug("[{}] notify_filelist_changed: {} {} (other root, ignored)",
+                                  self->get_name(), action, path);
+                    return;
+                }
+                spdlog::info("[{}] notify_filelist_changed: {} {}", self->get_name(), action, path);
 
                 // Check if we're on the printer source (not USB)
                 bool is_usb_active = self->usb_source_ && self->usb_source_->is_usb_active();
@@ -1994,7 +2103,8 @@ void PrintSelectPanel::show_detail_view() {
         std::string filename(selected_filename_buffer_);
         detail_view_->show(filename, current_path_, selected_filament_type_,
                            selected_filament_colors_, selected_filament_materials_,
-                           selected_file_size_bytes_);
+                           selected_file_size_bytes_, selected_modified_timestamp_,
+                           selected_gcode_end_byte_);
         // Update history status display in detail view
         detail_view_->update_history_status(selected_history_status_, selected_success_count_);
     }
@@ -2011,7 +2121,17 @@ void PrintSelectPanel::hide_detail_view() {
     detail_view_open_ = false;
 
     if (detail_view_) {
-        detail_view_->hide();
+        // hide() pops the overlay via go_back(), and its only guard is
+        // overlay_root_ existing — which setup() creates eagerly. Calling it
+        // when the overlay was never pushed (a long-press delete never opens
+        // the detail view) pops panel_stack_.back() instead: for a main-panel
+        // stack that is this panel itself, and go_back()'s empty-stack
+        // fallback lands on Home. is_visible() is driven by NavigationManager
+        // push/pop, the same gate on_deactivate() uses for its rebuild-path
+        // close.
+        if (detail_view_->is_visible()) {
+            detail_view_->hide();
+        }
     }
 }
 
@@ -2270,6 +2390,11 @@ void PrintSelectPanel::merge_history_into_file_list() {
 
     // Get currently printing filename (if any)
     std::string current_print_filename;
+    // RAW_PRINT_STATE_OK: reads print_filename, which reset_for_new_print()
+    // deliberately does NOT clear - so during a preparing window it still holds
+    // the PREVIOUS job. Widening this would badge the wrong file rather than
+    // none. Badging the committed file would mean reading preparing_job()
+    // instead, which is a feature, not this migration.
     auto print_state = printer_state_.get_print_job_state();
     if (print_state == PrintJobState::PRINTING || print_state == PrintJobState::PAUSED) {
         if (auto* filename_subject = printer_state_.get_print_filename_subject()) {
@@ -2538,6 +2663,8 @@ void PrintSelectPanel::apply_file_selection(const PrintFileData& file) {
     selected_filament_colors_ = file.filament_colors;
     selected_filament_materials_ = file.filament_types;
     selected_file_size_bytes_ = file.file_size_bytes;
+    selected_modified_timestamp_ = file.modified_timestamp;
+    selected_gcode_end_byte_ = file.gcode_end_byte;
     selected_history_status_ = file.history_status;
     selected_success_count_ = file.success_count;
 }

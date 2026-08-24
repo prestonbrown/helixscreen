@@ -102,8 +102,8 @@ struct QuantizationParams {
  */
 /// Fallback toolpath color (teal) used when a vertex's color_index has no
 /// entry in the palette. Not to be confused with GCodeGLESRenderer's
-/// kDefaultFilamentColor, which is the same shade as a normalized glm::vec4.
-constexpr uint32_t kDefaultToolpathColor = 0x26A69A;
+/// DEFAULT_FILAMENT_COLOR, which is the same shade as a normalized glm::vec4.
+constexpr uint32_t DEFAULT_TOOLPATH_COLOR = 0x26A69A;
 
 struct PackedVertex {
     /// Quantized position, uploaded as GL_SHORT *unnormalized* and turned back
@@ -233,16 +233,16 @@ struct RibbonGeometry {
     /**
      * @brief Resolve a strip's RGB color through strip_color_index + color_palette.
      *
-     * Falls back to kDefaultToolpathColor when the strip has no recorded index or
+     * Falls back to DEFAULT_TOOLPATH_COLOR when the strip has no recorded index or
      * the index is stale relative to the palette.
      */
     uint32_t strip_color(size_t strip_idx) const {
         if (strip_idx >= strip_color_index.size()) {
-            return kDefaultToolpathColor;
+            return DEFAULT_TOOLPATH_COLOR;
         }
         uint8_t ci = strip_color_index[strip_idx];
         if (ci >= color_palette.size()) {
-            return kDefaultToolpathColor;
+            return DEFAULT_TOOLPATH_COLOR;
         }
         return color_palette[ci];
     }

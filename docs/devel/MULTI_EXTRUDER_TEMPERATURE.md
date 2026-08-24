@@ -345,5 +345,5 @@ During a print, shows each tool's temperature with its tool name prefix. Uses `T
 
 - **[TOOL_ABSTRACTION.md](TOOL_ABSTRACTION.md)** -- Tool state, tool-to-extruder mapping
 - **[FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md)** -- AMS backend architecture
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** -- Domain decomposition of PrinterState
+- **[chapter 05 — Printer state & singletons](architecture/05-printer-state.md)** -- Domain decomposition of PrinterState
 - **[MOONRAKER_ARCHITECTURE.md](MOONRAKER_ARCHITECTURE.md)** -- Status subscriptions, PrinterDiscovery

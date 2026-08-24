@@ -12,7 +12,7 @@
 #include <memory>
 #include <vector>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 /**
  * @file ui_fan_control_overlay.h
@@ -92,10 +92,10 @@ class FanControlOverlay : public OverlayBase {
     void cleanup() override;
 
     /**
-     * @brief Set MoonrakerAPI for sending fan commands
-     * @param api Pointer to MoonrakerAPI (may be nullptr)
+     * @brief Set IMoonrakerAPI for sending fan commands
+     * @param api Pointer to IMoonrakerAPI (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -138,7 +138,7 @@ class FanControlOverlay : public OverlayBase {
     //
 
     helix::PrinterState& printer_state_;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
 
     //
     // === Widget References ===

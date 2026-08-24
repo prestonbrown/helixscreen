@@ -31,7 +31,13 @@
 
          CRITICAL: Base constants (space_xxs, space_xs, etc.) are registered at
          runtime by ui_theme.cpp - do NOT define them here or responsive overrides
-         will be silently ignored due to LVGL's lv_xml_register_const() behavior. -->
+         will be silently ignored due to LVGL's lv_xml_register_const() behavior.
+
+         The same ordering applies to <style> elements: globals.xml is parsed
+         BEFORE theme_manager_init() registers the base #space_*/#color consts,
+         so a style here that references one registers EMPTY (property silently
+         skipped). Define such styles in the consuming component's own <styles>
+         block instead - components are parsed after theme init. -->
     <!-- space_xxs: Tiny spacing (keypad rows, compact icon gaps) -->
     <px name="space_xxs_tiny" value="1"/>
     <px name="space_xxs_small" value="2"/>
@@ -276,6 +282,66 @@
          Bound below the (header + divider + button row + 85% dialog cap)
          budget on each breakpoint, so the dialog never exceeds 85% screen
          and the OK/Cancel row stays on-screen even with long messages. -->
+    <!-- dialog_content_pinned_max: for modals that keep ONE extra block pinned
+         BELOW the scroll area (a diagram, a status row) instead of letting it
+         scroll. dialog_content_max budgets header + divider + button row only, so
+         such a modal overruns the 85% card cap and its button row falls off the
+         bottom. Each value reserves that block's height on top of the standard
+         chrome. Prefer moving the block inside the scroll container and using
+         dialog_content_max — this ladder is the escape hatch for cases where the
+         block must stay visible while the text scrolls.
+         Values are MEASURED, not derived: the modal was rendered at each
+         breakpoint and the card's clamp plus its button-row overhang gave the
+         true chrome height, so the cap is (85% cap - chrome) with ~8px spare.
+         Measured chrome / headroom per breakpoint:
+           micro  480x272  chrome 102  max 129
+           tiny   480x320  chrome 125  max 147
+           small  640x400  chrome 168  max 172
+           medium 800x480  chrome 193  max 215
+           large 1024x600  chrome 230  max 280
+           xxlarge 1280x1024 chrome 448 max 422
+         An earlier hand-derived ladder was wrong at five of seven breakpoints
+         (medium clipped by 33px, large by 72px), which is why these are
+         measurements rather than arithmetic. -->
+    <px name="dialog_content_pinned_max_micro" value="121"/>
+    <px name="dialog_content_pinned_max_tiny" value="139"/>
+    <px name="dialog_content_pinned_max_small" value="164"/>
+    <px name="dialog_content_pinned_max_medium" value="207"/>
+    <px name="dialog_content_pinned_max_large" value="272"/>
+    <px name="dialog_content_pinned_max_xlarge" value="330"/>
+    <px name="dialog_content_pinned_max_xxlarge" value="414"/>
+
+    <!-- dialog_content_tall_chrome_max: for modals whose card carries a SECOND
+          button row (with its divider) below the scroll area, on top of the
+          standard header + divider + one button row. dialog_content_max budgets
+          the standard chrome only, so such a modal overruns the 85% card cap and
+          its last button falls off the bottom — the shape klipper_recovery_dialog
+          first papered over by raising its card to 90%, which unsized the shared
+          ladder arithmetic (#1277). Porting that hack away is what this ladder
+          is for; do NOT raise a card above 85% to fit extra chrome.
+          Values are MEASURED, not derived — the recovery dialog was rendered at
+          each breakpoint with its scroll area pegged at the cap, and chrome was
+          read two independent ways (unclamped card minus scroll area; clamped
+          card plus button-row overhang minus scroll area), agreeing exactly:
+            micro   480x272   chrome  97  cap 231
+            tiny    480x320   chrome 118  cap 272
+            small   640x400   chrome 156  cap 340
+            medium  800x480   chrome 171  cap 408
+            large  1024x600   chrome 220  cap 510
+            xlarge 1200x900   chrome 255  cap 765
+            xxlarge 1280x1024 chrome 317  cap 870
+          so the cap is (85% cap - chrome) with ~8px spare, like pinned_max.
+          A modal with extra chrome taller than one button row (action_prompt's
+          diagram + wrapping rows + footer) is beyond any single ladder — size
+          it on device and mark it MODAL_CHROME_OK for the chrome-budget gate. -->
+    <px name="dialog_content_tall_chrome_max_micro" value="126"/>
+    <px name="dialog_content_tall_chrome_max_tiny" value="146"/>
+    <px name="dialog_content_tall_chrome_max_small" value="176"/>
+    <px name="dialog_content_tall_chrome_max_medium" value="229"/>
+    <px name="dialog_content_tall_chrome_max_large" value="282"/>
+    <px name="dialog_content_tall_chrome_max_xlarge" value="502"/>
+    <px name="dialog_content_tall_chrome_max_xxlarge" value="545"/>
+
     <px name="dialog_content_max_micro" value="140"/>
     <px name="dialog_content_max_tiny" value="200"/>
     <px name="dialog_content_max_small" value="260"/>
@@ -619,6 +685,8 @@
     <str name="icon_chart_line" value="󰄪"/>
     <str name="icon_check" value="󰄬"/>
     <str name="icon_check_bold" value="󰸞"/>
+    <str name="icon_check_box" value="󰄲"/>
+    <str name="icon_check_box_outline_blank" value="󰄱"/>
     <str name="icon_check_circle" value="󰗡"/>
     <str name="icon_chevron_down" value="󰅀"/>
     <str name="icon_chevron_left" value="󰅁"/>
@@ -632,6 +700,7 @@
     <str name="icon_cog" value="󰒓"/>
     <str name="icon_console" value="󰆍"/>
     <str name="icon_content_copy" value="󰆏"/>
+    <str name="icon_coolant_temperature" value="󰏈"/>
     <str name="icon_cooldown" value="󰜗"/>
     <str name="icon_crosshairs_gps" value="󰆤"/>
     <str name="icon_cube" value="󰆧"/>
@@ -639,9 +708,11 @@
     <str name="icon_cursor_move" value="󰆾"/>
     <str name="icon_dashboard" value="󰕮"/>
     <str name="icon_database" value="󰆼"/>
+    <str name="icon_debug_step_over" value="󰆷"/>
     <str name="icon_delete" value="󰆴"/>
     <str name="icon_dots_vertical" value="󰇙"/>
     <str name="icon_download" value="󰇚"/>
+    <str name="icon_eject" value="󰇪"/>
     <str name="icon_electric_switch" value="󰺟"/>
     <str name="icon_engine" value="󰇺"/>
     <str name="icon_engine_off" value="󰩆"/>
@@ -653,11 +724,13 @@
     <str name="icon_fan_off" value="󰠝"/>
     <str name="icon_filament" value="󰹛"/>
     <str name="icon_filament_alert" value="󱇀"/>
+    <str name="icon_filter" value="󰈲"/>
     <str name="icon_fine_tune" value="󰘮"/>
     <str name="icon_fire" value="󰈸"/>
     <str name="icon_flash" value="󰉁"/>
     <str name="icon_folder" value="󰉋"/>
     <str name="icon_folder_arrow_up" value="󱧰"/>
+    <str name="icon_folder_home" value="󱂵"/>
     <str name="icon_folder_open" value="󰝰"/>
     <str name="icon_folder_upload" value="󰉙"/>
     <str name="icon_fridge_industrial" value="󱗮"/>
@@ -670,6 +743,7 @@
     <str name="icon_help_circle" value="󰋗"/>
     <str name="icon_home" value="󰋜"/>
     <str name="icon_home_import" value="󰾜"/>
+    <str name="icon_home_thermometer" value="󰽔"/>
     <str name="icon_hourglass" value="󰔟"/>
     <str name="icon_image_area" value="󰋫"/>
     <str name="icon_image_broken_variant" value="󰋮"/>
@@ -680,6 +754,7 @@
     <str name="icon_info_outline" value="󰋽"/>
     <str name="icon_inputshaper" value="󰥛"/>
     <str name="icon_inventory" value="󰏖"/>
+    <str name="icon_keyboard" value="󰌌"/>
     <str name="icon_lan" value="󰌗"/>
     <str name="icon_layers" value="󰌨"/>
     <str name="icon_leaf" value="󰌪"/>
@@ -718,7 +793,23 @@
     <str name="icon_plus" value="󰐕"/>
     <str name="icon_power" value="󰐥"/>
     <str name="icon_power_cycle" value="󰤁"/>
+    <str name="icon_power_off" value="󰤂"/>
+    <str name="icon_power_on" value="󰤃"/>
     <str name="icon_power_plug" value="󰚥"/>
+    <str name="icon_power_plug_battery" value="󱰻"/>
+    <str name="icon_power_plug_off" value="󰚦"/>
+    <str name="icon_power_plug_outline" value="󱐥"/>
+    <str name="icon_power_socket" value="󰐧"/>
+    <str name="icon_power_socket_au" value="󰤅"/>
+    <str name="icon_power_socket_ch" value="󰾳"/>
+    <str name="icon_power_socket_de" value="󱄇"/>
+    <str name="icon_power_socket_eu" value="󰟧"/>
+    <str name="icon_power_socket_fr" value="󱄈"/>
+    <str name="icon_power_socket_it" value="󱓿"/>
+    <str name="icon_power_socket_jp" value="󱄉"/>
+    <str name="icon_power_socket_uk" value="󰟨"/>
+    <str name="icon_power_socket_us" value="󰟩"/>
+    <str name="icon_power_standby" value="󰤆"/>
     <str name="icon_print" value="󰐪"/>
     <str name="icon_printer" value="󰐪"/>
     <str name="icon_printer_3d" value="󰐫"/>
@@ -750,7 +841,9 @@
     <str name="icon_speed" value="󰓅"/>
     <str name="icon_speed_down" value="󰾆"/>
     <str name="icon_speed_up" value="󰾅"/>
+    <str name="icon_spirit_level" value="󱓱"/>
     <str name="icon_spoolman" value="󰈯"/>
+    <str name="icon_star" value="󰓎"/>
     <str name="icon_stop" value="󰓛"/>
     <str name="icon_swap_vertical" value="󰓢"/>
     <str name="icon_sync" value="󰓦"/>
@@ -758,8 +851,12 @@
     <str name="icon_target" value="󰓾"/>
     <str name="icon_television_classic" value="󰟴"/>
     <str name="icon_thermometer" value="󰔏"/>
+    <str name="icon_thermometer_lines" value="󰔐"/>
     <str name="icon_thermometer_minus" value="󰸄"/>
+    <str name="icon_thermometer_off" value="󱔱"/>
     <str name="icon_thermometer_plus" value="󰸅"/>
+    <str name="icon_thermometer_probe" value="󱬫"/>
+    <str name="icon_toolbox_outline" value="󰦭"/>
     <str name="icon_tortoise" value="󰴻"/>
     <str name="icon_toy_brick_outline" value="󱊍"/>
     <str name="icon_train_flatbed" value="󱬵"/>
@@ -767,7 +864,6 @@
     <str name="icon_trash_can_outline" value="󰩺"/>
     <str name="icon_tray_arrow_up" value="󰄝"/>
     <str name="icon_triangle_exclamation" value="󰀦"/>
-    <str name="icon_toolbox_outline" value="󰦭"/>
     <str name="icon_tune" value="󰘮"/>
     <str name="icon_tune_variant" value="󱕂"/>
     <str name="icon_tune_vertical_variant" value="󱕃"/>
@@ -776,6 +872,7 @@
     <str name="icon_usb" value="󰕓"/>
     <str name="icon_vibrate" value="󰕦"/>
     <str name="icon_video" value="󰕧"/>
+    <str name="icon_video_off" value="󰕨"/>
     <str name="icon_view_dashboard" value="󰕮"/>
     <str name="icon_view_grid" value="󰕰"/>
     <str name="icon_view_list" value="󰕲"/>
@@ -805,12 +902,5 @@
     <str name="icon_z_farther" value="󰜷"/>
     <!-- END GENERATED ICON CONSTS -->
   </consts>
-  <styles>
-    <!-- Icon-to-label gap: wider on tiny breakpoint (labels hidden/cramped, icons
-         too close), tighter once the layout has room. Shared across any row that
-         switches gap by breakpoint (controls_panel.xml, temp_card_unified.xml). -->
-    <style name="temp_row_gap_standard" pad_column="#space_xs"/>
-    <style name="temp_row_gap_tiny" pad_column="#space_md"/>
-  </styles>
   <view extends="lv_obj"/>
 </component>

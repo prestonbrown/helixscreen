@@ -5,7 +5,7 @@
 **Author:** Preston (solo maintainer)
 
 **Relation to prior work:**
-- Consumes the shipped `DetectionSource` / `DetectionManager` framework (`docs/devel/plans/2026-06-15-spaghetti-detection-source.md`, merged to main).
+- Consumes the shipped `DetectionSource` / `DetectionManager` framework (`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § `defect_detection`, merged to main).
 - **Un-parks** `docs/devel/plans/2026-06-16-self-hosted-failure-detection-sidecar.md`, scoped to its friendly-hardware case. That doc parked the sidecar because the *fleet's* hardware is hostile (closed vendor NPUs, possibly-unreachable K1 camera-module NPU, MIPS / memory-dieted SoCs, an unproven CPU-viability gamble). **A Voron host + Coral USB Edge TPU deletes every one of those blockers**, so this spec executes that doc's §8 phased plan on the hardware where it is tractable.
 
 ---
@@ -177,7 +177,7 @@ Each phase is independently testable. Phase 3 can proceed against a mocked agent
 ---
 
 ## 8. References
-- Shipped framework: `docs/devel/plans/2026-06-15-spaghetti-detection-source.md`, `2026-06-15-spaghetti-detection-plan.md`; `include/detection_source.h`, `include/detection_manager.h`, `include/u1_stock_detection_source.h`.
+- Shipped framework: `docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § `defect_detection`; `include/detection_source.h`, `include/detection_manager.h`, `include/u1_stock_detection_source.h`.
 - Parked feasibility (un-parked here): `docs/devel/plans/2026-06-16-self-hosted-failure-detection-sidecar.md`.
 - Obico (baseline detector; YOLOv2-Darknet, AGPL code / unlicensed weights): https://github.com/TheSpaghettiDetective/obico-server — Coral non-feasibility: issue #96 (open 2019–2025, no success).
 - CPU baseline `.tflite` (no license — eval only): https://github.com/CookiezRGood/klipper-print-failure-detection

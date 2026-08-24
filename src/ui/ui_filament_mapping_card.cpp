@@ -9,12 +9,14 @@
 #include "ams_state.h"
 #include "color_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_start_checks.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <set>
 
 namespace helix::ui {
 
@@ -92,6 +94,27 @@ void FilamentMappingCard::update(const std::vector<std::string>& gcode_colors,
         return;
     }
 
+    // Same dead-control rule as the check above, extended to the case that
+    // actually bit a user: with bypass engaged a single-tool print takes its
+    // filament from the external spool, and print_start_checks.cpp compares
+    // against that spool instead of the lanes (the `any_bypass_active &&
+    // print_lane_requirement(...) <= 1` short-circuit). Offering a lane mapping
+    // there claims something the print will not do — a K2 Plus user read the
+    // chips as "this maps to lane 2", tapped one to confirm it, and started a
+    // print that ran on the bypass spool. A genuinely multi-lane print still
+    // uses the mapping with bypass on, so this only hides the <= 1 case.
+    //
+    // print_lane_requirement() is shared with the gate rather than reimplemented
+    // here: it prefers the scan's tools_used and falls back to the palette, and
+    // a second copy of that precedence would drift into exactly the mismatch
+    // this hides.
+    if (ams.any_bypass_active() &&
+        helix::print_lane_requirement(used_tools_ ? *used_tools_ : std::set<int>{},
+                                      gcode_colors.size()) <= 1) {
+        should_show_ = false;
+        return;
+    }
+
     // Build tool info from file metadata
     tool_info_ = build_tool_info(gcode_colors, gcode_materials);
 
@@ -164,6 +187,9 @@ void FilamentMappingCard::on_ui_destroyed() {
     card_ = nullptr;
     rows_container_ = nullptr;
     warning_container_ = nullptr;
+    // The widgets this fingerprint described are gone — a recycled card must
+    // fully re-render, not early-return against a stale render.
+    last_render_fingerprint_.clear();
 }
 
 // ============================================================================
@@ -190,6 +216,42 @@ void FilamentMappingCard::rebuild_compact_view() {
         spdlog::debug("[FilamentMapping] Container destroyed during drain — skipping rebuild");
         return;
     }
+
+    // Idempotent render: identical (tools, mappings, slot state) + existing
+    // children => nothing visible changed => skip the destroy/recreate. Kills
+    // the late "gray -> real" rebuild when AMS resync data arrives after the
+    // panel opens. MUST stay below the post-drain null check above: a
+    // container destroyed during the drain returns before this, and no render
+    // happened, so no fingerprint is written either.
+    //
+    // material is the only free-form string in the encoding (every other field
+    // is numeric or a single flag char), so it is the only one that can smuggle
+    // the ':'/'|' separators: one tool with material "A|1:0:B" and the two tools
+    // {0,0,"A"},{1,0,"B"} both render "0:0:A|1:0:B|" in the tool section. The
+    // mappings section below happens to break the tie today (it re-encodes the
+    // tool count, and mappings_ is built parallel to tool_info_), so this is
+    // hardening rather than a live skipped rebuild — but nothing enforces that
+    // redundancy. Length-prefixing as <len>':'<bytes> makes the tool section
+    // unambiguous on its own, for any material text.
+    std::string fingerprint;
+    fingerprint.reserve(128);
+    for (const auto& t : tool_info_) {
+        fingerprint += std::to_string(t.tool_index) + ":" + std::to_string(t.color_rgb) + ":" +
+                       std::to_string(t.material.size()) + ":" + t.material + "|";
+    }
+    for (const auto& m : mappings_) {
+        fingerprint += std::to_string(m.tool_index) + ">" + std::to_string(m.mapped_slot) + ":" +
+                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") + "|";
+    }
+    for (const auto& s : available_slots_) {
+        fingerprint += std::to_string(s.backend_index) + "." + std::to_string(s.slot_index) + "=" +
+                       std::to_string(s.color_rgb) + (s.is_empty ? "e" : "f") + "|";
+    }
+    if (fingerprint == last_render_fingerprint_ && lv_obj_get_child_count(rows_container_) > 0) {
+        return;
+    }
+    last_render_fingerprint_ = std::move(fingerprint);
+
     helix::ui::safe_clean_children(rows_container_);
 
     // Pill layout, sizing, padding, fonts all live in
@@ -206,11 +268,11 @@ void FilamentMappingCard::rebuild_compact_view() {
     // column. Beyond the cap, the remaining tools are summarized in a single
     // "+N" overflow pill that fills the final grid cell (tap the card to see
     // and edit the full mapping).
-    constexpr size_t kMaxVisiblePills = 6;
+    constexpr size_t MAX_VISIBLE_PILLS = 6;
     size_t visible = count;
-    bool overflow = count > kMaxVisiblePills;
+    bool overflow = count > MAX_VISIBLE_PILLS;
     if (overflow) {
-        visible = kMaxVisiblePills - 1; // leave space for the overflow pill
+        visible = MAX_VISIBLE_PILLS - 1; // leave space for the overflow pill
     }
     for (size_t i = 0; i < visible; ++i) {
         const auto& mapping = mappings_[i];

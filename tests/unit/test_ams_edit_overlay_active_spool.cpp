@@ -6,10 +6,21 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "ams_backend_mock.h"
+#include "ams_error.h"
+#include "ams_state.h"
+#include "app_constants.h"
+#include "app_globals.h"
+#include "config.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "settings_manager.h"
+#include "spoolman_manager.h"
 #include "spoolman_slot_saver.h"
+
+#include <cstdlib>
+#include <filesystem>
 
 #include "../catch_amalgamated.hpp"
 
@@ -86,18 +97,85 @@ class AmsEditOverlayTestAccess {
 };
 
 // ============================================================================
-// Tests: handle_save syncs active spool with Moonraker
+// OverlayCommitFixture — the backend/API wiring of CommitFixture
+// (test_ams_state_commit_slot.cpp) plus the temp-config isolation of
+// ExternalSpoolCommitFixture (test_external_spool.cpp). The completion
+// consumers commit through AmsState::commit_slot_edit /
+// commit_external_spool_edit now, so an overlay save in these tests must
+// reach a mock backend AND a mock Spoolman API without contaminating the
+// real config.
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool assigned (0 -> N)",
-                 "[ams_edit_overlay][spoolman][active_spool]") {
-    PrinterState state;
+struct OverlayCommitFixture : LVGLTestFixture {
     MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    MoonrakerAPIMock api;
+    AmsBackendMock* backend = nullptr;
+    std::string temp_dir;
+    std::string config_path;
 
-    api.spoolman_mock().set_active_spool(0, nullptr, nullptr);
-    REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 0);
+    OverlayCommitFixture() : api(client, get_printer_state()) {
+        temp_dir = std::filesystem::temp_directory_path().string() + "/helix_overlay_commit_" +
+                   std::to_string(rand());
+        std::filesystem::create_directories(temp_dir);
+        config_path = temp_dir + "/settings.json";
 
+        // Same cross-test contamination guard as TempConfigFixture.
+        std::filesystem::remove(AppConstants::Update::config_backup_fallback());
+        std::filesystem::remove(AppConstants::Update::legacy_config_backup_fallback());
+        std::filesystem::remove(AppConstants::Update::env_backup_fallback());
+        Config::get_instance()->init(config_path);
+        SettingsManager::instance().clear_external_spool_info();
+
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        // AmsState::init_subjects observes PrinterState's print-state subject;
+        // it must exist first or the observer attaches to nothing.
+        get_printer_state().init_subjects(false);
+        ams.init_subjects(false);
+
+        // A previous test file's SpoolmanManager::deinit_subjects() may have
+        // latched its shutdown flag — unlatch it (see CommitFixture).
+        SpoolmanManager::instance().init_subjects();
+        SpoolmanManager::clear_identity_cache();
+
+        ams.set_moonraker_api(&api);
+    }
+
+    ~OverlayCommitFixture() override {
+        // Detach the mocks BEFORE members are destroyed and while LVGL still
+        // runs (base-class teardown has not happened yet).
+        auto& ams = AmsState::instance();
+        ams.set_moonraker_api(nullptr);
+        ams.clear_backends();
+        // Drain while AmsState's subjects are still alive; queued backend-event
+        // syncs from this test must not leak into the next one.
+        UpdateQueue::instance().drain();
+        ams.deinit_subjects();
+        SpoolmanManager::clear_identity_cache();
+        Config::get_instance()->clear_path();
+        std::filesystem::remove_all(temp_dir);
+    }
+
+    /// Install a mock backend whose slot 0 carries spoolman_id.
+    void install_backend(int slot0_spoolman_id) {
+        auto owned = std::make_unique<AmsBackendMock>(4);
+        backend = owned.get();
+        AmsState::instance().set_backend(std::move(owned));
+
+        SlotInfo slot = backend->get_slot_info(0);
+        slot.spoolman_id = slot0_spoolman_id;
+        backend->set_slot_info(0, slot, /*persist=*/false);
+    }
+};
+
+// ============================================================================
+// Tests: a save syncs the active spool with Moonraker via the completion
+// consumer's AmsState commit (the overlay no longer pre-fires it itself)
+// ============================================================================
+
+TEST_CASE_METHOD(OverlayCommitFixture, "handle_save sets active spool when spool assigned (0 -> N)",
+                 "[ams_edit_overlay][spoolman][active_spool]") {
     AmsEditOverlay overlay;
     AmsEditOverlayTestAccess access(overlay);
     access.init_subjects();
@@ -117,6 +195,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool assi
     access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
         completion_fired = true;
         REQUIRE(result.saved);
+        // The external-spool consumers (AmsPanel / AmsOverviewPanel /
+        // FilamentPanel) route the completion through the AmsState commit.
+        AmsState::instance().commit_external_spool_edit(result.slot_info);
     });
 
     access.call_handle_save();
@@ -126,12 +207,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool assi
     REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 42);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool changed (N -> M)",
+TEST_CASE_METHOD(OverlayCommitFixture, "handle_save sets active spool when spool changed (N -> M)",
                  "[ams_edit_overlay][spoolman][active_spool]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
     api.spoolman_mock().set_active_spool(42, nullptr, nullptr);
 
     AmsEditOverlay overlay;
@@ -150,8 +227,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool chan
     access.set_slot_index(-2);
 
     bool completion_fired = false;
-    access.set_completion_callback(
-        [&](const AmsEditOverlay::EditResult&) { completion_fired = true; });
+    access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
+        completion_fired = true;
+        REQUIRE(result.saved);
+        AmsState::instance().commit_external_spool_edit(result.slot_info);
+    });
 
     access.call_handle_save();
     UpdateQueue::instance().drain();
@@ -160,11 +240,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save sets active spool when spool chan
     REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 99);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "handle_save clears active spool when spool unlinked (N -> 0)",
+TEST_CASE_METHOD(OverlayCommitFixture,
+                 "handle_save clears active spool when spool unlinked (N -> 0)",
                  "[ams_edit_overlay][spoolman][active_spool]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    // The pre-edit assignment was persisted (that is how production gets
+    // here) — the commit's clear arm fires on the stored link, not on the
+    // overlay's in-memory original.
+    SlotInfo seeded;
+    seeded.spoolman_id = 42;
+    AmsState::instance().set_external_spool_info(seeded);
 
     api.spoolman_mock().set_active_spool(42, nullptr, nullptr);
 
@@ -184,8 +268,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save clears active spool when spool un
     access.set_slot_index(-2);
 
     bool completion_fired = false;
-    access.set_completion_callback(
-        [&](const AmsEditOverlay::EditResult&) { completion_fired = true; });
+    access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
+        completion_fired = true;
+        REQUIRE(result.saved);
+        AmsState::instance().commit_external_spool_edit(result.slot_info);
+    });
 
     access.call_handle_save();
     UpdateQueue::instance().drain();
@@ -194,12 +281,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save clears active spool when spool un
     REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "handle_save re-syncs active spool on unchanged linked save",
+TEST_CASE_METHOD(OverlayCommitFixture, "handle_save re-syncs active spool on unchanged linked save",
                  "[ams_edit_overlay][spoolman][active_spool]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
     // Simulate Moonraker having lost the active-spool state (e.g. after restart).
     api.spoolman_mock().set_active_spool(7, nullptr, nullptr);
 
@@ -219,8 +302,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save re-syncs active spool on unchange
     access.set_slot_index(-2);
 
     bool completion_fired = false;
-    access.set_completion_callback(
-        [&](const AmsEditOverlay::EditResult&) { completion_fired = true; });
+    access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
+        completion_fired = true;
+        REQUIRE(result.saved);
+        AmsState::instance().commit_external_spool_edit(result.slot_info);
+    });
 
     access.call_handle_save();
     UpdateQueue::instance().drain();
@@ -230,8 +316,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save re-syncs active spool on unchange
     REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 42);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "handle_save does NOT crash when no API available",
+TEST_CASE_METHOD(OverlayCommitFixture, "handle_save does NOT crash when no API available",
                  "[ams_edit_overlay][spoolman][active_spool]") {
+    // Neither the overlay nor AmsState holds an API — the commit's S1 arm is
+    // skipped, the local stores still update.
+    AmsState::instance().set_moonraker_api(nullptr);
+
     AmsEditOverlay overlay;
     AmsEditOverlayTestAccess access(overlay);
     access.init_subjects();
@@ -251,11 +341,62 @@ TEST_CASE_METHOD(LVGLTestFixture, "handle_save does NOT crash when no API availa
     access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
         completion_fired = true;
         REQUIRE(result.saved);
+        AmsState::instance().commit_external_spool_edit(result.slot_info);
     });
 
     access.call_handle_save();
     UpdateQueue::instance().drain();
     REQUIRE(completion_fired);
+}
+
+// The backend-slot route: an overlay save for slot 0 must land BOTH the
+// backend slot info AND the server active spool through the completion
+// consumer's commit_slot_edit — the overlay's old pre-fire is gone.
+TEST_CASE_METHOD(OverlayCommitFixture,
+                 "overlay save commits backend slot and active spool via consumer commit",
+                 "[ams_edit_overlay][spoolman][active_spool][commit]") {
+    install_backend(0); // slot 0 starts unlinked
+
+    AmsEditOverlay overlay;
+    AmsEditOverlayTestAccess access(overlay);
+    access.init_subjects();
+
+    SlotInfo original;
+    original.spoolman_id = 0;
+
+    SlotInfo working;
+    working.spoolman_id = 169;
+    working.material = "PLA";
+
+    access.set_original_info(original);
+    access.set_working_info(working);
+    access.set_api(&api);
+    access.set_slot_index(0);
+
+    bool completion_fired = false;
+    access.set_completion_callback([&](const AmsEditOverlay::EditResult& result) {
+        completion_fired = true;
+        REQUIRE(result.saved);
+        REQUIRE(result.slot_index == 0);
+        // Mirrors the AmsPanel / AmsOverviewPanel completion lambda: capture
+        // the pre-edit slot BEFORE the commit (its unlink arm needs it), then
+        // route through the single commit path.
+        AmsBackend* commit_backend = AmsState::instance().get_backend();
+        REQUIRE(commit_backend);
+        SlotInfo pre_edit = commit_backend->get_slot_info(result.slot_index);
+        AmsError err =
+            AmsState::instance().commit_slot_edit(result.slot_index, pre_edit, result.slot_info);
+        REQUIRE(err.success());
+    });
+
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+
+    REQUIRE(completion_fired);
+    // S3 — the backend slot got the link...
+    REQUIRE(backend->get_slot_info(0).spoolman_id == 169);
+    // S1 — ...AND the server active spool was registered by the commit.
+    REQUIRE(api.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
 // ============================================================================
@@ -546,7 +687,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.get_view_mode() == AmsEditOverlay::kViewSpoolPicker);
+    CHECK(access.get_view_mode() == AmsEditOverlay::VIEW_SPOOL_PICKER);
 
     NavigationManager::instance().go_back();
     UpdateQueue::instance().drain();
@@ -565,7 +706,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show_for_slot opens on the overview by defa
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.get_view_mode() == AmsEditOverlay::kViewOverview);
+    CHECK(access.get_view_mode() == AmsEditOverlay::VIEW_OVERVIEW);
 
     NavigationManager::instance().go_back();
     UpdateQueue::instance().drain();

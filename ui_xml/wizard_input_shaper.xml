@@ -38,10 +38,21 @@
               flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" style_flex_cross_place="center">
         <text_body width="100%" bind_text="wizard_input_shaper_status" style_text_align="center"/>
 
-        <!-- Progress bar (visible during calibration, centered) -->
+        <!-- Progress bar (visible during the determinate sweep phases, centered).
+             Hidden during the offline analysis phase, which reports no percent:
+             the spinner below takes over and the status label counts elapsed
+             seconds so the step keeps moving for the analysis' multi-minute
+             window. -->
         <progress_bar name="calibration_progress_bar" width="80%" bind_value="wizard_input_shaper_progress">
-          <bind_flag_if_eq subject="wizard_input_shaper_progress" flag="hidden" ref_value="0"/>
+          <!-- One compound rule, not two: two flag observers on the same flag
+               each assert both polarities on every fire and clobber each other -->
+          <bind_flag_if cond="wizard_input_shaper_progress eq 0 or wizard_input_shaper_indeterminate eq 1" flag="hidden"/>
         </progress_bar>
+
+        <!-- Spinner during the indeterminate analysis phase -->
+        <spinner size="lg">
+          <bind_flag_if_eq subject="wizard_input_shaper_indeterminate" flag="hidden" ref_value="0"/>
+        </spinner>
 
         <!-- Completion help text (shown only when calibration finishes, progress==100) -->
         <text_small width="100%"

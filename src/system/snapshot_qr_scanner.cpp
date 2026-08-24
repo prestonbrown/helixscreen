@@ -75,7 +75,7 @@ void SnapshotQrScanner::frame_consumed() {
 void SnapshotQrScanner::poll_loop() {
     int backoff_ms = 0;
 
-    spdlog::debug("[SnapshotQR] Poll loop started (interval={}ms)", kPollIntervalMs);
+    spdlog::debug("[SnapshotQR] Poll loop started (interval={}ms)", POLL_INTERVAL_MS);
 
     // poll_thread_ is dtor-joined by stop(), which sets running_ = false
     // before joining. running_ is the only exit signal we need — using
@@ -87,14 +87,14 @@ void SnapshotQrScanner::poll_loop() {
             if (fetch_and_decode()) {
                 backoff_ms = 0;
             } else {
-                backoff_ms = std::min(backoff_ms + 1000, kMaxBackoffMs);
+                backoff_ms = std::min(backoff_ms + 1000, MAX_BACKOFF_MS);
             }
         }
 
         // Sleep in small increments so we can exit quickly
-        int sleep_ms = backoff_ms > 0 ? backoff_ms : kPollIntervalMs;
-        for (int elapsed = 0; elapsed < sleep_ms && running_.load(); elapsed += kPollStepMs) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kPollStepMs));
+        int sleep_ms = backoff_ms > 0 ? backoff_ms : POLL_INTERVAL_MS;
+        for (int elapsed = 0; elapsed < sleep_ms && running_.load(); elapsed += POLL_STEP_MS) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(POLL_STEP_MS));
         }
     }
 
@@ -111,7 +111,7 @@ bool SnapshotQrScanner::fetch_and_decode() {
     auto req = std::make_shared<HttpRequest>();
     req->method = HTTP_GET;
     req->url = snapshot_url_;
-    req->timeout = kHttpTimeoutSec;
+    req->timeout = HTTP_TIMEOUT_SEC;
 
     auto resp = requests::request(req);
 
@@ -126,7 +126,7 @@ bool SnapshotQrScanner::fetch_and_decode() {
         return false;
     }
 
-    if (resp->body.empty() || resp->body.size() > kMaxResponseBytes) {
+    if (resp->body.empty() || resp->body.size() > MAX_RESPONSE_BYTES) {
         spdlog::debug("[SnapshotQR] Invalid response size: {}", resp->body.size());
         return false;
     }
@@ -142,7 +142,7 @@ bool SnapshotQrScanner::fetch_and_decode() {
         return false;
     }
 
-    if (width <= 0 || height <= 0 || width > kMaxImageDimension || height > kMaxImageDimension) {
+    if (width <= 0 || height <= 0 || width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
         spdlog::warn("[SnapshotQR] Invalid image dimensions: {}x{}", width, height);
         stbi_image_free(pixels);
         return false;
@@ -181,7 +181,7 @@ bool SnapshotQrScanner::fetch_and_decode() {
 
     // Subsample to grayscale for QR decode
     int max_dim = std::max(width, height);
-    int step = std::max(1, max_dim / kQrMaxDimension);
+    int step = std::max(1, max_dim / QR_MAX_DIMENSION);
     int qr_w = width / step;
     int qr_h = height / step;
 

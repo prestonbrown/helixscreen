@@ -7,7 +7,7 @@
 #include "ui_utils.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 
@@ -22,7 +22,7 @@ using namespace helix;
 // CONSTRUCTOR / DESTRUCTOR
 // ============================================================================
 
-PanelBase::PanelBase(PrinterState& printer_state, MoonrakerAPI* api)
+PanelBase::PanelBase(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {
     // Reserve reasonable capacity to avoid reallocations
     observers_.reserve(8);

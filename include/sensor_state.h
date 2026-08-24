@@ -6,7 +6,7 @@
 #include "ui_update_queue.h"
 
 #include "async_lifetime_guard.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "static_subject_registry.h"
 
 #include <lvgl/lvgl.h>
@@ -49,10 +49,10 @@ class SensorState {
     static SensorState& instance();
 
     /// Register for notify_sensor_update WebSocket events
-    void subscribe(MoonrakerAPI& api);
+    void subscribe(IMoonrakerAPI& api);
 
     /// Unregister callback and clean up subjects
-    void unsubscribe(MoonrakerAPI& api);
+    void unsubscribe(IMoonrakerAPI& api);
 
     /// Set discovered sensors (called from discovery sequence)
     void set_sensors(const std::vector<SensorInfo>& sensors);

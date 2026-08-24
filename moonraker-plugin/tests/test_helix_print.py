@@ -1006,5 +1006,397 @@ class TestMarkerConstants:
         assert helix.TRACKING_MARKER_END.startswith("#")
 
 
+# ============================================================================
+# Config Write-Path Tests
+# ============================================================================
+
+# A PRINT_START whose gcode: block contains genuinely empty lines - no trailing
+# whitespace, the shape any editor that strips trailing whitespace produces.
+# This is what breaks a "each body line starts with [ \t]+" regex: an empty line
+# has nothing to match, so the body looks like it ends there.
+PRINTER_CFG_WITH_BLANK_LINES = """\
+[stepper_x]
+step_pin: PB0
+dir_pin: PB1
+
+[gcode_macro PRINT_START]
+description: Start of print routine
+gcode:
+    {% set BED = params.BED|default(60)|int %}
+    {% set EXTRUDER = params.EXTRUDER|default(200)|int %}
+
+    M190 S{BED}
+    G28
+
+    QUAD_GANTRY_LEVEL
+    BED_MESH_CALIBRATE
+
+    M109 S{EXTRUDER}
+    LINE_PURGE
+
+[gcode_macro PRINT_END]
+gcode:
+    M104 S0
+    M140 S0
+"""
+
+# The HELIX_PHASE_* / HELIX_READY macros the instrumentation calls. Installed by
+# helix_macros.cfg on a real printer; seeded here so the write-path tests are
+# testing the write path and not the fail-closed guard.
+HELIX_MACROS_CFG = """\
+# helix_macros v2.0.0
+[gcode_macro HELIX_READY]
+gcode:
+    RESPOND PREFIX=HELIX MSG=READY
+
+[gcode_macro HELIX_PHASE_HOMING]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:HOMING
+
+[gcode_macro HELIX_PHASE_HEATING_BED]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:HEATING_BED
+
+[gcode_macro HELIX_PHASE_HEATING_NOZZLE]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:HEATING_NOZZLE
+
+[gcode_macro HELIX_PHASE_BED_MESH]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:BED_MESH
+
+[gcode_macro HELIX_PHASE_QGL]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:QGL
+
+[gcode_macro HELIX_PHASE_Z_TILT]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:Z_TILT
+
+[gcode_macro HELIX_PHASE_CLEANING]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:CLEANING
+
+[gcode_macro HELIX_PHASE_PURGING]
+gcode:
+    RESPOND PREFIX=HELIX MSG=PHASE:PURGING
+"""
+
+
+def _macro_body(config_text: str, macro_name: str) -> str:
+    """Extract a macro's raw gcode: body from config text, for assertions.
+
+    Deliberately independent of the plugin's own parser - a test that reuses the
+    code under test to check that code proves nothing.
+    """
+    lines = config_text.split("\n")
+    body = []
+    in_macro = False
+    in_gcode = False
+
+    for line in lines:
+        if line.strip().startswith(f"[gcode_macro {macro_name}]"):
+            in_macro = True
+            continue
+        if in_macro and line.startswith("["):
+            break
+        if in_macro and line.strip().startswith("gcode:"):
+            in_gcode = True
+            continue
+        if in_gcode:
+            body.append(line)
+
+    # Drop trailing blank lines - they belong to the gap before the next section
+    while body and not body[-1].strip():
+        body.pop()
+    return "\n".join(body)
+
+
+class TestConfigWritePath:
+    """Tests for _update_macro / _read_macro_from_config against real files.
+
+    These exercise the only code in the plugin that writes to a user's printer
+    config. Every other phase-tracking test operates on strings in memory.
+    """
+
+    @pytest.fixture
+    def config_dir(self):
+        """A temp Klipper config dir with a blank-line PRINT_START."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir)
+            (path / "printer.cfg").write_text(PRINTER_CFG_WITH_BLANK_LINES)
+            (path / "helix_macros.cfg").write_text(HELIX_MACROS_CFG)
+            yield path
+
+    @pytest.fixture
+    def helix(self, mock_server, temp_gcodes_dir, config_dir):
+        """A HelixPrint instance pointed at the temp config dir."""
+        mock_server.components["file_manager"] = MockFileManager(temp_gcodes_dir)
+        mock_server.components["database"] = MockDatabase()
+        mock_server.components["klippy_connection"] = MockKlippy()
+        mock_server.components["klippy_apis"] = MockKlippyApis()
+        mock_server.components["history"] = MockHistory()
+
+        component = load_component(MockConfigHelper(mock_server, {"enabled": True}))
+        component._get_config_dir = AsyncMock(return_value=config_dir)
+        return component
+
+    def test_ignores_a_commented_out_macro_header(self, helix, config_dir):
+        """A commented-out [gcode_macro PRINT_START] must not shadow the real one.
+
+        Section headers are column-0 constructs; matching one anywhere in a line
+        finds it inside a '#' comment too, and the scan then walks into the
+        commented block instead of the definition.
+        """
+        printer_cfg = config_dir / "printer.cfg"
+        printer_cfg.write_text(
+            "# Old version, kept for reference:\n"
+            "#[gcode_macro PRINT_START]\n"
+            "#gcode:\n"
+            "#    G28\n"
+            "\n" + PRINTER_CFG_WITH_BLANK_LINES
+        )
+
+        gcode = helix._read_macro_from_config(config_dir, "PRINT_START")
+
+        assert gcode is not None
+        assert "QUAD_GANTRY_LEVEL" in gcode
+
+    def test_reads_body_past_a_blank_line(self, helix, config_dir):
+        """The reader must not stop at the first empty line in the body."""
+        gcode = helix._read_macro_from_config(config_dir, "PRINT_START")
+
+        assert gcode is not None
+        # Everything after the first blank line
+        assert "QUAD_GANTRY_LEVEL" in gcode
+        assert "LINE_PURGE" in gcode
+
+    @pytest.mark.asyncio
+    async def test_update_macro_replaces_body_past_a_blank_line(self, helix, config_dir):
+        """_update_macro must replace the WHOLE body, not just up to the blank line.
+
+        The bug: the replacement regex stops at the first empty line, so the tail
+        of the original body survives and gets concatenated after the new body.
+        """
+        assert await helix._update_macro("PRINT_START", "G28\nM117 replaced\n")
+
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+
+        assert "M117 replaced" in body
+        # None of the original body may survive the replace
+        assert "QUAD_GANTRY_LEVEL" not in body
+        assert "LINE_PURGE" not in body
+        assert "M190" not in body
+
+    @pytest.mark.asyncio
+    async def test_update_macro_leaves_neighbouring_sections_intact(self, helix, config_dir):
+        """Replacing one macro must not disturb the sections around it."""
+        assert await helix._update_macro("PRINT_START", "G28\n")
+
+        content = (config_dir / "printer.cfg").read_text()
+
+        assert "[stepper_x]" in content
+        assert "step_pin: PB0" in content
+        assert _macro_body(content, "PRINT_END") == "    M104 S0\n    M140 S0"
+
+    @pytest.mark.asyncio
+    async def test_update_macro_preserves_the_description_line(self, helix, config_dir):
+        """Section keys above gcode: are not part of the body and must survive."""
+        assert await helix._update_macro("PRINT_START", "G28\n")
+
+        content = (config_dir / "printer.cfg").read_text()
+        assert "description: Start of print routine" in content
+
+    @pytest.mark.asyncio
+    async def test_enable_does_not_duplicate_the_startup_sequence(self, helix, mock_server, config_dir):
+        """Enabling phase tracking must not leave two copies of the body.
+
+        This is the reported failure: PRINT_START ends up containing the
+        instrumented body followed by the leftover original tail, so Klipper
+        homes twice, runs QGL twice, and heat-soaks twice on every print.
+        """
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        result = await handler(MockWebRequest({}))
+        assert result["success"] is True
+
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+
+        assert body.count("G28") == 1
+        assert body.count("QUAD_GANTRY_LEVEL") == 1
+        assert body.count("BED_MESH_CALIBRATE") == 1
+        assert body.count("LINE_PURGE") == 1
+        assert body.count("M190 S{BED}") == 1
+
+    @pytest.mark.asyncio
+    async def test_enable_then_disable_restores_the_original_file(self, helix, mock_server, config_dir):
+        """A full round-trip through disk must be byte-identical to the original.
+
+        Catches both the duplication and the indentation drift: _update_macro
+        re-indents a body that already carries its own indentation, so each
+        toggle used to add four more spaces to every line.
+        """
+        await helix.component_init()
+        printer_cfg = config_dir / "printer.cfg"
+        original = printer_cfg.read_text()
+
+        enable = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+        disable = mock_server.endpoints["/server/helix/phase_tracking/disable"]
+
+        assert (await enable(MockWebRequest({})))["success"] is True
+        assert (await disable(MockWebRequest({})))["success"] is True
+
+        assert printer_cfg.read_text() == original
+
+    @pytest.mark.asyncio
+    async def test_repeated_toggles_are_stable(self, helix, mock_server, config_dir):
+        """Enable/disable three times over - the file must not grow each pass."""
+        await helix.component_init()
+        printer_cfg = config_dir / "printer.cfg"
+        original = printer_cfg.read_text()
+
+        enable = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+        disable = mock_server.endpoints["/server/helix/phase_tracking/disable"]
+
+        for _ in range(3):
+            await enable(MockWebRequest({}))
+            await disable(MockWebRequest({}))
+
+        assert printer_cfg.read_text() == original
+
+    @pytest.mark.asyncio
+    async def test_enable_instruments_every_detected_phase(self, helix, mock_server, config_dir):
+        """The point of the feature: each phase gets its HELIX_PHASE_* call."""
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        await handler(MockWebRequest({}))
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+
+        assert "HELIX_PHASE_HOMING" in body
+        assert "HELIX_PHASE_QGL" in body
+        assert "HELIX_PHASE_BED_MESH" in body
+        assert "HELIX_PHASE_HEATING_BED" in body
+        assert "HELIX_PHASE_HEATING_NOZZLE" in body
+        assert "HELIX_PHASE_PURGING" in body
+        assert "HELIX_READY" in body
+
+    @pytest.mark.asyncio
+    async def test_instrumented_body_stays_indented(self, helix, mock_server, config_dir):
+        """Injected macro calls must be indented into the gcode: block.
+
+        An unindented line ends the block as far as Klipper is concerned, which
+        turns the rest of the macro into a config parse error.
+        """
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        await handler(MockWebRequest({}))
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+
+        for line in body.split("\n"):
+            if line.strip():
+                assert line[0] in " \t", f"body line is not indented: {line!r}"
+
+    @pytest.mark.asyncio
+    async def test_enable_does_not_deepen_indentation(self, helix, mock_server, config_dir):
+        """Original body lines keep their original indent, not indent + 4."""
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        await handler(MockWebRequest({}))
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+
+        assert "    G28" in body
+        assert "        G28" not in body
+
+
+class TestPhaseTrackingRequiresHelixMacros:
+    """Enabling must fail closed when helix_macros.cfg is not installed.
+
+    The instrumentation injects calls to HELIX_PHASE_* / HELIX_READY. Klipper
+    does not validate gcode_macro bodies at config load, so instrumenting
+    against missing macros looks like it worked and only fails when the macro
+    actually runs - aborting print start with "Unknown command".
+    """
+
+    @pytest.fixture
+    def config_dir(self):
+        """A config dir with PRINT_START but NO helix_macros.cfg."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir)
+            (path / "printer.cfg").write_text(PRINTER_CFG_WITH_BLANK_LINES)
+            yield path
+
+    @pytest.fixture
+    def helix(self, mock_server, temp_gcodes_dir, config_dir):
+        mock_server.components["file_manager"] = MockFileManager(temp_gcodes_dir)
+        mock_server.components["database"] = MockDatabase()
+        mock_server.components["klippy_connection"] = MockKlippy()
+        mock_server.components["klippy_apis"] = MockKlippyApis()
+        mock_server.components["history"] = MockHistory()
+
+        component = load_component(MockConfigHelper(mock_server, {"enabled": True}))
+        component._get_config_dir = AsyncMock(return_value=config_dir)
+        return component
+
+    @pytest.mark.asyncio
+    async def test_enable_reports_failure(self, helix, mock_server):
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        result = await handler(MockWebRequest({}))
+
+        assert result["success"] is False
+        assert "helix_macros" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_enable_does_not_touch_the_config(self, helix, mock_server, config_dir):
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+        printer_cfg = config_dir / "printer.cfg"
+        original = printer_cfg.read_text()
+
+        await handler(MockWebRequest({}))
+
+        assert printer_cfg.read_text() == original
+
+    @pytest.mark.asyncio
+    async def test_enable_does_not_restart_klipper(self, helix, mock_server):
+        """No restart when nothing was written - a restart implies a config change."""
+        await helix.component_init()
+        handler = mock_server.endpoints["/server/helix/phase_tracking/enable"]
+
+        await handler(MockWebRequest({}))
+
+        mock_server.components["klippy_apis"].do_restart.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_disable_still_works_without_helix_macros(self, helix, mock_server, config_dir):
+        """Stripping instrumentation must never be gated - that is the escape hatch.
+
+        A printer can end up instrumented but missing the macros; refusing to
+        disable would strand it there.
+        """
+        await helix.component_init()
+        # Hand-instrument the macro so there is something to strip
+        instrumented = (
+            "    G28\n"
+            f"    {helix.TRACKING_MARKER_BEGIN}\n"
+            "    HELIX_PHASE_HOMING\n"
+            f"    {helix.TRACKING_MARKER_END}\n"
+        )
+        assert await helix._update_macro("PRINT_START", instrumented)
+
+        handler = mock_server.endpoints["/server/helix/phase_tracking/disable"]
+        result = await handler(MockWebRequest({}))
+
+        assert result["success"] is True
+        body = _macro_body((config_dir / "printer.cfg").read_text(), "PRINT_START")
+        assert "HELIX_PHASE_HOMING" not in body
+        assert "G28" in body
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -22,6 +22,12 @@ class AmsErrorBridge {
   private:
     void on_action_changed(int action);
 
+    /// Fires on every ams_action_detail subject change. Mid-ERROR-episode it
+    /// re-consults current_error() so a fault whose text moved on while the
+    /// action stayed ERROR is re-presented instead of leaving the first message
+    /// on screen. Outside ERROR it is a no-op.
+    void on_detail_changed(const char* detail);
+
     /// Runs one queue tick after the ERROR edge. Toasts only if the fault is
     /// still current and no dialog anywhere ended up describing it.
     void surface_unhandled_error();
@@ -31,6 +37,9 @@ class AmsErrorBridge {
 
     helix::ui::RecoveryModalPresenter& presenter_;
     ObserverGuard action_observer_;
+    /// Watches ams_action_detail so a fault whose content changes while
+    /// AmsAction stays ERROR re-presents instead of going stale.
+    ObserverGuard detail_observer_;
     /// Expires the deferred fallback if Application drops the bridge between
     /// the ERROR edge and the tick the check runs on.
     AsyncLifetimeGuard lifetime_;

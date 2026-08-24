@@ -59,4 +59,58 @@ inline RenderModeDecision decide_render_mode(const char* mode_env, bool have_3d_
     return RenderModeDecision{GcodeViewerRenderMode::Layer2D, RenderModeReason::EnvUnrecognized};
 }
 
+/// Which tier of the preview ladder supplied the mode. Drives the log line.
+enum class PreviewModeSource {
+    CommandLine,   ///< RuntimeConfig::gcode_render_mode (--render-2d and friends)
+    Environment,   ///< HELIX_GCODE_MODE — already applied at widget creation
+    Settings,      ///< Persisted display setting
+    ThumbnailOnly, ///< Persisted setting is 3: the viewer is not used at all
+};
+
+/// Outcome of the preview ladder.
+struct PreviewModeDecision {
+    GcodeViewerRenderMode mode; ///< Only meaningful when `apply` is true
+    PreviewModeSource source;
+    bool apply; ///< false: leave the viewer's current mode alone
+};
+
+/// Thumbnail Only, as stored in the display settings.
+constexpr int RENDER_MODE_THUMBNAIL_ONLY = 3;
+
+/**
+ * @brief Resolve a preview's render mode from the full ladder.
+ *
+ * Pure function. Every G-code preview in the app answers this the same way —
+ * command line beats HELIX_GCODE_MODE beats the persisted setting — so the
+ * ladder lives here rather than being restated at each preview. Pair it with
+ * apply_preview_render_mode(), which reads the live sources and logs.
+ *
+ * Two tiers deliberately resolve to `apply == false`:
+ *  - Environment: decide_render_mode() already ran at widget creation, so the
+ *    viewer is in the requested mode. Re-applying would be a no-op that hides
+ *    which tier actually won.
+ *  - ThumbnailOnly: the viewer stays untouched because it is never shown.
+ *
+ * @param cmdline_mode   RuntimeConfig::gcode_render_mode; negative when unset.
+ * @param env_mode_set   Whether HELIX_GCODE_MODE is present.
+ * @param settings_mode  Persisted display setting (3 = Thumbnail Only).
+ */
+inline PreviewModeDecision decide_preview_mode(int cmdline_mode, bool env_mode_set,
+                                               int settings_mode) {
+    if (cmdline_mode >= 0) {
+        return PreviewModeDecision{static_cast<GcodeViewerRenderMode>(cmdline_mode),
+                                   PreviewModeSource::CommandLine, true};
+    }
+    if (env_mode_set) {
+        return PreviewModeDecision{GcodeViewerRenderMode::Auto, PreviewModeSource::Environment,
+                                   false};
+    }
+    if (settings_mode == RENDER_MODE_THUMBNAIL_ONLY) {
+        return PreviewModeDecision{GcodeViewerRenderMode::Auto, PreviewModeSource::ThumbnailOnly,
+                                   false};
+    }
+    return PreviewModeDecision{static_cast<GcodeViewerRenderMode>(settings_mode),
+                               PreviewModeSource::Settings, true};
+}
+
 } // namespace helix::gcode_viewer

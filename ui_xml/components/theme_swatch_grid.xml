@@ -2,6 +2,22 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: 0x prefix for literal hex colors (# triggers constant lookup) -->
+<!-- Theme-editor preset palette (row_wrap, 6 columns x 5 rows).
+
+     Structured for the 16 role tokens the theme editor edits, not for filament
+     colors — see components/color_swatch_grid.xml for the general-purpose grid.
+
+       rows 1-2  12-step surface ramp, dark -> light, alternating cool/warm/
+                 neutral tint. Covers screen_bg / overlay_bg / card_bg /
+                 elevated_bg / border / text_subtle / text_muted / text.
+       rows 3-5  6 hue families x 3 tones. COLUMN IS THE HUE FAMILY
+                 (red, amber, green, teal, blue, violet); row is the tone
+                 (muted for dark mode, mid, deep for light mode).
+
+     Values are drawn from the tones the 17 shipped themes actually occupy, so
+     a preset click lands near a real theme value rather than a Material 500.
+     tests/unit/test_theme_swatch_grid.cpp pins the ordering — the ramp must
+     stay monotonic and each accent column must stay in its hue family. -->
 <component>
   <api>
     <!-- Required: each host names its own click handler. Same contract as

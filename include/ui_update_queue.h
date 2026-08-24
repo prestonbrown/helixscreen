@@ -73,7 +73,7 @@ struct TaggedCallback {
     /// wrappers. Purely diagnostic: a tagged callback already names its
     /// producer, but an untagged one is anonymous, and "<untagged> x44" in a
     /// cross-test leak report is unactionable — there is no way to find which
-    /// of the ~600 queue_update() sites left the work behind. The crash
+    /// of the hundreds of queue_update() sites left the work behind. The crash
     /// handler still reads `tag` only; this pair is read by the test
     /// isolation listener.
     const char* file = nullptr;
@@ -84,11 +84,13 @@ struct TaggedCallback {
  * @brief Thread-safe UI update queue
  *
  * Singleton that manages pending UI updates. Call init() once at startup
- * to install a high-priority timer that processes updates every lv_timer_handler() cycle.
+ * to install a 1 ms timer that processes updates inside every
+ * lv_timer_handler() cycle (LVGL 9 timers have no priority field; the timer
+ * is created at init so it sits near the head of the timer list).
  *
  * Key insight: Using LV_EVENT_REFR_START doesn't work because it only fires when
  * LVGL decides to render. If nothing invalidates the display, the queue never drains.
- * Instead, we use a highest-priority timer that fires every lv_timer_handler() call,
+ * Instead, we use a 1 ms timer that fires every lv_timer_handler() call,
  * ensuring callbacks execute promptly regardless of render state.
  */
 class UpdateQueue {
@@ -104,8 +106,9 @@ class UpdateQueue {
     /**
      * @brief Initialize the update queue (call once at startup)
      *
-     * Creates a highest-priority timer that processes pending updates
-     * every lv_timer_handler() cycle, BEFORE the render timer runs.
+     * Creates a 1 ms timer that processes pending updates inside every
+     * lv_timer_handler() cycle. Created at init so it runs near the head
+     * of the timer list (LVGL 9 has no timer priorities).
      */
     void init() {
         if (initialized_)
@@ -134,7 +137,7 @@ class UpdateQueue {
         // coalesce into a single slot with a count, preserving runway for
         // distinct callbacks above.
         crash_handler::register_previous_tag_ring(previous_tag_ring_, previous_tag_count_ring_,
-                                                  kPreviousTagRingSize, &previous_tag_next_);
+                                                  PREVIOUS_TAG_RING_SIZE, &previous_tag_next_);
 
         // init() runs on the LVGL thread by construction — it creates an LVGL
         // timer. Record that identity so callers can ask whether they are
@@ -470,11 +473,11 @@ class UpdateQueue {
             if (current_tag_) {
                 unsigned int next = previous_tag_next_;
                 if (next > 0 &&
-                    previous_tag_ring_[(next - 1) % kPreviousTagRingSize] == current_tag_) {
-                    previous_tag_count_ring_[(next - 1) % kPreviousTagRingSize] += 1;
+                    previous_tag_ring_[(next - 1) % PREVIOUS_TAG_RING_SIZE] == current_tag_) {
+                    previous_tag_count_ring_[(next - 1) % PREVIOUS_TAG_RING_SIZE] += 1;
                 } else {
-                    previous_tag_ring_[next % kPreviousTagRingSize] = current_tag_;
-                    previous_tag_count_ring_[next % kPreviousTagRingSize] = 1;
+                    previous_tag_ring_[next % PREVIOUS_TAG_RING_SIZE] = current_tag_;
+                    previous_tag_count_ring_[next % PREVIOUS_TAG_RING_SIZE] = 1;
                     previous_tag_next_ = next + 1;
                 }
             }
@@ -508,9 +511,9 @@ class UpdateQueue {
     /// `previous_tag_count_ring_[i]` records how many consecutive callbacks
     /// shared slot `i`'s tag — coalesce keeps the ring representative when
     /// high-frequency producers (TSM, etc.) dominate the queue.
-    static constexpr unsigned int kPreviousTagRingSize = 4;
-    static inline volatile const char* previous_tag_ring_[kPreviousTagRingSize] = {};
-    static inline volatile uint32_t previous_tag_count_ring_[kPreviousTagRingSize] = {};
+    static constexpr unsigned int PREVIOUS_TAG_RING_SIZE = 4;
+    static inline volatile const char* previous_tag_ring_[PREVIOUS_TAG_RING_SIZE] = {};
+    static inline volatile uint32_t previous_tag_count_ring_[PREVIOUS_TAG_RING_SIZE] = {};
     static inline volatile unsigned int previous_tag_next_ = 0;
 
     /// Identity of the LVGL main thread, captured in init(). Read from any
@@ -550,7 +553,7 @@ class UpdateQueue {
     static const char* previous_callback_tag() {
         if (previous_tag_next_ == 0)
             return nullptr;
-        unsigned int idx = (previous_tag_next_ - 1) % kPreviousTagRingSize;
+        unsigned int idx = (previous_tag_next_ - 1) % PREVIOUS_TAG_RING_SIZE;
         return const_cast<const char*>(previous_tag_ring_[idx]);
     }
 };

@@ -30,10 +30,10 @@
 #include "filament_sensor_manager.h"
 #include "hardware_validator.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "platform_info.h"
@@ -639,7 +639,7 @@ static void ui_wizard_ensure_filament_sensors_discovered() {
     if (!fsm.get_sensors().empty()) {
         return;
     }
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api && api->hardware().has_filament_sensors()) {
         fsm.discover_sensors(api->hardware().filament_sensor_names());
         spdlog::debug("[Wizard] Populated FilamentSensorManager for skip calculation");
@@ -964,7 +964,7 @@ void ui_wizard_complete() {
         // flag: Klipper always reports at least an [extruder], so an empty heater
         // list is the one unambiguous "discovery never ran" signal available at
         // completion, and it stays correct no matter which path reached Finish.
-        MoonrakerAPI* api = get_moonraker_api();
+        IMoonrakerAPI* api = get_moonraker_api();
         const bool discovery_succeeded = api != nullptr && !api->hardware().heaters().empty();
         helix::wizard_apply_hardware_snapshot_decision(config, discovery_succeeded, recorded > 0);
 
@@ -994,7 +994,7 @@ void ui_wizard_complete() {
     // 7. Trigger re-discovery through Application's pre-registered callbacks.
     // Discovery callbacks (set_hardware, init_fans, hardware validation, plugin detection,
     // etc.) were registered in Application::init_moonraker() via setup_discovery_callbacks().
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (client && client->get_connection_state() == ConnectionState::CONNECTED) {
         client->discover_printer([]() { spdlog::info("[Wizard] Post-wizard discovery complete"); });
     } else {
@@ -1180,7 +1180,7 @@ static void on_next_clicked(lv_event_t* e) {
     // build_context() reads Config::has_preset() live, so a preset applied by
     // auto-detection between wizard init and now is honored here.
     if (*next == StepId::Connection && ctx.preset.first_run) {
-        MoonrakerClient* client = get_moonraker_client();
+        IMoonrakerClient* client = get_moonraker_client();
         if (client && client->get_connection_state() == ConnectionState::CONNECTED) {
             spdlog::info("[Wizard] Preset mode: already connected, skipping connection step");
             auto after_conn = helix::wizard_next(StepId::Connection, skips);

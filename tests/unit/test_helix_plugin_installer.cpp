@@ -29,18 +29,30 @@ using namespace helix;
 // ============================================================================
 
 TEST_CASE("HelixPluginInstaller URL parsing", "[plugin_installer]") {
-    SECTION("is_local_host correctly identifies localhost URLs") {
-        // These should all be detected as local
-        REQUIRE(helix::is_local_host("localhost") == true);
-        REQUIRE(helix::is_local_host("127.0.0.1") == true);
-        REQUIRE(helix::is_local_host("::1") == true);
+    SECTION("is_local_moonraker answers from the URL the installer was given") {
+        // The predicate itself is tested once, in test_host_identity.cpp. What
+        // belongs here is the wiring: that the installer names the host from its
+        // own URL and refuses to claim locality when it cannot.
+        helix::HelixPluginInstaller installer;
 
-        // These should NOT be detected as local
-        REQUIRE(helix::is_local_host("192.168.1.100") == false);
-        REQUIRE(helix::is_local_host("10.0.0.50") == false);
-        REQUIRE(helix::is_local_host("printer.local") == false);
-        REQUIRE(helix::is_local_host("my-printer") == false);
-        REQUIRE(helix::is_local_host("klipper.lan") == false);
+        installer.set_websocket_url("ws://localhost:7125/websocket");
+        REQUIRE(installer.is_local_moonraker());
+        installer.set_websocket_url("ws://127.0.0.1:7125/websocket");
+        REQUIRE(installer.is_local_moonraker());
+        installer.set_websocket_url("ws://[::1]:7125/websocket");
+        REQUIRE(installer.is_local_moonraker());
+
+        // 203.0.113.0/24 is TEST-NET-3 (RFC 5737) — reserved for documentation
+        // and never assigned to a real interface, so this stays remote on any
+        // machine. An RFC1918 literal would not: is_moonraker_on_same_host()
+        // scans local interfaces, and a dev box or CI runner can legitimately
+        // hold 192.168.x.x.
+        installer.set_websocket_url("ws://203.0.113.7:7125/websocket");
+        REQUIRE_FALSE(installer.is_local_moonraker());
+
+        // No URL at all is not evidence of locality — auto-install must not fire.
+        installer.set_websocket_url("");
+        REQUIRE_FALSE(installer.is_local_moonraker());
     }
 
     SECTION("extract_host_from_websocket_url parses URLs correctly") {
@@ -357,20 +369,6 @@ TEST_CASE("HelixPluginInstaller URL edge cases", "[plugin_installer]") {
 
     SECTION("extract_host handles URLs with just hostname") {
         REQUIRE(helix::extract_host_from_websocket_url("ws://localhost") == "localhost");
-    }
-
-    SECTION("is_local_host is case sensitive") {
-        // "localhost" variants with different case should NOT match
-        // (this is intentional - DNS is case-insensitive but we match exactly)
-        REQUIRE(helix::is_local_host("LOCALHOST") == false);
-        REQUIRE(helix::is_local_host("LocalHost") == false);
-    }
-
-    SECTION("is_local_host rejects loopback-like strings") {
-        // These look like localhost but aren't
-        REQUIRE(helix::is_local_host("localhost.localdomain") == false);
-        REQUIRE(helix::is_local_host("127.0.0.2") == false); // Different loopback
-        REQUIRE(helix::is_local_host("127.0.0.1.example.com") == false);
     }
 }
 

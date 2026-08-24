@@ -45,6 +45,21 @@ class FastTimingScope {
     double original_speedup_ = 1.0;
 };
 
+// Every case below that waits on the mock's operation thread is tagged [slow].
+//
+// They wait with wall-clock std::this_thread::sleep_for - 100ms to 1500ms sized
+// against the mock's phase timings - so under the 96-way parallel shard pool on a
+// loaded box the sleep expires before the phase advances and the assertion catches
+// an intermediate value. Observed twice: "realistic mode load operation phases"
+// reading a mid-load phase, and "error recovery sequence" seeing
+// infer_error_segment()==4 where NONE was expected. Both pass in isolation and in
+// their own shard, which is what makes them read as an unrelated regression in
+// whatever branch happens to be running.
+//
+// [slow] keeps them out of the parallel run. The real fix is condition-based
+// waiting (tests/CLAUDE.md, "condition-based-waiting"), which would let them come
+// back into the default run.
+
 TEST_CASE("AmsBackendMock realistic mode defaults", "[ams][mock][realistic]") {
     AmsBackendMock backend(4);
 
@@ -66,7 +81,7 @@ TEST_CASE("AmsBackendMock realistic mode defaults", "[ams][mock][realistic]") {
 }
 
 TEST_CASE("AmsBackendMock realistic mode load operation phases",
-          "[ams][mock][realistic][load]") {
+          "[ams][mock][realistic][load][slow]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -136,7 +151,7 @@ TEST_CASE("AmsBackendMock realistic mode load operation phases",
 }
 
 TEST_CASE("AmsBackendMock realistic mode unload operation phases",
-          "[ams][mock][realistic][unload]") {
+          "[ams][mock][realistic][unload][slow]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -194,7 +209,7 @@ TEST_CASE("AmsBackendMock realistic mode unload operation phases",
     backend.stop();
 }
 
-TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realistic][simple]") {
+TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realistic][simple][slow]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -287,7 +302,7 @@ TEST_CASE("AmsBackendMock realistic mode completes to IDLE",
 }
 
 TEST_CASE("AmsBackendMock realistic mode can be cancelled",
-          "[ams][mock][realistic][cancel]") {
+          "[ams][mock][realistic][cancel][slow]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     AmsBackendMock backend(4);
@@ -412,7 +427,7 @@ TEST_CASE("AmsBackendMock PAUSED state handling", "[ams][mock][realistic][paused
     backend.stop();
 }
 
-TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][recovery]") {
+TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][recovery][slow]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -499,7 +514,9 @@ TEST_CASE("Mock backend: slots have valid Spoolman IDs and filament data",
         REQUIRE(slot.spoolman_id == i + 1);
         // Should have non-empty filament data
         REQUIRE_FALSE(slot.material.empty());
-        REQUIRE_FALSE(slot.brand.empty());
+        // No brand: Happy Hare's gate map cannot carry one, so a real lane gets
+        // its vendor from the Spoolman identity cache or a user override.
+        REQUIRE(slot.brand.empty());
         REQUIRE_FALSE(slot.color_name.empty());
         REQUIRE(slot.color_rgb != 0);
         REQUIRE(slot.total_weight_g > 0);
@@ -517,23 +534,25 @@ TEST_CASE("Mock backend: slot data matches first N Spoolman mock spools",
     backend->start();
 
     struct Expected {
-        const char* brand;
         const char* material;
         const char* color_name;
     };
     const Expected expected[] = {
-        {"Polymaker", "PLA", "Jet Black"},
-        {"eSUN", "Silk PLA", "Silk Blue"},
-        {"Elegoo", "ASA", "Pop Blue"},
-        {"Flashforge", "ABS", "Fire Engine Red"},
+        {"PLA", "Jet Black"},
+        {"Silk PLA", "Silk Blue"},
+        {"ASA", "Pop Blue"},
+        {"ABS", "Fire Engine Red"},
     };
 
     for (int i = 0; i < 4; ++i) {
         auto slot = backend->get_slot_info(i);
         CAPTURE(i, slot.brand, slot.material, slot.color_name);
-        REQUIRE(slot.brand == expected[i].brand);
         REQUIRE(slot.material == expected[i].material);
         REQUIRE(slot.color_name == expected[i].color_name);
+        // The vendor is deliberately absent from the slot -- firmware never
+        // reports one. That it still matches the Spoolman record is checked in
+        // test_mock_spool_consistency.cpp, which has the spools to compare to.
+        REQUIRE(slot.brand.empty());
     }
 
     backend->stop();

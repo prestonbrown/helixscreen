@@ -211,6 +211,53 @@ class DisplaySettingsManager {
     static std::string get_timezone_options();
 
     // =========================================================================
+    // SCREEN ROTATION
+    // =========================================================================
+    //
+    // /display/rotate is read exactly once, by DisplayManager::init(), and LVGL
+    // screens neither resize nor re-rotate afterwards. Every setter here is
+    // therefore restart-required: nothing on screen turns until the app is
+    // relaunched.
+
+    /**
+     * @brief Get the saved screen rotation in degrees.
+     *
+     * Anything other than 90/180/270 in the config reads back as 0, matching
+     * what the startup path will actually apply.
+     */
+    int get_display_rotation() const;
+
+    /**
+     * @brief Persist a screen rotation and pin the first-boot probe.
+     *
+     * Also writes /display/rotation_probed, so the interactive probe in
+     * Application::run_rotation_probe_and_layout() can never re-run and
+     * overwrite an explicit choice.
+     *
+     * @param degrees One of 0, 90, 180, 270. Anything else is rejected.
+     * @return true when the applied rotation changed, i.e. a restart is needed.
+     *         false for a rejected value or a re-selection of the current one.
+     */
+    bool set_display_rotation(int degrees);
+
+    /** @brief Get dropdown index (0-3) for a rotation in degrees */
+    static int rotation_degrees_to_index(int degrees);
+
+    /** @brief Convert dropdown index (0-3) to rotation degrees */
+    static int index_to_rotation_degrees(int index);
+
+    /**
+     * @brief Whether the running display backend honors /display/rotate.
+     *
+     * The SDL desktop backend renders in DIRECT mode and skips rotation
+     * outright (see DisplayManager::init), so the control is inert there and
+     * the row is hidden. HELIX_SHOW_ROTATION_SETTING reveals it again for
+     * desktop UI work. (HELIX_FORCE_ROTATION_PROBE is not reused for this: it
+     * launches the interactive probe, which takes over the screen.)
+     */
+    static bool rotation_setting_available();
+
+    // =========================================================================
     // SCREENSAVER
     // =========================================================================
 
@@ -345,6 +392,11 @@ class DisplaySettingsManager {
         return &is_android_subject_;
     }
 
+    /** @brief Rotation setting availability (integer: 0=backend ignores it, 1=honored) */
+    lv_subject_t* subject_rotation_available() {
+        return &rotation_available_subject_;
+    }
+
     /** @brief Bed mesh render mode subject (integer: 0=auto, 1=3D, 2=2D) */
     lv_subject_t* subject_bed_mesh_render_mode() {
         return &bed_mesh_render_mode_subject_;
@@ -408,6 +460,7 @@ class DisplaySettingsManager {
     lv_subject_t page_scroll_buttons_subject_;
     lv_subject_t keep_navbar_visible_subject_;
     lv_subject_t is_android_subject_;
+    lv_subject_t rotation_available_subject_;
     lv_subject_t bed_mesh_render_mode_subject_;
     lv_subject_t gcode_render_mode_subject_;
     lv_subject_t time_format_subject_;

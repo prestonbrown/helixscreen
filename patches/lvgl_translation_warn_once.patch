@@ -1,0 +1,56 @@
+diff --git a/src/others/translation/lv_translation.c b/src/others/translation/lv_translation.c
+index 7d1407422..45498dc73 100644
+--- a/src/others/translation/lv_translation.c
++++ b/src/others/translation/lv_translation.c
+@@ -38,6 +38,16 @@ static lv_obj_tree_walk_res_t send_language_change_event(lv_obj_t * obj, void *
+  *  STATIC VARIABLES
+  **********************/
+ 
++/* Set once the "no pack registered for the selected language" warning has been
++ * emitted for the current language, so it is reported once per language rather
++ * than once per lookup. An application whose tags are already written in one
++ * language deliberately registers no pack for it and relies on the tag itself
++ * being returned; without this the warning fires on every single lv_tr() call.
++ * Deliberately a file static rather than an lv_global member: it only gates a
++ * log line, so the worst case under a second LVGL instance is one missing
++ * warning, never a behaviour change. */
++static bool missing_lang_warned;
++
+ /**********************
+  *      MACROS
+  **********************/
+@@ -50,6 +60,7 @@ void lv_translation_init(void)
+ {
+     lv_ll_init(&packs_ll, sizeof(lv_translation_pack_t));
+     selected_lang = NULL;
++    missing_lang_warned = false;
+ }
+ 
+ void lv_translation_deinit(void)
+@@ -82,6 +93,7 @@ void lv_translation_deinit(void)
+     lv_ll_clear(&packs_ll);
+ 
+     lv_free((void *)selected_lang);
++    missing_lang_warned = false;
+ }
+ 
+ lv_translation_pack_t * lv_translation_add_static(const char * const languages[], const char * const tags[],
+@@ -131,6 +143,7 @@ void lv_translation_set_language(const char * lang)
+ {
+     if(selected_lang) lv_free((void *)selected_lang);
+     selected_lang = lv_strdup(lang);
++    missing_lang_warned = false;
+     lv_obj_tree_walk(NULL, send_language_change_event, (void *)lang);
+ }
+ 
+@@ -185,7 +198,9 @@ const char * lv_translation_get(const char * tag)
+     if(lang_found) {
+         LV_LOG_WARN("`%s` tag is not found, using the tag as translation.", tag);
+     }
+-    else {
++    else if(!missing_lang_warned) {
++        /*Report once per language - see missing_lang_warned*/
++        missing_lang_warned = true;
+         LV_LOG_WARN("`%s` language is not found, using the `%s` as translation.", selected_lang, tag);
+     }
+ 

@@ -16,7 +16,7 @@
  * The handler owns a RunoutGuidanceModal and coordinates between:
  * - FilamentSensorManager (runout detection)
  * - StandardMacros (filament operations, resume, cancel)
- * - MoonrakerAPI (command execution)
+ * - IMoonrakerAPI (command execution)
  *
  * @see docs/FILAMENT_RUNOUT.md for feature design
  */
@@ -27,7 +27,7 @@
 #include "async_lifetime_guard.h"
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 // Forward declare the global PrintState enum (defined in ui_panel_print_status.h)
 enum class PrintState;
@@ -63,9 +63,9 @@ class FilamentRunoutHandler {
     /**
      * @brief Construct handler with dependencies
      *
-     * @param api MoonrakerAPI for macro execution (may be nullptr in tests)
+     * @param api IMoonrakerAPI for macro execution (may be nullptr in tests)
      */
-    explicit FilamentRunoutHandler(MoonrakerAPI* api);
+    explicit FilamentRunoutHandler(IMoonrakerAPI* api);
 
     ~FilamentRunoutHandler();
 
@@ -88,11 +88,11 @@ class FilamentRunoutHandler {
     void on_print_state_changed(::PrintState old_state, ::PrintState new_state);
 
     /**
-     * @brief Update the MoonrakerAPI pointer
+     * @brief Update the IMoonrakerAPI pointer
      *
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -128,7 +128,7 @@ class FilamentRunoutHandler {
     // === Dependencies ===
     //
 
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     //
     // === State ===

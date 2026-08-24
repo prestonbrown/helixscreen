@@ -4,8 +4,9 @@
 #include "helix_plugin_installer.h"
 
 #include "config.h"
+#include "host_identity.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -28,17 +29,6 @@ namespace helix {
 // ============================================================================
 // URL Parsing Utilities
 // ============================================================================
-
-bool is_local_host(const std::string& host) {
-    if (host.empty()) {
-        return false;
-    }
-
-    // Check common localhost variants
-    // Note: IPv6 has other representations like 0:0:0:0:0:0:0:1 but ::1 is canonical
-    // and what most systems use. The URL parser handles [::1] bracket stripping.
-    return host == "localhost" || host == "127.0.0.1" || host == "::1";
-}
 
 std::string extract_host_from_websocket_url(const std::string& url) {
     // Expected format: ws://host:port/websocket or wss://host:port/websocket
@@ -167,7 +157,7 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
 // HelixPluginInstaller Implementation
 // ============================================================================
 
-void HelixPluginInstaller::set_api(MoonrakerAPI* api) {
+void HelixPluginInstaller::set_api(IMoonrakerAPI* api) {
     api_ = api;
 
     // Try to get WebSocket URL from API's client
@@ -186,7 +176,10 @@ bool HelixPluginInstaller::is_local_moonraker() const {
     }
 
     std::string host = extract_host_from_websocket_url(websocket_url_);
-    return is_local_host(host);
+    if (host.empty()) {
+        return false;
+    }
+    return is_moonraker_on_same_host(host);
 }
 
 HelixPluginInstaller::SyncInstallResult

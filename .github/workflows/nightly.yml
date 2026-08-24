@@ -41,10 +41,13 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 10
+        timeout_minutes: 20
         max_attempts: 3
         command: |
           sudo apt-get update
@@ -140,6 +143,9 @@ jobs:
 
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
 
     - name: Install runtime deps
       run: |
@@ -252,6 +258,9 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install runtime deps
       run: |
         sudo apt-get update
@@ -322,10 +331,13 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 10
+        timeout_minutes: 20
         max_attempts: 3
         command: |
           sudo apt-get update
@@ -408,10 +420,13 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Install dependencies
       uses: nick-fields/retry@v4
       with:
-        timeout_minutes: 10
+        timeout_minutes: 20
         max_attempts: 3
         command: |
           sudo apt-get update
@@ -521,7 +536,7 @@ jobs:
     name: macOS Build
     needs: gate
     runs-on: macos-14
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     steps:
     - name: Checkout repository
@@ -576,7 +591,7 @@ jobs:
       run: make -j$(sysctl -n hw.ncpu)
 
     - name: Build tests (compile only, do not run)
-      timeout-minutes: 20
+      timeout-minutes: 30
       run: make test-build
 
   # ===========================================================================
@@ -606,6 +621,9 @@ jobs:
 
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
+
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
 
     - name: Install runtime deps
       run: |

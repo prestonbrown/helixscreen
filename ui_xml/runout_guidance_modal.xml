@@ -2,6 +2,23 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
+<!--
+  Capability-aware layout (#991), driven by the C++-owned, component-scoped
+  subject `runout_autofeed_capable` (0/1) set at show time from the active
+  backend's recovers_filament_on_resume():
+    - 0 (basic runout sensor): Load is required before resume, so the manual
+      Load/Unload/Purge row stays prominent and the message reads
+      "Load filament, then Resume."
+    - 1 (autofeed, e.g. Snapmaker U1): Resume runs AUTO_FEEDING then RESUME, so
+      Resume alone recovers the runout. The manual Load/Unload/Purge row is
+      hidden entirely, Resume is emphasized, and the message reads "Refill the
+      spool, then Resume."
+
+  On autofeed backends Resume is additionally gated on first-gate (port) filament
+  presence via the C++-maintained `runout_resume_blocked` subject (1 = block):
+  it disables btn_resume until the user re-feeds a spool at the port. Default 0
+  (never blocks) on non-autofeed / unknown backends.
+-->
 <component>
   <api>
     <prop name="title" type="string" default="Filament Runout"/>

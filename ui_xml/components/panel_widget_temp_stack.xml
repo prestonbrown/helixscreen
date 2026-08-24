@@ -15,9 +15,9 @@
             style_pad_gap="#space_xs" clickable="true" event_bubble="false">
       <event_cb trigger="clicked" callback="temp_stack_nozzle_cb"/>
       <nozzle_icon name="temp_stack_nozzle_icon" size="xs" badge_subject="" clickable="false" event_bubble="true"/>
-      <temp_display size="xs"
-                    show_target="false" bind_current="extruder_temp" bind_target="extruder_target" clickable="false"
-                    event_bubble="true"/>
+      <temp_display name="temp_stack_nozzle_temp"
+                    size="xs" show_target="false" bind_current="extruder_temp" bind_target="extruder_target"
+                    clickable="false" event_bubble="true"/>
     </lv_obj>
 
     <!-- Bed row -->
@@ -27,8 +27,8 @@
             style_pad_gap="#space_xs" clickable="true" event_bubble="false">
       <event_cb trigger="clicked" callback="temp_stack_bed_cb"/>
       <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs"/>
-      <temp_display size="xs"
-                    show_target="false" bind_current="bed_temp" bind_target="bed_target" clickable="false"
+      <temp_display name="temp_stack_bed_temp"
+                    size="xs" show_target="false" bind_current="bed_temp" bind_target="bed_target" clickable="false"
                     event_bubble="true"/>
     </lv_obj>
 
@@ -40,8 +40,8 @@
       <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="temp_stack_chamber_cb"/>
       <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs"/>
-      <temp_display size="xs"
-                    show_target="false" bind_current="chamber_temp" bind_target="chamber_effective_target"
+      <temp_display name="temp_stack_chamber_temp"
+                    size="xs" show_target="false" bind_current="chamber_temp" bind_target="chamber_effective_target"
                     bind_mode="chamber_mode" clickable="false" event_bubble="true"/>
     </lv_obj>
   </view>

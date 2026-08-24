@@ -46,19 +46,21 @@ void show_external_spool_menu(lv_obj_t* parent_screen, lv_obj_t* anchor_widget,
             break;
 
         case AmsContextMenu::MenuAction::SCAN_QR: {
+#if HELIX_HAS_CAMERA
             auto& scanner = get_qr_scanner_overlay();
             scanner.show_for_active_spool(parent_screen, [](const SpoolInfo& spool) {
                 SlotInfo info;
                 apply_spool_to_slot(info, spool);
-                ::AmsState::instance().set_external_spool_info(info);
+                ::AmsState::instance().commit_external_spool_edit(info);
                 spdlog::info("[ExternalSpoolMenu] QR scan assigned spool #{} to external spool",
                              spool.id);
             });
+#endif // HELIX_HAS_CAMERA
             break;
         }
 
         case AmsContextMenu::MenuAction::CLEAR_SPOOL:
-            ::AmsState::instance().clear_external_spool_info();
+            ::AmsState::instance().commit_external_spool_edit(SlotInfo{});
             NOTIFY_INFO(lv_tr("External spool cleared"));
             break;
 

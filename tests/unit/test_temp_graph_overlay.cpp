@@ -15,6 +15,7 @@
 #include "../lvgl_test_fixture.h"
 #include "subject_debug_registry.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "../catch_amalgamated.hpp"
@@ -149,29 +150,39 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // Destructor / Cleanup
 // =============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "TempGraphOverlay: init_subjects publishes nothing for the destructor to leak",
-                 "[temp_graph_overlay]") {
-    // TempGraphOverlay::init_subjects() is init_subjects_guarded([]() {}) - it
-    // registers no subjects at all. Everything the graph observes lives in
-    // TempGraphController, which the destructor drops with controller_.reset().
-    //
-    // So there is no per-subject teardown to check here, and asserting "the
-    // destructor did not crash" checks nothing. What IS checkable is the premise:
-    // the overlay publishes zero subjects. If someone adds one, this goes red and
-    // the destructor coverage has to be written to match - the destructor cannot
-    // deinit a subject nobody wrote code to deinit.
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "TempGraphOverlay: init_subjects publishes temp_graph_mode, destructor withdraws it",
+    "[temp_graph_overlay]") {
+    // init_subjects() publishes one subject — temp_graph_mode — which drives
+    // strip visibility and graph_outer width from XML (see temp_graph_overlay.xml's
+    // <subjects> block). The SubjectManager destructor (deinit_all, run from
+    // ~TempGraphOverlay via the subjects_ member) must withdraw the name so it
+    // does not outlive the overlay. This pins both halves: the publish count AND
+    // the destructor cleanup. If a second subject is ever added, bump the +1 and
+    // name the newcomer here so the withdrawal stays covered too.
+    auto name_present = [](const std::string& needle) {
+        auto all = SubjectDebugRegistry::instance().list_all();
+        return std::any_of(all.begin(), all.end(),
+                           [&](const auto& entry) { return entry.first == needle; });
+    };
+
     const size_t before = SubjectDebugRegistry::instance().list_all().size();
+    REQUIRE_FALSE(name_present("temp_graph_mode"));
 
     {
         TempGraphOverlay overlay;
         overlay.init_subjects();
         REQUIRE(overlay.are_subjects_initialized());
-        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
+
+        // Exactly one subject published: temp_graph_mode.
+        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 1);
+        REQUIRE(name_present("temp_graph_mode"));
         // Destructor runs here.
     }
 
     REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
+    REQUIRE_FALSE(name_present("temp_graph_mode"));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: destructor safe without init_subjects",

@@ -4,14 +4,14 @@
  * @file input_shaper_calibrator.cpp
  * @brief Implementation of InputShaperCalibrator class
  *
- * Orchestrates input shaper calibration workflow using MoonrakerAPI.
+ * Orchestrates input shaper calibration workflow using IMoonrakerAPI.
  * Manages state transitions, result storage, and error handling.
  */
 
 #include "input_shaper_calibrator.h"
 
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
@@ -30,7 +30,7 @@ InputShaperCalibrator::InputShaperCalibrator() : api_(nullptr) {
     spdlog::debug("[InputShaperCalibrator] Created without API (test mode)");
 }
 
-InputShaperCalibrator::InputShaperCalibrator(MoonrakerAPI* api) : api_(api) {
+InputShaperCalibrator::InputShaperCalibrator(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[InputShaperCalibrator] Created with API");
 }
 
@@ -197,9 +197,9 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
     ensure_homed_then(
         api_, *lifetime_,
         [this, normalized_axis, on_progress, on_complete, on_error]() {
-            auto api_progress = [on_progress](int percent) {
+            auto api_progress = [on_progress](int percent, ShaperCalibrationPhase phase) {
                 if (on_progress) {
-                    on_progress(percent);
+                    on_progress(percent, phase);
                 }
             };
 
@@ -260,7 +260,7 @@ void InputShaperCalibrator::emergency_abort() {
 
     spdlog::info("[InputShaperCalibrator] Emergency abort: sending M112 + firmware_restart");
 
-    MoonrakerAPI* api = api_;
+    IMoonrakerAPI* api = api_;
     api_->emergency_stop(
         [api]() {
             spdlog::debug("[InputShaperCalibrator] M112 sent, restarting firmware");

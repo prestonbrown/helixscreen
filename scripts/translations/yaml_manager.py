@@ -22,6 +22,7 @@ from typing import Set, Dict, List, Tuple, Optional, Any
 try:
     from ruamel.yaml import YAML
     from ruamel.yaml.comments import CommentedMap
+    from ruamel.yaml.constructor import DuplicateKeyError
 
     RUAMEL_AVAILABLE = True
 except ImportError:
@@ -67,23 +68,94 @@ def require_ruamel(operation: str) -> None:
         )
 
 
+class DuplicateTranslationKey(Exception):
+    """A locale file defines the same key twice."""
+
+
+def _duplicate_key_message(yaml_path: Path, exc: "DuplicateKeyError") -> str:
+    """Turn ruamel's multi-line parse error into one actionable line."""
+    # exc.problem already reads: found duplicate key "X" with value "Y"
+    # (original value: "Z"). problem_mark is 0-based.
+    where = ""
+    if exc.problem_mark is not None:
+        where = f" at line {exc.problem_mark.line + 1}"
+    return (
+        f"{yaml_path}: {exc.problem}{where}. Keep the translated entry and delete "
+        f"the empty one; a branch that ran translation-sync before the locales were "
+        f"filled, then merged, is the usual cause — YAML files merge textually, so "
+        f"both lines survive."
+    )
+
+
+def _strict_pyyaml_loader():
+    """A SafeLoader subclass that refuses a duplicate key instead of keeping the last.
+
+    Built on demand rather than at import: ``pyyaml`` is only imported on the
+    ruamel-less path, so a module-level subclass would have to name a base class
+    that does not exist in the common case — and the usual dodge (inherit from
+    ``object`` when ruamel is present) leaves a class whose ``super()`` call is
+    broken if anything ever reaches it.
+    """
+
+    class StrictLoader(pyyaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                if key in seen:
+                    raise DuplicateTranslationKey(
+                        f"duplicate key {key!r} at line {key_node.start_mark.line + 1}"
+                    )
+                seen.add(key)
+            return super().construct_mapping(node, deep)
+
+    return StrictLoader
+
+
 def load_yaml_file(yaml_path: Path) -> Dict[str, Any]:
     """
     Load a YAML translation file.
+
+    Rejects a file that defines a key twice, in terms a person can act on.
+    Neither backend handles that acceptably on its own: ruamel raises
+    DuplicateKeyError with a traceback that buries the cause under a dozen frames
+    of constructor internals, and pyyaml.safe_load silently keeps the LAST value.
+
+    Detection is left to the parsers rather than a regex over the text. A locale
+    key may be quoted either way, may double an inner quote, and — for the long
+    ones — is folded across lines or written in YAML's explicit ``? key`` form;
+    a line-oriented scan missed 59 keys per file, which would be exactly the
+    blind spot a duplicate hides in.
+
+    Not hypothetical: a branch cut before the locales were filled ran
+    `translation-sync`, which correctly added empty placeholders for keys that did
+    not yet exist on it. Merging brought main's translated entries in beside them,
+    and since YAML files merge textually both lines survived. "Print cancelled"
+    and "Print did not start" then shipped untranslated in all eight non-English
+    locales.
 
     Args:
         yaml_path: Path to the YAML file
 
     Returns:
         Dict with 'locale' and 'translations' keys
+
+    Raises:
+        DuplicateTranslationKey: the file defines a key more than once
     """
+    text = yaml_path.read_text(encoding="utf-8")
+
     if RUAMEL_AVAILABLE:
         yaml = get_yaml_instance()
-        with open(yaml_path, "r", encoding="utf-8") as f:
-            data = yaml.load(f)
+        try:
+            data = yaml.load(text)
+        except DuplicateKeyError as exc:
+            raise DuplicateTranslationKey(_duplicate_key_message(yaml_path, exc)) from None
     else:
-        with open(yaml_path, "r", encoding="utf-8") as f:
-            data = pyyaml.safe_load(f)
+        try:
+            data = pyyaml.load(text, Loader=_strict_pyyaml_loader())
+        except DuplicateTranslationKey as exc:
+            raise DuplicateTranslationKey(f"{yaml_path}: {exc}") from None
 
     return data or {"locale": "", "translations": {}}
 

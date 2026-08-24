@@ -30,7 +30,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -174,11 +174,11 @@ class PrintStartAnalyzer {
      * Fetches printer config via Moonraker, finds the print start macro,
      * and parses it to detect operations and their controllability.
      *
-     * @param api MoonrakerAPI instance (must be connected)
+     * @param api IMoonrakerAPI instance (must be connected)
      * @param on_complete Callback with analysis result
      * @param on_error Error callback (connection failed, parse error, etc.)
      */
-    void analyze(MoonrakerAPI* api, AnalysisCallback on_complete, ErrorCallback on_error);
+    void analyze(IMoonrakerAPI* api, AnalysisCallback on_complete, ErrorCallback on_error);
 
     /**
      * @brief Analyze PRINT_START macro from pre-downloaded config content

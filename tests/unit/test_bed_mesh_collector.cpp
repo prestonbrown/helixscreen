@@ -615,6 +615,133 @@ TEST_CASE("ProbePointCounter never counts backwards", "[bed_mesh_collector][dedu
     REQUIRE(counter.points() == 3);
 }
 
+TEST_CASE("Revisited point does not count twice", "[bed_mesh_collector][dedupe]") {
+    // Consecutive-only dedupe collapses A A B but not A B A. Firmware that
+    // returns to an earlier point after moving away must not gain a point.
+    helix::ProbePointCounter counter(1);
+    counter.feed(probe_line(10.0, 10.0));
+    counter.feed(probe_line(60.0, 10.0));
+    counter.feed(probe_line(10.0, 10.0));
+    REQUIRE(counter.points() == 2);
+}
+
+TEST_CASE("Corner re-probe at sub-millimetre offsets does not inflate the count",
+          "[bed_mesh_collector][dedupe][k2]") {
+    // K2 Plus G29_RE_CHECK re-touches a mesh corner eight times, each round
+    // sampling the four quadrant offsets around it. The offsets are +/-0.25mm,
+    // far enough apart that consecutive-only dedupe at 0.05mm counted every
+    // one: a 67-point mesh reported 147.
+    helix::ProbePointCounter counter(1);
+    counter.feed(probe_line(345.000, 47.500)); // the grid point, during the sweep
+    counter.feed(probe_line(345.000, 302.500));
+    REQUIRE(counter.points() == 2);
+
+    for (int round = 0; round < 8; ++round) {
+        for (double dx : {-0.25, 0.25}) {
+            for (double dy : {-0.25, 0.25}) {
+                counter.feed(probe_line(345.0 + dx, 47.5 + dy));
+                counter.feed(probe_line(345.0 + dx, 302.5 + dy));
+            }
+        }
+    }
+    REQUIRE(counter.points() == 2);
+}
+
+TEST_CASE("Adjacent grid points stay distinct at the widened tolerance",
+          "[bed_mesh_collector][dedupe]") {
+    // The tolerance has to absorb 0.5mm of re-probe jitter without merging real
+    // neighbours. The tightest mesh spacing any firmware ships is millimetres.
+    helix::ProbePointCounter counter(1);
+    counter.feed(probe_line(100.0, 100.0));
+    counter.feed(probe_line(101.0, 100.0));
+    counter.feed(probe_line(100.0, 101.0));
+    REQUIRE(counter.points() == 3);
+}
+
+/**
+ * @brief Replay a K2 Plus bed mesh the way the firmware actually emits it
+ *
+ * Reconstructed from klippy.log of the 2026-08-16 print
+ * quattrobox_bottom_cover_ASA-GF (12:22:30-12:28:56). Three properties of that
+ * stream broke the old consecutive-only dedupe, and all three are reproduced:
+ *
+ *  - Two "probe at" lines per touch. Creality reports the raw Z and the
+ *    z_compensation-adjusted Z as separate lines at one position.
+ *  - The sweep is adaptive. The configured grid is 9x9, but the firmware
+ *    trimmed it to the print area and skipped five cells of the Y=5 row, so
+ *    it probed 67 points and no configfile number predicts that.
+ *  - It closes with eight G29_RE_CHECK rounds alternating between two corners
+ *    it already probed, each round sampling the four +/-0.25mm quadrant
+ *    offsets. Those are already-seen points, not new ones.
+ *
+ * The count must equal the grid the sweep visited, not the lines fed.
+ */
+static std::vector<std::pair<double, double>> k2_adaptive_grid() {
+    const double xs[] = {5.0, 47.5, 90.0, 132.5, 175.0, 217.5, 260.0, 302.5, 345.0};
+    const double ys[] = {5.0, 47.5, 90.0, 132.5, 175.0, 217.5, 260.0, 302.5};
+    std::vector<std::pair<double, double>> grid;
+    for (double x : xs) {
+        for (double y : ys) {
+            // The five Y=5 cells past mid-bed fall outside the print area and
+            // were never touched on the captured run.
+            if (y == 5.0 && x > 132.5) {
+                continue;
+            }
+            grid.push_back({x, y});
+        }
+    }
+    return grid;
+}
+
+/// Both lines Klipper emits for one K2 probe touch.
+static void feed_k2_touch(helix::ProbePointCounter& counter, double x, double y) {
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "// probe at %.3f,%.3f is z=-0.647500 z_compensation=0.050000",
+                  x, y);
+    counter.feed(buf);
+    std::snprintf(buf, sizeof(buf), "// probe at %.3f,%.3f is z=-0.597500", x, y);
+    counter.feed(buf);
+}
+
+TEST_CASE("K2 Plus adaptive mesh replay counts the grid, not the sample lines",
+          "[bed_mesh_collector][dedupe][k2]") {
+    constexpr int kRecheckRounds = 8;
+    constexpr int kRecheckCorners = 2;
+    constexpr int kQuadrantOffsets = 4;
+    constexpr int kLinesPerTouch = 2;
+
+    const auto grid = k2_adaptive_grid();
+    helix::ProbePointCounter counter(1);
+
+    for (const auto& [x, y] : grid) {
+        feed_k2_touch(counter, x, y);
+    }
+    const int after_sweep = counter.points();
+
+    // Eight G29_RE_CHECK rounds over two corners the sweep already covered.
+    for (int round = 0; round < kRecheckRounds; ++round) {
+        for (double dx : {-0.25, 0.25}) {
+            for (double dy : {-0.25, 0.25}) {
+                feed_k2_touch(counter, 345.0 + dx, 47.5 + dy);
+                feed_k2_touch(counter, 345.0 + dx, 302.5 + dy);
+            }
+        }
+    }
+
+    // The sweep itself must collapse two lines per touch down to one point...
+    REQUIRE(after_sweep == static_cast<int>(grid.size()));
+    // ...and the re-check rounds must add nothing, having touched no new point.
+    REQUIRE(counter.points() == static_cast<int>(grid.size()));
+
+    // Guard the premise. Spelling out the lines fed keeps the two quantities
+    // visibly different, so a counter that regressed to counting lines — or to
+    // any fixed divisor of them — cannot coincidentally land on the grid size.
+    const int touches =
+        static_cast<int>(grid.size()) + kRecheckRounds * kRecheckCorners * kQuadrantOffsets;
+    REQUIRE(counter.sample_lines() == touches * kLinesPerTouch);
+    REQUIRE(counter.sample_lines() > counter.points() * 3);
+}
+
 TEST_CASE("ProbePointCounter reset clears both counters", "[bed_mesh_collector][dedupe][1224]") {
     helix::ProbePointCounter counter(1);
     counter.feed(probe_line(10.0, 10.0));

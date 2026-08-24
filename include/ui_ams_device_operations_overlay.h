@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "ui_bypass_toggle_controller.h"
+
 #include "ams_types.h"
 #include "overlay_base.h"
 
@@ -111,6 +113,12 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
      */
     void refresh();
 
+  protected:
+    /// Abort a pending unload->enable bypass chain when this surface goes away,
+    /// matching BypassWidget::detach() and AmsOperationSidebar::cleanup(): the
+    /// controller's self-observer must not fire an enable nobody is waiting on.
+    void on_ui_destroyed() override;
+
   private:
     //
     // === Internal Methods ===
@@ -140,6 +148,10 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// Callback for the AFC unload-after-print toggle (AFC backends only)
     static void on_afc_unload_after_print_toggled(lv_event_t* e);
     static void on_always_show_bypass_spool_toggled(lv_event_t* e);
+
+    /// Callback for the keep-spool-info-on-eject toggle (backends whose
+    /// firmware reports spool ids per lane only)
+    static void on_keep_spool_info_toggled(lv_event_t* e);
     static void on_force_bypass_controls_toggled(lv_event_t* e);
 
     /// Callback for the QIDI eject distance slider (QIDI Box backends only)
@@ -150,6 +162,11 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
 
     /// Callback for section row click — pushes detail overlay
     static void on_section_row_clicked(lv_event_t* e);
+
+    /// Callback for the "Reset Endless Spool" action row. Opens a confirmation
+    /// dialog (the reset wipes ALL failover config) and, on confirm, calls the
+    /// backend's reset_endless_spool().
+    static void on_reset_endless_spool_clicked(lv_event_t* e);
 
     //
     // === State ===
@@ -183,9 +200,6 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// user turns the override on so they can turn it back off.
     lv_subject_t fw_supports_bypass_subject_;
 
-    /// Subject for bypass active state (0=inactive, 1=active)
-    lv_subject_t bypass_active_subject_;
-
     /// Subject for hardware bypass sensor (0=virtual toggle, 1=hardware sensor)
     lv_subject_t hw_bypass_sensor_subject_;
 
@@ -199,6 +213,19 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// unload-after-print toggle, which only applies to AFC systems
     lv_subject_t is_afc_subject_;
 
+    /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).
+    /// Set from AmsBackend::printer_reports_spool_ids(), so the row appears
+    /// only on systems whose firmware reports spool ids per lane (AFC, Happy
+    /// Hare); no backend means hidden.
+    lv_subject_t reports_spool_ids_subject_;
+
+    /// Subject disabling the keep-spool-info-on-eject toggle (0=enabled,
+    /// 1=firmware retention owns it). Set from
+    /// AmsBackend::printer_retains_spool_info(): with AFC's per-lane
+    /// remember_spool true everywhere, the toggle has no observable effect,
+    /// so it is shown disabled with a note instead of silently lying.
+    lv_subject_t printer_retains_spool_info_subject_;
+
     /// Subject for QIDI Box backend detection (0=not QIDI, 1=QIDI) — gates the
     /// eject distance/velocity rows, which only apply to QIDI Box systems
     lv_subject_t is_qidi_subject_;
@@ -211,8 +238,20 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     lv_subject_t qidi_eject_velocity_display_subject_;
     char qidi_eject_velocity_buf_[32] = {};
 
+    /// Subject gating the "Reset Endless Spool" row (0=hidden, 1=shown).
+    /// Set from EndlessSpoolCapabilities::editable(), so the row lights up for
+    /// any backend whose endless-spool mapping the UI may write — AFC (per-slot
+    /// edges), single-unit Happy Hare (groups) and the mock — and stays hidden
+    /// for read-only systems (CFS, AD5X IFS) and backends with no endless spool.
+    lv_subject_t can_reset_endless_spool_subject_;
+
     /// Cached section metadata for row click dispatch
     std::vector<helix::printer::DeviceSection> cached_sections_;
+
+    /// Shared bypass policy — print guard, hardware-sensor refusal and the
+    /// unload-first chain. One instance per surface, as in AmsOperationSidebar
+    /// and BypassWidget; the switch handler owns nothing beyond forwarding to it.
+    BypassToggleController bypass_toggle_;
 };
 
 /**

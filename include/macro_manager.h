@@ -4,7 +4,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 
@@ -53,7 +53,7 @@
  * @endcode
  *
  * @see PrinterDiscovery for macro detection
- * @see MoonrakerAPI for file upload operations
+ * @see IMoonrakerAPI for file upload operations
  */
 
 namespace helix {
@@ -100,10 +100,10 @@ class MacroManager {
     /**
      * @brief Construct MacroManager with API and hardware discovery references
      *
-     * @param api MoonrakerAPI for file operations
+     * @param api IMoonrakerAPI for file operations
      * @param hardware PrinterDiscovery for macro detection
      */
-    MacroManager(MoonrakerAPI& api, const PrinterDiscovery& hardware);
+    MacroManager(IMoonrakerAPI& api, const PrinterDiscovery& hardware);
 
     // Non-copyable, non-movable (holds references)
     MacroManager(const MacroManager&) = delete;
@@ -217,7 +217,7 @@ class MacroManager {
     [[nodiscard]] static std::vector<std::string> get_macro_names();
 
   private:
-    MoonrakerAPI& api_;
+    IMoonrakerAPI& api_;
     const PrinterDiscovery& hardware_;
 
     /// Async callback safety guard (prevents use-after-free)

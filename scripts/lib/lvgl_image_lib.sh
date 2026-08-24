@@ -36,8 +36,11 @@ fi
 
 # Colors for output
 LVGL_RED='\033[0;31m'
+# shellcheck disable=SC2034  # consumed by regen_images.sh / regen_printer_images.sh / regen_placeholder_images.sh
 LVGL_GREEN='\033[0;32m'
+# shellcheck disable=SC2034  # consumed by regen_images.sh / regen_printer_images.sh / regen_placeholder_images.sh
 LVGL_YELLOW='\033[0;33m'
+# shellcheck disable=SC2034  # consumed by regen_images.sh / regen_printer_images.sh / regen_placeholder_images.sh
 LVGL_CYAN='\033[0;36m'
 LVGL_NC='\033[0m'
 

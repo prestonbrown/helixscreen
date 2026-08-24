@@ -8,7 +8,7 @@
  * @pattern Pure virtual interface + static create()/create_auto() factory methods
  * @threading Implementation-dependent; see concrete implementations
  *
- * @see ams_backend_happyhare.cpp, ams_backend_afc.cpp
+ * @see ams_backend_happy_hare.cpp, ams_backend_afc.cpp
  */
 
 #pragma once
@@ -18,9 +18,12 @@
 #include "ams_types.h"
 #include "error_event.h"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
+#ifdef HELIX_ENABLE_MOCKS
+class AmsBackendMock;
+#endif
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 class PrinterDiscovery;
 } // namespace helix
 
@@ -35,6 +38,8 @@ typedef struct _lv_subject_t lv_subject_t;
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 /**
@@ -102,7 +107,7 @@ class AmsBackend {
     /**
      * @brief Release subscriptions without unsubscribing
      *
-     * Use during shutdown when the helix::MoonrakerClient may already be destroyed.
+     * Use during shutdown when the helix::IMoonrakerClient may already be destroyed.
      * This abandons the subscription rather than trying to call into the client.
      * Backends that hold SubscriptionGuards should call release() on them.
      */
@@ -238,12 +243,24 @@ class AmsBackend {
     }
 
     /**
-     * @brief Backend-specific error classification hook.
+     * @brief Channel A: backend-specific classification of one gcode-response
+     *        line.
      *
-     * Called by ErrorCenter before the generic classifier so domain-aware
-     * backends (AFC first, others later) can recognize their own error lines
-     * and attach accurate severity + recovery actions. Return nullopt to
-     * defer to the generic classifier; return an ErrorEvent to short-circuit it.
+     * Called from GcodeErrorRouter::process_line() (gcode_error_router.cpp),
+     * before the generic error_classify::classify(), so domain-aware backends
+     * can recognize their own error lines and attach accurate severity +
+     * recovery actions. Return nullopt to defer to the generic classifier;
+     * return an ErrorEvent to short-circuit it.
+     *
+     * @warning The router applies **no line filtering at all** — every response
+     *          line reaches every backend, `!!` or not. Each override must gate
+     *          itself. AFC and Happy Hare take only `!!` lines
+     *          (helix::is_bang_line); CFS deliberately takes only NON-`!!`
+     *          lines, because its give-up messages arrive via respond_info while
+     *          its coded faults belong to the generic key8xx path.
+     *
+     * See docs/devel/FILAMENT_MANAGEMENT.md § "Two error channels" for the
+     * per-backend gate and recovery table.
      *
      * @param raw_line  Unmodified gcode-response line to classify
      * @param ctx       Printer state at the time the line arrived
@@ -254,14 +271,53 @@ class AmsBackend {
         return std::nullopt;
     }
 
-    /// Current actionable fault for STATUS-driven backends (no `!!` line).
+    /// Channel B: the current actionable fault, derived from backend STATUS
+    /// rather than from a console line. Consulted only by AmsErrorBridge, and
+    /// only on the rising edge into AmsAction::ERROR — a backend that never
+    /// assigns that action can override this and still never be asked.
+    ///
     /// Returns nullopt when there is no actionable error, or when a bespoke
-    /// dialog owns the fault. `!!`-driven backends leave the default and use
-    /// classify_error() instead.
+    /// dialog owns the fault.
+    ///
+    /// The two channels are independent, not alternatives: AFC overrides BOTH
+    /// (its `!!` lands before AFC pauses, so the line and the status edge each
+    /// catch cases the other misses — #1171). Happy Hare and CFS are channel A
+    /// only; AD5X IFS and QIDI are channel B only.
     [[nodiscard]] virtual std::optional<helix::ErrorEvent> current_error() const {
         return std::nullopt;
     }
 
+  protected:
+    /**
+     * @brief The recovery buttons this backend offers for its current fault.
+     *
+     * The companion to classify_error() / current_error(): those decide *that*
+     * there is a fault and what to call it, this decides what the user can tap.
+     * Split out as its own hook because the action set is derived from live
+     * backend state (is the toolhead loaded, which lane is selected) and is
+     * therefore the same answer no matter which of the two entry points asked.
+     *
+     * @warning **The caller must already hold the backend's own mutex_.**
+     *          Both existing overrides read mutex-protected state directly and
+     *          take no lock of their own, and every call site is inside a
+     *          `std::lock_guard<std::mutex> lock(mutex_)` scope in the same
+     *          object. The mutexes are plain `std::mutex`, not recursive, so an
+     *          override that locks — or a caller that does not — deadlocks.
+     *          Overrides must document and preserve this.
+     *
+     * The base returns an EMPTY vector, and that is deliberate rather than a
+     * placeholder: `decide_presentation()` (gcode_error_router.cpp) keys off
+     * `recovery_actions.empty()` to choose MODAL vs MODAL_WITH_RECOVER, so any
+     * guessed generic default here would silently promote every non-overriding
+     * backend's plain error modal into a recovery prompt with buttons that
+     * backend never vetted. Empty preserves today's behaviour exactly: a backend
+     * offers recovery only by opting in.
+     */
+    [[nodiscard]] virtual std::vector<helix::RecoveryAction> build_recovery_actions() const {
+        return {};
+    }
+
+  public:
     /// One ordered phase in a backend's toolchange narration model.
     struct ToolchangePhase {
         std::string id;    ///< stable key matched from narration, e.g. "brush"
@@ -381,6 +437,22 @@ class AmsBackend {
      * @return true if filament is loaded
      */
     [[nodiscard]] virtual bool is_filament_loaded() const = 0;
+
+    /**
+     * @brief Whether filament sits in the toolhead that this backend cannot
+     *        account for (no lane/spool claims it).
+     *
+     * Print-start gate input: an unaccounted toolhead load at print start
+     * usually means leftover filament from a cancelled or aborted operation;
+     * the print-start pipeline warns so the user can purge it or accept it.
+     * Backends that cannot determine this return std::nullopt ("unknown" —
+     * no warning). The base default is "cannot determine".
+     *
+     * @return true/false when known, std::nullopt when the backend cannot tell
+     */
+    [[nodiscard]] virtual std::optional<bool> toolhead_filament_unaccounted() const {
+        return std::nullopt;
+    }
 
     // ========================================================================
     // Filament Path Visualization
@@ -590,7 +662,7 @@ class AmsBackend {
      * HelixScreen's OWN homing is already handled without this flag, in two
      * layers that both remain in force:
      *   - Layer 1: helix::api::reject_homing_during_active_print() refuses any
-     *     app-emitted G28 while PRINTING or PAUSED, in MoonrakerAPI::execute_gcode
+     *     app-emitted G28 while PRINTING or PAUSED, in IMoonrakerAPI::execute_gcode
      *     and MoonrakerMotionAPI::execute_gcode.
      *   - AmsSubscriptionBackend::ensure_homed_then() only emits G28 when
      *     toolhead.homed_axes lacks "xyz" — and a paused print is homed by
@@ -601,8 +673,30 @@ class AmsBackend {
      * firmware macro this backend dispatches homes on its own; "not sure" must
      * stay false, because a permanent false refusal is its own broken workflow
      * (bundle JX2FVRB9).
+     *
+     * Distinct from delegates_homing_to_printer() (load/unload homing
+     * delegation); the two must stay separate.
      */
     [[nodiscard]] virtual bool filament_ops_self_home() const {
+        return false;
+    }
+
+    /**
+     * @brief Does the printer-side system arrange its own homing for filament
+     *        load/unload ops, so HelixScreen should neither prompt nor send G28?
+     *
+     * AFC answers true when [AFC] auto_home is set in AFC.cfg: its macros
+     * home-if-needed themselves, so both our confirmation prompt and the G28
+     * that ensure_homed_then() would synthesize are redundant.
+     *
+     * False-until-config-loaded by construction: the AFC override reads
+     * afc_config_, which lands asynchronously, so an early or failed load
+     * answers false — at worst one redundant prompt, never a skipped home.
+     *
+     * NOT the same question as filament_ops_self_home() (which gates
+     * PAUSED-print refusal); the two must stay separate.
+     */
+    [[nodiscard]] virtual bool delegates_homing_to_printer() const {
         return false;
     }
 
@@ -750,7 +844,7 @@ class AmsBackend {
     // print-active gate, and dispatches to a protected do_* hook the backend
     // writes instead. So a subscription backend does not implement these
     // directly and cannot skip the gate. Only AmsBackendMock, which has no
-    // MoonrakerAPI and therefore no print state to consult, overrides them here.
+    // IMoonrakerAPI and therefore no print state to consult, overrides them here.
     // ========================================================================
 
     /**
@@ -989,10 +1083,18 @@ class AmsBackend {
      * the other end will accept the command.
      *
      * AFC does not: `cmd_LANE_UNLOAD` opens with
-     * `if self.function.is_printing(): AFC_error(...); return` on every version
-     * shipped (v1.1.0 AFC.py:1112, v1.2.0 AFC.py:1331). A backend that answers
-     * true here keeps its cold ops greyed while the print gate is closed, so the
-     * button is not offered into a guaranteed refusal.
+     * `if self.function.is_printing(): AFC_error(...); return`. A backend that
+     * answers true here keeps its cold ops greyed while the print gate is
+     * closed, so the button is not offered into a guaranteed refusal.
+     *
+     * This survived the removal of eject_lane()'s condition mirror
+     * (prestonbrown/helixscreen#1258) because it is a different kind of claim: a
+     * single predicate that has been the first line of that macro at every AFC
+     * version checked, rather than a transcription of the version-dependent
+     * if/elif chain below it. Re-verify it against the AFC checkout rather than
+     * trusting this comment. Note the refusal it avoids is the one AFC DOES
+     * report (AFC_error reaches message_queue and so AFC.message), so if this
+     * ever goes stale the symptom is a toast, not silence.
      *
      * Default false: for every other backend the exemption is correct, and the
      * cold ops stay reachable mid-pause for clearing a snapped strand.
@@ -1323,6 +1425,30 @@ class AmsBackend {
         (void)slot_index;
     }
 
+    /**
+     * @brief Publish the external (bypass) spool into the backend's lane_data
+     *        mirror, or clear it.
+     *
+     * Capability question, not vendor dispatch: "can this filament system's
+     * external spool appear as an extra lane in the shared lane_data namespace
+     * (so slicers like OrcaSlicer can select it)?" Default no-op — backends
+     * whose firmware publishes lane_data itself (AFC, Happy Hare) or that have
+     * no bypass never publish. A backend that owns its lane_data mirror and
+     * supports bypass (CFS) publishes the spool as the lane one past its last
+     * physical slot.
+     *
+     * Called by AmsState when bypass engages and whenever the external spool's
+     * identity changes. Not called on bypass disengage — the lane mirrors the
+     * spool record, not the feed state, so a slicer mapping survives a
+     * bypass-off period.
+     *
+     * @param spool external spool info; nullptr (or an identity-less record)
+     *              clears the published lane
+     */
+    virtual void publish_external_spool_lane(const SlotInfo* spool) {
+        (void)spool;
+    }
+
     // ========================================================================
     // Bypass Mode Operations
     // ========================================================================
@@ -1441,51 +1567,78 @@ class AmsBackend {
     // ========================================================================
 
     /**
-     * @brief Get endless spool capabilities for this backend
+     * @brief What this backend can do about endless spool.
      *
-     * Returns information about whether endless spool is supported and
-     * whether the configuration can be modified via the UI.
+     * The single source of truth for all three axes (availability / enabled /
+     * editability). `AmsSystemInfo::endless_spool_enabled` is a transport
+     * carrier that overrides read from, never a second answer.
      *
-     * @return Capabilities struct with supported/editable flags
+     * @note Overrides take the backend's own `mutex_`; callers must NOT hold it.
+     * @return Default: Unsupported, nothing enabled, read-only.
      */
     [[nodiscard]] virtual helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const {
-        return {false, false, ""}; // Default: not supported
+        return {};
     }
 
     /**
-     * @brief Get endless spool configuration for all slots
+     * @brief The endless-spool relation for the whole system.
      *
-     * Returns the backup slot configuration for each slot in the system.
-     * For Happy Hare, this translates the group-based configuration to
-     * per-slot backup mappings.
+     * Groups, not per-slot successors - see helix::printer::EndlessSpoolConfig.
+     * Project with helix::printer::endless_spool_backup_edges() /
+     * endless_spool_backup_for() when a renderer needs single arrows.
      *
-     * @return Vector of configs, one per slot
+     * Backends whose mapping lives in a SlotRegistry build this in one line:
+     * lock `mutex_`, then
+     * `endless_spool_config_from_edges(slots_.backup_edges())`. The registry and
+     * the mutex are declared in the derived classes (`slots_` per backend,
+     * `mutex_` on AmsSubscriptionBackend), so the base cannot lock on their
+     * behalf; what the base owns is the loop that used to be copy-pasted.
+     *
+     * @note Overrides take the backend's own `mutex_`; callers must NOT hold it.
+     * @return Default: an empty relation.
      */
-    [[nodiscard]] virtual std::vector<helix::printer::EndlessSpoolConfig>
-    get_endless_spool_config() const {
-        return {}; // Default: empty
+    [[nodiscard]] virtual helix::printer::EndlessSpoolConfig get_endless_spool_config() const {
+        return {};
     }
 
     /**
-     * @brief Set backup slot for endless spool
+     * @brief Set (or clear, with -1) one slot's endless-spool backup.
      *
-     * Configures which slot will be used as a backup when the specified
-     * slot runs out of filament. Pass -1 as backup_slot to disable backup.
+     * **Deliberately NOT virtual.** Every rejection lives here so the wording
+     * cannot drift: three backends previously wrote the same four guards with
+     * three different phrasings of the self-backup error. Backends implement
+     * apply_endless_spool_backup() and supply transport only.
      *
-     * Not all backends support editing:
-     * - AFC: Fully editable via SET_RUNOUT G-code
-     * - Happy Hare: Read-only (configured via mmu_vars.cfg)
+     * Rejects, in order: feature unavailable; feature read-only (with the
+     * translated restriction reason); backend not ready; `slot_index` out of
+     * range; `backup_slot` out of range; `backup_slot == slot_index`.
      *
-     * @param slot_index Source slot
-     * @param backup_slot Backup slot (-1 to disable)
-     * @return AmsError with result
+     * @note Holds no lock. Calls get_endless_spool_capabilities() and
+     *       endless_spool_slot_count(), both of which take `mutex_` themselves,
+     *       then hands off to the hook with no lock held.
+     * @param slot_index Source slot.
+     * @param backup_slot Backup slot, or -1 to clear.
      */
-    virtual AmsError set_endless_spool_backup(int slot_index, int backup_slot) {
-        (void)slot_index;
-        (void)backup_slot;
-        return AmsErrorHelper::not_supported("Endless spool");
-    }
+    AmsError set_endless_spool_backup(int slot_index, int backup_slot);
+
+    /**
+     * @brief May @p backup_slot stand in for @p slot_index?
+     *
+     * Backends own the eligibility rule. The base default asks two questions in
+     * order: filament::materials_compatible() decides the polymer, and
+     * filament::grades_match() decides the grade, so a filled variant of the
+     * right polymer comes back as GradeDiffers rather than being waved through.
+     * An unlabelled lane on either side stays Eligible - the user simply has
+     * not filled it in yet, and blocking on that helps nobody.
+     *
+     * AD5X IFS overrides with the stricter rule its firmware actually enforces:
+     * exact material AND exact colour AND the port reporting filament present.
+     *
+     * @note Holds no lock; reads through get_slot_info(), which takes `mutex_`.
+     */
+    [[nodiscard]] virtual helix::printer::BackupEligibility
+    endless_spool_backup_eligibility(int slot_index, int backup_slot) const;
 
     /**
      * @brief Reset all tool mappings to defaults
@@ -1500,17 +1653,49 @@ class AmsBackend {
     }
 
     /**
-     * @brief Reset all endless spool backup mappings
+     * @brief Clear every endless-spool backup.
      *
-     * Clears all endless spool backup slot configurations, setting each
-     * slot's backup to -1 (no backup).
+     * The base walks set_endless_spool_backup(slot, -1) over every slot,
+     * continuing past failures so it clears as many as it can, and returns the
+     * first error. That generic loop was AFC's private implementation; every
+     * editable backend gets it for free now. Happy Hare overrides because its
+     * firmware has a real primitive (`MMU_ENDLESS_SPOOL RESET=1`).
      *
-     * @return AmsError with result
+     * @note Holds no lock.
      */
-    virtual AmsError reset_endless_spool() {
-        return AmsErrorHelper::not_supported("Reset endless spool");
+    virtual AmsError reset_endless_spool();
+
+  protected:
+    /**
+     * @brief Transport-only hook behind set_endless_spool_backup().
+     *
+     * Reached ONLY after the base accepted the write, so implementations must
+     * not re-check availability, editability, ranges or self-backup - and must
+     * not mutate any local mirror of the mapping before their transport has
+     * accepted it (AFC used to update its SlotRegistry first, leaving the
+     * registry desynced from the printer whenever the G-code was rejected).
+     *
+     * @note Called with NO backend lock held. Take `mutex_` yourself for state.
+     */
+    virtual AmsError apply_endless_spool_backup(int slot_index, int backup_slot) {
+        (void)slot_index;
+        (void)backup_slot;
+        return AmsErrorHelper::not_supported("Endless spool");
     }
 
+    /**
+     * @brief How many slots the endless-spool relation spans.
+     *
+     * Drives the base's range validation and reset loop. Default is
+     * `get_system_info().total_slots`; override when the transport's slot space
+     * differs, or to report 0 while the backend is not ready.
+     *
+     * @note Holds no lock; the default reads through get_system_info(), which
+     *       takes `mutex_`.
+     */
+    [[nodiscard]] virtual int endless_spool_slot_count() const;
+
+  public:
     // ========================================================================
     // Tool Mapping Control
     // ========================================================================
@@ -1539,6 +1724,37 @@ class AmsBackend {
      */
     [[nodiscard]] virtual std::vector<int> get_tool_mapping() const {
         return {}; // Default: empty
+    }
+
+    /**
+     * @brief Does this backend echo its tool mapping back from the printer?
+     *
+     * get_tool_mapping() is written from two directions — a backend updates it
+     * optimistically inside set_tool_mapping() before the gcode is even sent,
+     * and (on some backends) the subscription parser overwrites it with what
+     * the firmware actually reports. Only the second is proof.
+     *
+     * Backends that answer true must also advance
+     * firmware_tool_mapping_generation() on every firmware-sourced write, so a
+     * caller can distinguish confirmation from its own echo.
+     *
+     * Default false: the caller must then fall back to treating a command sent
+     * to a ready Klipper as delivered. That is weaker, but it is honest — and
+     * far better than waiting forever for a confirmation that cannot arrive
+     * (which would strand the pending-remap record, #1270).
+     */
+    [[nodiscard]] virtual bool reports_firmware_tool_mapping() const {
+        return false;
+    }
+
+    /**
+     * @brief Monotonic count of firmware-sourced tool-mapping writes.
+     *
+     * Meaningful only when reports_firmware_tool_mapping() is true. Advances
+     * when the printer tells us a mapping; never when we write our own intent.
+     */
+    [[nodiscard]] virtual uint64_t firmware_tool_mapping_generation() const {
+        return 0;
     }
 
     // ========================================================================
@@ -1770,6 +1986,23 @@ class AmsBackend {
         return "";
     }
 
+#ifdef HELIX_ENABLE_MOCKS
+    /**
+     * @brief This backend as an AmsBackendMock, or nullptr if it is not one
+     *
+     * The mock-to-mock wiring in MoonrakerManager needs the mock's simulator
+     * hook, which is not part of the AmsBackend contract. This is the RTTI-free
+     * stand-in for the `dynamic_cast<AmsBackendMock*>` it used to do — the
+     * firmware builds -fno-rtti, and the desktop build must not diverge.
+     * Compiled out entirely when mocks are disabled.
+     *
+     * @return `this` on AmsBackendMock, nullptr on every production backend
+     */
+    [[nodiscard]] virtual AmsBackendMock* as_mock() {
+        return nullptr;
+    }
+#endif
+
     /**
      * @brief Whether this backend must emit firmware-native config gcode BEFORE
      *        PRINT_START.
@@ -1839,6 +2072,85 @@ class AmsBackend {
         return false;
     }
 
+    /// Whether this backend's firmware reports a Spoolman spool id per slot
+    /// while a spool is loaded (AFC and Happy Hare publish spool_id in their
+    /// status). merge_override() uses this to arm ONLY the eject rule: just
+    /// there a firmware id of 0/null means "ejected", while elsewhere 0 is
+    /// the everyday reading and must not clear. The re-bind rule is NOT
+    /// gated by this capability — it can fire on ANY backend whose firmware
+    /// reports a positive spool id that disagrees with the override (AFC,
+    /// Happy Hare, and flat-schema CFS, whose per-slot spoolman_id parse
+    /// feeds it today).
+    [[nodiscard]] virtual bool printer_reports_spool_ids() const {
+        return false;
+    }
+
+    /// Whether the firmware is CURRENTLY retaining spool identity across
+    /// eject on its own (AFC's per-lane remember_spool = true everywhere).
+    /// Dynamic, unlike the capabilities above — it reflects a config
+    /// choice, not a firmware property. When true, "Keep Spool Info on
+    /// Eject" has no observable effect either way: firmware keeps reporting
+    /// the spool id, so neither the eject rule nor the #1289 re-assert push
+    /// ever fires. The AMS Management overlay shows the toggle disabled
+    /// with a note rather than letting it silently lie.
+    [[nodiscard]] virtual bool printer_retains_spool_info() const {
+        return false;
+    }
+
+  protected:
+    /// @name Own-write spool-id expectations (Rule-1 echo-race suppression)
+    ///
+    /// When HelixScreen itself writes a spool id to firmware (AFC's
+    /// SET_SPOOL_ID, Happy Hare's MMU_GATE_MAP SPOOLID, the CFS fork's
+    /// _BOX_SLOT_SET SPOOLMAN_ID), the write is asynchronous: for an
+    /// unknown number of polls firmware keeps reporting the OLD id while
+    /// the just-saved override already carries the NEW one. Rule 1
+    /// (external re-bind) in merge_override() would read that stale frame
+    /// as another writer's statement and destroy our own record — the same
+    /// race SlotFingerprintTracker::expect() solves for CFS's RFID pushes.
+    /// Backends that write firmware ids call record_own_spool_write() at
+    /// the write site, and every apply_overrides() consults
+    /// own_write_expectation() to feed MergeOptions' suppress ids.
+    ///
+    /// @warning **The caller must already hold the backend's own mutex_.**
+    ///          Both methods touch shared state with no internal lock; every
+    ///          call site runs inside the backend's mutex_ scope
+    ///          (set_slot_info's lock block, apply_overrides' documented
+    ///          lock-held precondition). The mutexes are plain std::mutex,
+    ///          not recursive — taking the lock again from inside deadlocks.
+    ///@{
+
+    /// Record that WE just wrote @p new_id to firmware for this slot.
+    /// @p previous_firmware_id is the id firmware reported before the write
+    /// (captured before the optimistic mirror update). A second write
+    /// before the first echo landed keeps the ORIGINAL previous id (a
+    /// chained re-link 42->169 then 169->180 suppresses stale 42 frames,
+    /// not just 169). @p new_id <= 0 is an unlink: the pending expectation
+    /// is dropped, since nothing will echo but an id Rule 1 ignores.
+    void record_own_spool_write(int slot_index, int new_id, int previous_firmware_id);
+
+    /// Consult (and possibly consume) the pending expectation for a slot
+    /// given the id firmware reports in THIS frame. Returns the {old, new}
+    /// pair to feed MergeOptions::suppress_rebind_firmware_{old,new}_id;
+    /// {0, 0} when nothing should be suppressed. Consumption mirrors the
+    /// fingerprint tracker's single-shot semantics:
+    ///   - firmware_id == the written id: the echo landed — erased (firmware
+    ///     and override now agree; nothing to suppress).
+    ///   - firmware_id is any OTHER positive id: a genuine external change
+    ///     ends the expectation — erased, nothing suppressed.
+    ///   - firmware_id == the old id (stale pre-echo frame): returned as the
+    ///     suppression pair; the entry survives for the next poll.
+    ///   - firmware_id <= 0: no signal (Rule 1 cannot fire on it); the entry
+    ///     survives because the echo may still be in flight.
+    std::pair<int, int> own_write_expectation(int slot_index, int firmware_id);
+
+    /// Pending per-slot own-write expectation: {id firmware reported before
+    /// the write, id we wrote}. Guarded by the subclass's mutex_ (above).
+    std::unordered_map<int, std::pair<int, int>> own_write_expectations_;
+
+    ///@}
+
+  public:
     /**
      * @brief Whether this backend unloads the toolhead automatically after a print
      *
@@ -2033,13 +2345,13 @@ class AmsBackend {
      * @brief Create appropriate backend for detected AMS type (mock only)
      *
      * Factory method that creates a mock backend for testing.
-     * For real backends, use the overload that accepts MoonrakerAPI and MoonrakerClient.
+     * For real backends, use the overload that accepts IMoonrakerAPI and MoonrakerClient.
      *
      * In mock mode (RuntimeConfig::should_mock_ams()), returns AmsBackendMock.
      *
      * @param detected_type The detected AMS type from printer discovery
      * @return Unique pointer to backend instance, or nullptr if type is NONE
-     * @deprecated Use create(AmsType, MoonrakerAPI*, helix::MoonrakerClient*) for real backends
+     * @deprecated Use create(AmsType, IMoonrakerAPI*, helix::IMoonrakerClient*) for real backends
      */
     static std::unique_ptr<AmsBackend> create(AmsType detected_type);
 
@@ -2054,12 +2366,12 @@ class AmsBackend {
      * In mock mode (RuntimeConfig::should_mock_ams()), returns AmsBackendMock.
      *
      * @param detected_type The detected AMS type from printer discovery
-     * @param api Pointer to MoonrakerAPI for sending commands
-     * @param client Pointer to helix::MoonrakerClient for subscriptions
+     * @param api Pointer to IMoonrakerAPI for sending commands
+     * @param client Pointer to helix::IMoonrakerClient for subscriptions
      * @return Unique pointer to backend instance, or nullptr if type is NONE
      */
-    static std::unique_ptr<AmsBackend> create(AmsType detected_type, MoonrakerAPI* api,
-                                              helix::MoonrakerClient* client);
+    static std::unique_ptr<AmsBackend> create(AmsType detected_type, IMoonrakerAPI* api,
+                                              helix::IMoonrakerClient* client);
 
     /**
      * @brief Create mock backend for testing

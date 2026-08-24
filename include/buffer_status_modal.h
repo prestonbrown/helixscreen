@@ -54,6 +54,10 @@ class BufferStatusModal : public Modal {
 
     static lv_subject_t description_subject_;
     static char description_buf_[128];
+    /// Shown when the filament system reports no buffer/flow data at all, so
+    /// the dialog says why instead of rendering an empty box.
+    static lv_subject_t unsupported_subject_;
+    static char unsupported_buf_[128];
     static lv_subject_t espooler_value_subject_;
     static char espooler_buf_[128];
     static lv_subject_t gear_sync_value_subject_;

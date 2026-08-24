@@ -7,7 +7,7 @@
 #include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 
 #include <atomic>
@@ -59,27 +59,28 @@ class ActivePrintMediaManager {
      *
      * This manager is the sole writer of print_thumbnail_path, and it never
      * publishes the empty string — "there is no thumbnail" is said with an
-     * explicit image. See PrinterPrintState::kNoThumbnailPlaceholder for why
+     * explicit image. See PrinterPrintState::no_thumbnail_placeholder() for why
      * the empty string is not merely untidy but unsafe to hand a consumer.
      */
-    static constexpr const char* kNoThumbnailPlaceholder =
-        PrinterPrintState::kNoThumbnailPlaceholder;
+    static const char* no_thumbnail_placeholder() {
+        return PrinterPrintState::no_thumbnail_placeholder();
+    }
 
     // Non-copyable
     ActivePrintMediaManager(const ActivePrintMediaManager&) = delete;
     ActivePrintMediaManager& operator=(const ActivePrintMediaManager&) = delete;
 
     /**
-     * @brief Set the MoonrakerAPI instance for thumbnail downloads
+     * @brief Set the IMoonrakerAPI instance for thumbnail downloads
      *
      * Must be called before thumbnail loading will work. Also registers the
      * persistent Moonraker method callbacks (notify_filelist_changed /
      * notify_klippy_ready) used to re-trigger thumbnail loads that failed
      * because Moonraker hadn't finished scanning the file yet.
      *
-     * @param api Pointer to MoonrakerAPI (can be nullptr to disable)
+     * @param api Pointer to IMoonrakerAPI (can be nullptr to disable)
      */
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     /**
      * @brief Set the original filename for thumbnail lookup
@@ -127,12 +128,22 @@ class ActivePrintMediaManager {
     void load_thumbnail_for_file(const std::string& filename);
     void clear_print_info();
 
+    /**
+     * @brief Drop the current print's identity without touching the subjects
+     *
+     * Resets the override, the idempotence key and thumbnail_origin_ - a stale
+     * ThumbnailOrigin::PreSet skips the thumbnail fetch (#526). Leaves the
+     * published subjects alone so an incoming filename repopulates them without
+     * a blank flash.
+     */
+    void release_identity();
+
     // --- Bounded thumbnail retry (metadata/thumbnail fetch failures) ---
     // Moonraker may not have finished scanning a just-uploaded file when the
     // print starts (OrcaSlicer upload-and-print), so the first metadata query
     // can fail or return no thumbnails. Each failure schedules a one-shot
     // lv_timer retry with backoff (2s, 5s, 10s, 20s, then 30s) up to
-    // kMaxThumbnailAttempts total attempts per filename. If the print ends
+    // MAX_THUMBNAIL_ATTEMPTS total attempts per filename. If the print ends
     // (empty filename) while a retry is pending, last_effective_filename_ is
     // intentionally preserved (see process_filename), so the retry may still
     // late-fill the preserved display info — intended, and bounded by the cap.
@@ -143,9 +154,19 @@ class ActivePrintMediaManager {
     /// filename is no longer current, a retry is already pending, or
     /// @p max_retries retries have already been scheduled.
     void schedule_thumbnail_retry(const std::string& filename,
-                                  int max_retries = kMaxThumbnailAttempts - 1);
+                                  int max_retries = MAX_THUMBNAIL_ATTEMPTS - 1);
     /// Cancel any pending retry timer and clear retry bookkeeping filename.
     void cancel_thumbnail_retry();
+
+    /**
+     * @brief Give the media load a fresh retry budget when the print starts
+     *
+     * The commit-time attempt can run before Moonraker has scanned the file.
+     * Its failures consume the bounded retry ladder, and no other path refunds
+     * it, so without this a job whose pre-start block outlasts the ladder shows
+     * layers 0/0 for its entire duration.
+     */
+    void rearm_media_if_incomplete();
     /// Body of the retry timer: re-validates filename + generation, then reloads.
     void on_retry_timer_fired();
     static void retry_timer_cb(lv_timer_t* timer);
@@ -168,22 +189,23 @@ class ActivePrintMediaManager {
     [[nodiscard]] bool has_thumbnail_for(const std::string& filename);
 
     PrinterState& printer_state_;
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     ObserverGuard print_filename_observer_;
+    ObserverGuard preparing_epoch_observer_;
     std::string thumbnail_source_filename_;
     std::string last_effective_filename_;
     std::string last_loaded_thumbnail_filename_;
     bool last_was_empty_ = false; ///< Prevents repeated "empty filename" log spam
 
     /// Max total metadata/thumbnail load attempts per filename (1 initial + 9 retries).
-    static constexpr int kMaxThumbnailAttempts = 10;
+    static constexpr int MAX_THUMBNAIL_ATTEMPTS = 10;
 
     /// Lower retry cap for the success-with-empty-thumbnails leg: a metadata
     /// record can briefly lack thumbnails mid-scan, but the common cause is a
     /// file sliced WITHOUT thumbnails — a permanent condition where the full
     /// ladder would just burn RPCs. Late-scan cases beyond this are covered by
     /// the notify_filelist_changed / notify_klippy_ready re-triggers.
-    static constexpr int kMaxEmptyThumbnailRetries = 2;
+    static constexpr int MAX_EMPTY_THUMBNAIL_RETRIES = 2;
 
     helix::ui::LvglTimerGuard retry_timer_; ///< Pending one-shot retry (empty when none)
     int thumbnail_retry_count_ = 0;         ///< Retries scheduled for the current filename
@@ -195,7 +217,7 @@ class ActivePrintMediaManager {
     /// re-triggers; a PreSet path skips the fetch with recovery still armed.
     ThumbnailOrigin thumbnail_origin_ = ThumbnailOrigin::None;
 
-    MoonrakerAPI* listener_api_ = nullptr; ///< API the method callbacks are registered on
+    IMoonrakerAPI* listener_api_ = nullptr; ///< API the method callbacks are registered on
     std::string filelist_handler_name_;
     std::string klippy_ready_handler_name_;
 

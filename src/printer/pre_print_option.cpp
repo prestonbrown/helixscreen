@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -148,6 +149,7 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     case PrePrintStrategyKind::PreStartGcode: {
         PrePrintStrategyPreStartGcode p;
         p.gcode_template = helix::json_util::safe_string(j, "gcode_template");
+        p.emit_when_disabled = helix::json_util::safe_bool(j, "emit_when_disabled", true);
         if (p.gcode_template.empty()) {
             spdlog::warn("[PrePrintOption] Skipping option '{}': PreStartGcode strategy requires "
                          "non-empty 'gcode_template'",
@@ -235,7 +237,8 @@ std::string render_macro_param(const PrePrintOption& opt, bool enabled) {
     return p->param_name + "=" + value;
 }
 
-std::string render_pre_start_gcode(const PrePrintOption& opt, bool enabled) {
+std::string render_pre_start_gcode(const PrePrintOption& opt, bool enabled,
+                                   const PreStartGcodeContext& ctx) {
     const auto* p = std::get_if<PrePrintStrategyPreStartGcode>(&opt.strategy);
     if (!p) {
         spdlog::warn("[PrePrintOption] render_pre_start_gcode called on option '{}' with non-"
@@ -243,7 +246,35 @@ std::string render_pre_start_gcode(const PrePrintOption& opt, bool enabled) {
                      opt.id);
         return {};
     }
-    return replace_all(p->gcode_template, "{value}", enabled ? "1" : "0");
+    std::string out = replace_all(p->gcode_template, "{value}", enabled ? "1" : "0");
+
+    // {?ext}...{/?} — a segment emitted only when the extruder temperature
+    // is known. Some firmwares (Creality K1 family) read that parameter
+    // through Python get_float(minval=180), which rejects a literal 0 as out
+    // of range, so "unknown" has to mean "omit the parameter" there rather
+    // than the bare 0 the Jinja-guarded macros tolerate. The bed parameter
+    // needs no marker: get_float(minval=0) accepts 0, and a bed target of 0
+    // (unheated bed) is a real, slicable configuration that must pass
+    // through as-is rather than read as "unknown".
+    static constexpr std::string_view EXT_OPEN = "{?ext}";
+    static constexpr std::string_view SEG_CLOSE = "{/?}";
+    if (ctx.extruder_temp > 0) {
+        out = replace_all(std::move(out), std::string(EXT_OPEN), "");
+        out = replace_all(std::move(out), std::string(SEG_CLOSE), "");
+    } else {
+        for (size_t open = out.find(EXT_OPEN); open != std::string::npos;
+             open = out.find(EXT_OPEN)) {
+            const size_t close = out.find(SEG_CLOSE, open);
+            if (close == std::string::npos) {
+                break; // unmatched marker: leave the rest untouched
+            }
+            out.erase(open, close - open + SEG_CLOSE.size());
+        }
+    }
+
+    out = replace_all(std::move(out), "{file}", ctx.filename);
+    out = replace_all(std::move(out), "{bed_temp}", std::to_string(ctx.bed_temp));
+    return replace_all(std::move(out), "{extruder_temp}", std::to_string(ctx.extruder_temp));
 }
 
 bool is_macro_gate_closed(const PrePrintOption& opt) {

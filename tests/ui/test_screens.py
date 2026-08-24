@@ -20,7 +20,7 @@ override in this file; it's now guaranteed by `HelixApp.start()` itself
 private config dir before boot, via a literal minimal seed — not a copy of
 the repo's own gitignored, machine-specific `config/settings-test.json`,
 which is what let this regress silently on a fresh checkout, see
-`docs/devel/specs/2026-07-25-helixctl-ui-test-harness-design.md`), so no
+`docs/devel/UI_TESTING.md` § "Golden corpus scope"), so no
 per-test workaround remains here — if animations ever come back on by
 default, the right fix is back in `helix/app.py`, not a re-added fixture in
 this file.

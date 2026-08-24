@@ -21,6 +21,10 @@ This guard covers both styles:
 Both passes are gated on real format-sink usage so literal '%' / '{}' in
 descriptive prose strings never false-positive.
 
+A third pass guards the keys themselves: a stored key or value holding a
+literal \\xNN escape can never match the byte sequence the compiler emits, so
+the lookup falls through and the escape text is rendered to the user verbatim.
+
 Exit status: 0 = all good, 1 = mismatch(es) found.
 """
 
@@ -34,6 +38,9 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
 TRANS_DIR = REPO_ROOT / "translations"
+
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from translations.extractor import resolve_cpp_literal_run  # noqa: E402
 
 # A single C/printf conversion specifier (handles flags, width, precision,
 # length modifiers, and positional %N$ args). %% is excluded by the caller.
@@ -51,8 +58,16 @@ FORMAT_SINK_RE = re.compile(
 # fmt::format(lv_tr("..."), ...) — runtime-checked, throws on too few args.
 FMT_SINK_RE = re.compile(r"(?:fmt|std)::format\s*\(")
 
-# An lv_tr("...") string literal (captures the raw literal, escapes preserved).
-LV_TR_LITERAL_RE = re.compile(r'lv_tr\(\s*"((?:[^"\\]|\\.)*)"')
+# An lv_tr("...") argument. Captures the whole run of adjacent literals, since
+# C++ concatenates "a" "b" at compile time and the lookup key is the joined,
+# escape-resolved result -- the same normalization the extractor applies when it
+# writes the key into the YAML.
+LV_TR_LITERAL_RE = re.compile(r'lv_tr\(\s*((?:"(?:[^"\\]|\\.)*"\s*)+)')
+
+
+def lv_tr_tag(match) -> str:
+    """The translation key an lv_tr() match resolves to at runtime."""
+    return resolve_cpp_literal_run(match.group(1))
 
 # A {fmt} replacement field (after {{/}} escapes are stripped).
 FMT_FIELD_RE = re.compile(r"\{([^{}]*)\}")
@@ -115,7 +130,7 @@ def _collect_sink_tags(sink_re) -> set:
                 region = region[:stmt_end]
             lit = LV_TR_LITERAL_RE.search(region)
             if lit:
-                tags.add(lit.group(1))
+                tags.add(lv_tr_tag(lit))
     return tags
 
 
@@ -140,7 +155,51 @@ def _iter_locales():
             yield locale, trans
 
 
+# A C escape sequence surviving into a stored translation string. The extractor
+# resolves all of these, so one reaching the YAML means the key was captured in
+# its source form and can never match what the compiler emits. Matching any
+# backslash would be equally correct today (no translation legitimately contains
+# one), but naming the escapes keeps the failure message specific.
+UNRESOLVED_ESCAPE_RE = re.compile(r"\\(?:x[0-9a-fA-F]|[nrtabfve0-7\\\"']|u[0-9a-fA-F]{4})")
+
+
+def check_unresolved_escapes() -> list:
+    """Report every YAML key or value still carrying a literal C escape.
+
+    lv_tr("%d\\xc2\\xb0") looks up a key containing the degree sign, and
+    lv_tr("a\\nb") looks up one containing a real newline, because the compiler
+    resolved the escape. A key stored as the characters of the escape sequence
+    misses forever, and LVGL falls back to rendering the tag -- so the user sees
+    the raw escape text in every locale, including English.
+    """
+    problems = []
+    for yml in sorted(TRANS_DIR.glob("*.yml")):
+        data = yaml.safe_load(yml.read_text(encoding="utf-8")) or {}
+        trans = data.get("translations", data)
+        if not isinstance(trans, dict):
+            continue
+        for key, val in trans.items():
+            if UNRESOLVED_ESCAPE_RE.search(key):
+                problems.append((yml.stem, "key", key))
+            if isinstance(val, str) and UNRESOLVED_ESCAPE_RE.search(val):
+                problems.append((yml.stem, "value", val))
+    return problems
+
+
 def check(verbose: bool) -> int:
+    escapes = check_unresolved_escapes()
+    if escapes:
+        print("✗ Translation strings carrying an unresolved C escape:\n")
+        for locale, kind, text in escapes:
+            print(f"  [{locale}] {kind}: {text!r}")
+        print(
+            f"\n{len(escapes)} occurrence(s). A C escape is resolved by the compiler, so\n"
+            "a key holding the escape literally never matches at runtime and the raw\n"
+            "text is rendered instead. Store the characters the escape encodes in\n"
+            "translations/<locale>.yml, then run: make translations"
+        )
+        return 1
+
     printf_tags = collect_format_tags()
     fmt_tags = collect_fmt_tags()
     if verbose:

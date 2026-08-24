@@ -208,8 +208,18 @@ class Linter:
             )
             return diagnostics
 
-        # Get the attribute schema
+        # Get the attribute schema. A component's <api> prop declaration
+        # overrides the base widget's for that name: setting_toggle_row
+        # redeclares `disabled` as a string (a subject name), shadowing
+        # lv_obj's boolean of the same name, so the bool-value check must
+        # not fire on component props the component itself re-typed.
         attr_schema = self._schema.get_attribute_schema(widget_name, attr_name)
+        if self._project_registry is not None:
+            declared_type = (
+                self._project_registry.component_params.get(element.tag, {}).get(attr_name)
+            )
+            if declared_type is not None:
+                attr_schema = AttributeSchema(type=declared_type)
 
         # Validate value type
         if attr_schema is not None:

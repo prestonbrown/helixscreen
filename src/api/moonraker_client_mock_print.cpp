@@ -7,6 +7,7 @@
 #include "moonraker_client_mock_internal.h"
 #include "printer_state.h"
 #include "rpc_error_correlation.h"
+#include "rpc_error_policy.h"
 
 #include <spdlog/spdlog.h>
 
@@ -85,7 +86,15 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         // this to exercise paths where the RPC response is lost but Klipper keeps running.
         if (auto forced = self->take_forced_gcode_error(script)) {
             if (error_cb) {
-                helix::rpc_error_correlation::record_caller_handled(forced->message);
+                // has_broadcast_channel=true: this registry entry IS
+                // printer.gcode.script, the method Klipper mirrors as `!!`.
+                if (helix::rpc_error_policy::decide(
+                        self->current_send_intent(),
+                        helix::rpc_error_policy::RequestFacts{/*has_broadcast_channel=*/true,
+                                                              /*suppress_all=*/false})
+                        .record_for_dedup) {
+                    helix::rpc_error_correlation::record_caller_handled(forced->message);
+                }
                 error_cb(*forced);
             }
             return true;
@@ -97,13 +106,20 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
             if (error_cb) {
                 MoonrakerError err =
                     MoonrakerError::json_rpc_error("printer.gcode.script", script_error);
-                // Mirror MoonrakerRequestTracker::route_response: a caller with its
-                // own error_cb is handling the error UI, so record the message and
-                // let the `!!` broadcast handler suppress its duplicate toast.
                 // send_jsonrpc() dispatches into this registry inline and never
-                // reaches the tracker, so without this the mock double-toasts every
-                // rejection that real hardware reports once.
-                helix::rpc_error_correlation::record_caller_handled(err.message);
+                // reaches MoonrakerRequestTracker, so the same policy is applied
+                // here from the shared decide(). Without it the mock either
+                // double-toasts a rejection that hardware reports once, or eats
+                // the `!!` copy that hardware would still deliver.
+                // has_broadcast_channel=true: this registry entry IS
+                // printer.gcode.script, the method Klipper mirrors as `!!`.
+                if (helix::rpc_error_policy::decide(
+                        self->current_send_intent(),
+                        helix::rpc_error_policy::RequestFacts{/*has_broadcast_channel=*/true,
+                                                              /*suppress_all=*/false})
+                        .record_for_dedup) {
+                    helix::rpc_error_correlation::record_caller_handled(err.message);
+                }
                 error_cb(err);
             }
         } else if (success_cb) {

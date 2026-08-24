@@ -10,7 +10,10 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
+#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
 
@@ -399,6 +402,134 @@ bool FilamentSensorManager::is_master_enabled() const {
 }
 
 // ============================================================================
+// Bypass runout arming
+// ============================================================================
+
+int FilamentSensorManager::arm_runout_sensors_for_bypass(IMoonrakerAPI* api) {
+    if (!api) {
+        return 0;
+    }
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    // Respect the user's global monitoring switch — arming firmware sensors
+    // the user deliberately turned monitoring off for would be a settings
+    // change smuggled in as a state change.
+    if (!master_enabled_) {
+        return 0;
+    }
+
+    int armed = 0;
+    for (const auto& sensor : sensors_) {
+        // ALL runout-role sensors, not find_config_by_role()'s first — on
+        // multi-lane hardware (Snapmaker U1) four sensors share the role.
+        if (sensor.role != FilamentSensorRole::RUNOUT) {
+            continue;
+        }
+        auto& state = states_[sensor.klipper_name];
+        // Arm only a sensor we have observed (available = exists in Klipper)
+        // that the firmware currently holds DISABLED. The state default
+        // (enabled=true) is "no fresh status yet" — skip rather than guess.
+        if (!state.available || state.enabled) {
+            continue;
+        }
+        if (std::find(bypass_armed_.begin(), bypass_armed_.end(), sensor.klipper_name) !=
+            bypass_armed_.end()) {
+            continue; // already ours from a previous arm
+        }
+        send_firmware_sensor_enable(api, sensor, true);
+        // Optimistic flip; the next status frame confirms. Keeps a second arm
+        // call (e.g. two backends transitioning) idempotent even before the
+        // echo lands.
+        state.enabled = true;
+        bypass_armed_.push_back(sensor.klipper_name);
+        spdlog::info("[FilamentSensorManager] Bypass: armed runout sensor {} at firmware level",
+                     sensor.sensor_name);
+        ++armed;
+    }
+    return armed;
+}
+
+int FilamentSensorManager::restore_runout_sensors_after_bypass(IMoonrakerAPI* api) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    if (bypass_armed_.empty()) {
+        return 0;
+    }
+    if (!api) {
+        // No handle to send with — keep the armed set so a later transition
+        // (or shutdown path that reacquires one) can still restore.
+        return 0;
+    }
+
+    int restored = 0;
+    for (const auto& name : bypass_armed_) {
+        // Only restore sensors still present in our config: sending
+        // SET_FILAMENT_SENSOR for a removed Klipper object errors, and the
+        // error surfaces as an unexplained toast.
+        const auto* sensor = find_config(name);
+        if (!sensor) {
+            continue;
+        }
+        send_firmware_sensor_enable(api, *sensor, false);
+        if (auto it = states_.find(name); it != states_.end()) {
+            it->second.enabled = false;
+        }
+        spdlog::info("[FilamentSensorManager] Bypass: restored runout sensor {} to disabled",
+                     sensor->sensor_name);
+        ++restored;
+    }
+    bypass_armed_.clear();
+    return restored;
+}
+
+bool FilamentSensorManager::has_bypass_armed_sensors() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return !bypass_armed_.empty();
+}
+
+void FilamentSensorManager::set_moonraker_api(IMoonrakerAPI* api) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    api_ = api;
+    spdlog::debug("[FilamentSensorManager] Moonraker API {} for bypass arming",
+                  api ? "set" : "cleared");
+}
+
+void FilamentSensorManager::on_bypass_active_changed(bool active) {
+    // Entry point for the bypass transition. All policy lives here in the
+    // sensor layer; AMS code only reports the transition (AmsState's
+    // any_bypass_active() edge) and Application supplies the API handle via
+    // set_moonraker_api(). Deliberately NOT auto-restored at app shutdown:
+    // firmware toggles this sensor around its own operations anyway
+    // (Creality's macros save/restore it per sequence), and restoring on a
+    // path where the Moonraker client may already be gone would guess.
+    if (active) {
+        arm_runout_sensors_for_bypass(api_);
+    } else {
+        restore_runout_sensors_after_bypass(api_);
+    }
+}
+
+void FilamentSensorManager::send_firmware_sensor_enable(IMoonrakerAPI* api,
+                                                        const FilamentSensorConfig& sensor,
+                                                        bool enabled) {
+    // SET_FILAMENT_SENSOR takes the bare sensor name — the part after the
+    // `[filament_switch_sensor ...]` / `[filament_motion_sensor ...]` section
+    // prefix — which is exactly FilamentSensorConfig::sensor_name
+    // (parse_klipper_name's split at discovery). Same convention Creality's
+    // own macros use (`SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=0`).
+    // Log-only error disposition: a failed arm/restore must not toast in the
+    // middle of a bypass toggle; Klipper's `!!` broadcast still surfaces it.
+    const char* what = enabled ? "arm" : "restore";
+    api->execute_gcode(
+        fmt::format("SET_FILAMENT_SENSOR SENSOR={} ENABLE={}", sensor.sensor_name, enabled ? 1 : 0),
+        []() {},
+        [what](const MoonrakerError& err) {
+            spdlog::warn("[FilamentSensorManager] Bypass sensor {} failed: {}", what, err.message);
+        },
+        0, /*silent=*/true, nullptr, /*caller_surfaces_errors=*/false);
+}
+
+// ============================================================================
 // State Queries
 // ============================================================================
 
@@ -516,24 +647,39 @@ namespace {
 } // namespace
 
 bool FilamentSensorManager::has_real_runout() const {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    // Snapshot the sensors that report no filament, then release mutex_ before
+    // asking AmsState anything. AmsState calls into this class from under its own
+    // recursive lock, so taking its lock from inside ours closes an ABBA cycle
+    // (TSan: lock-order-inversion). Only the snapshot needs our lock; the runout
+    // decision below is pure reads over that snapshot.
+    struct Candidate {
+        std::string sensor_name;
+        FilamentSensorRole role;
+    };
+    std::vector<Candidate> candidates;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    if (!master_enabled_) {
-        return false;
+        if (!master_enabled_) {
+            return false;
+        }
+
+        for (const auto& sensor : sensors_) {
+            if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
+                continue;
+            }
+
+            auto it = states_.find(sensor.klipper_name);
+            if (it == states_.end() || !it->second.available || it->second.filament_detected) {
+                continue; // sensor present and filament detected -> not a runout
+            }
+            candidates.push_back({sensor.sensor_name, sensor.role});
+        }
     }
 
     AmsBackend* backend = AmsState::instance().get_backend();
 
-    for (const auto& sensor : sensors_) {
-        if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
-            continue;
-        }
-
-        auto it = states_.find(sensor.klipper_name);
-        if (it == states_.end() || !it->second.available || it->second.filament_detected) {
-            continue; // sensor present and filament detected -> not a runout
-        }
-
+    for (const auto& sensor : candidates) {
         // This sensor reports no filament. Decide whether it is a real runout.
         // If it maps to an AMS lane and the backend says that lane is EMPTY /
         // not-present, it is an intentionally-empty lane, not a runout.
@@ -758,6 +904,30 @@ void FilamentSensorManager::update_from_status(const json& status) {
     StateChangeCallback callback_copy;
     bool any_changed = false;
 
+    // Read AMS state BEFORE taking mutex_. AmsState notifies this class from under
+    // its own recursive lock (sync_from_backend -> on_bypass_active_changed), so
+    // acquiring AmsState's lock from inside ours closes an ABBA cycle that TSan
+    // reports as a potential deadlock. These are whole-printer advisory flags, not
+    // per-sensor, and our lock never protected AmsState's state anyway.
+    const bool ams_active = AmsState::instance().is_filament_operation_active();
+    // Peeked, never consumed - the idle runout modal owns the one shot.
+    const bool post_unload_grace = AmsState::instance().post_unload_runout_grace_armed();
+    // AD5X-IFS auto-unloads filament back into the IFS between prints. The head
+    // sensor going empty when the printer is idle is firmware behaviour, not a
+    // user-facing event. "Between prints" is the lifecycle's Idle/terminal side, not
+    // merely "not PRINTING": a head-empty during a pre-print block is not the
+    // firmware's idle auto-unload and must not be swallowed.
+    bool ad5x_idle_unload = false;
+    if (auto* backend = AmsState::instance().get_backend()) {
+        if (backend->get_type() == AmsType::AD5X_IFS) {
+            const auto lifecycle = static_cast<PrintState>(
+                lv_subject_get_int(get_printer_state().get_print_lifecycle_subject()));
+            if (!job_holds_machine(lifecycle)) {
+                ad5x_idle_unload = true;
+            }
+        }
+    }
+
     // Phase 1: Update state under lock, collect notifications
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -792,12 +962,35 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 state.filament_detected = it->get<bool>();
             }
 
+            // Firmware enabled flag: switch AND motion sensors both report it
+            // (filament_switch_sensor/filament_motion_sensor status). Parsed
+            // for every type — the bypass arming path
+            // (arm_runout_sensors_for_bypass) needs the switch-sensor reading
+            // to know whether there is anything to arm. Same null-skip rule
+            // as filament_detected above.
+            if (auto it = sensor_data.find("enabled");
+                it != sensor_data.end() && it->is_boolean()) {
+                state.enabled = it->get<bool>();
+                // Honest armed-set bookkeeping: a sensor we armed for bypass
+                // that the firmware now reports disabled was stood down by
+                // someone else (vendor macros toggle this sensor around their
+                // own operations) — we no longer own its state, so a later
+                // bypass disengage must not send a restore for it.
+                if (!state.enabled) {
+                    auto armed_it =
+                        std::find(bypass_armed_.begin(), bypass_armed_.end(), sensor.klipper_name);
+                    if (armed_it != bypass_armed_.end()) {
+                        bypass_armed_.erase(armed_it);
+                        spdlog::debug(
+                            "[FilamentSensorManager] Bypass: {} reported disabled by firmware — "
+                            "dropped from the armed set",
+                            sensor.sensor_name);
+                    }
+                }
+            }
+
             // Motion sensors have additional fields
             if (sensor.type == FilamentSensorType::MOTION) {
-                if (auto it = sensor_data.find("enabled");
-                    it != sensor_data.end() && it->is_boolean()) {
-                    state.enabled = it->get<bool>();
-                }
                 if (auto it = sensor_data.find("detection_count");
                     it != sensor_data.end() && it->is_number_integer()) {
                     state.detection_count = it->get<int>();
@@ -827,27 +1020,26 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 notif.old_state = old_state;
                 notif.new_state = state;
                 notif.role = sensor.role;
-                // Suppress toasts during startup grace period, wizard setup,
-                // and active AMS filament operations (load/unload moves filament
-                // past sensors intentionally, generating spurious triggers)
-                bool ams_active = AmsState::instance().is_filament_operation_active();
-                // AD5X-IFS auto-unloads filament back into the IFS between prints.
-                // The head sensor going empty when the printer is idle is firmware
-                // behaviour, not a user-facing event. The runout role is preserved
-                // so in-print events still fire.
-                bool ad5x_idle_unload = false;
-                if (auto* backend = AmsState::instance().get_backend()) {
-                    if (backend->get_type() == AmsType::AD5X_IFS) {
-                        auto job_state = get_printer_state().get_print_job_state();
-                        if (job_state != PrintJobState::PRINTING &&
-                            job_state != PrintJobState::PAUSED) {
-                            ad5x_idle_unload = true;
-                        }
-                    }
-                }
+                // Toasts are suppressed during the startup grace period, wizard
+                // setup, and active AMS filament operations (load/unload moves
+                // filament past sensors intentionally, generating spurious
+                // triggers). ams_active and ad5x_idle_unload were read above,
+                // before the lock. The runout role is preserved either way, so
+                // in-print events still fire.
+                // An unload the user asked for ends by dragging filament off the
+                // sensor, and that edge lands seconds AFTER the action returns to
+                // IDLE — so ams_active above is already false by then and cannot
+                // cover it. Warning that filament was removed is noise when the
+                // user is the one who just removed it. Peeked, never consumed:
+                // the idle runout modal owns the one shot.
+                // Only the REMOVAL side is suppressed; an insertion in the same
+                // window is still news, and the manual-pull prompt that fires on
+                // this same edge (ui_manual_pull_prompt.cpp) is a separate,
+                // deliberately-armed INFO and is untouched here.
+                const bool post_unload_removal = !state.filament_detected && post_unload_grace;
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
-                                     !ad5x_idle_unload && master_enabled_ && sensor.enabled &&
-                                     sensor.role != FilamentSensorRole::NONE;
+                                     !ad5x_idle_unload && !post_unload_removal && master_enabled_ &&
+                                     sensor.enabled && sensor.role != FilamentSensorRole::NONE;
                 if (within_grace_period && master_enabled_ && sensor.enabled &&
                     sensor.role != FilamentSensorRole::NONE) {
                     spdlog::debug("[FilamentSensorManager] Suppressing startup toast for {}",

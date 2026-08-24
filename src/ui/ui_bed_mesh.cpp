@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "ui_bed_mesh.h"
 
 #include "ui_fonts.h"
@@ -68,7 +70,7 @@ typedef struct {
 static bed_mesh_render_colors_t fetch_theme_colors() {
     bed_mesh_render_colors_t colors{};
 
-    lv_color_t bg = theme_manager_get_color("graph_bg");
+    lv_color_t bg = theme_manager_get_color("screen_bg");
     colors.bg_r = bg.red;
     colors.bg_g = bg.green;
     colors.bg_b = bg.blue;
@@ -90,7 +92,7 @@ static void draw_async_placeholder(lv_layer_t* layer, const lv_area_t* coords, i
     // Dark background rectangle (same color as normal mesh background)
     lv_draw_rect_dsc_t rect_dsc;
     lv_draw_rect_dsc_init(&rect_dsc);
-    rect_dsc.bg_color = theme_manager_get_color("graph_bg");
+    rect_dsc.bg_color = theme_manager_get_color("screen_bg");
     rect_dsc.bg_opa = LV_OPA_COVER;
     lv_draw_rect(layer, &rect_dsc, coords);
 
@@ -906,3 +908,69 @@ bool ui_bed_mesh_has_data(lv_obj_t* widget) {
 
     return bed_mesh_renderer_has_data(data->renderer);
 }
+
+#else // !HELIX_HAS_BED_MESH_3D
+
+// Compiled-out build (HELIX_HAS_BED_MESH_3D=0): stub widget keeps XML layouts
+// parsing (unregistered tags corrupt sibling parenting); API is no-op.
+
+#include "ui_bed_mesh.h"
+
+#include "helix-xml/src/xml/lv_xml_parser.h"
+#include "helix-xml/src/xml/lv_xml_widget.h"
+#include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/lvgl.h"
+
+#include <spdlog/spdlog.h>
+
+static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
+    (void)attrs;
+    return (void*)lv_obj_create((lv_obj_t*)lv_xml_state_get_parent(state));
+}
+
+static void bed_mesh_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
+    lv_xml_obj_apply(state, attrs);
+}
+
+void ui_bed_mesh_register(void) {
+    lv_xml_register_widget("bed_mesh", bed_mesh_xml_create, bed_mesh_xml_apply);
+    spdlog::debug("[bed_mesh] Compiled out (HELIX_HAS_BED_MESH_3D=0); registered stub "
+                  "<bed_mesh> widget");
+}
+
+bool ui_bed_mesh_set_data(lv_obj_t*, const float* const*, int, int) {
+    return false;
+}
+
+void ui_bed_mesh_set_bounds(lv_obj_t*, double, double, double, double, double, double, double,
+                            double) {}
+
+void ui_bed_mesh_set_rotation(lv_obj_t*, int, int) {}
+
+void ui_bed_mesh_redraw(lv_obj_t*) {}
+
+void ui_bed_mesh_evaluate_render_mode(lv_obj_t*) {}
+
+helix::BedMeshRenderMode ui_bed_mesh_get_render_mode(lv_obj_t*) {
+    return helix::BedMeshRenderMode::Auto;
+}
+
+void ui_bed_mesh_set_render_mode(lv_obj_t*, helix::BedMeshRenderMode) {}
+
+void ui_bed_mesh_set_zero_plane_visible(lv_obj_t*, bool) {}
+
+void ui_bed_mesh_set_z_display_offset(lv_obj_t*, double) {}
+
+void ui_bed_mesh_set_async_mode(lv_obj_t*, bool) {}
+
+bool ui_bed_mesh_is_async_mode(lv_obj_t*) {
+    return false;
+}
+
+void ui_bed_mesh_request_async_render(lv_obj_t*) {}
+
+bool ui_bed_mesh_has_data(lv_obj_t*) {
+    return false;
+}
+
+#endif // HELIX_HAS_BED_MESH_3D

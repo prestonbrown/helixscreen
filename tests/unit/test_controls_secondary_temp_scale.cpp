@@ -16,17 +16,17 @@
  * helix::ui::temperature::format_temperature().
  */
 
-#include "../test_fixtures.h"
-#include "../test_helpers/controls_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
-
-#include "printer_state.h"
 #include "ui_panel_controls.h"
 #include "ui_update_queue.h"
 
-#include "../catch_amalgamated.hpp"
+#include "../test_fixtures.h"
+#include "../test_helpers/controls_panel_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
+#include "printer_state.h"
 
 #include <string>
+
+#include "../catch_amalgamated.hpp"
 
 using helix::PrinterState;
 using helix::ui::ControlsPanelTestAccess;

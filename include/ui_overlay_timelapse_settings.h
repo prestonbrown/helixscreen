@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "i_moonraker_api.h"
 #include "lvgl.h"
-#include "moonraker_api.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 
@@ -34,9 +34,9 @@ class TimelapseSettingsOverlay : public OverlayBase {
   public:
     /**
      * @brief Construct TimelapseSettingsOverlay
-     * @param api Pointer to MoonrakerAPI (may be nullptr in test mode)
+     * @param api Pointer to IMoonrakerAPI (may be nullptr in test mode)
      */
-    explicit TimelapseSettingsOverlay(MoonrakerAPI* api);
+    explicit TimelapseSettingsOverlay(IMoonrakerAPI* api);
 
     //
     // === OverlayBase Implementation ===
@@ -99,10 +99,10 @@ class TimelapseSettingsOverlay : public OverlayBase {
     }
 
     /**
-     * @brief Update MoonrakerAPI pointer
+     * @brief Update IMoonrakerAPI pointer
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -133,7 +133,7 @@ class TimelapseSettingsOverlay : public OverlayBase {
     // === Injected Dependencies ===
     //
 
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     // Current settings (loaded from API)
     TimelapseSettings current_settings_;
@@ -163,7 +163,7 @@ class TimelapseSettingsOverlay : public OverlayBase {
 
 // Global accessor
 TimelapseSettingsOverlay& get_global_timelapse_settings();
-void init_global_timelapse_settings(MoonrakerAPI* api);
+void init_global_timelapse_settings(IMoonrakerAPI* api);
 
 /// Open the timelapse settings overlay (lazy-creates if needed)
 void open_timelapse_settings();

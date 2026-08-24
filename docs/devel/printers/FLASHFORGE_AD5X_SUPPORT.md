@@ -57,10 +57,32 @@ The AD5X runs HelixScreen through the [ZMOD](https://github.com/ghzserg/zmod) fi
 - Display initialization (fbdev, touch via tslib env vars)
 - App lifecycle (init.d service script `S80guppyscreen`)
 - Update management via Moonraker update manager
+- Z-offset storage — see below
+
+### ZMOD z-offset storage
+
+ZMOD does **not** treat Klipper's live `gcode_move.homing_origin[2]` as the
+authoritative z-offset. Its `SET_GCODE_OFFSET` override writes every adjustment to
+the `gcode_offsets` save-variable, `END_PRINT` / `CANCEL_PRINT` reset the live
+offset to 0, and `START_PRINT` re-applies the stored value via `LOAD_GCODE_OFFSET`
+(gated on the `load_zoffset` save-variable, off by default).
+
+Consequences, all handled in `include/z_offset_persistence.h`:
+
+| Effect | Handling |
+|--------|----------|
+| Live offset reads 0.000 whenever idle | Display the stored value instead while idle; the live one is authoritative only mid-print |
+| Stored value lives in `save_variables.variables.gcode_offsets.z` (mm) | `save_variables` is subscribed for any printer exposing `SAVE_ZMOD_DATA`, independently of the IFS subscription |
+| Relative `SET_GCODE_OFFSET Z_ADJUST=` resolves against the zeroed live offset, and the override persists the result | Idle adjustments send an absolute `Z=` computed from the displayed base |
+| Reload at print start ships off | `SAVE_ZMOD_DATA LOAD_ZOFFSET=1` sent once per session, while idle |
+
+ZMOD's own docs describe the idle reading as "for reference only". Note also that
+the native-screen and screenless offsets are stored separately — `LOAD_ZOFFSET_NATIVE`
+copies one to the other, and HelixScreen does not call it.
 
 ### Moonraker Update Manager
 
-ZMOD configures Moonraker to check for HelixScreen updates. The `release_info.json` file tells Moonraker which release asset to download:
+ZMOD configures Moonraker to check for HelixScreen updates. The release_info.json file tells Moonraker which release asset to download:
 
 ```json
 {
@@ -127,7 +149,7 @@ prestonbrown/helixscreen#431, prestonbrown/helixscreen#303 for history.
 **User workarounds** (documented in `docs/user/TROUBLESHOOTING.md`):
 
 1. Settings → Display → Sleep → **Never** (`sleep_sec = 0`)
-2. Edit `helixconfig.json`: set `display.sleep_backlight_off = false` to
+2. Edit helixconfig.json: set `display.sleep_backlight_off = false` to
    keep the backlight on during sleep
 
 **Investigation TODO:**
@@ -191,29 +213,44 @@ Two major IFS macro packages exist for ZMOD. Both use the same `save_variables` 
 | | **bambufy** | **lessWaste** |
 |---|-----------|-------------|
 | **Repo** | [function3d/bambufy](https://github.com/function3d/bambufy) | [Hrybmo/lessWaste](https://github.com/Hrybmo/lesswaste) |
-| **Status** | Original, widely used | Fork of bambufy with enhancements |
+| **Status** | Original, widely used | Fork of bambufy V1.2.10 with enhancements |
 | **Tool macros** | T0-T3 (4 tools) | T0-T15 (16 virtual tools) |
-| **Backup/failover** | No | Yes — auto-switch to matching color/type slot on runout |
+| **Backup/failover** | Yes (`variable_backup`, **default on**) | Yes (`variable_backup`, default off) |
 | **Virtual channels** | No | Yes — map >4 slicer tools to 4 physical ports |
 | **Purge control** | Basic | Advanced — in-tower or out-the-back, per-material feedrates |
 | **Same-filament purge** | Always purges | Configurable skip (`same_filament_purge`) |
 | **Recovery** | Basic | Auto-recovery (head sensor, consume leftover, filament check) |
 | **Start UI** | No | Dialog-based tool-to-port assignment at print start |
 
+**Backup/failover** in both plugins (and in stock zMod — see below) requires a candidate slot
+whose material type AND colour both exactly match the spent slot's, and whose own port sensor
+reads filament present. In a typical multicolor print each slicer tool maps to a distinct
+colour, so switchover silently falls through to "no match → pause" unless the user has loaded
+a same-colour duplicate spool. That is the user-config outcome ninjamida's report described as
+"bambufy does not support multicolor" — no plugin (nor stock zMod) disables switchover in
+multicolor by code.
+
+> **Stock zMod has its own switchover.** Before any plugin is installed, `ANALOG_PRUTOK`
+> (`zmod_ifs.py:cmd_ANALOG_PRUTOK`) is wired to `head_switch_sensor`'s `runout_gcode`
+> (`ad5x_display_off.cfg:39-44`). zmod's user-facing name for this is **"Infinite Spool
+> Mode"**. Same type+colour+present match rule as the plugins. Always on, no toggle.
+> Confirmed from zmod 1.7.1 source and on-device by raza616.
+
 Both packages use **1-based port numbering** for hardware (ports 1-4) and define the same G-code commands (`IFS_F10`, `IFS_F11`, `IFS_F24`, `IFS_F39`, `SET_EXTRUDER_SLOT`).
 
-### lessWaste-Specific Variables (Not Yet Used by HelixScreen)
+### lessWaste-Specific Variables
+
+Mostly unused by HelixScreen; `variable_backup` is the exception.
 
 | Variable | Purpose |
 |----------|---------|
-| `variable_backup` | Enable/disable automatic filament backup on runout |
-| `variable_backup_filament_spent` | `[0,0,0,0]` — marks consumed backup slots |
+| `variable_backup` | Enable/disable automatic filament backup on runout (bambufy defaults it **on**, lessWaste defaults it **off**). **Read by HelixScreen** (#1250): quoted in the runout dialog (`build_runout_detail_locked()`) and mapped onto `EndlessSpoolCapabilities::enabled`, which reaches the AMS panel and slot context menu as the backend-neutral `ams_endless_state` / `ams_endless_text` subjects — so a user is told plainly whether the printer will switch spools by itself. Absent key = unknown, never reported as off. There is no AD5X-specific subject for this; the short-lived `ams_ifs_backup_enabled` was retired in favour of the cross-backend pair. See `docs/devel/FILAMENT_MANAGEMENT.md` § "Auto-switchover plugin visibility" and § "The status line" |
 | `variable_is_virtual_mode` | Virtual channel mode active (>4 tools mapped to 4 ports) |
 | `variable_same_filament_purge` | Skip start purge if same filament in hotend |
 | `variable_e_feedrates` | Per-tool extrusion feedrates |
 | `variable_kamp` | KAMP (adaptive bed mesh) enabled |
 | `variable_line_purge` | Purge line at print start |
-| `PAUSE REASON=` values | `jam`, `broken`, `runout`, `empty`, `backup`, `loading` |
+| `PAUSE REASON=` values | `jam`, `broken`, `runout`, `empty`, `backup`, `nobackup`, `loading` (the `nobackup` reason is bambufy-only, emitted on a backup-enabled runout with no same-type+colour match — `bambufy.cfg:149`) |
 
 ### Known Issue: Zmod Slot Renumbering
 
@@ -223,8 +260,7 @@ Zmod has an option to rename slots from 0-indexed (0,1,2,3) to 1-indexed (1,2,3,
 
 ### Future Enhancements
 
-- Parse `PAUSE REASON=` for specific filament error UI (jam, runout, empty)
-- Display backup/failover status from lessWaste's `backup_filament_spent`
+- Parse `PAUSE REASON=` for specific filament error UI (jam, runout, empty, nobackup). Would let the plugin path skip the sensor-derived runout detector's confirm dwell entirely — see `docs/devel/FILAMENT_MANAGEMENT.md` § "Unattended runout detection"
 - Support virtual channel visualization (>4 tools mapped to 4 physical ports)
 - Expose `same_filament_purge` toggle in settings
 

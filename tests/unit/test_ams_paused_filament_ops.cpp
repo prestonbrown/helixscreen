@@ -36,6 +36,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 // AD5X IFS is feature-gated (HELIX_HAS_IFS=0 on the space-constrained cross
 // builds, mk/cross.mk), so every self-homing assertion below is guarded. The
 // non-self-homing half of the table is unconditional.
@@ -87,7 +88,13 @@ struct PausedGateFixture : public LVGLTestFixture {
     }
 
     void set_print_state(helix::PrintJobState s) {
-        lv_subject_set_int(state.get_print_state_enum_subject(), static_cast<int>(s));
+        helix::test::set_wire_state(state, s);
+    }
+
+    /// A host-side pre-print block: the wire still reads standby.
+    void set_preprint_phase(helix::PrintStartPhase phase) {
+        state.set_print_start_state(phase, "", 0);
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     template <typename Backend> std::unique_ptr<PausedGateDouble<Backend>> make() {
@@ -365,6 +372,73 @@ TEST_CASE_METHOD(PausedGateFixture, "inactive print states allow motion ops on e
 }
 
 // ============================================================================
+// PREPARING — the window print_stats cannot describe
+//
+// A host-side pre-start block (the K2's forced bed mesh) runs BEFORE the printer
+// is handed the job, so `print_stats.state` reads standby — or the PREVIOUS job's
+// terminal state — for its whole duration while the toolhead homes and probes.
+// refuse_if_printing() asked that wire value, so every toolhead-motion filament
+// op was ACCEPTED through the entire window.
+//
+// This is the backend-side last line of defence, not an affordance: every
+// dispatch route funnels into check_preconditions(true). The UI predicate
+// (print_blocks_filament_op) is a different function on a different path and its
+// tests do not cover this one.
+//
+// Mutation check: revert refuse_if_printing() to
+// print_occupies_toolhead(get_print_job_state()) and every case below fails.
+// ============================================================================
+
+TEST_CASE_METHOD(PausedGateFixture, "PREPARING refuses toolhead-motion ops on every backend",
+                 "[ams][safety][preparing]") {
+    // The wire says standby; only the live phase distinguishes this from idle.
+    set_print_state(helix::PrintJobState::STANDBY);
+    set_preprint_phase(helix::PrintStartPhase::BED_MESH);
+
+    auto afc = make<AmsBackendAfc>();
+    auto snap = make<AmsBackendSnapmaker>();
+#if HELIX_HAS_IFS
+    auto ad5x = make<AmsBackendAd5xIfs>();
+#endif
+
+    CHECK_FALSE(afc->check_preconditions(/*requires_toolhead_motion=*/true).success());
+    CHECK_FALSE(snap->check_preconditions(true).success());
+#if HELIX_HAS_IFS
+    CHECK_FALSE(ad5x->check_preconditions(true).success());
+#endif
+
+    // Cold lane ops are still permitted — they move no toolhead, and blanket-
+    // blocking them would strand filament exactly as #995/#1199 describe.
+    CHECK(afc->check_preconditions(/*requires_toolhead_motion=*/false).success());
+}
+
+TEST_CASE_METHOD(PausedGateFixture,
+                 "PREPARING after a finished job still refuses — the wire reads COMPLETE",
+                 "[ams][safety][preparing]") {
+    // print_stats holds the PREVIOUS job's terminal state through the whole
+    // host-side window. Nothing on the wire separates this from a finished print.
+    set_print_state(helix::PrintJobState::COMPLETE);
+    set_preprint_phase(helix::PrintStartPhase::HOMING);
+
+    auto afc = make<AmsBackendAfc>();
+    CHECK_FALSE(afc->check_preconditions(/*requires_toolhead_motion=*/true).success());
+}
+
+TEST_CASE_METHOD(PausedGateFixture, "abandoning the pre-print block re-permits filament ops",
+                 "[ams][safety][preparing]") {
+    // A latched refusal would be worse than the bug it fixes: the user could not
+    // load filament again for the rest of the session.
+    set_print_state(helix::PrintJobState::STANDBY);
+    set_preprint_phase(helix::PrintStartPhase::BED_MESH);
+
+    auto afc = make<AmsBackendAfc>();
+    REQUIRE_FALSE(afc->check_preconditions(/*requires_toolhead_motion=*/true).success());
+
+    set_preprint_phase(helix::PrintStartPhase::IDLE);
+    CHECK(afc->check_preconditions(true).success());
+}
+
+// ============================================================================
 // The error factory in isolation — the copy is the user-facing contract
 // ============================================================================
 
@@ -400,16 +474,20 @@ TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
 // check_preconditions(false) never consults print state, which is right for
 // backends whose cold lane ops the firmware accepts mid-print. AFC's does not:
 // cmd_LANE_UNLOAD opens with `if self.function.is_printing(): AFC_error(...);
-// return` on every version shipped (v1.1.0 AFC.py:1112, v1.2.0 AFC.py:1331).
-// That refusal ends in a bare return with the G-code still acked as success, so
-// an ungated Eject reports success and moves nothing.
+// return`. That refusal ends in a bare return with the G-code still acked as
+// success, so an ungated Eject reports success and moves nothing.
+//
+// This is the one condition eject_lane() still checks locally. The rest of that
+// macro's if/elif chain used to be mirrored too and was removed in
+// prestonbrown/helixscreen#1258; this predicate stayed because it is stable
+// across every AFC version and is the same rule the context menu greys on.
 //
 // is_printing() is `print_stats.state == "printing"` exactly — NOT in_print() —
 // so PAUSED genuinely reaches the firmware and must stay allowed.
 //
-// Mutation check: drop the refuse_if_printing() call from
-// lane_unload_refusal_unlocked() and the PRINTING section fails; widen it to
-// print_occupies_toolhead() and the PAUSED section fails.
+// Mutation check: drop the refuse_if_printing() call from eject_lane() and the
+// PRINTING section fails; widen it to print_occupies_toolhead() and the PAUSED
+// section fails.
 // ============================================================================
 
 /// Named (not anonymous-namespace) and befriended in ams_backend_afc.h, matching

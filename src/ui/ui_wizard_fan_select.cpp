@@ -12,9 +12,9 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
 #include "wizard_config_paths.h"
@@ -195,7 +195,7 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     }
 
     // Get Moonraker API for hardware discovery
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
 
     // Build hotend fan options with custom filter (heater_fan OR hotend_fan)
     hotend_fan_items_.clear();

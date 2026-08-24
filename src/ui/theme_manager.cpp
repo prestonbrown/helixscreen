@@ -3,14 +3,18 @@
 
 #include "theme_manager.h"
 
+#include "ui_button.h"
 #include "ui_error_reporting.h"
 #include "ui_fonts.h"
 #include "ui_gradient_canvas.h"
+#include "ui_icon.h"
+#include "ui_split_button.h"
 #include "ui_switch.h"
 
 #include "asset_manager.h"
 #include "border_radius_sizes.h"
 #include "config.h"
+#include "data_root_resolver.h"
 #include "helix-xml/src/libs/expat/expat.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "layout_manager.h"
@@ -18,6 +22,7 @@
 #include "lvgl/src/themes/lv_theme_private.h"
 #include "settings_manager.h"
 #include "theme_loader.h"
+#include "theme_token_table.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,6 +31,15 @@
 #endif
 
 #include <cstring>
+
+// Canonical ui_xml directory for token discovery, resolved once through the
+// asset-root seam. On desktop this is byte-identical to the old "ui_xml"
+// literal; on CWD-less targets (ESP-IDF VFS) it becomes an absolute path
+// under the mount the firmware configured via helix::set_asset_root().
+static const char* tm_ui_xml_dir() {
+    static const std::string dir = helix::asset_path("ui_xml");
+    return dir.c_str();
+}
 
 // Maps a value-suffix (e.g. "_large") to its tier number. Same ordering as the
 // UiBreakpoint tiers and fonts.mk FONT_TIERS. Returns -1 on unknown suffix.
@@ -80,6 +94,7 @@ int32_t responsive_vertical_dimension(lv_display_t* display) {
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
@@ -92,6 +107,8 @@ int32_t responsive_vertical_dimension(lv_display_t* display) {
 #include <vector>
 
 #ifdef __ANDROID__
+#include "system/android_jni.h"
+
 #include <SDL_system.h>
 #include <jni.h>
 
@@ -102,15 +119,13 @@ static void android_set_window_bg_color(lv_color_t color) {
     if (!env)
         return;
 
-    jclass cls = env->FindClass("org/helixscreen/app/HelixActivity");
-    if (!cls) {
-        env->ExceptionClear();
+    // Cached global ref owned by helix_activity_class() — never released here.
+    jclass cls = helix::android::helix_activity_class(env);
+    if (!cls)
         return;
-    }
 
     jmethodID method = env->GetStaticMethodID(cls, "setWindowBackgroundColor", "(I)V");
     if (!method) {
-        env->DeleteLocalRef(cls);
         env->ExceptionClear();
         return;
     }
@@ -119,7 +134,6 @@ static void android_set_window_bg_color(lv_color_t color) {
     uint32_t rgb = lv_color_to_u32(color);
     jint argb = static_cast<jint>(0xFF000000u | rgb);
     env->CallStaticVoidMethod(cls, method, argb);
-    env->DeleteLocalRef(cls);
 }
 #endif // __ANDROID__
 
@@ -805,8 +819,8 @@ static void theme_update_colors(bool is_dark) {
  */
 static void theme_manager_register_color_pairs(lv_xml_component_scope_t* scope, bool dark_mode) {
     // Find all color tokens with _light and _dark suffixes from all XML files
-    auto light_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "color", "_light");
-    auto dark_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "color", "_dark");
+    auto light_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "color", "_light");
+    auto dark_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "color", "_dark");
 
     // For each _light color, check if _dark exists and register base name
     int registered = 0;
@@ -847,7 +861,7 @@ static void theme_manager_register_static_constants(lv_xml_component_scope_t* sc
 
     int color_count = 0, px_count = 0, string_count = 0;
 
-    auto color_tokens = theme_manager_parse_all_xml_for_element("ui_xml", "color");
+    auto color_tokens = theme_manager_parse_all_xml_for_element(tm_ui_xml_dir(), "color");
 
     for (const auto& [name, value] : color_tokens) {
         if (!has_dynamic_suffix(name)) {
@@ -856,14 +870,16 @@ static void theme_manager_register_static_constants(lv_xml_component_scope_t* sc
         }
     }
 
-    for (const auto& [name, value] : theme_manager_parse_all_xml_for_element("ui_xml", "px")) {
+    for (const auto& [name, value] :
+         theme_manager_parse_all_xml_for_element(tm_ui_xml_dir(), "px")) {
         if (!has_dynamic_suffix(name)) {
             lv_xml_register_const(scope, name.c_str(), value.c_str());
             px_count++;
         }
     }
 
-    for (const auto& [name, value] : theme_manager_parse_all_xml_for_element("ui_xml", "string")) {
+    for (const auto& [name, value] :
+         theme_manager_parse_all_xml_for_element(tm_ui_xml_dir(), "string")) {
         if (!has_dynamic_suffix(name)) {
             lv_xml_register_const(scope, name.c_str(), value.c_str());
             string_count++;
@@ -998,9 +1014,17 @@ OverlayHeights compute_overlay_heights(int32_t hor_res, int32_t ver_res, int32_t
 // axis-neutral tokens (space_*, widths, square icon/badge sizes) stay on the
 // cramped ladder and belong nowhere near here.
 static constexpr const char* VERTICAL_AXIS_TOKENS[] = {
-    "button_height",      "button_height_sm", "button_height_lg",
-    "header_height",      "input_height",     "temp_card_height",
-    "dialog_content_max", "spinner_lg",       "header_button_height",
+    "button_height",
+    "button_height_sm",
+    "button_height_lg",
+    "header_height",
+    "input_height",
+    "temp_card_height",
+    "dialog_content_max",
+    "dialog_content_pinned_max",
+    "dialog_content_tall_chrome_max",
+    "spinner_lg",
+    "header_button_height",
 };
 
 bool theme_manager_token_uses_vertical_axis(const char* base_name) {
@@ -1059,14 +1083,17 @@ const std::string& pick_tier(const PxTierTables& t, const std::string& base, con
 
 std::unordered_map<std::string, std::string>
 theme_manager_resolve_px_tokens(lv_display_t* display) {
+    // tm_ui_xml_dir(), not the "ui_xml" literal: on ESP-IDF the asset root is a
+    // VFS mount, and the literal would scan an empty path AND miss the
+    // build-time token-table fast path (its guard string-compares the dir).
     PxTierTables t{
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_micro"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_tiny"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_small"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_medium"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_large"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_xlarge"),
-        theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_xxlarge"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_micro"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_tiny"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_small"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_medium"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_large"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_xlarge"),
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "px", "_xxlarge"),
     };
 
     // Two ladders, one classification function. Landscape and square displays
@@ -1165,6 +1192,36 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
                   nav_width, gap, widths.transient, widths.destination);
 }
 
+void theme_manager_refresh_orientation(lv_display_t* display) {
+    // ui_is_portrait is consumed by XML for visual layout (flex flow, strip
+    // stacking, <if cond="ui_is_portrait eq 1">). Those decisions must follow a
+    // --layout override, so the source of truth is LayoutManager::type() once it
+    // is initialized. Before Phase 8b LayoutManager carries only its default
+    // STANDARD; detect_layout_type() gives the right physical answer, using the
+    // caller's display when provided so a non-default display (tests, a
+    // specific refresh target) is not confused with the default. See #1255.
+    lv_subject_t* portrait_subject = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    if (!portrait_subject) {
+        return;
+    }
+
+    int is_portrait;
+    if (LayoutManager::instance().is_initialized()) {
+        is_portrait = is_portrait_layout(LayoutManager::instance().type()) ? 1 : 0;
+    } else {
+        lv_display_t* disp = display ? display : lv_display_get_default();
+        if (!disp) {
+            return;
+        }
+        is_portrait =
+            is_portrait_layout(detect_layout_type(lv_display_get_horizontal_resolution(disp),
+                                                  lv_display_get_vertical_resolution(disp)))
+                ? 1
+                : 0;
+    }
+    lv_subject_set_int(portrait_subject, is_portrait);
+}
+
 void theme_manager_refresh_layout_constants(lv_display_t* display) {
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
@@ -1219,14 +1276,12 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
                            to_int(breakpoint_for(responsive_vertical_dimension(display))));
     }
 
-    // Portrait subject follows the same axis swap -- update it alongside
-    // ui_breakpoint/ui_breakpoint_v so a rotation can never leave ui_is_portrait
-    // disagreeing with the axes it just repointed.
-    lv_subject_t* portrait_subject = lv_xml_get_subject(nullptr, "ui_is_portrait");
-    if (portrait_subject) {
-        lv_subject_set_int(portrait_subject,
-                           is_portrait_layout(detect_layout_type(hor_res, ver_res)) ? 1 : 0);
-    }
+    // Orientation follows the same axis swap. theme_manager_refresh_orientation
+    // consults LayoutManager (override-aware) when it is up, falling back to
+    // detect_layout_type() on the early-startup probe path; either way a
+    // rotation cannot leave ui_is_portrait disagreeing with the axes it just
+    // repointed (#1255).
+    theme_manager_refresh_orientation(display);
 
     // Type has to follow the breakpoint too. The px tokens above moved the
     // boxes; without the two calls below the fonts stayed sized for the startup
@@ -1274,13 +1329,16 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
 
     // Auto-discover all string tokens from all XML files (including optional _micro, _tiny,
     // _xlarge, and _xxlarge)
-    auto micro_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_micro");
-    auto tiny_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_tiny");
-    auto small_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_small");
-    auto medium_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_medium");
-    auto large_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_large");
-    auto xlarge_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_xlarge");
-    auto xxlarge_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_xxlarge");
+    auto micro_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_micro");
+    auto tiny_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_tiny");
+    auto small_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_small");
+    auto medium_tokens =
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_medium");
+    auto large_tokens = theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_large");
+    auto xlarge_tokens =
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_xlarge");
+    auto xxlarge_tokens =
+        theme_manager_parse_all_xml_for_suffix(tm_ui_xml_dir(), "string", "_xxlarge");
 
     int registered = 0;
     for (const auto& [base_name, small_val] : small_tokens) {
@@ -1404,6 +1462,14 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
 
     spdlog::trace("[Theme] Responsive fonts: {} (min_dim={}px) - auto-registered {} tokens",
                   size_label, resp_res, registered);
+
+    // Three widgets memoize icon_font_* for the life of the process, and the
+    // loop above just re-pointed those constants. Without this, the first
+    // <icon size="sm"> ever built pins the face for every icon that follows, so
+    // a breakpoint change resizes type everywhere except the icons (#1210).
+    ui_icon_invalidate_font_cache();
+    ui_button_invalidate_icon_font_cache();
+    ui_split_button_invalidate_icon_font_cache();
 }
 
 /**
@@ -1587,7 +1653,7 @@ static void theme_manager_register_object_colors(lv_xml_component_scope_t* scope
     static const struct {
         const char* name;
         uint32_t hex;
-    } kObjectColors[] = {
+    } OBJECT_COLORS[] = {
         {"object_color_1", 0x7c8aff}, // periwinkle blue
         {"object_color_2", 0x4ecdc4}, // teal
         {"object_color_3", 0xf9c74f}, // golden yellow
@@ -1598,13 +1664,13 @@ static void theme_manager_register_object_colors(lv_xml_component_scope_t* scope
         {"object_color_8", 0x60a5fa}, // sky blue
     };
 
-    for (const auto& entry : kObjectColors) {
+    for (const auto& entry : OBJECT_COLORS) {
         char buf[8];
         snprintf(buf, sizeof(buf), "#%06x", entry.hex);
         lv_xml_register_const(scope, entry.name, buf);
     }
 
-    spdlog::debug("[Theme] Registered {} object color palette tokens", std::size(kObjectColors));
+    spdlog::debug("[Theme] Registered {} object color palette tokens", std::size(OBJECT_COLORS));
 }
 
 /**
@@ -1647,6 +1713,7 @@ static helix::ThemeData theme_manager_load_active_theme() {
 }
 
 void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
+    auto tm_init_start = std::chrono::steady_clock::now();
     theme_display = display;
     use_dark_mode = use_dark_mode_param;
 
@@ -1724,12 +1791,12 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
                       vert_res);
     }
 
-    // Registered alongside ui_breakpoint/ui_breakpoint_v so the three can never
-    // disagree about what orientation the app believes it is in. Derived from
-    // the same detect_layout_type()/is_portrait_layout() pair
-    // compute_overlay_widths()/compute_overlay_heights() already use in this
-    // file -- not LayoutManager::instance(), which has not been init()'d yet
-    // this early in startup.
+    // Startup SEED only. LayoutManager (Phase 8b) is not initialized yet, so
+    // the override-aware value cannot be computed here; detect_layout_type() of
+    // the live display gives the right physical answer, and Application
+    // republishes via theme_manager_refresh_orientation() once LayoutManager
+    // resolves any --layout override (#1255). The rotation path
+    // (theme_manager_refresh_layout_constants) goes through the same helper.
     {
         int32_t hor_res = lv_display_get_horizontal_resolution(display);
         int32_t ver_res = lv_display_get_vertical_resolution(display);
@@ -1788,11 +1855,37 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         font_body_name = lv_xml_get_const(nullptr, "font_body_small");
     }
 
+    // The reads above resolve the suffixed variant const (e.g. font_body_medium),
+    // which is supplied by globals.xml's component consts. On the firmware
+    // release path that nullptr-scope read can miss it, but the responsive font
+    // registrar (theme_manager_register_responsive_fonts, run just above) always
+    // registers the breakpoint-selected BASE name "font_body" into this same
+    // scope — so fall back to it. Desktop resolves the variant directly and
+    // never reaches this line.
+    if (!font_body_name) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body");
+    }
+
     const lv_font_t* base_font =
         font_body_name ? lv_xml_get_font(nullptr, font_body_name) : nullptr;
     if (!base_font) {
-        spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
-        base_font = &noto_sans_16;
+        // Resolve the fallback through the font REGISTRY (returns NULL if the
+        // face isn't linked/registered — e.g. a pruned firmware tier has no
+        // "noto_sans_16"), NOT via the &noto_sans_16 symbol: on such builds that
+        // symbol can resolve to a NULL/weak address and theme_init_lvgl would
+        // dereference it (Guru Meditation, PC=0). If even that misses, use
+        // LVGL's built-in default, which is always valid. NEVER hand a NULL font
+        // to LVGL.
+        const lv_font_t* fallback = lv_xml_get_font(nullptr, "noto_sans_16");
+        if (fallback) {
+            spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
+            base_font = fallback;
+        } else {
+            spdlog::error("[Theme] Failed to get font '{}' and fallback noto_sans_16 is not "
+                          "registered; using lv_font_get_default()",
+                          font_variant_name);
+            base_font = lv_font_get_default();
+        }
     }
 
     // Build palette from current mode
@@ -1817,6 +1910,12 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // don't reveal a white window background on startup
     android_set_window_bg_color(theme_manager_parse_hex_color(mode_palette.screen_bg.c_str()));
 #endif
+
+    spdlog::debug("[Theme] theme_manager_init took {} ms (token table {})",
+                  std::chrono::duration_cast<std::chrono::milliseconds>(
+                      std::chrono::steady_clock::now() - tm_init_start)
+                      .count(),
+                  helix::theme_tokens::enabled() ? "on" : "off");
 }
 
 void theme_manager_deinit() {
@@ -2527,9 +2626,9 @@ lv_color_t theme_manager_get_color(const char* base_name) {
 }
 
 lv_color_t theme_manager_get_object_palette_color(int index) {
-    constexpr int kObjectPaletteSize = 8;
+    constexpr int OBJECT_PALETTE_SIZE = 8;
     char token[32];
-    snprintf(token, sizeof(token), "object_color_%d", (index % kObjectPaletteSize) + 1);
+    snprintf(token, sizeof(token), "object_color_%d", (index % OBJECT_PALETTE_SIZE) + 1);
     return theme_manager_get_color(token);
 }
 
@@ -2936,6 +3035,13 @@ std::vector<std::string> theme_manager_find_xml_files(const char* directory) {
 
 std::unordered_map<std::string, std::string>
 theme_manager_parse_all_xml_for_element(const char* directory, const char* element_type) {
+    // Build-time token table: skip the ~28-scan boot storm when the table is
+    // enabled and the caller wants the canonical ui_xml dir (tests and
+    // alternate dirs always scan live).
+    if (helix::theme_tokens::enabled() && directory &&
+        std::strcmp(directory, tm_ui_xml_dir()) == 0) {
+        return helix::theme_tokens::for_element(element_type);
+    }
     std::unordered_map<std::string, std::string> token_values;
     std::vector<std::string> files = theme_manager_find_xml_files(directory);
     for (const auto& filepath : files) {
@@ -2947,6 +3053,12 @@ theme_manager_parse_all_xml_for_element(const char* directory, const char* eleme
 std::unordered_map<std::string, std::string>
 theme_manager_parse_all_xml_for_suffix(const char* directory, const char* element_type,
                                        const char* suffix) {
+    // Build-time token table: same fast-path guard as _for_element above.
+    if (helix::theme_tokens::enabled() && directory &&
+        std::strcmp(directory, tm_ui_xml_dir()) == 0) {
+        return helix::theme_tokens::for_suffix(element_type, suffix);
+    }
+
     std::unordered_map<std::string, std::string> token_values;
 
     // Get sorted list of all XML files

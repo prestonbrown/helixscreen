@@ -37,17 +37,17 @@ namespace {
 
 /// Ports for the probe fixtures. High and fixed — the suite is single-process and
 /// these are bound only for the lifetime of one TEST_CASE.
-constexpr int kProbeServerPort = 19731;
-constexpr int kDeadPort = 19732; // deliberately never bound
+constexpr int PROBE_SERVER_PORT = 19731;
+constexpr int DEAD_PORT = 19732; // deliberately never bound
 
 /// Milliseconds the "slow camera" endpoint stalls before answering. Above the 2s
 /// connect budget so it fails under the old single-timeout scheme, and comfortably
 /// under the total budget so it must pass under the new one.
-constexpr int kSlowResponseMs = 2500;
+constexpr int SLOW_RESPONSE_MS = 2500;
 
 /// Smallest bytes that look like a JPEG. Content is irrelevant to the probe (it
 /// only reads the status code) but a realistic body keeps the fixture honest.
-const std::string kJpegBody = "\xFF\xD8\xFF\xE0 fake jpeg payload \xFF\xD9";
+const std::string JPEG_BODY = "\xFF\xD8\xFF\xE0 fake jpeg payload \xFF\xD9";
 
 /// A libhv HTTP server that serves the probe fixtures for the life of the object.
 class ProbeServer {
@@ -55,13 +55,13 @@ class ProbeServer {
     ProbeServer() {
         service_.GET("/fast.jpg", [](HttpRequest*, HttpResponse* resp) {
             resp->content_type = APPLICATION_OCTET_STREAM;
-            resp->body = kJpegBody;
+            resp->body = JPEG_BODY;
             return 200;
         });
         service_.GET("/slow.jpg", [](HttpRequest*, HttpResponse* resp) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kSlowResponseMs));
+            std::this_thread::sleep_for(std::chrono::milliseconds(SLOW_RESPONSE_MS));
             resp->content_type = APPLICATION_OCTET_STREAM;
-            resp->body = kJpegBody;
+            resp->body = JPEG_BODY;
             return 200;
         });
         service_.GET("/missing.jpg", [](HttpRequest*, HttpResponse* resp) {
@@ -70,8 +70,8 @@ class ProbeServer {
         });
 
         server_.registerHttpService(&service_);
-        server_.setPort(kProbeServerPort);
-        // Each stalled handler occupies a worker for kSlowResponseMs; give the
+        server_.setPort(PROBE_SERVER_PORT);
+        // Each stalled handler occupies a worker for SLOW_RESPONSE_MS; give the
         // server enough threads that one slow request cannot starve the others.
         server_.setThreadNum(4);
         started_ = server_.start() == 0;
@@ -88,7 +88,7 @@ class ProbeServer {
     }
 
     static std::string url(const std::string& path) {
-        return "http://127.0.0.1:" + std::to_string(kProbeServerPort) + path;
+        return "http://127.0.0.1:" + std::to_string(PROBE_SERVER_PORT) + path;
     }
 
   private:
@@ -138,7 +138,7 @@ TEST_CASE("Snapshot probe rejects a reachable host that has no camera there",
 
 TEST_CASE("Snapshot probe rejects a dead address without waiting out the response budget",
           "[webcam][discovery][probe][1205]") {
-    const std::string dead = "http://127.0.0.1:" + std::to_string(kDeadPort) + "/frame.jpeg";
+    const std::string dead = "http://127.0.0.1:" + std::to_string(DEAD_PORT) + "/frame.jpeg";
 
     bool reachable = true;
     const long long elapsed_ms = time_ms([&] { reachable = probe_snapshot_reachable(dead); });
@@ -148,12 +148,12 @@ TEST_CASE("Snapshot probe rejects a dead address without waiting out the respons
     // make the stale-address case — the reason this probe exists — any slower. A
     // refused connection returns immediately; the assertion guards against a future
     // change that folds the two budgets back together.
-    REQUIRE(elapsed_ms < kSnapshotProbeTotalTimeoutSec * 1000);
+    REQUIRE(elapsed_ms < SNAPSHOT_PROBE_TOTAL_TIMEOUT_SEC * 1000);
 }
 
 TEST_CASE("Snapshot probe allows a live endpoint more time than a dead one",
           "[webcam][discovery][probe][1205]") {
     // The two budgets must stay distinct. Collapsing them (as the pre-#1205 code
     // did, with a single 2s total) is what rejected the reporter's camera.
-    REQUIRE(kSnapshotProbeTotalTimeoutSec > kSnapshotProbeConnectTimeoutSec);
+    REQUIRE(SNAPSHOT_PROBE_TOTAL_TIMEOUT_SEC > SNAPSHOT_PROBE_CONNECT_TIMEOUT_SEC);
 }

@@ -84,8 +84,8 @@ void ensure_fake_component_registered(const char* name) {
 TEST_CASE_METHOD(MoonrakerTestFixture, "rebuild_active_views swaps active panel widget pointer",
                  "[hot-reload][integration]") {
     // 1. Register stub component
-    constexpr const char* kComponent = "fake_rebuild_panel";
-    ensure_fake_component_registered(kComponent);
+    constexpr const char* COMPONENT = "fake_rebuild_panel";
+    ensure_fake_component_registered(COMPONENT);
 
     // 2. Initialize NavigationManager subjects (required before set_panels/rebuild).
     //    init() is idempotent via its subjects_initialized_ guard.
@@ -96,7 +96,7 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "rebuild_active_views swaps active panel 
     lv_obj_t* parent = test_screen();
     REQUIRE(parent != nullptr);
 
-    lv_obj_t* initial_widget = static_cast<lv_obj_t*>(lv_xml_create(parent, kComponent, nullptr));
+    lv_obj_t* initial_widget = static_cast<lv_obj_t*>(lv_xml_create(parent, COMPONENT, nullptr));
     REQUIRE(initial_widget != nullptr);
 
     // 4. Register widget array with NavigationManager. Only Home is populated —
@@ -106,7 +106,7 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "rebuild_active_views swaps active panel 
     nav.set_panels(panels);
 
     // 5. Construct FakePanel and register with NavigationManager.
-    FakePanel fake_panel(state(), &api(), kComponent);
+    FakePanel fake_panel(state(), &api(), COMPONENT);
     fake_panel.setup(initial_widget, parent);
     nav.register_panel_instance(helix::PanelId::Home, &fake_panel);
 

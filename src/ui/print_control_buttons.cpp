@@ -8,11 +8,12 @@
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 
 #include "abort_manager.h"
-#include "app_globals.h"                                // get_printer_state()
+#include "app_globals.h" // get_printer_state()
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h" // lv_tr
-#include "moonraker_api.h"
 #include "moonraker_error.h"
 #include "observer_factory.h"
+#include "print_job_ref.h"
 #include "printer_state.h"
 #include "standard_macros.h"
 #include "static_subject_registry.h"
@@ -44,6 +45,11 @@ void PrintControlButtons::init_subjects() {
     lv_xml_register_event_cb(nullptr, "on_print_control_stop", on_stop_clicked);
 
     // print_state_enum is a static global subject — no SubjectLifetime needed.
+    // RAW_PRINT_STATE_OK: TWO observers on purpose. This one clears the
+    // optimistic pending action when the PRINTER's own state moves; the
+    // lifecycle observer below recomputes the buttons. Collapsing them would
+    // clear a pending Pause on the Idle -> Preparing edge, before the printer
+    // has answered.
     print_state_observer_ = observe_int_sync<PrintControlButtons>(
         get_printer_state().get_print_state_enum_subject(), this,
         [](PrintControlButtons* self, int) {
@@ -57,12 +63,22 @@ void PrintControlButtons::init_subjects() {
         },
         get_printer_state().get_subjects_lifetime());
 
+    // The lifecycle is the axis the affordance contract is written against, and
+    // it moves independently of print_state_enum: during a host-side pre-start
+    // block the printer keeps reporting the previous job, so nothing else here
+    // would re-evaluate for the entire window.
+    print_lifecycle_observer_ = observe_int_sync<PrintControlButtons>(
+        get_printer_state().get_print_lifecycle_subject(), this,
+        [](PrintControlButtons* self, int) { self->recompute(); },
+        get_printer_state().get_subjects_lifetime());
+
     // Self-register cleanup so subjects/observer are torn down before lv_deinit().
     StaticSubjectRegistry::instance().register_deinit("PrintControlButtons", []() {
         auto& self = PrintControlButtons::instance();
         // release() (NOT reset()) is correct here: this runs pre-lv_deinit when
         // the observed subject is already being destroyed by its own owner.
         self.print_state_observer_.release();
+        self.print_lifecycle_observer_.release();
         self.teardown_subjects();
     });
 
@@ -70,18 +86,29 @@ void PrintControlButtons::init_subjects() {
     recompute();
 }
 
+ControlButtonView PrintControlButtons::current_view() const {
+    auto& state = get_printer_state();
+    auto& macros = StandardMacros::instance();
+
+    ControlButtonInputs in;
+    // RAW_PRINT_STATE_OK: ControlButtonInputs carries BOTH axes on purpose -
+    // job_state (the wire) and lifecycle - because "who holds the job" and "what
+    // may the user do" are different questions. See print_control_view.cpp.
+    in.job_state = state.get_print_job_state();
+    in.lifecycle = state.get_print_lifecycle();
+    in.has_preparing_job = state.has_preparing_job();
+    in.pending = pending_action_;
+    in.pause_available = !macros.get(StandardMacroSlot::Pause).is_empty();
+    in.resume_available = !macros.get(StandardMacroSlot::Resume).is_empty();
+    in.cancel_available = !macros.get(StandardMacroSlot::Cancel).is_empty();
+    return compute_control_button_view(in);
+}
+
 void PrintControlButtons::recompute() {
     if (!subjects_initialized_)
         return;
 
-    auto state = static_cast<helix::PrintJobState>(
-        lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
-
-    auto& macros = StandardMacros::instance();
-    ControlButtonView v = compute_control_button_view(
-        state, pending_action_, !macros.get(StandardMacroSlot::Pause).is_empty(),
-        !macros.get(StandardMacroSlot::Resume).is_empty(),
-        !macros.get(StandardMacroSlot::Cancel).is_empty());
+    ControlButtonView v = current_view();
 
     std::snprintf(primary_icon_buf_, sizeof(primary_icon_buf_), "%s", v.primary_icon);
     std::snprintf(primary_label_buf_, sizeof(primary_label_buf_), "%s", v.primary_label);
@@ -102,9 +129,13 @@ void PrintControlButtons::handle_primary_button() {
         return;
     }
     auto state = static_cast<helix::PrintJobState>(
+        // RAW_PRINT_STATE_OK: picks which macro to send; see below.
         lv_subject_get_int(get_printer_state().get_print_state_enum_subject()));
     auto& macros = StandardMacros::instance();
 
+    // RAW_PRINT_STATE_OK: chooses WHICH macro to send. Pause is meaningless
+    // before the printer holds the job, and print_control_view already refuses
+    // the button during Preparing.
     if (state == helix::PrintJobState::PRINTING) {
         if (macros.get(StandardMacroSlot::Pause).is_empty()) {
             NOTIFY_WARNING(lv_tr("Pause macro not configured"));
@@ -123,6 +154,8 @@ void PrintControlButtons::handle_primary_button() {
                 PrintControlButtons::instance().clear_pending_action();
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);
+        // RAW_PRINT_STATE_OK: Resume is only meaningful once the PRINTER says
+        // it is paused.
     } else if (state == helix::PrintJobState::PAUSED) {
         request_resume();
     }
@@ -155,6 +188,30 @@ void PrintControlButtons::handle_stop_button() {
         return;
     }
     cancel_modal_.set_on_confirm([]() {
+        // A job we are still preparing may not exist on the printer yet: a
+        // host-side pre-start block runs before the job is handed over, so
+        // print_stats is idle or still holds the PREVIOUS job. Routing that
+        // through AbortManager would send CANCEL_PRINT to an idle printer,
+        // which its own state watcher reads as an immediate success
+        // (abort_manager.cpp, terminal states complete the abort) while the
+        // queued start_print fires anyway once the macro returns.
+        //
+        // Retiring the preparing job is what actually stops it: the start
+        // choke point in PrintPreparationManager refuses to start a job that
+        // is no longer being prepared. Any running macro still finishes its
+        // current motion - Klipper cannot interrupt one - but no print begins.
+        auto& state = get_printer_state();
+        // The same decision that enabled the button picks the mechanism, so the
+        // two can never disagree about which one applies.
+        if (PrintControlButtons::instance().current_view().stop_retires_preparing) {
+            spdlog::info("[PrintControl] Stop confirmed while preparing - cancelling the start");
+            // The notification and the heater cooldown belong to the
+            // preparing-exit observer, which sees every retirement rather than
+            // just this one path.
+            state.retire_preparing(helix::PreparingExit::Cancelled);
+            return;
+        }
+
         spdlog::info("[PrintControl] Stop confirmed - starting AbortManager");
         // AbortManager handles its own UI state (progress modal, button states).
         helix::AbortManager::instance().start_abort();

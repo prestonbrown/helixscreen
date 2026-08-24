@@ -13,6 +13,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -73,6 +74,30 @@ public class HelixActivity extends SDLActivity {
      */
     private static volatile boolean sLightAppearance = false;
 
+    /**
+     * Desired FLAG_KEEP_SCREEN_ON state (issue #1245).
+     *
+     * SDL2 adds the flag during video init (SDL_video.c disables the screensaver
+     * by default), which is what we want while the app is in use — but it never
+     * clears it, so the device could never power the panel down. Native
+     * DisplayManager releases it when its own Display Sleep timeout fires and
+     * re-asserts it on wake, so Android's display timeout genuinely turns the
+     * panel off instead of us painting a black rectangle over a lit screen.
+     *
+     * Static so the value survives activity recreation; {@link #onResume} re-applies
+     * it because Android can hand us a brand-new window with default flags.
+     * True at startup to match what SDL already did.
+     */
+    private static volatile boolean sKeepScreenOn = true;
+
+    /**
+     * Incremented on every {@link #onResume}. Native code samples this when it
+     * releases the screen lock and again while idle: a change means the app was
+     * paused and resumed (i.e. the panel powered off and came back), which is the
+     * only "wake" signal available when the user never touches our surface.
+     */
+    private static volatile int sResumeSeq = 0;
+
     private final Handler mHideHandler = new Handler(Looper.getMainLooper());
     private final Runnable mHideRunnable = new Runnable() {
         @Override
@@ -91,6 +116,15 @@ public class HelixActivity extends SDLActivity {
     protected String[] getLibraries() {
         return new String[]{
             "SDL2",
+            // Preloaded so the native side can dlopen("libturbojpeg.so")
+            // (prestonbrown/helixscreen#1245). From API 24 the linker namespace
+            // model no longer resolves a bare dlopen() against an APK-bundled
+            // .so by basename, so libturbojpeg must be entered through the
+            // framework load list (SDLActivity calls System.loadLibrary for each
+            // entry here). Without it the camera silently falls back to scalar
+            // stb_image decode. Listed before "main" because CameraStream
+            // constructs on the native thread after libmain loads.
+            "turbojpeg",
             "main"
         };
     }
@@ -338,6 +372,12 @@ public class HelixActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // A resume means the panel is on again — the signal native code uses to
+        // wake a display it put to sleep by releasing FLAG_KEEP_SCREEN_ON (#1245).
+        sResumeSeq++;
+        // Android may have recreated the window with default flags, so re-apply
+        // the desired keep-screen-on state. We are already on the UI thread here.
+        applyKeepScreenOn();
         // SDL's COMMAND_CHANGE_WINDOW_STYLE handler applies immersive-sticky
         // flags asynchronously on the main thread during startup.  Post our
         // reapply to run after those messages drain so we win the race.
@@ -427,6 +467,53 @@ public class HelixActivity extends SDLActivity {
     }
 
     /**
+     * Allow or prevent the device from sleeping while HelixScreen is foregrounded
+     * (issue #1245). Called from native DisplayManager when its Display Sleep
+     * timeout fires (false) and on wake (true).
+     *
+     * With Display Sleep = "Never" native code never passes false, so a
+     * wall-mounted tablet stays lit exactly as before.
+     *
+     * @param keepOn true to hold the screen awake, false to let Android's own
+     *               display timeout power the panel off
+     */
+    public static void setKeepScreenOn(final boolean keepOn) {
+        // Update the static first so onResume picks it up even if the activity is
+        // being created right now (same discipline as setNavBarAlwaysVisible).
+        sKeepScreenOn = keepOn;
+
+        final android.content.Context ctx = SDLActivity.getContext();
+        if (!(ctx instanceof HelixActivity)) return;
+        final HelixActivity helix = (HelixActivity) ctx;
+        // Window flag changes are UI-thread only.
+        helix.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                helix.applyKeepScreenOn();
+            }
+        });
+    }
+
+    /**
+     * Number of times {@link #onResume} has run. Read from native code to detect a
+     * pause/resume cycle without a touch event. See {@link #sResumeSeq}.
+     */
+    public static int getResumeSeq() {
+        return sResumeSeq;
+    }
+
+    /** Push {@link #sKeepScreenOn} onto the window. UI thread only. */
+    private void applyKeepScreenOn() {
+        Window window = getWindow();
+        if (window == null) return;
+        if (sKeepScreenOn) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
+
+    /**
      * Set the window background color to match the active theme.
      * Called from native code via JNI whenever the theme changes so the
      * area behind transparent system bars matches the app's screen_bg.
@@ -462,6 +549,49 @@ public class HelixActivity extends SDLActivity {
     // =========================================================================
 
     /**
+     * Describe a failure for the "0\nERROR" transport-failure contract.
+     * getMessage() is null on several common IOExceptions, and "HTTP 0: null"
+     * tells the reader nothing; the exception type at least names the failure.
+     */
+    private static String errorText(Exception e) {
+        String msg = e.getMessage();
+        return (msg != null && !msg.isEmpty()) ? msg : e.getClass().getName();
+    }
+
+    /**
+     * Read a response body for a status code that has already been obtained.
+     *
+     * getErrorStream() returns null whenever an error response carries no body,
+     * and getInputStream() throws for most 4xx/5xx. Either one reaching the
+     * caller collapses a real status code into the "0" transport-failure path,
+     * so a rejected API key (401/403) and an oversized payload (413) become
+     * indistinguishable from having no network at all. Every body-read failure
+     * is absorbed here and reported as an empty body, leaving the status intact.
+     *
+     * @param conn    Connection whose response has already been read
+     * @param status  Status code from conn.getResponseCode()
+     * @return        Response body, or "" when there is none to read
+     */
+    private static String readResponseBody(HttpURLConnection conn, int status) {
+        InputStream in = null;
+        try {
+            in = (status >= 200 && status < 400) ? conn.getInputStream() : conn.getErrorStream();
+        } catch (Exception e) {
+            Log.w("HelixHTTPS", "no response stream for status " + status + ": " + e.getMessage());
+        }
+        if (in == null) {
+            return "";
+        }
+        try (Scanner s = new Scanner(in, "UTF-8")) {
+            s.useDelimiter("\\A");
+            return s.hasNext() ? s.next() : "";
+        } catch (Exception e) {
+            Log.w("HelixHTTPS", "response body read failed: " + e.getMessage());
+            return "";
+        }
+    }
+
+    /**
      * Perform an HTTP(S) GET using Android's built-in TLS stack.
      * Called from native code via JNI when libhv lacks SSL support.
      *
@@ -485,18 +615,10 @@ public class HelixActivity extends SDLActivity {
             }
 
             int status = conn.getResponseCode();
-            String responseBody = "";
-            try (Scanner s = new Scanner(
-                    status >= 200 && status < 400
-                        ? conn.getInputStream() : conn.getErrorStream(),
-                    "UTF-8")) {
-                s.useDelimiter("\\A");
-                if (s.hasNext()) responseBody = s.next();
-            }
-            return status + "\n" + responseBody;
+            return status + "\n" + readResponseBody(conn, status);
         } catch (Exception e) {
-            Log.w("HelixHTTPS", "GET failed: " + e.getMessage());
-            return "0\n" + e.getMessage();
+            Log.w("HelixHTTPS", "GET failed: " + errorText(e));
+            return "0\n" + errorText(e);
         } finally {
             if (conn != null) conn.disconnect();
         }
@@ -535,18 +657,44 @@ public class HelixActivity extends SDLActivity {
             }
 
             int status = conn.getResponseCode();
-            String responseBody = "";
-            try (Scanner s = new Scanner(
-                    status >= 200 && status < 400
-                        ? conn.getInputStream() : conn.getErrorStream(),
-                    "UTF-8")) {
-                s.useDelimiter("\\A");
-                if (s.hasNext()) responseBody = s.next();
-            }
-            return status + "\n" + responseBody;
+            return status + "\n" + readResponseBody(conn, status);
         } catch (Exception e) {
-            Log.w("HelixHTTPS", "POST failed: " + e.getMessage());
-            return "0\n" + e.getMessage();
+            Log.w("HelixHTTPS", "POST failed: " + errorText(e));
+            return "0\n" + errorText(e);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /**
+     * HTTPS POST with a raw binary body — for gzip-compressed payloads where
+     * round-tripping bytes through a Java String would corrupt them (debug
+     * bundle upload). Same STATUS\nBODY / 0\nERROR contract as httpsPost.
+     */
+    public static String httpsPostBinary(String url, byte[] body, String contentType,
+                                         String contentEncoding, String userAgent,
+                                         String apiKey, int timeoutSec) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(timeoutSec * 1000);
+            conn.setReadTimeout(timeoutSec * 1000);
+            conn.setRequestProperty("Content-Type", contentType);
+            if (contentEncoding != null && !contentEncoding.isEmpty())
+                conn.setRequestProperty("Content-Encoding", contentEncoding);
+            conn.setRequestProperty("User-Agent", userAgent);
+            conn.setRequestProperty("X-API-Key", apiKey);
+            conn.setFixedLengthStreamingMode(body.length);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body);
+            }
+            int status = conn.getResponseCode();
+            return status + "\n" + readResponseBody(conn, status);
+        } catch (Exception e) {
+            Log.w("HelixHTTPS", "POST binary failed: " + errorText(e));
+            return "0\n" + errorText(e);
         } finally {
             if (conn != null) conn.disconnect();
         }

@@ -43,7 +43,7 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
     }
 
     // Reject obviously non-Ethernet prefixes.
-    static const char* const kRejectPrefixes[] = {
+    static const char* const REJECT_PREFIXES[] = {
         "wlan",   "wlp", "wlx",    // WiFi
         "docker", "br-", "virbr",  // Virtual bridges
         "veth",                    // Container virtual Ethernet pairs
@@ -53,7 +53,7 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
         "can",                     // CAN bus
         "sit",    "gre", "ip6tnl", // IP-over-IP tunnels
     };
-    for (const char* prefix : kRejectPrefixes) {
+    for (const char* prefix : REJECT_PREFIXES) {
         size_t len = std::strlen(prefix);
         if (name.compare(0, len, prefix) == 0) {
             return false;
@@ -63,7 +63,7 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
     // Fast-path: well-known physical Ethernet naming schemes. Accepting these
     // without sysfs lets `get_info()` work against libhv's ifconfig_t list
     // even if sysfs is unavailable (e.g. containerized test environments).
-    static const char* const kEthernetPrefixes[] = {
+    static const char* const ETHERNET_PREFIXES[] = {
         "eth", // Traditional kernel naming (eth0, eth1, ...)
         "eno", // systemd onboard / firmware index (eno1, ...)
         "enp", // systemd PCI bus/slot (enp3s0, ...)
@@ -73,7 +73,7 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
         "enx", // systemd MAC-based (USB NICs: enx001122334455)
         "em",  // biosdevname (older Dell / Fedora: em1, em2)
     };
-    for (const char* prefix : kEthernetPrefixes) {
+    for (const char* prefix : ETHERNET_PREFIXES) {
         size_t len = std::strlen(prefix);
         if (name.compare(0, len, prefix) == 0) {
             return true;

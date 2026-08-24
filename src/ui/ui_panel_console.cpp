@@ -17,8 +17,8 @@
 
 #include "app_globals.h"
 #include "console_filter_engine.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -470,9 +470,9 @@ void ConsolePanel::fetch_history() {
         return;
     }
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
-        spdlog::warn("[{}] No MoonrakerAPI available", get_name());
+        spdlog::warn("[{}] No IMoonrakerAPI available", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Not connected to printer"));
         lv_subject_copy_string(&status_subject_, status_buf_);
         update_visibility();
@@ -809,7 +809,7 @@ void ConsolePanel::subscribe_to_gcode_responses() {
         return;
     }
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::debug("[{}] Cannot subscribe - no API", get_name());
         return;
@@ -838,7 +838,7 @@ void ConsolePanel::unsubscribe_from_gcode_responses() {
         return;
     }
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         api->unregister_method_callback("notify_gcode_response", gcode_handler_name_);
         spdlog::debug("[{}] Unsubscribed from notify_gcode_response", get_name());
@@ -957,8 +957,8 @@ void ConsolePanel::send_gcode_command() {
     cmd_entry.is_error = false;
     add_entry(cmd_entry);
 
-    // Send via MoonrakerAPI with error feedback
-    MoonrakerAPI* api = get_moonraker_api();
+    // Send via IMoonrakerAPI with error feedback
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         api->execute_gcode(command, nullptr, // success: no-op, response comes via WS subscription
                            [token = lifetime_.token()](const MoonrakerError& err) {
@@ -967,7 +967,7 @@ void ConsolePanel::send_gcode_command() {
                                NOTIFY_ERROR(lv_tr("Failed to send command: {}"), err.message);
                            });
     } else {
-        spdlog::warn("[{}] No MoonrakerAPI available", get_name());
+        spdlog::warn("[{}] No IMoonrakerAPI available", get_name());
     }
 }
 

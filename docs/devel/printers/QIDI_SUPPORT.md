@@ -132,13 +132,15 @@ HelixScreen auto-detects the best available display backend in this order: DRM, 
 
 ### Touch Input
 
-HelixScreen uses libinput for touch input and should auto-detect `/dev/input/eventX` devices on QIDI hardware. If touch input doesn't work, check that input devices are present and accessible:
+HelixScreen drives the touchscreen through LVGL's evdev driver (libinput is only a fallback) and auto-detects `/dev/input/eventX` on QIDI hardware. If touch input doesn't work, check that input devices are present and accessible:
 
 ```bash
 ls /dev/input/event*
 ```
 
 Ensure the user running HelixScreen has read permissions on the event device. Running as root (common on QIDI printers) avoids permission issues.
+
+The Q2's digitizer needs its affine calibration (see [Known Limitations](#known-limitations)); the first-run wizard applies it, and recalibrating from Settings → Touch Calibration re-derives it. Diagnostic env vars: [`HELIX_DEBUG_TOUCH`, `HELIX_TOUCH_*`](../ENVIRONMENT_VARIABLES.md#touch-calibration).
 
 ## Auto-Detection
 
@@ -199,20 +201,18 @@ HelixScreen has a **read-only state mirror** and a **gated write-path** for the 
   - `slot<N>` → per-slot `SlotStatus` (0=empty, 1=available, 2=loaded, 3=transitional, -1/-2/-3=BLOCKED)
   - `value_t<N>="slot<M>"` → tool-to-slot mapping
   - `last_load_slot` → authoritative LOADED (with `"slot-1"` = nothing loaded)
-  - `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` → raw RFID indices in a private side-table
+  - `filament_slot<N>` / `color_slot<N>` / `vendor_slot<N>` → RFID indices in a private side-table, resolved to filament / color / vendor strings via `officiall_filas_list.cfg`
 - **Temperature profiles** — fetches `/server/files/config/officiall_filas_list.cfg` via Moonraker's file API at `on_started()`. Parses the ConfigParser INI sections (`[fila<N>]` with `min_temp` / `max_temp` / `box_min_temp` / `box_max_temp`), caches them, and applies the nozzle min/max to `SlotInfo` whenever a `filament_slot<N>` index arrives. HTTP failure is non-fatal.
 - **Bootstrap** — `on_started()` issues a `printer.objects.query` for `save_variables` + `box_extras` so the initial snapshot lands; subsequent `notify_status_update` frames carry deltas only.
-- **Heater drying state** — `heater_generic heater_box<N>` notifications (temperature/target) flow into `AmsUnit::environment` as the max across all boxes, so the UI can show drying-active state regardless of which physical box is active.
-- **Write-path** — always enabled: `load_filament` (`T<tool>`), `unload_filament` (`UNLOAD_T<tool>`, supports `-1` for active slot), `change_tool` (`T<tool>`), and `set_tool_mapping` (`SAVE_VARIABLE VARIABLE=value_t<t> VALUE="slot<s>"`). Commands verified against QIDI's open-source firmware (`box_stepper.py`/`box_extras.py`, #1030). Each op logs at `info` (entry log + raw G-code) for field visibility.
+- **Heater drying state** — `heater_generic heater_box<N>` (temperature/target) and `aht20_f heater_box<N>` (temperature/humidity) notifications flow into each box's own `AmsUnit::environment` entry, so the UI can show drying-active state regardless of which physical box is active.
+- **Write-path** — always enabled: `load_filament` (`T<tool>`), `unload_filament` (`UNLOAD_T<tool>`, supports `-1` for active slot), `change_tool` (`T<tool>`), and `set_tool_mapping` (`SAVE_VARIABLE VARIABLE=value_t<t> VALUE="slot<s>"`). Commands verified against QIDI's open-source firmware (box_stepper.py/box_extras.py, #1030). Each op logs at `info` (entry log + raw G-code) for field visibility.
 
 **Known gaps:**
 
-- `aht20_f heater_box<N>` humidity isn't subscribed today — the classifier in `moonraker_discovery_sequence.cpp` only recognises `temperature_sensor <name>`/`temperature_fan <name>`/`tmc2240`/`tmc5160` as sensors. The parser handles humidity if it arrives, but the subscription side has to be extended.
-- `color_slot<N>` / `vendor_slot<N>` raw indices are captured but not yet mapped to material/color/brand strings — the python source doesn't read those names from `officiall_filas_list.cfg`, so the palette source needs separate identification.
 - No `qidi_box_64.png` logo asset yet — `AmsState::get_system_logo_path()` returns nullptr for `"qidi box"`, UI falls back to a generic AMS chip.
 - Write-path needs field validation against real hardware. Tracking via issue #954.
 
-Full context and references to the `qidi-community/Plus4-Wiki` open-source reimplementation live in [`FILAMENT_MANAGEMENT.md` → QIDI Box](../FILAMENT_MANAGEMENT.md#qidi-box-qidi-plus4--q2--max4).
+Full context and references to the `qidi-community/Plus4-Wiki` open-source reimplementation live in [`FILAMENT_BACKEND_QIDI_BOX.md` → QIDI Box](../FILAMENT_BACKEND_QIDI_BOX.md#qidi-box-qidi-plus4--q2--max4).
 
 **Alternative path: [Bunny Box](https://github.com/Wazzup77/Bunny-Box)** — a community open-source replacement that reimplements the QIDI Box as a [Happy Hare](https://github.com/moggieuk/Happy-Hare) MMU. HelixScreen already has Happy Hare support, so a printer flashed with Bunny Box is controllable through HelixScreen via its existing Happy Hare integration. Plus 4 is the most mature target (tested on stock QIDI 1.7.3, FreeDi, and Kalico); Q2 is in active testing; Max 4 is not yet supported. Bunny Box currently depends on the maintainer's [Happy Hare fork](https://github.com/Wazzup77/Happy-Hare) for QIDI-specific hall-sensor and cutter handling, pending upstream merge.
 
@@ -222,6 +222,7 @@ HelixScreen ships a **Q2 Happy Hare preset** (`presets/qidi_q2.json`) for exactl
 
 - **Most QIDI models have TJC HMI serial displays** -- The X-Max 3, X-Plus 3, Q1 Pro, X-Smart 3, and **Plus 4** all use TJC (Nextion-compatible) displays connected via serial UART. HelixScreen cannot drive these. For on-device install, a physical screen replacement (HDMI or DSI touchscreen) is required. Remote-control mode is unaffected.
 - **Q2 resolution is very small** -- The Q2's 480x272 display uses the MICRO layout. Some UI elements may be cramped but the layout is functional.
+- **Q2 digitizer over-reports its touch range** -- Advertises 800x480, emits ~460x237, so pre-calibration touches land in the top-left ~55%x49% of the screen (see Hardware Details below). First-run calibration fixes it permanently; `HELIX_TOUCH_MIN/MAX_X/Y` with the *emitted* range is the env-level alternative ([#943](https://github.com/prestonbrown/helixscreen/issues/943)).
 - **Q2 has limited RAM** -- ~498 MB total. HelixScreen must be memory-conscious on this device.
 - **Max 4 QIDI Box control diverges from the Q2** -- Detection + preset are in and a community tester confirmed the on-device build runs, but the Max 4's QIDI Box does **not** share the Q2's control surface. The shared QIDI backend ejects/unloads via a `box_stepper` `FORCE_MOVE` primitive (measured on a real Q2, prestonbrown/helixscreen#1041); on the Max 4 that is rejected with `Invalid pin value` — the Max 4 uses the `multi_color_controller` dialect (`MULTI_COLOR_BOX_UNLOAD SLOT=slotN`) instead. Per-model box dispatch is tracked in prestonbrown/helixscreen#1083 (#1070 is separate — multi-box scaling). Klipper/Moonraker version reporting is also currently blank on QIDI new-gen firmware (Q2 + Max 4).
 - **No standalone box-heater panel** -- The QIDI Box's PTC dryer heater (`heater_generic heater_box<N>`) *is* controllable today through the shared AMS drying screen (Start/Stop drying, target temp/duration), which drives the native `heater_box<N>` for the stock QIDI backend and `MMU_HEATER` for a Happy-Hare-flashed box (Bunny Box). What's missing is a *dedicated* box-heater temperature panel like the chamber temperature panel — the heater is reachable only via the drying flow, not as a standalone control.
@@ -235,6 +236,7 @@ Gathered from firmware analysis and user reports:
 - **Main MCU:** STM32F407 (`QIDI_MAIN_V2`) via USB
 - **Toolhead MCU:** STM32F103 via UART (`/dev/ttyS4`)
 - **Display:** 4.3" 480x272 IPS capacitive (Goodix touch)
+- **Touch digitizer (measured, #943):** `Goodix Capacitive TouchScreen` on `/dev/input/event0` (phys `input/ts`), reporting both legacy ABS_X/Y and MT position axes. It **over-reports its ABS range**: EVIOCGABS advertises 0..799 x 0..479 (an 800x480 panel) but the glass only emits ~460x237, so evdev's linear scale delivers touches compressed to ~0.57x/0.49y of the screen — until first calibration only the top-left ~55%x49% of the UI is reachable. The affine calibration absorbs the compression fully (a≈1.74, e≈1.93); calibration working "correctly" can look broken mid-capture because raw capture space is that compressed space. Evidence: debug bundle N4ZN3YY2 (v0.99.114); the calibration span-check logs the captured/target ratio on every run. A controller that reports honestly needs no affine — don't copy this fix class elsewhere without the span-check evidence.
 - **WiFi:** USB dongle, Realtek RTL8188GU (Tenda), 2.4 GHz only
 - **SSH:** user `mks`, password `makerbase`
 - **Klipper stack:** Standard Klipper + Moonraker (port 7125) + Fluidd, managed via systemd

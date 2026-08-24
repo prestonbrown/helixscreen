@@ -5,7 +5,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -290,9 +290,13 @@ void ClogDetectionConfigModal::send_detection_mode_gcode(int mode, float det_len
     }
     api->execute_gcode(
         *cmd, [mode]() { spdlog::info("[ClogConfig] Detection mode set to {}", mode); },
+        // Log-only error handler, so the report stays with GcodeErrorRouter's
+        // `!!` broadcast (include/rpc_error_policy.h).
         [](const MoonrakerError& err) {
             spdlog::error("[ClogConfig] Detection mode gcode failed: {}", err.message);
-        });
+        },
+        /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
+        /*caller_surfaces_errors=*/false);
 }
 
 // Static event callbacks

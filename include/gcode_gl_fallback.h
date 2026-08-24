@@ -21,8 +21,8 @@ namespace gcode {
 //   reaction is to stop issuing 3D draws entirely.
 // GL_INVALID_OPERATION (0x0502): the command stream is in a state the driver
 //   rejects. Continuing to draw risks undefined behaviour in the driver.
-constexpr unsigned int kGLOutOfMemory = 0x0505;
-constexpr unsigned int kGLInvalidOperation = 0x0502;
+constexpr unsigned int GL_ERR_OUT_OF_MEMORY = 0x0505;
+constexpr unsigned int GL_ERR_INVALID_OPERATION = 0x0502;
 
 /// Decide whether a GL error observed after a draw batch should trigger a
 /// permanent, session-sticky fall-back from the 3D GLES renderer to the
@@ -34,7 +34,7 @@ constexpr unsigned int kGLInvalidOperation = 0x0502;
 /// @param gl_error  the value returned by glGetError() (0 == GL_NO_ERROR)
 /// @return true if the error is fatal enough to abandon GPU rendering
 inline bool gl_draw_error_is_fatal(unsigned int gl_error) {
-    return gl_error == kGLOutOfMemory || gl_error == kGLInvalidOperation;
+    return gl_error == GL_ERR_OUT_OF_MEMORY || gl_error == GL_ERR_INVALID_OPERATION;
 }
 
 /// Decide, BEFORE the first GPU draw, whether a GPU is known to hard-fault in
@@ -65,14 +65,14 @@ inline bool gl_renderer_is_denylisted(const char* renderer) {
         return false;
     }
 
-    static const char* const kDenylist[] = {"panfrost"};
+    static const char* const DENYLIST[] = {"panfrost"};
 
     std::string lowered(renderer);
     for (char& c : lowered) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    for (const char* needle : kDenylist) {
+    for (const char* needle : DENYLIST) {
         if (lowered.find(needle) != std::string::npos) {
             return true;
         }

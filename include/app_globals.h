@@ -11,11 +11,14 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 class TemperatureController;
 } // namespace helix
-class MoonrakerAPI;
+class IMoonrakerAPI;
 class MoonrakerManager;
+#ifdef HELIX_ENABLE_MOCKS
+class MoonrakerClientMock;
+#endif
 namespace helix {
 class PrinterState;
 }
@@ -27,25 +30,47 @@ class TemperatureHistoryManager;
  * @brief Get global MoonrakerClient instance
  * @return Pointer to global MoonrakerClient (may be nullptr if not initialized)
  */
-helix::MoonrakerClient* get_moonraker_client();
+helix::IMoonrakerClient* get_moonraker_client();
 
 /**
  * @brief Set global MoonrakerClient instance (called by main.cpp during init)
  * @param client Pointer to MoonrakerClient instance
  */
-void set_moonraker_client(helix::MoonrakerClient* client);
+void set_moonraker_client(helix::IMoonrakerClient* client);
+
+#ifdef HELIX_ENABLE_MOCKS
+/**
+ * @brief Get the global client under its concrete mock type
+ *
+ * Non-null only while the registered client is a MoonrakerClientMock. Consumers
+ * that need the mock-only API (AmsBackend's simulated-gcode-tool subscription)
+ * read this instead of downcasting get_moonraker_client() — the firmware builds
+ * -fno-rtti and the desktop build must not diverge.
+ *
+ * @return Pointer to the mock client, or nullptr on a real-client run
+ */
+MoonrakerClientMock* get_moonraker_client_mock();
 
 /**
- * @brief Get global MoonrakerAPI instance
- * @return Pointer to global MoonrakerAPI (may be nullptr if not initialized)
+ * @brief Publish the global client under its concrete mock type
+ *
+ * Called by MoonrakerManager::create_client(), which is the one place that
+ * knows what it built. Pass nullptr when the client is real or being torn down.
  */
-MoonrakerAPI* get_moonraker_api();
+void set_moonraker_client_mock(MoonrakerClientMock* client);
+#endif
 
 /**
- * @brief Set global MoonrakerAPI instance (called by main.cpp during init)
- * @param api Pointer to MoonrakerAPI instance
+ * @brief Get global IMoonrakerAPI instance
+ * @return Pointer to global IMoonrakerAPI (may be nullptr if not initialized)
  */
-void set_moonraker_api(MoonrakerAPI* api);
+IMoonrakerAPI* get_moonraker_api();
+
+/**
+ * @brief Set global IMoonrakerAPI instance (called by main.cpp during init)
+ * @param api Pointer to IMoonrakerAPI instance
+ */
+void set_moonraker_api(IMoonrakerAPI* api);
 
 /**
  * @brief Get the global TemperatureController (shared resource registered by SubjectInitializer)
@@ -303,7 +328,9 @@ std::function<void()> get_wizard_cancel_callback();
  * 2. Config /cache/base_directory + /<subdir>
  * 3. Platform-specific (compile-time):
  *    - AD5M:  /data/helixscreen/cache/<subdir>
- *    - K1/K2: /usr/data/helixscreen/cache/<subdir>
+ *    - K1:    /usr/data/helixscreen/cache/<subdir>
+ *    - K2:    /mnt/UDISK/helixscreen/cache/<subdir>, then /usr/data
+ *             (/usr/data is the small root overlay on the K2, not user storage)
  * 4. XDG_CACHE_HOME/helix/<subdir>
  * 5. $HOME/.cache/helix/<subdir>
  * 6. /var/tmp/helix_<subdir>
@@ -357,22 +384,29 @@ std::string app_get_config_dir();
 bool helix_parse_truthy_env(const char* value);
 
 // Pure predicate behind updates_externally_managed(), split out for testing so
-// the env input can be exercised without mutating the process env.
-// True only when the explicit HELIX_DISABLE_AUTO_UPDATES flag is truthy. No
-// environment inference: the update gate keys solely off this firmware-facing
-// flag. A future change will instead derive the state from whether self-update
-// can physically write the install tree.
-bool compute_updates_externally_managed(const char* disable_auto_updates);
+// both inputs can be exercised without mutating the process env or the platform.
+//
+// HELIX_DISABLE_AUTO_UPDATES wins in EITHER direction when set to a value that
+// parses: truthy suppresses, falsy force-enables. Unset falls back to
+// `platform_default`, which is helix::platform_defaults_to_external_updates().
+//
+// The falsy arm is not symmetry for its own sake — it is how a dev box on a
+// platform that defaults to managed turns self-update back on, from the CLI or a
+// deploy script, without a rebuild.
+//
+// This used to be the flag alone, defaulting to self-managed everywhere. On the
+// Snapmaker U1 that meant firmware-managed installs self-updated over a package
+// the firmware owns, because the firmware hook never set the flag (it exports
+// HELIX_DATA_DIR/HELIX_SUPERVISED and nothing else).
+bool compute_updates_externally_managed(const char* disable_auto_updates, bool platform_default);
 
 // Returns true when software updates are owned by the device firmware, in which
 // case HelixScreen must NOT run its in-app self-update: the periodic auto-check
 // is suppressed and manual check/download entry points short-circuit.
 //
-// Managed state is true ONLY when the explicit HELIX_DISABLE_AUTO_UPDATES flag
-// is truthy. No other environment variable participates — a firmware-managed
-// install must set this flag. A future change will derive the state from whether
-// self-update can physically write the install tree. Read once and cached (like
-// app_get_install_root()).
+// Explicit HELIX_DISABLE_AUTO_UPDATES wins either way; otherwise the platform
+// default applies (see helix::platform_defaults_to_external_updates(), which owns
+// the list). Read once and cached (like app_get_install_root()).
 bool updates_externally_managed();
 
 // Can this process obtain root for the install swap? True when already euid 0,
@@ -385,16 +419,24 @@ bool updates_externally_managed();
 bool root_escalation_available();
 
 // Pure predicate: can an in-app self-update PHYSICALLY be applied to this install
-// tree? Self-update swaps the install root by renaming it ("mv <root> <root>.old;
-// mv <new> <root>"), which requires write permission on the install root's PARENT
-// directory (rename mutates the parent's entries).
+// tree? It must recognise BOTH of the routes install.sh implements, since hiding
+// the updater is permanent — the fix for a false negative can only ship inside an
+// update the user is being prevented from installing:
 //
-// True when the parent is writable outright (helix::paths::is_writable_dir), and
-// ALSO when it isn't but `can_escalate` says the swap can run as root anyway —
-// the standard Pi layout installs to /opt/helixscreen and runs the service as an
-// unprivileged user, so the parent (/opt) is root-owned even though install.sh
-// can and does sudo the swap. Without that second term the updater hides itself
-// on a perfectly updatable machine.
+//   parent writable  → atomic swap ("mv <root> <root>.old; mv <new> <root>").
+//                      rename mutates the PARENT's entries, so that is what it
+//                      needs write permission on.
+//   root writable    → in-place replacement: delete the root's contents (bar
+//                      config/) and move the new ones in, entirely inside the
+//                      root. install.sh selects this by itself whenever the
+//                      parent is not writable.
+//   can_escalate     → neither is open, but the steps can run as root anyway.
+//
+// The root-writable term is what covers the standalone-display Pi: no local
+// Klipper, so the installer falls through to /opt/helixscreen, whose parent is
+// root-owned while the root itself is chowned to the service user. Escalation is
+// NOT a substitute there — the shipped unit sets NoNewPrivileges=true, so sudo
+// cannot succeed from the app or from the install.sh it forks.
 //
 // An empty install_root (unresolvable/bind-mounted layout) or an empty parent
 // returns TRUE conservatively, deferring to the installer fallbacks and the
@@ -404,23 +446,40 @@ bool root_escalation_available();
 bool compute_self_update_supported(const std::string& install_root, bool can_escalate);
 
 // Cached wrapper over compute_self_update_supported(app_get_install_root(), ...).
-// False only when the install-root parent isn't writable AND root can't be
-// obtained — a genuinely read-only rootfs — so the in-app updater won't offer an
-// update it physically cannot apply. root_escalation_available() is consulted
-// lazily: an already-writable parent answers the question with no sudo probe at
-// all, which is every root-run embedded platform. Read once and cached (like
-// app_get_install_root()).
+// False only when NEITHER the install root nor its parent is writable AND root
+// can't be obtained — a genuinely read-only rootfs — so the in-app updater won't
+// offer an update it physically cannot apply. root_escalation_available() is
+// consulted lazily: a writable install tree answers the question with no sudo
+// probe at all. Read once and cached (like app_get_install_root()).
 bool self_update_supported();
 
-// Pure predicate behind in_app_updates_suppressed(), split out for testing so
+// Pure predicate behind update_install_suppressed(), split out for testing so
 // both branches can be exercised without mutating the process-wide caches that
 // updates_externally_managed() and self_update_supported() sit behind.
-bool compute_in_app_updates_suppressed(bool externally_managed, bool self_update_ok);
+bool compute_update_install_suppressed(bool externally_managed, bool self_update_ok);
 
-// Combined in-app-updater gate: true when the updater must NOT run, for EITHER
-// reason — updates are firmware-managed via the explicit HELIX_DISABLE_AUTO_UPDATES
-// flag (updates_externally_managed()), OR a self-update is physically impossible
-// because the install tree isn't writable (!self_update_supported()). Functional
-// update entry points (check/auto-check/download) gate on THIS; the "Managed by
-// your firmware" notice keeps keying off updates_externally_managed() alone.
-bool in_app_updates_suppressed();
+// Gate on APPLYING an update: true when a download/install must NOT run, for
+// EITHER reason — updates are firmware-managed via the explicit
+// HELIX_DISABLE_AUTO_UPDATES flag (updates_externally_managed()), OR a self-update
+// is physically impossible because the install tree isn't writable
+// (!self_update_supported()). start_download() gates on THIS, and the About screen
+// hides the "Install Update" row on it.
+bool update_install_suppressed();
+
+// Gate on LOOKING for an update: true only when updates are firmware-managed.
+//
+// Deliberately a different, weaker predicate than update_install_suppressed().
+// Checking is a manifest fetch over the network and needs nothing from the
+// filesystem, so an install tree we cannot write is no reason to refuse to look:
+// knowing a newer version exists is useful even when the button to apply it is
+// not available, and it is the only thing that makes a suppressed install
+// recoverable — the user can still be told to re-run the installer.
+//
+// The two questions shared one predicate until now, and that is what made a false
+// negative in self_update_supported() a PERMANENT lockout: the rows vanished
+// wholesale, so nothing could tell the user an update existed, and the fix could
+// only ship inside the update they were being kept from (v0.99.96 through
+// v0.99.113 on /opt installs). check_for_updates() and start_auto_check() gate on
+// THIS; the "Managed by your firmware" notice keeps keying off
+// updates_externally_managed() alone.
+bool update_checks_suppressed();

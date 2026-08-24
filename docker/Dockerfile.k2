@@ -61,11 +61,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ccache \
     && rm -rf /var/lib/apt/lists/*
 
+# Hardened download wrapper. A bare `wget -q` gives up on a DNS failure in ~24 ms
+# and on a refused connection in ~4 ms, without retrying either, which is how a
+# valid zlib URL failed the v0.99.111 cc1 release build 52 ms in. See fetch.sh.
+COPY fetch.sh /usr/local/bin/fetch
+
 # Download Bootlin's armv7-eabihf musl toolchain (stable-2024.02-1)
 # ARM hard-float with musl libc for clean static linking
 # Same Bootlin release series as the K1 MIPS toolchain
 WORKDIR /opt
-RUN wget -q "https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/armv7-eabihf--musl--stable-2024.02-1.tar.bz2" && \
+RUN fetch "https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/armv7-eabihf--musl--stable-2024.02-1.tar.bz2" && \
     tar xjf "armv7-eabihf--musl--stable-2024.02-1.tar.bz2" && \
     rm "armv7-eabihf--musl--stable-2024.02-1.tar.bz2" && \
     mv "armv7-eabihf--musl--stable-2024.02-1" arm-musl-toolchain
@@ -77,7 +82,7 @@ RUN wget -q "https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-
 # Bootlin's musl toolchain doesn't include zlib, so we build it from source.
 WORKDIR /tmp
 RUN export PATH="/opt/arm-musl-toolchain/bin:$PATH" && \
-    wget -q https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
+    fetch https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz && \
     tar xzf zlib-1.3.2.tar.gz && \
     cd zlib-1.3.2 && \
     CHOST=arm-buildroot-linux-musleabihf ./configure --static \
@@ -97,7 +102,7 @@ RUN export PATH="/opt/arm-musl-toolchain/bin:$PATH" && \
 # linux-armv4 is the standard 32-bit ARM OpenSSL target.
 WORKDIR /tmp
 RUN export PATH="/opt/arm-musl-toolchain/bin:$PATH" && \
-    wget -q https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    fetch https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
     tar xzf openssl-1.1.1w.tar.gz && \
     cd openssl-1.1.1w && \
     ./Configure linux-armv4 no-shared \

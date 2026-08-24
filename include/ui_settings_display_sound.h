@@ -86,6 +86,7 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     void handle_keep_navbar_changed(bool enabled);
 
     // Display handlers
+    void handle_display_rotation_changed(int index);
     void handle_dark_mode_changed(bool enabled);
     void handle_theme_settings_clicked();
     void handle_brightness_changed(int value);
@@ -132,6 +133,7 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     void init_animations_toggle();
 
     // Display init
+    void init_display_rotation_dropdown();
     void init_brightness_controls();
     void init_dim_dropdown();
     void init_sleep_dropdown();
@@ -182,7 +184,6 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     //
 
     /// Subject for volume value label binding
-    lv_subject_t volume_value_subject_;
     char volume_value_buf_[8]; // e.g., "100%"
 
     //
@@ -198,6 +199,7 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     static void on_keep_navbar_changed(lv_event_t* e);
 
     // Display
+    static void on_display_rotation_changed(lv_event_t* e);
     static void on_dark_mode_changed(lv_event_t* e);
     static void on_brightness_changed(lv_event_t* e);
     static void on_brightness_commit(lv_event_t* e);

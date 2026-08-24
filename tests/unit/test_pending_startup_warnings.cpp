@@ -132,13 +132,13 @@ TEST_CASE("PendingStartupWarnings: concurrent enqueue is safe", "[startup_warnin
 
     // Stay under the 64-entry cap so the assertion is about thread safety, not
     // overflow behaviour (the overflow case has its own test).
-    constexpr int kThreads = 7;
-    constexpr int kPerThread = 8;
+    constexpr int THREADS = 7;
+    constexpr int PER_THREAD = 8;
 
     std::vector<std::thread> workers;
-    for (int t = 0; t < kThreads; t++) {
+    for (int t = 0; t < THREADS; t++) {
         workers.emplace_back([&q, t]() {
-            for (int i = 0; i < kPerThread; i++) {
+            for (int i = 0; i < PER_THREAD; i++) {
                 q.enqueue(PendingStartupWarnings::Severity::WARNING,
                           "t" + std::to_string(t) + "_" + std::to_string(i));
             }
@@ -150,7 +150,7 @@ TEST_CASE("PendingStartupWarnings: concurrent enqueue is safe", "[startup_warnin
 
     int count = 0;
     q.drain([&](auto, auto&) { count++; });
-    REQUIRE(count == kThreads * kPerThread);
+    REQUIRE(count == THREADS * PER_THREAD);
 }
 
 TEST_CASE("PendingStartupWarnings: drops past cap, preserves earlier entries",

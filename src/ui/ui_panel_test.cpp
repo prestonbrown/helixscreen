@@ -20,9 +20,9 @@ using namespace helix;
 // CONSTRUCTOR
 // ============================================================================
 
-TestPanel::TestPanel(PrinterState& printer_state, MoonrakerAPI* api)
+TestPanel::TestPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    // TestPanel doesn't use PrinterState or MoonrakerAPI, but we accept
+    // TestPanel doesn't use PrinterState or IMoonrakerAPI, but we accept
     // them for interface consistency with other panels
 }
 

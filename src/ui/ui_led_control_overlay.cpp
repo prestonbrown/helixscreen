@@ -740,9 +740,12 @@ void LedControlOverlay::handle_effect_activate(const std::string& effect_name) {
     auto& controller = LedController::instance();
     controller.effects().activate_effect(
         effect_name, []() { spdlog::debug("[LedControlOverlay] Effect activated successfully"); },
+        // Log-only handler: the user is told nothing here, so the report stays
+        // with GcodeErrorRouter's `!!` broadcast (include/rpc_error_policy.h).
         [](const std::string& err) {
             spdlog::error("[LedControlOverlay] Effect activation failed: {}", err);
-        });
+        },
+        /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
 
     // Highlight active chip, unhighlight others
     highlight_active_effect(effect_name);
@@ -768,9 +771,11 @@ void LedControlOverlay::handle_native_turn_off() {
     if (controller.effects().is_available()) {
         controller.effects().stop_all_effects(
             []() { spdlog::debug("[LedControlOverlay] All effects stopped"); },
+            // Log-only handler — see handle_effect_activate().
             [](const std::string& err) {
                 spdlog::error("[LedControlOverlay] Stop effects failed: {}", err);
-            });
+            },
+            /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
         highlight_active_effect("");
     }
 

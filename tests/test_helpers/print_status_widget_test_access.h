@@ -37,6 +37,36 @@ class PrintStatusWidgetTestAccess {
     static void reset_to_idle(PrintStatusWidget& widget) {
         widget.reset_print_card_to_idle();
     }
+
+    // The idle runout guard chain. Production runs it from a subject observer on
+    // an attached widget with a live sensor reading; a test that cares about the
+    // ORDER of its gates needs to call it straight.
+    static void check_idle_runout(PrintStatusWidget& widget) {
+        widget.check_and_show_idle_runout_modal();
+    }
+
+    static bool runout_modal_shown(const PrintStatusWidget& widget) {
+        return widget.runout_modal_shown_;
+    }
+
+    // "The guidance dialog is already up." Production gets there by actually
+    // showing the modal, which needs a registered XML component tree.
+    static void set_runout_modal_shown(PrintStatusWidget& widget, bool shown) {
+        widget.runout_modal_shown_ = shown;
+    }
+
+    // The idle thumbnail key and the freshness stamp it is validated against.
+    // Production resolves both inside reset_print_card_to_idle(), where the
+    // answer is only observable after a cache probe or a pool round-trip; a
+    // test that only wants to know WHICH history job was selected reads them
+    // straight from the two resolvers.
+    static std::string last_print_thumbnail_path(const PrintStatusWidget& widget) {
+        return widget.get_last_print_thumbnail_path();
+    }
+
+    static time_t last_print_source_modified(const PrintStatusWidget& widget) {
+        return widget.get_last_print_source_modified();
+    }
 };
 
 } // namespace helix

@@ -25,7 +25,7 @@
  * Access via: ./build/bin/helix-screen -p gcode-test
  *
  * ## Migration Notes:
- * This panel doesn't use reactive subjects or MoonrakerAPI - it's a
+ * This panel doesn't use reactive subjects or IMoonrakerAPI - it's a
  * standalone test panel for the G-code viewer widget. The file picker
  * overlay is created dynamically and destroyed when closed.
  *
@@ -38,12 +38,12 @@ class GcodeTestPanel : public PanelBase {
      * @brief Construct GcodeTestPanel with injected dependencies
      *
      * @param printer_state Reference to helix::PrinterState (not actively used)
-     * @param api Pointer to MoonrakerAPI (not actively used)
+     * @param api Pointer to IMoonrakerAPI (not actively used)
      *
      * @note Dependencies are passed for interface consistency with PanelBase,
      *       but this panel doesn't require printer connectivity.
      */
-    GcodeTestPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    GcodeTestPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     /**
      * @brief Destructor - cleans up file picker overlay if open
@@ -263,10 +263,10 @@ class GcodeTestPanel : public PanelBase {
  * @brief Get or create the global GcodeTestPanel instance
  *
  * @param printer_state Reference to helix::PrinterState
- * @param api Pointer to MoonrakerAPI (may be nullptr)
+ * @param api Pointer to IMoonrakerAPI (may be nullptr)
  * @return Pointer to the global instance
  */
-GcodeTestPanel* get_gcode_test_panel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+GcodeTestPanel* get_gcode_test_panel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
 // Global instance accessor (needed by main.cpp)
 GcodeTestPanel& get_global_gcode_test_panel();

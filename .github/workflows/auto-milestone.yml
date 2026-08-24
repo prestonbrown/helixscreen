@@ -1,0 +1,45 @@
+name: Auto-Milestone
+
+# Newly opened issues land in the Triage milestone so nothing sits unmilestoned.
+# Triage is a landing zone, not a destination: every issue leaves it for a release
+# milestone or for Backlog. Keeping it separate from Backlog is the point, since a
+# shared bucket makes "nobody has looked at this yet" indistinguishable from
+# "looked at, deliberately deferred". This job only ever sets the initial value.
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign-triage:
+    name: Assign Triage milestone
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    # The repo default for GITHUB_TOKEN is read-only; elevate just this job
+    # rather than widening the workflow-level default.
+    permissions:
+      issues: write
+    # An issue opened with a milestone already set (API, or a maintainer picking one
+    # in the same action) keeps it. This job never overwrites a deliberate choice.
+    if: github.event.issue.milestone == null
+
+    steps:
+    - name: Assign the Triage milestone
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ISSUE: ${{ github.event.issue.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+
+        # Resolve by title, not by hardcoded number: milestone numbers are stable
+        # today but a delete/recreate would silently retarget every new issue.
+        number=$(gh api "repos/$REPO/milestones?state=open&per_page=100" \
+          --jq '.[] | select(.title == "Triage") | .number')
+
+        if [ -z "$number" ]; then
+          echo "::error::No open milestone titled 'Triage' in $REPO - cannot assign."
+          exit 1
+        fi
+
+        gh api -X PATCH "repos/$REPO/issues/$ISSUE" -F milestone="$number" --silent
+        echo "Assigned issue #$ISSUE to milestone 'Triage' (#$number)."

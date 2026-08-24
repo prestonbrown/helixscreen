@@ -19,7 +19,7 @@ extern "C" {
  * then a single output line to the nozzle.
  *
  * Visual layout (vertical, top to bottom):
- *   - Entry points at top (one per unit, at unit_x_positions[])
+ *   - Entry points at top (one per unit, under its unit card)
  *   - Lines from each unit converging toward center_x
  *   - Hub box labeled "Hub"
  *   - Single output line down from hub
@@ -61,11 +61,17 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent);
 void ui_system_path_canvas_set_unit_count(lv_obj_t* obj, int count);
 
 /**
- * @brief Set the X center position for a unit's entry point
+ * @brief Set the X centre of a unit's entry stem
  *
  * @param obj The system_path_canvas widget
  * @param unit_index Unit index (0-7)
- * @param center_x X pixel position of the unit card center
+ * @param center_x Unit card centre, in pixels relative to this canvas's left edge
+ *
+ * The caller MUST re-push this whenever the unit-card row scrolls: that row is an
+ * independently scrollable container, so an anchor sampled once goes stale and
+ * leaves every stem pointing at where its card used to be. The canvas clamps the
+ * value into its own bounds, so a card scrolled out of view parks its stem at the
+ * edge instead of being drawn off-canvas.
  */
 void ui_system_path_canvas_set_unit_x(lv_obj_t* obj, int unit_index, int32_t center_x);
 

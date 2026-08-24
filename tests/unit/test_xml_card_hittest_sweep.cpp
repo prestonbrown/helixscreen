@@ -7,13 +7,13 @@
 //
 // Companion to test_print_file_card_hittest.cpp. Regression: prestonbrown/helixscreen#1101
 
-#include "../test_fixtures.h"
-
 #include "ui_severity_card.h"
 
-#include "../catch_amalgamated.hpp"
+#include "../test_fixtures.h"
 
 #include <string>
+
+#include "../catch_amalgamated.hpp"
 
 namespace {
 
@@ -23,7 +23,8 @@ lv_obj_t* hit_at(lv_obj_t* screen, int32_t x, int32_t y) {
 }
 
 std::string name_of(lv_obj_t* obj) {
-    if (obj == nullptr) return "<null>";
+    if (obj == nullptr)
+        return "<null>";
     const char* n = lv_obj_get_name(obj);
     return n != nullptr ? n : "<unnamed>";
 }
@@ -128,9 +129,8 @@ TEST_CASE_METHOD(XMLTestFixture, "notification_history_item: body routes clicks 
                  "[xml][hittest][sweep]") {
     ui_severity_card_register();
     REQUIRE(register_component("notification_history_item"));
-    const char* attrs[] = {"severity",  "info",   "title",     "Filament runout",
-                           "message",   "Slot 1", "timestamp", "12:01",
-                           nullptr};
+    const char* attrs[] = {"severity",  "info",  "title", "Filament runout", "message", "Slot 1",
+                           "timestamp", "12:01", nullptr};
     lv_obj_t* item = create_component("notification_history_item", attrs);
     REQUIRE(item != nullptr);
     lv_obj_set_width(item, 400);

@@ -1,0 +1,11 @@
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# Real WiFi/Moonraker credentials for the Task 10 network HIL scenario are
+# injected here at flash time — NEVER committed (public repo). See
+# main/Kconfig.projbuild (HELIX_NET_HIL) and CMakeLists.txt.
+sdkconfig.local
+build_mock/

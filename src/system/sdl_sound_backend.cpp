@@ -21,36 +21,24 @@ bool SDLSoundBackend::initialize() {
         spdlog::error("[SDLSound] SDL_InitSubSystem(AUDIO) failed: {}", SDL_GetError());
         return false;
     }
-
-    SDL_AudioSpec desired{};
-    desired.freq = sample_rate_;
-    desired.format = AUDIO_F32SYS;
-    desired.channels = 1;
-    desired.samples = 64; // Very low latency buffer — keeps callback period ~1.5ms
-    desired.callback = audio_callback;
-    desired.userdata = this;
-
-    SDL_AudioSpec obtained{};
-    device_id_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
-    if (device_id_ == 0) {
-        spdlog::error("[SDLSound] SDL_OpenAudioDevice failed: {}", SDL_GetError());
-        // initialized_ is still false, so shutdown() early-returns and would
-        // never undo the SDL_InitSubSystem above. Release it here.
-        SDL_QuitSubSystem(SDL_INIT_AUDIO);
-        return false;
-    }
-
-    sample_rate_ = obtained.freq;
-    // Resize the mix buffer BEFORE unpausing — SDL's audio thread starts
-    // calling audio_callback the instant playback unpauses, and the callback
-    // memsets mix_buf_.data(). If the callback fires before the resize,
-    // data() is nullptr and the memset segfaults the audio thread.
-    mix_buf_.resize(obtained.samples);
-    SDL_PauseAudioDevice(device_id_, 0); // Start playback
+    // The audio device itself is opened lazily by resume() and closed by
+    // suspend(). Holding an AudioTrack open at idle makes Android's audio
+    // framework log a steady stream of PlayerBase::stop() lines (#1253) and
+    // burns CPU on every platform writing silence. Pausing is NOT enough — a
+    // paused AudioTrack still churns the log — so the device must be fully
+    // closed at idle. The sequencer drives resume/suspend at the idle<->active
+    // transition.
     initialized_ = true;
 
-    spdlog::info("[SDLSound] Audio initialized: {} Hz, {} samples buffer", sample_rate_,
-                 obtained.samples);
+    // Report which SDL audio driver is backing the subsystem. The name is the
+    // only visible signal that the dummy driver is in use — a desktop run
+    // under SDL_VIDEODRIVER=dummy silently forces it via main()'s
+    // silence_audio_if_headless(), and without this line the log would still
+    // say "Audio initialized" right up until the user notices nothing is
+    // coming out of the speakers.
+    const char* driver_name = SDL_GetCurrentAudioDriver();
+    spdlog::info("[SDLSound] Audio subsystem ready (device opens on first sound): driver '{}'",
+                 driver_name ? driver_name : "(unknown)");
     return true;
 }
 
@@ -71,6 +59,48 @@ void SDLSoundBackend::shutdown() {
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
     initialized_ = false;
     spdlog::info("[SDLSound] Audio shutdown");
+}
+
+void SDLSoundBackend::suspend() {
+    if (!initialized_ || device_id_ == 0)
+        return;
+    // Close the device entirely. Pausing is not enough on Android: a paused
+    // AudioTrack still makes the framework spam PlayerBase::stop() (#1253).
+    // Only a closed device (no AudioTrack at all) silences the log and stops
+    // the idle render thread. The sequencer reopens it on the next sound.
+    SDL_CloseAudioDevice(device_id_);
+    device_id_ = 0;
+    spdlog::debug("[SDLSound] Audio device closed (idle)");
+}
+
+void SDLSoundBackend::resume() {
+    if (!initialized_ || device_id_ != 0)
+        return; // already open
+
+    SDL_AudioSpec desired{};
+    desired.freq = sample_rate_;
+    desired.format = AUDIO_F32SYS;
+    desired.channels = 1;
+    desired.samples = 64; // Very low latency buffer — keeps callback period ~1.5ms
+    desired.callback = audio_callback;
+    desired.userdata = this;
+
+    SDL_AudioSpec obtained{};
+    device_id_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
+    if (device_id_ == 0) {
+        spdlog::warn("[SDLSound] Lazy SDL_OpenAudioDevice failed: {}", SDL_GetError());
+        return;
+    }
+
+    sample_rate_ = obtained.freq;
+    // Resize the mix buffer BEFORE unpausing — SDL's audio thread starts
+    // calling audio_callback the instant playback unpauses, and the callback
+    // memsets mix_buf_.data(). If the callback fires before the resize,
+    // data() is nullptr and the memset segfaults the audio thread.
+    mix_buf_.resize(obtained.samples);
+    SDL_PauseAudioDevice(device_id_, 0); // Start playback
+    spdlog::debug("[SDLSound] Audio device opened ({} Hz, {} samples)", sample_rate_,
+                  obtained.samples);
 }
 
 // ============================================================================

@@ -5,7 +5,7 @@
 
 #include "ui_emergency_stop.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "moonraker_types.h"
 
 #include <spdlog/spdlog.h>
@@ -327,7 +327,7 @@ std::string PrintStartEnhancer::get_skip_param_for_category(PrintStartOpCategory
 // Enhancement Workflow (Async, Side Effects)
 // ============================================================================
 
-void PrintStartEnhancer::apply_enhancements(MoonrakerAPI* api, const std::string& macro_name,
+void PrintStartEnhancer::apply_enhancements(IMoonrakerAPI* api, const std::string& macro_name,
                                             const std::string& source_file,
                                             const std::vector<MacroEnhancement>& enhancements,
                                             EnhancementProgressCallback on_progress,
@@ -490,7 +490,7 @@ void PrintStartEnhancer::apply_enhancements(MoonrakerAPI* api, const std::string
         safe_error);
 }
 
-void PrintStartEnhancer::restore_from_backup(MoonrakerAPI* api, const std::string& backup_filename,
+void PrintStartEnhancer::restore_from_backup(IMoonrakerAPI* api, const std::string& backup_filename,
                                              std::function<void()> on_complete,
                                              EnhancementErrorCallback on_error) {
     if (!api) {
@@ -530,7 +530,7 @@ void PrintStartEnhancer::restore_from_backup(MoonrakerAPI* api, const std::strin
 }
 
 void PrintStartEnhancer::list_backups(
-    MoonrakerAPI* api, std::function<void(const std::vector<std::string>&)> on_complete,
+    IMoonrakerAPI* api, std::function<void(const std::vector<std::string>&)> on_complete,
     EnhancementErrorCallback on_error) {
     if (!api) {
         if (on_error) {
@@ -582,7 +582,7 @@ void PrintStartEnhancer::list_backups(
 // Private Workflow Helpers
 // ============================================================================
 
-void PrintStartEnhancer::create_backup(MoonrakerAPI* api, const std::string& source_file,
+void PrintStartEnhancer::create_backup(IMoonrakerAPI* api, const std::string& source_file,
                                        const std::string& backup_filename,
                                        std::function<void()> on_success,
                                        EnhancementErrorCallback on_error) {
@@ -593,7 +593,7 @@ void PrintStartEnhancer::create_backup(MoonrakerAPI* api, const std::string& sou
 }
 
 void PrintStartEnhancer::modify_and_upload_config(
-    MoonrakerAPI* api, const std::string& macro_name, const std::string& source_file,
+    IMoonrakerAPI* api, const std::string& macro_name, const std::string& source_file,
     const std::vector<MacroEnhancement>& enhancements,
     std::function<void(size_t ops, size_t lines)> on_success, EnhancementErrorCallback on_error) {
     auto token = lifetime_.token();
@@ -714,7 +714,7 @@ void PrintStartEnhancer::modify_and_upload_config(
         on_error);
 }
 
-void PrintStartEnhancer::restart_klipper(MoonrakerAPI* api, std::function<void()> on_success,
+void PrintStartEnhancer::restart_klipper(IMoonrakerAPI* api, std::function<void()> on_success,
                                          EnhancementErrorCallback on_error) {
     // Suppress recovery modal during intentional restart.
     // Without this, users see error modals even though we just told Klipper to restart.

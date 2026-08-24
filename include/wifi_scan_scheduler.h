@@ -20,8 +20,8 @@ namespace helix::wifi {
  * - No overlap: a scan already in flight suppresses should_trigger() until
  *   on_scan_complete() reports it done.
  * - Backoff: each time a scan reports the same result count as the previous
- *   scan, the interval grows by kBaseIntervalMs (capped at kMaxIntervalMs).
- *   A changed count snaps the interval back to kBaseIntervalMs.
+ *   scan, the interval grows by BASE_INTERVAL_MS (capped at MAX_INTERVAL_MS).
+ *   A changed count snaps the interval back to BASE_INTERVAL_MS.
  * - Suppression: once the result count has been unchanged for two
  *   consecutive scans while connected, scanning is suppressed entirely
  *   (should_trigger() stays false) until a manual refresh or a disconnect.
@@ -32,8 +32,8 @@ namespace helix::wifi {
  */
 class ScanScheduler {
   public:
-    static constexpr uint32_t kBaseIntervalMs = 10000;
-    static constexpr uint32_t kMaxIntervalMs = 30000;
+    static constexpr uint32_t BASE_INTERVAL_MS = 10000;
+    static constexpr uint32_t MAX_INTERVAL_MS = 30000;
 
     /// Call immediately before triggering a scan. Marks a scan outstanding.
     void on_scan_started();
@@ -76,7 +76,7 @@ class ScanScheduler {
 
   private:
     bool scan_outstanding_ = false;
-    uint32_t interval_ms_ = kBaseIntervalMs;
+    uint32_t interval_ms_ = BASE_INTERVAL_MS;
     size_t last_count_ = 0;
     bool has_last_count_ = false;
     int unchanged_streak_ = 0;

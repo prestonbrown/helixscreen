@@ -4,11 +4,21 @@
 <!-- Modal for Klipper action:prompt dialogs -->
 <!-- Buttons are created dynamically in C++ based on PromptData -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
+<!-- MODAL_CHROME_OK: beyond any single content ladder — an AFC diagram pinned
+     below the scroll area PLUS wrapping prompt rows PLUS a footer row. Measured
+     at five breakpoints with the full worst case on screen (AFC diagram, three
+     wrapping buttons and the footer, via `ctl demo action-prompt-worst`), footer
+     flush with the card bottom: 480x272 card 226/cap 231, 480x320 247/272,
+     640x400 298/340, 800x480 397/408, 1024x600 483/510. Headroom is thinnest at
+     480x272 (5px) and 800x480 (11px) — any growth in the button rows needs
+     re-measuring, not arithmetic. `ctl demo action-prompt-many` is the many-wrap
+     shape (seven presets over three rows, card 193 at 480x272). -->
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
   <view name="action_prompt_modal"
-        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="480" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
+        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="480"
+        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
+        scrollable="false">
     <!-- Header with title -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
@@ -22,9 +32,10 @@
     <divider_horizontal/>
     <!-- Scrollable text content area -->
     <lv_obj name="content_container"
-            width="100%" height="content" style_min_height="40" style_max_height="200" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column"
-            style_pad_gap="#space_xs" scrollable="true" scroll_snap_y="none">
+            width="100%" height="content" style_min_height="40" style_max_height="#dialog_content_pinned_max"
+            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
+            style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xs" scrollable="true"
+            scroll_snap_y="none">
       <!-- Text lines will be added dynamically -->
     </lv_obj>
     <!-- AFC filament position diagram — self-hides unless RecoveryModalPresenter

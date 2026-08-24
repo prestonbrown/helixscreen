@@ -69,7 +69,7 @@ const std::regex PrintStartCollector::respond_completion_pattern_(
 // CONSTRUCTOR / DESTRUCTOR
 // ============================================================================
 
-PrintStartCollector::PrintStartCollector(MoonrakerClient& client, PrinterState& state)
+PrintStartCollector::PrintStartCollector(IMoonrakerClient& client, PrinterState& state)
     : client_(client), state_(state) {
     spdlog::debug("[PrintStartCollector] Constructed");
 }
@@ -103,6 +103,9 @@ void PrintStartCollector::start() {
         std::lock_guard<std::mutex> lock(state_mutex_);
         // Record start time for timeout fallback
         printing_state_start_ = std::chrono::steady_clock::now();
+        last_activity_time_ = printing_state_start_;
+        // Assume the narrower window until something says otherwise.
+        window_ = helix::PreprintWindow::PrinterEdge;
         detected_phases_.clear();
         current_phase_ = PrintStartPhase::INITIALIZING;
         print_start_detected_ = false;
@@ -111,14 +114,14 @@ void PrintStartCollector::start() {
         // Reset mesh probe tracking
         mesh_probe_current_ = 0;
         mesh_probe_total_ = 0;
-        mesh_probe_fallback_count_ = 0;
+        mesh_points_.reset();
         mesh_first_probe_time_ = {};
         mesh_last_probe_time_ = {};
         mesh_seconds_per_probe_ = 0.0f;
-        mesh_has_last_probe_pos_ = false;
-        pre_mesh_probe_count_ = 0;
+        pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
         real_signal_seen_.store(false, std::memory_order_relaxed);
@@ -154,6 +157,11 @@ void PrintStartCollector::start() {
                              std::memory_order_relaxed);
     last_remaining_ = 0;
     fallback_completion_ = false;
+
+    // Position inference starts with a clean slate and a fresh sample clock
+    position_classifier_.reset();
+    last_position_activity_ = helix::PositionActivity::NONE;
+    position_clock_start_ = std::chrono::steady_clock::now();
 
     // Reset thermal rate models with current temperatures
     {
@@ -300,6 +308,22 @@ void PrintStartCollector::stop() {
     }
 }
 
+void PrintStartCollector::note_host_side_pre_start() {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (window_ == helix::PreprintWindow::HostPreStart) {
+            return; // already declared
+        }
+        window_ = helix::PreprintWindow::HostPreStart;
+    }
+    spdlog::info("[PrintStartCollector] Host-side pre-start block is part of this window - "
+                 "re-filtering prediction history");
+    // start() has already loaded the printer-edge bucket, so re-run the load
+    // now that we know which population this run belongs to. Cheap, and it
+    // happens once, milliseconds after arming.
+    load_prediction_history();
+}
+
 void PrintStartCollector::reset() {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -308,17 +332,18 @@ void PrintStartCollector::reset() {
         print_start_detected_ = false;
         max_sequential_progress_ = 0;
         printing_state_start_ = std::chrono::steady_clock::now();
+        last_activity_time_ = printing_state_start_;
         phase_enter_times_.clear();
         mesh_probe_current_ = 0;
         mesh_probe_total_ = 0;
-        mesh_probe_fallback_count_ = 0;
+        mesh_points_.reset();
         mesh_first_probe_time_ = {};
         mesh_last_probe_time_ = {};
         mesh_seconds_per_probe_ = 0.0f;
-        mesh_has_last_probe_pos_ = false;
-        pre_mesh_probe_count_ = 0;
+        pre_mesh_points_.reset();
         pre_mesh_last_probe_time_ = {};
         current_mesh_message_.clear();
+        bed_mesh_present_ = false;
         temps_ready_time_ = {};
         silent_progression_idx_ = 0;
         real_signal_seen_.store(false, std::memory_order_relaxed);
@@ -379,6 +404,97 @@ void PrintStartCollector::note_priming() {
     update_phase(PrintStartPhase::PURGING, lv_tr("Priming..."));
 }
 
+void PrintStartCollector::note_bed_mesh_presence(bool present) {
+    if (!active_.load()) {
+        return;
+    }
+    bool meshing_begins = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        const bool was_present = bed_mesh_present_;
+        bed_mesh_present_ = present;
+        // The present→absent edge while CLEANING: the macro has finished its
+        // wipe and moved into the probing work. Clears arriving before
+        // CLEANING are the rough G28's own mesh clear and say nothing about
+        // which step is running.
+        meshing_begins = was_present && !present && current_phase_ == PrintStartPhase::CLEANING;
+        spdlog::debug("[PrintStartCollector] bed-mesh presence: present={} was={} phase={} "
+                      "fires={}",
+                      present, was_present, static_cast<int>(current_phase_), meshing_begins);
+    }
+    if (meshing_begins) {
+        spdlog::info("[PrintStartCollector] bed mesh cleared during cleaning - meshing begins");
+        enter_bed_mesh_with_buffer(lv_tr("Bed Meshing..."));
+    }
+}
+
+void PrintStartCollector::note_mesh_bounds(float x_min, float x_max, float y_min, float y_max) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    position_classifier_.set_bounds(x_min, x_max, y_min, y_max);
+}
+
+void PrintStartCollector::note_position_sample(float x_mm, float y_mm, float z_mm) {
+    if (!active_.load()) {
+        return;
+    }
+    helix::PositionActivity activity;
+    helix::PrintStartPhase phase;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!profile_ || !profile_->position_signals()) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        const auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - position_clock_start_)
+                .count();
+        position_classifier_.note_position(x_mm, y_mm, z_mm, static_cast<uint64_t>(ms));
+        activity = position_classifier_.activity();
+        phase = current_phase_;
+        if (activity == last_position_activity_) {
+            return; // same verdict — nothing to publish
+        }
+        last_position_activity_ = activity;
+        spdlog::debug("[PrintStartCollector] position activity: {} (x={:.1f} y={:.1f} z={:.1f})",
+                      static_cast<int>(activity), x_mm, y_mm, z_mm);
+    }
+
+    // Map the verdict onto the display. Message-only refinements keep the
+    // phase (and its progress weight) untouched; only the sweep march
+    // promotes the phase. Real gcode_response signals always outrank these —
+    // the classifier's verdicts only matter while the console is quiet.
+    // Probing verdicts publish during ANY pre-mesh collection phase: K1-class
+    // firmware interleaves heating with rough-G28 centre probes, and the
+    // bed-mesh flap may already have promoted the phase by corner-tour time
+    // (the label is then moot, not wrong).
+    const bool before_mesh = phase != PrintStartPhase::BED_MESH &&
+                             phase != PrintStartPhase::PURGING &&
+                             phase != PrintStartPhase::COMPLETE;
+    switch (activity) {
+    case helix::PositionActivity::CENTER_PROBE:
+        if (before_mesh) {
+            spdlog::info("[PrintStartCollector] position: centre Z probes → \"Probing Z...\"");
+            update_phase(phase, lv_tr("Probing Z..."));
+        }
+        break;
+    case helix::PositionActivity::CORNER_PROBE:
+        if (before_mesh) {
+            spdlog::info("[PrintStartCollector] position: corner tour → \"Checking Bed Mesh...\"");
+            update_phase(phase, lv_tr("Checking Bed Mesh..."));
+        }
+        break;
+    case helix::PositionActivity::RASTER:
+        if (before_mesh) {
+            spdlog::info("[PrintStartCollector] position: sweep march → bed mesh");
+            enter_bed_mesh_with_buffer(lv_tr("Bed Meshing..."));
+        }
+        break;
+    case helix::PositionActivity::WIPE:
+    case helix::PositionActivity::NONE:
+        break; // wipe already has its console marker; silence needs no label
+    }
+}
+
 void PrintStartCollector::check_fallback_completion() {
     if (!active_.load() || !fallbacks_enabled_.load()) {
         return;
@@ -420,19 +536,28 @@ void PrintStartCollector::check_fallback_completion() {
     // Recompute predicted weights when heater targets increase from 0.
     // This handles macros that heat bed first, then issue M109 later —
     // at start() time the nozzle target is 0, so HEATING_NOZZLE gets no weight.
-    // Only recompute on 0→positive transitions to avoid churn from temporary
-    // M104 S0 (nozzle cooldown for probe cleaning) that would remove the
-    // heating phase and cause progress regression.
+    // Also recompute on a substantial RISE (e.g. staged heating: probe temp,
+    // then print temp), but never on decreases — temporary M104 S0 (nozzle
+    // cooldown for probe cleaning) must not remove the heating phase and
+    // cause progress regression.
     {
         int new_ext = helix::ui::temperature::deci_to_degrees(ext_target);
         int new_bed = helix::ui::temperature::deci_to_degrees(bed_target);
+        constexpr int TARGET_RISE_RECOMPUTE_DEGREES = 15;
         bool ext_newly_set = (weights_ext_target_ == 0 && new_ext > 0);
         bool bed_newly_set = (weights_bed_target_ == 0 && new_bed > 0);
-        if (ext_newly_set || bed_newly_set) {
+        bool ext_rose = new_ext > weights_ext_target_ + TARGET_RISE_RECOMPUTE_DEGREES;
+        bool bed_rose = new_bed > weights_bed_target_ + TARGET_RISE_RECOMPUTE_DEGREES;
+        if (ext_newly_set || bed_newly_set || ext_rose || bed_rose) {
             spdlog::info("[PrintStartCollector] Heater targets changed "
                          "(ext: {}→{}°C, bed: {}→{}°C), recomputing weights",
                          weights_ext_target_, new_ext, weights_bed_target_, new_bed);
             compute_predicted_weights();
+            // The ETA's inputs changed, not just its noise: release the
+            // monotonic anchor so the next publish can report the corrected
+            // estimate instead of clamping it back to the target-less
+            // provisional one (observed frozen at 215s for a 369s prep).
+            last_remaining_ = 0;
         }
     }
 
@@ -584,7 +709,7 @@ void PrintStartCollector::check_fallback_completion() {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (current_phase_ == PrintStartPhase::BED_MESH &&
-            (mesh_probe_current_ > 0 || mesh_probe_fallback_count_ > 0)) {
+            (mesh_probe_current_ > 0 || mesh_points_.points() > 0)) {
             auto since_last = std::chrono::steady_clock::now() - mesh_last_probe_time_;
             if (since_last < MESH_PROBE_GAP_RESET) {
                 return; // Active probing — don't timeout
@@ -605,8 +730,24 @@ void PrintStartCollector::check_fallback_completion() {
     // target (ext_target=0) means we can't confirm temps are ready
     bool temps_near = nozzle_near && bed_near;
 
-    auto elapsed = std::chrono::steady_clock::now() - start_time;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = now - start_time;
     auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+
+    // A pre-print that is still narrating itself is not stuck, however long it
+    // runs. Every timeout below therefore requires the printer to have gone
+    // quiet as well as the clock to have run out; only ABSOLUTE_MAX_TIMEOUT
+    // fires unconditionally. Keying purely on elapsed time made the collector
+    // give up mid-sequence on any printer that meshes after heating, and
+    // because a timeout completion skips the prediction save, the too-small
+    // estimate that set the deadline could never grow.
+    std::chrono::steady_clock::duration quiet_for;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        quiet_for = now - last_activity_time_;
+    }
+    const bool quiet = quiet_for >= PREPRINT_QUIET_TIMEOUT;
+    const auto quiet_sec = std::chrono::duration_cast<std::chrono::seconds>(quiet_for).count();
 
     // Determine effective timeout: use prediction data when available,
     // FALLBACK_TIMEOUT only when we have no information at all
@@ -615,10 +756,10 @@ void PrintStartCollector::check_fallback_completion() {
         auto adaptive_timeout =
             std::chrono::seconds(static_cast<int>(predicted_total * ADAPTIVE_TIMEOUT_MARGIN));
 
-        if (elapsed > adaptive_timeout && temps_near) {
+        if (elapsed > adaptive_timeout && temps_near && quiet) {
             spdlog::info("[PrintStartCollector] Fallback: adaptive timeout ({} sec, "
-                         "predicted={:.0f}s)",
-                         elapsed_sec, predicted_total);
+                         "predicted={:.0f}s, quiet={}s)",
+                         elapsed_sec, predicted_total, quiet_sec);
             fallback_completion_ = true;
             update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
             return;
@@ -628,7 +769,7 @@ void PrintStartCollector::check_fallback_completion() {
         auto absolute_timeout =
             std::chrono::seconds(static_cast<int>(predicted_total * ABSOLUTE_TIMEOUT_MARGIN));
         absolute_timeout = std::max(absolute_timeout, ABSOLUTE_MAX_TIMEOUT);
-        if (elapsed > absolute_timeout) {
+        if (elapsed > absolute_timeout && quiet) {
             spdlog::warn("[PrintStartCollector] Fallback: absolute timeout ({} sec, "
                          "predicted={:.0f}s)",
                          elapsed_sec, predicted_total);
@@ -638,7 +779,7 @@ void PrintStartCollector::check_fallback_completion() {
         }
     } else {
         // No prediction data — FALLBACK_TIMEOUT is the last resort
-        if (elapsed > FALLBACK_TIMEOUT && temps_near) {
+        if (elapsed > FALLBACK_TIMEOUT && temps_near && quiet) {
             spdlog::info("[PrintStartCollector] Fallback: timeout ({} sec, no predictions)",
                          elapsed_sec);
             fallback_completion_ = true;
@@ -690,10 +831,12 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return; // Signal handled
     }
 
-    // Check for K2/CFS-specific gcode tag stream (purge percent, box filament load).
-    // These tags are emitted by Creality firmware and carry per-step progress that
-    // universal heuristics can't infer. Falls through on stock Klipper printers.
-    if (check_k2_cfs_signal(line)) {
+    // Check for K2/CFS-specific gcode tag stream (purge percent, box filament
+    // load). These tags are emitted by Creality firmware and carry per-step
+    // progress that universal heuristics can't infer. Only profiles that
+    // declare cfs_signals get the matchers — the vocabulary is vendor-specific
+    // and must not fire on another printer's coincidental "percent"+"num:".
+    if (profile_ && profile_->cfs_signals() && check_k2_cfs_signal(line)) {
         return; // Signal handled
     }
 
@@ -712,6 +855,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         PrintStartProfile::MatchResult match;
         if (profile_->try_match_signal(line, match)) {
             real_signal_seen_.store(true, std::memory_order_relaxed);
+            // Profile messages are English tags — resolve through the pack.
+            // Runs on the WebSocket thread like the ~15 pre-existing lv_tr
+            // sites in this collector (update_phase's built-in labels); the
+            // selected_lang swap race this shares with them is the documented
+            // #1219 family and needs a collector-wide marshal, not a
+            // per-call-site fix.
+            match.message = lv_tr(match.message.c_str());
             if (profile_->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL) {
                 update_phase(match.phase, match.message, match.progress);
             } else {
@@ -749,6 +899,14 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         spdlog::info("[PrintStartCollector] Adapted probe count from gcode: {}", *adapt_total);
     }
 
+    // Any probe line proves the pre-print is still working, whether or not we
+    // have entered BED_MESH yet. Mesh probing is the longest stretch that
+    // matches no profile pattern, so without this the quiet gate would expire
+    // mid-sweep on exactly the printers that need it most.
+    if (helix::is_probe_result_line(line) || helix::parse_probe_progress(line)) {
+        note_activity();
+    }
+
     // Check for bed mesh probe progress (sub-phase tracking within BED_MESH).
     // Also detects BED_MESH phase entry from probe lines on printers that don't
     // emit a separate BED_MESH_CALIBRATE command line before probing starts.
@@ -776,7 +934,7 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         // If we see a probe line but aren't in BED_MESH yet, buffer probes
         // before entering the phase. Some printers (e.g. AD5M Klipper mod)
         // emit 1-2 PROBE commands for nozzle wipe before mesh calibration.
-        // Require MESH_PROBE_ENTRY_THRESHOLD consecutive probes to confirm
+        // Require MESH_PROBE_ENTRY_THRESHOLD distinct probe POINTS to confirm
         // this is actual mesh probing, not an isolated operation.
         if (is_probe_line) {
             bool should_enter = false;
@@ -785,55 +943,30 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                 auto now = std::chrono::steady_clock::now();
 
                 // Gap reset for pre-mesh buffer
-                if (pre_mesh_probe_count_ > 0 &&
+                if (pre_mesh_points_.points() > 0 &&
                     (now - pre_mesh_last_probe_time_) > MESH_PROBE_GAP_RESET) {
                     spdlog::debug("[PrintStartCollector] Pre-mesh probe gap reset "
                                   "({}s since last probe)",
                                   std::chrono::duration_cast<std::chrono::seconds>(
                                       now - pre_mesh_last_probe_time_)
                                       .count());
-                    pre_mesh_probe_count_ = 0;
+                    pre_mesh_points_.reset();
                 }
 
-                pre_mesh_probe_count_++;
+                pre_mesh_points_.feed(line);
                 pre_mesh_last_probe_time_ = now;
 
-                if (pre_mesh_probe_count_ >= MESH_PROBE_ENTRY_THRESHOLD) {
+                if (pre_mesh_points_.points() >= MESH_PROBE_ENTRY_THRESHOLD) {
                     should_enter = true;
-                    // Seed mesh tracking with buffered count so probes aren't lost
-                    mesh_probe_fallback_count_ = pre_mesh_probe_count_;
-                    mesh_probe_current_ = pre_mesh_probe_count_;
-                    mesh_first_probe_time_ = now;
-                    mesh_last_probe_time_ = now;
                 } else {
-                    spdlog::debug("[PrintStartCollector] Pre-mesh probe {}/{} (buffering)",
-                                  pre_mesh_probe_count_, MESH_PROBE_ENTRY_THRESHOLD);
+                    spdlog::debug("[PrintStartCollector] Pre-mesh probe point {}/{} (buffering)",
+                                  pre_mesh_points_.points(), MESH_PROBE_ENTRY_THRESHOLD);
                 }
             }
 
             if (should_enter) {
-                update_phase(PrintStartPhase::BED_MESH, lv_tr("Bed Mesh..."));
+                enter_bed_mesh_with_buffer(lv_tr("Bed Mesh..."));
                 in_mesh = true;
-                // This probe line was already counted in the buffer transfer above,
-                // so skip the per-probe counting below and return.
-                char msg_buf[64];
-                int count, total;
-                std::string label;
-                {
-                    std::lock_guard<std::mutex> lock(state_mutex_);
-                    count = mesh_probe_fallback_count_;
-                    total = mesh_probe_total_;
-                    label = current_mesh_message_.empty()
-                                ? lv_tr("Bed Mesh")
-                                : trim_trailing_ellipsis(current_mesh_message_);
-                }
-                if (total > 0) {
-                    snprintf(msg_buf, sizeof(msg_buf), "%s (%d/%d)", label.c_str(), count, total);
-                } else {
-                    snprintf(msg_buf, sizeof(msg_buf), "%s (%d)", label.c_str(), count);
-                }
-                state_.set_print_start_state(PrintStartPhase::BED_MESH, msg_buf,
-                                             calculate_progress());
                 return;
             }
             // Below threshold — don't enter BED_MESH yet, skip probe counting
@@ -894,7 +1027,6 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                 // "probe at X,Y is z=Z" fallback — no total from firmware.
                 // Dedupe by (x,y): Klipper's `samples: N` config emits N consecutive
                 // probes at the same position; we count unique points, not samples.
-                auto pos = helix::parse_probe_position(line);
                 int count;
                 int total;
                 int progress;
@@ -906,38 +1038,27 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
 
                     // Gap reset: if >30s since last probe, earlier probes were
                     // from a different operation (e.g. nozzle wipe on AD5M)
-                    if (mesh_probe_fallback_count_ > 0 &&
+                    if (mesh_points_.points() > 0 &&
                         (now - mesh_last_probe_time_) > MESH_PROBE_GAP_RESET) {
                         spdlog::info("[PrintStartCollector] Mesh probe gap reset "
                                      "({}s since last probe)",
                                      std::chrono::duration_cast<std::chrono::seconds>(
                                          now - mesh_last_probe_time_)
                                          .count());
-                        mesh_probe_fallback_count_ = 0;
+                        mesh_points_.reset();
                         mesh_probe_current_ = 0;
                         mesh_seconds_per_probe_ = 0.0f;
-                        mesh_has_last_probe_pos_ = false;
                     }
 
-                    // Position-based dedupe. When we can't parse a position, fall back
-                    // to counting each line (preserves prior behavior for malformed input).
-                    constexpr double POS_TOL = 0.05; // mm — samples at same point are exact
-                    if (pos) {
-                        if (!mesh_has_last_probe_pos_ ||
-                            std::abs(pos->x - mesh_last_probe_x_) > POS_TOL ||
-                            std::abs(pos->y - mesh_last_probe_y_) > POS_TOL) {
-                            is_new_point = true;
-                            mesh_last_probe_x_ = pos->x;
-                            mesh_last_probe_y_ = pos->y;
-                            mesh_has_last_probe_pos_ = true;
-                        }
-                    } else {
-                        is_new_point = true;
-                    }
+                    // Position dedupe (and the sample-divisor fallback for lines
+                    // whose coordinates don't parse) lives in ProbePointCounter,
+                    // shared with the bed mesh panel's live probe readout.
+                    const int before = mesh_points_.points();
+                    mesh_points_.feed(line);
+                    is_new_point = (mesh_points_.points() != before);
 
                     if (is_new_point) {
-                        mesh_probe_fallback_count_++;
-                        if (mesh_probe_fallback_count_ == 1) {
+                        if (mesh_points_.points() == 1) {
                             mesh_first_probe_time_ = now;
                         } else {
                             float elapsed =
@@ -947,13 +1068,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                                         .count()) /
                                 1000.0f;
                             mesh_seconds_per_probe_ =
-                                elapsed / static_cast<float>(mesh_probe_fallback_count_ - 1);
+                                elapsed / static_cast<float>(mesh_points_.points() - 1);
                         }
                     }
                     mesh_last_probe_time_ = now;
 
-                    mesh_probe_current_ = mesh_probe_fallback_count_;
-                    count = mesh_probe_fallback_count_;
+                    mesh_probe_current_ = mesh_points_.points();
+                    count = mesh_probe_current_;
                     total = mesh_probe_total_;
                     progress = calculate_progress_locked();
                     label = current_mesh_message_.empty()
@@ -972,12 +1093,27 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
                     }
                     state_.set_print_start_state(PrintStartPhase::BED_MESH, msg_buf, progress);
                 }
+
+                // The line is consumed as mesh data whether or not it added a
+                // point — a repeat sample of the same point is still mesh
+                // output. It must not reach check_phase_patterns: profiles
+                // whose BED_MESH pattern matches "probe at" (creality_k1)
+                // would re-announce the phase with the profile's label, which
+                // is treated as a sub-phase change and wipes the probe
+                // counters — including the denominator learned on entry —
+                // mid-sweep. Mirrors the "Probing point" branch above.
+                return;
             }
         }
     }
 
     // Check phase patterns
     check_phase_patterns(line);
+}
+
+void PrintStartCollector::note_activity() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    last_activity_time_ = std::chrono::steady_clock::now();
 }
 
 void PrintStartCollector::check_phase_patterns(const std::string& line) {
@@ -988,6 +1124,10 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
     PrintStartProfile::MatchResult match;
     if (profile_->try_match_pattern(line, match)) {
         real_signal_seen_.store(true, std::memory_order_relaxed);
+        note_activity();
+        // match.message arrives already translated: try_match_pattern
+        // resolves the template through the loaded pack before substituting
+        // $1 capture groups.
         // Update when this is a NEW phase, OR when it's a BED_MESH sub-phase
         // *message* change while already in BED_MESH. The latter is what lets a
         // mesh-start signal (Snapmaker U1 "// z offset:") relabel the display
@@ -1166,16 +1306,63 @@ void PrintStartCollector::maybe_reset_for_mesh_subphase_locked(PrintStartPhase n
     current_mesh_message_ = next_message;
     mesh_probe_current_ = 0;
     mesh_probe_total_ = 0;
-    mesh_probe_fallback_count_ = 0;
+    mesh_points_.reset();
     mesh_first_probe_time_ = {};
     mesh_last_probe_time_ = {};
     mesh_seconds_per_probe_ = 0.0f;
-    mesh_has_last_probe_pos_ = false;
-    pre_mesh_probe_count_ = 0;
+    pre_mesh_points_.reset();
     if (message_changed) {
         spdlog::debug("[PrintStartCollector] BED_MESH sub-phase change → '{}' (counters reset)",
                       next_message);
     }
+}
+
+void PrintStartCollector::enter_bed_mesh_with_buffer(const char* message) {
+    // Capture the pre-mesh buffer before update_phase clears the mesh
+    // counters — the probes buffered on the way in (console pre-mesh points,
+    // or the front row seen before the position classifier's sweep-march
+    // verdict) are the sweep's first points and must be credited, or the
+    // displayed count lags the physical taps by however many buffered.
+    helix::ProbePointCounter buffered{1};
+    std::chrono::steady_clock::time_point last_probe_at{};
+    bool has_buffered = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (pre_mesh_points_.points() > 0) {
+            buffered = pre_mesh_points_;
+            last_probe_at = pre_mesh_last_probe_time_;
+            has_buffered = true;
+        }
+    }
+
+    update_phase(PrintStartPhase::BED_MESH, message);
+
+    if (!has_buffered) {
+        return;
+    }
+
+    char msg_buf[96];
+    int count = 0, total = 0;
+    std::string label;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        mesh_points_ = buffered;
+        mesh_probe_current_ = buffered.points();
+        mesh_first_probe_time_ = last_probe_at;
+        mesh_last_probe_time_ = last_probe_at;
+        count = mesh_probe_current_;
+        total = mesh_probe_total_;
+        label = current_mesh_message_.empty() ? lv_tr("Bed Mesh")
+                                              : trim_trailing_ellipsis(current_mesh_message_);
+    }
+    if (total > 0) {
+        snprintf(msg_buf, sizeof(msg_buf), "%s (%d/%d)", label.c_str(), count, total);
+    } else {
+        snprintf(msg_buf, sizeof(msg_buf), "%s (%d)", label.c_str(), count);
+    }
+    state_.set_print_start_state(PrintStartPhase::BED_MESH, msg_buf, calculate_progress());
+    spdlog::debug("[PrintStartCollector] Credited {} buffered pre-mesh probes on BED_MESH entry",
+                  count);
 }
 
 void PrintStartCollector::update_phase(PrintStartPhase phase, const char* message) {
@@ -1189,13 +1376,25 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
             return;
         entering_mesh =
             (phase == PrintStartPhase::BED_MESH && current_phase_ != PrintStartPhase::BED_MESH);
+        // A phase transition re-assesses the remaining work — entering
+        // BED_MESH with 124s predicted after the countdown eased to 39s is
+        // new information, not noise. Release the monotonic anchor so the
+        // countdown steps to the honest value instead of freezing at the
+        // pre-transition floor for the rest of the phase.
+        if (current_phase_ != phase && last_remaining_ > 0) {
+            spdlog::debug("[PrintStartCollector] Releasing monotonic anchor on phase change "
+                          "({}→{}, last remaining {}s)",
+                          static_cast<int>(current_phase_), static_cast<int>(phase),
+                          last_remaining_);
+            last_remaining_ = 0;
+        }
         // Entering a leveling phase clears the pre-mesh probe buffer — any
         // stray probe lines that arrived before the QGL/Z_TILT regex hit
         // (rare, but possible if firmware emits a probe before the macro
         // echo) shouldn't carry into the eventual BED_MESH count.
         if ((phase == PrintStartPhase::QGL || phase == PrintStartPhase::Z_TILT) &&
             current_phase_ != phase) {
-            pre_mesh_probe_count_ = 0;
+            pre_mesh_points_.reset();
         }
         maybe_reset_for_mesh_subphase_locked(phase, message ? message : "");
         current_phase_ = phase;
@@ -1253,7 +1452,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
             (phase == PrintStartPhase::BED_MESH && current_phase_ != PrintStartPhase::BED_MESH);
         if ((phase == PrintStartPhase::QGL || phase == PrintStartPhase::Z_TILT) &&
             current_phase_ != phase) {
-            pre_mesh_probe_count_ = 0;
+            pre_mesh_points_.reset();
         }
         maybe_reset_for_mesh_subphase_locked(phase, message);
         current_phase_ = phase;
@@ -1370,7 +1569,16 @@ int PrintStartCollector::calculate_progress_locked() const {
             continue;
         auto it = predicted_phase_weights_.find(static_cast<int>(phase));
         if (it != predicted_phase_weights_.end()) {
-            progress += it->second;
+            float share = it->second;
+            if ((phase == PrintStartPhase::HEATING_BED ||
+                 phase == PrintStartPhase::HEATING_NOZZLE) &&
+                !heating_target_reached_locked(phase)) {
+                // Concurrent heating: credit the phase by its live attainment
+                // until the target lands, not the full share the moment the
+                // chain's marker passes.
+                share *= compute_heating_fraction_for_locked(phase);
+            }
+            progress += share;
         }
     }
 
@@ -1432,6 +1640,15 @@ std::set<int> PrintStartCollector::get_completed_phase_ints_locked() const {
         // Exclude current phase from "completed" set
         if (phase != current_phase_ && phase != PrintStartPhase::IDLE &&
             phase != PrintStartPhase::INITIALIZING) {
+            // Concurrent-heat firmware (K1/K2 class) interleaves heating with
+            // homing, wiping and meshing: the chain moving past a heating
+            // phase does NOT mean the heater finished. A heating phase joins
+            // the completed set only at its target.
+            if ((phase == PrintStartPhase::HEATING_BED ||
+                 phase == PrintStartPhase::HEATING_NOZZLE) &&
+                !heating_target_reached_locked(phase)) {
+                continue;
+            }
             result.insert(p);
         }
     }
@@ -1518,7 +1735,17 @@ void PrintStartCollector::update_eta_display() {
                     remaining_f += std::max(0.0f, phase_dur - static_cast<float>(phase_elapsed));
                 }
             } else {
-                remaining_f += phase_dur; // future phase
+                // Future phase. A heating phase the chain already passed but
+                // whose heater is still climbing (concurrent-heat firmware)
+                // only owes its unheated fraction, not the full duration.
+                if (phase == static_cast<int>(PrintStartPhase::HEATING_BED) ||
+                    phase == static_cast<int>(PrintStartPhase::HEATING_NOZZLE)) {
+                    float frac =
+                        compute_heating_fraction_for_locked(static_cast<PrintStartPhase>(phase));
+                    remaining_f += phase_dur * (1.0f - frac);
+                } else {
+                    remaining_f += phase_dur; // future phase
+                }
             }
         }
         remaining = static_cast<int>(remaining_f);
@@ -1637,14 +1864,16 @@ void PrintStartCollector::load_prediction_history() {
     int temp_bucket = (bed_temp >= 40) ? 2 : 1;
 
     std::lock_guard<std::mutex> lock(state_mutex_);
-    predictor_.load_entries(entries, temp_bucket);
+    predictor_.load_entries(entries, temp_bucket, window_);
     loaded_temp_bucket_ = temp_bucket;
 
     if (!entries.empty()) {
-        spdlog::debug("[PrintStartCollector] Loaded {} prediction entries for {} bucket "
-                      "(predicted total: {}s)",
-                      predictor_.get_entries().size(), temp_bucket == 2 ? "warm" : "cold",
-                      predictor_.predicted_total());
+        spdlog::debug(
+            "[PrintStartCollector] Loaded {}/{} prediction entries for the {} / {} "
+            "bucket (predicted total: {}s)",
+            predictor_.get_entries().size(), entries.size(), temp_bucket == 2 ? "warm" : "cold",
+            window_ == helix::PreprintWindow::HostPreStart ? "host-pre-start" : "printer-edge",
+            predictor_.predicted_total());
     }
 }
 
@@ -1764,20 +1993,24 @@ void PrintStartCollector::compute_predicted_weights() {
 }
 
 float PrintStartCollector::compute_heating_fraction() const {
+    return compute_heating_fraction_for_locked(current_phase_);
+}
+
+float PrintStartCollector::compute_heating_fraction_for_locked(helix::PrintStartPhase phase) const {
     // Use cached temps (thread-safe atomics) instead of LVGL subjects
     int ext_temp = cached_ext_temp_.load(std::memory_order_relaxed);
     int ext_target = cached_ext_target_.load(std::memory_order_relaxed);
     int bed_temp = cached_bed_temp_.load(std::memory_order_relaxed);
     int bed_target = cached_bed_target_.load(std::memory_order_relaxed);
 
-    if (current_phase_ == PrintStartPhase::HEATING_NOZZLE && ext_target > 0) {
+    if (phase == PrintStartPhase::HEATING_NOZZLE && ext_target > 0) {
         float start = start_ext_temp_ > 0 ? static_cast<float>(start_ext_temp_) : 25.0f;
         float range = static_cast<float>(ext_target) - start;
         if (range > 0.0f) {
             return std::clamp((static_cast<float>(ext_temp) - start) / range, 0.0f, 1.0f);
         }
     }
-    if (current_phase_ == PrintStartPhase::HEATING_BED && bed_target > 0) {
+    if (phase == PrintStartPhase::HEATING_BED && bed_target > 0) {
         float start = start_bed_temp_ > 0 ? static_cast<float>(start_bed_temp_) : 25.0f;
         float range = static_cast<float>(bed_target) - start;
         if (range > 0.0f) {
@@ -1785,6 +2018,27 @@ float PrintStartCollector::compute_heating_fraction() const {
         }
     }
     return 0.0f;
+}
+
+bool PrintStartCollector::heating_target_reached_locked(helix::PrintStartPhase phase) const {
+    constexpr int WITHIN_DEGREES = 2;
+    if (phase == PrintStartPhase::HEATING_NOZZLE) {
+        int target = cached_ext_target_.load(std::memory_order_relaxed);
+        int temp = cached_ext_temp_.load(std::memory_order_relaxed);
+        // Target unknown (never observed): we cannot judge, so fall back to
+        // the marker-pass completion semantics rather than stalling the phase.
+        if (target <= 0)
+            return true;
+        return temp >= target - WITHIN_DEGREES;
+    }
+    if (phase == PrintStartPhase::HEATING_BED) {
+        int target = cached_bed_target_.load(std::memory_order_relaxed);
+        int temp = cached_bed_temp_.load(std::memory_order_relaxed);
+        if (target <= 0)
+            return true;
+        return temp >= target - WITHIN_DEGREES;
+    }
+    return true; // not a heating phase — completion is not temp-gated
 }
 
 void PrintStartCollector::query_mesh_probe_count() {
@@ -1949,6 +2203,7 @@ void PrintStartCollector::save_prediction_entry() {
     entry.timestamp = static_cast<int64_t>(std::time(nullptr));
     entry.phase_durations = std::move(phase_durations);
     entry.temp_bucket = (start_bed_temp_ >= 40) ? 2 : 1;
+    entry.window = window_;
 
     std::vector<helix::PreprintEntry> bucket_entries;
     {
@@ -2003,6 +2258,11 @@ void PrintStartCollector::save_prediction_entry() {
                 entry_json["phases"] = phases_json;
                 if (e.temp_bucket > 0) {
                     entry_json["temp_bucket"] = e.temp_bucket;
+                }
+                // Omitted for Unknown so the field only appears once it means
+                // something; a reader treats its absence as PrinterEdge.
+                if (e.window != helix::PreprintWindow::Unknown) {
+                    entry_json["window"] = static_cast<int>(e.window);
                 }
                 entries_json.push_back(entry_json);
             }

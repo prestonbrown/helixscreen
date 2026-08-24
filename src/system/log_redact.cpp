@@ -15,8 +15,8 @@ namespace {
 // Domain separators, so the same bytes hashed as an SSID and as a MAC produce
 // different tokens. Without this a bundle reader could tell that some AP's
 // BSSID matched some other field, which is itself a disclosure.
-constexpr uint64_t kSsidDomain = 0x5353'4944'0000'0001ULL;
-constexpr uint64_t kMacDomain = 0x4D41'4300'0000'0002ULL;
+constexpr uint64_t SSID_DOMAIN = 0x5353'4944'0000'0001ULL;
+constexpr uint64_t MAC_DOMAIN = 0x4D41'4300'0000'0002ULL;
 
 // Per-boot salt, resolved once on first use. Regenerated every launch so
 // tokens cannot be correlated across sessions, and so a precomputed table of
@@ -74,19 +74,19 @@ std::string token(std::string_view value, const char* prefix, uint64_t domain, u
 } // namespace
 
 std::string ssid(std::string_view ssid) {
-    return token(ssid, "net#", kSsidDomain, boot_salt());
+    return token(ssid, "net#", SSID_DOMAIN, boot_salt());
 }
 
 std::string mac(std::string_view mac) {
-    return token(mac, "mac#", kMacDomain, boot_salt());
+    return token(mac, "mac#", MAC_DOMAIN, boot_salt());
 }
 
 std::string ssid_with_salt(std::string_view ssid, uint64_t salt) {
-    return token(ssid, "net#", kSsidDomain, salt);
+    return token(ssid, "net#", SSID_DOMAIN, salt);
 }
 
 std::string mac_with_salt(std::string_view mac, uint64_t salt) {
-    return token(mac, "mac#", kMacDomain, salt);
+    return token(mac, "mac#", MAC_DOMAIN, salt);
 }
 
 } // namespace helix::redact

@@ -13,7 +13,7 @@
 #include "hv/json.hpp"
 
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 class PrinterState;
 } // namespace helix
 
@@ -34,7 +34,7 @@ class DetectionManager {
     /// run here — at init() time (Application::init_panel_subjects) the WebSocket has
     /// not connected yet, so printer.objects.list would fail and capable_ would stay
     /// false forever. Hooking add_connected_observer() runs it after every connect.
-    void init(helix::MoonrakerClient* client, helix::PrinterState* state);
+    void init(helix::IMoonrakerClient* client, helix::PrinterState* state);
 
     /// (Re)scan printer.objects.list for "defect_detection" and update sources'
     /// capability flags. Idempotent; safe to call on every reconnect.
@@ -69,7 +69,7 @@ class DetectionManager {
     /// Apply a resolved capability flag to every source that consumes it.
     void apply_capability(bool has_defect_detection);
 
-    helix::MoonrakerClient* client_ = nullptr;
+    helix::IMoonrakerClient* client_ = nullptr;
     helix::PrinterState* state_ = nullptr;
 
     std::vector<std::unique_ptr<DetectionSource>> sources_;

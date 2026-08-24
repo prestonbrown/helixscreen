@@ -46,6 +46,7 @@
 #include "error_event.h"
 #include "gcode_error_router.h"
 #include "lvgl/lvgl.h"
+#include "moonraker_api.h" // concrete MoonrakerAPI/MoonrakerClient for upcast to interfaces
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
 
@@ -58,13 +59,13 @@ namespace {
 
 // The real AFC/runout chinglish: an uncoded `!!` (no {"code":...}), deliberately
 // longer than the 80-byte toast truncation cap so E2 (full text) is meaningful.
-const std::string kJamLine =
+const std::string JAM_LINE =
     "!! Toolhead runout detected by tool_end sensor, but upstream sensors still detect "
     "filament. Possible filament break or jam at the toolhead. Please clear the jam and "
     "reload filament manually, then resume the print.";
 
 // The detail substring process_line would surface (the `!! ` prefix stripped).
-const char* kJamDetail = kJamLine.c_str() + 3;
+const char* JAM_DETAIL = JAM_LINE.c_str() + 3;
 
 // Walk the modal subtree for the deepest label containing `needle`.
 // modal_dialog.xml names the message label "dialog_message"; the substring walk
@@ -104,7 +105,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ctx.is_paused = get_printer_state().is_paused();
     ctx.is_printing = get_printer_state().get_print_job_state() == helix::PrintJobState::PRINTING;
 
-    auto ev = helix::error_classify::classify(kJamLine, ctx);
+    auto ev = helix::error_classify::classify(JAM_LINE, ctx);
     REQUIRE(ev.has_value());
     REQUIRE(ev->severity == helix::ErrorSeverity::CRITICAL);
     // E1: the routing decision is a blocking modal, not a toast. Since #1152 a
@@ -116,7 +117,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(decision != helix::PresentAs::TOAST);
     REQUIRE(decision != helix::PresentAs::TOAST_WITH_RECOVER);
     // The detail process_line would surface is the full line, untruncated.
-    REQUIRE(ev->detail == kJamDetail);
+    REQUIRE(ev->detail == JAM_DETAIL);
 
     // Severity gate sanity: an idle (not paused, not printing) printer demotes
     // the same line below MODAL — proving the gate, not a constant.
@@ -124,7 +125,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::ClassifyContext idle;
         idle.is_paused = false;
         idle.is_printing = false;
-        auto idle_ev = helix::error_classify::classify(kJamLine, idle);
+        auto idle_ev = helix::error_classify::classify(JAM_LINE, idle);
         REQUIRE(idle_ev.has_value());
         // Asserted positively: `!= MODAL` would now also pass for the recovery
         // modal arm, which is not what "demoted" means.
@@ -142,7 +143,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The visible-modal proof is Seam 2 below, against the real modal layer.
     helix::ui::RecoveryModalPresenter presenter1(nullptr);
     helix::GcodeErrorRouter router(nullptr, nullptr, presenter1);
-    REQUIRE_NOTHROW(GcodeErrorRouterTestAccess::process_line(router, kJamLine));
+    REQUIRE_NOTHROW(GcodeErrorRouterTestAccess::process_line(router, JAM_LINE));
     helix::ui::UpdateQueue::instance().drain();
 
     // ---- Seam 2: presentation (REAL ui_modal.o) ----
@@ -223,7 +224,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The AFC handle_toolhead_runout chinglish: `tool_end` + `jam` → CRITICAL
     // jam, titled "Toolhead jam", carrying recovery actions (Resume is always
     // pushed → non-empty → MODAL_WITH_RECOVER).
-    const std::string kAfcJam =
+    const std::string AFC_JAM =
         "!! Toolhead runout detected by tool_end sensor — possible filament jam at "
         "the toolhead. Clear the jam and resume.";
 
@@ -234,7 +235,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::ClassifyContext ctx;
         ctx.is_paused = true;
         ctx.is_printing = false;
-        auto ev = AmsState::instance().get_backend()->classify_error(kAfcJam, ctx);
+        auto ev = AmsState::instance().get_backend()->classify_error(AFC_JAM, ctx);
         REQUIRE(ev.has_value());
         REQUIRE(ev->severity == helix::ErrorSeverity::CRITICAL);
         REQUIRE(ev->source == helix::ErrorSource::AFC);
@@ -248,7 +249,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // MoonrakerAPI here so the show_prompt arm and tap path both exercise.
     helix::ui::RecoveryModalPresenter presenter2(api());
     helix::GcodeErrorRouter router(api(), client(), presenter2);
-    REQUIRE_NOTHROW(GcodeErrorRouterTestAccess::process_line(router, kAfcJam));
+    REQUIRE_NOTHROW(GcodeErrorRouterTestAccess::process_line(router, AFC_JAM));
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
 

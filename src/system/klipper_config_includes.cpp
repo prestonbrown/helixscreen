@@ -3,7 +3,7 @@
 
 #include "klipper_config_includes.h"
 
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 
 #include <spdlog/spdlog.h>
 
@@ -172,10 +172,10 @@ std::set<std::string> resolve_active_files(const std::map<std::string, std::stri
 // Async Moonraker integration
 // ============================================================================
 
-void resolve_active_config_files_with_content(MoonrakerAPI& api,
+void resolve_active_config_files_with_content(IMoonrakerAPI& api,
                                               ActiveFilesWithContentCallback on_complete,
                                               ErrorCallback on_error) {
-    // api must outlive all async callbacks (guaranteed: MoonrakerAPI is owned by PrinterState
+    // api must outlive all async callbacks (guaranteed: IMoonrakerAPI is owned by PrinterState
     // singleton)
     api.files().list_files(
         "config", "", true,
@@ -241,7 +241,7 @@ void resolve_active_config_files_with_content(MoonrakerAPI& api,
         });
 }
 
-void resolve_active_config_files(MoonrakerAPI& api, ActiveFilesCallback on_complete,
+void resolve_active_config_files(IMoonrakerAPI& api, ActiveFilesCallback on_complete,
                                  ErrorCallback on_error) {
     resolve_active_config_files_with_content(
         api,

@@ -43,13 +43,17 @@ TEST_CASE("AFC toolchange fields in AmsSystemInfo default to safe values", "[afc
 }
 
 TEST_CASE("AFC backend parses toolchange fields from status update", "[afc][toolchange]") {
+    // AFC.get_status() publishes current_toolchange as a 1-BASED count of
+    // changes started — it bumps the counter before logging "Change N out of M"
+    // and clamps its internal -1 sentinel to 0 on the way out. AmsSystemInfo
+    // stores a 0-based index, so the backend subtracts one.
     AfcToolchangeTestHelper afc;
     afc.initialize_test_lanes(4);
 
-    SECTION("both fields present") {
+    SECTION("both fields present — AFC's 1-based count becomes a 0-based index") {
         afc.feed_afc_state(
             {{"current_toolchange", 2}, {"number_of_toolchanges", 5}, {"current_state", "Idle"}});
-        REQUIRE(afc.info().current_toolchange == 2);
+        REQUIRE(afc.info().current_toolchange == 1);
         REQUIRE(afc.info().number_of_toolchanges == 5);
     }
 
@@ -59,19 +63,33 @@ TEST_CASE("AFC backend parses toolchange fields from status update", "[afc][tool
         REQUIRE(afc.info().number_of_toolchanges == 0);
     }
 
-    SECTION("pre-first-swap state: current=-1, total=5") {
+    SECTION("pre-first-swap state: AFC's clamped 0 means 'none yet'") {
+        afc.feed_afc_state(
+            {{"current_toolchange", 0}, {"number_of_toolchanges", 5}, {"current_state", "Idle"}});
+        REQUIRE(afc.info().current_toolchange == -1);
+        REQUIRE(afc.info().number_of_toolchanges == 5);
+    }
+
+    SECTION("a raw -1 sentinel floors at -1 rather than running past it") {
+        // Current AFC clamps this away, but a firmware that stopped clamping
+        // must not push the index below the documented "none yet" sentinel.
         afc.feed_afc_state(
             {{"current_toolchange", -1}, {"number_of_toolchanges", 5}, {"current_state", "Idle"}});
         REQUIRE(afc.info().current_toolchange == -1);
+    }
+
+    SECTION("last change of the print maps to total-1") {
+        afc.feed_afc_state({{"current_toolchange", 5}, {"number_of_toolchanges", 5}});
+        REQUIRE(afc.info().current_toolchange == 4);
         REQUIRE(afc.info().number_of_toolchanges == 5);
     }
 
     SECTION("print complete resets to zero") {
         afc.feed_afc_state({{"current_toolchange", 4}, {"number_of_toolchanges", 5}});
-        REQUIRE(afc.info().current_toolchange == 4);
+        REQUIRE(afc.info().current_toolchange == 3);
 
         afc.feed_afc_state({{"current_toolchange", 0}, {"number_of_toolchanges", 0}});
-        REQUIRE(afc.info().current_toolchange == 0);
+        REQUIRE(afc.info().current_toolchange == -1);
         REQUIRE(afc.info().number_of_toolchanges == 0);
     }
 }
@@ -312,11 +330,13 @@ TEST_CASE("Mock backend supports toolchange simulation", "[afc][toolchange][mock
 // AmsState subject tests (require LVGL)
 // ============================================================================
 
+#include "ui_ams_tool_text.h"
 #include "ui_update_queue.h"
 
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "static_subject_registry.h"
+#include "tool_state.h"
 
 #include <lvgl.h>
 
@@ -410,5 +430,106 @@ TEST_CASE("AmsState toolchange text formatting", "[afc][toolchange][format]") {
         state.sync_from_backend();
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(vis_subj) == 0);
+    }
+}
+
+// ============================================================================
+// Rendered toolchange text — the AFC wire value all the way to the label
+// ============================================================================
+
+// Drives the real formatter observers from src/ui/ui_ams_tool_text.cpp over the
+// real AmsState subjects, fed by the real AFC parser. Nothing here reimplements
+// the format string, so the assertions break if either half of the 1-based /
+// 0-based contract moves.
+struct AfcToolchangeRenderFixture {
+    AfcToolchangeRenderFixture() {
+        lv_init_safe();
+        auto& state = AmsState::instance();
+        state.init_subjects(false);
+        // init_ams_tool_text_observers() also observes ToolState's tool badge.
+        ToolState::instance().init_subjects(false);
+        helix::ui::init_ams_tool_text_observers();
+
+        auto backend = std::make_unique<AfcToolchangeTestHelper>();
+        backend->initialize_test_lanes(4);
+        afc_ = backend.get();
+        state.set_backend(std::move(backend));
+    }
+
+    ~AfcToolchangeRenderFixture() {
+        // Release the formatter observers before the subjects they watch die,
+        // and clear the file-static "already initialized" latch for the next
+        // section. deinit_one() rather than deinit_all(): the test binary's
+        // registry also holds entries from earlier fixtures.
+        StaticSubjectRegistry::instance().deinit_one("AmsToolTextObservers");
+        AmsState::instance().deinit_subjects();
+        ToolState::instance().deinit_subjects();
+        helix::ui::UpdateQueue::instance().shutdown();
+    }
+
+    /// Feed an AFC status frame exactly as the printer publishes it (1-based
+    /// count) and let AmsState push it into the subjects the formatter observes.
+    void feed_afc(int afc_count, int total) {
+        afc_->feed_afc_state({{"current_toolchange", afc_count},
+                              {"number_of_toolchanges", total},
+                              {"current_state", "Idle"}});
+        AmsState::instance().sync_from_backend();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    std::string rendered() const {
+        return std::string(
+            lv_subject_get_string(AmsState::instance().get_toolchange_text_subject()));
+    }
+
+    AfcToolchangeTestHelper* afc_ = nullptr;
+};
+
+TEST_CASE_METHOD(AfcToolchangeRenderFixture, "AFC toolchange text renders AFC's own numbering",
+                 "[afc][toolchange][format][render]") {
+    SECTION("before the first change AFC reports 0 and the label reads 0 / N") {
+        // Deliberate, and a visible change from the pre-normalization "1 / 161":
+        // the field is a count of changes ACCOUNTED FOR, so before any change has
+        // happened the honest reading is zero. The row stays visible either way —
+        // visibility is gated on number_of_toolchanges > 0 alone
+        // (ams_state.cpp), independent of this value.
+        feed_afc(0, 161);
+        REQUIRE(rendered() == "0 / 161");
+    }
+
+    SECTION("AFC's 'Change 1 out of 161' renders as 1 / 161, not 2 / 161") {
+        feed_afc(1, 161);
+        REQUIRE(rendered() == "1 / 161");
+    }
+
+    SECTION("mid print the label tracks AFC's console count") {
+        feed_afc(37, 161);
+        REQUIRE(rendered() == "37 / 161");
+    }
+
+    SECTION("the final change renders N / N, not N+1 / N") {
+        // Assert one change BELOW the ceiling first. At the ceiling the clamp
+        // also turns a broken 1-based store into "161 / 161", so feeding only
+        // the final change cannot tell the fix from the bug it is named for —
+        // drop the backend's -1 normalization and this section still passed.
+        // At wire 160 the clamp is inert: correct normalization renders
+        // "160 / 161" and a missing -1 renders "161 / 161".
+        feed_afc(160, 161);
+        REQUIRE(rendered() == "160 / 161");
+
+        feed_afc(161, 161);
+        REQUIRE(rendered() == "161 / 161");
+    }
+
+    SECTION("an over-reporting backend is clamped to the total") {
+        // Defense in depth for the display layer: whatever a backend claims, the
+        // label can never show more changes than the print has.
+        feed_afc(162, 161);
+        REQUIRE(rendered() == "161 / 161");
+    }
+
+    SECTION("no changes expected renders empty") {
+        feed_afc(0, 0);
+        REQUIRE(rendered().empty());
     }
 }

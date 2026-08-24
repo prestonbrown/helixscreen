@@ -271,8 +271,8 @@ static void sv_touch_handler(lv_event_t* e) {
     int32_t y = point.y - coords.y1;
 
     // Clamp to bounds
-    x = std::clamp(x, 0, data->sv_size - 1);
-    y = std::clamp(y, 0, data->sv_size - 1);
+    x = std::clamp<int32_t>(x, 0, data->sv_size - 1);
+    y = std::clamp<int32_t>(y, 0, data->sv_size - 1);
 
     // Calculate saturation and value
     data->saturation = 100.0f * x / (data->sv_size - 1);
@@ -300,7 +300,7 @@ static void hue_touch_handler(lv_event_t* e) {
     int32_t x = point.x - coords.x1;
 
     // Clamp to bounds
-    x = std::clamp(x, 0, data->sv_size - 1);
+    x = std::clamp<int32_t>(x, 0, data->sv_size - 1);
 
     // Calculate hue (left=0, right=360)
     data->hue = 360.0f * x / (data->sv_size - 1);

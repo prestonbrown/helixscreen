@@ -596,6 +596,102 @@ echo "tmpfs       51200     48640  2560       95% /tmp"
     grep -q '"default_preset"' "$INSTALL_DIR/config/settings.json"
 }
 
+# --- Packaged preset survival (embedded targets) ---
+#
+# Platform release archives ship config/settings.json AS a platform preset
+# (display rotation, hardware mapping) - see the release-k1/k2/cc1/ad5m/ad5x/
+# snapmaker_u1 rules in mk/cross.mk. Embedded targets keep logs and cache under
+# the install dir, so the directory already exists before a first install and
+# its existence alone must not be read as "a user config is here to restore".
+
+# Helper: an install dir that exists but holds no config at all - the K1/K2
+# shape, where /usr/data/helixscreen/{logs,cache} predate the install.
+setup_install_dir_without_config() {
+    mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/cache"
+    echo "boot log" > "$INSTALL_DIR/logs/helix.log"
+}
+
+# Helper: a tarball whose config/settings.json is a platform preset.
+create_preset_tarball() {
+    local staging="$BATS_TEST_TMPDIR/staging"
+    mkdir -p "$staging/helixscreen/bin" "$staging/helixscreen/config" \
+             "$staging/helixscreen/ui_xml" "$staging/helixscreen/assets"
+    create_fake_arm32_elf "$staging/helixscreen/bin/helix-screen"
+    chmod +x "$staging/helixscreen/bin/helix-screen"
+    printf '%s\n' '{"preset": "k1", "wizard_completed": false, "display": {"rotate": 270}}' \
+        > "$staging/helixscreen/config/settings.json"
+    tar -czf "$TMP_DIR/helixscreen.tar.gz" -C "$staging" helixscreen
+    rm -rf "$staging"
+}
+
+@test "extract_release: install dir exists without config keeps packaged preset" {
+    setup_install_dir_without_config
+    create_preset_tarball
+
+    run extract_release "ad5m"
+    [ "$status" -eq 0 ]
+
+    # There was never a user config to restore, so the preset must survive.
+    [ -f "$INSTALL_DIR/config/settings.json" ]
+    grep -q '"preset": "k1"' "$INSTALL_DIR/config/settings.json"
+    grep -q '"rotate": 270' "$INSTALL_DIR/config/settings.json"
+}
+
+@test "extract_release: install dir exists without config leaves fresh-install marker" {
+    setup_install_dir_without_config
+    create_preset_tarball
+
+    run extract_release "ad5m"
+    [ "$status" -eq 0 ]
+
+    # Tells Config::init() the packaged config is here on purpose rather than
+    # because Moonraker's type:web rmtree() wiped the user's copy.
+    [ -f "$INSTALL_DIR/config/.helix-fresh-install" ]
+}
+
+@test "extract_release: prior settings.json still wins over packaged preset" {
+    setup_existing_install
+    create_preset_tarball
+
+    run extract_release "ad5m"
+    [ "$status" -eq 0 ]
+
+    [ -f "$INSTALL_DIR/config/settings.json" ]
+    grep -q '"old"' "$INSTALL_DIR/config/settings.json"
+    ! grep -q '"preset": "k1"' "$INSTALL_DIR/config/settings.json"
+}
+
+@test "extract_release: restored user config leaves no fresh-install marker" {
+    setup_existing_install
+    create_preset_tarball
+
+    run extract_release "ad5m"
+    [ "$status" -eq 0 ]
+
+    # A restored user config is already versioned, and marking it fresh would
+    # suppress backup recovery on a later Moonraker clobber.
+    [ ! -f "$INSTALL_DIR/config/.helix-fresh-install" ]
+}
+
+@test "extract_release: fresh install marks packaged preset as deliberate" {
+    [ ! -d "$INSTALL_DIR" ]
+    create_preset_tarball
+
+    run extract_release "ad5m"
+    [ "$status" -eq 0 ]
+
+    [ -f "$INSTALL_DIR/config/settings.json" ]
+    grep -q '"preset": "k1"' "$INSTALL_DIR/config/settings.json"
+    [ -f "$INSTALL_DIR/config/.helix-fresh-install" ]
+}
+
+@test "install.sh (bundled) guards packaged-config removal on a restore candidate" {
+    grep -q '_have_restore_candidate' \
+        "$BATS_TEST_DIRNAME/../../scripts/install.sh"
+    grep -q '.helix-fresh-install' \
+        "$BATS_TEST_DIRNAME/../../scripts/install.sh"
+}
+
 # --- Legacy config migration ---
 
 @test "extract_release: preserves legacy config location" {

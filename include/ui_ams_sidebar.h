@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_bypass_toggle_controller.h"
 #include "ui_clog_meter.h"
 #include "ui_observer_guard.h"
 
@@ -190,8 +191,8 @@ class AmsOperationSidebar {
     // work for the active operation. Empty => legacy coarse model.
     AmsBackend::OperationStepModel current_step_model_;
 
-    // Bypass-after-unload state
-    bool pending_bypass_enable_ = false;
+    // Bypass toggle policy (guards, unload-first chain, print refusal)
+    BypassToggleController bypass_toggle_;
 
     // Preheat state
     int pending_load_slot_ = -1;
@@ -214,7 +215,7 @@ class AmsOperationSidebar {
     // itself stalls it won't fire, but the loop keeps rendering (the number is
     // visibly frozen), so it does.
     lv_timer_t* stall_watchdog_timer_ = nullptr;
-    static constexpr uint32_t kStallWatchdogPeriodMs = 1500;
+    static constexpr uint32_t STALL_WATCHDOG_PERIOD_MS = 1500;
     static void stall_watchdog_cb(lv_timer_t* timer);
 
     // Step progress state

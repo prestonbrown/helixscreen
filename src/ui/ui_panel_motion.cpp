@@ -16,8 +16,8 @@
 #include "app_globals.h"
 #include "config.h"
 #include "format_utils.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "subject_managed_panel.h"
@@ -107,7 +107,7 @@ MotionPanel::MotionPanel() {
     auto* cfg = Config::get_instance();
     if (cfg) {
         int mode = cfg->get<int>("/motion/jog_mode", -1);
-        if (mode >= 0 && mode < kJogModeCount) {
+        if (mode >= 0 && mode < JOG_MODE_COUNT) {
             current_mode_ = static_cast<JogMode>(mode);
         } else {
             // Migrate legacy bool setting and persist new key
@@ -696,7 +696,7 @@ void MotionPanel::jog(JogDirection direction, float distance_mm) {
         // hair inside the envelope returns a sub-micron residual (199.9999995,
         // +1, max=200 -> ~5e-7). That is a blocked jog, not a real move — an
         // exact compare skipped the warning and dispatched a no-op instead.
-        if (std::abs(ddx) <= helix::AxisMove::kEpsilonMm) {
+        if (std::abs(ddx) <= helix::AxisMove::EPSILON_MM) {
             ddx = 0.0;
             if (!x_edge_warned_) {
                 NOTIFY_WARNING(lv_tr("X jog blocked at bed edge"));
@@ -709,7 +709,7 @@ void MotionPanel::jog(JogDirection direction, float distance_mm) {
     if (ddy != 0.0 && bounds.has_y && y_homed) {
         ddy = helix::clamp_jog_delta(current_y_, jog_coalescer_.uncommitted_y(), ddy, bounds.y_min,
                                      bounds.y_max);
-        if (std::abs(ddy) <= helix::AxisMove::kEpsilonMm) {
+        if (std::abs(ddy) <= helix::AxisMove::EPSILON_MM) {
             ddy = 0.0;
             if (!y_edge_warned_) {
                 NOTIFY_WARNING(lv_tr("Y jog blocked at bed edge"));
@@ -737,7 +737,7 @@ void MotionPanel::dispatch_jog(const helix::AxisMove& delta) {
 }
 
 void MotionPanel::send_jog_move(const helix::AxisMove& move) {
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         jog_coalescer_.on_error();
         return;
@@ -763,7 +763,7 @@ void MotionPanel::send_jog_move(const helix::AxisMove& move) {
 void MotionPanel::home(char axis) {
     spdlog::debug("[{}] Home command: {} axis", get_name(), axis);
 
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         // Convert axis char to string for API ("" for all, "X", "Y", "Z", or "XY")
         std::string axes_str;

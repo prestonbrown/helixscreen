@@ -22,7 +22,7 @@
 #include "ui/temperature_observer_bundle.h"
 
 // Forward declaration
-class MoonrakerAPI;
+class IMoonrakerAPI;
 namespace helix {
 class TempGraphController;
 }
@@ -55,9 +55,9 @@ class PrintStatusPanel : public OverlayBase {
      * @brief Construct PrintStatusPanel with injected dependencies
      *
      * @param printer_state Reference to helix::PrinterState
-     * @param api Pointer to MoonrakerAPI (for pause/cancel commands)
+     * @param api Pointer to IMoonrakerAPI (for pause/cancel commands)
      */
-    PrintStatusPanel(helix::PrinterState& printer_state, MoonrakerAPI* api);
+    PrintStatusPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
 
     ~PrintStatusPanel() override;
 
@@ -180,10 +180,10 @@ class PrintStatusPanel : public OverlayBase {
     }
 
     /**
-     * @brief Update MoonrakerAPI pointer
+     * @brief Update IMoonrakerAPI pointer
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
         if (exclude_manager_) {
             exclude_manager_->set_api(api);
@@ -215,46 +215,9 @@ class PrintStatusPanel : public OverlayBase {
     void set_thumbnail_source(const std::string& filename);
 
     /**
-     * @brief Set print progress percentage
-     * @param percent Progress 0-100 (clamped to valid range)
-     */
-    void set_progress(int percent);
-
-    /**
-     * @brief Set layer progress
-     * @param current Current layer number
-     * @param total Total layers in print
-     */
-    void set_layer(int current, int total);
-
-    /**
-     * @brief Set elapsed and remaining time
-     * @param elapsed_secs Elapsed time in seconds
-     * @param remaining_secs Estimated remaining time in seconds
-     */
-    void set_times(int elapsed_secs, int remaining_secs);
-
-    /**
-     * @brief Set temperature readings
-     * @param nozzle_cur Current nozzle temperature
-     * @param nozzle_tgt Target nozzle temperature
-     * @param bed_cur Current bed temperature
-     * @param bed_tgt Target bed temperature
-     */
-    void set_temperatures(int nozzle_cur, int nozzle_tgt, int bed_cur, int bed_tgt);
-
-    /**
-     * @brief Set speed and flow percentages
-     * @param speed_pct Speed multiplier percentage
-     * @param flow_pct Flow multiplier percentage
-     */
-    void set_speeds(int speed_pct, int flow_pct);
-
-    /**
      * @brief Set print state
      * @param state New print state
      */
-    void set_state(PrintState state);
 
     /**
      * @brief Get current print state
@@ -275,7 +238,6 @@ class PrintStatusPanel : public OverlayBase {
      *
      * @param success If true, transitions to Printing; if false, transitions to Idle
      */
-    void end_preparing(bool success);
 
     /**
      * @brief Get current progress percentage
@@ -303,7 +265,7 @@ class PrintStatusPanel : public OverlayBase {
     //
 
     helix::PrinterState& printer_state_;
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
     lv_obj_t* parent_screen_ = nullptr;
 
     //
@@ -314,14 +276,11 @@ class PrintStatusPanel : public OverlayBase {
 
     SubjectManager subjects_; ///< RAII manager for automatic subject cleanup
 
-    lv_subject_t progress_text_subject_;
     lv_subject_t layer_text_subject_;
     lv_subject_t filament_used_text_subject_;
     lv_subject_t elapsed_subject_;
     lv_subject_t remaining_subject_;
     lv_subject_t eta_subject_;
-    lv_subject_t nozzle_temp_subject_;
-    lv_subject_t bed_temp_subject_;
     lv_subject_t nozzle_status_subject_;
     lv_subject_t bed_status_subject_;
     lv_subject_t chamber_status_subject_;
@@ -417,14 +376,11 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t print_controls_enabled_subject_; ///< 1 when lifecycle.is_active()
 
     // Subject storage buffers
-    char progress_text_buf_[32] = "0%";
     char layer_text_buf_[80] = "Layer 0 / 0";
     char filament_used_text_buf_[32] = "";
     char elapsed_buf_[32] = "0h 00m";
     char remaining_buf_[32] = "0h 00m";
     char eta_buf_[32] = "";
-    char nozzle_temp_buf_[32] = "0 / 0°C";
-    char bed_temp_buf_[32] = "0 / 0°C";
     char nozzle_status_buf_[16] = "Off";
     char bed_status_buf_[16] = "Off";
     char chamber_status_buf_[16] = "";
@@ -448,6 +404,14 @@ class PrintStatusPanel : public OverlayBase {
     /// Path most recently accepted from the shared thumbnail subject. Kept so
     /// on_activate() can re-apply it without a refetch.
     std::string cached_thumbnail_path_;
+
+#if defined(HELIX_PLATFORM_ESP32)
+    /// PSRAM-resident thumbnail currently shown in print_thumbnail_. There is
+    /// no cache file on this platform, so cached_thumbnail_path_ stays empty
+    /// and this shared_ptr is what keeps the image src's buffer alive.
+    /// Main-thread only (its destructor drops the LVGL image cache entry).
+    std::shared_ptr<helix::ui::EspPsramThumbnail> esp_thumbnail_;
+#endif
 
     // Child widgets
     lv_obj_t* progress_bar_ = nullptr;
@@ -484,6 +448,23 @@ class PrintStatusPanel : public OverlayBase {
     // One-shot timer for deferred G-code loading (5s delay after print start)
     // Prevents memory spike during homing/heating phase
     lv_timer_t* gcode_load_timer_ = nullptr;
+
+    /**
+     * @brief Withholds the preparing overlay until preparation is worth showing
+     *
+     * A print with no host-side pre-start block can pass through Preparing in
+     * well under a second, and flashing the overlay for that is worse than not
+     * showing it. Debouncing on ELAPSED time rather than a predicted duration is
+     * deliberate: a prediction can fail closed - predict "fast", reality is a
+     * ten-minute mesh, and the overlay never appears at all.
+     */
+    lv_timer_t* preparing_show_timer_ = nullptr;
+
+    /// Shared by cleanup() and the destructor - see CLAUDE.md threading rule 5.
+    void cancel_preparing_show_timer();
+
+    /// How long Preparing must persist before the overlay is shown.
+    static constexpr uint32_t PREPARING_SHOW_DELAY_MS = 750;
     void schedule_deferred_gcode_load();
 
     // Reconcile the preview widgets against the current print state. Reads the
@@ -526,9 +507,6 @@ class PrintStatusPanel : public OverlayBase {
 
     // Print error badge (animated on print error)
     lv_obj_t* error_badge_ = nullptr;
-
-    // Header bar (for e-stop visibility control)
-    lv_obj_t* overlay_header_ = nullptr;
 
     //
     // === Temperature & Tuning Overlays ===
@@ -579,13 +557,33 @@ class PrintStatusPanel : public OverlayBase {
     void recompute_aux_composites_for_measurement(int density,
                                                   bool aux_present); ///< Measurement helper
 
+    /// Render print_layer_text from the lifecycle's layer counters.
+    void update_layer_text();
+
+    /// Render print_filament_used_text from the current filament_used subject.
+    void update_filament_used_text();
+
     void update_all_displays();
     void show_gcode_viewer(bool show);
     void load_gcode_file(const char* file_path);
+#if defined(HELIX_PLATFORM_ESP32)
+    /// Pull the current PSRAM thumbnail from PrinterState, hold a reference,
+    /// and point print_thumbnail_ at its descriptor. Main thread only; no-op
+    /// when the widget is absent or no thumbnail has been fetched yet.
+    void apply_esp_psram_thumbnail();
+#endif
     void
     load_gcode_for_viewing(const std::string& filename); ///< Download and load G-code into viewer
-    void update_button_states(); ///< Enable/disable buttons based on current print state
-    void update_objects_text();  ///< Update "X of Y obj" display from exclude state
+    void update_button_states();
+
+    /// The two per-job resets, shared by the job-state edge and the
+    /// exit-from-Preparing edge. A print started in-app only ever reaches the
+    /// second one: the panel is Preparing before Moonraker reports printing, so
+    /// the job-state handler derives no transition and returns early.
+    void apply_new_print_resets(
+        bool reset_progress_bar,
+        bool clear_excluded_objects); ///< Enable/disable buttons based on current print state
+    void update_objects_text();       ///< Update "X of Y obj" display from exclude state
     void
     update_view_toggle_position(bool objects_visible); ///< Shift view toggle when objects btn shown
     void animate_badge_pop_in(lv_obj_t* badge, const char* label); ///< Pop-in animation for badges
@@ -711,7 +709,11 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard tool_map_version_observer_; ///< Refreshes gcode viewer colors on tool remap
     ObserverGuard active_tool_observer_;  ///< Refreshes nozzle temp display with tool name prefix
     ObserverGuard chamber_temp_observer_; ///< Updates chamber status text
+    ObserverGuard preparing_epoch_observer_;      ///< Adopts the preparing job's identity at commit
     ObserverGuard print_thumbnail_path_observer_; ///< Updates print_thumbnail_ from shared subject
+#if defined(HELIX_PLATFORM_ESP32)
+    ObserverGuard print_psram_thumb_observer_; ///< Ditto, via the PSRAM generation counter
+#endif
     ObserverGuard gcode_render_mode_observer_; ///< Watches settings changes to update viewer mode
     ObserverGuard print_outcome_observer_;     ///< Drives show_{complete,cancelled,error}_overlay
     ObserverGuard end_overlay_dismissed_observer_; ///< Ditto; second input to the same recompute

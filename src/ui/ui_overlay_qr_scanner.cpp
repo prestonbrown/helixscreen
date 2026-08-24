@@ -14,7 +14,7 @@
 
 #include "app_globals.h"
 #include "display_settings_manager.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "sound_manager.h"
 #include "static_panel_registry.h"
@@ -268,13 +268,13 @@ void QrScannerOverlay::start_scanning() {
     if (bed_moves && z_homed) {
         int z_centimm = lv_subject_get_int(state.get_position_z_subject());
         double z_mm = z_centimm / 100.0;
-        constexpr double kQrScanZ = 150.0;
-        if (z_mm < kQrScanZ) {
+        constexpr double QR_SCAN_Z = 150.0;
+        if (z_mm < QR_SCAN_Z) {
             auto* api = get_moonraker_api();
             if (api) {
                 spdlog::info("[QR Scanner] Lowering bed from {:.0f}mm to {:.0f}mm for scanning",
-                             z_mm, kQrScanZ);
-                api->motion().move_to_position('Z', kQrScanZ, 600.0, nullptr, nullptr);
+                             z_mm, QR_SCAN_Z);
+                api->motion().move_to_position('Z', QR_SCAN_Z, 600.0, nullptr, nullptr);
             }
         }
     }
@@ -455,7 +455,7 @@ void QrScannerOverlay::on_camera_frame(lv_draw_buf_t* frame) {
     // Subsample during grayscale conversion — QR codes are easily readable
     // at 480px, so processing full 1080p frames wastes ~16x CPU cycles.
     const int max_dim = std::max(width, height);
-    const int step = std::max(1, max_dim / kQrMaxDimension);
+    const int step = std::max(1, max_dim / QR_MAX_DIMENSION);
     qr_width_ = width / step;
     qr_height_ = height / step;
 
@@ -555,7 +555,7 @@ void QrScannerOverlay::on_spool_id_detected(int spool_id) {
 void QrScannerOverlay::lookup_spool(int spool_id) {
     auto* api = get_moonraker_api();
     if (!api) {
-        spdlog::error("[{}] No MoonrakerAPI available", get_name());
+        spdlog::error("[{}] No IMoonrakerAPI available", get_name());
         update_status("Error: not connected to printer");
         last_decoded_id_ = -1;
         return;

@@ -21,9 +21,9 @@ using namespace helix::audio;
 
 static std::vector<uint8_t> build_minimal_mod() {
     // Size: 1084 (header) + 1 pattern * 64 rows * 4 channels * 4 bytes = 1084 + 1024 = 2108
-    constexpr size_t kHeaderSize = 1084;
-    constexpr size_t kPatternSize = 64 * 4 * 4;
-    std::vector<uint8_t> buf(kHeaderSize + kPatternSize, 0x00);
+    constexpr size_t HEADER_SIZE = 1084;
+    constexpr size_t PATTERN_SIZE = 64 * 4 * 4;
+    std::vector<uint8_t> buf(HEADER_SIZE + PATTERN_SIZE, 0x00);
 
     // Song title (20 bytes) — "TEST MOD"
     const char* title = "TEST MOD";
@@ -60,7 +60,7 @@ static std::vector<uint8_t> build_minimal_mod() {
     //   b1 = 0x6B (period lo = 107)
     //   b2 = 0x10 (instrument lo = 1, effect = 0)
     //   b3 = 0x00 (effect data = 0)
-    size_t cell_offset = kHeaderSize; // pattern 0, row 0, channel 0
+    size_t cell_offset = HEADER_SIZE; // pattern 0, row 0, channel 0
     buf[cell_offset + 0] = 0x00;      // period hi = 0, instrument hi = 0
     buf[cell_offset + 1] = 0x6B;      // period lo = 107 → period = 107
     buf[cell_offset + 2] = 0x10;      // instrument lo = 1, effect = 0

@@ -16,7 +16,7 @@
 
 #include "hv/json.hpp"
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -34,10 +34,10 @@ class PowerDeviceState {
     static PowerDeviceState& instance();
 
     /// Register for notify_power_changed WebSocket events
-    void subscribe(MoonrakerAPI& api);
+    void subscribe(IMoonrakerAPI& api);
 
     /// Unregister callback and clean up subjects
-    void unsubscribe(MoonrakerAPI& api);
+    void unsubscribe(IMoonrakerAPI& api);
 
     /// Set discovered devices (called from discovery sequence)
     void set_devices(const std::vector<PowerDevice>& devices);

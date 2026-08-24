@@ -244,6 +244,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     if (touch_path.empty()) {
         spdlog::warn("[Fbdev Backend] No touch device found - pointer input disabled");
         needs_calibration_ = false;
+        supports_calibration_ = false;
         return nullptr;
     }
 
@@ -271,6 +272,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         (event_num >= 0) && helix::input::get_input_touch_capabilities(event_num, &abs_caps);
 
     needs_calibration_ = helix::device_needs_calibration(dev_name, dev_phys, has_abs);
+    supports_calibration_ = helix::device_supports_calibration(dev_name, has_abs);
 
     // Log classification reason for support diagnostics
     const char* cal_reason = "unknown";
@@ -287,9 +289,11 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     }
 
     spdlog::info(
-        "[Fbdev Backend] Input device '{}' phys='{}' abs={} (st={} mt={}) → calibration {} [{}]",
+        "[Fbdev Backend] Input device '{}' phys='{}' abs={} (st={} mt={}) → calibration {} "
+        "[{}], manual entry point {}",
         dev_name, dev_phys, has_abs, abs_caps.has_single_touch, abs_caps.has_multitouch,
-        needs_calibration_ ? "needed" : "not needed", cal_reason);
+        needs_calibration_ ? "needed" : "not needed", cal_reason,
+        supports_calibration_ ? "available" : "hidden");
 
     if (helix::is_touch_debug_enabled()) {
         spdlog::warn("[TouchDebug] device detection: name='{}' phys='{}' event={}", dev_name,

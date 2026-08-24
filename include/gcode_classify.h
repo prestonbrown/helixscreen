@@ -10,7 +10,7 @@
  * (G28, BED_MESH_CALIBRATE, manual probe, ...). Those commands would otherwise
  * queue behind the blocking op and time out after 60 s. Recovery, homing,
  * probe-control, and macro scripts are NEVER discretionary so they always pass.
- * See the guards in MoonrakerAPI::execute_gcode / MoonrakerMotionAPI::execute_gcode.
+ * See the guards in IMoonrakerAPI::execute_gcode / MoonrakerMotionAPI::execute_gcode.
  */
 
 #pragma once
@@ -96,7 +96,7 @@ inline GcodeCat categorize_gcode_token(const std::string& t) {
 ///   - Fan:  M106, M107, SET_FAN_SPEED
 ///   - Temp: M104, M140, M109, M190, M141 (chamber macro),
 ///           SET_HEATER_TEMPERATURE, SET_TEMPERATURE_FAN_TARGET
-///     (every target-setting form MoonrakerAPI::set_temperature can emit —
+///     (every target-setting form IMoonrakerAPI::set_temperature can emit —
 ///      see build_heater_gcode())
 ///   - Move: G0, G1  (non-homing moves)
 ///   - Positioning mode: G90, G91 (absolute/relative — wrap our own jog moves,

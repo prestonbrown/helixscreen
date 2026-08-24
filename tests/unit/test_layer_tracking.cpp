@@ -865,8 +865,7 @@ TEST_CASE("ETA: smoother not seeded from extrapolation while print_duration==0",
     state.update_from_status({{"virtual_sdcard", {{"progress", 0.10}}}});
 
     // total_duration present so the remaining-time block runs; print_duration 0.
-    state.update_from_status(
-        {{"print_stats", {{"print_duration", 0}, {"total_duration", 45}}}});
+    state.update_from_status({{"print_stats", {{"print_duration", 0}, {"total_duration", 45}}}});
 
     // With print_duration==0 the noisy extrapolation is NOT used and the smoother
     // is NOT seeded. The slicer-estimate fallback applies: 3600 * (100-10)/100.

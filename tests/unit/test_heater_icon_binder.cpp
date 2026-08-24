@@ -111,11 +111,11 @@ lv_color_t icon_text_color(lv_obj_t* icon) {
 // 20 decidegrees = 2 degrees. Hardcoded here (matching the convention already
 // used in test_heating_animator_state.cpp) so the expected color is derived
 // independently rather than importing the private constant.
-constexpr int kToleranceDeci = 20;
+constexpr int TOLERANCE_DECI = 20;
 
 lv_color_t expected_color(int current_deci, int target_deci) {
     return helix::ui::temperature::get_heating_state_color(current_deci, target_deci,
-                                                           kToleranceDeci);
+                                                           TOLERANCE_DECI);
 }
 
 } // namespace

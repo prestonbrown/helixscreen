@@ -39,4 +39,9 @@ using AdvancedErrorCallback = std::function<void(const std::string& error)>;
 
 /// Progress callback (0-100 percent)
 using AdvancedProgressCallback = std::function<void(int percent)>;
+
+/// Progress callback for resonance testing: percent plus the phase it belongs to.
+/// Separate from AdvancedProgressCallback because SHAPER_CALIBRATE is the one
+/// long operation whose UI text depends on a phase the percentage cannot encode.
+using ShaperProgressCallback = std::function<void(int percent, ShaperCalibrationPhase phase)>;
 } // namespace helix

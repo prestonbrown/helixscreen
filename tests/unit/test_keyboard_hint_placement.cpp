@@ -15,12 +15,13 @@
  * plain geometry, so no keyboard widget or LVGL display is constructed.
  */
 
+#include "ui_keyboard_manager.h"
+
+#include "lvgl.h"
+
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-#include "lvgl.h"
-#include "ui_keyboard_manager.h"
 
 namespace {
 
@@ -72,8 +73,7 @@ TEST_CASE("Keyboard hint: rejected when the key is too small", "[ui][keyboard_hi
     REQUIRE_FALSE(KeyboardManager::compute_hint_area(tiny, 10, 12, &hint));
 }
 
-TEST_CASE("Keyboard hint: falls back to a tight inset before giving up",
-          "[ui][keyboard_hint]") {
+TEST_CASE("Keyboard hint: falls back to a tight inset before giving up", "[ui][keyboard_hint]") {
     // Inset is keyed off button height: 60 / 20 = 3. A 9x10 glyph at that inset needs
     // 9 + 6 = 15 of width, which this narrow key does not have — but it does fit at
     // the 1px fallback (9 + 2 = 11 <= 13).
@@ -90,8 +90,8 @@ TEST_CASE("Keyboard hint: small keys hug the corner more tightly than large ones
           "[ui][keyboard_hint]") {
     // The reason inset is derived from the key rather than the glyph: a cramped key
     // must push the hint further into its corner to stay clear of the centred letter.
-    lv_area_t small_key = make_area(0, 0, 48, 34);   // micro breakpoint
-    lv_area_t large_key = make_area(0, 0, 128, 96);  // xlarge breakpoint
+    lv_area_t small_key = make_area(0, 0, 48, 34);  // micro breakpoint
+    lv_area_t large_key = make_area(0, 0, 128, 96); // xlarge breakpoint
     lv_area_t small_hint{};
     lv_area_t large_hint{};
 
@@ -114,8 +114,7 @@ TEST_CASE("Keyboard hint: degenerate glyph sizes are rejected", "[ui][keyboard_h
     REQUIRE_FALSE(KeyboardManager::compute_hint_area(btn, 9, 10, nullptr));
 }
 
-TEST_CASE("Keyboard hint: never escapes the key at any realistic size",
-          "[ui][keyboard_hint]") {
+TEST_CASE("Keyboard hint: never escapes the key at any realistic size", "[ui][keyboard_hint]") {
     // The invariant that matters. Sweeps key widths from a cramped micro-breakpoint
     // key up to a full-width spacebar, key heights across every row height we ship,
     // and glyph sizes spanning font_xs at every DPI. Either the call refuses, or the

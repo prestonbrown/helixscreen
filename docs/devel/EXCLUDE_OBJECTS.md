@@ -175,7 +175,7 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (500ms threshold) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `LONG_PRESS_THRESHOLD_MS` in `src/ui/ui_gcode_viewer.cpp:825`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
@@ -252,16 +252,17 @@ Default is 40x40 pixels (`kThumbnailSize` in the overlay source). Non-square siz
 
 ### 2D Layer Renderer
 
-The 2D layer renderer (`GCodeLayerRenderer`) is the default rendering mode. It supports the full exclude objects feature:
+The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands on for builds without the GLES 3D renderer (and what `HELIX_GCODE_MODE=2D` / `--render-2d` force everywhere). It supports the full exclude objects feature:
 
-- **Object picking**: `pick_object_at()` searches segments on the current layer for the closest segment to the touch point (15px threshold). Works with both full-file and streaming data sources.
+- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp:1363`). Stage 1 projects each object's 3D bounding box — accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold — and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins — so a tap over a stack picks what is visually on top.
 - **Excluded object rendering**: Excluded objects are drawn in orange-red (`0xFF6B35`) at reduced opacity (`LV_OPA_60`) with 1px line width.
 - **Selection brackets**: Highlighted objects show corner bracket wireframes around their 3D bounding box (20% of shortest edge, capped at 5mm). 8 corners x 3 axes = 24 bracket lines per object.
+- **Interaction model**: a press-and-hold excludes the object under the finger; a tap (release with minimal movement, no pinch, long-press not already fired) toggles single-selection, which is what draws the corner brackets. The skip-objects icon (`btn_objects` on the print status panel, visible when `exclude_objects_available` is set) opens the map + side-list panel instead.
 - **Long-press detection**: In 2D mode, mouse/touch micro-jitter during pressing events is ignored (the `pressing` callback returns early in 2D mode), which prevents accidental cancellation of the long-press timer.
 
 ### Streaming Mode
 
-In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Object picking still works because `pick_object_at()` checks if a streaming controller is available and queries its segment data for the current layer.
+In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list — `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp:152`) — so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap — a hit-test must not freeze the UI to load geometry (`gcode_layer_renderer.cpp:1513`; a mid-pick load froze the UI for seconds on a 2-core board).
 
 Note: Per-object thumbnails require `ParsedGCodeFile` segment data. In streaming mode, `ui_gcode_viewer_get_parsed_file()` returns `nullptr`, so thumbnails are not available and the side list displays rows without thumbnail images.
 

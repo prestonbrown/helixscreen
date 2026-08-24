@@ -61,7 +61,8 @@ bool is_safe_endpoint(const std::string& endpoint) {
 // MoonrakerRestAPI Implementation
 // ============================================================================
 
-MoonrakerRestAPI::MoonrakerRestAPI(helix::MoonrakerClient& client, const std::string& http_base_url)
+MoonrakerRestAPI::MoonrakerRestAPI(helix::IMoonrakerClient& client,
+                                   const std::string& http_base_url)
     : client_(client), http_base_url_(http_base_url) {}
 
 MoonrakerRestAPI::~MoonrakerRestAPI() = default;

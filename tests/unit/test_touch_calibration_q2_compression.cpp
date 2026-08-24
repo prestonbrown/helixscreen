@@ -27,6 +27,7 @@
 #include "ui_touch_calibration_overlay.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/touch_calibration_overlay_test_access.h"
 #include "../test_helpers/touch_calibration_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -731,4 +732,94 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     // clamps its output. The fast-revert heuristic must therefore be armed.
     CHECK(helix::TouchCalibrationPanelTestAccess::verify_onscreen_touch_count(*panel_) == 0);
     CHECK(helix::TouchCalibrationPanelTestAccess::fast_revert_would_fire(*panel_));
+}
+
+// ============================================================================
+// Defect 5 — capture press markers must land in the space touches track in
+// ============================================================================
+
+namespace {
+
+/// The lingering press dot create_touch_marker() drops on the top layer: the
+/// 18px circle with a 2px white ring (#1082). `children_before` is the layer's
+/// child count captured before the press; the ripple dropped alongside it has
+/// no border, so the ring identifies the dot.
+lv_obj_t* find_press_dot(uint32_t children_before) {
+    lv_obj_t* layer = lv_layer_top();
+    for (uint32_t i = children_before; i < lv_obj_get_child_count(layer); ++i) {
+        lv_obj_t* c = lv_obj_get_child(layer, i);
+        if (c != nullptr && lv_obj_get_style_border_width(c, LV_PART_MAIN) == 2) {
+            return c;
+        }
+    }
+    return nullptr;
+}
+
+/// Centre of the marker dot: create_touch_marker() positions the 18px dot at
+/// (x - 9, y - 9).
+lv_point_t dot_center(lv_obj_t* dot) {
+    return {lv_obj_get_style_x(dot, LV_PART_MAIN) + 9, lv_obj_get_style_y(dot, LV_PART_MAIN) + 9};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Q2 compression: capture press markers land where the pre-session calibration "
+                 "maps the finger",
+                 "[touch][calibration][943][1082]") {
+    // The 0.99.114 reporter's remaining complaint: touch works after
+    // calibration, but "the red dots that show during the calibration were
+    // still off". The Q2's Goodix over-reports its ABS range, so raw capture
+    // space is compressed ~0.5x relative to the screen (bundle N4ZN3YY2: span
+    // ratios 0.57/0.49) and a dot drawn at the raw point lands centimetres
+    // from its crosshair — reading as "broken" while calibration works. The
+    // dot must instead show where the finger lands under the mapping the
+    // user's touches were tracking in when the session opened: the session
+    // backup.
+    sink_.stored = identity_cal();
+    sink_.stored.c = 60.0f; // a pure-offset backup: raw (0,0) -> screen (60, 30)
+    sink_.stored.f = 30.0f;
+    sink_.affine_enabled = true;
+
+    activate_at_idle();
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    panel_->start();
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_1);
+
+    const uint32_t before = lv_obj_get_child_count(lv_layer_top());
+    overlay_->handle_screen_touched(nullptr); // no indev in tests: point reads (0,0)
+    lv_obj_t* dot = find_press_dot(before);
+    REQUIRE(dot != nullptr);
+
+    const lv_point_t centre = dot_center(dot);
+    INFO("dot centre (" << centre.x << "," << centre.y << ")");
+    // Through the backup mapping of the raw press — NOT at the raw point,
+    // which would read (0,0).
+    CHECK(centre.x == 60);
+    CHECK(centre.y == 30);
+}
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Q2 compression: with no pre-session calibration the marker stays at the raw "
+                 "point",
+                 "[touch][calibration][943][1082]") {
+    // First-ever calibration: there is no mapping to draw through, and the
+    // pre-calibration state IS broken — the raw point is the honest position.
+    sink_.stored = helix::TouchCalibration{}; // uncalibrated device
+    sink_.affine_enabled = true;
+
+    activate_at_idle();
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    panel_->start();
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_1);
+
+    const uint32_t before = lv_obj_get_child_count(lv_layer_top());
+    overlay_->handle_screen_touched(nullptr);
+    lv_obj_t* dot = find_press_dot(before);
+    REQUIRE(dot != nullptr);
+
+    const lv_point_t centre = dot_center(dot);
+    INFO("dot centre (" << centre.x << "," << centre.y << ")");
+    CHECK(centre.x == 0);
+    CHECK(centre.y == 0);
 }

@@ -3,6 +3,11 @@
 
 #include "ui_overlay_timelapse_videos.h"
 
+#include "helix_plugin_installer.h"
+#include "host_identity.h"
+
+#if HELIX_HAS_TIMELAPSE_VIEWER
+
 #include "ui_callback_helpers.h"
 #include "ui_format_utils.h"
 #include "ui_gradient_canvas.h"
@@ -55,7 +60,7 @@ TimelapseVideosOverlay& get_global_timelapse_videos() {
     return *g_timelapse_videos;
 }
 
-void init_global_timelapse_videos(MoonrakerAPI* api) {
+void init_global_timelapse_videos(IMoonrakerAPI* api) {
     if (g_timelapse_videos) {
         spdlog::warn("[Timelapse Videos] TimelapseVideosOverlay already initialized, skipping");
         return;
@@ -103,7 +108,7 @@ void open_timelapse_videos() {
 // CONSTRUCTOR
 // ============================================================================
 
-TimelapseVideosOverlay::TimelapseVideosOverlay(MoonrakerAPI* api) : api_(api) {
+TimelapseVideosOverlay::TimelapseVideosOverlay(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[{}] Constructor", get_name());
 }
 
@@ -649,25 +654,18 @@ void TimelapseVideosOverlay::detect_playback_capability() {
     can_play_ = cached_can_play;
     player_command_ = cached_player;
 
-    // Check if we're running on the same host as Moonraker (may change between connections)
+    // Check if we're running on the same host as Moonraker (may change between
+    // connections). Both halves are shared: extract_host_from_websocket_url()
+    // already handles the [::1] bracket form this parse got wrong, and
+    // is_moonraker_on_same_host() answers for a host named by hostname or LAN IP,
+    // not just a loopback literal — playback works whenever the file is on this
+    // machine, however the host happens to be spelled.
     if (api_) {
-        std::string ws_url = api_->get_websocket_url();
-        // Extract host from ws://host:port/...
-        std::string host;
-        auto scheme_end = ws_url.find("://");
-        if (scheme_end != std::string::npos) {
-            auto host_start = scheme_end + 3;
-            auto host_end = ws_url.find(':', host_start);
-            if (host_end == std::string::npos) {
-                host_end = ws_url.find('/', host_start);
-            }
-            if (host_end != std::string::npos) {
-                host = ws_url.substr(host_start, host_end - host_start);
-            } else {
-                host = ws_url.substr(host_start);
-            }
-        }
-        is_local_moonraker_ = helix::timelapse::is_local_host(host);
+        const std::string host = helix::extract_host_from_websocket_url(api_->get_websocket_url());
+        // Empty means we could not name the host at all; that is not evidence of
+        // locality, and is_moonraker_on_same_host() reads "" as the localhost
+        // default.
+        is_local_moonraker_ = !host.empty() && helix::is_moonraker_on_same_host(host);
     }
 
     spdlog::debug("[{}] Playback capability: can_play={} player='{}' local={}", get_name(),
@@ -868,3 +866,58 @@ void TimelapseVideosOverlay::on_card_long_pressed(lv_event_t* e) {
     spdlog::debug("[Timelapse Videos] Card long-pressed: {}", filename);
     self->confirm_delete(filename);
 }
+
+#else // !HELIX_HAS_TIMELAPSE_VIEWER
+
+// Compiled-out build (HELIX_HAS_TIMELAPSE_VIEWER=0): no video list/download/
+// playback UI on this target — capture-control (settings, render, save-frames)
+// stays available via ITimelapseAPI, only the viewing overlay is stubbed.
+// Player-process spawning (fork/exec) and HTTP video transfer code are absent.
+
+#include "static_panel_registry.h"
+
+#include <spdlog/spdlog.h>
+
+#include <memory>
+
+static std::unique_ptr<TimelapseVideosOverlay> g_timelapse_videos_stub;
+
+TimelapseVideosOverlay& get_global_timelapse_videos() {
+    return *g_timelapse_videos_stub;
+}
+
+void init_global_timelapse_videos(IMoonrakerAPI* api) {
+    if (g_timelapse_videos_stub) {
+        return;
+    }
+    g_timelapse_videos_stub = std::make_unique<TimelapseVideosOverlay>(api);
+    StaticPanelRegistry::instance().register_destroy("TimelapseVideosOverlay",
+                                                     []() { g_timelapse_videos_stub.reset(); });
+    spdlog::debug("[Timelapse Videos] Compiled out (HELIX_HAS_TIMELAPSE_VIEWER=0)");
+}
+
+void open_timelapse_videos() {
+    spdlog::debug("[Timelapse Videos] Compiled out (HELIX_HAS_TIMELAPSE_VIEWER=0); ignoring");
+}
+
+TimelapseVideosOverlay::TimelapseVideosOverlay(IMoonrakerAPI* api) : api_(api) {}
+
+void TimelapseVideosOverlay::init_subjects() {}
+
+lv_obj_t* TimelapseVideosOverlay::create(lv_obj_t*) {
+    return nullptr;
+}
+
+void TimelapseVideosOverlay::on_activate() {
+    OverlayBase::on_activate();
+}
+
+void TimelapseVideosOverlay::on_deactivate() {
+    OverlayBase::on_deactivate();
+}
+
+void TimelapseVideosOverlay::cleanup() {
+    OverlayBase::cleanup();
+}
+
+#endif // HELIX_HAS_TIMELAPSE_VIEWER

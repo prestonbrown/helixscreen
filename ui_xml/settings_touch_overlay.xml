@@ -11,7 +11,7 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- All touch settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
-      <setting_group>
+      <setting_group name="group_touch">
         <setting_action_row name="row_touch_calibration"
                             label="Touch Calibration" label_tag="Touch Calibration" icon="cursor_move"
                             callback="on_touch_calibration_clicked">
@@ -38,6 +38,17 @@
                             description_tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)"
                             min="1" max="20" value="10" min_icon="minus" max_icon="plus" trigger="released"
                             callback="on_scroll_limit_changed"/>
+        <setting_slider_row name="row_long_press_time"
+                            label="Long Press Time" label_tag="Long Press Time" icon="hourglass"
+                            description="How long to hold before a press counts as a long-press, in ms (raise if edit mode or other long-press actions trigger by accident)"
+                            description_tag="How long to hold before a press counts as a long-press, in ms (raise if edit mode or other long-press actions trigger by accident)"
+                            min="300" max="1500" value="500" min_icon="minus" max_icon="plus" trigger="released"
+                            callback="on_long_press_time_changed"/>
+        <setting_toggle_row name="row_home_edit_mode"
+                            label="Allow Home Screen Editing" label_tag="Allow Home Screen Editing" icon="pencil"
+                            description="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)"
+                            description_tag="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)"
+                            subject="settings_home_edit_mode_enabled" callback="on_home_edit_mode_changed"/>
         <setting_toggle_row name="row_scroll_guard"
                             label="Scroll Guard" label_tag="Scroll Guard" icon="block_helper"
                             description="Ignore the click that fires when you lift after scrolling"

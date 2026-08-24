@@ -95,6 +95,11 @@ class SoundSequencer {
     std::atomic<bool> running_{false};
     std::atomic<bool> playing_{false};
 
+    // Tracks whether the backend device is currently resumed. Driven only from
+    // the sequencer thread alongside the idle/active transition so suspend/resume
+    // are called exactly once per state change (Android AudioTrack churn, #1253).
+    bool device_active_ = false;
+
     // Queue protected by mutex + condvar for efficient wakeup
     std::mutex queue_mutex_;
     std::condition_variable queue_cv_;

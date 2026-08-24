@@ -82,6 +82,50 @@ TEST_CASE("TouchCalibrationSession: begin snapshots and disables affine",
     REQUIRE(sink.ops.back() == "disable");
 }
 
+TEST_CASE("TouchCalibrationSession: backup() exposes the pre-session mapping for display",
+          "[touch-calibration][session][943]") {
+    // Capture markers (#1082) must show where a press lands under the mapping
+    // the user's touches were tracking in when the session opened — NOT at the
+    // raw capture point, which is not screen space on over-reporting
+    // digitizers (Qidi Q2: raw space compressed ~0.5x, #943).
+    FakeSink sink;
+    TouchCalibration original = FakeSink::make(0.5f);
+    original.c = 12.0f;
+    sink.stored = original;
+
+    TouchCalibrationSession session;
+    REQUIRE(session.backup().valid == false); // no session yet
+
+    session.begin_capture(sink);
+
+    REQUIRE(session.backup().valid);
+    REQUIRE(session.backup().a == Approx(original.a));
+    REQUIRE(session.backup().c == Approx(original.c));
+
+    session.commit();
+    CHECK(session.backup().valid == false); // accepted: nothing left to map through
+
+    session.restore(sink);
+    CHECK(session.backup().valid == false); // torn down
+}
+
+TEST_CASE("TouchCalibrationSession: revert_for_retry keeps the backup readable",
+          "[touch-calibration][session][943]") {
+    // Markers keep drawing through the backup across retries, so the snapshot
+    // must survive revert_for_retry() exactly as it survives in the device.
+    FakeSink sink;
+    TouchCalibration original = FakeSink::make(0.5f);
+    sink.stored = original;
+
+    TouchCalibrationSession session;
+    session.begin_capture(sink);
+    sink.apply_calibration(FakeSink::make(0.9f));
+    session.revert_for_retry(sink);
+
+    REQUIRE(session.backup().valid);
+    REQUIRE(session.backup().a == Approx(original.a));
+}
+
 TEST_CASE("TouchCalibrationSession: restore after abort re-enables affine and reverts",
           "[touch-calibration][session]") {
     // The #943 regression: a session that is begun but never accepted must, on

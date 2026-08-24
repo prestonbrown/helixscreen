@@ -123,7 +123,7 @@ class QrScannerOverlay : public OverlayBase {
 
     // Target max dimension for QR decode — QR codes are readable at low
     // resolution, so we subsample to avoid burning CPU on full-res frames.
-    static constexpr int kQrMaxDimension = 480;
+    static constexpr int QR_MAX_DIMENSION = 480;
 #endif
     std::unique_ptr<helix::SnapshotQrScanner> snapshot_scanner_;
     helix::UsbScannerMonitor usb_monitor_;

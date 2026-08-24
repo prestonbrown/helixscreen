@@ -1,0 +1,195 @@
+name: Prune stale ccaches
+
+# Why this exists
+# ----------------
+# GitHub gives a repo 10 GB of Actions cache and evicts LRU across the whole
+# budget when it is exceeded. The per-SHA PR-CI ccaches accumulate one whole
+# generation per push to main and never expire on their own, so they crowd out
+# the ccache-release-* caches that releases actually depend on.
+#
+# Measured on 2026-08-12, right after v0.99.111:
+#
+#   1.84 GB  ccache-macos-14-536260bf...        \
+#   1.84 GB  ccache-macos-14-b5710e5c...         |  8.6 GB of the 10.8 GB total
+#   1.67 GB  ccache-ubuntu-22.04-b5710e5c...     |  was per-SHA CI caches, three
+#   1.67 GB  ccache-ubuntu-22.04-9da2e4f5...     |  generations deep on ubuntu
+#   1.63 GB  ccache-ubuntu-22.04-536260bf...    /   and two on macOS
+#   1.61 GB  ccache-release-pi-31610382408      <-- the ONLY surviving release cache
+#   ...                                             (pi32 and x86 already evicted)
+#
+# Total was 10.77 GB, i.e. already over budget and evicting. Seven of the nine
+# release ccaches had been evicted, which is why the v0.99.111 pi build ran cold,
+# which is what pushed it into the OOM and the timeout.
+#
+# What this does: keep only the newest generation of each per-SHA cache family,
+# per ref. Nothing else changes, so the PR-CI speedup is untouched. A PR restores
+# via `restore-keys: ccache-ubuntu-22.04-`, and GitHub resolves a prefix match to
+# the most recently created entry, which is exactly the one generation kept here.
+# The older generations were never restorable by anything; they were pure ballast.
+#
+# Rejected alternatives:
+#   * A stable cache key instead of per-SHA. actions/cache SKIPS the save when the
+#     primary key hits, so a fixed key freezes the cache at its first contents and
+#     it decays from there. ccache-warm.yml already documents hitting this.
+#   * Shorter retention. GitHub has no per-cache retention knob; the 7-day timer
+#     is on last access, and these get accessed by every restore-keys lookup, so
+#     they never age out while CI is running.
+
+on:
+  # Prune right after a push to main creates a new generation, so the extra
+  # copies exist for minutes rather than until the next scheduled run.
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+    branches: [main]
+  # Safety net, and it runs before ccache-warm's 06:00 so the warmer has room.
+  schedule:
+    - cron: '30 5 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List what would be deleted without deleting it"
+        type: boolean
+        default: false
+  # Called as the first job of ccache-warm.yml, so a manual warm right before
+  # cutting a release frees space before the warmer tries to save ~1.6 GB x 3.
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+
+concurrency:
+  group: cache-prune
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune stale ccaches
+    # Upstream only. A fork has its own separate cache budget and its own caches.
+    if: github.repository == 'prestonbrown/helixscreen'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Prune per-SHA ccaches, keeping the newest generation
+      env:
+        GH_TOKEN: ${{ github.token }}
+        DRY_RUN: ${{ inputs.dry_run && 'yes' || 'no' }}
+        # Families that regenerate on every push and therefore accumulate.
+        # NOT listed, and therefore never touched by this job:
+        #   ccache-release-*  the whole point of the exercise
+        #   deps-*, gradle-*  keyed by content hash, so they are self-limiting
+        #   ccache-android-*  small, and managed by ccache-action
+        # Order does not matter: each cache is assigned to its LONGEST matching
+        # prefix, so ccache-nightly-macos-* does not fall into ccache-nightly-*.
+        PREFIXES: >-
+          ["ccache-ubuntu-22.04-",
+           "ccache-macos-14-",
+           "ccache-x86-fbdev-",
+           "ccache-nightly-macos-",
+           "ccache-nightly-",
+           "ccache-asan-",
+           "ccache-tsan-"]
+        # Generations to keep per (ref, family). One is all restore-keys can
+        # ever reach; the rest are unreachable ballast.
+        KEEP: 1
+      run: |
+        set -euo pipefail
+
+        echo "::group::Cache usage before"
+        gh api "repos/$GITHUB_REPOSITORY/actions/cache/usage" \
+          --jq '"\(.active_caches_count) caches, \(.active_caches_size_in_bytes / 1073741824 * 100 | floor / 100) GB"'
+        echo "::endgroup::"
+
+        gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?per_page=100" \
+          --jq '.actions_caches[]' | jq -s '.' > /tmp/caches.json
+        echo "Enumerated $(jq 'length' /tmp/caches.json) caches."
+
+        # Assign each cache to its longest matching managed prefix, group by
+        # (ref, family), sort newest-first, and mark everything past KEEP.
+        # GitHub resolves a restore-keys prefix to the most recently CREATED
+        # match, so created_at is the ordering that decides what is reachable.
+        # NOTE on `. as $p | $k | startswith($p)`: the obvious `startswith(.)`
+        # is WRONG and silently matches everything. jq evaluates a function's
+        # argument against that function's own input, so inside `$k | startswith(.)`
+        # the `.` is $k rather than the prefix under test, making it
+        # `$k | startswith($k)` which is always true. Caught by dry-running this
+        # against the live cache list, where it selected ccache-release-pi for
+        # deletion. Binding the prefix to $p first is what makes it a real test.
+        jq -r --argjson prefixes "$PREFIXES" --argjson keep "$KEEP" '
+          def family:
+            . as $k
+            | ($prefixes
+               | map(select(. as $p | $k | startswith($p)))
+               | sort_by(length)
+               | last);
+          map(. + {family: (.key | family)})
+          | map(select(.family != null))
+          | group_by([.ref, .family])
+          | map(sort_by(.created_at) | reverse | .[$keep:])
+          | flatten
+          | .[]
+          | "\(.id)\t\(.size_in_bytes)\t\(.ref)\t\(.key)"
+        ' /tmp/caches.json > /tmp/doomed.tsv
+
+        if [ ! -s /tmp/doomed.tsv ]; then
+          echo "Nothing to prune - every managed family is already at $KEEP generation(s)."
+          exit 0
+        fi
+
+        echo "::group::Superseded generations to delete"
+        cat /tmp/doomed.tsv
+        echo "::endgroup::"
+
+        freed=0
+        deleted=0
+        while IFS=$'\t' read -r id size ref key; do
+          # Defense in depth. The selection above should never reach these, but a
+          # bug in it once did, so refuse outright rather than trust the filter:
+          # a wrongly deleted ccache-release-* is a cold, timing-out release.
+          case "$key" in
+            ccache-release-*|deps-*|gradle-*|ccache-android-*)
+              echo "::error::Refusing to delete protected cache $key - the selection logic is wrong"
+              exit 1
+              ;;
+          esac
+
+          if [ "$DRY_RUN" = "yes" ]; then
+            echo "DRY RUN: would delete $key ($ref)"
+          else
+            # A cache can vanish between the listing and the delete (another run
+            # saving, or GitHub's own LRU). That is the desired end state either
+            # way, so a 404 here must not fail the job.
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" >/dev/null 2>&1; then
+              echo "Deleted $key ($ref)"
+              deleted=$((deleted + 1))
+              freed=$((freed + size))
+            else
+              echo "Skipped $key ($ref) - already gone"
+            fi
+          fi
+        done < /tmp/doomed.tsv
+
+        echo "Deleted $deleted cache(s), freeing $((freed / 1048576)) MiB."
+
+        echo "::group::Cache usage after"
+        gh api "repos/$GITHUB_REPOSITORY/actions/cache/usage" \
+          --jq '"\(.active_caches_count) caches, \(.active_caches_size_in_bytes / 1073741824 * 100 | floor / 100) GB"'
+        echo "::endgroup::"
+
+        {
+          echo "### Cache prune"
+          echo
+          echo "Deleted **$deleted** superseded cache(s), freeing **$((freed / 1048576)) MiB**."
+          echo
+          echo "Remaining, by key:"
+          echo '```'
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?per_page=100" \
+            --jq '.actions_caches[] | "\(.size_in_bytes / 1048576 | floor) MiB\t\(.ref)\t\(.key)"' \
+            | sort -rn
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"

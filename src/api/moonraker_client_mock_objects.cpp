@@ -53,6 +53,36 @@ json get_mock_gcode_macro_config() {
     return cfg;
 }
 
+json get_mock_accel_config() {
+    return {{"adxl345", json::object()}, {"resonance_tester", json::object()}};
+}
+
+json get_mock_probe_config() {
+    const char* probe_env = std::getenv("HELIX_MOCK_PROBE_TYPE");
+    const std::string probe_type = (probe_env && probe_env[0]) ? probe_env : "cartographer";
+
+    json cfg = json::object();
+    if (probe_type == "none") {
+        return cfg;
+    }
+    if (probe_type == "cartographer") {
+        cfg["cartographer"] = {{"z_offset", "0.000"}, {"speed", "5"}};
+    } else if (probe_type == "beacon") {
+        cfg["beacon"] = {{"z_offset", "0.000"}, {"speed", "5"}};
+    } else if (probe_type == "bltouch") {
+        cfg["bltouch"] = {
+            {"z_offset", "-1.850"}, {"x_offset", "-40.0"}, {"y_offset", "-10.0"}, {"speed", "5"}};
+    } else if (probe_type == "loadcell") {
+        // Status reports z_offset: null for this one — the config is the only
+        // place the persisted offset exists.
+        cfg["probe"] = {{"z_offset", "-0.185"}, {"speed", "5"}};
+    } else {
+        // tap, klicky, standard, ... → generic [probe]
+        cfg["probe"] = {{"z_offset", "-0.250"}, {"speed", "5"}};
+    }
+    return cfg;
+}
+
 // Minimal Happy Hare "mmu" status for --real-ams: a static 4-gate setup with a
 // mix of loaded/empty gates. gate_status is the load-bearing field — it's what
 // AmsBackendHappyHare::parse_mmu_state() uses to size the slot registry and
@@ -179,11 +209,15 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("configfile")) {
                 // Build config section with input_shaper if configured
                 json config_section = {};
+
+                // Accelerometer. The subscribe handler below and
+                // populate_capabilities() both already report it; without it
+                // here the query handler was the odd one out, so the discovery
+                // sequence saw a printer with no accelerometer.
+                config_section.merge_patch(get_mock_accel_config());
+
                 if (self->is_input_shaper_configured()) {
-                    config_section["input_shaper"] = {
-                        {"shaper_type_x", "mzv"},   {"shaper_freq_x", "36.7"},
-                        {"shaper_type_y", "ei"},    {"shaper_freq_y", "47.6"},
-                        {"damping_ratio_x", "0.1"}, {"damping_ratio_y", "0.1"}};
+                    config_section["input_shaper"] = self->build_input_shaper_config();
                 }
 
                 // Bed screws. PrinterDiscovery detects the capability from
@@ -211,6 +245,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
                 // Gcode macro templates for param detection testing
                 config_section.merge_patch(get_mock_gcode_macro_config());
+
+                // Probe section — where ProbeSensorManager::discover_from_config()
+                // reads z_offset from on the real discovery path.
+                config_section.merge_patch(get_mock_probe_config());
 
                 // Build extruder settings based on HELIX_MOCK_KALICO env var
                 json extruder_settings = {{"min_temp", 0.0},
@@ -245,6 +283,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                        {{"position_min", MOCK_BED_Y_MIN}, {"position_max", MOCK_BED_Y_MAX}}},
                       {"stepper_z", stepper_z_settings},
                       {"extruder", extruder_settings},
+                      // Resonance sweep bounds — the input shaper collector
+                      // reads these to scale sweep progress to the range this
+                      // printer will actually test.
+                      {"resonance_tester",
+                       {{"min_freq", self->get_resonance_min_freq()},
+                        {"max_freq", self->get_resonance_max_freq()},
+                        {"accel_per_hz", 75.0},
+                        {"hz_per_sec", 1.0}}},
                       // Bed screw geometry — the screws-tilt panel reads
                       // screw_thread from here to size its level tolerance.
                       {"screws_tilt_adjust",
@@ -259,6 +305,13 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"pid_ki", 1.132},
                         {"pid_kd", 1194.093}}}}},
                     {"config", config_section}};
+
+                // [bed_mesh] probe_count — the print-start collector's
+                // entry-time query reads this to size the mesh denominator.
+                if (const auto* probe_count = self->config_bed_mesh_probe_count()) {
+                    status_obj["configfile"]["settings"]["bed_mesh"] = {
+                        {"probe_count", json::array({probe_count->first, probe_count->second})}};
+                }
             }
 
             // toolhead (for get_machine_limits)
@@ -641,6 +694,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"position_max", MOCK_BED_Z_MAX},
                         {"position_endstop", 235.0}}},
                       {"extruder", extruder_settings2},
+                      {"resonance_tester",
+                       {{"min_freq", self->get_resonance_min_freq()},
+                        {"max_freq", self->get_resonance_max_freq()},
+                        {"accel_per_hz", 75.0},
+                        {"hz_per_sec", 1.0}}},
                       {"heater_bed",
                        {{"min_temp", 0.0},
                         {"max_temp", 120.0},
@@ -650,13 +708,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"pid_kd", 1194.093}}}}},
                     // config section contains raw Klipper config keys (used for sensor discovery)
                     {"config", [&]() {
-                         json cfg = {{"adxl345", json::object()},
-                                     {"resonance_tester", json::object()}};
+                         json cfg = get_mock_accel_config();
                          if (self->is_input_shaper_configured()) {
-                             cfg["input_shaper"] = {
-                                 {"shaper_type_x", "mzv"},   {"shaper_freq_x", "36.7"},
-                                 {"shaper_type_y", "ei"},    {"shaper_freq_y", "47.6"},
-                                 {"damping_ratio_x", "0.1"}, {"damping_ratio_y", "0.1"}};
+                             cfg["input_shaper"] = self->build_input_shaper_config();
                          }
                          // LED effect configs for mock testing
                          cfg["led_effect breathing"] = {{"leds", "neopixel:chamber_light"},
@@ -673,6 +727,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                                                            {"frame_rate", "24"}};
                          // Gcode macro templates for param detection testing
                          cfg.merge_patch(get_mock_gcode_macro_config());
+                         cfg.merge_patch(get_mock_probe_config());
                          return cfg;
                      }()}};
             }

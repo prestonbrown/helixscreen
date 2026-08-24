@@ -4,7 +4,7 @@
 
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -17,12 +17,12 @@ class PrinterNameSync {
     /// updates PrinterState::active_printer_name_.
     /// @param api       Moonraker API (used for database reads)
     /// @param hostname  Hostname from printer.info discovery (fallback)
-    static void resolve(MoonrakerAPI* api, const std::string& hostname);
+    static void resolve(IMoonrakerAPI* api, const std::string& hostname);
 
     /// Write name to both Mainsail and Fluidd database namespaces (fire-and-forget).
     /// @param api   Moonraker API (used for database writes)
     /// @param name  The new printer name to write
-    static void write_back(MoonrakerAPI* api, const std::string& name);
+    static void write_back(IMoonrakerAPI* api, const std::string& name);
 };
 
 } // namespace helix

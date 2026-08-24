@@ -20,7 +20,7 @@
 #include <cstdio>
 #include <cstring>
 
-static const char* kAgentPath = "/helix/bt/agent";
+static const char* AGENT_PATH = "/helix/bt/agent";
 
 // --- Agent1 method handlers (auto-accept everything) ---
 
@@ -83,7 +83,7 @@ extern "C" int helix_bt_register_agent(helix_bt_context* ctx) {
     try {
         ctx->bus_thread->run_sync([&](sd_bus* bus) {
             // Export the Agent1 object
-            r = sd_bus_add_object_vtable(bus, &ctx->agent_slot, kAgentPath, "org.bluez.Agent1",
+            r = sd_bus_add_object_vtable(bus, &ctx->agent_slot, AGENT_PATH, "org.bluez.Agent1",
                                          agent_vtable, ctx);
             if (r < 0) {
                 fprintf(stderr, "[bt] agent: failed to add vtable: %s\n", strerror(-r));
@@ -93,7 +93,7 @@ extern "C" int helix_bt_register_agent(helix_bt_context* ctx) {
             // Register with AgentManager1
             sd_bus_error error = SD_BUS_ERROR_NULL;
             r = sd_bus_call_method(bus, "org.bluez", "/org/bluez", "org.bluez.AgentManager1",
-                                   "RegisterAgent", &error, nullptr, "os", kAgentPath,
+                                   "RegisterAgent", &error, nullptr, "os", AGENT_PATH,
                                    "NoInputNoOutput");
             if (r < 0) {
                 fprintf(stderr, "[bt] agent: RegisterAgent failed: %s\n",
@@ -108,7 +108,7 @@ extern "C" int helix_bt_register_agent(helix_bt_context* ctx) {
             // Make us the default agent
             error = SD_BUS_ERROR_NULL;
             r = sd_bus_call_method(bus, "org.bluez", "/org/bluez", "org.bluez.AgentManager1",
-                                   "RequestDefaultAgent", &error, nullptr, "o", kAgentPath);
+                                   "RequestDefaultAgent", &error, nullptr, "o", AGENT_PATH);
             if (r < 0) {
                 fprintf(stderr, "[bt] agent: RequestDefaultAgent failed: %s\n",
                         error.message ? error.message : strerror(-r));
@@ -119,7 +119,7 @@ extern "C" int helix_bt_register_agent(helix_bt_context* ctx) {
                 sd_bus_error_free(&error);
             }
 
-            fprintf(stderr, "[bt] agent: registered at %s (NoInputNoOutput)\n", kAgentPath);
+            fprintf(stderr, "[bt] agent: registered at %s (NoInputNoOutput)\n", AGENT_PATH);
         });
     } catch (const std::exception& e) {
         fprintf(stderr, "[bt] agent: exception during registration: %s\n", e.what());
@@ -137,7 +137,7 @@ extern "C" void helix_bt_unregister_agent(helix_bt_context* ctx) {
         ctx->bus_thread->run_sync([ctx](sd_bus* bus) {
             sd_bus_error error = SD_BUS_ERROR_NULL;
             sd_bus_call_method(bus, "org.bluez", "/org/bluez", "org.bluez.AgentManager1",
-                               "UnregisterAgent", &error, nullptr, "o", kAgentPath);
+                               "UnregisterAgent", &error, nullptr, "o", AGENT_PATH);
             sd_bus_error_free(&error);
 
             if (ctx->agent_slot) {

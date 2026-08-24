@@ -11,7 +11,7 @@ Every 3D print begins with a preparation sequence: heating the bed and nozzle, h
 The preprint prediction system solves this by:
 
 1. **Recording** per-phase durations each time a print starts (homing took 25s, bed mesh took 90s, etc.)
-2. **Persisting** the last 3 timing entries to disk
+2. **Persisting** the most recent timing entries to disk (up to `MAX_ENTRIES`, currently 10)
 3. **Predicting** future preparation time using a weighted average that favors recent entries
 4. **Displaying** a live countdown during preparation ("~3:20 left") that accounts for completed and in-progress phases
 
@@ -52,6 +52,8 @@ struct PreprintEntry {
     int total_seconds;                  // Total pre-print duration
     int64_t timestamp;                  // Unix timestamp when recorded
     std::map<int, int> phase_durations; // PrintStartPhase enum -> seconds
+    int temp_bucket;                    // 0 = unknown, 1 = cold start, 2 = warm start
+    PreprintWindow window;              // which arming window measured this entry
 };
 ```
 
@@ -75,26 +77,59 @@ Only phases 2-9 are tracked for timing. IDLE, INITIALIZING, and COMPLETE are lif
 
 ### FIFO Entry Management
 
-The predictor keeps a maximum of **3 entries** (newest at the end of the vector). When a 4th entry is added, the oldest is evicted. This keeps predictions responsive to changes (new filament, different room temperature) without being thrown off by a single outlier.
+The predictor keeps a maximum of `PreprintPredictor::MAX_ENTRIES` = **10** entries
+(newest at the end of the vector). When an 11th is added the oldest is evicted.
+Recency bias comes from the weighting (below), not from a short buffer, so the
+history can be deep enough to survive one odd print without going stale.
 
 ```
 Entry added -> entries_.push_back(entry)
-              -> while (size > 3) erase(begin)  // FIFO trim
+              -> while (size > MAX_ENTRIES) erase(begin)  // FIFO trim
 ```
 
-`load_entries()` replaces all existing data and also trims to 3 if more are provided.
+`load_entries()` replaces all existing data and applies the same trim.
+
+---
+
+## Measurement Windows
+
+The collector is armed at one of two moments, and the two measure different
+quantities:
+
+| Window | Armed when | What the entry includes |
+|---|---|---|
+| `PrinterEdge` | The printer reports its own print-start edge | Only work inside the job (`PRINT_START` proper) |
+| `HostPreStart` | User commit (`begin_preparing()`) | Additionally any host-side pre-start block - a forced bed mesh, a printer setup macro - dispatched before `start_print` |
+
+A host-side block can add minutes (on a K2 Plus that window alone runs ~455s),
+so entries from the two windows are **never averaged together**. Loading history
+passes the window the collector is currently measuring
+(`PreprintPredictor::load_entries()`'s `PreprintWindow` parameter, which filters
+before the temp-bucket logic runs), because mixing the populations produces an
+estimate wrong for both and feeds a too-small predicted total into the
+collector's adaptive timeout. The arming paths are documented in
+[PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md).
+
+Legacy entries recorded before window tagging existed (`window` absent on disk,
+read back as `Unknown`) count as `PrinterEdge` - not as a wildcard. Commit
+arming did not exist when they were recorded, so they can only have measured a
+printer-edge window: they stay usable for externally started prints but never
+stand in for a host-pre-start window (`entry_matches_window()`,
+`src/print/preprint_predictor.cpp:40`). Passing `Unknown` as the *filter* is
+the wildcard - it means "no window filter".
 
 ---
 
 ## Weighted History Averaging
 
-Predictions use a **recency-weighted average** where newer entries count more. The weights depend on how many entries are available:
+Predictions use an **exponential time-decay weighted average** where newer entries
+count more. Weight for entry `i` (oldest first) is `exp(lambda * i)`, normalized to
+sum to 1, with `lambda = 0.23` (`compute_weights()`). That constant is `ln(10)/10`,
+chosen so the oldest of a full 10-entry history carries roughly one eighth the
+weight of the newest.
 
-| Entries | Weights (oldest -> newest) | Rationale |
-|---------|---------------------------|-----------|
-| 1 | 100% | Only data point |
-| 2 | 40%, 60% | Favor recent |
-| 3 | 20%, 30%, 50% | Strong recency bias |
+The scheme is continuous in the number of entries - there is no per-count weight
+table. A single entry gets 100% by normalization.
 
 ### Per-Phase Calculation
 
@@ -124,17 +159,25 @@ The `predicted_total()` is the sum of all per-phase predictions.
 
 ---
 
-## Anomaly Rejection (15-Minute Threshold)
+## Anomaly Rejection (per-phase MAD)
 
-Entries with `total_seconds > 900` (15 minutes) are silently rejected by `add_entry()`. This protects against:
+`add_entry()` accepts **any** duration. There is no total-duration cap.
 
-- **Cancelled prints** where the user walked away and restarted much later
-- **Firmware hangs** during homing or probing that required manual intervention
-- **Abnormal heating** due to a thermistor issue or cold environment
+An earlier design rejected entries over 900 seconds outright. That was removed, and
+reinstating it would now be a bug: a legitimate pre-print can exceed it. A K2 Plus
+screen-started print whose window includes a host-side bed mesh runs ~1140s (see
+"Measurement windows"), and a cold ASA soak pushes it further. A blanket cap
+discards exactly the slowest printers, which are the ones most in need of an
+estimate.
 
-The threshold is defined as `MAX_TOTAL_SECONDS = 900` and applies only at insertion time. Entries loaded from config via `load_entries()` are not filtered (they were already validated when originally added).
+Outliers are handled per-phase instead, by **median absolute deviation**: a phase
+duration more than 3x MAD from the median for that phase is dropped from the
+average for that phase only, leaving the rest of the entry usable. This is strictly
+better than a total-duration cap, because one anomalous probe sequence no longer
+throws away good homing and heating data recorded in the same print.
 
-Entries at exactly 900 seconds are accepted (the check is `>`, not `>=`).
+Covered by `PreprintPredictor MAD anomaly rejection` and `PreprintPredictor: add_entry
+accepts any duration (MAD handles outliers)` in `tests/unit/test_preprint_predictor.cpp`.
 
 ---
 
@@ -211,7 +254,9 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
           "3": 90,
           "7": 30,
           "9": 20
-        }
+        },
+        "temp_bucket": 1,
+        "window": 2
       }
     ]
   }
@@ -221,11 +266,13 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
 - `total`: Total pre-print seconds (sum of phase durations)
 - `timestamp`: Unix timestamp when the entry was recorded
 - `phases`: Map of `PrintStartPhase` enum int (as string key) to duration in seconds
+- `temp_bucket`: Optional. 1 = cold start (bed below 40°C at start), 2 = warm start (40°C or above); omitted means unknown. Older versions stored the raw nozzle target temperature here; those values are dropped at load time as a one-shot migration.
+- `window`: Optional. `PreprintWindow` enum int - 1 = `PrinterEdge`, 2 = `HostPreStart`; omitted means legacy (read back as `Unknown`, treated as `PrinterEdge` when filtering). See "Measurement windows" above.
 
 ### Save Flow
 
 1. `PrintStartCollector::save_prediction_entry()` computes durations from `phase_enter_times_`
-2. Adds the entry to the in-memory predictor via `add_entry()` (which enforces the 15-min cap)
+2. Adds the entry to the in-memory predictor via `add_entry()` (which enforces the FIFO trim to `MAX_ENTRIES`)
 3. Gets all entries from the predictor and serializes to JSON
 4. Schedules a `Config::set()` + `Config::save()` via `async::invoke()` on the main thread
 
@@ -262,10 +309,11 @@ Three subjects carry prediction data from the collector to the UI:
             style_text_color="#text_muted"/>
 ```
 
-**Print status panel** (`print_status_panel.xml`): Shows ETA in the progress overlay:
+**Print status panel** (`ui_xml/components/print_status_preview_card.xml`, shared by
+the landscape and portrait layouts): Shows ETA in the preparing overlay:
 ```xml
 <text_small name="preparing_eta" bind_text="print_start_time_left"
-            style_text_color="#overlay_text" style_text_opa="180"/>
+            style_text_color="#text" style_text_opa="180"/>
 ```
 
 ### PrintStatusPanel Observer Integration
@@ -310,8 +358,8 @@ This gives users a more realistic wall-clock time estimate that includes heating
 
 ### Predictions Not Updating
 
-- **Cause**: Entries being rejected by the 15-minute anomaly filter.
-- **Debug**: Run with `-vv` and look for `[PrintStartCollector] Saved prediction history` or `No phase timings to save` log messages. If entries are being rejected, check if your PRINT_START macro genuinely takes over 15 minutes.
+- **Cause**: The loaded history was filtered to empty - by window (a commit-armed print sees only `HostPreStart` entries, and legacy entries never match it), by temp bucket, or by the one-shot migration that drops legacy `temp_bucket` values.
+- **Debug**: Run with `-vv` and look for `[PrintStartCollector] Saved prediction history` or `No phase timings to save` log messages, and the predictor's dropped-legacy-entries count at load.
 
 ### Clearing Prediction History
 
@@ -331,44 +379,22 @@ Delete the `print_start_history` key from `config/settings.json` and restart:
 
 ### Changing the Weighting Scheme
 
-Weights are defined in `PreprintPredictor::predicted_phases()` in `src/print/preprint_predictor.cpp`:
+Weights are computed continuously in `PreprintPredictor::compute_weights()` in `src/print/preprint_predictor.cpp`: weight for entry `i` (oldest first) is `exp(lambda * i)`, normalized to sum to 1, with `lambda = 0.23` (= `ln(10)/10`, so the oldest of a full 10-entry history carries roughly one eighth the weight of the newest).
 
-```cpp
-switch (entries_.size()) {
-case 1:  weights = {1.0};           break;
-case 2:  weights = {0.4, 0.6};     break;
-default: weights = {0.2, 0.3, 0.5}; break;
-}
-```
-
-To change the recency bias, modify these weights. They do **not** need to sum to 1.0 because weight redistribution normalizes them per-phase. However, keeping them summing to 1.0 makes the behavior more predictable.
-
-**More aggressive recency** (ignores old data faster):
-```cpp
-default: weights = {0.1, 0.2, 0.7}; break;
-```
-
-**More conservative** (smooths out variance):
-```cpp
-default: weights = {0.3, 0.35, 0.35}; break;
-```
+To change the recency bias, change `lambda`. **More aggressive recency** (ignores old data faster): raise it. **More conservative** (smooths out variance): lower it. There is no per-count weight table to keep in sync - any entry count works, and a single entry gets 100% by normalization.
 
 ### Changing the History Depth
 
-`MAX_ENTRIES` controls how many entries are kept. The default is 3. Increasing it:
+`MAX_ENTRIES` controls how many entries are kept. It is 10 (`include/preprint_predictor.h`). Raising it:
 
 - **Pros**: More data smooths out outliers
 - **Cons**: Slower to adapt to changes (new filament, different printer config)
 
-If you increase `MAX_ENTRIES` beyond 3, you must also add weight vectors for the new sizes to `predicted_phases()`. The `default` case handles 3+ entries but only uses 3 weights, which means entries beyond 3 are silently ignored in the weighting. To support 4+ entries properly:
-
-```cpp
-case 4: weights = {0.1, 0.2, 0.3, 0.4}; break;
-```
+Because the weighting is continuous (above), no other code needs to change with the entry count.
 
 ### Changing the Anomaly Threshold
 
-`MAX_TOTAL_SECONDS = 900` (15 minutes). Adjust if your printer legitimately takes longer than 15 minutes to prepare (e.g., very large bed requiring extended heating).
+There is no total-duration cap. Outlier rejection is per-phase MAD: a duration more than 3x the median absolute deviation from that phase's median is dropped from that phase's average (`src/print/preprint_predictor.cpp`, the `3.0 * mad` comparison in `predicted_phases()`). Adjust the multiplier there if legitimate variation is being filtered.
 
 ### Changing the ETA Update Interval
 
@@ -387,16 +413,17 @@ Unit tests are in `tests/unit/test_preprint_predictor.cpp` with tag `[print][pre
 Tests cover:
 - Empty state (no predictions without history)
 - Single entry (100% weight)
-- Two entries (60/40 weighting)
-- Three entries (50/30/20 weighting)
-- FIFO trimming (4th entry evicts oldest)
-- 15-minute anomaly rejection (901s rejected, 900s accepted)
+- Two entries favor the newer entry; three favor the newest
+- FIFO trimming to `MAX_ENTRIES` (11th entry evicts oldest)
+- `add_entry` accepts any duration - MAD handles outliers (no total-duration cap)
 - Phases appearing in subset of entries (weight redistribution)
 - Remaining time with no progress, partial progress, exceeded prediction
 - All phases completed returns 0
 - Unknown current phase contributes 0
 - `load_entries` replaces existing data
-- `load_entries` caps at 3
+- `load_entries` caps at `MAX_ENTRIES`
+- `temp_bucket` filtering, including legacy bucket=0 entries matching any filter
+- Window filtering: host-pre-start rejects printer-edge history and vice versa; legacy entries count as printer-edge, not host-pre-start
 
 The predictor has no LVGL or Config dependencies, making tests fast and deterministic.
 

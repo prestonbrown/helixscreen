@@ -573,3 +573,36 @@ TEST_CASE("Subscription: MCU objects narrow to PerformanceSource reads",
         REQUIRE(has_field(subs, "virtual_sdcard", "progress"));
     }
 }
+
+TEST_CASE("Subscription: ZMOD printers subscribe save_variables for the persisted z-offset",
+          "[moonraker][subscription][zmod]") {
+    SECTION("SAVE_ZMOD_DATA present -> save_variables subscribed") {
+        // ZMOD zeroes gcode_move's live offset outside a print and keeps the real
+        // one in save_variables' gcode_offsets. Without this subscription the
+        // Z-offset row reads 0.000 whenever the printer is idle.
+        DiscoveryFixture fx;
+        fx.add("gcode_macro SAVE_ZMOD_DATA", {});
+        fx.add("extruder", {"heater"});
+        json subs = fx.build();
+
+        REQUIRE(subs.contains("save_variables"));
+    }
+
+    SECTION("no ZMOD macro -> save_variables not subscribed") {
+        // Every non-ZMOD printer must not pay for an object nothing reads.
+        DiscoveryFixture fx;
+        fx.add("gcode_macro START_PRINT", {});
+        fx.add("extruder", {"heater"});
+        json subs = fx.build();
+
+        REQUIRE_FALSE(subs.contains("save_variables"));
+    }
+
+    SECTION("detection is case-insensitive like every other macro gate") {
+        DiscoveryFixture fx;
+        fx.add("gcode_macro save_zmod_data", {});
+        json subs = fx.build();
+
+        REQUIRE(subs.contains("save_variables"));
+    }
+}

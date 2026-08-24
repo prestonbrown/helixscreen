@@ -9,7 +9,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "standard_macros.h"
 #include "static_panel_registry.h"
 
@@ -231,9 +231,9 @@ void MacroButtonsOverlay::populate_dropdowns() {
     }
 
     // === Populate Standard Macro Dropdowns ===
-    // Get sorted list of all printer macros from MoonrakerAPI
+    // Get sorted list of all printer macros from IMoonrakerAPI
     printer_macros_.clear();
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         const auto& macros = api->hardware().macros();
         for (const auto& macro : macros) {

@@ -20,7 +20,8 @@
     <bind_flag_if_eq subject="$bind_present" flag="hidden" ref_value="0"/>
     <text_body width="80" text="$label" translation_tag="$label_tag"/>
     <lv_bar height="8" bind_value="$bind_value" min_value="0" max_value="100" flex_grow="1"/>
-    <helix_sparkline width="60" height="16" source="$sparkline_source" style_line_color="#primary"/>
+    <helix_sparkline name="metric_sparkline"
+                     width="60" height="16" source="$sparkline_source" style_line_color="#primary"/>
     <text_muted width="80" bind_text="$bind_text" style_text_align="right"/>
   </view>
 </component>

@@ -11,7 +11,7 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- All system settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
-      <setting_group>
+      <setting_group name="group_system">
         <!-- ================================================================== -->
         <!-- SECURITY -->
         <!-- ================================================================== -->
@@ -48,7 +48,14 @@
           <setting_action_row name="row_plugins"
                               label="Plugins" label_tag="Plugins" icon="puzzle_outline"
                               description="View installed plugins and status"
-                              description_tag="View installed plugins and status" callback="on_plugins_clicked"/>
+                              description_tag="View installed plugins and status" callback="on_plugins_clicked">
+            <!-- Hidden on the v1 (ESP32/K-Touch) cut — the plugin system is
+                 compiled out (HELIX_HAS_PLUGINS=0); show_beta_features alone
+                 would still show this row (and an inert tap) whenever beta
+                 features are on. Desktop (platform_extras_available==1) renders
+                 it exactly as before. -->
+            <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
+          </setting_action_row>
         </beta_feature>
         <!-- ================================================================== -->
         <!-- PERFORMANCE (live host CPU/memory + per-MCU load) -->

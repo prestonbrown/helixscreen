@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "layout_manager.h"
 
+#include "data_root_resolver.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -9,15 +11,15 @@
 namespace {
 // Every directory name under ui_xml/ that can hold a layout override. Content
 // subdirectories (components/, translations/) are deliberately absent.
-constexpr const char* kVariantDirs[] = {"micro_portrait", "tiny_portrait", "portrait",
+constexpr const char* VARIANT_DIRS[] = {"micro_portrait", "tiny_portrait", "portrait",
                                         "ultrawide",      "micro",         "tiny"};
 } // namespace
 
 namespace helix {
 
 bool LayoutManager::is_variant_dir(const std::string& dir) {
-    return std::find(std::begin(kVariantDirs), std::end(kVariantDirs), dir) !=
-           std::end(kVariantDirs);
+    return std::find(std::begin(VARIANT_DIRS), std::end(VARIANT_DIRS), dir) !=
+           std::end(VARIANT_DIRS);
 }
 
 LayoutManager& LayoutManager::instance() {
@@ -88,7 +90,7 @@ std::vector<std::string> LayoutManager::variant_chain() const {
 
 std::string LayoutManager::active_variant_dir(const std::string& filename) const {
     for (const auto& dir : variant_chain()) {
-        std::string variant_path = "ui_xml/" + dir + "/" + filename;
+        std::string variant_path = helix::asset_path("ui_xml/" + dir + "/" + filename);
         if (access(variant_path.c_str(), F_OK) == 0) {
             return dir;
         }
@@ -98,7 +100,8 @@ std::string LayoutManager::active_variant_dir(const std::string& filename) const
 
 std::string LayoutManager::resolve_xml_path(const std::string& filename) const {
     std::string variant = active_variant_dir(filename);
-    return variant.empty() ? "ui_xml/" + filename : "ui_xml/" + variant + "/" + filename;
+    return variant.empty() ? helix::asset_path("ui_xml/" + filename)
+                           : helix::asset_path("ui_xml/" + variant + "/" + filename);
 }
 
 bool LayoutManager::has_override(const std::string& filename) const {

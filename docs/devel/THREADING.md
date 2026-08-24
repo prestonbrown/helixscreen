@@ -28,9 +28,10 @@ printer rather than your desk.
 | 6 | Never `ObserverGuard::release()` in normal cleanup — use `reset()` | Leaks `LambdaObserverContext`, corrupts rendering | #579 |
 | 7 | Never delete container children inside an input event handler | Child-list iteration corrupted → SIGSEGV | — |
 | 8 | Every `init_subjects()` self-registers its `deinit_subjects()` | Crash in `lv_observer_remove` at shutdown | — |
+| 9 | A raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor | Armed timer firing on a freed `this` | #1173, #750, #751 |
 
-Invariants 2 and 8 have automated gates (`scripts/check_l081_anti_pattern.py`,
-`scripts/check_subscription_null_safety.py`), run by `scripts/quality-checks.sh` on every
+Invariants 2 and 9 have automated gates (`scripts/check_l081_anti_pattern.py`,
+`scripts/check_timer_destructor_cancel.py`), run by `scripts/quality-checks.sh` on every
 commit. The rest are reviewed by humans.
 
 ---
@@ -84,7 +85,7 @@ thread and drained on the main thread at the **start** of each `lv_timer_handler
 before rendering:
 
 ```
-1. UpdateQueue::process_pending()  ← drains all queued lambdas (highest priority)
+1. UpdateQueue::process_pending()  ← drains all queued lambdas (1 ms LVGL timer)
 2. LVGL timers (input polling, animations)
 3. process_notifications()         ← dequeue Moonraker JSON
 4. lv_refr_now()                   ← render to framebuffer
@@ -129,9 +130,9 @@ lv_timer_handler()       libhv Event Loop       UpdateChecker
 
 ### Reference implementations
 
-- `src/printer/printer_state.cpp` — the `set_*_internal()` pattern (`set_printer_capabilities()` →
-  `set_printer_capabilities_internal()`, and likewise for `set_klipper_version()`,
-  `set_klippy_state()`)
+- `src/printer/printer_state.cpp` — the `set_*_internal()` pattern (`set_klippy_state()` →
+  `set_klippy_state_internal()`, and likewise for `set_klipper_version()`,
+  `set_printer_connection_state()`)
 - `src/api/wifi_manager.cpp` — every event handler parses on the background thread, then
   marshals to main:
 
@@ -253,6 +254,26 @@ if (tok.expired()) return; // L081_OK: synchronous wait wrapper, dtor joins this
 ```
 
 See `src/system/camera_stream.cpp` for legitimate examples.
+
+**The comment silences the lint gate, not the runtime detector.** For a site that runs on a
+background thread every launch, that leaves the anomaly channel emitting a hit per launch
+forever. Use `expired_no_lvgl()` there — same atomic load, no report:
+
+```cpp
+// L081_OK: loop condition on the thread the owner joins; no LVGL below.
+while (!poll_token.expired_no_lvgl() && running_.load()) { ... }
+```
+
+It is legitimate only where nothing after the check touches LVGL: a loop condition on a
+dtor-joined thread, a buffer exclusive to that thread, or a sweep over some *other* object's
+token. Anything that mutates a widget still owes you `expired()` + `defer()`. The lint gate
+matches this spelling too, so it keeps watching the site — and it still wants the
+`// L081_OK: <why>` note next to it.
+
+Why it exists: the detector cannot distinguish these from the real anti-pattern, so all of
+them reported. Over the 2026-08-09..18 telemetry window, four such sites (the WiFi
+state-observer sweep plus three in `CameraStream`) were ~67% of all `bg_tok_expired_check`
+volume — enough that a genuine Mechanism C hit would have been one event in 131.
 
 ### TOCTOU rule: `tok.defer()` vs `lifetime_.defer()`
 
@@ -639,8 +660,17 @@ Create observers with the factories in `include/observer_factory.h` rather than 
 | `observe_int_async<T>()` | int subject, explicitly async |
 | `observe_string()` | string subject, callback deferred |
 | `observe_string_async()` | string subject, explicitly async |
+| `observe_print_state<T>()` | typed `PrintJobState` over the raw `print_state_enum` subject, deferred |
+| `observe_print_state_immediate<T>()` | the same typing, firing synchronously like `observe_int_immediate` |
+| `observe_print_lifecycle<T>()` | typed `PrintState` over the derived `print_lifecycle` subject |
 
 All return an `ObserverGuard` (`include/ui_observer_guard.h`) for RAII removal.
+
+The print factories are not sugar: `PrintJobState` and `PrintState` do not share
+numbering past index 0, so pairing a factory with the wrong subject (or hand-casting the
+subject's int) compiles and silently answers a different question. That mistake shipped
+twice — see `architecture/05-printer-state.md` § "Reading print state: typed accessors,
+not hand-cast ints".
 
 ### Deferred by default
 
@@ -704,7 +734,7 @@ void PrinterState::init_subjects() {
     subjects_initialized_ = true;
 
     StaticSubjectRegistry::instance().register_deinit(
-        "PrinterState", []() { PrinterState::instance().deinit_subjects(); });
+        "PrinterState", [this]() { deinit_subjects(); });
 }
 ```
 
@@ -758,6 +788,52 @@ Adding a raw detached spawn reintroduces the anti-pattern and will crash on the 
 device you ship to. See `docs/devel/MOONRAKER_ARCHITECTURE.md` § "HTTP Work Execution
 (HttpExecutor)".
 
+### Never hold a subsystem lock across a call into another subsystem
+
+Two managers that each take their own `recursive_mutex` and call each other form an ABBA
+cycle the moment one of them calls out while holding its lock. TSan reports it as
+`lock-order-inversion (potential deadlock)`. It has happened twice:
+`AmsState` <-> `SpoolmanManager`, and `AmsState` <-> `FilamentSensorManager`.
+
+**Established order: `AmsState` -> `FilamentSensorManager`.** AmsState may notify the sensor
+layer while holding `mutex_`; the sensor layer must **not** hold its own lock when it queries
+AmsState. The direction is forced by arithmetic, not taste: `AmsState` takes its lock at ~49
+sites and `FilamentSensorManager` at ~2, so "the AMS lock is not held" is not a property
+anyone can maintain, while "the sensor lock is not held" is.
+
+Two shapes that keep a lock off an outbound call, both in
+`src/print/filament_sensor_manager.cpp`:
+
+```cpp
+// 1. Hoist: read the other subsystem BEFORE taking your lock. Works when the
+//    value is whole-printer rather than per-item.
+const bool ams_active = AmsState::instance().is_filament_operation_active();
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ...use ams_active...
+}
+
+// 2. Snapshot: take the lock only long enough to copy what you need, then
+//    decide outside it. Works when the query is per-item (has_real_runout()).
+std::vector<Candidate> candidates;
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ...fill candidates from members...
+}
+for (const auto& c : candidates) { ...ask AmsState... }
+```
+
+**A `recursive_mutex` defeats the obvious fix.** Deferring the outbound call to the end of the
+locking function does *not* release the lock when a caller above you already holds it:
+`AmsState::sync_backend()` locks `mutex_` and then calls `sync_from_backend()`, so releasing
+the inner acquisition leaves the outer one held and the cycle intact. Any fix anchored to one
+scope inside a recursive lock has this hole. Fix the side that can actually guarantee the
+invariant.
+
+`make test-tsan` is the gate; a targeted run is `make test-tsan-one TEST="[ams]"`. Note that
+both halves of a cycle must execute in the *same process* for TSan to see it, so a filter
+narrow enough to exclude one of the two tests reports nothing.
+
 ---
 
 ## 9. No deletion during input event processing
@@ -804,6 +880,27 @@ behind an `lv_is_initialized()` guard.
 #include "ui_timer_guard.h"
 LvglTimerGuard update_timer_;   // deleted on destruction
 ```
+
+### A raw `lv_timer_t*` must also be cancelled in the destructor
+
+`StaticPanelRegistry::destroy_all()` runs **before** `lv_deinit()` in `Application::shutdown()`
+(§7), so any teardown path that destroys the owner without the explicit stop leaves the timer
+armed in LVGL's timer list holding a freed `this` — the callback then fires on freed memory
+(#1173, twice: the wizard auto-probe timer and the PID-calibration ETA timer). The rule: **a
+raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor.**
+
+Share one `cancel_*_timer()` helper between both paths, and cancel with
+`lv_timer_cancel_safe()` (`include/ui_timer_guard.h`) — it self-guards on
+`lv_is_initialized()` and neuters the timer instead of unlinking it, so it is safe to call
+from a destructor and from inside `lv_timer_handler()` (#750, #751). Exemplar:
+`FlyingToasterScreensaver::cancel_timer()` in `src/ui/ui_screensaver.cpp`.
+
+A `LifetimeToken`-guarded timer callback is the other valid answer — annotate those
+`// TIMER_DTOR_OK: <reason>`.
+
+**Gate:** `scripts/check_timer_destructor_cancel.py`, run by `scripts/quality-checks.sh`
+(`--max-allowed 0`). The check is transitive: a destructor that calls a `cleanup()` /
+`deinit_subjects()` which cancels the timer counts.
 
 ---
 
@@ -885,10 +982,12 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | App hangs, stops answering pings | `lv_subject_set_*()` from a background thread during render | `queue_update()` (§1) |
 | Crash on shutdown in `lv_observer_remove` | `init_subjects()` never self-registered its cleanup | Register inside `init_subjects()` (§7) |
 | Crash deleting a widget during a button click | Sync deletion during `indev` dispatch | Null the pointer, let the rebuild clean (§9) |
+| Timer callback fires after its owner was destroyed | Raw `lv_timer_t*` cancelled in `cleanup()` but not the destructor | Share a `cancel_*_timer()` + `lv_timer_cancel_safe()` between both paths (§10) |
 | Rendering corrupted / observer context leaked | `ObserverGuard::release()` used for normal cleanup (#579) | `reset()` (§6) |
 | `lv_obj_delete_async()` double-free | Parent's `lv_obj_clean()` ran before the async fired | Only async-delete when no parent cleanup follows (§9) |
 | `[UpdateQueue] DROPPED (shutdown): <tag>` in a device log | Background thread enqueueing after `update_queue_shutdown()` | Real bug — find the thread that outlived shutdown (§4) |
 | Two panel widget instances, only one updates | Per-instance subject registered globally, or XML scope mismatch | Pick one: shared subject in component scope, or filter a shared subject by ID |
+| TSan `lock-order-inversion (potential deadlock)` between two managers | One holds its own `recursive_mutex` across a call into the other | Hoist the read above the lock, or snapshot under it and decide outside (§8) |
 
 ---
 
@@ -899,7 +998,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `include/ui_update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
 | `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
-| `include/observer_factory.h` | `observe_int_sync/async`, `observe_string/async` |
+| `include/observer_factory.h` | `observe_int_sync/async`, `observe_string/async`, `observe_print_state[_immediate]`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |
 | `include/static_subject_registry.h` | Shutdown cleanup registry |
 | `include/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
@@ -910,3 +1009,4 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `src/api/wifi_manager.cpp` | Backend integration reference |
 | `src/application/application.cpp` | Main loop and shutdown order |
 | `scripts/check_l081_anti_pattern.py` | L081 lint gate |
+| `scripts/check_timer_destructor_cancel.py` | Timer dtor-cancellation lint gate |

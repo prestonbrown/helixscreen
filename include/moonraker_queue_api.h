@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "i_moonraker_sub_apis.h" // for JobQueueEntry, JobQueueStatus, IQueueAPI
 #include "moonraker_error.h"
 
 #include <functional>
@@ -19,26 +20,8 @@
 
 // Forward declarations
 namespace helix {
-class MoonrakerClient;
+class IMoonrakerClient;
 } // namespace helix
-
-/**
- * @brief A single entry in the Moonraker job queue
- */
-struct JobQueueEntry {
-    std::string job_id;   ///< Unique job identifier
-    std::string filename; ///< G-code filename
-    double time_added;    ///< Unix timestamp when job was added
-    double time_in_queue; ///< Seconds the job has been in queue
-};
-
-/**
- * @brief Status of the Moonraker job queue
- */
-struct JobQueueStatus {
-    std::string queue_state;                ///< "ready", "paused", "loading"
-    std::vector<JobQueueEntry> queued_jobs; ///< Jobs currently in queue
-};
 
 /**
  * @brief Job Queue API operations via Moonraker
@@ -54,7 +37,7 @@ struct JobQueueStatus {
  *       [](const JobQueueStatus& status) { ... },
  *       [](const auto& err) { ... });
  */
-class MoonrakerQueueAPI {
+class MoonrakerQueueAPI : public IQueueAPI {
   public:
     using StatusCallback = std::function<void(const JobQueueStatus&)>;
     using SuccessCallback = std::function<void()>;
@@ -65,7 +48,7 @@ class MoonrakerQueueAPI {
      *
      * @param client MoonrakerClient instance (must remain valid during API lifetime)
      */
-    explicit MoonrakerQueueAPI(helix::MoonrakerClient& client);
+    explicit MoonrakerQueueAPI(helix::IMoonrakerClient& client);
     virtual ~MoonrakerQueueAPI() = default;
 
     /**
@@ -74,7 +57,7 @@ class MoonrakerQueueAPI {
      * @param on_success Callback with queue status
      * @param on_error Error callback
      */
-    void get_queue_status(StatusCallback on_success, ErrorCallback on_error);
+    void get_queue_status(StatusCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Start processing the job queue
@@ -82,7 +65,7 @@ class MoonrakerQueueAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void start_queue(SuccessCallback on_success, ErrorCallback on_error);
+    void start_queue(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Pause the job queue
@@ -90,7 +73,7 @@ class MoonrakerQueueAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void pause_queue(SuccessCallback on_success, ErrorCallback on_error);
+    void pause_queue(SuccessCallback on_success, ErrorCallback on_error) override;
 
     /**
      * @brief Add a job to the queue
@@ -99,7 +82,8 @@ class MoonrakerQueueAPI {
      * @param on_success Success callback
      * @param on_error Error callback
      */
-    void add_job(const std::string& filename, SuccessCallback on_success, ErrorCallback on_error);
+    void add_job(const std::string& filename, SuccessCallback on_success,
+                 ErrorCallback on_error) override;
 
     /**
      * @brief Remove jobs from the queue by ID
@@ -109,8 +93,8 @@ class MoonrakerQueueAPI {
      * @param on_error Error callback
      */
     void remove_jobs(const std::vector<std::string>& job_ids, SuccessCallback on_success,
-                     ErrorCallback on_error);
+                     ErrorCallback on_error) override;
 
   protected:
-    helix::MoonrakerClient& client_;
+    helix::IMoonrakerClient& client_;
 };

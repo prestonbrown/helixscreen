@@ -92,6 +92,47 @@ enum class SavePersistence {
 /// @param ssid             The SSID that was supposed to be written.
 SavePersistence classify_save_result(const std::string& save_reply,
                                      const std::string& config_contents, const std::string& ssid);
+
+enum class RemovalPersistence {
+    Verified,     ///< Read the config; the SSID is gone. Survives a reboot.
+    StillListed,  ///< Read the config; the SSID is still there. It comes back.
+    Unverifiable, ///< No config path, or we could not read it. Unknown.
+};
+
+/// Decide whether a REMOVE_NETWORK + SAVE_CONFIG actually removed @p ssid.
+///
+/// The mirror image of classify_save_result(): a forget wants the SSID ABSENT.
+/// The reason this is not merely "is the SSID in the contents" is
+/// @p conf_readable — an unreadable config yields empty contents, which looks
+/// identical to "successfully removed" and is not. That conflation reported a
+/// verified removal on every forget on an AD5X whose vendor config the app
+/// cannot open, while the network reappeared at the next boot (bundles
+/// TAU4PW4H / 865DXBQ7).
+///
+/// @param conf_path_known  A `-c <conf>` path was resolved for the daemon.
+/// @param conf_readable    That file was opened and read to completion.
+/// @param conf_contents    The config re-read AFTER the save.
+/// @param ssid             The SSID that was supposed to be removed.
+RemovalPersistence classify_removal_result(bool conf_path_known, bool conf_readable,
+                                           const std::string& conf_contents,
+                                           const std::string& ssid);
+
+enum class ScanTrigger {
+    Started,     ///< A fresh scan is underway.
+    AlreadyBusy, ///< One was already in flight; its results still arrive.
+    NoReply,     ///< The control socket gave us nothing.
+    Failed,      ///< wpa_supplicant refused.
+};
+
+/// Classify a wpa_supplicant `SCAN` reply.
+///
+/// AlreadyBusy exists because "FAIL-BUSY" is not a failure: wpa_supplicant is
+/// already scanning and will still emit SCAN_COMPLETE, so there is nothing for
+/// the caller to recover from and nothing to tell the user. Lumping it in with
+/// FAIL booked a phantom failure in the scheduler and, whenever the link
+/// happened to be down at that instant, raised "WiFi scan failed. Try again."
+/// over a healthy radio.
+ScanTrigger classify_scan_reply(const std::string& reply);
 } // namespace helix::wifi::detail
 
 /**
@@ -314,10 +355,19 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
      * contents to judge whether the write actually reached disk (a reply of
      * "OK" is not proof; see classify_save_result()).
      *
-     * @return {conf_path, conf_contents}; conf_path is "" when it could not
-     *         be resolved, in which case conf_contents is also empty.
+     * `readable` is what separates "read the file, the SSID is not in it" from
+     * "never got to look". Both arrive here as empty contents, and conflating
+     * them let forget_network() report a removal it had not verified on the
+     * reporter's AD5X, whose config the app cannot open at all (bundles
+     * TAU4PW4H / 865DXBQ7: the same session logged "Removal verified on disk"
+     * and "did not record this network" about the same path).
      */
-    std::pair<std::string, std::string> read_wpa_conf_after_save();
+    struct WpaConfSnapshot {
+        std::string path;      ///< "" when the -c path could not be resolved
+        std::string contents;  ///< Empty when unresolved OR unreadable
+        bool readable = false; ///< The file was opened and read to completion
+    };
+    WpaConfSnapshot read_wpa_conf_after_save();
 
     /**
      * @brief Mirror @p conf_path onto its remembered persistent target, if any

@@ -75,6 +75,7 @@ void SafetySettingsOverlay::register_callbacks() {
         {"on_cancel_escalation_changed", on_cancel_escalation_changed},
         {"on_cancel_escalation_timeout_changed", on_cancel_escalation_timeout_changed},
         {"on_completion_alert_changed", on_completion_alert_changed},
+        {"on_min_toast_severity_changed", on_min_toast_severity_changed},
         {"on_macro_confirm_changed", on_macro_confirm_changed},
         {"on_allow_cold_extrude_changed", on_allow_cold_extrude_changed},
         {"on_filament_auto_cooldown_changed", on_filament_auto_cooldown_changed},
@@ -216,6 +217,12 @@ void SafetySettingsOverlay::handle_completion_alert_changed(int index) {
     AudioSettingsManager::instance().set_completion_alert_mode(mode);
 }
 
+void SafetySettingsOverlay::handle_min_toast_severity_changed(int index) {
+    spdlog::info("[{}] Min toast severity changed: {} ({})", get_name(), index,
+                 index == 0 ? "All" : (index == 1 ? "Warnings & errors" : "Errors only"));
+    SafetySettingsManager::instance().set_min_toast_severity(index);
+}
+
 void SafetySettingsOverlay::handle_macro_confirm_changed(bool enabled) {
     spdlog::info("[{}] Macro run confirmation toggled: {}", get_name(), enabled ? "ON" : "OFF");
     SafetySettingsManager::instance().set_macro_require_confirmation(enabled);
@@ -268,6 +275,14 @@ void SafetySettingsOverlay::on_completion_alert_changed(lv_event_t* e) {
     lv_obj_t* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
     get_safety_settings_overlay().handle_completion_alert_changed(index);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SafetySettingsOverlay::on_min_toast_severity_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SafetySettingsOverlay] on_min_toast_severity_changed");
+    lv_obj_t* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
+    get_safety_settings_overlay().handle_min_toast_severity_changed(index);
     LVGL_SAFE_EVENT_CB_END();
 }
 

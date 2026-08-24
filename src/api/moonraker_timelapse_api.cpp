@@ -18,7 +18,7 @@ using namespace helix;
 // Constructor
 // ============================================================================
 
-MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(MoonrakerClient& client,
+MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(IMoonrakerClient& client,
                                              const std::string& http_base_url)
     : client_(client), http_base_url_(http_base_url) {}
 

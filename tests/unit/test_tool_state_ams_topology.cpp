@@ -1,12 +1,16 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_ams_tool_text.h"
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "lvgl_test_fixture.h"
+#include "static_subject_registry.h"
 #include "tool_state.h"
+
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -301,4 +305,249 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     ts.clear_ams_topology();
     UpdateQueue::instance().drain();
+}
+
+// =============================================================================
+// extruder_count() vs tool_count(): the nozzle tool badge is gated on physical
+// hotends, so an AMS feeding one extruder must not make the nozzle icon claim
+// to be "tool 0".
+// =============================================================================
+
+namespace {
+/// Single-extruder printer — one hotend, no toolchanger.
+helix::PrinterDiscovery make_single_extruder_discovery() {
+    nlohmann::json objects = {"extruder", "heater_bed", "fan"};
+    helix::PrinterDiscovery disc;
+    disc.parse_objects(objects);
+    return disc;
+}
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "A 4-slot AMS on a single-extruder printer reports 4 tools but 1 extruder",
+                 "[tool-state][ams][ams-topology][tool-badge]") {
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_single_extruder_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.tool_count() == 1);
+    REQUIRE(ts.extruder_count() == 1);
+    REQUIRE_FALSE(ts.has_multiple_extruders());
+
+    // AMS advertises 4 filament slots — all feeding the one hotend.
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    // is_multi_tool() flips — which is why it is the wrong badge predicate.
+    REQUIRE(ts.tool_count() == 4);
+    REQUIRE(ts.is_multi_tool());
+
+    // ...but there is still exactly one hotend, so no tool badge.
+    REQUIRE(ts.extruder_count() == 1);
+    REQUIRE_FALSE(ts.has_multiple_extruders());
+
+    ts.clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report multiple extruders",
+                 "[tool-state][ams][ams-topology][tool-badge]") {
+    // Paired with the AMS case above: if has_multiple_extruders() were hardcoded
+    // false, or counted nothing, this fails — so the badge can still appear where
+    // it is meaningful.
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_toolchanger_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.tool_count() == 4);
+    REQUIRE(ts.extruder_count() == 4);
+    REQUIRE(ts.has_multiple_extruders());
+
+    // Surviving the AMS rebuild matters — that is where the mapping was lost once.
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    REQUIRE(ts.extruder_count() == 4);
+    REQUIRE(ts.has_multiple_extruders());
+
+    ts.clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
+// =============================================================================
+// nozzle_label(): "Nozzle" vs "Nozzle T<n>"
+//
+// The label sits directly beside a nozzle temperature readout in both the
+// controls panel and the filament panel, so it answers "which nozzle am I
+// looking at". An AMS's lanes all feed the same hotend, so naming that hotend
+// after the loaded lane says nothing, the same reason the nozzle_icon badge
+// is gated on extruder count.
+// =============================================================================
+
+TEST_CASE_METHOD(ToolStateFixture, "nozzle_label stays plain when AMS lanes share one hotend",
+                 "[tool-state][ams][ams-topology][nozzle-label]") {
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_single_extruder_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.nozzle_label() == "Nozzle");
+
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 2;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    // The lane really is selected; this is the value the label used to append.
+    REQUIRE(ts.tool_count() == 4);
+    REQUIRE(ts.active_tool_index() == 2);
+    REQUIRE(ts.extruder_count() == 1);
+
+    REQUIRE(ts.nozzle_label() == "Nozzle");
+
+    ts.clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real toolchanger",
+                 "[tool-state][ams][ams-topology][nozzle-label]") {
+    // Paired with the case above: a label hardcoded to "Nozzle" would pass that
+    // one, so a machine with real hotends must still get its T<n>.
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_toolchanger_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.extruder_count() == 4);
+
+    // Klipper reports the active extruder moved to the third toolhead.
+    nlohmann::json status = {{"toolhead", {{"extruder", "extruder2"}}}};
+    ts.update_from_status(status);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.active_tool_index() == 2);
+    REQUIRE(ts.nozzle_label() == "Nozzle T2");
+}
+
+// ============================================================================
+// Tool badge staleness — the badge index must follow an AMS-driven toolchange
+// ============================================================================
+
+namespace {
+
+// Brings up the real badge observers from src/ui/ui_ams_tool_text.cpp over the
+// real ToolState subjects, so nothing here reimplements the badge's gate or its
+// format string. Teardown mirrors AfcToolchangeRenderFixture in
+// test_afc_toolchange.cpp: deinit_one() releases the observers before the
+// subjects they watch die AND clears the file-static "already initialized"
+// latch, without disturbing registry entries other fixtures own.
+struct ToolBadgeFixture : public LVGLTestFixture {
+    ToolBadgeFixture() {
+        AmsState::instance().init_subjects(/*register_xml=*/false);
+        ToolState::instance().init_subjects(/*register_xml=*/false);
+        helix::ui::init_ams_tool_text_observers();
+    }
+    ~ToolBadgeFixture() override {
+        StaticSubjectRegistry::instance().deinit_one("AmsToolTextObservers");
+        AmsState::instance().deinit_subjects();
+        ToolState::instance().deinit_subjects();
+    }
+
+    static std::string badge_text() {
+        return lv_subject_get_string(ToolState::instance().get_tool_badge_text_subject());
+    }
+    static int badge_shown() {
+        return lv_subject_get_int(ToolState::instance().get_show_tool_badge_subject());
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ToolBadgeFixture,
+                 "tool badge index follows an AMS toolchange that does not rebuild the tool list",
+                 "[tool-state][ams][ams-topology][tool-badge][regression]") {
+    // set_ams_topology() bumps tools_version_ only when the topology SHAPE
+    // changes; a plain active-tool move publishes active_tool_ alone. A badge
+    // observer watching only tools_version_ therefore never re-ran, leaving the
+    // index frozen at whatever the last rebuild produced.
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_toolchanger_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.extruder_count() == 4); // Badge only shows on real multi-nozzle hardware
+
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    REQUIRE(badge_shown() == 1);
+    REQUIRE(badge_text() == "0");
+
+    const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
+
+    // Same shape, different active tool — the AMS-driven toolchange.
+    topo.active_tool = 2;
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    // Guard the premise: if this ever bumps, the test stops covering the bug
+    // because the tools_version_ observer would mask the missing active_tool one.
+    REQUIRE(lv_subject_get_int(ts.get_tools_version_subject()) == version_before);
+    REQUIRE(ts.active_tool_index() == 2);
+    REQUIRE(badge_text() == "2");
+    REQUIRE(badge_shown() == 1);
+
+    // And back down, so a fix that only ever counts upward still fails.
+    topo.active_tool = 1;
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    REQUIRE(badge_text() == "1");
+}
+
+TEST_CASE_METHOD(ToolBadgeFixture, "tool badge stays hidden and empty on a single-hotend AMS",
+                 "[tool-state][ams][ams-topology][tool-badge]") {
+    // The AFC shape: many lanes, one nozzle. Expanding tools_ to one entry per
+    // lane must not make the badge appear — annotating the single hotend those
+    // lanes share with an index says nothing. This is the case that rendered an
+    // empty disc over the nozzle glyph on the temp_stack widget.
+    auto& ts = helix::ToolState::instance();
+
+    helix::ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.tool_name_prefix = "T";
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    REQUIRE(ts.tool_count() == 4);
+    REQUIRE(badge_shown() == 0);
+    REQUIRE(badge_text().empty());
+
+    // A lane change on that single hotend must not light it up either — the new
+    // active_tool_ observer runs the same gate, so this pins that it re-checks
+    // has_multiple_extruders() rather than blindly writing the index.
+    topo.active_tool = 3;
+    ts.set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    REQUIRE(badge_shown() == 0);
+    REQUIRE(badge_text().empty());
 }

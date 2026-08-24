@@ -13,7 +13,7 @@ using namespace moonraker_internal;
 // MoonrakerJobAPI Implementation
 // ============================================================================
 
-MoonrakerJobAPI::MoonrakerJobAPI(helix::MoonrakerClient& client) : client_(client) {}
+MoonrakerJobAPI::MoonrakerJobAPI(helix::IMoonrakerClient& client) : client_(client) {}
 
 // ============================================================================
 // Job Control Operations

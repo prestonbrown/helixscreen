@@ -61,14 +61,14 @@ std::string join(const std::set<std::string>& s) {
 
 /// Absolute envelope for an FDM hotend. Nothing real prints at 50 °C or 900 °C;
 /// a value outside this band is a transposed digit, not a material.
-constexpr int kNozzleFloor = 150;
-constexpr int kNozzleCeil = 450;
+constexpr int NOZZLE_FLOOR = 150;
+constexpr int NOZZLE_CEIL = 450;
 
 /// Widest plausible product-vs-type disagreement. A brand may legitimately run
 /// hotter or cooler than the generic type (LW-PLA foams at 260-270 under type
 /// "PLA"), but a 50 °C gulf is the outer edge of "legitimate variant" and past it
 /// you are looking at a units error or a wrong `type` field.
-constexpr int kTypeDivergenceTolerance = 50;
+constexpr int TYPE_DIVERGENCE_TOLERANCE = 50;
 
 } // namespace
 
@@ -86,8 +86,8 @@ TEST_CASE("MATERIALS - nozzle range is ordered and physically plausible",
         // Strict: a zero-width range means the "range" carries no information and
         // nozzle_recommended() degenerates to a single point.
         CHECK(mat.nozzle_min < mat.nozzle_max);
-        CHECK(mat.nozzle_min >= kNozzleFloor);
-        CHECK(mat.nozzle_max <= kNozzleCeil);
+        CHECK(mat.nozzle_min >= NOZZLE_FLOOR);
+        CHECK(mat.nozzle_max <= NOZZLE_CEIL);
         // A range wider than 80 °C is not a recommendation, it is a guess. The
         // widest legitimate entry today is PLA-AERO at 60 (foaming grades use
         // temperature as the foaming knob).
@@ -169,7 +169,7 @@ TEST_CASE("MATERIALS - every compat group is served by a drying preset or is who
     // is correct, not a bug, but it must stay a deliberate short list. A group
     // silently dropping out of the dryer UI because someone zeroed its last
     // dry_temp_c is exactly the failure this pins.
-    static const std::set<std::string> kIntentionallyNoPreset = {
+    static const std::set<std::string> INTENTIONALLY_NO_PRESET = {
         "PE",  // polyethylene: negligible moisture uptake
         "EVA", // low Vicat point, drying would deform it
     };
@@ -192,7 +192,7 @@ TEST_CASE("MATERIALS - every compat group is served by a drying preset or is who
         } else {
             // Not servable — assert it is one of the known-dry groups so a new
             // all-dry group cannot appear unnoticed.
-            CHECK(kIntentionallyNoPreset.count(group) == 1);
+            CHECK(INTENTIONALLY_NO_PRESET.count(group) == 1);
         }
     }
 
@@ -275,8 +275,8 @@ TEST_CASE("MATERIALS - a group's drying preset is safe for the LOWEST-melting me
     }
 
     for (const auto& preset : get_drying_presets_by_group()) {
-        INFO("preset: " << preset.name << " at " << preset.temp_c << " C, group's lowest nozzle_min "
-                        << group_min_nozzle[preset.name]);
+        INFO("preset: " << preset.name << " at " << preset.temp_c
+                        << " C, group's lowest nozzle_min " << group_min_nozzle[preset.name]);
         REQUIRE(group_min_nozzle.count(preset.name) == 1);
         CHECK(preset.temp_c <= group_min_nozzle[preset.name] - 100);
     }
@@ -526,12 +526,12 @@ TEST_CASE("MATERIALS - names survive JSON and Orca string matching",
 
 #if HELIX_HAS_IFS
 TEST_CASE("AD5X firmware material whitelist all resolves", "[filament][database][invariant]") {
-    // Derived from AmsBackendAd5xIfs::kStockWhitelist — the same array
+    // Derived from AmsBackendAd5xIfs::STOCK_WHITELIST — the same array
     // get_supported_materials() seeds from, so this cannot drift from the thing it
     // guards. The stock AD5X firmware rejects anything outside the list, so these
     // are the only types that printer's picker can offer. If one stops resolving in
     // Layer A it inherits a 0 °C bed and no drying data, and the picker breaks.
-    for (const auto* type : AmsBackendAd5xIfs::kStockWhitelist) {
+    for (const auto* type : AmsBackendAd5xIfs::STOCK_WHITELIST) {
         INFO("AD5X whitelist type: " << type);
         auto mat = find_material(type);
         REQUIRE(mat.has_value());
@@ -567,15 +567,15 @@ TEST_CASE_METHOD(HelixTestFixture, "every mock-backend fixture material resolves
     // the mock emits, aliases included.
     //
     // If a fixture string legitimately should not resolve, name it in
-    // kNonResolvingFixtureMaterials below with a reason — do not weaken the check.
-    static const std::set<std::string> kNonResolvingFixtureMaterials = {
+    // NON_RESOLVING_FIXTURE_MATERIALS below with a reason — do not weaken the check.
+    static const std::set<std::string> NON_RESOLVING_FIXTURE_MATERIALS = {
         // (empty) — every mock fixture material currently resolves.
     };
 
     // Each entry drives the mock into one scripted configuration. Adding a new
     // mock mode? Add it here so its fixture strings are covered too.
     using ModeSetter = std::function<void(AmsBackendMock&)>;
-    const std::vector<std::pair<const char*, ModeSetter>> kModes = {
+    const std::vector<std::pair<const char*, ModeSetter>> MODES = {
         {"default", [](AmsBackendMock&) {}},
         {"tool_changer", [](AmsBackendMock& b) { b.set_tool_changer_mode(true); }},
         {"afc", [](AmsBackendMock& b) { b.set_afc_mode(true); }},
@@ -588,7 +588,7 @@ TEST_CASE_METHOD(HelixTestFixture, "every mock-backend fixture material resolves
     };
 
     size_t checked = 0;
-    for (const auto& [mode_name, apply_mode] : kModes) {
+    for (const auto& [mode_name, apply_mode] : MODES) {
         AmsBackendMock backend;
         apply_mode(backend);
         backend.start();
@@ -599,7 +599,7 @@ TEST_CASE_METHOD(HelixTestFixture, "every mock-backend fixture material resolves
             if (slot.material.empty()) {
                 continue; // empty slot — nothing to resolve
             }
-            if (kNonResolvingFixtureMaterials.count(slot.material) > 0) {
+            if (NON_RESOLVING_FIXTURE_MATERIALS.count(slot.material) > 0) {
                 continue;
             }
             INFO("mock mode: " << mode_name << " slot " << i << " material: " << slot.material);
@@ -610,7 +610,7 @@ TEST_CASE_METHOD(HelixTestFixture, "every mock-backend fixture material resolves
 
     // Guard the guard: if the mock stops producing slots (API drift, start() failing
     // silently), the loop above would vacuously pass while checking nothing.
-    INFO("materials checked across " << kModes.size() << " mock configurations");
+    INFO("materials checked across " << MODES.size() << " mock configurations");
     CHECK(checked >= 20);
 }
 
@@ -777,7 +777,8 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - malformed input yields an empty ca
     }
 
     // A path that does not exist behaves the same way.
-    auto missing = FilamentCatalog::load_from_file((dir / "does_not_exist.json").string(), false, "");
+    auto missing =
+        FilamentCatalog::load_from_file((dir / "does_not_exist.json").string(), false, "");
     CHECK(missing.all_products().empty());
 
     fs::remove_all(dir);
@@ -854,8 +855,8 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - every effective field is fully res
         CHECK(p->nozzle_recommended > 0);
         CHECK(p->nozzle_min <= p->nozzle_recommended);
         CHECK(p->nozzle_recommended <= p->nozzle_max);
-        CHECK(p->nozzle_min >= kNozzleFloor);
-        CHECK(p->nozzle_max <= kNozzleCeil);
+        CHECK(p->nozzle_min >= NOZZLE_FLOOR);
+        CHECK(p->nozzle_max <= NOZZLE_CEIL);
 
         CHECK(p->bed_temp >= 20);
         CHECK(p->bed_temp <= 160);
@@ -910,10 +911,10 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - product temps do not wildly contra
                          << base->nozzle_min << "-" << base->nozzle_max << ", bed " << p->bed_temp
                          << " vs type " << base->bed_temp);
 
-        CHECK(p->nozzle_min >= base->nozzle_min - kTypeDivergenceTolerance);
-        CHECK(p->nozzle_max <= base->nozzle_max + kTypeDivergenceTolerance);
-        CHECK(p->bed_temp >= base->bed_temp - kTypeDivergenceTolerance);
-        CHECK(p->bed_temp <= base->bed_temp + kTypeDivergenceTolerance);
+        CHECK(p->nozzle_min >= base->nozzle_min - TYPE_DIVERGENCE_TOLERANCE);
+        CHECK(p->nozzle_max <= base->nozzle_max + TYPE_DIVERGENCE_TOLERANCE);
+        CHECK(p->bed_temp >= base->bed_temp - TYPE_DIVERGENCE_TOLERANCE);
+        CHECK(p->bed_temp <= base->bed_temp + TYPE_DIVERGENCE_TOLERANCE);
 
         if (p->nozzle_min < base->nozzle_min - 25 || p->nozzle_max > base->nozzle_max + 25 ||
             std::abs(p->bed_temp - base->bed_temp) > 25) {

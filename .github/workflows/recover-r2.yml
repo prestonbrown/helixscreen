@@ -29,6 +29,11 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
+      with:
+        # Full history + tags: the channel is resolved from RELEASE_CHANNEL as it
+        # stood AT THE TAG, not on the default branch. Recovering a v1.0.x stable
+        # publish must not pick up main's channel once main moves to the devel line.
+        fetch-depth: 0
 
     - name: Validate inputs and resolve version/channels
       id: meta
@@ -39,8 +44,20 @@ jobs:
           *) echo "::error::tag '$TAG' must look like v0.99.80"; exit 1 ;;
         esac
         VERSION="${TAG#v}"
-        # Stable tag (no hyphen) -> stable + dev; prerelease -> beta + dev (matches release.yml)
-        if [[ "$TAG" == *-* ]]; then CHANNELS="beta dev"; else CHANNELS="stable dev"; fi
+
+        # Scripts come from the checked-out default branch (recovery should use
+        # the current, fixed tooling), but the CHANNEL declaration comes from the
+        # tag being recovered.
+        if git show "${TAG}:RELEASE_CHANNEL" > /tmp/recover-channel 2>/dev/null; then
+          CHANNELS=$(scripts/release-channel.sh --file /tmp/recover-channel --field channels)
+          CHANNEL=$(scripts/release-channel.sh --file /tmp/recover-channel --field channel)
+          echo "Channel declared at ${TAG}: ${CHANNEL}"
+        else
+          # Tags predating RELEASE_CHANNEL: fall back to the rule in force then.
+          echo "::warning::${TAG} predates RELEASE_CHANNEL; using the legacy tag-suffix rule"
+          if [[ "$TAG" == *-* ]]; then CHANNELS="beta dev"; else CHANNELS="stable dev"; fi
+        fi
+
         echo "tag=$TAG"           >> $GITHUB_OUTPUT
         echo "version=$VERSION"   >> $GITHUB_OUTPUT
         echo "channels=$CHANNELS" >> $GITHUB_OUTPUT

@@ -28,8 +28,9 @@
  *                                   launch, then suppresses until a *new*
  *                                   version is detected).
  *
- * Never fires mid-print: all visibility queries return `false` while
- * `PrinterPrintState::get_print_job_state() == PrintJobState::PRINTING`.
+ * Never fires while a job owns the machine: all visibility queries return
+ * `false` when `job_holds_machine()` is true for the published print
+ * lifecycle — Preparing and Paused included, not just Printing.
  *
  * This class is the DECISION layer only. It does not touch LVGL or create
  * widgets — the UI layer owns presentation. Consumers poll the query methods
@@ -81,6 +82,12 @@ class UpgradeNudge {
     UpgradeNudge& operator=(const UpgradeNudge&) = delete;
 
   private:
+    // Test-only seam (tests/test_helpers/upgrade_nudge_test_access.h). The two
+    // public queries each layer an intensity/dismissal check on top of the
+    // common gate, so reaching the gate itself is the only way to test the
+    // print-state policy without those confounds.
+    friend class UpgradeNudgeTestAccess;
+
     UpgradeNudge();
     ~UpgradeNudge() = default;
 

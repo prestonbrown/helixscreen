@@ -18,20 +18,20 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::gcode::gl_draw_error_is_fatal;
+using helix::gcode::GL_ERR_INVALID_OPERATION;
+using helix::gcode::GL_ERR_OUT_OF_MEMORY;
 using helix::gcode::gl_renderer_is_denylisted;
-using helix::gcode::kGLInvalidOperation;
-using helix::gcode::kGLOutOfMemory;
 
 TEST_CASE("gl_draw_error_is_fatal triggers fallback on out-of-memory", "[gcode][gl_fallback]") {
     // GL_OUT_OF_MEMORY is the primary CB1/Mali fault signature — must fall back.
-    REQUIRE(gl_draw_error_is_fatal(kGLOutOfMemory));
+    REQUIRE(gl_draw_error_is_fatal(GL_ERR_OUT_OF_MEMORY));
     REQUIRE(gl_draw_error_is_fatal(0x0505)); // literal value guards against renumbering
 }
 
 TEST_CASE("gl_draw_error_is_fatal triggers fallback on invalid-operation", "[gcode][gl_fallback]") {
     // GL_INVALID_OPERATION means the command stream is in a driver-rejected
     // state; continuing to draw is unsafe.
-    REQUIRE(gl_draw_error_is_fatal(kGLInvalidOperation));
+    REQUIRE(gl_draw_error_is_fatal(GL_ERR_INVALID_OPERATION));
     REQUIRE(gl_draw_error_is_fatal(0x0502));
 }
 
@@ -54,8 +54,8 @@ TEST_CASE("gl_draw_error_is_fatal constants match OpenGL ES values", "[gcode][gl
     // The predicate is header-only (no GL dependency) so it is testable on
     // builds without ENABLE_GLES_3D. Pin the constants to the real GL ES
     // numbers so a typo can never silently disable the guard.
-    REQUIRE(kGLOutOfMemory == 0x0505u);
-    REQUIRE(kGLInvalidOperation == 0x0502u);
+    REQUIRE(GL_ERR_OUT_OF_MEMORY == 0x0505u);
+    REQUIRE(GL_ERR_INVALID_OPERATION == 0x0502u);
 }
 
 // ---------------------------------------------------------------------------

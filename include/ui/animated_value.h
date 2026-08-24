@@ -216,6 +216,22 @@ template <typename T> class AnimatedValue {
         spdlog::trace("[AnimatedValue] on_subject_changed: new={}, display={}, target={}, delta={}",
                       new_value, display_value_, target_value_, delta_from_display);
 
+        // No change to animate. lv_subject_add_observer fires its callback
+        // synchronously on registration with the current subject value, so
+        // bind() lands here with new_value == the target_value_ it just set;
+        // re-notifying the same value later hits the same path. With the
+        // default threshold 0 the strict `<` check below lets a zero delta
+        // through and start_animation() registers a no-op (start == end)
+        // lv_anim_t with var=this. That animation survives any later move
+        // (the move ctor copies anim_running_ but cannot retarget the
+        // lv_anim_t's var), dangles after this is destroyed, and the next
+        // lv_timer_handler past the no-op's completion SEGVs on the stale
+        // pointer — which is what crashed the unsharded suite at
+        // test_clock_widget.cpp:157.
+        if (new_value == target_value_) {
+            return;
+        }
+
         // If animation is running, just update target - don't restart
         // This allows smooth "chasing" behavior where animation continues toward new target
         if (anim_running_) {

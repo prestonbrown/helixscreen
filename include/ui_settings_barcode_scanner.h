@@ -75,7 +75,6 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     lv_subject_t bt_available_subject_{};
     lv_subject_t bt_discovering_subject_{};
     lv_subject_t keymap_index_subject_{};
-    lv_subject_t has_devices_subject_{};
     lv_subject_t current_device_label_subject_{};
     char current_device_label_buf_[128]{};
 

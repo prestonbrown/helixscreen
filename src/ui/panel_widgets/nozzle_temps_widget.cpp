@@ -515,8 +515,10 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
     auto result = helix::ui::temperature::heater_display(temp_deci, target_deci);
 
     // Current temp with color coding (green=at-temp, red=heating, blue=cooling, gray=off)
-    lv_label_set_text_fmt(temp_label, "%d\xC2\xB0",
-                          helix::ui::temperature::deci_to_degrees(temp_deci));
+    char num_buf[16];
+    helix::ui::temperature::format_temp_number(helix::ui::temperature::deci_to_degrees_f(temp_deci),
+                                               num_buf, sizeof(num_buf));
+    lv_label_set_text_fmt(temp_label, "%s\xC2\xB0", num_buf);
     lv_obj_set_style_text_color(temp_label, result.color, LV_PART_MAIN);
 
     // Keep the bed icon tint in lockstep with the temp-label color (same
@@ -529,8 +531,9 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
     }
 
     if (target_deci > 0) {
-        lv_label_set_text_fmt(target_label, "/ %d\xC2\xB0",
-                              helix::ui::temperature::deci_to_degrees(target_deci));
+        helix::ui::temperature::format_temp_number(
+            helix::ui::temperature::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
+        lv_label_set_text_fmt(target_label, "/ %s\xC2\xB0", num_buf);
     } else {
         lv_label_set_text(target_label, lv_tr("off"));
     }

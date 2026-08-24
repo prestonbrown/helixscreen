@@ -16,7 +16,5 @@ regen-filaments:
 		--type-ranges scripts/fixtures/type_ranges.json \
 		--orca-tag $(ORCA_TAG) \
 		--out assets/filaments.json
-	@mkdir -p android/app/src/main/assets/assets
-	@cp -a assets/filaments.json android/app/src/main/assets/assets/filaments.json
 	@rm -rf "$(ORCA_TMP)"
-	@echo "==> Regenerated assets/filaments.json (+ Android mirror)"
+	@echo "==> Regenerated assets/filaments.json"

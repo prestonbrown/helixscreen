@@ -303,7 +303,7 @@ This means the countdown display is only available on firmware that exposes `box
 
 ### Write-path logging
 
-The write-path is always enabled. (The former `HELIX_QIDI_BOX_WRITE` field-testing gate was removed once the command syntax was verified against QIDI's open-source firmware — `box_stepper.py`/`box_extras.py`, #1030.) Every write op (`start_drying`/`stop_drying`, load/unload/mapping) emits an `info`-level entry log plus the raw G-code via `execute_gcode`, so field behavior stays fully visible while the protocol is confirmed on real hardware.
+The write-path is always enabled. (The former `HELIX_QIDI_BOX_WRITE` field-testing gate was removed once the command syntax was verified against QIDI's open-source firmware — box_stepper.py/box_extras.py, #1030.) Every write op (`start_drying`/`stop_drying`, load/unload/mapping) emits an `info`-level entry log plus the raw G-code via `execute_gcode`, so field behavior stays fully visible while the protocol is confirmed on real hardware.
 
 ---
 
@@ -329,7 +329,7 @@ If firmware behavior differs from what is documented here, adjust the command st
 - `officiall_filas_list.cfg` format (INI; `[filaN]` + `[colordict]` + `[vendor_list]`) — see "Filas List Format" above.
 - No discrete single-slot eject command in stock config.
 
-Still unconfirmed (needs the user's device dumps — see plan `plans/2026-06-16-qidi-box-stock-path-destub.md` §4):
+Still unconfirmed (needs the user's device dumps):
 
 - **Where per-slot filament type/color is persisted.** `box1.cfg` has no `SAVE_VARIABLE` for it; suspected `box_rfid.so` state or another saved-variable namespace. Need a `save_variables` dump (and a before/after when a slot's filament is set in QIDI's own UI).
 - **Whether `enable_box` is set on Camden's box** (the likely cause of load doing nothing) and what the `value_t<n>` → slot mapping is.

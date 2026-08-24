@@ -16,7 +16,7 @@
 #   make build    # Clean build from scratch
 #   make help     # Show all available targets
 #
-# See: DEVELOPMENT.md for complete build instructions
+# See: docs/devel/DEVELOPMENT.md for complete build instructions
 
 # Use bash for all shell commands (needed for [[ ]] and read -n)
 SHELL := /bin/bash
@@ -431,6 +431,24 @@ ifneq ($(ENABLE_SCREENSAVER),yes)
 endif
 # Mock backends (enabled by default, disable with ENABLE_MOCKS=no for production)
 ENABLE_MOCKS ?= yes
+
+# PWM sysfs buzzer backend — ad5m/ad5m-br/ad5x only.
+#
+# The backend's own runtime probe is just "does /sys/class/pwm/pwmchip0 exist",
+# which is true on boards whose PWM controller drives something else entirely: a
+# CC1 has 8 channels there, no beeper on any of them, and its backlight on the
+# same controller. So the probe cannot be trusted to decide this — the platform
+# must. M300 (the PRINTER's beeper, over gcode) is deliberately NOT gated and
+# keeps working everywhere.
+#
+# Decided HERE, above APP_OBJS, and not down in the sound-flags section: APP_OBJS
+# is computed from APP_SRCS a few lines below, so a filter-out placed after it is
+# a silent no-op that still compiles and still links the backend.
+ifneq (,$(filter ad5m ad5m-br ad5x,$(PLATFORM_TARGET)))
+    PWM_SOUND_CXXFLAGS := -DHELIX_HAS_PWM_SOUND
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS))
+endif
 
 ifneq ($(ENABLE_MOCKS),yes)
     APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
@@ -939,16 +957,31 @@ else ifeq ($(PLATFORM_TARGET),native)
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
 # K1, K2, MIPS — no sound at all
-CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS)
+CXXFLAGS += $(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS)
 
 # Feature gates — default ON for all platforms.
 # Disabled per-platform in mk/cross.mk for memory-constrained targets.
 HELIX_HAS_LABEL_PRINTER ?= 1
 HELIX_HAS_CFS ?= 1
 HELIX_HAS_IFS ?= 1
+# Compile-out gates for the 2D gcode renderer and the bed-mesh 3D renderer —
+# code AND their big runtime buffers (ESP32-class targets set these to 0).
+HELIX_HAS_GCODE_VIEWER ?= 1
+HELIX_HAS_BED_MESH_3D ?= 1
+# Compile-out gate for the dlopen()-based plugin system — no dynamic linking
+# on statically-linked embedded targets (ESP32-class).
+HELIX_HAS_PLUGINS ?= 1
+# Compile-out gate for the timelapse VIEWING UI (video list/download/playback).
+# Capture-control (settings, render, save-frames) is plain JSON-RPC and is NOT
+# gated — printers keep capturing timelapses even where the screen can't view them.
+HELIX_HAS_TIMELAPSE_VIEWER ?= 1
 CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
-            -DHELIX_HAS_IFS=$(HELIX_HAS_IFS)
+            -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
+            -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
+            -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
+            -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
+            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER)
 
 # Parallel build control
 # Auto-parallelizes builds: plain 'make' automatically uses -j$(NPROC).
@@ -1006,7 +1039,7 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all build clean run test tests test-integration test-cards test-print-select test-size-content demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
+.PHONY: all build clean run test tests test-integration test-cards test-print-select test-size-content demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
 
 # Fast development build: -O0 skips optimization passes (~2x faster compilation)
 # Library code still builds at -O2 (via SUBMODULE_CFLAGS) since it rarely changes
@@ -1017,9 +1050,12 @@ dev:
 setup:
 	@git config core.hooksPath .githooks
 	@git config commit.template .githooks/commit-template
+	@git config merge.recall-stats.name "recall lesson-stats union merge"
+	@git config merge.recall-stats.driver "python3 scripts/recall_stats_merge.py %O %A %B"
 	@echo "✓ Git configured:"
 	@echo "  - Pre-commit hook enabled (.githooks/)"
 	@echo "  - Commit template enabled (.githooks/commit-template)"
+	@echo "  - Lesson-stats merge driver enabled (.claude-recall/*.json)"
 
 # Help target - shows common commands, references topic-specific help
 help:
@@ -1050,6 +1086,7 @@ help:
 	echo "  $${G}moonraker-inspector$${X} - Query Moonraker printer metadata"; \
 	echo "  $${G}validate-fonts$${X}    - Check all icons are in compiled fonts"; \
 	echo "  $${G}regen-fonts$${X}       - Regenerate MDI icon fonts"; \
+	echo "  $${G}regen-doc-links$${X}   - Relink the architecture guide's file citations"; \
 	echo "  $${G}quality$${X}           - Run all quality checks"; \
 	echo "  $${G}icon$${X}              - Generate app icon from logo"; \
 	echo ""; \

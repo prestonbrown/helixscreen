@@ -30,7 +30,7 @@ static StepId id(int i) {
 
 static std::vector<StepSkip> all_steps() {
     std::vector<StepSkip> v;
-    for (int i = 0; i < wizard::kStepCount; ++i)
+    for (int i = 0; i < wizard::STEP_COUNT; ++i)
         v.push_back({id(i), false});
     return v;
 }

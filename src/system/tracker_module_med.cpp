@@ -141,11 +141,11 @@ static void remap_med_effect(uint8_t med_cmd, uint8_t med_data, uint8_t& pt_cmd,
 // ---------------------------------------------------------------------------
 
 std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
-    static constexpr size_t kHeaderSize = 20; // bare minimum to read the main header
-    static constexpr size_t kMaxInstruments = 64;
-    static constexpr size_t kChannels = 4;
+    static constexpr size_t HEADER_SIZE = 20; // bare minimum to read the main header
+    static constexpr size_t MAX_INSTRUMENTS = 64;
+    static constexpr size_t CHANNELS = 4;
 
-    if (size < kHeaderSize) {
+    if (size < HEADER_SIZE) {
         spdlog::debug("tracker: MED too small ({} bytes)", size);
         return std::nullopt;
     }
@@ -295,7 +295,7 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
         uint32_t block_ptr = read_be32(data + blockarr_offset + b * 4);
         if (block_ptr == 0 || block_ptr >= size) {
             spdlog::debug("tracker: MED block[{}] ptr=0x{:x} is null/invalid", b, block_ptr);
-            mod.patterns[b].resize(kChannels * 64, TrackerNote{});
+            mod.patterns[b].resize(CHANNELS * 64, TrackerNote{});
             continue;
         }
 
@@ -307,7 +307,7 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
             // MMD2/3 block header: uint16 numtracks, uint16 lines, uint32 reserved (4 bytes)
             if (block_ptr + 8 > size) {
                 spdlog::warn("tracker: MED block[{}] header out of bounds", b);
-                mod.patterns[b].resize(kChannels * 64, TrackerNote{});
+                mod.patterns[b].resize(CHANNELS * 64, TrackerNote{});
                 continue;
             }
             num_tracks = read_be16(data + block_ptr + 0);
@@ -317,7 +317,7 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
             // MMD0/1 block header: uint8 numtracks, uint8 lines (rows-1)
             if (block_ptr + 2 > size) {
                 spdlog::warn("tracker: MED block[{}] header out of bounds", b);
-                mod.patterns[b].resize(kChannels * 64, TrackerNote{});
+                mod.patterns[b].resize(CHANNELS * 64, TrackerNote{});
                 continue;
             }
             num_tracks = data[block_ptr + 0];
@@ -333,7 +333,7 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
             num_tracks = 4;
         max_rows = std::max(max_rows, rows);
 
-        mod.patterns[b].resize(rows * kChannels, TrackerNote{});
+        mod.patterns[b].resize(rows * CHANNELS, TrackerNote{});
 
         // Each note: for MMD0/1 = 3 bytes, MMD2/3 = 4 bytes
         size_t bytes_per_note = is_mmd23 ? 4 : 3;
@@ -356,11 +356,11 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
                     break;
                 }
 
-                // Only store first kChannels (4) channels
-                if (ch >= kChannels)
+                // Only store first CHANNELS (4) channels
+                if (ch >= CHANNELS)
                     continue;
 
-                TrackerNote& note = mod.patterns[b][row * kChannels + ch];
+                TrackerNote& note = mod.patterns[b][row * CHANNELS + ch];
 
                 if (is_mmd23) {
                     // MMD2/3: byte0=note, byte1=instrument, byte2=effect, byte3=effect_data
@@ -412,8 +412,8 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
 
     // Create instruments with synthetic waveform fallbacks.
     // Instrument 0 is unused (0 = "no instrument" in tracker data).
-    mod.instruments.resize(kMaxInstruments);
-    for (size_t i = 0; i < kMaxInstruments; ++i) {
+    mod.instruments.resize(MAX_INSTRUMENTS);
+    for (size_t i = 0; i < MAX_INSTRUMENTS; ++i) {
         mod.instruments[i].volume = 1.0f;
         mod.instruments[i].finetune = 0.0f;
         // Assign waveforms by instrument role (fallback when no PCM sample):
@@ -440,9 +440,9 @@ std::optional<TrackerModule> parse_med(const uint8_t* data, size_t size) {
             mod.instruments[i].waveform = Waveform::SQUARE;
             break;
         default:
-            static const Waveform kFallback[] = {Waveform::TRIANGLE, Waveform::SAW, Waveform::SINE,
-                                                 Waveform::SQUARE};
-            mod.instruments[i].waveform = kFallback[i % 4];
+            static const Waveform FALLBACK[] = {Waveform::TRIANGLE, Waveform::SAW, Waveform::SINE,
+                                                Waveform::SQUARE};
+            mod.instruments[i].waveform = FALLBACK[i % 4];
             break;
         }
     }

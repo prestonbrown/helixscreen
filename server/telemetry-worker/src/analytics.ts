@@ -293,6 +293,12 @@ function mapEventToDataPointInternal(
     const ams = (event.ams ?? {}) as Record<string, unknown>;
     const amsType = String(ams.type ?? "");
 
+    // Tri-state as a string rather than a capsBitmask bit: a bit cannot tell
+    // "false" apart from "this client is too old to report it", so every event
+    // predating the field would read as a definite false.
+    const triState = (v: unknown): string =>
+      v === undefined || v === null ? "" : v ? "1" : "0";
+
     return {
       indexes: ["hardware_profile"],
       blobs: [
@@ -304,8 +310,13 @@ function mapEventToDataPointInternal(
         mcuChip,
         probeType,
         amsType,
-        "",
-        "",
+        // blob9: are HelixScreen's helper macros installed? Sent by the client
+        // since schema v2 but never projected until now, so this starts
+        // answering immediately without waiting on a client release.
+        triState(macros.has_helix_macros),
+        // blob10: is Moonraker on this machine or reached over the network?
+        // Only ever the boolean - never the host or address.
+        triState(event.moonraker_is_local),
         "",
         "",
       ],

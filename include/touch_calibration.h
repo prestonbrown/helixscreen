@@ -341,6 +341,41 @@ inline bool device_needs_calibration(const std::string& name, const std::string&
 }
 
 /**
+ * @brief Determine if the manual "Touch Calibration" entry point should be offered
+ *
+ * Distinct from device_needs_calibration(), which decides whether the first-run
+ * wizard fires *itself*. That decision keys off the controller name and the
+ * reported ABS range, and both signals are structurally blind to an orientation
+ * mismatch: a touch panel mounted 90° from the display reports an ordinary
+ * controller name and an ABS range that matches the display exactly
+ * (prestonbrown/helixscreen#1259, tlsc6x_touch on an FLSUN T1 Pro). Nothing we
+ * can probe distinguishes it from a correctly mounted panel — only a human can
+ * report it.
+ *
+ * So the manual path must not depend on the same guess. It is offered for any
+ * real touch device, and the wizard's own VERIFY step (which reverts when taps
+ * stop landing on-screen) is what protects a working panel from a bad matrix.
+ *
+ * @param name Device name from /sys/class/input/eventN/device/name
+ * @param has_abs_xy Whether device has ABS_X/ABS_Y or MT position capabilities
+ * @return true if the manual calibration entry point should be reachable
+ */
+inline bool device_supports_calibration(const std::string& name, bool has_abs_xy) {
+    // No ABS axes = not a touchscreen, nothing to calibrate
+    if (!has_abs_xy) {
+        return false;
+    }
+
+    // Virtual/uinput devices (VNC injection, testing) already feed mapped
+    // screen coordinates — an affine on top has nothing to correct.
+    if (name.find("virtual") != std::string::npos) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * @brief Check if an ABS range value looks like a generic HID resolution-independent range
  *
  * USB HID touchscreens report generic ranges (4096, 32767, 65535, etc.) that LVGL's

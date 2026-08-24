@@ -10,13 +10,13 @@
 
 #include <memory>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
 class ActiveSpoolWidget : public PanelWidget {
   public:
-    explicit ActiveSpoolWidget(MoonrakerAPI* api);
+    explicit ActiveSpoolWidget(IMoonrakerAPI* api);
     ~ActiveSpoolWidget() override;
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
@@ -29,7 +29,7 @@ class ActiveSpoolWidget : public PanelWidget {
     static void clicked_cb(lv_event_t* e);
 
   private:
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;

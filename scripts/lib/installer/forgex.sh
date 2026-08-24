@@ -415,6 +415,7 @@ uninstall_forgex() {
     # Re-enable GuppyScreen and tslib init scripts
     if [ -f "/opt/config/mod/.root/S80guppyscreen" ]; then
         $SUDO chmod +x "/opt/config/mod/.root/S80guppyscreen" 2>/dev/null || true
+        # shellcheck disable=SC2034  # consumed by uninstall.sh (previous-UI restore chain) and the uninstaller bundle
         restored_ui="GuppyScreen (/opt/config/mod/.root/S80guppyscreen)"
     fi
     if [ -f "/opt/config/mod/.root/S35tslib" ]; then

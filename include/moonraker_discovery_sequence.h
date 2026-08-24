@@ -331,14 +331,14 @@ class MoonrakerDiscoverySequence {
 /// Seconds allowed for the TCP connect phase of a snapshot reachability probe.
 /// This is the budget that decides "is anything listening at this address" —
 /// the stale-DHCP / wrong-subnet case the probe exists to catch.
-inline constexpr int kSnapshotProbeConnectTimeoutSec = 2;
+inline constexpr int SNAPSHOT_PROBE_CONNECT_TIMEOUT_SEC = 2;
 
 /// Seconds allowed for the whole snapshot reachability probe.
 /// Deliberately longer than the connect budget: a go2rtc-style endpoint that
 /// transcodes H.264 must wait for the next keyframe before it can emit a JPEG,
 /// measured at up to ~2.9s on a Pi 5. Raising this does not slow the dead-address
 /// case down — that one loses on the connect budget above.
-inline constexpr int kSnapshotProbeTotalTimeoutSec = 6;
+inline constexpr int SNAPSHOT_PROBE_TOTAL_TIMEOUT_SEC = 6;
 
 /**
  * @brief Probe an absolute snapshot URL to decide whether the webcam is live.

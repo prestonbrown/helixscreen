@@ -19,7 +19,7 @@ namespace {
 
 // Every command the protocol defines, LONGEST FIRST so that a prefix match can
 // never pick "prompt_button" out of "prompt_button_group_start".
-constexpr std::string_view kActionCommands[] = {
+constexpr std::string_view ACTION_COMMANDS[] = {
     "prompt_button_group_start",
     "prompt_button_group_end",
     "prompt_footer_button",
@@ -41,7 +41,7 @@ constexpr std::string_view kActionCommands[] = {
 /// command this build does not know yet than a glued title, and mis-splitting it
 /// would silently route it to the wrong handler.
 size_t glued_command_length(std::string_view token) {
-    for (std::string_view cmd : kActionCommands) {
+    for (std::string_view cmd : ACTION_COMMANDS) {
         if (token.size() <= cmd.size() || token.compare(0, cmd.size(), cmd) != 0) {
             continue;
         }

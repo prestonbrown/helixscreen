@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#if HELIX_HAS_BED_MESH_3D
+
 #include "bed_mesh_projection.h"
 
 bed_mesh_point_3d_t bed_mesh_projection_project_3d_to_2d(double x, double y, double z,
@@ -52,3 +54,5 @@ bed_mesh_point_3d_t bed_mesh_projection_project_3d_to_2d(double x, double y, dou
 
     return result;
 }
+
+#endif // HELIX_HAS_BED_MESH_3D

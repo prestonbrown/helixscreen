@@ -22,7 +22,6 @@ struct PanelWidgetDef {
     const char* display_name;          // For settings overlay UI
     const char* icon;                  // Icon name
     const char* description;           // Short description for settings overlay
-    const char* translation_tag;       // For i18n
     const char* hardware_gate_subject; // nullptr = always available
     const char* hardware_gate_hint; // Human-readable reason, e.g., "Requires AMS or MMU hardware"
     bool default_enabled = true;    // Whether enabled in fresh/default config

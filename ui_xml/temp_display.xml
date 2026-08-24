@@ -7,6 +7,11 @@
     <prop name="size" type="string" default="md"/>
     <!-- Show the "/ target" portion (opt-in, hidden by default) -->
     <prop name="show_target" type="string" default="false"/>
+    <!-- Hide separator+target while the heater is off (target == 0) instead of
+         rendering the "—" placeholder. For readouts where a target only matters
+         during a heat-up; control surfaces leave this false, since there "—"
+         usefully reads as "this heater is off". -->
+    <prop name="hide_target_when_off" type="string" default="false"/>
     <!-- Subject name for current temperature (int, decidegrees) -->
     <prop name="bind_current" type="string" default=""/>
     <!-- Subject name for target temperature (int, decidegrees) -->
@@ -23,11 +28,13 @@
     It creates a row of labels: [current] [ / ] [target] [°C]
     The C++ implementation handles:
     - Font sizing based on "size" prop
-    - Hiding separator/target when show_target="false"
+    - Hiding separator/target when show_target="false", and when
+      hide_target_when_off="true" with the heater off
     - Subject binding for reactive updates
     - text for temps, text_muted for separators
   -->
   <view name="temp_display_widget"
         extends="temp_display" size="$size" show_target="$show_target" bind_current="$bind_current"
-        bind_target="$bind_target" event_cb="$event_cb" hide_target_below_bp="$hide_target_below_bp"/>
+        bind_target="$bind_target" event_cb="$event_cb" hide_target_below_bp="$hide_target_below_bp"
+        hide_target_when_off="$hide_target_when_off"/>
 </component>

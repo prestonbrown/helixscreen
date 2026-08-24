@@ -26,9 +26,9 @@ struct ThemeDirFixture {
             had_prev_ = true;
             prev_config_dir_ = prev;
         }
-        temp_dir_ = std::filesystem::temp_directory_path() /
-                    ("helix_theme_test_" + std::to_string(::getpid()) + "_" +
-                     std::to_string(counter_++));
+        temp_dir_ =
+            std::filesystem::temp_directory_path() /
+            ("helix_theme_test_" + std::to_string(::getpid()) + "_" + std::to_string(counter_++));
         std::error_code ec;
         std::filesystem::create_directories(temp_dir_ / "themes", ec);
         ::setenv("HELIX_CONFIG_DIR", temp_dir_.c_str(), /*overwrite=*/1);
@@ -245,8 +245,7 @@ TEST_CASE_METHOD(ThemeDirFixture, "load_theme_from_file falls back to defaults d
     REQUIRE(theme.name == "Nord");
 }
 
-TEST_CASE_METHOD(ThemeDirFixture, "user theme overrides default theme with same name",
-                 "[theme]") {
+TEST_CASE_METHOD(ThemeDirFixture, "user theme overrides default theme with same name", "[theme]") {
     std::string themes_dir = helix::get_themes_directory();
 
     // Create a user theme with the same name as a default theme

@@ -8,22 +8,20 @@
         extends="overlay_panel" title="Edit Theme Colors" title_tag="Edit Theme Colors" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg" scrollable="true"
-            flex_flow="column">
+            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
+            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <!-- ================================================================== -->
       <!-- THEME COLORS -->
       <!-- ================================================================== -->
       <setting_section_header title="THEME COLORS" title_tag="THEME COLORS" icon="tune"/>
       <lv_obj name="theme_swatch_list"
-              width="100%" height="content" scrollable="false"
-              style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xs"
-              style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs">
+              width="100%" height="content" scrollable="false" style_pad_left="#space_md" style_pad_right="#space_md"
+              style_pad_top="#space_xs" style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs">
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_0"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
@@ -37,12 +35,12 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_1"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#overlay_bg" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
-                    style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#overlay_bg" style_bg_opa="255" style_border_width="1"
+                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -53,11 +51,10 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_2"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#card_bg" style_bg_opa="255" style_border_width="1"
@@ -71,8 +68,8 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_3"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#elevated_bg" style_bg_opa="255" style_border_width="1"
@@ -87,15 +84,14 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_4"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#border" style_bg_opa="255" style_border_width="1"
-                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#border" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
+                    style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -105,12 +101,12 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_5"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#text" style_bg_opa="255" style_border_width="1"
-                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#text" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
+                    style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -121,11 +117,10 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_6"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#text_muted" style_bg_opa="255" style_border_width="1"
@@ -139,8 +134,8 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_7"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#text_subtle" style_bg_opa="255" style_border_width="1"
@@ -155,11 +150,10 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_8"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#primary" style_bg_opa="255" style_border_width="1"
@@ -173,8 +167,8 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_9"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#secondary" style_bg_opa="255" style_border_width="1"
@@ -189,11 +183,10 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_10"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#tertiary" style_bg_opa="255" style_border_width="1"
@@ -207,12 +200,12 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_11"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#info" style_bg_opa="255" style_border_width="1"
-                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#info" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
+                    style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -223,11 +216,10 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_12"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#success" style_bg_opa="255" style_border_width="1"
@@ -241,8 +233,8 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_13"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
                     style_bg_color="#warning" style_bg_opa="255" style_border_width="1"
@@ -257,15 +249,14 @@
           </ui_card>
         </lv_obj>
         <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                scrollable="false">
+                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_14"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#danger" style_bg_opa="255" style_border_width="1"
-                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#danger" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
+                    style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -275,12 +266,12 @@
             </lv_obj>
           </ui_card>
           <ui_card width="0"
-                  height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                  style_radius="#border_radius_small" style_flex_cross_place="center">
+                   height="content" flex_grow="1" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                   style_radius="#border_radius_small" style_flex_cross_place="center">
             <lv_obj name="swatch_15"
                     width="#theme_swatch_size" height="#theme_swatch_size" style_radius="#border_radius_small"
-                    style_bg_color="#focus" style_bg_opa="255" style_border_width="1"
-                    style_border_color="#elevated_bg" style_border_opa="80" scrollable="false" clickable="true">
+                    style_bg_color="#focus" style_bg_opa="255" style_border_width="1" style_border_color="#elevated_bg"
+                    style_border_opa="80" scrollable="false" clickable="true">
               <event_cb trigger="clicked" callback="on_theme_swatch_clicked"/>
             </lv_obj>
             <lv_obj width="0"
@@ -297,25 +288,28 @@
       <setting_section_header title="STYLE PROPERTIES" title_tag="STYLE PROPERTIES" icon="tune_variant"/>
 
       <setting_slider_row name="row_border_radius"
-                          label="Border Radius" label_tag="Border Radius" icon="cube" description="Corner roundness" description_tag="Corner roundness"
-                          min="0" max="7" value="3" min_icon="minus" max_icon="plus"
+                          label="Border Radius" label_tag="Border Radius" icon="cube" description="Corner roundness"
+                          description_tag="Corner roundness" min="0" max="7" value="3" min_icon="minus" max_icon="plus"
                           callback="on_theme_property_changed" user_data="border_radius"/>
 
       <setting_slider_row name="row_border_width"
-                          label="Border Width" label_tag="Border Width" icon="ruler" description="Default border thickness" description_tag="Default border thickness" min="0" max="6"
-                          value="1" min_icon="minus" max_icon="plus"
-                          callback="on_theme_property_changed" user_data="border_width"/>
+                          label="Border Width" label_tag="Border Width" icon="ruler"
+                          description="Default border thickness" description_tag="Default border thickness" min="0"
+                          max="6" value="1" min_icon="minus" max_icon="plus" callback="on_theme_property_changed"
+                          user_data="border_width"/>
 
       <setting_slider_row name="row_border_opacity"
                           label="Border Opacity" label_tag="Border Opacity" icon="layers"
-                          description="Border transparency (0 = invisible, 255 = solid)" description_tag="Border transparency (0 = invisible, 255 = solid)" min="0" max="255" value="128"
-                          min_icon="minus" max_icon="plus"
-                          callback="on_theme_property_changed" user_data="border_opacity"/>
+                          description="Border transparency (0 = invisible, 255 = solid)"
+                          description_tag="Border transparency (0 = invisible, 255 = solid)" min="0" max="255"
+                          value="128" min_icon="minus" max_icon="plus" callback="on_theme_property_changed"
+                          user_data="border_opacity"/>
 
       <setting_slider_row name="row_shadow_intensity"
-                          label="Shadow Intensity" label_tag="Shadow Intensity" icon="animation" description="Drop shadow strength (0 = disabled)" description_tag="Drop shadow strength (0 = disabled)"
-                          min="0" max="50" value="0" min_icon="minus" max_icon="plus"
-                          callback="on_theme_property_changed" user_data="shadow"/>
+                          label="Shadow Intensity" label_tag="Shadow Intensity" icon="animation"
+                          description="Drop shadow strength (0 = disabled)"
+                          description_tag="Drop shadow strength (0 = disabled)" min="0" max="50" value="0"
+                          min_icon="minus" max_icon="plus" callback="on_theme_property_changed" user_data="shadow"/>
 
       <!-- ================================================================== -->
       <!-- ACTION BUTTONS -->
@@ -325,19 +319,21 @@
               style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_md"
               scrollable="false">
 
-        <ui_button name="btn_reset" text="Reset" translation_tag="Reset" variant="secondary"
-                   height="#button_height" flex_grow="1">
+        <ui_button name="btn_reset"
+                   height="#button_height" text="Reset" translation_tag="Reset" variant="secondary" flex_grow="1">
           <event_cb trigger="clicked" callback="on_theme_reset_clicked"/>
         </ui_button>
 
-        <ui_button name="btn_save_as" text="Save As New" translation_tag="Save As New" variant="secondary"
-                   height="#button_height" flex_grow="1">
+        <ui_button name="btn_save_as"
+                   height="#button_height" text="Save As New" translation_tag="Save As New" variant="secondary"
+                   flex_grow="1">
           <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
         </ui_button>
 
-        <ui_button name="btn_save" text="Save" translation_tag="Save" variant="primary"
-                   height="#button_height" flex_grow="1"
-                   disabled="true" style_bg_opa:disabled="100" style_text_opa:disabled="100">
+        <ui_button name="btn_save"
+                   height="#button_height" text="Save" translation_tag="Save" variant="primary" flex_grow="1"
+                   disabled="true" style_bg_opa:disabled="100"
+                   style_text_opa:disabled="100">
           <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
         </ui_button>
       </lv_obj>

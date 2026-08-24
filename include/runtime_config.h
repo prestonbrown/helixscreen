@@ -278,12 +278,22 @@ struct RuntimeConfig {
     }
 
     /**
-     * @brief Check if filament runout modal should be shown
+     * @brief Whether the GENERIC, sensor-driven filament runout modal may show.
      *
-     * Returns false if an AMS/MMU system is present (runout during swaps is normal).
-     * Can be overridden with HELIX_FORCE_RUNOUT_MODAL=1 environment variable.
+     * This is a policy question about which surface owns a runout, not a
+     * detection question — every production caller has already established that
+     * a sensor actually lost filament (FilamentSensorManager::has_real_runout())
+     * before asking.
      *
-     * @return true if runout modal should be displayed
+     * Returns false when the active AMS raises its own runout fault (AFC, Happy
+     * Hare, AD5X IFS, CFS), because that backend's modal carries better,
+     * hardware-derived recovery actions and two dialogs for one runout is worse
+     * than one. Returns true otherwise, including for a hub AMS that has no
+     * error hook of its own (ACE, QIDI Box) — suppressing those left the user
+     * with nothing (prestonbrown/helixscreen#1250). Bypass-active and tool
+     * changers always show. Overridable with HELIX_FORCE_RUNOUT_MODAL=1.
+     *
+     * @return true if the generic runout modal should be displayed
      */
     bool should_show_runout_modal() const;
 };

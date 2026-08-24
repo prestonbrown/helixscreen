@@ -35,6 +35,20 @@
     <px name="header_button_height_large" value="48"/>
     <px name="header_button_height_xlarge" value="54"/>
     <px name="header_button_height_xxlarge" value="64"/>
+
+    <!-- E-Stop spacer gutter. The slot itself holds NO button — it is a
+         transparent right-most strip that reserves horizontal room so the
+         title and any action buttons stay clear of the floating e-stop circle,
+         which lives at the PANEL ROOT (full-height parent → fully hit-testable,
+         no header clip — prestonbrown/helixscreen#1204). The spacer is gated by
+         estop_visible_subject; re-measure with ctl geom if the FAB resizes. -->
+    <px name="estop_slot_width_micro" value="48"/>
+    <px name="estop_slot_width_tiny" value="52"/>
+    <px name="estop_slot_width_small" value="58"/>
+    <px name="estop_slot_width_medium" value="64"/>
+    <px name="estop_slot_width_large" value="68"/>
+    <px name="estop_slot_width_xlarge" value="78"/>
+    <px name="estop_slot_width_xxlarge" value="88"/>
   </consts>
   <!-- API Properties -->
   <api>
@@ -92,6 +106,14 @@
     <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
     <prop name="action_button_2_callback" type="string" default=""/>
     <prop name="hide_action_button_2" type="string" default="true"/>
+    <!-- Dedicated E-Stop spacer (rightmost). When estop_visible_subject
+         resolves to 1, the spacer takes layout width, shifting the title and
+         any action buttons left so they never share x with the floating e-stop
+         circle (which lives at the panel root). The spacer holds NO button.
+         Empty default = the bind_flag no-ops (engine guard) and the spacer
+         stays hidden, so a header that does not ask for e-stop renders nothing
+         — same pattern as action_button_hidden_subject above. -->
+    <prop name="estop_visible_subject" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="#header_height" style_pad_left="0" style_pad_right="#space_lg" style_pad_top="0"
@@ -142,5 +164,15 @@
       <bind_flag_if_eq subject="$action_button_hidden_subject" flag="hidden" ref_value="1"/>
       <event_cb trigger="clicked" callback="$action_button_callback"/>
     </ui_button>
+    <!-- E-Stop spacer: rightmost reserved gutter — NO button inside. The
+         floating e-stop circle lives at the panel root (full-height parent) so
+         it never clips and stays fully hit-testable (#1204). This spacer just
+         reserves horizontal room so the title/action buttons stay clear of it.
+         Empty subject default = no-op binding, spacer stays hidden. -->
+    <lv_obj name="estop_slot"
+            width="#estop_slot_width" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false" clickable="false" hidden="true">
+      <bind_flag_if_eq subject="$estop_visible_subject" flag="hidden" ref_value="0"/>
+    </lv_obj>
   </view>
 </component>

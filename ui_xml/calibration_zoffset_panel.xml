@@ -153,19 +153,19 @@
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                   style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
             <text_small width="60" text="Farther" translation_tag="Farther"/>
-            <ui_button flex_grow="1" text="+.005">
+            <ui_button name="btn_z_farther_0_005" flex_grow="1" text="+.005">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.005"/>
             </ui_button>
-            <ui_button flex_grow="1" text="+.01">
+            <ui_button name="btn_z_farther_0_01" flex_grow="1" text="+.01">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.01"/>
             </ui_button>
-            <ui_button flex_grow="1" text="+.05">
+            <ui_button name="btn_z_farther_0_05" flex_grow="1" text="+.05">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.05"/>
             </ui_button>
-            <ui_button flex_grow="1" text="+.1">
+            <ui_button name="btn_z_farther_0_1" flex_grow="1" text="+.1">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.1"/>
             </ui_button>
-            <ui_button flex_grow="1" text="+1">
+            <ui_button name="btn_z_farther_1" flex_grow="1" text="+1">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="1"/>
             </ui_button>
           </lv_obj>
@@ -174,19 +174,19 @@
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                   style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
             <text_small width="60" text="Closer" translation_tag="Closer"/>
-            <ui_button flex_grow="1" text="-.005">
+            <ui_button name="btn_z_closer_0_005" flex_grow="1" text="-.005">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.005"/>
             </ui_button>
-            <ui_button flex_grow="1" text="-.01">
+            <ui_button name="btn_z_closer_0_01" flex_grow="1" text="-.01">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.01"/>
             </ui_button>
-            <ui_button flex_grow="1" text="-.05">
+            <ui_button name="btn_z_closer_0_05" flex_grow="1" text="-.05">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.05"/>
             </ui_button>
-            <ui_button flex_grow="1" text="-.1">
+            <ui_button name="btn_z_closer_0_1" flex_grow="1" text="-.1">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.1"/>
             </ui_button>
-            <ui_button flex_grow="1" text="-1">
+            <ui_button name="btn_z_closer_1" flex_grow="1" text="-1">
               <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-1"/>
             </ui_button>
           </lv_obj>

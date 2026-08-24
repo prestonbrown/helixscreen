@@ -8,15 +8,14 @@
 // different macros.
 
 #include "../helix_test_fixture.h"
-
 #include "config.h"
 #include "settings_manager.h"
-
-#include "../catch_amalgamated.hpp"
 
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix;
 

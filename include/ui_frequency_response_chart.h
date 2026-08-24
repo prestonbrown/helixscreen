@@ -117,6 +117,34 @@ void ui_frequency_response_chart_remove_series(ui_frequency_response_chart_t* ch
 void ui_frequency_response_chart_show_series(ui_frequency_response_chart_t* chart, int series_id,
                                              bool visible);
 
+/**
+ * @brief Render a series as a muted background curve
+ *
+ * The chart's built-in renderer draws every series at the same line width and
+ * opacity, which is right for the fitted curves but wrong for a reference
+ * curve (e.g. the live-before shaper setting) that must stay visually
+ * secondary to the new fit. A muted series keeps its data, visibility flag,
+ * and color, but is drawn by the chart's own draw-post pass as a thin
+ * (1px), reduced-opacity line instead of through its LVGL series.
+ *
+ * @param chart Chart instance
+ * @param series_id Series ID
+ * @param muted true to draw thin and translucent, false to restore the
+ *              built-in rendering
+ */
+void ui_frequency_response_chart_set_series_muted(ui_frequency_response_chart_t* chart,
+                                                  int series_id, bool muted);
+
+/**
+ * @brief Report whether a series is currently rendered as muted
+ *
+ * @param chart Chart instance
+ * @param series_id Series ID
+ * @return true when muted, false when not (or for an unknown series)
+ */
+bool ui_frequency_response_chart_is_series_muted(ui_frequency_response_chart_t* chart,
+                                                 int series_id);
+
 // ============================================================================
 // Data Management
 // ============================================================================

@@ -2,8 +2,10 @@
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "helix_test_fixture.h"
-#include "../catch_amalgamated.hpp"
+
 #include <set>
+
+#include "../catch_amalgamated.hpp"
 
 using helix::printer::FilamentCatalog;
 
@@ -15,12 +17,12 @@ TEST_CASE_METHOD(HelixTestFixture, "shipped filaments.json is well-formed", "[fi
     std::set<std::string> ids;
     std::set<std::string> cfs_codes;
     for (const auto* p : all) {
-        CHECK(ids.insert(p->id).second);                 // no duplicate ids
+        CHECK(ids.insert(p->id).second); // no duplicate ids
         CHECK(p->nozzle_min <= p->nozzle_recommended);
         CHECK(p->nozzle_recommended <= p->nozzle_max);
         auto it = p->codes.find("cfs");
         if (it != p->codes.end())
-            CHECK(cfs_codes.insert(it->second).second);  // no dup cfs codes
+            CHECK(cfs_codes.insert(it->second).second); // no dup cfs codes
     }
 }
 
@@ -40,12 +42,12 @@ TEST_CASE_METHOD(HelixTestFixture, "every catalog type resolves in filament_data
         if (!filament::find_material(p->type).has_value())
             unresolved.insert(p->type);
     }
-    INFO("catalog types with no filament_database.h entry (or alias): "
-         << [&] {
-                std::string s;
-                for (const auto& t : unresolved) s += t + " ";
-                return s;
-            }());
+    INFO("catalog types with no filament_database.h entry (or alias): " << [&] {
+        std::string s;
+        for (const auto& t : unresolved)
+            s += t + " ";
+        return s;
+    }());
     CHECK(unresolved.empty());
 }
 
@@ -71,11 +73,11 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog products inherit non-zero physical d
 // Reverting the Generic products in assets/filaments.json fails this test.
 TEST_CASE_METHOD(HelixTestFixture, "previously-unreachable material types have products",
                  "[filament_data]") {
-    static const char* kMustBeSelectable[] = {
+    static const char* MUST_BE_SELECTABLE[] = {
         "ASA-GF", "ABS-CF", "PC-CF", "PC-GF", "PET-GF", "PLA-GF",
     };
     auto cat = FilamentCatalog::load_from_file("assets/filaments.json", false, "");
-    for (const auto* type : kMustBeSelectable) {
+    for (const auto* type : MUST_BE_SELECTABLE) {
         INFO("type: " << type);
         CHECK(!cat.products_for_type(type).empty());
     }
@@ -86,9 +88,8 @@ TEST_CASE_METHOD(HelixTestFixture, "previously-unreachable material types have p
 // aliases one onto the other.
 TEST_CASE_METHOD(HelixTestFixture, "CF and GF variants stay distinct", "[filament_data]") {
     static const char* kPairs[][2] = {
-        {"ASA-CF", "ASA-GF"}, {"ABS-CF", "ABS-GF"}, {"PC-CF", "PC-GF"},
-        {"PET-CF", "PET-GF"}, {"PETG-CF", "PETG-GF"}, {"PA-CF", "PA-GF"},
-        {"PP-CF", "PP-GF"},   {"PPA-CF", "PPA-GF"},
+        {"ASA-CF", "ASA-GF"},   {"ABS-CF", "ABS-GF"}, {"PC-CF", "PC-GF"}, {"PET-CF", "PET-GF"},
+        {"PETG-CF", "PETG-GF"}, {"PA-CF", "PA-GF"},   {"PP-CF", "PP-GF"}, {"PPA-CF", "PPA-GF"},
     };
     for (const auto& pair : kPairs) {
         INFO("pair: " << pair[0] << " vs " << pair[1]);

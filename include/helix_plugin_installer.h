@@ -20,7 +20,7 @@
 #include <string>
 
 // Forward declaration
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix {
 
@@ -34,7 +34,6 @@ namespace helix {
  * @param host Hostname to check (e.g., "localhost", "127.0.0.1", "::1")
  * @return true if the host is localhost
  */
-[[nodiscard]] bool is_local_host(const std::string& host);
 
 /**
  * @brief Extract hostname from a WebSocket URL
@@ -95,14 +94,14 @@ class HelixPluginInstaller {
     // === Configuration ===
 
     /**
-     * @brief Set the MoonrakerAPI instance for plugin status checks
+     * @brief Set the IMoonrakerAPI instance for plugin status checks
      */
-    void set_api(MoonrakerAPI* api);
+    void set_api(IMoonrakerAPI* api);
 
     /**
      * @brief Set the WebSocket URL (for localhost detection)
      *
-     * Normally derived from MoonrakerAPI, but can be set directly for testing.
+     * Normally derived from IMoonrakerAPI, but can be set directly for testing.
      */
     void set_websocket_url(const std::string& url);
 
@@ -211,7 +210,7 @@ class HelixPluginInstaller {
     [[nodiscard]] bool is_installing() const;
 
   private:
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     std::string websocket_url_;
     std::atomic<PluginInstallState> state_{PluginInstallState::IDLE};
 

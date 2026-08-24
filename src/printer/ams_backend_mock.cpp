@@ -3,9 +3,8 @@
 
 #include "ams_backend_mock.h"
 
-#include "ams_bypass_policy.h"
-
 #include "afc_defaults.h"
+#include "ams_bypass_policy.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
 #include "runtime_config.h"
@@ -76,7 +75,7 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
     system_info_.total_slots = slot_count;
     // Use shared AFC defaults for capabilities
     auto caps = helix::printer::afc_default_capabilities();
-    system_info_.supports_endless_spool = caps.supports_endless_spool;
+    system_info_.endless_spool_enabled = caps.supports_endless_spool;
     system_info_.supports_tool_mapping = caps.supports_tool_mapping;
     system_info_.supports_bypass = caps.supports_bypass;
     system_info_.supports_purge = caps.supports_purge;
@@ -107,7 +106,13 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
         entry->info.color_rgb = sample.color;
         entry->info.color_name = sample.color_name;
         entry->info.material = sample.material;
-        entry->info.brand = sample.brand;
+        // No brand, for the same reason the AFC lanes carry none: Happy Hare's
+        // gate map "has no concept of brand / spool_name / total weight / colour
+        // name" (ams_backend_happy_hare.cpp), so a real lane's brand comes only
+        // from the user's override store or the Spoolman identity cache -- never
+        // from firmware. The vendor in SAMPLE_FILAMENTS is what Spoolman
+        // supplies for these lanes, which is why the ids below line up with
+        // init_mock_spools().
 
         // Mock Spoolman link — weights mirror init_mock_spools() so the slot
         // editor and Spoolman views agree (spec §9 drift fix).
@@ -298,6 +303,51 @@ AmsError AmsBackendMock::start() {
                 scenario_thread_running_ = false;
             });
             spdlog::info("[AMS Mock] Applied initial state scenario: bypass");
+        } else if (scenario == "grade") {
+            // EVERY lane holds a filled grade of PLA. Same compat group as
+            // plain PLA, so FilamentMapper routes a PLA tool exactly as it did
+            // before and the print-start grade pass is the only thing that
+            // speaks up.
+            //
+            // All four rather than one on purpose: which lane a tool lands on
+            // is decided by colour match and then by POSITIONAL fallback over
+            // the file's full palette, so a single-tool file whose used tool is
+            // T2 lands on lane 3, not lane 1. Pinning one lane would make the
+            // scenario depend on which fixture is opened; filling every lane
+            // makes it hold for any PLA file, whichever lane wins.
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                const auto mat = filament::find_material("PLA-CF");
+                for (int i = 0; i < slots_.slot_count(); ++i) {
+                    auto* entry = slots_.get_mut(i);
+                    if (!entry) {
+                        continue;
+                    }
+                    entry->info.material = "PLA-CF";
+                    // Temperatures follow the material, as they do everywhere
+                    // else a slot's filament changes; leaving PLA's numbers on
+                    // a PLA-CF lane would make the dialog's own temperature
+                    // block disagree with the material it names.
+                    if (mat) {
+                        entry->info.nozzle_temp_min = mat->nozzle_min;
+                        entry->info.nozzle_temp_max = mat->nozzle_max;
+                        entry->info.bed_temp = mat->bed_temp;
+                    }
+                }
+            }
+            emit_event(EVENT_SLOT_CHANGED);
+            spdlog::info("[AMS Mock] Applied initial state scenario: grade (all lanes -> PLA-CF)");
+        } else if (scenario == "unaccounted") {
+            // Filament at the toolhead with no lane accounting for it — drives
+            // the unaccounted_toolhead_filament print-start gate (hand-fed /
+            // removed-bypass-filament states).
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                system_info_.filament_loaded = true;
+                system_info_.current_slot = -1;
+                mock_toolhead_unaccounted_ = true;
+            }
+            spdlog::info("[AMS Mock] Applied initial state scenario: unaccounted");
         }
     }
 
@@ -312,6 +362,7 @@ void AmsBackendMock::stop() {
     }
 
     running_ = false;
+    mock_toolhead_unaccounted_ = false;
     // Note: Don't log here - this may be called during static destruction
     // when spdlog's logger has already been destroyed (causes SIGSEGV)
 }
@@ -354,7 +405,7 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     info.current_toolchange = system_info_.current_toolchange;
     info.number_of_toolchanges = system_info_.number_of_toolchanges;
     info.filament_loaded = system_info_.filament_loaded;
-    info.supports_endless_spool = system_info_.supports_endless_spool;
+    info.endless_spool_enabled = system_info_.endless_spool_enabled;
     info.supports_tool_mapping = system_info_.supports_tool_mapping;
     info.supports_bypass = system_info_.supports_bypass;
     info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
@@ -364,6 +415,10 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     // Copy unit-level metadata not managed by registry
     for (size_t u = 0; u < info.units.size() && u < system_info_.units.size(); ++u) {
         info.units[u].name = system_info_.units[u].name;
+        // display_name was missing here while AmsBackendAfc copied it, so every
+        // mock profile that set one (htlf, torture) fell back to the internal
+        // name in the UI.
+        info.units[u].display_name = system_info_.units[u].display_name;
         info.units[u].connected = system_info_.units[u].connected;
         info.units[u].has_hub_sensor = system_info_.units[u].has_hub_sensor;
         info.units[u].hub_sensor_triggered = system_info_.units[u].hub_sensor_triggered;
@@ -492,6 +547,14 @@ int AmsBackendMock::get_current_slot() const {
 bool AmsBackendMock::is_filament_loaded() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return system_info_.filament_loaded;
+}
+
+std::optional<bool> AmsBackendMock::toolhead_filament_unaccounted() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!mock_toolhead_unaccounted_) {
+        return std::nullopt;
+    }
+    return true;
 }
 
 PathTopology AmsBackendMock::get_topology() const {
@@ -965,8 +1028,8 @@ AmsError AmsBackendMock::set_tool_mapping(int tool_number, int slot_index) {
     // slicer files often reference T0..T7 even when only 4 lanes exist. The
     // sentinel for "too large" is arbitrary; 64 is generous and matches the
     // production slot_registry behavior of growing on demand.
-    constexpr int kMaxToolIndex = 64;
-    if (tool_number < 0 || tool_number >= kMaxToolIndex) {
+    constexpr int MAX_TOOL_INDEX = 64;
+    if (tool_number < 0 || tool_number >= MAX_TOOL_INDEX) {
         return AmsError(AmsResult::INVALID_TOOL,
                         "Tool " + std::to_string(tool_number) + " out of range",
                         "Invalid tool number", "");
@@ -1570,7 +1633,11 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
 
         // Use shared AFC defaults for capabilities
         auto afc_caps = helix::printer::afc_default_capabilities();
-        system_info_.supports_endless_spool = afc_caps.supports_endless_spool;
+        system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
+        // Restore the capability flags: an earlier IFS/Snapmaker scenario on the
+        // same instance clears them, and an AFC scenario has AFC's per-slot edits.
+        endless_spool_supported_ = afc_caps.supports_endless_spool;
+        endless_spool_editable_ = afc_caps.supports_endless_spool;
         system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
@@ -1630,7 +1697,14 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             entry->info.slot_index = i;
             entry->info.global_index = i;
             entry->info.material = d.material;
-            entry->info.brand = d.brand;
+            // No brand: AFC does not report a vendor. read_vendor() in
+            // ams_backend_afc.cpp looks for vendor_name/spool_vendor/vendor/brand,
+            // but upstream AFC #808 has not shipped (#833 is the PR), so the
+            // payload never carries any of them and a real lane's brand stays
+            // empty unless the user sets an override. The vendor in sample_data is
+            // what the Spoolman identity cache supplies for the linked lanes, not
+            // what firmware reports -- seeding it onto the slot made mock mode
+            // render a brand real hardware never produces, which is what hid #1264.
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
             entry->info.status = (i == 0) ? SlotStatus::LOADED : d.status;
@@ -1754,13 +1828,16 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
     if (enabled) {
         // Disable conflicting modes
         tool_changer_mode_ = false;
+        torture_mode_ = false;
 
         // Configure as AFC with 2 units
         system_info_.type = AmsType::AFC;
         system_info_.type_name = "AFC (Mock Multi-Unit)";
         system_info_.version = "1.0.32-mock";
         system_info_.supports_bypass = true;
-        system_info_.supports_endless_spool = true;
+        system_info_.endless_spool_enabled = true;
+        endless_spool_supported_ = true;
+        endless_spool_editable_ = true;
         system_info_.supports_tool_mapping = true;
         system_info_.has_hardware_bypass_sensor = false;
         system_info_.tip_method = TipMethod::CUT;
@@ -1799,7 +1876,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
             entry->info.slot_index = i;
             entry->info.global_index = i;
             entry->info.material = d.material;
-            entry->info.brand = d.brand;
+            // No brand -- these are AFC units too. See set_afc_mode().
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
             entry->info.status = d.status;
@@ -1827,7 +1904,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
             entry->info.slot_index = i;
             entry->info.global_index = 4 + i;
             entry->info.material = d.material;
-            entry->info.brand = d.brand;
+            // No brand -- these are AFC units too. See set_afc_mode().
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
             entry->info.status = d.status;
@@ -1917,6 +1994,7 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
         // Disable conflicting modes
         tool_changer_mode_ = false;
         multi_unit_mode_ = false;
+        torture_mode_ = false;
 
         // Configure as AFC system
         system_info_.type = AmsType::AFC;
@@ -1925,7 +2003,11 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
         system_info_.total_slots = 12;
 
         auto afc_caps = helix::printer::afc_default_capabilities();
-        system_info_.supports_endless_spool = afc_caps.supports_endless_spool;
+        system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
+        // Restore the capability flags: an earlier IFS/Snapmaker scenario on the
+        // same instance clears them, and an AFC scenario has AFC's per-slot edits.
+        endless_spool_supported_ = afc_caps.supports_endless_spool;
+        endless_spool_editable_ = afc_caps.supports_endless_spool;
         system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
@@ -2105,6 +2187,7 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         tool_changer_mode_ = false;
         multi_unit_mode_ = false;
         mixed_topology_mode_ = false;
+        torture_mode_ = false;
 
         // Configure as AFC system
         system_info_.type = AmsType::AFC;
@@ -2113,7 +2196,11 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         system_info_.total_slots = 12;
 
         auto afc_caps = helix::printer::afc_default_capabilities();
-        system_info_.supports_endless_spool = afc_caps.supports_endless_spool;
+        system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
+        // Restore the capability flags: an earlier IFS/Snapmaker scenario on the
+        // same instance clears them, and an AFC scenario has AFC's per-slot edits.
+        endless_spool_supported_ = afc_caps.supports_endless_spool;
+        endless_spool_editable_ = afc_caps.supports_endless_spool;
         system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
@@ -2138,16 +2225,16 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         });
 
         // Helper to populate a slot
-        auto populate_slot = [this](int gi, int si, const char* material, const char* brand,
-                                    uint32_t color, const char* color_name, SlotStatus status,
-                                    int spoolman_id, float remaining) {
+        auto populate_slot = [this](int gi, int si, const char* material, uint32_t color,
+                                    const char* color_name, SlotStatus status, int spoolman_id,
+                                    float remaining) {
             auto* entry = slots_.get_mut(gi);
             if (!entry)
                 return;
             entry->info.slot_index = si;
             entry->info.global_index = gi;
             entry->info.material = material;
-            entry->info.brand = brand;
+            // No brand -- ViViD is mocked as AFC. See set_afc_mode().
             entry->info.color_rgb = color;
             entry->info.color_name = color_name;
             entry->info.status = status;
@@ -2163,32 +2250,22 @@ void AmsBackendMock::set_vivid_mixed_mode(bool enabled) {
         };
 
         // Unit 0: Turtle_1 (Box Turtle) — lanes 1-4, HUB
-        populate_slot(0, 0, "ASA", "Bambu Lab", 0x000000, "Black", SlotStatus::LOADED, 400,
-                      1000.0f);
-        populate_slot(1, 1, "PLA", "Polymaker", 0xFF0000, "Red", SlotStatus::AVAILABLE, 401,
-                      800.0f);
-        populate_slot(2, 2, "PETG", "eSUN", 0x00FF00, "Green", SlotStatus::AVAILABLE, 402, 600.0f);
-        populate_slot(3, 3, "PLA", "Overture", 0xFFFFFF, "White", SlotStatus::AVAILABLE, 403,
-                      400.0f);
+        populate_slot(0, 0, "ASA", 0x000000, "Black", SlotStatus::LOADED, 400, 1000.0f);
+        populate_slot(1, 1, "PLA", 0xFF0000, "Red", SlotStatus::AVAILABLE, 401, 800.0f);
+        populate_slot(2, 2, "PETG", 0x00FF00, "Green", SlotStatus::AVAILABLE, 402, 600.0f);
+        populate_slot(3, 3, "PLA", 0xFFFFFF, "White", SlotStatus::AVAILABLE, 403, 400.0f);
 
         // Unit 1: Turtle_2 (Box Turtle) — lanes 5-8, HUB (shared hub with Turtle_1)
-        populate_slot(4, 0, "ABS", "Hatchbox", 0x0000FF, "Blue", SlotStatus::AVAILABLE, 410,
-                      900.0f);
-        populate_slot(5, 1, "PLA", "Prusament", 0xFDD835, "Yellow", SlotStatus::AVAILABLE, 411,
-                      750.0f);
-        populate_slot(6, 2, "PETG", "Overture", 0x8E24AA, "Purple", SlotStatus::AVAILABLE, 412,
-                      500.0f);
-        populate_slot(7, 3, "ASA", "KVP", 0xFF6F00, "Orange", SlotStatus::AVAILABLE, 413, 650.0f);
+        populate_slot(4, 0, "ABS", 0x0000FF, "Blue", SlotStatus::AVAILABLE, 410, 900.0f);
+        populate_slot(5, 1, "PLA", 0xFDD835, "Yellow", SlotStatus::AVAILABLE, 411, 750.0f);
+        populate_slot(6, 2, "PETG", 0x8E24AA, "Purple", SlotStatus::AVAILABLE, 412, 500.0f);
+        populate_slot(7, 3, "ASA", 0xFF6F00, "Orange", SlotStatus::AVAILABLE, 413, 650.0f);
 
         // Unit 2: vivid_1 (ViViD) — lanes 13-16, HUB (own hub)
-        populate_slot(8, 0, "PLA", "Bambu Lab", 0xE53935, "Red", SlotStatus::AVAILABLE, 420,
-                      1000.0f);
-        populate_slot(9, 1, "PLA-CF", "Polymaker", 0x424242, "Carbon", SlotStatus::AVAILABLE, 421,
-                      900.0f);
-        populate_slot(10, 2, "PETG", "eSUN", 0x90CAF9, "Sky Blue", SlotStatus::AVAILABLE, 422,
-                      800.0f);
-        populate_slot(11, 3, "TPU", "NinjaTek", 0x00E676, "Neon Green", SlotStatus::AVAILABLE, 423,
-                      700.0f);
+        populate_slot(8, 0, "PLA", 0xE53935, "Red", SlotStatus::AVAILABLE, 420, 1000.0f);
+        populate_slot(9, 1, "PLA-CF", 0x424242, "Carbon", SlotStatus::AVAILABLE, 421, 900.0f);
+        populate_slot(10, 2, "PETG", 0x90CAF9, "Sky Blue", SlotStatus::AVAILABLE, 422, 800.0f);
+        populate_slot(11, 3, "TPU", 0x00E676, "Neon Green", SlotStatus::AVAILABLE, 423, 700.0f);
 
         // Tool mapping: single toolhead, T0 maps to currently loaded slot
         slots_.set_tool_map({0});
@@ -2303,7 +2380,13 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
         system_info_.total_slots = 4;
         system_info_.supports_bypass = true;
         system_info_.supports_tool_mapping = true;
-        system_info_.supports_endless_spool = false;
+        system_info_.endless_spool_enabled = false;
+        // Must clear the CAPABILITY flag too, not just this bit: the flag is what
+        // get_endless_spool_capabilities() reads, and leaving it at its default
+        // true gave the mock AD5X an editable backup dropdown and endless-spool
+        // arrows that the real AD5X IFS backend does not have.
+        endless_spool_supported_ = false;
+        endless_spool_editable_ = false;
         system_info_.supports_purge = false;
 
         // Reinitialize registry as single IFS unit with 4 ports
@@ -2369,6 +2452,7 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     vivid_mixed_mode_ = false;
     ifs_mode_ = false;
     htlf_toolchanger_mode_ = false;
+    torture_mode_ = false;
 
     // 4 slots, PARALLEL topology (each lane is its own toolhead), no tool
     // mapping editing, no endless spool, no bypass — see AmsBackendSnapmaker.
@@ -2376,7 +2460,9 @@ void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap (Mock)";
     system_info_.total_slots = 4;
-    system_info_.supports_endless_spool = false;
+    system_info_.endless_spool_enabled = false;
+    endless_spool_supported_ = false;
+    endless_spool_editable_ = false;
     system_info_.supports_tool_mapping = false;
     system_info_.supports_bypass = false;
     system_info_.has_hardware_bypass_sensor = false;
@@ -2501,6 +2587,7 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
         multi_unit_mode_ = false;
         mixed_topology_mode_ = false;
         vivid_mixed_mode_ = false;
+        torture_mode_ = false;
 
         // Configure as AFC system
         system_info_.type = AmsType::AFC;
@@ -2509,7 +2596,11 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
         system_info_.total_slots = 7;
 
         auto afc_caps = helix::printer::afc_default_capabilities();
-        system_info_.supports_endless_spool = afc_caps.supports_endless_spool;
+        system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
+        // Restore the capability flags: an earlier IFS/Snapmaker scenario on the
+        // same instance clears them, and an AFC scenario has AFC's per-slot edits.
+        endless_spool_supported_ = afc_caps.supports_endless_spool;
+        endless_spool_editable_ = afc_caps.supports_endless_spool;
         system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
         system_info_.supports_bypass = afc_caps.supports_bypass;
         system_info_.supports_purge = afc_caps.supports_purge;
@@ -2638,6 +2729,200 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
 bool AmsBackendMock::is_htlf_toolchanger_mode() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return htlf_toolchanger_mode_;
+}
+
+namespace {
+
+/// One lane of the torture profile. `tool` is the AFC `map` alias (-1 = the lane
+/// is unmapped, which real rigs do have); `extruder` is the Klipper extruder the
+/// lane physically feeds, and is what collapses two units onto one nozzle.
+struct TortureLane {
+    const char* backend_name;
+    const char* material;
+    uint32_t color;
+    const char* color_name;
+    SlotStatus status;
+    int tool;
+    const char* extruder;
+    float remaining_g;
+};
+
+/// One unit of the torture profile, over a contiguous run of kTortureLanes.
+struct TortureUnit {
+    const char* name;
+    const char* display_name;
+    PathTopology topology;
+    bool has_hub_sensor;
+    bool hub_sensor_triggered;
+    int first_lane;
+    int lane_count;
+};
+
+// Lanes in on-screen unit order. Global slot index == index into this array.
+constexpr TortureLane kTortureLanes[] = {
+    // Box Turtle Turtle_1 -> e0 (lane2 deliberately unmapped)
+    {"lane1", "PLA", 0xD2C3C3, "Bone", SlotStatus::LOADED, 3, "e0", 612.0f},
+    {"lane2", "PLA", 0x0004FF, "Blue", SlotStatus::AVAILABLE, -1, "e0", 415.0f},
+    {"lane3", "PLA", 0x9000FF, "Violet", SlotStatus::AVAILABLE, 4, "e0", 780.0f},
+    {"lane4", "PLA", 0x0084FF, "Azure", SlotStatus::AVAILABLE, 5, "e0", 233.0f},
+    // Toolchanger Tools -> e1 / e2, direct (no hub)
+    {"e1", "PLA", 0x101010, "Black", SlotStatus::LOADED, 1, "e1", 500.0f},
+    {"e2", "PLA+", 0x2B2B2B, "Graphite", SlotStatus::LOADED, 2, "e2", 640.0f},
+    // ViViD Vivid_1 -> e3 (all empty, as on the captured rig)
+    {"lane5", "", 0x000000, "", SlotStatus::EMPTY, 6, "e3", 0.0f},
+    {"lane6", "", 0x000000, "", SlotStatus::EMPTY, 7, "e3", 0.0f},
+    {"lane7", "", 0x000000, "", SlotStatus::EMPTY, 8, "e3", 0.0f},
+    {"lane8", "", 0x000000, "", SlotStatus::EMPTY, 9, "e3", 0.0f},
+    // EMU EMU_1 -> e3 as well (lane9 unmapped, lane10 is the tooled lane)
+    {"lane9", "", 0x000000, "", SlotStatus::EMPTY, -1, "e3", 0.0f},
+    {"lane10", "PLA", 0xDD00FF, "Magenta", SlotStatus::LOADED, 11, "e3", 388.0f},
+    // Claymore HTLF_claymore_1 -> e0 as well
+    {"lane11", "", 0x000000, "", SlotStatus::EMPTY, 12, "e0", 0.0f},
+    {"lane12", "", 0x000000, "", SlotStatus::EMPTY, 13, "e0", 0.0f},
+    {"lane13", "", 0x000000, "", SlotStatus::EMPTY, 14, "e0", 0.0f},
+    {"lane14", "", 0x000000, "", SlotStatus::EMPTY, 15, "e0", 0.0f},
+};
+
+constexpr TortureUnit kTortureUnits[] = {
+    {"Box_Turtle Turtle_1", "Turtle 1", PathTopology::HUB, true, true, 0, 4},
+    {"Toolchanger Tools", "Tools", PathTopology::PARALLEL, false, false, 4, 2},
+    {"ViViD Vivid_1", "Vivid 1", PathTopology::HUB, true, false, 6, 4},
+    {"EMU EMU_1", "EMU 1", PathTopology::HUB, true, true, 10, 2},
+    {"Claymore HTLF_claymore_1", "HTLF Claymore 1", PathTopology::HUB, true, false, 12, 4},
+};
+
+constexpr int kTortureLaneCount = static_cast<int>(std::size(kTortureLanes));
+
+} // namespace
+
+void AmsBackendMock::set_torture_mode(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    torture_mode_ = enabled;
+
+    if (!enabled) {
+        afc_mode_ = false;
+        unit_topologies_.clear();
+        system_info_.type = AmsType::HAPPY_HARE;
+        system_info_.type_name = "Happy Hare (Mock)";
+        system_info_.version = "2.7.0-mock";
+        topology_ = PathTopology::LINEAR;
+        spdlog::info("[AmsBackendMock] Torture mode disabled");
+        return;
+    }
+
+    // Disable conflicting modes. afc_mode_ stays ON: this profile IS an AFC rig,
+    // and is_afc_system() reads that flag (see the header note).
+    afc_mode_ = true;
+    tool_changer_mode_ = false;
+    multi_unit_mode_ = false;
+    mixed_topology_mode_ = false;
+    vivid_mixed_mode_ = false;
+    ifs_mode_ = false;
+    htlf_toolchanger_mode_ = false;
+    snapmaker_mode_ = false;
+
+    system_info_.type = AmsType::AFC;
+    system_info_.type_name = "AFC (Mock Torture)";
+    system_info_.version = "1.2.4-mock";
+    system_info_.total_slots = kTortureLaneCount;
+
+    auto afc_caps = helix::printer::afc_default_capabilities();
+    system_info_.endless_spool_enabled = afc_caps.supports_endless_spool;
+    endless_spool_supported_ = afc_caps.supports_endless_spool;
+    endless_spool_editable_ = afc_caps.supports_endless_spool;
+    system_info_.supports_tool_mapping = afc_caps.supports_tool_mapping;
+    system_info_.supports_bypass = afc_caps.supports_bypass;
+    system_info_.supports_purge = afc_caps.supports_purge;
+    system_info_.tip_method = afc_caps.tip_method;
+    system_info_.has_hardware_bypass_sensor = false;
+    topology_ = PathTopology::HUB;
+
+    unit_topologies_.clear();
+    std::vector<std::pair<std::string, std::vector<std::string>>> registry_units;
+    for (const auto& u : kTortureUnits) {
+        unit_topologies_.push_back(u.topology);
+        std::vector<std::string> lane_names;
+        for (int i = 0; i < u.lane_count; ++i) {
+            lane_names.emplace_back(kTortureLanes[u.first_lane + i].backend_name);
+        }
+        registry_units.emplace_back(u.name, std::move(lane_names));
+    }
+
+    slots_.clear();
+    slots_.initialize_units(registry_units);
+
+    for (const auto& u : kTortureUnits) {
+        for (int s = 0; s < u.lane_count; ++s) {
+            const int gi = u.first_lane + s;
+            auto* entry = slots_.get_mut(gi);
+            if (!entry)
+                continue;
+            const auto& lane = kTortureLanes[gi];
+            entry->info.global_index = gi;
+            entry->info.slot_index = s;
+            entry->info.material = lane.material;
+            entry->info.color_rgb = lane.color;
+            entry->info.color_name = lane.color_name;
+            entry->info.status = lane.status;
+            entry->info.extruder_name = lane.extruder;
+            entry->info.total_weight_g = 1000.0f;
+            entry->info.remaining_weight_g = lane.remaining_g;
+            if (auto mat_info = filament::find_material(lane.material)) {
+                entry->info.nozzle_temp_min = mat_info->nozzle_min;
+                entry->info.nozzle_temp_max = mat_info->nozzle_max;
+                entry->info.bed_temp = mat_info->bed_temp;
+            }
+        }
+    }
+
+    // Forward map: tool number -> global slot. T0 and T10 are deliberately absent,
+    // matching a rig whose AFC aliases are neither dense nor unit-ordered.
+    int highest_tool = -1;
+    for (const auto& lane : kTortureLanes) {
+        highest_tool = std::max(highest_tool, lane.tool);
+    }
+    std::vector<int> tool_map(static_cast<size_t>(highest_tool + 1), -1);
+    for (int gi = 0; gi < kTortureLaneCount; ++gi) {
+        if (kTortureLanes[gi].tool >= 0) {
+            tool_map[static_cast<size_t>(kTortureLanes[gi].tool)] = gi;
+        }
+    }
+    slots_.set_tool_map(tool_map);
+
+    system_info_.units.clear();
+    for (int ui = 0; ui < static_cast<int>(std::size(kTortureUnits)); ++ui) {
+        const auto& t = kTortureUnits[ui];
+        AmsUnit u;
+        u.unit_index = ui;
+        u.name = t.name;
+        u.display_name = t.display_name;
+        u.slot_count = t.lane_count;
+        u.first_slot_global_index = t.first_lane;
+        u.connected = true;
+        u.firmware_version = "1.2.4-mock";
+        u.has_toolhead_sensor = true;
+        u.has_slot_sensors = true;
+        u.has_hub_sensor = t.has_hub_sensor;
+        u.hub_sensor_triggered = t.hub_sensor_triggered;
+        u.topology = t.topology;
+        // hub_tool_label stays -1: the shared-nozzle merge is meant to run off
+        // SlotInfo::extruder_name here, which is the path a real AFC rig takes.
+        system_info_.units.push_back(u);
+    }
+
+    // Turtle lane1 is the loaded lane, so the active path runs from the leftmost
+    // unit to a nozzle the rightmost unit also feeds - the crossing case.
+    system_info_.current_slot = 0;
+    system_info_.current_tool = 3;
+    system_info_.filament_loaded = true;
+    filament_segment_ = PathSegment::NOZZLE;
+
+    mock_device_sections_ = helix::printer::afc_default_sections();
+    mock_device_actions_ = helix::printer::afc_default_actions();
+
+    spdlog::info("[AmsBackendMock] Torture mode: 5 units / {} lanes / 4 extruders "
+                 "(Turtle+Claymore share e0, ViViD+EMU share e3)",
+                 kTortureLaneCount);
 }
 
 PathTopology AmsBackendMock::get_unit_topology(int unit_index) const {
@@ -2978,7 +3263,7 @@ void AmsBackendMock::set_endless_spool_supported(bool supported) {
     std::lock_guard<std::mutex> lock(mutex_);
     endless_spool_supported_ = supported;
     // Update system_info to reflect the new capability
-    system_info_.supports_endless_spool = supported;
+    system_info_.endless_spool_enabled = supported;
     spdlog::debug("[AmsBackendMock] Endless spool supported set to {}", supported);
 }
 
@@ -2990,59 +3275,34 @@ void AmsBackendMock::set_endless_spool_editable(bool editable) {
 
 helix::printer::EndlessSpoolCapabilities AmsBackendMock::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
+    using namespace helix::printer;
 
-    helix::printer::EndlessSpoolCapabilities caps;
-    caps.supported = endless_spool_supported_;
-    caps.editable = endless_spool_supported_ && endless_spool_editable_;
-    if (caps.supported) {
-        caps.description =
-            caps.editable ? "Per-slot backup (AFC-style)" : "Group-based (Happy Hare-style)";
+    EndlessSpoolCapabilities caps;
+    if (!endless_spool_supported_) {
+        return caps; // Unsupported / Unknown / ReadOnly
+    }
+    caps.availability = EndlessSpoolAvailability::Available;
+    caps.enabled =
+        system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On : EndlessSpoolEnabled::Off;
+    if (endless_spool_editable_) {
+        caps.editability = EndlessSpoolEditability::PerSlot;
+    } else {
+        // Read-only-but-present, the shape CFS and a multi-unit MMU have.
+        caps.editability = EndlessSpoolEditability::ReadOnly;
+        caps.restriction = EndlessSpoolRestriction::FirmwareManaged;
     }
     return caps;
 }
 
-std::vector<helix::printer::EndlessSpoolConfig> AmsBackendMock::get_endless_spool_config() const {
+helix::printer::EndlessSpoolConfig AmsBackendMock::get_endless_spool_config() const {
     std::lock_guard<std::mutex> lock(mutex_);
-
-    std::vector<helix::printer::EndlessSpoolConfig> configs;
-    configs.reserve(slots_.slot_count());
-    for (int i = 0; i < slots_.slot_count(); ++i) {
-        helix::printer::EndlessSpoolConfig config;
-        config.slot_index = i;
-        config.backup_slot = slots_.backup_for_slot(i);
-        configs.push_back(config);
-    }
-    return configs;
+    return helix::printer::endless_spool_config_from_edges(slots_.backup_edges());
 }
 
-AmsError AmsBackendMock::set_endless_spool_backup(int slot_index, int backup_slot) {
+AmsError AmsBackendMock::apply_endless_spool_backup(int slot_index, int backup_slot) {
     std::lock_guard<std::mutex> lock(mutex_);
-
-    if (!endless_spool_supported_) {
-        return AmsErrorHelper::not_supported("Endless spool");
-    }
-
-    if (!endless_spool_editable_) {
-        return AmsErrorHelper::not_supported("Endless spool configuration");
-    }
-
-    if (!slots_.is_valid_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
-    }
-
-    if (backup_slot == slot_index) {
-        return AmsError(AmsResult::INVALID_SLOT,
-                        "Cannot set slot " + std::to_string(slot_index) + " as its own backup",
-                        "Invalid backup configuration", "Select a different slot as backup");
-    }
-
-    if (backup_slot != -1 && !slots_.is_valid_index(backup_slot)) {
-        return AmsErrorHelper::invalid_slot(backup_slot, slots_.slot_count() - 1);
-    }
-
     slots_.set_backup(slot_index, backup_slot);
     spdlog::info("[AmsBackendMock] Set slot {} backup to {}", slot_index, backup_slot);
-
     return AmsErrorHelper::success();
 }
 
@@ -3158,8 +3418,11 @@ AmsError AmsBackendMock::execute_device_action(const std::string& action_id,
             if (!action.enabled) {
                 return AmsErrorHelper::not_supported(action.disable_reason);
             }
-            spdlog::info("[AMS Mock] Executed device action: {} with value type: {}", action_id,
-                         value.has_value() ? value.type().name() : "none");
+            // std::any's type() returns a std::type_info, which needs RTTI; the
+            // firmware builds -fno-rtti. Presence is all the log was really
+            // conveying — the mangled name told nobody anything useful.
+            spdlog::info("[AMS Mock] Executed device action: {} with value: {}", action_id,
+                         value.has_value() ? "set" : "none");
 
             // Surface brief status-display feedback for the selector-context
             // servo / gear-sync commands so --test mirrors real Happy Hare.
@@ -3176,9 +3439,12 @@ AmsError AmsBackendMock::execute_device_action(const std::string& action_id,
             } else if (action_id == "servo_down") {
                 detail = "Servo down";
             } else if (action_id == "gear_sync") {
+                // Pointer-form any_cast: returns null on a type mismatch rather
+                // than throwing, and libstdc++ implements it by comparing the
+                // stored manager function, so it works under -fno-rtti.
                 bool on = false;
-                if (value.has_value() && value.type() == typeid(bool)) {
-                    on = std::any_cast<bool>(value);
+                if (const bool* held = std::any_cast<bool>(&value)) {
+                    on = *held;
                 }
                 detail = on ? "Gear motor synced" : "Gear motor released";
             }

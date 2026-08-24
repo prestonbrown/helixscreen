@@ -20,6 +20,8 @@
 #include "active_material_provider.h"
 #include "ams_types.h"
 #include "filament_database.h"
+#include "filament_op_dispatch.h" // EXTERNAL_SPOOL_SLOT — the bypass sentinel both headers key on
+#include "print_lifecycle_state.h"
 
 #include <optional>
 #include <string>
@@ -43,10 +45,21 @@ namespace helix::ui {
  * @param sys           Backend system info (tool_to_slot_map, current_slot).
  * @param selected_tool Dropdown/active tool index (>= 0).
  * @param tool_count    Number of tools the printer exposes (>1 == toolchanger).
- * @return Global slot index whose load-state gates the buttons, or -1 if none.
+ * @return Global slot index whose load-state gates the buttons,
+ *         EXTERNAL_SPOOL_SLOT when bypass is engaged, or -1 if none.
  */
 [[nodiscard]] inline int resolve_op_button_slot(const AmsSystemInfo& sys, int selected_tool,
                                                 int tool_count) {
+    // Bypass is not a lane, so no tool->slot map entry can describe it. While
+    // the external spool feeds the toolhead it IS what these buttons act on:
+    // CFS publishes a tool->slot map from the box's own `map` (identity fallback
+    // on the flat dialect), so resolving through it here handed back lane 0 and
+    // gated Unload on an empty bay with filament plainly in the nozzle. AFC and
+    // Happy Hare land on the same sentinel from bypass_state / the selector.
+    if (sys.current_slot == EXTERNAL_SPOOL_SLOT) {
+        return EXTERNAL_SPOOL_SLOT;
+    }
+
     int slot = -1;
     if (selected_tool >= 0 && selected_tool < static_cast<int>(sys.tool_to_slot_map.size())) {
         slot = sys.tool_to_slot_map[selected_tool];
@@ -118,6 +131,10 @@ struct OpButtonState {
  * The UI mirror of AmsSubscriptionBackend::refuse_if_printing(). Read that
  * function's comment for the reasoning; the rule it enforces is:
  *
+ *   PREPARING                           -> refuse. A host-side pre-start block
+ *                                         is homing/probing; a firmware-side
+ *                                         PRINT_START is doing the same inside
+ *                                         a job that already reads PRINTING.
  *   PRINTING                            -> refuse. The nozzle is laying plastic.
  *   PAUSED, backend homes itself        -> refuse. AD5X IFS only: its
  *                                         `_IFS_REMOVE_CURRENT_PRUTOK` runs a
@@ -133,20 +150,28 @@ struct OpButtonState {
  * what the backend refuses is the dead end of bundle JX2FVRB9. One predicate,
  * both directions.
  *
- * @param printing            PrintJobState::PRINTING.
- * @param paused              PrintJobState::PAUSED.
+ * Takes the LIFECYCLE, not the raw job state. It used to take a
+ * (printing, paused) bool pair read off print_stats.state, which cannot express
+ * Preparing - so during a host-side pre-print block both bools were false and
+ * this returned "nothing blocks", offering a toolhead-motion filament op while
+ * the pre-start G-code was homing and probing. Preparing blocks exactly as
+ * PRINTING does; the PAUSED relaxation below is unchanged.
+ *
+ * @param lifecycle           The derived PrintState (print_lifecycle subject).
  * @param backend_self_homes  AmsBackend::filament_ops_self_home(). Pass false
  *                            when there is no backend — a plain macro/gcode path
  *                            has no firmware macro that could hide a home, and
  *                            Layer 1 (reject_homing_during_active_print) still
  *                            refuses any G28 the app itself emits.
  */
-[[nodiscard]] inline bool print_blocks_filament_op(bool printing, bool paused,
-                                                   bool backend_self_homes) {
-    if (printing) {
-        return true;
+[[nodiscard]] inline bool print_blocks_filament_op(PrintState lifecycle, bool backend_self_homes) {
+    // Paused first: job_holds_machine() is true for it too, and the whole point
+    // of this predicate is that PAUSED is the one state where the backend's own
+    // capability decides.
+    if (lifecycle == PrintState::Paused) {
+        return backend_self_homes;
     }
-    return paused && backend_self_homes;
+    return job_holds_machine(lifecycle);
 }
 
 /**
@@ -191,10 +216,6 @@ struct OpButtonState {
 // Load preheat
 // ---------------------------------------------------------------------------
 
-/// Slot sentinel meaning "the external / bypass spool", not an AMS lane. The
-/// value AmsOperationSidebar's callers have always passed for the bypass row.
-inline constexpr int kExternalSpoolSlot = -2;
-
 /// A resolved preheat target. @c material_name is empty when no source named the
 /// material, which is the caller's cue to say "Heating to N°C" without a "for X".
 struct PreheatTarget {
@@ -235,7 +256,7 @@ struct PreheatTarget {
  *   1. The slot the load actually targets. An AMS lane the user picked is the
  *      filament about to pass through the melt zone; nothing outranks it.
  *   2. The external / bypass spool, but ONLY when the load has no AMS lane of
- *      its own (@p target_slot == kExternalSpoolSlot, or nothing resolved, or
+ *      its own (@p target_slot == EXTERNAL_SPOOL_SLOT, or nothing resolved, or
  *      the lane names no material). On an external-spool-only printer this is
  *      the one filament there is.
  *
@@ -252,7 +273,7 @@ struct PreheatTarget {
  * now" and is correct for its callers. This answers "what is about to go in",
  * where the target slot — not the active one — is the authority.
  *
- * @param target_slot       Slot the load targets; kExternalSpoolSlot for bypass,
+ * @param target_slot       Slot the load targets; EXTERNAL_SPOOL_SLOT for bypass,
  *                          < 0 for "none resolved".
  * @param target_slot_info  SlotInfo for @p target_slot, or nullptr when there is
  *                          no backend / no such slot.
@@ -282,7 +303,7 @@ resolve_load_preheat_material(int target_slot, const SlotInfo* target_slot_info,
     };
 
     // The bypass row IS the external spool — never look at an AMS lane for it.
-    if (target_slot == kExternalSpoolSlot) {
+    if (target_slot == EXTERNAL_SPOOL_SLOT) {
         return external_spool ? from(*external_spool) : std::nullopt;
     }
 

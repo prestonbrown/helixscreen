@@ -17,6 +17,8 @@
 #include <thread>
 #include <vector>
 
+#include "hv/json.hpp"
+
 // Forward declaration for shared state
 class MockPrinterState;
 
@@ -138,6 +140,25 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return Current speedup multiplier (1.0 = real-time)
      */
     double get_simulation_speedup() const;
+
+    /**
+     * @brief Arm a capture replay through the real dispatch paths
+     *
+     * Parses a replay script (see tests/fixtures/k1c_flowrate_replay.json for
+     * the format and the extractor that produced it) and, once connect()
+     * completes its initial state, walks its timed events through
+     * dispatch_method_callback("notify_gcode_response") and
+     * dispatch_status_update() — the same entry points the live WebSocket
+     * uses. Bed-mesh payloads traverse parse_incoming_bed_mesh and the real
+     * MoonrakerAPI callback chain, so manager wiring and observers are
+     * exercised exactly as on a printer. Event times are divided by the
+     * simulation speedup.
+     *
+     * @param json_path Path to the replay script; parsed immediately so a
+     *                  malformed script fails fast. Returns false and logs
+     *                  if it cannot be read or parsed.
+     */
+    bool arm_event_replay(const std::string& json_path);
 
     /**
      * @brief Get current print simulation phase
@@ -328,12 +349,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param error_cb Error callback (not invoked in mock)
      * @param timeout_ms Timeout (ignored in mock)
      * @param silent Silent mode (ignored in mock)
+     * @param intent Explicit error-reporting intent (include/rpc_error_policy.h).
+     *        Omitted, it is inferred from @p silent and the presence of
+     *        @p error_cb, exactly as MoonrakerRequestTracker::send() does.
      * @return Always returns 0 (success)
      */
-    helix::RequestId send_jsonrpc(const std::string& method, const json& params,
-                                  std::function<void(const json&)> success_cb,
-                                  std::function<void(const MoonrakerError&)> error_cb,
-                                  uint32_t timeout_ms = 0, bool silent = false) override;
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
+        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        bool silent = false,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override;
 
     /**
      * @brief Simulate G-code script command
@@ -441,7 +466,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param heaters List of heater names (e.g., "extruder", "heater_bed")
      */
     void set_heaters(std::vector<std::string> heaters) {
-        discovery_.heaters() = std::move(heaters);
+        {
+            std::lock_guard<std::mutex> lock(discovery_mutex_);
+            discovery_.heaters() = std::move(heaters);
+        }
         rebuild_hardware_from_lists();
     }
 
@@ -450,7 +478,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param fans List of fan names (e.g., "fan", "heater_fan hotend_fan")
      */
     void set_fans(std::vector<std::string> fans) {
-        discovery_.fans() = std::move(fans);
+        {
+            std::lock_guard<std::mutex> lock(discovery_mutex_);
+            discovery_.fans() = std::move(fans);
+        }
         rebuild_hardware_from_lists();
     }
 
@@ -459,7 +490,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param leds List of LED names (e.g., "neopixel chamber_light")
      */
     void set_leds(std::vector<std::string> leds) {
-        discovery_.leds() = std::move(leds);
+        {
+            std::lock_guard<std::mutex> lock(discovery_mutex_);
+            discovery_.leds() = std::move(leds);
+        }
         rebuild_hardware_from_lists();
     }
 
@@ -468,7 +502,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param sensors List of sensor names (e.g., "temperature_sensor chamber")
      */
     void set_sensors(std::vector<std::string> sensors) {
-        discovery_.sensors() = std::move(sensors);
+        {
+            std::lock_guard<std::mutex> lock(discovery_mutex_);
+            discovery_.sensors() = std::move(sensors);
+        }
         rebuild_hardware_from_lists();
     }
 
@@ -477,7 +514,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param sensors List of filament sensor names (e.g., "filament_switch_sensor fsensor")
      */
     void set_filament_sensors(std::vector<std::string> sensors) {
-        discovery_.filament_sensors() = std::move(sensors);
+        {
+            std::lock_guard<std::mutex> lock(discovery_mutex_);
+            discovery_.filament_sensors() = std::move(sensors);
+        }
         rebuild_hardware_from_lists();
     }
 
@@ -532,6 +572,32 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     /**
+     * @brief Stage the input_shaper values the mock reports (for testing)
+     *
+     * Overrides the default mzv@36.7 / ei@47.6 pair served while the input
+     * shaper is configured, so a test can pin the live-before configuration
+     * a calibration run snapshots. Applies to both the query and the
+     * subscribe configfile payloads.
+     *
+     * @param type_x X shaper type (e.g. "ei")
+     * @param freq_x X shaper frequency in Hz
+     * @param type_y Y shaper type
+     * @param freq_y Y shaper frequency in Hz
+     */
+    void set_input_shaper_values(const std::string& type_x, double freq_x,
+                                 const std::string& type_y, double freq_y) {
+        shaper_type_x_ = type_x;
+        shaper_freq_x_ = freq_x;
+        shaper_type_y_ = type_y;
+        shaper_freq_y_ = freq_y;
+    }
+
+    /// The configfile "input_shaper" block as Klipper would report it (string
+    /// values, configfile style). Shared by the query and subscribe handlers
+    /// so both report identical staged values.
+    [[nodiscard]] json build_input_shaper_config() const;
+
+    /**
      * @brief Control whether SHAPER_CALIBRATE writes its CSV file for testing
      *
      * When false, the mock still dispatches the "calibration data written to
@@ -543,6 +609,27 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void set_shaper_csv_writable(bool writable) {
         shaper_csv_writable_ = writable;
+    }
+
+    /**
+     * @brief Set the [resonance_tester] sweep range the mock reports and replays
+     *
+     * Drives both `configfile.settings.resonance_tester` and the frequencies
+     * the scripted SHAPER_CALIBRATE response actually sweeps, so a test can
+     * reproduce a printer whose ceiling is not the value HelixScreen assumes.
+     * Defaults mirror Kalico's out-of-the-box 5-135 Hz.
+     */
+    void set_resonance_sweep_range(double min_freq, double max_freq) {
+        resonance_min_freq_ = min_freq;
+        resonance_max_freq_ = max_freq;
+    }
+
+    [[nodiscard]] double get_resonance_min_freq() const {
+        return resonance_min_freq_;
+    }
+
+    [[nodiscard]] double get_resonance_max_freq() const {
+        return resonance_max_freq_;
     }
 
     /**
@@ -710,6 +797,23 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     [[nodiscard]] bool has_bed_mesh() const {
         return !active_bed_mesh_.probed_matrix.empty();
+    }
+
+    /**
+     * @brief Serve configfile.settings.bed_mesh.probe_count from objects.query
+     *
+     * Mirrors what a printer with a configured [bed_mesh] section answers —
+     * the print-start collector's entry-time query reads it to size the mesh
+     * point denominator. Unset by default so existing tests see the same
+     * objects.query responses as before.
+     */
+    void set_config_bed_mesh_probe_count(int first, int second) {
+        config_bed_mesh_probe_count_ = std::make_pair(first, second);
+    }
+
+    /// The configured probe_count pair, or nullptr when unset.
+    [[nodiscard]] const std::pair<int, int>* config_bed_mesh_probe_count() const {
+        return config_bed_mesh_probe_count_ ? &*config_bed_mesh_probe_count_ : nullptr;
     }
 
     // ========================================================================
@@ -989,6 +1093,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return last_send_silent_;
     }
 
+    /// Error-reporting intent of the send currently being dispatched into the
+    /// method-handler registry. Those handlers run inline inside send_jsonrpc()
+    /// and never reach MoonrakerRequestTracker, so they read this to make the
+    /// same helix::rpc_error_policy::decide() call the tracker makes on real
+    /// hardware — otherwise mock and hardware drift on who reports an error.
+    /// It keeps the last dispatched value, so tests can also read it after the
+    /// call to assert what intent a caller declared.
+    const helix::rpc_error_policy::CallerIntent& current_send_intent() const {
+        return current_send_intent_;
+    }
+
     /// Test inspection: the most recent RPC method name passed to the 5-arg send_jsonrpc().
     const std::string& last_send_method() const {
         return last_send_method_;
@@ -1085,6 +1200,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Mock bed mesh storage (Client no longer stores this; mock simulates it)
     BedMeshProfile active_bed_mesh_;
+
+    /// configfile.settings.bed_mesh.probe_count to serve from objects.query
+    /// when set via set_config_bed_mesh_probe_count(); unset = absent.
+    std::optional<std::pair<int, int>> config_bed_mesh_probe_count_;
     std::vector<std::string> bed_mesh_profiles_;
     std::map<std::string, BedMeshProfile> stored_bed_mesh_profiles_; // Actual mesh data per profile
 
@@ -1096,6 +1215,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::string last_send_script_; // `script` param when method == printer.gcode.script
     uint32_t last_send_timeout_ms_{0};
     bool last_send_silent_{false};
+
+    // Intent of the in-flight send_jsonrpc() dispatch, read by the method
+    // handlers via current_send_intent().
+    helix::rpc_error_policy::CallerIntent current_send_intent_{};
 
     // One-shot forced error injection for printer.gcode.script (test helper).
     struct ForcedGcodeError {
@@ -1136,8 +1259,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> relative_mode_{false}; // G90=absolute (false), G91=relative (true)
     std::atomic<bool> motors_enabled_{true}; // Track motor enable state for idle_timeout
 
-    // Idle timeout simulation
-    std::chrono::steady_clock::time_point last_activity_time_;
+    // Idle timeout simulation.
+    // Atomic because reset_idle_timeout() writes it from whichever thread drove
+    // the activity while temperature_simulation_loop() reads it on the sim
+    // thread; the siblings below were already atomic and this one was missed.
+    std::atomic<std::chrono::steady_clock::time_point> last_activity_time_;
     std::atomic<bool> idle_timeout_triggered_{false};
     std::atomic<uint32_t> idle_timeout_seconds_{600}; // Default 10 minutes
 
@@ -1291,6 +1417,25 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::mutex sim_mutex_;           // For condition variable wait
     std::condition_variable sim_cv_; // For interruptible sleep during shutdown
 
+    // Protects the discovery_ name lists (heaters/fans/sensors/leds/filament_sensors)
+    // against the temperature simulation thread.
+    //
+    // connect() starts that thread, and discover_printer() then REASSIGNS those
+    // vectors on the calling thread — `discovery_.fans() = {...}` frees every old
+    // std::string buffer while the simulation loop is iterating them. ASan caught
+    // this as two heap-use-after-frees (memcpy and memcmp on freed string data)
+    // from FullStackTestFixture, whose constructor does exactly that sequence.
+    //
+    // Lock discipline, verified against the call graph — do not nest these:
+    //   LOCKED   populate_hardware(), populate_capabilities(),
+    //            rebuild_hardware_from_lists(), the discovery-list setters below
+    //            (assignment only), the simulation loop's per-iteration snapshot,
+    //            and has_chamber_sensor() — the loop's third read path, which
+    //            reaches discovery_.sensors() through a call rather than inline
+    //   UNLOCKED override_chamber_heater() — reached ONLY from populate_capabilities()
+    //            and rebuild_hardware_from_lists(), both of which already hold it
+    mutable std::mutex discovery_mutex_;
+
     // Restart simulation thread (for RESTART/FIRMWARE_RESTART commands)
     std::thread restart_thread_;
     std::atomic<bool> restart_pending_{false};
@@ -1314,9 +1459,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool mock_spoolman_enabled_{true};   ///< Controlled by HELIX_MOCK_SPOOLMAN env var
     bool accelerometer_available_{true}; ///< Accelerometer available for input shaper tests
     bool input_shaper_configured_{true}; ///< Input shaper configured for config query tests
+    /// Staged input shaper values served while configured (see
+    /// set_input_shaper_values); defaults mirror the mock's original payload.
+    std::string shaper_type_x_{"mzv"};
+    double shaper_freq_x_{36.7};
+    std::string shaper_type_y_{"ei"};
+    double shaper_freq_y_{47.6};
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
     double extruder_max_temp_{300.0};    ///< Extruder max_temp reported in configfile.settings
+    double resonance_min_freq_{5.0};     ///< [resonance_tester] min_freq the mock reports/sweeps
+    double resonance_max_freq_{135.0};   ///< [resonance_tester] max_freq the mock reports/sweeps
     bool mmu_enabled_{true};             ///< MMU available (default true for existing tests)
 
     // Additional objects for testing (e.g., "mmu", "AFC", "toolchanger")
@@ -1327,8 +1480,34 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Calibration simulation timers (PID, MPC, shaper) — must be cleaned up
     // in destructor to prevent use-after-free when mock is destroyed before
-    // LVGL timers fire in a subsequent test's process_lvgl().
-    std::vector<lv_timer_t*> calibration_timers_;
+    // LVGL timers fire in a subsequent test's process_lvgl(). Each entry also
+    // owns its heap payload: the timer callbacks self-delete at natural
+    // completion, but a forced teardown that only lv_timer_delete()s the timer
+    // leaks the payload (the 80-byte ShaperSimState the 2026-08-18 nightly's
+    // leak report showed surviving the suite).
+    struct CalibrationTimer {
+        lv_timer_t* timer = nullptr;
+        std::function<void()> free_payload;
+    };
+    std::vector<CalibrationTimer> calibration_timers_;
+
+    // Capture replay (arm_event_replay): timed events walked through the real
+    // dispatch paths once connect() finishes its initial state.
+    struct ReplayEvent {
+        uint64_t t_ms = 0;
+        bool is_gcode = false;
+        std::string line;       // gcode_response text (with // prefix)
+        std::string object;     // status object name
+        nlohmann::json payload; // status payload
+    };
+    std::vector<ReplayEvent> replay_events_;
+    size_t replay_next_ = 0;
+    lv_timer_t* replay_timer_ = nullptr;
+    std::chrono::steady_clock::time_point replay_start_{};
+
+    void start_replay_timer();
+    void pump_replay();
+    void fire_replay_event(const ReplayEvent& event);
 };
 
 // ============================================================================

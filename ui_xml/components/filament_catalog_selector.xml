@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Embeddable branded-filament selector fragment: Vendor -> Type dropdowns
+     driving a product list. No dialog/overlay chrome — hosts embed this and
+     drive it via a FilamentCatalogSelector controller (attach/populate). -->
 <component>
   <!-- height=100%, NOT flex_grow: the fragment fills the height its host gives it.
        A flex_grow root collapses to 0 in any host whose parent is height=content,

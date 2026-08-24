@@ -6,6 +6,7 @@
 #include "ui_error_reporting.h"
 
 #include "log_redact.h"
+#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "wifi_5ghz_detection.h"
 #include "wifi_saved_config.h"
@@ -98,6 +99,7 @@ std::string validate_wpa_string(const std::string& input, const std::string& fie
 #include <fstream>
 #include <future>
 #include <sstream>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -211,6 +213,25 @@ SavePersistence classify_save_result(const std::string& save_reply,
     // "OK" only means the command was accepted. The file is the authority.
     return wpa_config_has_network(config_contents, ssid) ? SavePersistence::Persisted
                                                          : SavePersistence::NotPersisted;
+}
+
+RemovalPersistence classify_removal_result(bool conf_path_known, bool conf_readable,
+                                           const std::string& conf_contents,
+                                           const std::string& ssid) {
+    if (!conf_path_known || !conf_readable)
+        return RemovalPersistence::Unverifiable;
+    return wpa_config_has_network(conf_contents, ssid) ? RemovalPersistence::StillListed
+                                                       : RemovalPersistence::Verified;
+}
+
+ScanTrigger classify_scan_reply(const std::string& reply) {
+    if (reply.empty())
+        return ScanTrigger::NoReply;
+    if (reply.compare(0, 2, "OK") == 0)
+        return ScanTrigger::Started;
+    if (reply.compare(0, 9, "FAIL-BUSY") == 0)
+        return ScanTrigger::AlreadyBusy;
+    return ScanTrigger::Failed;
 }
 } // namespace helix::wifi::detail
 
@@ -718,8 +739,15 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     spdlog::trace("[WifiBackend] Checking WiFi hardware availability");
 
     // Check for common WiFi interface patterns in /sys/class/net
-    bool wifi_found = false;
-    std::string interface_name;
+    //
+    // Collect them all rather than breaking on the first hit. directory_iterator
+    // order is filesystem order, so on a two-adapter device the old code logged
+    // whichever name the kernel happened to hand back first — the AD5X bundles
+    // report "interface present: wlan1" for a session that managed wlan0
+    // throughout, which reads as a mismatch that is not one. The managed
+    // interface is resolve_and_store_interface()'s call; this check only decides
+    // whether any wireless hardware exists at all.
+    std::vector<std::string> wifi_ifaces;
 
     try {
         const std::string net_path = "/sys/class/net";
@@ -732,12 +760,8 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
                     iface.find("wifi") == 0) {
                     // Verify it's a wireless interface by checking for wireless directory
                     std::string wireless_path = entry.path().string() + "/wireless";
-                    if (fs::exists(wireless_path)) {
-                        wifi_found = true;
-                        interface_name = iface;
-                        spdlog::debug("[WifiBackend] WiFi-capable interface present: {}", iface);
-                        break;
-                    }
+                    if (fs::exists(wireless_path))
+                        wifi_ifaces.push_back(iface);
                 }
             }
         }
@@ -746,9 +770,18 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
         // Don't fail entirely - this might be a permission issue or unusual system
     }
 
-    if (!wifi_found) {
+    if (wifi_ifaces.empty()) {
         return WiFiErrorHelper::hardware_not_available();
     }
+
+    std::sort(wifi_ifaces.begin(), wifi_ifaces.end());
+    const std::string interface_name = wifi_ifaces.front();
+    // Manual join — fmt::join needs fmt/ranges.h, which spdlog's bundled copy
+    // does not put on the include path here (see gcode_parser.cpp:777).
+    std::string iface_list;
+    for (const auto& n : wifi_ifaces)
+        iface_list += (iface_list.empty() ? "" : ", ") + n;
+    spdlog::debug("[WifiBackend] WiFi-capable interface(s) present: {}", iface_list);
 
     // Check RF-kill status
     try {
@@ -974,6 +1007,27 @@ void WifiBackendWpaSupplicant::init_wpa() {
     signal_init_complete();
 }
 
+// Why we can or cannot see the wpa config, in one log-safe line: ownership and
+// mode versus our own ids, which is what separates "vendor path is root-only and
+// we dropped privileges" from "the path does not resolve in our mount namespace"
+// from "the file is genuinely absent". A SAVE_CONFIG that replies OK while our
+// re-read finds nothing is indistinguishable between those three, and the
+// distinction decides the fix. No SSIDs or PSKs — only metadata.
+static std::string describe_conf_access(const std::string& path) {
+    if (path.empty())
+        return "path=<unresolved>";
+
+    struct stat st {};
+    if (::stat(path.c_str(), &st) != 0) {
+        return fmt::format("stat failed: {} (euid={})", std::strerror(errno), ::geteuid());
+    }
+    const bool can_read = ::access(path.c_str(), R_OK) == 0;
+    const bool can_write = ::access(path.c_str(), W_OK) == 0;
+    return fmt::format("size={} mode={:04o} uid={} gid={} euid={} egid={} r={} w={}",
+                       static_cast<long long>(st.st_size), st.st_mode & 07777, st.st_uid, st.st_gid,
+                       ::geteuid(), ::getegid(), can_read, can_write);
+}
+
 void WifiBackendWpaSupplicant::resolve_and_store_interface() {
     helix::wifi::Roots roots;
     roots.ctrl = resolve_wpa_ctrl_directory();
@@ -1047,10 +1101,13 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
                      d.conf_path);
     }
     if (resolved) {
-        const bool writable =
-            !resolved->conf_path.empty() && ::access(resolved->conf_path.c_str(), W_OK) == 0;
-        spdlog::info("[WifiBackend] Managing {} via {} (conf='{}' writable={}, rfkill='{}')",
-                     resolved->netdev, resolved->ctrl_socket, resolved->conf_path, writable,
+        // describe_conf_access() supersedes the bare writable= flag: on the
+        // reporter's AD5X that flag was false while SAVE_CONFIG replied OK, and
+        // "not writable by us" and "wpa cannot write it either" are different
+        // claims that the flag alone cannot separate.
+        spdlog::info("[WifiBackend] Managing {} via {} (conf='{}' [{}], rfkill='{}')",
+                     resolved->netdev, resolved->ctrl_socket, resolved->conf_path,
+                     describe_conf_access(resolved->conf_path),
                      resolved->rfkill_node.empty() ? "none" : resolved->rfkill_node);
     } else {
         spdlog::warn("[WifiBackend] Interface resolution inconclusive — using legacy detection");
@@ -1278,20 +1335,23 @@ WiFiError WifiBackendWpaSupplicant::trigger_scan() {
                          "WiFi system not ready");
     }
 
-    std::string result = send_command("SCAN");
-    if (result == "OK\n") {
+    const std::string result = send_command("SCAN");
+    switch (helix::wifi::detail::classify_scan_reply(result)) {
+    case helix::wifi::detail::ScanTrigger::Started:
         spdlog::debug("[WifiBackend] Scan triggered successfully");
         return WiFiErrorHelper::success();
-    } else if (result.empty()) {
+    case helix::wifi::detail::ScanTrigger::AlreadyBusy:
+        spdlog::debug("[WifiBackend] SCAN already in progress (reply '{}') — results will arrive "
+                      "on the in-flight scan",
+                      result);
+        return WiFiErrorHelper::success();
+    case helix::wifi::detail::ScanTrigger::NoReply:
         return WiFiErrorHelper::connection_failed("No response from wpa_supplicant SCAN command");
-    } else if (result.find("FAIL") != std::string::npos) {
-        return WiFiError(WiFiResult::BACKEND_ERROR, "wpa_supplicant SCAN command failed: " + result,
-                         "Failed to start network scan", "Check WiFi interface status");
-    } else {
-        spdlog::warn("[WifiBackend] Unexpected scan response: {}", result);
-        return WiFiError(WiFiResult::BACKEND_ERROR, "Unexpected scan response: " + result,
-                         "Network scan returned unexpected result");
+    case helix::wifi::detail::ScanTrigger::Failed:
+        break;
     }
+    return WiFiError(WiFiResult::BACKEND_ERROR, "wpa_supplicant SCAN command failed: " + result,
+                     "Failed to start network scan", "Check WiFi interface status");
 }
 
 // Count SSIDs that were observed on more than one band. Logged (as a count, never
@@ -1340,18 +1400,23 @@ WiFiError WifiBackendWpaSupplicant::get_scan_results(std::vector<WiFiNetwork>& n
     }
 }
 
-std::pair<std::string, std::string> WifiBackendWpaSupplicant::read_wpa_conf_after_save() {
+WifiBackendWpaSupplicant::WpaConfSnapshot WifiBackendWpaSupplicant::read_wpa_conf_after_save() {
     const auto iface = resolved_interface();
-    const std::string conf_path =
+    WpaConfSnapshot snap;
+    snap.path =
         (iface && !iface->conf_path.empty()) ? iface->conf_path : detect_wpa_conf_path_from_proc();
-    std::string conf_contents;
-    if (!conf_path.empty()) {
-        std::ifstream conf(conf_path, std::ios::binary);
-        if (conf.is_open())
-            conf_contents.assign(std::istreambuf_iterator<char>(conf),
+    if (!snap.path.empty()) {
+        std::ifstream conf(snap.path, std::ios::binary);
+        if (conf.is_open()) {
+            snap.contents.assign(std::istreambuf_iterator<char>(conf),
                                  std::istreambuf_iterator<char>());
+            // bad() and not fail(): the stream reaches EOF normally here, so
+            // failbit is expected. badbit is a real read error (EIO on a dying
+            // eMMC), and a truncated read must not pass as authoritative.
+            snap.readable = !conf.bad();
+        }
     }
-    return {conf_path, conf_contents};
+    return snap;
 }
 
 void WifiBackendWpaSupplicant::mirror_if_volatile(const std::string& conf_path) {
@@ -1619,20 +1684,31 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     // "saved to disk" while the credentials existed only in daemon memory and
     // died at the next power-off. Re-read the config and look for the SSID.
     const std::string save_result = send_command("SAVE_CONFIG");
-    const auto [conf_path, conf_contents] = read_wpa_conf_after_save();
+    const auto conf = read_wpa_conf_after_save();
 
-    if (helix::wifi::detail::classify_save_result(save_result, conf_contents, clean_ssid) ==
+    if (helix::wifi::detail::classify_save_result(save_result, conf.contents, clean_ssid) ==
         helix::wifi::detail::SavePersistence::Persisted) {
-        spdlog::debug("[WifiBackend] Credentials verified on disk at {}", conf_path);
-        mirror_if_volatile(conf_path);
-    } else if (conf_path.empty()) {
+        spdlog::debug("[WifiBackend] Credentials verified on disk at {}", conf.path);
+        mirror_if_volatile(conf.path);
+    } else if (conf.path.empty()) {
         spdlog::warn("[WifiBackend] Cannot verify credential persistence: no -c config path "
                      "found for the running wpa_supplicant (SAVE_CONFIG replied '{}')",
                      save_result);
+        helix::wifi::store::save({clean_ssid, password});
+    } else if (!conf.readable) {
+        // Unreadable is not the same claim as "did not record it" — wpa may
+        // have written the file perfectly well where we cannot look. Our store
+        // is the fallback either way, so the outcome is unchanged; only the
+        // message stops asserting something we did not observe.
+        spdlog::warn("[WifiBackend] Cannot verify credential persistence: {} is not readable by "
+                     "this process ({}) (SAVE_CONFIG replied '{}') — saved to HelixScreen's own "
+                     "store instead",
+                     conf.path, describe_conf_access(conf.path), save_result);
+        helix::wifi::store::save({clean_ssid, password});
     } else {
         spdlog::warn("[WifiBackend] {} did not record this network (SAVE_CONFIG replied '{}') — "
                      "saved to HelixScreen's own store instead",
-                     conf_path.empty() ? "wpa_supplicant" : conf_path, save_result);
+                     conf.path, save_result);
         helix::wifi::store::save({clean_ssid, password});
     }
 
@@ -1766,20 +1842,51 @@ WiFiError WifiBackendWpaSupplicant::forget_network(const std::string& ssid) {
         // instead, on the same re-read config content read_wpa_conf_after_save()
         // fetches for connect_network() too.
         const std::string save_result = send_command("SAVE_CONFIG");
-        const auto [conf_path, conf_contents] = read_wpa_conf_after_save();
+        const auto conf = read_wpa_conf_after_save();
 
-        if (conf_path.empty()) {
-            spdlog::warn("[WifiBackend] Cannot verify removal persisted: no -c config path "
-                         "found for the running wpa_supplicant (SAVE_CONFIG replied '{}')",
-                         save_result);
-        } else if (!helix::wifi::detail::wpa_config_has_network(conf_contents, clean_ssid)) {
-            spdlog::debug("[WifiBackend] Removal verified on disk at {}", conf_path);
-            mirror_if_volatile(conf_path);
-        } else {
+        switch (helix::wifi::detail::classify_removal_result(!conf.path.empty(), conf.readable,
+                                                             conf.contents, clean_ssid)) {
+        case helix::wifi::detail::RemovalPersistence::Verified:
+            spdlog::debug("[WifiBackend] Removal verified on disk at {}", conf.path);
+            mirror_if_volatile(conf.path);
+            break;
+
+        case helix::wifi::detail::RemovalPersistence::StillListed:
             spdlog::warn("[WifiBackend] {} still lists '{}' after REMOVE_NETWORK + SAVE_CONFIG "
                          "(reply '{}') — the daemon dropped it from memory but the on-disk "
                          "config was not updated; it may reappear at the next boot",
-                         conf_path, helix::redact::ssid(clean_ssid), save_result);
+                         conf.path, helix::redact::ssid(clean_ssid), save_result);
+            break;
+
+        case helix::wifi::detail::RemovalPersistence::Unverifiable:
+            // Do NOT mirror, and do not claim a verified removal. An unreadable
+            // config is empty here, which is indistinguishable from "the SSID is
+            // gone" — and reading it as the latter is what let the forgotten
+            // network come back at the next boot while the log said the removal
+            // had been verified.
+            if (conf.path.empty()) {
+                spdlog::warn("[WifiBackend] Cannot verify removal persisted: no -c config path "
+                             "found for the running wpa_supplicant (SAVE_CONFIG replied '{}')",
+                             save_result);
+            } else {
+                spdlog::warn("[WifiBackend] Cannot verify removal persisted: {} is not readable "
+                             "by this process ({}) (SAVE_CONFIG replied '{}') — if the vendor "
+                             "config still lists it, the network returns at the next boot",
+                             conf.path, describe_conf_access(conf.path), save_result);
+            }
+            break;
+        }
+
+        // Independent of the file: ask the daemon whether it still knows the
+        // network. This works even where the config is unreadable, so it is the
+        // one removal signal that is always available — and if REMOVE_NETWORK
+        // replied OK while the entry survives, the config file was never the
+        // problem in the first place.
+        if (!helix::wifi::detail::find_network_id(send_command("LIST_NETWORKS"), clean_ssid)
+                 .empty()) {
+            spdlog::warn("[WifiBackend] wpa_supplicant still lists '{}' after REMOVE_NETWORK "
+                         "replied OK — the daemon did not drop it",
+                         helix::redact::ssid(clean_ssid));
         }
     }
 

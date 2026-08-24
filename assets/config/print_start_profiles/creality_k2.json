@@ -2,10 +2,13 @@
   "name": "Creality K2",
   "description": "Print start patterns for Creality K2 series (K2, K2 Pro, K2 Plus) with CFS",
   "progress_mode": "weighted",
+  "adaptive_meshing": true,
+  "position_signals": true,
+  "cfs_signals": true,
   "signal_formats": [],
   "response_patterns": [
     {
-      "pattern": "G28|Homing|Home All Axes|ACCURATE_G28",
+      "pattern": "_handle_home_rails_begin|x_park = ",
       "phase": "HOMING",
       "message": "Homing...",
       "weight": 10
@@ -23,7 +26,7 @@
       "weight": 20
     },
     {
-      "pattern": "M109|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
+      "pattern": "M109|TEMPERATURE_WAIT SENSOR=extruder|Heating (nozzle|hotend|extruder)|EXTRUDER_TEMP",
       "phase": "HEATING_NOZZLE",
       "message": "Heating Nozzle...",
       "weight": 20
@@ -35,13 +38,13 @@
       "weight": 10
     },
     {
-      "pattern": "BED_MESH_CALIBRATE",
+      "pattern": "BED_MESH_CALIBRATE|exist_points\\[|Adapted probe count",
       "phase": "BED_MESH",
       "message": "Bed Mesh...",
       "weight": 10
     },
     {
-      "pattern": "BOX_MATERIAL_FLUSH|BOX_MATERIAL_CHANGE_FLUSH|M8200.*F",
+      "pattern": "BOX_MATERIAL_FLUSH|BOX_MATERIAL_CHANGE_FLUSH|BOX_GO_TO_EXTRUDE_POS|M8200.*F|flush_temp:|flush_len:|flush_volume:",
       "phase": "PURGING",
       "message": "Flushing Filament...",
       "weight": 5

@@ -18,6 +18,7 @@
 #include "../../include/printer_state.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
@@ -89,6 +90,25 @@ class HistoryManagerTestFixture {
     }
 
   protected:
+    /// Drain the update queue repeatedly, giving deferred work that itself
+    /// defers (invalidate -> fetch -> success defer) room to finish.
+    void pump(int rounds = 20) {
+        for (int i = 0; i < rounds; ++i) {
+            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    }
+
+    /// A notify_filelist_changed frame shaped like Moonraker's.
+    static nlohmann::json filelist_msg(const char* action, const char* path) {
+        return nlohmann::json{
+            {"jsonrpc", "2.0"},
+            {"method", "notify_filelist_changed"},
+            {"params", nlohmann::json::array({nlohmann::json{
+                           {"action", action},
+                           {"item", {{"root", "gcodes"}, {"path", path}, {"size", 1234}}}}})}};
+    }
+
     /// Wait for async fetch to complete
     bool wait_for_loaded(int timeout_ms = 500) {
         for (int i = 0; i < timeout_ms / 10; ++i) {
@@ -158,8 +178,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager builds filename
 // ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
-                 "PrintHistoryManager aggregates success count correctly",
-                 "[history_manager]") {
+                 "PrintHistoryManager aggregates success count correctly", "[history_manager]") {
     // When: fetch completes
     manager_->fetch();
     REQUIRE(wait_for_loaded());
@@ -186,8 +205,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
 }
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
-                 "PrintHistoryManager aggregates failure count correctly",
-                 "[history_manager]") {
+                 "PrintHistoryManager aggregates failure count correctly", "[history_manager]") {
     // When: fetch completes
     manager_->fetch();
     REQUIRE(wait_for_loaded());
@@ -371,6 +389,156 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager can re-fetch af
 }
 
 // ============================================================================
+// File-list Notification Tests
+// ============================================================================
+// Deleting a gcode file fires notify_filelist_changed, NOT
+// notify_history_changed: Moonraker only emits the latter when a job is added
+// or the history is cleared. Subscribing to history alone left the cache
+// holding a deleted file as its newest entry, which the Print Status idle tile
+// then offered as "Reprint Last".
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager refetches on a delete_file filelist notification",
+                 "[history_manager][filelist]") {
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+    const int after_initial = notified.load();
+    REQUIRE(after_initial >= 1);
+
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("delete_file", "old_print.gcode"));
+    pump();
+
+    // A refetch ran: the cache was invalidated and repopulated, so observers
+    // were notified again.
+    REQUIRE(notified.load() > after_initial);
+    REQUIRE(manager_->is_loaded());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager refetches on a move_file filelist notification",
+                 "[history_manager][filelist]") {
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+    const int after_initial = notified.load();
+
+    // A move makes the old path stop existing just as a delete does.
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("move_file", "sub/moved.gcode"));
+    pump();
+
+    REQUIRE(notified.load() > after_initial);
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager ignores filelist actions that cannot orphan a job",
+                 "[history_manager][filelist]") {
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+    const int after_initial = notified.load();
+
+    // Uploads and metadata scans fire this notification constantly (an AFC
+    // printer rewrites AFC.var.unit on every SET_* command). None of them can
+    // flip an existing job's `exists` flag, so none may trigger a refetch.
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("create_file", "fresh_upload.gcode"));
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("modify_file", "fresh_upload.gcode"));
+    client_.dispatch_method_callback("notify_filelist_changed", filelist_msg("create_dir", "sub"));
+    client_.dispatch_method_callback("notify_filelist_changed", filelist_msg("root_update", ""));
+    pump();
+
+    REQUIRE(notified.load() == after_initial);
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager re-fetches when a delete lands mid-flight",
+                 "[history_manager][filelist]") {
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    // Deleting several files in a row: the first delete's refetch is still in
+    // flight (real RTT) when the second delete's notification arrives.
+    PrintHistoryManagerTestAccess::set_fetching(*manager_, true);
+    client_.dispatch_method_callback("notify_filelist_changed",
+                                     filelist_msg("delete_file", "second.gcode"));
+    pump();
+    // Nothing landed yet - the request was dropped by the in-flight guard.
+    REQUIRE(notified.load() == 0);
+
+    // The in-flight response arrives, describing the printer BEFORE the second
+    // delete. Dropping the request outright would leave that stale list in
+    // place until some later notification happened along.
+    PrintHistoryManagerTestAccess::complete_fetch(*manager_, {});
+    REQUIRE(notified.load() == 1);
+    REQUIRE(manager_->get_jobs().empty());
+
+    pump();
+
+    // The queued re-issue ran and repopulated the cache.
+    REQUIRE(notified.load() >= 2);
+    REQUIRE_FALSE(manager_->get_jobs().empty());
+}
+
+// ============================================================================
+// Newest-surviving-job Accessor Tests
+// ============================================================================
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager skips deleted jobs when picking the newest",
+                 "[history_manager][exists]") {
+    PrintHistoryJob gone;
+    gone.filename = "deleted.gcode";
+    gone.exists = false;
+    PrintHistoryJob survivor;
+    survivor.filename = "survivor.gcode";
+    survivor.exists = true;
+    PrintHistoryJob older;
+    older.filename = "older.gcode";
+    older.exists = true;
+
+    PrintHistoryManagerTestAccess::set_loaded_jobs(*manager_, {gone, survivor, older});
+
+    const auto* pick = manager_->get_newest_existing_job();
+    REQUIRE(pick != nullptr);
+    REQUIRE(pick->filename == "survivor.gcode");
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager reports no surviving job when every file is gone",
+                 "[history_manager][exists]") {
+    PrintHistoryJob gone;
+    gone.filename = "deleted.gcode";
+    gone.exists = false;
+
+    PrintHistoryManagerTestAccess::set_loaded_jobs(*manager_, {gone});
+    REQUIRE(manager_->get_newest_existing_job() == nullptr);
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager reports no surviving job before history loads",
+                 "[history_manager][exists]") {
+    REQUIRE_FALSE(manager_->is_loaded());
+    REQUIRE(manager_->get_newest_existing_job() == nullptr);
+}
+
+// ============================================================================
 // Edge Case Tests
 // ============================================================================
 
@@ -506,8 +674,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryStats includes uuid fro
 }
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
-                 "PrintHistoryStats includes size_bytes from most recent job",
-                 "[history][uuid]") {
+                 "PrintHistoryStats includes size_bytes from most recent job", "[history][uuid]") {
     manager_->fetch();
     REQUIRE(wait_for_loaded());
 

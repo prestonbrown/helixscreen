@@ -24,4 +24,3 @@ TEST_CASE("ZMovementStyle enum values", "[z_movement_style]") {
     REQUIRE(static_cast<int>(ZMovementStyle::BED_MOVES) == 1);
     REQUIRE(static_cast<int>(ZMovementStyle::NOZZLE_MOVES) == 2);
 }
-

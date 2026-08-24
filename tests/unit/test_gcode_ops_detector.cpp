@@ -137,6 +137,58 @@ TEST_CASE("GCodeOpsDetector - START_PRINT parameter detection", "[gcode][ops]") 
     }
 }
 
+TEST_CASE("GCodeOpsDetector - START_PRINT temperature extraction", "[gcode][ops]") {
+    GCodeOpsDetector detector;
+
+    SECTION("Extracts EXTRUDER_TEMP and BED_TEMP (Creality convention)") {
+        auto result =
+            detector.scan_content("M104 S0\nSTART_PRINT EXTRUDER_TEMP=260 BED_TEMP=105\nG1 X0\n");
+
+        REQUIRE(result.print_start.found);
+        REQUIRE(result.print_start.macro_name == "START_PRINT");
+        REQUIRE(result.print_start.extruder_temp == 260);
+        REQUIRE(result.print_start.bed_temp == 105);
+    }
+
+    SECTION("Extracts EXTRUDER and BED aliases (Voron convention)") {
+        auto result = detector.scan_content("PRINT_START EXTRUDER=210 BED=60\n");
+
+        REQUIRE(result.print_start.found);
+        REQUIRE(result.print_start.extruder_temp == 210);
+        REQUIRE(result.print_start.bed_temp == 60);
+    }
+
+    SECTION("Temp-less call reports zero (unknown)") {
+        auto result = detector.scan_content("START_PRINT FORCE_LEVELING=1\n");
+
+        REQUIRE(result.print_start.found);
+        REQUIRE(result.print_start.extruder_temp == 0);
+        REQUIRE(result.print_start.bed_temp == 0);
+    }
+
+    SECTION("Parses float values as integers") {
+        auto result = detector.scan_content("START_PRINT EXTRUDER_TEMP=220.0 BED_TEMP=60.5\n");
+
+        REQUIRE(result.print_start.extruder_temp == 220);
+        REQUIRE(result.print_start.bed_temp == 60);
+    }
+
+    SECTION("Case insensitive temperature keys") {
+        auto result = detector.scan_content("start_print extruder_temp=215 bed_temp=70\n");
+
+        REQUIRE(result.print_start.extruder_temp == 215);
+        REQUIRE(result.print_start.bed_temp == 70);
+    }
+
+    SECTION("BED_TEMP is not confused with BED alias and vice versa") {
+        auto both = detector.scan_content("START_PRINT BED_TEMP=100 BED=60\n");
+        REQUIRE(both.print_start.bed_temp == 100);
+
+        auto alias_only = detector.scan_content("START_PRINT BED=60\n");
+        REQUIRE(alias_only.print_start.bed_temp == 60);
+    }
+}
+
 // ============================================================================
 // Scanning Limit Tests
 // ============================================================================

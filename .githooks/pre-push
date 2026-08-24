@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Pre-push: the full, ungated quality sweep.
+#
+# pre-commit runs --staged-only, which skips any gate that inspects nothing you
+# staged (see qc_trigger_re in scripts/quality-checks.sh). That keeps a one-file
+# commit near a second, but it means a commit can pass locally while a repo-wide
+# invariant it never ran is broken. This hook is where that gets caught, before
+# anything leaves the machine.
+#
+# Runs the same command CI does, so a green push should mean a green Code
+# Quality job. Skip in an emergency with `git push --no-verify`, and expect CI
+# to find whatever you skipped.
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+[ -x ./scripts/quality-checks.sh ] || exit 0
+
+echo "🚦 pre-push: full quality sweep (pre-commit only checked what you staged)"
+exec ./scripts/quality-checks.sh

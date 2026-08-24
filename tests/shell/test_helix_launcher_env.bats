@@ -89,6 +89,11 @@ fi
 unset _helix_env_file
 
 # Resolve debug/logging settings: CLI flags > env vars (incl. env file) > defaults
+#
+# HAND-COPIED from helix-launcher.sh, and deliberately WITHOUT the
+# platform-hook sourcing that precedes these lines in the real script. Only the
+# env-file precedence is under test here. Hook-exported HELIX_LOG_* ordering is
+# covered against the real launcher in test_helix_launcher_e2e.bats.
 DEBUG_MODE="${CLI_DEBUG:-${HELIX_DEBUG:-0}}"
 LOG_DEST="${CLI_LOG_DEST:-${HELIX_LOG_DEST:-auto}}"
 LOG_FILE="${CLI_LOG_FILE:-${HELIX_LOG_FILE:-}}"
@@ -377,4 +382,124 @@ EOF
     result=$(MOCK_INSTALL="$MOCK_INSTALL" run_env_setup MOONRAKER_HOST)
     [ "$result" = "localhost" ]
     echo "$err_output" | grep -qE "warning.*invalid variable name|warning.*ignored malformed line"
+}
+
+# =============================================================================
+# MALLOC_ARENA_MAX on memory-constrained boards
+#
+# These extract the block from the REAL helix-launcher.sh rather than copying it
+# into the harness above. A copied snippet passes forever after the original is
+# changed or deleted; extraction fails loudly instead (assert_extracted).
+# =============================================================================
+
+# Pull the arena block out of the launcher and eval it with a fake meminfo.
+# Args: $1 = MemTotal in kB to report. Echoes the resulting MALLOC_ARENA_MAX
+# (empty when the block left it unset).
+run_arena_block() {
+    local mem_kb="$1"
+    local meminfo="$BATS_TEST_TMPDIR/meminfo"
+
+    printf 'MemTotal:       %s kB\nMemFree:         10000 kB\n' "$mem_kb" > "$meminfo"
+
+    awk '/^# Cap glibc.s per-thread malloc arenas/{f=1} f{print} f&&/^fi$/{exit}' \
+        "$LAUNCHER" > "$BATS_TEST_TMPDIR/arena_block.sh"
+
+    HELIX_MEMINFO_FILE="$meminfo" sh -c "
+        set -e
+        . '$BATS_TEST_TMPDIR/arena_block.sh'
+        echo \"\${MALLOC_ARENA_MAX:-}\"
+    "
+}
+
+# Guard: if the block ever stops being extractable, every test below would
+# silently pass against an empty file. Fail instead.
+assert_extracted() {
+    [ -s "$BATS_TEST_TMPDIR/arena_block.sh" ]
+    grep -q "MALLOC_ARENA_MAX" "$BATS_TEST_TMPDIR/arena_block.sh"
+}
+
+@test "arena cap: applied on a CC1-sized board (114 MB)" {
+    result=$(run_arena_block 114656)
+    assert_extracted
+    [ "$result" = "2" ]
+}
+
+@test "arena cap: applied on an AD5M-sized board (110 MB)" {
+    result=$(run_arena_block 110404)
+    assert_extracted
+    [ "$result" = "2" ]
+}
+
+@test "arena cap: applied on a K2 Plus-sized board (488 MB)" {
+    # Closest measured device below the threshold — pins the gap, so moving the
+    # line down past 488 MB has to be a deliberate edit, not an accident.
+    result=$(run_arena_block 499952)
+    assert_extracted
+    [ "$result" = "2" ]
+}
+
+@test "arena cap: NOT applied on a Snapmaker U1-sized board (962 MB)" {
+    result=$(run_arena_block 985000)
+    assert_extracted
+    [ -z "$result" ]
+}
+
+@test "arena cap: NOT applied on a CB1-sized board (987 MB)" {
+    result=$(run_arena_block 1010636)
+    assert_extracted
+    [ -z "$result" ]
+}
+
+@test "arena cap: NOT applied on a desktop-sized machine" {
+    result=$(run_arena_block 16000000)
+    assert_extracted
+    [ -z "$result" ]
+}
+
+@test "arena cap: an existing user value always wins" {
+    local meminfo="$BATS_TEST_TMPDIR/meminfo"
+    printf 'MemTotal:       114656 kB\n' > "$meminfo"
+    awk '/^# Cap glibc.s per-thread malloc arenas/{f=1} f{print} f&&/^fi$/{exit}' \
+        "$LAUNCHER" > "$BATS_TEST_TMPDIR/arena_block.sh"
+    assert_extracted
+
+    # A user who set 8 in helixscreen.env on a constrained board keeps 8.
+    result=$(HELIX_MEMINFO_FILE="$meminfo" MALLOC_ARENA_MAX=8 sh -c "
+        set -e
+        . '$BATS_TEST_TMPDIR/arena_block.sh'
+        echo \"\$MALLOC_ARENA_MAX\"
+    ")
+    [ "$result" = "8" ]
+}
+
+@test "arena cap: unreadable meminfo leaves glibc's default alone" {
+    awk '/^# Cap glibc.s per-thread malloc arenas/{f=1} f{print} f&&/^fi$/{exit}' \
+        "$LAUNCHER" > "$BATS_TEST_TMPDIR/arena_block.sh"
+    assert_extracted
+
+    result=$(HELIX_MEMINFO_FILE="$BATS_TEST_TMPDIR/no-such-meminfo" sh -c "
+        set -e
+        . '$BATS_TEST_TMPDIR/arena_block.sh'
+        echo \"\${MALLOC_ARENA_MAX:-}\"
+    ")
+    [ -z "$result" ]
+}
+
+@test "arena cap: garbage MemTotal does not abort the launcher under set -e" {
+    local meminfo="$BATS_TEST_TMPDIR/meminfo"
+    printf 'MemTotal:       not-a-number kB\n' > "$meminfo"
+    awk '/^# Cap glibc.s per-thread malloc arenas/{f=1} f{print} f&&/^fi$/{exit}' \
+        "$LAUNCHER" > "$BATS_TEST_TMPDIR/arena_block.sh"
+    assert_extracted
+
+    # The launcher runs under `set -e`; a non-numeric value must fall through
+    # rather than make an arithmetic test abort the whole startup.
+    run sh -c "
+        set -e
+        HELIX_MEMINFO_FILE='$meminfo'
+        . '$BATS_TEST_TMPDIR/arena_block.sh'
+        echo \"exit-ok:\${MALLOC_ARENA_MAX:-unset}\"
+    "
+    [ "$status" -eq 0 ]
+    [ "$output" = "exit-ok:unset" ]
 }

@@ -146,7 +146,7 @@ void PinEntryModal::on_digit(int digit) {
     if (!dialog_) {
         return;
     }
-    if (static_cast<int>(digit_buffer_.size()) >= kMaxDigits) {
+    if (static_cast<int>(digit_buffer_.size()) >= MAX_DIGITS) {
         spdlog::debug("[PinEntryModal] Max digits reached, ignoring");
         return;
     }
@@ -158,7 +158,7 @@ void PinEntryModal::on_digit(int digit) {
 
     // Auto-submit at max digits — defer via lv_async_call so on_digit() returns
     // before on_confirm() can delete this modal (avoids UB from delete-this-in-member)
-    if (static_cast<int>(digit_buffer_.size()) == kMaxDigits) {
+    if (static_cast<int>(digit_buffer_.size()) == MAX_DIGITS) {
         lv_async_call(
             [](void*) {
                 if (g_active_modal) {
@@ -183,9 +183,9 @@ void PinEntryModal::on_confirm() {
     if (!dialog_) {
         return;
     }
-    if (static_cast<int>(digit_buffer_.size()) < kMinDigits) {
+    if (static_cast<int>(digit_buffer_.size()) < MIN_DIGITS) {
         spdlog::debug("[PinEntryModal] PIN too short ({} of {} required)", digit_buffer_.size(),
-                      kMinDigits);
+                      MIN_DIGITS);
         clear_digits();
         show_error("PIN must be at least 4 digits");
         return;
@@ -241,7 +241,7 @@ void PinEntryModal::on_cancel() {
 // ============================================================================
 
 void PinEntryModal::update_dots() {
-    update_pin_dots(dialog_, "pin_dot_", kMaxDigits, static_cast<int>(digit_buffer_.size()));
+    update_pin_dots(dialog_, "pin_dot_", MAX_DIGITS, static_cast<int>(digit_buffer_.size()));
 }
 
 void PinEntryModal::clear_digits() {

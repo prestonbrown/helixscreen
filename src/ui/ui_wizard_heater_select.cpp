@@ -11,9 +11,9 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
 #include "wizard_config_paths.h"
@@ -139,7 +139,7 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
     // Event handler is wired via XML <event_cb>
     wizard_populate_hardware_dropdown(
         screen_root_, "bed_heater_dropdown", &bed_heater_selected_, bed_heater_items_,
-        [](MoonrakerAPI* a) -> const auto& { return a->hardware().heaters(); },
+        [](IMoonrakerAPI* a) -> const auto& { return a->hardware().heaters(); },
         "bed", // Filter for bed-related heaters
         true,  // Allow "None" option
         helix::wizard::BED_HEATER, [](const PrinterHardware& hw) { return hw.guess_bed_heater(); },
@@ -149,7 +149,7 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
     // Event handler is wired via XML <event_cb>
     wizard_populate_hardware_dropdown(
         screen_root_, "hotend_heater_dropdown", &hotend_heater_selected_, hotend_heater_items_,
-        [](MoonrakerAPI* a) -> const auto& { return a->hardware().heaters(); },
+        [](IMoonrakerAPI* a) -> const auto& { return a->hardware().heaters(); },
         "extruder", // Filter for extruder-related heaters
         true,       // Allow "None" option
         helix::wizard::HOTEND_HEATER,

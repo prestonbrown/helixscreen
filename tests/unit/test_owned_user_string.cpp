@@ -17,11 +17,9 @@
  *   - the getter never miscasts a foreign user_data pointer
  */
 
-#include "../test_fixtures.h"
-
 #include "ui_utils.h"
 
-#include "../catch_amalgamated.hpp"
+#include "../test_fixtures.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -29,10 +27,13 @@
 #include <string>
 #include <string_view>
 
+#include "../catch_amalgamated.hpp"
+
 using helix::ui::get_owned_user_string;
 using helix::ui::set_owned_user_string;
 
-TEST_CASE_METHOD(LVGLTestFixture, "set_owned_user_string round-trips a string", "[ui_utils][l069]") {
+TEST_CASE_METHOD(LVGLTestFixture, "set_owned_user_string round-trips a string",
+                 "[ui_utils][l069]") {
     lv_obj_t* obj = lv_obj_create(lv_screen_active());
     REQUIRE(obj != nullptr);
 

@@ -290,15 +290,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - buttons present",
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
     REQUIRE(dialog != nullptr);
 
-    // All three buttons should exist
-    lv_obj_t* restart_btn = lv_obj_find_by_name(dialog, "restart_klipper_btn");
+    // All three buttons should exist. The two restart actions live inside a
+    // modal_button_row, so they carry that component's btn_primary/btn_secondary
+    // names; recovery_restart_actions is the wrapper whose hidden flag gates them.
+    lv_obj_t* restart_btn = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(restart_btn != nullptr);
 
-    lv_obj_t* firmware_btn = lv_obj_find_by_name(dialog, "firmware_restart_btn");
+    lv_obj_t* firmware_btn = lv_obj_find_by_name(dialog, "btn_secondary");
     REQUIRE(firmware_btn != nullptr);
 
     lv_obj_t* dismiss_btn = lv_obj_find_by_name(dialog, "recovery_dismiss_btn");
     REQUIRE(dismiss_btn != nullptr);
+
+    lv_obj_t* restart_row = lv_obj_find_by_name(dialog, "recovery_restart_actions");
+    REQUIRE(restart_row != nullptr);
 }
 
 // ============================================================================
@@ -315,17 +320,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN shows all button
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
     REQUIRE(dialog != nullptr);
 
-    lv_obj_t* restart_btn = lv_obj_find_by_name(dialog, "restart_klipper_btn");
-    lv_obj_t* firmware_btn = lv_obj_find_by_name(dialog, "firmware_restart_btn");
+    lv_obj_t* restart_row = lv_obj_find_by_name(dialog, "recovery_restart_actions");
     lv_obj_t* dismiss_btn = lv_obj_find_by_name(dialog, "recovery_dismiss_btn");
 
-    REQUIRE(restart_btn != nullptr);
-    REQUIRE(firmware_btn != nullptr);
+    REQUIRE(restart_row != nullptr);
     REQUIRE(dismiss_btn != nullptr);
 
     // All buttons visible for SHUTDOWN (can restart)
-    REQUIRE_FALSE(lv_obj_has_flag(restart_btn, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(firmware_btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
     REQUIRE_FALSE(lv_obj_has_flag(dismiss_btn, LV_OBJ_FLAG_HIDDEN));
 }
 
@@ -339,17 +341,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED hides restar
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
     REQUIRE(dialog != nullptr);
 
-    lv_obj_t* restart_btn = lv_obj_find_by_name(dialog, "restart_klipper_btn");
-    lv_obj_t* firmware_btn = lv_obj_find_by_name(dialog, "firmware_restart_btn");
+    lv_obj_t* restart_row = lv_obj_find_by_name(dialog, "recovery_restart_actions");
     lv_obj_t* dismiss_btn = lv_obj_find_by_name(dialog, "recovery_dismiss_btn");
 
-    REQUIRE(restart_btn != nullptr);
-    REQUIRE(firmware_btn != nullptr);
+    REQUIRE(restart_row != nullptr);
     REQUIRE(dismiss_btn != nullptr);
 
-    // Restart buttons hidden when disconnected (can't restart)
-    REQUIRE(lv_obj_has_flag(restart_btn, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(firmware_btn, LV_OBJ_FLAG_HIDDEN));
+    // Restart row hidden when disconnected (can't restart). Hiding the wrapper takes
+    // modal_button_row's leading divider with it, so no orphaned rule is left behind.
+    REQUIRE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
 
     // Dismiss always visible
     REQUIRE_FALSE(lv_obj_has_flag(dismiss_btn, LV_OBJ_FLAG_HIDDEN));
@@ -366,20 +366,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN then DISCONNECTE
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
     REQUIRE(dialog != nullptr);
 
-    lv_obj_t* restart_btn = lv_obj_find_by_name(dialog, "restart_klipper_btn");
-    REQUIRE(restart_btn != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(restart_btn, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* restart_row = lv_obj_find_by_name(dialog, "recovery_restart_actions");
+    REQUIRE(restart_row != nullptr);
+    REQUIRE_FALSE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
 
     // Connection drops - DISCONNECTED fires, buttons should update
     estop.show_recovery_for(RecoveryReason::DISCONNECTED);
     process_lvgl(50);
 
-    // Restart buttons should now be hidden
-    REQUIRE(lv_obj_has_flag(restart_btn, LV_OBJ_FLAG_HIDDEN));
-
-    lv_obj_t* firmware_btn = lv_obj_find_by_name(dialog, "firmware_restart_btn");
-    REQUIRE(firmware_btn != nullptr);
-    REQUIRE(lv_obj_has_flag(firmware_btn, LV_OBJ_FLAG_HIDDEN));
+    // Restart row should now be hidden
+    REQUIRE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
 }
 
 // ============================================================================
@@ -458,6 +454,157 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED ignores stat
     // Should show the disconnect-specific message, not the error
     REQUIRE(displayed.find("some error") == std::string::npos);
     REQUIRE(displayed.find("disconnected") != std::string::npos);
+}
+
+// ============================================================================
+// JSON state_message decoding
+//
+// Klipper (notably K2 builds) emits shutdown reasons as a JSON envelope rather
+// than prose. Showing the envelope verbatim put a literal `{"code":"key1",
+// "msg":"..."}` in front of the user. The dialog routes state_message through
+// GcodeErrorRouter::clean_error_text() so the msg text is displayed and the code
+// is split out into its own header slot.
+// ============================================================================
+
+namespace {
+
+// Reads the dialog's message + code labels after a recovery show. Returns the
+// message text; writes the code label text (or "" when the label is hidden).
+std::string recovery_texts(lv_obj_t* dialog, std::string& out_code) {
+    lv_obj_t* message = lv_obj_find_by_name(dialog, "recovery_message");
+    REQUIRE(message != nullptr);
+    lv_obj_t* code = lv_obj_find_by_name(dialog, "recovery_code");
+    REQUIRE(code != nullptr);
+    out_code = lv_obj_has_flag(code, LV_OBJ_FLAG_HIDDEN) ? "" : lv_label_get_text(code);
+    return lv_label_get_text(message);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - pure JSON state_message shows msg not raw",
+                 "[recovery][state_message][json]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& ps = get_printer_state();
+    estop.init(ps, nullptr);
+
+    ps.set_klippy_state_message(
+        R"({"code":"key1", "msg":"Internal error during ready callback: No active exception to reraise"})");
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(100);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+
+    std::string code;
+    std::string displayed = recovery_texts(dialog, code);
+
+    // The prose survives...
+    REQUIRE(displayed.find("Internal error during ready callback") != std::string::npos);
+    // ...and none of the JSON scaffolding reaches the label.
+    REQUIRE(displayed.find("{") == std::string::npos);
+    REQUIRE(displayed.find("\"msg\"") == std::string::npos);
+    REQUIRE(displayed.find("key1") == std::string::npos);
+    // The code moves to its own slot.
+    REQUIRE(code == "key1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - embedded JSON state_message is decoded",
+                 "[recovery][state_message][json]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& ps = get_printer_state();
+    estop.init(ps, nullptr);
+
+    // K2 shape: prose prefix with the envelope spliced in after a bang. key9001 is
+    // deliberately absent from the CFS table, so this exercises the plain msg path.
+    ps.set_klippy_state_message(
+        R"(Internal error during connect: !{"code":"key9001","msg":"MCU 'mcu' shutdown"})");
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(100);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+
+    std::string code;
+    std::string displayed = recovery_texts(dialog, code);
+
+    REQUIRE(displayed.find("MCU 'mcu' shutdown") != std::string::npos);
+    REQUIRE(displayed.find("{") == std::string::npos);
+    REQUIRE(code == "key9001");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - known CFS code gets curated text",
+                 "[recovery][state_message][json]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& ps = get_printer_state();
+    estop.init(ps, nullptr);
+
+    // key298 has a CFS_ERROR_TABLE entry, so the decoder replaces Klipper's terse msg
+    // with the curated message + recovery hint. That substitution is the point of
+    // routing through clean_error_text() rather than reimplementing a JSON strip.
+    ps.set_klippy_state_message(R"({"code":"key298","msg":"MCU 'mcu' shutdown"})");
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(100);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+
+    std::string code;
+    std::string displayed = recovery_texts(dialog, code);
+
+    REQUIRE(displayed.find("MCU bridge daemon is shut down") != std::string::npos);
+    REQUIRE(displayed.find("Firmware Restart") != std::string::npos);
+    REQUIRE(displayed.find("{") == std::string::npos);
+    REQUIRE(code == "key298");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - plain-prose state_message is left alone",
+                 "[recovery][state_message][json]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& ps = get_printer_state();
+    estop.init(ps, nullptr);
+
+    // Guards against an over-eager decoder mangling the common non-JSON case.
+    const std::string prose = "flashforge_loadcell: Max force exceeded. Last weight was: 912g";
+    ps.set_klippy_state_message(prose);
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(100);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+
+    std::string code;
+    std::string displayed = recovery_texts(dialog, code);
+
+    REQUIRE(displayed.find("Max force exceeded") != std::string::npos);
+    // No code, so the header slot stays hidden.
+    REQUIRE(code.empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - truncated JSON falls back to raw text",
+                 "[recovery][state_message][json]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& ps = get_printer_state();
+    estop.init(ps, nullptr);
+
+    // Unterminated envelope: brace-balancing never closes. The user must still see
+    // something, so the raw string is shown rather than an empty dialog.
+    ps.set_klippy_state_message(R"({"code":"key1", "msg":"No active exception to reraise)");
+
+    estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+    process_lvgl(100);
+
+    lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+    REQUIRE(dialog != nullptr);
+
+    std::string code;
+    std::string displayed = recovery_texts(dialog, code);
+
+    REQUIRE(displayed.find("No active exception to reraise") != std::string::npos);
+    REQUIRE(code.empty());
 }
 
 #endif // __APPLE__

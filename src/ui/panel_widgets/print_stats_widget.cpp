@@ -6,6 +6,7 @@
 #include "ui_filename_utils.h"
 
 #include "app_globals.h"
+#include "i_moonraker_api.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
@@ -141,6 +142,8 @@ void PrintStatsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         history_observer_ = [this, token]() {
             if (token.expired())
                 return;
+            // A finished print changes the server totals too, so re-ask.
+            fetch_lifetime_totals();
             update_stats();
         };
         hm->add_observer(&history_observer_);
@@ -150,6 +153,12 @@ void PrintStatsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void PrintStatsWidget::on_activate() {
+    // Instances are recycled across grid rebuilds, so this runs again on every
+    // activation — the totals request is the only thing that re-seeds a fresh
+    // instance's lifetime numbers (attach() cannot: it runs inside a
+    // ScopedFreeze, where queued callbacks are dropped).
+    fetch_lifetime_totals();
+
     auto* hm = get_print_history_manager();
     if (!hm)
         return;
@@ -176,6 +185,10 @@ void PrintStatsWidget::on_activate() {
 
 void PrintStatsWidget::detach() {
     lifetime_.invalidate();
+    // invalidate() drops any totals callback still in flight, so the guard has
+    // to be cleared by hand — this instance may be recycled into the next grid
+    // rebuild, and a stale flag would block its refetch forever.
+    lifetime_totals_in_flight_ = false;
     if (auto* hm = get_print_history_manager()) {
         hm->remove_observer(&history_observer_);
     }
@@ -207,6 +220,36 @@ void PrintStatsWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int wid
     lv_subject_set_int(&s_size_mode, mode);
 }
 
+void PrintStatsWidget::fetch_lifetime_totals() {
+    if (lifetime_totals_in_flight_)
+        return;
+
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api)
+        return;
+
+    lifetime_totals_in_flight_ = true;
+
+    // Both callbacks fire on the HTTP/WebSocket thread and touch members, so
+    // both go through bg_cb — it marshals the whole body to the main thread and
+    // drops it if the widget was torn down while the request was in flight.
+    api->history().get_history_totals(
+        lifetime_.bg_cb("PrintStatsWidget::get_history_totals",
+                        [this](const PrintHistoryTotals& totals) {
+                            lifetime_totals_in_flight_ = false;
+                            lifetime_totals_ = totals;
+                            lifetime_totals_valid_ = true;
+                            update_stats();
+                        }),
+        lifetime_.bg_cb("PrintStatsWidget::get_history_totals_error",
+                        [this](const MoonrakerError& error) {
+                            lifetime_totals_in_flight_ = false;
+                            spdlog::warn("[PrintStatsWidget] Totals fetch failed, using cached "
+                                         "jobs: {}",
+                                         error.message);
+                        }));
+}
+
 void PrintStatsWidget::update_stats() {
     auto* hm = get_print_history_manager();
     if (!hm)
@@ -232,8 +275,11 @@ void PrintStatsWidget::update_stats() {
 
     const auto& source = weekly_mode ? filtered_jobs : jobs;
 
-    // Compute totals
-    size_t total_jobs = source.size();
+    // Compute totals from the cached jobs. For the lifetime view this is only
+    // the fallback: the cache is capped at PrintHistoryManager::fetch()'s limit,
+    // so on a printer with a longer history it undercounts both prints and time
+    // (#1272). Server-computed totals replace it below as soon as they arrive.
+    uint64_t total_jobs = source.size();
     uint64_t total_time_secs = 0;
     size_t completed_count = 0;
 
@@ -244,8 +290,16 @@ void PrintStatsWidget::update_stats() {
         }
     }
 
+    // `server.history.totals` is lifetime-only — it cannot answer a 7-day
+    // window, so weekly mode keeps aggregating the filtered cache.
+    if (!weekly_mode && lifetime_totals_valid_) {
+        total_jobs = lifetime_totals_.total_jobs;
+        total_time_secs = lifetime_totals_.total_time;
+    }
+
     // Total prints
-    std::snprintf(s_total_prints_buf, sizeof(s_total_prints_buf), "%zu", total_jobs);
+    std::snprintf(s_total_prints_buf, sizeof(s_total_prints_buf), "%llu",
+                  static_cast<unsigned long long>(total_jobs));
     lv_subject_copy_string(&s_total_prints, s_total_prints_buf);
 
     // Total time — full (hours+minutes) and short (hours only)
@@ -264,9 +318,13 @@ void PrintStatsWidget::update_stats() {
                   static_cast<unsigned long>(hours));
     lv_subject_copy_string(&s_total_time_short, s_total_time_short_buf);
 
-    // Success rate
-    if (total_jobs > 0) {
-        int rate = static_cast<int>((completed_count * 100) / total_jobs);
+    // Success rate stays list-derived on BOTH sides of the ratio: Moonraker's
+    // totals endpoint carries no status breakdown, so the cached jobs are the
+    // best approximation available (same call HistoryDashboardPanel documents
+    // for its ALL_TIME filter). Mixing a server numerator with a cached
+    // denominator — or vice versa — would produce a meaningless percentage.
+    if (!source.empty()) {
+        int rate = static_cast<int>((completed_count * 100) / source.size());
         std::snprintf(s_success_rate_buf, sizeof(s_success_rate_buf), "%d%%", rate);
     } else {
         std::snprintf(s_success_rate_buf, sizeof(s_success_rate_buf), "--");
@@ -313,8 +371,10 @@ void PrintStatsWidget::update_stats() {
     }
     lv_subject_copy_string(&s_last_print, s_last_print_buf);
 
-    spdlog::debug("[PrintStatsWidget] Updated ({}): {} jobs, {}h",
-                  weekly_mode ? "weekly" : "lifetime", total_jobs, hours);
+    spdlog::debug("[PrintStatsWidget] Updated ({}): {} jobs, {}h (source: {}, {} cached)",
+                  weekly_mode ? "weekly" : "lifetime", total_jobs, hours,
+                  (!weekly_mode && lifetime_totals_valid_) ? "server totals" : "cached jobs",
+                  source.size());
 }
 
 void PrintStatsWidget::handle_clicked() {

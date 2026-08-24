@@ -3,7 +3,7 @@
 #include "spoolman_slot_saver.h"
 
 #include "filament_database.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "spoolman_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -26,7 +26,7 @@ std::string to_lower(std::string s) {
 
 } // namespace
 
-SpoolmanSlotSaver::SpoolmanSlotSaver(MoonrakerAPI* api) : api_(api) {}
+SpoolmanSlotSaver::SpoolmanSlotSaver(IMoonrakerAPI* api) : api_(api) {}
 
 bool SpoolmanSlotSaver::is_filament_complete(const SlotInfo& slot) {
     return !slot.brand.empty() && !slot.material.empty() &&

@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -36,14 +36,14 @@ namespace helix::ui {
 /// @param on_failure   Optional. Invoked on the main thread on either
 ///                     error path AFTER the toast has been emitted.
 ///                     Default: no-op.
-void dispatch_prepared_resume(MoonrakerAPI* api, std::string log_prefix,
+void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
                               std::function<void()> on_failure = {});
 
 /// Show the "Print Was Terminated — Restart from the beginning?" modal.
 /// Exposed so post-resume backstops (e.g. AmsBackendSnapmaker) can surface it
 /// after a silent RESUME no-op, not just the up-front prepare_for_resume gate.
 /// on_failure may be null.
-void show_restart_required_modal(MoonrakerAPI* api, const std::string& filename,
+void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
                                  std::string log_prefix, std::function<void()> on_failure);
 
 } // namespace helix::ui

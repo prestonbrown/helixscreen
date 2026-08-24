@@ -2,7 +2,6 @@
 #include "filament_catalog.h"
 #include "filament_product_form.h"
 #include "helix_test_fixture.h"
-#include "../catch_amalgamated.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -11,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
 using helix::printer::FilamentCatalog;
@@ -22,7 +22,7 @@ using helix::ui::validate_product_form;
 namespace {
 constexpr const char* FIX = "tests/fixtures/filaments_test.json";
 constexpr const char* USER_FIX = "tests/fixtures/user_filaments_test.json";
-}
+} // namespace
 
 TEST_CASE_METHOD(HelixTestFixture, "resolve_code cfs hit and miss", "[filament_catalog]") {
     auto cat = FilamentCatalog::load_from_file(FIX, /*codes_only=*/true, "cfs");
@@ -33,13 +33,14 @@ TEST_CASE_METHOD(HelixTestFixture, "resolve_code cfs hit and miss", "[filament_c
     CHECK(cat.resolve_code("cfs", "99999") == nullptr);
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "effective inherits type range when thin", "[filament_catalog]") {
+TEST_CASE_METHOD(HelixTestFixture, "effective inherits type range when thin",
+                 "[filament_catalog]") {
     auto cat = FilamentCatalog::load_from_file(FIX, false, "");
-    const auto* pla = cat.resolve_id("polymaker-pla-pro");   // no explicit range
+    const auto* pla = cat.resolve_id("polymaker-pla-pro"); // no explicit range
     REQUIRE(pla != nullptr);
-    CHECK(pla->nozzle_min == 190);   // inherited from PLA type
+    CHECK(pla->nozzle_min == 190); // inherited from PLA type
     CHECK(pla->nozzle_max == 220);
-    CHECK(pla->bed_temp == 60);      // inherited from PLA type
+    CHECK(pla->bed_temp == 60); // inherited from PLA type
     CHECK(pla->compat_group == std::string("PLA"));
 }
 
@@ -47,14 +48,15 @@ TEST_CASE_METHOD(HelixTestFixture, "explicit override wins over type", "[filamen
     auto cat = FilamentCatalog::load_from_file(FIX, false, "");
     const auto* abs = cat.resolve_id("polymaker-abs-pro");
     REQUIRE(abs != nullptr);
-    CHECK(abs->nozzle_min == 270);   // explicit, outside generic ABS range
+    CHECK(abs->nozzle_min == 270); // explicit, outside generic ABS range
     CHECK(abs->nozzle_max == 290);
-    CHECK(abs->bed_temp == 105);     // explicit bed
+    CHECK(abs->bed_temp == 105); // explicit bed
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "load_codes materializes only coded slice", "[filament_catalog]") {
+TEST_CASE_METHOD(HelixTestFixture, "load_codes materializes only coded slice",
+                 "[filament_catalog]") {
     auto cat = FilamentCatalog::load_from_file(FIX, true, "cfs");
-    CHECK(cat.all_products().size() == 1);          // only the cfs-coded entry
+    CHECK(cat.all_products().size() == 1); // only the cfs-coded entry
     CHECK(cat.resolve_id("polymaker-abs-pro") == nullptr);
 }
 
@@ -65,16 +67,16 @@ TEST_CASE_METHOD(HelixTestFixture, "queries by brand and type", "[filament_catal
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "user overlay overrides and adds", "[filament_catalog]") {
-    auto cat = FilamentCatalog::load_with_overlay(
-        "tests/fixtures/filaments_test.json", "tests/fixtures/user_filaments_test.json");
+    auto cat = FilamentCatalog::load_with_overlay("tests/fixtures/filaments_test.json",
+                                                  "tests/fixtures/user_filaments_test.json");
     const auto* abs = cat.resolve_id("polymaker-abs-pro");
     REQUIRE(abs != nullptr);
-    CHECK(abs->nozzle_min == 265);   // overridden by user
+    CHECK(abs->nozzle_min == 265); // overridden by user
     CHECK(abs->nozzle_max == 285);
     const auto* added = cat.resolve_id("acme-custom-petg");
-    REQUIRE(added != nullptr);       // new user product
+    REQUIRE(added != nullptr); // new user product
     CHECK(added->brand == "Acme");
-    CHECK(added->bed_temp == 80);    // inherited from PETG type
+    CHECK(added->bed_temp == 80); // inherited from PETG type
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "user overlay accepts legacy bare-array product form",
@@ -97,7 +99,8 @@ TEST_CASE_METHOD(HelixTestFixture, "user overlay accepts legacy bare-array produ
     std::remove(TMP);
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from reads object form", "[filament_catalog]") {
+TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from reads object form",
+                 "[filament_catalog]") {
     auto m = FilamentCatalog::load_user_orca_type_map_from(USER_FIX);
     REQUIRE(m.size() == 3);
     CHECK(m.at("PLA-BioTough") == "PLA");
@@ -110,7 +113,8 @@ TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from reads object fo
 
 TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from missing file returns empty",
                  "[filament_catalog]") {
-    CHECK(FilamentCatalog::load_user_orca_type_map_from("tests/fixtures/does_not_exist.json").empty());
+    CHECK(FilamentCatalog::load_user_orca_type_map_from("tests/fixtures/does_not_exist.json")
+              .empty());
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from empty path returns empty",
@@ -162,17 +166,28 @@ std::string read_small_file(const std::string& path) {
 
 constexpr const char* SAVE_TMP = "/tmp/helix_user_save_test.json";
 
-void remove_save_tmp() { std::remove(SAVE_TMP); }
-}  // namespace
+void remove_save_tmp() {
+    std::remove(SAVE_TMP);
+}
+} // namespace
 
 TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to round-trips through load_with_overlay",
                  "[filament_catalog][user_save]") {
     remove_save_tmp();
     std::vector<nlohmann::json> products = {
-        {{"id", "acme-test-pla"}, {"brand", "Acme"}, {"name", "Test PLA"},
-         {"type", "PLA"}, {"nozzle", 220}, {"source", "user"}},
-        {{"id", "brand-x-abs"}, {"brand", "Brand X"}, {"name", "Fast ABS"},
-         {"type", "ABS"}, {"nozzle_min", 240}, {"nozzle_max", 260}, {"source", "user"}},
+        {{"id", "acme-test-pla"},
+         {"brand", "Acme"},
+         {"name", "Test PLA"},
+         {"type", "PLA"},
+         {"nozzle", 220},
+         {"source", "user"}},
+        {{"id", "brand-x-abs"},
+         {"brand", "Brand X"},
+         {"name", "Fast ABS"},
+         {"type", "ABS"},
+         {"nozzle_min", 240},
+         {"nozzle_max", 260},
+         {"source", "user"}},
     };
 
     REQUIRE(FilamentCatalog::save_user_products_to(products, SAVE_TMP));
@@ -194,7 +209,7 @@ TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to round-trips through lo
     const auto* added = cat.resolve_id("acme-test-pla");
     REQUIRE(added != nullptr);
     CHECK(added->brand == "Acme");
-    CHECK(added->nozzle_recommended == 220);  // "nozzle" key
+    CHECK(added->nozzle_recommended == 220); // "nozzle" key
 
     remove_save_tmp();
 }
@@ -246,7 +261,7 @@ TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to migrates legacy bare-a
     REQUIRE(FilamentCatalog::save_user_products_to(products, SAVE_TMP));
 
     auto doc = nlohmann::json::parse(read_small_file(SAVE_TMP));
-    REQUIRE(doc.is_object());  // migrated to object form
+    REQUIRE(doc.is_object()); // migrated to object form
     REQUIRE(doc["filaments"].size() == 1);
     CHECK(doc["filaments"][0]["id"] == "post-migration");
     // Reader accepts the new shape.
@@ -301,7 +316,7 @@ TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to backs up a corrupt exi
     // real data the user would want back, but the file no longer parses.
     {
         std::ofstream out(SAVE_TMP);
-        out << R"({"orca_type_map":{"PreciousHint":"PLA"}, "filaments":[)";  // truncated
+        out << R"({"orca_type_map":{"PreciousHint":"PLA"}, "filaments":[)"; // truncated
     }
 
     std::vector<nlohmann::json> products = {
@@ -380,7 +395,7 @@ TEST_CASE_METHOD(HelixTestFixture, "load_user_products_from reads authored produ
     auto products = FilamentCatalog::load_user_products_from(SAVE_TMP);
     REQUIRE(products.size() == 2);
     CHECK(products[0]["id"] == "a");
-    CHECK(products[1]["nozzle"] == 250);  // authored value, not resolved/inherited
+    CHECK(products[1]["nozzle"] == 250); // authored value, not resolved/inherited
 
     // Legacy bare-array form is accepted too.
     {
@@ -407,9 +422,9 @@ TEST_CASE_METHOD(HelixTestFixture, "upsert_product replaces by id or appends",
     // Edit: same id replaces in place, preserves order, returns true.
     CHECK(FilamentCatalog::upsert_product(products, {{"id", "a"}, {"type", "PETG"}}));
     REQUIRE(products.size() == 2);
-    CHECK(products[0]["id"] == "a");           // still first
-    CHECK(products[0]["type"] == "PETG");      // replaced
-    CHECK(products[1]["id"] == "b");           // untouched
+    CHECK(products[0]["id"] == "a");      // still first
+    CHECK(products[0]["type"] == "PETG"); // replaced
+    CHECK(products[1]["id"] == "b");      // untouched
 
     // Add: new id appends, returns false.
     CHECK_FALSE(FilamentCatalog::upsert_product(products, {{"id", "c"}, {"type", "TPU"}}));
@@ -465,7 +480,7 @@ TEST_CASE_METHOD(HelixTestFixture, "product edit round-trip preserves orca_type_
     auto cat = FilamentCatalog::load_with_overlay(FIX, SAVE_TMP);
     const auto* edited = cat.resolve_id("user-pla");
     REQUIRE(edited != nullptr);
-    CHECK(edited->nozzle_recommended == 225);  // edit applied
+    CHECK(edited->nozzle_recommended == 225); // edit applied
 
     // --- Delete / Restore-Defaults (remove the overlay entry) ---
     auto after_edit = FilamentCatalog::load_user_products_from(SAVE_TMP);
@@ -533,13 +548,14 @@ TEST_CASE_METHOD(HelixTestFixture, "build_product_json emits provided fields wit
     CHECK_FALSE(j.contains("density_g_cm3"));
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "build_product_json omits blank numerics but keeps explicit zero",
+TEST_CASE_METHOD(HelixTestFixture,
+                 "build_product_json omits blank numerics but keeps explicit zero",
                  "[filament_catalog][user_save]") {
     FilamentFormValues v;
     v.id = "z";
     v.type = "PLA";
-    v.nozzle_min = "";  // blank -> omit
-    v.bed = "0";        // explicit zero -> keep (user intent)
+    v.nozzle_min = ""; // blank -> omit
+    v.bed = "0";       // explicit zero -> keep (user intent)
     auto j = build_product_json(v);
     CHECK_FALSE(j.contains("nozzle_min"));
     REQUIRE(j.contains("bed"));
@@ -605,4 +621,99 @@ TEST_CASE_METHOD(HelixTestFixture, "validate_product_form rejects nozzle min gre
     one_bound.nozzle_min = "250"; // max blank -> no comparison
     err.clear();
     CHECK(validate_product_form(one_bound, err));
+}
+
+// ---- load_codes_cached ----
+//
+// The CFS box parser calls this on every full box update. load_codes() re-parses
+// the whole 100 KB bundled catalog each time, so the cache is what keeps a spool
+// move from costing ~872 kB of transient heap on a 114 MB printer.
+
+TEST_CASE_METHOD(HelixTestFixture, "load_codes_cached reuses one snapshot",
+                 "[filament_catalog][codes_cache]") {
+    auto a = FilamentCatalog::load_codes_cached("cfs");
+    auto b = FilamentCatalog::load_codes_cached("cfs");
+
+    REQUIRE(a != nullptr);
+    // Same object, not merely equal contents — that is the whole point.
+    CHECK(a.get() == b.get());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "load_codes_cached agrees with an uncached load",
+                 "[filament_catalog][codes_cache]") {
+    // Caching must not change what the parser sees. Compare against a direct
+    // load of the same scheme rather than against hardcoded expectations.
+    auto direct = FilamentCatalog::load_codes("cfs");
+    auto cached = FilamentCatalog::load_codes_cached("cfs");
+    REQUIRE(cached != nullptr);
+
+    auto direct_products = direct.all_products();
+    auto cached_products = cached->all_products();
+    REQUIRE(cached_products.size() == direct_products.size());
+
+    for (const auto* p : direct_products) {
+        const auto* c = cached->resolve_id(p->id);
+        REQUIRE(c != nullptr);
+        CHECK(c->brand == p->brand);
+        CHECK(c->type == p->type);
+        CHECK(c->codes == p->codes);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "separate schemes get separate snapshots",
+                 "[filament_catalog][codes_cache]") {
+    auto cfs = FilamentCatalog::load_codes_cached("cfs");
+    auto other = FilamentCatalog::load_codes_cached("no_such_scheme");
+    REQUIRE(cfs != nullptr);
+    REQUIRE(other != nullptr);
+    CHECK(cfs.get() != other.get());
+    CHECK(other->all_products().empty()); // nothing carries that scheme
+    // The cfs entry must survive caching a second scheme.
+    CHECK(FilamentCatalog::load_codes_cached("cfs").get() == cfs.get());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a user-overlay save retires the snapshot",
+                 "[filament_catalog][codes_cache][user_save]") {
+    remove_save_tmp();
+    auto before = FilamentCatalog::load_codes_cached("cfs");
+    const uint64_t gen_before = FilamentCatalog::user_overlay_generation();
+
+    std::vector<nlohmann::json> products = {
+        {{"id", "acme-cache-pla"}, {"brand", "Acme"}, {"name", "Cache PLA"}, {"type", "PLA"}}};
+    REQUIRE(FilamentCatalog::save_user_products_to(products, SAVE_TMP));
+
+    CHECK(FilamentCatalog::user_overlay_generation() > gen_before);
+    auto after = FilamentCatalog::load_codes_cached("cfs");
+    // A stale snapshot here is the bug this guards: a product the user just
+    // added would stay invisible until restart.
+    CHECK(after.get() != before.get());
+
+    remove_save_tmp();
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a held snapshot outlives its retirement",
+                 "[filament_catalog][codes_cache][user_save]") {
+    // The CFS parser runs on the WebSocket thread while a save can land on the
+    // main thread. Holding the shared_ptr must keep that catalog readable even
+    // after the cache has moved on, or the parse reads freed memory.
+    remove_save_tmp();
+    auto held = FilamentCatalog::load_codes_cached("cfs");
+    REQUIRE(held != nullptr);
+    const size_t count_before = held->all_products().size();
+    const std::string first_id =
+        count_before > 0 ? held->all_products().front()->id : std::string();
+
+    std::vector<nlohmann::json> products = {
+        {{"id", "acme-cache-pla2"}, {"brand", "Acme"}, {"name", "Cache PLA 2"}, {"type", "PLA"}}};
+    REQUIRE(FilamentCatalog::save_user_products_to(products, SAVE_TMP));
+    auto replacement = FilamentCatalog::load_codes_cached("cfs");
+    REQUIRE(replacement.get() != held.get());
+
+    // Old snapshot still intact and unchanged.
+    CHECK(held->all_products().size() == count_before);
+    if (!first_id.empty()) {
+        CHECK(held->resolve_id(first_id) != nullptr);
+    }
+
+    remove_save_tmp();
 }

@@ -15,8 +15,8 @@
 
 #include "app_globals.h"
 #include "device_display_name.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -49,7 +49,7 @@ int resolve_space_token(const char* name, int fallback) {
 }
 
 // Power-related icons for the picker grid
-static const char* const kPowerIcons[] = {
+static const char* const POWER_ICONS[] = {
     // clang-format off
     // Power symbols
     "power_cycle",       "power",              "power_on",            "power_off",
@@ -65,9 +65,9 @@ static const char* const kPowerIcons[] = {
     "radiator",          "flash",              "electric_switch",
     // clang-format on
 };
-static constexpr size_t kPowerIconCount = std::size(kPowerIcons);
-static constexpr int kIconCellSize = 36;
-static constexpr const char* kDefaultIcon = "power_cycle";
+static constexpr size_t POWER_ICON_COUNT = std::size(POWER_ICONS);
+static constexpr int ICON_CELL_SIZE = 36;
+static constexpr const char* DEFAULT_ICON = "power_cycle";
 
 // Icons with distinct on/off glyphs. Config always stores the ON variant;
 // resolve_icon_for_state() derives the OFF variant from this table.
@@ -75,7 +75,7 @@ struct IconPair {
     const char* on_icon;
     const char* off_icon;
 };
-static const IconPair kIconPairs[] = {
+static const IconPair ICON_PAIRS[] = {
     {"power_on", "power_off"},
     {"power_plug", "power_plug_off"},
     {"lightbulb_on", "lightbulb_outline"},
@@ -85,7 +85,7 @@ static const IconPair kIconPairs[] = {
 /// Map an off-variant icon name to its on-variant (e.g., "fan_off" → "fan").
 /// Returns the input unchanged if it's not an off-variant.
 static const char* to_on_variant(const char* icon) {
-    for (const auto& pair : kIconPairs) {
+    for (const auto& pair : ICON_PAIRS) {
         if (std::strcmp(icon, pair.off_icon) == 0)
             return pair.on_icon;
     }
@@ -97,7 +97,7 @@ static const char* to_on_variant(const char* icon) {
 static const char* resolve_icon_for_state(const char* base_icon, int status) {
     if (status == 1)
         return base_icon;
-    for (const auto& pair : kIconPairs) {
+    for (const auto& pair : ICON_PAIRS) {
         if (std::strcmp(base_icon, pair.on_icon) == 0)
             return pair.off_icon;
     }
@@ -141,7 +141,7 @@ void PowerDeviceWidget::set_config(const nlohmann::json& config) {
     }
     spdlog::debug("[PowerDeviceWidget] Config: {}={} icon={}", instance_id_,
                   device_name_.empty() ? "(unconfigured)" : device_name_,
-                  icon_name_.empty() ? kDefaultIcon : icon_name_);
+                  icon_name_.empty() ? DEFAULT_ICON : icon_name_);
 }
 
 void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -269,7 +269,7 @@ void PowerDeviceWidget::update_display(int status) {
 
     if (icon_obj_) {
         // Apply icon — for paired icons, toggle between on/off variants
-        const char* base_icon = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* base_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         const char* effective_icon = resolve_icon_for_state(base_icon, status);
         ui_icon_set_source(icon_obj_, effective_icon);
 
@@ -345,7 +345,7 @@ void PowerDeviceWidget::handle_clicked() {
         }
     }
 
-    MoonrakerAPI* api = get_api();
+    IMoonrakerAPI* api = get_api();
     if (!api) {
         spdlog::warn("[PowerDeviceWidget] No API available");
         return;
@@ -396,7 +396,7 @@ bool PowerDeviceWidget::on_edit_configure() {
     return false;
 }
 
-MoonrakerAPI* PowerDeviceWidget::get_api() const {
+IMoonrakerAPI* PowerDeviceWidget::get_api() const {
     return get_moonraker_api();
 }
 
@@ -606,11 +606,11 @@ void PowerDeviceWidget::show_device_picker() {
     lv_obj_set_style_border_width(icon_grid, 0, 0);
     lv_obj_remove_flag(icon_grid, LV_OBJ_FLAG_SCROLLABLE);
 
-    std::string effective_icon = icon_name_.empty() ? kDefaultIcon : icon_name_;
+    std::string effective_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_;
 
-    for (size_t i = 0; i < kPowerIconCount; ++i) {
+    for (size_t i = 0; i < POWER_ICON_COUNT; ++i) {
         lv_obj_t* cell = lv_obj_create(icon_grid);
-        lv_obj_set_size(cell, kIconCellSize, kIconCellSize);
+        lv_obj_set_size(cell, ICON_CELL_SIZE, ICON_CELL_SIZE);
         lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_bg_opa(cell, 0, 0);
@@ -622,10 +622,10 @@ void PowerDeviceWidget::show_device_picker() {
                                   LV_PART_MAIN | LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(cell, LV_OPA_20, LV_PART_MAIN | LV_STATE_PRESSED);
 
-        apply_icon_cell_highlight(cell, kPowerIcons[i] == effective_icon);
+        apply_icon_cell_highlight(cell, POWER_ICONS[i] == effective_icon);
 
         // Icon glyph
-        const char* cp = ui_icon::lookup_codepoint(kPowerIcons[i]);
+        const char* cp = ui_icon::lookup_codepoint(POWER_ICONS[i]);
         if (cp) {
             lv_obj_t* icon = lv_label_create(cell);
             lv_label_set_text(icon, cp);
@@ -646,8 +646,8 @@ void PowerDeviceWidget::show_device_picker() {
                 auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
                 auto idx =
                     static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-                if (idx < kPowerIconCount && PowerDeviceWidget::s_active_picker_) {
-                    PowerDeviceWidget::s_active_picker_->select_icon(kPowerIcons[idx]);
+                if (idx < POWER_ICON_COUNT && PowerDeviceWidget::s_active_picker_) {
+                    PowerDeviceWidget::s_active_picker_->select_icon(POWER_ICONS[idx]);
                 }
                 LVGL_SAFE_EVENT_CB_END();
             },
@@ -878,12 +878,12 @@ void PowerDeviceWidget::select_device(const std::string& name) {
 void PowerDeviceWidget::select_icon(const std::string& name) {
     // Store the ON variant so update_display can derive the OFF icon from the pair table
     std::string canonical(to_on_variant(name.c_str()));
-    icon_name_ = (canonical == kDefaultIcon) ? "" : canonical;
+    icon_name_ = (canonical == DEFAULT_ICON) ? "" : canonical;
     save_config();
 
     // Update the widget icon immediately
     if (icon_obj_) {
-        const char* effective = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* effective = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         ui_icon_set_source(icon_obj_, effective);
     }
 
@@ -891,14 +891,14 @@ void PowerDeviceWidget::select_icon(const std::string& name) {
     if (picker_backdrop_) {
         lv_obj_t* icon_grid = lv_obj_find_by_name(picker_backdrop_, "picker_icon_grid");
         if (icon_grid) {
-            std::string effective_icon = icon_name_.empty() ? kDefaultIcon : icon_name_;
+            std::string effective_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_;
             uint32_t grid_count = lv_obj_get_child_count(icon_grid);
             for (uint32_t i = 0; i < grid_count; ++i) {
                 lv_obj_t* cell = lv_obj_get_child(icon_grid, i);
                 auto idx =
                     static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(cell)));
-                if (idx < kPowerIconCount) {
-                    apply_icon_cell_highlight(cell, kPowerIcons[idx] == effective_icon);
+                if (idx < POWER_ICON_COUNT) {
+                    apply_icon_cell_highlight(cell, POWER_ICONS[idx] == effective_icon);
                 }
             }
         }
@@ -917,12 +917,12 @@ void PowerDeviceWidget::save_config() {
         config["sensor"] = sensor_id_;
     save_widget_config(config);
     spdlog::debug("[PowerDeviceWidget] Saved config: {}={} icon={} sensor={}", instance_id_,
-                  device_name_, icon_name_.empty() ? kDefaultIcon : icon_name_,
+                  device_name_, icon_name_.empty() ? DEFAULT_ICON : icon_name_,
                   sensor_id_.empty() ? "(none)" : sensor_id_);
 }
 
 void PowerDeviceWidget::refresh_all_devices_state() {
-    MoonrakerAPI* api = get_api();
+    IMoonrakerAPI* api = get_api();
     if (!api)
         return;
 
@@ -958,7 +958,7 @@ void PowerDeviceWidget::refresh_all_devices_state() {
 }
 
 void PowerDeviceWidget::handle_all_devices_toggle() {
-    MoonrakerAPI* api = get_api();
+    IMoonrakerAPI* api = get_api();
     if (!api) {
         spdlog::warn("[PowerDeviceWidget] No API available for all-devices toggle");
         return;
@@ -1017,7 +1017,7 @@ void PowerDeviceWidget::update_all_devices_display(bool any_on) {
     }
 
     if (icon_obj_) {
-        const char* base_icon = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
+        const char* base_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_.c_str();
         const char* effective_icon = resolve_icon_for_state(base_icon, any_on ? 1 : 0);
         ui_icon_set_source(icon_obj_, effective_icon);
         ui_icon_set_variant(icon_obj_, any_on ? "danger" : "muted");

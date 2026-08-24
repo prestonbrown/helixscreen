@@ -78,12 +78,8 @@ nlohmann::json tooled_lane() {
 /// "Loaded" means loaded-to-hub, which is why tool_loaded is the only signal
 /// that answers "is this lane at the toolhead".
 nlohmann::json hub_loaded_lane() {
-    return nlohmann::json{{"tool_loaded", false},
-                          {"status", "Loaded"},
-                          {"prep", true},
-                          {"load", true},
-                          {"loaded_to_hub", true},
-                          {"hub", "Turtle_1"}};
+    return nlohmann::json{{"tool_loaded", false}, {"status", "Loaded"},    {"prep", true},
+                          {"load", true},         {"loaded_to_hub", true}, {"hub", "Turtle_1"}};
 }
 
 /// An idle lane with filament parked at prep, as the live BoxTurtle reports it.

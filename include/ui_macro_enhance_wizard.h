@@ -35,7 +35,7 @@
 #include <vector>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 
 namespace helix::ui {
 
@@ -95,9 +95,9 @@ class MacroEnhanceWizard : public Modal {
     /**
      * @brief Set API dependency
      *
-     * @param api MoonrakerAPI instance (must remain valid while wizard is open)
+     * @param api IMoonrakerAPI instance (must remain valid while wizard is open)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -157,7 +157,7 @@ class MacroEnhanceWizard : public Modal {
 
   private:
     // === Dependencies ===
-    MoonrakerAPI* api_ = nullptr;
+    IMoonrakerAPI* api_ = nullptr;
     helix::PrintStartAnalysis analysis_;
     helix::PrintStartEnhancer enhancer_;
 

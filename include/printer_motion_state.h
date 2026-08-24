@@ -113,6 +113,12 @@ class PrinterMotionState {
     lv_subject_t* get_pending_z_offset_delta_subject() {
         return &pending_z_offset_delta_;
     }
+    lv_subject_t* get_persisted_z_offset_subject() {
+        return &persisted_z_offset_;
+    }
+    lv_subject_t* get_persisted_z_offset_valid_subject() {
+        return &persisted_z_offset_valid_;
+    }
 
     // Pending Z-offset methods
     void add_pending_z_offset_delta(int delta_microns);
@@ -157,6 +163,11 @@ class PrinterMotionState {
     // Z-offset subjects
     lv_subject_t gcode_z_offset_{};
     lv_subject_t pending_z_offset_delta_{};
+    // Firmware-persisted z-offset (ZMOD save_variables.gcode_offsets.z). Valid
+    // flag is separate because 0 is a legitimate stored offset, so it cannot
+    // double as "nothing stored".
+    lv_subject_t persisted_z_offset_{};
+    lv_subject_t persisted_z_offset_valid_{};
 
     // Kinematic envelope (not subjects — read on demand by jog clamping etc.)
     AxisBounds axis_bounds_{};

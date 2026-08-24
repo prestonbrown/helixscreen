@@ -16,10 +16,10 @@
 #include "app_globals.h"
 #include "config.h"
 #include "filament_sensor_manager.h"
+#include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
-#include "moonraker_client.h"
 #include "platform_info.h"
 #include "printer_discovery.h"
 #include "runtime_config.h"
@@ -246,7 +246,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
     }
 
     // Get MoonrakerClient instance
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
         set_status("icon_close_circle", StatusVariant::Danger,
                    "Error: Moonraker client not initialized");
@@ -299,7 +299,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         });
 
     // Disable automatic reconnection for wizard testing
-    client->setReconnect(nullptr);
+    client->set_auto_reconnect(false);
 
     if (result != 0) {
         spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
@@ -343,14 +343,14 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
     lv_subject_set_int(&connection_testing_, 0);
 
     // Set HTTP base URL so discovery can make HTTP calls
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         std::string http_url = "http://" + ip + ":" + port;
         api->set_http_base_url(http_url);
     }
 
     // Trigger hardware discovery - only enable Next when this completes
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (client) {
         // discover_printer() can return without ever invoking either callback
         // (stale generation / superseded sequence), which stranded the spinner
@@ -365,8 +365,8 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
                 tok.defer("WizardConnectionStep::discovery_success", [this]() {
                     cancel_discovery_watchdog();
 
-                    MoonrakerAPI* api = get_moonraker_api();
-                    MoonrakerClient* client = get_moonraker_client();
+                    IMoonrakerAPI* api = get_moonraker_api();
+                    IMoonrakerClient* client = get_moonraker_client();
                     if (api) {
                         const auto& heaters = api->hardware().heaters();
                         const auto& sensors = api->hardware().sensors();
@@ -492,7 +492,7 @@ void WizardConnectionStep::attempt_auto_probe() {
     auto_probe_timer_ = nullptr;
 
     // Get MoonrakerClient
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
         spdlog::warn("[{}] Auto-probe: MoonrakerClient not available", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED);
@@ -533,7 +533,7 @@ void WizardConnectionStep::attempt_auto_probe() {
         });
 
     // Disable auto-reconnect for probe
-    client->setReconnect(nullptr);
+    client->set_auto_reconnect(false);
 
     if (result != 0) {
         spdlog::debug("[{}] Auto-probe: Failed to initiate connection", get_name());
@@ -599,14 +599,14 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     lv_subject_set_int(&connection_testing_, 0);
 
     // Set HTTP base URL so discovery can make HTTP calls
-    MoonrakerAPI* api = get_moonraker_api();
+    IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
         std::string http_url = "http://" + ip + ":" + port;
         api->set_http_base_url(http_url);
     }
 
     // Trigger hardware discovery - only enable Next when this completes
-    MoonrakerClient* client = get_moonraker_client();
+    IMoonrakerClient* client = get_moonraker_client();
     if (client) {
         // Same unbounded-spinner hazard as the manual test path (#1161).
         start_discovery_watchdog();
@@ -619,8 +619,8 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
                 tok.defer("WizardConnectionStep::auto_probe_discovery_success", [this]() {
                     cancel_discovery_watchdog();
 
-                    MoonrakerAPI* api = get_moonraker_api();
-                    MoonrakerClient* client = get_moonraker_client();
+                    IMoonrakerAPI* api = get_moonraker_api();
+                    IMoonrakerClient* client = get_moonraker_client();
                     if (api) {
                         spdlog::info("[Wizard Connection] Hostname: '{}'",
                                      api->hardware().hostname());
@@ -680,7 +680,7 @@ void WizardConnectionStep::handle_ip_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
-        MoonrakerClient* client = get_moonraker_client();
+        IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }
@@ -710,7 +710,7 @@ void WizardConnectionStep::handle_port_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
-        MoonrakerClient* client = get_moonraker_client();
+        IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }
@@ -878,7 +878,7 @@ void WizardConnectionStep::cleanup() {
     // If a connection test or auto-probe is in progress, cancel it
     if (lv_subject_get_int(&connection_testing_) == 1 ||
         auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
-        MoonrakerClient* client = get_moonraker_client();
+        IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }

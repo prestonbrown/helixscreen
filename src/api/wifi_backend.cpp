@@ -15,6 +15,9 @@
 
 #ifdef __APPLE__
 #include "wifi_backend_macos.h"
+#elif defined(ESP_PLATFORM)
+// esp_wifi backend lives in the firmware tree; only the declaration in
+// wifi_backend.h is needed here.
 #elif !defined(__ANDROID__)
 #include "wifi_backend_networkmanager.h"
 #include "wifi_backend_wpa_supplicant.h"
@@ -111,6 +114,9 @@ std::unique_ptr<WifiBackend> WifiBackend::create(bool silent) {
     auto backend = std::make_unique<WifiBackendMacOS>();
     backend->set_silent(silent);
     return backend;
+#elif defined(ESP_PLATFORM)
+    // Embedded: the platform tree owns the backend (esp_wifi).
+    return helix::create_platform_wifi_backend(silent);
 #elif defined(__ANDROID__)
     // Android: WiFi managed by the OS, not by us
     spdlog::info("[WifiBackend] Android platform - WiFi not managed natively");

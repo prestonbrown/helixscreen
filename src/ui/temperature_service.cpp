@@ -18,10 +18,11 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "filament_database.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "temp_graph_controller.h"
 #include "temperature_controller.h"
 #include "temperature_history_manager.h"
 #include "theme_manager.h"
@@ -93,7 +94,7 @@ int preset_button_value(const helix::HeaterPresets& p, int i) {
 // Constructor
 // ============================================================================
 
-TemperatureService::TemperatureService(PrinterState& printer_state, MoonrakerAPI* api)
+TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {
     // Preset temperatures are derived per user preset slot, not per hardcoded
     // material. TemperatureController owns the derivation (nozzle/bed from the
@@ -109,7 +110,7 @@ TemperatureService::TemperatureService(PrinterState& printer_state, MoonrakerAPI
     nozzle.config = {.type = HeaterType::Nozzle,
                      .name = "Nozzle",
                      .title = "Nozzle Temperature",
-                     .color = theme_manager_get_color("heating_color"),
+                     .color = helix::TEMP_GRAPH_SERIES_COLORS[0], // nozzle
                      .temp_range_max = 320.0f,
                      .y_axis_increment = 80,
                      .presets = nozzle_presets,
@@ -124,7 +125,7 @@ TemperatureService::TemperatureService(PrinterState& printer_state, MoonrakerAPI
     bed.config = {.type = HeaterType::Bed,
                   .name = "Bed",
                   .title = "Heatbed Temperature",
-                  .color = theme_manager_get_color("cooling_color"),
+                  .color = helix::TEMP_GRAPH_SERIES_COLORS[1], // bed
                   .temp_range_max = 140.0f,
                   .y_axis_increment = 35,
                   .presets = bed_presets,
@@ -139,7 +140,7 @@ TemperatureService::TemperatureService(PrinterState& printer_state, MoonrakerAPI
     chamber.config = {.type = HeaterType::Chamber,
                       .name = "Chamber",
                       .title = "Chamber Temperature",
-                      .color = lv_color_hex(0xA3BE8C), // nord14 Aurora green
+                      .color = helix::TEMP_GRAPH_SERIES_COLORS[2], // chamber
                       .temp_range_max = 80.0f,
                       .y_axis_increment = 20,
                       .presets = chamber_presets,

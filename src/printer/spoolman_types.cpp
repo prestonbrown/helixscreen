@@ -147,6 +147,24 @@ std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools,
     return result;
 }
 
+#if defined(ESP_PLATFORM)
+// newlib on ESP-IDF does not provide timegm(). Pure days-from-civil conversion
+// (Howard Hinnant's algorithm): UTC by definition, thread-safe, no TZ churn.
+static int64_t timegm(std::tm* tm) {
+    int64_t y = tm->tm_year + 1900;
+    const int m = tm->tm_mon + 1;
+    const int d = tm->tm_mday;
+    y -= m <= 2;
+    const int64_t era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = static_cast<unsigned>(y - era * 400);
+    const unsigned doy = (153u * static_cast<unsigned>(m + (m > 2 ? -3 : 9)) + 2u) / 5u +
+                         static_cast<unsigned>(d) - 1u;
+    const unsigned doe = yoe * 365u + yoe / 4u - yoe / 100u + doy;
+    const int64_t days = era * 146097 + static_cast<int64_t>(doe) - 719468;
+    return days * 86400 + tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
+}
+#endif
+
 std::optional<int64_t> parse_spool_timestamp(const std::string& ts) {
     // Shortest accepted form is "YYYY-MM-DDTHH:MM:SS" (19 chars).
     if (ts.size() < 19)

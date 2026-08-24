@@ -116,6 +116,55 @@ curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update
 
 The `chroot` step is required — see UPGRADING.md for why.
 
+### Binary won't start (GLIBC version not found)
+
+**Symptoms:**
+- The install completes, but the service never comes up
+- Running the binary by hand prints one or more of:
+  ```
+  /lib/arm-linux-gnueabihf/libm.so.6: version `GLIBC_2.29' not found
+  /lib/arm-linux-gnueabihf/libpthread.so.0: version `GLIBC_2.30' not found
+  /usr/lib/arm-linux-gnueabihf/libstdc++.so.6: version `GLIBCXX_3.4.26' not found
+  ```
+- The installer may have warned about this before it finished
+
+**Cause:** your OS is older than the build targets. The `pi` and `pi32` packages are
+dynamically linked against **glibc 2.31** (Debian 11 "Bullseye"). glibc is forward- but
+not backward-compatible, so those binaries run on Bullseye and anything newer, and fail
+to load on anything older. Debian 10 "Buster" ships glibc 2.28.
+
+Confirm what you have:
+
+```bash
+ldd --version | head -1          # e.g. "ldd (Debian GLIBC 2.28-10) 2.28"
+cat /etc/os-release | head -2    # e.g. VERSION="10 (buster)"
+uname -m                         # armv7l = 32-bit, aarch64 = 64-bit
+```
+
+**Fix — pick one:**
+
+1. **Upgrade the OS to Bullseye or newer.** Best option on a general-purpose Pi. Current
+   Raspberry Pi OS and MainsailOS images are already well past Bullseye, so a reflash
+   solves it outright.
+
+2. **Install the `cc1` package instead.** It is **statically linked** — it carries its own
+   C library and does not care what glibc the host has. This is the practical answer on
+   stock printer images that are pinned to Buster and cannot be upgraded. Despite the
+   name it is not Creality-specific; it is a generic static armv7 build and has been run
+   successfully on other armv7 hardware, including Rockchip RV1126 boards.
+
+   ```bash
+   # replace vX.Y.Z with the current release
+   wget https://github.com/prestonbrown/helixscreen/releases/download/vX.Y.Z/helixscreen-cc1.zip
+   ./install.sh --local helixscreen-cc1.zip
+   ```
+
+   Trade-off: a static binary is larger and does not pick up the host's own OpenSSL/system
+   libraries. For a printer touchscreen that is rarely a problem.
+
+If neither works on your hardware, open an issue with the output of all three commands
+above — new armv7 platforms are worth adding support for.
+
 ### HelixScreen crashes immediately (segfault)
 
 **Symptoms:**
@@ -603,15 +652,20 @@ Contributions are very welcome here and only need XML, not C++ — see the [UI C
 
 ---
 
-### A widget disappeared from the home screen (portrait screens)
+### A widget disappeared from the home screen
 
 **Symptoms:**
 
 - A widget vanished from the home screen and did not come back after a restart or an update
 - **Tips** in particular is missing on a portrait-mounted screen
 - You saw a message like *"'Tips' removed — grid full"* even though the grid looked far from full
+- You get a *"'Fan Speeds' removed — grid full"* message on **every single launch**, on a dashboard where the grid really is full
 
-**Cause:** on older versions, a widget that was wider than a portrait screen's grid could not be placed anywhere, so HelixScreen switched it off — and *saved* that off state to your settings. Fixing the placement logic does not undo the saved setting, so the widget stays off until you put it back yourself. It is not lost: it is sitting in the Widget Catalog as an available widget.
+**Cause 1 - the widget was too wide for the grid (portrait screens).** On older versions, a widget that was wider than a portrait screen's grid could not be placed anywhere, so HelixScreen switched it off - and *saved* that off state to your settings. Fixing the placement logic does not undo the saved setting, so the widget stays off until you put it back yourself. It is not lost: it is sitting in the Widget Catalog as an available widget.
+
+**Cause 2 - the grid was genuinely full.** On older versions, a widget that fit fine but found every cell taken was also switched off, and the message came back on every launch because the switch-off usually never made it to disk. That is fixed: a widget that only lacks a free cell now keeps its **enabled** setting and simply has no position, so it places itself again as soon as a cell frees up, and the message appears only when the widget was actually on your screen and lost its spot. If you are still seeing it repeat, you are on an older version - [update HelixScreen](UPGRADING.md).
+
+If your dashboard is full and you want a specific widget back, make room for it: remove a widget you care less about, or move it to a second page (see [Multiple Pages](guide/home-panel.md#multiple-pages)).
 
 Note that **Tips is now deliberately off by default on portrait screens** — it is a wide widget and takes a third to a half of a row on a narrow grid. If Tips is the only thing missing, that may simply be the new default rather than the old bug.
 
@@ -1135,7 +1189,7 @@ This is common on devices where the touch controller is mounted at a different o
 
 HelixScreen automatically detects swapped touch axes during calibration and corrects them. Just recalibrate:
 ```bash
-# Settings > System > Recalibrate Touch
+# Settings > System > Touch & Input > Touch Calibration
 ```
 
 **2. Manual axis swap (fallback):**
@@ -1214,6 +1268,31 @@ sudo systemctl restart klipper
 
 ---
 
+### Preparing takes long or seems stuck
+
+**Symptoms:**
+- The screen shows "Preparing Print" for many minutes after tapping Start Print
+- The pre-print progress bar sits on one step
+- Other interfaces (Mainsail, Fluidd) report the printer as idle or "complete" while HelixScreen shows preparing
+
+**What's going on:**
+The window between tapping Start Print and the first layer is doing real work — homing, heating the bed to soak temperature, bed mesh — and on some printers it regularly runs five to ten minutes (a K2 Plus with Auto Bed Mesh enabled takes seven to ten). Two things make it *look* stuck when it isn't:
+
+- Part of this work can run on the printer's host before the job is formally handed over, so other interfaces may show the printer as idle or still "complete" for the whole block. HelixScreen tracks it as preparing regardless.
+- A slow step is not a stuck step. As long as the printer is still moving and narrating what it's doing, HelixScreen keeps waiting — a long bed mesh is given the time it needs rather than cut off mid-sequence.
+
+During this window the Print Status panel and the home panel's print card show the preparing job: the current step, a progress bar, and an estimate for the whole pre-print period.
+
+**Solutions:**
+
+**Check the printer is actually working.** Look at the machine — is the toolhead moving, the bed heating? Or open a web interface's console and watch for ongoing output. Motion and messages mean it's working, not stuck.
+
+**Not willing to wait? Cancel — it's clean.** Cancel is always available during preparation, and cancelling there is a clean cancel, not a failed print: the print never starts, and if the printer is mid-way through a motion it finishes that move first. Then start again with the slow step switched off — see [Pre-Print Options](guide/printing.md#pre-print-options).
+
+**If the printer has gone quiet** — no motion, no console output, for a good while — it may genuinely be stuck. Collect a [debug bundle](#collecting-logs) and check the Klipper log for the macro that was running.
+
+---
+
 ### Can't pause or cancel print
 
 **Symptoms:**
@@ -1234,6 +1313,27 @@ sudo systemctl restart klipper
 ```bash
 curl -X POST http://localhost:7125/printer/print/cancel
 ```
+
+---
+
+### Power cut out during a print
+
+**Symptoms:**
+- After power comes back and HelixScreen reconnects, a dialog asks: **Resume interrupted print?**
+- The body names the file when the printer reported it ("The printer lost power while printing <name>.") or describes it generically
+
+**What's going on:**
+On printers whose firmware saves recovery data when power drops mid-print — the Creality models with recovery support (K1 family, K2, Ender 3 V3 and siblings) and the Snapmaker U1 — that data survives the reboot. When HelixScreen connects and finds it, it asks what you want to do rather than deciding for you. Creality printers get an extra-honest wording ("The resumed layer may not line up exactly.") because their recovery re-homes without re-probing the bed — that is a real property of the resume, not a malfunction.
+
+**Your choices:**
+
+| Choice | What happens |
+|--------|--------------|
+| **Resume** | The printer continues the interrupted print from where its firmware saved its progress. On Creality, check the first resumed layer before walking away — it can sit a millimetre or two off. |
+| **Discard** | The recovery data is cleared and nothing is printed. The printer is back to a clean slate; start whatever you like. |
+| Dismiss the dialog (tap outside it) | Nothing is decided: the recovery data is kept, and you are asked again the next time HelixScreen connects. |
+
+The offer never appears on top of a print you have already started — if you tap Start Print before answering, the question waits until that job is done. On printers without firmware-side recovery data there is nothing to find, so the dialog never appears there; a power cut simply means starting the print again.
 
 ---
 
@@ -1493,7 +1593,7 @@ ps aux | grep helix-screen
 | Cause | Fix |
 |-------|-----|
 | Debug mode in production | Remove `-vv`/`-vvv` from service, don't use `--test` |
-| Animations on slow hardware | Settings → Display → disable Animations |
+| Animations on slow hardware | Settings → Display & Sound → disable Animations |
 | Too many G-code files | Large directories with thumbnails use more RAM |
 | Other processes hogging CPU | Check `top` for culprits |
 | Swapping to SD card | Reduce memory usage or add swap to USB |
@@ -1540,6 +1640,34 @@ max_job_count: 100
 ---
 
 ## Configuration Issues
+
+### Wrong printer model identified
+
+**Symptoms:**
+- HelixScreen identifies the printer as the wrong model/type (for example, a Voron showing as "FlashForge Adventurer 5M Pro")
+- Changing the printer image in Printer Manager changes the picture but not the model — features, calibration dialogs, and the name still follow the wrong type
+
+**What's going on:**
+- The **printer type** (the model picked during setup) drives the name, image, bed size, probe type, and preset options. The image picker in Printer Manager is cosmetic only — it never changes the type.
+- **Device-specific install packages** (Creality K1, FlashForge Adventurer 5M, and similar) run a preset-mode setup that *skips printer identification entirely*: the type comes from the install package itself, not from detection. No setting can override it.
+- On **generic installs**, auto-detection either picked a wrong near-relative from the database, or — when it wasn't confident enough — deliberately left the type empty for you to choose rather than guess.
+
+**Solutions:**
+
+**First, figure out which situation you're in.** What did you install, and what is HelixScreen running on? If a device-specific preset package doesn't match the machine (or its screen), that's the cause — detection never ran. Install the HelixScreen package built for your hardware, or use the [remote screen setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) on a Pi/PC/tablet pointed at your printer's Moonraker — generic installs run full auto-detection.
+
+**If the saved model is wrong (generic install), correct it in Printer Manager — nothing gets wiped:**
+
+1. Tap the **printer image** on the Home Panel to open the Printer Manager
+2. Tap the **printer model** row — the model name directly below the printer name, marked with a pencil icon ("Printer model (click to correct)")
+3. Pick your model from the list (Voron 2.4, Voron 0.2, Voron Trident, and Voron Switchwire are all in the database)
+4. The new type applies immediately — name, image, and all the type-driven features follow it
+
+**Let HelixScreen catch it for you.** If you'd rather not hunt through the list, just connect the printer and wait: when detection is confident the saved type is wrong, a **Printer type mismatch** dialog names both models and offers **Re-identify** (re-runs just the identification step of the setup wizard) or **Keep current** — the right answer for a heavily modified printer that legitimately differs from its stock sibling. Picking **Keep current** is remembered for that type; the prompt won't nag on every boot.
+
+Re-adding the printer through **Printer Manager > Manage Printers > + Add Printer** (then deleting the old entry) and **Settings > System > Factory Reset** remain as last resorts — the factory reset re-runs the full wizard but wipes all HelixScreen settings, so use it only if you want a clean start anyway.
+
+If your model isn't in the database, leave it on the detected/generic profile — everything still works; you can rename the printer and set any image from Printer Manager.
 
 ### First-run wizard keeps appearing
 
@@ -1623,17 +1751,17 @@ sudo systemctl start helixscreen
 
 **Symptoms:**
 - Wizard shows wrong printer model
+- Wizard asks you to pick a model instead of choosing one automatically
 - Features missing or wrong
+
+**What's going on:**
+Auto-detection only commits to a model when it is confident enough. Below that bar it deliberately leaves the type empty and asks you to pick — that's detection declining to guess, not a failure. When it *is* confident it can still land on a near-relative of your actual machine.
 
 **Solutions:**
 
-**Re-run wizard:**
-1. Delete config: `rm ~/helixscreen/config/settings.json`
-2. Restart: `sudo systemctl restart helixscreen`
-3. Manually select correct printer in wizard
+**In the wizard:** pick your model by hand at the **Printer Setup: Identity** step. The full database is there.
 
-**Manual configuration:**
-Edit `~/helixscreen/config/settings.json` to set correct printer type and features.
+**After setup:** if the wrong model got saved, correct it from Printer Manager — tap the printer image on the Home Panel, then the **printer model** row underneath the printer name, and pick the right model. It applies immediately, with nothing wiped. On the next connect, HelixScreen may also flag the mismatch itself and offer **Re-identify** — see [Wrong printer model identified](#wrong-printer-model-identified) above for that flow.
 
 ---
 
@@ -1913,10 +2041,20 @@ tail -200 /usr/data/helixscreen/logs/launcher.log
 
 **Flashforge AD5X (ZMOD MIPS):**
 ```bash
-logread | grep helix-screen | tail -200
-tail -200 /usr/data/helixscreen/logs/launcher.log
-# ghzserg's S80helixscreen also writes here:
+# Structured app log — the one you almost always want
+tail -200 /opt/config/mod_data/log/helix.log
+
+# Launcher / crash-stderr capture, written by ghzserg's S80helixscreen
 tail -200 /opt/config/mod_data/log/helixscreen.log
+
+# Same two files, alternate path spelling (/opt/config is a bind-mount)
+tail -200 /usr/data/config/mod_data/log/helix.log
+
+# Older installs, before the app log moved under /opt/config
+tail -200 /data/helixscreen/logs/helix.log
+tail -200 /srv/helixscreen/logs/launcher.log
+
+logread | grep helix-screen | tail -200
 ```
 
 **Snapmaker U1:**

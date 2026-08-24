@@ -16,7 +16,7 @@ namespace helix::tour {
 class TourOverlay; // fwd-declare (defined in tour_overlay.h)
 
 /// Current tour version. Bump when tour content materially changes.
-constexpr int kTourVersion = 1;
+constexpr int TOUR_VERSION = 1;
 
 /// Singleton used by runtime methods (start, advance, skip); gate helpers below are static.
 class FirstRunTour {
@@ -26,7 +26,7 @@ class FirstRunTour {
     /// Gate check: true iff tour should auto-start on home activate.
     static bool should_auto_start();
 
-    /// Writes tour.completed=true and tour.last_seen_version=kTourVersion.
+    /// Writes tour.completed=true and tour.last_seen_version=TOUR_VERSION.
     static void mark_completed();
 
     /// Auto-trigger entry point — checks gate, schedules start on next LVGL tick.

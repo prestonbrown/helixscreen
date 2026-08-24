@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -2193,7 +2194,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     state.set_klippy_state_sync(helix::KlippyState::READY);
     lv_subject_set_int(state.get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
-    lv_subject_set_int(state.get_idle_timeout_printing_subject(), 1);
+    helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     mock_client.force_next_gcode_dropped_response("SET_LED");
@@ -2312,7 +2313,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     state.set_klippy_state_sync(helix::KlippyState::READY);
 
     // Klipper is busy with a blocking non-print op, so both sends take the queue path.
-    lv_subject_set_int(state.get_idle_timeout_printing_subject(), 1);
+    helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
     REQUIRE(state.is_external_blocking_operation_active());
 
     ctrl.light_toggle();
@@ -2352,7 +2353,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     state.set_klippy_state_sync(helix::KlippyState::READY);
 
     // Klipper is busy with a blocking non-print op, so the send takes the queue path.
-    lv_subject_set_int(state.get_idle_timeout_printing_subject(), 1);
+    helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
     REQUIRE(state.is_external_blocking_operation_active());
 
     ctrl.light_toggle();

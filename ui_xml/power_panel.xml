@@ -10,7 +10,7 @@
       <!-- Disable content when Moonraker WebSocket not connected -->
       <bind_state_if_not_eq subject="moonraker_connection_state" state="disabled" ref_value="1"/>
       <!-- Home button device selection chips -->
-      <setting_group>
+      <setting_group name="group_main_power">
         <lv_obj name="chip_section"
                 width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" scrollable="false">
           <setting_group_header title="MAIN POWER BUTTON" title_tag="MAIN POWER BUTTON" icon="home" hide_icon="false"/>

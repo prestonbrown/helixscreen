@@ -21,7 +21,7 @@ class PrinterDiscovery;
  *
  * ## Design Rationale
  *
- * Hardware guessing logic was extracted from MoonrakerClient/MoonrakerAPI to:
+ * Hardware guessing logic was extracted from MoonrakerClient/IMoonrakerAPI to:
  * - Keep protocol/connection code separate from business logic
  * - Centralize Klipper naming convention knowledge in one place
  * - Make heuristics testable in isolation

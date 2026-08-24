@@ -6,6 +6,7 @@
 #include "settings_manager.h"
 #include "sound_sequencer.h"
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <thread>
@@ -83,6 +84,21 @@ class MockBackend : public SoundBackend {
         std::lock_guard<std::mutex> lock(mutex);
         tone_events.clear();
         silence_events.clear();
+    }
+
+    // --- device park/wake accounting ---
+    // The sequencer is the only thing that opens and closes the audio device.
+    // Counting the calls is how a test can tell "parked at idle" apart from
+    // "held open forever", which is otherwise invisible without real hardware.
+    std::atomic<int> suspend_calls{0};
+    std::atomic<int> resume_calls{0};
+
+    void suspend() override {
+        suspend_calls.fetch_add(1);
+    }
+
+    void resume() override {
+        resume_calls.fetch_add(1);
     }
 };
 
@@ -976,6 +992,56 @@ TEST_CASE("SoundSequencer: zero-duration step is skipped", "[sound][sequencer][s
         }
     }
     CHECK(saw_1000);
+
+    seq.shutdown();
+}
+
+// ============================================================================
+// Device park lifecycle
+// ============================================================================
+//
+// The backend opens the audio device in initialize(); the sequencer owns when it
+// is parked. A printer with sounds turned off never plays anything, so if the
+// first park only happened after a sound finished, the device would stay open
+// for the whole process lifetime — ALSA writing silence every period, Android
+// holding an AudioTrack (the #1253 spam).
+
+TEST_CASE("SoundSequencer: parks the device before any sound plays",
+          "[sound][sequencer][device_park]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    seq.start();
+
+    // Give the loop a few ticks; it must park without being asked to play.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    CHECK(backend->suspend_calls.load() >= 1);
+    CHECK(backend->resume_calls.load() == 0); // nothing has needed the device yet
+
+    seq.shutdown();
+}
+
+TEST_CASE("SoundSequencer: wakes the device to play and parks it again after",
+          "[sound][sequencer][device_park][slow]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    seq.start();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    const int suspends_before = backend->suspend_calls.load();
+    REQUIRE(suspends_before >= 1);
+
+    auto sound = make_tone(1000.0f, 60.0f);
+    seq.play(sound);
+    REQUIRE(wait_until_done(seq));
+
+    // Woke to play...
+    CHECK(backend->resume_calls.load() >= 1);
+    CHECK(backend->tone_count() > 0);
+
+    // ...and parked again once the queue drained.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(backend->suspend_calls.load() > suspends_before);
 
     seq.shutdown();
 }

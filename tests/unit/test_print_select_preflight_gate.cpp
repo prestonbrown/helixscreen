@@ -267,7 +267,7 @@ namespace {
 struct PreviewLoadModel {
     static constexpr int RENDER_MODE_THUMBNAIL_ONLY = 3;
 
-    int gcode_render_mode = 0; // 0 = Auto, 3 = Thumbnail Only
+    int gcode_render_mode = 0;  // 0 = Auto, 3 = Thumbnail Only
     bool using_2d_mode = false; // viewer renders 2D (no-GLES etc.)
     bool streaming_safe = true; // is_gcode_2d_streaming_safe(size)
 
@@ -293,7 +293,7 @@ TEST_CASE("Detail preview: 2D-mode device renders the toolpath, not just the thu
     // The regression: 2D-mode devices (Snapmaker U1, AD5M, K1…) used to skip the
     // detail-view preview and show only the thumbnail. They must now render.
     PreviewLoadModel m;
-    m.using_2d_mode = true; // no-GLES device
+    m.using_2d_mode = true;  // no-GLES device
     m.gcode_render_mode = 0; // Auto
     m.streaming_safe = true;
 
@@ -373,8 +373,8 @@ namespace {
 /// those backends to turn it on). Regressing that reinstates the v0.91 "picks a
 /// random/wrong loaded lane" report.
 struct EffectiveMappingModel {
-    bool card_editable = false;    // active backend's tool-mapping capability
-    bool persisted_auto = false;   // SettingsManager::get_auto_color_map() (default FALSE)
+    bool card_editable = false;     // active backend's tool-mapping capability
+    bool persisted_auto = false;    // SettingsManager::get_auto_color_map() (default FALSE)
     bool card_has_mappings = false; // card seeded/user-edited mappings present
 
     /// Mirrors effective_auto_match().
@@ -435,8 +435,7 @@ TEST_CASE("Effective mapping: editable backend honors persisted auto-color ON",
     REQUIRE(m.resolved_source() == EffectiveMappingModel::Source::AutoMatched);
 }
 
-TEST_CASE("Effective mapping: user card edits always win",
-          "[print_select][preflight][effective]") {
+TEST_CASE("Effective mapping: user card edits always win", "[print_select][preflight][effective]") {
     // Once the card carries mappings (editable backend, user edited or seeded),
     // effective_mappings returns them verbatim regardless of the auto flag.
     EffectiveMappingModel m;

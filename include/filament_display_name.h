@@ -83,6 +83,41 @@ std::string compose_filament_label(std::string_view brand, std::string_view name
                                    std::string_view material);
 
 /**
+ * @brief The three naming fields, resolved but not yet joined
+ *
+ * For callers that print the material somewhere else already. The Active Spool
+ * home widget has a material row of its own, so joining the material back into
+ * its brand line would print it twice.
+ *
+ * Blank means the field resolved to nothing, which is the caller's cue to hide
+ * whatever renders it. There is no never-empty guarantee here — that belongs to
+ * resolve_filament_label(), which composes these.
+ */
+struct FilamentLabelParts {
+    std::string brand;    ///< `slot.brand` → `identity->vendor`
+    std::string name;     ///< `slot.spool_name` → `identity->filament_name` →
+                          ///< `slot.color_name` → `color_fallback`
+    std::string material; ///< `slot.material` → `identity->material`
+};
+
+/**
+ * @brief Resolve the naming fields for a slot without joining them
+ *
+ * The single implementation of the precedence rules; resolve_filament_label()
+ * is this plus compose_filament_label() plus the never-empty fallbacks. Callers
+ * that want the whole label want that one instead.
+ *
+ * @param slot           Slot to label
+ * @param identity       Cached Spoolman identity, or nullptr on a cache miss.
+ *                       A non-null record that is not `valid()` is a miss.
+ * @param color_fallback Algorithmic color name, normally
+ *                       `helix::get_color_name_from_hex(slot.color_rgb)`
+ * @return Resolved fields; any of them may be empty.
+ */
+FilamentLabelParts resolve_filament_label_parts(const SlotInfo& slot, const SpoolIdentity* identity,
+                                                std::string_view color_fallback);
+
+/**
  * @brief Resolve the label shown for a slot
  *
  * Precedence, per field rather than per layer. `apply_overrides()` has already

@@ -104,6 +104,7 @@ TEST_CASE("RuntimeConfig mock_ams_gate_count", "[application][config]") {
 // starts while a print is already in progress.
 
 #include "moonraker_manager.h"
+#include "print_collector_arming.h"
 #include "printer_state.h"
 
 using namespace helix;
@@ -702,5 +703,146 @@ TEST_CASE("should_complete_preprint - completes when the layer-zero sample is ne
         REQUIRE(MoonrakerManager::should_complete_preprint(
             /*printer_reports_layers=*/true, /*current_layer=*/1, /*print_duration=*/0,
             /*seen_layer_zero=*/true, /*layer_advanced=*/false));
+    }
+}
+
+// ============================================================================
+// PrintCollectorArming - boot-join arming state
+// ============================================================================
+
+TEST_CASE("PrintCollectorArming re-arms on reset so a printer switch cannot join mid-print",
+          "[application][print_start][regression]") {
+    // init_print_start_collector() re-runs on every printer switch
+    // (application.cpp, inside connect_moonraker()). The arming state must
+    // re-arm with it. When this lived in a function-local static, the
+    // initializer ran once per process and only prev_state was reassigned, so
+    // after the first print the mid-print-join suppression was permanently off:
+    // switching to a printer already partway through a job drew a full
+    // "Preparing..." overlay over a running print.
+    helix::PrintCollectorArming arming;
+
+    SECTION("a fresh instance is armed") {
+        REQUIRE(arming.is_initial_transition());
+    }
+
+    SECTION("consuming the first transition disarms it") {
+        arming.consume_initial_transition();
+        REQUIRE_FALSE(arming.is_initial_transition());
+    }
+
+    SECTION("reset re-arms after the first transition was consumed") {
+        arming.consume_initial_transition();
+        REQUIRE_FALSE(arming.is_initial_transition());
+
+        arming.reset(); // printer switch
+        REQUIRE(arming.is_initial_transition());
+    }
+
+    SECTION("reset also clears the remembered previous state") {
+        arming.note_transition(PrintJobState::PRINTING);
+        REQUIRE(arming.prev_state() == PrintJobState::PRINTING);
+
+        arming.reset();
+        REQUIRE(arming.prev_state() == PrintJobState::STANDBY);
+    }
+}
+
+TEST_CASE("PrintCollectorArming drives the boot-join suppression across a printer switch",
+          "[application][print_start][regression]") {
+    // The end-to-end shape of the bug: connect to printer A, run a print to
+    // completion, then switch to printer B which is already 60% through a job.
+    // After the switch the collector must be suppressed, exactly as it would be
+    // on a cold boot into that same running print.
+    helix::PrintCollectorArming arming;
+
+    // Printer A: a normal print start consumes the initial transition.
+    REQUIRE(MoonrakerManager::should_start_print_collector(
+        arming.prev_state(), PrintJobState::PRINTING,
+        /*current_progress=*/0, arming.is_initial_transition(),
+        /*current_print_duration=*/0));
+    arming.consume_initial_transition();
+    arming.note_transition(PrintJobState::PRINTING);
+    arming.note_transition(PrintJobState::COMPLETE);
+
+    // Printer switch: init_print_start_collector() runs again.
+    arming.reset();
+
+    // Printer B is already 60% in. This presents as STANDBY -> PRINTING with
+    // stale progress, which is the genuine boot-into-running-print case and
+    // must be suppressed.
+    REQUIRE_FALSE(MoonrakerManager::should_start_print_collector(
+        arming.prev_state(), PrintJobState::PRINTING,
+        /*current_progress=*/60, arming.is_initial_transition(),
+        /*current_print_duration=*/4200));
+}
+
+// ============================================================================
+// Collector teardown vs a live preparing job
+// ============================================================================
+
+TEST_CASE("should_stop_print_collector spares a collector armed at commit",
+          "[application][print_start][preparing]") {
+    // A print we initiated ourselves reaches PRINTING via a transient hop:
+    // Klipper leaves the previous job's terminal state, passes through STANDBY,
+    // and only then reports PRINTING. The observer's teardown branch fires on
+    // any non-printing state, so without this the collector armed at commit is
+    // stopped on the way INTO the print it was armed for.
+    SECTION("standby hop does not stop a collector while a job is being prepared") {
+        REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::STANDBY,
+                                                                    /*has_preparing_job=*/true));
+        REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::COMPLETE,
+                                                                    /*has_preparing_job=*/true));
+    }
+
+    SECTION("with no preparing job the teardown still fires") {
+        REQUIRE(MoonrakerManager::should_stop_print_collector(PrintJobState::STANDBY,
+                                                              /*has_preparing_job=*/false));
+        REQUIRE(MoonrakerManager::should_stop_print_collector(PrintJobState::CANCELLED,
+                                                              /*has_preparing_job=*/false));
+    }
+
+    SECTION("printing and paused never tear the collector down") {
+        // PRINT_START runs INSIDE the job, so the collector must survive the
+        // handoff and complete on its own phase detection.
+        REQUIRE_FALSE(
+            MoonrakerManager::should_stop_print_collector(PrintJobState::PRINTING, false));
+        REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::PAUSED, false));
+        REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::PRINTING, true));
+    }
+}
+
+// ============================================================================
+// Retiring a preparing job that never became a print
+//
+// The collector is armed at COMMIT, so every exit from the preparing window has
+// to answer whether it stops. The epoch observer used to punt this to the
+// print-state observer, which cannot see it: that one fires only when
+// print_state_enum CHANGES, and a job that dies before the printer accepts it
+// never moves the wire off standby.
+//
+// Left armed, the collector keeps parsing gcode responses, so the next command
+// the user runs by hand - homing from the Motion panel after cancelling a start
+// - is read as a pre-print phase and re-raises the "Preparing Print" overlay
+// over the controls they are using.
+//
+// NOTE: this covers the DECISION. The dispatch that calls it lives in an
+// ObserverGuard inside MoonrakerManager, which has heavy dependencies and is not
+// constructible here (see the header note at the top of this file).
+// ============================================================================
+
+TEST_CASE("should_stop_collector_on_retirement stops unless the printer took the job",
+          "[application][print_start_collector]") {
+    SECTION("Confirmed - the printer is printing, PRINT_START runs inside the job") {
+        REQUIRE_FALSE(
+            MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::PRINTING));
+        REQUIRE_FALSE(MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::PAUSED));
+    }
+
+    SECTION("every other exit means no print is coming") {
+        // Cancelled / Failed / TimedOut / Superseded all leave the wire here.
+        REQUIRE(MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::STANDBY));
+        REQUIRE(MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::COMPLETE));
+        REQUIRE(MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::CANCELLED));
+        REQUIRE(MoonrakerManager::should_stop_collector_on_retirement(PrintJobState::ERROR));
     }
 }

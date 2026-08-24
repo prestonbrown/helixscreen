@@ -43,10 +43,10 @@ class NotificationHistoryPanel : public PanelBase {
      * @brief Construct NotificationHistoryPanel with injected dependencies
      *
      * @param printer_state Reference to PrinterState (passed to base, not used directly)
-     * @param api Pointer to MoonrakerAPI (passed to base, not used directly)
+     * @param api Pointer to IMoonrakerAPI (passed to base, not used directly)
      * @param history Reference to NotificationHistory service (defaults to singleton)
      */
-    NotificationHistoryPanel(helix::PrinterState& printer_state, MoonrakerAPI* api,
+    NotificationHistoryPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api,
                              NotificationHistory& history = NotificationHistory::instance());
 
     ~NotificationHistoryPanel() override;

@@ -14,19 +14,19 @@
  * widths.
  */
 
-#include "overlay_class.h"
-#include "panel_lifecycle.h"
-#include "theme_manager.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
-
-#include "../catch_amalgamated.hpp"
+#include "overlay_class.h"
+#include "panel_lifecycle.h"
+#include "theme_manager.h"
 
 #include <array>
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix;
 

@@ -53,14 +53,15 @@ SplitButtonData* get_data(lv_obj_t* sb) {
     return data;
 }
 
+static const lv_font_t* s_icon_font = nullptr;
+static bool s_icon_font_resolved = false;
+
 /**
  * @brief Get icon font for button icons (same approach as ui_button)
  */
 const lv_font_t* get_button_icon_font() {
-    static const lv_font_t* cached = nullptr;
-    static bool resolved = false;
-    if (resolved)
-        return cached;
+    if (s_icon_font_resolved)
+        return s_icon_font;
 
     const char* font_name = lv_xml_get_const_silent(nullptr, "icon_font_sm");
     const lv_font_t* font = nullptr;
@@ -71,9 +72,9 @@ const lv_font_t* get_button_icon_font() {
         font = &mdi_icons_24;
     }
 
-    cached = font;
-    resolved = true;
-    return cached;
+    s_icon_font = font;
+    s_icon_font_resolved = true;
+    return s_icon_font;
 }
 
 /**
@@ -639,6 +640,10 @@ void ui_split_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
 }
 
 } // namespace
+
+void ui_split_button_invalidate_icon_font_cache() {
+    s_icon_font_resolved = false;
+}
 
 void ui_split_button_init() {
     lv_xml_register_widget("ui_split_button", ui_split_button_create, ui_split_button_apply);

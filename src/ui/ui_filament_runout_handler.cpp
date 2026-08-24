@@ -12,8 +12,8 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_router.h"
 #include "filament_sensor_manager.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h" // For PrintState enum
@@ -51,7 +51,7 @@ std::string purge_fallback_gcode() {
 // FilamentRunoutHandler Implementation
 // ============================================================================
 
-FilamentRunoutHandler::FilamentRunoutHandler(MoonrakerAPI* api) : api_(api) {
+FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[FilamentRunoutHandler] Constructed");
 }
 
@@ -342,8 +342,8 @@ void FilamentRunoutHandler::dispatch_load() {
     }
 
     const auto& load_info = StandardMacros::instance().get(StandardMacroSlot::LoadFilament);
-    const helix::ui::FilamentOpPlan plan =
-        helix::ui::plan_load(sys, caps, slot, !load_info.is_empty());
+    const helix::ui::FilamentOpPlan plan = helix::ui::plan_load(
+        sys, caps, slot, !load_info.is_empty(), load_info.get_source() == MacroSource::CONFIGURED);
 
     switch (plan.tier) {
     case helix::ui::FilamentTier::AmsBackend: {
@@ -418,7 +418,7 @@ void FilamentRunoutHandler::dispatch_load() {
                 spdlog::error("[FilamentRunoutHandler] Load fallback failed: {}", err.message);
                 NOTIFY_ERROR(lv_tr("Failed to load filament: {}"), err.user_message());
             },
-            MoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+            IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
         return;
     }
 }
@@ -448,15 +448,17 @@ void FilamentRunoutHandler::dispatch_unload() {
     // filament is still at the head, and #1199 deliberately keeps Unload
     // reachable in exactly that state (#995).
     bool loaded = false;
-    if (backend && slot >= 0) {
-        loaded = helix::ui::unload_target_is_loaded(backend->slot_is_actively_loaded(slot),
+    if (backend) {
+        loaded = helix::ui::unload_target_is_loaded(slot, backend->slot_is_actively_loaded(slot),
                                                     backend->slot_has_filament_at_toolhead(slot),
-                                                    /*is_current_slot=*/true);
+                                                    /*is_current_slot=*/true,
+                                                    backend->get_system_info().filament_loaded);
     }
 
     const auto& unload_info = StandardMacros::instance().get(StandardMacroSlot::UnloadFilament);
     const helix::ui::FilamentOpPlan plan =
-        helix::ui::plan_unload(caps, slot, loaded, !unload_info.is_empty());
+        helix::ui::plan_unload(caps, slot, loaded, !unload_info.is_empty(),
+                               unload_info.get_source() == MacroSource::CONFIGURED);
 
     switch (plan.tier) {
     case helix::ui::FilamentTier::AmsBackend: {
@@ -515,7 +517,7 @@ void FilamentRunoutHandler::dispatch_unload() {
                 spdlog::error("[FilamentRunoutHandler] Unload fallback failed: {}", err.message);
                 NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
             },
-            MoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+            IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
         return;
     }
 }
@@ -560,7 +562,7 @@ void FilamentRunoutHandler::dispatch_purge() {
             spdlog::error("[FilamentRunoutHandler] Purge fallback failed: {}", err.message);
             NOTIFY_ERROR(lv_tr("Failed to purge: {}"), err.user_message());
         },
-        MoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+        IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
 }
 
 void FilamentRunoutHandler::hide_modal() {

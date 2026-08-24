@@ -6,7 +6,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "moonraker_api.h"
+#include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "wizard_config_paths.h"
 
@@ -33,7 +33,7 @@ static void seed_name(const std::string& name, const char* source) {
 }
 
 /// Try Fluidd DB, then hostname, then give up. Called when Mainsail is unavailable or empty.
-static void try_fluidd_then_hostname(MoonrakerAPI* api, const std::string& hostname) {
+static void try_fluidd_then_hostname(IMoonrakerAPI* api, const std::string& hostname) {
     api->database_get_item(
         FLUIDD_NAMESPACE, FLUIDD_KEY,
         [hostname](const nlohmann::json& fluidd_value) {
@@ -62,7 +62,7 @@ static void try_fluidd_then_hostname(MoonrakerAPI* api, const std::string& hostn
         });
 }
 
-void PrinterNameSync::resolve(MoonrakerAPI* api, const std::string& hostname) {
+void PrinterNameSync::resolve(IMoonrakerAPI* api, const std::string& hostname) {
     Config* config = Config::get_instance();
     if (!config) {
         spdlog::warn("[PrinterNameSync] No config instance, skipping resolve");
@@ -108,7 +108,7 @@ void PrinterNameSync::resolve(MoonrakerAPI* api, const std::string& hostname) {
         });
 }
 
-void PrinterNameSync::write_back(MoonrakerAPI* api, const std::string& name) {
+void PrinterNameSync::write_back(IMoonrakerAPI* api, const std::string& name) {
     if (!api || name.empty())
         return;
 

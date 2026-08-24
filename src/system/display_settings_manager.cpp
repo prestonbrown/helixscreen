@@ -22,6 +22,8 @@
 #include <cstdlib>
 
 #ifdef __ANDROID__
+#include "system/android_jni.h"
+
 #include <SDL_system.h>
 #include <jni.h>
 
@@ -32,21 +34,18 @@ static void android_set_navbar_always_visible(bool enabled) {
     if (!env)
         return;
 
-    jclass cls = env->FindClass("org/helixscreen/app/HelixActivity");
-    if (!cls) {
-        env->ExceptionClear();
+    // Cached global ref owned by helix_activity_class() — never released here.
+    jclass cls = helix::android::helix_activity_class(env);
+    if (!cls)
         return;
-    }
 
     jmethodID method = env->GetStaticMethodID(cls, "setNavBarAlwaysVisible", "(Z)V");
     if (!method) {
-        env->DeleteLocalRef(cls);
         env->ExceptionClear();
         return;
     }
 
     env->CallStaticVoidMethod(cls, method, static_cast<jboolean>(enabled));
-    env->DeleteLocalRef(cls);
 }
 #endif // __ANDROID__
 
@@ -68,39 +67,80 @@ struct TimezoneEntry {
     const char* iana_id;
 };
 
+// Ordered by UTC offset so the list scans west-to-east. Names are the countries
+// people search for, not regional or historical groupings — #1340 was filed
+// because UTC+7 was labelled "Indochina" and a user in Vietnam never found it.
+//
+// Same-offset zones are listed separately when their DST rules differ: picking
+// America/Denver from Arizona, or Europe/Berlin from Lagos, yields the right
+// time for part of the year and an hour's error for the rest.
+//
+// scripts/regen_zoneinfo.sh reads this table to build assets/zoneinfo/, and
+// tests/shell/test_zoneinfo_bundle_gate.bats fails if the two drift. A zone
+// offered here but not bundled resolves to UTC on devices without system
+// tzdata — silently, with the wrong time and no error.
 static const TimezoneEntry TIMEZONE_ENTRIES[] = {
     {"UTC (+0:00)", "UTC"},
+    {"Samoa (-11:00)", "Pacific/Pago_Pago"},
     {"Hawaii (-10:00)", "Pacific/Honolulu"},
     {"Alaska (-9:00)", "America/Anchorage"},
     {"Pacific (-8:00)", "America/Los_Angeles"},
     {"Mountain (-7:00)", "America/Denver"},
+    {"Arizona (-7:00)", "America/Phoenix"},
     {"Central (-6:00)", "America/Chicago"},
+    {"Mexico City (-6:00)", "America/Mexico_City"},
+    {"Saskatchewan (-6:00)", "America/Regina"},
     {"Eastern (-5:00)", "America/New_York"},
+    {"Colombia/Peru (-5:00)", "America/Bogota"},
     {"Atlantic (-4:00)", "America/Halifax"},
+    {"Venezuela (-4:00)", "America/Caracas"},
+    {"Chile (-4:00)", "America/Santiago"},
     {"Newfoundland (-3:30)", "America/St_Johns"},
-    {"Sao Paulo (-3:00)", "America/Sao_Paulo"},
+    {"Brazil - Sao Paulo (-3:00)", "America/Sao_Paulo"},
+    {"Argentina (-3:00)", "America/Argentina/Buenos_Aires"},
+    {"Fernando de Noronha (-2:00)", "America/Noronha"},
+    {"Azores (-1:00)", "Atlantic/Azores"},
     {"Cape Verde (-1:00)", "Atlantic/Cape_Verde"},
+    {"Iceland (+0:00)", "Atlantic/Reykjavik"},
     {"London (+0:00)", "Europe/London"},
     {"Central Europe (+1:00)", "Europe/Berlin"},
+    {"West Africa - Lagos (+1:00)", "Africa/Lagos"},
     {"Eastern Europe (+2:00)", "Europe/Bucharest"},
+    {"Egypt (+2:00)", "Africa/Cairo"},
+    {"South Africa (+2:00)", "Africa/Johannesburg"},
+    {"Israel (+2:00)", "Asia/Jerusalem"},
     {"Moscow (+3:00)", "Europe/Moscow"},
+    {"Turkey (+3:00)", "Europe/Istanbul"},
+    {"Saudi Arabia (+3:00)", "Asia/Riyadh"},
+    {"East Africa - Nairobi (+3:00)", "Africa/Nairobi"},
     {"Iran (+3:30)", "Asia/Tehran"},
     {"Gulf (+4:00)", "Asia/Dubai"},
     {"Afghanistan (+4:30)", "Asia/Kabul"},
     {"Pakistan (+5:00)", "Asia/Karachi"},
     {"India (+5:30)", "Asia/Kolkata"},
+    {"Sri Lanka (+5:30)", "Asia/Colombo"},
     {"Nepal (+5:45)", "Asia/Kathmandu"},
     {"Bangladesh (+6:00)", "Asia/Dhaka"},
     {"Myanmar (+6:30)", "Asia/Yangon"},
-    {"Indochina (+7:00)", "Asia/Bangkok"},
-    {"China/Singapore (+8:00)", "Asia/Shanghai"},
+    {"Thailand (+7:00)", "Asia/Bangkok"},
+    {"Vietnam (+7:00)", "Asia/Ho_Chi_Minh"},
+    {"Indonesia - Jakarta (+7:00)", "Asia/Jakarta"},
+    {"China (+8:00)", "Asia/Shanghai"},
     {"Hong Kong (+8:00)", "Asia/Hong_Kong"},
-    {"Japan/Korea (+9:00)", "Asia/Tokyo"},
+    {"Taiwan (+8:00)", "Asia/Taipei"},
+    {"Singapore/Malaysia (+8:00)", "Asia/Singapore"},
+    {"Philippines (+8:00)", "Asia/Manila"},
     {"Australia Western (+8:00)", "Australia/Perth"},
+    {"Japan (+9:00)", "Asia/Tokyo"},
+    {"Korea (+9:00)", "Asia/Seoul"},
     {"Australia Central (+9:30)", "Australia/Adelaide"},
+    {"Australia Northern (+9:30)", "Australia/Darwin"},
     {"Australia Eastern (+10:00)", "Australia/Sydney"},
+    {"Australia Queensland (+10:00)", "Australia/Brisbane"},
     {"New Caledonia (+11:00)", "Pacific/Noumea"},
     {"New Zealand (+12:00)", "Pacific/Auckland"},
+    {"Fiji (+12:00)", "Pacific/Fiji"},
+    {"Tonga (+13:00)", "Pacific/Tongatapu"},
 };
 static const int TIMEZONE_COUNT = sizeof(TIMEZONE_ENTRIES) / sizeof(TIMEZONE_ENTRIES[0]);
 
@@ -234,8 +274,17 @@ void DisplaySettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(use_system_keyboard_subject_, sys_kb ? 1 : 0,
                            "settings_use_system_keyboard", subjects_);
 
-    // Page-scroll buttons (default: off — opt-in)
-    bool page_scroll = config->get<bool>("/display/page_scroll_buttons", false);
+    // Page-scroll buttons. Desktop/embedded-Linux default: off (opt-in). ESP32
+    // default: on — finger-drag scrolling is too slow on that panel, so the
+    // buttons are the usable path. An explicit user setting always wins.
+#if defined(ESP_PLATFORM)
+    constexpr bool page_scroll_default = true;
+#else
+    constexpr bool page_scroll_default = false;
+#endif
+    bool page_scroll = config->exists("/display/page_scroll_buttons")
+                           ? config->get<bool>("/display/page_scroll_buttons", page_scroll_default)
+                           : page_scroll_default;
     UI_MANAGED_SUBJECT_INT(page_scroll_buttons_subject_, page_scroll ? 1 : 0,
                            "settings_page_scroll_buttons", subjects_);
 
@@ -250,6 +299,12 @@ void DisplaySettingsManager::init_subjects() {
     // Platform flag for XML conditional visibility (ephemeral, not persisted)
     int is_android = helix::is_android_platform() ? 1 : 0;
     UI_MANAGED_SUBJECT_INT(is_android_subject_, is_android, "settings_is_android", subjects_);
+
+    // Screen rotation availability for XML row visibility (ephemeral). The
+    // rotation VALUE needs no subject: it is applied once at display init and
+    // the dropdown is seeded from config when the overlay activates.
+    UI_MANAGED_SUBJECT_INT(rotation_available_subject_, rotation_setting_available() ? 1 : 0,
+                           "settings_rotation_available", subjects_);
 
     // Bed mesh render mode (default: 0 = Auto)
     int bed_mesh_mode = config->get<int>("/display/bed_mesh_render_mode", 0);
@@ -298,7 +353,6 @@ void DisplaySettingsManager::init_subjects() {
     // default to Flying Toasters (1). BASIC (Pi 3B-class) and EMBEDDED (AD5M,
     // AD5X) default to OFF (0) because animated screensavers starve Klipper's
     // CPU budget and cause print failures.
-    // See: docs/superpowers/specs/2026-04-23-screensaver-low-tier-defaults-design.md
     const int screensaver_default = PlatformCapabilities::detect().supports_animations ? 1 : 0;
 
     int screensaver_type = screensaver_default;
@@ -636,6 +690,76 @@ void DisplaySettingsManager::set_sleep_while_printing(bool enabled) {
     Config* config = Config::get_instance();
     config->set<bool>("/display/sleep_while_printing", enabled);
     config->save();
+}
+
+// =============================================================================
+// SCREEN ROTATION
+// =============================================================================
+
+int DisplaySettingsManager::rotation_degrees_to_index(int degrees) {
+    switch (degrees) {
+    case 90:
+        return 1;
+    case 180:
+        return 2;
+    case 270:
+        return 3;
+    default:
+        return 0; // 0 and every unrecognized value
+    }
+}
+
+int DisplaySettingsManager::index_to_rotation_degrees(int index) {
+    switch (index) {
+    case 1:
+        return 90;
+    case 2:
+        return 180;
+    case 3:
+        return 270;
+    default:
+        return 0; // index 0 and out-of-range
+    }
+}
+
+bool DisplaySettingsManager::rotation_setting_available() {
+#ifdef HELIX_DISPLAY_SDL
+    return std::getenv("HELIX_SHOW_ROTATION_SETTING") != nullptr;
+#else
+    return true;
+#endif
+}
+
+int DisplaySettingsManager::get_display_rotation() const {
+    int degrees = Config::get_instance()->get<int>("/display/rotate", 0);
+    if (degrees != 90 && degrees != 180 && degrees != 270) {
+        // A hand-edited or corrupt settings.json can hold any integer.
+        // DisplayManager only applies 90/180/270, so anything else reads as 0.
+        return 0;
+    }
+    return degrees;
+}
+
+bool DisplaySettingsManager::set_display_rotation(int degrees) {
+    if (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270) {
+        spdlog::warn("[DisplaySettingsManager] set_display_rotation({}) rejected - "
+                     "must be 0, 90, 180 or 270",
+                     degrees);
+        return false;
+    }
+
+    bool changed = get_display_rotation() != degrees;
+
+    Config* config = Config::get_instance();
+    config->set<int>("/display/rotate", degrees);
+    // Pin the first-boot probe gate in Application::run_rotation_probe_and_layout():
+    // an explicit choice must survive a later auto-detect or interactive probe.
+    config->set<bool>("/display/rotation_probed", true);
+    config->save();
+
+    spdlog::info("[DisplaySettingsManager] set_display_rotation({}) saved (restart required)",
+                 degrees);
+    return changed;
 }
 
 // =============================================================================

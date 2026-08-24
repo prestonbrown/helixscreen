@@ -20,7 +20,7 @@ using Clock = std::chrono::steady_clock;
 // later error. The two channels (gcode.script RPC error response and the
 // gcode-response `!!` line) come from the same Klipper gcode dispatcher
 // invocation — they arrive within milliseconds typically.
-constexpr auto kCausalWindow = std::chrono::milliseconds(1500);
+constexpr auto CAUSAL_WINDOW = std::chrono::milliseconds(1500);
 
 struct Entry {
     std::string message;
@@ -40,7 +40,7 @@ std::deque<Entry>& entries() {
 // Caller must hold mu().
 void prune_locked() {
     const auto now = Clock::now();
-    while (!entries().empty() && (now - entries().front().recorded_at) > kCausalWindow) {
+    while (!entries().empty() && (now - entries().front().recorded_at) > CAUSAL_WINDOW) {
         entries().pop_front();
     }
 }

@@ -782,7 +782,6 @@ resolve_address() {
 
     local best_name=""
     local best_addr=0
-    local best_addr_hex=""
 
     # Read symbol file: each line is "ADDR TYPE NAME"
     # We only care about T/t (text/code) symbols
@@ -807,7 +806,6 @@ resolve_address() {
         if (( sym_dec <= addr_dec )); then
             best_name="$sym_name"
             best_addr=$sym_dec
-            best_addr_hex="$sym_addr"
         else
             # Past our address — the previous symbol is the match
             break

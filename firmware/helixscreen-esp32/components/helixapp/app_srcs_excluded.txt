@@ -1,0 +1,262 @@
+# ESP32 firmware app_srcs exclusion baseline.
+#
+# Every src/**/*.cpp|.c NOT compiled by the firmware (i.e. not in
+# app_srcs.txt) must appear here, or scripts/check_esp32_app_srcs.py
+# fails. A path ending in '/' excludes a whole directory recursively.
+#
+# THE BLANKET RULE. Everything in this file is out for one reason: it is not
+# part of the v1 Core+AMS cut (camera, label printer, gcode/bed-mesh 3D,
+# plugins, timelapse viewer, screensaver, calibration panels, sound, desktop
+# mocks, the Linux platform backends, the concrete libhv client). An entry
+# carrying only the default '# not in the v1 Core+AMS cut' note is covered by
+# that rule and needs nothing more — writing 200 restatements of it would bury
+# the entries that DO have something specific to say. Add a specific trailing
+# '# reason' when, and only when, the real reason differs from the blanket
+# rule (a link constraint, a conditional CMake arm, an ESP-side replacement).
+#
+# Extend with:
+#   python3 scripts/check_esp32_app_srcs.py --write-exclusions --force
+# --force MERGES — existing entries and their hand-written reasons are kept,
+# only newly-undecided files are added. Delete this file first for a re-seed.
+
+# --- whole directories excluded ---
+src/bluetooth/  # all 9 src/ files beneath
+src/calibration/  # all 5 src/ files beneath
+src/config/  # all 1 src/ files beneath
+src/input/  # all 1 src/ files beneath
+src/lvgl-demo/  # all 1 src/ files beneath
+src/network/  # all 1 src/ files beneath
+src/remote/  # all 8 src/ files beneath
+src/tools/  # all 1 src/ files beneath
+
+# --- individual files (same dir, partially compiled) ---
+src/api/backlight_backend.cpp  # not in the v1 Core+AMS cut
+src/api/display_backend.cpp  # not in the v1 Core+AMS cut
+src/api/display_backend_drm.cpp  # not in the v1 Core+AMS cut
+src/api/display_backend_fbdev.cpp  # not in the v1 Core+AMS cut
+src/api/display_backend_sdl.cpp  # not in the v1 Core+AMS cut
+src/api/drm_mode_matching.cpp  # not in the v1 Core+AMS cut
+src/api/drm_rotation_strategy.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_backend.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_backend_linux.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/ethernet_manager.cpp  # not in the v1 Core+AMS cut
+src/api/fbdev_size_helper.cpp  # not in the v1 Core+AMS cut
+src/api/input_device_scanner.cpp  # not in the v1 Core+AMS cut
+src/api/mock_http_file_server.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_api_mock.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_api_power.cpp  # hv/requests.h — Moonraker device_power is REST-only
+src/api/moonraker_client.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_files.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_history.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_objects.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_print.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_queue.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_server.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_discovery_sequence.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_file_transfer_api.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_rest_api.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_spoolman_api.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/api/moonraker_timelapse_api.cpp  # not in the v1 Core+AMS cut
+src/api/touch_calibration_wrapper.cpp  # not in the v1 Core+AMS cut
+src/api/usb_backend.cpp  # not in the v1 Core+AMS cut
+src/api/usb_backend_linux.cpp  # not in the v1 Core+AMS cut
+src/api/usb_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/usb_manager.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_saved_config.cpp  # not in the v1 Core+AMS cut
+src/app_globals.cpp  # not in the v1 Core+AMS cut
+src/application/ams_error_bridge.cpp  # not in the v1 Core+AMS cut
+src/application/android_asset_extractor.cpp  # not in the v1 Core+AMS cut
+src/application/application.cpp  # not in the v1 Core+AMS cut
+src/application/color_transform.cpp  # not in the v1 Core+AMS cut
+src/application/detect_printer_cmd.cpp  # not in the v1 Core+AMS cut
+src/application/display_manager.cpp  # not in the v1 Core+AMS cut
+src/application/error_classify.cpp  # not in the v1 Core+AMS cut
+src/application/fault_surface_correlation.cpp  # not in the v1 Core+AMS cut
+src/application/gcode_error_router.cpp  # not in the v1 Core+AMS cut
+src/application/gcode_narration_router.cpp  # not in the v1 Core+AMS cut
+src/application/hardware_fingerprint.cpp  # not in the v1 Core+AMS cut
+src/application/main_loop_handler.cpp  # not in the v1 Core+AMS cut
+src/application/remote_screen_fb0_sink.cpp  # not in the v1 Core+AMS cut
+src/application/remote_screen_manager.cpp  # not in the v1 Core+AMS cut
+src/application/splash_screen_manager.cpp  # not in the v1 Core+AMS cut
+src/application/xml_hot_reloader.cpp  # not in the v1 Core+AMS cut
+src/helix_splash.cpp  # not in the v1 Core+AMS cut
+src/helix_watchdog.cpp  # not in the v1 Core+AMS cut
+src/lvgl_init.cpp  # not in the v1 Core+AMS cut
+src/main.cpp  # not in the v1 Core+AMS cut
+src/plugin/plugin_api.cpp  # not in the v1 Core+AMS cut
+src/plugin/plugin_events.cpp  # not in the v1 Core+AMS cut
+src/plugin/plugin_manager.cpp  # not in the v1 Core+AMS cut
+src/plugin/plugin_registry.cpp  # not in the v1 Core+AMS cut
+src/print/thumbnail_processor.cpp  # not in the v1 Core+AMS cut
+src/print/timelapse_thumbnailer.cpp  # not in the v1 Core+AMS cut
+src/printer/ams_backend_mock.cpp  # NOT the blanket rule: this one IS compiled, but only on the CONFIG_HELIX_MOCK_PRINTER arm (MOCK_SRCS in CMakeLists.txt), never in the default build
+src/printer/detection_manager.cpp  # not in the v1 Core+AMS cut
+src/printer/macro_fan_analyzer.cpp  # not in the v1 Core+AMS cut
+src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut
+src/printer/printer_discovery.cpp  # not in the v1 Core+AMS cut
+src/printer/screws_tilt_share_text.cpp  # not in the v1 Core+AMS cut
+src/printer/spoolman_manager.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/printer/spoolman_types.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/printer/timelapse_state.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/printer/u1_stock_detection_source.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_buffer.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_coordinate_transform.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_geometry.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_gradient.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_overlays.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_projection.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_rasterizer.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_render_thread.cpp  # not in the v1 Core+AMS cut
+src/rendering/bed_mesh_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_camera.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_data_source.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_geometry_builder.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_gles_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_layer_cache.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_layer_index.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_layer_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_object_thumbnail_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_projection.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_streaming_config.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_streaming_controller.cpp  # not in the v1 Core+AMS cut
+src/rendering/geometry_budget_manager.cpp  # not in the v1 Core+AMS cut
+src/sensors/color_sensor_manager.cpp  # dead on all platforms — audit 2026-08-12; tree-wide deletion is a separate desktop-scope decision
+src/sensors/sensor_registry.cpp  # not in the v1 Core+AMS cut
+src/spoolman/spoolman_slot_saver.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/system/alsa_sound_backend.cpp  # not in the v1 Core+AMS cut
+src/system/bluetooth_loader.cpp  # not in the v1 Core+AMS cut
+src/system/brother_pt_bt_printer.cpp  # not in the v1 Core+AMS cut
+src/system/brother_pt_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/brother_ql_bt_printer.cpp  # not in the v1 Core+AMS cut
+src/system/brother_ql_printer.cpp  # not in the v1 Core+AMS cut
+src/system/brother_ql_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/bt_print_utils.cpp  # not in the v1 Core+AMS cut
+src/system/camera_stream.cpp  # not in the v1 Core+AMS cut
+src/system/cli_args.cpp  # not in the v1 Core+AMS cut
+src/system/crash_error_log_sink.cpp  # not in the v1 Core+AMS cut
+src/system/crash_handler.cpp  # not in the v1 Core+AMS cut
+src/system/crash_history.cpp  # not in the v1 Core+AMS cut
+src/system/crash_reporter.cpp  # not in the v1 Core+AMS cut
+src/system/debug_bundle_collector.cpp  # not in the v1 Core+AMS cut
+src/system/helix_display_telemetry.cpp  # not in the v1 Core+AMS cut
+src/system/helix_lvgl_anomaly.cpp  # not in the v1 Core+AMS cut
+src/system/helix_version.cpp  # not in the v1 Core+AMS cut
+src/system/host_identity.cpp  # not in the v1 Core+AMS cut
+src/system/http_android.cpp  # not in the v1 Core+AMS cut
+src/system/ipp_printer.cpp  # not in the v1 Core+AMS cut
+src/system/ipp_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/klippy_frame_decoder.cpp  # decodes klippy's UDS accel stream for the belt tuner, which requires co-location with klippy
+src/system/label_bitmap.cpp  # not in the v1 Core+AMS cut
+src/system/label_printer.cpp  # not in the v1 Core+AMS cut
+src/system/label_printer_settings.cpp  # not in the v1 Core+AMS cut
+src/system/label_printer_utils.cpp  # not in the v1 Core+AMS cut
+src/system/label_renderer.cpp  # not in the v1 Core+AMS cut
+src/system/log_collector.cpp  # not in the v1 Core+AMS cut
+src/system/log_path_probe.cpp  # not in the v1 Core+AMS cut
+src/system/logging_init.cpp  # not in the v1 Core+AMS cut
+src/system/lvgl_log_handler.cpp  # not in the v1 Core+AMS cut
+src/system/makeid_bt_printer.cpp  # not in the v1 Core+AMS cut
+src/system/makeid_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/memory_profiling.cpp  # not in the v1 Core+AMS cut
+src/system/mock_performance_source.cpp  # not in the v1 Core+AMS cut
+src/system/moonraker_local_probe.cpp  # not in the v1 Core+AMS cut
+src/system/moonraker_performance_source.cpp  # not in the v1 Core+AMS cut
+src/system/niimbot_bt_printer.cpp  # not in the v1 Core+AMS cut
+src/system/niimbot_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/phomemo_bt_printer.cpp  # not in the v1 Core+AMS cut
+src/system/phomemo_printer.cpp  # not in the v1 Core+AMS cut
+src/system/phomemo_protocol.cpp  # not in the v1 Core+AMS cut
+src/system/platform_info.cpp  # not in the v1 Core+AMS cut
+src/system/pwg_raster.cpp  # not in the v1 Core+AMS cut
+src/system/pwm_sound_backend.cpp  # not in the v1 Core+AMS cut
+src/system/qr_decoder.cpp  # not in the v1 Core+AMS cut
+src/system/screen_locality.cpp  # not in the v1 Core+AMS cut
+src/system/screenshot.cpp  # not in the v1 Core+AMS cut
+src/system/sdl_sound_backend.cpp  # not in the v1 Core+AMS cut
+src/system/sha256_util.cpp  # not in the v1 Core+AMS cut
+src/system/sheet_label_layout.cpp  # not in the v1 Core+AMS cut
+src/system/snapshot_qr_scanner.cpp  # not in the v1 Core+AMS cut
+src/system/sound_synthesis.cpp  # not in the v1 Core+AMS cut
+src/system/streaming_policy.cpp  # not in the v1 Core+AMS cut
+src/system/telemetry_manager.cpp  # not in the v1 Core+AMS cut
+src/system/tracker_module_med.cpp  # not in the v1 Core+AMS cut
+src/system/tracker_module_mod.cpp  # not in the v1 Core+AMS cut
+src/system/tracker_player.cpp  # not in the v1 Core+AMS cut
+src/system/update_checker.cpp  # not in the v1 Core+AMS cut
+src/system/upgrade_nudge.cpp  # not in the v1 Core+AMS cut
+src/system/usb_printer_detector.cpp  # not in the v1 Core+AMS cut
+src/system/usb_scanner_monitor.cpp  # not in the v1 Core+AMS cut
+src/system/wizard_step.cpp  # not in the v1 Core+AMS cut
+src/ui/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/ipp_print_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
+src/ui/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
+src/ui/screensaver_manager.cpp  # not in the v1 Core+AMS cut
+src/ui/screensaver_pipes.cpp  # not in the v1 Core+AMS cut
+src/ui/screensaver_starfield.cpp  # not in the v1 Core+AMS cut
+src/ui/splash_screen.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_ams_tool_text.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_belt_trace.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_coalesced_timer.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_image_helpers.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_multiselect.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/ui/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/ui/ui_overlay_timelapse_videos.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_belt_tension.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_gcode_test.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_notification_history.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_spoolman.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/ui/ui_panel_step_test.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_panel_test.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_print_cancel_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_save_z_offset_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_screensaver.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_spoolman_context_menu.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/ui/ui_spoolman_edit_modal.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/ui/ui_spoolman_list_view.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
+src/ui/ui_spoolman_overlay.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_spoolman_setup.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_wifi.cpp  # not in the v1 Core+AMS cut
+src/ui/upgrade_banner.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard_validation.cpp  # not in the v1 Core+AMS cut
+src/util/version.cpp  # not in the v1 Core+AMS cut
+

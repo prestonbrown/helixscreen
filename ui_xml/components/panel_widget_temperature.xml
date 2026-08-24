@@ -12,8 +12,8 @@
       <event_cb trigger="clicked" callback="temp_clicked_cb"/>
       <nozzle_icon name="temp_icon_container" size="#icon_size"/>
       <temp_display name="temp_text_label"
-                    size="sm" show_target="false" bind_current="extruder_temp" bind_target="extruder_target"
-                    align="center"/>
+                    size="sm" show_target="true" hide_target_when_off="true" hide_target_below_bp="small"
+                    bind_current="extruder_temp" bind_target="extruder_target" align="center"/>
     </ui_button>
   </view>
 </component>

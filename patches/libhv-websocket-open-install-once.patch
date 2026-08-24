@@ -1,0 +1,122 @@
+diff --git a/http/client/WebSocketClient.cpp b/http/client/WebSocketClient.cpp
+--- a/http/client/WebSocketClient.cpp
++++ b/http/client/WebSocketClient.cpp
+@@ -16,54 +16,16 @@
+     saved_reconn_cur_delay_ = 0;
+     saved_reconn_cur_retry_cnt_ = 0;
+     saved_reconn_valid_ = false;
+-}
+ 
+-WebSocketClient::~WebSocketClient() {
+-    stop();
+-}
+-
+-/*
+- * ParseUrl => createsocket => start =>
+- * TCP::onConnection => websocket_handshake => WS::onopen =>
+- * TCP::onMessage => WebSocketParser => WS::onmessage =>
+- * TCP::onConnection => WS::onclose
+- */
+-int WebSocketClient::open(const char* _url, const http_headers& headers) {
+-    close();
+-
+-    // ParseUrl
+-    if (_url) {
+-        if (strncmp(_url, "ws", 2) != 0) {
+-            url = "ws://";
+-            url += _url;
+-        } else {
+-            url = _url;
+-        }
+-    }
+-    hlogi("%s", url.c_str());
+-    if (!http_req_) {
+-        http_req_ = std::make_shared<HttpRequest>();
+-    }
+-    // ws => http
+-    http_req_->url = "http" + url.substr(2, -1);
+-    http_req_->ParseUrl();
+-
+-    int connfd = createsocket(http_req_->port, http_req_->host.c_str());
+-    if (connfd < 0) {
+-        hloge("createsocket %s:%d return %d!", http_req_->host.c_str(), http_req_->port, connfd);
+-        return connfd;
+-    }
+-
+-    // wss
+-    bool wss = strncmp(url.c_str(), "wss", 3) == 0;
+-    if (wss && !http_req_->IsProxy()) {
+-        withTLS();
+-    }
+-
+-    for (auto& header : headers) {
+-        http_req_->headers[header.first] = header.second;
+-    }
+-
++    // PATCH NOTE(helixscreen): install the TcpClient-level channel callbacks
++    // exactly ONCE, here in the constructor. open() used to reassign these
++    // std::function members on every call — from the CALLER's thread while the
++    // event-loop thread could be mid-invoke on the previous attempt's closure,
++    // destroying the function's heap storage under the running lambda (heap
++    // corruption / SIGABRT "free(): invalid next size" under concurrent
++    // connect(); the redirect path even reassigned the very closure it was
++    // running in). The bodies reference only members (state, http_req_, ...)
++    // that open() prepares before start(), so installing once is equivalent.
+     onConnection = [this](const WebSocketChannelPtr& channel) {
+         if (channel->isConnected()) {
+             // TcpClient resets the reconnect backoff in its own onconnect, right
+@@ -220,7 +182,54 @@
+             }
+         }
+     };
++}
+ 
++WebSocketClient::~WebSocketClient() {
++    stop();
++}
++
++/*
++ * ParseUrl => createsocket => start =>
++ * TCP::onConnection => websocket_handshake => WS::onopen =>
++ * TCP::onMessage => WebSocketParser => WS::onmessage =>
++ * TCP::onConnection => WS::onclose
++ */
++int WebSocketClient::open(const char* _url, const http_headers& headers) {
++    close();
++
++    // ParseUrl
++    if (_url) {
++        if (strncmp(_url, "ws", 2) != 0) {
++            url = "ws://";
++            url += _url;
++        } else {
++            url = _url;
++        }
++    }
++    hlogi("%s", url.c_str());
++    if (!http_req_) {
++        http_req_ = std::make_shared<HttpRequest>();
++    }
++    // ws => http
++    http_req_->url = "http" + url.substr(2, -1);
++    http_req_->ParseUrl();
++
++    int connfd = createsocket(http_req_->port, http_req_->host.c_str());
++    if (connfd < 0) {
++        hloge("createsocket %s:%d return %d!", http_req_->host.c_str(), http_req_->port, connfd);
++        return connfd;
++    }
++
++    // wss
++    bool wss = strncmp(url.c_str(), "wss", 3) == 0;
++    if (wss && !http_req_->IsProxy()) {
++        withTLS();
++    }
++
++    for (auto& header : headers) {
++        http_req_->headers[header.first] = header.second;
++    }
++
+     state = CONNECTING;
+     start();
+     return 0;

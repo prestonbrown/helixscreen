@@ -18,6 +18,8 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "first_run_tour.h"
+#include "input_settings_manager.h"
+#include "lock_manager.h"
 #include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -33,6 +35,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 
 using namespace helix;
@@ -52,7 +55,7 @@ static void set_event_bubble_recursive(lv_obj_t* obj) {
 using helix::ui::clear_pressed_state_recursive;
 using helix::ui::disable_widget_clicks_recursive;
 
-HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
+HomePanel::HomePanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     // Subscribe to printer image changes for immediate refresh
     image_changed_observer_ = helix::ui::observe_int_sync<HomePanel>(
@@ -192,7 +195,7 @@ void HomePanel::build_carousel() {
     }
 
     // Add "+" tile for adding new pages
-    if (num_pages < kMaxPages) {
+    if (num_pages < MAX_PAGES) {
         add_page_tile_ = lv_obj_create(carousel_host_);
         lv_obj_set_size(add_page_tile_, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_bg_opa(add_page_tile_, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -559,8 +562,8 @@ void HomePanel::on_page_changed(int new_page) {
 
 void HomePanel::on_add_page_clicked() {
     auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
-    if (static_cast<int>(config.page_count()) >= kMaxPages) {
-        spdlog::info("[{}] Max page count reached ({})", get_name(), kMaxPages);
+    if (static_cast<int>(config.page_count()) >= MAX_PAGES) {
+        spdlog::info("[{}] Max page count reached ({})", get_name(), MAX_PAGES);
         return;
     }
 
@@ -775,11 +778,16 @@ void HomePanel::apply_printer_config() {
 }
 
 void HomePanel::refresh_printer_image() {
-    // Search all pages for the PrinterImageWidget
+    // Search all pages for the PrinterImageWidget.
+    //
+    // id() is the widget's factory-registration key, and the registry is a
+    // one-to-one map: an id names exactly one concrete PanelWidget subclass.
+    // Matching on it and then static_cast'ing is therefore equivalent to the
+    // dynamic_cast this replaces, and works under -fno-rtti (firmware).
     for (auto& page : page_widgets_) {
         for (auto& w : page) {
-            if (auto* piw = dynamic_cast<helix::PrinterImageWidget*>(w.get())) {
-                piw->refresh_printer_image();
+            if (w && std::strcmp(w->id(), helix::PrinterImageWidget::WIDGET_ID) == 0) {
+                static_cast<helix::PrinterImageWidget*>(w.get())->refresh_printer_image();
                 return;
             }
         }
@@ -787,11 +795,12 @@ void HomePanel::refresh_printer_image() {
 }
 
 void HomePanel::trigger_idle_runout_check() {
-    // Search all pages for the PrintStatusWidget
+    // Search all pages for the PrintStatusWidget (see refresh_printer_image()
+    // for why the id() match stands in for a dynamic_cast).
     for (auto& page : page_widgets_) {
         for (auto& w : page) {
-            if (auto* psw = dynamic_cast<helix::PrintStatusWidget*>(w.get())) {
-                psw->trigger_idle_runout_check();
+            if (w && std::strcmp(w->id(), helix::PrintStatusWidget::WIDGET_ID) == 0) {
+                static_cast<helix::PrintStatusWidget*>(w.get())->trigger_idle_runout_check();
                 return;
             }
         }
@@ -838,10 +847,24 @@ void HomePanel::ams_clicked_cb(lv_event_t* e) {
 
 /// Returns true if the active input device is interacting with a widget that
 /// consumes drag gestures — either scrolling (e.g., swiping a carousel) or
-/// dragging an arc/slider knob (e.g., adjusting fan speed). LVGL fires
-/// LONG_PRESSED based purely on hold duration, regardless of finger movement,
-/// so we must check for these interactions to prevent false edit mode entry.
+/// dragging an arc/slider knob (e.g., adjusting fan speed) — or if the screen
+/// is locked. LVGL fires LONG_PRESSED based purely on hold duration, regardless
+/// of finger movement, so we must check for these interactions to prevent false
+/// edit mode entry.
 static bool should_suppress_edit_mode(lv_event_t* e) {
+    // Global kill-switch: when the user has disabled home-screen edit mode
+    // (Touch & Input settings), no long-press enters it (#1245).
+    if (!helix::InputSettingsManager::instance().get_home_edit_mode_enabled())
+        return true;
+
+    // A hold that reaches the grid while the lock screen is up was never a
+    // request to rearrange widgets — the panel is not even the thing the user
+    // is looking at. Waking an Android device with a resting finger used to
+    // deliver exactly that, so edit mode activated underneath the PIN pad and
+    // was found once the PIN cleared (#1245).
+    if (helix::LockManager::instance().is_locked())
+        return true;
+
     lv_indev_t* indev = lv_indev_active();
     if (indev && lv_indev_get_scroll_obj(indev))
         return true;

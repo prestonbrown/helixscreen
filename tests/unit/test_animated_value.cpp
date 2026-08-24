@@ -337,3 +337,90 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: rebind cleans up prev
     lv_subject_deinit(&subject1);
     lv_subject_deinit(&subject2);
 }
+
+// ============================================================================
+// No-op Animation Regression Tests
+// ============================================================================
+//
+// lv_subject_add_observer() fires its callback immediately on registration
+// with the subject's current value (lv_observer.c:525). bind() has just set
+// target_value_ to that same value, so on_subject_changed() arrives with
+// new_value == target. With the default threshold of 0 the strict `<` check
+// (delta < threshold → 0 < 0) let the no-op fall through to start_animation(),
+// registering an lv_anim_t with start == end and var=this in LVGL's global
+// list. Two problems flow from that:
+//
+//   1. The move ctor copies anim_running_ but not the lv_anim_t.var pointer,
+//      so unbind() on the moved-to instance can't delete it (lv_anim_delete
+//      matches on var). The leftover animation dangles after the source is
+//      destroyed.
+//   2. The next test that pumps lv_timer_handler long enough for the no-op's
+//      completion callback to fire dereferences the stale var and SEGVs.
+//
+// That cascade is what made the unsharded full-suite crash at
+// test_clock_widget.cpp:157 (the first test after test_animated_value to call
+// process_lvgl past 1000ms). These tests pin both halves.
+
+TEST_CASE_METHOD(AnimatedValueTestFixture,
+                 "AnimatedValue: bind does not start a no-op animation for the initial value",
+                 "[animated_value]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 50);
+
+    const uint16_t anims_before = lv_anim_count_running();
+
+    AnimatedValue<int> animated;
+    animated.bind(&subject, [](int) {});
+
+    REQUIRE(animated.is_bound());
+    REQUIRE(!animated.is_animating());
+    REQUIRE(lv_anim_count_running() == anims_before); // No animation registered
+
+    animated.unbind();
+    lv_subject_deinit(&subject);
+}
+
+TEST_CASE_METHOD(AnimatedValueTestFixture,
+                 "AnimatedValue: bind does not start a no-op animation with explicit threshold 0",
+                 "[animated_value]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 100);
+
+    const uint16_t anims_before = lv_anim_count_running();
+
+    AnimatedValue<int> animated;
+    animated.bind(&subject, [](int) {}, {.threshold = 0});
+
+    REQUIRE(!animated.is_animating());
+    REQUIRE(lv_anim_count_running() == anims_before);
+
+    // A real change with threshold 0 must still animate — the fix is "no
+    // change", not "treat threshold 0 as infinity".
+    lv_subject_set_int(&subject, 200);
+    REQUIRE(animated.is_animating());
+
+    animated.unbind();
+    lv_subject_deinit(&subject);
+}
+
+TEST_CASE_METHOD(AnimatedValueTestFixture,
+                 "AnimatedValue: notification of the current value does not start an animation",
+                 "[animated_value]") {
+    lv_subject_t subject;
+    lv_subject_init_int(&subject, 50);
+
+    AnimatedValue<int> animated;
+    animated.bind(&subject, [](int) {});
+    REQUIRE(!animated.is_animating());
+
+    const uint16_t anims_before = lv_anim_count_running();
+
+    // Re-setting the same value must be a no-op, not a 50→50 animation.
+    lv_subject_set_int(&subject, 50);
+
+    REQUIRE(!animated.is_animating());
+    REQUIRE(lv_anim_count_running() == anims_before);
+
+    animated.unbind();
+    lv_subject_deinit(&subject);
+}

@@ -892,8 +892,7 @@ TEST_CASE("find_unresolved_tools", "[filament_mapper]") {
     }
 }
 
-TEST_CASE("compute_defaults all slots empty leaves tool unmatched",
-          "[filament_mapper][compute]") {
+TEST_CASE("compute_defaults all slots empty leaves tool unmatched", "[filament_mapper][compute]") {
     std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}};
     std::vector<AvailableSlot> slots = {
         {0, 0, 0x000000, "", true, -1},
@@ -1076,8 +1075,9 @@ TEST_CASE("compute_defaults flags multiple mismatches in multi-tool scenario",
 
 TEST_CASE("materials_match handles non-AMS external spool comparison",
           "[filament_mapper][material_mismatch]") {
-    // These are the exact comparisons PrintStartController::find_material_mismatches()
-    // performs for non-AMS printers (gcode filament_type vs external spool material)
+    // These are the exact comparisons the material_compatibility gate
+    // (print_start_checks.cpp) performs for non-AMS printers (gcode
+    // filament_type vs external spool material)
 
     SECTION("exact match is compatible") {
         CHECK(FilamentMapper::materials_match("PLA", "PLA"));
@@ -1210,7 +1210,7 @@ ToolMapping unresolved(int tool_idx) {
 } // namespace
 
 TEST_CASE("resolve_display_colors uses loaded slot color for mapped tools", "[filament]") {
-    std::vector<GcodeToolInfo> tools = {tool(0, 0xFFFF00)};   // slicer yellow
+    std::vector<GcodeToolInfo> tools = {tool(0, 0xFFFF00)};    // slicer yellow
     std::vector<AvailableSlot> slots = {slot(3, 0, 0x0000FF)}; // slot 3 loaded blue
     std::vector<ToolMapping> mappings = {mapped(0, 3, 0)};     // T0 -> slot 3
 

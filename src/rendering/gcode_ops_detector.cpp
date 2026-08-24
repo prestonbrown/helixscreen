@@ -28,6 +28,43 @@ std::string DetectedOperation::display_name() const {
 // PrintStartCallInfo implementation
 // ============================================================================
 
+namespace {
+
+/// Extract the first stated numeric value for a parameter key (case-insensitive)
+/// from a whitespace-separated KEY=VALUE token list. Returns 0 when absent or
+/// non-numeric.
+int temp_from_call_line(const std::string& line, const char* key) {
+    std::istringstream tokens(line);
+    std::string token;
+    const std::string key_upper = helix::to_upper(key);
+    while (tokens >> token) {
+        const size_t eq = token.find('=');
+        if (eq == std::string::npos)
+            continue;
+        if (helix::to_upper(token.substr(0, eq)) != key_upper)
+            continue;
+        try {
+            return static_cast<int>(std::stof(token.substr(eq + 1)));
+        } catch (const std::exception&) {
+            return 0;
+        }
+    }
+    return 0;
+}
+
+void parse_call_temps(const std::string& line, PrintStartCallInfo& call) {
+    // Explicit _TEMP spellings win over the short aliases so a line carrying
+    // both keeps the precise one ("BED_TEMP=100 BED=60" -> 100).
+    call.extruder_temp = temp_from_call_line(line, "EXTRUDER_TEMP");
+    if (call.extruder_temp == 0)
+        call.extruder_temp = temp_from_call_line(line, "EXTRUDER");
+    call.bed_temp = temp_from_call_line(line, "BED_TEMP");
+    if (call.bed_temp == 0)
+        call.bed_temp = temp_from_call_line(line, "BED");
+}
+
+} // namespace
+
 std::string PrintStartCallInfo::with_skip_params(
     const std::vector<std::pair<std::string, std::string>>& skip_params) const {
     if (!found || skip_params.empty()) {
@@ -208,6 +245,7 @@ ScanResult GCodeOpsDetector::scan_stream(std::istream& stream) const {
                     result.print_start.raw_line = line;
                     result.print_start.line_number = line_number;
                     result.print_start.byte_offset = byte_offset;
+                    parse_call_temps(line, result.print_start);
 
                     spdlog::debug("[GCodeOpsDetector] Found {} call at line {}: {}",
                                   result.print_start.macro_name, line_number,

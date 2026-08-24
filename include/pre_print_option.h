@@ -71,7 +71,25 @@ struct PrePrintStrategyMacroParam {
 /// `PreStartGcode`: a gcode line emitted before the start macro. The literal
 /// substring `{value}` is interpolated to `1` when enabled, `0` when disabled.
 struct PrePrintStrategyPreStartGcode {
+    /// Placeholders: `{value}` (1/0 toggle state), `{file}`, `{bed_temp}`,
+    /// `{extruder_temp}` — see PreStartGcodeContext.
+    ///
+    /// Passing the job's real temperatures matters when the macro would
+    /// otherwise fall back to a config default: Creality's
+    /// BED_MESH_CALIBRATE_START_PRINT meshes at `default_bed_temp` (50C) unless
+    /// given BED_TEMP, so omitting it makes the printer sit through a cooldown
+    /// from print temp and then mesh at the wrong one.
     std::string gcode_template;
+
+    /// Whether to emit the line when the user has the option switched OFF.
+    ///
+    /// True (default) suits a macro that takes the state as an argument —
+    /// `LOAD_AI_RUN SWITCH={value}` must fire either way to turn AI detection
+    /// off. False suits a macro with no off form, where "disabled" can only be
+    /// expressed by sending nothing: Creality's BED_MESH_CALIBRATE_START_PRINT
+    /// meshes unconditionally when called, so emitting it with a 0 would still
+    /// mesh.
+    bool emit_when_disabled = true;
 };
 
 /// `QueueAheadJob`: queue another job (a calibration print) ahead of this one.
@@ -96,11 +114,13 @@ using PrePrintStrategyPayload =
  * Definitions live in `printer_database.json` per-printer. Labels and
  * descriptions are i18n keys resolved by the UI layer.
  *
- * i18n: the `pre_print_option.*` keys these fields hold are stored as JSON data
- * in assets/config/printer_database.json (plus a few built in C++, e.g. the
+ * i18n: the keys these fields hold are stored as JSON data in
+ * assets/config/printer_database.json (plus a few built in C++, e.g. the
  * timelapse option in printer_state.cpp), so no lv_tr("...") call names them.
  * `translation_sync obsolete` picks them up via its reference scan over
- * assets/; they must stay in the per-locale YAML under translations/.
+ * assets/; they must stay in the per-locale YAML under translations/. Keys
+ * must be their own English text — English registers no translation pack
+ * (translation_loader.cpp), so a semantic key renders RAW in the English UI.
  */
 struct PrePrintOption {
     std::string id;              ///< Stable identifier, e.g. "bed_mesh", "ai_detect"
@@ -201,7 +221,17 @@ std::string render_macro_param(const PrePrintOption& opt, bool enabled);
  *
  * Returns the empty string if the option is not a `PreStartGcode` strategy.
  */
-std::string render_pre_start_gcode(const PrePrintOption& opt, bool enabled);
+/// Values a pre-start gcode template can interpolate about the job it prepares
+/// for. Zero temperatures mean "unknown" and render as 0, leaving the firmware
+/// macro free to apply its own default.
+struct PreStartGcodeContext {
+    std::string filename;  ///< `{file}`
+    int bed_temp = 0;      ///< `{bed_temp}` — first-layer bed target, degrees C
+    int extruder_temp = 0; ///< `{extruder_temp}` — first-layer nozzle target, degrees C
+};
+
+std::string render_pre_start_gcode(const PrePrintOption& opt, bool enabled,
+                                   const PreStartGcodeContext& ctx = {});
 
 /**
  * @brief True iff `opt` declares a `requires_macro` AND that macro is not

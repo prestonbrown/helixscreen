@@ -26,6 +26,12 @@ class M300SoundBackend : public SoundBackend {
     void silence() override;
     float min_tick_ms() const override;
 
+    /// M300 beeps are G-code sent to the printer, so this backend is only
+    /// meaningful while a Moonraker client is attached.
+    bool needs_moonraker_client() const override {
+        return true;
+    }
+
   private:
     GcodeSender sender_;
     int last_freq_ = 0;

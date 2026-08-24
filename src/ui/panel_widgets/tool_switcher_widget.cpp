@@ -119,15 +119,24 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Re-grey on every print-state transition. PanelWidget instances are
     // RECYCLED across home-panel rebuilds, so registering here (rather than
     // only reacting to on_size_changed) is what keeps a reused instance from
-    // carrying the previous screen's gating. print_state_enum is a static
-    // global subject — no SubjectLifetime needed.
+    // carrying the previous screen's gating. print_lifecycle rather than
+    // print_state_enum: the gate now refuses during Preparing, and the raw enum
+    // does not move on the Idle -> Preparing edge, so the pills would stay lit
+    // through a host-side pre-print block even with the guard fixed.
+    //
+    // Takes the lifetime token. print_lifecycle is one of PrinterPrintState's
+    // static subjects, torn down by deinit_subjects() between test cases, and an
+    // ObserverGuard that outlives that cycle calls lv_observer_remove() on freed
+    // memory (#705). The comment here used to claim none was needed; its two
+    // sibling call sites (ui_panel_filament, ui_ams_sidebar) both pass it.
     print_state_observer_ = helix::ui::observe_int_sync<ToolSwitcherWidget>(
-        printer_state_.get_print_state_enum_subject(), this,
+        printer_state_.get_print_lifecycle_subject(), this,
         [token](ToolSwitcherWidget* self, int /*state*/) {
             if (token.expired())
                 return;
             self->refresh_print_gating();
-        });
+        },
+        printer_state_.get_static_print_subjects_lifetime());
 
     // Initial build deferred to on_size_changed() which fires after
     // the widget is fully attached to the screen tree.
@@ -136,7 +145,7 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
 void ToolSwitcherWidget::detach() {
     lifetime_.invalidate();
-    dismiss_tool_picker();
+    picker_.hide();
     active_tool_observer_.reset();
     tool_count_observer_.reset();
     print_state_observer_.reset();
@@ -465,7 +474,7 @@ void ToolSwitcherWidget::rebuild_compact() {
 // ============================================================================
 
 void ToolSwitcherWidget::show_tool_picker() {
-    if (picker_backdrop_ || !parent_screen_) {
+    if (picker_.is_visible() || !parent_screen_ || !widget_obj_) {
         return;
     }
 
@@ -478,63 +487,37 @@ void ToolSwitcherWidget::show_tool_picker() {
         return;
     }
 
+    if (ToolState::instance().tools().empty()) {
+        return;
+    }
+
+    // The card hangs off the widget tile's left edge, so the tool names line up
+    // with the compact readout they replace.
+    picker_.show_below_widget(parent_screen_, widget_obj_,
+                              helix::ui::ContextMenu::AnchorAlign::Left);
+}
+
+void ToolSwitcherWidget::ToolPicker::on_created(lv_obj_t* backdrop) {
+    lv_obj_t* tool_list = lv_obj_find_by_name(backdrop, "tool_list");
+    if (!tool_list) {
+        spdlog::error("[ToolSwitcher] tool_list not found in picker XML");
+        return;
+    }
+
+    // The card is as wide as the widget tile it hangs off, so the buttons inside
+    // it line up with the compact readout. Set before the rows are built: they are
+    // width="100%" and cannot resolve against a width="content" card.
+    if (lv_obj_t* menu_card = card()) {
+        lv_obj_set_width(menu_card, lv_obj_get_width(owner_.widget_obj_));
+    }
+
+    // Cap the list at a share of the screen so a 15-lane AFC scrolls the list
+    // instead of growing the card past the panel.
+    lv_obj_set_style_max_height(tool_list, screen_height_pct(60), 0);
+
     auto& tool_state = ToolState::instance();
     const auto& tools = tool_state.tools();
     int active = tool_state.active_tool_index();
-
-    if (tools.empty())
-        return;
-
-    int space_xs = resolve_space_token("space_xs", 4);
-
-    int screen_w = lv_obj_get_width(parent_screen_);
-    int screen_h = lv_obj_get_height(parent_screen_);
-
-    // Backdrop (full screen, transparent, catches clicks to dismiss)
-    picker_backdrop_ = lv_obj_create(parent_screen_);
-    lv_obj_set_size(picker_backdrop_, screen_w, screen_h);
-    lv_obj_set_pos(picker_backdrop_, 0, 0);
-    lv_obj_set_style_bg_color(picker_backdrop_, theme_manager_get_color("screen_bg"), 0);
-    lv_obj_set_style_bg_opa(picker_backdrop_, LV_OPA_50, 0);
-    lv_obj_set_style_border_width(picker_backdrop_, 0, 0);
-    lv_obj_set_style_radius(picker_backdrop_, 0, 0);
-    lv_obj_remove_flag(picker_backdrop_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(picker_backdrop_, LV_OBJ_FLAG_CLICKABLE);
-
-    // Backdrop click dismisses picker
-    lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* /*e*/) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] backdrop_cb");
-            if (s_active_instance) {
-                s_active_instance->dismiss_tool_picker();
-            }
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        LV_EVENT_CLICKED, nullptr);
-
-    // Context menu — compact card positioned at the widget, no title
-    lv_obj_t* card = lv_obj_create(picker_backdrop_);
-    // Match widget width so buttons fill naturally via 100%
-    int card_w = widget_obj_ ? lv_obj_get_width(widget_obj_) : 120;
-    lv_obj_set_width(card, card_w);
-    lv_obj_set_height(card, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(card, theme_manager_get_color("elevated_bg"), 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(card, resolve_space_token("space_sm", 8), 0);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_color(card, theme_manager_get_color("border"), 0);
-    lv_obj_set_style_pad_all(card, space_xs, 0);
-    lv_obj_set_style_pad_gap(card, space_xs, 0);
-    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scroll_dir(card, LV_DIR_VER);
-    // Leave scrollbar at its default (LV_SCROLLBAR_MODE_AUTO) so users see a visible
-    // indicator that more entries exist — this is a dropdown, not a drag-discovery surface.
-
-    // Buttons in a simple column — one per tool
-    // Context menu = single column of buttons directly in card
 
     lv_obj_t* active_btn_in_picker = nullptr;
     for (size_t i = 0; i < tools.size(); ++i) {
@@ -543,7 +526,7 @@ void ToolSwitcherWidget::show_tool_picker() {
         // Create picker button from XML template
         const char* btn_attrs[] = {"tool_text", tools[i].name.c_str(), nullptr};
         lv_obj_t* picker_btn =
-            static_cast<lv_obj_t*>(lv_xml_create(card, "tool_picker_button", btn_attrs));
+            static_cast<lv_obj_t*>(lv_xml_create(tool_list, "tool_picker_button", btn_attrs));
         if (!picker_btn) {
             spdlog::error("[ToolSwitcher] lv_xml_create('tool_picker_button') returned NULL");
             continue;
@@ -551,97 +534,49 @@ void ToolSwitcherWidget::show_tool_picker() {
 
         // Find the actual ui_button — context menu buttons are full width
         lv_obj_t* btn = lv_obj_find_by_name(picker_btn, "tool_btn");
-        if (btn) {
-            lv_obj_set_width(picker_btn, LV_PCT(100));
-            lv_obj_set_width(btn, LV_PCT(100));
-
-            // Active tool: use primary variant styling (let ui_button handle colors)
-            if (is_active) {
-                active_btn_in_picker = picker_btn;
-                // ui_button "ghost" doesn't have a bg — set primary bg directly
-                lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
-                lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-                lv_obj_t* label = lv_obj_find_by_name(picker_btn, "tool_btn_label");
-                if (label) {
-                    lv_obj_set_style_text_color(label, theme_manager_get_color("screen_bg"), 0);
-                }
-            }
-
-            // Pass tool index via event callback user_data (NOT obj user_data — L069:
-            // ui_button already owns obj user_data for its internal button_data_t)
-            lv_obj_add_event_cb(
-                btn,
-                [](lv_event_t* e) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] picker_tool_click");
-                    if (!s_active_instance)
-                        return;
-                    int idx =
-                        static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
-                    s_active_instance->handle_tool_selected(idx);
-                    s_active_instance->dismiss_tool_picker();
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+        if (!btn) {
+            continue;
         }
+        lv_obj_set_width(picker_btn, LV_PCT(100));
+        lv_obj_set_width(btn, LV_PCT(100));
+
+        // Active tool: use primary variant styling (let ui_button handle colors)
+        if (is_active) {
+            active_btn_in_picker = picker_btn;
+            // ui_button "ghost" doesn't have a bg — set primary bg directly
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+            lv_obj_t* label = lv_obj_find_by_name(picker_btn, "tool_btn_label");
+            if (label) {
+                lv_obj_set_style_text_color(label, theme_manager_get_color("screen_bg"), 0);
+            }
+        }
+
+        // Pass tool index via event callback user_data (NOT obj user_data — L069:
+        // ui_button already owns obj user_data for its internal button_data_t)
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* e) {
+                LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] picker_tool_click");
+                auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>();
+                if (!picker)
+                    return;
+                int idx = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
+                ToolSwitcherWidget& owner = picker->owner_;
+                picker->hide();
+                owner.handle_tool_selected(idx);
+                LVGL_SAFE_EVENT_CB_END();
+            },
+            LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
     }
 
-    // Position context menu right above/below the widget
-    lv_obj_update_layout(card);
-
-    // Cap card height at 60% of screen so a long tool list (e.g. AFC 15-lane)
-    // doesn't overflow vertically — once capped, the scrollable card lets the
-    // user reach hidden entries via vertical scroll.
-    int max_card_h = (screen_h * 6) / 10;
-    int natural_h = lv_obj_get_height(card);
-    if (natural_h > max_card_h) {
-        lv_obj_set_height(card, max_card_h);
-        lv_obj_update_layout(card);
-    }
-
-    // Scroll the active tool into view inside the (possibly clamped) card.
+    // Scroll the active tool into view inside the capped list.
     if (active_btn_in_picker) {
+        lv_obj_update_layout(tool_list);
         lv_obj_scroll_to_view(active_btn_in_picker, LV_ANIM_OFF);
     }
 
-    int card_h = lv_obj_get_height(card);
-    int card_actual_w = lv_obj_get_width(card);
-
-    if (widget_obj_) {
-        lv_area_t widget_coords;
-        lv_obj_get_coords(widget_obj_, &widget_coords);
-
-        // Align left edge of menu with left edge of widget
-        int card_x = widget_coords.x1;
-        // Place above widget
-        int card_y = widget_coords.y1 - card_h - space_xs;
-
-        // Clamp to screen bounds
-        card_x = std::clamp(card_x, space_xs, screen_w - card_actual_w - space_xs);
-        if (card_y < space_xs) {
-            // Not enough room above — place below
-            card_y = widget_coords.y2 + space_xs;
-        }
-        if (card_y + card_h > screen_h - space_xs) {
-            lv_obj_center(card);
-        } else {
-            lv_obj_set_pos(card, card_x, card_y);
-        }
-    } else {
-        lv_obj_center(card);
-    }
-
-    spdlog::debug("[ToolSwitcher] Picker shown with {} tools", tools.size());
-}
-
-void ToolSwitcherWidget::dismiss_tool_picker() {
-    if (!picker_backdrop_)
-        return;
-
-    // Use deferred deletion to avoid destroying the event source during
-    // event processing (picker button click calls dismiss then handle_tool_selected)
-    helix::ui::safe_delete_deferred(picker_backdrop_);
-
-    spdlog::debug("[ToolSwitcher] Picker dismissed");
+    spdlog::debug("[ToolSwitcher] Picker built with {} tools", tools.size());
 }
 
 // ============================================================================
@@ -649,17 +584,15 @@ void ToolSwitcherWidget::dismiss_tool_picker() {
 // ============================================================================
 
 AmsError ToolSwitcherWidget::tool_change_refusal() const {
-    const auto job_state = static_cast<PrintJobState>(
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-    const bool printing = job_state == PrintJobState::PRINTING;
-    const bool paused = job_state == PrintJobState::PAUSED;
+    const auto lifecycle = printer_state_.get_print_lifecycle();
+    const bool paused = lifecycle == PrintState::Paused;
 
     // No backend means a plain Tn / macro path with no firmware macro that could
     // hide a home — the documented argument for passing false here.
     AmsBackend* backend = AmsState::instance().get_backend();
     const bool self_homes = backend && backend->filament_ops_self_home();
 
-    if (!helix::ui::print_blocks_filament_op(printing, paused, self_homes)) {
+    if (!helix::ui::print_blocks_filament_op(lifecycle, self_homes)) {
         return AmsErrorHelper::success();
     }
     // Same copy the backend would have produced had the request reached it, so
@@ -739,9 +672,8 @@ void ToolSwitcherWidget::handle_tool_selected(int tool_index) {
     // paused job (everything except AD5X IFS) — pause-then-swap is the runout
     // and colour-change recovery workflow, so the change is offered, with a
     // confirmation because it moves the toolhead into a part still on the bed.
-    const auto job_state = static_cast<PrintJobState>(
-        lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-    if (job_state == PrintJobState::PAUSED) {
+    const auto lifecycle = printer_state_.get_print_lifecycle();
+    if (lifecycle == PrintState::Paused) {
         spdlog::info("[ToolSwitcher] Print paused, showing confirmation for T{}", tool_index);
 
         helix::ui::modal_show_confirmation(

@@ -138,9 +138,9 @@ TEST_CASE("AFC current_error carries the fault text and a recovery set", "[ams][
         CHECK_FALSE(afc.current_error().has_value());
 
         // A non-error message must not manufacture one.
-        afc.feed_afc(nlohmann::json{
-            {"current_state", "Idle"},
-            {"message", nlohmann::json{{"message", "Lane 2 ready"}, {"type", ""}}}});
+        afc.feed_afc(
+            nlohmann::json{{"current_state", "Idle"},
+                           {"message", nlohmann::json{{"message", "Lane 2 ready"}, {"type", ""}}}});
         CHECK_FALSE(afc.current_error().has_value());
     }
 

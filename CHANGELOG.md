@@ -5,7 +5,685 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.99.115] - 2026-08-20
+
+<!-- whatsnew
+The second 1.0 release candidate. Highlights:
+
+- Printers are no longer guessed at from thin evidence, and you can correct the model yourself
+- The window between pressing Print and the first layer is now tracked properly
+- Buttons no longer send macros your printer does not have
+- Input shaper sweeps your printer's real frequency range and shows what changed
+- K2 Auto Bed Mesh actually meshes, at the job's own temperatures
+- Fixes for crashes in the power panel and panel navigation
+-->
+
+**This is the second 1.0 release candidate**, following 0.99.114. The bulk of the work is in two
+areas: identifying your printer honestly rather than guessing, and modelling the preparation
+window between pressing Print and the first layer going down.
+
+### Added
+
+- **Printer model picker.** Printer Manager's model row is now editable. If your printer was set
+  up as the wrong model, you can correct it without deleting the printer and starting over.
+- **Print preparation is a tracked job.** The window between pressing Print and the first layer
+  now has its own lifecycle, so the print card, media, progress and completion reporting follow
+  it instead of showing the previous print or reading as idle.
+- **Bypass toggle home-screen widget**, with print-start gating and runout arming.
+- **Instant filament colour chips** on the print detail page, answered from a cached G-code read
+  keyed by path, size and modification time.
+- **Input shaper** now sweeps the printer's real frequency range, shows an old-versus-new delta,
+  displays a spinner with elapsed seconds during analysis, and warns when firmware overwrites the
+  X result.
+- **AMS spool retention.** A Keep Spool Info on Eject toggle, surfaced over the eject control on
+  firmware that reports spool IDs, plus external spool support on CFS.
+- **New pre-print checks:** bypass engaged, unaccounted toolhead, and a warning when the filament
+  grade changes rather than only when the material does.
+- **Homing delegation.** Printers whose filament system homes for them no longer get a redundant
+  home prompt or G28.
+
+### Fixed
+
+**Printer identification**
+
+- Detection no longer saves a low-confidence guess. Below 85% confidence it records nothing and
+  leaves the choice to you, so a later reconnect or your own correction settles it.
+- The detector was running without most of its evidence: the Klipper object list was classified
+  but never retained on the command-line detection path, so every object-existence and macro
+  heuristic silently scored zero. That path is what the installer uses to seed a printer preset.
+- Build volume now reaches detection during discovery instead of arriving afterwards. It can
+  break a tie between otherwise identical printers, but can never identify one on its own.
+- An LED named `chamber_light` no longer reads as a FlashForge Adventurer 5M Pro. Two users'
+  Vorons were labelled that way.
+- When a saved printer type contradicts what the hardware says, the warning now records why it
+  declined to prompt, so a debug bundle can explain itself.
+
+**Macros and filament**
+
+- Configured macro buttons are verified against the printer. A macro your printer does not have
+  no longer reaches the dispatch path, where it outranked the filament system itself and
+  dead-ended the fallbacks beneath it.
+- AFC's toolchange counter is read as the 1-based count it is, so a print no longer ends at
+  "162 / 161".
+- AFC lane data keyed by tool number resolves through the tool mapping, and mapping resets use
+  the name the firmware actually accepts.
+- CFS auto-refill and colour writes match Creality's own screen, and bypass unload uses the
+  extruder rather than the box's bay retract.
+
+**Crashes**
+
+- Navigation kept raw pointers to panels after their widgets were deleted, and wrote through
+  them from queued updates.
+- The power panel kept cached widget pointers past their tree's death, and deleted device rows
+  from inside a queued batch.
+
+**Printing**
+
+- The K2 Auto Bed Mesh toggle now actually meshes, at the job's own temperatures, with its points
+  counted once.
+- A print that dies inside PRINT_START is reported as a failure and cools down, instead of
+  hanging in preparation.
+- Print status resolves media from the preparing job rather than the previous print, and runs its
+  per-job resets for prints started in the app.
+- Pre-print blocks no longer leave the home screen's print card reading idle.
+- The post-unload runout grace is bounded and no longer consumed by gated calls.
+
+**Screens and widgets**
+
+- Two-dimensional G-code view responds to tap and long-press for object selection, and will not
+  select geometry it did not draw.
+- Loaded filament colour survives a render-mode switch.
+- Gated tiles no longer open panels for hardware that is not present.
+- Active Spool widget text stays inside its card.
+- Touch calibration draws its capture dots through the pre-session calibration.
+
+**Installation**
+
+- Free space is checked before the cross-filesystem install swap, scratch directories are
+  reclaimed, and the build host's user and group IDs no longer ship into installs.
+
+### Changed
+
+- Bed-size heuristics now corroborate a printer match rather than establishing one. At common bed
+  sizes a dozen or more printer entries claim the same dimensions, so bed size alone is not
+  identifying evidence.
+- Printer detection may legitimately return no answer. Two printers that present identically over
+  Moonraker are ambiguous, and declining is preferred to guessing.
+
+## [0.99.114] - 2026-08-16
+
+<!-- whatsnew
+The 1.0 release candidate. Highlights:
+
+- Fixes a lit-but-frozen screen on Centauri Carbon and AD5M
+- Idle printers no longer refuse jogs as "busy"
+- A Klipper shutdown is no longer displayed as Ready
+- CFS: checks filament really moved, plus fan and recovery fixes on K1
+- AFC: correct buffer health, tool numbers and spool names
+- Single-hotend printers stop reporting tools they do not have
+- Dialogs fit on small screens
+- New Hazard theme, and lower memory use throughout
+-->
+
+**This is the 1.0 release candidate.** It is the code intended to ship as 1.0.0, published as
+an ordinary 0.99.x update so that everyone gets it rather than only people who opted into a
+beta channel. If it holds up in the field, 1.0.0 follows with no further changes. If it does
+not, the fix ships as 0.99.115 and no bad 1.0.0 ever exists.
+
+This started as a sweep through every issue still open against 1.0 and turned into the largest
+release the project has shipped. Two fixes stand out because both presented the same way, as
+"the printer stopped responding", with nothing in the log to explain it. Waking the display
+could park the UI thread on a lock and leave a lit screen ignoring every touch, in one case for
+36 minutes. And a Klipper shutdown could be overwritten by a stale snapshot replayed at the end
+of discovery, so the app showed Ready for two and a half minutes while the printer was down,
+re-enabled navigation and kept sending commands to a dead printer.
+
+Several other defects had gone unnoticed because the wrong thing was being measured: the
+Lifetime Print Stats tile quietly reported only your most recent 500 jobs, accelerometers were
+never discovered at all so Settings > Sensors was empty on every printer that has one, and two
+printers were missing the database entry that applies their preset.
+
+### Added
+
+- **A new theme, Hazard.** ANSI Z535 safety colours on powder-coated black: caution yellow,
+  orange for warning, red for danger, with sharp corners and brass seams. Dark-only.
+- HelixScreen now detects and reports a hung UI main loop, so a freeze leaves evidence behind
+  instead of looking like a dead process. Detection only, nothing is killed. The threshold
+  defaults to 60 seconds and is settable at runtime or with `HELIX_HANG_THRESHOLD_SEC`.
+- When updates cannot be installed, the notice is now a row you can tap. It explains how to
+  update from a terminal and shows a QR code to the documentation.
+- The Android app is documented in the README and the install guide: which of the three APKs to
+  take, why the `.aab` is not for users, sideloading, permissions, and the uninstall needed to
+  move to a future Play Store build.
+- `helix-screen ctl` can address unnamed widgets and set label text directly, which makes far
+  more of the interface reachable for scripted testing and screenshots.
+
+### Fixed
+
+**Freezes and connection state**
+
+- **A lit screen that ignored every touch.** Waking the display forced a WebSocket reconnect on
+  the UI thread, and that reconnect waits for in-flight callbacks with no time bound, so one
+  undrained callback parked the main loop permanently. Seen on Centauri Carbon and AD5M and
+  confirmed on two wedged devices. The reconnect is now Android-only, where it is actually
+  needed, and the wait is bounded
+  ([#1245](https://github.com/prestonbrown/helixscreen/issues/1245)).
+- **A Klipper shutdown could be displayed as Ready.** Klippy state arrives from two unordered
+  sources, and the snapshot replayed at the end of discovery could put Ready back over a live
+  shutdown. That re-enabled the nav buttons, auto-dismissed the recovery dialog moments after it
+  correctly appeared, and let commands through to a dead printer. Live frames now win over
+  replayed ones. Relatedly, an unrecognised printer state no longer falls back to Ready.
+- **Jogs refused as "Printer is busy" on an idle printer.** Klipper reports the idle timeout as
+  Printing while any gcode runs at all, so housekeeping loops such as bed fan timers, air filter
+  timers and AFC's own prep made roughly 7% of jog attempts bounce. HelixScreen now waits for a
+  full second of continuous activity before it treats the printer as busy.
+- **The change-Moonraker-address prompt landed on top of the setup wizard.** On a fresh install
+  it appeared about a minute in, over the wizard's own Connection step, giving two competing
+  host-entry dialogs.
+
+**Creality CFS** ([#968](https://github.com/prestonbrown/helixscreen/issues/968), [#1278](https://github.com/prestonbrown/helixscreen/issues/1278))
+
+- **CFS operations now verify that filament actually moved.** A load or unload the firmware
+  reports as finished is checked against the toolhead sensor, and a mismatch raises a fault with
+  its own recovery action rather than being reported as success.
+- **The part-cooling fan no longer blows on the nozzle during every K1 load, cut and flush**, and
+  two runout messages that previously paused the print with no dialog at all now show one. Both
+  came from commands wrongly believed absent on K1; the K1 firmware image proves otherwise.
+- **CFS error recovery works on K1.** It was sending a resume command that firmware does not
+  register, so the box never resumed.
+- Filament changes no longer pass a parameter the firmware does not accept, so the purge runs at
+  your configured length instead of silently falling back to defaults.
+- The filament code catalog is cached rather than re-parsed on every box update, which was a
+  100 KB parse every time a spool moved.
+
+**AFC and BoxTurtle**
+
+- **Buffer health is attributed to the right unit and stays there.** On multi-unit rigs it landed
+  on unit 0 for every unit, then went blank for minutes until the firmware happened to push a
+  change. Found on a five-unit rig.
+- **A Snapmaker U1 with five units drew six toolheads for four extruders, all claiming T0.** AFC
+  publishes free-form config section names, and six places parsed them with a grammar that only
+  fits Klipper's own. They now resolve names the way Klipper does.
+- **Spool names and vendors resolve from AFC's lane data** using the key names AFC actually
+  publishes.
+- **Spoolman users are no longer told to upgrade AFC to get filament names.** Names already
+  resolve through Spoolman; multi-colour spools are the part that needs the newer AFC, and the
+  notice now says so.
+- **A spurious warning told users to add an `extruder_name` setting AFC refuses to start
+  without.** It fired because the config query lands just after the first status frames.
+- AFC lanes follow the firmware's own `current_map` rather than guessing the lowest tool number,
+  so multi-tool lanes drive the tool the firmware actually selected.
+- Spool assignments are no longer rewritten on weight noise. A lane reporting weight as a float
+  that drifts by hundredths caused 590 rewrites of the spool file, 590 database writes and 590
+  filament-panel rebuilds in a single session.
+- Config writes no longer trigger a full file-list reload. An AFC rig caused 113 complete
+  directory round trips in one session while the user sat on the print status screen.
+
+**Tool and nozzle counts**
+
+- **A single-hotend printer behind a 4-lane AMS no longer reports four tools.** The nozzle label,
+  the print-status tool badge, its chevron and the nozzle picker all counted lanes rather than
+  hotends, and the picker went on to offer nozzles the printer does not have.
+- **Preheating "All" on such a printer sent the same target four times** and the confirmation
+  claimed it had heated four tools.
+- **A 4-port AD5X no longer advertises a 16-tool machine.** It was reporting every addressable
+  tool number the firmware register can hold rather than the ones actually mapped.
+
+**AMS and filament**
+
+- **`PLA+`, `PA6-CF`, `PETG-CF` and every other punctuated material name were silently dropped**
+  while the save reported success. Our own filament database ships `PLA+`. Names containing a
+  space, such as `Silk PLA`, never worked either.
+- **A fifth AMS unit produced parser warnings and a permanently dark temperature and humidity
+  badge.** The unit limit is raised to eight, and the environment overlay stops showing unit 0's
+  humidity for every unit.
+- **Spools with no usable weight are drawn full rather than half full**, which had read as half
+  gone. Four places in the interface had drifted to different answers and now agree.
+- A crash when opening the AMS context menu, and a deadlock risk on Snapmaker hardware, are both
+  closed.
+
+**Screens, dialogs and widgets**
+
+- **On small displays a modal's button row could fall off the bottom of the card**, leaving a
+  dialog that could not be dismissed. Every breakpoint's limit is now measured from the real
+  modal on screen and re-verified from 480x272 up to 2560x1440
+  ([#1277](https://github.com/prestonbrown/helixscreen/issues/1277)).
+- **A home-screen widget that would not fit announced itself as "removed" on every launch**, and
+  a widget that was enabled but held no cell showed in the catalog as placed, greyed out and
+  impossible to select or remove.
+- **Widget content no longer clips or wraps one letter per line on larger displays.** The size
+  bands were a single set of pixel values calibrated for small screens.
+- Row 2 of Calibration & Tools no longer runs its labels together when it carries four
+  conditional buttons.
+- Toggling the printer switcher in the navbar takes effect immediately instead of waiting until
+  you leave the overlay.
+- A crash in grid edit mode when deleting a widget mid-resize is fixed.
+- The print status header no longer shows an empty action button during a print.
+- Page-scroll chevrons on the home screen stop landing on a widget's own content.
+- Several dialogs that could grow past the screen are capped and scroll properly: AMS loading
+  errors, the shutdown and recovery dialogs, and action prompts. The AFC fault diagram no longer
+  sits inside the scrolling text area.
+
+**Z-offset**
+
+- **The Z-Offset row showed 0.000 whenever an AD5M or AD5X was idle, and adjusting it while idle
+  could throw away your real offset.** ZMOD keeps the authoritative offset in its own storage and
+  clears Klipper's live one when a print ends, so an idle nudge was applied to a phantom zero and
+  that is what got saved. HelixScreen now reads the stored value, shows it while idle, and sends
+  an absolute adjustment when the live offset is not the real base.
+- **A printer whose offset sits past 2mm is no longer yanked down to 2.000 on the first tap** in
+  the tune overlay, which drove the nozzle into the print. The limit now applies to how far one
+  tuning session can travel, not to the offset itself
+  ([#1280](https://github.com/prestonbrown/helixscreen/issues/1280)).
+
+**Print history and status**
+
+- The Lifetime Print Stats tile now reports true lifetime totals from Moonraker instead of
+  summing the most recent 500 jobs. If your totals disagreed with Mainsail, this was why
+  ([#1272](https://github.com/prestonbrown/helixscreen/issues/1272)).
+- The idle "Reprint Last" tile no longer offers a file you deleted.
+- A prompt button whose macro fails now reports Klipper's own error message instead of closing
+  the dialog and leaving an empty screen.
+
+**Hardware, printers and presets**
+
+- Accelerometers are discovered again. Settings > Sensors listed nothing and showed a count of
+  zero on every printer with an ADXL345 or LIS2DW
+  ([#1262](https://github.com/prestonbrown/helixscreen/issues/1262)).
+- The Elegoo Centauri Carbon and Artillery M1 Pro now pick up their presets. Without the
+  database link, neither printer received any of its preset settings unless it was installed
+  from the factory image ([#1260](https://github.com/prestonbrown/helixscreen/issues/1260)).
+- **Touchscreens that report only multi-touch axes are calibrated correctly.** Every coordinate
+  past the screen width had been saturating at the edge
+  ([#1259](https://github.com/prestonbrown/helixscreen/issues/1259)).
+- **An AD5X slot with a type but no colour no longer aborts the Change Type dialog** with nothing
+  left to reopen, and the phase display stops inventing a 230C target the printer never had.
+- Screen rotation is now a setting in Display & Sound rather than something only reachable by
+  editing config, and the rotation probe no longer misses every tap.
+- A nozzle sitting just above its target no longer shows as heating while calling itself Ready.
+  The temperature shown and the state described are now derived from the same value.
+- Large g-code files are handled correctly on 32-bit builds, and the DRM backend keeps its
+  64-bit buffer offset there, fixing display init on 32-bit Pi images.
+- A printer preset no longer applies its panel's display and touch settings to a different
+  machine's screen when HelixScreen is talking to that printer over the network.
+- A fresh install no longer loses its shipped platform preset when an earlier `printer_data`
+  directory outlives the install.
+
+**Spoolman setup**
+
+- **Spoolman setup no longer dead-ends on a stock Creality K2**, where Moonraker's config lives
+  outside the only writable file root.
+- **The AD5M's config is no longer rejected as unwritable** when it is in fact writable through a
+  linked path.
+- Setup no longer claims Moonraker reads its config from somewhere else after any config edit
+  since Moonraker last restarted, and a guessed config path must now match exactly before
+  anything is written to it.
+
+**Updates and installation**
+
+- **On a standalone-display install the entire Software Updates section vanished**, and the fix
+  could only reach users inside the update they were being kept from. HelixScreen now recognises
+  the second update route the installer supports, and checking for updates is separated from
+  installing them so a machine that cannot install can still tell you an update exists.
+- **The installer's own advice could not be followed.** Nine messages told users to repair an
+  install with a command that needs `bash`, absent on the BusyBox firmwares, and that would have
+  performed a fresh install rather than an update.
+- **Upgrading from the CLI failed with a permission error** even after the installer reported
+  sudo was available, because it asked whether it could write into a directory rather than
+  whether it could rename it.
+- **Unprivileged Raspberry Pi installs no longer land under a root-owned parent**, which left
+  only the destructive fallback path ([#970](https://github.com/prestonbrown/helixscreen/issues/970)).
+- **Three permanent PolKit warnings in Mainsail and Fluidd are gone on Centauri Carbon and K2
+  Plus**, and a Moonraker restart now works on firmware that uses neither systemd nor the init
+  script we knew about.
+- Unlocking beta features, selecting the Dev update channel, then locking beta again no longer
+  leaves the app fetching from Dev with no way back to Stable.
+
+**Sound**
+
+- **A printer with sounds turned off no longer holds the audio device open for the whole
+  session**, writing silence every period. On Android that also kept an `AudioTrack` open
+  ([#1253](https://github.com/prestonbrown/helixscreen/issues/1253)).
+- The PWM buzzer backend no longer probes for a beeper on boards that have none, and the AD5M
+  stops shipping 919 KB of music it cannot play. `M300` still works everywhere.
+
+**Android**
+
+- **The 1.0 release would have been refused as a downgrade on every existing Android install**
+  and rejected by the Play Store, because of how the version code was packed.
+
+**Translations**
+
+- **All nine languages are now fully translated**, up from 99.7% in the eight non-English ones.
+  The runtime CJK fonts are rebuilt too: eight characters the new Japanese and Chinese text needs
+  were in no font file, and a missing character draws as an empty box with no warning anywhere.
+- Translations resolve all C escape sequences in keys, not just hex ones, so a further batch of
+  text stops falling back to English.
+
+### Changed
+
+- **Memory use is down across the board**, which matters most on the Centauri Carbon and other
+  boards that swap at idle. About 1.2 MB of address space returned by capping allocator arenas,
+  1 MB off the CC1 binary by dropping mocks and asserts from shipped builds, 345 KB of fonts that
+  the per-platform tiers had never actually pruned, and 615 KB off the shipped layout files, of
+  which roughly 310 KB stays resident for the whole session. The print history, the filament
+  tables, the keypad and the tips database all stop holding memory they no longer need.
+- Debug bundles now include the startup logs. Everything config-related happened before the
+  logger was installed, so a bundle could show a "settings were corrupted" message with not one
+  matching line anywhere in it.
+
+### Internal
+
+- **The sanitizer CI gates were reporting green while failing.** A run with ten real
+  AddressSanitizer reports was reported as passing, because the output was piped without
+  `pipefail` and a success banner printed unconditionally. Fixed, along with the three standing
+  findings the masked gate had been swallowing.
+- **The XML formatter's `--check` claimed files were clean that it had never managed to read**,
+  and its errors were being sent to `/dev/null`. Three layouts had been unreadable to it.
+- Two use-after-frees closed (the AMS context menu's subjects outliving their storage, and a grid
+  resize animation keyed on the wrong object), a latent out-of-bounds write removed, and a
+  lock-order inversion between the Snapmaker backend and AMS state fixed.
+- **The Android release-signing gate was vacuous** and would have passed on an artifact whose
+  signature was never read. This is how v0.99.43 shipped a debug-signed bundle.
+- **The Play Store "What's New" text was being chopped mid-clause** on every release, and its
+  last two entries silently swapped. A release section can now carry an explicit block used
+  verbatim, with a hard error if it exceeds the limit.
+- Three Cloudflare Worker test suites had never run in CI. They do now, along with the analytics
+  dashboard build.
+- The `Build` workflow had been red for a day because the Moonraker plugin test dependency was
+  never declared. Declared, with a gate so it cannot recur silently.
+- Emergency-stop overlay observers now carry a lifetime token, closing a use-after-free that
+  reproduces deterministically when the guard is removed.
+- The install base is now estimated from CDN update polls rather than opt-in telemetry alone,
+  which puts the real fleet at roughly double what had been quoted.
+
+## [0.99.113] - 2026-08-13
+
+A fix release for two problems that showed up in the field on the Adventurer 5X. Uploading a
+debug bundle crashed the app outright on nearly every printer, and because the crash happened
+inside the reporting path itself, the bundles that would have reported it never arrived.
+Separately, Wi-Fi setup in the first-run wizard could sit on "Connecting" forever after a
+password was entered, with no timeout and no way back to the form. Nine languages also pick up
+a large batch of text that had been silently falling back to English.
+
+### Fixed
+
+- Uploading a debug bundle no longer crashes on any printer whose `printer.cfg` has more than
+  one `[include]` line, which is very nearly all of them. Introduced in 0.99.112.
+- Wi-Fi setup in the first-run wizard now reports a timeout after 45 seconds instead of showing
+  "Connecting" indefinitely. Cancelling an attempt no longer leaves every later password prompt
+  stuck on a spinner with no fields to fill in.
+- Debug bundles no longer download and process each log file twice. On a 473 MB printer that was
+  an extra multi-megabyte fetch and parse on every single upload.
+- Printer details in a debug bundle are now captured before the upload starts rather than read
+  from the upload thread, closing a rare crash.
+- Text that the interface translates indirectly - filament type names and several status
+  messages - now appears in all nine languages instead of falling back to English.
+- Filament runout guidance on the Adventurer 5X is now written as whole sentences, so it can be
+  translated properly instead of being stitched together from untranslatable fragments.
+- The Active Spool widget shows the filament brand from Spoolman
+  ([#1264](https://github.com/prestonbrown/helixscreen/issues/1264)).
+- Spoolman weight polling now starts at boot, and spool labels refresh when identity details
+  arrive rather than staying blank.
+- AFC lane maps that arrive as a list are parsed correctly, and the AFC mock no longer reports a
+  vendor that real AFC hardware never sends.
+- Four chatty log sources no longer crowd out useful history in the debug-bundle ring buffer.
+
+### Changed
+
+- Constants throughout the codebase were renamed from `kCamelCase` to `UPPER_SNAKE_CASE`, the
+  convention the contributor docs always specified. No behaviour change.
+
+## [0.99.112] - 2026-08-13
+
+The temperature graph becomes interactive: tap a plotted line and it captions the sample
+under your finger, including what the heater was aiming for at that moment. The Klipper
+plugin gets an important fix - enabling phase tracking could silently leave PRINT_START
+holding two copies of its own body, so every print homed, levelled and heat-soaked twice.
+AMS tool-mapping restore now waits for the firmware to confirm the change rather than
+trusting its own echo. The ESP32-S3 firmware moved from "first boots" to "survives".
+Downloads are 8.1 MB smaller.
+
+### Added
+
+- **Tap the temperature graph to read a sample** - tapping a plotted line pins the nearest sample and captions it with the temperature, the target in effect at that moment, and the time. The caption follows the sample as the graph scrolls, and the hit test covers the drawn line itself, not just the sample dots - so a steep heater ramp, where consecutive samples sit hundreds of pixels apart, is tappable where you can see it.
+- **Home temperature tiles show the target while heating (#1267)** - a nozzle, bed or chamber tile climbing to a setpoint now says what it is climbing toward. An idle tile stays a bare reading rather than gaining a permanent "/ -", and the smallest panels are left alone where there is no room.
+- **AMS mapping restore is confirmed against the firmware (#1270)** - after a print that remapped lanes, the restore waits for the backend to echo the change back before clearing its recovery record. Backends update their own registry optimistically, so comparing against ourselves confirmed exactly the failure it was meant to catch. Covers AFC, Happy Hare and CFS (not on K1, where the command is a confirmed no-op); backends that publish no status keep the previous behaviour instead of waiting for proof that cannot arrive.
+- **Printer artwork for the Artillery Genius Pro, Kingroon KLP1 and Sovol SV07**, cut to match the shipped set. Every database entry now either has artwork or is explicitly listed as missing, so a new printer cannot silently fall through to a generic frame.
+- **Debug bundles capture printer.cfg and the macro list** - the config and its include tree ride in their own field rather than competing with the incident window in the Klipper log.
+- **An update-channel switch can move backward** - someone who tried the devel track and switched back to stable is ahead of the channel they now want, and used to be told "up to date" forever with no way back. Moving backward is offered with a confirmation, never auto-notified.
+
+### Fixed
+
+- **Enabling phase tracking could duplicate your PRINT_START (#1268)** - the config rewrite ended its capture at the first genuinely empty line, so the original tail survived and PRINT_START came out holding the instrumented body followed by an un-instrumented copy: double home, double QGL, double heat-soak on every print, with no config error to indicate anything was wrong. Enabling now also fails closed if the macros it injects are not defined anywhere in the config - which they never were, because the installer had been pointing at a file merged away some releases ago.
+- **Printer-fault alerts stayed up after Klipper recovered (#1266)** - an MCU disconnect raised an alert that survived a FIRMWARE_RESTART from Mainsail, and a cascade of them had to be acknowledged one by one on an already-healthy printer. Alerts raised for a printer-side fault are now swept when Klipper returns to ready.
+- **Mapping restore could be spent on a halted Klipper (#1270)** - every backend's send reports success unconditionally, so commands Klipper refused counted as restores; the snapshot was then cleared and the recovery record deleted, stranding the printer on the print's mapping. A halted Klipper at print end is exactly what a cancelled or errored print looks like. Restore now waits for Klipper to come back.
+- **Eject and three other AMS actions did nothing on multi-unit setups (#1258)** - the Overview panel and the AMS panel each had their own copy of the context-menu switch and the two had drifted, so Eject, Select Gate, Check Gate and Clear Spool were discarded with no toast and no log line. Single-unit installs were unaffected, which is why a BoxTurtle+NightOwl user had a dead Eject button.
+- **AFC lane eject mirrored refusals that were not ours to make (#1258)** - our copy of AFC's own rules had forked into two version eras selected by sniffing the status payload, and there is no reliable AFC version to read. We now send the command and let AFC decide.
+- **Touch calibration was unreachable on a rotated panel (#1259)** - the Settings entry point was gated on the same heuristic that decides whether to auto-fire the wizard, and that heuristic cannot see a touch panel mounted 90 degrees from the display. Reported on an FLSUN T1 Pro. Any real touch panel can now reach the wizard manually; the first-run auto-fire keeps its narrower test.
+- **A pre-print warning about an option you never chose (#1269)** - adaptive bed mesh emitted its parameters on printers with no way to deliver them, so start-print dropped them and warned on every print. The emit is now gated on deliverability, and the warning names what was actually dropped.
+- **Icons kept the size they were built at (#1210)** - the first icon ever created pinned the font face for every icon after it, so a runtime resize re-pointed everything except the icons.
+- **The camera feed went blank after closing an overlay** - tapping the navbar button for the panel you are already on restored it visible but deactivated, so the stream never restarted until you bounced to another panel and back.
+- **Eight printers rendered as the wrong machine** - 20 database entries named an image that has never existed in the tree, and the failure was silent: an Ender-3 S1, a Neptune 4 Pro and a FLSUN delta all quietly drew a generic CoreXY frame. Eight now resolve to a real image; the remaining eight are listed in a gate that can only shrink.
+- **The printer image was soft on large displays** - the widget always enlarged a 300px prerendered tier, up to about 2.2x on a 1024x600 panel, while the full-size source sat unused beside it. It now renders from the source when the request exceeds the tier.
+- **Gaps between icons and labels collapsed to zero** on the controls panel and the unified temperature card - two shared styles referenced spacing constants that are not defined yet at the point the file is parsed, so they registered empty.
+- **The Snapmaker U1 package shipped no prerendered images** - it was the only one of the ten release targets missing the copy step, so the device decoded 23.5 MB of PNG at runtime for images it had prerendered copies of.
+- **The no-thumbnail placeholder failed to load on firmware**, leaving an empty widget.
+
+### Changed
+
+- **Downloads are 8.1 MB (21%) smaller** - every PNG losslessly recompressed and verified pixel-identical against the original. Over half the saving is two files that had been written with compression effectively off.
+- **A newer config is left alone** - running an older build after a newer one no longer stamps the config version down and makes the newer build re-run migrations it has already applied.
+- **INSTALL.md and TROUBLESHOOTING.md state the glibc floor for the pi and pi32 packages (#1259)** and point at the statically linked cc1 package as the fallback, after a reporter on Debian Buster hit a bare "GLIBC_2.29 not found" with no documented minimum to check against.
+- **Documented the AMS bypass-controls override and CFS external spool.**
+
+### Internal
+
+- The ESP32-S3 firmware compiles without RTTI. `dynamic_cast`, `typeid` and `std::type_index` were replaced throughout the tree with process-local type tags and virtual capability queries, dropping 2,076 typeinfo-name symbols and 308 KB from the app image (97.4% -> 92.8% of the OTA slot). A lint gate now forbids the RTTI shapes on the desktop side, where they would still build and silently block the next file pulled into the firmware slice.
+- The ESP32 CI build had been red since the port got real, and none of it was the firmware: ESP-IDF v5.5.4 emits exception unwind tables about five times larger than neighbouring releases, and that +1.66 MB was the whole overflow. Pinned to v5.5.5.
+- ESP32 robustness: no longer bootloops on a degraded touch ribbon, guards the websocket handle against the timer-task reconnect race, bounds every wait that could outlive the task watchdog, marshals provisioning WiFi calls onto the LVGL thread, and wires up notifications, toasts, emergency stop and the real Moonraker control surface, which had all been abort-if-called stubs. A committed Kconfig default pointing at a real machine on a private LAN was scrubbed.
+- The release pipeline: the Pi dual-link ran two whole-program `ld` processes at once with nothing ordering them, which is what the runner OOM-killed on v0.99.110; per-SHA CI ccaches had pushed the repo past GitHub's 10 GB budget and evicted seven of the nine release caches, which is why the v0.99.111 Pi build ran cold; and every toolchain download was a bare `wget` with no retry, which is how a valid zlib URL failed a build 52 ms in. All three fixed. Release channels are now declared per-branch in a file rather than derived from the tag, so devel builds can use plain monotonic versions the updater can actually compare.
+- Telemetry records whether Moonraker is local (the verdict only, never the host) and finally surfaces `helix_macros` adoption, which has been collected since schema v2 and was never projected out of storage.
+- `helix-screen ctl` gained `long_press`, so gesture-entered screens - edit mode, and the widget catalog behind it - are reachable from automation for the first time. The documented press/sleep/release recipe never worked.
+- The temperature graph's tooltip indexed its metadata by slot while resolving by handle, so a remove-then-add cycle would caption the wrong series and eventually read out of bounds.
+- The mock client never recorded its connection URL, so everything asking which host we are talking to read it as no connection - the plugin install modal offered the remote path against a local Moonraker.
+
+## [0.99.111] - 2026-08-12
+
+**Upgrading from 0.99.108?** This is your next release. Neither 0.99.109 nor 0.99.110
+produced downloadable builds: 109 died on a compile error in its own release commit, and
+110's Raspberry Pi build was killed by the runner's OOM killer during the link, which
+blocked the release from publishing. Everything both would have delivered is included
+below, plus the fixes found while tracking those two failures down.
+
+### Added
+
+- **Native ESP32-S3 firmware target - ALPHA, not for daily use (K-Touch and similar panels)** - a first-booting, highly experimental port: HelixScreen now builds and runs as firmware on ESP32-S3 display hardware (e.g. the BTT K-Touch), not only as a Linux/SDL app. A packed, compressed asset container fits all nine languages and every printer image into a 2 MB storage partition; RLE medium-tier fonts fit the 6.875 MB OTA slot; and a real `EspMoonrakerClient` over `esp_websocket_client` drives live discovery, status and bed-mesh callbacks over WiFi, with first-boot SoftAP captive-portal provisioning and A/B OTA. Ships as a v1 Core+AMS cut: home-only boot with heavy panels deferred to first navigation, draw buffers sized to internal DRAM, and a beam-paced presenter for tear-free scan-out. Camera/QR and the 2D-gcode and bed-mesh-3D renderers are compile-gated out. Expect rough edges, missing features and known instability - this is for developers and early testers only. The Linux, Pi and Android targets are unchanged and remain production-quality.
+- **Home-screen edit mode can be disabled (#1245)** - a Touch & Input setting, defaulting on, so a resting finger on a wall-mounted tablet never rearranges widgets. The same global long-press time that gates edit mode is now configurable too.
+- **Minimum toast severity (#1213)** - filter non-critical toasts down to a chosen level.
+- **Reset Endless Spool from the device operations overlay** - a direct action for Happy Hare setups that need a lane-map reset. It asks first, and now tells you when it worked.
+- **AMS says whether the printer will swap spools by itself** - a runout on a multi-lane backend tells you "switching to lane 4" rather than leaving you to discover it.
+- **Temperature graph above its controls in portrait** - the graph stacks on top of the control strip on a tall screen.
+
+### Fixed
+
+- **The Android APK shipped the packager's own configuration** - a working `settings.json` with a real printer address, an active printer and `wizard_completed=true` was being packaged, so a fresh install skipped first-run setup and pointed itself at someone else's network. Crash dumps excluded in the previous release were still shipping too, because the packaging step only ever added files and never removed what an earlier build had left behind. Nothing needs a shipped seed: defaults are synthesized when the file is absent. No private data ever reached the git repository, only built APKs.
+- **Android background network calls silently failed** - debug-bundle uploads and update checks resolved their Java bridge in a way that cannot see the app's own classes from a background thread, so both failed as "HTTP 0" with no diagnosis. A bodyless HTTP error also erased the real status code, making an expired key and a dead network look identical.
+- **AD5X cold-ejected a seated filament the motion sensor mis-read as empty** - the IFS motion sensor reads false while a lane is loaded but idle, so gating ejection on it alone ejected filament that was happily loaded. The gate now requires the head-switch edge that only a real unload raises.
+- **The AMS recovery modal went stale mid-error, and then came back after you dismissed it** - it now re-presents when the underlying fault genuinely changes, but a dialog you have answered stays answered. Previously any later cosmetic update to the same fault re-opened it, and after a recovery tap it put live buttons over an in-flight preheat.
+- **Reset Endless Spool reported success without doing anything** - on a system that had not yet reported its slot count, the confirmation was accepted and nothing was cleared. It now refuses instead.
+- **Closing an overlay could leave two panels on screen at once** - the restored panel was activated before it was made visible again, and by up to three different code paths, so a panel whose activation navigates elsewhere corrupted the panel stack. The double activation also tripped Print Last's retry counter and could start two first-run tours. This also fixes the camera feed staying dead until a tab switch (#1245).
+- **The temperature graph on reconnect** - resuming drew a phantom spike bridging the whole gap, chip toggles reset themselves, and a Klipper restart collapsed a 20 minute graph to a few seconds. Grid lines and time labels now line up. The graph also rebuilds its series when discovery adds an extruder.
+- **The G-code preview dropped its thumbnail too early on every non-GPU device**, leaving a grey gap while "Building preview" was still running.
+- **Two Japanese characters rendered blank** in the new AD5X spool-switchover strings.
+- **Debug bundles dropped the incident itself** from `klipper_log` and `log_tail`.
+- **Android crash reports and update checks could silently do nothing** - the Java bridge they resolve was looked up in a way that cannot see the app's own classes from a background thread, so the call returned nothing and failed as "HTTP 0" with no diagnosis. All five call sites now share one lookup that works from any thread.
+- **One bad value in settings.json could crash the app or refuse to save** - a setting stored with the wrong type (a string where a number or a yes/no belongs, usually from a hand-edit) threw instead of falling back to the default, and writing that setting afterwards failed outright. Bad values are now ignored with a log line naming the setting.
+- **The print-status bar could disagree with the progress text** - one source and one formatter now feed the bar, progress text, filament, duration and layer strings.
+- **The print-status thumbnail could apply during a mid-teardown relayout** - now guarded.
+- **Portrait detection disagreed with the layout override (#1255)**.
+- **The BETA badge overlapped row controls (#1244)** - a gutter is now reserved.
+- **Android (#1245, #1253)** - reconnect WebSocket on display wake, keep user settings across APK upgrades, preload libturbojpeg on API 24+, and close the SDL audio device at idle.
+
+### Changed
+
+- **Splash version label moved to the upper-left**.
+- **Temperatures drop the decimal at 100 °C and above**.
+- **Context menus share one component and gained an explicit close button** - all eleven menus are now one card rather than eleven per-menu copies.
+
+### Internal
+
+- The ESP32 source manifest gate accepted lines the firmware build then silently discarded, so it could pass while the build broke. It now enforces exactly what the build consumes, and detects stale and duplicated entries.
+- The home-screen edit-mode toggle and long-press slider shipped with no tests; deleting either check failed nothing. Both are now covered, along with the reconnect and endless-spool fixes above.
+- Three tests were found asserting the wrong thing or passing only by shard ordering: one encoded the endless-spool bug above, one had been reduced to a tautology that no longer exercised the runout confirm delay, and two depended on state a co-tenant test happened to leave behind. All corrected. No user impact; disclosed for the record.
+- The release pipeline could not build Raspberry Pi at all. The link peak had grown past the runner's memory, so it was OOM-killed; separately, the job that warms the compiler cache was sized for a warm build and so could never complete the cold one it always runs, leaving the cache permanently missing. Both are fixed, and the platform build now degrades to a slow build rather than a failed release when the cache is absent.
+
+## [0.99.110] - 2026-08-11 [WITHDRAWN]
+
+No downloadable build was ever produced: the Raspberry Pi link was OOM-killed on every
+attempt, which blocked the publish steps. Its entire contents ship in 0.99.111 above.
+
+## [0.99.109] - 2026-08-10 [WITHDRAWN]
+
+No downloadable build was ever produced: a compile error in the release commit broke all nine
+device cross-builds and macOS. Its entire contents ship in 0.99.111 above.
+
+## [0.99.108] - 2026-08-09
+
+Filament systems get the bulk of the attention: CFS and AD5X IFS learn to report a runout
+instead of staying silent, the community K2 Box fork gains the commands to go with the schema
+0.99.107 taught us to read, Load asks before it homes into a part left on the bed, and the
+print-active gate that seven backends already enforced now covers the eighth. Android gets a
+batch of fixes that make it behave like a real target rather than a port, including a panel
+that can finally power off. The home widgets stop deciding their layout from grid spans and
+read physical pixels instead, so the same widget reads correctly on every panel and
+orientation. Diagnostics got a lot of work too: a debug bundle now reaches past the incident
+that prompted it rather than spending its whole budget on Klipper's per-second stats line.
+
+### Added
+
+- **CFS reports filament runouts (#1250)** - the box always pauses before attempting a refill and announces the failure in plain text, so that is what the backend reads now. The old signal was `filament_useup`, a latch the box sets when a spool runs out and clears only on a successful extrude, which meant the runout indicator could light on any unrelated pause. It now requires a false-to-true transition witnessed inside a running job. The runout-modal suppression also narrows from all hub topologies to the backends that actually raise their own fault, which un-silences ACE and QIDI.
+- **AD5X IFS reports filament runouts (#1250)** - a head-switch edge, armed only while no operation is in flight, confirmed by a dwell and gated on the print being paused. The gate deliberately does not key off the head filament flag, which the motion sensor also writes and which reads false while a lane is loaded but idle. Recovery offers resume, a bare extruder purge and `IFS_UNLOCK`, but no load button, because every AD5X load path homes and `_G28` on a loadcell-Z machine probes into the part.
+- **AD5X says which auto-switchover plugin it found** - so a runout can state plainly that unattended switching needs lessWaste or bambufy, rather than leaving the user to work out why nothing switched.
+- **Filament commands for the community K2 Box firmware** - 0.99.107 taught the CFS backend to read the reimplemented box module's schema and identify its dialect, which stopped a populated 4-bay unit rendering as an empty panel, but every operation still went nowhere. The identified Fork dialect now routes through its own load, swap, unload, clear and slot-metadata commands, with the stock K1/K2 envelopes unchanged and cleanup skipped for state the fork never saves.
+- **Android can power the panel off at the sleep timeout (#1245)** - SDL asserts `FLAG_KEEP_SCREEN_ON` at video init and nothing ever cleared it, so the device could not sleep while HelixScreen was in the foreground, and our own Display Sleep just painted a black rectangle over a fully lit panel. It now releases keep-screen-on and lets the OS timeout run. Display Sleep set to Never never releases it, so a wall-mounted tablet stays awake.
+- **A confirmation before HelixScreen injects a G28 you did not ask for** - `idle_timeout` runs M84 after ten minutes and motor-off clears homing state, so "unhomed with a part still on the bed" is the normal state ten minutes after any print. Tapping Load homed into the part with no warning.
+- **The home question is asked before the preheat, not after** - it previously surfaced roughly 140 seconds in, once the nozzle was already at temperature. Declining now costs nothing and heats nothing.
+- **An upgrade advisory when AFC predates the v1.2.0 lane fields** - detected by capability rather than version, because AFC has no trustworthy version signal: `AFC_VERSION` is hand-bumped and sat at 1.1.37 through the whole v1.2.0 release, and a live BoxTurtle reported 1.0.0 while running v1.1.0. The advisory fires once, is persisted, and re-arms on downgrade.
+- **Bypass can be enabled on firmware that reports none** - Happy Hare defaults `has_bypass` to 0 for `mmu_vendor Other`, which is what a Qidi Box reports, so owners who do feed filament straight to the extruder got no bypass UI at all. Safe to offer because Happy Hare's own `select_bypass()` never consults `has_bypass()`. The row shows only while the firmware says no, and stays visible once enabled so it can be switched back off.
+- **AMS errors show the suggestion that goes with them** - every backend populated a suggestion field and nothing ever displayed it, because thirty-odd call sites each open-coded their own error toast. Users read "Cannot run filament operation while printing" and never the half that unsticks them. Toasts gain an optional second line for it, and the verb prefixes survive only where the backend's own message names no operation, so nobody reads "Unload failed: Failed to unload filament".
+- **A debug bundle can answer "is Moonraker even running" without asking Moonraker** - every Moonraker-derived section is fetched through Moonraker, so a bundle uploaded while it is down carried five "No response" entries and none of the logs that would explain why, and could not distinguish nothing-listening-on-7125 from listening-on-the-LAN-address-only, which need opposite advice. A new section reads `/proc` instead, listing sockets on the configured port with their bind addresses and any moonraker or klippy process.
+- **Both log collectors fall back to local disk** - with the paths derived from the daemons' own argv rather than a guessed list of per-platform data roots, so an empty result is an honest answer where fiction would read as knowledge.
+- **An explicit Done button on the print-status configure picker** - it could previously only be dismissed by tapping the backdrop, with nothing on screen saying so.
+- **Timestamps in launcher.log** - on platforms where `/var/log` is tmpfs, the launcher log is the only record surviving a reboot, and its lines could not be correlated to anything.
+- **`HELIX_REMOTE_CONTROL=1` on a deployed device** - maps to `--remote` so a printer in the field can be driven with `helix-screen ctl`. Off by default, since the socket can drive the whole UI.
+
+### Fixed
+
+- **A failed AFC toolchange took away the Eject button** - AFC pins `current_loading` at the top of TOOL_LOAD and clears it only on the success path, so a failed toolchange latches the lane name until the next successful one, which a user with a jammed lane cannot perform. The unload-mode ranking put recovery above Eject, so the failure that makes someone want to eject was the very thing that removed it, swapping it for a lane reset that retracts toward the hub and never returns filament to the spool. Reachable on a Box Turtle, the dominant AFC setup, with no unusual configuration.
+- **Filament operations were refused while paused** - pause-then-swap is the runout recovery workflow, and HelixScreen was the only surface that could not perform the recovery Klipper had just asked for. Only AD5X IFS still refuses, because its remove-current macro hides a `_G28` that probes a loadcell-Z nozzle into the part.
+- **AFC Eject reported success and moved no filament** - it sent LANE_UNLOAD for three conditions upstream discards, including one that logs nothing at all, and Klipper acks the gcode either way. The affordance now greys out mid-print instead of being offered into a certain refusal.
+- **Load and Unload gating was three partial copies** - the filament panel, the AMS sidebar and the context menu each carried their own rules. One shared rule now answers for all three.
+- **Two filament operations could race through the busy check** - the gate read a busy flag and then dispatched, but no backend makes itself busy inside that read: two set it in a later critical section, three inside the hook, and three never set it at all and wait for firmware to echo. It is now a claim taken in the same critical section as the read and held across the dispatch.
+- **Snapmaker U1 accepted filament operations mid-print** - it was the only subscription backend with no print-active gate. Its auto-feed homes and its tool select moves the carriage, neither of which the G28 matcher can see. Paused still passes, so runout recovery is unaffected.
+- **Declining the pre-operation home wedged AD5X for five minutes** - the generic cancel path reset the action but left the phase tracker armed, so the very next extruder-temperature frame flipped it straight back to heating. The operation then latched a fabricated timeout error that refused every AMS command for the whole 300-second window.
+- **Dismissing the home dialog by backdrop or ESC left the backend stuck busy** - permanently on Tool Changer, which has no stuck-action watchdog. Neither dismissal path ever reached the confirm or cancel callback.
+- **A declined home left a stale operation label on AD5X** - the sidebar kept showing "Heating nozzle to 230°C" under an idle action until the next operation overwrote it.
+- **Happy Hare accepted a bypass select with filament still loaded (#1229)** - the command is fire-and-forget, so it returns success before Klipper answers. HelixScreen reported success and changed nothing while Happy Hare replied with a bare "Operation not possible. Filament is loaded" toast contradicting it.
+- **Nothing explained why Happy Hare hid the bypass controls** - the deciding field resolved at trace level and never reached a debug bundle, so 186KB of log from a Qidi Box reporter contained no trace of the decision. The bypass path node was also a one-shot decision taken before the first status frame, and the pre-status default flashed the controls up and then withdrew them.
+- **A mid-boot read pinned a 4-lane BoxTurtle to one slot for the whole session** - AFC empties its lane namespace at the start of every PREP and writes each lane back as that lane's prep finishes, so it is empty and then partial for seconds on every boot. A cold boot landing in that window made lanes 2 through 4 permanently invisible. Klipper's object list is the lane-set authority now, and lane data only bootstraps an empty registry.
+- **The AFC feature probe read a frame that can never carry the fields it looks for** - the standing subscription is field-scoped and lists none of them, so the probe reported legacy against a BoxTurtle confirmed on v1.2.0, and would have nagged an up-to-date printer to upgrade. An explicit unscoped query fetches the lane object instead.
+- **AFC named the wrong lane on a toolchanger** - the guard asked whether any extruder held filament, and parked toolheads routinely grip filament, so it read true on essentially every real multi-tool machine.
+- **A toolchanger parking its carriage wiped the slot Klipper had just elected** - the aggregate current-load field goes null on park, and that was being read as authoritative over the per-extruder lane state contradicting it.
+- **A Spoolman-linked lane was named from its hex colour** - the loaded-filament card gated the Spoolman name on a field no AFC parse path ever writes, so a BoxTurtle lane rendered "Light Pink PLA" when the real name was already on the slot and never read. Brand now comes from Spoolman even though AFC cannot publish it.
+- **The spool card and the loaded card disagreed about the same lane** - on AFC older than v1.2.0, which publishes a spool id but no filament name, a linked lane fell to the untracked "Brand · Material" branch and rendered "Elegoo · PLA" for a spool we could already name.
+- **A filament name repeated its own material** - "Elegoo Black Rapid PLA+ PLA" and "eSUN Silk Blue ePLA Silk PLA", one word worse than what the old builder produced. Materials are a small closed vocabulary, so a name containing one really does make the suffix redundant. Brands keep stricter matching, because Sun must never be stripped out of Sunlu.
+- **The picked catalog product did not survive reopening the slot editor** - only type and brand were saved, so SUNLU "PLA+ 2.0" round-tripped as brand plus material. Reopening reseeded from vendor and material alone and took whatever sorted first alphabetically, so the lane came back relabelled. Reported on AD5X, but the field was missing from every backend.
+- **The nozzle badge stamped a meaningless "0" on every AMS printer** - it was driven by tool count, which expands to one entry per filament slot, so a mock AD5M reported four tools and one hotend. It now counts distinct extruders, so the badge appears only where more than one nozzle needs naming.
+- **The tool badge covered the nozzle icon it sits on** - an 18px badge over a 24px glyph, hiding 56% of it with the label clipped. A disc cannot be smaller than the font inside it, so the badge takes its own size and font and shows the tool index rather than the full name.
+- **A tool change offered mid-print silently did nothing** - the widget asked for confirmation and dispatched into backends that refuse while printing, so the user consented and the pill did not move. Neither call site passed an error handler either, so any refusal that did arrive vanished entirely.
+- **The AMS context menu rendered off the top of the screen** - 313px of card on a 480x272 panel and 520px on 800x480, so the header and the entire Load row were unreachable at every tap point, and Load is the primary action. Two bugs fed it: a content-width card that wasted 73% of a landscape screen, and a clamp that fixed the bottom edge before the top and drove the card to y=-51.
+- **A tap on the empty half of a menu row dismissed the menu** - a content-sized card is as wide as its longest row, but every shorter row kept its natural width, so 77px of the "Load" row was backdrop.
+- **The MJPEG camera stream stayed dead until you switched tabs (#1245)** - the worker clears its running flag only in `stop()`, but it also exits on its own when the failure budget runs out or on a bad allocation, so the widget believed a dead stream was still live and skipped the restart.
+- **Android background and resume skipped the panel lifecycle (#1245)** - coming back to the foreground repainted the screen, which only redraws what the widgets already hold. Nothing re-seeded subjects, re-bound observers, reloaded content or restarted timers, which is why switching tabs away and back un-stuck a stale print-status panel and a resume did not. Backgrounding now suspends symmetrically, so timers and streams stop instead of running against a frozen LVGL thread.
+- **A touch during the wake blackout opened edit mode behind the lock screen (#1245)** - disabling the input device is a flag write, so a finger still on the glass kept counting toward a long press from the original touch-down. On Android the wake press reaches the home grid directly, so edit mode opened behind the lock screen and was found once the PIN cleared.
+- **Touch recalibration could not be escaped (#943)** - a Q2 whose digitizer over-reports its range compresses every tap into a top-left rectangle, which put Accept, Retry and Cancel out of reach and left the screen cycling to timeout forever with the Back button covered by the capture surface. Verify now installs the just-captured matrix rather than the stored one that is the only reason anyone opens the screen, a press-and-hold aborts from any coordinate a controller can emit, and the unattended loop is bounded.
+- **A stock Qidi Q2 detected as an Artillery M1 Pro** - the database credited a shared `probe_air` object to two siblings as if it were model-unique, so both outscored the Q2's own best signal: 100% confidence on one firmware and a Qidi Max 4 at 97% on the next. All three are demoted to family-level confidence.
+- **The WiFi toggle froze the UI for tens of seconds** - it ran the radio change synchronously from the LVGL event callback, and that path issues two control commands each able to spend 5s retrying and 10s in select, then did a synchronous config save on the same thread.
+- **Switching WiFi off snapped the switch straight back on** - NetworkManager and macOS never implemented the radio change at all, so they inherited a silent no-op success plus a read that always returned enabled.
+- **A forget was reported as verified against a config we never read** - the read returns empty both when the network is absent and when the file cannot be opened. The AD5X vendor config is unreadable, so one session logged both "Removal verified on disk" and "did not record this network" about the same path, and the forgotten network was associated again after the next reboot.
+- **"WiFi scan failed. Try again." 48ms after the user's own tap** - forgetting the connected network disassociates and immediately rescans, and a busy response to that scan was being read as a failure.
+- **A connection-failed prompt hijacked WiFi setup** - the escalation is latched and fires 60 seconds in, which on an unreachable printer is exactly when the user is in Settings fixing it. On an AD5X it landed on top of an open password modal and the passphrase was retyped from scratch.
+- **The connection-failed copy was wrong for a printer running HelixScreen itself** - it told someone holding the screen to check that the printer is powered on and that 127.0.0.1 is correct, with Change Address as the primary button.
+- **The updater was hidden on the most common Pi install there is** - self-update was gated purely on write access to the install root's parent, so the default layout of a root-owned tree with an unprivileged service user reported it as physically impossible. The installer escalates with sudo for exactly that swap, so those installs update fine.
+- **Uninstall left entries behind in moonraker.conf** - removal deleted two comment lines by literal text while the generator writes five, so three orphaned on every install and uninstall cycle, and on one CC1 a line ended up in the file twice. The block is matched structurally now, so it cannot drift out of sync with the generator again.
+- **Uninstall never removed HelixScreen from moonraker.asvc** - it stayed in the service allowlist forever.
+- **The installer's diagnostic hints did not work for the user running them** - a service user outside the journal groups gets nothing on stdout, so a reporter chasing a touch-calibration bug sent back a zero-byte capture and lost a round trip to it (#943).
+- **`make deploy-pi` wiped per-slot filament identity** - brand, spool name, Spoolman ids and weights, for every lane the user had edited. The overrides file was not in the rsync exclude list, though its sibling already was.
+- **Spoolman config was written to a file the firmware replaces on upgrade** - the index answering "which file proves the config root is addressable" was reused as the write target, which only holds while the root config happens to define `[server]`. COSMOS 26.07.0 splits the two, so both the setting and its include line landed somewhere an update discards.
+- **MacroManager could never upload on a real printer** - an empty destination path means the root of the given root, which is what Moonraker expects, but the path guard refused it outright, so install and update failed validation before any request was built.
+- **An upload filename was never validated** - despite reaching the multipart form verbatim, so a traversal path was accepted.
+- **Power-loss recovery could not resume a file with a space in its name** - Klipper tokenizes extended parameters with shlex, so an unquoted filename split into tokens with no equals sign and the whole command was rejected as malformed. The stored path was also absolute, which the resume branch cannot match against a list relative to the virtual SD root, so it silently discarded the recovery snapshot.
+- **A bare G28 stopped homing on COSMOS 26.07.0** - the CC1's homing_override branches on rawparams, and Klipper does not strip comments from rawparams, so the trailing provenance comment HelixScreen appended to every command made it truthy and routed G28 down the explicit-axis branch where no axis letter matched. Nothing homed, after the override had already done its Z hop.
+- **The CC1 start path spent its whole timeout budget doing nothing** - the stock COSMOS resonance macro restarts the UI through a shell command with a 5s timeout, and a command killed on timeout takes its whole process group with it, including the supervisor just forked. About 3s of that went on a flat sleep and a settle that kills nothing on a platform where HelixScreen is the configured UI.
+- **A cut-off stop stranded the user on a cleared framebuffer** - the stop can be interrupted with the daemon still exiting, which start read as already-running and no-opped.
+- **Stopping the UI took six seconds and ended in SIGKILL** - the pidfile holds the launcher shell, which spends its whole life blocked in a foreground child, and a shell will not run its TERM trap while that child is alive. Measured on a Centauri Carbon it ignored SIGTERM for 12 seconds and counting. Signalling the watchdog first halves the stop and makes it clean, so buffered log output is flushed rather than lost.
+- **The watchdog gave up in fifteen seconds on a transient exec failure** - `execv` of an intact binary can return ENOEXEC under memory pressure, seen on a 128MB Centauri Carbon where the UI restarts one second after the input-shaper FFT. Every exec failure was reported as a flat exit 127, so six in a minute spent the budget and left a black screen until the user rebooted.
+- **A spurious crash-loop refusal to boot on the CC1** - the crash marker was cleared only in the normal shutdown path, which the SIGTERM handler skips, and COSMOS stops and starts the UI by pidfile around resonance calibration.
+- **Klipper config was not found on COSMOS, which has no printer_data directory** - so the CC1 silently skipped update_manager registration, the config symlink and the Klipper include, with every consumer deriving the path the same wrong way.
+- **The ZMOD app log was not in the archive users attach** - it went to a directory `TAR_CONFIG` captures on neither AD5M nor AD5X, so reporters sent back launcher stderr and nothing else.
+- **An unopenable log path aborted startup** - instead of falling back to the platform's own sink.
+- **Every `ctl` shutdown corrupted the heap** - five out of five runs ended in SIGSEGV or SIGABRT with ASAN reporting use-after-free. Two ordering faults: the theme subjects were torn down before the XML scopes holding raw observers on them, and the XML styles were freed before `lv_deinit()`, whose own teardown runs layout passes over widgets pointing at those styles.
+- **Four other teardown paths kept the old order** - including the no-input-device path, which shows a fatal error screen first and therefore has a live widget tree when it tears down.
+- **A subject name could outlive its subject** - the registries kept resolving a name to storage that was already freed, so the next binding that named it read dead memory.
+- **Observers outlived the objects that owned their subjects** - seventy-seven observer sites plus the print-status panel's twenty-five were registered with no lifetime token, so a teardown cycle freed the observer nodes and the next reset dereferenced freed memory.
+- **A re-entered touch calibration stranded its previous timer** - still in LVGL's list, still holding a pointer to the panel, and the destructor could only free the newest handle.
+- **The navigation backdrop could outlive the screen that owns it** - it is a child of that screen, so any teardown deleting the screen freed it without going through the path that clears the pointer.
+- **Work queued during shutdown was spliced back in and run against destroyed objects** - the shutdown drained the pending queue but left the frozen buffer untouched, and a freeze is held across exactly that window.
+- **Two heap over-reads found by AddressSanitizer** - a four-byte magic logged as a C string, where the formatter resolves the length before applying the precision, reachable from any malformed file with debug logging on.
+- **The crash-report and temperature-graph dialogs could grow past the screen (#1204)** - both roots were content-sized with only an inner flat cap bounding them, which the mock's short crash text and near-empty sensor list never reached. A real backtrace and a many-sensor printer are what get there.
+- **The debug bundle dialog rendered off-screen (#1204)** - 479px tall at y=-103 on a 272px panel, with both the header and the button row cut off, because its content area was capped at a flat 400px.
+- **PIN entry and the hidden-network form overflowed 480x272 (#1204)** - the keypad's bottom row sat off the screen with 0 and confirm untappable, and the hidden-network form set a minimum height taller than the whole panel.
+- **Five dialogs hardcoded an outer width** - none has any intrinsic content width, so the number was arbitrary and on a 480px panel a 400px dialog left 40px of backdrop per side.
+- **The timelapse empty state invented 110px of scroll on the smallest screens** - a flat 380px minimum height for one icon and two lines.
+- **The last page of a scrolling view overshot the content end** - a fixed page delta handed to LVGL's unbounded scroll entry point parked a sliver of content up top with dead space filling the rest. Presses also accumulated without limit, because the disabled state does not suppress clicks on the dimmed chevron.
+- **Runout state sat beside the AMS lane indicator instead of on it** - so an AMS printer drew two filament glyphs, and the one next to the lane number was a muted icon saying nothing about that lane.
+- **The fan and thermistor home widgets used a 16px icon where every sibling uses 48** - measured in a real cell, the fan spent 42 of its 113 vertical pixels next to neighbours using 70. The thermistor also gets a tighter row gap, since a seven-glyph reading plus the icon consumed the whole cell width.
+- **Humidity and width-sensor icons never resized at all** - both indicators were instantiated with no name, so the engine's auto-naming overwrote the declared one and every lookup returned null.
+- **Fan stack icons never resized either** - the restyle looked up a child of the icon object, which is itself a label with no children, so the lookup was always null.
+- **A plain 1x1 widget was treated as if it had gained a second row** - a single grid row on the two largest tiers already clears the tall threshold by itself, which flipped the camera widget out of compact mode and started an MJPEG stream nobody asked for.
+- **The size constants were each one pixel below the smallest qualifying extent** - despite being compared with `>=`, so on the largest tier a plain single-column widget read as wide.
+- **The camera stream dropped on genuinely wide cells** - requiring both axes to clear their floors silently killed it on every multi-column cell whose row happens to be short, the same shape of bug the both-axes rule was meant to fix, just inverted.
+- **A freshly built nozzle row disagreed with the rows beside it** - it picked its label from the last grid span seen rather than the pixel decision the rest of the widget already uses, and a real touchscreen never gets a second resize to correct it.
+- **The tool switcher baked a row count its real cell could not support** - the widget measures itself before the panel grid is active, so the measurement resolved against the outer panel's content box rather than its eventual cell, and nothing re-ran it afterwards.
+- **Grid edit mode computed its geometry against the wrong track count** - the live container sizes its row axis from rows actually in use, not the breakpoint table, so a page whose widgets occupy only the first row was off by whole tracks rather than sub-pixels.
+- **Grid cell conversion ignored the gutters between tracks** - and the dots overlay landed a full gutter past the right and bottom edges, clipping the last row and column of dots off it.
+- **A debug bundle reached ten minutes back and spent 97% of it on load averages** - Klipper writes an 850-byte stats line every second. On a real AD5X log the dominant noise was a four-line toolhead dump repeated 7916 times, which is not a stats line and sailed straight through the first pass, leaving a payload with less history than the unfiltered tail it replaced. Repeating shapes are collapsed now, so an 11.7MB crash log condenses to 1344 lines carrying the MCU shutdown and all 22 tool changes.
+- **A misleading clock-step annotation on every line of a bundle** - the ring buffer stores raw messages and formats them at dump time, so the monotonic column read the dump instant and one bundle shipped 97 clock-step annotations summing to the entire session.
+- **The debug ring was one fixed size picked for the smallest board** - it is the only place a bundle can recover DEBUG context on a device whose persistent sinks run at WARN, and one AD5X bundle covered 13.5 minutes and arrived with nothing about the shutdown under investigation. It now scales with device RAM, floored at the old value so nothing regresses.
+- **Warnings were lost when the UI was SIGKILLed** - which is routine, by an init script escalating to `kill -9` or by a firmware helper freeing RAM. One CC1 left its log frozen for two weeks and truncated mid-line, so a black-screen incident had no app-level evidence at all.
+- **A pending-count debug line filled most of a bundle's ring** - it re-fired on every count decrement, so one healthy poll burst emitted a line per in-flight request and a Spoolman printer spent 1275 of 2000 lines on it, capping its reach at about 3.5 hours of nothing.
+- **The test-mode banner named a config file the run never touches** - it printed the default path verbatim, so a run with `HELIX_CONFIG_DIR` set sent you editing the wrong file.
+- **A modal opened four LVGL warnings and resolved to nothing** - the exclude-object and cancel dialogs passed callback names that were never registered.
+- **The Performance overlay was filed as an unregistered push** - which made a genuine missing registration elsewhere indistinguishable from this benign one in panel telemetry and the crash breadcrumb ring.
+- **The XML formatter deleted multi-line comments above the root element** - sixteen of them, one per file, all state tables and rationale notes. They are restored here, and both directions verified.
+- **The color picker ignored its own responsive size ladder** - constants are scope-local and were only ever registered into one scope, so the copy embedded in the AMS edit overlay fell back to a fixed 128px. A first-write-wins registration separately discarded the 24/28/32 swatch ladder so every screen got 32, and a hex placeholder starting with `#` was parsed as a constant reference and dropped at all three sites.
+- **A stale thumbnail path disarmed active-print recovery** - and the detail view ignored the source timestamp on its own fetch path, so a cache entry could outlive the file it came from.
+- **A submodule patch that failed to apply still stamped the tree as patched** - the red line scrolled past once and every later build reported nothing to do. That is how the #1212 null-hloop guard went missing from the tree, and the regression test written to catch it segfaulted instead of failing.
+- **The repair path could not repair one of the two submodules** - the reset looped over only one list, so a tree carrying an older revision of a libhv patch was told to run a command that could never fix it.
+- **The nightly build was killed at the link on a cold ccache** - it ran the whole build and test compile in one step capped below what the two-step Build workflow already budgets, and trimmed the cache to 500M right after restoring 1.8GB into it.
+- **A failed cross-build reported success** - the ssh build was joined to the timing lines with `&&`, so a failure short-circuited past them and exited with the status of an echo. Make then printed a green banner with a negative duration and rsynced whatever stale binaries sat in the fetch directory, in one case a two-month-old build.
+
+### Changed
+
+- **Home widgets pick their layout from physical pixels, not grid spans** - print status, camera, the tool switcher, the job queue, active spool, print stats, the clock, the fan stack, favorite macro, nozzle temps and the temperature stack all decided their layout from colspan and rowspan, which reads differently on every panel and orientation. They now threshold the pixel width and height they were already being handed. The camera migration was the risky one, since that edge starts and stops an MJPEG stream.
+- **Widgets declare whether they can occupy half a grid cell** - groundwork for half-cell tracks. The small single-action widgets can; anything rendering a chart, image, list or video frame needs a whole cell.
+- **G-code is sent verbatim** - the trailing provenance comment is gone, along with the capability flag and enum that existed only to suppress it. It had already broken M117 and M118 payloads and the AD5X quoted RESPOND echo before it broke homing on COSMOS.
+- **The AD5X slot poll backs off to 30 seconds during a print** - measured on a real session, 3902 downloads produced 3 content changes, two of them the first poll after boot establishing a baseline, and each fetch is a loopback HTTP GET on a two-core board that is simultaneously feeding the MCU step queue. Paused keeps the 5 second cadence, since a pause is when spools actually get relabelled, and the transition to done forces an off-cadence poll.
+- **Thumbnail fetches go through one guarded path** - results are always delivered on the main thread now, where previously which thread they arrived on depended on which internal path produced them, and callers set image sources from them.
+- **Eight locales are complete again and the CJK glyph set is refreshed** - covering the strings added since 0.99.107 closed the previous gap, with twelve obsolete parameterized error strings dropped.
+- **The i18n sync tools stopped reporting edits they never made** - without ruamel installed there are no line numbers to splice against, so `obsolete --action delete` printed "Deleted 36 key instances" and left all nine files untouched. Mutating operations now refuse to run rather than lie. The extractor also stopped treating an XML constant reference as translatable text.
+- **`--real-ams` selects a real AMS backend under `--test`** - the flag and its predicate already existed and were unit-tested, but nothing ever set it from argv. The mock client now simulates the status frame Happy Hare needs, which it could otherwise never receive.
 
 ## [0.99.107] - 2026-08-07
 
@@ -4805,6 +5483,14 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.99.115]: https://github.com/prestonbrown/helixscreen/compare/v0.99.114...v0.99.115
+[0.99.114]: https://github.com/prestonbrown/helixscreen/compare/v0.99.113...v0.99.114
+[0.99.113]: https://github.com/prestonbrown/helixscreen/compare/v0.99.112...v0.99.113
+[0.99.112]: https://github.com/prestonbrown/helixscreen/compare/v0.99.111...v0.99.112
+[0.99.111]: https://github.com/prestonbrown/helixscreen/compare/v0.99.108...v0.99.111
+[0.99.110]: https://github.com/prestonbrown/helixscreen/compare/v0.99.109...v0.99.110
+[0.99.109]: https://github.com/prestonbrown/helixscreen/compare/v0.99.108...v0.99.109
+[0.99.108]: https://github.com/prestonbrown/helixscreen/compare/v0.99.107...v0.99.108
 [0.99.107]: https://github.com/prestonbrown/helixscreen/compare/v0.99.106...v0.99.107
 [0.99.106]: https://github.com/prestonbrown/helixscreen/compare/v0.99.105...v0.99.106
 [0.99.105]: https://github.com/prestonbrown/helixscreen/compare/v0.99.103...v0.99.105

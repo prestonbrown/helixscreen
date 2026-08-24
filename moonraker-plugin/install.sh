@@ -18,7 +18,9 @@ set -e
 # Get script directory (POSIX-compatible)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_FILE="$SCRIPT_DIR/helix_print.py"
-PHASE_TRACKING_CFG="$SCRIPT_DIR/../config/helix_phase_tracking.cfg"
+# Legacy name, kept only so --uninstall can clean up installs that predate
+# 0d5bc370d (which merged helix_phase_tracking.cfg into helix_macros.cfg)
+LEGACY_PHASE_TRACKING_CFG="helix_phase_tracking.cfg"
 AUTO_MODE=false
 ENABLE_PHASE_TRACKING=false
 
@@ -199,6 +201,26 @@ wait_for_moonraker() {
     return 1
 }
 
+# Locate the shipped helix_macros.cfg
+#
+# It defines the HELIX_PHASE_* and HELIX_READY macros that the plugin injects
+# into PRINT_START. The sibling layout holds in both a git checkout and a
+# deployed HelixScreen - mk/cross.mk ships assets/ and moonraker-plugin/ side by
+# side (DEPLOY_ASSET_DIRS).
+find_helix_macros_cfg() {
+    for candidate in \
+        "$SCRIPT_DIR/../assets/config/helix_macros.cfg" \
+        "$SCRIPT_DIR/../config/helix_macros.cfg" \
+        "/opt/helixscreen/config/helix_macros.cfg"
+    do
+        if [ -f "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Install phase tracking macros and optionally instrument PRINT_START
 install_phase_tracking() {
     config_dir="$1"
@@ -211,19 +233,22 @@ install_phase_tracking() {
 
     info "Setting up detailed print preparation tracking..."
 
-    # Copy helix_phase_tracking.cfg to config directory
-    if [ -f "$PHASE_TRACKING_CFG" ]; then
-        cp "$PHASE_TRACKING_CFG" "$config_dir/helix_phase_tracking.cfg"
-        info "Installed helix_phase_tracking.cfg"
-    else
-        warn "Phase tracking config not found: $PHASE_TRACKING_CFG"
+    # Install helix_macros.cfg BEFORE instrumenting. Instrumenting first would
+    # leave PRINT_START calling macros that do not exist, which Klipper does not
+    # catch at config load - it fails at print start with "Unknown command".
+    if ! macros_cfg=$(find_helix_macros_cfg); then
+        warn "helix_macros.cfg not found alongside the plugin"
+        warn "Skipping phase tracking - PRINT_START will be left untouched"
         return 1
     fi
+
+    cp "$macros_cfg" "$config_dir/helix_macros.cfg"
+    info "Installed helix_macros.cfg"
 
     # Add include to printer.cfg if not already present
     printer_cfg="$config_dir/printer.cfg"
     if [ -f "$printer_cfg" ]; then
-        if ! grep -q '\[include helix_phase_tracking.cfg\]' "$printer_cfg"; then
+        if ! grep -q '\[include helix_macros.cfg\]' "$printer_cfg"; then
             # Create backup
             backup_file="${printer_cfg}.bak.$(date +%Y%m%d_%H%M%S)"
             cp "$printer_cfg" "$backup_file"
@@ -231,14 +256,15 @@ install_phase_tracking() {
 
             # Append include at end of file (safe, simple approach)
             printf '\n' >> "$printer_cfg"
-            printf '%s\n' "[include helix_phase_tracking.cfg]" >> "$printer_cfg"
+            printf '%s\n' "[include helix_macros.cfg]" >> "$printer_cfg"
 
-            info "Added [include helix_phase_tracking.cfg] to printer.cfg"
+            info "Added [include helix_macros.cfg] to printer.cfg"
         else
-            info "Phase tracking include already present in printer.cfg"
+            info "Helix macros include already present in printer.cfg"
         fi
     else
-        warn "printer.cfg not found - please add [include helix_phase_tracking.cfg] manually"
+        warn "printer.cfg not found - please add [include helix_macros.cfg] manually"
+        return 1
     fi
 
     # Call plugin API to instrument PRINT_START macro
@@ -270,20 +296,25 @@ remove_phase_tracking() {
     # Call plugin API to strip instrumentation first (while Moonraker is still running)
     curl -s -X POST "$moonraker_url/server/helix/phase_tracking/disable" 2>/dev/null || true
 
-    # Remove include from printer.cfg
+    # helix_macros.cfg and its include are deliberately left in place: it is the
+    # shared HelixScreen helper macro file (HELIX_START_PRINT, HELIX_CLEAN_NOZZLE
+    # and friends), not a phase-tracking artifact. Removing it here would break
+    # features the user never uninstalled. Stripping the instrumentation above is
+    # what actually disables phase tracking.
+
+    # Clean up the legacy pre-0d5bc370d file, which nothing uses any more
     printer_cfg="$config_dir/printer.cfg"
-    if [ -f "$printer_cfg" ] && grep -q '\[include helix_phase_tracking.cfg\]' "$printer_cfg"; then
+    if [ -f "$printer_cfg" ] && grep -q "\[include $LEGACY_PHASE_TRACKING_CFG\]" "$printer_cfg"; then
         backup_file="${printer_cfg}.bak.$(date +%Y%m%d_%H%M%S)"
         cp "$printer_cfg" "$backup_file"
-        grep -v '\[include helix_phase_tracking.cfg\]' "$printer_cfg" > "$printer_cfg.tmp"
+        grep -v "\[include $LEGACY_PHASE_TRACKING_CFG\]" "$printer_cfg" > "$printer_cfg.tmp"
         mv "$printer_cfg.tmp" "$printer_cfg"
-        info "Removed phase tracking include from printer.cfg"
+        info "Removed legacy phase tracking include from printer.cfg"
     fi
 
-    # Remove the cfg file
-    if [ -f "$config_dir/helix_phase_tracking.cfg" ]; then
-        rm "$config_dir/helix_phase_tracking.cfg"
-        info "Removed helix_phase_tracking.cfg"
+    if [ -f "$config_dir/$LEGACY_PHASE_TRACKING_CFG" ]; then
+        rm "$config_dir/$LEGACY_PHASE_TRACKING_CFG"
+        info "Removed legacy $LEGACY_PHASE_TRACKING_CFG"
     fi
 }
 

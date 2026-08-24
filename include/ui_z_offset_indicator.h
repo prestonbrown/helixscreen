@@ -9,7 +9,9 @@
 
 /// @brief Set the z-offset value to display (animated transition)
 /// @param obj The z_offset_indicator widget
-/// @param microns Z-offset in microns (-2000 to +2000). Negative = closer to bed.
+/// @param microns Z-offset in microns. Negative = closer to bed. Any value is
+///        accepted: the scale auto-ranges through a ladder from ±0.10mm up to
+///        ±10mm, and values past that pin to the end of the largest scale.
 void ui_z_offset_indicator_set_value(lv_obj_t* obj, int microns);
 
 /// @brief Flash a direction arrow (fades out over 400ms)

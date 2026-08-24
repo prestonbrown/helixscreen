@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_context_menu.h"
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
@@ -126,12 +127,45 @@ class FanStackWidget : public PanelWidget {
     void bind_fans();
     void bind_carousel_fans();
 
-    // Picker for fan + icon selection
-    lv_obj_t* picker_backdrop_ = nullptr;
-    static FanStackWidget* s_active_picker_;
+    /// Display-mode rows plus the icon grid, raised by the edit-mode gear.
+    /// Picking an icon applies immediately and leaves the card up, so Done and
+    /// a tap on the backdrop both simply close it.
+    class ConfigurePicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(ConfigurePicker)
+
+      public:
+        explicit ConfigurePicker(FanStackWidget& owner) : owner_(owner) {}
+
+        /// Repaint the grid's selection border after a live icon change.
+        void refresh_icon_highlights();
+
+      protected:
+        const char* xml_component_name() const override {
+            return "fan_stack_picker";
+        }
+        /// Half the screen, clamped so the icon grid keeps a full row of cells on
+        /// a 480px panel and the card does not sprawl on a 1024px one.
+        CardWidth card_width() const override {
+            return {50, 200, 360};
+        }
+        void on_created(lv_obj_t* backdrop) override;
+
+      private:
+        /// What a generated row needs to act on a tap: the value it stands for
+        /// (a display_mode for a mode row, an icon name for a grid cell) and the
+        /// picker that owns it. Heap-allocated per row, hung off the row's
+        /// user_data and freed by that row's own LV_EVENT_DELETE handler.
+        struct RowPayload {
+            ConfigurePicker* picker;
+            std::string value;
+        };
+
+        FanStackWidget& owner_;
+    };
+
+    ConfigurePicker picker_{*this};
 
     void show_fan_picker();
-    void dismiss_fan_picker();
     void select_fan(const std::string& object_name);
     void select_icon(const std::string& name);
     void save_fan_config();

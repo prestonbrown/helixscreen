@@ -14,6 +14,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,12 +63,18 @@ class MoonrakerRequestTracker {
      * @param error_cb Error callback (optional)
      * @param timeout_ms Timeout override (0 = use default)
      * @param silent Suppress RPC_ERROR events
+     * @param intent Explicit caller intent, captured before any internal callback
+     *        wrapping. When omitted it is inferred from @p silent and the presence
+     *        of @p error_cb, which is what the ~130 direct callers below the gcode
+     *        APIs rely on: they carry no `!!` channel, so "supplied an error_cb"
+     *        is still a fair proxy for "will report this itself".
      * @return Request ID, or INVALID_REQUEST_ID on error
      */
     RequestId send(hv::WebSocketClient& ws, const std::string& method, const json& params,
                    std::function<void(const json&)> success_cb,
                    std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-                   bool silent = false);
+                   bool silent = false,
+                   std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt);
 
     /**
      * @brief Send fire-and-forget JSON-RPC (no callbacks, no tracking)
@@ -142,6 +149,16 @@ class MoonrakerRequestTracker {
     /// tens of milliseconds is simply working; only a queue that is failing to
     /// drain is worth a line. See the throttle note in check_timeouts().
     static constexpr uint32_t PENDING_LOG_MIN_AGE_MS = 1000; // 1s
+
+    /// Age at which the periodic pending-count line escalates from debug to warn.
+    static constexpr uint32_t PENDING_WARN_AGE_MS = 30000; // 30s
+
+    /// Same, for a long-running G-code script. `printer.gcode.script` does not
+    /// return until Klipper finishes the macro, and an AFC toolchange over a 2 m
+    /// bowden is legitimately a minute or more, so the 30 s threshold flagged
+    /// healthy work: 77 warnings in one AFC bundle, all of them normal lane
+    /// loads. Past five minutes a script really has stopped.
+    static constexpr uint32_t PENDING_WARN_AGE_GCODE_MS = 300000; // 5min
 
   private:
     std::map<uint64_t, PendingRequest> pending_requests_;

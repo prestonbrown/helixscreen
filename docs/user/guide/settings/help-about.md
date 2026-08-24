@@ -46,14 +46,18 @@ When you need help troubleshooting an issue:
 
 Debug bundles include:
 
-- **System logs** — recent HelixScreen log output
-- **Configuration** — your settings (sanitized, no passwords or API keys)
+- **System logs** - recent HelixScreen log output, starting from the very beginning of startup. That matters for problems that happen while HelixScreen is still loading your settings - a settings file that could not be read, or one that had to be restored from backup. On older versions those messages happened before the log was being kept, so the bundle showed no trace of them even though you saw the message on screen
+- **Configuration** — your HelixScreen settings (sanitized, no passwords or API keys)
+- **Printer configuration** — your Klipper `printer.cfg` and any files it includes, so support can see how your printer is actually set up (sanitized, see below)
+- **Installed macros** — the names of your G-code macros (names only, not what they do)
 - **System info** — OS version, hardware details, display resolution
 - **Crash data** — if a crash occurred, the crash report and backtrace
 - **Crash history** — past crash submissions with their GitHub issue references (helps support identify recurring issues)
 - **Device identifier** — a double-hashed ID used only for correlating telemetry data (not personally identifiable)
 
-Debug bundles contain only technical information needed for troubleshooting — no passwords, API keys, or personal data.
+Debug bundles contain technical information needed for troubleshooting. Before anything is uploaded, HelixScreen strips passwords, API keys and tokens, web-hook URLs (Discord, Slack, Telegram, Pushover, ntfy, IFTTT), usernames and passwords embedded in URLs, email addresses, and MAC addresses.
+
+One thing worth knowing: your `printer.cfg` is your own file, and HelixScreen can only redact patterns it recognizes. File paths are left intact, so an include pointing at `/home/yourname/…` will show that name. If you keep something unusual in your printer config that you would rather not share, look at it before you send the code — and remember a share code is only as private as the people you give it to.
 
 ---
 

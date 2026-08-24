@@ -13,6 +13,13 @@ VENV_PYTHON := .venv/bin/python
 # below has no such guard, so prune them from the file list too.
 XML_FIND_PRUNE := -not -path "ui_xml/translations/*"
 
+# android/ is pruned from the STAGED list below for the same reason: it holds
+# AndroidManifest.xml and res/values/*.xml, which belong to the Android toolchain
+# and not to this formatter's LVGL house style. format-xml.py self-guards via
+# FOREIGN_DIRS; the xmllint fallback does not, and format-staged WRITES what it is
+# handed, so an unrelated commit that stages a manifest would silently reflow it.
+# The find-based lists above never reach android/ - they only walk ui_xml/.
+
 # Resolve clang-format the same way scripts/quality-checks.sh does: the pinned
 # wheel in .venv (clang-format==18.1.8, requirements) wins over the system binary,
 # so a machine's Homebrew (newer) or distro (older 18.1.x) build cannot silently
@@ -90,7 +97,7 @@ format-staged:
 			fi; \
 		done; \
 	fi; \
-	STAGED_XML_FILES=$$(git diff --cached --name-only --diff-filter=ACM | grep '\.xml$$' | grep -v '^ui_xml/translations/' || true); \
+	STAGED_XML_FILES=$$(git diff --cached --name-only --diff-filter=ACM | grep '\.xml$$' | grep -v '^ui_xml/translations/' | grep -v '^android/' || true); \
 	if [ -n "$$STAGED_XML_FILES" ]; then \
 		echo "$(CYAN)Formatting staged XML files...$(RESET)"; \
 		if [ -x "$(VENV_PYTHON)" ] && $(VENV_PYTHON) -c "import lxml" 2>/dev/null; then \

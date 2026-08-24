@@ -298,8 +298,7 @@ TEST_CASE("Fan max_power normalization", "[fan][update][max_power]") {
     SECTION("heater_fan full-on with max_power 0.5 reads 100%") {
         // Klipper reports speed=0.5 for a fan configured max_power: 0.5 running
         // at logical full. Without normalization HelixScreen showed 50%.
-        state.init_fans({"heater_fan hotend_fan"}, {},
-                        {{"heater_fan hotend_fan", 0.5}});
+        state.init_fans({"heater_fan hotend_fan"}, {}, {{"heater_fan hotend_fan", 0.5}});
         json status = {{"heater_fan hotend_fan", {{"speed", 0.5}}}};
         state.update_from_status(status);
 
@@ -327,8 +326,7 @@ TEST_CASE("Fan max_power normalization", "[fan][update][max_power]") {
 
     SECTION("normalized result clamps to 100%") {
         // Defensive: even if a report exceeds max_power, don't overshoot 100.
-        state.init_fans({"heater_fan hotend_fan"}, {},
-                        {{"heater_fan hotend_fan", 0.5}});
+        state.init_fans({"heater_fan hotend_fan"}, {}, {{"heater_fan hotend_fan", 0.5}});
         json status = {{"heater_fan hotend_fan", {{"speed", 0.6}}}};
         state.update_from_status(status);
 

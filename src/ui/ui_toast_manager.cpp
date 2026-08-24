@@ -23,6 +23,19 @@
 
 using namespace helix;
 
+namespace helix {
+namespace ui {
+
+void show_feature_unavailable_toast() {
+    // Single shared, translatable copy reused across every excluded-subsystem
+    // affordance on the ESP32 v1 build. See ui_toast_manager.h.
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Not yet available on this display"),
+                                  3000);
+}
+
+} // namespace ui
+} // namespace helix
+
 // Animation durations — kept in sync with globals.xml anim_fast / anim_normal.
 static constexpr int32_t TOAST_ENTRANCE_DURATION_MS = 200;
 static constexpr int32_t TOAST_EXIT_DURATION_MS = 150;

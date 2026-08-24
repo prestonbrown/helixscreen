@@ -11,7 +11,7 @@
  * 1. Long-press detection on objects in the G-code viewer
  * 2. Confirmation modal with object name
  * 3. 5-second undo window with visual feedback
- * 4. Sending EXCLUDE_OBJECT command to Klipper via MoonrakerAPI
+ * 4. Sending EXCLUDE_OBJECT command to Klipper via IMoonrakerAPI
  *
  * Syncs excluded objects from Klipper (via PrinterState observer) to handle
  * exclusions made by other clients or the web interface.
@@ -24,12 +24,16 @@
 
 #include "async_lifetime_guard.h"
 
+namespace helix {
+enum class PrintJobState;
+} // namespace helix
+
 #include <lvgl.h>
 #include <string>
 #include <unordered_set>
 
 // Forward declarations
-class MoonrakerAPI;
+class IMoonrakerAPI;
 struct MoonrakerError;
 class PrintExcludeObjectManagerTestAccess;
 namespace helix {
@@ -61,11 +65,11 @@ class PrintExcludeObjectManager {
     /**
      * @brief Construct manager with dependencies
      *
-     * @param api MoonrakerAPI for exclude_object() calls (may be nullptr in tests)
+     * @param api IMoonrakerAPI for exclude_object() calls (may be nullptr in tests)
      * @param printer_state Reference to PrinterState for excluded objects observer
      * @param gcode_viewer Pointer to gcode viewer widget for visual updates
      */
-    PrintExcludeObjectManager(MoonrakerAPI* api, PrinterState& printer_state,
+    PrintExcludeObjectManager(IMoonrakerAPI* api, PrinterState& printer_state,
                               lv_obj_t* gcode_viewer);
 
     ~PrintExcludeObjectManager();
@@ -115,11 +119,11 @@ class PrintExcludeObjectManager {
     void request_exclude(const std::string& object_name);
 
     /**
-     * @brief Update the MoonrakerAPI pointer
+     * @brief Update the IMoonrakerAPI pointer
      *
      * @param api New API pointer (may be nullptr)
      */
-    void set_api(MoonrakerAPI* api) {
+    void set_api(IMoonrakerAPI* api) {
         api_ = api;
     }
 
@@ -181,7 +185,7 @@ class PrintExcludeObjectManager {
     // === Dependencies ===
     //
 
-    MoonrakerAPI* api_;
+    IMoonrakerAPI* api_;
     PrinterState& printer_state_;
     lv_obj_t* gcode_viewer_;
 
@@ -266,7 +270,7 @@ class PrintExcludeObjectManager {
      * silently. Prevents a stuck red-ghosted object from lingering into the next
      * print if Klipper's status push never arrived (crash, disconnect, etc).
      */
-    void on_print_state_changed(int state_enum);
+    void on_print_state_changed(helix::PrintJobState state);
 
     /**
      * @brief Handle an RPC error from EXCLUDE_OBJECT.

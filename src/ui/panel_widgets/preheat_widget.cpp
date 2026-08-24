@@ -11,10 +11,10 @@
 #include "app_globals.h"
 #include "config.h"
 #include "filament_database.h"
+#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
 #include "material_settings_manager.h"
-#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "preset_materials.h"
@@ -25,6 +25,8 @@
 #include <spdlog/spdlog.h>
 
 #include <cstdio>
+#include <set>
+#include <utility>
 
 // Preset material identity comes from helix::presets (backed by
 // MaterialSettingsManager), NOT a local literal table. A hardcoded copy here is
@@ -80,9 +82,10 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         update_button_label();
     }
 
-    // Clamp tool_target_ to prevent stale index when tool count changes between sessions
-    auto tool_count = static_cast<int>(ToolState::instance().tools().size());
-    if (tool_target_ >= tool_count) {
+    // Clamp tool_target_ to prevent a stale index when the printer's extruder
+    // count changes between sessions. PanelWidget instances are recycled across
+    // home-panel rebuilds, so tool_target_ outlives any one attach.
+    if (tool_target_ >= ToolState::instance().extruder_count()) {
         tool_target_ = -1; // Reset to "all" if stale
     }
 
@@ -97,11 +100,15 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Tool target button — only visible on multi-tool printers
+    // Tool target button - only visible when the printer has more than one
+    // nozzle to aim a preheat at. Counts extruders, not tools: an AMS expands
+    // ToolState's tool list to one entry per filament lane, and every lane on a
+    // single-hotend printer shares the one heater, so "T0 / T1 / T2 / T3" would
+    // offer four names for the same thing.
     tool_target_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_tool_target");
     tool_target_label_ = lv_obj_find_by_name(widget_obj_, "tool_target_label");
     if (tool_target_btn_) {
-        if (!ToolState::instance().is_multi_tool()) {
+        if (!ToolState::instance().has_multiple_extruders()) {
             lv_obj_add_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_remove_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
@@ -237,8 +244,10 @@ void PreheatWidget::update_tool_target_label() {
 
     char label[16];
     if (tool_target_ == -1) {
-        int tool_count = ToolState::instance().tool_count();
-        std::snprintf(label, sizeof(label), "All (%d)", tool_count);
+        // The number of nozzles "All" will heat, which is what
+        // collect_preheat_heaters() resolves to once lanes sharing a heater
+        // collapse, not the lane count.
+        std::snprintf(label, sizeof(label), "All (%d)", ToolState::instance().extruder_count());
     } else {
         std::snprintf(label, sizeof(label), "T%d", tool_target_);
     }
@@ -293,7 +302,7 @@ void PreheatWidget::handle_apply() {
 
     auto* api = get_moonraker_api();
     if (!api) {
-        spdlog::warn("[PreheatWidget] No MoonrakerAPI available");
+        spdlog::warn("[PreheatWidget] No IMoonrakerAPI available");
         return;
     }
 
@@ -323,7 +332,10 @@ void PreheatWidget::handle_apply() {
     int nozzle = t.nozzle;
     int bed = t.bed;
 
-    if (ToolState::instance().is_multi_tool()) {
+    // The multi path only earns its per-heater fan-out when the printer has
+    // more than one nozzle. A single hotend behind an AMS takes the plain path,
+    // which routes through TemperatureController's Nozzle heater.
+    if (ToolState::instance().has_multiple_extruders()) {
         set_temperatures_multi(nozzle, bed);
     } else {
         set_temperatures(nozzle, bed);
@@ -336,7 +348,7 @@ void PreheatWidget::handle_apply() {
 void PreheatWidget::handle_cooldown() {
     auto* api = get_moonraker_api();
     if (!api) {
-        spdlog::warn("[PreheatWidget] No MoonrakerAPI available for cooldown");
+        spdlog::warn("[PreheatWidget] No IMoonrakerAPI available for cooldown");
         return;
     }
 
@@ -373,12 +385,20 @@ std::vector<std::string> PreheatWidget::collect_preheat_heaters(const std::vecto
     std::vector<std::string> heaters;
 
     if (tool_target == -1) {
-        // Heat all tools
+        // Heat every distinct heater, in tool order. Duplicates collapse:
+        // set_ams_topology() expands the tool list to one entry per filament
+        // lane, and every lane on a single-hotend printer resolves to the same
+        // heater. Without the collapse a 4-lane AMS sent the same target four
+        // times and the confirmation toast reported "all 4 tools".
+        std::set<std::string> seen;
         for (const auto& tool : tools) {
             if (!tool.extruder_name && !tool.heater_name) {
                 continue; // Skip tools with no valid heater
             }
-            heaters.push_back(tool.effective_heater());
+            std::string heater = tool.effective_heater();
+            if (seen.insert(heater).second) {
+                heaters.push_back(std::move(heater));
+            }
         }
     } else if (tool_target >= 0 && tool_target < static_cast<int>(tools.size())) {
         const auto& tool = tools[tool_target];
@@ -426,9 +446,11 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
 }
 
 void PreheatWidget::cycle_tool_target() {
-    int tool_count = ToolState::instance().tool_count();
+    // Cycles over nozzles, not lanes: tool_target_ indexes ToolState's tool
+    // list, whose first extruder_count() entries carry the distinct extruders.
+    int tool_count = ToolState::instance().extruder_count();
     if (tool_count <= 1) {
-        tool_target_ = -1; // Single tool, always "all"
+        tool_target_ = -1; // Single nozzle, always "all"
         return;
     }
 

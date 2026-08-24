@@ -45,6 +45,16 @@ All K2 models use Allwinner ARM Cortex-A7 dual-core processors running Tina Linu
 - **armv7l** — Dual-core Cortex-A7 (NOT Cortex-A53). Lower performance than K1 series.
 - **480x800 display** — The panel is 480x800 portrait, same as all other K2 models (`lcm_id=gc9503cv_ue_480_800` in cmdline confirms). HelixScreen software-rotates portrait→landscape (applies to all K2). The 480x1600 seen in `/sys/class/graphics/fb0/virtual_size` is a double-buffered virtual framebuffer (two stacked 480x800 buffers), not a taller panel.
 - **Python 3.9** — Available at `/usr/bin/python3`.
+- **Moonraker's config is outside the file API** — stock firmware launches
+  `moonraker.py -c /usr/share/moonraker/moonraker.conf`, while the file manager's only
+  writable `config` root is `/mnt/UDISK/printer_data/config`. So
+  `GET /server/files/config/moonraker.conf` is a 404 and **no HTTP call can edit
+  Moonraker's configuration on this printer.** HelixScreen falls back to writing the file
+  locally; it is the only supported printer that needs to. See
+  [MOONRAKER_ARCHITECTURE.md § Locating Moonraker's Config File](../MOONRAKER_ARCHITECTURE.md#locating-moonrakers-config-file).
+  A `moonraker.conf` **does** sometimes exist under the writable root — left by earlier
+  HelixScreen releases — and it is a decoy: it shares the stock section set with the real
+  config and Moonraker never reads it.
 
 ## Cross-Compilation
 
@@ -138,7 +148,7 @@ Deploy directory: `/opt/helixscreen` (override with `K2_DEPLOY_DIR`). SSH creden
 ### What Happens on Deploy
 
 1. Stops any running HelixScreen processes
-2. Deploys platform hooks (`config/platform/hooks-k2.sh` → `/opt/helixscreen/platform/hooks.sh`)
+2. Deploys platform hooks (`config/platform/hooks-k2.sh` → /opt/helixscreen/platform/hooks.sh)
 3. Transfers binaries, assets, XML layouts, and config
 4. Installs SysV init script at `/etc/init.d/S99helixscreen` for boot persistence
 5. Ensures `/opt/helixscreen` symlink points to `/mnt/UDISK/helixscreen`
@@ -177,9 +187,9 @@ The CFS is implemented as Klipper modules, but the core logic is in **closed-sou
 
 | Module | Source | Function |
 |--------|--------|----------|
-| `box.py` | 3-line shim | Loads `MultiColorMeterialBoxWrapper` from `box_wrapper.cpython-39.so` |
+| box.py | 3-line shim | Loads `MultiColorMeterialBoxWrapper` from `box_wrapper.cpython-39.so` |
 | `box_wrapper.cpython-39.so` | **Binary blob** (Cython) | All CFS protocol, RFID, motor control, filament state |
-| `auto_addr.py` | 3-line shim | Loads `AutoAddrWrapper` from `auto_addr_wrapper.cpython-39.so` |
+| auto_addr.py | 3-line shim | Loads `AutoAddrWrapper` from `auto_addr_wrapper.cpython-39.so` |
 | `auto_addr_wrapper.cpython-39.so` | **Binary blob** | RS-485 device discovery and address assignment |
 | `filament_rack` | Klipper module | External filament rack sensor |
 
@@ -236,7 +246,7 @@ There are **two** incompatible `box` shapes in the wild, with zero key overlap:
 | Schema | Shipped by | Shape |
 |--------|-----------|-------|
 | **Stock** | Creality's own `[box]` module (K1 and K2) | Per-unit `T1`–`T4` objects, each holding four parallel arrays; top-level `filament` / `map` / `same_material` / `auto_refill` |
-| **Flat** | Community Kalico ports carrying a reimplemented `box.py` | A single `slots[]` array of self-describing objects; top-level `loaded_slot` / `slot_filament_mask` / `load_path` / `materials` |
+| **Flat** | Community Kalico ports carrying a reimplemented box.py | A single `slots[]` array of self-describing objects; top-level `loaded_slot` / `slot_filament_mask` / `load_path` / `materials` |
 
 `AmsBackendCfs::detect_schema()` picks between them **from the payload** — a `T{n}` key means Stock, otherwise a `slots` array means Flat, and anything ambiguous defaults to Stock. It deliberately does **not** consult `PrinterDetector`: the affected printers report as stock K2 Plus hardware by every model signal, so model detection cannot see the firmware swap.
 
@@ -250,9 +260,9 @@ Everything from here to "Disconnected Units" describes the **stock** schema. The
 | `filament` | int | Filament loaded flag (1 = loaded) |
 | `enable` | int | CFS enabled for printing |
 | `auto_refill` | int | Auto-refill (backup spool) enabled |
-| `filament_useup` | int | Filament use-up tracking enabled |
+| `filament_useup` | int | **Sticky latch, not an enable flag.** 1 = the box has reported its spool used up. Set by `BoxAction.send_data` on that report; cleared to 0 **only** by `BoxAction.extruder_extrude` on a successful extrude. It is *not* print-scoped — nothing resets it when a job ends, so it can read 1 indefinitely on an idle machine (confirmed live on a K2 Plus: `filament_useup: 1` with `print_stats.state: standby`). Treat a *transition* to 1 as the signal; the level alone means nothing. See [Runout and auto-refill](#runout-and-auto-refill). |
 | `map` | dict | Tool-to-slot mapping: `{"T1A": "T1A", "T1B": "T1B", ...}` |
-| `same_material` | array | Groups of slots with matching material for auto-refill |
+| `same_material` | array | Auto-refill equivalence groups. Each entry is `[material_type, color_value, [slot_ids], material_name]` — e.g. `[["101001", "01A1A1A", ["T1C", "T1D"], "PLA"]]` (live K2 Plus). Membership requires **exact string equality on BOTH `material_type` AND `color_value`**; slots whose either field is a sentinel (`-1`, `none`, `unknown`, `""`) are excluded. On the machine above, T1B carried the same `color_value` `01A1A1A` but `material_type: unknown`, and was left out of the group for that reason alone. |
 
 #### Per-Unit Fields (`T1`, `T2`, `T3`, `T4`)
 
@@ -300,7 +310,7 @@ The `material_type` field uses a format: `1XXXXX` where `XXXXX` is the material 
 | `100004` | Generic ABS |
 | `100005` | Generic TPU |
 
-The full material database is at `/mnt/UDISK/creality/userdata/box/material_database.json` (77 materials, fetched from Creality cloud). Material entries include brand, name, `meterialType` (sic — Creality typo), density, diameter, temp range.
+The full material database is at /mnt/UDISK/creality/userdata/box/material_database.json (77 materials, fetched from Creality cloud). Material entries include brand, name, `meterialType` (sic — Creality typo), density, diameter, temp range.
 
 #### Color Values
 
@@ -316,7 +326,7 @@ Units that are not connected report all fields as `"None"` or `"-1"`.
 
 ### Community Kalico port
 
-Some K2 Plus owners run a community Kalico (Danger-Klipper) port instead of Creality's firmware — [`Jacob10383/kalico`](https://github.com/Jacob10383/kalico), a fork of `KalicoCrew/kalico`, with Creality's closed CFS module replaced by a clean-room `box.py`. Moonraker reports the replacement modules as **untracked** files (`box.py`, `box_addr.py`, `box_catalog.py`, `box_change.py`, `box_protocol.py`): they are dropped in by the port's installer and are not committed to the kalico fork — searching GitHub for them finds nothing. They are, however, **downloadable**: see [Getting the module source](#getting-the-module-source). First seen in debug bundle QJKZEMTS on v0.99.106.
+Some K2 Plus owners run a community Kalico (Danger-Klipper) port instead of Creality's firmware — [`Jacob10383/kalico`](https://github.com/Jacob10383/kalico), a fork of `KalicoCrew/kalico`, with Creality's closed CFS module replaced by a clean-room box.py. Moonraker reports the replacement modules as **untracked** files (box.py, box_addr.py, box_catalog.py, box_change.py, box_protocol.py): they are dropped in by the port's installer and are not committed to the kalico fork — searching GitHub for them finds nothing. They are, however, **downloadable**: see [Getting the module source](#getting-the-module-source). First seen in debug bundle QJKZEMTS on v0.99.106.
 
 **Identifying it.** The printer looks like stock K2 Plus hardware in every model signal, so identify it from the firmware:
 
@@ -346,13 +356,13 @@ curl -sS -o box.py https://firmware.jacobean.xyz/<FIRMWARE_VERSION>/o/<box.py sh
 shasum -a 256 box.py   # must match the manifest digest
 ```
 
-`install.py` is a **kernel and rootfs flasher**. Downloading and reading it is safe; executing it is not. Nothing in this workflow needs it to run.
+install.py is a **kernel and rootfs flasher**. Downloading and reading it is safe; executing it is not. Nothing in this workflow needs it to run.
 
-Re-verified 2026-08-07 against `FIRMWARE_VERSION = 6.18`: `box.py` 2776 lines, sha256 `4cf85e6d…2d28695a`, now declaring `API_VERSION = 1` and `LEGACY_WIDGET_VERSION = 2`, with `_BOX_SLOT_CLEAR` registered in `_register_commands`. The payload emits **both** `api_version` and `fluidd_widget_version`, so a module carrying the new field is still readable by a HelixScreen that keys on the old one.
+Re-verified 2026-08-07 against `FIRMWARE_VERSION = 6.18`: box.py 2776 lines, sha256 `4cf85e6d…2d28695a`, now declaring `API_VERSION = 1` and `LEGACY_WIDGET_VERSION = 2`, with `_BOX_SLOT_CLEAR` registered in `_register_commands`. The payload emits **both** `api_version` and `fluidd_widget_version`, so a module carrying the new field is still readable by a HelixScreen that keys on the old one.
 
-> **`FIRMWARE_VERSION` does not identify the module.** The 2026-08-06 fetch of the *same* `6.18` pin returned a 2754-line `box.py` with `WIDGET_VERSION = 2` and no `_BOX_SLOT_CLEAR`. The artifacts were republished in place without a version bump, so two printers can both report `6.18` and run different command surfaces. Trust the manifest digest, not the version string — and re-fetch before relying on any earlier reading here.
+> **`FIRMWARE_VERSION` does not identify the module.** The 2026-08-06 fetch of the *same* `6.18` pin returned a 2754-line box.py with `WIDGET_VERSION = 2` and no `_BOX_SLOT_CLEAR`. The artifacts were republished in place without a version bump, so two printers can both report `6.18` and run different command surfaces. Trust the manifest digest, not the version string — and re-fetch before relying on any earlier reading here.
 
-`_register_commands` in `box.py` plus `_register_t_commands` (the per-slot `T<n>` handlers, registered only after bus enumeration) are the full command surface.
+`_register_commands` in box.py plus `_register_t_commands` (the per-slot `T<n>` handlers, registered only after bus enumeration) are the full command surface.
 
 #### Flat schema fields
 
@@ -391,7 +401,7 @@ Per-slot (`slots[i]`):
 
 #### Command dialect
 
-`CfsMacroVariant::Fork` — a **third** dialect, independent of the schema axis. The commands are high-level and self-contained: `box.py` owns the whole feed/purge/park sequence, so there is no envelope for HelixScreen to assemble and every operation is a single line.
+`CfsMacroVariant::Fork` — a **third** dialect, independent of the schema axis. The commands are high-level and self-contained: box.py owns the whole feed/purge/park sequence, so there is no envelope for HelixScreen to assemble and every operation is a single line.
 
 Signatures below are read from the module's own `_register_commands` / `cmd_*` handlers, not inferred:
 
@@ -429,9 +439,9 @@ Remaining gaps, degraded rather than broken:
 |---------------|---------------|
 | RFID fingerprinting (`build_cfs_slot_uid`) for hardware-change detection | No per-slot UID in the schema; baseline/clear logic no-ops |
 | `set_tool_mapping` via TNN + `box.map` | No equivalent — the module maps tools to slots 1:1 |
-| Bypass / external spool load | The `external: true` entry is observable and `T<external>` exists, but the flow is untested here |
+| Bypass / external spool load | **Implemented.** The `external: true` entry is observable and `T<external>` is a registered command (verified from the port's own box.py — re-fetched 2026-08-17, sha256 `a5b4d19e…9eeb6f23`, 2892 lines, `API_VERSION = 1`): the change engine runs the same attended flow for the holder as for a bay (heat → wastebin → wait `EXTERNAL_WAIT = 30 s` for insertion → feed 30 mm → flush), `BOX_UNLOAD`'s external branch ejects it, and mid-print `T<external>` pauses for attended loading. `supports_bypass` turns on for the Fork dialect when the payload carries the entry; `loaded_slot` naming it maps to the -2 sentinel. The entry is still skipped when building `unit.slots`, so it never renders as a fifth bay. See `FILAMENT_BACKEND_CFS.md` § "CFS" |
 
-Note `push_slot_color_to_firmware` is **not** a gap: its Fork counterpart is `_BOX_SLOT_SET`, which writes color, brand, name, and Spoolman link together. Because it requires a material, the backend reads the current slot profile to build the write. The explicit Clear Spool action emits `_BOX_SLOT_CLEAR`.
+Note `push_slot_identity_to_firmware` is **not** a gap: its Fork counterpart is `_BOX_SLOT_SET`, which writes color, brand, name, and Spoolman link together. Because it requires a material, the backend reads the current slot profile to build the write. The explicit Clear Spool action emits `_BOX_SLOT_CLEAR`.
 
 Parse: `AmsBackendCfs::parse_flat_box_status()`. Builders: `load_gcode` / `unload_gcode` / `swap_gcode` / `slot_set_gcode`. Tests: `tests/unit/test_ams_cfs_flat_schema.cpp` (`[flat]`, `[fork]`), built on the real QJKZEMTS payload.
 
@@ -540,7 +550,7 @@ These are the **stock K2** commands (`CfsMacroVariant::K2`). Two other dialects 
 | Command | Description |
 |---------|-------------|
 | `BOX_ENABLE_CFS_PRINT ENABLE={0\|1}` | Enable/disable CFS for printing |
-| `BOX_ENABLE_AUTO_REFILL` | Toggle auto-refill (backup spool switching) |
+| `BOX_ENABLE_AUTO_REFILL ENABLE={0\|1}` | **Setter, not a toggle.** The handler reads an int via `gcmd.get_int`, so it sets auto-refill on or off rather than flipping it. **Parameter spelling RECOVERED** (2026-08-17): Creality's own master-server sends `BOX_ENABLE_AUTO_REFILL ENABLE=1` / `ENABLE=0` — present in the string tables of both OTA images (K1 `CR4CU220812S11_ota_img_V2.3.5.34.img`, K2 Plus `CR0CN240110C10_ota_img_V1.1.4.11.img`). HelixScreen's `toggle_auto_refill` device action inverts the last box-reported flag and sends the explicit argument. |
 | `BOX_SET_BOX_MODE` | Set CFS operating mode |
 | `BOX_SET_TEMP` | Set extrusion temperature |
 | `BOX_SET_PRE_LOADING ADDR={n} NUM={n} ACTION=RUN` | Pre-load filament |
@@ -586,6 +596,34 @@ These are the **stock K2** commands (`CfsMacroVariant::K2`). Two other dialects 
 | `BOX_QUIT_MATERIAL` | Heat → Cut → Retract → Park | Same issue |
 | `BOX_INFO_REFRESH` | Pre-load → Get RFID → Get Remain Len | Safe to use, [usage](#refresh-spool-info) |
 
+#### The external-spool pair: `LOAD_MATERIAL` / `QUIT_MATERIAL`
+
+Separate from the `BOX_`-prefixed bay macros above, and easy to miss because the names differ
+by a prefix. These are Creality's **non-CFS spool-holder** operations, provided by the
+`[filament_rack]` module (`filament_rack_wrapper.cpython-39.so`, loaded on a stock K2 Plus —
+`filament_rack` appears in `printer.objects/list`). They are what a bypass / external spool
+load and unload should use, and HelixScreen's stock-dialect bypass paths do:
+
+| Macro | Sequence | Feed gated on |
+|-------|----------|---------------|
+| `LOAD_MATERIAL` | `BOX_GO_TO_EXTRUDE_POS` → `FILAMENT_RACK_SAVE_FAN` → `FILAMENT_RACK_PRE_FLUSH` → `FILAMENT_RACK_SET_TEMP` → `FILAMENT_RACK_FLUSH` → `FILAMENT_RACK_RESTORE_FAN` → `SET_COOL_TEMP` → park | toolhead switch |
+| `QUIT_MATERIAL` | `BOX_GO_TO_EXTRUDE_POS` → `FILAMENT_RACK_SET_TEMP` → `BOX_MOVE_TO_CUT` → `G0 E-10 F360` → `SET_COOL_TEMP` → park | toolhead switch |
+
+Both gate their extruder work on `filament_switch_sensor filament_sensor`, so the vendor's
+intended workflow is "the user feeds to the sensor and the macro takes it from there". A
+consequence worth knowing: with nothing at the sensor, `LOAD_MATERIAL` moves, cools and parks
+while reporting success, having loaded nothing.
+
+**Only `LOAD_MATERIAL` is self-sufficient.** Measured on a K2 Plus 2026-08-19 by watching the
+extruder axis: `LOAD_MATERIAL` moved **+370 mm** (a complete load and purge), while
+`QUIT_MATERIAL` moved **-13.99 mm** and left the filament still gripped by the extruder gears.
+The reason is in `[box]` itself — `tn_extrude = 140` against `tn_retrude = -10` — because a bay
+unload only needs the extruder to break its grip and the box's feeder reels the rest, and a
+bypass spool has no feeder. HelixScreen therefore appends its own 80 mm retract to
+`QUIT_MATERIAL` and sends `LOAD_MATERIAL` bare. Full rationale, and why an auto-detected
+`QUIT_MATERIAL` must not outrank the CFS backend, in
+[`FILAMENT_MANAGEMENT.md` § CFS bypass: why the two vendor macros are not symmetric](../FILAMENT_MANAGEMENT.md#cfs-bypass-why-the-two-vendor-macros-are-not-symmetric).
+
 #### Refresh Spool Info
 
 ```gcode
@@ -612,24 +650,68 @@ CFS errors are reported as JSON with `key8xx` codes:
 | `key831` | RS-485 communication timeout |
 | `key834` | Parameter error |
 | `key835`-`key838` | Extrusion blockages (connections, sensor, gear) |
+| `key839` | Extrusion abnormal (confirmed present in the binary; condition not determined) |
 | `key840` | Box state error |
 | `key841` | Cut sensor not detected |
 | `key843` | RFID read error |
 | `key844` | Pneumatic joint abnormal |
 | `key845` | Nozzle blocked |
-| `key847` | Empty printing, material enwind |
+| `key846` | Confirmed present in the binary; condition not determined |
+| `key847` | Empty printing, material enwind — **provenance uncertain**, see caveat below |
 | `key848` | Material break at connections |
 | `key849`-`key851` | Retraction errors |
+| `key852` | Confirmed present in the binary; condition not determined |
 | `key853` | Humidity sensor error |
 | `key855` | Cut position error |
-| `key856` | No cutter detected |
-| `key857` | Motor load error |
-| `key858` | EEPROM error |
-| `key859` | Measuring wheel error |
-| `key860` | Buffer error |
-| `key861` | Left RFID card error |
-| `key862` | Right RFID card error |
-| `key863`-`key865` | Retraction/extrusion completion errors |
+| `key856` | No cutter detected — **provenance uncertain** |
+| `key857` | Motor load error — **provenance uncertain** |
+| `key858` | EEPROM error — **provenance uncertain** |
+| `key859` | Measuring wheel error — **provenance uncertain** |
+| `key860` | Buffer error — **provenance uncertain** |
+| `key861` | Left RFID card error — **provenance uncertain** |
+| `key862` | Right RFID card error — **provenance uncertain** |
+| `key863`-`key865` | Retraction/extrusion completion errors — **provenance uncertain** |
+
+> **Provenance caveat.** The codes themselves are certain — every `keyNNN` string above was recovered from `box_wrapper.cpython-39.so`. What could **not** be determined from the stripped binary is *which condition raises which code* for `key847` and for the `key856`-`key865` block: Cython folded the raise sites into generated dispatch code with no recoverable mapping back to the calling method. Those descriptions are inference from Creality's user-facing error text and neighbouring codes, not from the raise site. Do not build behaviour that depends on a specific one of them meaning a specific thing until it has been observed on hardware. `key839`, `key846` and `key852` are listed because the strings exist; nothing at all is known about their conditions.
+
+### Runout and auto-refill
+
+Recovered from the stripped `box_wrapper.cpython-39.so` on a live K2 Plus, plus the plain-Python Klipper sources on the device. The config quotes below are from that machine's own `printer.cfg`, as dumped into `klippy.log`.
+
+**The firmware always pauses first. There is no pause-free hot swap.** The toolhead switch is a stock Klipper `filament_switch_sensor` with `pause_on_runout` set, so `runout_helper` issues the pause before anything CFS-specific runs:
+
+```ini
+[filament_switch_sensor filament_sensor]
+pause_on_runout = true
+switch_pin = ^!nozzle_mcu:PA11
+runout_gcode =
+	{% if printer.extruder.can_extrude|lower == 'true' %}
+	G91
+	G0 E30 F600
+	G90
+	{% endif %}
+	BOX_CHECK_MATERIAL_REFILL
+```
+
+filament_switch_sensor.py calls `pause_resume.send_pause_command()`, waits out `PAUSE_DELAY`, and only then runs `runout_gcode`: a 30 mm purge (skipped when the hotend is too cold to extrude — note the jinja guard, which the 30 mm push is entirely inside) followed by `BOX_CHECK_MATERIAL_REFILL`. The whole path is gated on the job being in the printing state at the moment the sensor edge is noted, i.e. before the pause. **Auto-refill therefore always operates on an already-paused print.**
+
+**Three outcomes, all of which leave the print paused:**
+
+| `auto_refill` | Matching slot in `same_material`? | What happens |
+|---------------|-----------------------------------|--------------|
+| on | yes | Cut → retrude → extrude → flush from the matching slot, then resume |
+| on | no | `respond_info("... no identical supplies ...")`, no swap, stays paused |
+| off | — | `respond_info("... disable material automatic refill ...")`, no swap, stays paused |
+
+The two give-up strings are what HelixScreen keys its CFS runout modal off (`AmsBackendCfs::classify_error`). They arrive as `respond_info` output — `// `-prefixed lines on the gcode-response channel, **not** `!!` — which is why that override inverts the usual `is_bang_line()` gate. They are untranslated English literals from one Creality build, so the matcher takes a distinctive fragment (`identical suppl`, `automatic refill` + `disab`) rather than the whole sentence, and falls back to "line mentions refill **and** `filament_useup` is set **and** the job is paused" if the wording changes entirely.
+
+> **Not verified by us:** the exact on-the-wire text of either message. `box_wrapper.cpython-39.so` is stripped, the strings were read out of it rather than out of source, and no runout occurred in the six days of `klippy.log` available from the live machine, so neither has been seen on the wire. If a K2 user reports the modal not appearing, the first thing to check is the literal wording in their `moonraker.log` gcode-response stream.
+
+**A second runout cannot re-trigger.** `check_material_refill` runs `SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=0` on **every** path, match or no match. The sensor stays disabled for the remainder of the job unless something re-enables it. (HelixScreen does not currently offer a re-enable button; a wrongly-timed re-enable would trip immediately if filament is not back at the gate.)
+
+**Resuming.** `BOX_ERROR_RESUME_PROCESS` early-returns unless box `enable != 0` **and** `print_stats.state == 'paused'`. It is reached from a plain `RESUME` via `RESUME_EXTERNAL_PROCESS` (`gcode_macro.cfg`), and it only does the box half of the recovery — it does not un-pause the job. **`RESUME` is the correct user-facing command**; sending `BOX_ERROR_RESUME_PROCESS` directly leaves the print paused. (`AmsBackendCfs::recover_gcode()` still returns the bare command for the programmatic `recover()` API; the recovery *button* sends `RESUME`.)
+
+**The generic Klipper runout warning is suppressed.** Creality edited filament_switch_sensor.py so the usual `key358` runout warning is not emitted whenever the box is enabled — the box's own error path is meant to be the only voice. That is why a CFS runout produces no `!!` line at all and the `respond_info` messages are the only signal available. (Read from the device's own filament_switch_sensor.py; not independently re-confirmed since — the six days of `klippy.log` available from the live K2 Plus contain no `key358` at all, which is consistent with the edit but proves nothing on its own, as no runout occurred in that window either.)
 
 ### Internal Classes (from Cython decompilation)
 
@@ -688,7 +770,7 @@ Note that `chamber_temp` is **not** universal on K2 hardware either: the Kalico 
 
 ### CFS
 - **Closed-source protocol** — CFS communication relies on `box_wrapper.cpython-39.so` binary blob. Protocol has been reverse-engineered from strings but full reimplementation is not yet available.
-- **Material database is cloud-fetched** — The material database at `/mnt/UDISK/creality/userdata/box/material_database.json` is downloaded from Creality's cloud. HelixScreen should include a fallback mapping for common material type codes.
+- **Material database is cloud-fetched** — The material database at /mnt/UDISK/creality/userdata/box/material_database.json is downloaded from Creality's cloud. HelixScreen should include a fallback mapping for common material type codes.
 - **Community Kalico ports require Box API v1 for control** — the flat status layout still parses without it, but load/unload/tool-change stay gated until `api_version == 1` identifies the supported command dialect. See [Community Kalico port](#community-kalico-port).
 
 ### Platform
@@ -702,7 +784,7 @@ Note that `chamber_temp` is **not** universal on K2 hardware either: the Kalico 
 - **[CrealityOfficial/K2_Series_Klipper](https://github.com/CrealityOfficial/K2_Series_Klipper)** — Creality's official (incomplete) Klipper fork
 - **[Guilouz/Creality-K2Plus-Extracted-Firmwares](https://github.com/Guilouz/Creality-K2Plus-Extracted-Firmwares)** — Extracted stock firmware images
 - **[ityshchenko/klipper-cfs](https://github.com/ityshchenko/klipper-cfs)** — Community open-source CFS module
-- **[K2 Plus Research](printer-research/CREALITY_K2_PLUS_RESEARCH.md)** — Detailed hardware and software research
-- **[K1 vs K2 Community Comparison](printer-research/CREALITY_K1_VS_K2_COMMUNITY.md)** — Analysis of community ecosystem differences
+- **[K2 Plus Research](../printer-research/CREALITY_K2_PLUS_RESEARCH.md)** — Detailed hardware and software research
+- **[K1 vs K2 Community Comparison](../printer-research/CREALITY_K1_VS_K2_COMMUNITY.md)** — Analysis of community ecosystem differences
 - **[Creality Wiki](https://wiki.creality.com/en/k2-flagship-series/k2-plus)** — Official K2 Plus documentation
 - **[Creality Forum](https://forum.creality.com/c/flagship-series/creality-flagship-k2-plus/81)** — Official K2 Plus community forum

@@ -15,7 +15,7 @@ HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to y
 - 3D G-code preview, bed mesh visualization, frequency response charts
 - 7 multi-material backends (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers) with Spoolman integration
 - First-run wizard with auto-detection of 80+ printer models
-- Theme editor with 17 presets (dark and light), 9 languages
+- Theme editor with 18 presets (dark and light), 9 languages
 - Sound system, timelapse integration, label printing, exclude objects
 - Auto-detecting layout system for displays from 480x320 to 1024x600 (ultrawide and portrait orientations are alpha)
 - ~15MB RAM on embedded targets — designed for the modest hardware most people already own, no desktop required
@@ -249,7 +249,7 @@ This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x 
 
 **Yes.** Spoolman integration is supported:
 - **Advanced panel** → **Spoolman** to browse your spool inventory
-- **Settings** → **Spoolman** for weight sync settings
+- **Settings** → **Hardware & Devices** → **Spoolman** for weight sync settings
 - Assign spools to AMS slots and track filament usage
 
 ### Can I print spool labels?
@@ -266,7 +266,7 @@ Labels include spool name, material, color swatch, temperatures, and a QR code. 
 
 **Yes.** Full multi-material support is available for:
 - **Happy Hare** — MMU2, ERCF, 3MS, Tradrack
-- **AFC-Klipper** — Box Turtle with full data parsing, 11 device actions, per-lane reset, and mock mode
+- **AFC-Klipper** — Box Turtle, OpenAMS and ViViD, with full lane data, a live step bar during tool changes, and more than 25 device settings and actions grouped into their own sections
 - **ACE** (Anycubic ACE Pro) — supported on native Anycubic firmware (the `filament_hub` Klipper object, e.g. Kobra on Rinkhals) and on the community ValgACE/BunnyACE/DuckACE Klipper drivers
 - **Tool changers** — supported
 
@@ -277,27 +277,37 @@ Features include visual slot configuration with tool badges, endless spool arrow
 **Yes!** The Home Panel displays configurable widgets — quick-access buttons for features like temperature, LED control, network status, AMS, and more.
 
 To customize:
-1. Go to **Settings** → **Home Widgets** (in the Appearance section)
-2. Toggle widgets on or off
-3. Long-press the drag handle to reorder
+1. Long-press the Home panel to enter Edit Mode
+2. Tap the **+** button on the navigation bar to open the Widget Catalog and add widgets
+3. Drag widgets to rearrange or resize them, then tap **Done**
 
-Up to 10 widgets can be shown. Some widgets (like AMS, humidity sensor, or probe) only appear if the relevant hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.
+Some widgets (like AMS, humidity sensor, or probe) only appear if the relevant hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.
+
+### Is there a quicker way to shut down the printer?
+
+Yes. Besides the settings menu, you can put a dedicated **Shutdown/Reboot widget** right on your home screen:
+
+1. Enter **Edit Mode** on the Home Panel (long-press an empty area)
+2. Add the **Shutdown/Reboot** widget from the Widget Catalog
+3. Tap it any time — a confirmation dialog appears first, so you can't shut down by accident
+
+See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) section of the Home Panel guide for details, or the **Power** widget if you'd rather toggle a PSU or smart plug.
 
 ### Can I customize the colors or layout?
 
-**Yes!** HelixScreen includes a built-in theme editor with 17 preset themes:
+**Yes!** HelixScreen includes a built-in theme editor with 18 preset themes:
 
-1. Go to **Settings** → **Display Settings**
-2. Tap **Theme** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
+1. Go to **Settings** → **Display & Sound**
+2. Tap **Theme Colors** to open the theme editor
+3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
 4. Toggle dark/light mode
 5. Customize individual colors if desired - changes are saved to `config/themes/`
 
-For layout customization, you can edit XML files in `ui_xml/` (no recompilation needed).
+For layout customization, use Edit Mode on the Home panel — long-press the dashboard to rearrange and resize widgets.
 
 ### Does it support multiple printers?
 
-**Yes!** You can configure multiple Klipper printers and switch between them from the navigation bar or Settings. You view one printer at a time, but switching is instant. Enable this under **Settings** → **Beta Features**, then add printers via **Settings** → **Printers**.
+**Yes!** You can configure multiple Klipper printers and switch between them from the navigation bar or Settings. You view one printer at a time, but switching is instant. Enable beta features first (**Settings** → **Help & About** → **About**, then tap the version button 7 times), then add printers via **Settings** → **Hardware & Devices** → **Printers**.
 
 ### Can I view print history?
 
@@ -325,11 +335,11 @@ For layout customization, you can edit XML files in `ui_xml/` (no recompilation 
 
 ### Can I run macros?
 
-**Yes.** The Macro panel shows your Klipper macros. Access via **Advanced** → **Macros**. You can also configure quick macro buttons in **Settings** → **Macro Buttons**.
+**Yes.** The Macro panel shows your Klipper macros. Access via **Advanced** → **Macros**. You can also configure quick macro buttons in **Settings** → **Printing** → **Macro Buttons**.
 
 ### Can I change which macro the Load / Unload / Purge buttons run?
 
-**Yes.** Go to **Settings > Printer > Macro Buttons** and scroll to the **Standard Macros** section. Each button has a dropdown where you can select any macro from your Klipper config, or choose **(Auto)** to let HelixScreen detect it automatically. This works with or without an AMS system — see the [Filament guide](guide/filament.md#customizing-which-macro-runs) for details.
+**Yes.** Go to **Settings > Printing > Macro Buttons** and scroll to the **Standard Macros** section. Each button has a dropdown where you can select any macro from your Klipper config, or choose **(Auto)** to let HelixScreen detect it automatically. This works with or without an AMS system — see the [Filament guide](guide/filament.md#customizing-which-macro-runs) for details.
 
 ### Why does my nozzle cool down after a filament change?
 
@@ -353,11 +363,11 @@ Your selection is saved to the `display.printer_image` config key and persists a
 
 ### What languages are supported?
 
-HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Change the language in **Settings** → **Language**.
+HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Change the language in **Settings** → **Display & Sound** → **Language**.
 
 ### Does HelixScreen collect any data?
 
-**Only if you opt in.** Telemetry is off by default. When enabled, it collects anonymous usage data (display resolution, platform, print outcomes) to help improve the software. No filenames, G-code, IP addresses, or personal information is ever collected. You can view, disable, and delete your data at any time in **Settings** → **Telemetry**. See the [Telemetry page](TELEMETRY.md) for full details.
+**Only if you opt in.** Telemetry is off by default. When enabled, it collects anonymous usage data (display resolution, platform, print outcomes) to help improve the software. No filenames, G-code, IP addresses, or personal information is ever collected. You can view, disable, and delete your data at any time in **Settings** → **System** → **Share Usage Data**. See the [Telemetry page](TELEMETRY.md) for full details.
 
 ---
 
@@ -373,7 +383,7 @@ Devices must be plugged in before HelixScreen starts. If auto-detection doesn't 
 
 If taps register in the wrong location:
 1. Go to **Settings** (gear icon)
-2. Scroll to **System** section
+2. Tap **System**, then **Touch & Input**
 3. Tap **Touch Calibration**
 4. Tap the crosshairs that appear on screen
 5. Calibration saves automatically when complete
@@ -382,8 +392,8 @@ Note: This option only appears on touchscreen displays, not in the desktop simul
 
 ### How do I change the theme or colors?
 
-1. Go to **Settings** → **Display Settings**
-2. Tap **Theme** to open the theme editor
+1. Go to **Settings** → **Display & Sound**
+2. Tap **Theme Colors** to open the theme editor
 3. Browse available presets and see live preview
 4. Toggle dark/light mode
 5. Tap **Apply** to save (some changes require restart)
@@ -399,7 +409,7 @@ Fan control is available from the home screen fan widget or controls panel.
 
 ### Does HelixScreen support firmware retraction?
 
-**Yes**, if your printer has `[firmware_retraction]` configured in Klipper. Go to **Settings** → **Retraction Settings** (under Printer section) to adjust:
+**Yes**, if your printer has `[firmware_retraction]` configured in Klipper. Go to **Settings** → **Printing** → **Retraction Settings** to adjust:
 - Retract length and speed
 - Unretract extra length and speed
 - Enable/disable firmware retraction
@@ -409,7 +419,7 @@ This option only appears if Klipper reports firmware retraction capability.
 ### How do I check why the UI is slow?
 
 1. **Check your display connection:** SPI displays are significantly slower than HDMI or DSI. If possible, use an HDMI or DSI-connected display for best performance.
-2. **Disable animations:** Go to **Settings** → toggle **Animations** off
+2. **Disable animations:** Go to **Settings** → **Display & Sound** → toggle **Animations** off
 3. **Check CPU/memory via SSH:** Run `top` or `htop` to see if something else is using resources
 4. **Reduce logging:** If you added `-vv` or `-vvv` to the service, remove it
 5. **Heavy 3D interactions feel slow?** Bed mesh rotation and gcode preview lean on the CPU/GPU; a Pi 4 or Pi 5 is smoother than a Pi 3 or Zero, but everything else in HelixScreen works fine on the older Pi tier.

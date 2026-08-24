@@ -196,8 +196,9 @@ class PrinterDetector {
      * @brief Build list options string from database
      *
      * Dynamically builds a newline-separated string of printer names suitable
-     * for LVGL list widget. Only includes entries with `show_in_list: true`
-     * (defaults to true if field is missing). Always appends "Custom/Other"
+     * for LVGL list widget. Includes an entry when `show_in_list` is true or
+     * missing (default true); entries that explicitly set it `false` (the
+     * non-printer addons) are excluded. Always appends "Custom/Other"
      * and "Unknown" at the end.
      *
      * The string is cached after first build for performance.
@@ -435,6 +436,27 @@ class PrinterDetector {
                                      helix::Config* config);
 
     /**
+     * @brief Persist a printer type the USER chose, and merge its preset.
+     *
+     * The deliberate counterpart to auto_detect_and_save(): detection declines
+     * whenever it is not sure, so every remaining case has to be reachable by
+     * hand. Shared by the wizard's printer-identify step and the Printer
+     * Manager's model row so the two cannot drift.
+     *
+     * Applying the preset is not optional. It merges the preset's hardware /
+     * expected-device lists and fan role mappings into config; skipping it
+     * makes legitimate hardware surface as "new hardware" warnings on the next
+     * boot (#837).
+     *
+     * @param config Config instance to write to
+     * @param type_name Printer type name as it appears in the database
+     * @param discovery Hardware discovery, used to resolve preset variants
+     * @return Name of the preset applied, or empty if the type has none
+     */
+    static std::string apply_type_choice(helix::Config* config, const std::string& type_name,
+                                         const helix::PrinterDiscovery& discovery);
+
+    /**
      * @brief Strip heuristics data from the database to reclaim memory
      *
      * Call after detection is complete. Removes heuristic arrays from all printer
@@ -514,4 +536,101 @@ class PrinterDetector {
      * @return "cw", "ccw", or empty string if not declared (treat as "cw")
      */
     static std::string screws_tilt_direction_override();
+
+    /**
+     * @brief Resolve a stored printer type name to the name the database uses now.
+     *
+     * The saved type is a display name, not a stable id, so renaming an entry
+     * orphans every config written under the old name: detection returns the
+     * new name, the stored one never matches again, and the user is told their
+     * correctly-identified printer is set up wrong. Four entries have been
+     * renamed in place so far (voron_0_1, flashforge_ad5m_pro, and both
+     * zerog_nebula_*), and the database is user-updatable, so this is not a
+     * closed set that a one-off migration could cover.
+     *
+     * Entries list their former names in "aliases". A name that is a current
+     * entry name is returned untouched; a name that matches some entry's alias
+     * resolves to that entry's current name; anything else (a custom rig, a
+     * type from a newer database) is returned unchanged.
+     *
+     * @param printer_name Stored type name, possibly from an older database
+     * @return The current database name for the same printer, or the input
+     */
+    static std::string canonical_type_name(const std::string& printer_name);
+
+    /// Minimum detection confidence before the saved-vs-detected type warning
+    /// may be offered. Matches the wizard's override threshold.
+    static constexpr int MISMATCH_MIN_CONFIDENCE = 70;
+
+    /**
+     * @brief Why the saved-vs-detected type warning was or was not offered.
+     *
+     * Every non-Warn value is a silent decline in the shipped flow, so the
+     * reason is the only thing a debug bundle can use to tell "detection scored
+     * 68" apart from "detection returned nothing at all".
+     */
+    enum class MismatchDecision {
+        Warn,                 ///< Offer the prompt.
+        NoDetection,          ///< Detection produced no type name.
+        ConfidenceTooLow,     ///< Below MISMATCH_MIN_CONFIDENCE.
+        MatchesSavedType,     ///< Detected type equals the saved one.
+        SavedTypeNotSpecific, ///< Saved type is empty, Custom/Other, or Unknown.
+        AlreadyDismissed      ///< The user already answered for this saved type.
+    };
+
+    /// Human-readable tag for a MismatchDecision, for logs.
+    static const char* mismatch_decision_name(MismatchDecision decision);
+
+    /**
+     * @brief Classify the saved-vs-detected type comparison.
+     *
+     * Warn iff detection is high-confidence (>= MISMATCH_MIN_CONFIDENCE),
+     * contradicts a meaningful saved type (not Custom/Other, Unknown, or
+     * empty), and the per-printer flag does not already equal the current saved
+     * type (changing the type re-arms the warning once).
+     */
+    static MismatchDecision classify_type_mismatch(const std::string& saved_type,
+                                                   const std::string& detected_type,
+                                                   int detected_confidence,
+                                                   const std::string& flag_value);
+
+    /**
+     * @brief Decide whether to show the one-time saved-vs-detected type warning.
+     *
+     * Convenience wrapper over classify_type_mismatch().
+     */
+    static bool should_warn_type_mismatch(const std::string& saved_type,
+                                          const std::string& detected_type, int detected_confidence,
+                                          const std::string& flag_value);
+
+    /// Minimum winning confidence before detection may persist a printer type.
+    /// Mirrors HELIX_DETECT_MIN_CONFIDENCE in scripts/install.sh.
+    static constexpr int AUTOSAVE_MIN_CONFIDENCE = 85;
+
+    /**
+     * @brief Decide whether a detection result is solid enough to persist.
+     *
+     * The runtime path used to write whatever scored above zero. Because a
+     * non-empty PRINTER_TYPE makes auto_detect_and_save short-circuit forever,
+     * a single weak guess became permanent and no later reconnect could revise
+     * it: a custom rig whose only FlashForge-ish signal was an LED named
+     * 'chamber_light' scores 55 and shipped as a FlashForge Adventurer 5M Pro.
+     * Below this bar we persist nothing, which leaves the wizard's identify
+     * step on its Custom/Other default and lets a fuller discovery snapshot
+     * try again on the next hardware change.
+     *
+     * Deliberately confidence-only, unlike the installer's seed gate in
+     * scripts/install.sh, which also demands HELIX_DETECT_MIN_MARGIN=10 over
+     * the runner-up. That margin does not survive this database: near-ties are
+     * what a CORRECT detection looks like here. Measured on real fixtures, a
+     * genuine AD5M Pro scores 100 against its own ForgeX twin at 100 (margin
+     * 0 - stock is modelled as "the ForgeX markers are absent", which the
+     * schema cannot score positively), and a QGL + 4-Z Voron 2.4 scores 100
+     * against Sovol SV08, a V2.4 derivative, at 91 (margin 9). Gating on
+     * margin would push both of those into the picker. Confidence alone
+     * separates the real cases cleanly: genuine matches land at 100, the
+     * misdetections we are fixing land in the 50s. The runner-up is still
+     * logged on the declined path so the data is there if we revisit.
+     */
+    static bool meets_autosave_threshold(const PrinterDetectionResult& result);
 };

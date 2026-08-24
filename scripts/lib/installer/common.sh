@@ -21,13 +21,16 @@ _HELIX_COMMON_SOURCED=1
 # Pi: /opt/helixscreen
 # CC1 (COSMOS): /user-resource/helixscreen (/ is RO squashfs)
 # Snapmaker U1: /userdata/helixscreen
+# shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
+# shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh
 HELIX_INIT_SCRIPTS="/etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen /etc/init.d/helixscreen"
 
 # HelixScreen process names (order matters: watchdog first to prevent crash dialog)
+# shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh (kill_process_by_name)
 HELIX_PROCESSES="helix-watchdog helix-screen helix-splash"
 
 # Returns true when install.sh was spawned by helix-screen's in-app update.
@@ -89,6 +92,29 @@ file_sudo() {
     fi
 }
 
+# Get sudo prefix needed to RENAME or REMOVE a path (mv/rm/rmdir of the path
+# itself, not of something inside it).
+#
+# Always checks the PARENT, existing target or not. rename(2) and unlink(2)
+# mutate the parent directory's entries; the target's own mode has nothing to do
+# with it. So a user-owned directory inside a root-owned parent is writable and
+# still cannot be moved or deleted.
+#
+# That is not hypothetical, it is the /opt/helixscreen layout: helixscreen.service
+# chowns the install dir to the service user via ExecStartPre while /opt stays
+# root:root. file_sudo() answers "can I write INTO this", returns "" there, and the
+# swap runs bare:
+#
+#   mv: cannot move '/opt/helixscreen' to '/opt/helixscreen.old': Permission denied
+#
+# Use file_sudo() when writing a file into a directory; use this when the path is
+# the thing being moved or deleted.
+path_sudo() {
+    local dir
+    dir="$(dirname "$1")"
+    [ -w "$dir" ] && echo "" || echo "$SUDO"
+}
+
 # Resolve the directory holding the user's Klipper/Moonraker config files.
 #
 # Almost every Klipper install puts them in <klipper home>/printer_data/config,
@@ -120,9 +146,9 @@ klipper_config_dir() {
 
 # Track what we've done for cleanup
 CLEANUP_TMP=false
-CLEANUP_SERVICE=false
 BACKUP_CONFIG=""
 BACKUP_ENV=""
+# shellcheck disable=SC2034  # consumed by release.sh (set true at the swap, read at config restore)
 ORIGINAL_INSTALL_EXISTS=false
 
 # Colors (if terminal supports it)
@@ -139,6 +165,7 @@ setup_colors() {
         GREEN=''
         YELLOW=''
         CYAN=''
+        # shellcheck disable=SC2034  # consumed by main.sh (installer banner) and release.sh
         BOLD=''
         NC=''
     fi
@@ -277,6 +304,7 @@ _user_dir_name_ok() {
     [ -n "$base" ] || return 1
     local pat
     for pat in "$@"; do
+        # shellcheck disable=SC2254  # $pat is a caller-supplied glob ('*helixscreen-install*'), not a literal
         case "$base" in
             $pat) return 0 ;;
         esac
@@ -285,7 +313,7 @@ _user_dir_name_ok() {
 }
 
 # Accept only scratch directories the installer created, or the staging dir the
-# in-app updater hands over via TMP_DIR (update_checker.cpp kStagingName).
+# in-app updater hands over via TMP_DIR (update_checker.cpp STAGING_NAME).
 validate_tmp_dir() {
     local d="$1"
     if _user_dir_name_ok "$d" '*helixscreen-install*' '.helix-update-staging'; then

@@ -42,7 +42,6 @@ run_benchmark() {
 }
 
 # Check for existing builds
-NEON_BUILD="$PROJECT_DIR/build/ad5m-neon/bin/helix-screen"
 NO_NEON_BUILD="$PROJECT_DIR/build/ad5m/bin/helix-screen"
 
 if [[ ! -f "$NO_NEON_BUILD" ]]; then

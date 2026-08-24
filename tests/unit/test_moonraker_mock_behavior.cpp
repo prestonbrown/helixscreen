@@ -62,6 +62,7 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_hardware.h"
 #include "../../include/printer_state.h"
+#include "../../include/runtime_config.h"
 #include "../helix_test_fixture.h"
 #include "moonraker_api.h"
 
@@ -213,6 +214,82 @@ class TestableMoonrakerMock : public MoonrakerClientMock {
 // ============================================================================
 // Initial State Dispatch Tests
 // ============================================================================
+
+TEST_CASE("MoonrakerClientMock records the connection URL like the real client",
+          "[connection][slow][url]") {
+    // The real MoonrakerClient::connect() stores the URL, and consumers ask for
+    // it to decide whether Moonraker is on this machine or across the network
+    // (HelixPluginInstaller::is_local_moonraker, telemetry topology). A mock
+    // that simulates connecting but leaves it empty makes every one of those
+    // read "not connected" instead of the truth.
+    SECTION("connect() records the URL it was given") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        REQUIRE(mock.get_last_url().empty());
+
+        mock.connect("ws://192.168.1.67:7125/websocket", []() {}, []() {});
+
+        CHECK(mock.get_last_url() == "ws://192.168.1.67:7125/websocket");
+
+        mock.stop_temperature_simulation();
+        mock.disconnect();
+    }
+
+    SECTION("a null URL is recorded as empty, not dereferenced") {
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+
+        mock.connect(nullptr, []() {}, []() {});
+
+        CHECK(mock.get_last_url().empty());
+
+        mock.stop_temperature_simulation();
+        mock.disconnect();
+    }
+}
+
+TEST_CASE("MoonrakerAPI never derives an HTTP base URL from a mock connection",
+          "[connection][slow][url]") {
+    // Guards the reason the mock did not record its URL for so long: deriving an
+    // HTTP base from it would aim real file transfers at the operator's actual
+    // printer from a --test run that is supposed to touch nothing.
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    mock.connect("ws://192.168.1.67:7125/websocket", []() {}, []() {});
+
+    // RAII, not a restore at the end of the body: a failing SECTION would skip
+    // a trailing restore and leak test_mode into every test that runs after.
+    struct ScopedMockMoonraker {
+        RuntimeConfig* config = get_runtime_config();
+        bool saved_test_mode = config->test_mode;
+        bool saved_use_real = config->use_real_moonraker;
+
+        ScopedMockMoonraker() {
+            config->test_mode = true;
+            config->use_real_moonraker = false;
+        }
+        ~ScopedMockMoonraker() {
+            config->test_mode = saved_test_mode;
+            config->use_real_moonraker = saved_use_real;
+        }
+    } scoped_mock;
+
+    REQUIRE(get_runtime_config()->should_mock_moonraker());
+
+    MoonrakerAPI api(mock, get_printer_state());
+
+    SECTION("derivation is refused while Moonraker is mocked") {
+        CHECK(api.get_http_base_url().empty());
+        CHECK_FALSE(api.ensure_http_base_url());
+        CHECK(api.get_http_base_url().empty());
+    }
+
+    SECTION("an explicitly configured base URL still wins") {
+        api.set_http_base_url("http://configured.example:7125");
+        CHECK(api.ensure_http_base_url());
+        CHECK(api.get_http_base_url() == "http://configured.example:7125");
+    }
+
+    mock.stop_temperature_simulation();
+    mock.disconnect();
+}
 
 TEST_CASE("MoonrakerClientMock initial state dispatch", "[connection][slow][initial_state]") {
     MockBehaviorTestFixture fixture;

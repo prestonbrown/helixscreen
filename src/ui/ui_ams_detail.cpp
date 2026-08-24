@@ -6,12 +6,17 @@
 #include "ui_ams_slot.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_effects.h"
+#include "ui_error_reporting.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
 #include "printer_detector.h"
 #include "ui/ams_drawing_utils.h"
+
+#if HELIX_HAS_CFS
+#include "ams_backend_cfs.h"
+#endif
 
 #include <spdlog/spdlog.h>
 
@@ -376,9 +381,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w) {
         tray_height = 20;
 
     // 3D depth matching spool oblique projection (ELLIPSE_RATIO = 0.45)
-    int32_t depth = std::max(tray_height * DEPTH_PCT / 100, MIN_DEPTH_PX);
+    int32_t depth = std::max<int32_t>(tray_height * DEPTH_PCT / 100, MIN_DEPTH_PX);
     int32_t dx = depth;
-    int32_t dy = std::max(depth * DY_PCT / 100, MIN_DY_PX);
+    int32_t dy = std::max<int32_t>(depth * DY_PCT / 100, MIN_DY_PX);
 
     // Update shared draw data
     s_tray_box.tray_height = tray_height;
@@ -396,19 +401,22 @@ void ams_detail_update_tray(AmsDetailWidgets& w) {
     lv_obj_set_height(w.slot_tray, total_height);
     lv_obj_align(w.slot_tray, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-    // Attach draw callbacks once per object instance.
-    // Use LV_OBJ_FLAG_USER_1 as guard — user_data may already be set by XML (L069).
+    // Attach draw callbacks once per object instance. This function runs on every
+    // panel rebuild, so remove-then-add is what keeps it idempotent:
+    // lv_obj_remove_event_cb() strips every prior registration of that callback
+    // function, leaving exactly one after the add. No object flag is involved -
+    // LV_OBJ_FLAG_USER_1 belongs to ui_dialog, which uses it to mark a dialog root
+    // so ThemeManager::is_on_elevated_surface() can find it by walking parents.
+    // Neither caller invokes this from inside a draw dispatch of these objects, so
+    // mutating their event lists here is safe.
 
     // Back wall on slot_grid (DRAW_MAIN = behind spool children)
-    if (!lv_obj_has_flag(w.slot_grid, LV_OBJ_FLAG_USER_1)) {
-        lv_obj_add_flag(w.slot_grid, LV_OBJ_FLAG_USER_1);
-        lv_obj_add_event_cb(w.slot_grid, tray_back_draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
-    }
+    lv_obj_remove_event_cb(w.slot_grid, tray_back_draw_cb);
+    lv_obj_add_event_cb(w.slot_grid, tray_back_draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
+
     // Front face + side walls on slot_tray (IN FRONT of spools)
-    if (!lv_obj_has_flag(w.slot_tray, LV_OBJ_FLAG_USER_1)) {
-        lv_obj_add_flag(w.slot_tray, LV_OBJ_FLAG_USER_1);
-        lv_obj_add_event_cb(w.slot_tray, tray_front_draw_cb, LV_EVENT_DRAW_POST, nullptr);
-    }
+    lv_obj_remove_event_cb(w.slot_tray, tray_front_draw_cb);
+    lv_obj_add_event_cb(w.slot_tray, tray_front_draw_cb, LV_EVENT_DRAW_POST, nullptr);
 
     spdlog::debug("[AmsDetail] Tray 3D box: {}px front, depth={}, dx={}, dy={}", tray_height, depth,
                   dx, dy);
@@ -677,3 +685,117 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
         lv_obj_add_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN);
     }
 }
+
+// ============================================================================
+// Shared Context-Menu Dispatch
+// ============================================================================
+
+namespace helix {
+namespace ui {
+
+bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
+                                 lv_obj_t* path_canvas) {
+    using MenuAction = AmsContextMenu::MenuAction;
+
+    switch (action) {
+    case MenuAction::EJECT:
+    case MenuAction::RECOVER_POSITION:
+    case MenuAction::SELECT_GATE:
+    case MenuAction::CHECK_GATE:
+    case MenuAction::CLEAR_SPOOL:
+        break;
+    default:
+        return false; // caller's own switch owns it
+    }
+
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
+        return true;
+    }
+
+    switch (action) {
+    case MenuAction::EJECT: {
+        // Flip the canvas before the call: a backend that dispatches
+        // asynchronously animates while in flight, and the error arm below
+        // undoes it for the refusals that return synchronously.
+        if (path_canvas) {
+            ui_filament_path_canvas_set_eject_mode(path_canvas, true);
+        }
+        AmsError error = backend->eject_lane(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Eject failed"));
+            if (path_canvas) {
+                ui_filament_path_canvas_set_eject_mode(path_canvas, false);
+            }
+        }
+        break;
+    }
+
+    case MenuAction::RECOVER_POSITION: {
+        AmsError error = backend->recover_lane_position(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Recovery failed"));
+        }
+        break;
+    }
+
+    case MenuAction::SELECT_GATE: {
+        AmsError error = backend->select_gate(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Select slot failed"));
+        }
+        break;
+    }
+
+    case MenuAction::CHECK_GATE: {
+        AmsError error = backend->check_gate(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Check slot failed"));
+        }
+        break;
+    }
+
+    case MenuAction::CLEAR_SPOOL: {
+        // Clear spool assignment: reset material/color/spool data, keep slot status.
+        // Routed through AmsState::commit_slot_edit so the Spoolman server active
+        // spool and the identity cache are cleared too (bundle F2LNLQCC: clearing
+        // only the backend left spool 169 active server-side; restart re-asserted
+        // it into the UI). The PRE-WIPE info is passed as `original` — the commit's
+        // unlink arm keys off original.spoolman_id.
+        SlotInfo original = backend->get_slot_info(slot);
+        SlotInfo cleared = original;
+        cleared.material.clear();
+        cleared.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+        cleared.color_name.clear();
+        cleared.multi_color_hexes.clear();
+        cleared.brand.clear();
+        // Drops spoolman_id AND the filament/vendor handles — leaving
+        // those behind fed a later repoint comparison against a spool
+        // this lane is no longer linked to.
+        cleared.clear_spoolman_link();
+        cleared.remaining_weight_g = -1;
+        cleared.total_weight_g = -1;
+        auto error = AmsState::instance().commit_slot_edit(slot, original, cleared);
+        if (error.success()) {
+#if HELIX_HAS_CFS
+            if (backend->get_type() == AmsType::CFS) {
+                static_cast<helix::printer::AmsBackendCfs*>(backend)->clear_box_slot_profile(slot);
+            }
+#endif
+            NOTIFY_INFO(lv_tr("Slot {} spool cleared"), slot + 1);
+        } else {
+            notify_ams_error(error, lv_tr("Clear failed"));
+        }
+        break;
+    }
+
+    default:
+        break; // unreachable: filtered by the guard switch above
+    }
+
+    return true;
+}
+
+} // namespace ui
+} // namespace helix

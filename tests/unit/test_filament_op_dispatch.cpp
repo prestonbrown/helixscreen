@@ -38,10 +38,13 @@
 
 using helix::ui::AmsCall;
 using helix::ui::BackendCaps;
+using helix::ui::EXTERNAL_SPOOL_SLOT;
 using helix::ui::FilamentRefusal;
 using helix::ui::FilamentTier;
 using helix::ui::plan_load;
 using helix::ui::plan_unload;
+using helix::ui::unload_needs_manual_pull;
+using helix::ui::unload_target_is_loaded;
 
 namespace {
 
@@ -74,12 +77,87 @@ BackendCaps fresh_ams() {
 // Tier selection
 // =============================================================================
 
+// ---------------------------------------------------------------------------
+// Macro override precedence (Settings > Macro Buttons)
+//
+// A macro the USER assigned outranks a filament system that would otherwise own
+// the operation; a macro we merely auto-DETECTED does not. The two planners used
+// to disagree about this — plan_load() let bypass fall through to the macro tier
+// while plan_unload() gated tier 1 on the backend merely existing — so a custom
+// Unload macro was silently discarded on every AMS printer.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("dispatch: a user-configured macro outranks the backend on both ops",
+          "[filament][dispatch][macro_override]") {
+    AmsSystemInfo sys;
+    BackendCaps ams = fresh_ams();
+
+    // Load: a backend that would otherwise demand slot selection.
+    auto load = plan_load(sys, ams, /*target_slot=*/2, /*macro_available=*/true,
+                          /*macro_user_configured=*/true);
+    CHECK(load.tier == FilamentTier::Macro);
+
+    // Unload: the surface that used to ignore the setting entirely.
+    auto unload = plan_unload(ams, /*target_slot=*/2, /*target_is_loaded=*/true,
+                              /*macro_available=*/true, /*macro_user_configured=*/true);
+    CHECK(unload.tier == FilamentTier::Macro);
+}
+
+TEST_CASE("dispatch: an auto-detected macro does NOT outrank the backend",
+          "[filament][dispatch][macro_override]") {
+    AmsSystemInfo sys;
+    BackendCaps ams = fresh_ams();
+
+    // This is the case that would quietly break CFS bypass unload: the detector
+    // matches the vendor's QUIT_MATERIAL, which is incomplete for an external
+    // spool (its retract is tn_retrude = -10 against a tn_extrude = 140 path,
+    // because the box's feeder normally reels the rest). Only an explicit human
+    // choice may take the operation away from the backend.
+    auto unload = plan_unload(ams, /*target_slot=*/2, /*target_is_loaded=*/true,
+                              /*macro_available=*/true, /*macro_user_configured=*/false);
+    CHECK(unload.tier == FilamentTier::AmsBackend);
+
+    auto load = plan_load(sys, ams, /*target_slot=*/2, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
+    CHECK(load.tier == FilamentTier::AmsBackend);
+}
+
+TEST_CASE("dispatch: the override applies with no backend too",
+          "[filament][dispatch][macro_override]") {
+    AmsSystemInfo sys;
+    BackendCaps none;
+    none.present = false;
+
+    // No backend to outrank, but the tier must still be Macro rather than
+    // RawGcode — the user named a macro and it has to run.
+    auto unload = plan_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/true,
+                              /*macro_available=*/true, /*macro_user_configured=*/true);
+    CHECK(unload.tier == FilamentTier::Macro);
+}
+
+TEST_CASE("dispatch: an override still beats a refusal the backend would have raised",
+          "[filament][dispatch][macro_override]") {
+    BackendCaps ams = fresh_ams();
+
+    // Nothing loaded: plan_unload() would refuse with NothingLoaded. A user who
+    // assigned their own macro gets to run it anyway — their macro may be what
+    // recovers the very state we think is empty.
+    auto refused = plan_unload(ams, /*target_slot=*/2, /*target_is_loaded=*/false,
+                               /*macro_available=*/true, /*macro_user_configured=*/false);
+    REQUIRE(refused.tier == FilamentTier::Refused);
+
+    auto overridden = plan_unload(ams, /*target_slot=*/2, /*target_is_loaded=*/false,
+                                  /*macro_available=*/true, /*macro_user_configured=*/true);
+    CHECK(overridden.tier == FilamentTier::Macro);
+}
+
 TEST_CASE("plan_load: no backend falls through to the configured macro",
           "[filament][dispatch][tier]") {
     AmsSystemInfo sys = make_sys(0, -1);
     BackendCaps none{};
 
-    auto plan = plan_load(sys, none, /*target_slot=*/-1, /*macro_available=*/true);
+    auto plan = plan_load(sys, none, /*target_slot=*/-1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::Macro);
     CHECK(plan.refusal == FilamentRefusal::None);
 }
@@ -89,7 +167,8 @@ TEST_CASE("plan_load: no backend and no macro falls through to raw gcode",
     AmsSystemInfo sys = make_sys(0, -1);
     BackendCaps none{};
 
-    auto plan = plan_load(sys, none, /*target_slot=*/-1, /*macro_available=*/false);
+    auto plan = plan_load(sys, none, /*target_slot=*/-1, /*macro_available=*/false,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::RawGcode);
 }
 
@@ -102,7 +181,8 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
     BackendCaps bypassed = fresh_ams();
     bypassed.requires_slot_selection_for_load = false;
 
-    auto plan = plan_load(sys, bypassed, /*target_slot=*/-2, /*macro_available=*/true);
+    auto plan = plan_load(sys, bypassed, /*target_slot=*/-2, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::Macro);
     CHECK(plan.ams_call == AmsCall::None);
 }
@@ -114,7 +194,8 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
 TEST_CASE("plan_load: nothing seated dispatches a plain load", "[filament][dispatch]") {
     AmsSystemInfo sys = make_sys(4, -1);
 
-    auto plan = plan_load(sys, fresh_ams(), /*target_slot=*/2, /*macro_available=*/true);
+    auto plan = plan_load(sys, fresh_ams(), /*target_slot=*/2, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::Load);
     CHECK(plan.ams_arg == 2);
@@ -129,7 +210,8 @@ TEST_CASE("plan_load: a seated machine swaps via change_tool on the MAPPED tool"
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, seated, /*target_slot=*/1, /*macro_available=*/true);
+    auto plan = plan_load(sys, seated, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::ChangeTool);
     CHECK(plan.ams_arg == 3); // slot 1's mapped_tool, NOT slot 1
@@ -148,7 +230,8 @@ TEST_CASE("plan_load: a seated machine with no tool mapping loads the slot anywa
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, seated, /*target_slot=*/1, /*macro_available=*/true);
+    auto plan = plan_load(sys, seated, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::Load);
     CHECK(plan.ams_arg == 1); // the SLOT the user tapped, not a tool number
@@ -163,7 +246,8 @@ TEST_CASE("plan_load: an unresolvable target slot still dispatches a plain load"
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, seated, /*target_slot=*/9, /*macro_available=*/true);
+    auto plan = plan_load(sys, seated, /*target_slot=*/9, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::Load);
     CHECK(plan.ams_arg == 9);
@@ -177,7 +261,8 @@ TEST_CASE("plan_load: reloading the seated slot itself is a plain load, not a sw
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, seated, /*target_slot=*/2, /*macro_available=*/true);
+    auto plan = plan_load(sys, seated, /*target_slot=*/2, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.ams_call == AmsCall::Load);
     CHECK(plan.ams_arg == 2);
 }
@@ -196,7 +281,8 @@ TEST_CASE("plan_load: toolchanger refuses a load on the tool already mounted",
     tc.is_tool_changer = true;
     tc.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, tc, /*target_slot=*/4, /*macro_available=*/true);
+    auto plan = plan_load(sys, tc, /*target_slot=*/4, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::Refused);
     CHECK(plan.refusal == FilamentRefusal::AlreadyMounted);
     CHECK(plan.ams_call == AmsCall::None);
@@ -211,7 +297,8 @@ TEST_CASE("plan_load: toolchanger still swaps to a DIFFERENT tool",
     tc.is_tool_changer = true;
     tc.needs_unload_before_load = true;
 
-    auto plan = plan_load(sys, tc, /*target_slot=*/1, /*macro_available=*/true);
+    auto plan = plan_load(sys, tc, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::ChangeTool);
     CHECK(plan.ams_arg == 1);
@@ -220,7 +307,8 @@ TEST_CASE("plan_load: toolchanger still swaps to a DIFFERENT tool",
 TEST_CASE("plan_load: unresolved slot refuses with SelectSlot", "[filament][dispatch][refusal]") {
     AmsSystemInfo sys = make_sys(4, -1);
 
-    auto plan = plan_load(sys, fresh_ams(), /*target_slot=*/-1, /*macro_available=*/true);
+    auto plan = plan_load(sys, fresh_ams(), /*target_slot=*/-1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::Refused);
     CHECK(plan.refusal == FilamentRefusal::SelectSlot);
 }
@@ -238,7 +326,7 @@ TEST_CASE("plan_unload: a present backend owns the unload even under bypass",
     bypassed.requires_slot_selection_for_load = false;
 
     auto plan = plan_unload(bypassed, /*target_slot=*/0, /*target_is_loaded=*/true,
-                            /*macro_available=*/true);
+                            /*macro_available=*/true, /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::AmsBackend);
     CHECK(plan.ams_call == AmsCall::Unload);
 }
@@ -246,7 +334,7 @@ TEST_CASE("plan_unload: a present backend owns the unload even under bypass",
 TEST_CASE("plan_unload: nothing loaded refuses instead of dispatching",
           "[filament][dispatch][refusal]") {
     auto plan = plan_unload(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/false,
-                            /*macro_available=*/true);
+                            /*macro_available=*/true, /*macro_user_configured=*/false);
     CHECK(plan.tier == FilamentTier::Refused);
     CHECK(plan.refusal == FilamentRefusal::NothingLoaded);
 }
@@ -256,10 +344,98 @@ TEST_CASE("plan_unload: no backend falls through to macro then raw gcode",
     BackendCaps none{};
 
     auto with_macro = plan_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
-                                  /*macro_available=*/true);
+                                  /*macro_available=*/true, /*macro_user_configured=*/false);
     CHECK(with_macro.tier == FilamentTier::Macro);
 
     auto without = plan_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
-                               /*macro_available=*/false);
+                               /*macro_available=*/false, /*macro_user_configured=*/false);
     CHECK(without.tier == FilamentTier::RawGcode);
+}
+
+// =============================================================================
+// Bypass / external spool — the -2 sentinel is a TARGET, not "no slot"
+// =============================================================================
+
+TEST_CASE("unload_target_is_loaded: bypass reads the aggregate, not per-slot sensors",
+          "[filament][dispatch][bypass]") {
+    // The AFC case, and the whole reason this arm exists. AFC is the one backend
+    // with has_per_slot_loaded_authority(), so slot_is_actively_loaded(-2) looks
+    // up get_slot_info(-2) — a bounds-miss that yields an empty SlotInfo — and
+    // answers false while filament is demonstrably at the nozzle. CFS and Happy
+    // Hare accidentally answer true via `slot == current_slot && loaded`, which
+    // is exactly the kind of per-backend divergence this header exists to end.
+    CHECK(unload_target_is_loaded(EXTERNAL_SPOOL_SLOT, /*slot_actively_loaded=*/false,
+                                  /*slot_filament_at_toolhead=*/false, /*is_current_slot=*/true,
+                                  /*any_filament_loaded=*/true));
+
+    // Bypass engaged with nothing fed yet — AFC's bypass_state is independent of
+    // filament presence, so "bypass is on" must not be read as "something to pull".
+    CHECK_FALSE(unload_target_is_loaded(EXTERNAL_SPOOL_SLOT, false, false, /*is_current_slot=*/true,
+                                        /*any_filament_loaded=*/false));
+}
+
+TEST_CASE("unload_target_is_loaded: each lane arm still stands alone",
+          "[filament][dispatch][regression]") {
+    // The recovery cases from #995 / #1199. Any one of the three is sufficient,
+    // and the aggregate flag must NOT be able to veto them.
+    CHECK(unload_target_is_loaded(2, /*actively_loaded=*/true, false, false,
+                                  /*any_filament_loaded=*/false));
+    CHECK(unload_target_is_loaded(2, false, /*at_toolhead=*/true, false, false));
+    CHECK(unload_target_is_loaded(2, false, false, /*is_current_slot=*/true, false));
+    CHECK_FALSE(unload_target_is_loaded(2, false, false, false, /*any_filament_loaded=*/true));
+}
+
+TEST_CASE("unload_target_is_loaded: -1 is still nothing, whatever the sensors say",
+          "[filament][dispatch][regression]") {
+    // Pins the sentinel as the ONLY negative slot that unloads. Without this,
+    // relaxing plan_unload's `target_slot < 0` guard quietly makes "no slot
+    // resolved" dispatch an unload against whatever the firmware last touched.
+    CHECK_FALSE(unload_target_is_loaded(-1, true, true, true, true));
+    CHECK_FALSE(unload_target_is_loaded(-3, true, true, true, true));
+}
+
+TEST_CASE("plan_unload: the bypass spool dispatches to the backend",
+          "[filament][dispatch][bypass]") {
+    // Every backend already handles -2 correctly: CFS ignores the slot and sends
+    // its unload script, AFC resolves the lane name to "" and sends a bare
+    // TOOL_UNLOAD, Happy Hare sends MMU_UNLOAD. Only this decision layer refused.
+    auto plan = plan_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/true,
+                            /*macro_available=*/true, /*macro_user_configured=*/false);
+    CHECK(plan.tier == FilamentTier::AmsBackend);
+    CHECK(plan.ams_call == AmsCall::Unload);
+    CHECK(plan.ams_arg == EXTERNAL_SPOOL_SLOT);
+}
+
+TEST_CASE("plan_unload: bypass with an empty toolhead still refuses",
+          "[filament][dispatch][bypass][refusal]") {
+    auto plan = plan_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/false,
+                            /*macro_available=*/true, /*macro_user_configured=*/false);
+    CHECK(plan.tier == FilamentTier::Refused);
+    CHECK(plan.refusal == FilamentRefusal::NothingLoaded);
+}
+
+TEST_CASE("plan_unload: an unresolved slot is still refused, sentinel or not",
+          "[filament][dispatch][regression]") {
+    // The guard rail on the change above. -1 means "nothing resolved" and must
+    // never dispatch, even when the caller insists something is loaded.
+    auto plan = plan_unload(fresh_ams(), -1, /*target_is_loaded=*/true, /*macro_available=*/true,
+                            /*macro_user_configured=*/false);
+    CHECK(plan.tier == FilamentTier::Refused);
+    CHECK(plan.refusal == FilamentRefusal::NothingLoaded);
+}
+
+// =============================================================================
+// Manual pull — which unloads leave filament for the user to remove by hand
+// =============================================================================
+
+TEST_CASE("unload_needs_manual_pull: only unloads with no lane to retract into",
+          "[filament][dispatch][bypass]") {
+    // An AMS lane unload reels the filament back into its own lane; prompting
+    // the user to pull it would be noise. The bypass spool and a backend-less
+    // printer both leave it dangling out of the toolhead.
+    CHECK(unload_needs_manual_pull(/*backend_present=*/true, EXTERNAL_SPOOL_SLOT));
+    CHECK(unload_needs_manual_pull(/*backend_present=*/false, /*target_slot=*/0));
+    CHECK(unload_needs_manual_pull(/*backend_present=*/false, EXTERNAL_SPOOL_SLOT));
+    CHECK_FALSE(unload_needs_manual_pull(/*backend_present=*/true, /*target_slot=*/0));
+    CHECK_FALSE(unload_needs_manual_pull(/*backend_present=*/true, /*target_slot=*/3));
 }

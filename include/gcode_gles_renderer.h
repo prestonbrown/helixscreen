@@ -26,44 +26,44 @@ namespace helix {
 namespace gcode {
 
 enum class GhostRenderMode : uint8_t { Dimmed = 0, Stipple = 1 };
-constexpr GhostRenderMode kDefaultGhostRenderMode = GhostRenderMode::Stipple;
+constexpr GhostRenderMode DEFAULT_GHOST_RENDER_MODE = GhostRenderMode::Stipple;
 
 // ====== Named Constants (rendering parameters) ======
 
 // Specular material defaults (plastic-like sheen)
-constexpr float kDefaultSpecularIntensity = 0.25f;
-constexpr float kDefaultSpecularShininess = 48.0f;
+constexpr float DEFAULT_SPECULAR_INTENSITY = 0.25f;
+constexpr float DEFAULT_SPECULAR_SHININESS = 48.0f;
 
 // Specular clamp ranges
-constexpr float kMinSpecularIntensity = 0.0f;
-constexpr float kMaxSpecularIntensity = 1.0f;
-constexpr float kMinSpecularShininess = 1.0f;
-constexpr float kMaxSpecularShininess = 128.0f;
+constexpr float MIN_SPECULAR_INTENSITY = 0.0f;
+constexpr float MAX_SPECULAR_INTENSITY = 1.0f;
+constexpr float MIN_SPECULAR_SHININESS = 1.0f;
+constexpr float MAX_SPECULAR_SHININESS = 128.0f;
 
 // Lighting intensities
-constexpr float kCameraLightIntensity = 0.6f;
-constexpr float kFillLightIntensity = 0.2f;
-constexpr float kAmbientIntensity = 0.25f;
+constexpr float CAMERA_LIGHT_INTENSITY = 0.6f;
+constexpr float FILL_LIGHT_INTENSITY = 0.2f;
+constexpr float AMBIENT_INTENSITY = 0.25f;
 
 // Background color (neutral gray for contrast with light and dark filaments)
-constexpr float kBackgroundGray = 0.45f;
-constexpr float kBackgroundGrayBlue = 0.47f;
+constexpr float BACKGROUND_GRAY = 0.45f;
+constexpr float BACKGROUND_GRAY_BLUE = 0.47f;
 
 // Default filament color (#26A69A teal)
-constexpr glm::vec4 kDefaultFilamentColor{0.15f, 0.65f, 0.60f, 1.0f};
+constexpr glm::vec4 DEFAULT_FILAMENT_COLOR{0.15f, 0.65f, 0.60f, 1.0f};
 
 // Ghost layer default opacity (out of 255)
-constexpr uint8_t kDefaultGhostOpacity = 5; // ~2% opacity — ghost layers should barely be visible
+constexpr uint8_t DEFAULT_GHOST_OPACITY = 5; // ~2% opacity — ghost layers should barely be visible
 
 // Object picking screen-space threshold (pixels)
-constexpr float kPickThresholdPx = 15.0f;
+constexpr float PICK_THRESHOLD_PX = 15.0f;
 
 // Near-zero threshold for clipping space W division
-constexpr float kClipSpaceWEpsilon = 0.0001f;
+constexpr float CLIP_SPACE_W_EPSILON = 0.0001f;
 
 // Frame-skip epsilon for float comparisons
-constexpr float kAngleEpsilon = 1e-5f;
-constexpr float kZoomEpsilon = 1e-3f;
+constexpr float ANGLE_EPSILON = 1e-5f;
+constexpr float ZOOM_EPSILON = 1e-3f;
 
 /// Return type for get_options()
 struct RenderingOptions {
@@ -405,9 +405,9 @@ class GCodeGLESRenderer {
 
     GCodeColorPalette palette_; ///< Tool color palette for per-vertex coloring
     std::mutex palette_mutex_;  ///< Guards geometry color palette reads/writes
-    glm::vec4 filament_color_{kDefaultFilamentColor};
-    float specular_intensity_ = kDefaultSpecularIntensity;
-    float specular_shininess_ = kDefaultSpecularShininess;
+    glm::vec4 filament_color_{DEFAULT_FILAMENT_COLOR};
+    float specular_intensity_ = DEFAULT_SPECULAR_INTENSITY;
+    float specular_shininess_ = DEFAULT_SPECULAR_SHININESS;
     float extrusion_width_ = 0.5f;
     bool debug_face_colors_ = false;
     bool show_travels_ = false;
@@ -423,8 +423,8 @@ class GCodeGLESRenderer {
     // ====== Ghost / Progress ======
 
     int progress_layer_ = -1;
-    lv_opa_t ghost_opacity_ = kDefaultGhostOpacity;
-    GhostRenderMode ghost_render_mode_ = kDefaultGhostRenderMode;
+    lv_opa_t ghost_opacity_ = DEFAULT_GHOST_OPACITY;
+    GhostRenderMode ghost_render_mode_ = DEFAULT_GHOST_RENDER_MODE;
     float content_offset_y_percent_ = 0.0f;
 
     // ====== Frame Skip ======

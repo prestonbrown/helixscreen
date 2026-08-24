@@ -12,7 +12,8 @@
       <event_cb trigger="clicked" callback="bed_temp_clicked_cb"/>
       <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="#icon_size"/>
       <temp_display name="bed_temp_text_label"
-                    size="sm" show_target="false" bind_current="bed_temp" bind_target="bed_target" align="center"/>
+                    size="sm" show_target="true" hide_target_when_off="true" hide_target_below_bp="small"
+                    bind_current="bed_temp" bind_target="bed_target" align="center"/>
     </ui_button>
   </view>
 </component>
