@@ -321,12 +321,30 @@ teardown() {
     [ -f "$CAMERA_MARKER" ]
 
     # Moonraker saw a DELETE of Default and a POST registering our ustreamer cam.
-    # The webcam is registered as mjpegstreamer-adaptive (not ustreamer) so
-    # fluidd/mainsail render it — see the service-type note in camera.sh.
+    # Registered as plain mjpegstreamer -- not ustreamer (no renderer in
+    # fluidd/mainsail) and not mjpegstreamer-adaptive (one HTTP request per
+    # frame). See the service-type note in camera.sh.
     grep -q 'DELETE /server/webcams/item?name=Default' "$MR_REQUESTS"
     grep -q 'POST /server/webcams/item' "$MR_REQUESTS"
     grep -q 'http://192.168.1.74:8080/stream' "$MR_REQUESTS"
-    grep -q '"service": "mjpegstreamer-adaptive"' "$MR_REQUESTS"
+    grep -q '"service": "mjpegstreamer"' "$MR_REQUESTS"
+}
+
+@test "install: never registers the per-frame-polling adaptive service type" {
+    skip_if_no_python
+    start_fake_moonraker '[{"name":"Default","service":"iframe","stream_url":"http://k2/webrtc"}]'
+    printf '#!/bin/sh\n' > "$INSTALL_DIR/bin/ustreamer"; chmod +x "$INSTALL_DIR/bin/ustreamer"
+
+    run install_camera_k2 "k2"
+    [ "$status" -eq 0 ]
+
+    # mjpegstreamer-adaptive makes fluidd/mainsail fetch one HTTP request PER
+    # FRAME (the &cacheBust= signature). At target_fps that is thousands of
+    # request/response cycles a minute through nginx and ustreamer on a 488 MB
+    # SoC, and it is what filled the K2's tmpfs access log and broke uploads.
+    # Plain mjpegstreamer is one persistent multipart/x-mixed-replace connection.
+    grep -q '"service": "mjpegstreamer"' "$MR_REQUESTS"
+    refute grep -q 'mjpegstreamer-adaptive' "$MR_REQUESTS"
 }
 
 @test "install: registers a RELATIVE webcam URL when the nginx /webcam/ proxy serves" {
@@ -348,7 +366,7 @@ teardown() {
     grep -q '/webcam/?action=stream' "$MR_REQUESTS"
     grep -q '/webcam/?action=snapshot' "$MR_REQUESTS"
     refute grep -q 'http://[0-9].*:8080/stream' "$MR_REQUESTS"
-    grep -q '"service": "mjpegstreamer-adaptive"' "$MR_REQUESTS"
+    grep -q '"service": "mjpegstreamer"' "$MR_REQUESTS"
 }
 
 @test "install: idempotent re-run does not reinstall init or re-record disables" {
@@ -589,7 +607,7 @@ EOF
     [ "$status" -eq 1 ]
 }
 
-@test "install: upgrade re-registers OUR stale ustreamer cam as mjpegstreamer-adaptive" {
+@test "install: upgrade re-registers OUR stale ustreamer cam as mjpegstreamer" {
     skip_if_no_python
     # Pre-existing install where our webcam is registered with the STALE service
     # type (ustreamer). It counts as "usable", but it's ours — install must NOT
@@ -606,7 +624,7 @@ EOF
 
     # Did NOT early-return: a POST re-registering the corrected service type fired.
     grep -q 'POST /server/webcams/item' "$MR_REQUESTS"
-    grep -q '"service": "mjpegstreamer-adaptive"' "$MR_REQUESTS"
+    grep -q '"service": "mjpegstreamer"' "$MR_REQUESTS"
 }
 
 @test "install: leaves a usable THIRD-PARTY camera untouched (early-return)" {

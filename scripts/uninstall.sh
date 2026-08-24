@@ -4860,15 +4860,29 @@ except Exception:
     pass  # non-fatal; the POST below is what matters
 
 try:
-    # 'mjpegstreamer-adaptive' (not 'ustreamer'): fluidd/mainsail render MJPEG by
-    # service type and have no 'ustreamer' renderer — it shows "service not
-    # supported!" and never displays frames. ustreamer's /stream + /snapshot are
-    # the standard mjpegstreamer endpoints, so 'mjpegstreamer-adaptive' renders
-    # correctly in both web UIs and still matches HelixScreen's own is_mjpeg
-    # consumer check (which keys on the 'mjpeg' substring).
+    # Service type, and why it is neither of the two obvious alternatives:
+    #
+    #   NOT 'ustreamer': fluidd/mainsail render MJPEG by service type and ship no
+    #   'ustreamer' renderer -- it shows "service not supported!" and never
+    #   displays frames.
+    #
+    #   NOT 'mjpegstreamer-adaptive': that mode fetches ONE HTTP REQUEST PER
+    #   FRAME (each with a &cacheBust= param to defeat caching), up to target_fps.
+    #   On the K2 that meant ~5 request/response cycles a second through nginx
+    #   and ustreamer on a 488 MB SoC, and its access-log volume filled the /tmp
+    #   tmpfs -- which is also where Creality's Moonraker fork puts the upload
+    #   temp file, so gcode uploads then died mid-stream with ENOSPC and the
+    #   client saw "connection reset by peer".
+    #
+    # Plain 'mjpegstreamer' consumes ustreamer's /stream as a single persistent
+    # multipart/x-mixed-replace connection: one request instead of thousands per
+    # minute. It renders in fluidd (both renderers ship in 1.30.0) and mainsail,
+    # and still matches HelixScreen's own is_mjpeg consumer check (which keys on
+    # the 'mjpeg' substring). Frame rate stays governed server-side by
+    # ustreamer's own --desired-fps in helixscreen-ustreamer-k2.sh.
     req('POST', '/server/webcams/item', {
         'name': name,
-        'service': 'mjpegstreamer-adaptive',
+        'service': 'mjpegstreamer',
         'stream_url': stream,
         'snapshot_url': snap,
         'enabled': True,
