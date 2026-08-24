@@ -124,6 +124,35 @@ TEST_CASE("z-offset persistence: a near-miss macro detects nothing", "[zoffset][
 }
 
 // ============================================================================
+// Clearing the stale probe delta before an idle adjustment
+// ============================================================================
+
+TEST_CASE("z-offset persistence: ZMOD's stale probe delta has a clear command",
+          "[zoffset][persistence]") {
+    // ZMOD persists every SET_GCODE_OFFSET as `z - _TEST_POINT.temp_z_offset`,
+    // where temp_z_offset holds the last print-start probe delta. That variable
+    // survives END_PRINT/CANCEL_PRINT, so an idle adjustment stores the intended
+    // value minus a stale delta (ghzserg/zmod#699). The fix is to zero it right
+    // before the adjustment goes out.
+    PrinterDiscovery hw = printer_with_macros({"SAVE_ZMOD_DATA"});
+
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(hw) ==
+          "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0");
+}
+
+TEST_CASE("z-offset persistence: no stale-delta clear without the mechanism",
+          "[zoffset][persistence]") {
+    // Forge-X keeps no probe-delta transient, and a plain printer has no
+    // firmware override at all - either way there is nothing to clear, and an
+    // empty string means "send nothing", not "send an empty line".
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(printer_with_macros({"SET_MOD"})).empty());
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(
+              printer_with_macros({"START_PRINT", "END_PRINT"}))
+              .empty());
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(printer_with_macros({})).empty());
+}
+
+// ============================================================================
 // Reading the stored value
 // ============================================================================
 

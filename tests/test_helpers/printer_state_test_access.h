@@ -103,6 +103,13 @@ class PrinterStateTestAccess {
         return ps.fan_state_;
     }
 
+    /// Pin the calibration strategy directly, bypassing the printer DB lookup
+    /// that set_printer_type_sync() drives, for tests that need one specific
+    /// arm of a strategy branch.
+    static void pin_z_offset_strategy(PrinterState& ps, ZOffsetCalibrationStrategy strategy) {
+        ps.z_offset_calibration_strategy_ = strategy;
+    }
+
     static PrinterPrintState& get_print_state(PrinterState& ps) {
         return ps.print_domain_;
     }

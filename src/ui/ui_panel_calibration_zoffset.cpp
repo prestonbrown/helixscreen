@@ -21,6 +21,7 @@
 #include "probe_sensor_types.h"
 #include "static_panel_registry.h"
 #include "toolhead_homing.h"
+#include "z_offset_persistence.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -690,8 +691,21 @@ void ZOffsetCalibrationPanel::send_accept() {
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Apply cumulative delta as gcode Z offset
         set_state(State::SAVING);
-        char cmd[64];
-        snprintf(cmd, sizeof(cmd), "SET_GCODE_OFFSET Z=%.3f", cumulative_z_delta_);
+        // ZMOD persists this as `z - _TEST_POINT.temp_z_offset`, and that
+        // variable survives END_PRINT/CANCEL_PRINT - calibration typically
+        // follows a print, so without clearing it first the accepted value is
+        // stored minus the last print's probe delta (ghzserg/zmod#699).
+        // Calibration is an idle activity; the print gate still holds in case
+        // an accept ever fires under a running print, where the subtraction
+        // excludes the live transient and is correct.
+        std::string cmd = fmt::format("SET_GCODE_OFFSET Z={:.3f}", cumulative_z_delta_);
+        if (lv_subject_get_int(get_printer_state().get_print_active_subject()) == 0) {
+            std::string clear =
+                helix::zoffset::stale_probe_delta_clear_gcode(get_printer_state().get_discovery());
+            if (!clear.empty()) {
+                cmd = clear + "\n" + cmd;
+            }
+        }
         spdlog::info("[ZOffsetCal] Applying gcode_offset: {}", cmd);
 
         auto tok = lifetime_.token();
