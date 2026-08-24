@@ -49,6 +49,26 @@ bool platform_host_power_supported() {
     return !is_android_platform();
 }
 
+// -1 = use compile-time default, 0 = force "beside the printer", 1 = force "on it"
+static int s_printer_embedded_override = -1;
+
+bool is_printer_embedded() {
+    if (s_printer_embedded_override >= 0) {
+        return s_printer_embedded_override != 0;
+    }
+#if defined(HELIX_PLATFORM_AD5M) || defined(HELIX_PLATFORM_AD5X) || defined(HELIX_PLATFORM_K1) ||  \
+    defined(HELIX_PLATFORM_CC1) || defined(HELIX_PLATFORM_SNAPMAKER_U1) ||                         \
+    defined(HELIX_PLATFORM_K2) || defined(HELIX_PLATFORM_MIPS)
+    return true;
+#else
+    return false;
+#endif
+}
+
+void set_printer_embedded_override(int override_value) {
+    s_printer_embedded_override = override_value;
+}
+
 void log_platform_info() {
     struct utsname uts {};
     if (uname(&uts) == 0) {
