@@ -68,8 +68,5 @@
     "deny": [],
     "ask": []
   },
-  "outputStyle": "~/.claude/output-styles/real.md",
-  "enabledPlugins": {
-    "arete@arete-marketplace": true
-  }
+  "outputStyle": "~/.claude/output-styles/real.md"
 }
