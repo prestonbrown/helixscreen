@@ -1872,3 +1872,83 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
     REQUIRE(get_display_filename() == "orig");
 }
+
+// ============================================================================
+// Cross-print override staleness (#1339)
+// ============================================================================
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "A print started outside the app clears the previous print's thumbnail source",
+                 "[active_print_media][preparing]") {
+    // #1339: print A is started FROM HelixScreen, so the preparing epoch records
+    // its identity as the thumbnail source. Print B is then started from
+    // Mainsail/Fluidd or the printer's own screen, so no preparing epoch fires
+    // and nothing re-points the override. process_filename() computes the
+    // effective name from the stale override, matches last_effective_filename_,
+    // and early-returns - so the thumbnail subject is never republished and the
+    // preview keeps rendering print A's image for the whole of print B.
+    state().begin_preparing(helix::PrintJobRef{"printA.gcode", "", ""});
+    state().retire_preparing(helix::PreparingExit::Confirmed);
+    set_print_filename("printA.gcode");
+    REQUIRE(get_display_filename() == "printA");
+
+    // Print A ends. Moonraker reports an empty filename; the manager
+    // deliberately preserves the display so the finished print stays readable.
+    set_print_filename("");
+
+    // Print B arrives with no preparing epoch of its own - external start.
+    set_print_filename("printB.gcode");
+
+    REQUIRE(get_display_filename() == "printB");
+    // The thumbnail subject must now describe print B. If it still names
+    // print A, the preview is showing the previous print's image.
+    REQUIRE(state().get_print_thumbnail_file() == "printB.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "Back-to-back external prints keep republishing the thumbnail",
+                 "[active_print_media][preparing]") {
+    // The same defect without any in-app start: once ANY override is recorded
+    // it must not survive into a file it does not describe.
+    state().begin_preparing(helix::PrintJobRef{"first.gcode", "", ""});
+    state().retire_preparing(helix::PreparingExit::Confirmed);
+    set_print_filename("first.gcode");
+
+    set_print_filename("second.gcode");
+    REQUIRE(state().get_print_thumbnail_file() == "second.gcode");
+
+    set_print_filename("third.gcode");
+    REQUIRE(state().get_print_thumbnail_file() == "third.gcode");
+    REQUIRE(get_display_filename() == "third");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "Reprinting the same file keeps the media claim it was started with",
+                 "[active_print_media][preparing]") {
+    // Retiring a stale override must not fire on a REPRINT, where the override
+    // still describes exactly what is printing. Losing it here would discard a
+    // USB / pre-extracted thumbnail the print is entitled to keep.
+    state().begin_preparing(helix::PrintJobRef{"repeat.gcode", "", ""});
+    state().retire_preparing(helix::PreparingExit::Confirmed);
+    set_print_filename("repeat.gcode");
+    REQUIRE(get_display_filename() == "repeat");
+
+    set_print_filename("");
+    set_print_filename("repeat.gcode");
+
+    REQUIRE(get_display_filename() == "repeat");
+    REQUIRE(state().get_print_thumbnail_file() == "repeat.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "A rewritten temp path never retires the override that explains it",
+                 "[active_print_media][preparing]") {
+    // The override exists precisely to map a rewritten temp copy back to the
+    // name the user chose. Only this app writes those paths, so one arriving
+    // always belongs to the print whose epoch set the override.
+    state().begin_preparing(helix::PrintJobRef{"chosen.gcode", "", ""});
+    state().retire_preparing(helix::PreparingExit::Confirmed);
+    set_print_filename(".helix_temp/modified_1748_chosen.gcode");
+
+    REQUIRE(get_display_filename() == "chosen");
+}
