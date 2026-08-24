@@ -448,4 +448,16 @@ against the live printer — the first time AD5X support has run on real hardwar
   concurrently** — initially misread here as unexplained reboots. The AD5X rig is
   a shared test device: coordinate reboots/state changes across sessions, and
   treat any unexpected rig state change as a peer's action before suspecting
-  the hardware.
+  the hardware. Note also: the on-rig helix-screen is a peer session's
+  `feat/ad5x-oobe` build of 0.99.115 (original at
+  `bin/helix-screen.0.99.107.bak`), not stock — verify which build produced any
+  on-rig UI evidence. One event remains genuinely unexplained: the rig went
+  unreachable on BOTH interfaces while the on-screen app kept rendering
+  (peer power-cycled it) — a network-stack/driver hang (RTL8821CU out-of-tree
+  module is the suspect), not an app fault; worth revisiting if it recurs.
+- **ZMOD config bug that surfaces in our error UI**: `base_display_off.cfg:68`
+  hardcodes `BED_MESH_PROFILE LOAD=auto`, but this printer's saved profile is
+  `MESH_DATA` — every `DISPLAY_OFF` (i.e. every boot, via the display-handoff
+  chain) throws two gcode errors that land in the on-device error UI. This is
+  the source of the "bed_mesh: Unknown profile [auto]" lines in klippy startup
+  logs; it is not a missing-profile condition on our side.
