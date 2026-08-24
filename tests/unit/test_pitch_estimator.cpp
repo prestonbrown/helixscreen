@@ -422,25 +422,47 @@ TEST_CASE("real captures concentrate their energy on a harmonic series",
 
 TEST_CASE("a broadband thump does not concentrate on any harmonic series",
           "[belt_tension][pitch]") {
-    // The check that rejects a door closing or a toolhead settling: those
-    // clear the energy gate easily and have a real onset and decay, so the
-    // spectrum is the only thing that can tell them from a pluck.
-    Hiss rng{99u};
-    std::vector<AccelSample> burst(1545);
-    for (size_t i = 0; i < burst.size(); ++i) {
-        const float t = static_cast<float>(i) / kRate;
-        const float env = 200.0f * std::exp(-t / 0.25f);
-        burst[i].time = t;
-        burst[i].x = 9810.0f + env * rng.next();
-        burst[i].y = env * rng.next();
-        burst[i].z = env * rng.next();
+    // The check that rejects a door closing or a toolhead settling: those clear
+    // the energy gate easily and have a real onset and decay, so the spectrum
+    // is the only thing that can tell them from a pluck.
+    //
+    // Swept over 200 seeds rather than asserted on one. The capture side of
+    // this threshold has 1700 exhaustive alignments behind it; a single draw on
+    // this side would be the same sampling mistake one level finer, and this is
+    // the side with the smaller margin. The two distributions do overlap in the
+    // far tail - one thump in 10 000 reaches 0.2649 - so what is pinned here is
+    // that the whole of a 200-seed sample stays clear, not that no thump ever
+    // can. See MIN_HARMONIC_CONCENTRATION.
+    float worst = 0.0f;
+    uint32_t worst_seed = 0;
+    size_t judged = 0;
+    for (uint32_t seed = 1; seed <= 200; ++seed) {
+        Hiss rng{seed};
+        std::vector<AccelSample> burst(1545);
+        for (size_t i = 0; i < burst.size(); ++i) {
+            const float t = static_cast<float>(i) / kRate;
+            const float env = 200.0f * std::exp(-t / 0.25f);
+            burst[i].time = t;
+            burst[i].x = 9810.0f + env * rng.next();
+            burst[i].y = env * rng.next();
+            burst[i].z = env * rng.next();
+        }
+        auto psd = compute_psd(burst, kRate, required_bandwidth_hz(165.0f));
+        auto est = estimate_pitch(psd, 77.0f, 165.0f);
+        if (!est.valid) {
+            continue; // the estimator found nothing; the gate never sees it
+        }
+        ++judged;
+        const float c = harmonic_concentration(psd, est.frequency_hz, DEFAULT_HARMONICS, 77.0f);
+        if (c > worst) {
+            worst = c;
+            worst_seed = seed;
+        }
     }
-    auto psd = compute_psd(burst, kRate, required_bandwidth_hz(165.0f));
-    auto est = estimate_pitch(psd, 77.0f, 165.0f);
-    REQUIRE(est.valid); // the estimator happily returns SOMETHING
-    const float c = harmonic_concentration(psd, est.frequency_hz, DEFAULT_HARMONICS, 77.0f);
-    INFO("picked " << est.frequency_hz << " Hz, concentration " << c);
-    CHECK(c < MIN_HARMONIC_CONCENTRATION);
+    INFO("judged " << judged << " of 200 seeds, worst concentration " << worst << " at seed "
+                   << worst_seed);
+    REQUIRE(judged > 150); // the estimator happily returns SOMETHING for noise
+    CHECK(worst < MIN_HARMONIC_CONCENTRATION);
 }
 
 TEST_CASE("concentration discounts a fan that owns the band", "[belt_tension][pitch]") {

@@ -87,19 +87,29 @@ inline constexpr float HARMONIC_MATCH_BINS = 2.0f;
 /// for the event to have been a pluck at all. A thump, a door, or a stepper
 /// cogging spreads its energy; a plucked string does not.
 ///
-/// Both sides measured through the live path in the same harness - the
-/// exhaustive alignment sweep in test_belt_listen_session.cpp, every one of
-/// the 340 window alignments in a batch period, for each of the five captures
-/// that clear the energy gate:
+/// Real captures, measured through the live path by the exhaustive alignment
+/// sweep in test_belt_listen_session.cpp - every one of the 340 window
+/// alignments in a batch period, for each of the five captures that clear the
+/// energy gate, so 1700 measurements and not a sample of them:
 ///
-///   real captures      0.2965 - 0.4879   (floor: b_belt_82hz_3, leads 2304-2312)
-///   broadband thump    up to 0.2138      (worst of 200 seeds)
+///   0.2965 - 0.4879   (floor: b_belt_82hz_3, alignments 2304-2312)
 ///
-/// 0.25 sits between them with about 16% of headroom either side. That is the
-/// narrowest margin of any constant in this file, and it is set by real data
-/// rather than chosen: the corridor is only 0.083 wide. An earlier 0.30
-/// rejected b_belt_82hz_3 - the STRONGEST capture in the set - at nine
-/// alignments, on a measurement that was correct at 82.0 Hz.
+/// Broadband thumps are a random variable, so they are quoted as a
+/// distribution rather than as a worst case. 10 000 seeds:
+///
+///   p50 0.1308   p90 0.1613   p99 0.1919   p99.9 0.2141   largest 0.2649
+///
+/// A largest-of-N is not a wall: it grows with N, and reading a margin off one
+/// is how this constant was mis-stated twice (0.2138 at 200 draws, 0.2649 at
+/// 10 000). 0.25 clears the thumps' 99.9th percentile by 17% and sits 16%
+/// below the captures' floor.
+///
+/// @note The two distributions OVERLAP in the far tail - one thump in 10 000
+/// reached 0.2649 and would have been accepted. No value in the corridor
+/// separates them absolutely, so this is a strong filter and not a proof. What
+/// makes the residual harmless is downstream: PluckAggregator::COMMIT_AFTER
+/// requires five accepted plucks and reports their median, and one stray
+/// acceptance per ~10 000 events cannot move a median of five.
 inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.25f;
 
 /**

@@ -527,6 +527,13 @@ TEST_CASE("every accept-case capture is measured at every window alignment",
                 continue;
             }
             ++measured;
+            // The read-back below pairs median_hz() (a median over every
+            // accepted pluck) with last_spectrum() (the last accepted pluck's
+            // PSD). They describe the same pluck only while there is exactly
+            // one, which the cooldown guarantees for a single spliced strike.
+            // Pin it, so a change that broke it would fail here rather than
+            // silently measure a mismatched pair.
+            REQUIRE(s.accepted_count() == 1);
             // Every measurement produced has to be right. A sweep that raised
             // the count by admitting wrong numbers would be worse than the
             // miss it papered over.

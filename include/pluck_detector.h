@@ -115,11 +115,12 @@ class PluckDetector {
     /// Index of the strongest instantaneous deviation from the buffer mean -
     /// the strike, when there was one. Returns 0 for an empty buffer.
     ///
-    /// This is the loudest SAMPLE, which for a plucked string is its attack
-    /// transient (measured across every window phase of the six real captures,
-    /// the rise anchored here runs 26-71x). For broadband energy it is instead
-    /// a random draw somewhere inside the event, so an onset located this way
-    /// can sit tens of samples past a thump's true leading edge.
+    /// This is the loudest SAMPLE. For a plucked string that is its attack
+    /// transient, which is what makes the rise anchored here large - see
+    /// MIN_ONSET_RISE for the measured range. For broadband energy it is
+    /// instead a random draw somewhere inside the event, so an onset located
+    /// this way can sit tens of samples past a thump's true leading edge
+    /// (measured: 62).
     static size_t find_onset(const AccelSample* samples, size_t count);
 
     /// The measured peak-to-pre-strike RMS ratio - the quantity
