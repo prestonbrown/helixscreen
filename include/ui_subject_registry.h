@@ -84,7 +84,12 @@
  */
 #define UI_SUBJECT_INIT_AND_REGISTER_STRING(subject, buffer, initial_value, name)                  \
     do {                                                                                           \
-        snprintf((buffer), sizeof(buffer), "%s", (initial_value));                                 \
+        /* A caller that seeds the buffer before registering passes it as its own initial          \
+           value. snprintf with overlapping src and dst is undefined behaviour and empties the     \
+           buffer on glibc, discarding the seed. Skip the copy when the two alias. */              \
+        if (static_cast<const char*>(initial_value) != static_cast<const char*>(buffer)) {         \
+            snprintf((buffer), sizeof(buffer), "%s", (initial_value));                             \
+        }                                                                                          \
         lv_subject_init_string(&(subject), (buffer), nullptr, sizeof(buffer), (buffer));           \
         helix::xml::register_subject_in_current_scope((name), &(subject));                         \
         SubjectDebugRegistry::instance().register_subject(                                         \
@@ -113,7 +118,10 @@
  */
 #define UI_SUBJECT_INIT_AND_REGISTER_STRING_N(subject, buffer, size, initial_value, name)          \
     do {                                                                                           \
-        snprintf((buffer), (size), "%s", (initial_value));                                         \
+        /* See UI_SUBJECT_INIT_AND_REGISTER_STRING: aliasing buffer and initial_value is UB. */    \
+        if (static_cast<const char*>(initial_value) != static_cast<const char*>(buffer)) {         \
+            snprintf((buffer), (size), "%s", (initial_value));                                     \
+        }                                                                                          \
         lv_subject_init_string(&(subject), (buffer), nullptr, (size), (buffer));                   \
         helix::xml::register_subject_in_current_scope((name), &(subject));                         \
         SubjectDebugRegistry::instance().register_subject(                                         \
