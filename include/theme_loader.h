@@ -136,10 +136,11 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
 bool save_theme_to_file(const ThemeData& theme, const std::string& filepath);
 
 /**
- * @brief Get default Nord theme (fallback)
- * @return ThemeData with Nord color values
+ * @brief Get the compiled-in fallback theme, used when no theme JSON can be read
+ * @return ThemeData carrying the HelixScreen palette, mirroring
+ *         assets/config/themes/defaults/helixscreen.json
  */
-ThemeData get_default_nord_theme();
+ThemeData get_builtin_fallback_theme();
 
 /**
  * @brief Discover all theme files in directory
@@ -149,7 +150,12 @@ ThemeData get_default_nord_theme();
 std::vector<ThemeInfo> discover_themes(const std::string& themes_dir);
 
 /**
- * @brief Ensure themes directory exists with default theme
+ * @brief Ensure the user themes directory exists
+ *
+ * Shipped themes live in the defaults directory and are not copied here; a file
+ * in this directory is a user override that shadows the shipped theme of the
+ * same name.
+ *
  * @param themes_dir Path to themes directory
  * @return true if directory is ready, false on error
  */
