@@ -26,6 +26,7 @@
 #include "ui_panel_home.h"
 #include "ui_panel_settings.h"
 #include "ui_pin_entry_modal.h"
+#include "ui_pluck_animation.h"
 #include "ui_printer_switch_menu.h"
 #include "ui_progress_bar.h"
 #include "ui_spinner.h"
@@ -326,6 +327,8 @@ void register_xml_components() {
     ui_confetti_init();                      // <ui_confetti> celebration animation canvas
     helix::ui::register_belt_trace_widget(); // <belt_trace> waveform/spectrum strip, must
                                              // precede register_xml("panel_belt_tension.xml")
+    helix::ui::register_pluck_animation_widget(); // <pluck_animation> isometric pluck
+                                                  // illustration, same precedence rule
     register_xml(
         "components/page_scroll_gutter.xml"); // <page_scroll_gutter> page scroll chevron column
 
@@ -641,7 +644,6 @@ void register_xml_components() {
     register_xml("screws_tilt_share_modal.xml");
     register_xml("input_shaper_panel.xml");
     register_xml("components/belt_result_card.xml");
-    register_xml("components/pluck_animation.xml");
     register_xml("panel_belt_tension.xml");
 
     // Print history panels

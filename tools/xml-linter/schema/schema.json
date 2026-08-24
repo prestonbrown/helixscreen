@@ -1881,6 +1881,10 @@
         }
       },
       "inherits": "lv_obj"
+    },
+    "pluck_animation": {
+      "attributes": {},
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -2824,7 +2828,8 @@
     "z_offset_indicator",
     "helix_sparkline",
     "setting_group",
-    "belt_trace"
+    "belt_trace",
+    "pluck_animation"
   ],
   "runtime_constants": [
     "accent_bar_gap",

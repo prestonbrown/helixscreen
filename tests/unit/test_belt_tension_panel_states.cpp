@@ -21,6 +21,7 @@
  */
 
 #include "ui_panel_belt_tension.h"
+#include "ui_pluck_animation.h"
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
@@ -37,7 +38,11 @@ namespace {
 lv_obj_t* build_belt_panel(XMLTestFixture& fx) {
     REQUIRE(fx.register_component("header_bar"));
     REQUIRE(fx.register_component("components/belt_result_card"));
-    REQUIRE(fx.register_component("components/pluck_animation"));
+    // <pluck_animation> is a custom XML widget now (ui_pluck_animation.cpp),
+    // not an XML component file, so it needs lv_xml_register_widget rather
+    // than register_component() - same registration call production makes
+    // in xml_registration.cpp, ahead of panel_belt_tension.xml.
+    helix::ui::register_pluck_animation_widget();
     REQUIRE(fx.register_component("panel_belt_tension"));
 
     // Registers the XML event callbacks AND the bt_* subjects the panel binds.

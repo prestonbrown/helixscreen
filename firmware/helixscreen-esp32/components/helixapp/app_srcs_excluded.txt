@@ -230,6 +230,7 @@ src/ui/ui_panel_screws_tilt.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_spoolman.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_panel_step_test.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_panel_test.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_pluck_animation.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_print_cancel_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_save_z_offset_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_screensaver.cpp  # not in the v1 Core+AMS cut
