@@ -157,27 +157,36 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
 }
 
 TEST_CASE_METHOD(PrintStatusThumbFixture,
-                 "PrintStatusPanel: a stale thumbnail source pins the panel to the previous print",
+                 "PrintStatusPanel: a thumbnail source that stops describing the print is retired",
                  "[print_status][thumbnail]") {
     // set_thumbnail_source() overrides the effective filename for BOTH the display
-    // name and the thumbnail lookup. The panel retires it when a print ends
-    // (ui_panel_print_status.cpp:2750). If it is ever left set across a print
-    // boundary, every later filename change is computed against the OLD name, so
-    // the panel never sees a new print at all — and the stale-preview reconcile
-    // that depends on that comparison cannot fire. This pins that coupling so a
-    // regression in the retiring path shows up here rather than as a stale preview.
+    // name and the thumbnail lookup, so an override left set across a print
+    // boundary makes every later filename change compare against the OLD name.
+    // The panel then never registers that a new print began - which stales the
+    // thumbnail AND suppresses the stale-geometry clear in ensure_preview_current(),
+    // because gcode_mismatch is computed off that same comparison. One override,
+    // two symptoms.
+    //
+    // The panel's own print-ended retirement cannot be relied on to prevent it:
+    // that path is gated on print_ended, which is going_idle only
+    // (print_lifecycle_state.cpp:80), and any non-zero start phase forces
+    // Preparing (:34), so the Complete->Idle edge is swallowed for any print
+    // started from the app. The override must therefore be retired when it stops
+    // describing the incoming filename.
     panel().set_thumbnail_source("printA.gcode");
     panel().set_filename("printA.gcode");
     state().set_print_thumbnail("printA.gcode", THUMB_PATH);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH);
 
-    // Next print starts externally. The override is NOT retired.
+    // Next print starts externally, so nothing re-points the override at it.
     panel().set_filename("printB.gcode");
     state().set_print_thumbnail("printB.gcode", THUMB_PATH_B);
     helix::ui::UpdateQueue::instance().drain();
 
-    // Documented consequence: the override wins, so printB's thumbnail is rejected
-    // as "published for another file" and printA's image stays on screen.
-    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) != THUMB_PATH_B);
+    // The override no longer describes the incoming file, so it must be dropped
+    // rather than pinning the panel to the previous print.
+    CHECK(PrintStatusPanelTestAccess::thumbnail_source(panel()).empty());
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH_B);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
 }
