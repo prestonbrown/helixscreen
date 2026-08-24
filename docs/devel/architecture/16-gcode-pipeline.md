@@ -96,7 +96,7 @@ Who lands on which path: the print-status panel downloads to disk and calls `loa
 
 ### Getting the file: two acquisition paths, one shared transfer each
 
-The **print-status panel** path ([`src/ui/ui_panel_print_status.cpp:3392`](../../../src/ui/ui_panel_print_status.cpp#L3392)) checks the gates first — Thumbnail Only mode skips all downloading (`:3409`), as does `gcode_3d_enabled=false` (`:3418`) — then probes a persistent cache copy under `get_helix_cache_dir("gcode_temp")` hashed from the filename, and otherwise fetches metadata, applies the shared OOM gate `is_gcode_2d_streaming_safe(size)` (`:3494`), and streams the file to disk via `transfers().download_file_to_path()` (`:3469`).
+The **print-status panel** path ([`src/ui/ui_panel_print_status.cpp:3425`](../../../src/ui/ui_panel_print_status.cpp#L3425)) checks the gates first — Thumbnail Only mode skips all downloading (`:3409`), as does `gcode_3d_enabled=false` (`:3418`) — then probes a persistent cache copy under `get_helix_cache_dir("gcode_temp")` hashed from the filename, and otherwise fetches metadata, applies the shared OOM gate `is_gcode_2d_streaming_safe(size)` (`:3494`), and streams the file to disk via `transfers().download_file_to_path()` (`:3469`).
 
 The **detail view** has one canonical entry point, `ensure_gcode_downloaded()` ([`src/ui/ui_print_select_detail_view.cpp:615`](../../../src/ui/ui_print_select_detail_view.cpp#L615)), because two consumers need the file — the viewer preview and the tools scan — and they must not race each other into two transfers. Its order matters:
 
@@ -128,9 +128,9 @@ The fallback full scan is itself cheap: a Tn-only line scan on the slow HTTP lan
 
 The settings surface offers four values ([`include/display_settings_manager.h:186`](../../../include/display_settings_manager.h#L186)): 0=Auto, 1=3D, 2=2D, 3=Thumbnail Only. The widget's enum is the three renderers ([`include/ui_gcode_viewer.h:35`](../../../include/ui_gcode_viewer.h#L35)) — Auto resolves at draw time to 3D when the build has the GLES renderer (`ENABLE_GLES_3D`), else 2D ([`src/ui/ui_gcode_viewer.cpp:386`](../../../src/ui/ui_gcode_viewer.cpp#L386)); Thumbnail Only is a panel-level setting that skips viewer usage entirely.
 
-The precedence chain is **cmdline > env > settings**, applied in the panel's `on_activate` ([`src/ui/ui_panel_print_status.cpp:1016`](../../../src/ui/ui_panel_print_status.cpp#L1016)): `--render-2d`/`--render-3d` (stored in `RuntimeConfig::gcode_render_mode`) win; otherwise `HELIX_GCODE_MODE` — resolved at widget creation by the pure `decide_render_mode()` ([`include/gcode_render_mode_policy.h:44`](../../../include/gcode_render_mode_policy.h#L44)) — stands; otherwise the saved setting is applied. Two traps are load-bearing:
+The precedence chain is **cmdline > env > settings**, applied in the panel's `on_activate` ([`src/ui/ui_panel_print_status.cpp:1049`](../../../src/ui/ui_panel_print_status.cpp#L1049)): `--render-2d`/`--render-3d` (stored in `RuntimeConfig::gcode_render_mode`) win; otherwise `HELIX_GCODE_MODE` — resolved at widget creation by the pure `decide_render_mode()` ([`include/gcode_render_mode_policy.h:44`](../../../include/gcode_render_mode_policy.h#L44)) — stands; otherwise the saved setting is applied. Two traps are load-bearing:
 
-- The settings observer would otherwise fire once at startup with the persisted value and silently overwrite the cmdline pin ~16ms after it was applied; it now stands down when the cmdline pinned a mode ([`src/ui/ui_panel_print_status.cpp:346`](../../../src/ui/ui_panel_print_status.cpp#L346)).
+- The settings observer would otherwise fire once at startup with the persisted value and silently overwrite the cmdline pin ~16ms after it was applied; it now stands down when the cmdline pinned a mode ([`src/ui/ui_panel_print_status.cpp:379`](../../../src/ui/ui_panel_print_status.cpp#L379)).
 - `decide_render_mode()` treats an unrecognized env value as **2D, not Auto** — a typo'd override lands on the renderer that works everywhere rather than silently behaving as unset. Only unset reaches Auto.
 
 ### Operations: picking, selection, exclusion
@@ -177,7 +177,7 @@ Read in this order; about 30 minutes total.
 8. [`src/ui/ui_print_select_detail_view.cpp:1722`](../../../src/ui/ui_print_select_detail_view.cpp#L1722) — `start_tail_summary_scan()`: the suffix request, pure parse on the HTTP thread, stale-file guard, and fall-through.
 9. [`include/tools_used_cache.h:20`](../../../include/tools_used_cache.h#L20) — the cache: keying, LRU bound, and the "empty set is legitimate" contract at `:24`. Then its three call sites in the detail view (`:479`, `:1331`, `:1663`).
 10. [`include/gcode_render_mode_policy.h:44`](../../../include/gcode_render_mode_policy.h#L44) — `decide_render_mode()`: case-sensitive matching and the unrecognized-is-2D asymmetry, in 60 lines.
-11. [`src/ui/ui_panel_print_status.cpp:1016`](../../../src/ui/ui_panel_print_status.cpp#L1016) — the precedence chain applied; then the pinned-mode guard at `:346`.
+11. [`src/ui/ui_panel_print_status.cpp:1049`](../../../src/ui/ui_panel_print_status.cpp#L1049) — the precedence chain applied; then the pinned-mode guard at `:346`.
 12. [`src/rendering/gcode_layer_renderer.cpp:1387`](../../../src/rendering/gcode_layer_renderer.cpp#L1387) — `pick_object_at()` in full: stage-1 clamping and skips (`:1424-1501`), the single-candidate return (`:1499`), the downward walk (`:1533`), and the cache-only streaming branch (`:1544`).
 13. [`src/ui/ui_gcode_viewer.cpp:821`](../../../src/ui/ui_gcode_viewer.cpp#L821) — the long-press constant and its comment; then the release callback's tap handling at `:1083`.
 14. [`ui_xml/components/print_status_preview_card.xml:38`](../../../ui_xml/components/print_status_preview_card.xml#L38) — `btn_objects`: the `exclude_objects_available` binding and the `on_print_status_objects` callback — the whole skip-objects entry point in eight lines of XML.
