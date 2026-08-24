@@ -73,6 +73,26 @@ std::string resolve_gcode_filename(const std::string& path);
 bool is_rewritten_gcode_path(const std::string& path);
 
 /**
+ * @brief Does a recorded thumbnail source still describe the reported print?
+ *
+ * A thumbnail source names the file whose media the current print should be
+ * resolved from - the ORIGINAL, when what the printer reports is a rewritten
+ * temp copy. Nothing retires it when a print ends, so both the media manager
+ * and the print-status panel have to ask this of every incoming filename or
+ * they resolve the next print through the previous print's name (#1339).
+ *
+ * True when the source names the same file, when the reported path is one of
+ * our own rewrites (which only ever belong to a print this app started), or
+ * when the two agree once resolved and stripped to a basename - a preparing
+ * job records its full path while the rewrite resolves to a bare name.
+ *
+ * @param raw    Filename as the printer reports it
+ * @param source The recorded thumbnail source
+ * @return true if the source still describes this print
+ */
+bool thumbnail_source_describes(const std::string& raw, const std::string& source);
+
+/**
  * @brief Test whether a filename is a QIDI native-3MF shadow G-code.
  *
  * QIDI firmware translates a native `.3mf` plate into a G-code file exposed via

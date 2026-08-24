@@ -48,7 +48,7 @@ class NetworkModalLifetimeFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
                  "Deleting the password modal clears the overlay's cached pointer",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     lv_obj_t* modal = make_watched_modal();
     Access::password_modal(overlay()) = modal;
 
@@ -60,7 +60,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture,
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
                  "Deleting the hidden-network modal clears its cached pointer",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     lv_obj_t* modal = make_watched_modal();
     Access::hidden_network_modal(overlay()) = modal;
 
@@ -71,7 +71,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture,
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
                  "Deleting the network-test modal clears its cached pointer",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     lv_obj_t* modal = make_watched_modal();
     Access::test_modal(overlay()) = modal;
 
@@ -81,7 +81,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture,
 }
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture, "Deleting the step widget clears its cached pointer",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     // Widest exposure of the family: the network-test progress callback fires
     // repeatedly over seconds and dereferences step_widget_ nine times behind a
     // single null check, so a modal dismissed mid-test lands right in it.
@@ -94,7 +94,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "Deleting the step widget clears i
 }
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A step widget dies with the modal that contains it",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     // step_widget_ is a grandchild of test_modal_. Deleting the ancestor must
     // clear BOTH cached pointers - LVGL fires DELETE on descendants too.
     lv_obj_t* modal = make_watched_modal();
@@ -111,7 +111,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A step widget dies with the modal
 }
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A dying modal clears only its own cached pointer",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     // All three pointers share one handler, so a careless implementation could
     // null whichever slot it looked at first.
     lv_obj_t* password = make_watched_modal();
@@ -130,7 +130,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A dying modal clears only its own
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
                  "A late DELETE from a replaced modal leaves the live one alone",
-                 "[network_settings][modal_lifetime]") {
+                 "[network_settings][modal_lifetime][1341]") {
     // Modals are deferred-deleted, so a DELETE for the PREVIOUS password modal
     // can land after the next one is already on screen. Clearing the pointer
     // then would blank a modal the user is looking at.

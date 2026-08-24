@@ -1740,7 +1740,7 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "Media adopts the preparing job's identity at commit",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // The thumbnail source used to be set from the Moonraker-confirmed callback,
     // which on a printer with a host-side pre-start block lands minutes after the
     // user pressed Print. In between, print_stats still names the PREVIOUS job,
@@ -1756,7 +1756,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "A superseded preparing job releases its media claim",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // Somebody started a different print while ours was preparing. Our override
     // must go, including thumbnail_origin_ - a stale PreSet skips the thumbnail
     // fetch, which is the mechanism behind #526.
@@ -1772,7 +1772,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "A confirmed preparing job keeps its media claim",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // Confirmed means the printer took OUR job. The override must survive,
     // because the printer may report a rewritten temp file standing in for the
     // file the user actually chose.
@@ -1862,7 +1862,7 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "Reprint of a modified file displays the original name, not the temp one",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // Reprint replays whatever print_stats last reported, which for a modified
     // print is the rewritten temp path. Recording that raw as the thumbnail
     // source also suppressed process_filename()'s auto-resolve, which is guarded
@@ -1879,7 +1879,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "A print started outside the app clears the previous print's thumbnail source",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // #1339: print A is started FROM HelixScreen, so the preparing epoch records
     // its identity as the thumbnail source. Print B is then started from
     // Mainsail/Fluidd or the printer's own screen, so no preparing epoch fires
@@ -1907,7 +1907,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "Back-to-back external prints keep republishing the thumbnail",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // The same defect without any in-app start: once ANY override is recorded
     // it must not survive into a file it does not describe.
     state().begin_preparing(helix::PrintJobRef{"first.gcode", "", ""});
@@ -1924,7 +1924,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "Reprinting the same file keeps the media claim it was started with",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // Retiring a stale override must not fire on a REPRINT, where the override
     // still describes exactly what is printing. Losing it here would discard a
     // USB / pre-extracted thumbnail the print is entitled to keep.
@@ -1942,7 +1942,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
                  "A rewritten temp path never retires the override that explains it",
-                 "[active_print_media][preparing]") {
+                 "[active_print_media][preparing][1339]") {
     // The override exists precisely to map a rewritten temp copy back to the
     // name the user chose. Only this app writes those paths, so one arriving
     // always belongs to the print whose epoch set the override.
@@ -1951,4 +1951,23 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     set_print_filename(".helix_temp/modified_1748_chosen.gcode");
 
     REQUIRE(get_display_filename() == "chosen");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "A preparing job's claim survives the previous print still being reported",
+                 "[active_print_media][preparing][1339]") {
+    // The retirement rule must not fire while a job is preparing. print_stats
+    // keeps naming the PREVIOUS job for the whole pre-start block - that lag is
+    // the reason identity is recorded at commit - so a mismatch there is
+    // expected, not stale. Retiring on it would discard the identity the epoch
+    // just adopted and send the new print's media lookup back to the old file.
+    set_print_filename("previous.gcode");
+
+    state().begin_preparing(helix::PrintJobRef{"committed.gcode", "", ""});
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    // Moonraker is still reporting the finished print while ours prepares.
+    set_print_filename("previous.gcode");
+
+    REQUIRE(get_display_filename() == "committed");
 }

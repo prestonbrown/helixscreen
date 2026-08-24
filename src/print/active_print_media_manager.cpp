@@ -29,44 +29,6 @@
 using helix::gcode::get_display_filename;
 using helix::gcode::resolve_gcode_filename;
 
-namespace {
-
-std::string basename_of(const std::string& path) {
-    const size_t slash = path.find_last_of('/');
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
-/**
- * @brief Does a recorded thumbnail source still describe the reported print?
- *
- * True when the source names the same file Moonraker is reporting, or the
- * original that a rewritten temp copy of it resolves to. The basename compare
- * is the last rung: a preparing job records its full path while the temp
- * rewrite resolves to a bare name, so the two can differ by a directory prefix
- * and still be the same print.
- */
-bool source_describes(const std::string& raw, const std::string& source) {
-    if (raw == source) {
-        return true;
-    }
-    // A rewritten temp path is the whole reason an override exists, and only
-    // this app produces one - so it always belongs to a print we started, whose
-    // preparing epoch set the override we are holding. Keep it even when the
-    // original cannot be recovered from the string.
-    if (helix::gcode::is_rewritten_gcode_path(raw)) {
-        return true;
-    }
-    const std::string resolved = helix::gcode::resolve_gcode_filename(raw);
-    if (resolved == source) {
-        return true;
-    }
-    // Last rung: a preparing job records its full path while the name the
-    // printer reports may drop the directory. Same file, different prefix.
-    return basename_of(resolved) == basename_of(source);
-}
-
-} // namespace
-
 namespace helix {
 
 // Singleton storage
@@ -273,8 +235,14 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     // Retire the override here, where we can see the name the printer actually
     // reports, rather than guessing at print-end: an empty filename between
     // jobs is deliberately preserved so a finished print stays readable.
-    if (!thumbnail_source_filename_.empty() &&
-        !source_describes(filename, thumbnail_source_filename_)) {
+    // A preparing job is EXACTLY the case where the override legitimately does
+    // not describe what the printer is reporting: print_stats still names the
+    // previous job for the whole pre-start block, which is why the identity is
+    // recorded at commit in the first place. Retiring on that mismatch would
+    // throw away the identity the epoch just adopted, so only retire once no
+    // job is armed.
+    if (!printer_state_.has_preparing_job() && !thumbnail_source_filename_.empty() &&
+        !helix::gcode::thumbnail_source_describes(filename, thumbnail_source_filename_)) {
         spdlog::debug("[ActivePrintMediaManager] Thumbnail source '{}' does not describe '{}' "
                       "- retiring it",
                       thumbnail_source_filename_, filename);

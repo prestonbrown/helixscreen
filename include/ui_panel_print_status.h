@@ -709,6 +709,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard tool_map_version_observer_; ///< Refreshes gcode viewer colors on tool remap
     ObserverGuard active_tool_observer_;  ///< Refreshes nozzle temp display with tool name prefix
     ObserverGuard chamber_temp_observer_; ///< Updates chamber status text
+    ObserverGuard preparing_epoch_observer_;      ///< Adopts the preparing job's identity at commit
     ObserverGuard print_thumbnail_path_observer_; ///< Updates print_thumbnail_ from shared subject
 #if defined(HELIX_PLATFORM_ESP32)
     ObserverGuard print_psram_thumb_observer_; ///< Ditto, via the PSRAM generation counter

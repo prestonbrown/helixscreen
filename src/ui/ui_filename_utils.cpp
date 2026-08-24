@@ -90,6 +90,29 @@ std::string resolve_gcode_filename(const std::string& path) {
     return path;
 }
 
+static std::string basename_of(const std::string& path) {
+    const size_t slash = path.find_last_of('/');
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+}
+
+bool thumbnail_source_describes(const std::string& raw, const std::string& source) {
+    if (raw == source) {
+        return true;
+    }
+    // A rewritten temp path is the whole reason an override exists, and only
+    // this app produces one - so it always belongs to a print we started, whose
+    // preparing epoch set the override being held. Keep it even when the
+    // original cannot be recovered from the string.
+    if (is_rewritten_gcode_path(raw)) {
+        return true;
+    }
+    const std::string resolved = resolve_gcode_filename(raw);
+    if (resolved == source) {
+        return true;
+    }
+    return basename_of(resolved) == basename_of(source);
+}
+
 bool is_native_3mf_shadow(const std::string& name) {
     static const std::string prefix = "shadow_native_plate_";
     static const std::string suffix = ".gcode";
