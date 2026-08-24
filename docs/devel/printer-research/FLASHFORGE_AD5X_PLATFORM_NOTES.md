@@ -528,6 +528,27 @@ re-mesh per print) meaning it leans on that saved profile. Nobody has checked
 `printer.bed_mesh.profile_name` after a handoff. Two red lines in the error UI and
 a silently unmeshed bed are very different bugs; this one query separates them.
 
+**VERIFIED 2026-08-24 (rig, read-only + one handover): the handover itself is
+harmless-to-idle — but the print-start path is worse than assumed.**
+- Baseline (idle, before any handover): `printer.bed_mesh.profile_name` is already
+  `''` with `MESH_DATA` saved — no mesh is ACTIVE at idle on this firmware,
+  handover or not. So `BED_MESH_CLEAR` + failing `LOAD=auto` clears nothing that
+  was in use; the "silently unmeshed bed after handover" worst case does not
+  materialize at idle. klippy survives the handover (same PID); Moonraker's
+  brief unresponsiveness right after `DISPLAY_OFF` is transient.
+- The alt-screen config (`ad5x_config_off.cfg`) contains **no
+  `BED_MESH_PROFILE LOAD` site at all** — its only BED_MESH mentions are
+  settings-menu text. The mitigation assumed above ("`_START_PRINT` reloads from
+  a configured variable") holds only for the NATIVE-screen config path
+  (`ad5x.cfg:540`, `LOAD={printer.bed_mesh.profile_name}` — which at runtime is
+  the empty name). With the default `print_leveling=0` ("don't build bed mesh on
+  each print"), an alt-screen AD5X neither builds nor loads a mesh at print
+  start unless the SLICER emits `BED_MESH_PROFILE LOAD` in the file.
+  Unverified: the rig carries only `.3mf` packages (no greppable `.gcode`), so
+  whether FlashForge/Orca profiles emit the load is unconfirmed. **If they do
+  not, default alt-screen prints run without mesh compensation** — that is the
+  question worth asking ghzserg, and it is bigger than the `LOAD=auto` error.
+
 **Our side: capability question identified, deliberately NOT built yet.** If we
 ever act on this, it belongs behind the `z_offset_persistence.h` shape — a
 provider table keyed on a detection predicate, vendor names confined to one .cpp,
