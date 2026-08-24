@@ -302,3 +302,87 @@ dmesg | grep -iE 'sigbus|h264|v4l|bus error|alignment'
 | no core dumps | `ulimit -c = 0` by default; rely on `crash.txt` only |
 | no ASAN | Insufficient memory for ASAN-instrumented build; can't reproduce here |
 | webcam discovery probes | Wasted RPC even though widget is gated (fix pending) |
+
+## Helix Rig Observations (2026-08-24, our own AD5X)
+
+First-party rig commissioned 2026-08-23: ZMOD 1.7.2 (full variant) on a
+factory-restored **stock base 1.1.7** (the unit shipped on 3.1.4 — above ZMOD's
+discrete supported list, which tops out at 3.1.0; the required path is restore
+DOWN, never update up). MCU is the **stock Klipper 12 blob**
+(`stm32f103xe`, `20241125_172251`); `klipper13=0` in the ZMOD variables. Commissioning
+traps (USB-stick re-trigger, empty `/opt`, port signature) are recorded in
+`docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md`.
+
+### Network / SSH
+
+- Address **192.168.1.66** (main LAN). The earlier "SSH stalls at banner exchange"
+  puzzle was **IOT-segment-specific** — from the main LAN the dropbear handshake
+  completes in ~22 ms with key auth. Whatever mangles it lives on the 192.168.30.x
+  VLAN, not the printer.
+- Port sweep from the main LAN shows **all four ports open** (22, 80, 7125, 8899) —
+  8899 open deviates from the "ZMOD closes 8899" signature claimed at commissioning
+  time; do not treat 8899 as a stock-vs-ZMOD discriminator without re-checking.
+- `scp` needs `-O` or `cat`-over-ssh (no `sftp-server`, confirmed).
+
+### Moonraker surface (live-verified)
+
+- The WebSocket endpoint is **`ws://<host>:7125/websocket` only**. Port 80 is
+  `Zmod httpd/1.1.0` and serves the Fluidd SPA for **every** path — a WS handshake
+  sent to port 80 gets `200 OK` + the SPA HTML, not a protocol error.
+- **`objects/query` returns success-with-empty-status for objects that do not
+  exist** (`mod_params`, `zmod_ifs`, `zmod_color` all "answer" while absent from
+  `objects/list`). A query response is therefore never proof of object presence;
+  `objects/list` is the presence check. Matters for any capability-detection code.
+- 269 objects registered. Present and confirmed: `SAVE_ZMOD_DATA` (macro),
+  `SET_EXTRUDER_SLOT` (macro), `zmod_ifs_switch_sensor head_switch_sensor`,
+  `zmod_ifs_motion_sensor ifs_motion_sensor`, `fan_generic fanM106`,
+  `filament_switch_sensor head_switch_sensor`. Absent: `SET_MOD` (Forge-X-only —
+  our Forge-X provider row cannot misfire here).
+- `save_variables.variables` is ZMOD's **flat mod-param dict** (41 keys observed:
+  `klipper13`, `load_zoffset`, `helix`, `guppy`, `fix_e0011`, `fix_e0017`,
+  `china_cloud`, `display_off_timeout`, …). The `gcode_offsets.z` key our
+  z-offset provider reads appears **only after a z-offset has actually been
+  saved** — a freshly commissioned rig legitimately has none.
+- Klippy `Stats` lines are **single-line with inline `mcu:` / `eboard:`
+  sections** — per-MCU lines do not start at column 0 (`grep '^mcu @'` finds
+  nothing; parse inline). Spool-weight data shows up as Stats fields
+  (`filamentValue: temp=`, `cutValue: temp=`, `weightValue: temp=840.0` — grams
+  masquerading as a temperature) but there is **no `weightValue` object** in
+  `objects/list`, so the printer-DB heuristic keyed on it will not match;
+  the higher-confidence signals (`zmod_ifs`, hostname, `SET_EXTRUDER_SLOT`)
+  carry detection.
+
+### Klipper-12 retransmit baseline (control arm for the TTC investigation)
+
+163 Stats lines over a ~70-minute idle session:
+
+| MCU | bytes_retransmit | Notes |
+|-----|------------------|-------|
+| `mcu` | flat **9** | boot-time only, never moved |
+| `eboard` | **≤ 9** | 103 samples at 0, 60 at 9 after one blip |
+
+Compare the incident rigs (both on **forced Klipper 13**, one of them cold-start
+idle at 581 s uptime): `eboard bytes_retransmit=50, retransmit_seq=542` against
+`mcu=9` — the eboard 5x noisier than the main MCU. On Klipper 12 the eboard
+matches or beats the mcu. The noisy-eboard signature appears **only on
+Klipper 13**; this is the strongest evidence short of deliberately forcing 13
+on the rig (deliberately not done).
+
+### Gcode transport test (wedge check)
+
+The commissioning-session report "any gcode macro POSTed to
+`/printer/gcode/script` wedges Moonraker ~40 s" **did not reproduce** on the
+rig's current state (post config-reload, main LAN, 2026-08-24):
+
+| Phase | Command RTT | Worst `server.info` RTT after |
+|-------|-------------|-------------------------------|
+| WS macro `GET_ZCOLOR SILENT=1` | 20 ms | **7.4 ms** over 60 s |
+| WS plain `M105` | 14.5 ms | 1374 ms — one blip ~16 s after, recovered in ~6 s, unattributed |
+| HTTP POST macro | 0.0 s (immediate) | 14 ms over 75 s |
+
+Baseline RTT was 4-7 ms throughout. Nothing approaches a 40 s wedge on either
+transport. If the original repro was real, the trigger is state-dependent
+(candidate differences: IOT segment, first-boot calibration window, macros with
+large `respond_info` payloads — `IFS_STATUS` follow-up testing). Treat the
+40 s wedge as **unconfirmed on current firmware state**, not as an operating
+assumption.
