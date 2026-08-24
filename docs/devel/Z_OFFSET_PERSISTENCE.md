@@ -131,15 +131,16 @@ own INI store (`/opt/config/mod_data/variables.cfg`), **not** klipper's
   migration path actively removes `SAVE_ZMOD_DATA`, so it cannot trip the ZMOD row —
   ZMOD nonetheless stays first in the table.
 
-  **Never switch this predicate to `mod_params` object presence.** A live ZMOD 1.7.2
-  rig answers a `mod_params` query too — success with an empty object, the same ghost
-  registration shape as `zmod_ifs`/`zmod_color` — while `SET_MOD` is absent from its
-  `gcode/help` (319 macros checked). Object presence would match every ZMOD box. Two
-  layers keep the ghost harmless even so: `mod_params` is only subscribed when this row
-  is the match, and the reader returns `nullopt` for an object without `variables`. The
-  mods share lineage — ZMOD keeps its own flat param dict (`load_zoffset`, `fix_e0011`,
-  …) inside klipper `save_variables` — so a key name is never proof of which mod a
-  printer runs.
+  **Never switch this predicate to object presence.** Rig-observed on ZMOD 1.7.2:
+  this Moonraker build answers `objects/query` with success and an empty status for an
+  object it does not have — `mod_params`, `zmod_ifs` and `zmod_color` all "answer"
+  despite being absent from `objects/list` — and `SET_MOD` is likewise absent from its
+  `gcode/help`. A query response is never proof an object is registered; `objects/list`
+  is the presence check. Even a stray empty frame stays harmless: `mod_params` is only
+  subscribed when this row is the match, and the reader returns `nullopt` for an object
+  without `variables`. The mods share lineage — ZMOD keeps its own flat param dict
+  (`load_zoffset`, `fix_e0011`, …) inside klipper `save_variables` — so a key name is
+  never proof of which mod a printer runs.
 - **Read:** `mod_params.variables.z_offset`, a float in mm — the same accumulate-
   and-round-to-microns treatment as ZMOD, for the same reason.
 - **Write:** its `SET_GCODE_OFFSET` override auto-persists every `Z=` write, so
