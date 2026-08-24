@@ -1931,15 +1931,21 @@ class AmsBackend {
     /**
      * @brief Whether the per-slot tool badge ("T0", "T1", ...) should be hidden.
      *
-     * AmsBackendToolChanger suppresses it. NOTE: the original rationale ("redundant
-     * with the toolhead label shown below each slot") does not hold - there is no
-     * such label. ams_slot_view.xml has material_label (material name or "Empty"),
-     * status_badge/slot_badge_label (the SLOT number) and tool_badge (the T-number),
-     * and nothing else. Under an ASSIGN_TOOL remap the slot number and the T-number
-     * differ, so hiding the badge removes the only per-slot sign of which T-number a
-     * toolhead answers to. Left as-is rather than changed blind: it is shipped
-     * behavior on hardware we cannot test. Snapmaker deliberately does NOT override
-     * this - it is not a missing companion fix.
+     * AmsBackendToolChanger suppresses it; every other backend shows it.
+     *
+     * The badge carries the T-number. ams_slot_view.xml renders exactly three
+     * things per slot: material_label (material name, or "Empty"),
+     * status_badge/slot_badge_label (the SLOT number) and tool_badge (the
+     * T-number). Slot number and T-number are the same thing only while the
+     * mapping is identity - ASSIGN_TOOL can point a G-code T-number at any
+     * physical tool - so on a remapped tool changer the badge is the only
+     * per-slot indication of which T-number a toolhead answers to, and hiding it
+     * loses that.
+     *
+     * Weigh that against the clutter it costs before changing the override:
+     * suppression predates ASSIGN_TOOL remapping support, and an earlier
+     * revision of this comment justified it as redundant with a toolhead label
+     * below each slot, which the XML does not have.
      *
      * @return true to hide the per-slot tool badge
      */
