@@ -144,6 +144,21 @@ void BeltTrace::on_draw(lv_event_t* e) {
         // Vertical bars from the baseline. Peak-reduced buckets (see
         // BeltLiveData::set_spectrum()), so a narrow spike stays visible
         // instead of being averaged into the noise floor around it.
+        //
+        // Bars are scaled to a height short of the strip's top, reserving
+        // room for the peak label drawn below. Without this, the tallest
+        // bar's norm is exactly 1.0 by construction (it IS max_v), so its top
+        // always lands exactly on y0 and the label's "is there room above
+        // it" check below could never pass - confirmed by replaying a real
+        // capture (see docs/devel/ENVIRONMENT_VARIABLES.md's
+        // HELIX_BELT_CAPTURE_DIR section) into a live panel and screenshotting
+        // it: the label was silently dropped on every single spectrum.
+        const lv_font_t* peak_font = theme_manager_get_font("font_xs");
+        const int32_t label_h = theme_manager_get_font_height(peak_font);
+        constexpr int32_t label_gap = 2;
+        const float bar_scale_h =
+            std::max(1.0f, static_cast<float>(h) - 1.0f - static_cast<float>(label_h + label_gap));
+
         const float baseline_y = static_cast<float>(y0 + h - 1);
         float peak_bar_top = baseline_y;
         float peak_x = 0.0f;
@@ -151,7 +166,7 @@ void BeltTrace::on_draw(lv_event_t* e) {
             const float t = static_cast<float>(i) / static_cast<float>(n - 1);
             const float norm = data[i] / max_v;
             const float x = static_cast<float>(x0) + t * static_cast<float>(w - 1);
-            const float bar_top = baseline_y - norm * static_cast<float>(h - 1);
+            const float bar_top = baseline_y - norm * bar_scale_h;
 
             dsc.p1.x = static_cast<lv_value_precise_t>(x);
             dsc.p2.x = static_cast<lv_value_precise_t>(x);
@@ -186,15 +201,13 @@ void BeltTrace::on_draw(lv_event_t* e) {
             lv_draw_label_dsc_t label_dsc;
             lv_draw_label_dsc_init(&label_dsc);
             label_dsc.color = dsc.color;
-            label_dsc.font = theme_manager_get_font("font_xs");
+            label_dsc.font = peak_font;
             label_dsc.align = LV_TEXT_ALIGN_CENTER;
             label_dsc.text = peak_label;
 
-            const int32_t label_h = theme_manager_get_font_height(label_dsc.font);
             constexpr int32_t label_w = 40;
-            constexpr int32_t gap = 2;
             lv_area_t label_area;
-            label_area.y2 = static_cast<lv_coord_t>(peak_bar_top) - gap;
+            label_area.y2 = static_cast<lv_coord_t>(peak_bar_top) - label_gap;
             label_area.y1 = label_area.y2 - label_h;
             label_area.x1 = static_cast<lv_coord_t>(peak_x) - label_w / 2;
             label_area.x2 = label_area.x1 + label_w;
