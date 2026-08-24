@@ -456,8 +456,19 @@ Tool mapping works the same as on any klipper-toolchanger machine — see
 physical tool, which is useful when a slicer project expects a different tool order than
 your machine is loaded with.
 
-> **Note:** Per-tool colours you set in HelixScreen are not saved across restarts on tool
-> changers yet. Tool mapping is saved; colours are not.
+### What HelixScreen remembers per tool
+
+Your printer reports nothing about the filament in each hot end — no material, no colour,
+no brand. So whatever you set in HelixScreen *is* the record, and it's kept for you:
+material, colour, brand, spool name, and remaining weight, per tool.
+
+That survives restarts and reconnects. It's stored on your printer via Moonraker rather
+than only on the screen, and it uses the same records Mainsail writes, so spools you've
+assigned there should show up here and vice versa.
+
+One consequence worth knowing: nothing on a tool changer can detect that you physically
+swapped a spool, so HelixScreen keeps showing what you last told it until you change it.
+Edit the slot when you switch filament.
 
 > **Note:** Like other tool changers, MedusaHC has no Unload, Bypass, Endless Spool or
 > dryer controls — each tool is its own path, and those apply to shared-path AMS hardware.

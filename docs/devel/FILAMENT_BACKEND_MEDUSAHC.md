@@ -144,13 +144,13 @@ The bare-Duender hostname deliberately does not appear on the MedusaHC entry, or
 
 Not yet reconciled, and worth knowing before extending this:
 
+(Per-tool spool metadata used to be listed here. It is now persisted - see
+[FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
+
 - **Tool offsets have two stores.** MedusaHC persists per-tool offsets in `save_variables`
   (`t{N}_gcode_{x,y,z}_offset`) and pushes them into a `TOOL_OFFSET` macro;
   klipper-toolchanger has its own offset model. Two sources of truth for one physical
   quantity.
-- **Slot colours are not persisted.** `AmsBackendToolChanger` is the only AMS backend
-  without a `FilamentSlotOverrideStore`, so per-tool colours set in the UI are lost on the
-  next rediscovery. Six other backends have one to copy.
 - **`layer`, `PRIME_FLAGS_*`, `MHC_CLEAN`** - per-tool priming and cleaning scheduled
   against layer number. No analogue in the toolchanger model, unused today.
 
