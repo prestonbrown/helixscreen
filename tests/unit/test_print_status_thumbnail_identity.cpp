@@ -190,3 +190,61 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH_B);
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
 }
+
+// --- Rewritten temp paths -----------------------------------------------------
+//
+// A print HelixScreen prepared runs from a rewritten copy, and print_stats
+// reports THAT path. ActivePrintMediaManager auto-resolves it back to the
+// original (active_print_media_manager.cpp, `resolved != filename` branch) and
+// publishes the thumbnail under the original name. The panel has no such
+// auto-resolve: with no override set it takes print_stats' path verbatim.
+//
+// Normally the override hides that gap, because a print started from the app
+// routes through PrintStartController -> set_thumbnail_source(). The gap is
+// exposed when this process never started the job: an app restart or a
+// reconnect while the rewritten copy is already printing. Both sides then name
+// the same print differently, so every publish fails the observer's identity
+// check AND ensure_preview_current()'s adopt branch - which do not retry - and
+// the widget keeps whatever it was showing for the whole job, while the display
+// name (written by the manager) is correct. (prestonbrown/helixscreen#1339)
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a rewritten temp path resolves to the manager's identity",
+                 "[print_status][thumbnail][1339]") {
+    // Restart mid-print: print_stats names the rewritten copy and nothing has
+    // called set_thumbnail_source(), because this process never committed the job.
+    panel().set_filename(".helix_temp/modified_1748_Widget.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The manager publishes under the resolved original, as it always does.
+    state().set_print_thumbnail("Widget.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::cached_thumbnail_path(panel()) == THUMB_PATH);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
+}
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a rewritten temp path adopts a thumbnail published first",
+                 "[print_status][thumbnail][1339]") {
+    // Production ordering: the manager observes print_filename immediately and
+    // the panel's own observer is deferred, so the publish lands while the panel
+    // still names the PREVIOUS print and the path observer correctly drops it.
+    // What recovers it is ensure_preview_current()'s adopt branch, once the
+    // filename catches up. Drive it that way - reaching the panel through the
+    // observer alone would leave the previous print's image on screen and let
+    // the src assertion pass for the wrong reason.
+    panel().set_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH_B);
+
+    state().set_print_thumbnail("Widget.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+
+    panel().set_filename(".helix_temp/modified_1748_Widget.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
+}

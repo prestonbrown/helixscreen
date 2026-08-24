@@ -3827,6 +3827,27 @@ void PrintStatusPanel::set_filename(const char* filename) {
         thumbnail_source_filename_.clear();
     }
 
+    // Auto-resolve a rewritten temp path when nothing has installed an override,
+    // the way ActivePrintMediaManager already does for the same input. The
+    // manager publishes the thumbnail under the ORIGINAL name; naming the same
+    // print by the rewritten path here makes every publish fail the path
+    // observer's identity check AND ensure_preview_current()'s adopt branch,
+    // neither of which retries - so the widget keeps the previous print's image
+    // for the whole job while the display name, which the manager writes, is
+    // correct. An override normally hides that: a print started from the app
+    // installs one through PrintStartController. The gap opens when this process
+    // never started the job - a restart or reconnect while the rewritten copy is
+    // already printing. thumbnail_source_describes() keeps this override across
+    // repeat observer fires, because the raw path is a rewritten one.
+    if (thumbnail_source_filename_.empty()) {
+        std::string resolved = helix::gcode::resolve_gcode_filename(current_print_filename_);
+        if (resolved != current_print_filename_) {
+            spdlog::debug("[{}] Auto-resolved temp filename: {} -> {}", get_name(),
+                          current_print_filename_, resolved);
+            thumbnail_source_filename_ = resolved;
+        }
+    }
+
     // Use thumbnail_source_filename_ if set (for modified temp files)
     // This affects BOTH the display name AND the thumbnail lookup
     std::string effective_filename =
@@ -3933,6 +3954,15 @@ void PrintStatusPanel::ensure_preview_current() {
             displayed_file_ = desired;
             spdlog::debug("[{}] Adopted already-published thumbnail for '{}': {}", get_name(),
                           desired, published);
+        } else {
+            // Neither source could supply an image, and nothing here retries:
+            // the next reconcile is whatever the manager publishes or the next
+            // filename change. Name both identities, because in a log the
+            // resulting symptom - the previous print's image sitting under the
+            // correct filename - is otherwise indistinguishable from a fetch
+            // that simply has not landed yet (#1339).
+            spdlog::debug("[{}] No thumbnail source for '{}': subject holds one for '{}'",
+                          get_name(), desired, printer_state_.get_print_thumbnail_file());
         }
     }
 
