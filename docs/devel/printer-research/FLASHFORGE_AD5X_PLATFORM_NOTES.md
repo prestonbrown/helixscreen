@@ -420,6 +420,16 @@ patch also fixes an upstream boot-window bug: `IfsData.__init__` wrote
 raised `AttributeError` before the first F13 poll on stock 1.7.2. Note: a ZMOD
 update overwrites these files; the rig carries the patch until then.
 
+**Because of this patch, the rig answers capability questions that NO user's
+printer answers** (`zmod_ifs`/`zmod_color` in `objects/list`, queryable status
+where stock returns nothing). Any capability claim verified on this rig MUST be
+checked in BOTH states - patched, and restored from the `.pre-getstatus.bak`
+backups - before it becomes a claim about AD5X behavior. A finding that passes
+only on this box is a patched-rig artifact and will fail for every real owner.
+This matters doubly for the IFS tool-mapping echo question, where our shipped
+finding is that AD5X does NOT echo the mapping - the patch could silently
+invert that.
+
 ### HelixScreen end-to-end on the rig (2026-08-24)
 
 Desktop build (SDL dummy, isolated `HELIX_CONFIG_DIR`, pinned `--remote-socket`)
