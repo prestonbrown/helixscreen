@@ -50,6 +50,8 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 | `lvgl_refr_reshape_null_guard.patch` | `lv_refr.c` | NULL guard on draw_buf reshape failure, skip render gracefully | PR #9831 |
 | `lvgl_img_null_guard.patch` | `lv_draw_sw_img.c` | NULL guard after go_to_xy in image mask path | PR #9831 |
 | `lvgl_blur_null_guard.patch` | `lv_draw_sw_blur.c` | NULL checks after all ~15 lv_draw_buf_goto_xy() calls | PR #9831 |
+| `lvgl_draw_render_thread_acquire.patch` | `lv_draw.c`, `lv_draw_private.h` | Make `lv_draw_task_t.state` a real atomic handshake (`LV_DRAW_TASK_STATE_GET`/`SET`) instead of trusting `volatile`, and wait for the draw units to finish before destroying a layer's `draw_buf` | Project-specific (the `volatile == atomic` assumption is upstream's; candidate to submit) |
+| `lvgl-sw-draw-wait-for-finish.patch` | `lv_draw_sw.c` | Implement `wait_for_finish_cb` for the SW draw unit under `LV_USE_OS`, publish task completion with the release store above, and skip a task whose `draw_dsc` is NULL rather than dereferencing it | Project-specific |
 
 ### Widgets & Input
 
