@@ -4,6 +4,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace helix::calibration {
@@ -101,25 +102,31 @@ bool PluckDetector::has_sharp_onset(const AccelSample* samples, size_t count, fl
         return false;
     }
 
-    size_t peak = 0;
-    float peak_rms = -1.0f;
-    for (size_t i = 0; i < segments; ++i) {
-        const float rms = window_rms(samples + i * segment, segment);
-        if (rms > peak_rms) {
-            peak_rms = rms;
-            peak = i;
-        }
-    }
-
-    // The evidence is the quiet that came before the strike. A window whose
-    // loudest moment sits at its very start has none - and so does a steady
-    // tone, whose peak lands wherever noise happens to put it.
-    if (peak < lookback) {
+    // The baseline is anchored to the STRIKE, not to the loudest segment. On a
+    // real capture the loudest 10 ms often lands a few segments after the
+    // strike, so a lookback measured back from the peak reads a reference that
+    // is already inside the ring-down and the rise collapses. Measured on
+    // a_belt_86hz_3 at adjacent window phases, peak-anchored: 1.16 and 36.38,
+    // against a threshold of 3.
+    const size_t onset_segment = find_onset(samples, count) / segment;
+    if (onset_segment < lookback) {
+        // The strike landed before the window kept any pre-strike samples, so
+        // there is nothing to compare against. "Cannot tell" resolves to no
+        // here, as it does in has_pluck_decay(): by this point the ring-down
+        // has largely passed and its spectrum has little belt tone left in it
+        // either, so the window is not worth measuring on any evidence.
         return false;
     }
 
-    const float before = window_rms(samples + (peak - lookback) * segment, segment);
+    float peak_rms = 0.0f;
+    for (size_t i = 0; i < segments; ++i) {
+        peak_rms = std::max(peak_rms, window_rms(samples + i * segment, segment));
+    }
+
+    const float before = window_rms(samples + (onset_segment - lookback) * segment, segment);
     if (before <= 0.0f) {
+        // Rising out of exact silence is an unbounded rise, not an unknown one.
+        // Only reachable with synthetic input - a real sensor always has a floor.
         return peak_rms > 0.0f;
     }
     return peak_rms / before >= MIN_ONSET_RISE;

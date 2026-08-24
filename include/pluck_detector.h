@@ -42,9 +42,15 @@ class PluckDetector {
     static constexpr float ENVELOPE_SEGMENT_MS = 10.0f;
     /// How far before the loudest sub-window to sample the pre-strike level.
     static constexpr float ONSET_LOOKBACK_MS = 20.0f;
-    /// Peak-to-pre-strike RMS ratio a pluck must clear. Measured 34-46x on the
-    /// real captures spliced into a live window, against 1.1x for a steady
-    /// tone and 1.2x for an envelope that grows across the window.
+    /// Peak-to-pre-strike RMS ratio a pluck must clear.
+    ///
+    /// Measured across every 10-sample window phase of a batch period, on all
+    /// six real captures that clear the energy gate: 26.1-71.4. A steady tone
+    /// reads 1.1 and an envelope that grows across the window reads 1.2. The
+    /// figure is quoted across phases deliberately - an earlier revision
+    /// anchored this ratio to the loudest segment rather than to the strike
+    /// and read 34-46 at the single phase its harness happened to exercise,
+    /// while dropping to 1.16 at phases that harness never presented.
     static constexpr float MIN_ONSET_RISE = 3.0f;
     /// Sub-windows the post-onset envelope is split into.
     static constexpr int DECAY_SEGMENTS = 4;
@@ -103,6 +109,12 @@ class PluckDetector {
 
     /// Index of the strongest instantaneous deviation from the buffer mean -
     /// the strike, when there was one. Returns 0 for an empty buffer.
+    ///
+    /// This is the loudest SAMPLE, which for a plucked string is its attack
+    /// transient (measured across every window phase of the six real captures,
+    /// the rise anchored here runs 26-71x). For broadband energy it is instead
+    /// a random draw somewhere inside the event, so an onset located this way
+    /// can sit tens of samples past a thump's true leading edge.
     static size_t find_onset(const AccelSample* samples, size_t count);
 
     /// True if energy jumps from the pre-strike level to the peak within a few
@@ -111,9 +123,14 @@ class PluckDetector {
     /// Operates on the live DETECTION WINDOW, like rms_ratio() and
     /// passes_gate(): the evidence is the quiet that came BEFORE the strike,
     /// and an extracted ring-down has already thrown that away. A window whose
-    /// loudest moment sits within ONSET_LOOKBACK_MS of its start returns false
-    /// - there is nothing to compare against, and a steady tone looks exactly
-    /// like that.
+    /// STRIKE sits within ONSET_LOOKBACK_MS of its start returns false - there
+    /// is nothing to compare against, and a steady tone looks exactly like
+    /// that.
+    ///
+    /// The reference is taken from the strike, located by find_onset(), and
+    /// not from the loudest segment: on a real capture the loudest 10 ms
+    /// frequently lands after the strike, which puts a peak-anchored reference
+    /// inside the ring-down. See the note on MIN_ONSET_RISE.
     [[nodiscard]] static bool has_sharp_onset(const AccelSample* samples, size_t count,
                                               float sample_rate);
 
@@ -125,6 +142,13 @@ class PluckDetector {
     /// here is to WAIT: the window slides and the rest of the ring-down is
     /// already on its way. Rejecting instead throws away exactly the firmest
     /// plucks, since those are the ones that trip the gate earliest.
+    ///
+    /// An event that never stops growing is therefore never judged at all -
+    /// find_onset() keeps returning a sample near the end, the post-onset span
+    /// stays short, and the caller waits indefinitely. That is safe (nothing
+    /// can be accepted without being judged) but it means a swell is handled
+    /// by being ignored rather than by has_pluck_decay(); the envelope checks
+    /// see it only once it peaks and starts to fall.
     [[nodiscard]] static bool ringdown_ready(const AccelSample* samples, size_t count,
                                              float sample_rate);
 

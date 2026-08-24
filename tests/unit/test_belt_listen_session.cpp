@@ -8,6 +8,7 @@
 
 #include "../../include/belt_listen_session.h"
 #include "../../include/belt_stream_client.h"
+#include "belt_test_signals.h"
 
 #include <algorithm>
 #include <cmath>
@@ -56,39 +57,32 @@ Fixture load_fixture(const std::string& name) {
     return f;
 }
 
-/// Gravity sits on X in every one of the 8 real captures (mean ~9515 on X,
-/// under 50 on Y/Z in each fixture header's own data) - the toolhead mounts
-/// the accelerometer with X vertical, not Z. Spliced noise must carry gravity
-/// on the same axis the real ring-down does, or the join between synthetic
-/// noise and real samples is a DC step disguised as a strong transient: it
-/// falsely re-triggers the gate even on the weak-pluck fixture, which never
-/// actually rings.
+/// Broadband quiet bed - see belt_test_signals.h for why gravity is on X and
+/// why the content must not be a handful of sinusoids. An earlier revision
+/// used sin(i)/cos(1.7i)/sin(0.3i) here; that bed has a median spectral bin
+/// near zero, so every bin of the learned QuietSpectrum read as contaminated,
+/// and sin(0.3i) at ~3091 Hz put an artificial tone at ~147 Hz, inside the
+/// 77-165 Hz search window the estimator scans.
 std::vector<AccelSample> make_noise(float amplitude, size_t count, float t0, float rate_hz) {
-    std::vector<AccelSample> out(count);
-    for (size_t i = 0; i < count; ++i) {
-        const float p = static_cast<float>(i);
-        out[i].time = t0 + static_cast<float>(i) / rate_hz;
-        out[i].x = 9810.0f + amplitude * std::sin(p);
-        out[i].y = amplitude * std::cos(p * 1.7f);
-        out[i].z = amplitude * std::sin(p * 0.3f);
-    }
-    return out;
+    helix::calibration::test::Hiss rng;
+    return helix::calibration::test::hiss_bed(count, amplitude, rate_hz, rng, t0);
 }
 
 /// A live-stream-shaped buffer: quiet, then the real ring-down, then quiet.
 /// The noise amplitude reproduces the signal-to-noise the original capture
 /// recorded in its own header, rather than an invented figure chosen to pass.
-std::vector<AccelSample> splice_live_window(const Fixture& f) {
+std::vector<AccelSample> splice_live_window(const Fixture& f, size_t lead_in = 1024) {
     const float sig = PluckDetector::window_rms(f.samples.data(), f.samples.size());
-    // window_rms combines all three axes: with the same amplitude on x, y and
-    // z, the combined broadband RMS is amplitude*sqrt(1.5), not amplitude
-    // alone. Dividing by that factor (rather than the single-axis amp/sqrt(2)
-    // conversion) is what makes the spliced noise floor reproduce the
-    // fixture's own recorded ratio - verified against every fixture: peak
-    // window ratio during the ring-down lands within ~2% of recorded_ratio.
-    const float noise_amp = (sig / f.recorded_ratio) / 1.2247f;
+    // Uniform noise on three axes has a combined broadband RMS equal to its
+    // amplitude (see hiss_bed), so this is the amplitude that makes the
+    // spliced floor reproduce the fixture's recorded ratio. It reproduces it
+    // to about 89%, not exactly: recorded_ratio was measured on the detection
+    // window that triggered, while `sig` here is the RMS of the whole 500 ms
+    // capture, which is quieter than its own loudest window. That gap is why
+    // the two weakest captures sit below the gate once spliced.
+    const float noise_amp = sig / f.recorded_ratio;
 
-    auto out = make_noise(noise_amp, 1024, 0.0f, f.rate_hz);
+    auto out = make_noise(noise_amp, lead_in, 0.0f, f.rate_hz);
     const float t_join = out.back().time;
     for (size_t i = 0; i < f.samples.size(); ++i) {
         AccelSample s = f.samples[i];
@@ -117,27 +111,8 @@ std::vector<PluckEvent> stream_through(BeltListenSession& s, const std::vector<A
     return events;
 }
 
-/// Deterministic hiss - a plain LCG, so a threshold test analyses the same
-/// buffer on every run instead of a fresh random draw.
-struct Hiss {
-    uint32_t state = 2468u;
-    float next() {
-        state = state * 1664525u + 1013904223u;
-        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
-    }
-};
-
-/// Gravity on X, matching every real capture - see make_noise() above.
-std::vector<AccelSample> hiss_bed(size_t count, float amp, float rate_hz, Hiss& rng) {
-    std::vector<AccelSample> out(count);
-    for (size_t i = 0; i < count; ++i) {
-        out[i].time = static_cast<float>(i) / rate_hz;
-        out[i].x = 9810.0f + amp * rng.next();
-        out[i].y = amp * rng.next();
-        out[i].z = amp * rng.next();
-    }
-    return out;
-}
+using helix::calibration::test::Hiss;
+using helix::calibration::test::hiss_bed;
 
 constexpr float kRate = 3091.0f;
 /// Long enough to learn a floor from, trigger on, and ride out one cooldown.
@@ -172,7 +147,9 @@ std::vector<AccelSample> swelling_stream(float freq, float amp) {
 }
 
 /// Quiet, then a sharp broadband thump that decays like a pluck but has no
-/// harmonic series in it.
+/// harmonic series in it. The leading sample is a full-scale deflection, so
+/// this really is an impact and really does clear the temporal checks - see
+/// noise_burst() in test_pluck_detector.cpp.
 std::vector<AccelSample> thump_stream(float amp) {
     Hiss rng;
     auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
@@ -180,9 +157,10 @@ std::vector<AccelSample> thump_stream(float amp) {
     for (size_t i = kQuietLead; i < out.size(); ++i) {
         const float dt = static_cast<float>(i - kQuietLead) / kRate;
         const float env = amp * std::exp(-dt / 0.20f);
-        out[i].x += env * burst.next();
-        out[i].y += env * burst.next();
-        out[i].z += env * burst.next();
+        const bool impact = (i == kQuietLead);
+        out[i].x += env * (impact ? 1.0f : burst.next());
+        out[i].y += env * (impact ? 1.0f : burst.next());
+        out[i].z += env * (impact ? 1.0f : burst.next());
     }
     return out;
 }
@@ -464,11 +442,17 @@ TEST_CASE("a broadband thump is not a pluck", "[belt][listen]") {
     // why the concentration check exists.
     auto buf = thump_stream(400.0f);
     BeltListenSession s(SPAN_MM, kRate);
-    listen(s, buf);
+    auto events = listen(s, buf);
 
     CHECK(peak_window_ratio(s, buf) > PluckDetector::MIN_RMS_RATIO);
     CHECK(s.accepted_count() == 0);
     CHECK_FALSE(s.committed());
+    // The reason matters most here: a thump is firm, so "pluck harder" would
+    // be the worst possible instruction to give.
+    CHECK(std::any_of(events.begin(), events.end(),
+                      [](const PluckEvent& e) { return e.reject == PluckReject::NOT_A_PLUCK; }));
+    CHECK(
+        std::none_of(events.begin(), events.end(), [](const PluckEvent& e) { return e.accepted; }));
 }
 
 TEST_CASE("a genuine decaying harmonic series is still accepted", "[belt][listen]") {
@@ -484,6 +468,58 @@ TEST_CASE("a genuine decaying harmonic series is still accepted", "[belt][listen
     CHECK(ratio < 20.0f); // not a landslide - this is a modest strike
     REQUIRE(s.accepted_count() >= 1);
     CHECK(s.median_hz() == Catch::Approx(99.0f).margin(4.0f));
+}
+
+TEST_CASE("every accept-case capture is measured at every window phase", "[belt][listen][golden]") {
+    // THE regression guard, and the reason it is swept across phases.
+    //
+    // A single lead-in tests a single alignment between the strike and the
+    // 340-sample batch grid. The live stream produces every alignment, and the
+    // shape checks turned out to be sensitive to which one: an earlier
+    // revision anchored has_sharp_onset()'s reference to the loudest envelope
+    // segment rather than to the strike, and the same capture then measured a
+    // rise of 1.16 at one phase and 36.4 at the next, against a threshold of
+    // 3. A fixed-lead-in guard cannot see that, and did not.
+    //
+    // The lead-in starts at DETECTION_WINDOW_SAMPLES so the window is already
+    // full when the strike arrives, which is the production condition: the
+    // window fills within a second of the stream starting, and the user plucks
+    // long after that.
+    struct Expect {
+        const char* name;
+        float hz;
+    };
+    for (const auto& e : {Expect{"a_belt_86hz_2.csv", 86.0f}, Expect{"a_belt_86hz_3.csv", 86.0f},
+                          Expect{"b_belt_82hz_1.csv", 82.0f}, Expect{"b_belt_82hz_2.csv", 82.0f},
+                          Expect{"b_belt_82hz_3.csv", 82.0f}}) {
+        const auto fx = load_fixture(e.name);
+        size_t measured = 0;
+        size_t phases = 0;
+
+        constexpr size_t kBatch = 340;
+        for (size_t lead = BeltListenSession::DETECTION_WINDOW_SAMPLES;
+             lead < BeltListenSession::DETECTION_WINDOW_SAMPLES + kBatch; lead += 42) {
+            ++phases;
+            auto live = splice_live_window(fx, lead);
+
+            BeltListenSession s(SPAN_MM, fx.rate_hz);
+            REQUIRE(
+                s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+            stream_through(s, live);
+
+            INFO("fixture " << e.name << " lead-in " << lead);
+            if (s.accepted_count() >= 1) {
+                ++measured;
+                // Every measurement produced has to be right. A sweep that
+                // raised the count by admitting wrong numbers would be worse
+                // than the miss it papered over.
+                CHECK(s.median_hz() == Catch::Approx(e.hz).margin(6.0f));
+            }
+        }
+
+        INFO("fixture " << e.name << " measured at " << measured << " of " << phases << " phases");
+        CHECK(measured == phases);
+    }
 }
 
 TEST_CASE("every accept-case capture still passes the whole pipeline", "[belt][listen][golden]") {

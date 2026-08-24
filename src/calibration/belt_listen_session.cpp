@@ -76,30 +76,31 @@ std::optional<PluckEvent> BeltListenSession::push(const AccelBatch& batch) {
     }
 
     const float ratio = detector_.rms_ratio(window_.data(), window_.size());
-
-    if (!detector_.passes_gate(window_.data(), window_.size())) {
-        if (ratio < MIN_DETECTABLE_RATIO) {
-            return std::nullopt;
-        }
-        // A strike happened but was too soft to trust a pitch estimate from.
-        rejected_++;
-        cooldown_samples_ = static_cast<size_t>(
-            (PluckDetector::SKIP_MS + PluckDetector::ANALYZE_MS) / 1000.0f * sample_rate_hz_);
-        return PluckEvent{0.0f, ratio, false, PluckReject::TOO_SOFT};
+    if (ratio < MIN_DETECTABLE_RATIO) {
+        return std::nullopt;
     }
 
-    // A firm strike trips the gate as soon as its leading edge enters the
-    // window. There is no envelope to read yet and the ring-down would be
-    // mostly the silence that preceded it, so wait for the rest rather than
-    // resolving - no cooldown, no rejection, just try again next batch.
+    // Nothing is resolved until the ring-down has arrived - not an acceptance
+    // and not a rejection. A strike crosses both thresholds on its leading
+    // edge, while the window holds a slice of the attack and no envelope at
+    // all. Answering there is wrong twice over: it tells someone who plucked
+    // firmly that they were too soft, and the cooldown that goes with it then
+    // swallows the real ring-down two batches behind. Measured across the
+    // fixture set at every window phase, resolving early cost 46 of 204.
     if (!PluckDetector::ringdown_ready(window_.data(), window_.size(), sample_rate_hz_)) {
         return std::nullopt;
     }
 
-    // Past this point the window is loud enough to be worth analysing, so it
-    // is resolved one way or the other and the cooldown runs regardless.
+    // Past this point the window is resolved one way or the other, so the
+    // cooldown runs regardless of the outcome.
     cooldown_samples_ = static_cast<size_t>((PluckDetector::SKIP_MS + PluckDetector::ANALYZE_MS) /
                                             1000.0f * sample_rate_hz_);
+
+    if (!detector_.passes_gate(window_.data(), window_.size())) {
+        // A strike happened but was too soft to trust a pitch estimate from.
+        rejected_++;
+        return PluckEvent{0.0f, ratio, false, PluckReject::TOO_SOFT};
+    }
 
     const auto not_a_pluck = [&]() -> std::optional<PluckEvent> {
         rejected_++;

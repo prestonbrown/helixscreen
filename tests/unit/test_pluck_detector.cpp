@@ -7,6 +7,7 @@
 
 #include "../../include/belt_tension_types.h"
 #include "../../include/pluck_detector.h"
+#include "belt_test_signals.h"
 
 #include <cmath>
 #include <cstdint>
@@ -69,29 +70,11 @@ constexpr float kRate = 3091.0f;
 /// The live detection window the gate and the shape checks run on.
 constexpr size_t kWindow = 2048;
 
-/// Deterministic hiss. A plain LCG so every run analyses the same buffer -
-/// these are threshold tests and a fresh random draw each run would make them
-/// flaky rather than thorough.
-struct Hiss {
-    uint32_t state = 12345u;
-    float next() {
-        state = state * 1664525u + 1013904223u;
-        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
-    }
-};
+using helix::calibration::test::Hiss;
 
-/// Gravity sits on X in all 8 real captures, not Z - the accelerometer is
-/// mounted with X vertical. Synthetic buffers meant to sit alongside them
-/// carry it on the same axis.
+/// Broadband bed at the fixtures' rate - see belt_test_signals.h.
 std::vector<AccelSample> hiss_bed(size_t count, float amp, Hiss& rng) {
-    std::vector<AccelSample> out(count);
-    for (size_t i = 0; i < count; ++i) {
-        out[i].time = static_cast<float>(i) / kRate;
-        out[i].x = 9810.0f + amp * rng.next();
-        out[i].y = amp * rng.next();
-        out[i].z = amp * rng.next();
-    }
-    return out;
+    return helix::calibration::test::hiss_bed(count, amp, kRate, rng);
 }
 
 /// h1 -3 dB, h2 0 dB, h3 -14 dB, h4 -13 dB - the harmonic profile measured on
@@ -129,8 +112,16 @@ std::vector<AccelSample> plucked(size_t count, size_t onset, float f0, float amp
     return out;
 }
 
-/// A thump: the same sharp onset and decay, but the energy is spread across
-/// the band instead of sitting on a harmonic series.
+/// A thump: an impact with the same sharp onset and decay a pluck has, but
+/// with its energy spread across the band instead of sitting on a harmonic
+/// series. This is the hard case for the tool - a door closing, or the
+/// toolhead settling after a park - and only the spectrum can tell it apart.
+///
+/// The leading sample is a full-scale deflection, which is what makes it an
+/// impact rather than a ramp. Without it find_onset() lands wherever the
+/// loudest random draw happens to fall, typically tens of samples into the
+/// burst, and the rise is then measured against a reference already inside
+/// the event.
 std::vector<AccelSample> noise_burst(size_t count, size_t onset, float amp, float hiss_amp) {
     Hiss rng;
     auto out = hiss_bed(count, hiss_amp, rng);
@@ -138,9 +129,10 @@ std::vector<AccelSample> noise_burst(size_t count, size_t onset, float amp, floa
     for (size_t i = onset; i < count; ++i) {
         const float dt = static_cast<float>(i - onset) / kRate;
         const float env = amp * std::exp(-dt / 0.20f);
-        out[i].x += env * burst.next();
-        out[i].y += env * burst.next();
-        out[i].z += env * burst.next();
+        const bool impact = (i == onset);
+        out[i].x += env * (impact ? 1.0f : burst.next());
+        out[i].y += env * (impact ? 1.0f : burst.next());
+        out[i].z += env * (impact ? 1.0f : burst.next());
     }
     return out;
 }

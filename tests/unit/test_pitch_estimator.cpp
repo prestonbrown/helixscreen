@@ -11,6 +11,7 @@
 
 #include "../../include/belt_tension_types.h"
 #include "../../include/pitch_estimator.h"
+#include "belt_test_signals.h"
 
 #include <cmath>
 #include <cstdint>
@@ -66,14 +67,7 @@ std::vector<AccelSample> make_harmonic_heavy(float f0, float sample_rate, int co
     return out;
 }
 
-/// Deterministic hiss - see test_pluck_detector.cpp for the same LCG.
-struct Hiss {
-    uint32_t state = 4242u;
-    float next() {
-        state = state * 1664525u + 1013904223u;
-        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
-    }
-};
+using helix::calibration::test::Hiss;
 
 constexpr float kRate = 3091.0f;
 /// A 150 mm span searches 77-165 Hz for its fundamental - both figures the
@@ -100,17 +94,10 @@ void add_series(std::vector<AccelSample>& buf, float f0, float amp, const float 
     }
 }
 
-/// Gravity on X, like every real capture.
+/// Broadband bed with gravity on X - see belt_test_signals.h.
 std::vector<AccelSample> hiss_bed(size_t count, float amp, uint32_t seed) {
     Hiss rng{seed};
-    std::vector<AccelSample> out(count);
-    for (size_t i = 0; i < count; ++i) {
-        out[i].time = static_cast<float>(i) / kRate;
-        out[i].x = 9810.0f + amp * rng.next();
-        out[i].y = amp * rng.next();
-        out[i].z = amp * rng.next();
-    }
-    return out;
+    return helix::calibration::test::hiss_bed(count, amp, kRate, rng);
 }
 
 const float kFanProfile[4] = {1.0f, 0.5f, 0.3f, 0.2f};

@@ -87,6 +87,11 @@ class BeltListenSession {
     /// The spectrum of the quiet window, learned alongside the scalar floor.
     /// Not to be confused with last_spectrum(), which is the most recent
     /// accepted PLUCK's spectrum, for display.
+    ///
+    /// Learned once, when learn_noise_floor() runs, and never re-learned: a
+    /// fan that spins up part-way through a session is not in it and will not
+    /// be discounted. Re-learning would need a quiet window the user is not
+    /// plucking into, which the listening flow does not have.
     [[nodiscard]] const QuietSpectrum& quiet_spectrum() const {
         return quiet_spectrum_;
     }

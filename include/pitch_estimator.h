@@ -51,21 +51,25 @@ inline constexpr int DEFAULT_HARMONICS = 4;
 /// Power ratio, against the quiet window's own median bin, above which a
 /// frequency counts as already occupied before anyone plucked anything.
 ///
-/// A periodogram of pure noise fluctuates to roughly 10x its own median
-/// somewhere across a few hundred bins, so a lower threshold would flag
-/// ordinary noise as a steady tone. 12 sits just clear of that.
+/// A genuinely quiet broadband window peaks at roughly 5x its own median
+/// across the ~700 Hz analysed here (measured: 4.8x), so a lower threshold
+/// would flag ordinary noise as a steady tone. 12 sits clear of that with
+/// room to spare, and a real fan tone runs orders of magnitude above it.
 inline constexpr float BACKGROUND_PROMINENCE_TOLERANCE = 12.0f;
 
 /// Floor on the per-bin discount, so contamination saturates instead of
 /// running away.
 ///
-/// Past about 30 dB over the tolerance a frequency is simply occupied, and
-/// telling 40 dB from 80 dB carries no more information. Without the floor a
-/// quiet window with almost no broadband content - a synthetic buffer, or a
-/// sensor whose noise sits below its own quantisation - has a near-zero
-/// median, every bin reads as wildly contaminated, and the discount stops
-/// discriminating and starts reordering candidates by the shape of the quiet
-/// window instead of the pluck.
+/// This is a guard, not a tuned figure. Against a realistic quiet window
+/// nothing reaches BACKGROUND_PROMINENCE_TOLERANCE in the first place, so the
+/// floor never engages and every value from 1e-4 to 1e-1 behaves identically
+/// (measured: 60 of 60 swept window phases estimate the same fundamental at
+/// each). What it defends against is a degenerate quiet window - a sensor
+/// whose noise sits below its own quantisation step, so the median bin is
+/// near zero and every bin reads as wildly contaminated. Saturating there
+/// keeps the discount order-preserving instead of letting the shape of the
+/// quiet window reorder candidates. Past about 30 dB over the tolerance a
+/// frequency is simply occupied, and 40 dB versus 80 dB says nothing more.
 inline constexpr float MIN_BACKGROUND_WEIGHT = 0.001f;
 
 /// How far off a nominal frequency a bin may sit and still be the same tone.
@@ -82,8 +86,8 @@ inline constexpr float HARMONIC_MATCH_BINS = 2.0f;
 /// Fraction of in-band energy that must sit on a candidate's harmonic series
 /// for the event to have been a pluck at all.
 ///
-/// Measured through the live path on tests/fixtures/belt_plucks/: 0.38-0.48
-/// for the real captures, against 0.10-0.24 for a decaying broadband noise
+/// Measured through the live path on tests/fixtures/belt_plucks/: 0.345-0.443
+/// for the real captures, against 0.095-0.242 for a decaying broadband noise
 /// burst over 40 seeds. A thump, a door, or a stepper cogging spreads its
 /// energy; a plucked string does not.
 inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.30f;
