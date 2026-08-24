@@ -418,3 +418,31 @@ patch also fixes an upstream boot-window bug: `IfsData.__init__` wrote
 `LastResponseRaw` while `get_values()` reads `lastResponseRaw`, so `IFS_STATUS`
 raised `AttributeError` before the first F13 poll on stock 1.7.2. Note: a ZMOD
 update overwrites these files; the rig carries the patch until then.
+
+### HelixScreen end-to-end on the rig (2026-08-24)
+
+Desktop build (SDL dummy, isolated `HELIX_CONFIG_DIR`, pinned `--remote-socket`)
+against the live printer — the first time AD5X support has run on real hardware:
+
+- **Auto-detection works**: with the printer type unset, the heuristic chain
+  matched and persisted `FlashForge Adventurer 5X` (zmod_ifs sensors, hostname
+  `flashforge`, `SET_EXTRUDER_SLOT`, `temperature_sensor weightValue`, mips).
+- **ZMOD z-offset provider activates on hardware**: `[ZOffset] Enabling firmware
+  z-offset persistence (ZMOD)` at discovery.
+- **AD5X IFS backend runs live**: backend created + subscribed, slots 0-3
+  initialized, head-sensor events flowing, the `Adventurer5M.json` +
+  `GET_ZCOLOR SILENT=1` color-truth path executing, remote-Moonraker upload-path
+  distinction applied.
+- **Resilience exercised for free**: the rig rebooted mid-session (cause
+  unresolved — see below); the app's retry loop reconnected, auto-closed the
+  Connection Failed modal, re-ran discovery, and re-initialized the IFS backend.
+- Six minutes of logs, four warn/error lines, all benign (isolated-config
+  backup path, stale seeded sensor config, expected `Method not found` for
+  plugins this Moonraker lacks). The rig's gcodes dir contains a bare `.3mf`
+  (`FlashForge-TestModel-01.3mf`) that Moonraker cannot metascan — our
+  thumbnail fallback chain degrades gracefully.
+- Desktop runs log to **syslog** (not stdout): read via
+  `journalctl --user | grep <pid>`.
+- The rig rebooted twice this session without an obvious trigger (12:33 and
+  ~12:36); the second recovered before investigation. Watch for recurrence —
+  if it repeats on an idle bench rig, suspect hardware/watchdog, not host load.
