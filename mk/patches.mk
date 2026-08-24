@@ -31,6 +31,7 @@ LVGL_PATCHED_FILES := \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c \
 	src/draw/lv_draw.c \
+	src/draw/lv_draw_private.h \
 	src/draw/lv_draw_buf.c \
 	src/draw/sw/lv_draw_sw_mask_rect.c \
 	src/draw/sw/lv_draw_sw_letter.c \
