@@ -236,8 +236,15 @@ else ifeq ($(PLATFORM_TARGET),ad5m)
     # the full call stack in crash reports. ~5-10% code size, zero runtime cost.
     TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7 \
         -Os -flto -ffunction-sections -fdata-sections -funwind-tables \
-        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_AD5M \
-        -DHELIX_HAS_LABEL_PRINTER=0 -DHELIX_HAS_CFS=0 -DHELIX_HAS_IFS=0
+        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_AD5M
+    # Feature gates are set as MAKE VARIABLES, never as -D in TARGET_CFLAGS.
+    # mk/cross.mk is included at Makefile:284, well before the `?= 1` defaults,
+    # so `:=` here wins and exactly one -D is emitted. A -DHELIX_HAS_X=0 in
+    # TARGET_CFLAGS silently does NOTHING: the gate block appends its own
+    # -DHELIX_HAS_X=1 afterwards and the last -D on the command line wins.
+    HELIX_HAS_LABEL_PRINTER := 0
+    HELIX_HAS_CFS := 0
+    HELIX_HAS_IFS := 0
     # -Wl,--gc-sections: Remove unused sections during linking (works with -ffunction-sections)
     # -flto: Must match compiler flag for LTO to work
     # -static: Fully static binary - no runtime dependencies on system libs
@@ -271,8 +278,10 @@ else ifeq ($(PLATFORM_TARGET),ad5m-br)
     TARGET_TRIPLE := arm-buildroot-linux-gnueabihf
     TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7 \
         -Os -flto -ffunction-sections -fdata-sections -funwind-tables \
-        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_AD5M \
-        -DHELIX_HAS_LABEL_PRINTER=0 -DHELIX_HAS_CFS=0 -DHELIX_HAS_IFS=0
+        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_AD5M
+    HELIX_HAS_LABEL_PRINTER := 0
+    HELIX_HAS_CFS := 0
+    HELIX_HAS_IFS := 0
     # No -static — buildroot wants dynamic linking against its sysroot
     TARGET_LDFLAGS := -Wl,--gc-sections -flto -lstdc++fs
     ENABLE_SSL := yes
