@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "app_constants.h"
 #include "config.h"
 #include "config_testing.h"
@@ -3767,15 +3768,11 @@ TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
 
 namespace {
 
-/// RAII: force RuntimeConfig::test_mode and restore the previous value.
+/// RAII: force RuntimeConfig::test_mode; the whole config is restored on exit.
 struct ConfigTestModeGuard {
-    RuntimeConfig* rc;
-    bool prev;
-    explicit ConfigTestModeGuard(bool enabled) : rc(get_runtime_config()), prev(rc->test_mode) {
-        rc->test_mode = enabled;
-    }
-    ~ConfigTestModeGuard() {
-        rc->test_mode = prev;
+    ScopedRuntimeConfig scoped_config;
+    explicit ConfigTestModeGuard(bool enabled) {
+        get_runtime_config()->test_mode = enabled;
     }
 };
 

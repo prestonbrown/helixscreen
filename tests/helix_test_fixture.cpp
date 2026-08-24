@@ -232,8 +232,8 @@ void HelixTestFixture::reset_all() {
     // for the duration of its own TEST_CASE, and resetting it here would fight
     // that. Restoring it is the setter's job — both tests that used to leave it
     // set on the global (test_printer_capabilities_char.cpp,
-    // test_wizard_input_shaper_step.cpp) now hold a ScopedTestMode instead
-    // (tests/test_helpers/scoped_test_mode.h), after one of them cost four
+    // test_wizard_input_shaper_step.cpp) now hold a ScopedRuntimeConfig instead
+    // (tests/test_helpers/scoped_runtime_config.h), after one of them cost four
     // unrelated tool_state/tool_switcher failures under a combined filter (#1287).
     get_runtime_config()->use_real_wifi = false;
     get_runtime_config()->use_real_ethernet = false;

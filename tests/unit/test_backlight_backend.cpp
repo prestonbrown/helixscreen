@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/scoped_runtime_config.h"
 #include "backlight_backend.h"
 #include "runtime_config.h"
 
@@ -11,14 +12,12 @@
 #include "../catch_amalgamated.hpp"
 
 // RAII guard to temporarily enable test mode on global RuntimeConfig
+/// Forces test_mode on for the scope; ScopedRuntimeConfig puts the whole
+/// config back on the way out.
 struct TestModeGuard {
-    RuntimeConfig* rc;
-    bool prev;
-    explicit TestModeGuard(RuntimeConfig* r) : rc(r), prev(r->test_mode) {
-        rc->test_mode = true;
-    }
-    ~TestModeGuard() {
-        rc->test_mode = prev;
+    ScopedRuntimeConfig scoped_config;
+    explicit TestModeGuard(RuntimeConfig* r) {
+        r->test_mode = true;
     }
 };
 

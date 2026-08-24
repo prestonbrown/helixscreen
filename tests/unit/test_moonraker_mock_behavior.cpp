@@ -64,6 +64,7 @@
 #include "../../include/printer_state.h"
 #include "../../include/runtime_config.h"
 #include "../helix_test_fixture.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "moonraker_api.h"
 
 #include <atomic>
@@ -256,20 +257,9 @@ TEST_CASE("MoonrakerAPI never derives an HTTP base URL from a mock connection",
 
     // RAII, not a restore at the end of the body: a failing SECTION would skip
     // a trailing restore and leak test_mode into every test that runs after.
-    struct ScopedMockMoonraker {
-        RuntimeConfig* config = get_runtime_config();
-        bool saved_test_mode = config->test_mode;
-        bool saved_use_real = config->use_real_moonraker;
-
-        ScopedMockMoonraker() {
-            config->test_mode = true;
-            config->use_real_moonraker = false;
-        }
-        ~ScopedMockMoonraker() {
-            config->test_mode = saved_test_mode;
-            config->use_real_moonraker = saved_use_real;
-        }
-    } scoped_mock;
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    get_runtime_config()->use_real_moonraker = false;
 
     REQUIRE(get_runtime_config()->should_mock_moonraker());
 

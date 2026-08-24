@@ -35,6 +35,18 @@
  */
 void lv_init_safe();
 
+/**
+ * @brief Create the shared 480x320 headless display, once per process.
+ *
+ * Idempotent: the first call creates the display, later calls do nothing. Tests
+ * that need LVGL to have somewhere to render (any fixture standing up widgets or
+ * pumping the UpdateQueue) can call this instead of hand-rolling the
+ * create/buffers/flush_cb dance. Three wifi fixtures each carried their own
+ * copy with a private `static bool created`, so running two of them in one
+ * process created two displays.
+ */
+void ensure_headless_display();
+
 // Install a real TemperatureHistoryManager for get_temperature_history_manager()
 // to return (tests default to nullptr). Lets a test exercise history backfill
 // paths; pass nullptr to restore the default. See #1124.

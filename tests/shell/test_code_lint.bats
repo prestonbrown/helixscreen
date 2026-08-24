@@ -512,9 +512,9 @@ EOF
 # alone, which is what made it expensive to find.
 #
 # File-level on purpose. Every correct site today pairs its write with a restore
-# somewhere in the same file — seven of them via a local RAII guard, and now two
-# via tests/test_helpers/scoped_test_mode.h. The gate asks only that the restore
-# exists, so it stays quiet on all of them and fires on a file that only sets.
+# somewhere in the same file, via tests/test_helpers/scoped_runtime_config.h.
+# The gate asks only that the restore exists, so it stays quiet on all of them
+# and fires on a file that only sets.
 #
 # Writes through a LOCAL `RuntimeConfig config;` (test_runtime_config.cpp,
 # test_subject_initializer.cpp) are not global state and are not matched.
@@ -528,7 +528,7 @@ test_mode_unrestored_files() {
     local f
     for f in $(test_mode_global_writers "$@"); do
         # A restore is any write of a saved value, or the shared RAII guard.
-        if ! grep -qE 'ScopedTestMode|test_mode[[:space:]]*=[[:space:]]*(prev|saved|prev_test_mode|saved_test_mode)' "$f"; then
+        if ! grep -qE 'ScopedRuntimeConfig|test_mode[[:space:]]*=[[:space:]]*(prev|saved|prev_test_mode|saved_test_mode)' "$f"; then
             echo "$f"
         fi
     done
@@ -559,7 +559,8 @@ EOF
     mkdir -p "$d"
     cat > "$d/scoped.cpp" <<'EOF'
 TEST_CASE("uses the shared guard") {
-    ScopedTestMode scoped_test_mode;
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
 }
 EOF
     cat > "$d/manual.cpp" <<'EOF'
