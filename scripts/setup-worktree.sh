@@ -334,8 +334,7 @@ link_lib_from_main() {
 
     # Get list of submodules in lib/
     SUBMODULES=$(git -C "$MAIN_TREE" config --file .gitmodules --get-regexp path | grep "^submodule\." | awk '{print $2}' | grep "^lib/")
-    # Also include non-submodule files in lib/
-    LIB_ITEMS=("tuibox.h" "mdns")
+    # Also include non-submodule files in lib/ (LIB_NON_SUBMODULE_ITEMS, above)
 
     # Ensure lib/ directory exists
     mkdir -p "$WORKTREE_PATH/lib"
@@ -362,7 +361,7 @@ link_lib_from_main() {
     done
 
     # Symlink non-submodule items
-    for item in "${LIB_ITEMS[@]}"; do
+    for item in "${LIB_NON_SUBMODULE_ITEMS[@]}"; do
         MAIN_ITEM="$MAIN_TREE/lib/$item"
         WORKTREE_ITEM="$WORKTREE_PATH/lib/$item"
 
@@ -737,9 +736,29 @@ mkdir -p "$(dirname "$EXCLUDE_FILE")"
 
 # Items to exclude (symlinks we created + build artifacts)
 # Note: We exclude lib/* specifically because lib/ itself is a real directory
+#
+# lib/* hides the symlinks, but it would also hide the entries under lib/ that
+# carry tracked content, so each of those is negated back in. Git cannot
+# re-include a path whose parent directory is excluded, so the negation has to
+# name the directory itself, not the files inside it.
+#
+# lib/mdns is negated with a TRAILING SLASH, which matches directories only.
+# In the main tree it is a real directory and the negation applies, so tracked
+# content there stays visible. In a worktree the path is a symlink, the
+# negation does not apply, and lib/* keeps it hidden — otherwise every worktree
+# reports a permanent `?? lib/mdns` for a symlink this script created. That
+# stray entry is what `git add -A` once swept onto main as a blob replacing the
+# tracked directory (restored in 3b0a8491b). lib/tuibox.h needs no such care:
+# its symlink sits at the tracked path itself, and a path in the index is never
+# reported as untracked.
 EXCLUDES=(
     "# HelixScreen worktree setup - auto-generated excludes"
     "lib/*"
+    "!lib/helix-xml"
+    "!lib/mdns/"
+    "!lib/minilzo"
+    "!lib/quirc"
+    "!lib/tuibox.h"
     "node_modules"
     ".venv"
     "build/"
@@ -747,9 +766,18 @@ EXCLUDES=(
     ".fonts.stamp"
 )
 
-# Add excludes if not already present
+# Drop a legacy slashless "!lib/mdns", which would re-expose the worktree
+# symlink and defeat the "!lib/mdns/" line below.
+if [[ -f "$EXCLUDE_FILE" ]] && grep -qxF '!lib/mdns' "$EXCLUDE_FILE"; then
+    EXCLUDE_TMP=$(mktemp)
+    grep -vxF '!lib/mdns' "$EXCLUDE_FILE" > "$EXCLUDE_TMP" && mv "$EXCLUDE_TMP" "$EXCLUDE_FILE"
+    echo -e "  ${YELLOW}replaced legacy !lib/mdns with !lib/mdns/${RESET}"
+fi
+
+# Add excludes if not already present. Match whole lines: a substring test
+# reports "!lib/mdns/" as already present when only "lib/mdns" is there.
 for exclude in "${EXCLUDES[@]}"; do
-    if ! grep -qF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
+    if ! grep -qxF "$exclude" "$EXCLUDE_FILE" 2>/dev/null; then
         echo "$exclude" >> "$EXCLUDE_FILE"
     fi
 done

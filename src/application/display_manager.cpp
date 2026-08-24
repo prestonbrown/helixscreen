@@ -2154,6 +2154,16 @@ void DisplayManager::install_color_transform_hook() {
                 if (dbuf && dbuf->data == px_map && dbuf->data_size > 0) {
                     f.px_map_len = static_cast<size_t>(dbuf->data_size);
                 }
+                // Declare where px_map's pixel (0,0) sits on the display. In
+                // partial mode lv_refr.c reshapes the draw buffer to the dirty
+                // area and flushes from its origin, so the rect's pixels start
+                // at row 0 rather than at their absolute coordinates; the sink
+                // has no way to tell the two layouts apart on its own. Direct
+                // and full mode keep the buffer origin, i.e. (0,0) (#1334).
+                if (lv_display_get_render_mode(d) == LV_DISPLAY_RENDER_MODE_PARTIAL) {
+                    f.px_map_x = area->x1;
+                    f.px_map_y = area->y1;
+                }
                 // Map the LVGL render format to our LVGL-independent sink enum.
                 // The U1 DRM dumb buffer is RGB565 (16bpp); desktop/other paths
                 // are ARGB8888/XRGB8888 (32bpp, BGRA in memory).

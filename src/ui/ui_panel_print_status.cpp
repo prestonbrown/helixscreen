@@ -3863,12 +3863,28 @@ void PrintStatusPanel::ensure_preview_current() {
                                          thumbnail_has_src, gcode_has_content, want_viewer);
 
     spdlog::debug("[{}] ensure_preview_current: thumb_file='{}' gcode_file='{}' desired='{}' "
-                  "thumb_src={} gcode_content={} want_viewer={} -> load_thumb={} load_gcode={}",
+                  "thumb_src={} gcode_content={} want_viewer={} -> load_thumb={} load_gcode={} "
+                  "clear_gcode={}",
                   get_name(), displayed_file_, gcode_displayed_file_, desired, thumbnail_has_src,
-                  gcode_has_content, want_viewer, action.load_thumbnail, action.load_gcode);
+                  gcode_has_content, want_viewer, action.load_thumbnail, action.load_gcode,
+                  action.clear_gcode);
 
     if (desired.empty()) {
         return; // Nothing to show.
+    }
+
+    // Drop the previous print's geometry FIRST. The reload below is deferred by
+    // seconds while the printer is still preparing, and the viewer keeps
+    // rendering what it holds until then, so without this the user watches the
+    // last print's model for the whole deferral (#1337-adjacent report: "the
+    // image from the previous print is displayed first"). ui_gcode_viewer_clear()
+    // fires the clear callback, which flips the view mode back to the thumbnail,
+    // so the fallback the user lands on is this print's slicer preview.
+    if (action.clear_gcode && gcode_viewer_) {
+        spdlog::debug("[{}] Clearing stale G-code geometry (viewer holds another print, "
+                      "desired '{}')",
+                      get_name(), desired);
+        ui_gcode_viewer_clear(gcode_viewer_);
     }
 
     if (action.load_thumbnail && print_thumbnail_ &&
