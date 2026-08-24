@@ -441,6 +441,37 @@ TEST_CASE("parse_button_spec: Hex color field (4th field)", "[action_prompt][but
         REQUIRE(button.color == "primary");
         REQUIRE(button.hex_color.empty());
     }
+
+    SECTION("Placeholder label is cleared when hex color present (ZMOD swatch tiles)") {
+        // ZMOD's color grid sends "_ " (sometimes padded) with the real color
+        // in field 4; the label would render as a dash on every swatch.
+        auto button = ActionPromptManager::parse_button_spec(
+            "_ |CHANGE_ZCOLOR SLOT=1 TYPE=PLA HEX=ffffff|primary|ffffff");
+        REQUIRE(button.label.empty());
+        REQUIRE(button.gcode == "CHANGE_ZCOLOR SLOT=1 TYPE=PLA HEX=ffffff");
+        REQUIRE(button.hex_color == "ffffff");
+    }
+
+    SECTION("Bare underscore placeholder cleared with hex color") {
+        auto button =
+            ActionPromptManager::parse_button_spec("_|RUN_ZCOLOR SLOT=1 HEX=0acc38|primary|0acc38");
+        REQUIRE(button.label.empty());
+        REQUIRE(button.hex_color == "0acc38");
+    }
+
+    SECTION("Meaningful label kept when hex color present") {
+        auto button = ActionPromptManager::parse_button_spec("Ok|CONFIRM|primary|7c4b00");
+        REQUIRE(button.label == "Ok");
+        REQUIRE(button.hex_color == "7c4b00");
+    }
+
+    SECTION("Placeholder label kept when no hex color") {
+        // Without a hex color the label is the only content; clearing it would
+        // leave an anonymous button.
+        auto button = ActionPromptManager::parse_button_spec("_|GCODE|primary");
+        REQUIRE(button.label == "_");
+        REQUIRE(button.hex_color.empty());
+    }
 }
 
 // ============================================================================
