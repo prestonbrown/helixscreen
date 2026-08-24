@@ -4,6 +4,7 @@
 
 #include "belt_stream_client.h"
 #include "belt_tension_types.h"
+#include "pitch_estimator.h"
 #include "pluck_aggregator.h"
 #include "pluck_detector.h"
 
@@ -12,12 +13,22 @@
 
 namespace helix::calibration {
 
+/// Why a strike was not measured. The distinction is user-facing: "pluck
+/// harder" is the wrong instruction for someone who plucked firmly and had a
+/// fan swamp it, and following it just makes the reading worse.
+enum class PluckReject {
+    NONE,       ///< accepted
+    TOO_SOFT,   ///< cleared MIN_DETECTABLE_RATIO but not the strength gate
+    NOT_A_PLUCK ///< strong enough, but the wrong shape or no belt tone in it
+};
+
 /// One resolved strike. A rejected event still carries its ratio so the UI can
 /// say "too soft" rather than staying silent.
 struct PluckEvent {
     float frequency_hz = 0.0f;
     float rms_ratio = 0.0f;
     bool accepted = false;
+    PluckReject reject = PluckReject::NONE;
 };
 
 /**
@@ -36,6 +47,13 @@ struct PluckEvent {
  * Never on an extracted ring-down. A ring-down has decayed for SKIP_MS before
  * anyone sees it and reads roughly three times weaker; gating on one rejects
  * strikes that were genuinely firm. See pluck_detector.h.
+ *
+ * @par Energy is not enough
+ * Clearing MIN_RMS_RATIO says something happened, not that it was a pluck. A
+ * door closing, a stepper cogging or a fan stepping through a mode all clear
+ * 9x easily - three such events measured 44-53x on the reference machine and
+ * were reported as plucks nobody made. The shape checks in PluckDetector and
+ * the harmonic-concentration check on the resulting spectrum are what decide.
  *
  * @par Cooldown
  * One physical pluck appears in many overlapping windows. After resolving a
@@ -56,9 +74,22 @@ class BeltListenSession {
     BeltListenSession(float span_mm, float sample_rate_hz);
 
     /// Measure the floor from a buffer captured while the machine was still.
+    /// Learns the quiet SPECTRUM from the same buffer, which is what rejects a
+    /// fan tone sitting inside the search window.
     bool learn_noise_floor(const std::vector<AccelSample>& quiet);
+
+    /// Set the scalar floor directly. Leaves the quiet spectrum unlearned, so
+    /// a session set up this way has no background rejection - prefer
+    /// learn_noise_floor() wherever the samples are available.
     void set_noise_floor(float rms);
     [[nodiscard]] float noise_floor() const;
+
+    /// The spectrum of the quiet window, learned alongside the scalar floor.
+    /// Not to be confused with last_spectrum(), which is the most recent
+    /// accepted PLUCK's spectrum, for display.
+    [[nodiscard]] const QuietSpectrum& quiet_spectrum() const {
+        return quiet_spectrum_;
+    }
 
     /**
      * @brief Consume a batch
@@ -96,6 +127,7 @@ class BeltListenSession {
     float sample_rate_hz_;
     PluckDetector detector_;
     PluckAggregator aggregator_;
+    QuietSpectrum quiet_spectrum_;
     std::vector<AccelSample> window_;
     std::vector<std::pair<float, float>> last_spectrum_;
     size_t rejected_ = 0;

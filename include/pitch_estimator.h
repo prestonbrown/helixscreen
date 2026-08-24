@@ -48,6 +48,127 @@ inline constexpr float SEARCH_WINDOW_HI_FRACTION = 1.50f;
 /// defaults needs a bandwidth that actually covers the harmonics requested.
 inline constexpr int DEFAULT_HARMONICS = 4;
 
+/// Power ratio, against the quiet window's own median bin, above which a
+/// frequency counts as already occupied before anyone plucked anything.
+///
+/// A periodogram of pure noise fluctuates to roughly 10x its own median
+/// somewhere across a few hundred bins, so a lower threshold would flag
+/// ordinary noise as a steady tone. 12 sits just clear of that.
+inline constexpr float BACKGROUND_PROMINENCE_TOLERANCE = 12.0f;
+
+/// Floor on the per-bin discount, so contamination saturates instead of
+/// running away.
+///
+/// Past about 30 dB over the tolerance a frequency is simply occupied, and
+/// telling 40 dB from 80 dB carries no more information. Without the floor a
+/// quiet window with almost no broadband content - a synthetic buffer, or a
+/// sensor whose noise sits below its own quantisation - has a near-zero
+/// median, every bin reads as wildly contaminated, and the discount stops
+/// discriminating and starts reordering candidates by the shape of the quiet
+/// window instead of the pluck.
+inline constexpr float MIN_BACKGROUND_WEIGHT = 0.001f;
+
+/// How far off a nominal frequency a bin may sit and still be the same tone.
+/// The quiet window and the ring-down are different lengths, so their bins do
+/// not line up; 2% is wider than that mismatch and narrower than the gap
+/// between a belt fundamental and its neighbours.
+inline constexpr float BIN_MATCH_FRACTION = 0.02f;
+
+/// Half-width, in bins, of the band credited to each harmonic by
+/// harmonic_concentration(). A real peak straddles two bins whenever it falls
+/// between bin centres, so a single bin undercounts genuine plucks.
+inline constexpr float HARMONIC_MATCH_BINS = 2.0f;
+
+/// Fraction of in-band energy that must sit on a candidate's harmonic series
+/// for the event to have been a pluck at all.
+///
+/// Measured through the live path on tests/fixtures/belt_plucks/: 0.38-0.48
+/// for the real captures, against 0.10-0.24 for a decaying broadband noise
+/// burst over 40 seeds. A thump, a door, or a stepper cogging spreads its
+/// energy; a plucked string does not.
+inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.30f;
+
+/**
+ * @brief The spectrum of a window captured while the machine was still
+ *
+ * A belt tone is absent before the pluck and present after it; a fan tone is
+ * present in both. That difference is the whole discriminator, and it needs no
+ * user action - the offending fan on the reference machine sits on an
+ * accessory unit that Klipper cannot see, let alone quiet.
+ *
+ * Prominence is measured against the quiet window's OWN median bin, so nothing
+ * here depends on the two windows having the same length, gain, or scale.
+ */
+class QuietSpectrum {
+  public:
+    /// Adopt a PSD measured while the machine was still.
+    /// @return false if the spectrum is too short or has no positive median
+    ///         (a dead sensor or an all-zero capture), in which case the
+    ///         object stays invalid and discounts nothing.
+    bool learn(std::vector<std::pair<float, float>> psd);
+
+    [[nodiscard]] bool valid() const {
+        return reference_ > 0.0f && !psd_.empty();
+    }
+
+    /// Power at `freq_hz` as a multiple of this window's median bin. 0 if
+    /// invalid. 1.0 means "as loud as a typical quiet bin".
+    [[nodiscard]] float prominence_at(float freq_hz) const;
+
+    /// Multiplier in (0, 1] for energy seen at `freq_hz` during a pluck.
+    ///
+    /// 1.0 for any frequency that was quiet beforehand, falling towards
+    /// MIN_BACKGROUND_WEIGHT the further a frequency stood above the quiet
+    /// window's own noise. It is a
+    /// graduated discount, never a veto: a belt tone that happens to land on
+    /// top of a fan tone can still outscore the fan if its harmonic series is
+    /// genuinely there, which is exactly the case the reference machine hits
+    /// with a fan near 115 Hz and a 110 Hz target.
+    [[nodiscard]] float weight_at(float freq_hz) const;
+
+    void clear();
+
+  private:
+    std::vector<std::pair<float, float>> psd_;
+    float reference_ = 0.0f;  ///< median bin power
+    float resolution_ = 0.0f; ///< Hz per bin
+};
+
+/**
+ * @brief Measure the quiet spectrum for a span, at the analysis bandwidth
+ *
+ * Runs the same search_window_for_span() -> required_bandwidth_hz() ->
+ * compute_psd() chain the pluck path runs, so the two spectra cover the same
+ * harmonics. Callers should not assemble it by hand - see
+ * required_bandwidth_hz().
+ *
+ * @return an invalid QuietSpectrum if the buffer, rate or span is degenerate
+ */
+QuietSpectrum quiet_spectrum_for_span(const std::vector<AccelSample>& quiet, float sample_rate,
+                                      float span_mm, int n_harmonics = DEFAULT_HARMONICS);
+
+/**
+ * @brief Fraction of in-band energy sitting on f0's harmonic series
+ *
+ * The strongest single "was this a pluck?" discriminator. A plucked belt puts
+ * its energy into a harmonic series; a thump spreads it across the band.
+ *
+ * The band runs from `band_lo_hz` to (n_harmonics + 0.5) * f0. The lower bound
+ * matters: a structural gantry mode dominates the spectrum well below the
+ * search window (roughly 38-58 Hz on the reference machine, moving with
+ * toolhead position), and counting it would drown every real pluck. Pass the
+ * search window's lower bound.
+ *
+ * @param background When non-null and valid, each bin is weighted by
+ *        QuietSpectrum::weight_at() before being counted, in numerator and
+ *        denominator alike. Without it a loud fan owns most of the band and a
+ *        genuine pluck scores as unconcentrated as a thump.
+ * @return 0.0f for degenerate input or an empty band
+ */
+float harmonic_concentration(const std::vector<std::pair<float, float>>& psd, float f0,
+                             int n_harmonics, float band_lo_hz,
+                             const QuietSpectrum* background = nullptr);
+
 struct PitchEstimate {
     float frequency_hz = 0.0f;
     bool valid = false;
@@ -88,10 +209,15 @@ float required_bandwidth_hz(float search_hi_hz, int n_harmonics = DEFAULT_HARMON
  * @param search_lo_hz Lower bound of the fundamental search
  * @param search_hi_hz Upper bound of the fundamental search
  * @param n_harmonics Harmonics to multiply, including the fundamental
+ * @param background When non-null and valid, every harmonic bin a candidate is
+ *        scored on is discounted by QuietSpectrum::weight_at(). A fan tone
+ *        contaminates 2f and 4f as readily as f, so the discount has to apply
+ *        to the whole series, not just the fundamental.
  * @return Estimate with valid=false if input is degenerate or nothing is in range
  */
 PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, float search_lo_hz,
-                             float search_hi_hz, int n_harmonics = DEFAULT_HARMONICS);
+                             float search_hi_hz, int n_harmonics = DEFAULT_HARMONICS,
+                             const QuietSpectrum* background = nullptr);
 
 /**
  * @brief Estimate the fundamental for a belt span directly from accelerometer samples
@@ -117,11 +243,13 @@ PitchEstimate estimate_pitch(const std::vector<std::pair<float, float>>& psd, fl
  *        computed, whether or not the estimate that followed is valid;
  *        untouched if span_mm/sample_rate is non-positive or no search window
  *        exists, since nothing was computed in that case.
+ * @param background Forwarded to estimate_pitch() - see there.
  * @return Estimate with valid=false if span_mm or sample_rate is non-positive,
  *         or if the underlying estimate_pitch() call finds nothing
  */
 PitchEstimate estimate_pitch_for_span(const std::vector<AccelSample>& samples, float sample_rate,
                                       float span_mm, int n_harmonics = DEFAULT_HARMONICS,
-                                      std::vector<std::pair<float, float>>* out_psd = nullptr);
+                                      std::vector<std::pair<float, float>>* out_psd = nullptr,
+                                      const QuietSpectrum* background = nullptr);
 
 } // namespace helix::calibration

@@ -13,6 +13,7 @@
 #include "../../include/pitch_estimator.h"
 
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -63,6 +64,73 @@ std::vector<AccelSample> make_harmonic_heavy(float f0, float sample_rate, int co
         out[static_cast<size_t>(i)].z = 9810.0f; // gravity, must be removed as DC
     }
     return out;
+}
+
+/// Deterministic hiss - see test_pluck_detector.cpp for the same LCG.
+struct Hiss {
+    uint32_t state = 4242u;
+    float next() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
+    }
+};
+
+constexpr float kRate = 3091.0f;
+/// A 150 mm span searches 77-165 Hz for its fundamental - both figures the
+/// reference machine's background peaks land inside.
+constexpr float kSpan = 150.0f;
+
+/// A steady tone with its own harmonic series, which is what a fan produces:
+/// a blade-pass fundamental plus multiples of it. A pure sinusoid would be an
+/// easier target than reality, since the harmonic product spectrum only locks
+/// onto a contaminant that has a series to lock onto.
+void add_series(std::vector<AccelSample>& buf, float f0, float amp, const float (&profile)[4],
+                float decay_s) {
+    for (size_t i = 0; i < buf.size(); ++i) {
+        const float t = buf[i].time;
+        float v = 0.0f;
+        for (int h = 0; h < 4; ++h) {
+            v += profile[h] *
+                 std::sin(2.0f * static_cast<float>(M_PI) * f0 * static_cast<float>(h + 1) * t);
+        }
+        if (decay_s > 0.0f) {
+            v *= std::exp(-t / decay_s);
+        }
+        buf[i].x += amp * v;
+    }
+}
+
+/// Gravity on X, like every real capture.
+std::vector<AccelSample> hiss_bed(size_t count, float amp, uint32_t seed) {
+    Hiss rng{seed};
+    std::vector<AccelSample> out(count);
+    for (size_t i = 0; i < count; ++i) {
+        out[i].time = static_cast<float>(i) / kRate;
+        out[i].x = 9810.0f + amp * rng.next();
+        out[i].y = amp * rng.next();
+        out[i].z = amp * rng.next();
+    }
+    return out;
+}
+
+const float kFanProfile[4] = {1.0f, 0.5f, 0.3f, 0.2f};
+const float kBeltProfile[4] = {0.8f, 1.0f, 0.3f, 0.25f};
+
+/// The quiet window the session captures before the user plucks anything,
+/// with a fan already running in it.
+QuietSpectrum quiet_with_fan(float fan_hz, float fan_amp) {
+    auto quiet = hiss_bed(3000, 1.0f, 11u);
+    add_series(quiet, fan_hz, fan_amp, kFanProfile, 0.0f);
+    return quiet_spectrum_for_span(quiet, kRate, kSpan);
+}
+
+/// The ring-down: the same fan, still running, plus a genuine belt tone.
+std::vector<AccelSample> ringdown_with_fan(float fan_hz, float fan_amp, float belt_hz,
+                                           float belt_amp) {
+    auto rd = hiss_bed(1545, 1.0f, 23u);
+    add_series(rd, fan_hz, fan_amp, kFanProfile, 0.0f);
+    add_series(rd, belt_hz, belt_amp, kBeltProfile, 0.25f);
+    return rd;
 }
 
 } // namespace
@@ -235,4 +303,181 @@ TEST_CASE("a PSD computed at compute_psd's default bandwidth yields no pitch est
     auto psd = compute_psd(samples, sr); // default bandwidth, no required_bandwidth_hz()
     auto est = estimate_pitch(psd, lo, hi);
     CHECK_FALSE(est.valid);
+}
+
+// ============================================================================
+// The quiet spectrum: a belt tone is absent before the pluck, a fan is not
+// ============================================================================
+
+TEST_CASE("QuietSpectrum reports a planted tone as prominent and the rest as ordinary",
+          "[belt_tension][pitch]") {
+    const auto bg = quiet_with_fan(115.0f, 60.0f);
+    REQUIRE(bg.valid());
+
+    CHECK(bg.prominence_at(115.0f) > BACKGROUND_PROMINENCE_TOLERANCE);
+    CHECK(bg.weight_at(115.0f) < 1.0f);
+    CHECK(bg.weight_at(115.0f) > 0.0f); // a discount, never a veto
+
+    // A frequency the fan does not occupy is ordinary, so it is not discounted.
+    CHECK(bg.prominence_at(99.0f) < BACKGROUND_PROMINENCE_TOLERANCE);
+    CHECK(bg.weight_at(99.0f) == 1.0f);
+}
+
+TEST_CASE("QuietSpectrum discounts nothing when it has nothing to say",
+          "[belt_tension][pitch][edge_case]") {
+    QuietSpectrum empty;
+    CHECK_FALSE(empty.valid());
+    CHECK(empty.weight_at(115.0f) == 1.0f); // silent, not blocking
+    CHECK(empty.prominence_at(115.0f) == 0.0f);
+
+    // An all-zero spectrum has no median to normalise against - a dead sensor
+    // must not make every candidate infinitely contaminated.
+    std::vector<std::pair<float, float>> zeros;
+    for (size_t i = 0; i < 200; ++i) {
+        zeros.emplace_back(static_cast<float>(i + 1) * 2.0f, 0.0f);
+    }
+    QuietSpectrum dead;
+    CHECK_FALSE(dead.learn(zeros));
+    CHECK_FALSE(dead.valid());
+    CHECK(dead.weight_at(115.0f) == 1.0f);
+
+    QuietSpectrum too_short;
+    CHECK_FALSE(too_short.learn({{2.0f, 1.0f}, {4.0f, 1.0f}}));
+}
+
+TEST_CASE("quiet_spectrum_for_span rejects degenerate input", "[belt_tension][pitch][edge_case]") {
+    auto quiet = hiss_bed(3000, 1.0f, 5u);
+    CHECK_FALSE(quiet_spectrum_for_span(quiet, kRate, 0.0f).valid());
+    CHECK_FALSE(quiet_spectrum_for_span(quiet, 0.0f, kSpan).valid());
+    CHECK_FALSE(quiet_spectrum_for_span({}, kRate, kSpan).valid());
+}
+
+TEST_CASE("a fan inside the search window does not win the pitch estimate",
+          "[belt_tension][pitch]") {
+    // The reference machine's failure: a steady tone lands inside 77-165 Hz
+    // and is louder than the belt, so the harmonic product locks onto it. One
+    // belt read 88 / 92 / 94 / 100 / 107 Hz on successive plucks of a belt
+    // that was not changing.
+    const auto bg = quiet_with_fan(115.0f, 60.0f);
+    REQUIRE(bg.valid());
+    auto rd = ringdown_with_fan(115.0f, 60.0f, 99.0f, 8.0f);
+
+    auto psd = compute_psd(rd, kRate, required_bandwidth_hz(165.0f));
+    REQUIRE(!psd.empty());
+
+    // Without the quiet spectrum the estimator confidently returns the fan.
+    auto blind = estimate_pitch(psd, 77.0f, 165.0f);
+    REQUIRE(blind.valid);
+    CHECK(blind.frequency_hz == Catch::Approx(115.0f).margin(3.0f));
+
+    auto informed = estimate_pitch(psd, 77.0f, 165.0f, DEFAULT_HARMONICS, &bg);
+    REQUIRE(informed.valid);
+    CHECK(informed.frequency_hz == Catch::Approx(99.0f).margin(3.0f));
+}
+
+TEST_CASE("a fan sitting on a harmonic of the true fundamental does not win either",
+          "[belt_tension][pitch]") {
+    // Harder case: the contaminant is at 164 Hz, which is both inside the
+    // search window in its own right and exactly 2*f0 of the real 82 Hz belt.
+    // The true candidate is scored on a bin the fan owns, so a hard reject on
+    // any contaminated harmonic would throw the right answer away.
+    const auto bg = quiet_with_fan(164.0f, 60.0f);
+    REQUIRE(bg.valid());
+    auto rd = ringdown_with_fan(164.0f, 60.0f, 82.0f, 8.0f);
+
+    auto psd = compute_psd(rd, kRate, required_bandwidth_hz(165.0f));
+    auto blind = estimate_pitch(psd, 77.0f, 165.0f);
+    REQUIRE(blind.valid);
+    CHECK(blind.frequency_hz == Catch::Approx(164.0f).margin(3.0f));
+
+    auto informed = estimate_pitch(psd, 77.0f, 165.0f, DEFAULT_HARMONICS, &bg);
+    REQUIRE(informed.valid);
+    CHECK(informed.frequency_hz == Catch::Approx(82.0f).margin(3.0f));
+}
+
+TEST_CASE("estimate_pitch_for_span forwards the quiet spectrum", "[belt_tension][pitch]") {
+    const auto bg = quiet_with_fan(115.0f, 60.0f);
+    auto rd = ringdown_with_fan(115.0f, 60.0f, 99.0f, 8.0f);
+
+    auto blind = estimate_pitch_for_span(rd, kRate, kSpan);
+    REQUIRE(blind.valid);
+    CHECK(blind.frequency_hz == Catch::Approx(115.0f).margin(3.0f));
+
+    auto informed = estimate_pitch_for_span(rd, kRate, kSpan, DEFAULT_HARMONICS, nullptr, &bg);
+    REQUIRE(informed.valid);
+    CHECK(informed.frequency_hz == Catch::Approx(99.0f).margin(3.0f));
+}
+
+// ============================================================================
+// Harmonic concentration: was this event a pluck at all?
+// ============================================================================
+
+TEST_CASE("real captures concentrate their energy on a harmonic series",
+          "[belt_tension][pitch][golden]") {
+    float lo = 0.0f, hi = 0.0f;
+    REQUIRE(search_window_for_span(151.0f, &lo, &hi));
+
+    for (const auto* name : {"a_belt_86hz_1.csv", "a_belt_86hz_2.csv", "a_belt_86hz_3.csv"}) {
+        auto s = load_fixture(name);
+        auto psd = compute_psd(s, fixture_sample_rate(s), required_bandwidth_hz(hi));
+        const float c = harmonic_concentration(psd, 86.0f, DEFAULT_HARMONICS, lo);
+        INFO("fixture " << name << " concentration " << c);
+        CHECK(c > MIN_HARMONIC_CONCENTRATION);
+    }
+    for (const auto* name : {"b_belt_82hz_1.csv", "b_belt_82hz_2.csv", "b_belt_82hz_3.csv"}) {
+        auto s = load_fixture(name);
+        auto psd = compute_psd(s, fixture_sample_rate(s), required_bandwidth_hz(hi));
+        const float c = harmonic_concentration(psd, 82.0f, DEFAULT_HARMONICS, lo);
+        INFO("fixture " << name << " concentration " << c);
+        CHECK(c > MIN_HARMONIC_CONCENTRATION);
+    }
+}
+
+TEST_CASE("a broadband thump does not concentrate on any harmonic series",
+          "[belt_tension][pitch]") {
+    // The check that rejects a door closing or a toolhead settling: those
+    // clear the energy gate easily and have a real onset and decay, so the
+    // spectrum is the only thing that can tell them from a pluck.
+    Hiss rng{99u};
+    std::vector<AccelSample> burst(1545);
+    for (size_t i = 0; i < burst.size(); ++i) {
+        const float t = static_cast<float>(i) / kRate;
+        const float env = 200.0f * std::exp(-t / 0.25f);
+        burst[i].time = t;
+        burst[i].x = 9810.0f + env * rng.next();
+        burst[i].y = env * rng.next();
+        burst[i].z = env * rng.next();
+    }
+    auto psd = compute_psd(burst, kRate, required_bandwidth_hz(165.0f));
+    auto est = estimate_pitch(psd, 77.0f, 165.0f);
+    REQUIRE(est.valid); // the estimator happily returns SOMETHING
+    const float c = harmonic_concentration(psd, est.frequency_hz, DEFAULT_HARMONICS, 77.0f);
+    INFO("picked " << est.frequency_hz << " Hz, concentration " << c);
+    CHECK(c < MIN_HARMONIC_CONCENTRATION);
+}
+
+TEST_CASE("concentration discounts a fan that owns the band", "[belt_tension][pitch]") {
+    // Without the quiet spectrum, a genuine pluck under a loud fan scores as
+    // unconcentrated as a thump - the fan holds most of the band's energy and
+    // none of it sits on the belt's harmonics. Rejecting on that would refuse
+    // to measure exactly the machine this work exists for.
+    const auto bg = quiet_with_fan(115.0f, 60.0f);
+    auto rd = ringdown_with_fan(115.0f, 60.0f, 99.0f, 8.0f);
+    auto psd = compute_psd(rd, kRate, required_bandwidth_hz(165.0f));
+
+    const float blind = harmonic_concentration(psd, 99.0f, DEFAULT_HARMONICS, 77.0f);
+    const float informed = harmonic_concentration(psd, 99.0f, DEFAULT_HARMONICS, 77.0f, &bg);
+    INFO("blind " << blind << " informed " << informed);
+    CHECK(blind < MIN_HARMONIC_CONCENTRATION);
+    CHECK(informed > MIN_HARMONIC_CONCENTRATION);
+}
+
+TEST_CASE("harmonic_concentration rejects degenerate input", "[belt_tension][pitch][edge_case]") {
+    auto s = load_fixture("a_belt_86hz_1.csv");
+    auto psd = compute_psd(s, fixture_sample_rate(s), 700.0f);
+    CHECK(harmonic_concentration({}, 86.0f, DEFAULT_HARMONICS, 77.0f) == 0.0f);
+    CHECK(harmonic_concentration(psd, 0.0f, DEFAULT_HARMONICS, 77.0f) == 0.0f);
+    CHECK(harmonic_concentration(psd, 86.0f, 0, 77.0f) == 0.0f);
+    // A band that starts above its own top is empty, not 100% concentrated.
+    CHECK(harmonic_concentration(psd, 86.0f, DEFAULT_HARMONICS, 5000.0f) == 0.0f);
 }

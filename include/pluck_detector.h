@@ -38,6 +38,39 @@ class PluckDetector {
     /// Length of ring-down to analyse.
     static constexpr float ANALYZE_MS = 500.0f;
 
+    /// Sub-window the temporal shape checks measure the envelope in.
+    static constexpr float ENVELOPE_SEGMENT_MS = 10.0f;
+    /// How far before the loudest sub-window to sample the pre-strike level.
+    static constexpr float ONSET_LOOKBACK_MS = 20.0f;
+    /// Peak-to-pre-strike RMS ratio a pluck must clear. Measured 34-46x on the
+    /// real captures spliced into a live window, against 1.1x for a steady
+    /// tone and 1.2x for an envelope that grows across the window.
+    static constexpr float MIN_ONSET_RISE = 3.0f;
+    /// Sub-windows the post-onset envelope is split into.
+    static constexpr int DECAY_SEGMENTS = 4;
+    /// How much louder a decay sub-window may be than the one before it.
+    /// Measured 1.03x worst case across the real captures.
+    static constexpr float MAX_DECAY_RISE = 1.5f;
+    /// Last sub-window as a fraction of the first. Measured 0.13-0.21 on the
+    /// real captures; a steady tone reads 0.98 and the weak-pluck capture,
+    /// which never rang, reads 0.79.
+    static constexpr float MAX_DECAY_END_RATIO = 0.5f;
+    /// Shortest post-onset region the decay check can judge. An event whose
+    /// onset lands at the very end of the window has no envelope to read, and
+    /// "cannot tell" must mean rejected here - that is what an event ramping
+    /// up into the future looks like.
+    static constexpr float MIN_DECAY_SPAN_MS = 100.0f;
+    /// Post-onset signal a window needs before it is worth resolving at all.
+    ///
+    /// extract_ringdown() always returns ANALYZE_MS of samples, padding the
+    /// front with whatever preceded the strike when the strike landed late.
+    /// At 70% of ANALYZE_MS that padding cannot outweigh the ring-down.
+    /// Measured on tests/fixtures/belt_plucks/ spliced into a live stream:
+    /// 350-400 ms accepts every capture that clears the energy gate, and by
+    /// 450 ms the window has slid so far that a 500 ms capture has run out
+    /// and the analysis starts reading past its end.
+    static constexpr float MIN_RINGDOWN_MS = 350.0f;
+
     /// Broadband RMS with per-axis DC removed. Static so callers can measure a
     /// buffer without owning a detector.
     static float window_rms(const AccelSample* samples, size_t count);
@@ -67,6 +100,43 @@ class PluckDetector {
     /// against detection windows across 60 captures; it is not meaningful
     /// against a ring-down.
     [[nodiscard]] bool passes_gate(const AccelSample* samples, size_t count) const;
+
+    /// Index of the strongest instantaneous deviation from the buffer mean -
+    /// the strike, when there was one. Returns 0 for an empty buffer.
+    static size_t find_onset(const AccelSample* samples, size_t count);
+
+    /// True if energy jumps from the pre-strike level to the peak within a few
+    /// milliseconds.
+    ///
+    /// Operates on the live DETECTION WINDOW, like rms_ratio() and
+    /// passes_gate(): the evidence is the quiet that came BEFORE the strike,
+    /// and an extracted ring-down has already thrown that away. A window whose
+    /// loudest moment sits within ONSET_LOOKBACK_MS of its start returns false
+    /// - there is nothing to compare against, and a steady tone looks exactly
+    /// like that.
+    [[nodiscard]] static bool has_sharp_onset(const AccelSample* samples, size_t count,
+                                              float sample_rate);
+
+    /// True when the window holds enough signal after the onset to be worth
+    /// resolving - at least MIN_RINGDOWN_MS of it.
+    ///
+    /// A firm strike trips the energy gate as soon as its leading edge enters
+    /// the window, before there is any envelope to read. The answer to false
+    /// here is to WAIT: the window slides and the rest of the ring-down is
+    /// already on its way. Rejecting instead throws away exactly the firmest
+    /// plucks, since those are the ones that trip the gate earliest.
+    [[nodiscard]] static bool ringdown_ready(const AccelSample* samples, size_t count,
+                                             float sample_rate);
+
+    /// True if the envelope after the onset falls the way a plucked string's
+    /// does: each sub-window no more than MAX_DECAY_RISE louder than the one
+    /// before, and the last well below the first.
+    ///
+    /// Locates its own onset, so it reads the same on a detection window and
+    /// on an extracted ring-down. A steady tone fails on the end ratio; a
+    /// rattle fails on the rise tolerance.
+    [[nodiscard]] static bool has_pluck_decay(const AccelSample* samples, size_t count,
+                                              float sample_rate);
 
     /// Locate the strongest transient in `buffer` and extract the ring-down
     /// beginning SKIP_MS after it.

@@ -143,6 +143,10 @@ class BeltTensionPanel : public OverlayBase {
         bool committed = false;
         uint32_t ms_since_event = 0;
         uint32_t ms_since_reject = UINT32_MAX;
+        /// True when the last rejection was a shape/spectrum rejection rather
+        /// than a soft strike. "Pluck harder" is the wrong instruction there -
+        /// the strike was firm and something else in the room was louder.
+        bool reject_not_a_pluck = false;
         std::vector<helix::calibration::AccelSample> window;
         /// Only non-empty when this batch's event was a freshly ACCEPTED
         /// pluck - see BeltListenSession::last_spectrum(). publish_live_values()
@@ -325,6 +329,7 @@ class BeltTensionPanel : public OverlayBase {
     std::chrono::steady_clock::time_point last_event_tp_{};
     std::chrono::steady_clock::time_point last_reject_tp_{};
     bool had_reject_ = false;
+    bool reject_not_a_pluck_ = false;
 
     /// Declared LAST so it is destroyed FIRST. ~BeltStreamClient() joins its
     /// loop thread, which must happen before session_, noise_prefix_ and the

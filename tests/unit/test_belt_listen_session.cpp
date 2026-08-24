@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -114,6 +115,113 @@ std::vector<PluckEvent> stream_through(BeltListenSession& s, const std::vector<A
         }
     }
     return events;
+}
+
+/// Deterministic hiss - a plain LCG, so a threshold test analyses the same
+/// buffer on every run instead of a fresh random draw.
+struct Hiss {
+    uint32_t state = 2468u;
+    float next() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
+    }
+};
+
+/// Gravity on X, matching every real capture - see make_noise() above.
+std::vector<AccelSample> hiss_bed(size_t count, float amp, float rate_hz, Hiss& rng) {
+    std::vector<AccelSample> out(count);
+    for (size_t i = 0; i < count; ++i) {
+        out[i].time = static_cast<float>(i) / rate_hz;
+        out[i].x = 9810.0f + amp * rng.next();
+        out[i].y = amp * rng.next();
+        out[i].z = amp * rng.next();
+    }
+    return out;
+}
+
+constexpr float kRate = 3091.0f;
+/// Long enough to learn a floor from, trigger on, and ride out one cooldown.
+constexpr size_t kQuietLead = 4096;
+constexpr size_t kBody = 8192;
+
+/// Quiet, then a steady tone that simply switches on and never stops - a fan
+/// spinning up, not a string being plucked.
+std::vector<AccelSample> steady_tone_stream(float freq, float amp) {
+    Hiss rng;
+    auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
+    for (size_t i = kQuietLead; i < out.size(); ++i) {
+        out[i].x += amp * std::sin(2.0f * static_cast<float>(M_PI) * freq * out[i].time);
+    }
+    return out;
+}
+
+/// Quiet, then energy that grows to a peak and stops - a machine winding up,
+/// not a string ringing down. It ends rather than running to the end of the
+/// buffer so the window does resolve: an event that is still growing when the
+/// stream stops is simply never judged, which would make the test vacuous.
+std::vector<AccelSample> swelling_stream(float freq, float amp) {
+    Hiss rng;
+    auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
+    const size_t peak = kQuietLead + kBody / 2;
+    const float peak_time = out[peak - 1].time;
+    for (size_t i = kQuietLead; i < peak; ++i) {
+        const float env = std::exp((out[i].time - peak_time) / 0.40f);
+        out[i].x += amp * env * std::sin(2.0f * static_cast<float>(M_PI) * freq * out[i].time);
+    }
+    return out;
+}
+
+/// Quiet, then a sharp broadband thump that decays like a pluck but has no
+/// harmonic series in it.
+std::vector<AccelSample> thump_stream(float amp) {
+    Hiss rng;
+    auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
+    Hiss burst{31337u};
+    for (size_t i = kQuietLead; i < out.size(); ++i) {
+        const float dt = static_cast<float>(i - kQuietLead) / kRate;
+        const float env = amp * std::exp(-dt / 0.20f);
+        out[i].x += env * burst.next();
+        out[i].y += env * burst.next();
+        out[i].z += env * burst.next();
+    }
+    return out;
+}
+
+/// Quiet, then a genuine exponentially decaying harmonic series.
+std::vector<AccelSample> pluck_stream(float f0, float amp) {
+    static const float profile[4] = {0.708f, 1.0f, 0.200f, 0.224f};
+    Hiss rng;
+    auto out = hiss_bed(kQuietLead + kBody, 5.0f, kRate, rng);
+    for (size_t i = kQuietLead; i < out.size(); ++i) {
+        const float dt = static_cast<float>(i - kQuietLead) / kRate;
+        float v = 0.0f;
+        for (int h = 0; h < 4; ++h) {
+            v += profile[h] * std::sin(2.0f * static_cast<float>(M_PI) * f0 *
+                                       static_cast<float>(h + 1) * out[i].time);
+        }
+        out[i].x += amp * std::exp(-dt / 0.20f) * v;
+    }
+    return out;
+}
+
+/// Run a synthetic buffer through a session that learned its floor from the
+/// buffer's own quiet lead-in, exactly as the panel does.
+std::vector<PluckEvent> listen(BeltListenSession& s, const std::vector<AccelSample>& buf) {
+    REQUIRE(s.learn_noise_floor(std::vector<AccelSample>(buf.begin(), buf.begin() + 1000)));
+    return stream_through(s, buf);
+}
+
+/// Strength of the loudest detection window in `buf`, as the session would
+/// measure it. Pins that a rejection was NOT the old energy gate doing the work.
+float peak_window_ratio(const BeltListenSession& s, const std::vector<AccelSample>& buf) {
+    PluckDetector det;
+    det.set_noise_floor(s.noise_floor());
+    float best = 0.0f;
+    const size_t w = BeltListenSession::DETECTION_WINDOW_SAMPLES;
+    for (size_t end = w; end <= buf.size(); end += 128) {
+        best = std::max(best, det.rms_ratio(buf.data() + (end - w), w));
+    }
+    return best;
 }
 
 } // namespace
@@ -304,4 +412,131 @@ TEST_CASE("last_spectrum holds the accepted pluck's PSD", "[belt][listen]") {
 
     s.reset();
     CHECK(s.last_spectrum().empty());
+}
+
+// ============================================================================
+// Energy is not enough: the event has to have been a pluck
+// ============================================================================
+
+TEST_CASE("a loud steady tone is never counted as a pluck", "[belt][listen]") {
+    // Three transients at 44-53x the floor were analysed and reported as
+    // plucks on the reference machine, on an evening when the maintainer
+    // plucked nothing. This is that event: far past the 9x gate, and not a
+    // strike.
+    auto buf = steady_tone_stream(115.0f, 400.0f);
+    BeltListenSession s(SPAN_MM, kRate);
+    auto events = listen(s, buf);
+
+    INFO("peak window ratio " << peak_window_ratio(s, buf));
+    CHECK(peak_window_ratio(s, buf) > PluckDetector::MIN_RMS_RATIO); // energy accepts it
+    CHECK(s.accepted_count() == 0);
+    CHECK(s.median_hz() == 0.0f);
+    CHECK_FALSE(s.committed());
+    // It is resolved and rejected, not merely ignored - and the reason has to
+    // be the right one, or the panel tells the user to pluck harder.
+    REQUIRE_FALSE(events.empty());
+    for (const auto& e : events) {
+        CHECK(e.reject == PluckReject::NOT_A_PLUCK);
+    }
+}
+
+TEST_CASE("energy that swells instead of ringing down is not a pluck", "[belt][listen]") {
+    auto buf = swelling_stream(115.0f, 400.0f);
+    BeltListenSession s(SPAN_MM, kRate);
+    auto events = listen(s, buf);
+
+    CHECK(peak_window_ratio(s, buf) > PluckDetector::MIN_RMS_RATIO);
+    CHECK(s.accepted_count() == 0);
+    CHECK_FALSE(s.committed());
+    // The swell is resolved and rejected on its shape. Its dying tail also
+    // produces a TOO_SOFT event on the way out, which is honest - by then it
+    // really is too soft - so the assertion is that the shape rejection
+    // happened, not that it was the only thing that did.
+    CHECK(std::any_of(events.begin(), events.end(),
+                      [](const PluckEvent& e) { return e.reject == PluckReject::NOT_A_PLUCK; }));
+    CHECK(
+        std::none_of(events.begin(), events.end(), [](const PluckEvent& e) { return e.accepted; }));
+}
+
+TEST_CASE("a broadband thump is not a pluck", "[belt][listen]") {
+    // A door closing or the toolhead settling after a park: real onset, real
+    // decay, no harmonic series. Only the spectrum can tell it apart, which is
+    // why the concentration check exists.
+    auto buf = thump_stream(400.0f);
+    BeltListenSession s(SPAN_MM, kRate);
+    listen(s, buf);
+
+    CHECK(peak_window_ratio(s, buf) > PluckDetector::MIN_RMS_RATIO);
+    CHECK(s.accepted_count() == 0);
+    CHECK_FALSE(s.committed());
+}
+
+TEST_CASE("a genuine decaying harmonic series is still accepted", "[belt][listen]") {
+    // The guard on everything above: the new checks must not be satisfiable by
+    // raising MIN_RMS_RATIO, so a real strike barely over the existing gate has
+    // to come through.
+    auto buf = pluck_stream(99.0f, 172.0f);
+    BeltListenSession s(SPAN_MM, kRate);
+    auto events = listen(s, buf);
+
+    const float ratio = peak_window_ratio(s, buf);
+    INFO("peak window ratio " << ratio << ", events " << events.size());
+    CHECK(ratio < 20.0f); // not a landslide - this is a modest strike
+    REQUIRE(s.accepted_count() >= 1);
+    CHECK(s.median_hz() == Catch::Approx(99.0f).margin(4.0f));
+}
+
+TEST_CASE("every accept-case capture still passes the whole pipeline", "[belt][listen][golden]") {
+    // The regression guard: these are real plucks on real hardware. A shape
+    // check tuned until the synthetic cases pass but that rejects a genuine
+    // capture has made the tool worse, not safer.
+    //
+    // a_belt_86hz_1 (recorded 9.37) is absent on purpose - splice_live_window
+    // only approximates a target ratio, and a capture sitting 4% over the gate
+    // lands below it once spliced. That is the energy gate, not a shape check.
+    struct Expect {
+        const char* name;
+        float hz;
+    };
+    for (const auto& e : {Expect{"a_belt_86hz_2.csv", 86.0f}, Expect{"a_belt_86hz_3.csv", 86.0f},
+                          Expect{"b_belt_82hz_1.csv", 82.0f}, Expect{"b_belt_82hz_2.csv", 82.0f},
+                          Expect{"b_belt_82hz_3.csv", 82.0f}}) {
+        const auto fx = load_fixture(e.name);
+        auto live = splice_live_window(fx);
+
+        BeltListenSession s(SPAN_MM, fx.rate_hz);
+        REQUIRE(s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+        stream_through(s, live);
+
+        INFO("fixture " << e.name);
+        REQUIRE(s.accepted_count() >= 1);
+        CHECK(s.median_hz() == Catch::Approx(e.hz).margin(6.0f));
+    }
+}
+
+TEST_CASE("the below-gate capture is still rejected", "[belt][listen][golden]") {
+    // Recorded at 7.82x, under MIN_RMS_RATIO. It must stay a reject case - the
+    // shape checks are additional evidence, never a way past the energy gate.
+    const auto fx = load_fixture("b_belt_82hz_hard_case.csv");
+    auto live = splice_live_window(fx);
+
+    BeltListenSession s(SPAN_MM, fx.rate_hz);
+    REQUIRE(s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+    stream_through(s, live);
+
+    CHECK(s.accepted_count() == 0);
+}
+
+TEST_CASE("learn_noise_floor learns the quiet spectrum as well as the floor", "[belt][listen]") {
+    // Same buffer, two questions: how loud is it in here, and what is already
+    // ringing in here. set_noise_floor() answers only the first, and a session
+    // set up that way has no background rejection.
+    auto buf = pluck_stream(99.0f, 172.0f);
+    BeltListenSession learned(SPAN_MM, kRate);
+    REQUIRE(learned.learn_noise_floor(std::vector<AccelSample>(buf.begin(), buf.begin() + 3000)));
+    CHECK(learned.quiet_spectrum().valid());
+
+    BeltListenSession scalar_only(SPAN_MM, kRate);
+    scalar_only.set_noise_floor(50.0f);
+    CHECK_FALSE(scalar_only.quiet_spectrum().valid());
 }

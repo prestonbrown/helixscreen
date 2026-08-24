@@ -1057,6 +1057,7 @@ void BeltTensionPanel::stop_listening() {
     noise_prefix_.clear();
     noise_prefix_.shrink_to_fit();
     had_reject_ = false;
+    reject_not_a_pluck_ = false;
 }
 
 void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
@@ -1109,6 +1110,7 @@ void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
                 had_reject_ = false;
             } else {
                 had_reject_ = true;
+                reject_not_a_pluck_ = event->reject == helix::calibration::PluckReject::NOT_A_PLUCK;
                 last_reject_tp_ = now;
             }
         }
@@ -1123,6 +1125,7 @@ void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
             snap.ms_since_reject = static_cast<uint32_t>(
                 std::chrono::duration_cast<std::chrono::milliseconds>(now - last_reject_tp_)
                     .count());
+            snap.reject_not_a_pluck = reject_not_a_pluck_;
         }
     }
 
@@ -1167,7 +1170,8 @@ void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
     // say, then a long silence, then the neutral "we are listening".
     const char* hint = nullptr;
     if (snap.ms_since_reject < helix::calibration::REJECT_HINT_MS) {
-        hint = lv_tr("Too soft - pluck harder");
+        hint = snap.reject_not_a_pluck ? lv_tr("That did not sound like a pluck - try again")
+                                       : lv_tr("Too soft - pluck harder");
     } else if (helix::calibration::belt_should_show_idle_hint(snap.ms_since_event)) {
         // Front-left is belt B, front-right is belt A (design spec, confirmed
         // against photographs of the machine).

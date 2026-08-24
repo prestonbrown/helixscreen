@@ -9,6 +9,7 @@
 #include "../../include/pluck_detector.h"
 
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -52,6 +53,122 @@ std::vector<AccelSample> make_transient(int count, int onset, float quiet, float
             burst * decay * std::sin(2.0f * static_cast<float>(M_PI) * 86.0f * t);
     }
     return out;
+}
+
+/// The fixtures record their own rate; every one is near this and none is
+/// exactly 3200. Derive it rather than hardcode it.
+float fixture_rate(const std::vector<AccelSample>& s) {
+    REQUIRE(s.size() > 1);
+    const float span = s.back().time - s.front().time;
+    REQUIRE(span > 0.0f);
+    return static_cast<float>(s.size() - 1) / span;
+}
+
+/// The fixtures' measured rate, near enough for synthesised buffers.
+constexpr float kRate = 3091.0f;
+/// The live detection window the gate and the shape checks run on.
+constexpr size_t kWindow = 2048;
+
+/// Deterministic hiss. A plain LCG so every run analyses the same buffer -
+/// these are threshold tests and a fresh random draw each run would make them
+/// flaky rather than thorough.
+struct Hiss {
+    uint32_t state = 12345u;
+    float next() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<float>(state >> 8) / static_cast<float>(1u << 23) - 1.0f;
+    }
+};
+
+/// Gravity sits on X in all 8 real captures, not Z - the accelerometer is
+/// mounted with X vertical. Synthetic buffers meant to sit alongside them
+/// carry it on the same axis.
+std::vector<AccelSample> hiss_bed(size_t count, float amp, Hiss& rng) {
+    std::vector<AccelSample> out(count);
+    for (size_t i = 0; i < count; ++i) {
+        out[i].time = static_cast<float>(i) / kRate;
+        out[i].x = 9810.0f + amp * rng.next();
+        out[i].y = amp * rng.next();
+        out[i].z = amp * rng.next();
+    }
+    return out;
+}
+
+/// h1 -3 dB, h2 0 dB, h3 -14 dB, h4 -13 dB - the harmonic profile measured on
+/// a real A belt.
+float harmonic_series(float f0, float t) {
+    static const float amps[4] = {0.708f, 1.0f, 0.200f, 0.224f};
+    float v = 0.0f;
+    for (int h = 0; h < 4; ++h) {
+        v += amps[h] *
+             std::sin(2.0f * static_cast<float>(M_PI) * f0 * static_cast<float>(h + 1) * t);
+    }
+    return v;
+}
+
+/// A steady tone running the whole window: the fan case, and the closest
+/// analogue to the three false plucks the reference machine reported.
+std::vector<AccelSample> steady_tone(size_t count, float freq, float amp, float hiss_amp) {
+    Hiss rng;
+    auto out = hiss_bed(count, hiss_amp, rng);
+    for (size_t i = 0; i < count; ++i) {
+        out[i].x += amp * std::sin(2.0f * static_cast<float>(M_PI) * freq * out[i].time);
+    }
+    return out;
+}
+
+/// A plucked string: silence, a strike, then an exponentially decaying
+/// harmonic series.
+std::vector<AccelSample> plucked(size_t count, size_t onset, float f0, float amp, float hiss_amp) {
+    Hiss rng;
+    auto out = hiss_bed(count, hiss_amp, rng);
+    for (size_t i = onset; i < count; ++i) {
+        const float dt = static_cast<float>(i - onset) / kRate;
+        out[i].x += amp * std::exp(-dt / 0.20f) * harmonic_series(f0, out[i].time);
+    }
+    return out;
+}
+
+/// A thump: the same sharp onset and decay, but the energy is spread across
+/// the band instead of sitting on a harmonic series.
+std::vector<AccelSample> noise_burst(size_t count, size_t onset, float amp, float hiss_amp) {
+    Hiss rng;
+    auto out = hiss_bed(count, hiss_amp, rng);
+    Hiss burst{777u};
+    for (size_t i = onset; i < count; ++i) {
+        const float dt = static_cast<float>(i - onset) / kRate;
+        const float env = amp * std::exp(-dt / 0.20f);
+        out[i].x += env * burst.next();
+        out[i].y += env * burst.next();
+        out[i].z += env * burst.next();
+    }
+    return out;
+}
+
+/// An envelope that grows across the window instead of decaying - a machine
+/// winding up, not a string ringing down.
+std::vector<AccelSample> swelling(size_t count, float freq, float amp, float hiss_amp) {
+    Hiss rng;
+    auto out = hiss_bed(count, hiss_amp, rng);
+    const float total = static_cast<float>(count) / kRate;
+    for (size_t i = 0; i < count; ++i) {
+        const float env = std::exp((out[i].time - total) / 0.20f);
+        out[i].x += amp * env * std::sin(2.0f * static_cast<float>(M_PI) * freq * out[i].time);
+    }
+    return out;
+}
+
+/// Set the floor so this window measures exactly `ratio` times it.
+PluckDetector detector_at(const std::vector<AccelSample>& win, float ratio) {
+    PluckDetector det;
+    det.set_noise_floor(PluckDetector::window_rms(win.data(), win.size()) / ratio);
+    return det;
+}
+
+/// What BeltListenSession asks of a window before it will analyse it.
+bool pluck_shaped(const std::vector<AccelSample>& w, float rate) {
+    return PluckDetector::has_sharp_onset(w.data(), w.size(), rate) &&
+           PluckDetector::has_pluck_decay(w.data(), w.size(), rate);
 }
 
 } // namespace
@@ -166,4 +283,117 @@ TEST_CASE("extract_ringdown fails on a buffer that is too short",
     CHECK_FALSE(PluckDetector::extract_ringdown(tiny, 3200.0f, &win));
     CHECK_FALSE(PluckDetector::extract_ringdown(tiny, 3200.0f, nullptr));
     CHECK_FALSE(PluckDetector::extract_ringdown(tiny, 0.0f, &win));
+}
+
+// ============================================================================
+// Shape: energy says something happened, shape says whether it was a pluck
+// ============================================================================
+
+TEST_CASE("a steady tone is rejected however loud it is", "[belt_tension][pluck_detect]") {
+    // Three transients at 44-53x the floor were reported as plucks on the
+    // reference machine by a maintainer who plucked nothing. Energy alone
+    // cannot tell them apart from a strike, and raising MIN_RMS_RATIO would
+    // not have helped - this one is 50x.
+    auto win = steady_tone(kWindow, 115.0f, 500.0f, 5.0f);
+    auto det = detector_at(win, 50.0f);
+
+    REQUIRE(det.passes_gate(win.data(), win.size())); // the old gate accepts it
+    CHECK_FALSE(PluckDetector::has_sharp_onset(win.data(), win.size(), kRate));
+    CHECK_FALSE(PluckDetector::has_pluck_decay(win.data(), win.size(), kRate));
+    CHECK_FALSE(pluck_shaped(win, kRate));
+}
+
+TEST_CASE("an envelope that grows across the window is rejected", "[belt_tension][pluck_detect]") {
+    auto win = swelling(kWindow, 115.0f, 500.0f, 5.0f);
+    auto det = detector_at(win, 50.0f);
+
+    REQUIRE(det.passes_gate(win.data(), win.size()));
+    CHECK_FALSE(PluckDetector::has_sharp_onset(win.data(), win.size(), kRate));
+    CHECK_FALSE(pluck_shaped(win, kRate));
+}
+
+TEST_CASE("a genuine pluck at 12x passes the shape checks", "[belt_tension][pluck_detect]") {
+    // The guard against fixing false accepts by raising MIN_RMS_RATIO: this
+    // strike is barely over the existing gate and must still be accepted.
+    auto win = plucked(kWindow, 700, 99.0f, 400.0f, 5.0f);
+    auto det = detector_at(win, 12.0f);
+
+    REQUIRE(det.passes_gate(win.data(), win.size()));
+    CHECK(PluckDetector::has_sharp_onset(win.data(), win.size(), kRate));
+    CHECK(PluckDetector::has_pluck_decay(win.data(), win.size(), kRate));
+}
+
+TEST_CASE("a sharp broadband thump clears the temporal checks", "[belt_tension][pluck_detect]") {
+    // Deliberately NOT rejected here: a thump has a real onset and a real
+    // decay, so the temporal checks cannot tell it from a pluck. Only its
+    // spectrum can - see harmonic_concentration() in test_pitch_estimator.cpp.
+    // This pins which check owns which failure.
+    auto win = noise_burst(kWindow, 700, 400.0f, 5.0f);
+    CHECK(pluck_shaped(win, kRate));
+}
+
+TEST_CASE("has_sharp_onset rejects a window whose onset is at its start",
+          "[belt_tension][pluck_detect][edge_case]") {
+    // The pre-strike quiet IS the evidence. An extracted ring-down begins at
+    // the strike, so it has none - which is why the check runs on the live
+    // detection window and never on extract_ringdown() output.
+    auto ringdown = load_fixture("b_belt_82hz_1.csv");
+    CHECK_FALSE(
+        PluckDetector::has_sharp_onset(ringdown.data(), ringdown.size(), fixture_rate(ringdown)));
+}
+
+TEST_CASE("shape checks reject degenerate input", "[belt_tension][pluck_detect][edge_case]") {
+    auto win = plucked(kWindow, 700, 99.0f, 400.0f, 5.0f);
+    CHECK_FALSE(PluckDetector::has_sharp_onset(nullptr, 0, kRate));
+    CHECK_FALSE(PluckDetector::has_pluck_decay(nullptr, 0, kRate));
+    CHECK_FALSE(PluckDetector::has_sharp_onset(win.data(), win.size(), 0.0f));
+    CHECK_FALSE(PluckDetector::has_pluck_decay(win.data(), win.size(), 0.0f));
+    CHECK_FALSE(PluckDetector::has_sharp_onset(win.data(), 8, kRate));
+    CHECK_FALSE(PluckDetector::has_pluck_decay(win.data(), 8, kRate));
+}
+
+TEST_CASE("find_onset locates the strike, not the loudest ring-down sample",
+          "[belt_tension][pluck_detect]") {
+    auto win = plucked(kWindow, 700, 99.0f, 400.0f, 5.0f);
+    const size_t onset = PluckDetector::find_onset(win.data(), win.size());
+    INFO("onset=" << onset);
+    CHECK(onset >= 700);
+    CHECK(onset < 700 + static_cast<size_t>(kRate * 0.02f));
+    CHECK(PluckDetector::find_onset(nullptr, 0) == 0);
+}
+
+TEST_CASE("every real capture decays the way a plucked string does",
+          "[belt_tension][pluck_detect][golden]") {
+    // The regression guard on the shape checks: these are real plucks on real
+    // hardware. A decay rule tuned until the synthetic cases pass but that
+    // rejects a genuine capture has made the tool worse, not safer.
+    for (const auto* name :
+         {"a_belt_86hz_1.csv", "a_belt_86hz_2.csv", "a_belt_86hz_3.csv", "b_belt_82hz_1.csv",
+          "b_belt_82hz_2.csv", "b_belt_82hz_3.csv", "b_belt_82hz_hard_case.csv"}) {
+        auto s = load_fixture(name);
+        INFO("fixture " << name);
+        CHECK(PluckDetector::has_pluck_decay(s.data(), s.size(), fixture_rate(s)));
+    }
+
+    // The capture that never rang: its envelope is flat and ragged, so it
+    // fails the decay rule as well as the energy gate.
+    auto weak = load_fixture("weak_pluck_reject.csv");
+    CHECK_FALSE(PluckDetector::has_pluck_decay(weak.data(), weak.size(), fixture_rate(weak)));
+}
+
+TEST_CASE("ringdown_ready waits for a strike that has only just landed",
+          "[belt_tension][pluck_detect]") {
+    // A firm strike trips the energy gate the moment its leading edge enters
+    // the window. Judging the envelope then would reject exactly the firmest
+    // plucks, since those are the ones that trip the gate earliest.
+    const size_t just_landed = kWindow - static_cast<size_t>(kRate * 0.05f);
+    auto early = plucked(kWindow, just_landed, 99.0f, 400.0f, 5.0f);
+    CHECK_FALSE(PluckDetector::ringdown_ready(early.data(), early.size(), kRate));
+    CHECK_FALSE(PluckDetector::has_pluck_decay(early.data(), early.size(), kRate));
+
+    auto settled = plucked(kWindow, 700, 99.0f, 400.0f, 5.0f);
+    CHECK(PluckDetector::ringdown_ready(settled.data(), settled.size(), kRate));
+
+    CHECK_FALSE(PluckDetector::ringdown_ready(nullptr, 0, kRate));
+    CHECK_FALSE(PluckDetector::ringdown_ready(settled.data(), settled.size(), 0.0f));
 }
