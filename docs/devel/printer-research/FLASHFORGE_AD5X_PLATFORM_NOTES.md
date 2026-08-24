@@ -451,10 +451,21 @@ against the live printer — the first time AD5X support has run on real hardwar
   the hardware. Note also: the on-rig helix-screen is a peer session's
   `feat/ad5x-oobe` build of 0.99.115 (original at
   `bin/helix-screen.0.99.107.bak`), not stock — verify which build produced any
-  on-rig UI evidence. One event remains genuinely unexplained: the rig went
-  unreachable on BOTH interfaces while the on-screen app kept rendering
-  (peer power-cycled it) — a network-stack/driver hang (RTL8821CU out-of-tree
-  module is the suspect), not an app fault; worth revisiting if it recurs.
+  on-rig UI evidence. The full 2026-08-24 reboot/outage timeline reconciles as
+  peer actions: 12:21 + 12:47 = this validation's reboots, 12:33 = Preston's
+  bench power-cycle, ~12:36 = a peer's helix-screen service restart.
+- **The "unreachable while the screen kept rendering" event is SOLVED, and it
+  was not a driver or hardware fault**: wlan0 (rtl8821cu) was administratively
+  down the entire time (and does not come back with `ip link set wlan0 up` as
+  root), so eth0 (stmmaceth) was the only live interface — and it was holding
+  an address from a manual one-shot `udhcpc -n -q` with no renewal daemon.
+  When that lease expired, eth0 kept carrier and silently lost its address:
+  the box stayed up and rendering, unreachable from the network. The
+  post-reboot state runs the firmware's own persistent
+  `/sbin/udhcpc -i eth0 -p /var/run/udhcpc.pid`, which is why it has been
+  stable since. **Durable fix worth doing: a DHCP reservation or static IP for
+  this rig** — multiple agents drive it remotely and any manual network
+  bring-up is a silent time bomb. Never use one-shot DHCP flags on it.
 - **ZMOD config bug that surfaces in our error UI**: `base_display_off.cfg:68`
   hardcodes `BED_MESH_PROFILE LOAD=auto`, but this printer's saved profile is
   `MESH_DATA` — every `DISPLAY_OFF` (i.e. every boot, via the display-handoff
