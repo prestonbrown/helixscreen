@@ -101,6 +101,101 @@ The ZMOD init script sets up touch input via tslib environment variables, but He
 - Framebuffer: `/dev/fb0` (800x480, 32bpp)
 - Backlight: `FBIOBLANK` ioctl (standard Linux fbdev)
 
+## Firmware Quirks and Operating Rules (verified 2026-08)
+
+Recorded during the 2026-08 research pass that accompanied commissioning our own AD5X
+rig (2026-08-23: ZMOD 1.7.2 on stock base 1.1.7, stock Klipper 12 MCU), so nobody
+re-derives these from a dead printer. Every claim is tagged:
+
+- **[upstream-doc]** — ZMOD AD5X wiki, tracker, or release notes
+- **[community]** — consensus user reporting, not vendor-confirmed
+- **[rig-verified]** — observed on our own AD5X
+
+### Stock-base compatibility: restore DOWN to a listed image
+
+ZMOD supports a discrete list of AD5X stock main versions — 1.1.7 through 1.2.3, 3.0.3,
+3.0.9, and 3.1.0 (the ceiling) — and a **factory restore is mandatory before install**.
+New units ship above the ceiling: ours arrived on 3.1.4 and had to be restored *down*
+to `AD5X-1.1.7-1.1.0-3.0.6-20250912-Factory.tgz` first. Never update up before
+installing ZMOD — there is no install path from an unlisted base. [rig-verified]
+
+### Timer-too-close: the AD5X's signature failure
+
+`MCU shutdown: Timer too close` recurs on AD5X+ZMOD across the tracker's whole life:
+#185, #195, #230, #475, #551, #698 (Oct 2025 - Aug 2026); #561 is verbatim "AD5X
+repeatedly fails with MCU 'eboard' shutdown: Timer too close". Community consensus
+names Klipper 13 on the AD5X MCU as the trigger ("stay on 12 for the AD5X"). ZMOD
+defaults the AD5X MCU to Klipper 12; `UPDATE_MCU FORCE=13` opts in and requires host
+and MCU versions to match. **Our rig intentionally stays on the stock Klipper 12 MCU
+blob.** [community + upstream-doc]
+
+Two avoidance rules come out of the same host-starvation mechanism:
+
+- **Slicer "Exclude Models" output gcode is a documented Klipper crash trigger** —
+  uncheck it (slicer: Process Profile -> Other -> Output G-code -> Exclude Models).
+  [upstream-doc]
+- **Host work during toolhead motion is hair-trigger.** Forge-X's own regression
+  harness had to stop screenshotting during motion to avoid TTC (Forge-X commit
+  `46c75cb`, 2026-08-12). This is the external rationale for HelixScreen's print-time
+  IFS poll backoff (5 s → 30 s while printing) —
+  `docs/devel/FILAMENT_BACKEND_AD5X_IFS.md` § "Polling caution". [upstream-doc,
+  Forge-X repo]
+
+### ZMOD behavior differences on AD5X
+
+All [upstream-doc]:
+
+- `NEW_SAVE_CONFIG` does **not** function on AD5X — use plain `SAVE_CONFIG`
+- The dialog flag is `FAST_CLOSE_DIALOGS`, not `CLOSE_DIALOGS`
+- No Entware on AD5X
+- `CAMERA_ON VIDEO=video3|video0|video99`
+- The `IFS_F10` / `IFS_F11` / `IFS_F13` / `IFS_F15` macro family exists for filament
+  management — command reference in `docs/devel/FILAMENT_BACKEND_AD5X_IFS.md`
+  § "zmod IFS command reference"
+
+### IFS contention with the native screen
+
+Errors result when the native display and a mod access IFS simultaneously; most IFS
+settings only work with the native screen disabled (`DISPLAY_OFF`), and
+`DISPLAY_OFF_TIMEOUT=10` mitigates. HelixScreen runs in alternative-screen mode
+(`DISPLAY_OFF HELIX=1`) — the supported configuration — but the constraint is why the
+IFS backend treats polling as a guest privilege, not a right:
+`docs/devel/FILAMENT_BACKEND_AD5X_IFS.md` § "Polling caution". [upstream-doc]
+
+### RAM: what alternative-screen mode buys
+
+Native screen ~23 MB vs GuppyScreen ~9 MB — alternative-screen mode frees ~14 MB on
+this small-RAM host. Figures are community-measured, not vendor specs. [community]
+
+### Commissioning traps
+
+All [rig-verified]:
+
+- **Remove the USB stick after ZMOD install.** Left in, the installer re-triggers on
+  the next boot, dies on a busy mount, and the failure looks exactly like a broken
+  install (no 80/7125, empty /opt).
+- **`/opt` is empty on AD5X ZMOD installs.** "No /opt/zmod" is not evidence of a
+  failed install.
+- **Port signature:** stock = 22 + 8899; ZMOD = 22 + 80 + 7125 with 8899 closed.
+  Fluidd is served on 80; nginx does **not** proxy Moonraker — talk to `:7125`
+  directly.
+- **First boot takes ~140 s to reach port 80**, then runs calibration and input
+  shaping autonomously. Do not poll the printer during that window (see TTC above).
+
+### Stock OTA and ZMOD
+
+A stock OTA update **disables** ZMOD while preserving data; re-enable afterwards via
+`AD5X-ENABLE-zmod.tgz`. Never take a stock OTA over a mod install. [upstream-doc]
+
+### Ecosystem context
+
+The AD5X has exactly one mod: ZMOD (ghzserg). Forge-X (DrA1ex/ff5m) is AD5M/Pro-only
+and states AD5X support is unlikely ever; xblax's klipper-mod
+(`xblax/flashforge_ad5m_klipper_mod` — see `docs/devel/AD5M_KMOD_VARIANT.md`) has been
+dormant since 2025-09. The three variants are mutually incompatible at the macro and
+binary level. FlashForge stock firmware has shipped no changelogs since mid-2025, and
+there is no AD5X GPL source drop. [upstream-doc]
+
 ## Display & Touch
 
 ### Display Backend
@@ -172,7 +267,7 @@ The AD5X's 4-channel IFS is its distinguishing feature. HelixScreen has a dedica
 
 > **Required firmware**: [ZMOD open-source firmware](https://github.com/ghzserg/zmod) **v1.7.0 or newer**. v1.7.0 (Mar 2026) is the first release with explicit HelixScreen integration (`DISPLAY_OFF HELIX=1`). Hard minimum: v1.6.2 (Oct 2025), when the `less_waste_*` `save_variables` first appeared via the bambufy plugin.
 >
-> ZMOD has its own versioning, distinct from FlashForge stock firmware. AD5X stock firmware uses a tri-versioned scheme like `AD5X-1.1.6-1.1.0-3.0.6-20250729` (main / sub / screen / date) — the `3.0.6` is screen-firmware version, not a major printer-firmware bump. ZMOD supports stock AD5X main versions from v1.0.2 (Jan 2025) onward; no specific stock version is required.
+> ZMOD has its own versioning, distinct from FlashForge stock firmware. AD5X stock firmware uses a tri-versioned scheme like `AD5X-1.1.6-1.1.0-3.0.6-20250729` (main / sub / screen / date) — the `3.0.6` is screen-firmware version, not a major printer-firmware bump. ZMOD supports a discrete list of stock main versions — 1.1.7 through 1.2.3, 3.0.3, 3.0.9, and 3.1.0 (ceiling) — and a factory restore to a listed image is mandatory before install; see § "Firmware Quirks and Operating Rules" below.
 >
 > ##### ZMOD IFS feature timeline
 >
@@ -184,6 +279,7 @@ The AD5X's 4-channel IFS is its distinguishing feature. HelixScreen has a dedica
 > | v1.6.1 | Sep 2025 | Headless IFS — works without native screen |
 > | v1.6.2 | Oct 2025 | Plugin framework + bambufy + nopoop (`less_waste_*` plumbing) |
 > | v1.7.0 | Mar 2026 | First-class HelixScreen integration (`DISPLAY_OFF HELIX=1`, NoPoop 2) |
+> | v1.7.2 | Aug 2026 | Current release (2026-08-06); the version running on our rig |
 
 ### Supported Features
 
