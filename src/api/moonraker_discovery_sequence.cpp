@@ -386,22 +386,45 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                         // Clear component-derived capability flags before scanning so
                         // switching to a printer that no longer has Spoolman/Timelapse
                         // installed correctly hides the corresponding UI rows. The flags
-                        // get re-set below if the components are detected (and, for
-                        // Spoolman, after its status RPC confirms connectivity).
-                        get_printer_state().set_spoolman_available(false);
+                        // get re-set below if the components are detected.
                         get_printer_state().set_timelapse_available(false);
 
                         // Check for Spoolman component and verify connection
                         bool has_spoolman_component =
                             std::find(components.begin(), components.end(), "spoolman") !=
                             components.end();
-                        if (has_spoolman_component) {
+                        if (!has_spoolman_component) {
+                            // Only an absent component clears the flag. Spoolman is
+                            // deliberately NOT cleared unconditionally alongside
+                            // Timelapse above: its value is confirmed by the async
+                            // status RPC below, so a blind clear turns every
+                            // rediscovery into a false->true flap. Rediscovery reruns
+                            // mid-session on every notify_klippy_ready and every
+                            // websocket reconnect, not only on the printer switch this
+                            // clear was written for.
+                            //
+                            // SpoolmanManager observes the flag's EDGES: the falling
+                            // one deletes its poll timer and drops the identity cache
+                            // that supplies every slot's material and vendor. Nothing
+                            // in the app re-verifies afterwards, and the one manual
+                            // recheck (the Spoolman row in advanced_panel.xml) is
+                            // itself hidden behind this same flag. A flap that failed
+                            // to come back up left a connected Spoolman dark for five
+                            // days on a K2 Plus (2026-08-24) — lanes showed unmanaged
+                            // and the material dropdown came up empty.
+                            get_printer_state().set_spoolman_available(false);
+                        } else {
                             spdlog::info("[Moonraker Client] Spoolman component detected, "
                                          "checking status...");
-                            // Fire-and-forget status check - updates PrinterState async
+                            // Fire-and-forget status check - updates PrinterState async.
+                            // Guarded like every sibling continuation in this cascade:
+                            // without it a slow or failed reply from a SUPERSEDED pass
+                            // overwrites the current pass's correct answer.
                             client_.send_jsonrpc(
                                 "server.spoolman.status", json::object(),
-                                [](json response) {
+                                [this, seq](json response) {
+                                    if (is_stale() || !is_current_sequence(seq))
+                                        return;
                                     bool connected = false;
                                     if (response.contains("result")) {
                                         connected =
@@ -411,7 +434,9 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                                  connected);
                                     get_printer_state().set_spoolman_available(connected);
                                 },
-                                [](const MoonrakerError& err) {
+                                [this, seq](const MoonrakerError& err) {
+                                    if (is_stale() || !is_current_sequence(seq))
+                                        return;
                                     spdlog::debug(
                                         "[Moonraker Client] Spoolman status check failed: {}",
                                         err.message);
