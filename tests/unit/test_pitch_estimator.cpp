@@ -13,6 +13,7 @@
 #include "../../include/pitch_estimator.h"
 #include "belt_test_signals.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -426,16 +427,14 @@ TEST_CASE("a broadband thump does not concentrate on any harmonic series",
     // the energy gate easily and have a real onset and decay, so the spectrum
     // is the only thing that can tell them from a pluck.
     //
-    // Swept over 200 seeds rather than asserted on one. The capture side of
-    // this threshold has 1700 exhaustive alignments behind it; a single draw on
-    // this side would be the same sampling mistake one level finer, and this is
-    // the side with the smaller margin. The two distributions do overlap in the
-    // far tail - one thump in 10 000 reaches 0.2649 - so what is pinned here is
-    // that the whole of a 200-seed sample stays clear, not that no thump ever
-    // can. See MIN_HARMONIC_CONCENTRATION.
-    float worst = 0.0f;
-    uint32_t worst_seed = 0;
-    size_t judged = 0;
+    // The load-bearing assertion is on the 90th percentile, not on the largest
+    // of the 200 draws. Measured across six disjoint 200-seed blocks, the
+    // maximum swings about 9% (0.191 to 0.227) while p90 swings about 1.3%
+    // (0.157 to 0.161), so a max-based assertion has a failure threshold that
+    // depends on which block it happens to hold - the same largest-of-N trap
+    // MIN_HARMONIC_CONCENTRATION itself went through. p90 gives a reproducible
+    // one.
+    std::vector<float> concentrations;
     for (uint32_t seed = 1; seed <= 200; ++seed) {
         Hiss rng{seed};
         std::vector<AccelSample> burst(1545);
@@ -452,17 +451,32 @@ TEST_CASE("a broadband thump does not concentrate on any harmonic series",
         if (!est.valid) {
             continue; // the estimator found nothing; the gate never sees it
         }
-        ++judged;
-        const float c = harmonic_concentration(psd, est.frequency_hz, DEFAULT_HARMONICS, 77.0f);
-        if (c > worst) {
-            worst = c;
-            worst_seed = seed;
-        }
+        concentrations.push_back(
+            harmonic_concentration(psd, est.frequency_hz, DEFAULT_HARMONICS, 77.0f));
     }
-    INFO("judged " << judged << " of 200 seeds, worst concentration " << worst << " at seed "
-                   << worst_seed);
-    REQUIRE(judged > 150); // the estimator happily returns SOMETHING for noise
-    CHECK(worst < MIN_HARMONIC_CONCENTRATION);
+    REQUIRE(concentrations.size() > 150); // the estimator returns SOMETHING for noise
+
+    std::sort(concentrations.begin(), concentrations.end());
+    const auto quantile = [&](double p) {
+        return concentrations[static_cast<size_t>(p *
+                                                  static_cast<double>(concentrations.size() - 1))];
+    };
+    const float p50 = quantile(0.50);
+    const float p90 = quantile(0.90);
+    const size_t at_or_above =
+        static_cast<size_t>(std::count_if(concentrations.begin(), concentrations.end(),
+                                          [](float c) { return c >= MIN_HARMONIC_CONCENTRATION; }));
+
+    INFO("n=" << concentrations.size() << " p50 " << p50 << " p90 " << p90 << " max "
+              << concentrations.back());
+    CHECK(p90 < MIN_HARMONIC_CONCENTRATION);
+    // Deterministic for this seed range, and not a margin: no thump in it is
+    // accepted. Crossings do exist further out - see the constant's note.
+    CHECK(at_or_above == 0);
+    // ...and none of the above passes vacuously. A change making
+    // harmonic_concentration return 0 for every seed would satisfy every
+    // upper bound here.
+    CHECK(p50 > 0.05f);
 }
 
 TEST_CASE("concentration discounts a fan that owns the band", "[belt_tension][pitch]") {

@@ -94,22 +94,31 @@ inline constexpr float HARMONIC_MATCH_BINS = 2.0f;
 ///
 ///   0.2965 - 0.4879   (floor: b_belt_82hz_3, alignments 2304-2312)
 ///
-/// Broadband thumps are a random variable, so they are quoted as a
-/// distribution rather than as a worst case. 10 000 seeds:
+/// Broadband thumps have no upper wall to measure. The concentration of a
+/// noise burst is a random variable whose tail is unbounded above, so its
+/// largest observed value grows with the number of draws and no fixed constant
+/// separates the two populations for every N. That statement needs no
+/// experiment, and it is the one to reason from; the quantiles below are
+/// stable and are what the margin is quoted against. 10 000 draws:
 ///
-///   p50 0.1308   p90 0.1613   p99 0.1919   p99.9 0.2141   largest 0.2649
+///   p50 0.1308   p90 0.1613   p99 0.1919   p99.9 0.2141
 ///
-/// A largest-of-N is not a wall: it grows with N, and reading a margin off one
-/// is how this constant was mis-stated twice (0.2138 at 200 draws, 0.2649 at
-/// 10 000). 0.25 clears the thumps' 99.9th percentile by 17% and sits 16%
-/// below the captures' floor.
+/// 0.25 clears the thumps' 99.9th percentile by 17% and sits 16% below the
+/// captures' floor. The asymmetry is deliberate: the capture floor is an
+/// exhaustive measurement, while the thump side is a tail, so raising the
+/// constant would trade a bounded, deterministic false-reject risk for an
+/// unbounded, probabilistic false-accept one.
 ///
-/// @note The two distributions OVERLAP in the far tail - one thump in 10 000
-/// reached 0.2649 and would have been accepted. No value in the corridor
-/// separates them absolutely, so this is a strong filter and not a proof. What
-/// makes the residual harmless is downstream: PluckAggregator::COMMIT_AFTER
-/// requires five accepted plucks and reports their median, and one stray
-/// acceptance per ~10 000 events cannot move a median of five.
+/// @note Crossings are rare but real. One draw in a 10 000-seed sweep reached
+/// 0.2649 (seed 1886); an independent 50 000-draw sweep saw none above 0.2405.
+/// Pooled, that is roughly one crossing in 60 000 events - not the 1 in 10 000
+/// a single observation suggests. A crossing is a false accept, and what keeps
+/// it harmless is downstream: PluckAggregator reports the median of at least
+/// COMMIT_AFTER = 5 accepted plucks, and one stray value cannot move it (pinned
+/// by "median ignores a single outlier" in tests/unit/test_pluck_aggregator.cpp).
+/// The guarantee is specifically about the COMMITTED median: the panel displays
+/// the running median from the first accept, so a stray value arriving first is
+/// shown until genuine plucks outvote it.
 inline constexpr float MIN_HARMONIC_CONCENTRATION = 0.25f;
 
 /**
