@@ -11,6 +11,7 @@
 
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
+#include "belt_capture.h"
 #include "belt_dsp_probe.h"
 #include "belt_gating.h"
 #include "belt_listen_session.h"
@@ -19,6 +20,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "observer_factory.h"
+#include "pitch_estimator.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
@@ -30,6 +32,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <sstream>
 
 using namespace helix;
 
@@ -227,6 +231,16 @@ void BeltTensionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(committed_subject_, 0, "bt_committed", subjects_);
     UI_MANAGED_SUBJECT_INT(match_percent_subject_, 0, "bt_match_percent", subjects_);
     UI_MANAGED_SUBJECT_INT(live_tick_subject_, 0, "bt_live_tick", subjects_);
+    UI_MANAGED_SUBJECT_STRING(replay_path_subject_, replay_path_buf_, "", "bt_replay_path",
+                              subjects_);
+    replay_observer_ = helix::ui::observe_string<BeltTensionPanel>(
+        &replay_path_subject_, this,
+        [](BeltTensionPanel* self, const char* value) {
+            if (value && value[0] != '\0') {
+                self->replay_capture(value);
+            }
+        },
+        get_subjects_lifetime());
     UI_MANAGED_SUBJECT_STRING(reference_freq_subject_, reference_freq_buf_, "--",
                               "bt_reference_freq", subjects_);
     UI_MANAGED_SUBJECT_INT(has_reference_subject_, 0, "bt_has_reference", subjects_);
@@ -286,6 +300,10 @@ void BeltTensionPanel::deinit_subjects() {
     print_active_observer_.reset();
     connected_observer_.reset();
     gate_observers_wired_ = false;
+    // replay_observer_ watches this panel's own replay_path_subject_, which
+    // subjects_.deinit_all() below is about to tear down - drop it first for
+    // the same reason.
+    replay_observer_.reset();
 
     // Signal death of every subject below BEFORE it is torn down, so a
     // BeltTrace observer still holding a copy of the old token sees it is
@@ -677,6 +695,7 @@ void BeltTensionPanel::cleanup() {
     accel_observer_.reset();
     print_active_observer_.reset();
     connected_observer_.reset();
+    replay_observer_.reset();
     gate_observers_wired_ = false;
 
     // Unregister from NavigationManager
@@ -1221,6 +1240,57 @@ void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
     // spectrum changes, because the waveform trace has fresh data every
     // batch even between plucks.
     lv_subject_set_int(&live_tick_subject_, lv_subject_get_int(&live_tick_subject_) + 1);
+}
+
+void BeltTensionPanel::replay_capture(const std::string& path) {
+    std::ifstream in(path);
+    if (!in.good()) {
+        spdlog::warn("[BeltTension] replay: cannot open {}", path);
+        return;
+    }
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string text = ss.str();
+
+    auto samples = helix::calibration::parse_accel_csv(text);
+    if (samples.empty()) {
+        spdlog::warn("[BeltTension] replay: no samples parsed from {}", path);
+        return;
+    }
+    const float rate = helix::calibration::parse_capture_sample_rate(text);
+    if (rate <= 0.0f) {
+        spdlog::warn("[BeltTension] replay: no sample_rate_hz= header in {}", path);
+        return;
+    }
+
+    // listen_span_mm_ is whatever the panel currently has - TARGET_SPAN_MM
+    // unless a live session already parked and set it. A capture from a
+    // different span will search the wrong harmonic window; this is a
+    // diagnostic replay, not a general-purpose file importer, and the span
+    // mismatch is visible immediately as an implausible peak label.
+    std::vector<std::pair<float, float>> psd;
+    const auto est = helix::calibration::estimate_pitch_for_span(
+        samples, rate, listen_span_mm_, helix::calibration::DEFAULT_HARMONICS, &psd);
+
+    helix::calibration::BeltLiveData::instance().set_waveform(samples);
+    if (!psd.empty()) {
+        helix::calibration::BeltLiveData::instance().set_spectrum(psd);
+    }
+    // Bumps BeltTrace's redraw even if LISTEN was never entered this
+    // activation - the subject was initialised at startup (init_subjects()
+    // runs from ui_panel_belt_tension_register_callbacks(), not on first
+    // navigation), and BeltLiveData is a singleton the trace widget reads
+    // fresh on its next draw regardless of when that data arrived.
+    lv_subject_set_int(&live_tick_subject_, lv_subject_get_int(&live_tick_subject_) + 1);
+
+    if (est.valid) {
+        spdlog::info("[BeltTension] replayed {} samples from {} ({:.1f} Hz stream, estimate "
+                     "{:.1f} Hz)",
+                     samples.size(), path, rate, est.frequency_hz);
+    } else {
+        spdlog::info("[BeltTension] replayed {} samples from {} ({:.1f} Hz stream, no estimate)",
+                     samples.size(), path, rate);
+    }
 }
 
 void BeltTensionPanel::on_stream_error(const std::string& message) {

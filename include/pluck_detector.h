@@ -168,6 +168,20 @@ class PluckDetector {
     [[nodiscard]] static bool ringdown_ready(const AccelSample* samples, size_t count,
                                              float sample_rate);
 
+    /// The measured last-segment-over-first-segment ratio - the quantity
+    /// MAX_DECAY_END_RATIO is a threshold on. Exposed for the same reason as
+    /// onset_rise(): a caller diagnosing a rejection wants the number, not
+    /// only whether it passed.
+    ///
+    /// Locates its own onset, so it reads the same on a detection window and
+    /// on an extracted ring-down. Returns -1.0f when the ratio cannot be
+    /// judged (window too short, or the onset lands within DECAY_SEGMENTS
+    /// samples of the window's end) - a sentinel rather than 0.0f, since 0
+    /// would misreport as "decayed to nothing" on a window has_pluck_decay()
+    /// would have rejected outright for lack of evidence.
+    [[nodiscard]] static float decay_end_ratio(const AccelSample* samples, size_t count,
+                                               float sample_rate);
+
     /// True if the envelope after the onset falls the way a plucked string's
     /// does: each sub-window no more than MAX_DECAY_RISE louder than the one
     /// before, and the last well below the first.

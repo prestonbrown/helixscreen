@@ -147,6 +147,31 @@ bool PluckDetector::ringdown_ready(const AccelSample* samples, size_t count, flo
     return post >= min_post && post >= static_cast<size_t>(DECAY_SEGMENTS);
 }
 
+float PluckDetector::decay_end_ratio(const AccelSample* samples, size_t count, float sample_rate) {
+    if (samples == nullptr || sample_rate <= 0.0f) {
+        return -1.0f;
+    }
+
+    const size_t onset = find_onset(samples, count);
+    if (onset >= count) {
+        return -1.0f;
+    }
+    const size_t post = count - onset;
+    const size_t min_post = static_cast<size_t>(sample_rate * MIN_DECAY_SPAN_MS / 1000.0f);
+    if (post < min_post || post < static_cast<size_t>(DECAY_SEGMENTS)) {
+        return -1.0f;
+    }
+
+    const size_t segment = post / static_cast<size_t>(DECAY_SEGMENTS);
+    const float first = window_rms(samples + onset, segment);
+    const float last =
+        window_rms(samples + onset + static_cast<size_t>(DECAY_SEGMENTS - 1) * segment, segment);
+    if (first <= 0.0f) {
+        return -1.0f;
+    }
+    return last / first;
+}
+
 bool PluckDetector::has_pluck_decay(const AccelSample* samples, size_t count, float sample_rate) {
     if (samples == nullptr || sample_rate <= 0.0f) {
         return false;
@@ -168,26 +193,19 @@ bool PluckDetector::has_pluck_decay(const AccelSample* samples, size_t count, fl
     }
 
     const size_t segment = post / static_cast<size_t>(DECAY_SEGMENTS);
-    float first = 0.0f;
     float previous = 0.0f;
-    float last = 0.0f;
     for (int i = 0; i < DECAY_SEGMENTS; ++i) {
         const float rms = window_rms(samples + onset + static_cast<size_t>(i) * segment, segment);
-        if (i == 0) {
-            first = rms;
-        } else if (previous <= 0.0f || rms > previous * MAX_DECAY_RISE) {
+        if (i > 0 && (previous <= 0.0f || rms > previous * MAX_DECAY_RISE)) {
             return false;
         }
         previous = rms;
-        last = rms;
     }
 
-    if (first <= 0.0f) {
-        return false;
-    }
     // A steady tone passes the per-segment rise tolerance trivially - every
     // segment is the same. What it cannot do is end quieter than it started.
-    return last <= first * MAX_DECAY_END_RATIO;
+    const float ratio = decay_end_ratio(samples, count, sample_rate);
+    return ratio >= 0.0f && ratio <= MAX_DECAY_END_RATIO;
 }
 
 bool PluckDetector::extract_ringdown(const std::vector<AccelSample>& buffer, float sample_rate,

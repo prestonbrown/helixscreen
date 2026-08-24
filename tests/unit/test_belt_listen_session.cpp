@@ -6,14 +6,18 @@
  * @brief The live measurement pipeline, driven by real Voron captures
  */
 
+#include "../../include/belt_capture.h"
 #include "../../include/belt_listen_session.h"
 #include "../../include/belt_stream_client.h"
 #include "../../include/pitch_estimator.h"
 #include "belt_test_signals.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -283,6 +287,124 @@ TEST_CASE("a weak strike is rejected, not measured", "[belt][listen]") {
     CHECK(s.accepted_count() == 0);
     CHECK(s.median_hz() == 0.0f);
     CHECK_FALSE(s.committed());
+}
+
+namespace {
+namespace fs = std::filesystem;
+
+/// Sets HELIX_BELT_CAPTURE_DIR for the test's scope and restores whatever was
+/// there before (normally nothing) on the way out, so this test cannot leak
+/// capture-writing into any test case that runs after it in the same shard.
+class CaptureDirEnvGuard {
+  public:
+    explicit CaptureDirEnvGuard(const std::string& dir) {
+        if (const char* prev = std::getenv("HELIX_BELT_CAPTURE_DIR")) {
+            had_prev_ = true;
+            prev_value_ = prev;
+        }
+        setenv("HELIX_BELT_CAPTURE_DIR", dir.c_str(), 1);
+    }
+    ~CaptureDirEnvGuard() {
+        if (had_prev_) {
+            setenv("HELIX_BELT_CAPTURE_DIR", prev_value_.c_str(), 1);
+        } else {
+            unsetenv("HELIX_BELT_CAPTURE_DIR");
+        }
+    }
+    CaptureDirEnvGuard(const CaptureDirEnvGuard&) = delete;
+    CaptureDirEnvGuard& operator=(const CaptureDirEnvGuard&) = delete;
+
+  private:
+    bool had_prev_ = false;
+    std::string prev_value_;
+};
+
+size_t count_files(const fs::path& dir) {
+    size_t n = 0;
+    for (const auto& entry : fs::directory_iterator(dir)) {
+        (void)entry;
+        ++n;
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE("HELIX_BELT_CAPTURE_DIR wires capture into a live session end to end",
+          "[belt][listen][belt_capture][slow]") {
+    // Proves the env-var-triggered path, not just BeltCaptureWriter's own
+    // API: BeltListenSession reads belt_capture_dir() itself in its
+    // constructor, so the directory has to be set before construction for
+    // this to exercise anything.
+    const fs::path dir =
+        fs::temp_directory_path() /
+        ("helix_belt_capture_e2e_" +
+         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directories(dir);
+    CaptureDirEnvGuard env(dir.string());
+
+    {
+        const auto fx = load_fixture("a_belt_86hz_3.csv");
+        BeltListenSession accepted_session(SPAN_MM, fx.rate_hz);
+        listen(accepted_session, splice_live_window(fx));
+        REQUIRE(accepted_session.accepted_count() >= 1);
+    }
+    {
+        // weak_pluck_reject.csv never clears MIN_DETECTABLE_RATIO once
+        // spliced (it was captured at 1.4x the floor), so push() returns
+        // nullopt before ever reaching a capture point - nothing to write
+        // and nothing wrong with that. A steady tone clears the energy gate
+        // and gets resolved as NOT_A_PLUCK, which is the rejection shape
+        // this test needs to see written.
+        auto buf = steady_tone_stream(115.0f, 400.0f);
+        BeltListenSession rejected_session(SPAN_MM, kRate);
+        auto events = listen(rejected_session, buf);
+        REQUIRE_FALSE(events.empty());
+        REQUIRE(rejected_session.accepted_count() == 0);
+    }
+
+    REQUIRE(count_files(dir) > 0);
+
+    bool saw_accepted_detection = false;
+    bool saw_accepted_ringdown = false;
+    bool saw_rejected = false;
+    bool saw_quiet = false;
+
+    for (const auto& entry : fs::directory_iterator(dir)) {
+        std::ifstream in(entry.path());
+        std::stringstream ss;
+        ss << in.rdbuf();
+        const std::string text = ss.str();
+
+        // Every file, whatever kind, must be a valid capture: parseable by
+        // the same parser a real fixture goes through, non-empty, and
+        // carrying the sample rate the session measured.
+        const auto samples = parse_accel_csv(text);
+        CHECK_FALSE(samples.empty());
+        CHECK(parse_capture_sample_rate(text) > 0.0f);
+
+        const std::string name = entry.path().filename().string();
+        if (name.find("_ACCEPTED_detection") != std::string::npos) {
+            saw_accepted_detection = true;
+            CHECK(text.find("verdict=ACCEPTED") != std::string::npos);
+        } else if (name.find("_ACCEPTED_ringdown") != std::string::npos) {
+            saw_accepted_ringdown = true;
+        } else if (name.find("_TOO_SOFT_") != std::string::npos ||
+                   name.find("_NOT_A_PLUCK_") != std::string::npos) {
+            saw_rejected = true;
+        } else if (name.rfind("quiet_", 0) == 0) {
+            saw_quiet = true;
+            CHECK(text.find("verdict=") == std::string::npos);
+        }
+    }
+
+    CHECK(saw_accepted_detection);
+    CHECK(saw_accepted_ringdown);
+    CHECK(saw_rejected);
+    CHECK(saw_quiet);
+
+    std::error_code ec;
+    fs::remove_all(dir, ec);
 }
 
 TEST_CASE("quiet stream produces nothing", "[belt][listen]") {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "belt_capture.h"
 #include "belt_stream_client.h"
 #include "belt_tension_types.h"
 #include "pitch_estimator.h"
@@ -13,14 +14,8 @@
 
 namespace helix::calibration {
 
-/// Why a strike was not measured. The distinction is user-facing: "pluck
-/// harder" is the wrong instruction for someone who plucked firmly and had a
-/// fan swamp it, and following it just makes the reading worse.
-enum class PluckReject {
-    NONE,       ///< accepted
-    TOO_SOFT,   ///< cleared MIN_DETECTABLE_RATIO but not the strength gate
-    NOT_A_PLUCK ///< strong enough, but the wrong shape or no belt tone in it
-};
+// PluckReject lives in belt_capture.h - CaptureVerdict needs it too, and
+// belt_capture.h has no reason to depend back on this header.
 
 /// One resolved strike. A rejected event still carries its ratio so the UI can
 /// say "too soft" rather than staying silent.
@@ -137,6 +132,10 @@ class BeltListenSession {
     std::vector<std::pair<float, float>> last_spectrum_;
     size_t rejected_ = 0;
     size_t cooldown_samples_ = 0;
+
+    /// Writes every resolved event to HELIX_BELT_CAPTURE_DIR when set;
+    /// every method is a no-op otherwise. See belt_capture.h.
+    BeltCaptureWriter capture_;
 };
 
 } // namespace helix::calibration

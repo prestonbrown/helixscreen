@@ -132,6 +132,18 @@ class BeltTensionPanel : public OverlayBase {
         return subjects_lifetime_;
     }
 
+    /// Read a HELIX_BELT_CAPTURE_DIR-style file and feed its ring-down and
+    /// spectrum into BeltLiveData, so the LISTEN widgets draw it exactly as
+    /// they would a real pluck. Driven by the `bt_replay_path` subject (set
+    /// with `ctl set bt_replay_path <file>`) rather than a dedicated ctl
+    /// verb - it reuses the generic subject-set plumbing every other
+    /// scripted control already goes through, and BeltLiveData is a
+    /// singleton independent of this panel's own lifecycle, so a replay
+    /// lands even before LISTEN has ever been shown. Main thread only; does
+    /// its own file I/O, which is fine for an operator-triggered diagnostic
+    /// action but would not be for anything on the stream's batch path.
+    void replay_capture(const std::string& path);
+
   private:
     /// Everything one batch produced, already reduced to what the UI shows.
     /// Assembled on the stream's loop thread and copied across to the main
@@ -242,6 +254,11 @@ class BeltTensionPanel : public OverlayBase {
     /// the widget never need to know about each other, same as
     /// perf_history_tick driving HelixSparkline.
     lv_subject_t live_tick_subject_{};
+    /// Path to a HELIX_BELT_CAPTURE_DIR-style file; setting it (`ctl set
+    /// bt_replay_path <file>`) triggers replay_capture(). Write-only from the
+    /// UI's perspective - nothing reads it back.
+    lv_subject_t replay_path_subject_{};
+    char replay_path_buf_[256] = {};
     lv_subject_t reference_freq_subject_{};
     char reference_freq_buf_[16] = {};
     lv_subject_t has_reference_subject_{};
@@ -276,6 +293,11 @@ class BeltTensionPanel : public OverlayBase {
     ObserverGuard print_active_observer_;
     ObserverGuard connected_observer_;
     bool gate_observers_wired_ = false;
+
+    /// Watches replay_path_subject_ and calls replay_capture(). Registered in
+    /// init_subjects() against this panel's own subjects_lifetime_, exactly
+    /// like the gate observers above watch PrinterState's.
+    ObserverGuard replay_observer_;
 
     /// Handed to BeltTrace's tick observer via get_subjects_lifetime().
     /// Flipped false and replaced on every deinit_subjects()/init_subjects()
