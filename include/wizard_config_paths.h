@@ -53,6 +53,12 @@ constexpr const char* EXHAUST_FAN = "fans/exhaust";
 constexpr const char* CHAMBER_SENSOR = "temp_sensors/chamber";
 constexpr const char* CHAMBER_HEATER = "heaters/chamber";
 
+// Tool-changer feeder macro overrides. "auto" means use the macro
+// toolchanger_addon detected for this machine. Per-printer: two MedusaHC builds
+// on one network can be mid-migration and expose different command names.
+constexpr const char* FEEDER_OPEN_MACRO = "toolchanger/feeder_open_macro";
+constexpr const char* FEEDER_CLOSE_MACRO = "toolchanger/feeder_close_macro";
+
 // LED hardware (legacy — used for migration only in LedController::load_config()
 // and hardware_validator.cpp. New code should use LedController::selected_strips())
 constexpr const char* LED_STRIP = "leds/strip";

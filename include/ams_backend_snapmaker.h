@@ -102,6 +102,14 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         return PathTopology::PARALLEL;
     }
 
+    // The U1 has no shared tray or housing: spools mount on the left and right
+    // of the machine and feed through bowdens into a lane-assist motor unit on
+    // each side. The detail view's tray graphic draws a container that is not
+    // there.
+    [[nodiscard]] bool has_physical_tray() const override {
+        return false;
+    }
+
     // needs_unload_before_load() is answered by the base class: every lane here
     // is PARALLEL, so slot_has_independent_path() is true for all of them and the
     // serial rule never applies. See AmsBackend for why, including the `T{n}`

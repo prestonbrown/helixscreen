@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ams_subscription_backend.h"
+#include "toolchanger_addon.h"
 
 #include <cstdint>
 #include <optional>
@@ -195,7 +196,24 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
-    // Device Actions (stub - not applicable for tool changers)
+    /**
+     * @brief Declare the filament feeder this machine exposes, if any
+     *
+     * Resolved from discovery by toolchanger_addon::resolve_feeder() and handed over at
+     * construction. Absent by default, so a tool changer nobody told anything
+     * exposes no device actions -- which is every klipper-toolchanger build
+     * that swaps a whole toolhead.
+     */
+    void set_feeder(helix::toolchanger_addon::Feeder feeder) override {
+        feeder_ = std::move(feeder);
+    }
+
+    /// Dock-sensor reader. When set, its answer overrides toolchanger.tool_number.
+    void set_tool_sensor(helix::toolchanger_addon::ToolSensor sensor) override {
+        tool_sensor_ = std::move(sensor);
+    }
+
+    // Device Actions -- the feeder, when the machine has one.
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
     AmsError execute_device_action(const std::string& action_id,
@@ -223,6 +241,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void on_home_confirmation_declined() override;
 
   private:
+    /// Feeder this machine exposes; absent unless set_feeder() said otherwise.
+    helix::toolchanger_addon::Feeder feeder_;
+    /// Absent on every tool changer without dock sensors.
+    helix::toolchanger_addon::ToolSensor tool_sensor_;
+
     /**
      * @brief Parse toolchanger state from Moonraker JSON
      *
@@ -231,6 +254,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      * @param tc_data JSON object containing toolchanger data
      */
     void parse_toolchanger_state(const nlohmann::json& tc_data);
+
+    /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
+    /// Caller holds mutex_.
+    void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
 
     /**
      * @brief Parse individual tool state from Moonraker JSON

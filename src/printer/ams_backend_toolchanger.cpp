@@ -7,6 +7,7 @@
 #include "ams_tool_map_sync.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "settings_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -190,6 +191,19 @@ void AmsBackendToolChanger::handle_status_update(const nlohmann::json& notificat
             }
         }
 
+        // Dock sensors, when the machine has them, are the physical truth and
+        // override whatever parse_toolchanger_state() just took from
+        // toolchanger.tool_number. MedusaHC ships verify_tool_pickup: False, so
+        // that field is only ever "what SELECT_TOOL last set" - after a failed
+        // pickup it names a tool that is not on the head. Applied AFTER the
+        // toolchanger parse above so it wins within the same frame.
+        if (tool_sensor_.present) {
+            if (auto reading = helix::toolchanger_addon::read_tool(params)) {
+                apply_tool_sensor_locked(*reading);
+                state_changed = true;
+            }
+        }
+
         // Check for individual tool updates (e.g., "tool T0", "tool T1")
         for (const auto& tool_name : tool_names_) {
             std::string key = "tool " + tool_name;
@@ -208,6 +222,53 @@ void AmsBackendToolChanger::handle_status_update(const nlohmann::json& notificat
     // queries backend state (e.g., calls get_system_info() which acquires mutex_)
     if (state_changed) {
         emit_event(EVENT_STATE_CHANGED);
+    }
+}
+
+void AmsBackendToolChanger::apply_tool_sensor_locked(
+    const helix::toolchanger_addon::ToolReading& reading) {
+    // -2 means the sensors cannot tell, which is NOT "no tool". Reporting -1
+    // would invite a tool change against an unknown carriage state, so hold the
+    // last known tool and let the error surface instead.
+    if (reading.sensor_error) {
+        if (system_info_.action != AmsAction::ERROR) {
+            spdlog::warn("{} Dock sensors cannot identify the mounted tool", backend_log_tag());
+        }
+        system_info_.action = AmsAction::ERROR;
+        system_info_.operation_detail = "sensor error";
+        return;
+    }
+
+    const int tool = reading.current_tool;
+    if (system_info_.current_tool != tool) {
+        spdlog::info("{} Dock sensors report tool {} (toolchanger said {})", backend_log_tag(),
+                     tool, system_info_.current_tool);
+    }
+    system_info_.current_tool = tool;
+    int seated_slot = -1;
+    if (tool >= 0) {
+        seated_slot = tool < static_cast<int>(system_info_.tool_to_slot_map.size())
+                          ? system_info_.tool_to_slot_map[static_cast<size_t>(tool)]
+                          : -1;
+        if (seated_slot < 0) {
+            seated_slot = tool;
+        }
+    }
+    system_info_.current_slot = seated_slot;
+    system_info_.filament_loaded = (tool >= 0);
+    refresh_slot_statuses_locked();
+
+    // "picking"/"dropping" is finer than toolchanger's single "changing", and it
+    // arrives even when the swap was started outside HelixScreen.
+    if (reading.operation == "picking") {
+        system_info_.action = AmsAction::SELECTING;
+        system_info_.operation_detail = reading.operation;
+    } else if (reading.operation == "dropping") {
+        system_info_.action = AmsAction::UNLOADING;
+        system_info_.operation_detail = reading.operation;
+    } else if (reading.operation == "idle" || reading.operation == "ready") {
+        system_info_.action = AmsAction::IDLE;
+        system_info_.operation_detail = reading.operation;
     }
 }
 
@@ -339,6 +400,31 @@ AmsAction AmsBackendToolChanger::status_to_action(const std::string& status) {
     if (status == "error") {
         return AmsAction::ERROR;
     }
+    // klipper-toolchanger's own initialize sequence -- it homes and moves the
+    // carriage, so this is genuinely busy. Unmapped until now, which meant it
+    // fell through to IDLE and a tap could land mid-initialization.
+    if (status == "initializing") {
+        return AmsAction::RESETTING;
+    }
+    // 'uninitialized' stays busy, which refuses the tap at the gate.
+    //
+    // That refusal is imperfect: on the default initialize_on: first-use,
+    // select_tool() would have auto-initialized, so the tap is what would have
+    // cleared the state. But letting it through is worse. On initialize_on:
+    // manual (what MedusaHC ships) Klipper raises "Cannot select tool,
+    // toolchanger status is uninitialized", and that rejection reaches the
+    // error callback of execute_gcode(), which only logs -- it never fires
+    // on_complete and never unwinds the optimistic SELECTING that
+    // dispatch_operation() already stamped. execute_gcode() also returns
+    // success(), so the `if (!result)` net does not catch it either. The action
+    // would latch on SELECTING, is_busy() would refuse every later op, and
+    // Moonraker only republishes CHANGED fields, so no second 'uninitialized'
+    // frame ever arrives to reset it (the #1183 shape, one state over).
+    //
+    // Refusing is recoverable -- the Reset button sends INITIALIZE_TOOLCHANGER.
+    // A latched SELECTING is not. Fixing this properly means unwinding the
+    // dispatch from the gcode error callback, which is shared with AFC/HH/CFS
+    // and wants its own change.
     if (status == "uninitialized") {
         return AmsAction::RESETTING;
     }
@@ -826,18 +912,107 @@ bool AmsBackendToolChanger::is_bypass_active() const {
 // ============================================================================
 
 std::vector<helix::printer::DeviceSection> AmsBackendToolChanger::get_device_sections() const {
-    // Tool changers don't expose device-specific actions
-    return {};
+    // A toolhead changer carries its own extruder and has nothing to expose.
+    // Only a machine with a frame-side feeder gets a section.
+    if (!feeder_.present) {
+        return {};
+    }
+    using DS = helix::printer::DeviceSection;
+    return {
+        DS{"feeder", "Filament feeder", 0, "Release or grip the filament by hand"},
+    };
 }
 
 std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_actions() const {
-    // Tool changers don't expose device-specific actions
-    return {};
+    std::vector<helix::printer::DeviceAction> actions;
+    if (!feeder_.present) {
+        return actions;
+    }
+    // Designated initializers inside actions.push_back(), which is the shape
+    // scripts/translations/cpp_tables.py reads: the label and description below
+    // are offered for translation without naming them a second time anywhere.
+    actions.push_back({.id = "open_feeder",
+                       .label = "Open feeder",
+                       .icon = "lock_open",
+                       .section = "feeder",
+                       .description = "Release the filament",
+                       .type = helix::printer::ActionType::BUTTON});
+    actions.push_back({.id = "close_feeder",
+                       .label = "Close feeder",
+                       .icon = "lock",
+                       .section = "feeder",
+                       .description = "Grip the filament",
+                       .type = helix::printer::ActionType::BUTTON});
+
+    // Which macro each button sends. The command names forked upstream - the
+    // original config exposes OPEN/CLOSE, the Python controller registers
+    // MHC_OPEN/MHC_CLOSE and ships legacy aliases - and a machine mid-migration
+    // can have either, both, or aliases pointing somewhere custom. Offering the
+    // macros the printer actually reports beats a free-text field nobody can
+    // typo-check.
+    if (!feeder_.macro_options.empty()) {
+        actions.push_back({.id = "feeder_open_macro",
+                           .label = "Open feeder macro",
+                           .icon = "",
+                           .section = "feeder",
+                           .description = "Which macro the Open feeder button sends",
+                           .type = helix::printer::ActionType::DROPDOWN,
+                           .current_value = std::any(feeder_.open_choice),
+                           .options = feeder_.macro_options});
+        actions.push_back({.id = "feeder_close_macro",
+                           .label = "Close feeder macro",
+                           .icon = "",
+                           .section = "feeder",
+                           .description = "Which macro the Close feeder button sends",
+                           .type = helix::printer::ActionType::DROPDOWN,
+                           .current_value = std::any(feeder_.close_choice),
+                           .options = feeder_.macro_options});
+    }
+    return actions;
 }
 
 AmsError AmsBackendToolChanger::execute_device_action(const std::string& action_id,
                                                       const std::any& value) {
-    (void)action_id;
     (void)value;
-    return AmsErrorHelper::not_supported("Device actions");
+    if (feeder_.present && (action_id == "open_feeder" || action_id == "close_feeder")) {
+        // On a hotend changer the feeder gripper is the only thing holding the
+        // filament, so opening it mid-print drops the strand and kills the job.
+        // The device-operations overlay calls straight through with no gate of
+        // its own, so this is the only place that can refuse. requires_toolhead
+        // _motion=true also covers the mid-tool-change window, since the AMS is
+        // busy for its duration.
+        if (auto refused = check_preconditions(/*requires_toolhead_motion=*/true); !refused) {
+            return refused;
+        }
+        return execute_gcode(action_id == "open_feeder" ? feeder_.open_gcode : feeder_.close_gcode);
+    }
+    if (feeder_.present &&
+        (action_id == "feeder_open_macro" || action_id == "feeder_close_macro")) {
+        const auto* chosen = std::any_cast<std::string>(&value);
+        if (!chosen || chosen->empty()) {
+            return AmsErrorHelper::invalid_parameter("No macro selected");
+        }
+        const bool is_open = (action_id == "feeder_open_macro");
+        // "auto" is a sentinel, not a macro: it restores whatever the add-on
+        // detected for this machine, so a user who migrates later picks up the
+        // new native command without touching this again.
+        const std::string resolved =
+            (*chosen == helix::toolchanger_addon::kAutoMacro)
+                ? (is_open ? feeder_.detected_open : feeder_.detected_close)
+                : *chosen;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            (is_open ? feeder_.open_gcode : feeder_.close_gcode) = resolved;
+            (is_open ? feeder_.open_choice : feeder_.close_choice) = *chosen;
+        }
+        if (is_open) {
+            helix::SettingsManager::instance().set_feeder_open_macro(*chosen);
+        } else {
+            helix::SettingsManager::instance().set_feeder_close_macro(*chosen);
+        }
+        spdlog::info("{} Feeder {} macro set to {} (sends {})", backend_log_tag(),
+                     is_open ? "open" : "close", *chosen, resolved);
+        return AmsErrorHelper::success();
+    }
+    return AmsErrorHelper::not_supported("Device action: " + action_id);
 }

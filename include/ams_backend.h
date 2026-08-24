@@ -17,6 +17,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "error_event.h"
+#include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
 #ifdef HELIX_ENABLE_MOCKS
@@ -1930,8 +1931,15 @@ class AmsBackend {
     /**
      * @brief Whether the per-slot tool badge ("T0", "T1", ...) should be hidden.
      *
-     * On tool changers the badge is redundant with the toolhead label shown below
-     * each slot, so it is suppressed. Other backends show it.
+     * AmsBackendToolChanger suppresses it. NOTE: the original rationale ("redundant
+     * with the toolhead label shown below each slot") does not hold - there is no
+     * such label. ams_slot_view.xml has material_label (material name or "Empty"),
+     * status_badge/slot_badge_label (the SLOT number) and tool_badge (the T-number),
+     * and nothing else. Under an ASSIGN_TOOL remap the slot number and the T-number
+     * differ, so hiding the badge removes the only per-slot sign of which T-number a
+     * toolhead answers to. Left as-is rather than changed blind: it is shipped
+     * behavior on hardware we cannot test. Snapmaker deliberately does NOT override
+     * this - it is not a missing companion fix.
      *
      * @return true to hide the per-slot tool badge
      */
@@ -2277,6 +2285,32 @@ class AmsBackend {
      */
     virtual void set_discovered_tools(std::vector<std::string> tool_names) {
         (void)tool_names;
+    }
+
+    /**
+     * @brief Set the filament feeder this machine exposes, if any
+     *
+     * Called before start() with the capability toolchanger_addon::resolve_feeder()
+     * derived from discovery. Only the tool changer backend uses this - other
+     * backends ignore it.
+     *
+     * @param feeder Resolved feeder capability; absent when the printer has none
+     */
+    virtual void set_feeder(helix::toolchanger_addon::Feeder feeder) {
+        (void)feeder;
+    }
+
+    /**
+     * @brief Set the add-on tool sensor this machine exposes, if any
+     *
+     * Called before start(). Only the tool changer backend uses this. When
+     * present its reading is AUTHORITATIVE over toolchanger.tool_number, which
+     * is only ever "what SELECT_TOOL last set".
+     *
+     * @param sensor Resolved sensor capability; absent when the printer has none
+     */
+    virtual void set_tool_sensor(helix::toolchanger_addon::ToolSensor sensor) {
+        (void)sensor;
     }
 
     /**

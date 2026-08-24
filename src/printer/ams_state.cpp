@@ -244,6 +244,8 @@ void AmsState::init_subjects(bool register_xml) {
 
     // System-level subjects
     INIT_SUBJECT_INT(ams_type, static_cast<int>(AmsType::NONE), subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_is_tool_changer, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_is_filament_system, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_action, static_cast<int>(AmsAction::IDLE), subjects_, register_xml);
     // Granular load/unload sub-phase (Snapmaker U1). -1 = no active step.
     INIT_SUBJECT_INT(ams_operation_phase, -1, subjects_, register_xml);
@@ -739,6 +741,10 @@ void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardwa
 
         backend->set_discovered_lanes(hardware.afc_lane_names(), hardware.afc_hub_names());
         backend->set_discovered_tools(hardware.tool_names());
+        backend->set_feeder(helix::toolchanger_addon::resolve_feeder(
+            hardware, helix::SettingsManager::instance().get_feeder_open_macro(),
+            helix::SettingsManager::instance().get_feeder_close_macro()));
+        backend->set_tool_sensor(helix::toolchanger_addon::resolve_tool_sensor(hardware));
         backend->set_discovered_sensors(hardware.filament_sensor_names());
 
         int index = add_backend(std::move(backend));
@@ -881,6 +887,13 @@ void AmsState::clear_backends() {
     secondary_slot_subjects_.clear();
 
     // Reset backend selector subjects
+    // A stale 1 here keeps the filament controls hidden on whatever connects next.
+    if (lv_subject_get_int(&ams_is_tool_changer_) != 0) {
+        lv_subject_set_int(&ams_is_tool_changer_, 0);
+    }
+    if (lv_subject_get_int(&ams_is_filament_system_) != 0) {
+        lv_subject_set_int(&ams_is_filament_system_, 0);
+    }
     if (lv_subject_get_int(&backend_count_) != 0) {
         lv_subject_set_int(&backend_count_, 0);
     }
@@ -1357,6 +1370,16 @@ void AmsState::sync_from_backend() {
     int new_type = static_cast<int>(info.type);
     if (lv_subject_get_int(&ams_type_) != new_type) {
         lv_subject_set_int(&ams_type_, new_type);
+    }
+    // Published from the predicate, not the enum value, so a new tool-changer
+    // type is picked up by XML without touching a binding.
+    int new_tool_changer = is_tool_changer(info.type) ? 1 : 0;
+    if (lv_subject_get_int(&ams_is_tool_changer_) != new_tool_changer) {
+        lv_subject_set_int(&ams_is_tool_changer_, new_tool_changer);
+    }
+    int new_filament_system = is_filament_system(info.type) ? 1 : 0;
+    if (lv_subject_get_int(&ams_is_filament_system_) != new_filament_system) {
+        lv_subject_set_int(&ams_is_filament_system_, new_filament_system);
     }
     int new_action = static_cast<int>(info.action);
     // One-shot runout grace. An unload ends with the filament deliberately
