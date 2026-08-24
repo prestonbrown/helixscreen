@@ -381,8 +381,40 @@ rig's current state (post config-reload, main LAN, 2026-08-24):
 | HTTP POST macro | 0.0 s (immediate) | 14 ms over 75 s |
 
 Baseline RTT was 4-7 ms throughout. Nothing approaches a 40 s wedge on either
-transport. If the original repro was real, the trigger is state-dependent
-(candidate differences: IOT segment, first-boot calibration window, macros with
-large `respond_info` payloads — `IFS_STATUS` follow-up testing). Treat the
-40 s wedge as **unconfirmed on current firmware state**, not as an operating
-assumption.
+transport. The `IFS_STATUS` follow-up (the large-`respond_info` macro our IFS
+backend polls) was also clean: worst 10 ms over WS, 8 ms during the HTTP phase.
+Treat the 40 s wedge as **unconfirmed on current firmware state**, not as an
+operating assumption. Probable root cause of the original report: the commissioning
+observations were made over the **wifi path (192.168.30.254), which drops ~21.7%
+of packets** (ethernet: 0%) — tens of seconds of TCP retransmit stall on a lossy
+link presents exactly like a "wedged" Moonraker. Same failure family as the
+IOT-segment SSH banner stall: segment, not printer.
+
+### Restart mechanics + get_status patch validation (2026-08-24)
+
+**Moonraker's `POST /printer/restart` returns `{"result":"ok"}` but does NOT
+restart klippy on this rig** — klippy is PPID 1 (orphaned by the FlashForge boot
+chain, not Moonraker-supervised) and continues running with old bytecode.
+The only verified restart is a full `reboot` over SSH (a few seconds of grace,
+then ~40 s down, klippy ready ~40 s later; verify by PID change — 1664 → 1669 —
+never by the endpoint response). Also: `python3 -m py_compile` **writes
+`__pycache__` itself**, so pyc mtimes after your own compile prove nothing about
+what klippy imported. Post-reboot, SSH key auth was dropped (password `root`
+via sshpass works).
+
+**get_status() patch validated on-rig** (upstream handoff candidate; the mod
+source has no public git — these files ship only in zmod release tarballs, so
+the patch is handed to ghzserg directly). Patch adds `get_status()` to
+`zmod_ifs` + `zmod_color` (extras install as symlinks from
+`klippy/extras/` to `/usr/data/config/mod/.shell/`; deploy = replace the .shell
+targets; backups `/usr/data/*.pre-getstatus.bak`). After a real reboot:
+`objects/list` includes both; `objects/query` returns full live status
+(`zmod_ifs`: available/color_limit/RawData/State/Ports/Silk/Chan/Insert/
+NeedInsert/Stall/stall_state; `zmod_color`: ifs/display/color_limit/
+valid_types/extruder_sensor/channel/slots[]); `objects/subscribe` delivers
+correct initial snapshots and Moonraker's diff-based updates behave (no frames
+on an idle rig — expected). 40 s soak at 4 Hz subscription: zero errors. The
+patch also fixes an upstream boot-window bug: `IfsData.__init__` wrote
+`LastResponseRaw` while `get_values()` reads `lastResponseRaw`, so `IFS_STATUS`
+raised `AttributeError` before the first F13 poll on stock 1.7.2. Note: a ZMOD
+update overwrites these files; the rig carries the patch until then.
