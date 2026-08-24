@@ -500,3 +500,83 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"All XML strings already in YAML files"* ]]
 }
+
+# --- Global RuntimeConfig::test_mode must be restored by whoever sets it ---
+#
+# test_mode is the master switch behind every should_mock_*() predicate, so a
+# test file that writes it on the process-global RuntimeConfig and never puts it
+# back changes behaviour for every test scheduled after it. That is what
+# prestonbrown/helixscreen#1287 was: one unrestored write in a capabilities
+# characterization test failed four unrelated tool_state/tool_switcher cases,
+# but only under a filter that happened to order them after it. Each passed
+# alone, which is what made it expensive to find.
+#
+# File-level on purpose. Every correct site today pairs its write with a restore
+# somewhere in the same file, via tests/test_helpers/scoped_runtime_config.h.
+# The gate asks only that the restore exists, so it stays quiet on all of them
+# and fires on a file that only sets.
+#
+# Writes through a LOCAL `RuntimeConfig config;` (test_runtime_config.cpp,
+# test_subject_initializer.cpp) are not global state and are not matched.
+
+test_mode_global_writers() {
+    # Files writing test_mode through a pointer to the global config.
+    grep -rlE '(get_runtime_config\(\)|\brc|\bcfg|\br)->test_mode[[:space:]]*=' "$@" 2>/dev/null || true
+}
+
+test_mode_unrestored_files() {
+    local f
+    for f in $(test_mode_global_writers "$@"); do
+        # A restore is any write of a saved value, or the shared RAII guard.
+        if ! grep -qE 'ScopedRuntimeConfig|test_mode[[:space:]]*=[[:space:]]*(prev|saved|prev_test_mode|saved_test_mode)' "$f"; then
+            echo "$f"
+        fi
+    done
+}
+
+@test "every test file that sets the global test_mode also restores it" {
+    run test_mode_unrestored_files tests/ --include='*.cpp' --include='*.h'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the test_mode gate fires on a file that sets but never restores" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local d="${BATS_TEST_TMPDIR}/leak"
+    mkdir -p "$d"
+    cat > "$d/offender.cpp" <<'EOF'
+TEST_CASE("leaks the global flag") {
+    get_runtime_config()->test_mode = true;
+}
+EOF
+    run test_mode_unrestored_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"offender.cpp"* ]]
+}
+
+@test "the test_mode gate stays quiet on a scoped or manually restored setter" {
+    local d="${BATS_TEST_TMPDIR}/ok"
+    mkdir -p "$d"
+    cat > "$d/scoped.cpp" <<'EOF'
+TEST_CASE("uses the shared guard") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+}
+EOF
+    cat > "$d/manual.cpp" <<'EOF'
+struct Guard {
+    bool prev = get_runtime_config()->test_mode;
+    Guard() { get_runtime_config()->test_mode = true; }
+    ~Guard() { get_runtime_config()->test_mode = prev; }
+};
+EOF
+    cat > "$d/local_instance.cpp" <<'EOF'
+TEST_CASE("a local RuntimeConfig is not global state") {
+    RuntimeConfig config;
+    config.test_mode = true;
+}
+EOF
+    run test_mode_unrestored_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

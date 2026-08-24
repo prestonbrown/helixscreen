@@ -14,6 +14,7 @@
 #include "ui_wizard_input_shaper.h"
 
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "input_shaper_calibrator.h"
@@ -40,8 +41,12 @@ static lv_subject_t* get_subject_by_name(const char* name) {
 
 class WizardInputShaperStepTestFixture {
   public:
+    ScopedRuntimeConfig scoped_config_;
+
     WizardInputShaperStepTestFixture() {
-        // Enable test mode so beta features are available
+        // Enable test mode so beta features are available. scoped_config_ puts
+        // the global back when the fixture dies rather than leaving it set
+        // (#1287).
         get_runtime_config()->test_mode = true;
 
         // Initialize LVGL (safe version avoids "already initialized" warnings)

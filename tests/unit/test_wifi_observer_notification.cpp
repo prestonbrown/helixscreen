@@ -16,6 +16,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
@@ -67,36 +68,15 @@ namespace {
 // Enables test mode (idle mock WiFi backend, no wpa_supplicant probing)
 // and a headless LVGL display for the duration of the test.
 struct ObserverNotificationFixture {
-    RuntimeConfig* rc;
-    bool prev_test_mode;
-    bool prev_use_real_wifi;
+    ScopedRuntimeConfig scoped_config;
 
-    ObserverNotificationFixture()
-        : rc(get_runtime_config()), prev_test_mode(rc->test_mode),
-          prev_use_real_wifi(rc->use_real_wifi) {
+    ObserverNotificationFixture() {
+        auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
         lv_init_safe();
-        ensure_display();
+        ensure_headless_display();
         helix::ui::UpdateQueue::instance().init();
-    }
-
-    ~ObserverNotificationFixture() {
-        rc->test_mode = prev_test_mode;
-        rc->use_real_wifi = prev_use_real_wifi;
-    }
-
-    static void ensure_display() {
-        static bool created = false;
-        if (created)
-            return;
-        auto* disp = lv_display_create(480, 320);
-        alignas(64) static lv_color_t buf[480 * 10];
-        lv_display_set_buffers(disp, buf, nullptr, sizeof(buf),
-                               LV_DISPLAY_RENDER_MODE_PARTIAL);
-        lv_display_set_flush_cb(
-            disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-        created = true;
     }
 
     std::shared_ptr<WiFiManager> make_manager() {
@@ -108,8 +88,7 @@ struct ObserverNotificationFixture {
 
 } // namespace
 
-TEST_CASE("WiFiManager: state observer fires on CONNECTED event",
-          "[wifi][unit][1059][observers]") {
+TEST_CASE("WiFiManager: state observer fires on CONNECTED event", "[wifi][unit][1059][observers]") {
     ObserverNotificationFixture fx;
     auto wm = fx.make_manager();
 

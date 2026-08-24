@@ -228,9 +228,13 @@ void HelixTestFixture::reset_all() {
     // practice — it exists to stop the first --no-ams behaviour test that DOES
     // set it globally from leaking a queued UpdateQueue callback into every
     // later test that connects a mock client with MMU hardware. test_mode itself
-    // is intentionally left alone: several tests set it directly on the global
-    // (test_printer_capabilities_char.cpp, test_wizard_input_shaper_step.cpp) and
-    // expect it to stick for the duration of their TEST_CASE.
+    // is still intentionally left alone: a test that sets it expects it to hold
+    // for the duration of its own TEST_CASE, and resetting it here would fight
+    // that. Restoring it is the setter's job — both tests that used to leave it
+    // set on the global (test_printer_capabilities_char.cpp,
+    // test_wizard_input_shaper_step.cpp) now hold a ScopedRuntimeConfig instead
+    // (tests/test_helpers/scoped_runtime_config.h), after one of them cost four
+    // unrelated tool_state/tool_switcher failures under a combined filter (#1287).
     get_runtime_config()->use_real_wifi = false;
     get_runtime_config()->use_real_ethernet = false;
     get_runtime_config()->use_real_moonraker = false;
