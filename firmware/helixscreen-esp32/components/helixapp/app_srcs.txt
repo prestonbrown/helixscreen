@@ -173,6 +173,7 @@ src/printer/z_offset_persistence.cpp
 src/printer/plr_backend.cpp
 src/printer/plr_offer.cpp
 src/printer/standard_macros.cpp
+src/printer/toolchanger_addon.cpp
 src/printer/toolhead_homing.cpp
 src/printer/tool_state.cpp
 src/sensors/accel_sensor_manager.cpp

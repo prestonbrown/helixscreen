@@ -534,6 +534,8 @@ translations:
   Clog Detection: Detección de obstrucción
   Clog detection: Detección de obstrucción
   Close: Cerrar
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: Más cerca
   Closer = more squish | Farther = less squish: Más cerca = más aplastamiento | Más
     lejos = menos aplastamiento
@@ -1059,11 +1061,13 @@ translations:
   Farther: Más lejos
   'Features: ': 'Características: '
   Feed Assist: 'Asistencia de alimentación'
+  Feed assist and debug tools: ''
   Feed filament: Alimentar filamento
   Feed filament directly to extruder: Alimentar filamento directamente al extrusor
   Feed filament from current slot: 'Alimentar filamento desde la ranura actual'
   Feeding filament forward: Avanzando filamento
   Filament: Filamento
+  Filament Control: ''
   Filament Detected: Filamento Detectado
   Filament Environment: Entorno del filamento
   Filament Grade Mismatch: El grado del filamento no coincide
@@ -1079,6 +1083,7 @@ translations:
   Filament deleted: Filamento eliminado
   Filament diameter sensors for flow compensation: Sensores de diámetro de filamento
     para compensación de flujo
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: El filamento ya salió del cabezal. Tire de él hasta sacarlo por completo.
   Filament is loose: El filamento está suelto
   Filament is pulling tight: El filamento está tirando tenso
@@ -1166,6 +1171,7 @@ translations:
   Good Accuracy: Buena Precisión
   Got it: Entendido
   Gray: Gris
+  Grip the filament: ''
   Guides and reference: Guías y referencia
   H: H
   HOST: Host
@@ -1551,6 +1557,7 @@ translations:
   Manual Bed Leveling: Nivelación Manual de Cama
   Manual Feed: 'Alimentación manual'
   Manual Retract: 'Retracción manual'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: Asignar a colores más cercanos con
     material compatible
   Marginal: Marginal
@@ -1819,6 +1826,8 @@ translations:
   Open G-code command console: 'Abrir la consola de comandos G-code'
   Open LED color and brightness controls: 'Abrir los controles de color y brillo LED'
   Open Source Licenses: Licencias de código abierto
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: Operación ya en curso
   Operations: Operaciones
   Optimize Your Printing: Optimice su Impresión
@@ -2179,6 +2188,8 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Liberar todos los motores paso
     a paso. Se perderá la posición.
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): Restante (g)
   Remaining Weight (g): Peso Restante (g)
   Remap Tool: Reasignar Herramienta
@@ -3041,6 +3052,8 @@ translations:
   : Al iniciar una impresión, podrá elegir si ejecutar %s. Esto ahorra tiempo cuando
     ya lo ha hecho recientemente o desea más control sobre la preparación de su impresión.
   Where UI sounds play: Dónde se reproducen los sonidos de la interfaz
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: Blanco
   Wi-Fi and ethernet connection status: 'Estado de conexión Wi-Fi y ethernet'
   WiFi: WiFi

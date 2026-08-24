@@ -146,6 +146,18 @@ class SettingsManager {
     /** @brief Set chamber sensor assignment and persist */
     void set_chamber_sensor_assignment(const std::string& value);
 
+    /** @brief Get the tool-changer feeder OPEN macro ("auto" = detected default) */
+    std::string get_feeder_open_macro() const;
+
+    /** @brief Set the tool-changer feeder OPEN macro and persist */
+    void set_feeder_open_macro(const std::string& value);
+
+    /** @brief Get the tool-changer feeder CLOSE macro ("auto" = detected default) */
+    std::string get_feeder_close_macro() const;
+
+    /** @brief Set the tool-changer feeder CLOSE macro and persist */
+    void set_feeder_close_macro(const std::string& value);
+
     /** @brief Z movement style subject (integer: 0=Auto, 1=Bed Moves, 2=Nozzle Moves) */
     lv_subject_t* subject_z_movement_style() {
         return &z_movement_style_subject_;
@@ -589,6 +601,8 @@ class SettingsManager {
 
     // Chamber assignment settings (plain strings, no LVGL subjects needed)
     std::string chamber_heater_assignment_{"auto"};
+    std::string feeder_open_macro_{"auto"};
+    std::string feeder_close_macro_{"auto"};
     std::string chamber_sensor_assignment_{"auto"};
 
     // Scanner device selection (plain strings, no LVGL subjects needed)

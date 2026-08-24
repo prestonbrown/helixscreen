@@ -512,6 +512,8 @@ translations:
   Clog Detection: Clog Detection
   Clog detection: Clog detection
   Close: Close
+  Close feeder: Close feeder
+  Close feeder macro: Close feeder macro
   Closer: Closer
   Closer = more squish | Farther = less squish: Closer = more squish | Farther = less
     squish
@@ -1023,11 +1025,13 @@ translations:
   Farther: Farther
   'Features: ': 'Features: '
   Feed Assist: Feed Assist
+  Feed assist and debug tools: Feed assist and debug tools
   Feed filament: Feed filament
   Feed filament directly to extruder: Feed filament directly to extruder
   Feed filament from current slot: Feed filament from current slot
   Feeding filament forward: Feeding filament forward
   Filament: Filament
+  Filament Control: Filament Control
   Filament Detected: Filament Detected
   Filament Environment: Filament Environment
   Filament Grade Mismatch: Filament Grade Mismatch
@@ -1043,6 +1047,7 @@ translations:
   Filament deleted: Filament deleted
   Filament diameter sensors for flow compensation: Filament diameter sensors for flow
     compensation
+  Filament feeder: Filament feeder
   Filament is clear of the toolhead. Pull it out the rest of the way.: Filament is clear of the toolhead. Pull it out the rest of the way.
   Filament is loose: Filament is loose
   Filament is pulling tight: Filament is pulling tight
@@ -1129,6 +1134,7 @@ translations:
   Good Accuracy: Good Accuracy
   Got it: Got it
   Gray: Gray
+  Grip the filament: Grip the filament
   Guides and reference: Guides and reference
   H: H
   HOST: HOST
@@ -1508,6 +1514,7 @@ translations:
   Manual Bed Leveling: Manual Bed Leveling
   Manual Feed: Manual Feed
   Manual Retract: Manual Retract
+  Manual feed and retract operations: Manual feed and retract operations
   Map to closest colors with matching material: Map to closest colors with matching
     material
   Marginal: Marginal
@@ -1770,6 +1777,8 @@ translations:
   Open G-code command console: Open G-code command console
   Open LED color and brightness controls: Open LED color and brightness controls
   Open Source Licenses: Open Source Licenses
+  Open feeder: Open feeder
+  Open feeder macro: Open feeder macro
   Operation already in progress: Operation already in progress
   Operations: Operations
   Optimize Your Printing: Optimize Your Printing
@@ -2125,6 +2134,8 @@ translations:
   'Reheating...': 'Reheating...'
   Release all stepper motors. Position will be lost.: Release all stepper motors.
     Position will be lost.
+  Release or grip the filament by hand: Release or grip the filament by hand
+  Release the filament: Release the filament
   Remaining (g): Remaining (g)
   Remaining Weight (g): Remaining Weight (g)
   Remap Tool: Remap Tool
@@ -2963,6 +2974,8 @@ translations:
     time when you've already done it recently or want more control over your print
     preparation.
   Where UI sounds play: Where UI sounds play
+  Which macro the Close feeder button sends: Which macro the Close feeder button sends
+  Which macro the Open feeder button sends: Which macro the Open feeder button sends
   White: White
   Wi-Fi and ethernet connection status: Wi-Fi and ethernet connection status
   WiFi: WiFi

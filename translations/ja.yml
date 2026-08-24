@@ -473,6 +473,8 @@ translations:
   Clog Detection: 詰まり検出
   Clog detection: 詰まり検出
   Close: 閉じる
+  Close feeder: ''
+  Close feeder macro: ''
   Closer: 近く
   Closer = more squish | Farther = less squish: 近い = より圧縮 | 遠い = 圧縮少なめ
   Coarse: 粗動
@@ -964,11 +966,13 @@ translations:
   Farther: 遠く
   'Features: ': '機能: '
   Feed Assist: '送りアシスト'
+  Feed assist and debug tools: ''
   Feed filament: フィラメントを送る
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
   Feeding filament forward: フィラメントを前方に送り出し中
   Filament: フィラメント
+  Filament Control: ''
   Filament Detected: フィラメント検出
   Filament Environment: フィラメント環境
   Filament Grade Mismatch: フィラメントグレード不一致
@@ -983,6 +987,7 @@ translations:
   Filament clog/flow detection meter: 'フィラメント詰まり／流量検出メーター'
   Filament deleted: フィラメントを削除しました
   Filament diameter sensors for flow compensation: フロー補正用フィラメント直径センサー
+  Filament feeder: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: フィラメントはツールヘッドから出ました。残りを手で引き抜いてください。
   Filament is loose: フィラメントが緩んでいます
   Filament is pulling tight: フィラメントが引っ張られています
@@ -1067,6 +1072,7 @@ translations:
   Good Accuracy: 良好な精度
   Got it: 了解
   Gray: グレー
+  Grip the filament: ''
   Guides and reference: ガイドとリファレンス
   H: H
   HOST: ホスト
@@ -1414,6 +1420,7 @@ translations:
   Manual Bed Leveling: 手動ベッドレベリング
   Manual Feed: '手動送り'
   Manual Retract: '手動引き戻し'
+  Manual feed and retract operations: ''
   Map to closest colors with matching material: 一致する素材で最も近い色に割り当て
   Marginal: やや不良
   Master volume level: マスター音量
@@ -1667,6 +1674,8 @@ translations:
   Open G-code command console: 'Gコードコマンドコンソールを開く'
   Open LED color and brightness controls: 'LEDの色と明るさの操作を開く'
   Open Source Licenses: オープンソースライセンス
+  Open feeder: ''
+  Open feeder macro: ''
   Operation already in progress: 操作がすでに進行中です
   Operations: 操作
   Optimize Your Printing: 印刷を最適化
@@ -2001,6 +2010,8 @@ translations:
   Relative vibration: 相対振動
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: すべてのステッピングモーターを解放します。位置情報は失われます。
+  Release or grip the filament by hand: ''
+  Release the filament: ''
   Remaining (g): 残量 (g)
   Remaining Weight (g): 残量（g）
   Remap Tool: ツールを再割当
@@ -2763,6 +2774,8 @@ translations:
     preparation.
   : 印刷開始時に %s を実行するかどうかを選択できるようになります。最近すでに実行した場合や、印刷準備をより細かく制御したい場合に時間を節約できます。
   Where UI sounds play: UIサウンドの再生先
+  Which macro the Close feeder button sends: ''
+  Which macro the Open feeder button sends: ''
   White: ホワイト
   Wi-Fi and ethernet connection status: 'Wi-Fiとイーサネットの接続状態'
   WiFi: WiFi

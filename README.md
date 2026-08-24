@@ -34,7 +34,7 @@ Run it right on your printer, or on a separate device — a spare Pi, a mini PC,
 - **Every feature at your fingertips** — 30+ panels, 20+ overlays, 20+ modals, 300+ XML layouts
 - **~15MB RAM on embedded targets, ~75MB disk** — sips memory on a Creality K1 or Flashforge AD5M; a few times more on 64-bit Pi, still well under what other touchscreen UIs need. Your printer's onboard SoC or an older Pi is plenty — no need to buy new hardware.
 - **80+ printers in the database** — Auto-detects your hardware and configures itself
-- **Multi-material ready** — AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers, Spoolman
+- **Multi-material ready** — AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers (incl. MedusaHC hotend changers), Spoolman
 - **Exclude objects** — Tap-to-exclude overhead map view with object outlines during prints
 - **Looks great** — Light/dark themes with 17 presets, responsive layouts, GPU-accelerated blur
 - **First-run wizard** — Guided setup discovers your printer's capabilities
@@ -103,7 +103,7 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 **Printer Control** — Print management with G-code preview, motion controls, temperature presets with per-material overrides, multi-fan control, Z-offset, speed/flow tuning, live filament consumption tracking, power device management.
 
-**Multi-Material** — 7 filament system backends: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
+**Multi-Material** — 7 filament system backends: AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers — including MedusaHC hotend changers, whose dock sensors and filament feeder are driven on top of klipper-toolchanger. Multi-unit and multi-backend support. Full Spoolman integration with spool creation wizard.
 
 **Visualization** — 3D G-code layer preview with memory-aware geometry budgets, 3D bed mesh with async rendering, print thumbnails, frequency response charts, unified temperature graph.
 
@@ -218,7 +218,7 @@ Any Klipper + Moonraker printer. 80+ models in the auto-detection database spann
 **Ultrawide (e.g. 1920x480) and portrait (e.g. 480x800) are alpha at best.** The layout engine detects both and picks sensible grid sizing, but almost no panel has an ultrawide- or portrait-specific layout yet, so most screens fall back to the standard landscape layout and will look stretched or cramped. It will run — don't expect it to look right. Both are wide open for contributions; see the [UI Contributor Guide](docs/devel/UI_CONTRIBUTOR_GUIDE.md).
 
 **What multi-material systems work?**
-AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers (viesturz/klipper-toolchanger). Full Spoolman integration for spool management.
+AFC (Box Turtle, ViViD), Happy Hare (ERCF, 3MS, Tradrack, Night Owl), ACE (Anycubic ACE Pro), AD5X IFS, Creality CFS, Snapmaker U1 (with RFID spool recognition), and tool changers (viesturz/klipper-toolchanger, including MedusaHC hotend changers). Full Spoolman integration for spool management.
 
 See [docs/user/FAQ.md](docs/user/FAQ.md) for the full FAQ.
 

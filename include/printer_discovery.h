@@ -418,6 +418,16 @@ class PrinterDiscovery {
             else if (name == "toolchanger") {
                 has_tool_changer_ = true;
             }
+            // pin_watch: a dock-sensor extra (not stock Klipper). Recorded as a
+            // plain object fact, like toolchanger above. What it MEANS is
+            // helix::toolchanger_addon's business, not this catalog's.
+            // Deliberately does NOT touch has_mmu_/mmu_type_: those pick which
+            // AMS backend gets built, and writing one here would swap out a
+            // working backend on every printer that happens to run pin_watch.
+            else if (name == "pin_watch" || name.rfind("pin_watch ", 0) == 0) {
+                has_pin_watch_ = true;
+                pin_watch_object_name_ = name;
+            }
             // Tool object discovery
             else if (name.rfind("tool ", 0) == 0) {
                 std::string tool_name = name.substr(5); // Remove "tool " prefix
@@ -745,6 +755,8 @@ class PrinterDiscovery {
         has_mmu_ = false;
         has_snapmaker_ = false;
         has_tool_changer_ = false;
+        has_pin_watch_ = false;
+        pin_watch_object_name_.clear();
         has_chamber_heater_ = false;
         has_chamber_sensor_ = false;
         chamber_sensor_name_.clear();
@@ -842,6 +854,17 @@ class PrinterDiscovery {
 
     [[nodiscard]] bool has_tool_changer() const {
         return has_tool_changer_;
+    }
+
+    /// Whether a pin_watch dock-sensor extra is configured.
+    [[nodiscard]] bool has_pin_watch() const {
+        return has_pin_watch_;
+    }
+
+    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
+    /// for subscribing to it. Empty when there is none.
+    [[nodiscard]] const std::string& pin_watch_object_name() const {
+        return pin_watch_object_name_;
     }
 
     [[nodiscard]] bool has_chamber_heater() const {
@@ -1464,6 +1487,8 @@ class PrinterDiscovery {
     bool has_mmu_ = false;
     bool has_snapmaker_ = false;
     bool has_tool_changer_ = false;
+    bool has_pin_watch_ = false;
+    std::string pin_watch_object_name_;
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
     std::string chamber_sensor_name_;

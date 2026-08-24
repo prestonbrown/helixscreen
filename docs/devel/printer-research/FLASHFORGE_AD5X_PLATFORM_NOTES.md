@@ -428,7 +428,14 @@ backups - before it becomes a claim about AD5X behavior. A finding that passes
 only on this box is a patched-rig artifact and will fail for every real owner.
 This matters doubly for the IFS tool-mapping echo question, where our shipped
 finding is that AD5X does NOT echo the mapping - the patch could silently
-invert that.
+invert that. **Executed 2026-08-24 for the three core claims** - with stock
+extras restored (md5-verified pristine, fresh boot), auto-detection still
+matched and persisted `FlashForge Adventurer 5X`, the ZMOD z-offset provider
+still activated (`[ZOffset] Enabling firmware z-offset persistence (ZMOD)`),
+and the AD5X IFS backend still created and started. All three hold on stock;
+the patched state was then restored (md5-verified, fresh boot, objects live).
+The tool-mapping echo question has NOT yet been dual-state checked - it needs
+loaded spools to test meaningfully.
 
 ### HelixScreen end-to-end on the rig (2026-08-24)
 

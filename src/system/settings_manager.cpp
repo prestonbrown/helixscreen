@@ -231,6 +231,11 @@ void SettingsManager::init_subjects() {
     chamber_sensor_assignment_ =
         config->get<std::string>(config->df() + wizard::CHAMBER_SENSOR, "auto");
 
+    // Tool-changer feeder macro overrides (default: "auto" = detected default).
+    feeder_open_macro_ = config->get<std::string>(config->df() + wizard::FEEDER_OPEN_MACRO, "auto");
+    feeder_close_macro_ =
+        config->get<std::string>(config->df() + wizard::FEEDER_CLOSE_MACRO, "auto");
+
     // Load scanner device selection. Global: the scanner is plugged into the
     // host running HelixScreen, not into any one printer.
     scanner_device_id_ = config->get<std::string>("/scanner/usb_vendor_product", "");
@@ -857,6 +862,30 @@ void SettingsManager::set_external_spool_info(const SlotInfo& info) {
 // ============================================================================
 // Chamber Assignment
 // ============================================================================
+
+std::string SettingsManager::get_feeder_open_macro() const {
+    return feeder_open_macro_;
+}
+
+void SettingsManager::set_feeder_open_macro(const std::string& value) {
+    feeder_open_macro_ = value;
+    spdlog::info("[SettingsManager] set_feeder_open_macro({})", value);
+    Config* config = Config::get_instance();
+    config->set<std::string>(config->df() + wizard::FEEDER_OPEN_MACRO, value);
+    config->save();
+}
+
+std::string SettingsManager::get_feeder_close_macro() const {
+    return feeder_close_macro_;
+}
+
+void SettingsManager::set_feeder_close_macro(const std::string& value) {
+    feeder_close_macro_ = value;
+    spdlog::info("[SettingsManager] set_feeder_close_macro({})", value);
+    Config* config = Config::get_instance();
+    config->set<std::string>(config->df() + wizard::FEEDER_CLOSE_MACRO, value);
+    config->save();
+}
 
 std::string SettingsManager::get_chamber_heater_assignment() const {
     return chamber_heater_assignment_;

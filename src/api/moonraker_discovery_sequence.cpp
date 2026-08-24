@@ -20,6 +20,7 @@
 #include "printer_state.h"
 #include "probe_sensor_manager.h"
 #include "sensor_state.h"
+#include "toolchanger_addon.h"
 #include "unit_conversions.h"
 #include "z_offset_persistence.h"
 
@@ -1438,6 +1439,12 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
         for (const auto& tool_name : hw.tool_names()) {
             subscription_objects["tool " + tool_name] = tool_fields;
         }
+    }
+
+    // Tool-changer add-ons (dock sensors, feeder). The module owns which
+    // machines have them and what their objects are called.
+    for (const auto& object : helix::toolchanger_addon::required_status_objects(hw)) {
+        subscription_objects[object] = nullptr;
     }
 
     // Firmware retraction. PrinterCalibrationState reads the four tunable

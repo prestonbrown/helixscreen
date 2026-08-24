@@ -356,6 +356,30 @@ class AmsState {
     }
 
     /**
+     * @brief Get the "this AMS is a tool changer" subject
+     * @return Subject holding 1 when is_tool_changer(type), else 0
+     *
+     * XML binds this instead of comparing ams_type to a literal. There are
+     * three tool-changer AmsTypes and counting; a ref_value="4" binding sees
+     * only one of them and shows filament controls on the rest.
+     */
+    lv_subject_t* get_is_tool_changer_subject() {
+        return &ams_is_tool_changer_;
+    }
+
+    /**
+     * @brief Get the "this AMS handles filament" subject
+     * @return Subject holding 1 when is_filament_system(type), else 0
+     *
+     * NOT the negation of ams_is_tool_changer: a Snapmaker U1 is both. It swaps
+     * toolheads AND runs a full load/unload state machine, so a control gated on
+     * "is a tool changer" disappears on a machine that needs it.
+     */
+    lv_subject_t* get_is_filament_system_subject() {
+        return &ams_is_filament_system_;
+    }
+
+    /**
      * @brief Get current action subject
      * @return Subject holding AmsAction enum as int
      */
@@ -1534,6 +1558,8 @@ class AmsState {
 
     // System-level subjects
     lv_subject_t ams_type_;
+    lv_subject_t ams_is_tool_changer_;
+    lv_subject_t ams_is_filament_system_;
     lv_subject_t ams_action_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
     /// 3=Move). Snapmaker U1 only; static-lifetime singleton subject.
