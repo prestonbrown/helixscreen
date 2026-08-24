@@ -196,3 +196,28 @@
         SubjectDebugRegistry::instance().register_subject(                                         \
             &(subject), (name), LV_SUBJECT_TYPE_COLOR, __FILE__, __LINE__);                        \
     } while (0)
+
+/**
+ * @brief Read a boolean-valued int subject, falling back until it is initialized.
+ *
+ * `lv_subject_get_int()` returns 0 for any subject whose type is not
+ * `LV_SUBJECT_TYPE_INT`, and a subject that has never been through
+ * `lv_subject_init_int()` is `LV_SUBJECT_TYPE_INVALID`. A getter that reads its
+ * subject directly therefore reports **false** before `init_subjects()` runs, no
+ * matter which default it documents. Only default-true settings can actually lie
+ * this way — default-false ones are accidentally consistent, since 0 is both the
+ * uninitialized read and their intended answer.
+ *
+ * Zero-initializing the subject member does not fix this on its own: it makes the
+ * wrong answer deterministic rather than indeterminate. The fallback has to be
+ * supplied at the read.
+ *
+ * @param subject  Subject to read
+ * @param fallback Value to report while the subject is uninitialized
+ */
+inline bool subject_get_bool_or(const lv_subject_t& subject, bool fallback) {
+    if (subject.type != LV_SUBJECT_TYPE_INT) {
+        return fallback;
+    }
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&subject)) != 0;
+}

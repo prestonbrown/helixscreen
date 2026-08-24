@@ -577,24 +577,24 @@ class SettingsManager {
     SubjectManager subjects_;
 
     // LVGL subjects — only those owned by SettingsManager
-    lv_subject_t led_enabled_subject_;
-    lv_subject_t z_movement_style_subject_;
-    lv_subject_t extrude_speed_subject_;
-    lv_subject_t qidi_eject_distance_subject_;
-    lv_subject_t qidi_eject_velocity_subject_;
-    lv_subject_t toolhead_style_subject_;
-    lv_subject_t show_printer_switcher_subject_;
-    lv_subject_t show_widget_labels_subject_;
-    lv_subject_t auto_color_map_subject_;
-    lv_subject_t afc_unload_after_print_subject_;
-    lv_subject_t ams_always_show_bypass_spool_subject_;
-    lv_subject_t ams_keep_spool_info_on_eject_subject_;
-    lv_subject_t ams_force_bypass_controls_subject_;
-    lv_subject_t filament_auto_cooldown_subject_;
-    lv_subject_t console_filter_temps_subject_;
-    lv_subject_t console_filter_firmware_noise_subject_;
-    lv_subject_t detection_enabled_subject_;
-    lv_subject_t detection_policy_u1_subject_;
+    lv_subject_t led_enabled_subject_{};
+    lv_subject_t z_movement_style_subject_{};
+    lv_subject_t extrude_speed_subject_{};
+    lv_subject_t qidi_eject_distance_subject_{};
+    lv_subject_t qidi_eject_velocity_subject_{};
+    lv_subject_t toolhead_style_subject_{};
+    lv_subject_t show_printer_switcher_subject_{};
+    lv_subject_t show_widget_labels_subject_{};
+    lv_subject_t auto_color_map_subject_{};
+    lv_subject_t afc_unload_after_print_subject_{};
+    lv_subject_t ams_always_show_bypass_spool_subject_{};
+    lv_subject_t ams_keep_spool_info_on_eject_subject_{};
+    lv_subject_t ams_force_bypass_controls_subject_{};
+    lv_subject_t filament_auto_cooldown_subject_{};
+    lv_subject_t console_filter_temps_subject_{};
+    lv_subject_t console_filter_firmware_noise_subject_{};
+    lv_subject_t detection_enabled_subject_{};
+    lv_subject_t detection_policy_u1_subject_{};
 
     // External references
     IMoonrakerClient* moonraker_client_ = nullptr;
