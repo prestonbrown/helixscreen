@@ -87,6 +87,14 @@ platform_pre_start() {
     export HELIX_LOG_ROTATE_FILES=3
     mkdir -p "/opt/config/mod_data/log" 2>/dev/null || true
 
+    # Remote control (helix-screen ctl) stays OFF by default. To enable it on this
+    # platform, uncomment the two lines below. ZMOD owns /etc/init.d/S80helixscreen,
+    # so there is nowhere to add --remote that a firmware update will not overwrite;
+    # helix-screen therefore also accepts HELIX_REMOTE_CONTROL, and this file is the
+    # supported place to set it because the installer reinstalls it on update.
+    # export HELIX_REMOTE_CONTROL=1
+    # export HELIX_REMOTE_SOCKET=/tmp/helix-screen.sock
+
     touch /tmp/helixscreen_active
 }
 
