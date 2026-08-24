@@ -766,12 +766,16 @@ EOF
     make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
     stub_nginx ok
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
 
-    # The directive landed inside the /webcam/ block, before proxy_pass.
+    # Both directives landed inside the /webcam/ block, before proxy_pass.
+    # access_log off alone is NOT enough: without proxy_buffering off, nginx
+    # buffers the endless MJPEG stream to a temp file on the same tmpfs at
+    # ~950 KB/s, which fills it in about two minutes.
     run awk '/location \/webcam\/ \{/,/\}/' "$conf"
     [[ "$output" == *"access_log off;"* ]]
+    [[ "$output" == *"proxy_buffering off;"* ]]
     [[ "$output" == *"helix-managed"* ]]
 
     # Marker recorded for reversal.
@@ -786,7 +790,7 @@ EOF
     make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
     stub_nginx ok
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
 
     # Server-level access_log untouched -- we only silence OUR traffic.
@@ -797,20 +801,20 @@ EOF
     [[ "$output" != *"access_log off;"* ]]
 
     # Exactly one insertion tree-wide.
-    [ "$(grep -c 'helix-managed' "$conf")" -eq 1 ]
+    [ "$(grep -c 'helix-managed' "$conf")" -eq 2 ]
 }
 
 @test "suppress: idempotent -- second run does not double-insert" {
     make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
     stub_nginx ok
 
-    _suppress_webcam_access_log
+    _tune_webcam_proxy_block
     local after_first; after_first="$(cat "$conf")"
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
 
-    [ "$(grep -c 'helix-managed' "$conf")" -eq 1 ]
+    [ "$(grep -c 'helix-managed' "$conf")" -eq 2 ]
     [ "$(cat "$conf")" = "$after_first" ]
 }
 
@@ -818,7 +822,7 @@ EOF
     export HELIX_NGINX_CONF="$BATS_TEST_TMPDIR/etc/nginx/nope.conf"
     stub_nginx ok
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
     [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
 }
@@ -838,13 +842,62 @@ EOF
     local before; before="$(cat "$path")"
     stub_nginx ok
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
     [ "$(cat "$path")" = "$before" ]
     [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
 }
 
-@test "suppress: no-op when the block already silences access_log itself" {
+@test "suppress: no-op when the block already has BOTH directives" {
+    local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path" <<'EOF'
+http {
+    server {
+        location /webcam/ {
+            access_log off;
+            proxy_buffering off;
+            proxy_pass http://mjpgstreamer1/;
+        }
+    }
+}
+EOF
+    export HELIX_NGINX_CONF="$path"
+    local before; before="$(cat "$path")"
+    stub_nginx ok
+
+    run _tune_webcam_proxy_block
+    [ "$status" -eq 0 ]
+    [ "$(cat "$path")" = "$before" ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "restore: also strips lines left by the older accesslog-only installer" {
+    local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path" <<'EOF'
+http {
+    server {
+        location /webcam/ {
+            access_log off; # helix-managed-webcam-accesslog: camera frames would fill the tmpfs log
+            proxy_pass http://mjpgstreamer1/;
+        }
+    }
+}
+EOF
+    export HELIX_NGINX_CONF="$path"
+    stub_nginx ok
+    touch "$INSTALL_DIR/config/.nginx_webcam_accesslog"
+
+    run _restore_webcam_proxy_block
+    [ "$status" -eq 0 ]
+
+    # The legacy tag is a superstring of the current one, so it is cleaned up too.
+    refute grep -q 'helix-managed' "$path"
+    refute grep -q 'access_log' "$path"
+}
+
+@test "suppress: adds only the missing directive when one is already present" {
     local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
     mkdir -p "$(dirname "$path")"
     cat > "$path" <<'EOF'
@@ -858,13 +911,16 @@ http {
 }
 EOF
     export HELIX_NGINX_CONF="$path"
-    local before; before="$(cat "$path")"
     stub_nginx ok
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -eq 0 ]
-    [ "$(cat "$path")" = "$before" ]
-    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+
+    # The user's own access_log line is left alone (not duplicated), and only
+    # the missing proxy_buffering directive is added.
+    [ "$(grep -c 'access_log' "$path")" -eq 1 ]
+    [ "$(grep -c 'proxy_buffering off;' "$path")" -eq 1 ]
+    [ "$(grep -c 'helix-managed' "$path")" -eq 1 ]
 }
 
 @test "suppress: rolls back and does not reload when nginx -t fails" {
@@ -872,7 +928,7 @@ EOF
     local before; before="$(cat "$conf")"
     stub_nginx fail
 
-    run _suppress_webcam_access_log
+    run _tune_webcam_proxy_block
     [ "$status" -ne 0 ]
 
     # Original config restored byte-for-byte; nginx never reloaded.
@@ -886,10 +942,10 @@ EOF
     local before; before="$(cat "$conf")"
     stub_nginx ok
 
-    _suppress_webcam_access_log
+    _tune_webcam_proxy_block
     [ "$(cat "$conf")" != "$before" ]
 
-    run _restore_webcam_access_log
+    run _restore_webcam_proxy_block
     [ "$status" -eq 0 ]
 
     [ "$(cat "$conf")" = "$before" ]
@@ -901,7 +957,7 @@ EOF
     local before; before="$(cat "$conf")"
     stub_nginx ok
 
-    run _restore_webcam_access_log
+    run _restore_webcam_proxy_block
     [ "$status" -eq 0 ]
     [ "$(cat "$conf")" = "$before" ]
 }
@@ -955,6 +1011,7 @@ EOF
 
     run awk '/location \/webcam\/ \{/,/\}/' "$conf"
     [[ "$output" == *"access_log off;"* ]]
+    [[ "$output" == *"proxy_buffering off;"* ]]
 }
 
 @test "uninstall_camera_k2: restores the webcam access log" {
