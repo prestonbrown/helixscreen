@@ -1055,6 +1055,8 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     }
 
     // Find the step_container and create the step widget
+    lv_obj_add_event_cb(test_modal_, on_modal_deleted, LV_EVENT_DELETE, this);
+
     lv_obj_t* step_container = lv_obj_find_by_name(test_modal_, "step_container");
     if (!step_container) {
         spdlog::error("[NetworkSettingsOverlay] step_container not found in modal");
@@ -1082,6 +1084,10 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     spdlog::debug("[NetworkSettingsOverlay] Network test modal shown, starting test");
 
     // Start the first step (Local connection)
+    // Watched in its own right, not just via test_modal_: it is a grandchild of
+    // the modal, and step_container can also be repopulated independently.
+    lv_obj_add_event_cb(step_widget_, on_modal_deleted, LV_EVENT_DELETE, this);
+
     ui_step_progress_set_current(step_widget_, 0);
 
     // Reset test status
@@ -1153,6 +1159,8 @@ void NetworkSettingsOverlay::handle_add_other_clicked() {
         }
 
         // Register soft keyboard for text inputs
+        lv_obj_add_event_cb(hidden_network_modal_, on_modal_deleted, LV_EVENT_DELETE, this);
+
         lv_obj_t* ssid_input = lv_obj_find_by_name(hidden_network_modal_, "ssid_input");
         if (ssid_input) {
             helix::ui::modal_register_keyboard(hidden_network_modal_, ssid_input);
@@ -1565,6 +1573,9 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
         return;
     }
 
+    // Drop the cached pointer if anything other than us destroys this modal.
+    lv_obj_add_event_cb(password_modal_, on_modal_deleted, LV_EVENT_DELETE, this);
+
     // Clear password input and register keyboard
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
@@ -1585,6 +1596,45 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     }
 
     spdlog::debug("[NetworkSettingsOverlay] Password modal shown");
+}
+
+/**
+ * @brief Drop a cached modal pointer the moment that modal object dies
+ *
+ * This class nulls each pointer for the dismissals it drives itself, but the
+ * modal system can also close a modal (back gesture, ModalStack unwinding), and
+ * those paths left a dangling non-null pointer behind. The connect-result
+ * callbacks null-check the pointer and then walk it with lv_obj_find_by_name(),
+ * which on a freed object reads whatever the allocator left there - a hard
+ * SIGBUS on MIPS, silent corruption elsewhere (#1341). The lifetime token those
+ * callbacks carry does not help: it guards the overlay, which is a singleton
+ * that outlives every modal.
+ *
+ * Same lesson as e7aba0d42: watch the object's OWN delete event, not just the
+ * paths you expect to destroy it. Every cached pointer gets it, because the
+ * ones that had not crashed yet differ only in how often they are exercised.
+ *
+ * KEEP THIS HANDLER A PURE ASSIGNMENT. obj_delete_core() sends DELETE to the
+ * object first and only then recurses into its children, so on a test_modal_
+ * deletion this runs for the modal while step_widget_ is still non-null and
+ * already inside its ancestor's teardown. Nulling a pointer is safe there;
+ * touching the widget it names would not be.
+ */
+void NetworkSettingsOverlay::on_modal_deleted(lv_event_t* e) {
+    auto* self = static_cast<NetworkSettingsOverlay*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+    lv_obj_t* dying = lv_event_get_target_obj(e);
+    // Compare by identity: a late DELETE from a previous instance of the same
+    // modal must not clear the pointer to the one now on screen.
+    for (lv_obj_t** cached : {&self->password_modal_, &self->hidden_network_modal_,
+                              &self->test_modal_, &self->step_widget_}) {
+        if (*cached && *cached == dying) {
+            *cached = nullptr;
+            return;
+        }
+    }
 }
 
 void NetworkSettingsOverlay::hide_password_modal() {

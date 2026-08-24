@@ -6,6 +6,7 @@
 #include "ui_event_safety.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_network_settings.h"
+#include "ui_timer_guard.h"
 
 #include "ethernet_manager.h"
 #include "log_redact.h"
@@ -129,14 +130,26 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     spdlog::debug("[NetworkWidget] Attached");
 }
 
+// Neuter rather than unlink. Every caller below can run from inside
+// lv_timer_handler - detach() via ~NetworkWidget() during a home-panel rebuild,
+// on_deactivate() and the ethernet probe's defer body via
+// UpdateQueue::process_pending() - and lv_timer_delete() unlinks the timer from
+// the list LVGL is currently walking (#750, #751). lv_timer_cancel_safe() also
+// self-guards on lv_is_initialized(), which is what makes it safe from the
+// destructor after lv_deinit().
+void NetworkWidget::cancel_signal_poll_timer() {
+    if (!signal_poll_timer_) {
+        return;
+    }
+    helix::ui::lv_timer_cancel_safe(signal_poll_timer_);
+    signal_poll_timer_ = nullptr;
+}
+
 void NetworkWidget::detach() {
     // Expire pending async ethernet callbacks before tearing down subjects.
     lifetime_.invalidate();
 
-    if (lv_is_initialized() && signal_poll_timer_) {
-        lv_timer_delete(signal_poll_timer_);
-        signal_poll_timer_ = nullptr;
-    }
+    cancel_signal_poll_timer();
 
     ethernet_manager_.reset();
     wifi_manager_.reset();
@@ -166,8 +179,7 @@ void NetworkWidget::on_activate() {
 void NetworkWidget::on_deactivate() {
     // Stop signal polling timer when panel is hidden (saves CPU)
     if (signal_poll_timer_) {
-        lv_timer_delete(signal_poll_timer_);
-        signal_poll_timer_ = nullptr;
+        cancel_signal_poll_timer();
         spdlog::debug("[NetworkWidget] Stopped signal polling timer");
     }
 }
@@ -239,10 +251,7 @@ void NetworkWidget::detect_network_type(bool force) {
                           info_copy.interface, info_copy.ip_address);
             set_network(NetworkType::Ethernet);
             // Stop polling timer — ethernet doesn't need signal polling
-            if (signal_poll_timer_) {
-                lv_timer_delete(signal_poll_timer_);
-                signal_poll_timer_ = nullptr;
-            }
+            cancel_signal_poll_timer();
         });
     });
 }

@@ -223,6 +223,32 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
 
     std::string filename = raw_filename;
 
+    // A thumbnail source describes ONE print, and nothing retires it when that
+    // print ends: the preparing epoch only re-points it for a print started
+    // FROM the app, and a Confirmed exit deliberately keeps it. So a print
+    // started anywhere else - Mainsail, Fluidd, the printer's own screen -
+    // inherits the previous print's override, computes the previous print's
+    // effective filename, matches last_effective_filename_, and early-returns
+    // below. The thumbnail subject is never republished and the preview renders
+    // the previous print's image for the whole job (#1339).
+    //
+    // Retire the override here, where we can see the name the printer actually
+    // reports, rather than guessing at print-end: an empty filename between
+    // jobs is deliberately preserved so a finished print stays readable.
+    // A preparing job is EXACTLY the case where the override legitimately does
+    // not describe what the printer is reporting: print_stats still names the
+    // previous job for the whole pre-start block, which is why the identity is
+    // recorded at commit in the first place. Retiring on that mismatch would
+    // throw away the identity the epoch just adopted, so only retire once no
+    // job is armed.
+    if (!printer_state_.has_preparing_job() && !thumbnail_source_filename_.empty() &&
+        !helix::gcode::thumbnail_source_describes(filename, thumbnail_source_filename_)) {
+        spdlog::debug("[ActivePrintMediaManager] Thumbnail source '{}' does not describe '{}' "
+                      "- retiring it",
+                      thumbnail_source_filename_, filename);
+        clear_thumbnail_source();
+    }
+
     // Auto-resolve temp file patterns to original filename if no override is set
     std::string resolved = resolve_gcode_filename(filename);
     if (resolved != filename && thumbnail_source_filename_.empty()) {
