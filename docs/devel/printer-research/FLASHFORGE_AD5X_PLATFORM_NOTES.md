@@ -490,3 +490,61 @@ against the live printer — the first time AD5X support has run on real hardwar
   chain) throws two gcode errors that land in the on-device error UI. This is
   the source of the "bed_mesh: Unknown profile [auto]" lines in klippy startup
   logs; it is not a missing-profile condition on our side.
+
+### Bed mesh on a freshly-modded AD5X: why `auto`, and what we do about it
+
+Expanding the `LOAD=auto` entry above with the mechanism, because the remedy and
+the open risk both follow from it.
+
+**Where the name comes from.** `auto` is not arbitrary — it is the default
+`PROFILE` of ZMOD's own `AUTO_FULL_BED_LEVEL` macro (documented in ZMOD's
+Calibrations page). So `_PREPARE_DISPLAY_OFF` is not asking for a magic profile,
+it is reloading the mesh it assumes ZMOD's leveling created. The assumption holds
+for a printer that has been levelled with ZMOD's macro and fails for one that has
+not — ours carries `MESH_DATA` from stock leveling performed before ZMOD existed
+on the box. Any freshly-modded printer is in that state until its first
+`AUTO_FULL_BED_LEVEL`.
+
+**User-side remedy: run `AUTO_FULL_BED_LEVEL` once after installing ZMOD.** It
+saves to `auto` by default and creates exactly what the handoff path reloads.
+Copying the stock profile across with `BED_MESH_PROFILE SAVE=auto` also silences
+the errors and costs no probe cycle, but hands ZMOD a mesh produced by a
+different routine without its nozzle clean — and ZMOD's `MESH_TEST` validates the
+saved mesh against a fresh centre probe and re-levels on a >=0.3 mm discrepancy.
+Prefer letting ZMOD generate the mesh it expects to own.
+
+There is no setting to point the handoff path at a different profile name;
+`AUTO_FULL_BED_LEVEL` takes `PROFILE` as a parameter but `_PREPARE_DISPLAY_OFF`
+hardcodes `auto`. Creating the profile is the only user-side fix, which is why
+this is worth an upstream report rather than a local workaround.
+
+**UNVERIFIED, and it decides how much this matters.** The macro runs
+`BED_MESH_CLEAR` *before* `BED_MESH_PROFILE LOAD=auto`. If the clear succeeds and
+the load fails, the printer may be left with no active mesh after every screen
+handover — which happens on every boot in alt-screen mode. Mitigating: `_START_PRINT`
+issues its own `BED_MESH_PROFILE LOAD={mesh}` from a configured variable, so the
+print path probably reloads something, and `PRINT_LEVELING` defaults to 0 (no
+re-mesh per print) meaning it leans on that saved profile. Nobody has checked
+`printer.bed_mesh.profile_name` after a handoff. Two red lines in the error UI and
+a silently unmeshed bed are very different bugs; this one query separates them.
+
+**Our side: capability question identified, deliberately NOT built yet.** If we
+ever act on this, it belongs behind the `z_offset_persistence.h` shape — a
+provider table keyed on a detection predicate, vendor names confined to one .cpp,
+answering one question:
+
+```cpp
+/// The mesh profile this firmware expects to exist, or "" when it has no such
+/// convention.
+std::string firmware_expected_mesh_profile(const PrinterDiscovery& hw);
+```
+
+The bed-mesh UI could then offer to create a missing expected profile instead of
+surfacing a raw gcode error. It is currently vendor-free (no zmod/forge/creality
+mentions anywhere in `ui_panel_bed_mesh.cpp` or `ui_bed_mesh.cpp`) and this would
+keep it that way.
+
+Not built, for three reasons: the consequence above is unverified and only one
+version of it justifies the machinery; an upstream fix would make it dead code
+encoding a convention that no longer exists; and it is one printer's observation.
+Trigger for revisiting: upstream declines, or a second reporter hits it.
