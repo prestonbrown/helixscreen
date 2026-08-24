@@ -66,6 +66,15 @@ TouchCalibration load_touch_calibration() {
 
     cal.valid = cfg->get<bool>("/input/calibration/valid", false);
     if (!cal.valid) {
+        // Fall back to the panel default this package was built for, so touch is
+        // usable on first boot instead of only after the wizard's tap routine.
+        // A stored user calibration always wins: we only get here when there is none.
+        TouchCalibration platform_cal = platform_default_calibration();
+        if (platform_cal.valid) {
+            spdlog::info("[TouchCal] Using platform default calibration "
+                         "(no stored calibration yet)");
+            return platform_cal;
+        }
         spdlog::debug("[TouchCal] No valid calibration in config");
         return cal;
     }

@@ -140,6 +140,43 @@ bool invert_transform_point(const TouchCalibration& cal, Point screen, Point& ou
     return true;
 }
 
+TouchCalibration platform_default_calibration() {
+    TouchCalibration cal;
+
+    // Measured on our own hardware, one unit per platform. The AD5X and AD5M Pro
+    // panels are the same part: strip the Y-axis polarity difference and the two
+    // fits agree to 0.19% in X scale and 1.61% in Y, with raw spans of 682.8 vs
+    // 681.4 (X) and 324.6 vs 329.8 (Y). That cross-agreement is why these are
+    // shipped at all — a lone fit would only describe the unit it came from.
+    //
+    // e is positive on the AD5X and negative on the AD5M: the digitizer reports Y
+    // in opposite directions on the two models, and f absorbs the flip.
+#if defined(HELIX_PLATFORM_AD5X)
+    cal.valid = true;
+    cal.a = 1.171731f;
+    cal.b = -0.043628f;
+    cal.c = -66.965828f;
+    cal.d = -0.006188f;
+    cal.e = 1.478954f;
+    cal.f = -118.906227f;
+#elif defined(HELIX_PLATFORM_AD5M)
+    cal.valid = true;
+    cal.a = 1.174004f;
+    cal.b = 0.009220f;
+    cal.c = -79.064400f;
+    cal.d = -0.000000f;
+    cal.e = -1.455497f;
+    cal.f = 570.492126f;
+#endif
+
+    // Never hand back a default that our own validator would reject.
+    if (cal.valid && !is_calibration_valid(cal)) {
+        spdlog::warn("[TouchCal] Platform default failed validation — ignoring");
+        cal.valid = false;
+    }
+    return cal;
+}
+
 bool is_calibration_valid(const TouchCalibration& cal) {
     if (!cal.valid) {
         return false;
