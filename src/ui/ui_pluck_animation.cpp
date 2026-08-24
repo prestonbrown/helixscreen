@@ -317,14 +317,28 @@ float prof_at(float y) {
     return s * s;
 }
 
-// The belt's top-edge point at a given y for deflection k - shared by the
-// band geometry and by the finger, so the fingertip actually tracks the
-// edge it is supposedly hooking.
-Vec3 belt_top_at(float y, float k) {
+// The belt's top/bottom edge points at a given y for deflection k - the one
+// place the pull/twist math lives, shared by the band geometry, the finger
+// (which needs only the top edge, to actually hook it) and the mark (which
+// needs both, and samples at its own y positions rather than filtering the
+// band's grid - see the comment on MARK_N below for why that separation
+// matters).
+struct EdgePair {
+    Vec3 top;
+    Vec3 bot;
+};
+
+EdgePair belt_edge_at(float y, float k) {
     const float p = prof_at(y) * k;
     const float th = TWIST_MAX * p;
     const float cx = CXO + PULL_D * p;
-    return {cx + HW * std::sin(th), y, CZ + HW * std::cos(th)};
+    const float ex = HW * std::sin(th);
+    const float ez = HW * std::cos(th);
+    return {{cx + ex, y, CZ + ez}, {cx - ex, y, CZ - ez}};
+}
+
+Vec3 belt_top_at(float y, float k) {
+    return belt_edge_at(y, k).top;
 }
 
 constexpr int OUTER_N = 22;
@@ -339,14 +353,34 @@ void outer_geo(float k, std::vector<Vec3>& top, std::vector<Vec3>& bot) {
     for (int i = 0; i < OUTER_N; ++i) {
         const float y =
             RUN_Y0 + (WY - RUN_Y0) * static_cast<float>(i) / static_cast<float>(OUTER_N - 1);
-        const float p = prof_at(y) * k;
-        const float th = TWIST_MAX * p;
-        const float cx = CXO + PULL_D * p;
-        const float ex = HW * std::sin(th);
-        const float ez = HW * std::cos(th);
-        top.push_back({cx + ex, y, CZ + ez});
-        bot.push_back({cx - ex, y, CZ - ez});
+        const EdgePair e = belt_edge_at(y, k);
+        top.push_back(e.top);
+        bot.push_back(e.bot);
     }
+}
+
+// The green pluck mark is only MARK_Y1-MARK_Y0=14 units wide, versus the
+// belt band's own sample spacing of (WY-RUN_Y0)/(OUTER_N-1)=~11.9 units - so
+// filtering the band's shared grid for points that land inside the mark
+// window is a coin flip on whether 2+ ever do (a prior version of this file
+// got unlucky: exactly one sample ever landed inside, so the mark never had
+// enough points to form a ribbon and rendered nothing, on every frame,
+// forever - independent of OUTER_N tuning since nothing guaranteed two hits).
+// Sampling the mark on its own dedicated grid, independent of the band's
+// resolution, makes that failure mode structurally impossible rather than
+// just less likely.
+constexpr int MARK_N = 6;
+
+void draw_mark(lv_layer_t* layer, const ProjCtx& c, float k, lv_color_t mark) {
+    std::vector<PluckPoint> mtop(MARK_N), mbot(MARK_N);
+    for (int i = 0; i < MARK_N; ++i) {
+        const float y =
+            MARK_Y0 + (MARK_Y1 - MARK_Y0) * static_cast<float>(i) / static_cast<float>(MARK_N - 1);
+        const EdgePair e = belt_edge_at(y, k);
+        mtop[static_cast<size_t>(i)] = proj(c, e.top.x, e.top.y, e.top.z);
+        mbot[static_cast<size_t>(i)] = proj(c, e.bot.x, e.bot.y, e.bot.z);
+    }
+    fill_ribbon(layer, mtop, mbot, mark);
 }
 
 void draw_outer_run(lv_layer_t* layer, const ProjCtx& c, float k, lv_color_t belt,
@@ -385,18 +419,9 @@ void draw_outer_run(lv_layer_t* layer, const ProjCtx& c, float k, lv_color_t bel
     }
 
     // Green pluck mark, riding the deformation so it stays visible through
-    // the twist and the pull.
-    std::vector<PluckPoint> mtop, mbot;
-    for (int i = 0; i < OUTER_N; ++i) {
-        const float y = top[static_cast<size_t>(i)].y;
-        if (y >= MARK_Y0 && y <= MARK_Y1) {
-            mtop.push_back(ptop[static_cast<size_t>(i)]);
-            mbot.push_back(pbot[static_cast<size_t>(i)]);
-        }
-    }
-    if (mtop.size() >= 2) {
-        fill_ribbon(layer, mtop, mbot, mark);
-    }
+    // the twist and the pull. Sampled on its own grid (see draw_mark) rather
+    // than filtered from the band's points above.
+    draw_mark(layer, c, k, mark);
 }
 
 void draw_inner_run(lv_layer_t* layer, const ProjCtx& c, lv_color_t belt_dk) {
