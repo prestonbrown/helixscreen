@@ -84,15 +84,18 @@ install_platform_hooks() {
         zmod)        platform_hook="ad5m-zmod" ;;
     esac
 
-    # Platform hooks (pi32 shares Pi hooks; AD5X shares the ad5m-zmod hook
-    # because both run ZMOD firmware with the same /data layout).
+    # Platform hooks (pi32 shares Pi hooks). The AD5X used to share ad5m-zmod on
+    # the assumption that both ZMOD firmwares have the same layout; they do not.
+    # The AD5X runs inside a chroot at /usr/data/.mod/.zmod, installs to
+    # /srv/helixscreen, and has no /data at all, so the AD5M hook's
+    # HELIX_CACHE_DIR=/data/helixscreen/cache pointed at a path that is not there.
     case "$platform" in
         pi|pi32)       platform_hook="pi" ;;
         k1)            platform_hook="k1" ;;
         k2)            platform_hook="k2" ;;
         cc1)           platform_hook="cc1" ;;
         m1)            platform_hook="m1" ;;
-        ad5x)          platform_hook="ad5m-zmod" ;;
+        ad5x)          platform_hook="ad5x" ;;
         snapmaker-u1)  platform_hook="snapmaker-u1" ;;
     esac
 
