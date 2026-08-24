@@ -167,6 +167,9 @@ class ALSASoundBackend : public SoundBackend {
     /// Paired with needs_start_before_drain() to tell "queued but never started"
     /// apart from "nothing to play".
     bool wrote_since_prepare_ = false;
+    /// Output re-locks when the clock stops, so the idle park must not run here
+    /// (#1337). Decided once at initialize(); see alsa_clock_keepalive.h.
+    bool keep_clock_alive_ = false;
 
     // Underrun log rate limiter (touched only by render thread)
     uint64_t xrun_count_ = 0;
