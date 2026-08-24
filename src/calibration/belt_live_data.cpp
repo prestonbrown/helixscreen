@@ -77,8 +77,19 @@ void BeltLiveData::set_waveform(const std::vector<AccelSample>& window) {
 void BeltLiveData::set_spectrum(const std::vector<std::pair<float, float>>& psd) {
     if (psd.empty()) {
         spectrum_.clear();
+        spectrum_peak_hz_ = 0.0f;
         return;
     }
+
+    // Peak frequency from the full PSD, before it is reduced to bucket
+    // maxima below - see spectrum_peak_hz()'s doc comment for why.
+    size_t peak_idx = 0;
+    for (size_t i = 1; i < psd.size(); ++i) {
+        if (psd[i].second > psd[peak_idx].second) {
+            peak_idx = i;
+        }
+    }
+    spectrum_peak_hz_ = psd[peak_idx].first;
 
     const size_t out_n = std::min(psd.size(), TRACE_POINTS);
     spectrum_.assign(out_n, 0.0f);
@@ -97,6 +108,7 @@ void BeltLiveData::set_spectrum(const std::vector<std::pair<float, float>>& psd)
 void BeltLiveData::clear() {
     waveform_.clear();
     spectrum_.clear();
+    spectrum_peak_hz_ = 0.0f;
 }
 
 } // namespace helix::calibration

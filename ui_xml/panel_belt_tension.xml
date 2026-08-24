@@ -122,58 +122,81 @@
               width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
               scrollable="false">
         <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="2"/>
-        <!-- Hero readout. font_xl is the largest font token the theme defines; -->
-        <!-- there is no text_hero widget. The number has to be readable at -->
-        <!-- arm's length, standing at the machine with a hand on the belt. -->
+        <!-- Readout card: name/frequency/count on the left, the match-to-A -->
+        <!-- bar on the right when there is a reference to match against. One -->
+        <!-- card rather than two stacked blocks, so the traces below get the -->
+        <!-- vertical space back. font_xl is the largest font token the theme -->
+        <!-- defines; there is no text_hero widget. The number has to be -->
+        <!-- readable at arm's length, standing at the machine with a hand on -->
+        <!-- the belt. -->
         <lv_obj width="100%"
                 height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                scrollable="false">
-          <text_body name="bt_belt_label" bind_text="bt_current_belt" style_text_color="#text_muted"/>
-          <text_heading name="bt_live_freq_label"
-                        bind_text="bt_live_freq" style_text_font="#font_xl" style_text_align="center"/>
-          <text_small name="bt_pluck_count_label" bind_text="bt_pluck_count" style_text_color="#text_muted"/>
-          <text_small name="bt_median_freq_label" bind_text="bt_median_freq" style_text_color="#text_muted"/>
-        </lv_obj>
-        <!-- Match bar. Hidden until belt A has committed a median, because -->
-        <!-- there is nothing to match against before then. -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
-          <bind_flag_if_eq subject="bt_has_reference" flag="hidden" ref_value="0"/>
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                style_pad_all="#space_lg" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
                   scrollable="false">
-            <text_body text="Match to belt A" translation_tag="Match to belt A"/>
-            <text_body name="bt_reference_freq_label" bind_text="bt_reference_freq" style_text_color="#primary"/>
+            <text_body name="bt_belt_label" bind_text="bt_current_belt" style_text_color="#text_muted"/>
+            <text_heading name="bt_live_freq_label" bind_text="bt_live_freq" style_text_font="#font_xl"/>
+            <text_small name="bt_pluck_count_label" bind_text="bt_pluck_count" style_text_color="#text_muted"/>
+            <text_small name="bt_median_freq_label" bind_text="bt_median_freq" style_text_color="#text_muted"/>
           </lv_obj>
-          <progress_bar name="bt_match_bar" width="100%" bind_value="bt_match_percent"/>
+          <!-- Hidden until belt A has committed a median, because there is -->
+          <!-- nothing to match against before then. -->
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                  scrollable="false">
+            <bind_flag_if_eq subject="bt_has_reference" flag="hidden" ref_value="0"/>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                    scrollable="false">
+              <text_body text="Match to belt A" translation_tag="Match to belt A"/>
+              <text_body name="bt_reference_freq_label" bind_text="bt_reference_freq" style_text_color="#primary"/>
+            </lv_obj>
+            <progress_bar name="bt_match_bar" width="100%" bind_value="bt_match_percent"/>
+          </lv_obj>
         </lv_obj>
         <!-- Live waveform (left) and spectrum (right) strips. A fixed pixel -->
         <!-- height, not a token or "content": belt_trace children are -->
         <!-- height="100%" and need a real number to resolve against - the -->
         <!-- theme has no space token this large (space_2xl tops out at -->
-        <!-- 24/32/40px; see theme_manager.cpp's spacing scale). -->
+        <!-- 24/32/40px; see theme_manager.cpp's spacing scale). Moving the -->
+        <!-- match bar into the readout card above frees roughly this much -->
+        <!-- again, so this is close to double the previous 90px. -->
         <lv_obj name="bt_trace_container"
-                width="100%" height="90" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+                width="100%" height="180" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
           <belt_trace name="bt_waveform" height="100%" mode="waveform" flex_grow="1" style_line_color="#primary"/>
           <belt_trace name="bt_spectrum" height="100%" mode="spectrum" flex_grow="1" style_line_color="#success"/>
         </lv_obj>
         <text_body name="bt_hint_label"
                    width="100%" bind_text="bt_hint" style_text_align="center" style_text_color="#text_muted"
                    long_mode="wrap"/>
-        <!-- One button advances the flow; its label is bound, so it reads -->
-        <!-- "Next belt" on A and "Compare" on B. Disabled until the median -->
-        <!-- has committed - advancing on two plucks would ship a guess. -->
-        <ui_button name="btn_next_belt"
-                   width="100%" height="#button_height" bind_text="bt_advance_label" variant="primary">
-          <bind_state_if_eq subject="bt_committed" state="disabled" ref_value="0"/>
-          <event_cb trigger="clicked" callback="belt_tension_next_belt_cb"/>
-        </ui_button>
-        <ui_button name="btn_listen_cancel"
-                   width="100%" height="#button_height" icon="close" text="Cancel" translation_tag="Cancel"
-                   variant="danger">
-          <event_cb trigger="clicked" callback="belt_tension_cancel_cb"/>
-        </ui_button>
+        <!-- Compare/advance and start-over side by side - both are things -->
+        <!-- the user reaches for constantly while tensioning, not a primary -->
+        <!-- action and an escape hatch. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <!-- One button advances the flow; its label is bound, so it reads -->
+          <!-- "Next belt" on A and "Compare" on B. Disabled until the median -->
+          <!-- has committed - advancing on two plucks would ship a guess. -->
+          <ui_button name="btn_next_belt"
+                     width="0" height="#button_height" flex_grow="1" bind_text="bt_advance_label" variant="primary">
+            <bind_state_if_eq subject="bt_committed" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="belt_tension_next_belt_cb"/>
+          </ui_button>
+          <!-- Not "Cancel" - this does not cancel out of the panel (the -->
+          <!-- header back button does that). It stops the stream, resets, -->
+          <!-- and returns to START while staying put, which is the only way -->
+          <!-- back to re-measure belt A once the flow has moved on to B. -->
+          <!-- L025: an icon+text button sharing a flex_flow="row" needs all -->
+          <!-- three flex place styles set to center, or its content sits at -->
+          <!-- the top of the button. -->
+          <ui_button name="btn_listen_cancel"
+                     width="0" height="#button_height" flex_grow="1" icon="close" text="Start over"
+                     translation_tag="Start over" variant="danger" flex_flow="row" style_flex_main_place="center"
+                     style_flex_cross_place="center" style_flex_track_place="center">
+            <event_cb trigger="clicked" callback="belt_tension_cancel_cb"/>
+          </ui_button>
+        </lv_obj>
       </lv_obj>
       <!-- ============================================================ -->
       <!-- STATE 3: COMPARE - A vs B, delta, verdict -->

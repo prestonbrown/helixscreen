@@ -194,6 +194,10 @@ class BeltTensionPanel : public OverlayBase {
     /// first time this runs, so activation retries.
     void ensure_gate_observers();
     void handle_park_gantry();
+    /// Second half of the park, run after the Y move (which sets the free
+    /// span) succeeds. Centres X - see park_x_center() - or, if bounds are
+    /// not known yet, leaves the toolhead where the Y move put it.
+    void park_center_x();
     /// Fetch the klippy UDS path from Moonraker and probe co-location.
     void probe_klippy_socket();
     [[nodiscard]] std::optional<float> span_offset_for_current_printer() const;

@@ -55,4 +55,11 @@ ParkTarget park_y_for_span(float target_span_mm, std::optional<float> span_offse
     return out;
 }
 
+std::optional<float> park_x_center(const AxisBounds& bounds) {
+    if (!bounds.has_x) {
+        return std::nullopt;
+    }
+    return (bounds.x_min + bounds.x_max) / 2.0f;
+}
+
 } // namespace helix::calibration

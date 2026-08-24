@@ -10,6 +10,7 @@ using helix::calibration::belt_gate_message;
 using helix::calibration::BeltGate;
 using helix::calibration::BeltGateInputs;
 using helix::calibration::evaluate_belt_gate;
+using helix::calibration::park_x_center;
 using helix::calibration::park_y_for_span;
 using helix::calibration::TARGET_SPAN_MM;
 
@@ -144,6 +145,38 @@ TEST_CASE("park_y_for_span refuses when Y bounds are unknown", "[belt][gating][s
     unknown.has_y = false;
     unknown.y_max = 0.0f;
     CHECK_FALSE(park_y_for_span(TARGET_SPAN_MM, 35.0f, unknown).valid);
+}
+
+TEST_CASE("park_x_center is the midpoint of the X envelope", "[belt][gating][span]") {
+    AxisBounds b;
+    b.x_min = 0.0f;
+    b.x_max = 300.0f;
+    b.has_x = true;
+    const auto x = park_x_center(b);
+    REQUIRE(x.has_value());
+    CHECK(*x == Catch::Approx(150.0f));
+}
+
+TEST_CASE("park_x_center handles an X envelope that does not start at zero",
+          "[belt][gating][span]") {
+    AxisBounds b;
+    b.x_min = -20.0f;
+    b.x_max = 280.0f;
+    b.has_x = true;
+    const auto x = park_x_center(b);
+    REQUIRE(x.has_value());
+    CHECK(*x == Catch::Approx(130.0f));
+}
+
+TEST_CASE("park_x_center refuses when X bounds are unknown", "[belt][gating][span]") {
+    // Reproduces the reference-machine bug directly: has_x is false until the
+    // first axis-bounds subscription update arrives, and treating an unsent
+    // bound as 0 would park at X=0 on a cold start - worse than not moving.
+    AxisBounds unknown;
+    unknown.has_x = false;
+    unknown.x_min = 0.0f;
+    unknown.x_max = 0.0f;
+    CHECK_FALSE(park_x_center(unknown).has_value());
 }
 
 TEST_CASE("belt span offset is negative for a model with no measured value",

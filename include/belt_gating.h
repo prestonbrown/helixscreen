@@ -69,4 +69,22 @@ struct ParkTarget {
 ParkTarget park_y_for_span(float target_span_mm, std::optional<float> span_offset_mm,
                            const AxisBounds& bounds);
 
+/**
+ * @brief Gantry X that centres the toolhead in its kinematic envelope
+ *
+ * Y sets the free span on a CoreXY (see park_y_for_span()); X sets neither
+ * span. But a park that only moves Y leaves the toolhead wherever it
+ * happened to be, and near either end of the X envelope that is directly
+ * over the belt the user is being asked to pluck - observed on the
+ * reference machine, parked at X=285 on a 300 mm bed with the hint pointing
+ * at the front-right belt. Centring X is a second positioning move, exactly
+ * as cheap as the Y one.
+ *
+ * @param bounds The machine's kinematic envelope
+ * @return nullopt if X bounds are not known yet - has_x is false until the
+ *         first axis-bounds subscription update arrives, and a park at that
+ *         point must skip the move rather than guess X=0.
+ */
+std::optional<float> park_x_center(const AxisBounds& bounds);
+
 } // namespace helix::calibration

@@ -118,7 +118,7 @@ class BeltLiveData {
     void set_waveform(const std::vector<AccelSample>& window);
 
     /// Replace the spectrum trace from a (frequency, power) PSD. Keeps bucket
-    /// maxima. An empty PSD clears the trace.
+    /// maxima. An empty PSD clears the trace and spectrum_peak_hz().
     void set_spectrum(const std::vector<std::pair<float, float>>& psd);
 
     [[nodiscard]] const std::vector<float>& waveform() const {
@@ -128,6 +128,19 @@ class BeltLiveData {
         return spectrum_;
     }
 
+    /**
+     * @brief The frequency of the tallest bin in the last spectrum passed to set_spectrum()
+     *
+     * Read from the full PSD, not the downsampled bars spectrum() returns:
+     * bucket-maxima reduction keeps the peak's power but not reliably its
+     * original bin, and this is the number the peak label exists to show
+     * precisely (see BeltTrace's spectrum draw branch). 0 before the first
+     * spectrum arrives.
+     */
+    [[nodiscard]] float spectrum_peak_hz() const {
+        return spectrum_peak_hz_;
+    }
+
     void clear();
 
   private:
@@ -135,6 +148,7 @@ class BeltLiveData {
 
     std::vector<float> waveform_;
     std::vector<float> spectrum_;
+    float spectrum_peak_hz_ = 0.0f;
 };
 
 } // namespace helix::calibration

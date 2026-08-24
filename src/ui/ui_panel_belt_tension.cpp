@@ -522,27 +522,48 @@ void BeltTensionPanel::handle_park_gantry() {
 
     lv_subject_copy_string(&park_status_subject_, lv_tr("Moving gantry"));
 
-    // Only Y moves. On a CoreXY the free span runs front idler to rear along
-    // each side rail, so gantry Y sets it; the toolhead's X position changes
-    // neither span.
+    // Y sets the free span - on a CoreXY it runs front idler to rear along
+    // each side rail, so gantry Y sets it and the toolhead's X position
+    // changes neither span. X still has to move: left wherever it happened
+    // to be, it sits over one of the two belts (park_center_x() below).
     helix::ensure_homed_then(
         api_, lifetime_,
         [this, y = static_cast<double>(target.y_mm)]() {
             api_->motion().move_to_position(
                 'Y', y, PARK_FEEDRATE_MM_MIN,
-                lifetime_.bg_cb("BeltTension::parked",
+                lifetime_.bg_cb("BeltTension::parked_y",
                                 [this]() {
                                     // The park landed, so the span is the one we
                                     // asked for rather than one inferred from a
                                     // position that may be stale.
                                     listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
-                                    lv_subject_copy_string(&park_status_subject_,
-                                                           lv_tr("Ready to pluck"));
+                                    park_center_x();
                                 }),
                 lifetime_.bg_cb("BeltTension::park_failed",
                                 [this](const MoonrakerError& e) { on_error(e.message); }));
         },
         lifetime_.bg_cb("BeltTension::home_failed",
+                        [this](const MoonrakerError& e) { on_error(e.message); }));
+}
+
+void BeltTensionPanel::park_center_x() {
+    // has_x is false until the first axis-bounds subscription update
+    // arrives; fetched fresh here (not reused from handle_park_gantry())
+    // because this runs after an async Y move, by which point a subscription
+    // update may have landed. Skip rather than guess X=0 on a cold start.
+    const auto bounds = get_printer_state().get_axis_bounds();
+    const auto x = helix::calibration::park_x_center(bounds);
+    if (!api_ || !x.has_value()) {
+        lv_subject_copy_string(&park_status_subject_, lv_tr("Ready to pluck"));
+        return;
+    }
+
+    api_->motion().move_to_position(
+        'X', static_cast<double>(*x), PARK_FEEDRATE_MM_MIN,
+        lifetime_.bg_cb(
+            "BeltTension::parked_x",
+            [this]() { lv_subject_copy_string(&park_status_subject_, lv_tr("Ready to pluck")); }),
+        lifetime_.bg_cb("BeltTension::park_failed",
                         [this](const MoonrakerError& e) { on_error(e.message); }));
 }
 
@@ -1137,6 +1158,12 @@ void BeltTensionPanel::on_batch_bg(const helix::calibration::AccelBatch& batch,
 }
 
 void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
+    // live_freq_subject_ is snap.last_hz - the single most recent accepted
+    // pluck, unfiltered - falling back to snap.median_hz only when there is
+    // no last value yet. That is deliberate, not an oversight: see
+    // MIN_HARMONIC_CONCENTRATION's note in pitch_estimator.h for why a rare
+    // false accept here is harmless (self-corrects on the next pluck; the
+    // committed median beside it is what the user actually acts on).
     if (snap.last_hz > 0.0f) {
         snprintf(live_freq_buf_, sizeof(live_freq_buf_), "%.0f Hz",
                  static_cast<double>(snap.last_hz));

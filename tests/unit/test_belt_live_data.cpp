@@ -143,11 +143,41 @@ TEST_CASE("an empty spectrum clears rather than keeping stale data", "[belt][liv
     CHECK(d.spectrum().empty());
 }
 
-TEST_CASE("clear drops both traces", "[belt][livedata]") {
+TEST_CASE("spectrum_peak_hz reads the true bin frequency, not a downsampled one",
+          "[belt][livedata]") {
+    // 1000 input bins reduced to 128 buckets puts roughly 8 bins per bucket -
+    // the downsampled x-position of the peak would land near, but not on,
+    // 500. spectrum_peak_hz() must report the exact input frequency (500.0),
+    // which is the whole point of tracking it separately from the reduction.
+    std::vector<std::pair<float, float>> psd;
+    for (int i = 1; i <= 1000; ++i) {
+        psd.emplace_back(static_cast<float>(i), i == 500 ? 1000.0f : 1.0f);
+    }
+    auto& d = BeltLiveData::instance();
+    d.clear();
+    d.set_spectrum(psd);
+    CHECK(d.spectrum_peak_hz() == Catch::Approx(500.0f));
+}
+
+TEST_CASE("spectrum_peak_hz is zero until a spectrum arrives, and clears with one",
+          "[belt][livedata]") {
+    auto& d = BeltLiveData::instance();
+    d.clear();
+    CHECK(d.spectrum_peak_hz() == 0.0f);
+
+    d.set_spectrum({{10.0f, 1.0f}, {86.0f, 5.0f}, {200.0f, 2.0f}});
+    CHECK(d.spectrum_peak_hz() == Catch::Approx(86.0f));
+
+    d.set_spectrum({});
+    CHECK(d.spectrum_peak_hz() == 0.0f);
+}
+
+TEST_CASE("clear drops both traces and the peak frequency", "[belt][livedata]") {
     auto& d = BeltLiveData::instance();
     d.set_waveform(std::vector<AccelSample>(64));
     d.set_spectrum({{10.0f, 1.0f}, {20.0f, 2.0f}});
     d.clear();
     CHECK(d.waveform().empty());
     CHECK(d.spectrum().empty());
+    CHECK(d.spectrum_peak_hz() == 0.0f);
 }

@@ -10,10 +10,12 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "observer_factory.h"
+#include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace helix {
@@ -84,10 +86,15 @@ void BeltTrace::on_draw(lv_event_t* e) {
     // Both traces hold non-negative magnitudes (waveform is a DC-free
     // envelope, spectrum is PSD power), so there is a single scale to find:
     // the largest value, with a floor so a silent stream draws a flat line
-    // or empty baseline rather than dividing by zero.
+    // or empty baseline rather than dividing by zero. peak_index (unused by
+    // WAVEFORM) locates that same bar for the spectrum's frequency label.
     float max_v = 0.0f;
-    for (float v : data) {
-        max_v = std::max(max_v, v);
+    size_t peak_index = 0;
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (data[i] > max_v) {
+            max_v = data[i];
+            peak_index = i;
+        }
     }
     if (max_v < 1e-3f) {
         max_v = 1.0f;
@@ -138,17 +145,78 @@ void BeltTrace::on_draw(lv_event_t* e) {
         // BeltLiveData::set_spectrum()), so a narrow spike stays visible
         // instead of being averaged into the noise floor around it.
         const float baseline_y = static_cast<float>(y0 + h - 1);
+        float peak_bar_top = baseline_y;
+        float peak_x = 0.0f;
         for (size_t i = 0; i < n; ++i) {
             const float t = static_cast<float>(i) / static_cast<float>(n - 1);
             const float norm = data[i] / max_v;
             const float x = static_cast<float>(x0) + t * static_cast<float>(w - 1);
+            const float bar_top = baseline_y - norm * static_cast<float>(h - 1);
 
             dsc.p1.x = static_cast<lv_value_precise_t>(x);
             dsc.p2.x = static_cast<lv_value_precise_t>(x);
             dsc.p1.y = static_cast<lv_value_precise_t>(baseline_y);
-            dsc.p2.y =
-                static_cast<lv_value_precise_t>(baseline_y - norm * static_cast<float>(h - 1));
+            dsc.p2.y = static_cast<lv_value_precise_t>(bar_top);
             lv_draw_line(layer, &dsc);
+
+            if (i == peak_index) {
+                peak_bar_top = bar_top;
+                peak_x = x;
+            }
+        }
+
+        // The peak-frequency label. This is the point of the widget (see the
+        // class comment): the reference machine had belt A and belt B
+        // landing on the same spectral peak while the panel reported two
+        // different committed numbers, and a labelled peak would have shown
+        // that at a glance. Reads BeltLiveData's tracked bin frequency rather
+        // than deriving one from `data`'s bucket index - the reduction above
+        // keeps the peak's power but not reliably its original bin.
+        const float peak_hz = helix::calibration::BeltLiveData::instance().spectrum_peak_hz();
+        if (peak_hz > 0.0f) {
+            // static: lv_draw_label_dsc_t::text is a pointer LVGL keeps alive
+            // into a deferred draw task, so a stack buffer would be a
+            // use-after-free once this function returns (see
+            // temp_graph_tooltip.cpp for the same trap). Only one belt_trace
+            // is ever in SPECTRUM mode at a time (bt_spectrum), so a single
+            // buffer is safe.
+            static char peak_label[16];
+            snprintf(peak_label, sizeof(peak_label), "%.0f Hz", static_cast<double>(peak_hz));
+
+            lv_draw_label_dsc_t label_dsc;
+            lv_draw_label_dsc_init(&label_dsc);
+            label_dsc.color = dsc.color;
+            label_dsc.font = theme_manager_get_font("font_xs");
+            label_dsc.align = LV_TEXT_ALIGN_CENTER;
+            label_dsc.text = peak_label;
+
+            const int32_t label_h = theme_manager_get_font_height(label_dsc.font);
+            constexpr int32_t label_w = 40;
+            constexpr int32_t gap = 2;
+            lv_area_t label_area;
+            label_area.y2 = static_cast<lv_coord_t>(peak_bar_top) - gap;
+            label_area.y1 = label_area.y2 - label_h;
+            label_area.x1 = static_cast<lv_coord_t>(peak_x) - label_w / 2;
+            label_area.x2 = label_area.x1 + label_w;
+
+            // Clamp horizontally so the label never overflows the trace's own
+            // bounds. Drop it entirely (rather than clip or overlap the top
+            // edge) if there is no vertical room above the peak bar - a
+            // narrow strip at a small breakpoint should keep the trace
+            // legible over the diagnostic label.
+            if (label_area.x1 < x0) {
+                const lv_coord_t shift = x0 - label_area.x1;
+                label_area.x1 += shift;
+                label_area.x2 += shift;
+            }
+            if (label_area.x2 > x0 + w) {
+                const lv_coord_t shift = (x0 + w) - label_area.x2;
+                label_area.x1 += shift;
+                label_area.x2 += shift;
+            }
+            if (label_area.y1 >= y0) {
+                lv_draw_label(layer, &label_dsc, &label_area);
+            }
         }
     }
 }
