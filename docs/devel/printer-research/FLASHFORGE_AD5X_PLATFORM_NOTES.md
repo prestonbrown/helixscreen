@@ -443,6 +443,9 @@ against the live printer — the first time AD5X support has run on real hardwar
   thumbnail fallback chain degrades gracefully.
 - Desktop runs log to **syslog** (not stdout): read via
   `journalctl --user | grep <pid>`.
-- The rig rebooted twice this session without an obvious trigger (12:33 and
-  ~12:36); the second recovered before investigation. Watch for recurrence —
-  if it repeats on an idle bench rig, suspect hardware/watchdog, not host load.
+- The rig rebooted several times this session; only two were this validation's
+  (fresh-import restarts). The rest were **other agents working the shared rig
+  concurrently** — initially misread here as unexplained reboots. The AD5X rig is
+  a shared test device: coordinate reboots/state changes across sessions, and
+  treat any unexpected rig state change as a peer's action before suspecting
+  the hardware.
