@@ -47,6 +47,154 @@ _k2cam_marker_file() { echo "${INSTALL_DIR}/config/.k2cam_webcam_disabled"; }
 # block. Uninstall strips this exact prefix back off.
 K2CAM_DISABLE_PREFIX="#helix-k2cam-disabled# "
 
+# --- nginx /webcam/ access-log suppression ----------------------------------
+# We register the camera through the K2's stock nginx /webcam/ proxy (see the
+# URL-form choice in install_camera_k2 -- the relative form survives DHCP lease
+# changes). That routes every frame a client pulls through nginx, which logs it
+# to fluidd-access.log. On Tina Linux /var/log is a symlink onto the /tmp tmpfs
+# and the K2 ships no logrotate, so fluidd polling snapshots at ~5/s writes
+# ~147 MB/day into a 244 MB RAM disk. When it fills, Moonraker's upload temp
+# file -- which Creality's fork puts in the same tmpfs via
+# tempfile.gettempdir() -- fails mid-stream with ENOSPC. The exception escapes
+# tornado's body reader, so no HTTP response is ever sent and the uploading
+# client just sees "connection reset by peer".
+#
+# We silence logging for exactly the traffic we caused (the /webcam/ block) and
+# leave the server-level access_log intact. Reversible on uninstall.
+
+# nginx config path. Env-overridable so the BATS suite can redirect it off the
+# host, same as _initd_dir/_rcd_dir. Resolved per-call, not at source time.
+_nginx_conf_path() { echo "${HELIX_NGINX_CONF:-/etc/nginx/nginx.conf}"; }
+
+# The stock K2 access log fed by that proxy.
+_nginx_access_log_path() { echo "${HELIX_NGINX_ACCESS_LOG:-/var/log/nginx/fluidd-access.log}"; }
+
+# Marker recording that we inserted the directive (so uninstall knows to strip
+# it, and so we never strip a line the user wrote themselves).
+_nginx_accesslog_marker_file() { echo "${INSTALL_DIR}/config/.nginx_webcam_accesslog"; }
+
+# Tag embedded in the inserted line. Makes both the idempotency check and the
+# removal exact rather than pattern-guessed.
+NGINX_ACCESSLOG_TAG="helix-managed-webcam-accesslog"
+
+# True when an access_log directive already appears inside the /webcam/ block
+# (ours from a previous run, or the user's own). Scoped to that block only.
+_webcam_block_has_access_log() {
+    awk '
+        /^[[:space:]]*location[[:space:]]+\/webcam\/[[:space:]]*\{/ { inblk = 1; next }
+        inblk && /^[[:space:]]*\}/ { inblk = 0 }
+        inblk && /^[[:space:]]*access_log[[:space:]]/ { found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' "$1"
+}
+
+# Validate the edited config and reload nginx. Returns non-zero if `nginx -t`
+# rejects it, so the caller can roll back -- we must never be the reason
+# someone's web UI stops serving.
+_nginx_validate_and_reload() {
+    if command -v nginx >/dev/null 2>&1; then
+        if ! $SUDO nginx -t >/dev/null 2>&1; then
+            return 1
+        fi
+    fi
+    local initd
+    initd="$(_initd_dir)"
+    if [ -x "${initd}/nginx" ]; then
+        $SUDO "${initd}/nginx" reload >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
+# Insert `access_log off;` into the stock /webcam/ proxy block. Idempotent.
+# Every unexpected shape is a clean skip, never an error: no nginx.conf, no
+# /webcam/ block (a replaced nginx is not ours to edit), or logging already
+# silenced there.
+_suppress_webcam_access_log() {
+    local conf
+    conf="$(_nginx_conf_path)"
+    [ -f "$conf" ] || return 0
+
+    grep -q '^[[:space:]]*location[[:space:]]\+/webcam/[[:space:]]*{' "$conf" 2>/dev/null || return 0
+    _webcam_block_has_access_log "$conf" && return 0
+
+    local backup tmp
+    backup="${conf}.helix-bak"
+    tmp="${conf}.helix-new"
+    $SUDO cp "$conf" "$backup" 2>/dev/null || return 0
+
+    if ! awk -v tag="$NGINX_ACCESSLOG_TAG" '
+        {
+            print
+            if (!ins && $0 ~ /^[[:space:]]*location[[:space:]]+\/webcam\/[[:space:]]*\{/) {
+                match($0, /^[[:space:]]*/)
+                indent = substr($0, 1, RLENGTH)
+                print indent "    access_log off; # " tag ": camera frames would fill the tmpfs log"
+                ins = 1
+            }
+        }
+    ' "$conf" > "$tmp" 2>/dev/null; then
+        $SUDO rm -f "$tmp"
+        return 0
+    fi
+
+    $SUDO cp "$tmp" "$conf"
+    $SUDO rm -f "$tmp"
+
+    if ! _nginx_validate_and_reload; then
+        log_warn "nginx rejected the config after adding the /webcam/ access_log directive — reverting"
+        $SUDO cp "$backup" "$conf"
+        $SUDO rm -f "$backup"
+        return 1
+    fi
+
+    $SUDO rm -f "$backup"
+    $SUDO touch "$(_nginx_accesslog_marker_file)"
+    log_info "Silenced nginx access logging for /webcam/ (camera frames would fill the K2's tmpfs)"
+    return 0
+}
+
+# Reverse _suppress_webcam_access_log. Strips only our tagged line, and only
+# when the marker says we were the ones who added it.
+_restore_webcam_access_log() {
+    local marker conf
+    marker="$(_nginx_accesslog_marker_file)"
+    [ -f "$marker" ] || return 0
+
+    conf="$(_nginx_conf_path)"
+    if [ -f "$conf" ]; then
+        $SUDO sed -i "/${NGINX_ACCESSLOG_TAG}/d" "$conf" 2>/dev/null || true
+        _nginx_validate_and_reload || \
+            log_warn "nginx rejected the config after removing the /webcam/ access_log directive"
+        log_info "Restored nginx access logging for /webcam/"
+    fi
+    $SUDO rm -f "$marker"
+    return 0
+}
+
+# Empty an already-oversized fluidd-access.log. An affected K2 arrives here with
+# its tmpfs already full, so preventing further growth is not enough to unwedge
+# uploads. The file is on tmpfs and is cleared on every reboot anyway, and the
+# traffic in it is ours, so truncating is safe.
+_truncate_oversized_webcam_log() {
+    local log max size
+    log="$(_nginx_access_log_path)"
+    [ -f "$log" ] || return 0
+
+    max="${HELIX_WEBCAM_LOG_MAX_BYTES:-20971520}"
+    size="$(wc -c < "$log" 2>/dev/null | tr -d ' ')"
+    [ -n "$size" ] || return 0
+    [ "$size" -gt "$max" ] 2>/dev/null || return 0
+
+    log_warn "nginx access log is $((size / 1024 / 1024)) MB and filling the tmpfs — truncating"
+    log_warn "  (${log} is volatile; it is cleared on every reboot)"
+    if [ -n "$SUDO" ]; then
+        $SUDO sh -c ': > "$1"' _ "$log" 2>/dev/null || true
+    else
+        : > "$log" 2>/dev/null || true
+    fi
+    return 0
+}
+
 # Detect the community "K2-Camera-main" mod. It REPLACES Moonraker (backs up
 # /usr/share/moonraker -> /usr/share/moonraker_backup, drops in its own copy)
 # and ships an iframe camera viewer whose [webcam Default] entry conflicts with
@@ -513,6 +661,11 @@ install_camera_k2() {
         log_warn "ustreamer does not appear to be listening on :$port (check /dev/video0)"
     fi
 
+    # (d2) Keep our own camera traffic from filling the K2's tmpfs. Must run
+    # before the Moonraker section, which returns early when Moonraker is down.
+    _suppress_webcam_access_log || true
+    _truncate_oversized_webcam_log
+
     # (e) Moonraker webcam migration (preserve/fix fluidd). Back up the current
     # list, then delete the stock iframe and add our ustreamer webcam. If
     # moonraker is unreachable, warn but leave ustreamer running (the camera
@@ -597,6 +750,9 @@ uninstall_camera_k2() {
     fi
     killall ustreamer 2>/dev/null || true
     $SUDO rm -f "${INSTALL_DIR}/bin/ustreamer" 2>/dev/null || true
+
+    # (a2) Put nginx's /webcam/ access logging back the way we found it.
+    _restore_webcam_access_log
 
     # (b) Restore moonraker webcams from the backup, if we migrated them.
     local marker backup

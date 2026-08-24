@@ -680,6 +680,281 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# nginx /webcam/ access-log suppression
+#
+# We register the camera through the K2's stock nginx /webcam/ proxy (for DHCP
+# lease immunity), so every frame a client pulls is logged to fluidd-access.log
+# on the /tmp tmpfs. The K2 ships no logrotate; Fluidd polling snapshots at ~5/s
+# fills the 244 MB tmpfs in about two days, and Moonraker's upload temp file
+# lives on that same tmpfs -- so uploads then die mid-stream with ENOSPC, which
+# the client sees as "connection reset by peer". We suppress logging for exactly
+# the traffic we caused, reversibly.
+# ---------------------------------------------------------------------------
+
+# A stock-shaped K2 nginx.conf with the /webcam/ proxy block. Sets and exports
+# HELIX_NGINX_CONF in the CALLER's shell -- do NOT call this via command
+# substitution, which would run the export in a subshell and leave the module
+# pointed at the host's real /etc/nginx/nginx.conf.
+make_fake_nginx_conf() {
+    local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path" <<'EOF'
+http {
+    server {
+        listen 4408 default_server;
+
+        access_log /var/log/nginx/fluidd-access.log;
+        error_log /var/log/nginx/fluidd-error.log;
+
+        location /webcam/ {
+            proxy_pass http://mjpgstreamer1/;
+        }
+
+        location /webcam2/ {
+            proxy_pass http://mjpgstreamer2/;
+        }
+    }
+}
+EOF
+    export HELIX_NGINX_CONF="$path"
+}
+
+# Stub the nginx binary + init script so validate/reload hit temp state.
+# verdict: "ok" (nginx -t passes) or "fail" (nginx -t rejects the config).
+stub_nginx() {
+    local verdict="${1:-ok}"
+    export NGINX_T_LOG="$BATS_TEST_TMPDIR/nginx-t.log"
+    export NGINX_VERDICT="$verdict"
+    nginx() {
+        if [ "$1" = "-t" ]; then
+            echo "nginx -t" >> "$NGINX_T_LOG"
+            [ "$NGINX_VERDICT" = "ok" ] && return 0
+            echo "nginx: configuration file test failed" >&2
+            return 1
+        fi
+        return 0
+    }
+    export -f nginx
+
+    cat > "$HELIX_INITD_DIR/nginx" <<EOF
+#!/bin/sh
+echo "\$1" >> "$BATS_TEST_TMPDIR/nginx.calls"
+exit 0
+EOF
+    chmod +x "$HELIX_INITD_DIR/nginx"
+}
+
+@test "suppress: inserts access_log off into the /webcam/ block" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    stub_nginx ok
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+
+    # The directive landed inside the /webcam/ block, before proxy_pass.
+    run awk '/location \/webcam\/ \{/,/\}/' "$conf"
+    [[ "$output" == *"access_log off;"* ]]
+    [[ "$output" == *"helix-managed"* ]]
+
+    # Marker recorded for reversal.
+    [ -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+
+    # Config was validated and nginx reloaded.
+    grep -q "nginx -t" "$NGINX_T_LOG"
+    grep -q "reload" "$BATS_TEST_TMPDIR/nginx.calls"
+}
+
+@test "suppress: leaves the server-level access_log and other blocks alone" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    stub_nginx ok
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+
+    # Server-level access_log untouched -- we only silence OUR traffic.
+    grep -q "access_log /var/log/nginx/fluidd-access.log;" "$conf"
+
+    # /webcam2/ did not get the directive.
+    run awk '/location \/webcam2\/ \{/,/\}/' "$conf"
+    [[ "$output" != *"access_log off;"* ]]
+
+    # Exactly one insertion tree-wide.
+    [ "$(grep -c 'helix-managed' "$conf")" -eq 1 ]
+}
+
+@test "suppress: idempotent -- second run does not double-insert" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    stub_nginx ok
+
+    _suppress_webcam_access_log
+    local after_first; after_first="$(cat "$conf")"
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+
+    [ "$(grep -c 'helix-managed' "$conf")" -eq 1 ]
+    [ "$(cat "$conf")" = "$after_first" ]
+}
+
+@test "suppress: no-op when nginx.conf is absent" {
+    export HELIX_NGINX_CONF="$BATS_TEST_TMPDIR/etc/nginx/nope.conf"
+    stub_nginx ok
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "suppress: no-op when there is no /webcam/ block (non-stock nginx)" {
+    local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path" <<'EOF'
+http {
+    server {
+        listen 80;
+        location / { root /srv; }
+    }
+}
+EOF
+    export HELIX_NGINX_CONF="$path"
+    local before; before="$(cat "$path")"
+    stub_nginx ok
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+    [ "$(cat "$path")" = "$before" ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "suppress: no-op when the block already silences access_log itself" {
+    local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path" <<'EOF'
+http {
+    server {
+        location /webcam/ {
+            access_log off;
+            proxy_pass http://mjpgstreamer1/;
+        }
+    }
+}
+EOF
+    export HELIX_NGINX_CONF="$path"
+    local before; before="$(cat "$path")"
+    stub_nginx ok
+
+    run _suppress_webcam_access_log
+    [ "$status" -eq 0 ]
+    [ "$(cat "$path")" = "$before" ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "suppress: rolls back and does not reload when nginx -t fails" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    local before; before="$(cat "$conf")"
+    stub_nginx fail
+
+    run _suppress_webcam_access_log
+    [ "$status" -ne 0 ]
+
+    # Original config restored byte-for-byte; nginx never reloaded.
+    [ "$(cat "$conf")" = "$before" ]
+    [ ! -f "$BATS_TEST_TMPDIR/nginx.calls" ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "restore: removes exactly our line, block otherwise byte-identical" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    local before; before="$(cat "$conf")"
+    stub_nginx ok
+
+    _suppress_webcam_access_log
+    [ "$(cat "$conf")" != "$before" ]
+
+    run _restore_webcam_access_log
+    [ "$status" -eq 0 ]
+
+    [ "$(cat "$conf")" = "$before" ]
+    [ ! -f "$INSTALL_DIR/config/.nginx_webcam_accesslog" ]
+}
+
+@test "restore: no-op when we never touched the config" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    local before; before="$(cat "$conf")"
+    stub_nginx ok
+
+    run _restore_webcam_access_log
+    [ "$status" -eq 0 ]
+    [ "$(cat "$conf")" = "$before" ]
+}
+
+# ---------------------------------------------------------------------------
+# Oversized access-log truncation (unwedge an already-affected box)
+# ---------------------------------------------------------------------------
+
+@test "truncate: empties an oversized access log" {
+    local log="$BATS_TEST_TMPDIR/fluidd-access.log"
+    head -c 200000 /dev/zero > "$log"
+    export HELIX_NGINX_ACCESS_LOG="$log"
+    export HELIX_WEBCAM_LOG_MAX_BYTES=100000
+
+    run _truncate_oversized_webcam_log
+    [ "$status" -eq 0 ]
+    [ ! -s "$log" ]
+}
+
+@test "truncate: leaves a log under the threshold alone" {
+    local log="$BATS_TEST_TMPDIR/fluidd-access.log"
+    head -c 5000 /dev/zero > "$log"
+    export HELIX_NGINX_ACCESS_LOG="$log"
+    export HELIX_WEBCAM_LOG_MAX_BYTES=100000
+
+    run _truncate_oversized_webcam_log
+    [ "$status" -eq 0 ]
+    [ "$(wc -c < "$log")" -eq 5000 ]
+}
+
+@test "truncate: no-op when the access log does not exist" {
+    export HELIX_NGINX_ACCESS_LOG="$BATS_TEST_TMPDIR/absent.log"
+    export HELIX_WEBCAM_LOG_MAX_BYTES=100000
+
+    run _truncate_oversized_webcam_log
+    [ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# Integration: install / uninstall wire the suppression in
+# ---------------------------------------------------------------------------
+
+@test "install_camera_k2: suppresses the webcam access log" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    stub_nginx ok
+    touch "$INSTALL_DIR/bin/ustreamer"
+    chmod +x "$INSTALL_DIR/bin/ustreamer"
+
+    run install_camera_k2 "k2"
+    [ "$status" -eq 0 ]
+
+    run awk '/location \/webcam\/ \{/,/\}/' "$conf"
+    [[ "$output" == *"access_log off;"* ]]
+}
+
+@test "uninstall_camera_k2: restores the webcam access log" {
+    make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
+    local before; before="$(cat "$conf")"
+    stub_nginx ok
+    touch "$INSTALL_DIR/bin/ustreamer"
+    chmod +x "$INSTALL_DIR/bin/ustreamer"
+
+    install_camera_k2 "k2"
+    [ "$(cat "$conf")" != "$before" ]
+
+    run uninstall_camera_k2 "k2"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$conf")" = "$before" ]
+}
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
