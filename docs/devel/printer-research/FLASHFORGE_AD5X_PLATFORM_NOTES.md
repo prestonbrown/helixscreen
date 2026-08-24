@@ -553,6 +553,20 @@ harmless-to-idle — but the print-start path is worse than assumed.**
   at every boot and everything works as designed (see the SAVE_CONFIG staging
   entry above). The bootstrap gap, not the loader, is the upstream report.
 
+**Discriminating test 2026-08-24 (staged profile × klippy continuity across a
+handover): the handover does NOT restart klippy, and the staged profile
+vanishes anyway.** With klippy's eventtime clock continuous from boot through
+the `DISPLAY_OFF` (same PID, no new config banner in the log), a
+`BED_MESH_PROFILE SAVE=probe_me` staged before the handover was gone from
+`bed_mesh.profiles` after it. So both proposed mechanisms are wrong — not an
+exec-style restart (clock rules it out), and `BED_MESH_CLEAR` alone does not
+drop the saved-profile dict. Whatever discards staged state lives in the
+ZMOD-patched bed_mesh interaction during the handover chain; mechanism remains
+unestablished, but the restart theory is affirmatively ruled out. Practical
+consequence unchanged: **only `SAVE_CONFIG` persists a mesh on this box**, and
+note that a same-PID reading never proves klippy continuity by itself if a
+restart were suspected — the eventtime clock is the reliable witness.
+
 - Klippy intermittently drops console lines with
   `gcode.py:459 _respond_raw os.write BlockingIOError (EAGAIN)` when its
   output pipe is not drained fast enough — observed on this rig while firing
