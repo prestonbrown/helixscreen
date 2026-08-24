@@ -69,6 +69,14 @@ struct BypassSpoolWidgets {
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.
+    /// Paired with cached_color_rgb because black IS 0: without a separate
+    /// "has it ever been painted" bit, a black spool reads as unchanged from
+    /// the default and the canvas keeps its own creation-time 0xE0E0E0, so the
+    /// bypass swatch renders white forever (K2 Plus, spool 86 "Black ASA").
+    /// The same black-is-not-unset trap is already handled in
+    /// AmsState::notify_external_spool_changed() and
+    /// filament_slot_override_store's identity check; this widget was missed.
+    bool color_painted = false;
     uint32_t cached_color_rgb = 0;
     bool cached_has_spool = false;
     char cached_material[32] = {};
