@@ -569,3 +569,57 @@ Not built, for three reasons: the consequence above is unverified and only one
 version of it justifies the machinery; an upstream fix would make it dead code
 encoding a convention that no longer exists; and it is one printer's observation.
 Trigger for revisiting: upstream declines, or a second reporter hits it.
+
+### RESOLVED (2026-08-24): the missing step is `SAVE_CONFIG`, and `LOAD=auto` is not a bug
+
+Ran `AUTO_FULL_BED_LEVEL` on the rig and measured each stage. This supersedes the
+open questions in the two sections above.
+
+| stage | active profile | live mesh | new errors per handover |
+|---|---|---|---|
+| before any leveling | `''` | none | 2 |
+| after `AUTO_FULL_BED_LEVEL` alone | `''` | none | 2 |
+| after `AUTO_FULL_BED_LEVEL` + `SAVE_CONFIG` | `auto` | 25 pts | 0 |
+
+**`AUTO_FULL_BED_LEVEL` alone does not persist the profile.** Klipper's
+`BED_MESH_PROFILE SAVE` stages into the pending config; only `SAVE_CONFIG` writes
+it to `printer.cfg`. The screen handover restarts klippy, which discards anything
+unsaved — so the profile the handover then tries to load has already evaporated.
+Note ZMOD's AD5X page: `NEW_SAVE_CONFIG` does NOT work on this model, plain
+`SAVE_CONFIG` only.
+
+**This is the nastiest part of the whole thing.** `AUTO_FULL_BED_LEVEL` alone
+*looks* like it worked — the profile appears in `bed_mesh.profiles`,
+`profile_name` reads `auto`, every observable is correct. It exists in live state
+only and disappears at the next restart, with no error naming the cause. Our first
+handover test failed with `auto` apparently present; it had already been lost.
+
+**With the profile persisted, `LOAD=auto` is ghzserg's mesh-loading mechanism for
+alt-screen mode and it works.** After a handover: `profile_name == 'auto'`, a live
+25-point mesh, error count flat across the transition. So the earlier framing —
+"alt-screen prints run unmeshed" — is wrong once bootstrapped. The handover IS the
+alt-screen mesh loader.
+
+**The real defect is narrow: the fresh-install bootstrap.** A newly-modded AD5X has
+no `auto` profile, so it is both noisy and unmeshed until its owner runs
+`AUTO_FULL_BED_LEVEL` **and** `SAVE_CONFIG` — and nothing tells them the second
+step exists. Upstream ask: gate the `LOAD` on profile existence, or surface a
+bootstrap hint. Much smaller and more defensible than "your mesh loading is broken".
+
+**Probe sanity check.** The fresh mesh is consistent with the stock one, which
+rules out a probe fault and calibrates expectations for anyone reading these
+numbers later:
+
+```
+MESH_DATA  min=-5.044 max=-3.825 spread=1.219mm  5x5   (stock leveling)
+auto       min=-4.938 max=-3.778 spread=1.159mm  5x5   (ours)
+```
+
+The ~-4mm absolute offset looks alarming against a typical +/-0.2mm mesh but is
+this machine's probe-offset convention, not a fault — stock sits in the same place.
+Bed flatness spread is what matters and the two agree to within 0.06mm.
+
+**Our side: still not building `firmware_expected_mesh_profile()`.** The reasoning
+above stands and is stronger now — the upstream behaviour is correct once
+bootstrapped, so there is no capability for us to detect. If anything is ever worth
+doing here it is a first-run hint, not a provider table.
