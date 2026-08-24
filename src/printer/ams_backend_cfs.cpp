@@ -1810,6 +1810,35 @@ AmsError AmsBackendCfs::do_load_filament(int slot_index) {
     if (gcode.empty()) {
         return AmsErrorHelper::invalid_slot(slot_index, 15);
     }
+
+    // Declaring bypass stood the box down with BOX_ENABLE_CFS_PRINT ENABLE=0,
+    // and a bay cannot feed until it is re-armed. plan_load() now routes a
+    // NAMED lane here even while bypass is declared — it refuses only when the
+    // bypass spool still crosses the toolhead — so the stand-up has to happen
+    // on the way in. Prepended to the same script rather than sent as its own
+    // RPC, so it cannot land after the feed it is supposed to enable.
+    //
+    // Flat schema is excluded for the same reason disable_bypass() excludes it:
+    // that dialect has no BOX_ENABLE_CFS_PRINT and drives bypass through
+    // BOX_UNLOAD instead.
+    if (!bypass) {
+        bool rearm = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            rearm = bypass_declared_ && schema_ != CfsSchema::Flat;
+            if (rearm) {
+                bypass_declared_ = false;
+            }
+        }
+        if (rearm) {
+            gcode = "BOX_ENABLE_CFS_PRINT ENABLE=1\n" + gcode;
+            SettingsManager::instance().set_bypass_declared(false);
+            spdlog::info("[AMS CFS] Lane {} load under a declared bypass — "
+                         "re-arming CFS print feed and clearing the declaration",
+                         slot_index);
+        }
+    }
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
         system_info_.action = AmsAction::LOADING;

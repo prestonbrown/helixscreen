@@ -2646,6 +2646,10 @@ void FilamentPanel::execute_load() {
         caps.requires_slot_selection_for_load = backend->requires_slot_selection_for_load();
         caps.needs_unload_before_load = backend->needs_unload_before_load(sys, target_slot);
         caps.is_tool_changer = backend->get_type() == AmsType::TOOL_CHANGER;
+        // Distinct from !requires_slot_selection_for_load(): plan_load() needs to
+        // tell "bypass is suppressing the lane tier" apart from "this backend
+        // never wanted a slot", because a named lane wants opposite treatment.
+        caps.bypass_active = backend->is_bypass_active();
     }
 
     const auto& info = StandardMacros::instance().get(StandardMacroSlot::LoadFilament);
@@ -2695,6 +2699,15 @@ void FilamentPanel::execute_load() {
             // but say so, the user did press the button.
             spdlog::info("[{}] Selected tool is already mounted — refusing load", get_name());
             NOTIFY_INFO(lv_tr("That tool is already loaded"));
+            break;
+        case helix::ui::FilamentRefusal::BypassLoaded:
+            // The bypass spool is still across the toolhead switch. That switch
+            // sits above the cutter and reads the upstream piece, so no unload
+            // gcode can clear it — only the user's hand (36205eb27). Feeding a
+            // lane into it would jam the hotend, so say what to do instead.
+            spdlog::info("[{}] Bypass spool still at the toolhead — refusing lane load",
+                         get_name());
+            NOTIFY_INFO(lv_tr("Remove the bypass spool from the toolhead first"));
             break;
         case helix::ui::FilamentRefusal::SelectSlot:
         default:
