@@ -125,6 +125,23 @@ struct TouchCalibration {
 };
 
 /**
+ * @brief Factory touch calibration for this build's platform, if one is known
+ *
+ * A printer-embedded package ships for exactly one panel, so the three-point tap
+ * routine re-derives a constant every buyer of that model would produce. Where we
+ * have measured the panel, ship the result and let first run proceed straight past
+ * calibration; a unit that drifts is still handled, because Settings offers manual
+ * recalibration and a stored user calibration always wins over this default.
+ *
+ * Returns a TouchCalibration with valid=false when the platform has no measured
+ * default, which is the correct answer for desktop builds and for any printer whose
+ * panel nobody has characterised yet.
+ *
+ * @return Platform default, or {valid=false} if none is known
+ */
+TouchCalibration platform_default_calibration();
+
+/**
  * @brief Compute affine calibration coefficients from 3 point pairs
  *
  * Uses the Maxim Integrated AN5296 algorithm (determinant-based).
