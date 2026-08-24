@@ -583,10 +583,19 @@ open questions in the two sections above.
 
 **`AUTO_FULL_BED_LEVEL` alone does not persist the profile.** Klipper's
 `BED_MESH_PROFILE SAVE` stages into the pending config; only `SAVE_CONFIG` writes
-it to `printer.cfg`. The screen handover restarts klippy, which discards anything
-unsaved — so the profile the handover then tries to load has already evaporated.
-Note ZMOD's AD5X page: `NEW_SAVE_CONFIG` does NOT work on this model, plain
-`SAVE_CONFIG` only.
+it to `printer.cfg`. Measured directly: `auto` was present in `bed_mesh.profiles`
+after the macro and absent after the next handover, so a staged-but-unsaved
+profile does not survive the transition. Note ZMOD's AD5X page:
+`NEW_SAVE_CONFIG` does NOT work on this model, plain `SAVE_CONFIG` only.
+
+*Mechanism not established.* An earlier draft of this section said the handover
+restarts klippy and that is what discards it. That was an inference, not a
+measurement — the klippy restart actually observed here was `SAVE_CONFIG`'s own
+(HTTP 503, ~50s to ready), a different event. A separate measurement on this rig
+found klippy surviving a `DISPLAY_OFF` handover **same-PID**, which argues against
+the restart explanation; the handover's own `BED_MESH_CLEAR` combined with
+staged-profile limbo is the likelier route. The table below holds either way — it
+records what was measured at each stage, not why.
 
 **This is the nastiest part of the whole thing.** `AUTO_FULL_BED_LEVEL` alone
 *looks* like it worked — the profile appears in `bed_mesh.profiles`,
