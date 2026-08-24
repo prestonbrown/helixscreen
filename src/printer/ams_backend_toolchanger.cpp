@@ -60,7 +60,73 @@ AmsError AmsBackendToolChanger::additional_start_checks() {
                       "Call set_discovered_tools() before start()");
         return AmsErrorHelper::not_connected("No tools discovered");
     }
+
     return AmsErrorHelper::success();
+}
+
+void AmsBackendToolChanger::on_started() {
+    // Deliberately NOT additional_start_checks(): start() calls that one while
+    // holding mutex_, and load_blocking() both blocks the caller and needs
+    // mutex_ to publish its result. Doing it there self-deadlocks on a
+    // non-recursive mutex the moment a real API is attached - the app hangs at
+    // startup, not just the tests. on_started() runs after start() releases the
+    // lock, which is why AmsBackendSnapmaker loads from here too.
+    //
+    // Per-slot spool metadata. On this backend the store is the ONLY source of
+    // filament identity - klipper-toolchanger reports none - so without it a
+    // user's colour and material are lost the moment initialize_tools() runs
+    // again on rediscovery. T<n> keys (lane_key_style_for) deliberately share
+    // the outer key Mainsail #2510 writes, so records interoperate instead of
+    // duplicating. Null api_ in unit tests simply leaves the store absent.
+    if (!api_) {
+        return;
+    }
+    override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        api_, "toolchanger", helix::ams::lane_key_style_for(get_type()));
+    auto loaded = override_store_->load_blocking();
+    const auto loaded_count = loaded.size();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        overrides_ = std::move(loaded);
+        // set_discovered_tools() built the slots before start() ran, so they
+        // predate everything just loaded. Layer it on now rather than leaving
+        // the panel grey until the first status frame arrives.
+        if (!overrides_.empty() && !system_info_.units.empty()) {
+            auto& slots = system_info_.units[0].slots;
+            for (size_t i = 0; i < slots.size(); ++i) {
+                apply_overrides(slots[i], static_cast<int>(i));
+            }
+        }
+    }
+    spdlog::info("{} Loaded {} slot overrides from filament_slot store", backend_log_tag(),
+                 loaded_count);
+}
+
+void AmsBackendToolChanger::apply_overrides(SlotInfo& slot, int slot_index) {
+    auto it = overrides_.find(slot_index);
+    if (it == overrides_.end()) {
+        return;
+    }
+    helix::ams::MergeOptions opts;
+    opts.printer_reports_spool_ids = printer_reports_spool_ids();
+    opts.keep_spool_info_on_eject =
+        helix::SettingsManager::instance().get_ams_keep_spool_info_on_eject();
+    // Rules 1 and 2 of the merge policy key off a firmware-reported spool id.
+    // klipper-toolchanger reports none, so neither can fire here and the
+    // erase branch below is unreachable today. It is kept because the policy
+    // lives in merge_override(), not in each backend's idea of its firmware.
+    const auto result = helix::ams::merge_override(slot, it->second, opts);
+    if (result.cleared_rebind || result.cleared_eject) {
+        overrides_.erase(it);
+        if (override_store_) {
+            const std::string tag = backend_log_tag();
+            override_store_->clear_async(slot_index, [tag, slot_index](bool ok, std::string err) {
+                if (!ok) {
+                    spdlog::warn("{} clear_async failed for slot {}: {}", tag, slot_index, err);
+                }
+            });
+        }
+    }
 }
 
 // stop(), release_subscriptions(), is_running() provided by AmsSubscriptionBackend
@@ -214,6 +280,14 @@ void AmsBackendToolChanger::handle_status_update(const nlohmann::json& notificat
                     parse_tool_state(tool_name, tool_data);
                     state_changed = true;
                 }
+            }
+        }
+
+        // Re-layer the user's spool metadata last, so nothing above can undo it.
+        if (state_changed && !overrides_.empty() && !system_info_.units.empty()) {
+            auto& slots = system_info_.units[0].slots;
+            for (size_t i = 0; i < slots.size(); ++i) {
+                apply_overrides(slots[i], static_cast<int>(i));
             }
         }
     }
@@ -476,6 +550,19 @@ void AmsBackendToolChanger::initialize_tools() {
     // tool list arrived; re-derive so the fresh slots match it.
     refresh_slot_statuses_locked();
 
+    // initialize_tools() has just reset every slot to default grey with the tool
+    // name as a placeholder. That reset IS the wipe: on a backend where the
+    // store is the only source of filament identity, a rediscovery would
+    // otherwise throw away the user's colour and material. Re-layer here rather
+    // than waiting for the next status frame, so get_slot_info() is never
+    // briefly wrong.
+    if (!overrides_.empty() && !system_info_.units.empty()) {
+        auto& slots = system_info_.units[0].slots;
+        for (size_t i = 0; i < slots.size(); ++i) {
+            apply_overrides(slots[i], static_cast<int>(i));
+        }
+    }
+
     tools_initialized_ = true;
     spdlog::info("[AMS ToolChanger] Initialized {} tools", tool_count);
 }
@@ -734,8 +821,7 @@ AmsError AmsBackendToolChanger::cancel() {
 // Configuration Operations
 // ============================================================================
 
-AmsError AmsBackendToolChanger::set_slot_info(int slot_index, const SlotInfo& info,
-                                              bool /*persist*/) {
+AmsError AmsBackendToolChanger::set_slot_info(int slot_index, const SlotInfo& info, bool persist) {
     int old_mapped_tool = -1;
     std::string physical_tool_name;
     {
@@ -779,7 +865,55 @@ AmsError AmsBackendToolChanger::set_slot_info(int slot_index, const SlotInfo& in
                 helix::printer::assign_tool_slot(system_info_, info.mapped_tool, slot_index);
                 physical_tool_name = tool_names_[slot_index];
             }
+
+            // Stage the user's edit. Every field is override-exclusive here:
+            // klipper-toolchanger supplies no material, colour, brand or weight,
+            // so there is nothing underneath for these to fall through to.
+            if (persist) {
+                helix::ams::FilamentSlotOverride ovr;
+                ovr.brand = info.brand;
+                ovr.spool_name = info.spool_name;
+                ovr.spoolman_id = info.spoolman_id;
+                ovr.spoolman_vendor_id = info.spoolman_vendor_id;
+                ovr.remaining_weight_g = info.remaining_weight_g;
+                ovr.total_weight_g = info.total_weight_g;
+                ovr.color_rgb = info.color_rgb;
+                ovr.color_set = true; // a user edit records a colour, even #000000
+                ovr.color_name = info.color_name;
+                ovr.material = info.material;
+                ovr.catalog_id = info.catalog_id;
+                ovr.product_name = info.product_name;
+                // No auto-mirror can exist on this backend (no firmware source),
+                // so the locks are inert here. Set for one shape across backends.
+                ovr.user_locked_color = true;
+                ovr.user_locked_material = !info.material.empty();
+                helix::ams::populate_temps_from_slot_info(ovr, info);
+                overrides_[slot_index] = ovr;
+            }
         }
+    }
+
+    // Persist BEFORE the remap's early return, or a slot edit that also moved a
+    // tool number would send ASSIGN_TOOL and silently drop the metadata.
+    if (persist && override_store_) {
+        helix::ams::FilamentSlotOverride ovr_to_save;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = overrides_.find(slot_index);
+            if (it != overrides_.end()) {
+                ovr_to_save = it->second;
+            }
+        }
+        // Capture the tag by value: save_async's Moonraker callback can fire
+        // long after this returns, and must not touch `this`.
+        const std::string tag = backend_log_tag();
+        override_store_->save_async(
+            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
+                if (!success) {
+                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
+                                 err);
+                }
+            });
     }
 
     if (!physical_tool_name.empty()) {
@@ -931,18 +1065,37 @@ std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_acti
     // Designated initializers inside actions.push_back(), which is the shape
     // scripts/translations/cpp_tables.py reads: the label and description below
     // are offered for translation without naming them a second time anywhere.
+    // Every field listed: -Wmissing-field-initializers fires on an aggregate
+    // whose trailing members are omitted, even where they have defaults.
+    // Matches src/printer/afc_defaults.cpp.
     actions.push_back({.id = "open_feeder",
                        .label = "Open feeder",
                        .icon = "lock_open",
                        .section = "feeder",
                        .description = "Release the filament",
-                       .type = helix::printer::ActionType::BUTTON});
+                       .type = helix::printer::ActionType::BUTTON,
+                       .current_value = {},
+                       .options = {},
+                       .min_value = 0,
+                       .max_value = 0,
+                       .unit = "",
+                       .slot_index = -1,
+                       .enabled = true,
+                       .disable_reason = ""});
     actions.push_back({.id = "close_feeder",
                        .label = "Close feeder",
                        .icon = "lock",
                        .section = "feeder",
                        .description = "Grip the filament",
-                       .type = helix::printer::ActionType::BUTTON});
+                       .type = helix::printer::ActionType::BUTTON,
+                       .current_value = {},
+                       .options = {},
+                       .min_value = 0,
+                       .max_value = 0,
+                       .unit = "",
+                       .slot_index = -1,
+                       .enabled = true,
+                       .disable_reason = ""});
 
     // Which macro each button sends. The command names forked upstream - the
     // original config exposes OPEN/CLOSE, the Python controller registers
@@ -958,7 +1111,13 @@ std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_acti
                            .description = "Which macro the Open feeder button sends",
                            .type = helix::printer::ActionType::DROPDOWN,
                            .current_value = std::any(feeder_.open_choice),
-                           .options = feeder_.macro_options});
+                           .options = feeder_.macro_options,
+                           .min_value = 0,
+                           .max_value = 0,
+                           .unit = "",
+                           .slot_index = -1,
+                           .enabled = true,
+                           .disable_reason = ""});
         actions.push_back({.id = "feeder_close_macro",
                            .label = "Close feeder macro",
                            .icon = "",
@@ -966,7 +1125,13 @@ std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_acti
                            .description = "Which macro the Close feeder button sends",
                            .type = helix::printer::ActionType::DROPDOWN,
                            .current_value = std::any(feeder_.close_choice),
-                           .options = feeder_.macro_options});
+                           .options = feeder_.macro_options,
+                           .min_value = 0,
+                           .max_value = 0,
+                           .unit = "",
+                           .slot_index = -1,
+                           .enabled = true,
+                           .disable_reason = ""});
     }
     return actions;
 }

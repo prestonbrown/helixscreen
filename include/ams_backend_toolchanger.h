@@ -4,11 +4,13 @@
 #pragma once
 
 #include "ams_subscription_backend.h"
+#include "filament_slot_override_store.h"
 #include "toolchanger_addon.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class ToolChangerTestAccess;
@@ -226,6 +228,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // --- AmsSubscriptionBackend hooks ---
     AmsError additional_start_checks() override;
+
+    /// Post-start work. Loads the slot-override store here and NOT in
+    /// additional_start_checks(), which start() calls with mutex_ held.
+    void on_started() override;
     void handle_status_update(const nlohmann::json& notification) override;
     const char* backend_log_tag() const override {
         return "[AMS ToolChanger]";
@@ -258,6 +264,24 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.
     void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
+
+    /// Layer the user's stored spool metadata over a slot. Caller holds mutex_.
+    ///
+    /// Unlike every other backend that does this, there is nothing underneath:
+    /// parse_tool_state() reads `mounted` and `active` and nothing else, so
+    /// klipper-toolchanger reports no material, colour, brand or weight at all.
+    /// The store is the SOLE source of filament identity here, not a layer over
+    /// a firmware reading, and initialize_tools() resets colour to default grey
+    /// on every rediscovery - which is exactly what used to wipe the user's edit.
+    void apply_overrides(SlotInfo& slot, int slot_index);
+
+    /// Per-slot user metadata, keyed by slot index. Written and read only under
+    /// mutex_.
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
+
+    /// Moonraker-DB-backed store. Null until additional_start_checks() builds it
+    /// (needs api_), and on backends constructed without an API in tests.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
 
     /**
      * @brief Parse individual tool state from Moonraker JSON
