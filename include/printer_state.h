@@ -419,6 +419,39 @@ class PrinterState {
     }
 
     /**
+     * @brief The canonical name of the print currently being shown
+     *
+     * The single answer to "which print is this". See
+     * PrinterPrintState::get_effective_print_filename() for why it exists and
+     * why it is published before the raw filename subject.
+     */
+    [[nodiscard]] const std::string& get_effective_print_filename() const {
+        return print_domain_.get_effective_print_filename();
+    }
+
+    /// Name this print by something other than what print_stats reports.
+    /// See PrinterPrintState::set_print_identity_override().
+    void set_print_identity_override(const std::string& name) {
+        print_domain_.set_print_identity_override(name);
+    }
+
+    /// Drop the identity override and re-derive from the reported filename.
+    void clear_print_identity_override() {
+        print_domain_.clear_print_identity_override();
+    }
+
+    /// What is overriding this print's reported name, or "" when nothing is.
+    [[nodiscard]] const std::string& get_print_identity_override() const {
+        return print_domain_.get_print_identity_override();
+    }
+
+    /// Bumped whenever get_effective_print_filename() actually changes. See
+    /// PrinterPrintState::get_print_identity_epoch_subject().
+    lv_subject_t* get_print_identity_epoch_subject() {
+        return print_domain_.get_print_identity_epoch_subject();
+    }
+
+    /**
      * @brief Set the current print's thumbnail, tagged with the file it is for
      *
      * The path alone carries no identity, so consumers cannot tell a fresh

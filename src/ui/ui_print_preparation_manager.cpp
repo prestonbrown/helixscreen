@@ -1584,15 +1584,13 @@ void PrintPreparationManager::modify_and_print_streaming(
                                             // Hide overlay now that print is starting
                                             BusyOverlay::hide();
 
-                                            // Set thumbnail source override for modified temp
-                                            // files. Uses original_path (e.g.,
-                                            // usb/flowrate_0.gcode) for metadata lookup
-                                            // - Panel: local gcode viewer and thumbnail display
-                                            // - Manager: shared subjects for HomePanel
-                                            get_global_print_status_panel().set_thumbnail_source(
+                                            // Name this print by the file the user chose, not
+                                            // the rewritten copy print_stats will report. One
+                                            // call: PrinterState is the single authority, so
+                                            // the panel and the media manager can no longer
+                                            // disagree about which print this is.
+                                            get_printer_state().set_print_identity_override(
                                                 d->original_path);
-                                            helix::get_active_print_media_manager()
-                                                .set_thumbnail_source(d->original_path);
 
                                             if (d->navigate_cb) {
                                                 d->navigate_cb();
@@ -1889,10 +1887,8 @@ void PrintPreparationManager::modify_and_print_with_remap(
                                             display_filename, file_path, on_navigate_to_status}),
                                         [](PrintStartedData* d) {
                                             BusyOverlay::hide();
-                                            get_global_print_status_panel().set_thumbnail_source(
+                                            get_printer_state().set_print_identity_override(
                                                 d->original_path);
-                                            helix::get_active_print_media_manager()
-                                                .set_thumbnail_source(d->original_path);
                                             if (d->navigate_cb)
                                                 d->navigate_cb();
                                         });

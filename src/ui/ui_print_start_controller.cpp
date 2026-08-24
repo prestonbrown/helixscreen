@@ -21,6 +21,7 @@
 #include "active_print_media_manager.h"
 #include "ams_state.h"
 #include "app_constants.h"
+#include "app_globals.h"
 #include "data_root_resolver.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
@@ -237,8 +238,10 @@ void PrintStartController::execute_print_start() {
                 std::string full_path =
                     path.empty() ? filename_to_print : path + "/" + filename_to_print;
                 helix::ui::queue_update([full_path, thumbnail_path, on_started]() {
-                    auto& status_panel = get_global_print_status_panel();
-                    status_panel.set_thumbnail_source(full_path);
+                    // begin_preparing() already recorded this job's identity, but a
+                    // start that never opened a preparing window still needs it, and
+                    // re-stating it is idempotent.
+                    get_printer_state().set_print_identity_override(full_path);
 
                     // If we have a pre-extracted thumbnail (USB/embedded), set it directly
                     // This bypasses Moonraker metadata lookup which doesn't have USB file info

@@ -5,19 +5,17 @@
  * @file test_print_status_filename_observer.cpp
  * @brief PrintStatusPanel identity, driven through its REAL entry point (#1339).
  *
- * The existing identity suites call PrintStatusPanel::set_filename() directly.
+ * The other identity suites call PrintStatusPanel::set_filename() directly.
  * Production never does: the printer reports a name, print_filename_subject
- * changes, and the panel's DEFERRED observer runs on_print_filename_changed(),
- * which resolves a rewritten temp path and calls set_thumbnail_source() BEFORE
- * calling set_filename(). set_thumbnail_source() re-enters set_filename() with
- * `current_print_filename_` still naming the PREVIOUS print, so the retirement
- * check compares the just-installed override against the finished print and
- * drops it again.
+ * changes, and consumers react. These cases enter where Moonraker does, through
+ * update_from_status(), so the ordering between the identity and the filename
+ * subject is on the path under test rather than assumed.
  *
- * That install-retire-reinstall churn is invisible to a test that enters at
- * set_filename(), which is why it went unnoticed: the end state is reached by a
- * different route. These cases enter where Moonraker does, so the churn is on
- * the path under test.
+ * They were written against the older arrangement, where the panel resolved a
+ * rewritten path into its own override and a re-entrant set_filename() could
+ * retire it again before it was used. That churn is gone - PrinterPrintState
+ * decides the identity once, before print_filename_ is published - but the cases
+ * are kept because they pin the behaviour that churn used to threaten.
  *
  * The panel is exercised WITHOUT ActivePrintMediaManager, and the thumbnail is
  * published by hand. That is the point: the invariant is "the panel agrees with
@@ -93,7 +91,10 @@ TEST_CASE_METHOD(FilenameObserverFixture,
     // has installed an override, because this process never started the job.
     report_filename(".helix_temp/modified_1748_Widget.gcode");
 
-    CHECK(Access::thumbnail_source(panel()) == "Widget.gcode");
+    // Resolved, not overridden: no state is installed for a name the rule can
+    // derive. The effective identity is what every consumer reads.
+    CHECK(state().get_effective_print_filename() == "Widget.gcode");
+    CHECK(Access::identity_override(panel()).empty());
 
     // The manager stamps its publishes with the resolved original; the panel must
     // already agree, or it drops every one of them with no retry.
@@ -117,7 +118,7 @@ TEST_CASE_METHOD(FilenameObserverFixture,
 
     report_filename(".helix_temp/modified_1748_Widget.gcode");
 
-    CHECK(Access::thumbnail_source(panel()) == "Widget.gcode");
+    CHECK(state().get_effective_print_filename() == "Widget.gcode");
 
     state().set_print_thumbnail("Widget.gcode", THUMB_B);
     drain();
@@ -140,7 +141,8 @@ TEST_CASE_METHOD(FilenameObserverFixture,
     REQUIRE(Access::displayed_src(panel()) == THUMB_A);
 
     report_filename("printB.gcode");
-    CHECK(Access::thumbnail_source(panel()).empty());
+    CHECK(Access::identity_override(panel()).empty());
+    CHECK(state().get_effective_print_filename() == "printB.gcode");
 
     state().set_print_thumbnail("printB.gcode", THUMB_B);
     drain();

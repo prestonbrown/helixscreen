@@ -192,7 +192,6 @@ class ActivePrintMediaManager {
     IMoonrakerAPI* api_ = nullptr;
     ObserverGuard print_filename_observer_;
     ObserverGuard preparing_epoch_observer_;
-    std::string thumbnail_source_filename_;
     std::string last_effective_filename_;
     std::string last_loaded_thumbnail_filename_;
     bool last_was_empty_ = false; ///< Prevents repeated "empty filename" log spam

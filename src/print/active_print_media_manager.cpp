@@ -90,14 +90,11 @@ ActivePrintMediaManager::ActivePrintMediaManager(PrinterState& printer_state)
         printer_state_.get_preparing_epoch_subject(), this,
         [](ActivePrintMediaManager* self, int epoch) {
             if (epoch > 0) {
-                const std::string full = self->printer_state_.preparing_job().full_path();
-                self->set_thumbnail_source(full);
-                // set_thumbnail_source only re-processes an EXISTING Moonraker
-                // filename. At commit there may not be one yet - that is the
-                // whole reason the identity is recorded - so resolve straight
-                // from the job. Idempotent: process_filename short-circuits if
-                // the effective name is already current.
-                self->process_filename(full.c_str());
+                // PrinterPrintState adopted this job's identity in
+                // begin_preparing(); all that is left is to act on it. At commit
+                // Moonraker may not have reported a filename yet, which is the
+                // whole reason the identity is recorded there.
+                self->process_filename(self->printer_state_.get_effective_print_filename().c_str());
                 return;
             }
             // Confirmed means the printer took OUR job, so the override still
@@ -142,18 +139,11 @@ void ActivePrintMediaManager::set_api(IMoonrakerAPI* api) {
 }
 
 void ActivePrintMediaManager::set_thumbnail_source(const std::string& original_filename) {
-    // Resolve first. The override exists to display the ORIGINAL name rather
-    // than the rewritten one Moonraker reports, and a caller can hand us the
-    // rewritten name directly - Reprint does, because it replays whatever
-    // print_stats last said, which for a modified print is
-    // `.helix_temp/modified_<ts>_orig.gcode`. Storing that raw would also
-    // suppress process_filename()'s own auto-resolve, which is guarded on this
-    // field being empty, and the panel would show `modified_1748..._orig`.
-    // Resolving is identity for a name that is already clean.
-    thumbnail_source_filename_ =
-        original_filename.empty() ? original_filename : resolve_gcode_filename(original_filename);
-    spdlog::debug("[ActivePrintMediaManager] Thumbnail source set to: {}",
-                  thumbnail_source_filename_.empty() ? "(cleared)" : thumbnail_source_filename_);
+    // The override itself lives on PrinterState, which is the single authority
+    // for which print this is; this stays as the manager-facing entry point.
+    // Resolve-on-store happens there, for the reason it always did: Reprint can
+    // hand over the rewritten name directly.
+    printer_state_.set_print_identity_override(original_filename);
 
     // If we have a current print filename, re-process it with the new source
     const char* current = lv_subject_get_string(printer_state_.get_print_filename_subject());
@@ -165,7 +155,7 @@ void ActivePrintMediaManager::set_thumbnail_source(const std::string& original_f
 }
 
 void ActivePrintMediaManager::clear_thumbnail_source() {
-    thumbnail_source_filename_.clear();
+    printer_state_.clear_print_identity_override();
     last_effective_filename_.clear();
     last_loaded_thumbnail_filename_.clear();
     cancel_thumbnail_retry();
@@ -223,43 +213,12 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
 
     std::string filename = raw_filename;
 
-    // A thumbnail source describes ONE print, and nothing retires it when that
-    // print ends: the preparing epoch only re-points it for a print started
-    // FROM the app, and a Confirmed exit deliberately keeps it. So a print
-    // started anywhere else - Mainsail, Fluidd, the printer's own screen -
-    // inherits the previous print's override, computes the previous print's
-    // effective filename, matches last_effective_filename_, and early-returns
-    // below. The thumbnail subject is never republished and the preview renders
-    // the previous print's image for the whole job (#1339).
-    //
-    // Retire the override here, where we can see the name the printer actually
-    // reports, rather than guessing at print-end: an empty filename between
-    // jobs is deliberately preserved so a finished print stays readable.
-    // A preparing job is EXACTLY the case where the override legitimately does
-    // not describe what the printer is reporting: print_stats still names the
-    // previous job for the whole pre-start block, which is why the identity is
-    // recorded at commit in the first place. Retiring on that mismatch would
-    // throw away the identity the epoch just adopted, so only retire once no
-    // job is armed.
-    if (!printer_state_.has_preparing_job() && !thumbnail_source_filename_.empty() &&
-        !helix::gcode::thumbnail_source_describes(filename, thumbnail_source_filename_)) {
-        spdlog::debug("[ActivePrintMediaManager] Thumbnail source '{}' does not describe '{}' "
-                      "- retiring it",
-                      thumbnail_source_filename_, filename);
-        clear_thumbnail_source();
-    }
-
-    // Auto-resolve temp file patterns to original filename if no override is set
-    std::string resolved = resolve_gcode_filename(filename);
-    if (resolved != filename && thumbnail_source_filename_.empty()) {
-        spdlog::debug("[ActivePrintMediaManager] Auto-resolved temp filename: {} -> {}", filename,
-                      resolved);
-        thumbnail_source_filename_ = resolved;
-    }
-
-    // Compute effective filename (respects thumbnail_source override)
-    std::string effective_filename =
-        thumbnail_source_filename_.empty() ? filename : thumbnail_source_filename_;
+    // Which print this is - override, retirement and temp-path resolution
+    // included - is decided by PrinterPrintState before print_filename_ is
+    // published. This manager used to derive it independently and the panel did
+    // too, from separate override members that cleared on different rules; any
+    // divergence dropped the thumbnail silently (prestonbrown/helixscreen#1339).
+    const std::string effective_filename = printer_state_.get_effective_print_filename();
 
     // Skip if effective filename hasn't changed (makes processing idempotent)
     if (effective_filename == last_effective_filename_) {
@@ -928,7 +887,7 @@ void ActivePrintMediaManager::retrigger_thumbnail_load(const char* reason) {
 }
 
 void ActivePrintMediaManager::release_identity() {
-    thumbnail_source_filename_.clear();
+    printer_state_.clear_print_identity_override();
     last_effective_filename_.clear();
     last_loaded_thumbnail_filename_.clear();
     cancel_thumbnail_retry();

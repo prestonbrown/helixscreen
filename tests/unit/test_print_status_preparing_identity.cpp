@@ -61,6 +61,15 @@ struct PreparingIdentityFixture : public LVGLTestFixture {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
+    /// Drive the filename through update_from_status(), where the identity is
+    /// decided. Access::set_filename() reaches past that and would leave the
+    /// panel reconciling against an identity nothing ever set.
+    void report_filename(const std::string& filename) {
+        nlohmann::json status = {{"print_stats", {{"filename", filename}}}};
+        state_.update_from_status(status);
+        drain();
+    }
+
     PrinterState state_;
     std::unique_ptr<PrintStatusPanel> panel_;
 };
@@ -71,16 +80,16 @@ TEST_CASE_METHOD(PreparingIdentityFixture,
                  "Panel adopts the preparing job's identity at commit, not at confirmation",
                  "[print_status][preparing_identity][1339]") {
     // Print A is running and on screen.
-    Access::set_filename(panel(), "printA.gcode");
+    report_filename("printA.gcode");
     drain();
-    REQUIRE(Access::thumbnail_source(panel()).empty());
+    REQUIRE(Access::identity_override(panel()).empty());
 
     // Print B is committed. Moonraker still reports print A - that lag is the
     // whole reason the identity is recorded at commit.
     state().begin_preparing(PrintJobRef{"printB.gcode", "", ""});
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()) == "printB.gcode");
+    REQUIRE(Access::identity_override(panel()) == "printB.gcode");
 }
 
 TEST_CASE_METHOD(PreparingIdentityFixture,
@@ -88,14 +97,14 @@ TEST_CASE_METHOD(PreparingIdentityFixture,
                  "[print_status][preparing_identity][1339]") {
     state().begin_preparing(PrintJobRef{"never_ran.gcode", "", ""});
     drain();
-    REQUIRE(Access::thumbnail_source(panel()) == "never_ran.gcode");
+    REQUIRE(Access::identity_override(panel()) == "never_ran.gcode");
 
     // Superseded, not Confirmed: the printer did not take this job. Leaving the
     // source set would resolve the NEXT print through a job that never ran.
     state().retire_preparing(PreparingExit::Superseded);
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()).empty());
+    REQUIRE(Access::identity_override(panel()).empty());
 }
 
 TEST_CASE_METHOD(PreparingIdentityFixture, "A confirmed preparing job keeps the panel's identity",
@@ -106,12 +115,12 @@ TEST_CASE_METHOD(PreparingIdentityFixture, "A confirmed preparing job keeps the 
     state().retire_preparing(PreparingExit::Confirmed);
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()) == "mine.gcode");
+    REQUIRE(Access::identity_override(panel()) == "mine.gcode");
 
-    Access::set_filename(panel(), ".helix_temp/modified_1748_mine.gcode");
+    report_filename(".helix_temp/modified_1748_mine.gcode");
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()) == "mine.gcode");
+    REQUIRE(Access::identity_override(panel()) == "mine.gcode");
 }
 
 TEST_CASE_METHOD(PreparingIdentityFixture,
@@ -121,17 +130,17 @@ TEST_CASE_METHOD(PreparingIdentityFixture,
     state().begin_preparing(PrintJobRef{"printA.gcode", "", ""});
     state().retire_preparing(PreparingExit::Confirmed);
     drain();
-    Access::set_filename(panel(), "printA.gcode");
+    report_filename("printA.gcode");
     drain();
-    REQUIRE(Access::thumbnail_source(panel()) == "printA.gcode");
+    REQUIRE(Access::identity_override(panel()) == "printA.gcode");
 
     // Print B started from Mainsail: no preparing epoch, nothing re-points the
     // identity. Before the fix the panel resolved B through printA for the
     // whole job and never reloaded a thing.
-    Access::set_filename(panel(), "printB.gcode");
+    report_filename("printB.gcode");
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()).empty());
+    REQUIRE(Access::identity_override(panel()).empty());
     REQUIRE(Access::current_print_filename(panel()) == "printB.gcode");
 }
 
@@ -142,11 +151,11 @@ TEST_CASE_METHOD(PreparingIdentityFixture, "Reprinting the same file keeps the p
     state().begin_preparing(PrintJobRef{"repeat.gcode", "", ""});
     state().retire_preparing(PreparingExit::Confirmed);
     drain();
-    Access::set_filename(panel(), "repeat.gcode");
+    report_filename("repeat.gcode");
     drain();
 
-    Access::set_filename(panel(), "repeat.gcode");
+    report_filename("repeat.gcode");
     drain();
 
-    REQUIRE(Access::thumbnail_source(panel()) == "repeat.gcode");
+    REQUIRE(Access::identity_override(panel()) == "repeat.gcode");
 }
