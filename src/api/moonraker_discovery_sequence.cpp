@@ -12,6 +12,7 @@
 #include "humidity_sensor_types.h"
 #include "hv/requests.h"
 #include "led/led_controller.h"
+#include "macro_executor.h"
 #include "macro_fan_analyzer.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
@@ -815,6 +816,25 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 {
                                     std::lock_guard<std::mutex> lock(hardware_mutex_);
                                     hardware_.parse_build_volume(settings);
+                                }
+
+                                // Which macros take the host down with them.
+                                // A confirmation keyed on the macro's own name
+                                // cannot see a wrapped restart, and the wrapped
+                                // case ships: ZMOD's AUTO_FULL_BED_LEVEL, bound
+                                // to our "Bed Level" button, reaches SAVE_CONFIG
+                                // through _SAVE_CONFIG. Resolve it from the
+                                // printer's own config rather than a name list.
+                                {
+                                    auto restarting =
+                                        helix::analyze_host_restarting_macros(settings);
+                                    if (!restarting.empty()) {
+                                        spdlog::debug("[Discovery] {} macro(s) reach a host "
+                                                      "restart",
+                                                      restarting.size());
+                                    }
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.set_host_restarting_macros(std::move(restarting));
                                 }
 
                                 helix::MacroFanAnalyzer analyzer;
