@@ -79,7 +79,7 @@ struct MacroConfig {
  * ```
  */
 /// Current config schema version — bump when adding new migrations
-static constexpr int CURRENT_CONFIG_VERSION = 21;
+static constexpr int CURRENT_CONFIG_VERSION = 22;
 
 class Config {
   private:

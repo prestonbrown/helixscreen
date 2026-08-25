@@ -510,6 +510,7 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         ctx.filament_materials = detail_view_->get_filament_materials();
         ctx.tools_used = detail_view_->get_tools_used();
         ctx.effective_remap = detail_view_->get_effective_remap();
+        ctx.tool_grams = detail_view_->get_tool_grams();
     }
     if (ctx.ams_manages_filament && ctx.has_active_backend) {
         ctx.empty_required_lanes =

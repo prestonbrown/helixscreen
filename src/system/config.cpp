@@ -1252,6 +1252,44 @@ static void migrate_v20_to_v21(json& config) {
     collapse_scanner_to_root(config);
 }
 
+/// Migration v21→v22: the two filament settings that were still read
+/// per-printer but stored at the root.
+///
+/// Both are read as `df() + "filament/..."`, i.e. under /printers/<id>/, so a
+/// value at the root was never consulted. On a real K2 Plus the root held
+/// {"color_rgb": 16711680, "material": "PETG"} - a red PETG spool from months
+/// earlier - while the live ASA-GF sat in the printer's own node. Harmless as
+/// long as nothing reads it, and exactly the kind of thing that bites the day
+/// something does.
+///
+/// fan_out_to_printers() is the right shape for both: a printer that already
+/// holds a real value keeps it (so the live spool above survives untouched),
+/// one that holds none inherits the root value rather than losing it, and the
+/// root key is retired only once there was somewhere to put it.
+static void migrate_v21_to_v22(json& config) {
+    const int spool_copies =
+        fan_out_to_printers(config, "filament/external_spool", "filament/external_spool");
+    if (spool_copies > 0) {
+        spdlog::info("[Config] Migration v22: copied /filament/external_spool to {} printer(s)",
+                     spool_copies);
+    }
+
+    const int cooldown_copies = fan_out_to_printers(config, "filament/cooldown_delay_seconds",
+                                                    "filament/cooldown_delay_seconds");
+    if (cooldown_copies > 0) {
+        spdlog::info(
+            "[Config] Migration v22: copied /filament/cooldown_delay_seconds to {} printer(s)",
+            cooldown_copies);
+    }
+
+    // Drop the container only once it is genuinely empty - a key we have not
+    // accounted for here is a key we must not delete.
+    if (config.contains("filament") && config["filament"].is_object() &&
+        config["filament"].empty()) {
+        config.erase("filament");
+    }
+}
+
 /// Lift a legacy root-level "preset" marker into the active printer's node.
 ///
 /// The marker predates multi-printer support and stayed at the config root while
@@ -1375,6 +1413,8 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
         migrate_v19_to_v20(config);
     if (version < 21)
         migrate_v20_to_v21(config);
+    if (version < 22)
+        migrate_v21_to_v22(config);
 
     config["config_version"] = CURRENT_CONFIG_VERSION;
 }
@@ -1407,7 +1447,19 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                        {"c", 0.0},
                        {"d", 0.0},
                        {"e", 1.0},
-                       {"f", 0.0}}}}},
+                       {"f", 0.0}}},
+                     // The evdev ABS range and axis swap a three-point calibration
+                     // solved for (#1259, #1276). valid=false means "use whatever
+                     // range the kernel declared", which is what every install did
+                     // before this key existed - so no migration is needed and an
+                     // uncalibrated device behaves exactly as it always has.
+                     {"touch_range",
+                      {{"valid", false},
+                       {"swap_axes", false},
+                       {"min_x", 0},
+                       {"max_x", 0},
+                       {"min_y", 0},
+                       {"max_y", 0}}}}},
                    {"printers", {{"show_printer_switcher", false}, {printer_id, printer_data}}}};
 
     if (include_user_prefs) {

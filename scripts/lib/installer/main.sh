@@ -414,6 +414,20 @@ main() {
     install_service "$platform"
     install_platform_hooks
 
+    # System permission rules for a non-root service user: the backlight udev
+    # rule (makes /sys/class/backlight/*/brightness group-writable by video, so
+    # dimming and sleep work) and the NetworkManager polkit rule.
+    #
+    # Placement is load-bearing on both sides. It must come after
+    # extract_release, because the udev rule ships inside the release package at
+    # $INSTALL_DIR/config/, and before start_service, so udevadm has already
+    # re-applied the ownership by the time the UI first writes brightness.
+    #
+    # Runs on fresh install and --update alike (both reach this line), and
+    # self-skips on the root-only platforms (ad5m/ad5x/k1/k2), when KLIPPER_USER
+    # is root, and under NoNewPrivileges where sudo is unavailable.
+    install_permission_rules "$platform"
+
     # Install KIAUH extension if KIAUH is detected
     install_kiauh_extension "$skip_kiauh_registration" || true
 

@@ -15,6 +15,7 @@
 #include "static_panel_registry.h"
 #include "touch_calibration.h"
 #include "touch_calibration_layout.h"
+#include "touch_calibration_wrapper.h"
 
 #include <spdlog/spdlog.h>
 
@@ -589,23 +590,18 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
         return;
     }
 
-    // Save calibration to config
-    Config* config = Config::get_instance();
-    if (config) {
-        config->set<bool>("/input/calibration/valid", true);
-        config->set<double>("/input/calibration/a", static_cast<double>(cal->a));
-        config->set<double>("/input/calibration/b", static_cast<double>(cal->b));
-        config->set<double>("/input/calibration/c", static_cast<double>(cal->c));
-        config->set<double>("/input/calibration/d", static_cast<double>(cal->d));
-        config->set<double>("/input/calibration/e", static_cast<double>(cal->e));
-        config->set<double>("/input/calibration/f", static_cast<double>(cal->f));
+    // Persist and install. commit_calibration_result() decides between the
+    // affine-only shape and the evdev-range shape and clears the other, so the
+    // wizard and this overlay cannot drift apart on that decision (#1259, #1276).
+    const bool applied =
+        helix::commit_calibration_result(calibration_sink(), *cal, panel_->get_range_fit());
+
+    if (Config* config = Config::get_instance()) {
         config->save();
         spdlog::info("[{}] Calibration saved to config", get_name());
     }
 
-    // Apply calibration immediately via the live input device
-    helix::ICalibrationSink* sink = calibration_sink();
-    if (sink && sink->apply_calibration(*cal)) {
+    if (applied) {
         spdlog::info("[{}] Calibration applied to touch input", get_name());
     } else {
 #ifndef HELIX_DISPLAY_FBDEV
@@ -711,7 +707,12 @@ void TouchCalibrationOverlay::handle_screen_touched(lv_event_t* e) {
     // Handles IDLE→POINT_1 auto-start and sample collection.
     spdlog::debug("[{}] Screen touched at ({}, {}) during state {}", get_name(), point.x, point.y,
                   static_cast<int>(state_before));
-    panel_->on_press({point.x, point.y});
+    // Pair the press with the untouched digitizer reading behind it, when the
+    // backend can supply one. Fetched here, at the press edge, so it belongs to
+    // this coordinate and not to some later motion event (#1259, #1276).
+    helix::Point device_raw{};
+    const bool has_device_raw = helix::get_last_raw_touch(device_raw);
+    panel_->on_press({point.x, point.y}, has_device_raw ? &device_raw : nullptr);
 
     // Flash crosshair for visual tap feedback (only during calibration points,
     // not on the initial "tap anywhere to begin" transition from IDLE)

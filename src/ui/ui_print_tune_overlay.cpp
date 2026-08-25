@@ -549,11 +549,12 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
         std::string gcode = helix::zoffset::build_z_adjust_gcode(base_microns, live_microns,
                                                                  delta_microns, all_homed);
         // ZMOD persists the adjustment as `z - _TEST_POINT.temp_z_offset`, and
-        // that variable survives END_PRINT/CANCEL_PRINT - so while idle it
-        // holds the LAST print's probe delta and the stored offset drifts by
-        // it (ghzserg/zmod#699). Clear it on the same script, before the
-        // override reads it. Never mid-print: there the subtraction excludes
-        // the live per-print transient and is correct.
+        // through 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - so
+        // while idle it holds the LAST print's probe delta and the stored
+        // offset drifts by it (ghzserg/zmod#699; fixed upstream after 1.7.2,
+        // where the clear becomes a no-op). Clear it on the same script,
+        // before the override reads it. Never mid-print: there the subtraction
+        // excludes the live per-print transient and is correct.
         if (printer_state_ && lv_subject_get_int(printer_state_->get_print_active_subject()) == 0) {
             std::string clear =
                 helix::zoffset::stale_probe_delta_clear_gcode(printer_state_->get_discovery());

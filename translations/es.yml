@@ -2200,7 +2200,7 @@ translations:
   Remove PIN: Eliminar PIN
   Remove Spoolman?: ¿Eliminar Spoolman?
   Remove plugin from printer: Eliminar plugin de la impresora
-  Remove the bypass spool from the toolhead first: 'Retire primero la bobina de bypass del cabezal'
+  Remove the bypass spool from the toolhead first: 'Primero retira la bobina de bypass del cabezal'
   Rename: Renombrar
   Rename Fan: Renombrar Ventilador
   Rename Mesh Profile: Renombrar Perfil de Malla
@@ -2523,6 +2523,8 @@ translations:
   Slot: Ranura
   Slot %d: Ranura %d
   Slot %d Filament: Filamento de la ranura %d
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'La ranura %d tiene aproximadamente %.0fg pero la herramienta %d necesita aproximadamente %.0fg. ¿Iniciar de todos modos?'
+  'Slot %d: %.0fg of %.0fg needed': 'Ranura %d: %.0fg de %.0fg necesarios'
   Slot 1: Ranura 1
   Slot {}: Ranura {}
   Slot {} matches.: 'La ranura {} coincide.'
@@ -2536,6 +2538,7 @@ translations:
   Software Updates: Actualizaciones de software
   Some filaments don't match the slicer's intent.: Algunos filamentos no coinciden
     con la intención del laminador.
+  'Some mapped slots are short on filament:': 'Algunas ranuras asignadas tienen poco filamento:'
   Some settings will take effect after restart.: Algunos ajustes tendrán efecto después
     de reiniciar.
   Sound Theme: Tema de sonido
@@ -2589,6 +2592,7 @@ translations:
   Start Drying: Iniciar secado
   Start Print: Iniciar Impresión
   Start Probing: Iniciar Sondeo
+  Start anyway?: '¿Iniciar de todos modos?'
   Start at: Comenzar en
   Start failed: Inicio fallido
   Start print anyway?: ¿Iniciar la impresión de todos modos?

@@ -66,6 +66,11 @@ struct PrintStartContext {
     std::vector<std::string> filament_materials;
     std::set<int> tools_used;
     std::map<int, int> effective_remap;
+
+    /// Per-tool grams from the G-code footer, slot-aligned with tool index.
+    /// Empty when the slicer emitted no per-tool line - which must read as
+    /// "unknown", never "zero".
+    std::vector<double> tool_grams;
     size_t filament_color_count = 0; ///< filament_colors_.size() on the controller
 
     // ---- environment (from AmsState / FilamentSensorManager) ----
@@ -133,6 +138,34 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx);
 /// print; nullopt otherwise. Weight falls back to a length-based estimate via
 /// the spool's material density when the slicer emitted no weight.
 std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintStartContext& ctx);
+
+/// One tool whose mapped lane holds less filament than the tool needs.
+struct LaneWeightShortfall {
+    int tool_index = -1;
+    int mapped_slot = -1;
+    int mapped_backend = -1;
+    float needed_g = 0.0f;
+    float remaining_g = 0.0f;
+};
+
+/**
+ * @brief Tools whose mapped lane cannot supply what the file asks of them.
+ *
+ * The lane-fed counterpart to insufficient_spool_weight_in(), which can only
+ * ever weigh the single external spool and therefore says nothing useful about
+ * an AMS print (it compared the whole file against a spool the print would not
+ * touch, and no remap could change either input).
+ *
+ * Silent - deliberately, in every direction where the data does not support an
+ * answer:
+ *   - no per-tool grams from the slicer, and more than one tool used: no split
+ *     is invented. The whole-file total is only attributed to a single tool.
+ *   - a mapped lane whose remaining weight is < 0: unknown, not empty. Only a
+ *     Spoolman-linked or hand-weighed lane has a figure at all.
+ *   - a mapping that resolves to no known lane: no lane, no opinion. Never a
+ *     fabricated "0 g remaining" for an index outside the connected units.
+ */
+std::vector<LaneWeightShortfall> insufficient_lane_weights_in(const PrintStartContext& ctx);
 
 /// Material mismatches, AMS path (ToolMapping::material_mismatch) and non-AMS
 /// path (gcode material vs external spool), with filament-database temps.

@@ -586,3 +586,107 @@ SUDOEOF
 @test "config: polkit pkla has SPDX header" {
     grep -q "SPDX-License-Identifier" "$WORKTREE_ROOT/config/helixscreen-network.pkla"
 }
+
+# =============================================================================
+# Install-flow wiring (#1343)
+#
+# Every test above calls install_permission_rules() DIRECTLY, which is exactly
+# why the missing call site survived review for so long: the function was
+# correct, 34 tests were green, and nothing anywhere proved main() ever reached
+# it. On a real Pi the udev rule was never copied, brightness stayed root:root
+# 0644, and dimming and sleep failed with "Cannot write to ... (permission
+# denied?)".
+#
+# These run the REAL main() with every other installer step replaced by a
+# recorder, so the flow executes end to end without touching the machine and
+# leaves a transcript of which steps ran, in which order, with which arguments.
+# =============================================================================
+
+# Replace every function the installer modules define with a recorder that
+# appends "<name> <args>" to $FLOW_LOG and produces no output. Names come from
+# the module sources rather than from `compgen -A function`, which would also
+# sweep up bats' own internals and break the harness.
+_stub_installer_steps() {
+    local fn
+    for fn in $(grep -h '^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*()[[:space:]]*{' \
+                    "$WORKTREE_ROOT"/scripts/lib/installer/*.sh \
+                | sed 's/[[:space:]]*().*//' | sort -u); do
+        [ "$fn" = "main" ] && continue
+        eval "${fn}() { printf '%s %s\n' '$fn' \"\$*\" >> \"\$FLOW_LOG\"; }"
+    done
+}
+
+# Source main.sh, stub everything under it, and answer the few calls main()
+# actually branches on.
+_setup_install_flow() {
+    FLOW_LOG="$BATS_TEST_TMPDIR/flow.log"
+    : > "$FLOW_LOG"
+    export FLOW_LOG
+
+    # main.sh installs `trap 'cleanup_on_success' EXIT INT TERM` and an ERR trap
+    # at source time, which REPLACE the traps bats uses to report a test's
+    # outcome. Left in place, a failing assertion in these tests produces no
+    # "not ok" line at all - the test silently vanishes from the run and bats
+    # only warns that it executed fewer tests than it expected. Save and restore.
+    local saved_traps
+    saved_traps=$(trap -p EXIT ERR)
+
+    unset _HELIX_MAIN_SOURCED
+    . "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+
+    trap - EXIT INT TERM ERR
+    eval "$saved_traps"
+
+    _stub_installer_steps
+
+    detect_platform() { echo "pi"; }
+    get_download_platform() { echo "pi"; }
+    detect_printer_model() { echo ""; }
+    error_handler() { :; }
+}
+
+# Line number of a step's first appearance in the transcript, or empty.
+_flow_line() {
+    grep -n "^$1 " "$FLOW_LOG" | head -1 | cut -d: -f1
+}
+
+@test "install flow: main() calls install_permission_rules with the platform" {
+    _setup_install_flow
+    run main
+    [ "$status" -eq 0 ]
+    grep -q "^install_permission_rules pi$" "$FLOW_LOG"
+}
+
+@test "install flow: --update calls install_permission_rules too" {
+    _setup_install_flow
+    run main --update
+    [ "$status" -eq 0 ]
+    grep -q "^install_permission_rules pi$" "$FLOW_LOG"
+}
+
+@test "install flow: permission rules run after extract_release, before start_service" {
+    _setup_install_flow
+    run main
+    [ "$status" -eq 0 ]
+
+    # After extract_release: the udev rule ships inside the release package at
+    # $INSTALL_DIR/config/, so there is nothing to copy before then.
+    # Before start_service: udevadm has to have re-applied the ownership by the
+    # time the UI first writes to brightness.
+    local extract_line perm_line start_line
+    extract_line=$(_flow_line extract_release)
+    perm_line=$(_flow_line install_permission_rules)
+    start_line=$(_flow_line start_service)
+
+    [ -n "$extract_line" ]
+    [ -n "$perm_line" ]
+    [ -n "$start_line" ]
+    [ "$extract_line" -lt "$perm_line" ]
+    [ "$perm_line" -lt "$start_line" ]
+}
+
+@test "install flow: bundled install.sh carries the call site" {
+    # scripts/install.sh is generated from the modules; a stale bundle would
+    # ship the old flow to every curl|sh user even with main.sh fixed.
+    grep -q '^    install_permission_rules "\$platform"$' "$WORKTREE_ROOT/scripts/install.sh"
+}

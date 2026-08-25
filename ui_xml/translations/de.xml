@@ -1970,7 +1970,7 @@
   <translation tag="Remove PIN" de="PIN entfernen"/>
   <translation tag="Remove Spoolman?" de="Spoolman entfernen?"/>
   <translation tag="Remove plugin from printer" de="Plugin vom Drucker entfernen"/>
-  <translation tag="Remove the bypass spool from the toolhead first" de="Zuerst die Bypass-Spule vom Werkzeugkopf entfernen"/>
+  <translation tag="Remove the bypass spool from the toolhead first" de="Zuerst die Bypass-Spule aus dem Werkzeugkopf entfernen"/>
   <translation tag="Rename" de="Umbenennen"/>
   <translation tag="Rename Fan" de="Lüfter umbenennen"/>
   <translation tag="Rename Mesh Profile" de="Netzprofil umbenennen"/>
@@ -2251,6 +2251,8 @@
   <translation tag="Slot" de="Slot"/>
   <translation tag="Slot %d" de="Slot %d"/>
   <translation tag="Slot %d Filament" de="Slot %d Filament"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" de="Slot %d hat etwa %.0fg, aber Werkzeug %d benötigt etwa %.0fg. Trotzdem starten?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" de="Slot %d: %.0fg von %.0fg benötigt"/>
   <translation tag="Slot 1" de="Slot 1"/>
   <translation tag="Slot {}" de="Slot {}"/>
   <translation tag="Slot {} matches." de="Slot {} passt."/>
@@ -2262,6 +2264,7 @@
   <translation tag="Soft" de="Weich"/>
   <translation tag="Software Updates" de="Software-Updates"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." de="Einige Filamente stimmen nicht mit der Vorgabe des Slicers überein."/>
+  <translation tag="Some mapped slots are short on filament:" de="Einige zugeordnete Slots haben zu wenig Filament:"/>
   <translation tag="Some settings will take effect after restart." de="Einige Einstellungen werden nach dem Neustart wirksam."/>
   <translation tag="Sound Theme" de="Klangthema"/>
   <translation tag="Sounds" de="Töne"/>
@@ -2310,6 +2313,7 @@
   <translation tag="Start Drying" de="Trocknung starten"/>
   <translation tag="Start Print" de="Druck starten"/>
   <translation tag="Start Probing" de="Abtasten starten"/>
+  <translation tag="Start anyway?" de="Trotzdem starten?"/>
   <translation tag="Start at" de="Beginnen bei"/>
   <translation tag="Start failed" de="Start fehlgeschlagen"/>
   <translation tag="Start print anyway?" de="Druck trotzdem starten?"/>

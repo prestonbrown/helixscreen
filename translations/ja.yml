@@ -2022,7 +2022,7 @@ translations:
   Remove PIN: PIN を削除
   Remove Spoolman?: Spoolman を削除しますか？
   Remove plugin from printer: プリンターからプラグインを削除
-  Remove the bypass spool from the toolhead first: '先にツールヘッドからバイパススプールを取り外してください'
+  Remove the bypass spool from the toolhead first: '先にバイパススプールをツールヘッドから取り外してください'
   Rename: 名前を変更
   Rename Fan: ファン名を変更
   Rename Mesh Profile: メッシュプロファイルの名前を変更
@@ -2312,6 +2312,8 @@ translations:
   Slot: スロット
   Slot %d: スロット %d
   Slot %d Filament: スロット %d のフィラメント
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'スロット %d の残量は約 %.0fg ですが、ツール %d には約 %.0fg 必要です。それでも開始しますか？'
+  'Slot %d: %.0fg of %.0fg needed': 'スロット %d: %.0fg（必要 %.0fg）'
   Slot 1: スロット1
   Slot {}: スロット {}
   Slot {} matches.: 'スロット {} が一致します。'
@@ -2323,6 +2325,7 @@ translations:
   Soft: ソフト
   Software Updates: ソフトウェア更新
   Some filaments don't match the slicer's intent.: 一部のフィラメントがスライサーの意図と一致しません。
+  'Some mapped slots are short on filament:': '一部の割り当て済みスロットのフィラメントが不足しています:'
   Some settings will take effect after restart.: 一部の設定は再起動後に有効になります。
   Sound Theme: サウンドテーマ
   Sounds: サウンド
@@ -2372,6 +2375,7 @@ translations:
   Start Drying: 乾燥開始
   Start Print: 印刷を開始
   Start Probing: プローブ開始
+  Start anyway?: 'それでも開始しますか？'
   Start at: 開始位置
   Start failed: 開始に失敗
   Start print anyway?: それでも印刷を開始しますか？

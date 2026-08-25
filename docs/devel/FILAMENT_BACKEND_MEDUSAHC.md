@@ -63,7 +63,17 @@ fork's names are a fallback, never a default.
 |---|---|---|---|
 | **(a) Irbis3D stock** | `[pin_watch io]`, `[toolchanger]`, `[tool T0..3]` | `pin_watch` only: `{"current_tool": int}` | `OPEN` / `CLOSE` |
 | **(b) Irbis3D Python Controller** | adds `[medusahc]` | `operation`, `current_tool`, `target_tool`, `last_error`, `feeder_open`, `layer`, `sensor_error`, `tool_count`, `sensors` | `MHC_OPEN` / `MHC_CLOSE`, plus legacy aliases |
-| **(c) third-party forks** | adds `[medusahc]` | `state`, `error`, flat `toolN_docked` | `OPEN` / `CLOSE` |
+| **(c) third-party forks** | `[medusahc]` **alone** - may drop both `[pin_watch]` and `[toolchanger]` | `state`, `error`, flat `toolN_docked` | `OPEN` / `CLOSE` |
+
+Row (c) is the one that breaks detection. [topi314/MedusaHC](https://github.com/topi314/MedusaHC)
+absorbed the dock sensing into medusahc.py itself - the switch pins moved to `dock_pin:`
+on each `[medusahc_tool N]`, and klippy logs
+`medusahc: configured 7 switch pin(s): e=..., t0..t5` at startup - and dropped
+klipper-toolchanger with it. `printer.objects.list` on that machine carries `medusahc` and
+`medusahc_calibrate` and neither of the two objects `present()` requires. Its
+`get_status()` is the (c) schema `read_medusahc()` already falls back to, so only detection
+is in the way. Sergei has said `[pin_watch io]` is staying upstream, so this is a fork
+trait rather than the direction of the project - but forks are what users install.
 
 `operation` is finer than klipper-toolchanger's single `changing`: `picking` and
 `dropping` name the direction, and they arrive even when the swap was started from
@@ -106,6 +116,16 @@ two MedusaHC machines on one network can be at different points in the migration
 Both halves are required. `pin_watch` alone is just the extra; `[toolchanger]` alone is
 any of the many klipper-toolchanger builds.
 
+**That predicate misses config (c).** A fork that folded the dock sensing into `[medusahc]`
+has neither object, so `present()` is false, `medusa_status_objects()` never subscribes, and
+nothing downstream treats the machine as a changer: `PrinterDiscovery` registers no
+`AmsType::TOOL_CHANGER` (that path also wants `tool N` objects, which a MedusaHC fork does
+not create either), and `ToolState::init_tools()` falls through to plain multi-extruder
+enumeration - six tools named T0..T5 off `extruder`..`extruder5`, no docks, no feeder.
+Measured on a user machine in debug bundle `6QWNVZY5` (HelixScreen 0.99.116, hostname
+`ducr10`, 123 objects: `medusahc`, `medusahc_calibrate`, `gcode_macro T0..T5`,
+`extruder`..`extruder5`, no `pin_watch`, no `toolchanger`).
+
 **It deliberately does not touch `has_mmu_` / `mmu_type_`.** Those pick which AMS backend
 gets built. An unguarded write there replaces a working backend on any printer that
 happens to run `pin_watch`, and the same applies to detecting on `T<n>` macros - every
@@ -124,10 +144,12 @@ which status objects to subscribe, and the feeder gcode. No call site changes.
 
 ## Printer database
 
-Two entries in `assets/config/printer_database.json`:
+Four entries in `assets/config/printer_database.json` - two frames, each with and without
+the changer. Both frames share the same art (`duender.png`, `ducr10.png`), rendered from
+the project images.
 
-- `duender_medusahc` - scored on `pin_watch` (92) and hostname `medusa` (85) only.
-  `toolchanger` is corroboration at 20. `tool_count_4` and `kinematics_match corexy` are
+- `duender_medusahc` - `pin_watch` (92) and `medusahc` (92), hostname `medusa` (85),
+  `toolchanger` corroborating at 20. `tool_count_4` and `kinematics_match corexy` are
   deliberately absent: they describe any 4-tool CoreXY toolchanger, and since
   `has_pattern()` is a case-insensitive substring match they would claim machines with no
   `pin_watch` at all.
@@ -136,9 +158,21 @@ Two entries in `assets/config/printer_database.json`:
   Duender has nothing in `printer.objects.list` distinguishing it from any other CoreXY.
   A `corexy` heuristic here would compete with the Voron and RatRig entries on every one
   of their machines. The wizard's manual-pick path covers it instead.
+- `ducr10_medusahc` - the same MedusaHC signals on the DuCR10 frame (Andizzle's "DUO CR10"
+  remix of the Duender, [Printables 1263532](https://www.printables.com/model/1263532-duender-remix-duo-cr10-corexy-conversion-gridfinit)).
+- `ducr10` - hostname only, same reasoning as `duender`.
 
-The bare-Duender hostname deliberately does not appear on the MedusaHC entry, or the
-`duender` entry could never outscore it (scoring is highest-match + 3 per extra match).
+The bare-frame hostname deliberately does not appear on either MedusaHC entry, or the bare
+entry could never outscore it (scoring is highest-match + 3 per extra match). The `ducr10`
+hostname is the one exception: it sits at 40 on `ducr10_medusahc`, low enough to lose to
+the bare `ducr10` entry (80) on a changer-less machine but still worth its +3 bonus on top
+of a MedusaHC object match.
+
+**The two MedusaHC entries cannot be told apart by hardware.** Same extra, same objects,
+same schema - only the hostname says which frame it is, so each entry carries a
+`hostname_exclude` for the other's name. A MedusaHC machine named neither is a genuine
+tie, and whichever entry the detector reaches first wins; both name a MedusaHC CoreXY, so
+the miss is the frame picture, not the capabilities.
 
 ## Known gaps
 
@@ -147,15 +181,42 @@ Not yet reconciled, and worth knowing before extending this:
 (Per-tool spool metadata used to be listed here. It is now persisted - see
 [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
 
-- **Tool offsets have two stores.** MedusaHC persists per-tool offsets in `save_variables`
-  (`t{N}_gcode_{x,y,z}_offset`) and pushes them into a `TOOL_OFFSET` macro;
-  klipper-toolchanger has its own offset model. Two sources of truth for one physical
-  quantity.
+- **Config (c) forks are not detected at all** - see [Detection](#detection). The reader
+  handles their schema; `present()` does not admit them.
+- **Tool offsets have two stores**, and upstream has now said which wins: `save_variables`
+  (`t{N}_gcode_{x,y,z}_offset`) is the persistent source, loaded into `TOOL_OFFSET` at
+  startup, and MedusaHC works off the runtime `TOOL_OFFSET` values. A temporary nudge means
+  writing `TOOL_OFFSET`; a permanent one means writing both. klipper-toolchanger's own
+  offset model is not the authority. We still touch neither.
 - **`layer`, `PRIME_FLAGS_*`, `MHC_CLEAN`** - per-tool priming and cleaning scheduled
   against layer number. No analogue in the toolchanger model, unused today.
 
 The Python controller is marked experimental and is moving; prefer widening the provider
 table over hardcoding against any single revision of it.
+
+## What upstream has committed to (Sergei / Irbis3D, 2026-08-24)
+
+Answers to the questions this document raised. Treat as intent, not contract.
+
+- **`[pin_watch io]` is staying.** It remains the primary source for sensor states and for
+  which tool is physically installed. The detection predicate is safe upstream; forks are
+  the exposure.
+- **`operation`, `current_tool`, `sensor_error`, `tool_count` are stable** and will not be
+  renamed without notice. There is no schema version field today; he intends to add one,
+  plus compatibility flags, so external interfaces can adapt.
+- **The `sensors` dict is per-dock, and we should be using it.** `e` is the toolhead
+  sensor, `t0`, `t1`, ... the docks. `1` means occupied: `e: 1` is a tool on the head,
+  `tN: 1` is tool N seated in its dock. Example: `{"e":1,"t5":1,"t4":1,"t3":0,"t2":1,
+  "t1":1,"t0":1}` is T3 on the head, everything else docked. That is enough to show real
+  per-dock state instead of only the mounted tool number.
+- **`verify_tool_pickup: False` is intentional.** klipper-toolchanger is there for offset
+  calibration and for syncing the active tool into Mainsail/Fluidd; MedusaHC performs the
+  swap and the sensors through pin_watch are the physical truth. Read
+  `medusahc.current_tool` and `medusahc.sensors`, never `toolchanger.tool_number` - which
+  is what `apply_tool_sensor_locked()` already does.
+- **The klipper-toolchanger dependency is meant to go away** eventually, so MedusaHC runs
+  standalone. No major behaviour changes are planned in the meantime, and he will give
+  advance notice.
 
 ---
 

@@ -2251,6 +2251,8 @@
   <translation tag="Slot" ru="Слот"/>
   <translation tag="Slot %d" ru="Слот %d"/>
   <translation tag="Slot %d Filament" ru="Филамент слота %d"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" ru="В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" ru="Слот %d: %.0fг из %.0fг"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot {}" ru="Слот {}"/>
   <translation tag="Slot {} matches." ru="Слот {} подходит."/>
@@ -2262,6 +2264,7 @@
   <translation tag="Soft" ru="Мягкий"/>
   <translation tag="Software Updates" ru="Обновления ПО"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." ru="Некоторые филаменты не соответствуют замыслу слайсера."/>
+  <translation tag="Some mapped slots are short on filament:" ru="В некоторых назначенных слотах мало филамента:"/>
   <translation tag="Some settings will take effect after restart." ru="Некоторые настройки вступят в силу после перезапуска."/>
   <translation tag="Sound Theme" ru="Звуковая тема"/>
   <translation tag="Sounds" ru="Звуки"/>
@@ -2310,6 +2313,7 @@
   <translation tag="Start Drying" ru="Начать сушку"/>
   <translation tag="Start Print" ru="Начать печать"/>
   <translation tag="Start Probing" ru="Начать зондирование"/>
+  <translation tag="Start anyway?" ru="Всё равно начать?"/>
   <translation tag="Start at" ru="Начать с"/>
   <translation tag="Start failed" ru="Ошибка запуска"/>
   <translation tag="Start print anyway?" ru="Всё равно начать печать?"/>

@@ -407,6 +407,32 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         lv_evdev_set_calibration(touch_, min_x, min_y, max_x, max_y);
     }
 
+    // Which ABS range wins, loudest first: an explicit environment override, then
+    // the range a three-point calibration solved for, then whatever the kernel (or
+    // the MT fallback above) declared. Only the last of those existed before
+    // #1259/#1276, so a device that has never been calibrated takes exactly the
+    // path it always did.
+    const bool env_range_override = env_min_x && env_max_x && env_min_y && env_max_y;
+    const bool env_swap_override = swap_axes != nullptr;
+    const helix::TouchRangeSettings stored_range = helix::load_touch_range();
+    if (env_range_override) {
+        spdlog::info("[Fbdev Backend] Touch range source: environment override{}",
+                     stored_range.valid ? " (stored calibration range ignored)" : "");
+    } else if (stored_range.valid) {
+        if (!env_swap_override) {
+            lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
+        }
+        lv_evdev_set_calibration(touch_, stored_range.min_x, stored_range.min_y, stored_range.max_x,
+                                 stored_range.max_y);
+        spdlog::info("[Fbdev Backend] Touch range source: stored calibration "
+                     "X({}..{}) Y({}..{}) swap={}{}",
+                     stored_range.min_x, stored_range.max_x, stored_range.min_y, stored_range.max_y,
+                     stored_range.swap_axes,
+                     env_swap_override ? " (swap held by environment override)" : "");
+    } else {
+        spdlog::info("[Fbdev Backend] Touch range source: kernel/MT-declared ABS range");
+    }
+
     // Load affine calibration from config (saved by calibration wizard)
     calibration_ = helix::load_touch_calibration();
 
@@ -445,6 +471,16 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     // (WizardTouchCalibrationStep) independently skips when
     // /input/calibration/valid is set — so the user can still re-calibrate on
     // demand without the wizard forcing itself every boot.
+
+    // Give the calibration path a way back to the untouched digitizer reading.
+    // The evdev stage clamps to the display, so a wrong declared ABS range is
+    // already unrecoverable by the time the coordinate reaches the affine (#1259,
+    // #1276). A shim rather than a direct call because the wrapper translation
+    // unit is compiled on desktop, where lv_evdev does not exist.
+    lv_indev_t* raw_indev = touch_;
+    calibration_context_.raw_source = [raw_indev](int& x, int& y) {
+        return lv_evdev_get_last_raw(raw_indev, &x, &y);
+    };
 
     // Always install the calibrated read callback — it handles both rotation
     // transform and affine calibration independently. Without this, rotation
@@ -925,6 +961,25 @@ void DisplayBackendFbdev::disable_affine_calibration() {
 void DisplayBackendFbdev::enable_affine_calibration() {
     calibration_context_.calibration = calibration_;
     spdlog::debug("[Fbdev Backend] Affine calibration re-enabled (valid={})", calibration_.valid);
+}
+
+bool DisplayBackendFbdev::apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x,
+                                            int max_y) {
+    if (!touch_) {
+        return false;
+    }
+    if (min_x == max_x || min_y == max_y) {
+        // lv_evdev skips the scale when min == max but still clamps, collapsing
+        // every coordinate onto one pixel. Never install that.
+        spdlog::warn("[Fbdev Backend] Refusing degenerate touch range X({}..{}) Y({}..{})", min_x,
+                     max_x, min_y, max_y);
+        return false;
+    }
+    lv_evdev_set_swap_axes(touch_, swap_axes);
+    lv_evdev_set_calibration(touch_, min_x, min_y, max_x, max_y);
+    spdlog::info("[Fbdev Backend] Touch range re-programmed: swap={} X({}..{}) Y({}..{})",
+                 swap_axes, min_x, max_x, min_y, max_y);
+    return true;
 }
 
 void DisplayBackendFbdev::clear_calibration() {

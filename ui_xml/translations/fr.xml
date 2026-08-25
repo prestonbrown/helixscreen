@@ -2251,6 +2251,8 @@
   <translation tag="Slot" fr="Slot"/>
   <translation tag="Slot %d" fr="Emplacement %d"/>
   <translation tag="Slot %d Filament" fr="Filament de lemplacement %d"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" fr="Le slot %d contient environ %.0fg mais l&apos;outil %d nécessite environ %.0fg. Démarrer quand même ?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" fr="Slot %d : %.0fg sur %.0fg requis"/>
   <translation tag="Slot 1" fr="Slot 1"/>
   <translation tag="Slot {}" fr="Emplacement {}"/>
   <translation tag="Slot {} matches." fr="Le slot {} correspond."/>
@@ -2262,6 +2264,7 @@
   <translation tag="Soft" fr="Doux"/>
   <translation tag="Software Updates" fr="Mises à jour logicielles"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." fr="Certains filaments ne correspondent pas à l&apos;intention du trancheur."/>
+  <translation tag="Some mapped slots are short on filament:" fr="Certains slots affectés manquent de filament :"/>
   <translation tag="Some settings will take effect after restart." fr="Certains paramètres prendront effet après redémarrage."/>
   <translation tag="Sound Theme" fr="Thème sonore"/>
   <translation tag="Sounds" fr="Sons"/>
@@ -2310,6 +2313,7 @@
   <translation tag="Start Drying" fr="Démarrer le séchage"/>
   <translation tag="Start Print" fr="Lancer l&apos;impression"/>
   <translation tag="Start Probing" fr="Démarrer le palpage"/>
+  <translation tag="Start anyway?" fr="Démarrer quand même ?"/>
   <translation tag="Start at" fr="Commencer à"/>
   <translation tag="Start failed" fr="Échec du démarrage"/>
   <translation tag="Start print anyway?" fr="Démarrer l&apos;impression quand même ?"/>

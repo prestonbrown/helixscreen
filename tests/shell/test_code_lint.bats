@@ -501,6 +501,40 @@ EOF
   [[ "$output" == *"All XML strings already in YAML files"* ]]
 }
 
+# The same gate has to run from quality-checks.sh, not only from here. v0.99.116
+# was tagged with five untranslated strings because this file is the only place
+# that checked: quality-checks.sh was green on the same tree, so the pre-commit
+# hook, the pre-push hook and the Code Quality workflow all passed it through,
+# and `make test-shell` only runs late in the release. These pin the wiring.
+
+@test "the translation coverage gate is wired into quality-checks.sh" {
+  run grep -c 'qc_translation_coverage' scripts/quality-checks.sh
+  [ "$status" -eq 0 ]
+  # definition, QC_ALL registration, and the path-gating trigger row
+  [ "$output" -ge 3 ]
+}
+
+@test "quality-checks.sh runs the coverage gate as a dry run" {
+  # A bare `sync` REWRITES all nine catalogs. A gate that edits the tree it is
+  # inspecting would stage catalog churn behind the committer's back, and would
+  # then report green on the very drift it just introduced.
+  run grep -n 'translation_sync.py sync' scripts/quality-checks.sh
+  [ "$status" -eq 0 ]
+  while IFS= read -r line; do
+    [[ "$line" == *"--dry-run"* ]]
+  done <<< "$output"
+}
+
+@test "the coverage gate wakes on src and ui_xml, not just translations" {
+  # A new lv_tr() in src/ or a label_tag in ui_xml/ is what ADDS an untranslated
+  # string; gating the check on ^translations/ alone would sleep through exactly
+  # the commit that introduces one.
+  run bash -c "sed -n '/qc_translation_coverage)/,/;;/p' scripts/quality-checks.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"^ui_xml/"* ]]
+  [[ "$output" == *"^src/"* ]]
+}
+
 # --- Global RuntimeConfig::test_mode must be restored by whoever sets it ---
 #
 # test_mode is the master switch behind every should_mock_*() predicate, so a

@@ -358,7 +358,7 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
         return;
     }
 
-    bool dangerous = helix::is_dangerous_macro(macro_name);
+    bool dangerous = helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
 
     // For dangerous macros, show confirmation before doing anything else
     if (dangerous) {
@@ -403,7 +403,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         // dangerous macros — the dangerous-macro confirm already ran upstream.
         bool needs_confirm =
             helix::SafetySettingsManager::instance().get_macro_require_confirmation() &&
-            !helix::is_dangerous_macro(macro_name);
+            !helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
         if (needs_confirm) {
             pending_run_macro_ = macro_name;
             std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));

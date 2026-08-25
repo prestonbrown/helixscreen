@@ -452,6 +452,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // on_activate()'s scan kicks nothing and ready=1 publishes before the
     // first frame.
     headless_tools_used_.reset();
+    headless_tool_grams_.clear();
     headless_scan_done_ = false;
     headless_scan_settled_ = false;
     lv_subject_set_int(&detail_mapping_ready_, 0);
@@ -1772,6 +1773,11 @@ void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<
                 // footer says {0} where the scan (which sees no Tn at all)
                 // says {} — and {0} is the same answer the viewer parse
                 // produces, so the two paths agree rather than diverge.
+                // The same footer line that named the used tools also priced
+                // them, in grams the slicer labelled itself. Kept so the
+                // pre-print check can weigh each tool against the lane it is
+                // mapped to, instead of the whole file against one spool.
+                headless_tool_grams_ = summary.grams_per_tool;
                 apply_scan_result(summary.tools_used, /*authoritative=*/true);
             });
         },

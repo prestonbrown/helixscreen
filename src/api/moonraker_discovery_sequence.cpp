@@ -6,12 +6,14 @@
 #include "ui_update_queue.h"
 
 #include "accel_sensor_manager.h"
+#include "ams_backend_ad5x_ifs.h"
 #include "app_globals.h"
 #include "config.h"
 #include "helix_version.h"
 #include "humidity_sensor_types.h"
 #include "hv/requests.h"
 #include "led/led_controller.h"
+#include "macro_executor.h"
 #include "macro_fan_analyzer.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
@@ -817,6 +819,25 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     hardware_.parse_build_volume(settings);
                                 }
 
+                                // Which macros take the host down with them.
+                                // A confirmation keyed on the macro's own name
+                                // cannot see a wrapped restart, and the wrapped
+                                // case ships: ZMOD's AUTO_FULL_BED_LEVEL, bound
+                                // to our "Bed Level" button, reaches SAVE_CONFIG
+                                // through _SAVE_CONFIG. Resolve it from the
+                                // printer's own config rather than a name list.
+                                {
+                                    auto restarting =
+                                        helix::analyze_host_restarting_macros(settings);
+                                    if (!restarting.empty()) {
+                                        spdlog::debug("[Discovery] {} macro(s) reach a host "
+                                                      "restart",
+                                                      restarting.size());
+                                    }
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.set_host_restarting_macros(std::move(restarting));
+                                }
+
                                 helix::MacroFanAnalyzer analyzer;
                                 auto macro_result = analyzer.analyze(settings);
 
@@ -1382,9 +1403,14 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
         }
     }
 
-    // AD5X IFS requires save_variables for filament state (colors, types, tool mapping)
+    // AD5X IFS: save_variables for filament state (colors, types, tool mapping),
+    // plus native ZMOD's own zmod_ifs/zmod_color objects where the firmware
+    // publishes them. The backend owns which names those are; asking it keeps
+    // the firmware's schema in the one module that parses it.
     if (hw.mmu_type() == AmsType::AD5X_IFS) {
-        subscription_objects["save_variables"] = nullptr;
+        for (const auto& object : AmsBackendAd5xIfs::required_status_objects(hw)) {
+            subscription_objects[object] = nullptr;
+        }
     }
 
     // Firmware that keeps the authoritative z-offset outside gcode_move needs

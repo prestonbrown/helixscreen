@@ -36,6 +36,19 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
         ctx->original_read_cb(indev, data);
     }
 
+    // Stash the pre-swap, pre-scale digitizer reading behind the coordinate we
+    // just got, before the affine below rewrites it. Calibration needs this to
+    // solve for the evdev range; the clamped coordinate alone cannot tell it what
+    // the true range was (#1259, #1276).
+    if (ctx->raw_source) {
+        int rx = 0;
+        int ry = 0;
+        if (ctx->raw_source(rx, ry)) {
+            ctx->last_raw = helix::Point{rx, ry};
+            ctx->last_raw_valid = true;
+        }
+    }
+
     // Apply affine calibration if valid (for both PRESSED and RELEASED states)
     if (ctx->calibration.valid) {
         helix::Point raw{static_cast<int>(data->point.x), static_cast<int>(data->point.y)};
@@ -55,6 +68,69 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
     }
 }
 
+bool get_last_raw_touch(Point& out) {
+    CalibrationContext* ctx = s_active_ctx;
+    if (!ctx || !ctx->last_raw_valid) {
+        return false;
+    }
+    out = ctx->last_raw;
+    return true;
+}
+
+TouchRangeSettings load_touch_range() {
+    TouchRangeSettings range;
+    helix::Config* cfg = helix::Config::get_instance();
+    if (!cfg) {
+        return range;
+    }
+
+    if (!cfg->get<bool>("/input/touch_range/valid", false)) {
+        return range;
+    }
+
+    range.swap_axes = cfg->get<bool>("/input/touch_range/swap_axes", false);
+    range.min_x = cfg->get<int>("/input/touch_range/min_x", 0);
+    range.max_x = cfg->get<int>("/input/touch_range/max_x", 0);
+    range.min_y = cfg->get<int>("/input/touch_range/min_y", 0);
+    range.max_y = cfg->get<int>("/input/touch_range/max_y", 0);
+
+    // min == max is not a passthrough in lv_evdev: the scale is skipped but the
+    // clamp is not, so every coordinate would collapse onto one pixel. Refuse it.
+    if (range.min_x == range.max_x || range.min_y == range.max_y) {
+        spdlog::warn("[TouchCal] Stored touch range is degenerate X({}..{}) Y({}..{}) - ignoring",
+                     range.min_x, range.max_x, range.min_y, range.max_y);
+        return TouchRangeSettings{};
+    }
+
+    range.valid = true;
+    return range;
+}
+
+void save_touch_range(const TouchRangeSettings& range) {
+    helix::Config* cfg = helix::Config::get_instance();
+    if (!cfg) {
+        spdlog::warn("[TouchCal] Config not available - touch range not saved");
+        return;
+    }
+
+    cfg->set<bool>("/input/touch_range/valid", range.valid);
+    if (!range.valid) {
+        // Leave the numbers alone but make sure nothing reads them. A calibration
+        // that could not solve the range stores a full-pipeline affine instead,
+        // and an old range surviving alongside it would apply both.
+        spdlog::info("[TouchCal] Stored touch range cleared (no range fit this run)");
+        return;
+    }
+
+    cfg->set<bool>("/input/touch_range/swap_axes", range.swap_axes);
+    cfg->set<int>("/input/touch_range/min_x", range.min_x);
+    cfg->set<int>("/input/touch_range/max_x", range.max_x);
+    cfg->set<int>("/input/touch_range/min_y", range.min_y);
+    cfg->set<int>("/input/touch_range/max_y", range.max_y);
+    spdlog::info("[TouchCal] Touch range saved: swap={} X({}..{}) Y({}..{})", range.swap_axes,
+                 range.min_x, range.max_x, range.min_y, range.max_y);
+}
+
 TouchCalibration load_touch_calibration() {
     helix::Config* cfg = helix::Config::get_instance();
     TouchCalibration cal;
@@ -66,6 +142,17 @@ TouchCalibration load_touch_calibration() {
 
     cal.valid = cfg->get<bool>("/input/calibration/valid", false);
     if (!cal.valid) {
+        // A stored evdev range IS a stored user calibration, even when it left no
+        // affine behind - the common outcome on a panel square to the display, where
+        // the range carries the whole mapping and the residual is an identity. The
+        // platform default is a whole second mapping; composing it on top of a range
+        // the user just measured would undo the calibration they ran (#1259, #1276).
+        if (load_touch_range().valid) {
+            spdlog::info("[TouchCal] Stored touch range in effect with no residual affine - "
+                         "platform default not applied");
+            return cal;
+        }
+
         // Fall back to the panel default this package was built for, so touch is
         // usable on first boot instead of only after the wizard's tap routine.
         // A stored user calibration always wins: we only get here when there is none.

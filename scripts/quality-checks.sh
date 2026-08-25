@@ -2239,6 +2239,58 @@ echo ""
 }
 
 # ====================================================================
+# Translation catalog coverage (user-facing strings with no key)
+# ====================================================================
+qc_translation_coverage() {
+  local EXIT_CODE=0
+# A user-facing string that never reached translations/*.yml fails silently at
+# runtime: lv_translation_get() falls back to the tag, so the string renders in
+# English in all nine languages and only a debug-level line says so. One bundle
+# carried 1445 of those lines. v0.99.116 was tagged with five such strings on
+# main because this gate lived only in tests/shell/test_code_lint.bats, which a
+# release runs after quality-checks and which nothing runs pre-commit.
+#
+# --dry-run is load-bearing: a bare `sync` REWRITES all nine catalogs, and a
+# check that edits the tree it is inspecting would stage catalog churn behind
+# the committer's back.
+SECTION_START=$(date +%s)
+echo -n "🌐 Checking translation catalog coverage..."
+
+if [ -x "$VENV_PYTHON" ] && [ -f "scripts/translation_sync.py" ]; then
+  if "$VENV_PYTHON" scripts/translation_sync.py sync --dry-run >/tmp/trans_cov.out 2>&1 \
+     && grep -q "All XML strings already in YAML files" /tmp/trans_cov.out; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ Every user-facing string has a translation key"
+  else
+    section_time $SECTION_START
+    echo ""
+    grep -vE "^[[:space:]]*$" /tmp/trans_cov.out | tail -12
+    echo "   Fix: make translation-sync && make translations"
+    echo "   Then translate the new keys - consult translations/GLOSSARY.md and"
+    echo "   reuse the canonical term rather than coining a new one - and stage"
+    echo "   translations/*.yml alongside ui_xml/translations/*.xml."
+    echo "   A string that genuinely should not be translated gets"
+    echo "   '// i18n: do not translate' on its line or the line above."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  .venv not set up — skipping (run 'make venv-setup')"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: tests/shell/*.bats extract a section's body by awk-ing from
+#  its first line to the next '# ====' banner. Wrapping the sections in
+#  functions moved the banners above them, so without this the extraction
+#  ran on past the body and swallowed the return/closing brace.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Shell Script Linting (shellcheck)
 # ====================================================================
 qc_shellcheck() {
@@ -2353,6 +2405,48 @@ echo ""
 }
 
 # ====================================================================
+# Installer Step Reachability
+# ====================================================================
+# The installer is a set of modules wired together by exactly one orchestrator,
+# main(). A step that is written, tested, and never wired in is silent: the
+# shell defines the function, never calls it, and exits 0. That is #1343 --
+# install_permission_rules() shipped with 34 passing tests and no call site, so
+# the backlight udev rule was never written and dimming/sleep failed on every
+# non-root install. The bats suites call these functions directly, which is why
+# a green suite proved nothing about whether they run.
+qc_installer_reachability() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🔌 Checking installer step reachability..."
+
+if [ -f "scripts/check_installer_step_reachability.py" ]; then
+  if python3 scripts/check_installer_step_reachability.py >/tmp/installer_reachability.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/installer_reachability.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/installer_reachability.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_installer_step_reachability.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: tests/shell/*.bats extract a section's body by awk-ing from
+#  its first line to the next '# ====' banner. Wrapping the sections in
+#  functions moved the banners above them, so without this the extraction
+#  ran on past the body and swallowed the return/closing brace.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Parallel driver
 # ====================================================================
 # The checks are independent greps and linters and the script ran strictly
@@ -2414,7 +2508,7 @@ qc_run_buffered() {
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
 if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_shellcheck"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2449,7 +2543,13 @@ qc_trigger_re() {
     qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;
     qc_base_locale)     echo '^translations/' ;;
+    # Any src/ or ui_xml/ file can introduce a user-facing string, so this
+    # wakes on both trees rather than only on the catalogs they land in.
+    qc_translation_coverage)
+                        echo '^ui_xml/|^src/|^translations/|^scripts/translation_sync\.py$|^scripts/translations/' ;;
     qc_shellcheck)      echo '\.(sh|bats)$' ;;
+    qc_installer_reachability)
+                        echo '^scripts/lib/installer/|^scripts/install-dev\.sh$|^scripts/bundle-(un)?installer\.sh$|^scripts/check_installer_step_reachability\.py$' ;;
     *)                  echo '' ;;
   esac
 }

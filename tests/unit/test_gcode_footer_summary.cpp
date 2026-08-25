@@ -92,6 +92,38 @@ TEST_CASE("parse_gcode_footer_summary - used-tool rule", "[gcode][footer_summary
     }
 }
 
+TEST_CASE("parse_gcode_footer_summary - per-tool grams", "[gcode][footer_summary]") {
+    // grams_per_tool is what lets the pre-print check weigh a tool against the
+    // lane it is mapped to. It must stay slot-aligned with tool index and it
+    // must be EMPTY (not zero-filled) when no usage line was seen, because the
+    // check reads an absent vector as "unknown" and a present one as fact.
+    SECTION("slot-aligned with tool index, zeros included") {
+        const auto s = parse_gcode_footer_summary("; filament used [g] = 0.00, 863.07, 0.00\n");
+        REQUIRE(s.grams_per_tool == std::vector<double>{0.0, 863.07, 0.0});
+        // The used-tool set is derived from the same vector, so the two agree.
+        REQUIRE(s.tools_used == std::set<int>{1});
+    }
+
+    SECTION("a garbled token consumes its slot rather than shifting the rest") {
+        const auto s = parse_gcode_footer_summary("; filament used [g] = 1.5, abc, 2.5\n");
+        REQUIRE(s.grams_per_tool.size() == 3);
+        CHECK(s.grams_per_tool[1] == 0.0);
+        CHECK(s.grams_per_tool[2] == 2.5); // still tool 2, not tool 1
+        REQUIRE(s.tools_used == std::set<int>{0, 2});
+    }
+
+    SECTION("no usage line leaves it empty, not zero-filled") {
+        const auto s = parse_gcode_footer_summary("; filament_colour = #AABBCC\n");
+        REQUIRE_FALSE(s.has_usage_line);
+        REQUIRE(s.grams_per_tool.empty());
+    }
+
+    SECTION("single-extruder scalar is a one-entry vector") {
+        const auto s = parse_gcode_footer_summary("; filament used [g] = 12.34\n");
+        REQUIRE(s.grams_per_tool == std::vector<double>{12.34});
+    }
+}
+
 TEST_CASE("parse_gcode_footer_summary - total line never answers tools",
           "[gcode][footer_summary]") {
     // A scalar total read as a one-element vector would claim {0} for every
