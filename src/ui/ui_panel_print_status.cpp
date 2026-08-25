@@ -69,11 +69,25 @@ using helix::gcode::resolve_gcode_filename;
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <vector>
+
+// The shared thumbnail path subject never carries the empty string: a file with
+// no thumbnail (yet) is published as no_thumbnail_placeholder(). That value is a
+// perfectly good image to PUT ON SCREEN, but it is not this print's thumbnail,
+// so it must never stamp displayed_file_. ActivePrintMediaManager draws the same
+// distinction in has_thumbnail_for() and says why: take the placeholder for a
+// thumbnail and "every print would stop at the placeholder", because the marker
+// it leaves behind is what tells decide_preview_action() there is nothing left
+// to load.
+static bool is_no_thumbnail_placeholder(const char* path) {
+    return path != nullptr &&
+           std::strcmp(path, helix::PrinterPrintState::no_thumbnail_placeholder()) == 0;
+}
 
 // Global instance for legacy API and resize callback
 static std::unique_ptr<PrintStatusPanel> g_print_status_panel;
@@ -339,8 +353,16 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 spdlog::debug("[{}] Thumbnail updated from shared subject: {}", self->get_name(),
                               path);
                 // Record what is ACTUALLY on screen, not what the panel wishes
-                // were on screen.
-                self->displayed_file_ = for_file;
+                // were on screen. The manager publishes the placeholder FOR the
+                // incoming file as its clear, so identity matches here even
+                // though no thumbnail has been fetched yet; stamping that would
+                // retire the reconcile before the real image ever arrives.
+                // Clearing is the honest marker: no file's thumbnail is up.
+                if (is_no_thumbnail_placeholder(path)) {
+                    self->displayed_file_.clear();
+                } else {
+                    self->displayed_file_ = for_file;
+                }
             }
         },
         ps_subjects);
@@ -3894,9 +3916,19 @@ void PrintStatusPanel::ensure_preview_current() {
             crash_handler::breadcrumb::note("pstat_thm", "set_src_pre");
             lv_image_set_src(print_thumbnail_, published);
             crash_handler::breadcrumb::note("pstat_thm", "set_src_post");
-            displayed_file_ = desired;
-            spdlog::debug("[{}] Adopted already-published thumbnail for '{}': {}", get_name(),
-                          desired, published);
+            if (is_no_thumbnail_placeholder(published)) {
+                // Identity matches but there is nothing to adopt: this is the
+                // manager's "no thumbnail for this file yet" clear. Show it,
+                // leave the marker empty so the next reconcile tries again.
+                displayed_file_.clear();
+                spdlog::debug("[{}] Published path for '{}' is the no-thumbnail placeholder; "
+                              "showing it without marking the preview current",
+                              get_name(), desired);
+            } else {
+                displayed_file_ = desired;
+                spdlog::debug("[{}] Adopted already-published thumbnail for '{}': {}", get_name(),
+                              desired, published);
+            }
         } else {
             // Neither source could supply an image, and nothing here retries:
             // the next reconcile is whatever the manager publishes or the next
