@@ -247,3 +247,116 @@ TEST_CASE("An unknown device action is refused even with a feeder", "[ams][toolc
     CHECK_FALSE(h.execute_device_action("purge_everything").success());
     CHECK(h.sent().empty());
 }
+
+// ============================================================================
+// Dock sensors stamp the slots
+//
+// refresh_slot_statuses_locked() used to be a two-way split on the carriage
+// tool, on the reasoning that "a toolhead is always physically there". With the
+// dock sensors that stops being true: a dock reporting empty for a tool that is
+// not on the head means the hot end has been taken out of the machine.
+// ============================================================================
+
+TEST_CASE("An empty dock stamps its slot EMPTY", "[ams][toolchanger][docks]") {
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(json{{"medusahc",
+                  {{"operation", "idle"},
+                   {"current_tool", 1},
+                   {"sensors", {{"e", 1}, {"t0", 1}, {"t1", 0}, {"t2", 0}, {"t3", 1}}}}}});
+
+    auto info = tc.get_system_info();
+    REQUIRE(info.units.size() == 1);
+    const auto& slots = info.units[0].slots;
+    REQUIRE(slots.size() == 4);
+    CHECK(slots[0].status == SlotStatus::AVAILABLE); // docked
+    CHECK(slots[1].status == SlotStatus::LOADED);    // on the head
+    CHECK(slots[2].status == SlotStatus::EMPTY);     // dock empty, not mounted
+    CHECK(slots[3].status == SlotStatus::AVAILABLE);
+}
+
+TEST_CASE("The carriage tool stays LOADED even though its dock is empty",
+          "[ams][toolchanger][docks]") {
+    // The mounted tool's own dock always reads empty — that is where it came
+    // from. Stamping it EMPTY would blank the only loaded slot.
+    ToolChangerHelper tc(2);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(
+        json{{"medusahc", {{"current_tool", 0}, {"sensors", {{"e", 1}, {"t0", 0}, {"t1", 1}}}}}});
+
+    CHECK(tc.get_slot_info(0).status == SlotStatus::LOADED);
+    CHECK(tc.get_slot_info(1).status == SlotStatus::AVAILABLE);
+}
+
+TEST_CASE("A frame with no dock fields leaves the stamps alone", "[ams][toolchanger][docks]") {
+    // Moonraker republishes only changed fields. A later frame that carries just
+    // the tool number must not blank the dock knowledge from the frame before.
+    ToolChangerHelper tc(3);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(json{{"medusahc", {{"current_tool", 0}, {"sensors", {{"e", 1}, {"t2", 0}}}}}});
+    REQUIRE(tc.get_slot_info(2).status == SlotStatus::EMPTY);
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}}}});
+    CHECK(tc.get_slot_info(2).status == SlotStatus::EMPTY);
+}
+
+// ============================================================================
+// Which command drives the swap
+// ============================================================================
+
+/// Discovery for a changer whose own extra does the swapping: no [toolchanger],
+/// no pin_watch, tools enumerated off the extruders.
+static PrinterDiscovery standalone_medusahc_discovery(int tools) {
+    auto objects = json::array({"medusahc", "toolhead"});
+    for (int i = 0; i < tools; ++i) {
+        objects.push_back("gcode_macro T" + std::to_string(i));
+        objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+TEST_CASE("A plain tool changer selects with SELECT_TOOL", "[ams][toolchanger][commands]") {
+    ToolChangerHelper tc(4);
+    tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(plain_toolchanger_discovery()));
+    tc.feed_status("ready", -1);
+
+    auto err = tc.change_tool(2);
+    REQUIRE(err.success());
+    REQUIRE_FALSE(tc.sent().empty());
+    CHECK(tc.sent().back() == "SELECT_TOOL T=2");
+}
+
+TEST_CASE("A changer without klipper-toolchanger selects with its own macro",
+          "[ams][toolchanger][commands]") {
+    auto hw = standalone_medusahc_discovery(3);
+    ToolChangerHelper tc(3);
+    tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(hw));
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
+    // There is no toolchanger object to report "ready"; the extra's own state
+    // field is what settles the action.
+    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", -1}}}});
+
+    auto err = tc.change_tool(2);
+    REQUIRE(err.success());
+    REQUIRE_FALSE(tc.sent().empty());
+    CHECK(tc.sent().back() == "T2");
+}
+
+TEST_CASE("Unmounting uses the machine's own drop command", "[ams][toolchanger][commands]") {
+    auto hw = standalone_medusahc_discovery(2);
+    ToolChangerHelper tc(2);
+    tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(hw));
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
+    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}}}});
+
+    auto err = tc.unload_filament(1);
+    REQUIRE(err.success());
+    REQUIRE_FALSE(tc.sent().empty());
+    // DROP_TOOL takes no tool argument: there is only ever one tool on the head.
+    CHECK(tc.sent().back() == "DROP_TOOL");
+}

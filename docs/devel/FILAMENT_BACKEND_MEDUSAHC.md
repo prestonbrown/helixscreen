@@ -41,6 +41,24 @@ The official controller agrees: its `_current_tool()` returns `pin_watch.current
 Reporting it as `-1` would invite a tool change against an unknown carriage state, so the
 backend holds the last known tool and raises `AmsAction::ERROR` instead.
 
+### 1a. And which tools are in their docks
+
+The same sensors answer a second question the tool number cannot: what is in each dock.
+Upstream - the shape to design against - publishes it as `sensors`: `e` for the toolhead,
+`t0`, `t1`, ... per dock, `1` meaning occupied. The fork flattens the same answer to
+`tool<N>_docked` plus `head_loaded`.
+`ToolReading::docks` carries both spellings, indexed by tool number.
+
+A dock reading vacant for a tool that is not on the head means that hot end has been taken
+out of the machine, which is why `refresh_slot_statuses_locked()` can now stamp
+`SlotStatus::EMPTY` at all. The carriage slot always wins over its own dock reading: the
+mounted tool's dock reads vacant because that is where the tool came from.
+
+`docks` is merged across frames, never replaced. Moonraker republishes only the fields that
+CHANGED, so a frame naming two docks says nothing about the third - a per-frame overwrite
+would blank a tool on every partial update. Empty `docks` means "this frame said nothing",
+which is not the same answer as "every dock is vacant".
+
 ### 2. A filament feeder
 
 Only the hot end travels, so the filament is held by a servo gripper on the frame
@@ -57,23 +75,31 @@ overlay itself has no print gate.
 
 Object presence cannot separate (b) from (c) - both register `[medusahc]` - so
 `read_medusahc()` discriminates on **field names**, reading the Irbis3D names first. The
-fork's names are a fallback, never a default.
+fork's names are a fallback, never a default, and that ordering is the rule everywhere in
+this module: upstream first, fork second.
 
 | | Objects | Status schema | Feeder macros |
 |---|---|---|---|
 | **(a) Irbis3D stock** | `[pin_watch io]`, `[toolchanger]`, `[tool T0..3]` | `pin_watch` only: `{"current_tool": int}` | `OPEN` / `CLOSE` |
 | **(b) Irbis3D Python Controller** | adds `[medusahc]` | `operation`, `current_tool`, `target_tool`, `last_error`, `feeder_open`, `layer`, `sensor_error`, `tool_count`, `sensors` | `MHC_OPEN` / `MHC_CLOSE`, plus legacy aliases |
-| **(c) third-party forks** | `[medusahc]` **alone** - may drop both `[pin_watch]` and `[toolchanger]` | `state`, `error`, flat `toolN_docked` | `OPEN` / `CLOSE` |
+| **(c) a third-party fork** | `[medusahc]` **alone** - may drop both `[pin_watch]` and `[toolchanger]` | `state`, `error`, flat `toolN_docked` | `OPEN` / `CLOSE` |
 
-Row (c) is the one that breaks detection. [topi314/MedusaHC](https://github.com/topi314/MedusaHC)
+**(b) is the reference implementation.** Sergei originally was not going to port MedusaHC's
+logic to Python at all - it was to stay G-code macros - and the fork in row (c) exists
+because one user wanted the flexibility that decision would have cost him. Sergei then
+reversed course, so the Python controller is where MedusaHC is going and (c) is a
+point-in-time divergence, not a trend. Design against (b); keep (c) working.
+
+Row (c) is the shape that used to break detection. [topi314/MedusaHC](https://github.com/topi314/MedusaHC)
 absorbed the dock sensing into medusahc.py itself - the switch pins moved to `dock_pin:`
 on each `[medusahc_tool N]`, and klippy logs
 `medusahc: configured 7 switch pin(s): e=..., t0..t5` at startup - and dropped
 klipper-toolchanger with it. `printer.objects.list` on that machine carries `medusahc` and
 `medusahc_calibrate` and neither of the two objects `present()` requires. Its
-`get_status()` is the (c) schema `read_medusahc()` already falls back to, so only detection
-is in the way. Sergei has said `[pin_watch io]` is staying upstream, so this is a fork
-trait rather than the direction of the project - but forks are what users install.
+`get_status()` is the (c) schema `read_medusahc()` already falls back to, so detection was
+the only thing in the way. `[pin_watch io]` is staying upstream, so a machine with only
+`[medusahc]` stays the exception - but it is an exception someone is running today, and the
+object alone is now enough to claim it.
 
 `operation` is finer than klipper-toolchanger's single `changing`: `picking` and
 `dropping` name the direction, and they arrive even when the swap was started from
@@ -116,15 +142,33 @@ two MedusaHC machines on one network can be at different points in the migration
 Both halves are required. `pin_watch` alone is just the extra; `[toolchanger]` alone is
 any of the many klipper-toolchanger builds.
 
-**That predicate misses config (c).** A fork that folded the dock sensing into `[medusahc]`
-has neither object, so `present()` is false, `medusa_status_objects()` never subscribes, and
-nothing downstream treats the machine as a changer: `PrinterDiscovery` registers no
-`AmsType::TOOL_CHANGER` (that path also wants `tool N` objects, which a MedusaHC fork does
-not create either), and `ToolState::init_tools()` falls through to plain multi-extruder
-enumeration - six tools named T0..T5 off `extruder`..`extruder5`, no docks, no feeder.
-Measured on a user machine in debug bundle `6QWNVZY5` (HelixScreen 0.99.116, hostname
-`ducr10`, 123 objects: `medusahc`, `medusahc_calibrate`, `gcode_macro T0..T5`,
-`extruder`..`extruder5`, no `pin_watch`, no `toolchanger`).
+`has_medusahc()` is the third way in, and it needs no second half: nothing else in Klipper
+registers `[medusahc]`. It is matched exactly, because `[medusahc_calibrate]` is a sibling
+object and not this one.
+
+That third path is a compatibility fallback, not a second mainline. It exists because
+config (c) has neither of the first two objects - and it is also what would catch upstream
+if Sergei follows through on dropping the klipper-toolchanger dependency. Debug bundle
+`6QWNVZY5` (HelixScreen 0.99.116, hostname `ducr10`, 123 objects: `medusahc`,
+`medusahc_calibrate`, `gcode_macro T0..T5`, `extruder`..`extruder5`, no `pin_watch`, no
+`toolchanger`) came in as `type: "Unknown"` with six plain extruders: `present()` was false,
+`medusa_status_objects()` never subscribed, `PrinterDiscovery` registered no
+`AmsType::TOOL_CHANGER`, and `ToolState::init_tools()` fell through to multi-extruder
+enumeration - no docks, no feeder.
+
+Two things follow from a changer with no klipper-toolchanger, and both live in this module
+rather than in the backend. Neither is reached on the reference config, where
+klipper-toolchanger supplies both:
+
+- **No `[tool N]` objects to name the tools.** `PrinterDiscovery` enumerates the extruder
+  heaters instead - one hot end per extruder is what a hotend changer is - and keeps the
+  G-code tool numbers as the names, `T0`..`T5`. Real `tool N` objects always win: a
+  klipper-toolchanger name is arbitrary and `ASSIGN_TOOL` can remap it.
+- **No `SELECT_TOOL`.** `resolve_tool_commands()` answers with the machine's own commands
+  (`T<n>` to mount, `DROP_TOOL` to unmount) and an absent capability when `[toolchanger]` is
+  there to own the swap. `DROP_TOOL` is a bare registered command, not a `[gcode_macro]`, so
+  unlike the feeder macros it cannot be capability-checked - naming it in the provider table
+  is the point of the table.
 
 **It deliberately does not touch `has_mmu_` / `mmu_type_`.** Those pick which AMS backend
 gets built. An unguarded write there replaces a working backend on any printer that
@@ -181,8 +225,6 @@ Not yet reconciled, and worth knowing before extending this:
 (Per-tool spool metadata used to be listed here. It is now persisted - see
 [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
 
-- **Config (c) forks are not detected at all** - see [Detection](#detection). The reader
-  handles their schema; `present()` does not admit them.
 - **Tool offsets have two stores**, and upstream has now said which wins: `save_variables`
   (`t{N}_gcode_{x,y,z}_offset`) is the persistent source, loaded into `TOOL_OFFSET` at
   startup, and MedusaHC works off the runtime `TOOL_OFFSET` values. A temporary nudge means

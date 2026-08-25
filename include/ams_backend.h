@@ -2320,6 +2320,19 @@ class AmsBackend {
     }
 
     /**
+     * @brief Declare the commands that drive a swap on this machine
+     *
+     * Called before start(). Absent - the default - means klipper-toolchanger is
+     * present and its own SELECT_TOOL/UNSELECT_TOOL are the answer. A changer
+     * whose extra does the swapping itself names its commands here instead.
+     *
+     * @param commands Resolved swap commands; absent when the printer needs none
+     */
+    virtual void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
+        (void)commands;
+    }
+
+    /**
      * @brief Set filament sensor names from PrinterCapabilities
      *
      * Called before start() to provide filament sensor names from printer.objects.list.

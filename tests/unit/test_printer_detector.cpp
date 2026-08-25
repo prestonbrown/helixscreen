@@ -4439,7 +4439,14 @@ class VariantPresetFixture {
 
     void SetUp() {
         namespace fs = std::filesystem;
-        temp_dir = (fs::temp_directory_path() / "helix_variant_test").string();
+        // Per-process, like the seed fixture above. A fixed name is shared by
+        // every shard that runs a test on this fixture, and remove_all() in one
+        // shard races create_directories() in another: "cannot remove:
+        // Directory not empty". Which shard gets which test moves whenever a
+        // test is added anywhere in the suite, so the collision surfaces at
+        // random.
+        temp_dir = (fs::temp_directory_path() / ("helix_variant_test_" + std::to_string(getpid())))
+                       .string();
         fs::create_directories(temp_dir + "/presets");
         fs::create_directories(temp_dir + "/assets/config/presets");
 
