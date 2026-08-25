@@ -2443,6 +2443,7 @@
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" ja="バックアップスプールはプリンターのファームウェアが選びます"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ja="フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSレーンはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSレーンはありません。取り除くまで、プリンターがレーンの装填を拒否する場合があります。それでも印刷を開始しますか？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ja="ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ja="ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？"/>
   <translation tag="Theme" ja="テーマ"/>

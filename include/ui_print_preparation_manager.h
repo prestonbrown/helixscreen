@@ -588,6 +588,17 @@ class PrintPreparationManager {
     /// the print). A pre-start block takes seconds; one that old is stale.
     std::chrono::steady_clock::time_point pre_start_sent_at_{};
 
+    /// The preparing-job epoch as it stood when the pre-start block was sent.
+    ///
+    /// This, not elapsed time, is what says whether the intent behind a
+    /// pre-start is still live. PrinterPrintState bumps the epoch on
+    /// begin_preparing() and zeroes it on retire_preparing() — so a cancel, a
+    /// failure, or a different print taking over all move it, and a comparison
+    /// at ack time catches every one of them without guessing from a clock.
+    /// 0 means "no preparing job was armed when we sent", in which case there
+    /// is no intent signal to check and only the time backstop applies.
+    int pre_start_epoch_ = 0;
+
     void continue_print_start(const std::string& filename,
                               const std::vector<gcode::OperationType>& ops_to_disable,
                               NavigateToStatusCallback on_navigate_to_status,

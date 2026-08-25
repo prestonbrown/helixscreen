@@ -176,9 +176,23 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
             continue;
         }
 
-        // Priority 2: Color match
-        auto [slot_idx, backend_idx] =
-            find_closest_color_slot(tool.color_rgb, tool.material, slots);
+        // Priority 2: Color match — only when the file actually stated a color.
+        // color_known is false when nothing has yet said what this tool prints
+        // in (Moonraker omitted filament_colors and no footer read or viewer
+        // parse has backfilled it), leaving color_rgb a neutral stand-in.
+        // Searching for the nearest lane to a stand-in picks one on the strength
+        // of a value the file never expressed, and the material gate is no
+        // protection: with four ASA lanes loaded it just picks whichever ASA
+        // happens to sit closest to grey. The positional fallback below is the
+        // honest answer, and it is already what runs when nothing lands within
+        // COLOR_MATCH_TOLERANCE. Firmware mappings (Priority 1, above) are
+        // unaffected — those are the printer's own statement, not a guess.
+        SlotKey color_key{-1, -1};
+        if (tool.color_known) {
+            color_key = find_closest_color_slot(tool.color_rgb, tool.material, slots);
+        }
+        const int slot_idx = color_key.first;
+        const int backend_idx = color_key.second;
         if (slot_idx >= 0) {
             mapping.mapped_slot = slot_idx;
             mapping.mapped_backend = backend_idx;

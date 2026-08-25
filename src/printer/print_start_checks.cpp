@@ -182,13 +182,25 @@ CheckResult gate_unaccounted_toolhead_filament(const PrintStartContext& ctx) {
     if (ctx.any_bypass_active) {
         return pass_result();
     }
-    for (const auto& answer : ctx.toolhead_unaccounted) {
-        if (answer.has_value() && *answer) {
-            return warn_result(lv_tr("Filament In The Toolhead"),
-                               lv_tr("The toolhead has filament but no AMS lane reports it loaded. "
-                                     "Pull it out manually before printing. Start anyway?"),
-                               lv_tr("Start Anyway"));
+    for (size_t i = 0; i < ctx.toolhead_unaccounted.size(); ++i) {
+        const auto& answer = ctx.toolhead_unaccounted[i];
+        if (!answer.has_value() || !*answer) {
+            continue;
         }
+        // The detection is the same either way; the REMEDY is not. On hardware
+        // with a lane-free heat/cut/retract (the CFS runs one for bypass
+        // unloads) "pull it out manually" is both wrong and worse than what the
+        // printer would do itself, and it is aimed at a hot toolhead. Where no
+        // such path exists, a manual pull IS the answer, so that wording stays.
+        const bool clearable = i < ctx.toolhead_clearable.size() && ctx.toolhead_clearable[i];
+        return warn_result(
+            lv_tr("Filament In The Toolhead"),
+            clearable
+                ? lv_tr("The toolhead has filament but no AMS lane reports it loaded. The "
+                        "printer may refuse to load a lane until it is cleared. Start anyway?")
+                : lv_tr("The toolhead has filament but no AMS lane reports it loaded. "
+                        "Pull it out manually before printing. Start anyway?"),
+            lv_tr("Start Anyway"));
     }
     return pass_result();
 }

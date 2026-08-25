@@ -241,6 +241,49 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
         REQUIRE(lv_subject_get_int(ready) == 0);
     }
 
+    SECTION("cache hit with NO palette keeps the skeleton until colors settle") {
+        // The K2 Plus regression. Moonraker reports filament_type for an
+        // OrcaSlicer file and no filament_colors at all, so show() gets an
+        // empty palette. The tools-used cache answers the OTHER question
+        // instantly, and readiness used to key off that alone — so the chips
+        // were published built from neutral stand-ins, rendering a grey dot
+        // pointing at the real lane color.
+        //
+        // Readiness must now wait for the palette question too. "Settled", not
+        // "non-empty": with no API nothing can ever read the file, so the
+        // degrade path settles it and the latch still opens rather than
+        // hanging on the skeleton forever.
+        helix::ToolsUsedCache warmer;
+        warmer.store("sub/flash.gcode", kSize, kMtime, {0, 2});
+
+        view.show("flash.gcode", "sub", "PLA", /*filament_colors=*/{}, {}, kSize, kMtime);
+
+        // Tools are known — but nothing has said what color they print in.
+        REQUIRE(view.get_tools_used() == std::set<int>{0, 2});
+        REQUIRE(lv_subject_get_int(ready) == 0);
+
+        // Drain runs the deferred push → on_activate → scan kick-off. With no
+        // API, the degrade path settles the palette question ("nothing knows")
+        // so the latch opens rather than stranding the user on a skeleton.
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(lv_subject_get_int(ready) == 1);
+
+        pop_and_drain();
+    }
+
+    SECTION("cache hit WITH a metadata palette is ready immediately, as before") {
+        // Guards the common path against the change above: metadata that
+        // carried colors settles the palette question during show(), so a
+        // re-print still renders final chips on the first frame.
+        helix::ToolsUsedCache warmer;
+        warmer.store("sub/flash.gcode", kSize, kMtime, {0, 2});
+
+        view.show("flash.gcode", "sub", "PLA", colors, {}, kSize, kMtime);
+        REQUIRE(lv_subject_get_int(ready) == 1);
+
+        pop_and_drain();
+    }
+
     SECTION("stale cache entry (mtime changed) is a miss") {
         helix::ToolsUsedCache warmer;
         warmer.store("sub/flash.gcode", kSize, kMtime, {0, 2});

@@ -730,6 +730,12 @@ void PrintPreparationManager::start_print(const std::string& filename,
 
         auto token = lifetime_.token();
         pre_start_sent_at_ = std::chrono::steady_clock::now();
+        // Snapshot the intent this block is being sent on behalf of. A cancel,
+        // a failure, or another print taking over all move the epoch, so the
+        // ack can be judged on whether the job it belongs to still exists
+        // rather than on how long it took to arrive.
+        pre_start_epoch_ =
+            printer_state_ ? lv_subject_get_int(printer_state_->get_preparing_epoch_subject()) : 0;
         api_->execute_gcode(
             combined,
             [this, token, filename_to_print, ops_to_disable, on_navigate_to_status,
@@ -1219,18 +1225,45 @@ void PrintPreparationManager::continue_print_start(
         return;
     }
 
-    // Staleness guard. The preparing-job check above cannot catch a late ack
-    // to a cancelled print: the job can still be armed when klippy finally
-    // flushes a backed-up gcode request (K1C 2026-08-20: the ack landed 370s
-    // after the send, at cancel time, and relaunched the print the user had
-    // just stopped). A pre-start block completes in seconds - if we are only
-    // now hearing about one sent minutes ago, the intent behind it is gone.
-    if (pre_start_sent_at_ != std::chrono::steady_clock::time_point{}) {
+    // Intent guard. The preparing-job check above catches a job that is simply
+    // gone; this catches the subtler case it cannot see — the job being a
+    // DIFFERENT one than the block was sent for, because ours was retired and
+    // another print armed in its place. PrinterPrintState bumps the epoch on
+    // begin_preparing and zeroes it on retire_preparing, so cancel, failure and
+    // supersede all land here.
+    //
+    // This is what the old 3-minute staleness bound was really reaching for.
+    // The bug it was written against (K1C 2026-08-20: klippy flushed a 370s
+    // backed-up ack at cancel time and relaunched the cancelled print) is a
+    // question about INTENT, and elapsed time is a poor proxy for it — as a K2
+    // Plus proved on 2026-08-25, where a pre-start block containing a bed mesh
+    // legitimately ran 494s, succeeded, and had its print silently dropped.
+    // A late ack and a slow-but-wanted macro are the same code path with the
+    // same signature; only the epoch tells them apart.
+    if (pre_start_epoch_ != 0 && printer_state_) {
+        const int now_epoch = lv_subject_get_int(printer_state_->get_preparing_epoch_subject());
+        if (now_epoch != pre_start_epoch_) {
+            spdlog::warn("[PrintPreparationManager] Dropping pre-start completion for a retired "
+                         "job (epoch {} -> {}) - not starting '{}'",
+                         pre_start_epoch_, now_epoch, filename);
+            if (on_completion) {
+                on_completion(false, "");
+            }
+            return;
+        }
+    }
+
+    // Time backstop, for the case with NO intent signal at all: a caller that
+    // armed no preparing job leaves nothing to compare, so the only remaining
+    // question is whether this ack is plausibly fresh. Deliberately NOT applied
+    // when an epoch was captured — there the check above is exact, and a clock
+    // can only overrule it wrongly.
+    if (pre_start_epoch_ == 0 && pre_start_sent_at_ != std::chrono::steady_clock::time_point{}) {
         constexpr auto STALE_PRE_START_BOUND = std::chrono::minutes(3);
         const auto age = std::chrono::steady_clock::now() - pre_start_sent_at_;
         if (age > STALE_PRE_START_BOUND) {
             spdlog::warn("[PrintPreparationManager] Dropping stale pre-start completion "
-                         "({}s old, bound 180s) - not starting '{}'",
+                         "({}s old, bound 180s, no preparing job to check) - not starting '{}'",
                          std::chrono::duration_cast<std::chrono::seconds>(age).count(), filename);
             if (on_completion) {
                 on_completion(false, "");

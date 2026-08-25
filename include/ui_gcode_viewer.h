@@ -589,4 +589,34 @@ struct ParsedGCodeFile;
  */
 const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* obj);
 
+/**
+ * @brief Per-tool color palette the viewer recovered from the file it loaded.
+ *
+ * Mode-independent, which is the point: full-load reads the palette off the
+ * parsed file, streaming reads it off the layer index, which already scans the
+ * header and then the trailing 32KB for exactly this (OrcaSlicer writes its
+ * palette in the footer). Both were always available; only the parsed-file half
+ * was ever exposed, so callers that reached for it went empty-handed on every
+ * streamed file — i.e. on every file large enough for streaming to be chosen.
+ *
+ * @param obj Viewer widget
+ * @return Palette hex strings, or empty when nothing is loaded / the file
+ *         carried no palette. Returned BY VALUE: the streaming half lives
+ *         behind the controller's index and must not outlive a reload.
+ */
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj);
+
+/**
+ * @brief How far along the viewer's current load is, 0.0 to 1.0.
+ *
+ * Only the streaming path can answer: it scans the whole file to build a layer
+ * index before anything can render, and on a large file that dominates the
+ * wait (a 133MB / 5M-line print took 69s on a K2 Plus). The full-load path has
+ * no equivalent checkpoint and reports 0.0 while it works.
+ *
+ * @param obj Viewer widget
+ * @return Progress fraction; 1.0 when idle or complete, 0.0 when unknown.
+ */
+float ui_gcode_viewer_get_load_progress(lv_obj_t* obj);
+
 #endif

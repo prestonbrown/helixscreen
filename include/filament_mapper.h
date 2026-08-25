@@ -17,6 +17,21 @@ struct GcodeToolInfo {
     int tool_index;       ///< G-code tool number (0-based)
     uint32_t color_rgb;   ///< Expected color (0xRRGGBB)
     std::string material; ///< Expected material type ("PLA", "PETG", etc.)
+
+    /// False when no source could say what color this tool prints in, and
+    /// color_rgb is only a neutral stand-in. Not the same as "the slicer chose
+    /// grey": Moonraker omits filament_colors entirely for some slicers (every
+    /// OrcaSlicer file on a K2 Plus), and the palette is then backfilled from
+    /// the G-code footer or the parsed file. Until one of those lands, a tool
+    /// has no known color at all.
+    ///
+    /// Consumers must not treat an unknown color as a claim about the file:
+    /// compute_defaults() skips its color-match priority (matching a stand-in
+    /// against real lane colors picks a lane for no reason), and the mapping
+    /// pill draws the dot as unknown rather than painting a solid grey the user
+    /// would read as the file's color. Defaulted true and kept last so existing
+    /// aggregate initialisers stay valid.
+    bool color_known = true;
 };
 
 /// Information about an available AMS slot.

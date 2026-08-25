@@ -834,7 +834,13 @@ bool GCodeStreamingController::build_index() {
     std::string file_path = data_source_->indexable_file_path();
 
     if (!file_path.empty()) {
-        return index_.build_from_file(file_path);
+        // Publish real indexing progress. Before this the atomic went 0.0 to
+        // 1.0 with nothing in between, so get_index_progress() could only ever
+        // drive an indeterminate spinner — on a 133MB print that is 69 seconds
+        // of a UI that looks hung. Storing an atomic from the scan thread is
+        // the whole cost; the UI polls it on its own clock.
+        return index_.build_from_file(file_path,
+                                      [this](float fraction) { index_progress_.store(fraction); });
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed
