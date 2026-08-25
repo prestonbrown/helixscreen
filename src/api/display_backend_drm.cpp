@@ -481,6 +481,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         // Try evdev as fallback for the specified device
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, device_override.c_str());
         if (pointer_ != nullptr) {
+            pointer_is_evdev_ = true;
             spdlog::info("[DRM Backend] Evdev pointer device created on {}", device_override);
             return pointer_;
         }
@@ -498,6 +499,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         spdlog::info("[DRM Backend] Found touch device: {}", touch_path);
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path);
         if (pointer_ != nullptr) {
+            pointer_is_evdev_ = true;
             spdlog::info("[DRM Backend] Evdev touch device created on {} (multi-touch enabled)",
                          touch_path);
 #if LV_USE_GESTURE_RECOGNITION
@@ -526,6 +528,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         spdlog::info("[DRM Backend] Found touch/pointer device via evdev scan: {}", touch_path_str);
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path);
         if (pointer_ != nullptr) {
+            pointer_is_evdev_ = true;
             spdlog::info("[DRM Backend] Evdev touch device created on {}", touch_path_str);
 #if LV_USE_GESTURE_RECOGNITION
             lv_indev_set_pinch_up_threshold(pointer_, 1.15f);
@@ -593,7 +596,12 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                     // When the fallback provided a valid range, push it into LVGL's
                     // internal calibration so coordinate mapping works even though
                     // EVIOCGABS(ABS_X) returned zeros.
-                    if (used_mt_fallback && got_range && abs_x.maximum > abs_x.minimum) {
+                    // pointer_is_evdev_ gates the write: auto-discovery falls back
+                    // to libinput when evdev cannot open the device, and
+                    // lv_evdev_set_calibration() would reinterpret that driver's
+                    // private data as an lv_evdev_t and write through it.
+                    if (used_mt_fallback && got_range && abs_x.maximum > abs_x.minimum &&
+                        pointer_is_evdev_) {
                         lv_evdev_set_calibration(pointer_, abs_x.minimum, abs_y.minimum,
                                                  abs_x.maximum, abs_y.maximum);
                         coarse_scale_installed = true;
@@ -643,7 +651,11 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             bool abs_mismatch =
                 got_range && helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
                                                              screen_width_, screen_height_);
-            if (!coarse_scale_installed && (abs_mismatch || needs_cal_forced_by_abs)) {
+            // pointer_is_evdev_ keeps this honest: on a libinput pointer there is no
+            // evdev scaling stage at all, so neither the wording below nor the
+            // telemetry slug would describe what happened.
+            if (pointer_is_evdev_ && !coarse_scale_installed &&
+                (abs_mismatch || needs_cal_forced_by_abs)) {
                 spdlog::warn(
                     "[DRM Backend] Coarse touch scale not explicitly installed "
                     "(lv_evdev_set_calibration skipped) but ABS range mismatches the display — "
@@ -677,8 +689,13 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             // an axis, swap min/max (e.g. MIN_Y=3200 MAX_Y=900).
             const char* swap_axes = std::getenv("HELIX_TOUCH_SWAP_AXES");
             if (swap_axes != nullptr && strcmp(swap_axes, "1") == 0) {
-                spdlog::info("[DRM Backend] Touch axes swapped (HELIX_TOUCH_SWAP_AXES=1)");
-                lv_evdev_set_swap_axes(pointer_, true);
+                if (pointer_is_evdev_) {
+                    spdlog::info("[DRM Backend] Touch axes swapped (HELIX_TOUCH_SWAP_AXES=1)");
+                    lv_evdev_set_swap_axes(pointer_, true);
+                } else {
+                    spdlog::warn("[DRM Backend] HELIX_TOUCH_SWAP_AXES ignored - the pointer "
+                                 "device is libinput, which has no evdev swap stage");
+                }
             }
 
             const char* env_min_x = std::getenv("HELIX_TOUCH_MIN_X");
@@ -693,7 +710,14 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                 spdlog::info("[DRM Backend] Touch calibration range from env: X({}->{}) Y({}->{}) "
                              "(overrides kernel EVIOCGABS)",
                              min_x, max_x, min_y, max_y);
-                lv_evdev_set_calibration(pointer_, min_x, min_y, max_x, max_y);
+                if (pointer_is_evdev_) {
+                    lv_evdev_set_calibration(pointer_, min_x, min_y, max_x, max_y);
+                } else {
+                    // Auto-discovery fell back to libinput; the lv_evdev_* setters
+                    // would write through that driver's private data.
+                    spdlog::warn("[DRM Backend] Touch range env override ignored - the pointer "
+                                 "device is libinput, which has no evdev range stage");
+                }
             }
 
             // Load stored calibration.
