@@ -3,11 +3,13 @@
 
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
+#include "grid_layout.h"
 #include "panel_widget_config.h"
 #include "panel_widget_registry.h"
 #include "theme_manager.h"
 
 #include <set>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -1199,25 +1201,56 @@ TEST_CASE("PanelWidgetConfig: build_default_grid produces correct layout",
     REQUIRE(pi->colspan == 2);
     REQUIRE(pi->rowspan == 2);
 
-    // Print status: below printer image, 2×2
+    // Print status: right of the printer image, taking the rest of the top band.
     auto* ps = find_entry("print_status");
     REQUIRE(ps);
     REQUIRE(ps->enabled);
-    REQUIRE(ps->col == 0);
-    REQUIRE(ps->row == 2);
-    REQUIRE(ps->colspan == 2);
+    REQUIRE(ps->col == 2);
+    REQUIRE(ps->row == 0);
+    REQUIRE(ps->colspan == 4);
     REQUIRE(ps->rowspan == 2);
 
-    // Tips: right of printer image, dimensions depend on breakpoint
-    // In tests, breakpoint subject is uninitialized (0 = tiny), so layout uses tiny breakpoint
+    // Tips: one full-width band along the bottom. It used to be 2x2 beside the
+    // printer image, which on a 6-column grid left the right-hand third
+    // unreachable — a 480x400 panel lost a quarter of its dashboard to it.
     auto* tips = find_entry("tips");
     REQUIRE(tips);
     REQUIRE(tips->enabled);
-    REQUIRE(tips->col == 2);
-    REQUIRE(tips->row == 0);
-    // Tiny breakpoint from default_layout.json: 2×2
-    REQUIRE(tips->colspan == 2);
-    REQUIRE(tips->rowspan == 2);
+    REQUIRE(tips->col == 0);
+    REQUIRE(tips->row == 3);
+    REQUIRE(tips->colspan == 6);
+    REQUIRE(tips->rowspan == 1);
+
+    // The anchors must leave exactly enough free cells for the widgets that
+    // auto-place, and no more. This is the assertion the old geometry would have
+    // failed: it is what "the tier fills its grid" means, and checking only the
+    // anchor coordinates let a quarter of the grid sit dead without complaint.
+    {
+        const int cols = GridLayout::get_cols(UiBreakpoint::Tiny);
+        const int rows = GridLayout::get_rows(UiBreakpoint::Tiny);
+        std::set<std::pair<int, int>> occupied;
+        int auto_placed = 0;
+        for (const auto& e : entries) {
+            if (!e.enabled)
+                continue;
+            if (!e.has_grid_position()) {
+                ++auto_placed;
+                continue;
+            }
+            for (int dc = 0; dc < e.colspan; ++dc) {
+                for (int dr = 0; dr < e.rowspan; ++dr) {
+                    INFO("anchor " << e.id << " covers " << (e.col + dc) << "," << (e.row + dr));
+                    REQUIRE(e.col + dc < cols);
+                    REQUIRE(e.row + dr < rows);
+                    // Anchors must not overlap each other either.
+                    REQUIRE(occupied.insert({e.col + dc, e.row + dr}).second);
+                }
+            }
+        }
+        const int free_cells = cols * rows - static_cast<int>(occupied.size());
+        INFO("free cells " << free_cells << " vs auto-placed widgets " << auto_placed);
+        REQUIRE(free_cells == auto_placed);
+    }
 
     // Non-anchor enabled widgets should NOT have grid positions (auto-placed at populate time)
     const std::set<std::string> anchors = {"printer_image", "print_status", "tips", "temperature",
@@ -1229,16 +1262,18 @@ TEST_CASE("PanelWidgetConfig: build_default_grid produces correct layout",
         REQUIRE_FALSE(e.has_grid_position());
     }
 
-    // New temperature anchors: nozzle at (2,2), bed stacked below at (2,3) on tiny.
+    // Heaters lead the status row, nozzle then bed, left to right — the same
+    // reading order every other tier uses. They were stacked at (2,2)/(2,3) when
+    // print_status and tips only reached column 2.
     auto* nozzle = find_entry("temperature");
     REQUIRE(nozzle);
     REQUIRE(nozzle->enabled);
-    REQUIRE(nozzle->col == 2);
+    REQUIRE(nozzle->col == 0);
     REQUIRE(nozzle->row == 2);
     auto* bed_anchor = find_entry("bed_temperature");
     REQUIRE(bed_anchor);
-    REQUIRE(bed_anchor->col == 2);
-    REQUIRE(bed_anchor->row == 3);
+    REQUIRE(bed_anchor->col == 1);
+    REQUIRE(bed_anchor->row == 2);
 
     // Disabled widgets should have no grid position
     for (const auto& e : disabled) {
