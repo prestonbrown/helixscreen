@@ -344,17 +344,22 @@ void app_request_restart() {
 }
 
 void app_request_restart_service() {
-    // Under any supervisor (systemd or watchdog), just exit cleanly.
-    // The supervisor will restart us — forking a new child ourselves would
-    // create two instances running simultaneously.
-    if (getenv("INVOCATION_ID")) {
+    // Under any supervisor, just exit cleanly: the supervisor restarts us, and
+    // re-exec'ing ourselves as well would leave two instances running. The choice
+    // itself lives in app_restart_strategy_for_env() so it can be tested without
+    // mutating the environment.
+    switch (app_restart_strategy_for_env(getenv("INVOCATION_ID"), getenv("HELIX_SUPERVISED"))) {
+    case AppRestartStrategy::Systemd:
         spdlog::info("[App Globals] Running under systemd - quitting for service restart");
         app_request_quit();
-    } else if (getenv("HELIX_SUPERVISED")) {
+        break;
+    case AppRestartStrategy::Watchdog:
         spdlog::info("[App Globals] Running under watchdog - quitting for supervised restart");
         app_request_quit();
-    } else {
+        break;
+    case AppRestartStrategy::ReExecInPlace:
         app_request_restart();
+        break;
     }
 }
 

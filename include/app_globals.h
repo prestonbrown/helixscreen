@@ -229,24 +229,60 @@ void app_request_quit();
 void app_request_quit_signal_safe();
 
 /**
- * @brief Request application restart
+ * @brief Request application restart, in place
  *
- * Forks a new process and exec's the same binary with the same arguments.
- * The new process starts fresh while the current process exits cleanly.
- * On embedded (systemd), this provides seamless restart. On macOS for
- * development, the new window appears and the old one closes.
+ * Sets the restart-after-quit flag and requests quit; main() execv()s the stored
+ * argv once normal cleanup has run, so the process is replaced rather than
+ * duplicated. This does NOT fork: the old fork+exec raced parent cleanup against
+ * child startup, and the child exec'd while the parent still held
+ * .helix-screen.lock, so it aborted as "Another instance is already running" and
+ * lingered as a zombie.
  *
- * Requires app_store_argv() to have been called during startup.
+ * Requires app_store_argv() to have been called during startup; without it this
+ * degrades to a plain quit.
  */
 void app_request_restart();
 
 /**
- * @brief Request application restart with service-awareness
+ * @brief How a restart request should be carried out for the current environment
+ */
+enum class AppRestartStrategy {
+    Systemd,       ///< INVOCATION_ID set: quit and let systemd Restart= bring us back
+    Watchdog,      ///< HELIX_SUPERVISED set: quit and let the watchdog bring us back
+    ReExecInPlace, ///< nothing supervises us: re-exec the stored argv after cleanup
+};
+
+/**
+ * @brief Decide the restart strategy from the environment
  *
- * Detects whether the app is running under systemd (INVOCATION_ID env var)
- * and uses the appropriate restart strategy:
- * - Under systemd: app_request_quit() (systemd Restart=always handles restart)
- * - Standalone/dev: app_request_restart() (fork/exec new process)
+ * Pure, and takes the values rather than reading them, so the decision can be
+ * tested without mutating the process environment. Under any supervisor we must
+ * only exit: re-exec'ing ourselves as well would leave two instances running.
+ *
+ * Systemd wins when both are set — a unit file is the more specific statement,
+ * and HELIX_SUPERVISED may be inherited from an outer wrapper. Note a variable
+ * set to the empty string still counts as set, matching getenv() semantics.
+ *
+ * @param invocation_id    getenv("INVOCATION_ID"), or nullptr
+ * @param helix_supervised getenv("HELIX_SUPERVISED"), or nullptr
+ */
+inline AppRestartStrategy app_restart_strategy_for_env(const char* invocation_id,
+                                                       const char* helix_supervised) {
+    if (invocation_id != nullptr) {
+        return AppRestartStrategy::Systemd;
+    }
+    if (helix_supervised != nullptr) {
+        return AppRestartStrategy::Watchdog;
+    }
+    return AppRestartStrategy::ReExecInPlace;
+}
+
+/**
+ * @brief Request application restart, deferring to a supervisor when there is one
+ *
+ * Routes on app_restart_strategy_for_env(): under systemd or the watchdog it
+ * quits and lets the supervisor restart us; standalone it re-execs in place via
+ * app_request_restart().
  *
  * Use this instead of app_request_restart() for all user-facing restart actions.
  */
