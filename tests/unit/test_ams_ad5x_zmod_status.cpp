@@ -42,6 +42,39 @@ json color_frame() {
                                  json{{"ID", "4"}, {"Material", "TPU"}, {"HEX", "FFFFFF"}}})}}}};
 }
 
+/// A verbatim frame off an AD5X running 1.7.2-37 with the get_status patch:
+/// lanes 1 and 4 loaded, 2 and 3 empty. The empty lanes are the point - the
+/// firmware fills them with the "?" sentinel and an empty HEX, not with nulls
+/// or omitted keys.
+json live_color_frame() {
+    return json{{"zmod_color",
+                 {{"ifs", true},
+                  {"display", false},
+                  {"channel", 1},
+                  {"color_limit", 4},
+                  {"extruder_sensor", false},
+                  {"slots", json::array({json{{"ID", "1"},
+                                              {"Material", "PLA"},
+                                              {"Color", "bright purple"},
+                                              {"HEX", "A03CF7"},
+                                              {"hasFilament", true}},
+                                         json{{"ID", "2"},
+                                              {"Material", "?"},
+                                              {"Color", ""},
+                                              {"HEX", ""},
+                                              {"hasFilament", false}},
+                                         json{{"ID", "3"},
+                                              {"Material", "?"},
+                                              {"Color", ""},
+                                              {"HEX", ""},
+                                              {"hasFilament", false}},
+                                         json{{"ID", "4"},
+                                              {"Material", "PLA"},
+                                              {"Color", "white"},
+                                              {"HEX", "FFFFFF"},
+                                              {"hasFilament", true}}})}}}};
+}
+
 } // namespace
 
 TEST_CASE("AD5X IFS subscribes to the zmod objects only where they exist",
@@ -106,6 +139,24 @@ TEST_CASE("AD5X IFS applies pushed zmod_color slots", "[ams][ad5x_ifs][zmod_stat
     CHECK(backend.get_slot_info(1).color_rgb == 0x00FF00);
     CHECK(backend.get_slot_info(3).material == "TPU");
     CHECK(backend.get_slot_info(3).color_rgb == 0xFFFFFF);
+}
+
+TEST_CASE("AD5X IFS does not surface the firmware's unset-material sentinel",
+          "[ams][ad5x_ifs][zmod_status]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, false, false, true}));
+    Ad5xIfsTestAccess::handle_status(backend, live_color_frame());
+
+    CHECK(backend.get_slot_info(0).material == "PLA");
+    CHECK(backend.get_slot_info(0).color_rgb == 0xA03CF7);
+    CHECK(backend.get_slot_info(3).material == "PLA");
+
+    // THE GATE. "?" is the firmware's own "nothing assigned" marker, and the
+    // Adventurer5M.json path already maps it to empty so the UI renders "--".
+    // Passed through, it prints a literal "?" on every empty lane.
+    CHECK(backend.get_slot_info(1).material.empty());
+    CHECK(backend.get_slot_info(2).material.empty());
 }
 
 TEST_CASE("AD5X IFS survives malformed zmod frames", "[ams][ad5x_ifs][zmod_status]") {

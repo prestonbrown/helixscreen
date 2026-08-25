@@ -4332,6 +4332,14 @@ bool AmsBackendAd5xIfs::read_zmod_color_object(const json& obj, ZColorSilentResu
         ZColorSlot slot;
         if (auto mat = entry.find("Material"); mat != entry.end() && mat->is_string()) {
             slot.material = mat->get<std::string>();
+            // Firmware-native unset sentinel, same one ffmType carries in
+            // Adventurer5M.json (parse_adventurer_json normalizes it there).
+            // A live 1.7.2-37 frame returns Material "?" with HEX "" for every
+            // lane that has no assigned material; passed through it renders as
+            // a literal "?" where the UI should show "--".
+            if (slot.material == "?") {
+                slot.material.clear();
+            }
         }
         if (auto hex = entry.find("HEX"); hex != entry.end() && hex->is_string()) {
             slot.hex = hex->get<std::string>();
