@@ -213,6 +213,28 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_TREE="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# SCRIPT_DIR/.. is only the main tree when this copy of the script is the main
+# tree's copy. Every worktree has its own scripts/, so running a worktree's copy
+# leaves MAIN_TREE pointing at that worktree — and the lib/ step below then
+# rm -rf's each real submodule and symlinks it to the path it just deleted.
+# git-common-dir names the real main tree from anywhere in the repo. It can come
+# back relative (plain ".git" from a main-tree root), so resolve it against
+# MAIN_TREE before use.
+GIT_COMMON_DIR="$(git -C "$MAIN_TREE" rev-parse --git-common-dir 2>/dev/null || true)"
+if [[ -n "$GIT_COMMON_DIR" ]]; then
+    [[ "$GIT_COMMON_DIR" != /* ]] && GIT_COMMON_DIR="$MAIN_TREE/$GIT_COMMON_DIR"
+    RESOLVED_MAIN=""
+    if cd "$GIT_COMMON_DIR/.." 2>/dev/null; then
+        RESOLVED_MAIN="$(pwd -P)"
+        cd "$SCRIPT_DIR" || exit 1
+    fi
+    if [[ -n "$RESOLVED_MAIN" && "$RESOLVED_MAIN" != "$MAIN_TREE" ]]; then
+        echo -e "${YELLOW}Running a worktree's copy of this script.${RESET}"
+        echo -e "${YELLOW}Main tree is $RESOLVED_MAIN, not $MAIN_TREE.${RESET}"
+        MAIN_TREE="$RESOLVED_MAIN"
+    fi
+fi
+
 # Auto-detect: if run from inside an existing worktree with no args, set up in-place
 if [[ -z "$BRANCH" ]]; then
     # Check if we're inside a git worktree (not the main tree)
@@ -268,6 +290,21 @@ if [[ "$WORKTREE_PATH" == "$MAIN_TREE"/* && "$WORKTREE_PATH" != "$MAIN_TREE"/.wo
     echo -e "${RED}Error: refusing to create a worktree inside the main tree at${RESET}"
     echo -e "  $WORKTREE_PATH"
     echo -e "Use ${CYAN}.worktrees/<name>${RESET} (the default), or a path outside $MAIN_TREE."
+    exit 1
+fi
+
+# Guard: the worktree must never be the main tree. The lib/ step rm -rf's each
+# real submodule and replaces it with a symlink into MAIN_TREE, so if the two
+# resolve to one path it deletes the content and links each entry to itself.
+# Both are resolved with -P so a symlinked path cannot slip past the compare.
+if [[ -e "$WORKTREE_PATH" ]] \
+   && [[ "$(cd "$MAIN_TREE" && pwd -P)" == "$(cd "$WORKTREE_PATH" && pwd -P)" ]]; then
+    echo -e "${RED}Error: the worktree path and the main tree are the same directory:${RESET}"
+    echo -e "  $(cd "$MAIN_TREE" && pwd -P)"
+    echo -e "Setting up a worktree on top of itself would delete lib/ and replace"
+    echo -e "each entry with a symlink to the path it just removed."
+    echo -e "Run this from the main tree naming a branch, or from inside a real"
+    echo -e "worktree with ${CYAN}--setup-only${RESET} and no branch argument."
     exit 1
 fi
 
