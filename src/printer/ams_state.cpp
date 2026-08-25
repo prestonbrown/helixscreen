@@ -926,6 +926,7 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
                 as.material = slot_info.material;
                 as.is_empty = (slot_info.status == SlotStatus::EMPTY ||
                                slot_info.status == SlotStatus::UNKNOWN);
+                as.remaining_weight_g = slot_info.remaining_weight_g;
                 as.current_tool_mapping = slot_info.mapped_tool;
                 as.unit_index = unit.unit_index;
                 if (multi_unit) {
