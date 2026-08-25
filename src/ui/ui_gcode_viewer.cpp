@@ -361,7 +361,10 @@ class GCodeViewerState {
     /// Widget covering the bottom of this viewer (the translucent metadata
     /// strip), or null. Measured live rather than stored as a fraction so the
     /// offset tracks breakpoints, orientation, and the strip growing at runtime.
-    /// Cleared by the occluder's own LV_EVENT_DELETE, so it can never dangle.
+    /// Cleared by the occluder's own LV_EVENT_DELETE if the occluder dies
+    /// first; the viewer's delete handler detaches that callback if the viewer
+    /// dies first. Both directions are needed -- the two are siblings in one
+    /// subtree, so either order happens during teardown.
     lv_obj_t* bottom_occluder_{nullptr};
 
     /// SSAO enabled at init (from HELIX_SSAO env var, applied when 2D renderer is created)
@@ -452,6 +455,10 @@ static gcode_viewer_state_t* get_state(lv_obj_t* obj) {
 
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
                                                 int canvas_height);
+
+/// Registered on the occluder, keyed to the viewer. Declared here so the
+/// viewer's own delete handler can detach it before this object is freed.
+static void gcode_viewer_occluder_delete_cb(lv_event_t* e);
 
 // Helper: Check if viewer has any G-code data (full file or streaming)
 static bool has_gcode_data(const gcode_viewer_state_t* st) {
@@ -1328,6 +1335,22 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     reg.erase(std::remove(reg.begin(), reg.end(), obj), reg.end());
 
     if (state) {
+        // The occluder carries an LV_EVENT_DELETE handler that reaches back
+        // into this viewer through its user_data. obj_delete_core clears only
+        // the deleted object's OWN event list, so that handler survives us and
+        // fires later in the same recursion if the occluder is a younger
+        // sibling -- which it is in both layouts that set one. Detach it while
+        // this object is still allocated.
+        //
+        // A non-null bottom_occluder_ here proves the occluder has not been
+        // freed: its own delete handler is what clears this field, and
+        // LV_EVENT_DELETE is sent before lv_free.
+        if (state->bottom_occluder_) {
+            lv_obj_remove_event_cb_with_user_data(state->bottom_occluder_,
+                                                  gcode_viewer_occluder_delete_cb, obj);
+            state->bottom_occluder_ = nullptr;
+        }
+
         // Delete timers now while LVGL is guaranteed alive (the destructor's
         // lv_is_initialized() guard might skip this during shutdown)
         if (state->long_press_timer_) {
