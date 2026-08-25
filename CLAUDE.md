@@ -4,7 +4,7 @@
 
 **HelixScreen**: LVGL 9.5 touchscreen UI for Klipper 3D printers. XML engine in `lib/helix-xml/` — our own MIT fork of the engine LVGL removed in 9.5, and its own repo ([prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml)), so a fresh clone needs `git submodule update --init --recursive`. Pattern: XML → Subjects → C++.
 
-**Before compiling:** Check for existing build processes (`pgrep -x make cc1plus`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits.
+**Before compiling:** Check for existing build processes (`pgrep -x make cc1plus`, or `ps -eo pid,args | grep '[m]ake -j'`) — concurrent compilations thrash the machine. Never `pgrep -f` here: it matches the checking command's own line, so it always reports a false hit, and in a wait loop it never exits. **Check `free -h`'s SWAP row too:** the `helix-tests` link is gated by swap headroom, not cores — with swap near 0 free, `-j8` dies mid-link with *no* `oom-kill` line while load average and "available" both look healthy. `-j6` clears it. Dying at the *same* step twice is a resource ceiling, not another session interfering.
 
 ```bash
 make -j                              # Build ONLY the program binary (NOT tests)

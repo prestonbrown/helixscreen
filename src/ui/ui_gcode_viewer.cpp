@@ -1482,7 +1482,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Clear any existing data sources (mutually exclusive: streaming XOR full-file)
     // Destroy renderer FIRST — its background ghost thread holds a raw pointer to
     // the streaming controller; joining that thread before destroying the controller
-    // prevents use-after-free crashes (prestonbrown/helixscreen#XXX).
+    // prevents use-after-free crashes.
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_pre");
     st->layer_renderer_2d_.reset();
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_post");
