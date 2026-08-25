@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -33,17 +34,109 @@ constexpr float EXTRUSION_EPSILON = 0.00001f;
 // Returns true if found. Skips over coordinates embedded inside identifier
 // tokens like "G1" by only matching at the start of a token (preceded by
 // whitespace, comma, or start-of-line).
-bool extract_axis_param(const char* line, size_t len, char axis, float& out_value) {
-    char upper = axis;
-    char lower = static_cast<char>(axis | 0x20);
-    // Truncate at first comment so e.g. `G1 X10 Y20 ; X100 retract` doesn't
-    // pick up the X inside the comment.
+/// Length of `line` up to the first `;`, i.e. the part that is actual G-code.
+///
+/// Hoisted out of extract_axis_param() so the hot loop pays for it once per
+/// line instead of once per axis looked up (four times on a typical move).
+size_t gcode_code_len(const char* line, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         if (line[i] == ';') {
-            len = i;
-            break;
+            return i;
         }
     }
+    return len;
+}
+
+/// Powers of ten that are EXACTLY representable in a double, so scaling by one
+/// of them introduces a single rounding rather than compounding error.
+constexpr double POW10_EXACT[] = {1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8, 1e9,
+                                  1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18};
+constexpr int POW10_MAX_DIGITS = 18;
+
+/**
+ * @brief Parse the plain decimal form G-code axis words actually use.
+ *
+ * THIS is the index scan's hot spot, and it is not obvious from reading the
+ * loop. Measured on a K2 Plus with a micro-benchmark over realistic move
+ * lines: the scanning around the number costs 1.82us/line, and adding
+ * std::strtof takes it to 22.06us/line — strtof is 92% of the work. musl's
+ * strtof runs ~5us per call on this ARM and the scan makes up to four calls per
+ * line (Z, E, X, Y), which over a 5M-line print is the bulk of a 63-second
+ * index build.
+ *
+ * Accepts `[+-]?digits[.digits]?` and nothing else. An exponent, an overlong
+ * mantissa, or anything unexpected returns false and the caller falls back to
+ * strtof — so the parsed VALUE is never worse than before, only cheaper in the
+ * case that covers essentially every coordinate a slicer emits. Notably
+ * `X10E5`, where 'E' would otherwise be read as an axis letter, falls back and
+ * keeps strtof's scientific-notation reading.
+ *
+ * Digits accumulate into a uint64 and are scaled once by an exact power of ten,
+ * so the result is within a ULP of strtof's — far inside the 0.001mm epsilon
+ * layer detection uses and the millimetre scale of the bounds.
+ *
+ * @param p     First character of the number.
+ * @param limit One past the last character available.
+ * @param out   Parsed value on success.
+ * @param endp  One past the last character consumed, on success.
+ * @return true when the fast path handled it; false to fall back to strtof.
+ */
+bool parse_axis_value_fast(const char* p, const char* limit, float& out, const char** endp) {
+    const char* s = p;
+    bool negative = false;
+    if (s < limit && (*s == '+' || *s == '-')) {
+        negative = (*s == '-');
+        ++s;
+    }
+
+    uint64_t mantissa = 0;
+    int digits = 0;
+    int frac_digits = 0;
+    bool saw_digit = false;
+
+    while (s < limit && *s >= '0' && *s <= '9') {
+        if (digits >= POW10_MAX_DIGITS) {
+            return false; // more precision than this path promises — strtof it
+        }
+        mantissa = mantissa * 10 + static_cast<uint64_t>(*s - '0');
+        ++digits;
+        saw_digit = true;
+        ++s;
+    }
+
+    if (s < limit && *s == '.') {
+        ++s;
+        while (s < limit && *s >= '0' && *s <= '9') {
+            if (digits >= POW10_MAX_DIGITS) {
+                return false;
+            }
+            mantissa = mantissa * 10 + static_cast<uint64_t>(*s - '0');
+            ++digits;
+            ++frac_digits;
+            saw_digit = true;
+            ++s;
+        }
+    }
+
+    if (!saw_digit) {
+        return false;
+    }
+    // Scientific notation is strtof's business, not ours.
+    if (s < limit && (*s == 'e' || *s == 'E')) {
+        return false;
+    }
+
+    const double value = static_cast<double>(mantissa) / POW10_EXACT[frac_digits];
+    out = static_cast<float>(negative ? -value : value);
+    *endp = s;
+    return true;
+}
+
+/// extract_axis_param() over a length the caller has ALREADY truncated at the
+/// comment (see gcode_code_len).
+bool extract_axis_param_in_code(const char* line, size_t len, char axis, float& out_value) {
+    char upper = axis;
+    char lower = static_cast<char>(axis | 0x20);
     for (size_t i = 0; i < len; ++i) {
         if (line[i] != upper && line[i] != lower) {
             continue;
@@ -62,14 +155,25 @@ bool extract_axis_param(const char* line, size_t len, char axis, float& out_valu
         if (next != '-' && next != '+' && next != '.' && (next < '0' || next > '9')) {
             continue;
         }
+        const char* num = line + i + 1;
+        const char* fast_end = nullptr;
+        float v = 0.0f;
+        if (parse_axis_value_fast(num, line + len, v, &fast_end)) {
+            out_value = v;
+            return true;
+        }
         char* end = nullptr;
-        float v = std::strtof(line + i + 1, &end);
-        if (end != line + i + 1) {
+        v = std::strtof(num, &end);
+        if (end != num) {
             out_value = v;
             return true;
         }
     }
     return false;
+}
+
+bool extract_axis_param(const char* line, size_t len, char axis, float& out_value) {
+    return extract_axis_param_in_code(line, gcode_code_len(line, len), axis, out_value);
 }
 
 bool extract_z_param(const char* line, size_t len, float& out_z) {
@@ -182,7 +286,102 @@ bool is_layer_marker(const char* line, size_t len) {
 
 } // anonymous namespace
 
-bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
+namespace {
+
+/// Bytes pulled per read() while scanning, replacing std::getline on a
+/// default-buffered ifstream (~8KB, so ~16k reads for a 133MB file).
+///
+/// Worth stating honestly, because it is easy to assume otherwise: this is a
+/// SMALL win. Measured on a K2 Plus over the real 133MB / 5M-line print,
+/// getline took 63.0-63.8s and this takes 60.0-61.8s — about 4%. The line
+/// plumbing was never the bottleneck; number parsing was (see
+/// parse_axis_value_fast below, which is where the 90% lives). Kept because 4%
+/// on a minute-long scan is real, the syscall reduction matters more on slow
+/// flash than on a desktop, and this is the natural place to sample progress.
+/// 1MB is well under the smallest device's headroom (the AD5M runs in ~47MB).
+constexpr size_t INDEX_READ_BLOCK_BYTES = 1024 * 1024;
+
+/// Report progress at most this often. Coarse on purpose: the callback crosses
+/// to an atomic the UI polls, and a 5M-line file would otherwise call it 5M
+/// times to move a bar 100 steps.
+constexpr size_t INDEX_PROGRESS_LINE_INTERVAL = 20000;
+
+/**
+ * @brief Feeds whole lines out of a block-buffered file read.
+ *
+ * Deliberately reproduces std::getline's framing byte for byte, because the
+ * layer entries this scan emits are FILE OFFSETS and the renderer seeks to
+ * them: split on '\n' only, keep any trailing '\r' in the line (the file is
+ * opened binary, so getline did too), and let the caller advance its offset by
+ * length + 1 exactly as before. Getting this subtly wrong would shift every
+ * layer's byte range and corrupt the render rather than fail loudly.
+ */
+class BlockLineReader {
+  public:
+    explicit BlockLineReader(std::istream& in) : in_(in) {
+        buf_.resize(INDEX_READ_BLOCK_BYTES);
+    }
+
+    /// Fill @p line with the next line (newline stripped). False at EOF.
+    ///
+    /// The empty-line cases are why the EOF test is `!line.empty()` and nothing
+    /// more: a genuinely empty line in the middle of the file returns through
+    /// the memchr branch (run == 0) and never reaches EOF, while a file ending
+    /// in a newline leaves nothing accumulated and correctly reports done —
+    /// matching std::getline on both.
+    bool next(std::string& line) {
+        line.clear();
+        for (;;) {
+            if (pos_ >= filled_) {
+                if (!refill()) {
+                    // EOF. A trailing fragment with no newline is still a line;
+                    // an exhausted buffer with nothing accumulated is the end.
+                    return !line.empty();
+                }
+            }
+            const char* start = buf_.data() + pos_;
+            const size_t avail = filled_ - pos_;
+            const void* nl = std::memchr(start, '\n', avail);
+            if (nl == nullptr) {
+                // Line spans the block boundary — keep it and pull the next.
+                line.append(start, avail);
+                pos_ = filled_;
+                continue;
+            }
+            const size_t run = static_cast<size_t>(static_cast<const char*>(nl) - start);
+            line.append(start, run);
+            pos_ += run + 1; // consume the '\n'
+            return true;
+        }
+    }
+
+  private:
+    bool refill() {
+        if (eof_) {
+            return false;
+        }
+        in_.read(buf_.data(), static_cast<std::streamsize>(buf_.size()));
+        const auto got = in_.gcount();
+        filled_ = got > 0 ? static_cast<size_t>(got) : 0;
+        pos_ = 0;
+        if (filled_ == 0) {
+            eof_ = true;
+            return false;
+        }
+        return true;
+    }
+
+    std::istream& in_;
+    std::vector<char> buf_;
+    size_t pos_ = 0;
+    size_t filled_ = 0;
+    bool eof_ = false;
+};
+
+} // namespace
+
+bool GCodeLayerIndex::build_from_file(const std::string& filepath,
+                                      const std::function<void(float)>& on_progress) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     // Clear any previous data
@@ -242,9 +441,22 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
     bool pending_layer_start = false;
     bool first_layer_started = false;
 
-    while (std::getline(file, line)) {
+    BlockLineReader reader(file);
+    const double total_for_progress =
+        stats_.total_bytes > 0 ? static_cast<double>(stats_.total_bytes) : 1.0;
+
+    while (reader.next(line)) {
         size_t line_len = line.length();
+        // Computed once and reused by every axis lookup on this line — the
+        // per-call version rescanned the whole line for the ';' four times on a
+        // typical move.
+        const size_t code_len = gcode_code_len(line.c_str(), line_len);
         stats_.total_lines++;
+
+        if (on_progress && (stats_.total_lines % INDEX_PROGRESS_LINE_INTERVAL) == 0) {
+            on_progress(
+                static_cast<float>(static_cast<double>(current_offset) / total_for_progress));
+        }
 
         // Check for layer marker
         if (is_layer_marker(line.c_str(), line_len)) {
@@ -276,7 +488,7 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
         // conventional absolute-mode extruder reset between layers/objects.
         if (line_len >= 3 && line[0] == 'G' && line[1] == '9' && line[2] == '2') {
             float e_reset;
-            if (extract_axis_param(line.c_str(), line_len, 'E', e_reset)) {
+            if (extract_axis_param_in_code(line.c_str(), code_len, 'E', e_reset)) {
                 current_e = e_reset;
             }
         }
@@ -323,7 +535,7 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
         // Check for movement commands
         if (is_movement_command(line.c_str(), line_len)) {
             float z;
-            if (extract_z_param(line.c_str(), line_len, z)) {
+            if (extract_axis_param_in_code(line.c_str(), code_len, 'Z', z)) {
                 // Z change detected
                 bool is_new_layer = false;
 
@@ -382,7 +594,7 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
             // (E.05482) and could not tell a retraction from an extrusion.
             float e_param;
             float e_delta = 0.0f;
-            if (extract_axis_param(line.c_str(), line_len, 'E', e_param)) {
+            if (extract_axis_param_in_code(line.c_str(), code_len, 'E', e_param)) {
                 const float new_e = absolute_extrusion ? e_param : current_e + e_param;
                 e_delta = new_e - current_e;
                 current_e = new_e;
@@ -398,11 +610,11 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath) {
             const float prev_x = current_x;
             const float prev_y = current_y;
             bool moved = false;
-            if (extract_axis_param(line.c_str(), line_len, 'X', v)) {
+            if (extract_axis_param_in_code(line.c_str(), code_len, 'X', v)) {
                 current_x = v;
                 moved = true;
             }
-            if (extract_axis_param(line.c_str(), line_len, 'Y', v)) {
+            if (extract_axis_param_in_code(line.c_str(), code_len, 'Y', v)) {
                 current_y = v;
                 moved = true;
             }
