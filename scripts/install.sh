@@ -4549,6 +4549,9 @@ validate_archive() {
 }
 
 # Backwards-compatible wrapper — new code should call validate_archive.
+# UNCALLED_OK: deliberate compatibility alias. Every in-tree caller was moved
+# to validate_archive(); the name is kept so an out-of-tree script that sourced
+# the modules under the old API keeps working. Covered by test_download_validation.bats.
 validate_tarball() {
     validate_archive "$1" "${2:-}"
 }
@@ -8527,6 +8530,10 @@ install_recovery_script() {
 }
 
 # Remove the local recovery script on uninstall. No-op when absent.
+# UNCALLED_OK: the uninstall path deletes the whole install tree
+# (remove_installation does `rm -rf "$INSTALL_DIR"`), which takes
+# bin/helix-recover.sh with it. Kept as the targeted removal for a caller that
+# wants to drop only the recovery script; covered by test_recovery_script.bats.
 remove_recovery_script() {
     local install_dir="$1"
     local fs="${2:-}"
@@ -8593,6 +8600,8 @@ configure_local_recovery() {
 # Backward-compat shim — main.sh historically called this name. Keep it
 # until the next bundle so callers that pulled an older install.sh keep
 # working through the upgrade.
+# UNCALLED_OK: deliberate compatibility alias for configure_local_recovery(),
+# which is what main.sh calls now.
 configure_moonraker_recovery() {
     configure_local_recovery "$@"
 }
@@ -9757,6 +9766,20 @@ main() {
     fix_install_ownership
     install_service "$platform"
     install_platform_hooks
+
+    # System permission rules for a non-root service user: the backlight udev
+    # rule (makes /sys/class/backlight/*/brightness group-writable by video, so
+    # dimming and sleep work) and the NetworkManager polkit rule.
+    #
+    # Placement is load-bearing on both sides. It must come after
+    # extract_release, because the udev rule ships inside the release package at
+    # $INSTALL_DIR/config/, and before start_service, so udevadm has already
+    # re-applied the ownership by the time the UI first writes brightness.
+    #
+    # Runs on fresh install and --update alike (both reach this line), and
+    # self-skips on the root-only platforms (ad5m/ad5x/k1/k2), when KLIPPER_USER
+    # is root, and under NoNewPrivileges where sudo is unavailable.
+    install_permission_rules "$platform"
 
     # Install KIAUH extension if KIAUH is detected
     install_kiauh_extension "$skip_kiauh_registration" || true

@@ -151,6 +151,10 @@ install_recovery_script() {
 }
 
 # Remove the local recovery script on uninstall. No-op when absent.
+# UNCALLED_OK: the uninstall path deletes the whole install tree
+# (remove_installation does `rm -rf "$INSTALL_DIR"`), which takes
+# bin/helix-recover.sh with it. Kept as the targeted removal for a caller that
+# wants to drop only the recovery script; covered by test_recovery_script.bats.
 remove_recovery_script() {
     local install_dir="$1"
     local fs="${2:-}"
@@ -217,6 +221,8 @@ configure_local_recovery() {
 # Backward-compat shim — main.sh historically called this name. Keep it
 # until the next bundle so callers that pulled an older install.sh keep
 # working through the upgrade.
+# UNCALLED_OK: deliberate compatibility alias for configure_local_recovery(),
+# which is what main.sh calls now.
 configure_moonraker_recovery() {
     configure_local_recovery "$@"
 }
