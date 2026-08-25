@@ -180,6 +180,30 @@ void BeltTrace::on_draw(lv_event_t* e) {
             }
         }
 
+        // Mark the estimator's fundamental before labelling the peak, so the
+        // tick sits under the bars rather than over the label. The two are
+        // different numbers by design: the estimator resolves f0 by harmonic
+        // structure, the peak is a bare argmax, and on a real belt the argmax
+        // lands on 2*f0 whenever the second harmonic dominates
+        // (pitch_estimator.h:14-18). Drawing both is how that is visible.
+        const auto& live = helix::calibration::BeltLiveData::instance();
+        const float estimate_hz = live.spectrum_estimate_hz();
+        const auto estimate_fraction = live.spectrum_fraction_for_hz(estimate_hz);
+        if (estimate_fraction.has_value()) {
+            lv_draw_line_dsc_t tick;
+            lv_draw_line_dsc_init(&tick);
+            tick.color = theme_manager_get_color("primary");
+            tick.width = 1;
+            tick.opa = LV_OPA_COVER;
+            const float tick_x =
+                static_cast<float>(x0) + *estimate_fraction * static_cast<float>(w - 1);
+            tick.p1.x = static_cast<lv_value_precise_t>(tick_x);
+            tick.p2.x = static_cast<lv_value_precise_t>(tick_x);
+            tick.p1.y = static_cast<lv_value_precise_t>(baseline_y);
+            tick.p2.y = static_cast<lv_value_precise_t>(baseline_y - bar_scale_h);
+            lv_draw_line(layer, &tick);
+        }
+
         // The peak-frequency label. This is the point of the widget (see the
         // class comment): the reference machine had belt A and belt B
         // landing on the same spectral peak while the panel reported two
@@ -187,16 +211,25 @@ void BeltTrace::on_draw(lv_event_t* e) {
         // that at a glance. Reads BeltLiveData's tracked bin frequency rather
         // than deriving one from `data`'s bucket index - the reduction above
         // keeps the peak's power but not reliably its original bin.
-        const float peak_hz = helix::calibration::BeltLiveData::instance().spectrum_peak_hz();
+        const float peak_hz = live.spectrum_peak_hz();
         if (peak_hz > 0.0f) {
             // static: lv_draw_label_dsc_t::text is a pointer LVGL keeps alive
             // into a deferred draw task, so a stack buffer would be a
             // use-after-free once this function returns (see
-            // temp_graph_tooltip.cpp for the same trap). Only one belt_trace
-            // is ever in SPECTRUM mode at a time (bt_spectrum), so a single
-            // buffer is safe.
-            static char peak_label[16];
-            snprintf(peak_label, sizeof(peak_label), "%.0f Hz", static_cast<double>(peak_hz));
+            // temp_graph_tooltip.cpp for the same trap).
+            //
+            // INVARIANT: at most one belt_trace may be in SPECTRUM mode at a
+            // time - panel_belt_tension.xml instantiates exactly one
+            // (bt_spectrum). A second one would have both draws racing for
+            // this buffer within a single frame. Give each instance its own
+            // buffer before adding one.
+            static char peak_label[24];
+            // "peak", not a bare frequency: this is the naive argmax, NOT the
+            // number the panel reports, and beside a live readout an unlabelled
+            // second frequency reads as a competing answer. Two numbers an
+            // octave apart with no way to tell which is which is worse than no
+            // label at all.
+            snprintf(peak_label, sizeof(peak_label), "peak %.0f Hz", static_cast<double>(peak_hz));
 
             lv_draw_label_dsc_t label_dsc;
             lv_draw_label_dsc_init(&label_dsc);
@@ -205,28 +238,28 @@ void BeltTrace::on_draw(lv_event_t* e) {
             label_dsc.align = LV_TEXT_ALIGN_CENTER;
             label_dsc.text = peak_label;
 
-            constexpr int32_t label_w = 40;
+            constexpr int32_t label_w = 72;
             lv_area_t label_area;
             label_area.y2 = static_cast<lv_coord_t>(peak_bar_top) - label_gap;
             label_area.y1 = label_area.y2 - label_h;
             label_area.x1 = static_cast<lv_coord_t>(peak_x) - label_w / 2;
             label_area.x2 = label_area.x1 + label_w;
 
-            // Clamp horizontally so the label never overflows the trace's own
-            // bounds. Drop it entirely (rather than clip or overlap the top
-            // edge) if there is no vertical room above the peak bar - a
-            // narrow strip at a small breakpoint should keep the trace
-            // legible over the diagnostic label.
-            if (label_area.x1 < x0) {
-                const lv_coord_t shift = x0 - label_area.x1;
-                label_area.x1 += shift;
-                label_area.x2 += shift;
+            // Clamp horizontally into the trace's own bounds. Done as a single
+            // clamp of x1 rather than two independent shifts: shifting right
+            // off the left edge and then left off the right edge can push x1
+            // back out again, so sequential corrections do not compose. When
+            // the label is wider than the strip there is no position that
+            // fits at all, so it is left flush with the left edge and
+            // overflows to the right, which is the readable half.
+            const lv_coord_t max_x1 = static_cast<lv_coord_t>(x0 + w) - label_w;
+            if (label_area.x1 > max_x1) {
+                label_area.x1 = max_x1;
             }
-            if (label_area.x2 > x0 + w) {
-                const lv_coord_t shift = (x0 + w) - label_area.x2;
-                label_area.x1 += shift;
-                label_area.x2 += shift;
+            if (label_area.x1 < static_cast<lv_coord_t>(x0)) {
+                label_area.x1 = static_cast<lv_coord_t>(x0);
             }
+            label_area.x2 = label_area.x1 + label_w;
             if (label_area.y1 >= y0) {
                 lv_draw_label(layer, &label_dsc, &label_area);
             }

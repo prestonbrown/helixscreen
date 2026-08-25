@@ -74,12 +74,20 @@ void BeltLiveData::set_waveform(const std::vector<AccelSample>& window) {
     }
 }
 
-void BeltLiveData::set_spectrum(const std::vector<std::pair<float, float>>& psd) {
+void BeltLiveData::set_spectrum(const std::vector<std::pair<float, float>>& psd,
+                                float estimate_hz) {
     if (psd.empty()) {
         spectrum_.clear();
         spectrum_peak_hz_ = 0.0f;
+        spectrum_estimate_hz_ = 0.0f;
+        spectrum_lo_hz_ = 0.0f;
+        spectrum_hi_hz_ = 0.0f;
         return;
     }
+
+    spectrum_estimate_hz_ = estimate_hz > 0.0f ? estimate_hz : 0.0f;
+    spectrum_lo_hz_ = psd.front().first;
+    spectrum_hi_hz_ = psd.back().first;
 
     // Peak frequency from the full PSD, before it is reduced to bucket
     // maxima below - see spectrum_peak_hz()'s doc comment for why.
@@ -105,10 +113,28 @@ void BeltLiveData::set_spectrum(const std::vector<std::pair<float, float>>& psd)
     }
 }
 
+std::optional<float> BeltLiveData::spectrum_fraction_for_hz(float hz) const {
+    if (spectrum_.size() < 2 || hz <= 0.0f) {
+        return std::nullopt;
+    }
+    const float span = spectrum_hi_hz_ - spectrum_lo_hz_;
+    if (span <= 0.0f) {
+        return std::nullopt;
+    }
+    const float fraction = (hz - spectrum_lo_hz_) / span;
+    if (fraction < 0.0f || fraction > 1.0f) {
+        return std::nullopt;
+    }
+    return fraction;
+}
+
 void BeltLiveData::clear() {
     waveform_.clear();
     spectrum_.clear();
     spectrum_peak_hz_ = 0.0f;
+    spectrum_estimate_hz_ = 0.0f;
+    spectrum_lo_hz_ = 0.0f;
+    spectrum_hi_hz_ = 0.0f;
 }
 
 } // namespace helix::calibration

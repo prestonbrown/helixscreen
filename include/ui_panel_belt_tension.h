@@ -213,6 +213,11 @@ class BeltTensionPanel : public OverlayBase {
     /// Fetch the klippy UDS path from Moonraker and probe co-location.
     void probe_klippy_socket();
     [[nodiscard]] std::optional<float> span_offset_for_current_printer() const;
+    /// Recompute the absolute target from listen_span_mm_ and publish it to
+    /// bt_target_freq. The target is a property of the span, so it has to be
+    /// re-derived every time the span changes - a fixed 110 Hz is only correct
+    /// at the 150 mm reference span. Must be called on the main thread.
+    void publish_target_frequency();
 
     // Subject manager for RAII cleanup
     SubjectManager subjects_;
@@ -335,6 +340,13 @@ class BeltTensionPanel : public OverlayBase {
     // Y when only an offset is known, and TARGET_SPAN_MM as a last resort with
     // bt_has_target left at 0 so the UI shows matching only.
     float listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
+
+    /// The absolute target for listen_span_mm_, or 0 when there is none - i.e.
+    /// when this model has no measured span offset, so the span is a guess and
+    /// an absolute GOOD/WARNING/BAD verdict would be an invention. Kept beside
+    /// the subject because populate_comparison() needs the number, not a
+    /// formatted string. Written only by publish_target_frequency().
+    float target_frequency_hz_ = 0.0f;
 
     char listening_belt_ = 'A';
     /// Belt A's committed median, 0 until it commits. Also the match reference.

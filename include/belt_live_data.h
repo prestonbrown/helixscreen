@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -117,9 +118,20 @@ class BeltLiveData {
      */
     void set_waveform(const std::vector<AccelSample>& window);
 
-    /// Replace the spectrum trace from a (frequency, power) PSD. Keeps bucket
-    /// maxima. An empty PSD clears the trace and spectrum_peak_hz().
-    void set_spectrum(const std::vector<std::pair<float, float>>& psd);
+    /**
+     * @brief Replace the spectrum trace from a (frequency, power) PSD
+     *
+     * Keeps bucket maxima. An empty PSD clears the trace, both frequencies and
+     * the frequency axis.
+     *
+     * @param estimate_hz The fundamental the pitch estimator resolved from this
+     *        same PSD, or 0 if there is none. It is passed in alongside the PSD
+     *        rather than set separately because the two must never disagree:
+     *        the whole point of drawing both is that the tallest bin is often
+     *        2*f0 (see pitch_estimator.h), and a stale estimate beside a fresh
+     *        spectrum would show that relationship wrong.
+     */
+    void set_spectrum(const std::vector<std::pair<float, float>>& psd, float estimate_hz = 0.0f);
 
     [[nodiscard]] const std::vector<float>& waveform() const {
         return waveform_;
@@ -141,6 +153,29 @@ class BeltLiveData {
         return spectrum_peak_hz_;
     }
 
+    /**
+     * @brief The estimator's fundamental for the last spectrum, or 0
+     *
+     * This is the number the panel actually reports. spectrum_peak_hz() is the
+     * naive argmax over the same PSD and is a diagnostic only - when the two
+     * differ by an octave, the estimator is right and the argmax is the failure
+     * mode pitch_estimator.h exists to avoid.
+     */
+    [[nodiscard]] float spectrum_estimate_hz() const {
+        return spectrum_estimate_hz_;
+    }
+
+    /**
+     * @brief Where a frequency sits across the spectrum trace, 0 = left edge, 1 = right
+     *
+     * The PSD's bins are evenly spaced, so the trace's horizontal axis is
+     * linear in Hz and a frequency maps to a fraction of its width. Lets a
+     * widget mark an arbitrary frequency without carrying its own copy of the
+     * axis. nullopt when there is no spectrum, when the axis is degenerate, or
+     * when hz falls outside the drawn range.
+     */
+    [[nodiscard]] std::optional<float> spectrum_fraction_for_hz(float hz) const;
+
     void clear();
 
   private:
@@ -149,6 +184,10 @@ class BeltLiveData {
     std::vector<float> waveform_;
     std::vector<float> spectrum_;
     float spectrum_peak_hz_ = 0.0f;
+    float spectrum_estimate_hz_ = 0.0f;
+    /// Frequency axis of the last spectrum: first and last PSD bin.
+    float spectrum_lo_hz_ = 0.0f;
+    float spectrum_hi_hz_ = 0.0f;
 };
 
 } // namespace helix::calibration

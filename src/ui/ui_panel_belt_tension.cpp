@@ -47,13 +47,12 @@ static std::unique_ptr<BeltTensionPanel> g_belt_tension_panel;
 static lv_subject_t s_belt_tension_state;
 
 namespace {
-/// Voron's documented frequency for a correctly tensioned TARGET_SPAN_MM span,
-/// and the band either side of it that still counts as correct. Same pair as
-/// BeltTensionResult's defaults; named here because populate_comparison() works
-/// from two medians rather than from a BeltTensionResult. Only used when the
+/// How far either side of the target still counts as correct. The target
+/// itself is not a constant: it is expected_frequency_for_span(listen_span_mm_),
+/// recomputed by publish_target_frequency() whenever the span changes, because
+/// 110 Hz is only the answer at the 150 mm reference span. Only used when the
 /// model has a measured span offset - without one the span is unknown and an
 /// absolute target means nothing.
-constexpr float TARGET_FREQUENCY_HZ = 110.0f;
 constexpr float TARGET_TOLERANCE_HZ = 10.0f;
 } // namespace
 
@@ -204,7 +203,10 @@ void BeltTensionPanel::init_subjects() {
                               "bt_hw_kinematics", subjects_);
     UI_MANAGED_SUBJECT_STRING(hw_adxl_subject_, hw_adxl_buf_, lv_tr("Detecting..."), "bt_hw_adxl",
                               subjects_);
-    UI_MANAGED_SUBJECT_STRING(target_freq_subject_, target_freq_buf_, "110 Hz", "bt_target_freq",
+    // Empty, not a literal frequency: the target is a property of the belt
+    // span, and the span is not known until handle_park_gantry() runs. Both
+    // rows that show it are hidden behind bt_has_target until then.
+    UI_MANAGED_SUBJECT_STRING(target_freq_subject_, target_freq_buf_, "", "bt_target_freq",
                               subjects_);
 
     // Gate subjects
@@ -492,6 +494,27 @@ void BeltTensionPanel::probe_klippy_socket() {
         }));
 }
 
+void BeltTensionPanel::publish_target_frequency() {
+    // No measured span offset means the span behind listen_span_mm_ is a
+    // fallback, not a measurement, so there is no honest absolute target. Same
+    // rule populate_comparison() applies to the GOOD/WARNING/BAD verdict.
+    // Both halves must hold: the model must have a measured span offset, and a
+    // target must actually have been derived from the span we listened at.
+    const bool have_target =
+        lv_subject_get_int(&has_target_subject_) != 0 && target_frequency_hz_ > 0.0f;
+    target_frequency_hz_ =
+        have_target ? helix::calibration::expected_frequency_for_span(listen_span_mm_) : 0.0f;
+
+    if (target_frequency_hz_ > 0.0f) {
+        // Whole Hz, matching every other frequency the panel shows.
+        snprintf(target_freq_buf_, sizeof(target_freq_buf_), "%.0f Hz",
+                 static_cast<double>(target_frequency_hz_));
+    } else {
+        target_freq_buf_[0] = '\0';
+    }
+    lv_subject_notify(&target_freq_subject_);
+}
+
 std::optional<float> BeltTensionPanel::span_offset_for_current_printer() const {
     const double mm =
         PrinterDetector::get_belt_span_offset_mm(get_printer_state().get_printer_type());
@@ -523,6 +546,7 @@ void BeltTensionPanel::handle_park_gantry() {
             listen_span_mm_ = span;
         }
     }
+    publish_target_frequency();
 
     if (!target.valid) {
         // Matching is span-independent, so the feature still works - we just
@@ -555,6 +579,7 @@ void BeltTensionPanel::handle_park_gantry() {
                                     // asked for rather than one inferred from a
                                     // position that may be stale.
                                     listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
+                                    publish_target_frequency();
                                     park_center_x();
                                 }),
                 lifetime_.bg_cb("BeltTension::park_failed",
@@ -633,6 +658,14 @@ void BeltTensionPanel::on_activate() {
     lv_subject_set_int(&has_reference_subject_, 0);
     lv_subject_copy_string(&reference_freq_subject_, "--");
     lv_subject_copy_string(&advance_label_subject_, lv_tr("Next belt"));
+
+    // START shows the target for the span the park will aim at. Recomputed
+    // from the real span once handle_park_gantry() knows it; hidden entirely
+    // on a model with no measured span offset, where there is no target to
+    // show and pretending otherwise is the invention this panel forbids.
+    listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
+    lv_subject_set_int(&has_target_subject_, span_offset_for_current_printer().has_value() ? 1 : 0);
+    publish_target_frequency();
 
     // Re-evaluate the gate on every entry, and probe co-location once here
     // rather than on each gate refresh - the gate recomputes on every subject
@@ -741,7 +774,7 @@ void BeltTensionPanel::on_hardware_detected(const helix::calibration::BeltTensio
 
     // Update ADXL status
     snprintf(hw_adxl_buf_, sizeof(hw_adxl_buf_), "%s",
-             hw.has_adxl ? lv_tr("Connected (auto-sweep)") : lv_tr("Not detected"));
+             hw.has_adxl ? lv_tr("Connected") : lv_tr("Not detected"));
     lv_subject_notify(&hw_adxl_subject_);
 
     spdlog::info("[BeltTension] Hardware: {} ADXL={}", kin_label, hw.has_adxl);
@@ -867,7 +900,10 @@ void BeltTensionPanel::on_error(const std::string& message) {
 }
 
 void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
-    const bool have_target = lv_subject_get_int(&has_target_subject_) != 0;
+    // Both halves must hold: the model must have a measured span offset, and a
+    // target must actually have been derived from the span we listened at.
+    const bool have_target =
+        lv_subject_get_int(&has_target_subject_) != 0 && target_frequency_hz_ > 0.0f;
     const float delta = std::fabs(a_hz - b_hz);
     const bool matched = helix::calibration::belt_frequencies_match(a_hz, b_hz);
 
@@ -886,10 +922,10 @@ void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
     if (have_target) {
         a_status =
             helix::calibration::belt_status_to_string(helix::calibration::evaluate_belt_status(
-                a_hz, TARGET_FREQUENCY_HZ, TARGET_TOLERANCE_HZ));
+                a_hz, target_frequency_hz_, TARGET_TOLERANCE_HZ));
         b_status =
             helix::calibration::belt_status_to_string(helix::calibration::evaluate_belt_status(
-                b_hz, TARGET_FREQUENCY_HZ, TARGET_TOLERANCE_HZ));
+                b_hz, target_frequency_hz_, TARGET_TOLERANCE_HZ));
     }
     snprintf(result_a_status_buf_, sizeof(result_a_status_buf_), "%s", a_status);
     lv_subject_notify(&result_a_status_subject_);
@@ -918,8 +954,8 @@ void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
     // matching is the secondary concern. Only a printer with no measured span
     // offset falls back to pure matching, because there the target is unknown
     // rather than merely unmet.
-    const float need_a = TARGET_FREQUENCY_HZ - a_hz; // positive means "tighten"
-    const float need_b = TARGET_FREQUENCY_HZ - b_hz;
+    const float need_a = target_frequency_hz_ - a_hz; // positive means "tighten"
+    const float need_b = target_frequency_hz_ - b_hz;
     const bool a_in_band = std::fabs(need_a) <= TARGET_TOLERANCE_HZ;
     const bool b_in_band = std::fabs(need_b) <= TARGET_TOLERANCE_HZ;
     const char* looser = need_a > need_b ? lv_tr("A") : lv_tr("B");
@@ -944,25 +980,25 @@ void BeltTensionPanel::populate_comparison(float a_hz, float b_hz) {
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
                  lv_tr("Both belts are on the %.0f Hz target and match each other. "
                        "Nothing to adjust."),
-                 static_cast<double>(TARGET_FREQUENCY_HZ));
+                 static_cast<double>(target_frequency_hz_));
     } else if (need_a > 0.0f && need_b > 0.0f) {
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
                  lv_tr("Both belts are below the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. "
                        "Tighten both, %s more."),
-                 static_cast<double>(TARGET_FREQUENCY_HZ), static_cast<double>(need_a),
+                 static_cast<double>(target_frequency_hz_), static_cast<double>(need_a),
                  static_cast<double>(need_b), looser);
     } else if (need_a < 0.0f && need_b < 0.0f) {
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
                  lv_tr("Both belts are above the %.0f Hz target - A by %.0f Hz, B by %.0f Hz. "
                        "Loosen both."),
-                 static_cast<double>(TARGET_FREQUENCY_HZ), static_cast<double>(-need_a),
+                 static_cast<double>(target_frequency_hz_), static_cast<double>(-need_a),
                  static_cast<double>(-need_b));
     } else {
         // One side of the target each, so they cannot be brought together by
         // moving only one belt.
         snprintf(result_recommendation_buf_, sizeof(result_recommendation_buf_),
                  lv_tr("Target is %.0f Hz. Tighten belt %s and loosen belt %s."),
-                 static_cast<double>(TARGET_FREQUENCY_HZ), need_a > 0.0f ? "A" : "B",
+                 static_cast<double>(target_frequency_hz_), need_a > 0.0f ? "A" : "B",
                  need_a > 0.0f ? "B" : "A");
     }
     lv_subject_notify(&result_recommendation_subject_);
@@ -1233,7 +1269,10 @@ void BeltTensionPanel::publish_live_values(const LiveSnapshot& snap) {
     // BeltListenSession::last_spectrum()) - an empty snap.spectrum here means
     // "nothing new," and the strip is left holding whatever it last drew.
     if (!snap.spectrum.empty()) {
-        helix::calibration::BeltLiveData::instance().set_spectrum(snap.spectrum);
+        // snap.last_hz is the estimate resolved from this very spectrum (both
+        // are set together in on_batch_bg on an accepted pluck), so the strip
+        // marks the fundamental the panel is reporting, not a stale one.
+        helix::calibration::BeltLiveData::instance().set_spectrum(snap.spectrum, snap.last_hz);
     }
 
     // Drives BeltTrace's redraw. Bumped every publish, not only when the
@@ -1274,7 +1313,8 @@ void BeltTensionPanel::replay_capture(const std::string& path) {
 
     helix::calibration::BeltLiveData::instance().set_waveform(samples);
     if (!psd.empty()) {
-        helix::calibration::BeltLiveData::instance().set_spectrum(psd);
+        helix::calibration::BeltLiveData::instance().set_spectrum(psd, est.valid ? est.frequency_hz
+                                                                                 : 0.0f);
     }
     // Bumps BeltTrace's redraw even if LISTEN was never entered this
     // activation - the subject was initialised at startup (init_subjects()

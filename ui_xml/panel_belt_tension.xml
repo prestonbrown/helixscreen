@@ -54,10 +54,14 @@
             <text_body text="Accelerometer" translation_tag="Accelerometer"/>
             <text_body bind_text="bt_hw_adxl" style_text_color="#primary"/>
           </lv_obj>
-          <!-- Target frequency row -->
+          <!-- Target frequency row. Same bt_has_target guard as POSITION: an -->
+          <!-- absolute target is a property of the belt span, so on a model -->
+          <!-- with no measured span offset there is no target to state and -->
+          <!-- showing one would be an invention. -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
                   style_flex_cross_place="center" scrollable="false">
+            <bind_flag_if_eq subject="bt_has_target" flag="hidden" ref_value="0"/>
             <text_body text="Target Frequency" translation_tag="Target Frequency"/>
             <text_body bind_text="bt_target_freq" style_text_color="#primary"/>
           </lv_obj>
