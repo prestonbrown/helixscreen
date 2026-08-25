@@ -48,6 +48,17 @@ class ConsoleFilterEngine {
     [[nodiscard]] std::size_t size() const {
         return patterns_.size();
     }
+
+    /// Matcher types in the order should_filter() evaluates them. Exposed so the
+    /// cheapest-first ordering can be asserted rather than assumed.
+    [[nodiscard]] std::vector<Type> types_in_order() const {
+        std::vector<Type> out;
+        out.reserve(patterns_.size());
+        for (const auto& p : patterns_) {
+            out.push_back(p.type);
+        }
+        return out;
+    }
     [[nodiscard]] bool empty() const {
         return patterns_.empty();
     }

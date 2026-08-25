@@ -45,6 +45,8 @@ Create a JSON file in this directory (e.g., `my-printer.json`):
 | Field | Purpose |
 |-------|---------|
 | `enabled` | `false` to hide a bundled printer from detection/selection |
+| `console_filters` | List of named filter-set names whose patterns suppress firmware noise in the G-code console. See **Console Filter Sets** below. |
+| `console_filter_patterns` | Inline suppression patterns for noise specific to this one model, when a shared set would be overkill. Same pattern syntax as a set. |
 | `screws_tilt_direction` | `"cw"` or `"ccw"` — override for bed-screw tightening direction. Set to `"ccw"` when the printer's Klipper `screw_thread` config disagrees with its physical screw geometry, causing `SCREWS_TILT_CALCULATE` to report inverted directions. HelixScreen flips CW↔CCW at display so following the UI actually levels the bed. Omit (or use `"cw"`) when Klipper's output matches reality. |
 
 Example with a screws-tilt override:
@@ -60,6 +62,62 @@ Example with a screws-tilt override:
   ]
 }
 ```
+
+## Console Filter Sets
+
+Some firmware prints a great deal of internal chatter to the G-code console. A
+filter set is a named list of patterns that suppress it, so several printers can
+share one list instead of each carrying a copy.
+
+A printer opts in by name:
+
+```json
+{
+  "printers": [
+    {
+      "id": "my_custom_printer",
+      "name": "My Custom Printer",
+      "console_filters": ["creality_rs485"]
+    }
+  ]
+}
+```
+
+You can also define your own sets, or replace a bundled one by using its name.
+Sets merge before the printers that reference them, so a file may contain either
+or both:
+
+```json
+{
+  "console_filter_sets": {
+    "my_noisy_board": {
+      "description": "Chatter from my custom toolboard",
+      "patterns": [
+        "prefix:// tb_debug:",
+        "substring:HEARTBEAT"
+      ]
+    }
+  }
+}
+```
+
+### Pattern syntax
+
+| Form | Matches | Cost |
+|------|---------|------|
+| `prefix:TEXT` | Line starts with TEXT | cheapest |
+| `substring:TEXT` | TEXT appears anywhere in the line | ~5x a prefix |
+| `regex:PATTERN` | ECMAScript regex matches the line | ~200x a prefix |
+
+Prefer `prefix:` and reach for `regex:` only when neither of the cheaper forms
+can express the shape. Filtering runs on every console line on the UI thread, and
+on a printer's own low-power board that difference is visible. Patterns are
+evaluated cheapest-first regardless of the order you list them in.
+
+Two filters in the console's settings (the gear icon) switch all of this off:
+temperature reports and firmware noise are independently toggleable, and a user
+pattern list in `settings.json` can add to or remove from whatever a printer
+resolves to.
 
 ## Heuristic Types
 
