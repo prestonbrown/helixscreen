@@ -235,14 +235,7 @@ void BeltTensionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(live_tick_subject_, 0, "bt_live_tick", subjects_);
     UI_MANAGED_SUBJECT_STRING(replay_path_subject_, replay_path_buf_, "", "bt_replay_path",
                               subjects_);
-    replay_observer_ = helix::ui::observe_string<BeltTensionPanel>(
-        &replay_path_subject_, this,
-        [](BeltTensionPanel* self, const char* value) {
-            if (value && value[0] != '\0') {
-                self->replay_capture(value);
-            }
-        },
-        get_subjects_lifetime());
+    ensure_replay_observer();
     UI_MANAGED_SUBJECT_STRING(reference_freq_subject_, reference_freq_buf_, "--",
                               "bt_reference_freq", subjects_);
     UI_MANAGED_SUBJECT_INT(has_reference_subject_, 0, "bt_has_reference", subjects_);
@@ -349,6 +342,11 @@ lv_obj_t* BeltTensionPanel::create(lv_obj_t* parent) {
     lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
 
     ensure_gate_observers();
+    // cleanup() drops this observer along with the gate ones, and unlike them
+    // it is created in init_subjects(), which early-returns once the subjects
+    // exist. Without re-arming it here, replay - the primary instrument for a
+    // hardware session - stops working silently after the first cleanup().
+    ensure_replay_observer();
     refresh_gate();
 
     // Set initial state
@@ -420,6 +418,20 @@ void BeltTensionPanel::refresh_gate() {
         stop_listening();
         on_error(lv_tr(helix::calibration::belt_gate_message(gate)));
     }
+}
+
+void BeltTensionPanel::ensure_replay_observer() {
+    if (replay_observer_) {
+        return;
+    }
+    replay_observer_ = helix::ui::observe_string<BeltTensionPanel>(
+        &replay_path_subject_, this,
+        [](BeltTensionPanel* self, const char* value) {
+            if (value && value[0] != '\0') {
+                self->replay_capture(value);
+            }
+        },
+        get_subjects_lifetime());
 }
 
 void BeltTensionPanel::ensure_gate_observers() {
@@ -671,6 +683,11 @@ void BeltTensionPanel::on_activate() {
     // rather than on each gate refresh - the gate recomputes on every subject
     // change and a connect() syscall per change would be waste.
     ensure_gate_observers();
+    // cleanup() drops this observer along with the gate ones, and unlike them
+    // it is created in init_subjects(), which early-returns once the subjects
+    // exist. Without re-arming it here, replay - the primary instrument for a
+    // hardware session - stops working silently after the first cleanup().
+    ensure_replay_observer();
     refresh_gate();
     probe_klippy_socket();
     query_accel_chip();

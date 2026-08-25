@@ -205,6 +205,11 @@ class BeltTensionPanel : public OverlayBase {
     /// subject is owned by PrinterCapabilitiesState and may not exist yet the
     /// first time this runs, so activation retries.
     void ensure_gate_observers();
+    /// Attach the bt_replay_path observer if it is not already attached.
+    /// Idempotent, and called from both init_subjects() and on_activate():
+    /// cleanup() resets the guard, but init_subjects() early-returns once the
+    /// subjects exist, so activation is the only place that can re-arm it.
+    void ensure_replay_observer();
     void handle_park_gantry();
     /// Second half of the park, run after the Y move (which sets the free
     /// span) succeeds. Centres X - see park_x_center() - or, if bounds are
