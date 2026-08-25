@@ -2447,6 +2447,50 @@ echo ""
 }
 
 # ====================================================================
+# Patch Drift
+# ====================================================================
+# mk/patches.mk guards every apply with "is this file already dirty?", never
+# with "is it dirty with the CURRENT revision of this patch". So the first
+# revision to reach a checkout is the one that stays: editing a patch afterwards
+# does nothing for anyone who already carries the old hunks. 86560d156 added
+# lv_evdev_get_last_raw() to patches/lvgl-evdev-protocol-a.patch, main's
+# lib/lvgl kept the previous revision, and every device cross-build failed while
+# the desktop suite stayed green - `make test` skips patch application and
+# lv_evdev.c is compiled out of desktop builds, so nothing here could see it.
+# Which is exactly why this one runs on desktop.
+qc_patch_drift() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🩹 Checking patch drift..."
+
+if [ -f "scripts/check_patch_drift.py" ]; then
+  if python3 scripts/check_patch_drift.py >/tmp/patch_drift.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/patch_drift.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/patch_drift.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_patch_drift.py not found - skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: tests/shell/*.bats extract a section's body by awk-ing from
+#  its first line to the next '# ====' banner. Wrapping the sections in
+#  functions moved the banners above them, so without this the extraction
+#  ran on past the body and swallowed the return/closing brace.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Parallel driver
 # ====================================================================
 # The checks are independent greps and linters and the script ran strictly
@@ -2508,7 +2552,7 @@ qc_run_buffered() {
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
 if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2550,6 +2594,7 @@ qc_trigger_re() {
     qc_shellcheck)      echo '\.(sh|bats)$' ;;
     qc_installer_reachability)
                         echo '^scripts/lib/installer/|^scripts/install-dev\.sh$|^scripts/bundle-(un)?installer\.sh$|^scripts/check_installer_step_reachability\.py$' ;;
+    qc_patch_drift)     echo '^patches/|mk/patches\.mk|check_patch_drift\.py' ;;
     *)                  echo '' ;;
   esac
 }
