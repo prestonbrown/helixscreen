@@ -6074,8 +6074,8 @@
       "id": "duender_medusahc",
       "name": "Duender (MedusaHC)",
       "manufacturer": "Irbis3D",
-      "image": "generic-corexy.png",
-      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. MedusaHC is klipper-toolchanger plus its own pin_watch extra, so the AMS resolves to Tool Changer and AmsBackendToolChanger drives it. Scored on pin_watch and hostname ONLY: toolchanger/tool_count/corexy describe any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one.",
+      "image": "duender.png",
+      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. Two config shapes exist: klipper-toolchanger plus MedusaHC's own pin_watch extra, and a newer bundle where a single medusahc.py extra registers [medusahc] + [medusahc_tool N] and neither pin_watch nor toolchanger appears at all. Both are scored here. Everything else (toolchanger/tool_count/corexy) describes any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one; a DuCR10 hostname is excluded instead, since the MedusaHC signals alone cannot tell the two frames apart.",
       "heuristics": [
         {
           "type": "object_exists",
@@ -6083,6 +6083,13 @@
           "pattern": "pin_watch",
           "confidence": 92,
           "reason": "MedusaHC ships its own pin_watch.py extra (not a stock Klipper module)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "medusahc",
+          "confidence": 92,
+          "reason": "Newer MedusaHC bundle registers [medusahc]/[medusahc_tool N] with no pin_watch and no klipper-toolchanger"
         },
         {
           "type": "hostname_match",
@@ -6097,6 +6104,73 @@
           "pattern": "toolchanger",
           "confidence": 20,
           "reason": "Corroboration only: klipper-toolchanger drives the swap, but every toolchanger CoreXY has this. pin_watch is the discriminator"
+        },
+        {
+          "type": "hostname_exclude",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 0,
+          "reason": "Exclude the DuCR10 frame - same MedusaHC signals, different machine"
+        }
+      ]
+    },
+    {
+      "id": "ducr10_medusahc",
+      "name": "DuCR10 (MedusaHC)",
+      "manufacturer": "Irbis3D",
+      "image": "ducr10.png",
+      "notes": "DuCR10 CoreXY (Andizzle's 'DUO CR10' remix of the Irbis3D Duender, Printables 1263532) fitted with the MedusaHC hotend changer. Same MedusaHC signals as the Duender - only the hostname separates the two frames, so each entry excludes the other's hostname rather than competing on evidence that cannot tell them apart. The 'ducr10' hostname sits at 40 here deliberately: on a DuCR10 with no changer it must lose to the bare 'ducr10' entry (80), and it only ever adds the +3 extra-match bonus on top of a MedusaHC object match.",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "medusahc",
+          "confidence": 92,
+          "reason": "MedusaHC registers [medusahc] (newer bundles carry the dock sensing too, with no pin_watch)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "pin_watch",
+          "confidence": 92,
+          "reason": "MedusaHC ships its own pin_watch.py extra (not a stock Klipper module)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 40,
+          "reason": "Hostname contains 'ducr10' - corroborates a MedusaHC match, never identifies on its own"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "toolchanger",
+          "confidence": 20,
+          "reason": "Corroboration only: klipper-toolchanger drives the swap on the stock build, but every toolchanger CoreXY has this"
+        },
+        {
+          "type": "hostname_exclude",
+          "field": "hostname",
+          "pattern": "duender",
+          "confidence": 0,
+          "reason": "Exclude the Duender frame - same MedusaHC signals, different machine"
+        }
+      ]
+    },
+    {
+      "id": "ducr10",
+      "name": "DuCR10",
+      "manufacturer": "Irbis3D",
+      "image": "ducr10.png",
+      "notes": "CR-10 to CoreXY conversion (Andizzle's 'Duender Remix - DUO CR10', Printables 1263532, built from two CR-10s the way the Duender is built from two Ender-3s). Hostname only, for the same reason as the 'duender' entry: the remix ships no Klipper config, and the one published build (topi314/klipper, branch ducr10) is a plain CoreXY with 3 Z steppers and a 210x210 bed mesh copied from the Duender - nothing there separates it from any other CoreXY, and a 'corexy' heuristic would compete with Voron and RatRig on every one of their machines.",
+      "heuristics": [
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 80,
+          "reason": "Hostname contains 'ducr10'"
         }
       ]
     },
@@ -6104,7 +6178,7 @@
       "id": "duender",
       "name": "Duender",
       "manufacturer": "Irbis3D",
-      "image": "generic-corexy.png",
+      "image": "duender.png",
       "notes": "Ender-3 to CoreXY conversion (Irbis3D/Duender). The project ships no Klipper config, so a bare Duender has nothing in printer.objects.list that distinguishes it from any other CoreXY. Deliberately carries no object/kinematics heuristics: a 'corexy' match here would compete with the Voron and RatRig entries on every one of their machines. Hostname only, plus the wizard's manual pick.",
       "heuristics": [
         {
