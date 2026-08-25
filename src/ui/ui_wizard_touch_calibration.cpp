@@ -14,6 +14,7 @@
 #include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "touch_calibration_layout.h"
+#include "touch_calibration_wrapper.h"
 
 #include <spdlog/spdlog.h>
 
@@ -308,6 +309,7 @@ void WizardTouchCalibrationStep::cleanup() {
 
     // Clear pending calibration (user skipped or went back)
     has_pending_calibration_ = false;
+    pending_range_fit_ = helix::TouchRangeFit{};
 }
 
 // ============================================================================
@@ -326,17 +328,17 @@ bool WizardTouchCalibrationStep::commit_calibration() {
         return false;
     }
 
-    config->set<bool>("/input/calibration/valid", true);
-    config->set<double>("/input/calibration/a", static_cast<double>(pending_calibration_.a));
-    config->set<double>("/input/calibration/b", static_cast<double>(pending_calibration_.b));
-    config->set<double>("/input/calibration/c", static_cast<double>(pending_calibration_.c));
-    config->set<double>("/input/calibration/d", static_cast<double>(pending_calibration_.d));
-    config->set<double>("/input/calibration/e", static_cast<double>(pending_calibration_.e));
-    config->set<double>("/input/calibration/f", static_cast<double>(pending_calibration_.f));
+    // Persist and install. Shared with the Settings overlay so the two cannot
+    // drift on which of the two calibration shapes gets written (#1259, #1276).
+    // This is also where the evdev range is first re-programmed: everything up to
+    // 'Next' is revertible through session_.restore(), which only handles the
+    // affine.
+    helix::commit_calibration_result(calibration_sink(), pending_calibration_, pending_range_fit_);
     config->save();
 
     spdlog::info("[{}] Calibration committed to config", get_name());
     has_pending_calibration_ = false;
+    pending_range_fit_ = helix::TouchRangeFit{};
     session_.commit(); // Calibration committed, no need to revert on teardown
     return true;
 }
@@ -457,6 +459,7 @@ void WizardTouchCalibrationStep::handle_retry_clicked() {
 
     // Clear pending calibration since user is recalibrating
     has_pending_calibration_ = false;
+    pending_range_fit_ = helix::TouchRangeFit{};
 
     // Reset button text back to "Skip" since calibration is starting over
     lv_subject_set_int(&wizard_show_skip, 1);
@@ -485,7 +488,12 @@ void WizardTouchCalibrationStep::handle_screen_touched(lv_event_t* e) {
 
     // on_press() captures the press; commit happens on release / stall (#943).
     // Handles IDLE→POINT_1 auto-start and sample collection.
-    panel_->on_press({point.x, point.y});
+    // Pair the press with the untouched digitizer reading behind it, when the
+    // backend can supply one. Fetched here, at the press edge, so it belongs to
+    // this coordinate and not to some later motion event (#1259, #1276).
+    helix::Point device_raw{};
+    const bool has_device_raw = helix::get_last_raw_touch(device_raw);
+    panel_->on_press({point.x, point.y}, has_device_raw ? &device_raw : nullptr);
 
     // Flash crosshair for visual tap feedback (only during calibration points,
     // not on the initial "tap anywhere to begin" transition from IDLE)
@@ -616,6 +624,7 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
 
         // Store calibration for later commit (saved only when user clicks 'Next')
         pending_calibration_ = *cal;
+        pending_range_fit_ = panel_->get_range_fit();
         has_pending_calibration_ = true;
         spdlog::debug("[{}] Calibration stored (will save when 'Next' is clicked)", get_name());
 

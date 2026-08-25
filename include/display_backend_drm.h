@@ -127,6 +127,7 @@ class DisplayBackendDRM : public DisplayBackend {
     void disable_affine_calibration() override;
     void enable_affine_calibration() override;
     void clear_calibration() override;
+    bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y) override;
 
   private:
     /// Switch VT to KD_GRAPHICS so fbcon stops painting over DRM output.

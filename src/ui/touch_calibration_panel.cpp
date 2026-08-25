@@ -106,6 +106,8 @@ Point TouchCalibrationPanel::compute_target_position(int step) const {
 void TouchCalibrationPanel::start() {
     state_ = State::POINT_1;
     calibration_.valid = false;
+    range_fit_ = TouchRangeFit{};
+    raw_points_valid_ = true;
     reset_samples();
 
     // Calculate screen target positions using named constants
@@ -114,10 +116,25 @@ void TouchCalibrationPanel::start() {
     screen_points_[2] = compute_target_position(2);
 }
 
-void TouchCalibrationPanel::capture_point(Point raw) {
+void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
     if (is_touch_debug_enabled()) {
-        spdlog::warn("[TouchDebug] capture_point: state={} raw=({},{})", static_cast<int>(state_),
-                     raw.x, raw.y);
+        spdlog::warn("[TouchDebug] capture_point: state={} raw=({},{}) device_raw=({},{}) have={}",
+                     static_cast<int>(state_), raw.x, raw.y, device_raw ? device_raw->x : 0,
+                     device_raw ? device_raw->y : 0, device_raw != nullptr);
+    }
+
+    // A range fit needs all three digitizer readings; one missing point drops the
+    // whole session back to the affine-only answer.
+    const int slot = state_ == State::POINT_1   ? 0
+                     : state_ == State::POINT_2 ? 1
+                     : state_ == State::POINT_3 ? 2
+                                                : -1;
+    if (slot >= 0) {
+        if (device_raw) {
+            raw_points_[slot] = *device_raw;
+        } else {
+            raw_points_valid_ = false;
+        }
     }
 
     switch (state_) {
@@ -137,6 +154,9 @@ void TouchCalibrationPanel::capture_point(Point raw) {
                 "[TouchCalibrationPanel] Calibration failed (degenerate points), restarting");
             state_ = State::POINT_1;
             calibration_.valid = false;
+            // The retry starts a fresh set of three captures, so a point that
+            // arrived without a digitizer reading must not veto the next attempt.
+            raw_points_valid_ = true;
             if (failure_callback_) {
                 failure_callback_("Touch points too close together. Please try again.");
             }
@@ -207,10 +227,26 @@ void TouchCalibrationPanel::capture_point(Point raw) {
                 "[TouchCalibrationPanel] Calibration matrix failed validation, restarting");
             state_ = State::POINT_1;
             calibration_.valid = false;
+            raw_points_valid_ = true;
             if (failure_callback_) {
                 failure_callback_("Calibration produced unusual results. Please try again.");
             }
             break;
+        }
+
+        // Solve the evdev stage from the untouched digitizer readings. This is a
+        // re-parameterisation of the very matrix just validated, not a second
+        // opinion: the range plus range_fit_.residual reproduce calibration_ once
+        // the range is programmed, so nothing here can widen what VERIFY approves.
+        // Deliberately after validation, so a matrix the user will be asked to
+        // retry never leaves a range fit behind.
+        if (raw_points_valid_) {
+            range_fit_ =
+                compute_range_fit(screen_points_, raw_points_, screen_width_, screen_height_);
+        } else {
+            range_fit_ = TouchRangeFit{};
+            spdlog::debug("[TouchCalibrationPanel] No raw digitizer readings captured - "
+                          "affine-only calibration (this is normal off evdev)");
         }
 
         state_ = State::VERIFY;
@@ -239,13 +275,21 @@ void TouchCalibrationPanel::reset_samples() {
     sample_count_ = 0;
 }
 
-bool TouchCalibrationPanel::compute_median_point(Point& out) {
+bool TouchCalibrationPanel::compute_median_point(Point& out, Point& out_raw, bool& out_has_raw) {
     std::vector<int> valid_x, valid_y;
+    std::vector<int> raw_x, raw_y;
+    out_has_raw = true;
     for (int i = 0; i < sample_count_; i++) {
         Point p{sample_buffer_[i].x, sample_buffer_[i].y};
         if (!is_bad_sample(p)) {
             valid_x.push_back(p.x);
             valid_y.push_back(p.y);
+            if (sample_buffer_[i].has_device) {
+                raw_x.push_back(sample_buffer_[i].device_x);
+                raw_y.push_back(sample_buffer_[i].device_y);
+            } else {
+                out_has_raw = false;
+            }
         }
     }
 
@@ -272,6 +316,18 @@ bool TouchCalibrationPanel::compute_median_point(Point& out) {
     size_t mid_y = valid_y.size() / 2;
     out.x = valid_x[mid_x];
     out.y = valid_y[mid_y];
+
+    // Median the paired digitizer readings over the same accepted samples. No
+    // separate spread/saturation gate - see the header for why the pixel-space
+    // thresholds do not transfer to raw units.
+    if (out_has_raw && !raw_x.empty()) {
+        std::sort(raw_x.begin(), raw_x.end());
+        std::sort(raw_y.begin(), raw_y.end());
+        out_raw.x = raw_x[raw_x.size() / 2];
+        out_raw.y = raw_y[raw_y.size() / 2];
+    } else {
+        out_has_raw = false;
+    }
 
     if (is_touch_debug_enabled()) {
         spdlog::warn("[TouchDebug] median computation: {}/{} valid samples", valid_x.size(),
@@ -312,7 +368,7 @@ TouchCalibrationPanel::Progress TouchCalibrationPanel::get_progress() const {
     return p;
 }
 
-void TouchCalibrationPanel::add_sample(Point raw) {
+void TouchCalibrationPanel::add_sample(Point raw, const Point* device_raw) {
     // Auto-start on first tap if in IDLE state (don't count this tap as a sample —
     // the crosshair isn't visible yet, so the user's first tap ON the crosshair is touch 1)
     if (state_ == State::IDLE) {
@@ -325,7 +381,8 @@ void TouchCalibrationPanel::add_sample(Point raw) {
     }
 
     if (sample_count_ < SAMPLES_REQUIRED) {
-        sample_buffer_[sample_count_] = {raw.x, raw.y};
+        sample_buffer_[sample_count_] = {raw.x, raw.y, device_raw ? device_raw->x : 0,
+                                         device_raw ? device_raw->y : 0, device_raw != nullptr};
         sample_count_++;
 
         if (is_touch_debug_enabled()) {
@@ -344,7 +401,10 @@ void TouchCalibrationPanel::add_sample(Point raw) {
 
     if (sample_count_ >= SAMPLES_REQUIRED) {
         Point median;
-        const bool ok = compute_median_point(median); // reads sample_buffer_
+        Point raw_median;
+        bool has_raw_median = false;
+        // reads sample_buffer_
+        const bool ok = compute_median_point(median, raw_median, has_raw_median);
 
         // Reset the per-point sample count BEFORE invoking the success/failure
         // callbacks. Those callbacks refresh the "touch N of 3" instruction
@@ -354,18 +414,18 @@ void TouchCalibrationPanel::add_sample(Point raw) {
         reset_samples();
 
         if (ok) {
-            capture_point(median);
+            capture_point(median, has_raw_median ? &raw_median : nullptr);
         } else if (failure_callback_) {
             failure_callback_("Too much noise — tap the target again slowly and precisely.");
         }
     }
 }
 
-void TouchCalibrationPanel::on_press(Point raw) {
+void TouchCalibrationPanel::on_press(Point raw, const Point* device_raw) {
     // Opt-out: legacy sample-on-press behavior (byte-for-byte the pre-#943 path)
     // for A/B testing on real hardware.
     if (!debounce_enabled_) {
-        add_sample(raw);
+        add_sample(raw, device_raw);
         return;
     }
 
@@ -373,6 +433,10 @@ void TouchCalibrationPanel::on_press(Point raw) {
     // A burst of PRESSED edges from one physical contact overwrites the same
     // pending press, so only the final position is committed once.
     pending_press_point_ = raw;
+    pending_has_raw_ = device_raw != nullptr;
+    if (device_raw) {
+        pending_raw_point_ = *device_raw;
+    }
     press_pending_ = true;
     press_time_ms_ = now_fn_();
 
@@ -411,7 +475,7 @@ void TouchCalibrationPanel::commit_pending(uint32_t now) {
         return;
     }
 
-    add_sample(pending_press_point_);
+    add_sample(pending_press_point_, pending_has_raw_ ? &pending_raw_point_ : nullptr);
     last_sample_ms_ = now;
     has_committed_ = true;
     press_pending_ = false;
@@ -490,6 +554,8 @@ void TouchCalibrationPanel::reset() {
 
     state_ = State::IDLE;
     calibration_.valid = false;
+    range_fit_ = TouchRangeFit{};
+    raw_points_valid_ = false;
 
     // Sample buffer + per-point capture progress.
     reset_samples();
@@ -498,6 +564,8 @@ void TouchCalibrationPanel::reset() {
     // press uncommitted, swallowing the next session's first tap.
     press_pending_ = false;
     pending_press_point_ = Point{};
+    pending_raw_point_ = Point{};
+    pending_has_raw_ = false;
     press_time_ms_ = 0;
     last_sample_ms_ = 0;
     has_committed_ = false;
@@ -529,6 +597,10 @@ const TouchCalibration* TouchCalibrationPanel::get_calibration() const {
         return &calibration_;
     }
     return nullptr;
+}
+
+const TouchRangeFit& TouchCalibrationPanel::get_range_fit() const {
+    return range_fit_;
 }
 
 void TouchCalibrationPanel::start_countdown_timer() {

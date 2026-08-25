@@ -1,5 +1,5 @@
 diff --git a/src/drivers/evdev/lv_evdev.c b/src/drivers/evdev/lv_evdev.c
-index 1b8319e04..1fdc9a191 100644
+index 1b8319e04..732058244 100644
 --- a/src/drivers/evdev/lv_evdev.c
 +++ b/src/drivers/evdev/lv_evdev.c
 @@ -12,6 +12,7 @@
@@ -26,7 +26,24 @@ index 1b8319e04..1fdc9a191 100644
  /**********************
   *      TYPEDEFS
   **********************/
-@@ -74,6 +84,36 @@ typedef struct {
+@@ -68,12 +78,53 @@ typedef struct {
+     int key;
+     lv_indev_state_t state;
+     bool deleting;
++    /* Last coordinate pair handed to _evdev_process_pointer, recorded BEFORE the
++     * axis swap and before the linear ABS-range scale. This is the only place the
++     * untouched digitizer reading is still available: the scale clamps to the
++     * display, so a wrong declared range destroys information the caller would
++     * need to re-derive it. A three-point calibration reads these back through
++     * lv_evdev_get_last_raw() to solve for the true range and for whether the
++     * axes are transposed. Pre-swap, because the swap itself is one of the
++     * unknowns being solved for. */
++    int last_raw_x;
++    int last_raw_y;
++    bool has_last_raw;
+     /* Multi-touch support */
+ #if LV_USE_GESTURE_RECOGNITION
+     lv_indev_touch_data_t touch_data[MAX_TOUCH_POINTS]; /* Array of touch points for gesture recognition */
      uint8_t touch_count; /* Number of valid touch points */
      uint8_t current_slot; /* Current touch point slot */
      bool touch_data_changed; /* Flag to indicate if touch data has changed since last SYN_REPORT */
@@ -63,7 +80,22 @@ index 1b8319e04..1fdc9a191 100644
  #endif
  } lv_evdev_t;
  
-@@ -147,9 +187,60 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
+@@ -136,6 +187,14 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
+     lv_evdev_t * dsc = lv_indev_get_driver_data(indev);
+     LV_ASSERT_NULL(dsc);
+ 
++    /* Record the pre-swap, pre-scale reading before anything lossy happens to it.
++     * Written here rather than at the call sites so every path that produces a
++     * pointer coordinate (gesture slots, MT slot 0, single-touch root) is covered
++     * by construction. */
++    dsc->last_raw_x = x;
++    dsc->last_raw_y = y;
++    dsc->has_last_raw = true;
++
+     int swapped_x = dsc->swap_axes ? y : x;
+     int swapped_y = dsc->swap_axes ? x : y;
+ 
+@@ -147,9 +206,60 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
      lv_point_t p;
      p.x = _evdev_calibrate(swapped_x, dsc->min_x, dsc->max_x, offset_x, offset_x + width - 1);
      p.y = _evdev_calibrate(swapped_y, dsc->min_y, dsc->max_y, offset_y, offset_y + height - 1);
@@ -124,7 +156,7 @@ index 1b8319e04..1fdc9a191 100644
  static void _evdev_async_delete_cb(void * user_data)
  {
      lv_indev_t * indev = user_data;
-@@ -190,6 +281,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -190,6 +300,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
  #if LV_USE_GESTURE_RECOGNITION
                      if(in.code == ABS_MT_POSITION_X && dsc->current_slot < MAX_TOUCH_POINTS) {
                          dsc->touch_data[dsc->current_slot].point.x = in.value;
@@ -132,7 +164,7 @@ index 1b8319e04..1fdc9a191 100644
                          dsc->touch_data_changed = true;
                          LV_LOG_TRACE("MT_X update: slot=%d, x=%d", dsc->current_slot, in.value);
                      }
-@@ -200,6 +292,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -200,6 +311,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
  #if LV_USE_GESTURE_RECOGNITION
                      if(in.code == ABS_MT_POSITION_Y && dsc->current_slot < MAX_TOUCH_POINTS) {
                          dsc->touch_data[dsc->current_slot].point.y = in.value;
@@ -140,7 +172,7 @@ index 1b8319e04..1fdc9a191 100644
                          dsc->touch_data_changed = true;
                          LV_LOG_TRACE("MT_Y update: slot=%d, y=%d", dsc->current_slot, in.value);
                      }
-@@ -221,6 +314,18 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -221,6 +333,18 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
                                      dsc->touch_count = i + 1;
                                  }
                              }
@@ -159,7 +191,7 @@ index 1b8319e04..1fdc9a191 100644
                          }
                      }
                      else {
-@@ -251,10 +356,24 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -251,10 +375,24 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
          }
  #if LV_USE_GESTURE_RECOGNITION
          else if(in.type == EV_SYN && in.code == SYN_REPORT) {
@@ -186,7 +218,7 @@ index 1b8319e04..1fdc9a191 100644
                      if(dsc->touch_data[i].state == LV_INDEV_STATE_PRESSED || dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
                          LV_LOG_TRACE("Slot %d: state=%s, raw(%d, %d)",
                                       i,
-@@ -268,8 +387,15 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -268,8 +406,15 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
  
                  int active_touches = 0;
  
@@ -204,7 +236,7 @@ index 1b8319e04..1fdc9a191 100644
                          calibrated_touch_data[active_touches] = dsc->touch_data[i];
  
                          lv_point_t calib_point = _evdev_process_pointer(indev, dsc->touch_data[i].point.x, dsc->touch_data[i].point.y);
-@@ -288,18 +414,10 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -288,18 +433,10 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
                  lv_indev_gesture_recognizers_update(indev, calibrated_touch_data, active_touches);
                  lv_indev_gesture_recognizers_set_data(indev, data);
  
@@ -227,7 +259,7 @@ index 1b8319e04..1fdc9a191 100644
  
                  dsc->touch_data_changed = false;
              }
-@@ -324,14 +442,46 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -324,14 +461,46 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
              data->state = dsc->state;
              data->key = dsc->key;
              break;
@@ -277,7 +309,7 @@ index 1b8319e04..1fdc9a191 100644
                  data->point = _evdev_process_pointer(indev, dsc->root_x, dsc->root_y);
              }
  #else
-@@ -339,9 +489,36 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -339,9 +508,36 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
              data->point = _evdev_process_pointer(indev, dsc->root_x, dsc->root_y);
  #endif
              break;
@@ -314,7 +346,7 @@ index 1b8319e04..1fdc9a191 100644
  }
  
  static void _evdev_indev_delete_cb(lv_event_t * e)
-@@ -562,6 +739,36 @@ lv_indev_t * lv_evdev_create_fd(lv_indev_type_t indev_type, int fd)
+@@ -562,6 +758,36 @@ lv_indev_t * lv_evdev_create_fd(lv_indev_type_t indev_type, int fd)
          else {
              LV_LOG_INFO("ioctl EVIOCGABS(ABS_Y) failed: %s", strerror(errno));
          }
@@ -351,3 +383,49 @@ index 1b8319e04..1fdc9a191 100644
      }
  
      lv_indev_t * indev = lv_indev_create();
+@@ -668,6 +894,16 @@ void lv_evdev_set_calibration(lv_indev_t * indev, int min_x, int min_y, int max_
+     dsc->max_y = max_y;
+ }
+ 
++bool lv_evdev_get_last_raw(lv_indev_t * indev, int * x, int * y)
++{
++    if(indev == NULL) return false;
++    lv_evdev_t * dsc = lv_indev_get_driver_data(indev);
++    if(dsc == NULL || !dsc->has_last_raw) return false;
++    if(x) *x = dsc->last_raw_x;
++    if(y) *y = dsc->last_raw_y;
++    return true;
++}
++
+ void lv_evdev_delete(lv_indev_t * indev)
+ {
+     lv_indev_delete(indev);
+diff --git a/src/drivers/evdev/lv_evdev.h b/src/drivers/evdev/lv_evdev.h
+index ed00bb1e6..b7235e352 100644
+--- a/src/drivers/evdev/lv_evdev.h
++++ b/src/drivers/evdev/lv_evdev.h
+@@ -91,6 +91,24 @@ void lv_evdev_set_swap_axes(lv_indev_t * indev, bool swap_axes);
+  */
+ void lv_evdev_set_calibration(lv_indev_t * indev, int min_x, int min_y, int max_x, int max_y);
+ 
++/**
++ * Read back the last coordinate pair the driver received from the kernel,
++ * BEFORE the axis swap and before the linear ABS-range scale.
++ *
++ * The scale clamps to the display, so a wrong declared ABS range is lossy: the
++ * mapped coordinate no longer carries enough information to recover the true
++ * range. A calibration routine that wants to solve for the range (and for
++ * whether the axes are transposed) needs the untouched reading, which is what
++ * this returns. Pre-swap, because the swap is one of the unknowns.
++ *
++ * @param indev evdev input device
++ * @param x     receives the raw x reading, or NULL
++ * @param y     receives the raw y reading, or NULL
++ * @return true if a pointer coordinate has been seen and the outputs were
++ *         written; false otherwise (outputs untouched)
++ */
++bool lv_evdev_get_last_raw(lv_indev_t * indev, int * x, int * y);
++
+ /**
+  * Remove evdev input device.
+  * @param indev evdev input device to close and free
