@@ -12,6 +12,10 @@ namespace {
 
 constexpr const char* kMedusaObject = "medusahc";
 
+/// Sanity bound on a dock index parsed out of a status key, so a malformed
+/// "t9999999" cannot size a vector off a network payload.
+constexpr int kMaxDockIndex = 63;
+
 /// One machine bolted onto klipper-toolchanger.
 struct Provider {
     const char* name;
@@ -22,6 +26,12 @@ struct Provider {
     /// Feeder gcode, or nullptr for a machine without one.
     std::string (*open_gcode)(const PrinterDiscovery& hw);
     std::string (*close_gcode)(const PrinterDiscovery& hw);
+    /// What drives a swap when klipper-toolchanger is not installed to do it.
+    /// Prefixed to the tool number; nullptr when the machine has no such
+    /// command of its own.
+    const char* select_prefix;
+    /// Unmounts the tool on the head, or nullptr when there is no such command.
+    const char* unselect_gcode;
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -48,14 +58,23 @@ struct Provider {
 // fallback, never a default.
 
 bool medusa_detect(const PrinterDiscovery& hw) {
-    return hw.has_pin_watch() && hw.has_tool_changer();
+    // The reference shape is klipper-toolchanger plus the pin_watch extra, and
+    // neither half alone is enough: pin_watch is just the extra, and
+    // [toolchanger] is any of the many klipper-toolchanger builds.
+    //
+    // The second clause is a compatibility path, not a second mainline. It
+    // catches a machine carrying [medusahc] and nothing else, which today means
+    // exactly one fork (bundle 6QWNVZY5) - and, eventually, upstream itself if
+    // Sergei follows through on dropping the klipper-toolchanger dependency.
+    // Nothing else in Klipper registers [medusahc], so it needs no second half.
+    return (hw.has_pin_watch() && hw.has_tool_changer()) || hw.has_medusahc();
 }
 
 std::vector<std::string> medusa_status_objects(const PrinterDiscovery& hw) {
     std::vector<std::string> objects;
     // The [medusahc] object may not exist (config (a)); subscribing to an absent
     // object is harmless and it appears the moment the user migrates.
-    objects.emplace_back(kMedusaObject);
+    objects.emplace_back(hw.has_medusahc() ? hw.medusahc_object_name() : kMedusaObject);
     if (!hw.pin_watch_object_name().empty()) {
         objects.push_back(hw.pin_watch_object_name());
     }
@@ -75,7 +94,15 @@ std::string medusa_close_gcode(const PrinterDiscovery& hw) {
 
 const std::vector<Provider>& providers() {
     static const std::vector<Provider> table = {
-        {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode},
+        // T<n> and DROP_TOOL are what the extra registers when it runs the swap
+        // itself, which is the fork case only - on the reference config
+        // klipper-toolchanger is present and SELECT_TOOL/UNSELECT_TOOL stay in
+        // use. DROP_TOOL is a bare gcode command, not a [gcode_macro], so it
+        // never appears in printer.objects.list: it cannot be capability-checked
+        // the way the feeder macros are, and naming it here is the whole point of
+        // this table.
+        {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
+         "T", "DROP_TOOL"},
     };
     return table;
 }
@@ -122,6 +149,54 @@ std::optional<bool> bool_field(const nlohmann::json& obj, const char* key) {
     return std::nullopt;
 }
 
+/// Tool index out of a dock key: "t3" -> 3, "tool3_docked" -> 3. nullopt when
+/// the key is not one.
+std::optional<int> dock_index(const std::string& key) {
+    std::string digits;
+    if (key.size() > 1 && key[0] == 't' && key.rfind("tool", 0) != 0) {
+        digits = key.substr(1);
+    } else if (key.rfind("tool", 0) == 0 && key.size() > 4) {
+        const auto suffix = key.find("_docked");
+        if (suffix == std::string::npos || suffix <= 4) {
+            return std::nullopt;
+        }
+        digits = key.substr(4, suffix - 4);
+    } else {
+        return std::nullopt;
+    }
+    if (digits.empty() || !std::all_of(digits.begin(), digits.end(),
+                                       [](unsigned char c) { return std::isdigit(c); })) {
+        return std::nullopt;
+    }
+    try {
+        return std::stoi(digits);
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+/// 1/0 and true/false both mean the same thing to these controllers.
+std::optional<bool> as_bool(const nlohmann::json& v) {
+    if (v.is_boolean()) {
+        return v.get<bool>();
+    }
+    if (v.is_number_integer()) {
+        return v.get<int>() != 0;
+    }
+    return std::nullopt;
+}
+
+/// Record dock `index` without disturbing the ones this frame did not mention.
+void set_dock(std::vector<std::optional<bool>>& docks, int index, bool seated) {
+    if (index < 0 || index > kMaxDockIndex) {
+        return;
+    }
+    if (static_cast<size_t>(index) >= docks.size()) {
+        docks.resize(static_cast<size_t>(index) + 1);
+    }
+    docks[static_cast<size_t>(index)] = seated;
+}
+
 /// Read the [medusahc] object. Irbis3D field names first, fork names as fallback.
 std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     ToolReading r;
@@ -153,6 +228,43 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     }
     if (r.current_tool == -2) {
         r.sensor_error = true;
+    }
+
+    // Per-dock occupancy. Irbis3D publishes a sensors dict keyed "e" for the
+    // toolhead and "t<n>" per dock; the fork flattens it to tool<n>_docked plus
+    // head_loaded. Sergei, 2026-08-24: "e: 1 means that a tool is installed on
+    // the toolhead ... tN: 1 means that the corresponding tool is seated in its
+    // dock."
+    auto sensors = obj.find("sensors");
+    if (sensors != obj.end() && sensors->is_object()) {
+        for (const auto& [key, value] : sensors->items()) {
+            auto flag = as_bool(value);
+            if (!flag) {
+                continue;
+            }
+            if (key == "e") {
+                r.head_loaded = *flag;
+                saw_anything = true;
+            } else if (auto index = dock_index(key)) {
+                set_dock(r.docks, *index, *flag);
+                saw_anything = true;
+            }
+        }
+    }
+    for (const auto& [key, value] : obj.items()) {
+        if (key.rfind("tool", 0) != 0) {
+            continue;
+        }
+        if (auto index = dock_index(key)) {
+            if (auto flag = as_bool(value)) {
+                set_dock(r.docks, *index, *flag);
+                saw_anything = true;
+            }
+        }
+    }
+    if (auto loaded = bool_field(obj, "head_loaded")) {
+        r.head_loaded = *loaded;
+        saw_anything = true;
     }
 
     return saw_anything ? std::optional<ToolReading>(r) : std::nullopt;
@@ -188,6 +300,22 @@ ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw) {
         return {};
     }
     return ToolSensor{true, p->name};
+}
+
+ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    // klipper-toolchanger present means SELECT_TOOL/UNSELECT_TOOL exist and are
+    // the machine's own answer. Only a changer running without it needs to name
+    // its commands here.
+    if (!p || hw.has_tool_changer()) {
+        return {};
+    }
+    ToolCommands c;
+    c.present = true;
+    c.provider_name = p->name;
+    c.select_prefix = p->select_prefix ? p->select_prefix : "";
+    c.unselect = p->unselect_gcode ? p->unselect_gcode : "";
+    return c;
 }
 
 std::vector<std::string> feeder_macro_candidates(const PrinterDiscovery& hw);

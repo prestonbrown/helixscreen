@@ -247,3 +247,121 @@ TEST_CASE("The picker's first option is the auto sentinel", "[toolchanger][feede
     REQUIRE_FALSE(f.macro_options.empty());
     CHECK(f.macro_options[0] == std::string(toolchanger_addon::kAutoMacro));
 }
+
+// ============================================================================
+// Per-dock state
+//
+// Sergei (Irbis3D, 2026-08-24) on what `sensors` carries: "e is the toolhead
+// sensor, t0, t1, t2 ... are the sensors for the corresponding docks. e: 1 means
+// a tool is installed on the toolhead. tN: 1 means the corresponding tool is
+// seated in its dock." So a dock reading 0 for a tool that is not on the head
+// means that hot end is physically absent, which is a state the tool number
+// alone cannot express.
+// ============================================================================
+
+TEST_CASE("The sensors dict gives per-dock occupancy", "[toolchanger][toolsource][docks]") {
+    // Sergei's own example: T3 on the head, everything else docked.
+    auto r = read_tool(
+        json{{"medusahc",
+              {{"operation", "idle"},
+               {"current_tool", 3},
+               {"tool_count", 6},
+               {"sensors",
+                {{"e", 1}, {"t5", 1}, {"t4", 1}, {"t3", 0}, {"t2", 1}, {"t1", 1}, {"t0", 1}}}}}});
+    REQUIRE(r.has_value());
+    REQUIRE(r->docks.size() == 6);
+    CHECK(r->docks[0] == true);
+    CHECK(r->docks[3] == false); // on the head, so its dock is empty
+    CHECK(r->docks[5] == true);
+    REQUIRE(r->head_loaded.has_value());
+    CHECK(*r->head_loaded);
+}
+
+TEST_CASE("An empty toolhead sensor reads as no tool on the head",
+          "[toolchanger][toolsource][docks]") {
+    auto r = read_tool(
+        json{{"medusahc", {{"current_tool", -1}, {"sensors", {{"e", 0}, {"t0", 1}, {"t1", 1}}}}}});
+    REQUIRE(r.has_value());
+    REQUIRE(r->head_loaded.has_value());
+    CHECK_FALSE(*r->head_loaded);
+    CHECK(r->docks.size() == 2);
+}
+
+TEST_CASE("A dock nobody reported stays unknown, not empty", "[toolchanger][toolsource][docks]") {
+    // Moonraker only republishes fields that CHANGED, so a frame carrying two
+    // docks says nothing about the third. Defaulting the gap to "empty" would
+    // stamp a tool missing on every partial update.
+    auto r = read_tool(json{{"medusahc", {{"sensors", {{"t0", 1}, {"t2", 0}}}}}});
+    REQUIRE(r.has_value());
+    REQUIRE(r->docks.size() == 3);
+    CHECK(r->docks[0] == true);
+    CHECK_FALSE(r->docks[1].has_value());
+    CHECK(r->docks[2] == false);
+}
+
+TEST_CASE("The fork's flat dock keys are read the same way", "[toolchanger][toolsource][docks]") {
+    // topi314/MedusaHC emits tool<N>_docked booleans and head_loaded instead of
+    // a sensors dict. Same physical answer, different spelling.
+    auto r = read_tool(json{{"medusahc",
+                             {{"state", "ready"},
+                              {"current_tool", 1},
+                              {"tool_count", 3},
+                              {"head_loaded", true},
+                              {"tool0_docked", true},
+                              {"tool1_docked", false},
+                              {"tool2_docked", true}}}});
+    REQUIRE(r.has_value());
+    REQUIRE(r->docks.size() == 3);
+    CHECK(r->docks[0] == true);
+    CHECK(r->docks[1] == false);
+    CHECK(r->docks[2] == true);
+    REQUIRE(r->head_loaded.has_value());
+    CHECK(*r->head_loaded);
+}
+
+TEST_CASE("A frame with no dock fields reports no docks at all",
+          "[toolchanger][toolsource][docks]") {
+    // Empty, not "all empty" — the caller must be able to tell a frame that said
+    // nothing from one that said every dock is vacant.
+    auto r = read_tool(json{{"medusahc", {{"current_tool", 0}, {"operation", "idle"}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->docks.empty());
+    CHECK_FALSE(r->head_loaded.has_value());
+}
+
+// ============================================================================
+// Who owns the swap
+// ============================================================================
+
+TEST_CASE("klipper-toolchanger keeps its own select commands",
+          "[toolchanger][toolsource][commands]") {
+    // Stock MedusaHC has [toolchanger], which owns SELECT_TOOL/UNSELECT_TOOL.
+    // An absent capability is the backend's signal to keep using them.
+    auto cmds = toolchanger_addon::resolve_tool_commands(medusahc_hw());
+    CHECK_FALSE(cmds.present);
+    CHECK(cmds.select_prefix.empty());
+    CHECK(cmds.unselect.empty());
+}
+
+TEST_CASE("A changer without klipper-toolchanger names its own commands",
+          "[toolchanger][toolsource][commands]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array(
+        {"medusahc", "gcode_macro T0", "gcode_macro T1", "extruder", "extruder1", "toolhead"}));
+
+    auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+    REQUIRE(cmds.present);
+    // SELECT_TOOL does not exist on this machine; the T<n> macros the extra
+    // registers are the swap.
+    CHECK(cmds.select_prefix == "T");
+    CHECK(cmds.unselect == "DROP_TOOL");
+}
+
+TEST_CASE("A printer with no changer at all names no commands",
+          "[toolchanger][toolsource][commands]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "extruder1", "toolhead"}));
+
+    auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+    CHECK_FALSE(cmds.present);
+}

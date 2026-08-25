@@ -330,6 +330,20 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     }
     system_info_.current_slot = seated_slot;
     system_info_.filament_loaded = (tool >= 0);
+
+    // Dock occupancy, when the frame carried any. Merged rather than replaced:
+    // Moonraker republishes only changed fields, so a frame naming two docks
+    // says nothing about the third and must not blank it.
+    for (size_t i = 0; i < reading.docks.size(); ++i) {
+        if (!reading.docks[i].has_value()) {
+            continue;
+        }
+        if (i >= dock_seated_.size()) {
+            dock_seated_.resize(i + 1);
+        }
+        dock_seated_[i] = reading.docks[i];
+    }
+
     refresh_slot_statuses_locked();
 
     // "picking"/"dropping" is finer than toolchanger's single "changing", and it
@@ -449,8 +463,10 @@ void AmsBackendToolChanger::refresh_slot_statuses_locked() {
         return;
     }
 
-    // A toolhead is always physically there, so EMPTY/UNKNOWN never occur here:
-    // the stamp is a straight two-way split on the carriage tool.
+    // Without dock sensors a toolhead is always assumed physically there, so the
+    // stamp is a straight two-way split on the carriage tool. With them, EMPTY
+    // becomes a real answer: a dock reporting vacant for a tool that is not on
+    // the head means that hot end has been taken out of the machine.
     auto& slots = system_info_.units[0].slots;
     for (int i = 0; i < static_cast<int>(slots.size()); ++i) {
         // current_slot, not current_tool — `i` indexes physical toolheads, and
@@ -458,9 +474,16 @@ void AmsBackendToolChanger::refresh_slot_statuses_locked() {
         // its slot index (see the tool_number parse). The old comparison
         // stamped LOADED on the lane that merely shares an index with the
         // number.
-        slots[i].status = (system_info_.current_slot >= 0 && i == system_info_.current_slot)
-                              ? SlotStatus::LOADED
-                              : SlotStatus::AVAILABLE;
+        if (system_info_.current_slot >= 0 && i == system_info_.current_slot) {
+            // The mounted tool's own dock always reads vacant — that is where it
+            // came from — so the carriage wins over the dock reading.
+            slots[i].status = SlotStatus::LOADED;
+            continue;
+        }
+        const bool dock_vacant = i < static_cast<int>(dock_seated_.size()) &&
+                                 dock_seated_[static_cast<size_t>(i)].has_value() &&
+                                 !*dock_seated_[static_cast<size_t>(i)];
+        slots[i].status = dock_vacant ? SlotStatus::EMPTY : SlotStatus::AVAILABLE;
     }
 }
 
@@ -753,6 +776,18 @@ AmsError AmsBackendToolChanger::do_unload_filament(int slot_index) {
         }
     }
 
+    // A changer whose own extra does the swapping has no UNSELECT_TOOL at all;
+    // its unmount takes no tool argument, because there is only ever one tool on
+    // the head to drop.
+    if (tool_commands_.present) {
+        if (tool_commands_.unselect.empty()) {
+            return AmsErrorHelper::not_supported("unmount");
+        }
+        spdlog::info("[AMS ToolChanger] Unmounting via {}: {}", tool_commands_.provider_name,
+                     tool_commands_.unselect);
+        return dispatch_operation(tool_commands_.unselect, AmsAction::UNLOADING);
+    }
+
     // UNSELECT_TOOL has the same no-op shortcut as SELECT_TOOL — unmounting when
     // nothing is on the carriage returns without touching toolchanger.status —
     // so it needs the same optimistic-set + ack-resolution treatment (#1183).
@@ -790,7 +825,12 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
     // the race window where a second tap could arrive before Klipper's status
     // update changes the action — and resolves it on the macro's ack when the
     // toolchanger never claims the operation (#1183).
-    std::string cmd = "SELECT_TOOL T=" + std::to_string(tool_number);
+    // Without klipper-toolchanger there is no SELECT_TOOL: the extra registers
+    // its own T<n> commands and those ARE the swap. ASSIGN_TOOL does not exist
+    // on such a machine either, so the remap concern above cannot arise.
+    std::string cmd = tool_commands_.present
+                          ? tool_commands_.select_prefix + std::to_string(tool_number)
+                          : "SELECT_TOOL T=" + std::to_string(tool_number);
     spdlog::info("[AMS ToolChanger] Mounting tool {}: {}", tool_number, cmd);
     return dispatch_operation(std::move(cmd), AmsAction::SELECTING);
 }

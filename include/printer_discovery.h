@@ -428,6 +428,16 @@ class PrinterDiscovery {
                 has_pin_watch_ = true;
                 pin_watch_object_name_ = name;
             }
+            // [medusahc]: a hotend changer's own extra, recorded as the same
+            // kind of plain object fact as pin_watch above. Upstream ships it
+            // ALONGSIDE pin_watch and klipper-toolchanger; one fork folds the
+            // dock sensing into it and ships neither, and there this object is
+            // the only thing left to see. Matched exactly - [medusahc_calibrate]
+            // is a sibling object, not this one.
+            else if (name == "medusahc" || name.rfind("medusahc ", 0) == 0) {
+                has_medusahc_ = true;
+                medusahc_object_name_ = name;
+            }
             // Tool object discovery
             else if (name.rfind("tool ", 0) == 0) {
                 std::string tool_name = name.substr(5); // Remove "tool " prefix
@@ -556,6 +566,24 @@ class PrinterDiscovery {
             std::sort(tool_names_.begin(), tool_names_.end());
         }
 
+        // A hotend changer that runs without klipper-toolchanger has no [tool N]
+        // objects to name its tools: the swap is driven by the extra's own T<n>
+        // macros. One hot end per extruder heater is what a hotend changer IS,
+        // so enumerate those and keep the G-code tool numbers as the names.
+        // Never overwrites real tool objects - a klipper-toolchanger name is
+        // arbitrary, and ASSIGN_TOOL can remap it.
+        if (tool_names_.empty() && has_medusahc_) {
+            int extruders = 0;
+            for (const auto& heater : heaters_) {
+                if (heater.rfind("extruder", 0) == 0 && heater.rfind("extruder_stepper", 0) != 0) {
+                    ++extruders;
+                }
+            }
+            for (int i = 0; i < extruders; ++i) {
+                tool_names_.push_back("T" + std::to_string(i));
+            }
+        }
+
         // Collect all detected AMS systems
         detected_ams_systems_.clear();
 
@@ -583,8 +611,11 @@ class PrinterDiscovery {
             // Native Snapmaker filament system (no aftermarket MMU)
             detected_ams_systems_.push_back({AmsType::SNAPMAKER, "Snapmaker"});
             mmu_type_ = AmsType::SNAPMAKER;
-        } else if (has_tool_changer_ && !tool_names_.empty()) {
-            // Standalone tool changer with no MMU — show parallel topology
+        } else if ((has_tool_changer_ || has_medusahc_) && !tool_names_.empty()) {
+            // Standalone tool changer with no MMU — show parallel topology.
+            // Either klipper-toolchanger, or a hotend changer whose own extra
+            // does the swapping; the tools above came from whichever it is.
+            // Still last in the chain, so a real MMU always keeps its backend.
             detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
             mmu_type_ = AmsType::TOOL_CHANGER;
         }
@@ -757,6 +788,8 @@ class PrinterDiscovery {
         has_tool_changer_ = false;
         has_pin_watch_ = false;
         pin_watch_object_name_.clear();
+        has_medusahc_ = false;
+        medusahc_object_name_.clear();
         has_chamber_heater_ = false;
         has_chamber_sensor_ = false;
         chamber_sensor_name_.clear();
@@ -863,6 +896,17 @@ class PrinterDiscovery {
 
     /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
     /// for subscribing to it. Empty when there is none.
+    /// The [medusahc] object exists. A plain fact about the object list; what
+    /// it means is helix::toolchanger_addon's business.
+    [[nodiscard]] bool has_medusahc() const {
+        return has_medusahc_;
+    }
+
+    /// The object's name as reported, for subscribing to it.
+    [[nodiscard]] const std::string& medusahc_object_name() const {
+        return medusahc_object_name_;
+    }
+
     [[nodiscard]] const std::string& pin_watch_object_name() const {
         return pin_watch_object_name_;
     }
@@ -1489,6 +1533,8 @@ class PrinterDiscovery {
     bool has_tool_changer_ = false;
     bool has_pin_watch_ = false;
     std::string pin_watch_object_name_;
+    bool has_medusahc_ = false;
+    std::string medusahc_object_name_;
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
     std::string chamber_sensor_name_;
