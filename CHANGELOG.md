@@ -1097,7 +1097,7 @@ persistence, and clears a cluster of crashes and small-screen layout issues.
 - **Phantom edge tap fix reverted** — the 0.99.96 change required both touch axes to arrive for every new contact, but controllers that omit unchanged coordinates never satisfied that, dropping every touch. Holtek-based screens (BTT-HDMI5) may again see occasional edge taps until a safer fix ships.
 - **Hot reload defaults to on for native builds.**
 
-## [0.99.96] - 2026-07-19
+## [0.99.96] - 2026-07-19 [WITHDRAWN]
 
 ### Added
 
@@ -2479,7 +2479,7 @@ Hotfix for the v0.99.33 release: cross-compiled release bundles for every embedd
 ### Fixed
 - Release bundle omitted `assets/config/` seed tree — the refactor that split RO seeds out of `config/` updated `scripts/package.sh` but missed `mk/cross.mk`, which is the actual pipeline every embedded release uses. All `release-*` targets now ship `assets/config/printer_database.json`, `printing_tips.json`, `default_layout.json`, `helix_macros.cfg`, `themes/defaults/`, `presets/`, `print_start_profiles/`, `sounds/`, and `platform/hooks-*.sh`.
 
-## [0.99.33] - 2026-04-16
+## [0.99.33] - 2026-04-16 [WITHDRAWN]
 
 Major Bluetooth reliability overhaul, new barcode scanner settings UI, first-run guided tour, HttpExecutor for bounded HTTP threading, responsive setting rows that collapse 7 micro/ XML variants, and a broad config refactor splitting read-only seed data from writable state.
 
