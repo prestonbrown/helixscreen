@@ -996,6 +996,18 @@ instance:
 ./build/bin/helix-screen ctl set bt_replay_path /tmp/belt-captures/event_0000_ACCEPTED_ringdown.csv
 ```
 
+> **Setting the same path twice is a no-op.** The replay runs from a string-subject
+> observer, and LVGL does not notify observers when the value written equals the value
+> already there, so a second `ctl set` with an identical path never reaches
+> `replay_capture()` and the panel simply keeps drawing what it drew before. To replay
+> the same file again, set the subject to `""` first, or alternate between two paths.
+
+The panel's `bt_target_freq` and its estimated-frequency tick are driven by the span the
+panel currently holds, which is `TARGET_SPAN_MM` unless a live session already parked. A
+capture taken at a different span is searched in the wrong harmonic window; that is
+deliberate (this is a diagnostic replay, not a file importer) and shows up immediately as
+an implausible peak label.
+
 ### `HELIX_HOT_RELOAD`
 
 Enable XML hot reload for live UI editing. When enabled, a background thread polls `ui_xml/` (recursively — includes breakpoint variants and `components/`) every 500ms for file changes. Modified XML components are pre-validated, then unregistered and re-registered with LVGL, and the active panel/overlay/modal widget tree is torn down and rebuilt in place — no restart, no navigation needed.

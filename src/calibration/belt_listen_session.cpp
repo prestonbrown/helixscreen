@@ -7,16 +7,23 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace helix::calibration {
 
 namespace {
-/// Boundary of the measured 5-to-9x band where pitch estimation is unreliable
-/// (64% right) but a strike clearly occurred. Below this a batch is silently
+/// Floor of the measured 5-to-9x band, where a strike clearly occurred but
+/// pitch estimation is unreliable (64% right). Below this a batch is silently
 /// dropped; between this and MIN_RMS_RATIO it is reported as a rejected event
 /// so the UI can say "pluck harder" instead of staying silent.
-constexpr float MIN_DETECTABLE_RATIO = PluckDetector::MIN_RMS_RATIO / 3.0f;
+///
+/// Written as a fraction of MIN_RMS_RATIO so the two move together, and the
+/// fraction is the one that lands on the measured boundary: 9.0 * 5/9 = 5.0.
+/// It read MIN_RMS_RATIO / 3.0f (= 3.0) while the comment named the 5x
+/// boundary, which surfaced strikes at 3-5x - where the evidence base says
+/// nothing was a pluck at all - to the user as "Too soft, pluck harder".
+constexpr float MIN_DETECTABLE_RATIO = PluckDetector::MIN_RMS_RATIO * 5.0f / 9.0f;
 } // namespace
 
 BeltListenSession::BeltListenSession(float span_mm, float sample_rate_hz)
@@ -107,7 +114,19 @@ std::optional<PluckEvent> BeltListenSession::push(const AccelBatch& batch) {
     std::optional<float> onset_rise_val;
     std::optional<float> decay_end_val;
     if (capture_.enabled()) {
-        onset_rise_val = PluckDetector::onset_rise(window_.data(), window_.size(), sample_rate_hz_);
+        // Both sentinels are filtered, not recorded. onset_rise() returns 0
+        // when the strike landed before the window kept any pre-strike samples
+        // and infinity on exact pre-strike silence; neither is a measurement,
+        // and an `onset_rise=0.00` row in the corpus reads as the strongest
+        // possible evidence of a thump. This corpus is the instrument built to
+        // break the thresholds' circularity, so a mis-labelled row in it
+        // re-tunes MIN_ONSET_RISE off bad data. belt_capture.h promises a field
+        // left at nullopt was genuinely never evaluated.
+        const float rise =
+            PluckDetector::onset_rise(window_.data(), window_.size(), sample_rate_hz_);
+        if (rise > 0.0f && std::isfinite(rise)) {
+            onset_rise_val = rise;
+        }
         const float decay =
             PluckDetector::decay_end_ratio(window_.data(), window_.size(), sample_rate_hz_);
         if (decay >= 0.0f) {

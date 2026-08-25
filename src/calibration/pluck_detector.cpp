@@ -172,14 +172,14 @@ float PluckDetector::decay_end_ratio(const AccelSample* samples, size_t count, f
     return last / first;
 }
 
-bool PluckDetector::has_pluck_decay(const AccelSample* samples, size_t count, float sample_rate) {
+float PluckDetector::decay_rise(const AccelSample* samples, size_t count, float sample_rate) {
     if (samples == nullptr || sample_rate <= 0.0f) {
-        return false;
+        return -1.0f;
     }
 
     const size_t onset = find_onset(samples, count);
     if (onset >= count) {
-        return false;
+        return -1.0f;
     }
     const size_t post = count - onset;
     // An event whose onset lands at the very end of the window has no envelope
@@ -189,17 +189,27 @@ bool PluckDetector::has_pluck_decay(const AccelSample* samples, size_t count, fl
     // more than this floor.
     const size_t min_post = static_cast<size_t>(sample_rate * MIN_DECAY_SPAN_MS / 1000.0f);
     if (post < min_post || post < static_cast<size_t>(DECAY_SEGMENTS)) {
-        return false;
+        return -1.0f;
     }
 
     const size_t segment = post / static_cast<size_t>(DECAY_SEGMENTS);
+    float worst = 0.0f;
     float previous = 0.0f;
     for (int i = 0; i < DECAY_SEGMENTS; ++i) {
         const float rms = window_rms(samples + onset + static_cast<size_t>(i) * segment, segment);
-        if (i > 0 && (previous <= 0.0f || rms > previous * MAX_DECAY_RISE)) {
-            return false;
+        if (i > 0) {
+            worst = std::max(worst, previous <= 0.0f ? std::numeric_limits<float>::infinity()
+                                                     : rms / previous);
         }
         previous = rms;
+    }
+    return worst;
+}
+
+bool PluckDetector::has_pluck_decay(const AccelSample* samples, size_t count, float sample_rate) {
+    const float rise = decay_rise(samples, count, sample_rate);
+    if (rise < 0.0f || rise > MAX_DECAY_RISE) {
+        return false;
     }
 
     // A steady tone passes the per-segment rise tolerance trivially - every

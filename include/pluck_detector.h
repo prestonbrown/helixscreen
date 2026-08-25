@@ -56,15 +56,24 @@ class PluckDetector {
     /// a single fixed phase, then 26.1-71.4 from nine sampled ones. The floor
     /// is what states the margin, and it is the number a sampled sweep gets
     /// wrong.
+    ///
+    /// @note The sweep now *computes* this, off the detection window each
+    /// verdict was reached on, and asserts the floor - it did not until
+    /// 2026-08-24, so for a while this comment cited a test that measured only
+    /// harmonic_concentration and the margin could have eroded to zero
+    /// unobserved. The same was true of MAX_DECAY_RISE and
+    /// MAX_DECAY_END_RATIO below; all three are read back now.
     static constexpr float MIN_ONSET_RISE = 3.0f;
     /// Sub-windows the post-onset envelope is split into.
     static constexpr int DECAY_SEGMENTS = 4;
     /// How much louder a decay sub-window may be than the one before it.
-    /// Measured 1.03x worst case across the real captures.
+    /// Worst case 1.06x across the alignment sweep (see MIN_ONSET_RISE), which
+    /// asserts it. decay_rise() is the quantity, exposed so the sweep can read
+    /// it rather than infer it from an accept/reject outcome.
     static constexpr float MAX_DECAY_RISE = 1.5f;
-    /// Last sub-window as a fraction of the first. Measured 0.13-0.21 on the
-    /// real captures; a steady tone reads 0.98 and the weak-pluck capture,
-    /// which never rang, reads 0.79.
+    /// Last sub-window as a fraction of the first. 0.13-0.20 across the
+    /// alignment sweep, which asserts the ceiling; a steady tone reads 0.98
+    /// and the weak-pluck capture, which never rang, reads 0.79.
     static constexpr float MAX_DECAY_END_RATIO = 0.5f;
     /// Shortest post-onset region the decay check can judge. An event whose
     /// onset lands at the very end of the window has no envelope to read, and
@@ -181,6 +190,20 @@ class PluckDetector {
     /// would have rejected outright for lack of evidence.
     [[nodiscard]] static float decay_end_ratio(const AccelSample* samples, size_t count,
                                                float sample_rate);
+
+    /**
+     * @brief Largest step-up between consecutive post-onset envelope sub-windows
+     *
+     * The quantity MAX_DECAY_RISE is a threshold on. Exposed rather than left
+     * inside has_pluck_decay() so the alignment sweep can read back the margin
+     * it actually has, the same way it reads back harmonic_concentration().
+     *
+     * @return the worst ratio, infinity when a sub-window is silent (an
+     *         unbounded rise, which has_pluck_decay() rejects), or -1 when the
+     *         post-onset region is too short to judge.
+     */
+    [[nodiscard]] static float decay_rise(const AccelSample* samples, size_t count,
+                                          float sample_rate);
 
     /// True if the envelope after the onset falls the way a plucked string's
     /// does: each sub-window no more than MAX_DECAY_RISE louder than the one

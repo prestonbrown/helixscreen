@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -101,7 +102,14 @@ std::vector<AccelSample> splice_live_window(const Fixture& f, size_t lead_in = 1
 
 /// Feed a buffer through the session the way the stream client would, in
 /// ~340-sample batches.
-std::vector<PluckEvent> stream_through(BeltListenSession& s, const std::vector<AccelSample>& buf) {
+///
+/// @param resolved_window If non-null, receives a copy of the detection window
+///        as it stood when push() resolved an event. The session's window() is
+///        a ring the stream keeps overwriting, so the window a verdict was
+///        reached on cannot be read back after the fact - which is why the
+///        shape thresholds had no read-back until now.
+std::vector<PluckEvent> stream_through(BeltListenSession& s, const std::vector<AccelSample>& buf,
+                                       std::vector<AccelSample>* resolved_window = nullptr) {
     std::vector<PluckEvent> events;
     constexpr size_t kBatch = 340;
     for (size_t off = 0; off < buf.size(); off += kBatch) {
@@ -111,6 +119,9 @@ std::vector<PluckEvent> stream_through(BeltListenSession& s, const std::vector<A
                          buf.begin() + static_cast<long>(off + n));
         if (auto ev = s.push(b)) {
             events.push_back(*ev);
+            if (resolved_window != nullptr && ev->accepted) {
+                *resolved_window = s.window();
+            }
         }
     }
     return events;
@@ -657,6 +668,14 @@ TEST_CASE("every accept-case capture is measured at every window alignment",
         size_t phases = 0;
         float worst_concentration = 1.0f;
         size_t worst_lead = 0;
+        // The three temporal shape margins. Each constant's comment used to
+        // cite this sweep as its source while the sweep never computed it, so
+        // all three could erode to zero silently. Seeded at the value that
+        // makes the first alignment set them.
+        float worst_onset_rise = std::numeric_limits<float>::infinity();
+        float best_onset_rise = 0.0f;
+        float worst_decay_rise = 0.0f;
+        float worst_end_ratio = 0.0f;
 
         constexpr size_t kBatch = 340;
         for (size_t lead = BeltListenSession::DETECTION_WINDOW_SAMPLES;
@@ -667,7 +686,8 @@ TEST_CASE("every accept-case capture is measured at every window alignment",
             BeltListenSession s(SPAN_MM, fx.rate_hz);
             REQUIRE(
                 s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
-            stream_through(s, live);
+            std::vector<AccelSample> resolved;
+            stream_through(s, live, &resolved);
 
             if (s.accepted_count() == 0) {
                 continue;
@@ -699,13 +719,37 @@ TEST_CASE("every accept-case capture is measured at every window alignment",
                 worst_concentration = c;
                 worst_lead = lead;
             }
+
+            // The same read-back for the three temporal thresholds, off the
+            // window the verdict was actually reached on.
+            REQUIRE_FALSE(resolved.empty());
+            const float rise =
+                PluckDetector::onset_rise(resolved.data(), resolved.size(), fx.rate_hz);
+            worst_onset_rise = std::min(worst_onset_rise, rise);
+            best_onset_rise = std::max(best_onset_rise, rise);
+            worst_decay_rise =
+                std::max(worst_decay_rise,
+                         PluckDetector::decay_rise(resolved.data(), resolved.size(), fx.rate_hz));
+            worst_end_ratio = std::max(
+                worst_end_ratio,
+                PluckDetector::decay_end_ratio(resolved.data(), resolved.size(), fx.rate_hz));
         }
 
         INFO("fixture " << e.name << " measured at " << measured << " of " << phases
                         << " alignments; worst concentration " << worst_concentration
-                        << " at lead-in " << worst_lead);
+                        << " at lead-in " << worst_lead << "; onset rise " << worst_onset_rise
+                        << "-" << best_onset_rise << ", worst decay rise " << worst_decay_rise
+                        << ", worst end ratio " << worst_end_ratio);
         CHECK(measured == phases);
         CHECK(worst_concentration >= MIN_HARMONIC_CONCENTRATION);
+        // Asserted against the constants themselves, not against the observed
+        // figures: the observed figures belong in the headers as documentation,
+        // and pinning them here would fail on any harmless change to the
+        // splice. What must not happen is a margin quietly reaching zero, and
+        // the INFO above prints all four every time one of them does.
+        CHECK(worst_onset_rise >= PluckDetector::MIN_ONSET_RISE);
+        CHECK(worst_decay_rise <= PluckDetector::MAX_DECAY_RISE);
+        CHECK(worst_end_ratio <= PluckDetector::MAX_DECAY_END_RATIO);
     }
 }
 
