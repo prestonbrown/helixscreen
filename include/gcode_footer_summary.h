@@ -126,4 +126,71 @@ inline constexpr size_t GCODE_TAIL_WINDOW_MAX = 512u * 1024u;
  */
 [[nodiscard]] size_t gcode_tail_window_bytes(uint64_t file_size, uint64_t gcode_end_byte);
 
+/**
+ * @brief Read the last @p window bytes of a local file.
+ *
+ * The on-disk counterpart to a Moonraker suffix range request, for when
+ * Moonraker is this machine and its gcodes root is readable: the bytes are
+ * already on local storage, so fetching them back over loopback HTTP is pure
+ * overhead. Produces exactly what download_file_tail() would hand the parser.
+ *
+ * Blocking — call it on a worker, never the UI thread.
+ *
+ * @param path   Absolute path to the G-code file.
+ * @param window Bytes to read from the end. A file shorter than the window is
+ *               returned whole.
+ * @return The trailing bytes, or an empty string if the file cannot be read.
+ *         Callers treat empty as "this read did not answer" and fall back.
+ */
+[[nodiscard]] std::string read_file_tail(const std::string& path, size_t window);
+
+/**
+ * @brief What a footer read could still answer for the file being shown.
+ *
+ * The footer answers three independent questions - which tools the file uses,
+ * what colors they print in, and how many grams each one costs. Only the first
+ * is persisted by ToolsUsedCache, so a cache hit settles `tools` and leaves the
+ * other two exactly as unanswered as they were on a cold open.
+ *
+ * Gating the whole read on the cached question is what regressed the mapping
+ * chips: on a re-open of a file whose Moonraker metadata carries no
+ * `filament_colors` (OrcaSlicer via Creality's Moonraker reports
+ * `filament_type` and nothing else), the read was skipped, no palette ever
+ * arrived, and every tool rendered the neutral stand-in color.
+ */
+struct FooterReadNeed {
+    bool tools = false;   ///< tools_used is still unknown for this file
+    bool palette = false; ///< no per-tool colors from metadata or an earlier read
+    bool grams = false;   ///< no per-tool grams (the per-lane weight check has no opinion)
+
+    /// True when a footer read is worth issuing at all.
+    [[nodiscard]] bool any() const {
+        return tools || palette || grams;
+    }
+
+    /// True when falling back to a whole-file scan is justified if the footer
+    /// cannot answer. ONLY the tools question earns that cost: reading a
+    /// hundred-plus megabytes to recover a palette the render can live without
+    /// is the trade the streaming work exists to avoid.
+    [[nodiscard]] bool full_scan_justified() const {
+        return tools;
+    }
+};
+
+/**
+ * @brief Decide what a footer read is still needed for.
+ *
+ * Pure so both the cache-hit and cold-open shapes are testable without a
+ * PrintSelectDetailView, an API, or a file.
+ *
+ * @param tools_known   The used-tool set is settled (cache hit, completed scan,
+ *                      or a viewer parse).
+ * @param have_palette  Per-tool colors are already in hand.
+ * @param have_grams    Per-tool grams are already in hand.
+ */
+[[nodiscard]] inline FooterReadNeed footer_read_need(bool tools_known, bool have_palette,
+                                                     bool have_grams) {
+    return FooterReadNeed{!tools_known, !have_palette, !have_grams};
+}
+
 } // namespace helix::gcode

@@ -2633,6 +2633,33 @@ const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* o
     return st->gcode_file.get();
 }
 
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    // gcode_file and streaming_controller_ are mutually exclusive by
+    // construction (see the state struct), so this is a choice of which ONE
+    // holds data, not a precedence question.
+    if (st->gcode_file && !st->gcode_file->tool_color_palette.empty()) {
+        return st->gcode_file->tool_color_palette;
+    }
+    if (st->streaming_controller_ && st->streaming_controller_->is_open()) {
+        return st->streaming_controller_->get_index_stats().filament_palette;
+    }
+    return {};
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || !st->streaming_controller_) {
+        // Full-load mode, or nothing loading. Neither has a checkpoint to
+        // report; 0.0 is the caller's cue to stay indeterminate.
+        return 0.0f;
+    }
+    return st->streaming_controller_->get_index_progress();
+}
+
 // ==============================================
 // Object Picking
 // ==============================================
@@ -3002,6 +3029,14 @@ void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t*,
 
 const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t*) {
     return nullptr;
+}
+
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t*) {
+    return {};
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
+    return 0.0f;
 }
 
 #endif // HELIX_HAS_GCODE_VIEWER

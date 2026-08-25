@@ -11,6 +11,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_print_preparation_manager.h"
+#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
@@ -94,6 +95,11 @@ PrintSelectDetailView::~PrintSelectDetailView() {
         preflight_ready_timeout_timer_ = nullptr;
     }
 
+    // Same for the indexing-progress poll. StaticPanelRegistry::destroy_all()
+    // runs BEFORE lv_deinit(), so a timer cancelled only in the deactivate path
+    // stays armed on a freed `this` when teardown skips it (#1173).
+    cancel_progress_timer();
+
     // Unregister from NavigationManager (fallback if cleanup() wasn't called)
     if (overlay_root_) {
         NavigationManager::instance().unregister_overlay_instance(overlay_root_);
@@ -141,6 +147,16 @@ void PrintSelectDetailView::init_subjects() {
     UI_MANAGED_SUBJECT_INT(detail_gcode_viewer_mode_, 0, "detail_gcode_viewer_mode", subjects_);
     // G-code loading indicator (0=hidden, 1=visible)
     UI_MANAGED_SUBJECT_INT(detail_gcode_loading_, 0, "detail_gcode_loading", subjects_);
+
+    // Indexing progress, 0-100. 0 means "no figure to show" — the XML falls
+    // back to the indeterminate spinner there, matching wizard_input_shaper's
+    // determinate/indeterminate pair. Only the streaming path can report: it
+    // scans the whole file to build a layer index before anything renders, and
+    // on a large print that IS the wait (69s for a 133MB / 5M-line file on a
+    // K2 Plus, during which the panel showed a bare spinner).
+    UI_MANAGED_SUBJECT_INT(detail_gcode_progress_, 0, "detail_gcode_progress", subjects_);
+    UI_MANAGED_SUBJECT_STRING(detail_gcode_progress_text_, detail_gcode_progress_text_buf_, "",
+                              "detail_gcode_progress_text", subjects_);
     // Whether the viewer has rendered its first frame (0=no, 1=yes). The
     // thumbnail stays on top until this flips to hide the gray gap.
     UI_MANAGED_SUBJECT_INT(detail_viewer_first_frame_, 0, "detail_viewer_first_frame", subjects_);
@@ -455,6 +471,11 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     headless_tool_grams_.clear();
     headless_scan_done_ = false;
     headless_scan_settled_ = false;
+    // Moonraker's metadata is the one palette source available before any read:
+    // when it carried colors the question is already answered, and when it did
+    // not (Creality's Moonraker reports filament_type and no filament_colors for
+    // OrcaSlicer files) the footer read below is what settles it.
+    palette_settled_ = !current_filament_colors_.empty();
     lv_subject_set_int(&detail_mapping_ready_, 0);
 
     if (auto cached = tools_used_cache_.lookup(current_file_key(), current_file_size_bytes_,
@@ -778,6 +799,7 @@ void PrintSelectDetailView::on_deactivate() {
     // the previous open's settlement as authorization to delete files.
     headless_scan_done_ = false;
     headless_scan_settled_ = false;
+    palette_settled_ = false;
     publish_mapping_ready();
 
     // Drop any pending run_when_loaded() callback. If the user tapped Print
@@ -793,6 +815,9 @@ void PrintSelectDetailView::on_deactivate() {
         lv_timer_delete(preflight_ready_timeout_timer_);
         preflight_ready_timeout_timer_ = nullptr;
     }
+
+    // Nothing left to report progress for.
+    cancel_progress_timer();
 
     // Hide any open delete confirmation modal
     hide_delete_confirmation();
@@ -1168,6 +1193,65 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
 // G-code Viewer
 // ============================================================================
 
+void PrintSelectDetailView::cancel_progress_timer() {
+    if (!progress_timer_) {
+        return;
+    }
+    // cancel_safe self-guards on lv_is_initialized() and neuters rather than
+    // unlinking, so this is safe from the destructor and from inside
+    // lv_timer_handler (#750, #751).
+    helix::ui::lv_timer_cancel_safe(progress_timer_);
+    progress_timer_ = nullptr;
+}
+
+void PrintSelectDetailView::start_progress_timer() {
+    cancel_progress_timer();
+    if (!gcode_viewer_) {
+        return;
+    }
+    // 250ms: the figure moves on a human scale over a minute-long scan, and the
+    // poll is one relaxed atomic load. Deliberately a poll rather than a push
+    // from the scan thread — the scan must never touch LVGL, and the subject
+    // write has to happen on the main thread.
+    progress_timer_ = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<PrintSelectDetailView*>(lv_timer_get_user_data(t));
+            self->poll_load_progress();
+        },
+        250, this);
+}
+
+void PrintSelectDetailView::poll_load_progress() {
+    if (!gcode_viewer_ || lv_subject_get_int(&detail_gcode_loading_) == 0) {
+        cancel_progress_timer();
+        return;
+    }
+
+    const float fraction = ui_gcode_viewer_get_load_progress(gcode_viewer_);
+    // 0 is the XML's cue to keep showing the indeterminate spinner: the
+    // full-load path reports nothing, and a streaming scan that has not reached
+    // its first checkpoint has nothing honest to show either. Clamp the low end
+    // to 1 once there IS progress so a real 0.4% does not read as "unknown".
+    int percent = 0;
+    if (fraction > 0.0f) {
+        percent = static_cast<int>(fraction * 100.0f);
+        percent = percent < 1 ? 1 : (percent > 100 ? 100 : percent);
+    }
+
+    if (percent == lv_subject_get_int(&detail_gcode_progress_)) {
+        return;
+    }
+    lv_subject_set_int(&detail_gcode_progress_, percent);
+
+    char buf[64];
+    if (percent > 0) {
+        snprintf(buf, sizeof(buf), "%s %d%%", lv_tr("Indexing G-code..."), percent);
+    } else {
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Indexing G-code..."));
+    }
+    lv_subject_copy_string(&detail_gcode_progress_text_, buf);
+}
+
 void PrintSelectDetailView::show_gcode_viewer(bool show) {
     // detail_gcode_viewer_mode_ drives the XML visibility bindings in
     // print_file_detail.xml:
@@ -1207,6 +1291,8 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
 
     // Hide loading spinner now that viewer state is resolved
     lv_subject_set_int(&detail_gcode_loading_, 0);
+    lv_subject_set_int(&detail_gcode_progress_, 0);
+    cancel_progress_timer();
 
     spdlog::trace("[DetailView] G-code viewer mode: {} ({})", mode, mode == 0 ? "thumbnail" : "3D");
 }
@@ -1275,18 +1361,21 @@ void PrintSelectDetailView::refresh_preview_colors_and_mismatch() {
 }
 
 void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
-    auto* parsed = ui_gcode_viewer_get_parsed_file(viewer);
-    if (!parsed) {
-        return;
-    }
+    // The palette is mode-independent — full-load reads it off the parsed file,
+    // streaming off the layer index, which scans the header and then the
+    // trailing 32KB for exactly this. Requiring a ParsedGCodeFile here is what
+    // left every STREAMED file without a palette: streaming holds no parsed
+    // file by construction, so this returned at the first line and the backfill
+    // below never ran. Harmless while the detail view always full-loaded;
+    // load-bearing once 64d0997de moved large files to streaming.
+    const auto palette = ui_gcode_viewer_get_tool_palette(viewer);
 
-    // Backfill filament_colors when slicer metadata didn't provide them
-    // (Snapmaker and a few other Moonraker variants).
-    if (current_filament_colors_.empty() && !parsed->tool_color_palette.empty()) {
-        spdlog::info(
-            "[DetailView] Metadata lacked filament colors — extracted {} from parsed gcode",
-            parsed->tool_color_palette.size());
-        current_filament_colors_ = parsed->tool_color_palette;
+    // Backfill filament_colors when neither slicer metadata nor the footer read
+    // provided them (Snapmaker and a few other Moonraker variants).
+    if (current_filament_colors_.empty() && !palette.empty()) {
+        spdlog::info("[DetailView] Metadata lacked filament colors — extracted {} from the viewer",
+                     palette.size());
+        current_filament_colors_ = palette;
 
         // Rebuild the mapping card's internal tool/slot/mapping state with the
         // newly-extracted colors (the card uses them when AMS is present). The
@@ -1295,22 +1384,36 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
         filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
     }
 
+    // The viewer has read the file: whatever it found (or did not) is the
+    // answer. Releases the chip skeleton on any path where the footer read
+    // could not, without it having to succeed first.
+    mark_palette_settled();
+    publish_mapping_ready();
+
     // Re-publish the mapping card's own visibility: the pre-parse publish in
     // show() predates the palette backfill above, which can flip should_show().
     lv_subject_set_int(&filament_mapping_visible_, filament_mapping_card_.should_show() ? 1 : 0);
 
     // Authoritative render from the precise tools_used set — not the slicer
-    // palette size (which often over-counts). tools_used_effective() returns
-    // exactly parsed->tools_used_indices here (same viewer, non-empty set);
-    // it only differs if the parse yielded nothing, in which case the headless
-    // scan's answer is the one worth rendering.
+    // palette size (which often over-counts).
     render_authoritative_chips(tools_used_effective());
 
-    // Write-through: the parse just made the used set final for this
-    // (path, size, mtime) — persist so the next open of this file renders
-    // final chips instantly from the cache instead of the skeleton.
-    tools_used_cache_.store(current_file_key(), current_file_size_bytes_, current_file_modified_,
-                            tools_used_effective());
+    // Write-through: persist the used set so the next open of this file renders
+    // final chips instantly instead of the skeleton. Gated on the set actually
+    // being this file's answer. In full-load mode the parse IS that answer. In
+    // streaming mode there is no parsed tool set at all, so tools_used_effective()
+    // is whatever the headless scan has so far — and persisting THAT before the
+    // scan settles would cache an empty set as final truth for the file (the
+    // Finding-1 poison apply_scan_result() guards against for the same reason).
+    const bool set_is_authoritative =
+        ui_gcode_viewer_get_parsed_file(viewer) != nullptr || headless_scan_settled_;
+    if (set_is_authoritative) {
+        tools_used_cache_.store(current_file_key(), current_file_size_bytes_,
+                                current_file_modified_, tools_used_effective());
+    } else {
+        spdlog::debug("[DetailView] Streaming load with the tools scan still pending — "
+                      "not caching a provisional used-tool set");
+    }
 }
 
 std::vector<helix::GcodeToolInfo> PrintSelectDetailView::get_used_tool_info() const {
@@ -1602,7 +1705,28 @@ void PrintSelectDetailView::fire_on_preflight_ready() {
 }
 
 void PrintSelectDetailView::publish_mapping_ready() {
-    lv_subject_set_int(&detail_mapping_ready_, is_preflight_ready() ? 1 : 0);
+    // Two independent questions have to be answered before a chip is honest,
+    // and they come from different places. is_preflight_ready() covers WHICH
+    // TOOLS (viewer parse or headless scan, and ToolsUsedCache can answer it
+    // instantly on a re-open). palette_settled_ covers WHAT COLORS, which the
+    // cache says nothing about.
+    //
+    // Publishing on the tools half alone is what put grey chips on screen: a
+    // cache hit satisfied it during show(), the skeleton was retired before any
+    // palette existed, and every tool rendered the neutral stand-in. Note
+    // "settled", not "non-empty" — a file nothing can supply colors for still
+    // has to resolve, or the skeleton never clears.
+    const bool ready = is_preflight_ready() && palette_settled_;
+    lv_subject_set_int(&detail_mapping_ready_, ready ? 1 : 0);
+}
+
+void PrintSelectDetailView::mark_palette_settled() {
+    if (palette_settled_) {
+        return;
+    }
+    palette_settled_ = true;
+    spdlog::debug("[DetailView] Palette question settled ({} colors)",
+                  current_filament_colors_.size());
 }
 
 void PrintSelectDetailView::finish_scan(LifetimeToken tok, std::set<int> tools,
@@ -1684,8 +1808,21 @@ void PrintSelectDetailView::kick_off_headless_tools_scan() {
     // show() owns the headless-state reset (and the cache seed). A cache hit
     // (or an already-completed viewer parse) has already answered the
     // tools-used question — nothing to scan.
-    if (headless_scan_done_) {
-        spdlog::debug("[DetailView] Tools-used already known (cache/viewer) — skipping scan");
+    // The footer answers THREE questions — which tools, what colors, how many
+    // grams — and ToolsUsedCache persists only the first. Gating the whole read
+    // on that one cached answer is what regressed the chips: a re-open of a file
+    // whose Moonraker metadata carries no filament_colors skipped the read, no
+    // palette ever arrived, and every tool fell back to the neutral stand-in.
+    // The viewer parse used to cover for it by backfilling the palette itself,
+    // but that only ever happened in full-load mode, and the large-file
+    // streaming fix (64d0997de) moved exactly the files that matter off it.
+    const auto need = helix::gcode::footer_read_need(
+        headless_scan_done_, !current_filament_colors_.empty(), !headless_tool_grams_.empty());
+
+    if (!need.any()) {
+        spdlog::debug("[DetailView] Tools, palette and grams all known — no footer read");
+        mark_palette_settled();
+        publish_mapping_ready();
         return;
     }
 
@@ -1698,6 +1835,10 @@ void PrintSelectDetailView::kick_off_headless_tools_scan() {
         // as settled as it can be.
         headless_scan_done_ = true;
         headless_scan_settled_ = true;
+        // Nothing can ever read this file, so the palette question is as
+        // settled as it will get. Without this the chips would sit on the
+        // skeleton for the life of the view.
+        mark_palette_settled();
         publish_mapping_ready();
         fire_on_preflight_ready();
         return;
@@ -1715,12 +1856,14 @@ void PrintSelectDetailView::kick_off_headless_tools_scan() {
 
     // The file's own footer already states which tools it uses and in what
     // colors, so ask for that first — a single small range request instead of
-    // the whole file. Anything it cannot answer falls through to the full
-    // scan below, which is the pre-existing behavior unchanged.
-    start_tail_summary_scan(tok, stop_set);
+    // the whole file. Whether it may fall through to the whole-file scan is
+    // `need`'s call: recovering a tool set earns that cost, recovering a
+    // palette does not.
+    start_tail_summary_scan(tok, stop_set, need);
 }
 
-void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set) {
+void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set,
+                                                    helix::gcode::FooterReadNeed need) {
     // Sized from Moonraker's gcode_end_byte when it reported one (the footer
     // starts exactly there), otherwise a fixed window. Everything after that
     // offset is the slicer's settings block.
@@ -1728,77 +1871,159 @@ void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<
         static_cast<uint64_t>(current_file_size_bytes_), current_gcode_end_byte_);
     const std::string file_path = current_file_key();
 
-    spdlog::debug("[DetailView] Footer read: last {} bytes of {} (size={}, gcode_end_byte={})",
-                  window, file_path, current_file_size_bytes_, current_gcode_end_byte_);
+    spdlog::debug("[DetailView] Footer read: last {} bytes of {} (size={}, gcode_end_byte={}, "
+                  "need tools={} palette={} grams={})",
+                  window, file_path, current_file_size_bytes_, current_gcode_end_byte_, need.tools,
+                  need.palette, need.grams);
 
-    // Every fall-through lands here: re-run the pre-existing whole-file scan.
-    // Deferred because ensure_gcode_downloaded() touches members and both
-    // callbacks below arrive on an HTTP thread (L081 Mechanism C).
-    auto fall_back = [this, tok, stop_set](const char* why) mutable {
+    // Deferred because both callbacks below arrive off the main thread and
+    // start_full_tools_scan() touches members (L081 Mechanism C).
+    auto fall_back = [this, tok, stop_set, need](const char* why) mutable {
+        if (!need.full_scan_justified()) {
+            // This read was only ever after the palette and the grams. Reading
+            // a hundred-plus megabytes to recover them is precisely the cost
+            // the streaming path exists to avoid, and the UI is fine without:
+            // the chips say "unknown" instead of inventing a color. Settle the
+            // question so the skeleton stops waiting on an answer that is not
+            // coming.
+            spdlog::debug("[DetailView] Footer read did not answer ({}) — no palette/grams for "
+                          "this file",
+                          why);
+            tok.defer("DetailView::tail_summary_giveup", [this]() {
+                mark_palette_settled();
+                publish_mapping_ready();
+            });
+            return;
+        }
         spdlog::debug("[DetailView] Footer read did not answer ({}) — full scan", why);
         tok.defer("DetailView::tail_summary_fallback", [this, tok, stop_set]() mutable {
+            // The whole-file scan counts Tn commands; it does not read colors.
+            // So the footer failing IS the end of the palette question for
+            // every source except a viewer load — and in Thumbnail-Only mode
+            // there is no viewer load. Leaving it unsettled here would strand
+            // the chips on the skeleton for the life of the view. Settling
+            // early only means they render "unknown" until a viewer load (if
+            // one happens) backfills real colors, which is what the honest
+            // unknown state is for.
+            mark_palette_settled();
+            publish_mapping_ready();
             start_full_tools_scan(tok, std::move(stop_set));
         });
     };
 
-    api_->transfers().download_file_tail(
-        "gcodes", file_path, window,
-        [this, tok, file_path, fall_back](const std::string& tail) mutable {
-            // === BG THREAD: pure parse over a local, no `this` access ===
-            const helix::gcode::GcodeFooterSummary summary =
-                helix::gcode::parse_gcode_footer_summary(tail);
-            if (!summary.usable()) {
-                fall_back(summary.has_usage_line ? "usage vector is all zero"
-                                                 : "no per-tool usage line");
+    // === Runs on a background thread: pure parse over a local, no `this` ===
+    auto on_tail = [this, tok, file_path, fall_back, need](const std::string& tail) mutable {
+        const helix::gcode::GcodeFooterSummary summary =
+            helix::gcode::parse_gcode_footer_summary(tail);
+
+        // usable() gates the TOOLS answer specifically (a usage line naming at
+        // least one nonzero tool). A read issued only for the palette must not
+        // be judged by it: a footer with a colour line and no usage line
+        // answers this read completely.
+        const bool answered = need.tools
+                                  ? summary.usable()
+                                  : (!summary.colours.empty() || !summary.grams_per_tool.empty());
+        if (!answered) {
+            fall_back(summary.has_usage_line ? "usage vector is all zero"
+                                             : "no per-tool usage line");
+            return;
+        }
+
+        tok.defer("DetailView::tail_summary_apply", [this, summary, file_path, need]() {
+            // The selection can move on while the read is in flight; the
+            // deferred body must not answer for a file that is no longer shown
+            // (its result would be cached under the NEW file's key).
+            if (file_path != current_file_key()) {
+                spdlog::debug("[DetailView] Footer read landed for a stale file ({}) — discarding",
+                              file_path);
                 return;
             }
+            apply_footer_summary(summary, need);
+        });
+    };
 
-            tok.defer("DetailView::tail_summary_apply", [this, summary, file_path]() {
-                // The selection can move on while the range request is in
-                // flight; the deferred body must not answer for a file that is
-                // no longer shown (its result would be cached under the NEW
-                // file's key).
-                if (file_path != current_file_key()) {
-                    spdlog::debug("[DetailView] Footer read landed for a stale file ({}) —"
-                                  " discarding",
-                                  file_path);
-                    return;
-                }
+    // Moonraker runs on this machine, so its copy IS the file: read the tail
+    // straight off disk instead of asking for those same bytes back over a
+    // loopback HTTP range request. Same window, same parse — local_gcode_source()
+    // already owns the "is it really there, and is it the right version" checks
+    // (it size-matches against the metadata), and returns empty when it is not.
+    if (const std::string local = local_gcode_source(); !local.empty()) {
+        spdlog::debug("[DetailView] Footer read from Moonraker's own copy: {}", local);
+        helix::http::HttpExecutor::slow().submit([local, window, on_tail, fall_back]() mutable {
+            std::string tail = helix::gcode::read_file_tail(local, window);
+            if (tail.empty()) {
+                fall_back("local tail read failed");
+                return;
+            }
+            on_tail(tail);
+        });
+        return;
+    }
 
-                // Backfill the palette when Moonraker's metadata carried none
-                // — the same gap try_extract_gcode_colors() covers from the
-                // viewer parse, answered here without one.
-                if (current_filament_colors_.empty() && !summary.colours.empty()) {
-                    spdlog::info("[DetailView] Metadata lacked filament colors — took {} from "
-                                 "the G-code footer",
-                                 summary.colours.size());
-                    current_filament_colors_ = summary.colours;
-                    lv_subject_set_int(&filament_mapping_visible_,
-                                       filament_mapping_card_.should_show() ? 1 : 0);
-                }
-
-                spdlog::info("[DetailView] Footer read answered tools_used: {} tools",
-                             summary.tools_used.size());
-
-                // Authoritative: the footer is the slicer's own accounting of
-                // what it emitted, so it is cached like a completed scan. It
-                // can differ from the Tn scan on a single-extruder file — the
-                // footer says {0} where the scan (which sees no Tn at all)
-                // says {} — and {0} is the same answer the viewer parse
-                // produces, so the two paths agree rather than diverge.
-                // The same footer line that named the used tools also priced
-                // them, in grams the slicer labelled itself. Kept so the
-                // pre-print check can weigh each tool against the lane it is
-                // mapped to, instead of the whole file against one spool.
-                headless_tool_grams_ = summary.grams_per_tool;
-                apply_scan_result(summary.tools_used, /*authoritative=*/true);
-            });
-        },
+    api_->transfers().download_file_tail(
+        "gcodes", file_path, window, [on_tail](const std::string& tail) mutable { on_tail(tail); },
         [fall_back](const MoonrakerError& error) mutable {
             // === BG THREAD: no `this` — fall_back marshals before touching it ===
             spdlog::debug("[DetailView] Footer read failed: {}", error.message);
             fall_back("transport error");
         });
+}
+
+void PrintSelectDetailView::apply_footer_summary(const helix::gcode::GcodeFooterSummary& summary,
+                                                 helix::gcode::FooterReadNeed need) {
+    // Backfill the palette when Moonraker's metadata carried none — the same
+    // gap try_extract_gcode_colors() covers from a viewer load, answered here
+    // without one (and without waiting out a 69-second index build).
+    bool palette_arrived = false;
+    if (current_filament_colors_.empty() && !summary.colours.empty()) {
+        spdlog::info(
+            "[DetailView] Metadata lacked filament colors — took {} from the G-code footer",
+            summary.colours.size());
+        current_filament_colors_ = summary.colours;
+        // Rebuild the card's tool/slot/mapping state from the real palette
+        // BEFORE anything reads should_show() or renders — the cached answer
+        // still describes the empty palette show() built the card from, and
+        // publishing that is how a card that should now appear stays hidden.
+        // Mirrors try_extract_gcode_colors()'s ordering.
+        filament_mapping_card_.update(current_filament_colors_, current_filament_materials_);
+        lv_subject_set_int(&filament_mapping_visible_,
+                           filament_mapping_card_.should_show() ? 1 : 0);
+        palette_arrived = true;
+    }
+
+    // The same footer line that named the used tools also priced them, in grams
+    // the slicer labelled itself. Kept so the pre-print check can weigh each
+    // tool against the lane it is mapped to, instead of the whole file against
+    // one spool. A cache hit used to skip this read entirely, which left the
+    // per-lane check with no opinion on every re-opened file.
+    if (headless_tool_grams_.empty() && !summary.grams_per_tool.empty()) {
+        headless_tool_grams_ = summary.grams_per_tool;
+    }
+
+    // Answered either way — even an empty colour line is now a settled "no".
+    mark_palette_settled();
+
+    if (need.tools && summary.usable()) {
+        spdlog::info("[DetailView] Footer read answered tools_used: {} tools",
+                     summary.tools_used.size());
+        // Authoritative: the footer is the slicer's own accounting of what it
+        // emitted, so it is cached like a completed scan. It can differ from the
+        // Tn scan on a single-extruder file — the footer says {0} where the scan
+        // (which sees no Tn at all) says {} — and {0} is the same answer the
+        // viewer parse produces, so the two paths agree rather than diverge.
+        // apply_scan_result() publishes readiness and renders the chips.
+        apply_scan_result(summary.tools_used, /*authoritative=*/true);
+        return;
+    }
+
+    // Tools were already settled (cache hit) — this read was for the palette
+    // and the grams. show() rendered the chips against an empty palette, so
+    // re-render now that there is a real one. refresh_card_from_palette is
+    // false because the update above already ran; passing true would rebuild
+    // the identical card a second time.
+    publish_mapping_ready();
+    render_authoritative_chips(tools_used_effective(),
+                               /*refresh_card_from_palette=*/!palette_arrived);
 }
 
 void PrintSelectDetailView::start_full_tools_scan(LifetimeToken tok, std::set<int> stop_set) {
@@ -1875,8 +2100,12 @@ void PrintSelectDetailView::load_gcode_for_preview() {
         },
         this);
 
-    // Show loading spinner over thumbnail
+    // Show loading spinner over thumbnail, and start reporting real progress
+    // as soon as the streaming indexer has any to report.
+    lv_subject_set_int(&detail_gcode_progress_, 0);
+    lv_subject_copy_string(&detail_gcode_progress_text_, lv_tr("Indexing G-code..."));
     lv_subject_set_int(&detail_gcode_loading_, 1);
+    start_progress_timer();
 
     // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing.
     // This is the ONLY user-forced skip: past here we render whatever mode the
@@ -1889,6 +2118,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     if (DisplaySettingsManager::instance().get_gcode_render_mode() == 3) {
         spdlog::info("[DetailView] G-code render mode is Thumbnail Only - skipping G-code load");
         lv_subject_set_int(&detail_gcode_loading_, 0);
+        cancel_progress_timer();
         show_gcode_viewer(false);
         return;
     }

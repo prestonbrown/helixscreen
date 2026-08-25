@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 
 namespace helix::gcode {
 
@@ -155,6 +156,38 @@ size_t gcode_tail_window_bytes(uint64_t file_size, uint64_t gcode_end_byte) {
         window = std::min<uint64_t>(window, file_size);
     }
     return static_cast<size_t>(std::max<uint64_t>(window, 1));
+}
+
+std::string read_file_tail(const std::string& path, size_t window) {
+    if (path.empty() || window == 0) {
+        return {};
+    }
+
+    std::ifstream f(path, std::ios::binary | std::ios::ate);
+    if (!f) {
+        return {};
+    }
+    const std::streampos end_pos = f.tellg();
+    if (end_pos <= 0) {
+        return {};
+    }
+
+    const auto size = static_cast<uint64_t>(end_pos);
+    const auto want = static_cast<uint64_t>(window);
+    const uint64_t take = std::min(want, size);
+
+    f.seekg(static_cast<std::streamoff>(size - take), std::ios::beg);
+    if (!f) {
+        return {};
+    }
+
+    std::string tail;
+    tail.resize(static_cast<size_t>(take));
+    f.read(tail.data(), static_cast<std::streamsize>(take));
+    // A short read is still usable — the footer parser scans whatever lines it
+    // is given — but a read that produced nothing is a failure, not an answer.
+    tail.resize(static_cast<size_t>(f.gcount()));
+    return tail;
 }
 
 } // namespace helix::gcode

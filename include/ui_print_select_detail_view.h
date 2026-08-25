@@ -8,6 +8,7 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 
+#include "gcode_footer_summary.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "preflight_validator.h"
@@ -553,6 +554,24 @@ class PrintSelectDetailView : public OverlayBase {
     lv_subject_t detail_gcode_viewer_mode_{};
     // G-code loading indicator (0=hidden, 1=visible)
     lv_subject_t detail_gcode_loading_{};
+
+    /// Indexing progress 0-100; 0 = nothing to show (spinner). Driven by
+    /// progress_timer_ polling the viewer while detail_gcode_loading_ is 1.
+    lv_subject_t detail_gcode_progress_{};
+    lv_subject_t detail_gcode_progress_text_{};
+    char detail_gcode_progress_text_buf_[64]{};
+
+    /// Polls the viewer's load progress onto the subjects above. Raw lv_timer_t,
+    /// so it MUST be cancelled from both cleanup paths and the destructor —
+    /// StaticPanelRegistry::destroy_all() runs before lv_deinit(), and a timer
+    /// left armed on a freed `this` is #1173. cancel_progress_timer() is the one
+    /// shared stop; it uses lv_timer_cancel_safe().
+    lv_timer_t* progress_timer_ = nullptr;
+    void start_progress_timer();
+    void cancel_progress_timer();
+    /// Timer body: reads the viewer's load progress onto the subjects and
+    /// stops itself once loading is over.
+    void poll_load_progress();
     // 1 = the gcode viewer has rendered its first real frame. The thumbnail
     // (which sits on top of the viewer in z-order) stays visible until this
     // flips, covering the gray viewer during the load-to-render gap.
@@ -607,6 +626,18 @@ class PrintSelectDetailView : public OverlayBase {
     /// ran. Deliberately NOT cached alongside tools_used: an absent vector must
     /// read as "no opinion", and a stale one would price the wrong file.
     std::vector<double> headless_tool_grams_;
+
+    /// True once the "what colors does this file print in" question has an
+    /// ANSWER — including the answer "nothing knows". Metadata carrying a
+    /// palette settles it at show(); otherwise the footer read settles it when
+    /// it lands or definitively cannot, and a viewer load settles it too.
+    ///
+    /// Distinct from "a palette exists" on purpose: a file whose colors nothing
+    /// can supply must still resolve, or detail_mapping_ready never flips and
+    /// the chips sit on the skeleton forever. Gating the latch on this is what
+    /// stops a tools-used cache hit from publishing chips built out of neutral
+    /// stand-ins as though they were the file's own colors.
+    bool palette_settled_ = false;
     bool headless_scan_done_ = false; // scan finished (success/empty/fail/timeout)
     // True ONLY where the scan actually SETTLED: finish_scan's deferred body,
     // the show() cache-hit seed, or the no-API early-out. Deliberately NOT
@@ -816,7 +847,15 @@ class PrintSelectDetailView : public OverlayBase {
      * falls through to start_full_tools_scan(), so the footer read can only
      * ever be faster than today, never worse.
      */
-    void start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set);
+    void start_tail_summary_scan(LifetimeToken tok, std::set<int> stop_set,
+                                 helix::gcode::FooterReadNeed need);
+
+    /// Apply whatever a footer read managed to answer. `need` says what the
+    /// read was issued for: when it did NOT include the tools question, the
+    /// used-tool set is already settled (cache hit) and must not be re-derived
+    /// from this summary — only the palette and grams are taken.
+    void apply_footer_summary(const helix::gcode::GcodeFooterSummary& summary,
+                              helix::gcode::FooterReadNeed need);
 
     /**
      * @brief Fallback: download the whole file and scan it for Tn commands.
@@ -900,6 +939,10 @@ class PrintSelectDetailView : public OverlayBase {
      * always equal is_preflight_ready() ? 1 : 0.
      */
     void publish_mapping_ready();
+
+    /// Record that the palette question has an answer (including "nothing
+    /// knows"). Idempotent; see palette_settled_.
+    void mark_palette_settled();
 
     /**
      * @brief Tools the print will use, sourced from whichever scan is available.
