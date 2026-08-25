@@ -8,12 +8,15 @@
 
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
+#include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace helix {
 
@@ -22,6 +25,59 @@ namespace {
 const std::unordered_set<std::string> DANGEROUS_MACROS = {
     "SAVE_CONFIG", "FIRMWARE_RESTART", "RESTART", "SHUTDOWN", "M112", "EMERGENCY_STOP",
 };
+
+std::string upper_copy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
+    return s;
+}
+
+/// Commands a macro body issues, uppercased, in command position only.
+///
+/// Command position is what keeps this honest: ZMOD's own SAVE_CONFIG override
+/// carries `RESPOND PREFIX="info" MSG="SAVE_CONFIG..."`, and a body scan that
+/// matched anywhere would read that line as a config save. So: skip comments,
+/// step over any leading Jinja tag, and take the first token of what is left.
+/// Plain string walking rather than std::regex, which overflows the stack on
+/// the MIPS targets (same constraint MacroFanAnalyzer works under).
+std::vector<std::string> command_tokens(const std::string& gcode) {
+    std::vector<std::string> tokens;
+    size_t line_start = 0;
+    while (line_start <= gcode.size()) {
+        size_t line_end = gcode.find('\n', line_start);
+        if (line_end == std::string::npos) {
+            line_end = gcode.size();
+        }
+        size_t pos = line_start;
+        // Step over leading whitespace and any number of Jinja tags, so
+        // `{% if x %} SAVE_CONFIG {% endif %}` still reports SAVE_CONFIG.
+        while (pos < line_end) {
+            while (pos < line_end && std::isspace(static_cast<unsigned char>(gcode[pos]))) {
+                pos++;
+            }
+            if (pos + 1 < line_end && gcode[pos] == '{' &&
+                (gcode[pos + 1] == '%' || gcode[pos + 1] == '#')) {
+                size_t close = gcode.find('}', pos);
+                if (close == std::string::npos || close >= line_end) {
+                    pos = line_end; // Tag spans lines; nothing callable here.
+                    break;
+                }
+                pos = close + 1;
+                continue;
+            }
+            break;
+        }
+        if (pos < line_end && gcode[pos] != '#' && gcode[pos] != ';' && gcode[pos] != '{') {
+            size_t tok_end = pos;
+            while (tok_end < line_end &&
+                   !std::isspace(static_cast<unsigned char>(gcode[tok_end]))) {
+                tok_end++;
+            }
+            tokens.push_back(upper_copy(gcode.substr(pos, tok_end - pos)));
+        }
+        line_start = line_end + 1;
+    }
+    return tokens;
+}
 
 } // namespace
 
@@ -75,11 +131,72 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
         IMoonrakerAPI::MACRO_TIMEOUT_MS);
 }
 
+const std::unordered_set<std::string>& dangerous_command_names() {
+    return DANGEROUS_MACROS;
+}
+
+std::unordered_set<std::string>
+analyze_host_restarting_macros(const nlohmann::json& config_settings) {
+    std::unordered_set<std::string> flagged;
+    if (!config_settings.is_object()) {
+        return flagged;
+    }
+
+    static constexpr const char* PREFIX = "gcode_macro ";
+    static constexpr size_t PREFIX_LEN = 12; // strlen(PREFIX)
+    std::unordered_map<std::string, std::vector<std::string>> calls;
+
+    for (const auto& [section, values] : config_settings.items()) {
+        if (section.rfind(PREFIX, 0) != 0 || !values.is_object()) {
+            continue;
+        }
+        auto gcode = values.find("gcode");
+        if (gcode == values.end() || !gcode->is_string()) {
+            continue;
+        }
+        std::string name = upper_copy(section.substr(PREFIX_LEN));
+        std::vector<std::string> tokens = command_tokens(gcode->get<std::string>());
+        for (const auto& token : tokens) {
+            if (DANGEROUS_MACROS.count(token) > 0) {
+                flagged.insert(name);
+                break;
+            }
+        }
+        calls.emplace(std::move(name), std::move(tokens));
+    }
+
+    // Propagate: calling a flagged macro flags the caller. Iterate to a
+    // fixpoint rather than recursing - mutual recursion between macros is legal
+    // config, it only fails when Klipper runs it, and a DFS would not return.
+    // Each round can only add, so the chain length bounds the rounds.
+    for (size_t round = 0; round <= calls.size(); ++round) {
+        bool changed = false;
+        for (const auto& [name, tokens] : calls) {
+            if (flagged.count(name) > 0) {
+                continue;
+            }
+            for (const auto& token : tokens) {
+                if (flagged.count(token) > 0) {
+                    flagged.insert(name);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (!changed) {
+            break;
+        }
+    }
+
+    return flagged;
+}
+
 bool is_dangerous_macro(const std::string& name) {
-    std::string upper_name = name;
-    std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
-    return DANGEROUS_MACROS.count(upper_name) > 0;
+    return DANGEROUS_MACROS.count(upper_copy(name)) > 0;
+}
+
+bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
+    return is_dangerous_macro(name) || hw.macro_restarts_host(name);
 }
 
 } // namespace helix
