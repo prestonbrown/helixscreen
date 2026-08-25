@@ -171,8 +171,16 @@ class BeltStreamClient {
     /// before member destruction begins; see the destructor's comment.
     std::unique_ptr<hv::EventLoopThread> loop_thread_;
 
+    /// Only ever read or written on the loop thread (attach(), close_on_loop()).
     hio_t* io_ = nullptr;
-    int fd_ = -1;
+
+    /// Atomic because stop() runs on the LVGL main thread while attach() and
+    /// close_on_loop() run on the libhv loop thread, and all three read it to
+    /// decide whether to ::close() it. A plain int here is a torn read away
+    /// from closing a descriptor number that has since been recycled to the
+    /// WebSocket or an HttpExecutor worker. Every hand-off uses exchange(),
+    /// so exactly one caller can ever see a given descriptor.
+    std::atomic<int> fd_{-1};
 
     /// libhv never frees or reallocates a buffer supplied through
     /// hio_set_readbuf (it clears alloced_readbuf, hevent.c:733), so this must

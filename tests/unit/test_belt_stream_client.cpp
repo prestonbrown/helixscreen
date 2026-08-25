@@ -7,6 +7,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
+#include <fcntl.h>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <sys/socket.h>
@@ -684,4 +686,83 @@ TEST_CASE("destroying a running client does not hang or crash", "[belt][stream][
         // No explicit stop() - the destructor must handle a live stream.
     }
     SUCCEED("destructor completed");
+}
+
+TEST_CASE("destroying a live client stops its callbacks before its members go",
+          "[belt][stream][slow]") {
+    // The pin for LoopJoiner (belt_stream_client.h) and for the destructor's
+    // own stop() call. Both exist so the loop thread is joined before
+    // read_buf_, the decoder and the std::function callbacks are destroyed;
+    // deleting either mechanism produces no compile error and no crash on a
+    // quiet stream, which is exactly why it needed a test.
+    //
+    // The observable is a counter that lives OUTSIDE the client, held through
+    // a shared_ptr the callback captures by value, so it survives the client
+    // and can be read after the delete. A loop thread still running after
+    // ~BeltStreamClient returns keeps invoking that callback (and reading a
+    // destroyed read_buf_ to do it), which shows up here as the count moving.
+    const std::string path = temp_sock_path("joiner");
+    FakeKlippySocket fake(path);
+    fake.serve(2000, 50);
+
+    auto calls = std::make_shared<std::atomic<int>>(0);
+
+    auto client = std::make_unique<BeltStreamClient>();
+    REQUIRE(client->start(
+        path, "adxl345", [calls](const AccelBatch&) { calls->fetch_add(1); }, nullptr));
+
+    // Wait for the stream to be genuinely live, so the destructor below is
+    // tearing down a busy loop rather than an idle one.
+    for (int i = 0; i < 200 && calls->load() < 3; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    REQUIRE(calls->load() >= 3);
+
+    const auto before = std::chrono::steady_clock::now();
+    client.reset();
+    const auto teardown = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - before);
+
+    const int at_destroy = calls->load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    INFO("callbacks at destroy " << at_destroy << ", after 300 ms " << calls->load());
+    CHECK(calls->load() == at_destroy);
+
+    // stop() runs on the LVGL thread in production, so its wait is a UI freeze
+    // budget. A normal teardown is a handful of syscalls; anything near the
+    // 2 s timeout means the queued close was dropped rather than executed.
+    INFO("teardown took " << teardown.count() << " ms");
+    CHECK(teardown < std::chrono::milliseconds(500));
+}
+
+TEST_CASE("stop after a stream is torn down does not close a recycled descriptor",
+          "[belt][stream][slow]") {
+    // stop() is called from the panel, from ~LoopJoiner and from the
+    // destructor, so it runs two or three times per session. Each of those
+    // must be a no-op after the first: a second ::close() on the same number
+    // lands on whatever the process opened in between - the Moonraker
+    // WebSocket, or an HttpExecutor worker's socket.
+    //
+    // The sentinel below IS that "whatever". It is opened after the first
+    // stop(), so it can only be handed the descriptor number the client just
+    // released; if a later stop() closes it, fcntl() reports EBADF.
+    const std::string path = temp_sock_path("recycle");
+    FakeKlippySocket fake(path);
+    fake.serve(500, 50);
+
+    auto client = std::make_unique<BeltStreamClient>();
+    REQUIRE(client->start(path, "adxl345", [](const AccelBatch&) {}, nullptr));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    client->stop();
+
+    const int sentinel = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    REQUIRE(sentinel >= 0);
+
+    client->stop(); // Second stop - the retry path.
+    CHECK(::fcntl(sentinel, F_GETFD) != -1);
+
+    client.reset(); // ~LoopJoiner, then ~BeltStreamClient.
+    CHECK(::fcntl(sentinel, F_GETFD) != -1);
+
+    ::close(sentinel);
 }

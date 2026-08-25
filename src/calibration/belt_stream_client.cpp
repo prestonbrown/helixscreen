@@ -22,6 +22,11 @@ namespace {
 
 using json = nlohmann::json;
 
+/// How long stop() will wait for the loop thread to close the socket. Runs on
+/// the LVGL thread, so it is a UI freeze budget, not a generous one: the queued
+/// close is a handful of syscalls and normally lands in microseconds.
+constexpr auto TEARDOWN_TIMEOUT = std::chrono::seconds(2);
+
 /// Milliseconds on the same clock the stall timer compares against.
 uint64_t now_ms() {
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -163,8 +168,8 @@ bool BeltStreamClient::start(const std::string& socket_path, const std::string& 
 
     // Connect on the calling thread: a UDS connect is effectively instant, and
     // doing it here lets start() return a real false instead of an async error.
-    fd_ = connect_uds(socket_path);
-    if (fd_ < 0) {
+    fd_.store(connect_uds(socket_path));
+    if (fd_.load() < 0) {
         spdlog::warn("[BeltStream] Cannot connect to klippy socket '{}': {}", socket_path,
                      std::strerror(errno));
         return false;
@@ -201,11 +206,13 @@ bool BeltStreamClient::start(const std::string& socket_path, const std::string& 
 bool BeltStreamClient::attach() {
     read_buf_.resize(READ_BUFFER_BYTES);
 
-    io_ = hio_get(loop_thread_->loop()->loop(), fd_);
+    io_ = hio_get(loop_thread_->loop()->loop(), fd_.load());
     if (io_ == nullptr) {
         report_error("failed to register klippy socket with the event loop");
-        ::close(fd_);
-        fd_ = -1;
+        const int fd = fd_.exchange(-1);
+        if (fd >= 0) {
+            ::close(fd);
+        }
         running_.store(false);
         return false;
     }
@@ -430,10 +437,14 @@ void BeltStreamClient::close_on_loop() {
         // would risk killing an unrelated descriptor another thread just opened.
         hio_close(io_);
         io_ = nullptr;
-        fd_ = -1;
-    } else if (fd_ >= 0) {
-        ::close(fd_);
-        fd_ = -1;
+        fd_.store(-1);
+    } else {
+        // exchange, not a load-then-close: stop() reads the same descriptor
+        // from the main thread, and only one of the two may ever close it.
+        const int fd = fd_.exchange(-1);
+        if (fd >= 0) {
+            ::close(fd);
+        }
     }
     io_open_.store(false);
 }
@@ -442,16 +453,16 @@ void BeltStreamClient::stop() {
     stopping_.store(true);
 
     if (!loop_thread_) {
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
+        const int fd = fd_.exchange(-1);
+        if (fd >= 0) {
+            ::close(fd);
         }
         running_.store(false);
         return;
     }
 
     const auto& loop = loop_thread_->loop();
-    if (loop && (io_open_.load() || fd_ >= 0)) {
+    if (loop && (io_open_.load() || fd_.load() >= 0)) {
         // hio_read_stop and hio_close must run on the loop thread. The promise
         // lives in a shared_ptr captured by value so that a timed-out wait
         // cannot leave the queued lambda writing to a destroyed promise - the
@@ -462,8 +473,50 @@ void BeltStreamClient::stop() {
             close_on_loop();
             done->set_value();
         });
-        if (fut.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
-            spdlog::warn("[BeltStream] Socket teardown timed out after 2 seconds");
+
+        // Waited in slices rather than as one blocking wait_for. This runs on
+        // the LVGL thread, and EventLoop::postEvent() drops the lambda on the
+        // floor once EventLoop::stop() has nulled its hloop_t (EventLoop.h:59-70,
+        // :170-186) - which is what libhv does when the attach() pre-functor
+        // returns non-zero (EventLoopThread.h:87-92). The promise is then never
+        // satisfied, and a single wait_for would freeze the UI for the whole
+        // budget on a loop that had already exited.
+        bool closed = false;
+        const auto deadline = std::chrono::steady_clock::now() + TEARDOWN_TIMEOUT;
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (fut.wait_for(std::chrono::milliseconds(20)) == std::future_status::ready) {
+                closed = true;
+                break;
+            }
+            if (loop->loop() == nullptr) {
+                break; // The loop is gone; the lambda will never run.
+            }
+        }
+
+        if (!closed) {
+            spdlog::warn("[BeltStream] Socket teardown did not complete - "
+                         "leaving the descriptor to libhv");
+            if (io_open_.load()) {
+                // Do NOT ::close() here. The hio_t is registered on a loop
+                // created with HLOOP_FLAG_AUTO_FREE, so hloop_run()'s return
+                // path frees it and closes the descriptor for us:
+                // hloop.c:489 (AUTO_FREE) -> :435 hloop_free -> :368 hio_free
+                // -> hevent.c:188-191 -> nio.c:626-630 closesocket(io->fd).
+                // Clearing fd_ is what stops a later stop() - from
+                // ~LoopJoiner, the destructor, or a retry - taking the
+                // !loop_thread_ branch and closing a number that has since
+                // been recycled. Leaking it in the (impossible) case libhv
+                // does not is strictly better than closing it twice.
+                fd_.store(-1);
+                io_open_.store(false);
+            } else {
+                // hio_get() never ran, so libhv does not know about this
+                // descriptor and nothing else will close it.
+                const int fd = fd_.exchange(-1);
+                if (fd >= 0) {
+                    ::close(fd);
+                }
+            }
         }
     }
 
