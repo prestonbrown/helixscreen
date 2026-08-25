@@ -121,7 +121,18 @@ void SpoolmanManager::init_subjects() {
         [](SpoolmanManager* self, int value) {
             if (value == 0) {
                 std::lock_guard<std::recursive_mutex> lock(self->mutex_);
-                spdlog::info("[SpoolmanManager] Spoolman became unavailable, stopping polling");
+                // LVGL fires an observer immediately on attach, and observe_int_sync
+                // defers the handler, so the first callback routinely arrives
+                // reading 0 for a Spoolman that was never available. The teardown
+                // below is idempotent and stays unconditional - it is the LOG that
+                // must not claim a loss that did not happen. Reporting one sent a
+                // live K2 investigation after the wrong writer entirely.
+                const bool had_something_to_stop = self->poll_timer_ != nullptr ||
+                                                   !self->identity_cache_.empty() ||
+                                                   !self->identity_unresolvable_.empty();
+                if (had_something_to_stop) {
+                    spdlog::info("[SpoolmanManager] Spoolman became unavailable, stopping polling");
+                }
                 // poll_refcount_ is deliberately kept: it counts panels that
                 // still want polling, and they get no second chance to ask.
                 // Zeroing it is what made a Spoolman that came back never
