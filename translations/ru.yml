@@ -2175,6 +2175,7 @@ translations:
   Remove PIN: Удалить PIN
   Remove Spoolman?: Удалить Spoolman?
   Remove plugin from printer: Удалить плагин с принтера
+  Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Rename: Переименовать
   Rename Fan: Переименовать вентилятор
   Rename Mesh Profile: Переименовать профиль сетки

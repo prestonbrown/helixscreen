@@ -1970,6 +1970,7 @@
   <translation tag="Remove PIN" ja="PIN を削除"/>
   <translation tag="Remove Spoolman?" ja="Spoolman を削除しますか？"/>
   <translation tag="Remove plugin from printer" ja="プリンターからプラグインを削除"/>
+  <translation tag="Remove the bypass spool from the toolhead first" ja="先にツールヘッドからバイパススプールを取り外してください"/>
   <translation tag="Rename" ja="名前を変更"/>
   <translation tag="Rename Fan" ja="ファン名を変更"/>
   <translation tag="Rename Mesh Profile" ja="メッシュプロファイルの名前を変更"/>

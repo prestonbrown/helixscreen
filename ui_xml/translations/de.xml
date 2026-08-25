@@ -1970,6 +1970,7 @@
   <translation tag="Remove PIN" de="PIN entfernen"/>
   <translation tag="Remove Spoolman?" de="Spoolman entfernen?"/>
   <translation tag="Remove plugin from printer" de="Plugin vom Drucker entfernen"/>
+  <translation tag="Remove the bypass spool from the toolhead first" de="Zuerst die Bypass-Spule vom Werkzeugkopf entfernen"/>
   <translation tag="Rename" de="Umbenennen"/>
   <translation tag="Rename Fan" de="Lüfter umbenennen"/>
   <translation tag="Rename Mesh Profile" de="Netzprofil umbenennen"/>

@@ -2022,6 +2022,7 @@ translations:
   Remove PIN: PIN を削除
   Remove Spoolman?: Spoolman を削除しますか？
   Remove plugin from printer: プリンターからプラグインを削除
+  Remove the bypass spool from the toolhead first: '先にツールヘッドからバイパススプールを取り外してください'
   Rename: 名前を変更
   Rename Fan: ファン名を変更
   Rename Mesh Profile: メッシュプロファイルの名前を変更

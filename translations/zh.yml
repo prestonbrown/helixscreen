@@ -2013,6 +2013,7 @@ translations:
   Remove PIN: 移除 PIN
   Remove Spoolman?: 移除 Spoolman？
   Remove plugin from printer: 从打印机移除插件
+  Remove the bypass spool from the toolhead first: '请先从工具头移除旁路料盘'
   Rename: 重命名
   Rename Fan: 重命名风扇
   Rename Mesh Profile: 重命名网格配置

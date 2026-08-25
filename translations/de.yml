@@ -2209,6 +2209,7 @@ translations:
   Remove PIN: PIN entfernen
   Remove Spoolman?: Spoolman entfernen?
   Remove plugin from printer: Plugin vom Drucker entfernen
+  Remove the bypass spool from the toolhead first: 'Zuerst die Bypass-Spule vom Werkzeugkopf entfernen'
   Rename: Umbenennen
   Rename Fan: Lüfter umbenennen
   Rename Mesh Profile: Netzprofil umbenennen

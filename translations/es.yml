@@ -2200,6 +2200,7 @@ translations:
   Remove PIN: Eliminar PIN
   Remove Spoolman?: ¿Eliminar Spoolman?
   Remove plugin from printer: Eliminar plugin de la impresora
+  Remove the bypass spool from the toolhead first: 'Retire primero la bobina de bypass del cabezal'
   Rename: Renombrar
   Rename Fan: Renombrar Ventilador
   Rename Mesh Profile: Renombrar Perfil de Malla
