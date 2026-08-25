@@ -218,6 +218,10 @@ void TouchCalibrationPanel::capture_point(Point raw, const Point* device_raw) {
                          "(~1.0 healthy; <0.85 => coarse scale over-divides / digitizer over-"
                          "reports ABS range; >1.15 => under-scaled). target space {}x{}",
                          rx, ry, screen_width_, screen_height_);
+            // Latch it for the debug bundle. The panel is gone by the time anyone
+            // uploads one, and this ratio is the single number that says whether
+            // the pipeline was compressing touch at the moment of calibration.
+            record_touch_span_check(rx, ry);
         }
 
         // Validate the matrix produces reasonable results

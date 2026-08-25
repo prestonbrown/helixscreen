@@ -566,6 +566,9 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             // fbdev backend already does this (#943/#986); the DRM backend did not.
             struct input_absinfo abs_x = {}, abs_y = {};
             bool got_range = false;
+            // Hoisted so the touch diagnostics below can record whether the
+            // declared range came from the MT axes rather than ABS_X/ABS_Y.
+            bool used_mt_fallback = false;
             // #943 diagnostics: did we actually install the coarse down-scale, and
             // was calibration forced because the queried ABS range was unusable /
             // mismatched? Used below to emit a loud signal when the scale is skipped
@@ -581,7 +584,6 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                     // MT-only devices (Goodix gt9xxnew_ts, Qidi Q2) don't have legacy
                     // ABS_X/ABS_Y, or report them all-zero. Fall back to MT axes.
                     bool range_is_zero = got_x && got_y && abs_x.maximum == 0 && abs_y.maximum == 0;
-                    bool used_mt_fallback = false;
                     if (!got_x || abs_x.maximum <= 0 || range_is_zero) {
                         used_mt_fallback = true;
                         got_x = (ioctl(fd, EVIOCGABS(ABS_MT_POSITION_X), &abs_x) == 0);
@@ -810,6 +812,63 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
                                                screen_width_, screen_height_);
             calibration_wrapper_installed_ = true;
+
+            // Record the pipeline exactly as programmed above, so a debug bundle
+            // can put it beside what the digitizer actually emits. Nothing
+            // downstream can re-derive it: lv_evdev scales against the declared
+            // range and then clamps to the display, which is what makes a lying
+            // declaration invisible from the coordinate alone (#1259, #1276).
+            {
+                helix::TouchPipelineInfo pipeline;
+                pipeline.known = true;
+                pipeline.device_name = dev_name;
+                pipeline.device_path = touch_path;
+                pipeline.driver = pointer_is_evdev_ ? "evdev" : "libinput";
+                pipeline.declared_valid = got_range;
+                pipeline.declared_mt_fallback = used_mt_fallback;
+                pipeline.declared_min_x = abs_x.minimum;
+                pipeline.declared_max_x = abs_x.maximum;
+                pipeline.declared_min_y = abs_y.minimum;
+                pipeline.declared_max_y = abs_y.maximum;
+                pipeline.stored = stored_range;
+                pipeline.swap_axes = env_swap_override
+                                         ? (strcmp(swap_axes, "1") == 0)
+                                         : (stored_range.valid && stored_range.swap_axes);
+                if (!pointer_is_evdev_) {
+                    // A libinput pointer has no evdev range stage at all, so
+                    // neither a range nor a swap describes what happens to a
+                    // coordinate here.
+                    pipeline.source = helix::TouchRangeSource::None;
+                    pipeline.configured_valid = false;
+                    pipeline.swap_axes = false;
+                } else if (env_range_override) {
+                    pipeline.source = helix::TouchRangeSource::Environment;
+                    pipeline.configured_valid = true;
+                    pipeline.min_x = std::atoi(env_min_x);
+                    pipeline.max_x = std::atoi(env_max_x);
+                    pipeline.min_y = std::atoi(env_min_y);
+                    pipeline.max_y = std::atoi(env_max_y);
+                } else if (stored_range.valid) {
+                    pipeline.source = helix::TouchRangeSource::Stored;
+                    pipeline.configured_valid = true;
+                    pipeline.min_x = stored_range.min_x;
+                    pipeline.max_x = stored_range.max_x;
+                    pipeline.min_y = stored_range.min_y;
+                    pipeline.max_y = stored_range.max_y;
+                } else {
+                    // lv_evdev runs its own EVIOCGABS on open, so the effective
+                    // range is the declared one. When our query failed we do not
+                    // know what it settled on, and configured_valid stays false
+                    // rather than guessing.
+                    pipeline.source = helix::TouchRangeSource::Declared;
+                    pipeline.configured_valid = got_range;
+                    pipeline.min_x = abs_x.minimum;
+                    pipeline.max_x = abs_x.maximum;
+                    pipeline.min_y = abs_y.minimum;
+                    pipeline.max_y = abs_y.maximum;
+                }
+                helix::set_touch_pipeline_info(pipeline);
+            }
         }
     }
 
@@ -1379,6 +1438,8 @@ bool DisplayBackendDRM::apply_touch_range(bool swap_axes, int min_x, int min_y, 
     }
     lv_evdev_set_swap_axes(pointer_, swap_axes);
     lv_evdev_set_calibration(pointer_, min_x, min_y, max_x, max_y);
+    helix::set_touch_configured_range(swap_axes, min_x, min_y, max_x, max_y,
+                                      helix::TouchRangeSource::Stored);
     spdlog::info("[DRM Backend] Touch range re-programmed: swap={} X({}..{}) Y({}..{})", swap_axes,
                  min_x, max_x, min_y, max_y);
     return true;

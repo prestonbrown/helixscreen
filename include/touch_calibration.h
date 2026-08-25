@@ -293,6 +293,201 @@ TouchRangeFit compute_range_fit(const Point screen[3], const Point raw[3], int s
                                 int screen_h);
 
 /**
+ * @brief The evdev ABS range and axis swap persisted by a three-point calibration
+ *
+ * Absent or invalid means "use whatever range the kernel declared", which is
+ * exactly what every install did before this existed - so an uncalibrated
+ * device is unaffected.
+ *
+ * Lives here rather than in touch_calibration_wrapper.h (which owns the Config
+ * load/save for it) so consumers that only need the shape - the debug bundle -
+ * do not have to pull in LVGL.
+ */
+struct TouchRangeSettings {
+    bool valid = false;
+    bool swap_axes = false;
+    int min_x = 0;
+    int max_x = 0;
+    int min_y = 0;
+    int max_y = 0;
+};
+
+/**
+ * @brief Which stage supplied the ABS range lv_evdev is actually scaling against
+ *
+ * The display backends resolve this loudest-first, and the answer changes what a
+ * disagreement between the declaration and the digitizer means: a Declared range
+ * that the panel overshoots is a lying driver, while a Stored one that it
+ * overshoots is a calibration that needs redoing.
+ */
+enum class TouchRangeSource {
+    None = 0,    ///< no evdev range stage at all (libinput pointer, SDL, no touch)
+    Declared,    ///< the kernel's EVIOCGABS answer, or the MT-axis fallback
+    Stored,      ///< the range a three-point calibration solved and persisted
+    Environment, ///< HELIX_TOUCH_MIN_X / MAX_X / MIN_Y / MAX_Y
+};
+
+/// Stable lowercase name for a range source, for logs and the debug bundle.
+const char* touch_range_source_name(TouchRangeSource source);
+
+/**
+ * @brief The touch pipeline exactly as the display backend programmed it
+ *
+ * Recorded once at backend startup, where every one of these facts is already in
+ * hand. Without it a bundle can show what the digitizer emitted but not what the
+ * pipeline believed, and the whole point is the disagreement between the two
+ * (prestonbrown/helixscreen#1259, #1276).
+ */
+struct TouchPipelineInfo {
+    bool known = false;      ///< false = no backend recorded anything
+    std::string device_name; ///< sysfs device name, e.g. "tlsc6x_touch"
+    std::string device_path; ///< e.g. "/dev/input/event2"
+    std::string driver;      ///< "evdev" or "libinput"
+
+    bool declared_valid = false;       ///< the EVIOCGABS query succeeded
+    bool declared_mt_fallback = false; ///< the range came from the MT axes, not ABS_X/ABS_Y
+    int declared_min_x = 0;
+    int declared_max_x = 0;
+    int declared_min_y = 0;
+    int declared_max_y = 0;
+
+    TouchRangeSource source = TouchRangeSource::None;
+    bool configured_valid = false; ///< false = the effective range is not knowable here
+    bool swap_axes = false;        ///< lv_evdev swaps BEFORE it scales
+    int min_x = 0;
+    int max_x = 0;
+    int min_y = 0;
+    int max_y = 0;
+
+    /// What /input/touch_range/ held when the backend resolved the range above.
+    /// Captured here rather than re-read on demand because a debug bundle is
+    /// assembled on a worker thread and Config has no synchronisation of its own.
+    TouchRangeSettings stored;
+};
+
+/**
+ * @brief Extremes of the PRE-SWAP, PRE-SCALE digitizer reading seen this run
+ *
+ * `distinct_samples` counts readings that CHANGED, not read-callback calls:
+ * lv_evdev_get_last_raw() keeps serving the last reading until a new event
+ * arrives and the callback runs at the indev poll rate, so counting calls would
+ * report hundreds of samples for a single tap. The count is shipped because
+ * "observed 13..470 against a declared 0..272" means something very different
+ * after three readings than after three hundred.
+ */
+struct TouchObservedExtremes {
+    unsigned long distinct_samples = 0;
+    int min_x = 0;
+    int max_x = 0;
+    int min_y = 0;
+    int max_y = 0;
+
+    /// Fold one raw reading in. The first one seeds both bounds on both axes -
+    /// a zero-initialised min would otherwise make every real reading look
+    /// in-range from below.
+    void observe(int x, int y);
+};
+
+/// Which configured axes an observed reading fell outside of.
+struct TouchRangeViolation {
+    bool x = false;
+    bool y = false;
+    bool any() const {
+        return x || y;
+    }
+};
+
+/**
+ * @brief Re-express raw extremes in the axes lv_evdev scales them against
+ *
+ * lv_evdev's _evdev_read() swaps first and scales second, so on a swapped panel
+ * the configured X range is applied to the RAW Y reading. Every comparison
+ * against a configured range has to go through this or it answers about the
+ * wrong axis.
+ */
+TouchObservedExtremes touch_observed_in_configured_axes(const TouchObservedExtremes& raw,
+                                                        bool swap_axes);
+
+/**
+ * @brief Which axes the digitizer has proven the configured range wrong on
+ *
+ * Unambiguous by construction: a reading outside [min,max] cannot be produced by
+ * a panel the declaration describes, so ONE sample settles it. No threshold and
+ * no minimum sample count, unlike the compressed-span signal (see
+ * touch_axis_span_ratio), which a user who simply never touched the edges
+ * reproduces on perfectly healthy hardware.
+ *
+ * min > max is legal and inverts the axis (lv_evdev's scale just gets a negative
+ * denominator), so the pair is ordered before comparison. A zero-span configured
+ * range is not a range - lv_evdev skips the scale but still clamps, collapsing
+ * the panel onto one pixel - so nothing can be said to fall outside it.
+ */
+TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
+                                          const TouchPipelineInfo& configured);
+
+/**
+ * @brief Observed span as a fraction of the configured span, for reporting only
+ *
+ * Deliberately NOT a predicate. A small ratio is exactly what a user who tapped
+ * four times near the middle of the panel produces, and there is no threshold
+ * that separates that from a digitizer that over-reports its range. The number
+ * goes in the bundle; a human reads it next to the sample count.
+ *
+ * Returns 0.0 when the configured span is degenerate.
+ */
+double touch_axis_span_ratio(int observed_min, int observed_max, int configured_min,
+                             int configured_max);
+
+/**
+ * @brief Latch the #943 span check's captured/target ratio for the debug bundle
+ *
+ * The calibration panel logs this at WARN once per completed calibration, and is
+ * then destroyed. A bundle is uploaded much later, so the number has to survive
+ * somewhere. Recorded here rather than with the calibration wrapper so the panel
+ * does not have to link it.
+ *
+ * Thread-safe: the panel writes on the LVGL main thread, the bundle reads on a
+ * collect worker.
+ */
+void record_touch_span_check(double ratio_x, double ratio_y);
+
+/// Read the latched span check. Returns false, leaving the outputs untouched,
+/// when no calibration has completed this session - which must stay
+/// distinguishable from a ratio of 0.0, since that reads as a total collapse of
+/// the touch span.
+bool get_touch_span_check(double& ratio_x, double& ratio_y);
+
+/// Forget the latched span check. Called when a calibration wrapper is installed:
+/// that is a fresh device session, and a ratio from the previous one describes a
+/// calibration that is no longer in effect.
+void clear_touch_span_check();
+
+/**
+ * @brief Everything a debug bundle needs to diagnose a lying digitizer
+ *
+ * Snapshotted from the live calibration context by
+ * helix::get_touch_range_diagnostics().
+ */
+struct TouchRangeDiagnostics {
+    bool available = false;
+    /// Why not, when available is false: "no-touch-backend" (nothing installed a
+    /// calibration wrapper, i.e. desktop/SDL) or "no-raw-source" (a pointer with
+    /// no evdev stage behind it, i.e. libinput).
+    std::string unavailable_reason;
+
+    TouchPipelineInfo pipeline;
+    TouchObservedExtremes observed;
+    bool affine_valid = false; ///< an affine calibration is active on top
+
+    /// The #943 span check's captured/target ratio, latched if a calibration
+    /// completed this session. Absent rather than zero when none did - a zero
+    /// would read as a catastrophic compression.
+    bool span_check_seen = false;
+    double span_check_x = 0.0;
+    double span_check_y = 0.0;
+};
+
+/**
  * @brief Check if a sysfs phys path indicates a USB-connected input device
  *
  * USB HID touchscreens (HDMI displays like BTT 5") report mapped coordinates

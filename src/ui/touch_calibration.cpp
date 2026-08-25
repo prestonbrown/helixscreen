@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
+#include <mutex>
 
 namespace helix {
 
@@ -532,6 +533,145 @@ TouchRangeFit compute_range_fit(const Point screen[3], const Point raw[3], int s
                  fit.residual.valid ? "kept" : "not needed");
 
     return fit;
+}
+
+// ============================================================================
+// Touch pipeline diagnostics (prestonbrown/helixscreen#1259, #1276)
+// ============================================================================
+
+namespace {
+
+/// Order a configured [min,max] pair.
+///
+/// min > max is legal and inverts the axis: lv_evdev's scale simply gets a
+/// negative denominator, which is exactly what a panel wired upside down
+/// calibrates to. Comparing without ordering first would report every reading on
+/// such a panel as out of range.
+void order_range(int& lo, int& hi) {
+    if (lo > hi) {
+        std::swap(lo, hi);
+    }
+}
+
+/// Whether one axis' observed extremes escape its configured range.
+bool axis_escapes(int observed_min, int observed_max, int configured_min, int configured_max) {
+    order_range(configured_min, configured_max);
+
+    // A zero-span configured range is not a range: lv_evdev skips the scale but
+    // still clamps, so the whole panel collapses onto one coordinate. That is
+    // broken, but it is not something a reading can fall outside of, and saying
+    // otherwise would flag every device that hits it.
+    if (configured_min == configured_max) {
+        return false;
+    }
+    return observed_min < configured_min || observed_max > configured_max;
+}
+
+} // namespace
+
+const char* touch_range_source_name(TouchRangeSource source) {
+    switch (source) {
+    case TouchRangeSource::Declared:
+        return "declared";
+    case TouchRangeSource::Stored:
+        return "stored";
+    case TouchRangeSource::Environment:
+        return "environment";
+    case TouchRangeSource::None:
+        break;
+    }
+    return "none";
+}
+
+void TouchObservedExtremes::observe(int x, int y) {
+    if (distinct_samples == 0) {
+        min_x = max_x = x;
+        min_y = max_y = y;
+    } else {
+        min_x = std::min(min_x, x);
+        max_x = std::max(max_x, x);
+        min_y = std::min(min_y, y);
+        max_y = std::max(max_y, y);
+    }
+    distinct_samples++;
+}
+
+TouchObservedExtremes touch_observed_in_configured_axes(const TouchObservedExtremes& raw,
+                                                        bool swap_axes) {
+    if (!swap_axes) {
+        return raw;
+    }
+    TouchObservedExtremes out = raw;
+    out.min_x = raw.min_y;
+    out.max_x = raw.max_y;
+    out.min_y = raw.min_x;
+    out.max_y = raw.max_x;
+    return out;
+}
+
+TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
+                                          const TouchPipelineInfo& configured) {
+    TouchRangeViolation violation;
+    if (!configured.configured_valid || observed.distinct_samples == 0) {
+        return violation;
+    }
+
+    const TouchObservedExtremes seen =
+        touch_observed_in_configured_axes(observed, configured.swap_axes);
+    violation.x = axis_escapes(seen.min_x, seen.max_x, configured.min_x, configured.max_x);
+    violation.y = axis_escapes(seen.min_y, seen.max_y, configured.min_y, configured.max_y);
+    return violation;
+}
+
+double touch_axis_span_ratio(int observed_min, int observed_max, int configured_min,
+                             int configured_max) {
+    order_range(configured_min, configured_max);
+    const int configured_span = configured_max - configured_min;
+    if (configured_span <= 0) {
+        return 0.0;
+    }
+    order_range(observed_min, observed_max);
+    return static_cast<double>(observed_max - observed_min) / static_cast<double>(configured_span);
+}
+
+namespace {
+
+// Last completed calibration's #943 span check. Lives here rather than with the
+// calibration wrapper so the panel that produces it does not have to link the
+// wrapper (which the ESP32 cut excludes), and so the pure-helper translation unit
+// stays the one place the touch diagnostics vocabulary is defined.
+//
+// The mutex is for the debug bundle, which snapshots this from a worker thread
+// while the calibration panel writes it on the LVGL main thread.
+std::mutex s_span_check_mutex;
+bool s_span_check_seen = false;
+double s_span_check_x = 0.0;
+double s_span_check_y = 0.0;
+
+} // namespace
+
+void record_touch_span_check(double ratio_x, double ratio_y) {
+    std::lock_guard<std::mutex> lock(s_span_check_mutex);
+    s_span_check_seen = true;
+    s_span_check_x = ratio_x;
+    s_span_check_y = ratio_y;
+}
+
+bool get_touch_span_check(double& ratio_x, double& ratio_y) {
+    std::lock_guard<std::mutex> lock(s_span_check_mutex);
+    if (!s_span_check_seen) {
+        return false;
+    }
+    ratio_x = s_span_check_x;
+    ratio_y = s_span_check_y;
+    return true;
+}
+
+void clear_touch_span_check() {
+    std::lock_guard<std::mutex> lock(s_span_check_mutex);
+    s_span_check_seen = false;
+    s_span_check_x = 0.0;
+    s_span_check_y = 0.0;
 }
 
 } // namespace helix

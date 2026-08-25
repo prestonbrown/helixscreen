@@ -39,20 +39,23 @@ struct CalibrationContext {
     /// last_raw_valid. Read back through get_last_raw_touch().
     Point last_raw{};
     bool last_raw_valid = false;
-};
 
-/// The evdev ABS range and axis swap persisted by a three-point calibration.
-///
-/// Absent or invalid means "use whatever range the kernel declared", which is
-/// exactly what every install did before this existed - so an uncalibrated
-/// device is unaffected.
-struct TouchRangeSettings {
-    bool valid = false;
-    bool swap_axes = false;
-    int min_x = 0;
-    int max_x = 0;
-    int min_y = 0;
-    int max_y = 0;
+    /// What the backend actually programmed into lv_evdev. Filled through
+    /// set_touch_pipeline_info(); default-constructed (known == false) on a
+    /// backend that never recorded it.
+    ///
+    /// Guarded by the wrapper's diagnostics mutex - a debug bundle snapshots it
+    /// from the collect worker while the LVGL main thread owns everything else
+    /// here. Reach it through get_touch_range_diagnostics(), never directly.
+    TouchPipelineInfo pipeline;
+
+    /// Extremes of the raw digitizer reading over this run. Same mutex, same
+    /// reason.
+    TouchObservedExtremes observed;
+
+    /// Latch so an out-of-range digitizer raises telemetry once, not once per
+    /// touch. Same mutex.
+    bool range_violation_reported = false;
 };
 
 /// Read callback wrapper that applies affine touch calibration.
@@ -67,6 +70,35 @@ TouchCalibration load_touch_calibration();
 /// Returns false when the active backend has no raw source (desktop/SDL) or no
 /// touch has been seen yet, in which case `out` is untouched.
 bool get_last_raw_touch(Point& out);
+
+/// Record what the display backend actually programmed into lv_evdev.
+///
+/// Call it AFTER install_calibration_wrapper() - it writes into the active
+/// calibration context and is a no-op when none is installed. Everything it
+/// carries is already in hand at the point the backend resolves the range; a
+/// bundle cannot re-derive any of it after the fact.
+void set_touch_pipeline_info(const TouchPipelineInfo& info);
+
+/// Update just the configured range after a calibration re-programs lv_evdev at
+/// runtime (DisplayBackend::apply_touch_range). Also clears the observed extremes
+/// and the telemetry latch: everything seen so far was measured against the range
+/// that just went away, so keeping it would leave a bundle reporting a violation
+/// of a range no longer in effect. No-op when no wrapper is installed.
+void set_touch_configured_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y,
+                                TouchRangeSource source);
+
+/// Snapshot everything a debug bundle needs about the touch pipeline.
+///
+/// Returns false, with `out.unavailable_reason` set and nothing else filled in,
+/// when there is no calibration wrapper installed or the active one has no raw
+/// digitizer source. That is the normal state on desktop/SDL and on a libinput
+/// pointer, and every consumer must degrade to "unknown" rather than reporting
+/// zeroes.
+///
+/// Safe to call from any thread: it takes the same mutex the read callback and
+/// uninstall_calibration_wrapper() use, so it can neither tear a value nor reach
+/// through a context that is being destroyed.
+bool get_touch_range_diagnostics(TouchRangeDiagnostics& out);
 
 /// Load the stored evdev ABS range from Config.
 /// Returns valid=false when nothing is stored, which means "keep the kernel range".
