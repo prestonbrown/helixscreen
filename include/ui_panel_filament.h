@@ -441,6 +441,26 @@ class FilamentPanel : public PanelBase {
     //
 
     void update_temp_display();
+
+    /// Which arm of update_status() last produced the status line.
+    ///
+    /// Two of the arms render a constant string. Re-running them costs a
+    /// lv_translation_get(), which is a linear scan of the whole translation
+    /// table, plus two imperative icon writes — and update_status() is driven by
+    /// the chamber temperature observer, so it fires several times a second for
+    /// as long as the app is running, panel on screen or not. Remembering the
+    /// arm lets those two return immediately. The interpolating arms still run
+    /// every time: their text carries live temperatures.
+    enum class StatusBranch : uint8_t {
+        None, ///< Nothing rendered yet, or the widget tree was rebuilt.
+        Ready,
+        NozzleHeating,
+        ChamberHeating,
+        ChamberAtTarget,
+        Cold,
+    };
+    StatusBranch last_status_branch_ = StatusBranch::None;
+
     void update_status();
     void update_status_icon(const char* icon_name, const char* color_token);
     void update_warning_text();
