@@ -43,6 +43,20 @@ json upstream_medusahc_objects() {
                         "toolhead", "gcode_move", "configfile"});
 }
 
+/// Object list from a MedusaHC fork that folded the dock sensing into its own
+/// extra: [medusahc] carries all seven switch pins and there is no pin_watch and
+/// no klipper-toolchanger left. Verbatim shape from debug bundle 6QWNVZY5
+/// (topi314/MedusaHC on a DuCR10, HelixScreen 0.99.116), trimmed to what
+/// detection reads.
+json fork_medusahc_objects() {
+    return json::array(
+        {"medusahc",         "medusahc_calibrate", "gcode_macro T0", "gcode_macro T1",
+         "gcode_macro T2",   "gcode_macro T3",     "gcode_macro T4", "gcode_macro T5",
+         "gcode_macro OPEN", "gcode_macro CLOSE",  "servo opener",   "extruder",
+         "extruder1",        "extruder2",          "extruder3",      "extruder4",
+         "extruder5",        "toolhead",           "gcode_move",     "configfile"});
+}
+
 } // namespace
 
 // ============================================================================
@@ -111,6 +125,68 @@ TEST_CASE("MedusaHC capability resets between parses", "[printer_discovery][medu
 
     hw.parse_objects(json::array({"extruder", "toolhead"}));
     REQUIRE_FALSE(helix::toolchanger_addon::present(hw));
+}
+
+// ============================================================================
+// The changer that runs without klipper-toolchanger
+// ============================================================================
+
+TEST_CASE("a MedusaHC with neither pin_watch nor toolchanger is still a changer",
+          "[printer_discovery][medusahc]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(fork_medusahc_objects());
+
+    REQUIRE(helix::toolchanger_addon::present(hw));
+    CHECK(hw.has_medusahc());
+    // The [toolchanger] object genuinely is not there. The flag says what the
+    // object list said, and nothing else may quietly widen it.
+    CHECK_FALSE(hw.has_tool_changer());
+    CHECK_FALSE(hw.has_pin_watch());
+}
+
+TEST_CASE("a changer without tool objects still registers a tool changer AMS",
+          "[printer_discovery][medusahc]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(fork_medusahc_objects());
+
+    REQUIRE(hw.mmu_type() == AmsType::TOOL_CHANGER);
+    REQUIRE(hw.detected_ams_systems().size() == 1);
+    CHECK(hw.detected_ams_systems()[0].type == AmsType::TOOL_CHANGER);
+}
+
+TEST_CASE("tools are enumerated from the extruders when there are no tool objects",
+          "[printer_discovery][medusahc]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(fork_medusahc_objects());
+
+    // One hot end per extruder heater, which is what a hotend changer is. The
+    // names are the G-code tool numbers the machine's own T<n> macros use.
+    REQUIRE(hw.tool_names().size() == 6);
+    CHECK(hw.tool_names()[0] == "T0");
+    CHECK(hw.tool_names()[5] == "T5");
+}
+
+TEST_CASE("real tool objects are never overwritten by the enumeration",
+          "[printer_discovery][medusahc]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(upstream_medusahc_objects());
+
+    // Stock upstream has [tool T0..T3] AND four extruders. The objects win: a
+    // klipper-toolchanger name can be anything, and ASSIGN_TOOL can remap it.
+    REQUIRE(hw.tool_names().size() == 4);
+    CHECK(hw.tool_names()[0] == "T0");
+    CHECK(hw.tool_names()[3] == "T3");
+}
+
+TEST_CASE("medusahc_calibrate alone does not make a changer", "[printer_discovery][medusahc]") {
+    // Object matching is exact, as it is for pin_watch. A sibling object whose
+    // name merely starts with the same characters is not the changer.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"medusahc_calibrate", "extruder", "toolhead"}));
+
+    CHECK_FALSE(hw.has_medusahc());
+    CHECK_FALSE(helix::toolchanger_addon::present(hw));
+    CHECK(hw.detected_ams_systems().empty());
 }
 
 // ============================================================================
