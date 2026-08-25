@@ -19,15 +19,24 @@ bool PreflightResult::has_advisory() const {
     });
 }
 
-static int slot_for_tool(int tool_index, const std::vector<ToolMapping>& mapping) {
+static const ToolMapping* mapping_for_tool(int tool_index,
+                                           const std::vector<ToolMapping>& mapping) {
     for (const auto& m : mapping)
         if (m.tool_index == tool_index)
-            return m.mapped_slot;
-    return -1;
+            return &m;
+    return nullptr;
 }
-static const AvailableSlot* find_slot(int slot_index, const std::vector<AvailableSlot>& slots) {
+
+// Resolve on the (slot, backend) PAIR. slot_index is unique only WITHIN a
+// backend, so matching on slot alone reads the wrong lane the moment a second
+// AMS is attached - reporting a tool as empty because the OTHER unit's bay of
+// the same number is, or clearing it because that one is full. mapped_backend
+// defaults to -1 ("auto/primary"), which the callers resolve to backend 0.
+static const AvailableSlot* find_slot(int slot_index, int backend_index,
+                                      const std::vector<AvailableSlot>& slots) {
+    const int backend = backend_index < 0 ? 0 : backend_index;
     for (const auto& s : slots)
-        if (s.slot_index == slot_index)
+        if (s.slot_index == slot_index && s.backend_index == backend)
             return &s;
     return nullptr;
 }
@@ -66,8 +75,10 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
         c.tool_index = t.tool_index;
         c.intended_color = t.color_rgb;
         c.intended_material = t.material;
-        c.mapped_slot = slot_for_tool(t.tool_index, mapping);
-        const AvailableSlot* slot = c.mapped_slot >= 0 ? find_slot(c.mapped_slot, slots) : nullptr;
+        const ToolMapping* m = mapping_for_tool(t.tool_index, mapping);
+        c.mapped_slot = m != nullptr ? m->mapped_slot : -1;
+        const AvailableSlot* slot =
+            c.mapped_slot >= 0 ? find_slot(c.mapped_slot, m->mapped_backend, slots) : nullptr;
         if (slot == nullptr || slot->is_empty) {
             c.slot_present = false;
             c.severity = ToolCheck::Severity::EmptySlot;
