@@ -71,6 +71,31 @@ struct ToolReading {
     std::string operation;
     /// 0 when this frame carried no tool count.
     int tool_count = 0;
+    /// Per-dock occupancy, indexed by tool number: true seated, false empty,
+    /// nullopt not reported in this frame. EMPTY when the frame carried no dock
+    /// state at all - which is not the same answer as "every dock is vacant",
+    /// and callers must not conflate them: Moonraker republishes only the fields
+    /// that CHANGED.
+    ///
+    /// Upstream spells it `sensors` ({"e":1,"t0":1,...}), the fork spells it
+    /// flat `tool<N>_docked` booleans. Same physical answer.
+    std::vector<std::optional<bool>> docks;
+    /// Whether anything is on the head at all (`sensors.e` / `head_loaded`).
+    /// nullopt when the frame did not say.
+    std::optional<bool> head_loaded;
+};
+
+/// How a swap is commanded on a machine where klipper-toolchanger is not the
+/// one doing it. Default-constructed - `present` false - means the printer has
+/// [toolchanger] and its SELECT_TOOL/UNSELECT_TOOL own the swap.
+struct ToolCommands {
+    bool present = false;
+    std::string provider_name; ///< Machine it came from, for logs
+    /// Prefixed to the tool number: "T" sends T0, T1, ... Empty when absent.
+    std::string select_prefix;
+    /// Unmounts whatever is on the head. Empty when the machine has no such
+    /// command and the tool can only be swapped for another.
+    std::string unselect;
 };
 
 /// Presence of an add-on dock sensor. When set, read_tool() is worth calling on
@@ -85,6 +110,10 @@ bool present(const PrinterDiscovery& hw);
 
 /// The dock sensor this printer exposes, or an absent capability.
 ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw);
+
+/// The swap commands this printer needs, or an absent capability meaning
+/// klipper-toolchanger is there and owns them.
+ToolCommands resolve_tool_commands(const PrinterDiscovery& hw);
 
 /// Machine name for logs and the AMS unit label ("MedusaHC"), or empty.
 std::string machine_name(const PrinterDiscovery& hw);

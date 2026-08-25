@@ -6075,7 +6075,7 @@
       "name": "Duender (MedusaHC)",
       "manufacturer": "Irbis3D",
       "image": "duender.png",
-      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. Two config shapes exist: klipper-toolchanger plus MedusaHC's own pin_watch extra, and a newer bundle where a single medusahc.py extra registers [medusahc] + [medusahc_tool N] and neither pin_watch nor toolchanger appears at all. Both are scored here. Everything else (toolchanger/tool_count/corexy) describes any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one; a DuCR10 hostname is excluded instead, since the MedusaHC signals alone cannot tell the two frames apart.",
+      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. Two config shapes exist. The reference one is klipper-toolchanger plus MedusaHC's own pin_watch extra, both alongside [medusahc]; a single fork folds the dock sensing into [medusahc] + [medusahc_tool N] and ships neither pin_watch nor toolchanger. Both are scored here, the fork as compatibility rather than as a second mainline. Everything else (toolchanger/tool_count/corexy) describes any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one; a DuCR10 hostname is excluded instead, since the MedusaHC signals alone cannot tell the two frames apart.",
       "heuristics": [
         {
           "type": "object_exists",
@@ -6089,7 +6089,7 @@
           "field": "printer_objects",
           "pattern": "medusahc",
           "confidence": 92,
-          "reason": "Newer MedusaHC bundle registers [medusahc]/[medusahc_tool N] with no pin_watch and no klipper-toolchanger"
+          "reason": "MedusaHC registers [medusahc]; a fork carries it with no pin_watch and no klipper-toolchanger at all"
         },
         {
           "type": "hostname_match",
@@ -6126,7 +6126,7 @@
           "field": "printer_objects",
           "pattern": "medusahc",
           "confidence": 92,
-          "reason": "MedusaHC registers [medusahc] (newer bundles carry the dock sensing too, with no pin_watch)"
+          "reason": "MedusaHC registers [medusahc]; one fork carries the dock sensing in it too, with no pin_watch"
         },
         {
           "type": "object_exists",
