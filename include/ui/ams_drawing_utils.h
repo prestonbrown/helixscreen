@@ -137,11 +137,33 @@ constexpr int32_t PULSE_SAT_MIN = 80;    ///< Washed out
 constexpr int32_t PULSE_SAT_MAX = 255;   ///< Full vivid
 constexpr uint32_t PULSE_DURATION_MS = 800;
 
+/// Active-node ring geometry, shared by the lane slots and the bypass node.
+constexpr int32_t ACTIVE_RING_BORDER_WIDTH = 3;
+constexpr int32_t ACTIVE_RING_GLOW_WIDTH = 16;
+constexpr int32_t ACTIVE_RING_GLOW_SPREAD = 2;
+
 /** Start scale+saturation pulse animation on an object. Stores base_color in border_color. */
 void start_pulse(lv_obj_t* dot, lv_color_t base_color);
 
 /** Stop pulse animation and restore defaults (scale=256, no shadow) */
 void stop_pulse(lv_obj_t* dot);
+
+/**
+ * @brief Apply (or clear) the active-node ring: primary border plus outer glow.
+ *
+ * The visual that says "this node is the one that matters right now". Lifted out
+ * of ui_ams_slot.cpp's apply_current_slot_highlight() so the bypass node can wear
+ * the same ring as a lane instead of growing a second, drifting copy - the reason
+ * start_pulse()/style_slot_bar() live here too.
+ *
+ * The glow is a shadow blur, not an animation; start_pulse() is the separate,
+ * temporary treatment for an operation in flight.
+ *
+ * @param target Object to style. Any plain lv_obj works - the slot's
+ *               spool_container and the bypass box are both bare containers.
+ * @param active true to draw the ring, false to clear it.
+ */
+void set_active_ring(lv_obj_t* target, bool active);
 
 // ============================================================================
 // Error Badge

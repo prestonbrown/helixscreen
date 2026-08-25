@@ -9,6 +9,7 @@
 #include "ams_bypass_policy.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
+#include "ui/ams_drawing_utils.h"
 
 #include <cstring>
 
@@ -134,6 +135,15 @@ void bypass_spool_set_has_spool(BypassSpoolWidgets& w, bool has_spool) {
     // whenever one is present — same answer as any other unweighed spool.
     ui_spool_canvas_set_fill_level(w.spool_canvas, has_spool ? 1.0f : 0.0f);
     ui_spool_canvas_redraw(w.spool_canvas);
+}
+
+void bypass_spool_set_active(BypassSpoolWidgets& w, bool active) {
+    if (!w.box || (w.active_applied && w.cached_active == active)) {
+        return;
+    }
+    w.active_applied = true;
+    w.cached_active = active;
+    ams_draw::set_active_ring(w.box, active);
 }
 
 void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
