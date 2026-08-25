@@ -171,7 +171,7 @@ The full exclusion state machine — confirmation modal, 5s undo window, `EXCLUD
 Read in this order; about 30 minutes total.
 
 1. [`include/gcode_parser.h:195`](../../../include/gcode_parser.h#L195) — `ToolpathSegment`, `Layer`, `GCodeObject`, then `ParsedGCodeFile` at `:244`: the interned object-name design (`object_name_table`) that picking compares with `int16_t`s.
-2. [`src/ui/ui_gcode_viewer.cpp:1467`](../../../src/ui/ui_gcode_viewer.cpp#L1467) — Phase 0: the streaming decision in five lines, then the two paths diverging at `:1547` (streaming) and `:1744` (full-load).
+2. [`src/ui/ui_gcode_viewer.cpp:1467`](../../../src/ui/ui_gcode_viewer.cpp#L1467) — Phase 0: the streaming decision in five lines, then the two paths diverging at [`src/ui/ui_gcode_viewer.cpp:1536`](../../../src/ui/ui_gcode_viewer.cpp#L1536) (streaming) and [`src/ui/ui_gcode_viewer.cpp:1716`](../../../src/ui/ui_gcode_viewer.cpp#L1716) (full-load).
 3. [`include/gcode_streaming_config.h:11`](../../../include/gcode_streaming_config.h#L11) — the three-step config hierarchy; then `should_use_gcode_streaming()` at `:71`.
 4. [`include/gcode_streaming_controller.h:169`](../../../include/gcode_streaming_controller.h#L169) — the controller: cache budget floor, prefetch radius, and `try_get_layer_segments()`'s shared_ptr contract at `:294`.
 5. [`src/ui/ui_print_select_detail_view.cpp:637`](../../../src/ui/ui_print_select_detail_view.cpp#L637) — `ensure_gcode_downloaded()`: the local-read/join/disk/start order and why each precedes the next.
