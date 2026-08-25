@@ -510,12 +510,15 @@ void BeltTensionPanel::publish_target_frequency() {
     // No measured span offset means the span behind listen_span_mm_ is a
     // fallback, not a measurement, so there is no honest absolute target. Same
     // rule populate_comparison() applies to the GOOD/WARNING/BAD verdict.
-    // Both halves must hold: the model must have a measured span offset, and a
-    // target must actually have been derived from the span we listened at.
-    const bool have_target =
-        lv_subject_get_int(&has_target_subject_) != 0 && target_frequency_hz_ > 0.0f;
-    target_frequency_hz_ =
-        have_target ? helix::calibration::expected_frequency_for_span(listen_span_mm_) : 0.0f;
+    const auto offset = span_offset_for_current_printer();
+    target_frequency_hz_ = offset.has_value()
+                               ? helix::calibration::expected_frequency_for_span(listen_span_mm_)
+                               : 0.0f;
+
+    // Sole writer of bt_has_target, which is what hides the row on both cards.
+    // Visibility and value are set together here so they cannot disagree: a
+    // shown row with an empty value misleads exactly as much as a wrong number.
+    lv_subject_set_int(&has_target_subject_, target_frequency_hz_ > 0.0f ? 1 : 0);
 
     if (target_frequency_hz_ > 0.0f) {
         // Whole Hz, matching every other frequency the panel shows.
@@ -538,7 +541,6 @@ std::optional<float> BeltTensionPanel::span_offset_for_current_printer() const {
 
 void BeltTensionPanel::handle_park_gantry() {
     const auto offset = span_offset_for_current_printer();
-    lv_subject_set_int(&has_target_subject_, offset.has_value() ? 1 : 0);
 
     const auto bounds = get_printer_state().get_axis_bounds();
     const auto target =
@@ -676,7 +678,6 @@ void BeltTensionPanel::on_activate() {
     // on a model with no measured span offset, where there is no target to
     // show and pretending otherwise is the invention this panel forbids.
     listen_span_mm_ = helix::calibration::TARGET_SPAN_MM;
-    lv_subject_set_int(&has_target_subject_, span_offset_for_current_printer().has_value() ? 1 : 0);
     publish_target_frequency();
 
     // Re-evaluate the gate on every entry, and probe co-location once here
