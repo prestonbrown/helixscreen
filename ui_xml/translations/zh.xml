@@ -2443,6 +2443,7 @@
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" zh="备用料盘由打印机固件自行选择"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 料仓报告已装载。在清空之前，打印机可能拒绝装载料仓。仍要开始打印吗？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
   <translation tag="Theme" zh="主题"/>

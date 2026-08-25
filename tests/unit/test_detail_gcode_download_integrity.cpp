@@ -158,6 +158,7 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
     /// writes no per-tool usage line still takes in production.
     void download_file_tail(const std::string& root, const std::string& path, size_t max_bytes,
                             StringCallback on_success, ErrorCallback on_error) override {
+        ++tail_read_count;
         if (fail_tail_reads) {
             if (on_error) {
                 on_error(MoonrakerError::file_not_found("download_file_tail",
@@ -171,6 +172,11 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
 
     bool hold_transfers = false;
     bool fail_tail_reads = false;
+
+    /// How many footer reads the view has asked for. The tools-used cache
+    /// persists only the used-tool set, so a cache hit must NOT suppress the
+    /// read that also answers the palette and the per-tool grams.
+    int tail_read_count = 0;
 
     /// Resolve every held transfer (copies the real asset, fires callbacks
     /// synchronously — same as an unheld call).
@@ -603,6 +609,91 @@ TEST_CASE_METHOD(DetailDownloadFixture,
     REQUIRE(wait_until([this]() { return ready(); }, 15000));
     REQUIRE(view_.get_tools_used() == std::set<int>{0, 1, 2, 3});
     REQUIRE(std::filesystem::exists(canonical_path_for(key)));
+
+    pop_and_drain();
+}
+
+// ============================================================================
+// A tools-used cache hit must not suppress the footer read
+// ============================================================================
+//
+// ToolsUsedCache persists ONE of the three things a G-code footer answers: the
+// used-tool set. It says nothing about the per-tool colors or the per-tool
+// grams. Gating the read on that single cached answer meant a re-open of a file
+// whose Moonraker metadata carries no filament_colors never recovered a palette
+// at all — and Creality's Moonraker reports filament_type and no color key for
+// every OrcaSlicer file, so on a K2 Plus that is the normal case, not an edge.
+//
+// The user-visible result was a mapping chip drawn from the neutral stand-in
+// color: a grey dot pointing at the lane's real black. The viewer parse used to
+// paper over it by backfilling the palette itself, but only in full-load mode —
+// and the large-file streaming fix (64d0997de) moved exactly the files big
+// enough to matter onto the streaming path, which holds no parsed file.
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "a tools-used cache hit still issues the footer read for palette and grams",
+                 "[print_select][detail_view][gcode_cache][footer]") {
+    CacheDirGuard guard;
+    // The preview viewer is not under test here, and letting it load spawns an
+    // async parse thread that outlives the test (the isolation listener flags it,
+    // and an unjoined hv/std::async thread is a real cross-test hazard, not just
+    // noise). Same guard the whole-file-scan case above uses.
+    EnvGuard mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+
+    const std::string asset = find_test_asset("3DBenchy.gcode");
+    REQUIRE_FALSE(asset.empty()); // tests must run from repo/build cwd
+    const auto size = static_cast<size_t>(std::filesystem::file_size(asset));
+    constexpr time_t kMtime = 42;
+
+    // Warm the cache so the used-tool question is settled before show() runs —
+    // exactly what a second open of an already-viewed file sees.
+    {
+        helix::ToolsUsedCache warmer;
+        warmer.store("3DBenchy.gcode", size, kMtime, {0});
+    }
+
+    REQUIRE(transfers_.tail_read_count == 0);
+
+    // Empty palette: Moonraker reported materials and no colors.
+    view_.show("3DBenchy.gcode", "", "PLA", /*filament_colors=*/{}, {"PLA"}, size, kMtime);
+    drain_queue_chain();
+
+    // THE REGRESSION: this was 0. The cached tool set answered one question and
+    // the view treated all three as answered.
+    CHECK(transfers_.tail_read_count > 0);
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture, "nothing outstanding issues no footer read",
+                 "[print_select][detail_view][gcode_cache][footer]") {
+    // The other half of the same rule: the read is issued because something is
+    // genuinely missing, not unconditionally. With the tool set cached AND a
+    // palette from metadata, the only question left is the grams — which the
+    // per-lane weight check wants, so a read IS still expected here. The case
+    // that must stay quiet is a re-render after everything has landed, which
+    // kick_off_headless_tools_scan() reaches through need.any() == false.
+    //
+    // Pinning it at this level would mean driving a full footer round-trip
+    // first; footer_read_need()'s own tests own that decision directly
+    // (test_footer_read_need.cpp). What this case guards is narrower and still
+    // worth having: the read must not fire more than once per open.
+    CacheDirGuard guard;
+    // The preview viewer is not under test here, and letting it load spawns an
+    // async parse thread that outlives the test (the isolation listener flags it,
+    // and an unjoined hv/std::async thread is a real cross-test hazard, not just
+    // noise). Same guard the whole-file-scan case above uses.
+    EnvGuard mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+
+    const std::string asset = find_test_asset("3DBenchy.gcode");
+    REQUIRE_FALSE(asset.empty());
+    const auto size = static_cast<size_t>(std::filesystem::file_size(asset));
+    constexpr time_t kMtime = 42;
+
+    view_.show("3DBenchy.gcode", "", "PLA", {"#FF0000"}, {"PLA"}, size, kMtime);
+    drain_queue_chain();
+
+    CHECK(transfers_.tail_read_count == 1);
 
     pop_and_drain();
 }

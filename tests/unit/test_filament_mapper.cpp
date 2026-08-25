@@ -1297,3 +1297,76 @@ TEST_CASE("effective_tool_colors returns empty for no tools", "[filament_mapper]
     std::vector<AvailableSlot> slots = {{0, 0, 0xAA0000, "PLA", false, -1}};
     CHECK(FilamentMapper::effective_tool_colors({}, slots, /*auto_color_map=*/true).empty());
 }
+
+// =============================================================================
+// compute_defaults — a tool whose color is unknown
+// =============================================================================
+//
+// GcodeToolInfo::color_known is false when NO source could say what color a
+// tool prints in — Moonraker omitted filament_colors, and neither the G-code
+// footer nor a viewer parse has backfilled it yet. color_rgb then holds a
+// neutral stand-in, and running the nearest-color search against it picks a
+// lane on the strength of a value the file never stated.
+//
+// Positional fallback is the honest answer there: it is what the mapper already
+// does when no lane is within COLOR_MATCH_TOLERANCE, and it does not pretend the
+// file expressed a preference. Firmware mappings still win — those are the
+// printer's own statement of fact and owe nothing to the palette.
+
+TEST_CASE("compute_defaults: an unknown color never takes a color match",
+          "[filament_mapper][compute][color_known]") {
+    // NOTE ON THE ASSERTION: reason cannot discriminate here — the positional
+    // fallback below stamps MatchReason::COLOR_MATCH too (it has since before
+    // this change), so both outcomes report COLOR_MATCH. The slot actually
+    // chosen is the only honest observable, so the fixture is built to make the
+    // two paths pick DIFFERENT slots:
+    //
+    //   tool 0, stand-in colour 0x808080  ->  color match wants slot 1 (exact)
+    //                                     ->  positional wants slot 0 (index 0)
+    //
+    // Both lanes are ASA, so the material gate lets the colour search reach
+    // either one — which is the point: with several lanes of the same material
+    // loaded, matching against a stand-in is pure coin-toss.
+    std::vector<GcodeToolInfo> tools = {{0, 0x808080, "ASA", /*color_known=*/false}};
+    std::vector<AvailableSlot> slots = {
+        {0, 0, 0x111111, "ASA", false, -1},
+        {1, 0, 0x808080, "ASA", false, -1},
+    };
+
+    auto result = FilamentMapper::compute_defaults(tools, slots);
+    REQUIRE(result.size() == 1);
+    CHECK(result[0].mapped_slot == 0); // positional, NOT the exact grey match
+}
+
+TEST_CASE("compute_defaults: a known color still takes the color match",
+          "[filament_mapper][compute][color_known]") {
+    // Identical fixture with color_known defaulted true — the pre-existing
+    // behavior must be untouched, or every file that DOES declare its colors
+    // regresses to positional assignment.
+    std::vector<GcodeToolInfo> tools = {{0, 0x808080, "ASA"}};
+    std::vector<AvailableSlot> slots = {
+        {0, 0, 0x111111, "ASA", false, -1},
+        {1, 0, 0x808080, "ASA", false, -1},
+    };
+
+    auto result = FilamentMapper::compute_defaults(tools, slots);
+    REQUIRE(result.size() == 1);
+    CHECK(result[0].mapped_slot == 1); // exact colour match wins
+    CHECK(result[0].reason == ToolMapping::MatchReason::COLOR_MATCH);
+}
+
+TEST_CASE("compute_defaults: a firmware mapping still wins for an unknown color",
+          "[filament_mapper][compute][color_known]") {
+    // The firmware's own tool assignment is not a guess about the palette, so
+    // an unknown color must not suppress it.
+    std::vector<GcodeToolInfo> tools = {{0, 0x808080, "ASA", /*color_known=*/false}};
+    std::vector<AvailableSlot> slots = {
+        {0, 0, 0x111111, "ASA", false, -1},
+        {1, 0, 0x222222, "ASA", false, /*current_tool_mapping=*/0},
+    };
+
+    auto result = FilamentMapper::compute_defaults(tools, slots);
+    REQUIRE(result.size() == 1);
+    CHECK(result[0].reason == ToolMapping::MatchReason::FIRMWARE_MAPPING);
+    CHECK(result[0].mapped_slot == 1);
+}

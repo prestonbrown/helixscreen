@@ -2688,6 +2688,8 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: The runout
     sensor indicates no filament is loaded. Start print anyway?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: The
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The

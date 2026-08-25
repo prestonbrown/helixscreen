@@ -2754,6 +2754,8 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Il sensore
     di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : 'La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Il
     sensore della testina indica che il filamento è già caricato. Procedere comunque
     con il caricamento?

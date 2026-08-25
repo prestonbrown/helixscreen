@@ -2443,6 +2443,7 @@
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" es="El firmware de la impresora elige la bobina de respaldo"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" es="El sensor de agotamiento indica que no hay filamento cargado. ¿Iniciar la impresión de todos modos?"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" es="El cabezal tiene filamento, pero ningún carril del AMS informa que esté cargado. Retírelo manualmente antes de imprimir. ¿Iniciar de todos modos?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" es="El cabezal tiene filamento, pero ningún carril del AMS informa que esté cargado. La impresora puede negarse a cargar un carril hasta que se vacíe. ¿Iniciar de todos modos?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" es="El sensor del cabezal indica que ya hay filamento cargado. ¿Continuar con la carga de todos modos?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" es="El sensor del cabezal indica que no hay filamento presente. ¿Continuar con la descarga de todos modos?"/>
   <translation tag="Theme" es="Tema"/>

@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <string>
 #include <vector>
@@ -155,9 +156,15 @@ class GCodeLayerIndex {
      * length, and line count for each layer.
      *
      * @param filepath Path to G-code file
+     * @param on_progress Optional callback invoked periodically with the
+     *        fraction of the file consumed (0.0-1.0). Called from the scanning
+     *        thread at a coarse interval — it exists so a UI can show a real
+     *        bar instead of an indeterminate spinner, not to drive animation.
+     *        Must be cheap and must NOT touch LVGL.
      * @return true if successful, false on error
      */
-    bool build_from_file(const std::string& filepath);
+    bool build_from_file(const std::string& filepath,
+                         const std::function<void(float)>& on_progress = {});
 
     /**
      * @brief Get entry for a specific layer

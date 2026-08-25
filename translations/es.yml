@@ -2758,6 +2758,8 @@ translations:
     de agotamiento indica que no hay filamento cargado. ¿Iniciar la impresión de todos
     modos?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: El cabezal tiene filamento, pero ningún carril del AMS informa que esté cargado. Retírelo manualmente antes de imprimir. ¿Iniciar de todos modos?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : 'El cabezal tiene filamento, pero ningún carril del AMS informa que esté cargado. La impresora puede negarse a cargar un carril hasta que se vacíe. ¿Iniciar de todos modos?'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: El
     sensor del cabezal indica que ya hay filamento cargado. ¿Continuar con la carga
     de todos modos?

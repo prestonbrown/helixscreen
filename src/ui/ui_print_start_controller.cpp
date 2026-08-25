@@ -496,8 +496,10 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
                 ctx.any_auto_unload_backend = true;
             }
             ctx.toolhead_unaccounted.push_back(backend->toolhead_filament_unaccounted());
+            ctx.toolhead_clearable.push_back(backend->can_clear_unaccounted_toolhead());
         } else {
             ctx.toolhead_unaccounted.push_back(std::nullopt);
+            ctx.toolhead_clearable.push_back(false);
         }
     }
 
