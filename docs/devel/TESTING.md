@@ -377,8 +377,6 @@ tests/
 │   ├── test_config.cpp
 │   ├── test_gcode_parser.cpp
 │   └── ...
-├── integration/                # Integration tests (mocks)
-│   └── test_mock_example.cpp
 └── mocks/                      # Mock implementations
     ├── mock_websocket_server.{h,cpp}
     ├── mock_mdns_discovery.h
