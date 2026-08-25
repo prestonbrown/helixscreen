@@ -1482,7 +1482,15 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         file_size = 0; // Fall through to full-load mode
     }
 
-    bool use_streaming = !st->streaming_disabled_ && helix::should_use_gcode_streaming(file_size);
+#ifdef ENABLE_3D_RENDERER
+    constexpr bool kBuildHas3D = true;
+#else
+    constexpr bool kBuildHas3D = false;
+#endif
+    // A screen's opt-out only counts when 3D is actually available to fall back
+    // on; see gcode_viewer_should_stream() for the K2 OOM this guards.
+    const bool use_streaming = helix::gcode_viewer_should_stream(
+        st->streaming_disabled_, kBuildHas3D, helix::should_use_gcode_streaming(file_size));
     spdlog::info("[GCode Viewer] File size: {}KB, streaming mode: {}", file_size / 1024,
                  use_streaming ? "ON" : "OFF");
 
