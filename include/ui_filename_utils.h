@@ -19,6 +19,23 @@ namespace helix::gcode {
 std::string get_filename_basename(const std::string& path);
 
 /**
+ * @brief Join a Moonraker-relative directory to a filename
+ *
+ * The virtual-SD paths Moonraker's file APIs take are `<dir>/<filename>`, with
+ * the root directory spelled as the empty string and NO leading slash — so the
+ * root case must yield the bare filename, not "/benchy.gcode".
+ *
+ * One named function because the panel builds this path on several request
+ * paths (metadata fetch, print start) and each open-coded ternary is a place the
+ * root case can be got wrong independently.
+ *
+ * @param dir Directory relative to the gcodes root ("" for root)
+ * @param filename Bare filename, no directory component
+ * @return "filename" when @p dir is empty, otherwise "dir/filename"
+ */
+std::string join_gcode_path(const std::string& dir, const std::string& filename);
+
+/**
  * @brief Strip G-code file extensions for display
  *
  * Removes common G-code extensions (.gcode, .g, .gco, case-insensitive)

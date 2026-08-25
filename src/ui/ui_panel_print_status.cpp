@@ -1847,11 +1847,11 @@ void PrintStatusPanel::recompute_scoped_runout() {
     // RAW_PRINT_STATE_OK: the badge is scoped to the tools the RUNNING file
     // uses. During a preparing window get_tools_used() still describes the
     // previous job, so widening this would scope the badge to the wrong file
-    // instead of hiding it.
+    // instead of hiding it — which is why print_scopes_runout_badge() is
+    // narrower than PrintLifecycleState::is_active().
     auto state = static_cast<PrintJobState>(
         lv_subject_get_int(printer_state_.get_print_state_enum_subject()));
-    bool print_active = (state == PrintJobState::PRINTING || state == PrintJobState::PAUSED);
-    if (!print_active) {
+    if (!helix::print_scopes_runout_badge(state)) {
         fsm.set_scoped_runout(-1);
         return;
     }
@@ -3706,14 +3706,10 @@ std::vector<helix::GcodeToolInfo> PrintStatusPanel::build_print_tool_info() cons
 }
 
 bool PrintStatusPanel::effective_auto_match() const {
-    // Non-editable-card backends (U1 / ACE) have no card UI to flip the persisted
-    // auto-color preference, so they always auto-match; editable backends honor
-    // the user setting. Mirrors PrintSelectDetailView::effective_auto_match().
-    bool card_editable = false;
-    if (auto* backend = AmsState::instance().get_backend()) {
-        card_editable = backend->get_tool_mapping_capabilities().editable;
-    }
-    return !card_editable || SettingsManager::instance().get_auto_color_map();
+    // The rule lives on AmsState because the print-select detail view resolves
+    // the same question for the same print: its swatches and this viewer's
+    // per-tool colors must land on the same lane.
+    return AmsState::instance().effective_auto_match();
 }
 
 bool PrintStatusPanel::build_and_apply_tool_colors() {

@@ -267,6 +267,28 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
+     * @brief Does auto (color+type) lane matching apply for the active backend?
+     *
+     * The other companion to collect_available_slots(): the toggle-aware flag
+     * every surface that resolves tools to lanes must pass FilamentMapper. The
+     * print detail view feeds it to effective_mappings() (swatches + the
+     * pre-flight gate) and the print-status panel to effective_tool_colors()
+     * (the gcode viewer's per-tool colors) — two views of one print, so they
+     * have to answer it the same way or the swatches promise a lane the viewer
+     * then colors from a different one.
+     *
+     * Non-editable-card backends (Snapmaker U1 / ACE) have no card UI anywhere
+     * that can flip the persisted auto-color preference, so they always
+     * auto-match; otherwise the persisted default (FALSE) forces positional
+     * matching and picks the wrong lane. Editable backends honor
+     * SettingsManager::get_auto_color_map().
+     *
+     * Asks the PRIMARY backend: editability is a property of the card the user
+     * would reach, and the card reflects backend 0.
+     */
+    [[nodiscard]] bool effective_auto_match() const;
+
+    /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
      */

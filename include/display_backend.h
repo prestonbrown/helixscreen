@@ -542,6 +542,28 @@ class DisplayBackend {
     static std::unique_ptr<DisplayBackend> create() {
         return create_auto();
     }
+
+    /**
+     * @brief Whether a failed create_display() should be retried on fbdev
+     *
+     * The in-process fallback decision DisplayManager::init() makes after
+     * create_display() returns: retry only when there is no display AND the
+     * backend that just failed was not already fbdev (fbdev is the last resort —
+     * falling back to itself would loop).
+     *
+     * A static predicate rather than an inline condition so it is reachable from
+     * a unit test. init() itself initializes LVGL and opens real devices, so the
+     * only alternative is a test that re-types the condition and can never go red.
+     *
+     * @param backend The backend whose create_display() just returned
+     * @param display What create_display() returned (nullptr on failure)
+     * @return true if the fbdev fallback should be attempted
+     */
+    static bool should_try_fbdev_fallback(const DisplayBackend* backend,
+                                          const lv_display_t* display) {
+        return display == nullptr && backend != nullptr &&
+               backend->type() != DisplayBackendType::FBDEV;
+    }
 };
 
 // ============================================================================

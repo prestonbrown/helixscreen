@@ -1033,25 +1033,12 @@ void SpoolmanOverlay::verify_config_reachable(
             // Moonraker reports the sections it parsed when it last started, so a file
             // edited since then legitimately disagrees with the list. Only a wholesale
             // disagreement means we are looking at a different file.
-            auto match =
-                helix::MoonrakerConfigManager::classify_section_match(content, required_sections);
-            bool drifted = match.verdict == helix::SectionMatch::Drifted;
-            bool mismatch = match.verdict == helix::SectionMatch::Mismatch;
-
-            // A guessed path may not lean on drift tolerance. Separately, the in-place
-            // branch exists only because some file defines the section we are about to
-            // rewrite, so a candidate without it is not that file whatever else matches.
-            std::string rejected_by;
-            if (!mismatch && speculative && drifted)
-                rejected_by = "its path was inferred, not derived, so it has to match "
-                              "Moonraker's section list exactly";
-            else if (!mismatch && in_place &&
-                     !helix::MoonrakerConfigManager::has_section(content, "spoolman"))
-                rejected_by = "it does not define the [spoolman] section that selected it";
-            if (!rejected_by.empty()) {
-                mismatch = true;
-                drifted = false;
-            }
+            auto grade = helix::MoonrakerConfigManager::grade_config_candidate(
+                content, required_sections, in_place, speculative);
+            helix::SectionMatchResult match = grade.match;
+            bool drifted = grade.drifted;
+            bool mismatch = !grade.accepted;
+            std::string rejected_by = grade.rejected_by;
 
             std::string missing;
             for (const auto& s : match.missing) {

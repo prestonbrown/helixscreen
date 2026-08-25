@@ -11,9 +11,9 @@
 
 #include "http_executor.h"
 #include "hv/requests.h"
-#include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_internal.h"
+#include "power_device_parse.h"
 #include "spdlog/spdlog.h"
 
 #include <cctype>
@@ -71,28 +71,10 @@ void MoonrakerAPI::get_power_devices(PowerDevicesCallback on_success, ErrorCallb
         // firing on_error after on_success already ran.
         std::vector<PowerDevice> devices;
         try {
-            json j = json::parse(resp->body);
-
-            if (j.contains("result") && j["result"].contains("devices") &&
-                j["result"]["devices"].is_array()) {
-                for (const auto& info : j["result"]["devices"]) {
-                    if (!info.is_object()) {
-                        continue;
-                    }
-                    // json_util::safe_* rather than .value(): nlohmann's .value()
-                    // throws type_error.302 on a JSON null, and one null field
-                    // would drop the whole device list.
-                    PowerDevice dev;
-                    dev.device = helix::json_util::safe_string(info, "device");
-                    dev.type = helix::json_util::safe_string(info, "type", "unknown");
-                    dev.status = helix::json_util::safe_string(info, "status", "off");
-                    dev.locked_while_printing =
-                        helix::json_util::safe_bool(info, "locked_while_printing", false);
-                    if (!dev.device.empty()) {
-                        devices.push_back(dev);
-                    }
-                }
-            }
+            // Shape rules (array-of-objects, null-tolerant fields, unnamed
+            // devices dropped) live in parse_power_devices() so the unit tests
+            // exercise the same code this reply goes through.
+            devices = helix::parse_power_devices(json::parse(resp->body));
         } catch (const std::exception& e) {
             spdlog::error("[Moonraker API] Failed to parse power devices: {}", e.what());
             if (on_error) {

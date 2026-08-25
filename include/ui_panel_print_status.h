@@ -598,9 +598,10 @@ class PrintStatusPanel : public OverlayBase {
     /// is unavailable (caller then falls back to apply_ams_tool_colors).
     [[nodiscard]] std::vector<helix::GcodeToolInfo> build_print_tool_info() const;
 
-    /// Whether auto (color+type) matching applies for the active backend. Mirrors
-    /// PrintSelectDetailView::effective_auto_match(): non-editable-card backends
-    /// (U1 / ACE) always auto-match; editable backends honor the user setting.
+    /// Whether auto (color+type) matching applies for the active backend.
+    /// Delegates to AmsState::effective_auto_match(), which owns the rule and is
+    /// shared with PrintSelectDetailView: non-editable-card backends (U1 / ACE)
+    /// always auto-match; editable backends honor the user setting.
     [[nodiscard]] bool effective_auto_match() const;
 
     static void format_time(int seconds, char* buf, size_t buf_size);

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -136,6 +137,23 @@ class FilamentMapper {
 
     /// Case-insensitive material comparison
     static bool materials_match(const std::string& a, const std::string& b);
+
+    /// Firmware-default physical head a logical tool routes to with no remap.
+    ///
+    /// Tools 0..3 map to their identity head; anything else (extended tools on a
+    /// toolchanger, 4..31 on the Snapmaker U1) falls back to head 0, matching the
+    /// firmware default map [0,1,2,3,0,0,...].
+    static int default_head_for_tool(int tool);
+
+    /// The genuine remaps in @p mappings, keyed tool -> physical head.
+    ///
+    /// Identity mappings are omitted: the firmware already routes a tool to
+    /// default_head_for_tool(tool), so emitting them would be noise. Entries with
+    /// no real slot assignment (mapped_slot < 0) are skipped.
+    ///
+    /// Single source of truth for PrintSelectDetailView::get_effective_remap()
+    /// and the preprint-gcode builders, which used to each carry their own copy.
+    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings);
 
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);

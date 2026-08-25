@@ -952,6 +952,15 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
+bool AmsState::effective_auto_match() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    bool card_editable = false;
+    if (auto* backend = get_backend(0)) {
+        card_editable = backend->get_tool_mapping_capabilities().editable;
+    }
+    return !card_editable || helix::SettingsManager::instance().get_auto_color_map();
+}
+
 AmsBackend* AmsState::get_backend() const {
     return get_backend(0);
 }

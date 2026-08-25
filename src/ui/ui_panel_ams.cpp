@@ -84,8 +84,13 @@ static bool s_ams_widgets_registered = false;
  * - filament_path_canvas: Filament routing visualization
  * - ams_panel.xml: Main panel component
  * - ams_context_menu.xml: Slot context menu component
+ *
+ * Non-static so integration tests can bring the same registration set up rather
+ * than keeping their own copy of this list — two of them had already drifted,
+ * missing the environment-indicator click callback, the device-operations and
+ * environment overlay callbacks, and three XML components.
  */
-static void ensure_ams_widgets_registered() {
+void ensure_ams_widgets_registered() {
     if (s_ams_widgets_registered) {
         return;
     }

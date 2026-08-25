@@ -995,8 +995,7 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
 
         const std::string filename = file_list_[i].filename;
         // Build full path for metadata request (e.g., "usb/flowrate_0.gcode")
-        const std::string file_path =
-            current_path_.empty() ? filename : current_path_ + "/" + filename;
+        const std::string file_path = helix::gcode::join_gcode_path(current_path_, filename);
 
         api_->files().get_file_metadata(
             file_path,
@@ -2914,7 +2913,7 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
         }
 
         std::string filename(selected_filename_buffer_);
-        std::string file_path = current_path_.empty() ? filename : current_path_ + "/" + filename;
+        std::string file_path = helix::gcode::join_gcode_path(current_path_, filename);
 
         spdlog::info("[{}] Applying gcode remap: {} tool(s) for {}", get_name(), remap.size(),
                      file_path);

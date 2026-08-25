@@ -308,6 +308,16 @@ class AmsPanel : public PanelBase {
 };
 
 /**
+ * @brief Register the AMS custom widgets, callbacks and XML components (idempotent)
+ *
+ * The lazy registration get_global_ams_panel() runs on first use. Exposed so a
+ * test that builds `ams_panel` (or any component nested in it) through
+ * lv_xml_create() registers exactly what production registers, instead of
+ * maintaining a second list that silently drifts.
+ */
+void ensure_ams_widgets_registered();
+
+/**
  * @brief Get global AMS panel singleton
  *
  * Creates the panel on first call, returns cached instance thereafter.

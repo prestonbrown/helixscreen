@@ -91,6 +91,30 @@ class MoonrakerConfigManager {
     static SectionMatchResult classify_section_match(const std::string& content,
                                                      const std::vector<std::string>& required);
 
+    /// Verdict on one downloaded candidate file, applying the two rejections
+    /// classify_section_match() alone cannot express.
+    struct CandidateGrade {
+        SectionMatchResult match; ///< the raw classification, kept for its missing list
+        bool accepted = false;    ///< this is the config Moonraker loaded
+        bool drifted = false;     ///< accepted, but edited since Moonraker last restarted
+        std::string rejected_by;  ///< why an otherwise-passing candidate was refused
+    };
+
+    /// Grade a candidate the spoolman flow downloaded against the sections
+    /// Moonraker reported, then apply the two context rejections.
+    ///
+    /// @param speculative the path was inferred rather than derived from what
+    ///        Moonraker reported, so it may not lean on drift tolerance — it has to
+    ///        match the reported section list exactly.
+    /// @param in_place the caller is about to rewrite the `[spoolman]` that selected
+    ///        this file, so a candidate without that section is not that file
+    ///        whatever else lines up.
+    ///
+    /// A Mismatch stays a Mismatch; neither flag can promote one.
+    static CandidateGrade grade_config_candidate(const std::string& content,
+                                                 const std::vector<std::string>& required_sections,
+                                                 bool in_place, bool speculative);
+
     /// How many sections may be absent and still count as drift rather than a
     /// different file. Exposed so tests and callers can state the rule once.
     static size_t drift_tolerance(size_t total) {

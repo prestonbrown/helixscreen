@@ -77,6 +77,21 @@ bool FilamentMapper::materials_match(const std::string& a, const std::string& b)
     return filament::materials_compatible(a, b);
 }
 
+int FilamentMapper::default_head_for_tool(int tool) {
+    return (tool >= 0 && tool <= 3) ? tool : 0;
+}
+
+std::map<int, int>
+FilamentMapper::identity_filtered_remap(const std::vector<ToolMapping>& mappings) {
+    std::map<int, int> remap;
+    for (const auto& m : mappings) {
+        if (m.mapped_slot >= 0 && m.mapped_slot != default_head_for_tool(m.tool_index)) {
+            remap[m.tool_index] = m.mapped_slot;
+        }
+    }
+    return remap;
+}
+
 SlotKey FilamentMapper::find_closest_color_slot(uint32_t target_color,
                                                 const std::string& target_material,
                                                 const std::vector<AvailableSlot>& slots) {

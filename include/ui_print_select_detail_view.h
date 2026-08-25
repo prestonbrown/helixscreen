@@ -349,9 +349,11 @@ class PrintSelectDetailView : public OverlayBase {
     /**
      * @brief Whether auto (color+type) matching applies for this backend.
      *
-     * Non-editable-card backends (U1 / ACE) have no UI to flip the persisted
-     * auto-color preference, so they always auto-match. Editable backends honor
-     * SettingsManager::get_auto_color_map().
+     * Delegates to AmsState::effective_auto_match(), which owns the rule and
+     * documents it: non-editable-card backends (U1 / ACE) always auto-match,
+     * editable ones honor SettingsManager::get_auto_color_map(). Shared with
+     * PrintStatusPanel so the swatches here and the viewer's per-tool colors
+     * there resolve to the same lane.
      */
     [[nodiscard]] bool effective_auto_match() const;
 

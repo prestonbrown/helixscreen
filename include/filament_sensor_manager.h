@@ -39,6 +39,23 @@ class AmsBackend;
 
 namespace helix {
 
+enum class PrintJobState;
+
+/**
+ * @brief Does the current print state give the scoped runout badge anything to say?
+ *
+ * True only for PRINTING and PAUSED. Deliberately NARROWER than
+ * PrintLifecycleState::is_active(), which also counts Preparing: the badge is
+ * scoped to the tools the RUNNING file uses, and during a preparing window the
+ * panel's get_tools_used() still describes the PREVIOUS job — widening this
+ * would scope the badge to the wrong file instead of hiding it.
+ *
+ * A free function rather than an inline guard in PrintStatusPanel because the
+ * badge's terminal-state behaviour is the whole of issue 9 and needs to be
+ * assertable without building a laid-out panel and a parsed gcode viewer.
+ */
+[[nodiscard]] bool print_scopes_runout_badge(PrintJobState state);
+
 /**
  * @brief Central manager for filament sensor discovery, configuration, and state.
  *

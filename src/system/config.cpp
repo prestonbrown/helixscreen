@@ -264,6 +264,23 @@ bool migrate_config_keys(json& data,
     return any_migrated;
 }
 
+/// Config::init()'s display-migration step, as one callable unit.
+///
+/// Both halves always run: an already-/display/-shaped config still needs its
+/// touch keys moved to /input/, so the second migration must NOT be gated on the
+/// first one having found anything.
+///
+/// @param data JSON config data to migrate (modified in place)
+/// @return true if either migration changed @p data
+bool run_display_migrations(json& data) {
+    bool changed = migrate_display_config(data);
+    if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
+                                   {"/display/touch_device", "/input/touch_device"}})) {
+        changed = true;
+    }
+    return changed;
+}
+
 // ============================================================================
 // Versioned config migrations
 // ============================================================================
@@ -279,6 +296,10 @@ static std::optional<helix::PlatformTier> g_forced_tier_for_migration;
 namespace helix::config_testing {
 void set_forced_tier_for_migration(std::optional<helix::PlatformTier> tier) {
     g_forced_tier_for_migration = tier;
+}
+
+bool run_display_migrations_for_test(nlohmann::json& data) {
+    return ::run_display_migrations(data);
 }
 } // namespace helix::config_testing
 
@@ -1733,14 +1754,10 @@ void Config::init(const std::string& config_path) {
         // logged, not discarded. config_version is left unstamped, so the
         // migration is retried on the next boot.
         try {
-            // Run display config migration (moves root-level display_* to /display/)
-            if (migrate_display_config(data)) {
-                config_modified = true;
-            }
-
-            // Migrate touch settings from /display/ to /input/
-            if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
-                                           {"/display/touch_device", "/input/touch_device"}})) {
+            // Moves root-level display_* to /display/, then the touch keys from
+            // /display/ to /input/. Shared with the config_testing seam so tests
+            // drive this exact sequence instead of restating it.
+            if (run_display_migrations(data)) {
                 config_modified = true;
             }
 

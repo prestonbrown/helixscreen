@@ -9,6 +9,10 @@
 
 namespace helix::gcode {
 
+std::string join_gcode_path(const std::string& dir, const std::string& filename) {
+    return dir.empty() ? filename : dir + "/" + filename;
+}
+
 std::string get_filename_basename(const std::string& path) {
     if (path.empty()) {
         return path;
