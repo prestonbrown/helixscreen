@@ -180,7 +180,8 @@ class AmsPanel : public PanelBase {
     ObserverGuard backend_count_observer_;  ///< For backend selector visibility
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard
-        supports_bypass_observer_; ///< Bypass node appears/disappears with backend support
+        supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
+    ObserverGuard bypass_active_observer_; ///< Active ring follows bypass engage/disengage
     helix::AsyncLifetimeGuard
         lifetime_; ///< Guards deferred callbacks from accessing destroyed panel
     bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes

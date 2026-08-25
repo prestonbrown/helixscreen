@@ -126,6 +126,7 @@ class AmsOverviewPanel : public PanelBase {
     ObserverGuard slots_version_observer_;
     ObserverGuard current_slot_observer_;   ///< Reactive highlight update when active slot changes
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
+    ObserverGuard bypass_active_observer_;  ///< Active ring follows bypass engage/disengage
     bool units_rebuild_pending_ = false; ///< Coalesces rapid slots_version observer notifications
     helix::AsyncLifetimeGuard
         lifetime_; ///< Guards deferred callbacks from accessing destroyed panel

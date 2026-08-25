@@ -396,6 +396,13 @@ void AmsPanel::init_subjects() {
         AmsState::instance().get_supports_bypass_subject(), this,
         [](AmsPanel* self, int /*supported*/) { self->update_bypass_spool_from_state(); });
 
+    // The ring marks the node the printer is actually feeding from. Engaging
+    // bypass touches no slot, so nothing else on this panel refreshes for it.
+    bypass_active_observer_ = observe_int_sync<AmsPanel>(
+        AmsState::instance().get_bypass_active_subject(), this,
+        [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
+        AmsState::instance().get_subjects_lifetime());
+
     // UI module subjects are now encapsulated in their respective classes:
     // - helix::ui::AmsEditOverlay
     // - helix::ui::AmsColorPicker
@@ -891,6 +898,11 @@ void AmsPanel::update_bypass_spool_from_state() {
         helix::ui::bypass_spool_set_has_spool(bypass_widgets_, false);
         helix::ui::bypass_spool_set_material(bypass_widgets_, "");
     }
+    // Same ring a lane slot wears when it is the active node - bypass IS a node
+    // on the path, and while it is engaged it is the one feeding the toolhead.
+    helix::ui::bypass_spool_set_active(
+        bypass_widgets_, lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0);
+
     // Reposition because the material label visibility may have changed,
     // which affects the layout above the spool box.
     update_bypass_spool_position();
