@@ -30,6 +30,18 @@ struct GcodeFooterSummary {
     /// prints with. Empty unless has_usage_line is true.
     std::set<int> tools_used;
 
+    /// Per-tool grams from the same `filament used [g]` line that produced
+    /// `tools_used`, slot-aligned with tool index. Empty when no usage line was
+    /// seen. Unparsable entries are 0.0 and still consume their slot, so a
+    /// garbled token never shifts the tools after it.
+    ///
+    /// These are the only per-tool quantities in the pipeline whose unit is not
+    /// in question: the slicer labels the line `[g]` itself. Moonraker's
+    /// `filament_weights` is the alternative and it is NOT safe to read as
+    /// grams - its fallback path accepts `filament_used`, which is millimetres,
+    /// into the same untagged vector.
+    std::vector<double> grams_per_tool;
+
     /// True when a per-tool `filament used [g]` vector was seen. Without it
     /// the used-tool question is unanswered (NOT "no tools used").
     bool has_usage_line = false;

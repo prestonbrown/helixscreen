@@ -11,6 +11,8 @@
 #include "moonraker_types.h"
 #include "print_start_checks.h"
 
+#include <algorithm>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -21,6 +23,17 @@ PrintStartContext ctx_with(std::function<void(PrintStartContext&)> seed) {
     PrintStartContext ctx;
     seed(ctx);
     return ctx;
+}
+
+/// Look a gate up by name. Tests must not index the pipeline positionally:
+/// inserting a gate renumbers every later one and silently retargets the test.
+const PrintStartGate& gate_named(const char* name) {
+    const auto& gates = default_print_start_gates();
+    const auto it = std::find_if(gates.begin(), gates.end(), [&](const PrintStartGate& g) {
+        return g.name == std::string(name);
+    });
+    REQUIRE(it != gates.end());
+    return *it;
 }
 } // namespace
 
@@ -140,6 +153,67 @@ TEST_CASE("insufficient_spool_weight_in: length fallback via material density",
     // 100m of 1.75mm PLA at 1.24 g/cm3 ≈ 298g — must exceed 5g by a wide margin.
     CHECK(r->first > 250.0f);
     CHECK(r->second == 5.0f);
+}
+
+TEST_CASE("insufficient_spool_weight_in: silent on a lane-fed AMS print",
+          "[print-start][gate-pipeline]") {
+    // K2 Plus, 2026-08-24: the user mapped a large print from T1 to T2 and kept
+    // getting "needs about N g but the spool has about 386 g". 386 g was the
+    // BYPASS spool - the print was lane-fed and would never touch it. The rule
+    // weighs the file's whole-file total against the single external spool, so
+    // neither input moves when a tool is remapped: the warning was unanswerable.
+    auto lane_fed = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 386.0f;
+        spool.material = "ASA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 1900.0;
+        c.metadata = md;
+        c.ams_manages_filament = true;
+        c.has_active_backend = true;
+        c.any_bypass_active = false; // feeding from a lane, not the bypass
+    });
+    CHECK_FALSE(insufficient_spool_weight_in(lane_fed).has_value());
+}
+
+TEST_CASE("insufficient_spool_weight_in: still warns when the bypass IS the feed",
+          "[print-start][gate-pipeline]") {
+    // The narrowing must not silence the case the rule is actually right about:
+    // a bypass-fed print does draw from the external spool it weighs.
+    auto bypass_fed = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 386.0f;
+        spool.material = "ASA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 1900.0;
+        c.metadata = md;
+        c.ams_manages_filament = true;
+        c.has_active_backend = true;
+        c.any_bypass_active = true;
+    });
+    auto r = insufficient_spool_weight_in(bypass_fed);
+    REQUIRE(r.has_value());
+    CHECK(r->second == 386.0f);
+}
+
+TEST_CASE("insufficient_spool_weight_in: still warns with no AMS at all",
+          "[print-start][gate-pipeline]") {
+    // A single-extruder printer has no lanes to feed from - the original,
+    // correct scope of this rule, which must survive the narrowing.
+    auto no_ams = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 30.0f;
+        spool.material = "PLA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 40.0;
+        c.metadata = md;
+        c.ams_manages_filament = false;
+        c.has_active_backend = false;
+    });
+    CHECK(insufficient_spool_weight_in(no_ams).has_value());
 }
 
 // ---------------------------------------------------------------------------
@@ -458,21 +532,25 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 6);
+    REQUIRE(gates.size() == 7);
     CHECK(gates[0].name == "insufficient_spool_weight");
-    CHECK(gates[1].name == "bypass_engaged_lane_print");
-    CHECK(gates[2].name == "unaccounted_toolhead_filament");
-    CHECK(gates[3].name == "required_filament_present");
-    CHECK(gates[4].name == "unresolved_tools");
-    CHECK(gates[5].name == "material_compatibility");
+    // The lane-fed counterpart sits beside its sibling; the two are mutually
+    // exclusive by construction, so their relative order is not load-bearing.
+    CHECK(gates[1].name == "insufficient_lane_weight");
+    CHECK(gates[2].name == "bypass_engaged_lane_print");
+    CHECK(gates[3].name == "unaccounted_toolhead_filament");
+    CHECK(gates[4].name == "required_filament_present");
+    CHECK(gates[5].name == "unresolved_tools");
+    CHECK(gates[6].name == "material_compatibility");
 }
 
-TEST_CASE("default gate list: new gates inserted at 2 and 3", "[print-start][gate-pipeline]") {
+TEST_CASE("default gate list: the two new gates keep their relative order",
+          "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 6);
-    CHECK(gates[1].name == "bypass_engaged_lane_print");
-    CHECK(gates[2].name == "unaccounted_toolhead_filament");
-    CHECK(gates[3].name == "required_filament_present"); // shifted, order otherwise preserved
+    REQUIRE(gates.size() == 7);
+    CHECK(gates[2].name == "bypass_engaged_lane_print");
+    CHECK(gates[3].name == "unaccounted_toolhead_filament");
+    CHECK(gates[4].name == "required_filament_present"); // shifted, order otherwise preserved
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +565,7 @@ TEST_CASE("gate bypass_engaged_lane_print: fires only on bypass + multi-color",
             c.filament_color_count = colors;
         });
     };
-    auto& g = default_print_start_gates()[1];
+    auto& g = gate_named("bypass_engaged_lane_print");
     CHECK(g.evaluate(make(false, 4)).verdict == CheckResult::Verdict::Pass); // no bypass
     CHECK(g.evaluate(make(true, 1)).verdict == CheckResult::Verdict::Pass);  // legit bypass use
     auto r = g.evaluate(make(true, 4));
@@ -502,7 +580,7 @@ TEST_CASE("gate bypass_engaged_lane_print: used-tool count beats palette size",
     // K2 CFS regression: a single-tool file sliced on a 4-lane profile carries
     // a full palette (PLA;ASA-GF;ASA-GF;PLA) but extrudes from one tool. The
     // print needs no lanes, so bypass is the legitimate source — no warning.
-    auto& g = default_print_start_gates()[1];
+    auto& g = gate_named("bypass_engaged_lane_print");
     auto single_used_tool = ctx_with([](PrintStartContext& c) {
         c.any_bypass_active = true;
         c.filament_color_count = 4; // full profile palette
@@ -534,7 +612,7 @@ TEST_CASE("gate unaccounted_toolhead_filament: verdict matrix", "[print-start][g
             }
         });
     };
-    auto& g = default_print_start_gates()[2];
+    auto& g = gate_named("unaccounted_toolhead_filament");
     CHECK(g.evaluate(make(false, std::nullopt)).verdict ==
           CheckResult::Verdict::Pass); // cannot determine
     CHECK(g.evaluate(make(false, std::optional<bool>(false))).verdict ==
@@ -573,7 +651,7 @@ TEST_CASE("gate required_filament_present: empty required lane warns with Start 
         // -> "Lane 1".
         c.empty_required_lanes = {{0, 0}, {2, 3}};
     });
-    auto r = default_print_start_gates()[3].evaluate(ctx);
+    auto r = gate_named("required_filament_present").evaluate(ctx);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "No Filament Detected"); // lv_tr identity in the test locale
     CHECK(r.proceed_label == "Start Print");
@@ -587,7 +665,8 @@ TEST_CASE("gate required_filament_present: AMS lanes all fed -> pass",
         c.ams_manages_filament = true;
         c.has_active_backend = true;
     });
-    CHECK(default_print_start_gates()[3].evaluate(ctx).verdict == CheckResult::Verdict::Pass);
+    CHECK(gate_named("required_filament_present").evaluate(ctx).verdict ==
+          CheckResult::Verdict::Pass);
 }
 
 TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lanes",
@@ -601,7 +680,8 @@ TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lane
         c.tools_used = {1};
         c.empty_required_lanes = {{1, 2}}; // would warn without bypass
     });
-    CHECK(default_print_start_gates()[3].evaluate(ctx).verdict == CheckResult::Verdict::Pass);
+    CHECK(gate_named("required_filament_present").evaluate(ctx).verdict ==
+          CheckResult::Verdict::Pass);
 
     // Multi-tool bypass still needs lanes — lane truth stays active there.
     auto multi = ctx_with([](PrintStartContext& c) {
@@ -611,7 +691,8 @@ TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lane
         c.tools_used = {0, 2};
         c.empty_required_lanes = {{2, 3}};
     });
-    CHECK(default_print_start_gates()[3].evaluate(multi).verdict == CheckResult::Verdict::Warn);
+    CHECK(gate_named("required_filament_present").evaluate(multi).verdict ==
+          CheckResult::Verdict::Warn);
 }
 
 TEST_CASE("gate required_filament_present: non-AMS runout says empty -> warn",
@@ -621,21 +702,23 @@ TEST_CASE("gate required_filament_present: non-AMS runout says empty -> warn",
         c.runout_available = true;
         c.runout_detected = false;
     });
-    auto r = default_print_start_gates()[3].evaluate(ctx);
+    auto r = gate_named("required_filament_present").evaluate(ctx);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.proceed_label == "Start Print");
 }
 
 TEST_CASE("gate required_filament_present: runout disabled/unavailable -> pass",
           "[print-start][gate-pipeline]") {
-    CHECK(default_print_start_gates()[3].evaluate(ctx_with([](PrintStartContext&) {})).verdict ==
-          CheckResult::Verdict::Pass);
+    CHECK(gate_named("required_filament_present")
+              .evaluate(ctx_with([](PrintStartContext&) {}))
+              .verdict == CheckResult::Verdict::Pass);
     auto ctx = ctx_with([](PrintStartContext& c) {
         c.runout_enabled = true;
         c.runout_available = false;
         c.runout_detected = false;
     });
-    CHECK(default_print_start_gates()[3].evaluate(ctx).verdict == CheckResult::Verdict::Pass);
+    CHECK(gate_named("required_filament_present").evaluate(ctx).verdict ==
+          CheckResult::Verdict::Pass);
 }
 
 // ---------------------------------------------------------------------------
@@ -656,7 +739,7 @@ TEST_CASE("gate unresolved_tools: warns with Start Anyway and verbatim title",
         t.material = "PLA";
         c.tool_info = {t};
     });
-    auto r = default_print_start_gates()[4].evaluate(ctx);
+    auto r = gate_named("unresolved_tools").evaluate(ctx);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "Color Mismatch");
     CHECK(r.proceed_label == "Start Anyway");
@@ -672,7 +755,7 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
         spool.material = "PLA";
         c.external_spool = spool;
     });
-    auto r = default_print_start_gates()[5].evaluate(ctx);
+    auto r = gate_named("material_compatibility").evaluate(ctx);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "Material Mismatch");
     CHECK(r.proceed_label == "Start Anyway");
@@ -786,4 +869,176 @@ TEST_CASE("gate runner: all-pass reaches execute (button re-enabled once, no mod
     PrintStartControllerTestAccess::run_gates(fx.controller);
     CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == nullptr);
     CHECK(fx.button_updates == 1);
+}
+
+// ---------------------------------------------------------------------------
+// insufficient_lane_weights_in - the lane-fed counterpart
+//
+// Modelled on the real case that motivated it (K2 Plus, 2026-08-24): an
+// OrcaSlicer 2.4.2 file whose footer reads
+//   ; filament used [g] = 0.00, 863.07, 0.00, 0.00, 0.00
+// i.e. tool 1 needs 863 g. Lane 2 (slot index 1) held a Spoolman spool with
+// 65 g left; lane 3 (slot index 2) held 1000 g. The user remapped from the
+// first to the second and the old whole-file-vs-external-spool check could not
+// tell the difference, because neither of its inputs mentions a tool.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+helix::AvailableSlot lane(int slot_index, int backend_index, float remaining_g) {
+    helix::AvailableSlot s{};
+    s.slot_index = slot_index;
+    s.backend_index = backend_index;
+    s.is_empty = false;
+    s.remaining_weight_g = remaining_g;
+    return s;
+}
+
+helix::ToolMapping map_tool(int tool, int slot, int backend = 0) {
+    helix::ToolMapping m{};
+    m.tool_index = tool;
+    m.mapped_slot = slot;
+    m.mapped_backend = backend;
+    return m;
+}
+
+/// The motivating file: tool 1 uses 863.07 g, every other tool 0.
+PrintStartContext orca_ctx(int mapped_slot, float lane_remaining_g) {
+    return ctx_with([mapped_slot, lane_remaining_g](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {0.0, 863.07, 0.0, 0.0, 0.0};
+        c.tools_used = {1};
+        c.mappings = {map_tool(1, mapped_slot)};
+        c.available_slots = {lane(mapped_slot, 0, lane_remaining_g)};
+    });
+}
+
+} // namespace
+
+TEST_CASE("insufficient_lane_weights_in: warns when the mapped lane is short",
+          "[print-start][gate-pipeline]") {
+    auto shortfalls = insufficient_lane_weights_in(orca_ctx(/*slot=*/1, /*remaining=*/65.0f));
+    REQUIRE(shortfalls.size() == 1);
+    CHECK(shortfalls[0].tool_index == 1);
+    CHECK(shortfalls[0].mapped_slot == 1);
+    CHECK(shortfalls[0].remaining_g == 65.0f);
+    CHECK(shortfalls[0].needed_g > 860.0f);
+}
+
+TEST_CASE("insufficient_lane_weights_in: silent once remapped to a full lane",
+          "[print-start][gate-pipeline]") {
+    // The whole point: the SAME file, remapped, must stop warning.
+    CHECK(insufficient_lane_weights_in(orca_ctx(/*slot=*/2, /*remaining=*/1000.0f)).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: an unknown lane weight is not zero",
+          "[print-start][gate-pipeline]") {
+    // -1 is the "no figure on record" sentinel. Reading it as 0 g would make
+    // every unlinked bay a false alarm - the same collision class as the black
+    // bypass swatch that read as unset.
+    CHECK(insufficient_lane_weights_in(orca_ctx(/*slot=*/3, /*remaining=*/-1.0f)).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: resolves on the (slot, backend) pair",
+          "[print-start][gate-pipeline]") {
+    // slot_index is unique only WITHIN a backend. Matching on slot alone picks
+    // the wrong lane - the live bug in preflight_validator.cpp's find_slot().
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {0.0, 863.07};
+        c.tools_used = {1};
+        c.mappings = {map_tool(1, /*slot=*/0, /*backend=*/1)};
+        // Backend 0 slot 0 is nearly empty; backend 1 slot 0 is full. Only the
+        // backend-1 lane is mapped, so there must be no shortfall.
+        c.available_slots = {lane(0, 0, 10.0f), lane(0, 1, 1000.0f)};
+    });
+    CHECK(insufficient_lane_weights_in(ctx).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: single tool falls back to the file total",
+          "[print-start][gate-pipeline]") {
+    // No per-tool line (older slicer / Moonraker metadata only), one tool used:
+    // the whole-file total IS that tool's, exactly - no split is invented.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {}; // no footer breakdown
+        c.tools_used = {1};
+        c.mappings = {map_tool(1, 1)};
+        c.available_slots = {lane(1, 0, 65.0f)};
+    });
+    auto shortfalls = insufficient_lane_weights_in(ctx);
+    REQUIRE(shortfalls.size() == 1);
+    CHECK(shortfalls[0].needed_g > 860.0f);
+}
+
+TEST_CASE("insufficient_lane_weights_in: multi-tool with no breakdown stays silent",
+          "[print-start][gate-pipeline]") {
+    // Deliberate: dividing the total across tools would fabricate a split that
+    // is wrong in both directions on any uneven print.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {};
+        c.tools_used = {0, 1};
+        c.mappings = {map_tool(0, 0), map_tool(1, 1)};
+        c.available_slots = {lane(0, 0, 10.0f), lane(1, 0, 10.0f)};
+    });
+    CHECK(insufficient_lane_weights_in(ctx).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: a mapping to no known lane is silent",
+          "[print-start][gate-pipeline]") {
+    // A mapped_slot outside the connected units (e.g. the synthetic external
+    // lane index) must never be priced - no lane, no opinion.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {0.0, 863.07};
+        c.tools_used = {1};
+        c.mappings = {map_tool(1, /*slot=*/4)};
+        c.available_slots = {lane(0, 0, 1000.0f), lane(1, 0, 1000.0f)};
+    });
+    CHECK(insufficient_lane_weights_in(ctx).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: an unused tool is not a shortfall",
+          "[print-start][gate-pipeline]") {
+    // tool 0 is mapped to an empty lane but the file never prints with it.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        FileMetadata md;
+        md.filament_weight_total = 863.07;
+        c.metadata = md;
+        c.tool_grams = {0.0, 863.07};
+        c.tools_used = {1};
+        c.mappings = {map_tool(0, 0), map_tool(1, 2)};
+        c.available_slots = {lane(0, 0, 0.0f), lane(2, 0, 1000.0f)};
+    });
+    CHECK(insufficient_lane_weights_in(ctx).empty());
+}
+
+TEST_CASE("insufficient_lane_weights_in: bypass single-lane prints defer to the spool check",
+          "[print-start][gate-pipeline]") {
+    auto ctx = orca_ctx(/*slot=*/1, /*remaining=*/65.0f);
+    ctx.any_bypass_active = true;
+    CHECK(insufficient_lane_weights_in(ctx).empty());
+}
+
+TEST_CASE("gate_insufficient_lane_weight: names the short slot", "[print-start][gate-pipeline]") {
+    auto result =
+        gate_named("insufficient_lane_weight").evaluate(orca_ctx(/*slot=*/1, /*remaining=*/65.0f));
+    REQUIRE(result.verdict == CheckResult::Verdict::Warn);
+    // Slot label is 1-indexed to match the picker ("Slot 2", not "Slot 1"),
+    // and both magnitudes appear so the user can see which way it is short.
+    CHECK(result.body.find("Slot 2") != std::string::npos);
+    CHECK(result.body.find("65") != std::string::npos);
+    CHECK(result.body.find("863") != std::string::npos);
+    CHECK(!result.proceed_label.empty());
 }

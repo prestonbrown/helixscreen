@@ -126,6 +126,39 @@ CheckResult gate_insufficient_spool_weight(const PrintStartContext& ctx) {
     return warn_result(lv_tr("Not Enough Filament"), body, lv_tr("Start Anyway"));
 }
 
+CheckResult gate_insufficient_lane_weight(const PrintStartContext& ctx) {
+    const auto shortfalls = insufficient_lane_weights_in(ctx);
+    if (shortfalls.empty()) {
+        return pass_result();
+    }
+
+    char body[512];
+    if (shortfalls.size() == 1) {
+        const auto& sf = shortfalls.front();
+        std::snprintf(body, sizeof(body),
+                      lv_tr("Slot %d has about %.0fg but tool %d needs about %.0fg. "
+                            "Start anyway?"),
+                      sf.mapped_slot + 1, sf.remaining_g, sf.tool_index, sf.needed_g);
+    } else {
+        // Name every short lane: the user's next move is to remap one of them,
+        // and a count alone would not say which.
+        std::string list;
+        for (const auto& sf : shortfalls) {
+            char one[128];
+            std::snprintf(one, sizeof(one), lv_tr("Slot %d: %.0fg of %.0fg needed"),
+                          sf.mapped_slot + 1, sf.remaining_g, sf.needed_g);
+            if (!list.empty()) {
+                list += "\n";
+            }
+            list += one;
+        }
+        std::snprintf(body, sizeof(body), "%s\n%s\n%s",
+                      lv_tr("Some mapped slots are short on filament:"), list.c_str(),
+                      lv_tr("Start anyway?"));
+    }
+    return warn_result(lv_tr("Not Enough Filament"), body, lv_tr("Start Anyway"));
+}
+
 CheckResult gate_bypass_engaged_lane_print(const PrintStartContext& ctx) {
     // Single-tool prints with bypass engaged are the LEGITIMATE bypass use
     // case — silent. "Single-tool" is the used-tool count, not the palette
@@ -411,6 +444,28 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx) {
 }
 
 std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintStartContext& ctx) {
+    // The external spool is the ONE spool this rule can weigh, and a lane-fed
+    // print does not draw from it. Every sibling rule here already scopes itself
+    // on bypass; this one never did, because it predates bypass existing (it is
+    // from the single-extruder era, 39a576ddc).
+    //
+    // The consequence is not a merely-inaccurate warning, it is an unanswerable
+    // one: the rule compares the file's WHOLE-FILE total against that spool, so
+    // no lane assignment or tool remap can change either input. On a K2 Plus the
+    // user mapped a print from T1 to T2 and kept getting "needs about 1900g but
+    // the spool has about 386g" - 386g being the bypass spool, which the print
+    // was never going to touch. Worse, assigning a spool to a LANE calls
+    // set_active_spool(), and Moonraker's active spool is what populates
+    // external_spool - so editing a lane silently re-aims this comparison.
+    //
+    // A real per-lane check cannot be written yet: SlotInfo carries
+    // remaining_weight_g but AvailableSlot drops it, so nothing downstream can
+    // compare a tool's grams against its mapped lane's grams. Staying silent is
+    // the honest answer until that data is threaded through.
+    if (ctx.ams_manages_filament && ctx.has_active_backend && !ctx.any_bypass_active) {
+        return std::nullopt;
+    }
+
     const auto& spool = ctx.external_spool;
     if (!spool.has_value() || !(spool->remaining_weight_g > 0.0f)) {
         return std::nullopt;
@@ -434,6 +489,79 @@ std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintS
         return std::make_pair(needed_g, spool->remaining_weight_g);
     }
     return std::nullopt;
+}
+
+std::vector<LaneWeightShortfall> insufficient_lane_weights_in(const PrintStartContext& ctx) {
+    std::vector<LaneWeightShortfall> shortfalls;
+    if (!ctx.metadata.has_value() || ctx.mappings.empty() || ctx.available_slots.empty()) {
+        return shortfalls;
+    }
+    // Bypass feeds from the external spool, which insufficient_spool_weight_in()
+    // already owns. Same split the material check draws.
+    if (ctx.any_bypass_active && print_lane_requirement(ctx) <= 1) {
+        return shortfalls;
+    }
+
+    const auto& grams = ctx.tool_grams;
+    const bool have_per_tool = !grams.empty();
+    const double file_total_g = ctx.metadata->filament_weight_total;
+
+    for (const auto& m : ctx.mappings) {
+        if (m.tool_index < 0 || m.mapped_slot < 0) {
+            continue;
+        }
+        // Only tools the file actually prints with. tools_used is the slicer's
+        // own answer; an unused tool mapped to an empty lane is not a shortfall.
+        if (!ctx.tools_used.empty() && ctx.tools_used.count(m.tool_index) == 0) {
+            continue;
+        }
+
+        double needed_g = 0.0;
+        if (have_per_tool) {
+            const size_t idx = static_cast<size_t>(m.tool_index);
+            if (idx >= grams.size()) {
+                continue; // no figure for this tool
+            }
+            needed_g = grams[idx];
+        } else if (ctx.tools_used.size() == 1) {
+            // No per-tool line, but only one tool prints - the whole-file total
+            // is that tool's, exactly. Multi-tool without a breakdown stays
+            // silent rather than inventing a split.
+            needed_g = file_total_g;
+        } else {
+            continue;
+        }
+        if (!(needed_g > 0.0)) {
+            continue;
+        }
+
+        // Resolve on the (slot, backend) PAIR: slot_index is unique only within
+        // a backend, so matching on slot alone can price the wrong lane.
+        const AvailableSlot* lane = nullptr;
+        for (const auto& slot : ctx.available_slots) {
+            if (slot.slot_index == m.mapped_slot && slot.backend_index == m.mapped_backend) {
+                lane = &slot;
+                break;
+            }
+        }
+        if (lane == nullptr || !(lane->remaining_weight_g >= 0.0f)) {
+            continue; // unknown lane, or a lane with no weight on record
+        }
+
+        if (static_cast<double>(lane->remaining_weight_g) < needed_g) {
+            LaneWeightShortfall sf;
+            sf.tool_index = m.tool_index;
+            sf.mapped_slot = m.mapped_slot;
+            sf.mapped_backend = m.mapped_backend;
+            sf.needed_g = static_cast<float>(needed_g);
+            sf.remaining_g = lane->remaining_weight_g;
+            shortfalls.push_back(sf);
+            spdlog::info("[PrintStartController] Lane short: tool {} -> slot {} needs {:.0f} g, "
+                         "has {:.0f} g",
+                         sf.tool_index, sf.mapped_slot, sf.needed_g, sf.remaining_g);
+        }
+    }
+    return shortfalls;
 }
 
 std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartContext& ctx) {
@@ -601,6 +729,10 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
     // new gates (bypass + unaccounted toolhead) ahead of the ported four.
     static const std::vector<PrintStartGate> gates = {
         {"insufficient_spool_weight", gate_insufficient_spool_weight},
+        // The lane-fed counterpart. Mutually exclusive with the spool check by
+        // construction: that one returns early on a lane-fed AMS print, this
+        // one returns early on bypass.
+        {"insufficient_lane_weight", gate_insufficient_lane_weight},
         {"bypass_engaged_lane_print", gate_bypass_engaged_lane_print},
         {"unaccounted_toolhead_filament", gate_unaccounted_toolhead_filament},
         {"required_filament_present", gate_required_filament_present},

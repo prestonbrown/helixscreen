@@ -53,26 +53,36 @@ bool is_extruder_colour_key(const std::string& key) {
 // Parse one comma-separated grams vector into the indices that printed.
 // Unparsable tokens count as zero but still consume their slot, so a garbled
 // entry never shifts the tools after it.
-std::set<int> used_indices_from_grams(std::string_view values) {
-    std::set<int> used;
-    int index = 0;
+std::vector<double> grams_from_line(std::string_view values) {
+    std::vector<double> grams;
     while (true) {
         const size_t comma = values.find(',');
         std::string_view tok =
             trim(comma == std::string_view::npos ? values : values.substr(0, comma));
+        double value = 0.0;
         if (!tok.empty()) {
             const std::string owned(tok);
             char* end = nullptr;
-            const double grams = std::strtod(owned.c_str(), &end);
-            if (end != owned.c_str() && grams > USED_GRAMS_EPSILON) {
-                used.insert(index);
+            const double parsed = std::strtod(owned.c_str(), &end);
+            if (end != owned.c_str()) {
+                value = parsed;
             }
         }
-        ++index;
+        grams.push_back(value);
         if (comma == std::string_view::npos) {
             break;
         }
         values.remove_prefix(comma + 1);
+    }
+    return grams;
+}
+
+std::set<int> used_indices_from_grams(const std::vector<double>& grams) {
+    std::set<int> used;
+    for (size_t i = 0; i < grams.size(); ++i) {
+        if (grams[i] > USED_GRAMS_EPSILON) {
+            used.insert(static_cast<int>(i));
+        }
     }
     return used;
 }
@@ -112,7 +122,8 @@ GcodeFooterSummary parse_gcode_footer_summary(std::string_view tail) {
             // be from an older per-object block, and the file's final summary
             // is the one that describes the whole print.
             summary.has_usage_line = true;
-            summary.tools_used = used_indices_from_grams(body.substr(eq + 1));
+            summary.grams_per_tool = grams_from_line(body.substr(eq + 1));
+            summary.tools_used = used_indices_from_grams(summary.grams_per_tool);
         } else if (is_colour_key(key)) {
             std::vector<std::string> palette;
             if (parse_filament_color_palette(body, palette)) {
