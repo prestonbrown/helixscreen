@@ -2787,6 +2787,8 @@ translations:
     de fin de filament indique qu'aucun filament n'est chargé. Démarrer l'impression
     quand même ?
   The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucune voie de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
+  ? The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?
+  : 'La tête d''outil contient du filament mais aucune voie de l''AMS ne le signale comme chargé. L''imprimante peut refuser de charger une voie tant qu''elle n''est pas vidée. Démarrer quand même ?'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Le
     capteur de la tête d'outil indique que du filament est déjà chargé. Procéder au
     chargement quand même ?

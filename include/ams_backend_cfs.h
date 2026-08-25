@@ -442,6 +442,16 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// print_start_checks.cpp) — do not narrow to == -1.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
+    /// True: the CFS clears the toolhead without a lane. bypass_unload_gcode()
+    /// is exactly that script - QUIT_MATERIAL (heat, cut, retract) plus the
+    /// retract Creality's macro leaves out, or a CR_BOX_CUT/BOX_CUT_MATERIAL
+    /// fallback - and it is built deliberately WITHOUT the bay envelopes,
+    /// because a stood-down box has no answer for a bay operation. An
+    /// unaccounted toolhead is that same lane-free situation.
+    [[nodiscard]] bool can_clear_unaccounted_toolhead() const override {
+        return true;
+    }
+
   protected:
     /// Recovery buttons for a CFS runout. **Caller must hold mutex_** (base
     /// contract; this override takes no lock of its own and mutex_ is not

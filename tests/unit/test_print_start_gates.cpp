@@ -1042,3 +1042,52 @@ TEST_CASE("gate_insufficient_lane_weight: names the short slot", "[print-start][
     CHECK(result.body.find("863") != std::string::npos);
     CHECK(!result.proceed_label.empty());
 }
+
+// ---------------------------------------------------------------------------
+// unaccounted_toolhead_filament: the remedy follows the hardware
+// ---------------------------------------------------------------------------
+//
+// The detection was always right (a K2 Plus reported filament_detected=true at
+// the toolhead while box.T1.filament read "None"), but the advice was not. The
+// CFS has a lane-free heat/cut/retract - bypass_unload_gcode(), built without
+// the bay envelopes precisely because a stood-down box cannot answer a bay
+// operation - so directing the user to pull filament out of a hot toolhead by
+// hand is both wrong and worse than what the printer can do itself. On hardware
+// with no such path, the manual pull is still the only answer.
+
+TEST_CASE("gate unaccounted_toolhead_filament: advice depends on whether the backend can clear it",
+          "[print-start][gate-pipeline][toolhead]") {
+    auto make = [](bool clearable) {
+        return ctx_with([&](PrintStartContext& c) {
+            c.any_bypass_active = false;
+            c.toolhead_unaccounted = {std::optional<bool>(true)};
+            c.toolhead_clearable = {clearable};
+        });
+    };
+    auto& g = gate_named("unaccounted_toolhead_filament");
+
+    auto cutter = g.evaluate(make(true));
+    REQUIRE(cutter.verdict == CheckResult::Verdict::Warn);
+    CHECK(cutter.title == "Filament In The Toolhead");
+    CHECK(cutter.body.find("Pull it out manually") == std::string::npos);
+    CHECK(cutter.body.find("refuse to load a lane") != std::string::npos);
+
+    auto manual = g.evaluate(make(false));
+    REQUIRE(manual.verdict == CheckResult::Verdict::Warn);
+    CHECK(manual.body.find("Pull it out manually") != std::string::npos);
+}
+
+TEST_CASE("gate unaccounted_toolhead_filament: a missing capability entry reads as cannot-clear",
+          "[print-start][gate-pipeline][toolhead]") {
+    // toolhead_clearable is filled in lockstep with toolhead_unaccounted, but a
+    // shorter vector must degrade to the conservative advice rather than index
+    // past the end.
+    auto c = ctx_with([](PrintStartContext& ctx) {
+        ctx.any_bypass_active = false;
+        ctx.toolhead_unaccounted = {std::optional<bool>(true)};
+        ctx.toolhead_clearable = {}; // deliberately empty
+    });
+    auto r = gate_named("unaccounted_toolhead_filament").evaluate(c);
+    REQUIRE(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.body.find("Pull it out manually") != std::string::npos);
+}

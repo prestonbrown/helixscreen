@@ -82,6 +82,11 @@ struct PrintStartContext {
     /// Per-backend answer to toolhead_filament_unaccounted(), indexed like
     /// AmsState backends. nullopt = backend cannot determine.
     std::vector<std::optional<bool>> toolhead_unaccounted;
+
+    /// Per-backend answer to can_clear_unaccounted_toolhead(), indexed like
+    /// toolhead_unaccounted. Chooses which remedy the warning names; an index
+    /// past the end reads as "cannot", the conservative answer.
+    std::vector<bool> toolhead_clearable;
     /// Lane-truth result (tool_index, slot_index) for the print's required
     /// lanes; populated only when ams_manages_filament && has_active_backend.
     std::vector<std::pair<int, int>> empty_required_lanes;

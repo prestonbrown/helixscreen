@@ -1143,6 +1143,26 @@ class AmsBackend {
      * @param slot_index Slot to query (0-based)
      * @return true if Unload should be offered (and Load suppressed) for this slot
      */
+    /**
+     * @brief Whether this backend can clear the toolhead with NO lane involved.
+     *
+     * Asked only in the unaccounted-filament case: the toolhead sensor reads
+     * filament while the backend reports no seated lane, so every per-slot
+     * unload path is unavailable by definition. What matters then is whether
+     * the hardware has a lane-free way to heat, cut and retract.
+     *
+     * Drives the advice the pre-print warning gives, not an action. Telling a
+     * user to pull filament out of a hot toolhead by hand is the right answer
+     * on hardware with no cutter and the wrong one on hardware that can do it
+     * itself, so the message asks this rather than assuming the worst.
+     *
+     * Default false: a backend that has not been shown to manage this must not
+     * imply the printer will handle it.
+     */
+    [[nodiscard]] virtual bool can_clear_unaccounted_toolhead() const {
+        return false;
+    }
+
     [[nodiscard]] virtual bool can_unload_from_toolhead(int slot_index) const {
         const SlotInfo slot = get_slot_info(slot_index);
         if (get_topology() == PathTopology::PARALLEL) {
