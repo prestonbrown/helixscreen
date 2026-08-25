@@ -159,6 +159,7 @@
   <translation tag="All extruder temperatures with progress bars" fr="Toutes les températures d&apos;extrudeur avec barres de progression"/>
   <translation tag="All fields are required" fr="Tous les champs sont requis"/>
   <translation tag="All plugins loaded successfully" fr="Tous les plugins ont été chargés avec succès"/>
+  <translation tag="Allow" fr="Autoriser"/>
   <translation tag="Allow Home Screen Editing" fr="Autoriser la modification de l&apos;écran d&apos;accueil"/>
   <translation tag="Allow cold load/unload" fr="Autoriser le chargement/déchargement à froid"/>
   <translation tag="Allow display to sleep during active prints" fr="Permettre la mise en veille pendant l&apos;impression"/>
@@ -169,6 +170,7 @@
   <translation tag="Ambient Transfer" fr="Transfert ambiant"/>
   <translation tag="AmsIdentify" fr="Identifier l&apos;AMS"/>
   <translation tag="An accelerometer was detected on your printer." fr="Un accéléromètre a été détecté sur votre imprimante."/>
+  <translation tag="An app on your network is asking to connect to this printer." fr="Une application de votre réseau demande à se connecter à cette imprimante."/>
   <translation tag="An error occurred during calibration." fr="Une erreur s&apos;est produite pendant la calibration."/>
   <translation tag="An error occurred during filament loading." fr="Une erreur sest produite lors du chargement du filament."/>
   <translation tag="An error occurred during measurement." fr="Une erreur sest produite lors de la mesure."/>
@@ -538,6 +540,7 @@
   <translation tag="Connecting..." fr="Connexion..."/>
   <translation tag="Connection" fr="Connexion"/>
   <translation tag="Connection Failed" fr="Connexion échouée"/>
+  <translation tag="Connection Request" fr="Demande de connexion"/>
   <translation tag="Connection Stability" fr="Stabilité de la connexion"/>
   <translation tag="Connection failed" fr="Connexion échouée"/>
   <translation tag="Connection failed to {}:{}" fr="Connexion échouée à {}:{}"/>
@@ -570,6 +573,7 @@
   <translation tag="Corner roundness" fr="Arrondi des coins"/>
   <translation tag="Correction (Ki)" fr="Correction (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." fr="Impossible d&apos;analyser la macro PRINT_START. Certaines options d&apos;impression peuvent être indisponibles."/>
+  <translation tag="Could not answer the connection request" fr="Impossible de répondre à la demande de connexion"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." fr="Impossible de vérifier la webcam.&#10;Vérifiez la connexion."/>
   <translation tag="Could not forget device" fr="Impossible d&apos;oublier l&apos;appareil"/>
   <translation tag="Could not load printer database" fr="Impossible de charger la base de données dimprimantes"/>
@@ -653,6 +657,7 @@
   <translation tag="Delete {}?" fr="Supprimer {} ?"/>
   <translation tag="Delta:" fr="Delta :"/>
   <translation tag="Density" fr="Densité"/>
+  <translation tag="Deny" fr="Refuser"/>
   <translation tag="Deploy" fr="Déployer"/>
   <translation tag="Describe the issue (optional)" fr="Décrivez le problème (optionnel)"/>
   <translation tag="Detailed" fr="Détaillé"/>
@@ -664,6 +669,7 @@
   <translation tag="Dev" fr="Dev"/>
   <translation tag="Dev channel requires dev_url in config" fr="Le canal de développement nécessite dev_url dans la configuration"/>
   <translation tag="Device" fr="Appareil"/>
+  <translation tag="Device connected" fr="Appareil connecté"/>
   <translation tag="Device name" fr="Nom de lappareil"/>
   <translation tag="Device name is required" fr="Le nom de l&apos;appareil est requis"/>
   <translation tag="Device: " fr="Appareil : "/>
@@ -2814,6 +2820,7 @@
   <translation tag="{} filament sensors available" fr="{} capteurs de filament disponibles"/>
   <translation tag="{} filament • {}" fr="{} de filament • {}"/>
   <translation tag="{} heater turned off" fr="Chauffage {} désactivé"/>
+  <translation tag="{} is asking to connect to this printer." fr="{} demande à se connecter à cette imprimante."/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." fr="{} est installé mais son passage à la bobine de secours est désactivé, aucun changement automatique n&apos;aura donc lieu."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." fr="{} est installé, mais son réglage de bobine de secours n&apos;a pas pu être lu - ne comptez pas sur un changement automatique."/>
   <translation tag="{} is not set up on this printer"/>

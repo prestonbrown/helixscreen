@@ -510,6 +510,7 @@ We welcome additional testers with Snapmaker U1 hardware — **especially anyone
 - **[Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware)** -- Adds SSH access and community features to the U1
 - **[U1 Config Example](https://github.com/JNP-1/Snapmaker-U1-Config)** -- Community reverse-engineered Klipper configuration
 - **[Snapmaker Forum](https://forum.snapmaker.com/c/snapmaker-products/87)** -- Official U1 discussion
+- **[LAN Client Authorization](../LAN_CLIENT_AUTHORIZATION.md)** -- How Snapmaker Orca and the Snapmaker App pair with the printer, and why the prompt is HelixScreen's job once it replaces the stock screen
 - **[Toolchanger Research](../printer-research/SNAPMAKER_U1_RESEARCH.md)** -- Detailed analysis of U1's toolchanger implementation vs. standard Klipper toolchanger module
 - **[Snapmaker/u1-klipper](https://github.com/Snapmaker/u1-klipper)** -- Open source Klipper fork
 - **[Snapmaker/u1-moonraker](https://github.com/Snapmaker/u1-moonraker)** -- Open source Moonraker fork

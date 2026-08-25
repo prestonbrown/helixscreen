@@ -156,6 +156,7 @@ translations:
   All extruder temperatures with progress bars: '所有挤出机温度及进度条'
   All fields are required: 所有字段均为必填项
   All plugins loaded successfully: 所有插件加载成功
+  Allow: '允许'
   Allow Home Screen Editing: '允许编辑主屏幕'
   Allow cold load/unload: 允许冷态加载/卸载
   Allow display to sleep during active prints: 打印时允许屏幕休眠
@@ -166,6 +167,7 @@ translations:
   Ambient Transfer: 环境传热
   AmsIdentify: 识别 AMS
   An accelerometer was detected on your printer.: 在您的打印机上检测到加速度计。
+  An app on your network is asking to connect to this printer.: '网络中的某个应用请求连接到此打印机。'
   An error occurred during calibration.: 校准过程中发生错误。
   An error occurred during filament loading.: 装载耗材时发生错误。
   An error occurred during measurement.: 测量时发生错误。
@@ -543,6 +545,7 @@ translations:
   Connecting...: 正在连接...
   Connection: 连接
   Connection Failed: 连接失败
+  Connection Request: '连接请求'
   Connection Stability: 连接稳定性
   Connection failed: 连接失败
   Connection failed to {}:{}: 连接 {}:{} 失败
@@ -575,6 +578,7 @@ translations:
   Correction (Ki): 校正 (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: 无法分析
     PRINT_START 宏。部分打印选项可能不可用。
+  Could not answer the connection request: '无法响应连接请求'
   ? "Could not check webcam status.\nCheck printer connection."
   : "无法检查摄像头状态。\n请检查打印机连接。"
   Could not forget device: 无法忘记设备
@@ -660,6 +664,7 @@ translations:
   Delete {}?: 删除 {}?
   'Delta:': 差值：
   Density: 密度
+  Deny: '拒绝'
   Deploy: 部署
   Describe the issue (optional): 描述问题（可选）
   Detailed: 详细
@@ -671,6 +676,7 @@ translations:
   Dev: 开发版
   Dev channel requires dev_url in config: 开发频道需要在配置中设置 dev_url
   Device: 设备
+  Device connected: '设备已连接'
   Device name: 设备名称
   Device name is required: 设备名称为必填项
   'Device: ': '设备: '
@@ -2922,6 +2928,7 @@ translations:
   '{} filament sensors available': '{} 个耗材传感器可用'
   '{} filament • {}': '耗材 {} • {}'
   '{} heater turned off': '{} 加热器已关闭'
+  '{} is asking to connect to this printer.': '{} 请求连接到此打印机。'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。'
   '{} is not set up on this printer': ''

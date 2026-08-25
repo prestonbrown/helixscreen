@@ -62,7 +62,7 @@ Everything else — deletion rules, timers, shutdown ordering — follows from t
 
 ### The thread inventory
 
-There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:3972`](../../../src/application/application.cpp#L3972)) and never leaves it until shutdown. Everything else is background:
+There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:3980`](../../../src/application/application.cpp#L3980)) and never leaves it until shutdown. Everything else is background:
 
 - **The libhv event loop.** `MoonrakerClient` extends `hv::WebSocketClient` ([`include/moonraker_client.h:78`](../../../include/moonraker_client.h#L78)), and libhv runs the socket's event loop on its own thread. Every WebSocket frame, JSON-RPC reply, and connection-state callback arrives there. This is the thread that produces almost all printer data.
 - **`HttpExecutor` pools.** Two process-wide executors ([`include/http_executor.h:87`](../../../include/http_executor.h#L87)): `fast()` with 4 workers for status/REST/thumbnail traffic that deserves burst parallelism, `slow()` with 1 worker so a multi-minute upload cannot head-of-line-block a quick request. `submit()` from any thread, `run_sync()` when a result is needed now (never from inside a worker on a single-worker lane — self-deadlock).

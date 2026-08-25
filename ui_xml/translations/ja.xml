@@ -159,6 +159,7 @@
   <translation tag="All extruder temperatures with progress bars" ja="全エクストルーダー温度とプログレスバー"/>
   <translation tag="All fields are required" ja="すべての項目が必須です"/>
   <translation tag="All plugins loaded successfully" ja="すべてのプラグインを正常に読み込みました"/>
+  <translation tag="Allow" ja="許可"/>
   <translation tag="Allow Home Screen Editing" ja="ホーム画面の編集を許可"/>
   <translation tag="Allow cold load/unload" ja="コールド時の装填/取り出しを許可"/>
   <translation tag="Allow display to sleep during active prints" ja="印刷中のスリープを許可"/>
@@ -169,6 +170,7 @@
   <translation tag="Ambient Transfer" ja="環境熱伝達"/>
   <translation tag="AmsIdentify" ja="AMSを識別"/>
   <translation tag="An accelerometer was detected on your printer." ja="プリンターで加速度センサーが検出されました。"/>
+  <translation tag="An app on your network is asking to connect to this printer." ja="ネットワーク上のアプリがこのプリンターへの接続を求めています。"/>
   <translation tag="An error occurred during calibration." ja="キャリブレーション中にエラーが発生しました。"/>
   <translation tag="An error occurred during filament loading." ja="フィラメントの読み込み中にエラーが発生しました。"/>
   <translation tag="An error occurred during measurement." ja="測定中にエラーが発生しました。"/>
@@ -538,6 +540,7 @@
   <translation tag="Connecting..." ja="接続中..."/>
   <translation tag="Connection" ja="接続"/>
   <translation tag="Connection Failed" ja="接続に失敗しました"/>
+  <translation tag="Connection Request" ja="接続リクエスト"/>
   <translation tag="Connection Stability" ja="接続の安定性"/>
   <translation tag="Connection failed" ja="接続に失敗しました"/>
   <translation tag="Connection failed to {}:{}" ja="{}:{} への接続に失敗しました"/>
@@ -570,6 +573,7 @@
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ja="PRINT_START マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。"/>
+  <translation tag="Could not answer the connection request" ja="接続リクエストに応答できませんでした"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." ja="ウェブカメラの状態を確認できませんでした。&#10;プリンター接続を確認してください。"/>
   <translation tag="Could not forget device" ja="デバイスの登録を解除できませんでした"/>
   <translation tag="Could not load printer database" ja="プリンターデータベースを読み込めませんでした"/>
@@ -653,6 +657,7 @@
   <translation tag="Delete {}?" ja="{} を削除しますか?"/>
   <translation tag="Delta:" ja="差分:"/>
   <translation tag="Density" ja="密度"/>
+  <translation tag="Deny" ja="拒否"/>
   <translation tag="Deploy" ja="展開"/>
   <translation tag="Describe the issue (optional)" ja="問題の詳細（任意）"/>
   <translation tag="Detailed" ja="詳細"/>
@@ -664,6 +669,7 @@
   <translation tag="Dev" ja="開発版"/>
   <translation tag="Dev channel requires dev_url in config" ja="開発チャンネルには設定にdev_urlが必要です"/>
   <translation tag="Device" ja="デバイス"/>
+  <translation tag="Device connected" ja="デバイスが接続されました"/>
   <translation tag="Device name" ja="デバイス名"/>
   <translation tag="Device name is required" ja="デバイス名は必須です"/>
   <translation tag="Device: " ja="デバイス: "/>
@@ -2814,6 +2820,7 @@
   <translation tag="{} filament sensors available" ja="{} 個のフィラメントセンサーが利用可能です"/>
   <translation tag="{} filament • {}" ja="フィラメント {} • {}"/>
   <translation tag="{} heater turned off" ja="{} ヒーターをオフにしました"/>
+  <translation tag="{} is asking to connect to this printer." ja="{} がこのプリンターへの接続を求めています。"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ja="{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ja="{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。"/>
   <translation tag="{} is not set up on this printer"/>
