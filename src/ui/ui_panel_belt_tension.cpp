@@ -841,14 +841,23 @@ void BeltTensionPanel::handle_advance_clicked() {
 
 void BeltTensionPanel::handle_next_belt_clicked() {
     float median = 0.0f;
+    bool may_advance = false;
     {
         std::lock_guard<std::mutex> lock(listen_mutex_);
         if (session_) {
             median = session_->median_hz();
+            may_advance = session_->may_advance();
         }
     }
-    if (median <= 0.0f) {
-        spdlog::warn("[BeltTension] Next belt refused: belt A has no median yet");
+    // The XML binding already disables this button until the median commits.
+    // This is the same check on the action itself, so a stale binding or a
+    // programmatic click (ctl click sends LV_EVENT_CLICKED with no disabled
+    // check) cannot get past it - same reasoning as handle_start_clicked().
+    // It is load-bearing beyond the UI: MIN_HARMONIC_CONCENTRATION is set as
+    // low as it is because the committed number is a median of five, so
+    // committing on fewer would quietly invalidate that argument.
+    if (!may_advance) {
+        spdlog::warn("[BeltTension] Next belt refused: belt A has not committed a median yet");
         return;
     }
 
@@ -868,14 +877,18 @@ void BeltTensionPanel::handle_next_belt_clicked() {
 
 void BeltTensionPanel::handle_compare_clicked() {
     float median = 0.0f;
+    bool may_advance = false;
     {
         std::lock_guard<std::mutex> lock(listen_mutex_);
         if (session_) {
             median = session_->median_hz();
+            may_advance = session_->may_advance();
         }
     }
-    if (median <= 0.0f) {
-        spdlog::warn("[BeltTension] Compare refused: belt B has no median yet");
+    // Same guard as handle_next_belt_clicked(), for the same reason: this is
+    // the number the comparison and every verdict string are built from.
+    if (!may_advance) {
+        spdlog::warn("[BeltTension] Compare refused: belt B has not committed a median yet");
         return;
     }
 

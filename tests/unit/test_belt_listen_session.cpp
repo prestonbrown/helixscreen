@@ -187,6 +187,30 @@ std::vector<AccelSample> pluck_stream(float f0, float amp) {
     return out;
 }
 
+/// A live-stream-shaped buffer with `n` copies of the same real ring-down in
+/// it, each separated by enough quiet for the cooldown (SKIP_MS + ANALYZE_MS,
+/// about 1700 samples here) to expire before the next strike arrives. Noise
+/// amplitude is derived the same way splice_live_window() derives it, so every
+/// copy arrives at the strength the capture actually recorded.
+std::vector<AccelSample> splice_n_plucks(const Fixture& f, size_t n) {
+    const float sig = PluckDetector::window_rms(f.samples.data(), f.samples.size());
+    const float noise_amp = sig / f.recorded_ratio;
+
+    auto out =
+        make_noise(noise_amp, BeltListenSession::DETECTION_WINDOW_SAMPLES + 1024, 0.0f, f.rate_hz);
+    for (size_t k = 0; k < n; ++k) {
+        const float t_join = out.back().time;
+        for (size_t i = 0; i < f.samples.size(); ++i) {
+            AccelSample s = f.samples[i];
+            s.time = t_join + static_cast<float>(i + 1) / f.rate_hz;
+            out.push_back(s);
+        }
+        auto gap = make_noise(noise_amp, 4096, out.back().time, f.rate_hz);
+        out.insert(out.end(), gap.begin(), gap.end());
+    }
+    return out;
+}
+
 /// Run a synthetic buffer through a session that learned its floor from the
 /// buffer's own quiet lead-in, exactly as the panel does.
 std::vector<PluckEvent> listen(BeltListenSession& s, const std::vector<AccelSample>& buf) {
@@ -822,4 +846,51 @@ TEST_CASE("learn_noise_floor learns the quiet spectrum as well as the floor", "[
     BeltListenSession scalar_only(SPAN_MM, kRate);
     scalar_only.set_noise_floor(50.0f);
     CHECK_FALSE(scalar_only.quiet_spectrum().valid());
+}
+
+TEST_CASE("advancing off a belt takes five plucks, not one", "[belt][listen]") {
+    // The panel's two advance handlers used to gate on `median_hz() > 0`, which
+    // is true from the FIRST accepted pluck - and `ctl click` sends
+    // LV_EVENT_CLICKED with no disabled check, so the XML binding that shows
+    // the five-pluck rule to a human does not enforce it against a
+    // programmatic click. That mattered beyond the UI: Task 12 set
+    // MIN_HARMONIC_CONCENTRATION as low as 0.25 on the argument that the
+    // committed number is a median of five, so committing on one would have
+    // quietly invalidated it.
+    //
+    // This drives a real capture through the real session five times and
+    // asserts may_advance() - the predicate both handlers now call - stays
+    // false for every batch below the threshold, while median_hz() is
+    // positive for many of them. The second half is what makes this a
+    // regression guard rather than a tautology: it proves the two predicates
+    // genuinely disagree on this input, so a revert to the median-only check
+    // fails here.
+    const auto fx = load_fixture("a_belt_86hz_3.csv");
+    const auto live = splice_n_plucks(fx, PluckAggregator::COMMIT_AFTER);
+
+    BeltListenSession s(SPAN_MM, fx.rate_hz);
+    REQUIRE(s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+
+    constexpr size_t kBatch = 340;
+    size_t batches_with_a_median_but_no_commit = 0;
+    for (size_t off = 0; off < live.size(); off += kBatch) {
+        AccelBatch b;
+        const size_t n = std::min(kBatch, live.size() - off);
+        b.samples.assign(live.begin() + static_cast<long>(off),
+                         live.begin() + static_cast<long>(off + n));
+        s.push(b);
+
+        if (s.accepted_count() < PluckAggregator::COMMIT_AFTER) {
+            INFO("accepted " << s.accepted_count() << " median " << s.median_hz());
+            CHECK_FALSE(s.may_advance());
+            if (s.median_hz() > 0.0f) {
+                ++batches_with_a_median_but_no_commit;
+            }
+        }
+    }
+
+    INFO("accepted " << s.accepted_count() << " of " << PluckAggregator::COMMIT_AFTER);
+    REQUIRE(s.accepted_count() == PluckAggregator::COMMIT_AFTER);
+    CHECK(s.may_advance());
+    CHECK(batches_with_a_median_but_no_commit > 0);
 }

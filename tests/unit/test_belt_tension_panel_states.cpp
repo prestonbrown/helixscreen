@@ -119,3 +119,43 @@ TEST_CASE_METHOD(XMLTestFixture, "belt tension panel binds only subjects that ex
     CHECK(lv_xml_get_subject(nullptr, "bt_progress") == nullptr);
     CHECK(lv_xml_get_subject(nullptr, "bt_progress_label") == nullptr);
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "belt tension advance button refuses a programmatic click",
+                 "[belt][panel][xml]") {
+    // `ctl click` reaches a widget through lv_obj_send_event(w,
+    // LV_EVENT_CLICKED, nullptr) - no disabled check anywhere in that path
+    // (remote_control_server.cpp) - so the bt_committed binding below is a
+    // display of the five-pluck rule, not an enforcement of it. The
+    // enforcement is BeltListenSession::may_advance(), which both advance
+    // handlers call and which test_belt_listen_session.cpp drives against a
+    // real capture. This pins the exposure end to end: the button is disabled
+    // before the median commits, and clicking it anyway leaves the flow where
+    // it was.
+    lv_obj_t* panel = build_belt_panel(*this);
+
+    lv_obj_t* btn = lv_obj_find_by_name(panel, "btn_next_belt");
+    REQUIRE(btn != nullptr);
+
+    lv_subject_t* committed = lv_xml_get_subject(nullptr, "bt_committed");
+    REQUIRE(committed != nullptr);
+    lv_subject_t* state = lv_xml_get_subject(nullptr, "belt_tension_state");
+    REQUIRE(state != nullptr);
+
+    lv_subject_set_int(committed, 0);
+    lv_subject_set_int(state, static_cast<int>(BeltTensionPanel::ViewState::LISTEN));
+    UpdateQueue::instance().drain();
+    process_lvgl(20);
+    CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
+
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(20);
+    CHECK(lv_subject_get_int(state) == static_cast<int>(BeltTensionPanel::ViewState::LISTEN));
+
+    // And the binding does release once the median commits, so the check above
+    // is not passing because the button is permanently dead.
+    lv_subject_set_int(committed, 1);
+    UpdateQueue::instance().drain();
+    process_lvgl(20);
+    CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+}

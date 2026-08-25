@@ -106,6 +106,23 @@ class BeltListenSession {
     [[nodiscard]] float median_hz() const;
     [[nodiscard]] bool committed() const;
 
+    /**
+     * @brief Is median_hz() safe to hand on as this belt's answer?
+     *
+     * A non-zero median is NOT the same question: PluckAggregator::median()
+     * returns a median of any non-empty sample set, so it is positive from the
+     * first accepted pluck. Committing there would ship a single reading, and
+     * MIN_HARMONIC_CONCENTRATION is set as low as it is precisely because the
+     * committed number is a median of COMMIT_AFTER plucks - see
+     * pitch_estimator.h. The rule lives here rather than in the panel because
+     * a UI binding is not an enforcement point: `ctl click` sends
+     * LV_EVENT_CLICKED with no disabled check, so a programmatic click reaches
+     * the handler regardless of what the button looks like.
+     */
+    [[nodiscard]] bool may_advance() const {
+        return median_hz() > 0.0f && committed();
+    }
+
     /// The current detection window, for the live waveform.
     [[nodiscard]] const std::vector<AccelSample>& window() const {
         return window_;
