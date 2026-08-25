@@ -15,23 +15,23 @@
  * spinner. Dispatching that no-op (SELECT_TOOL on the carriage tool) is what
  * left the Load button spinning for the full guard timeout in bundle 9KRXZ62P.
  *
- * These are mirror wrappers of execute_load()/execute_unload()'s post-plan
- * branching — the same seam test_filament_op_slot_resolver.cpp uses for the
- * panel's slot decision. They must be edited in lockstep with the panel, and
- * they HAVE drifted: the BypassLoaded refusal shipped in plan_load() without
- * ever reaching the copy below, which fell through to SelectSlot and asserted
- * the wrong toast plus an AMS-panel redirect the panel never performs.
+ * The branching itself is shipped code: helix::ui::panel_load_outcome() and
+ * panel_unload_outcome() (ui_panel_filament.h) ARE execute_load()/execute_unload()
+ * from the plan onward, and the panel reads the same struct for its toast copy,
+ * its slot-picker redirect, its backend argument and its manual-pull arm. This
+ * file used to carry a hand-written copy of that branching instead, and it had
+ * drifted: the BypassLoaded refusal shipped in plan_load() without ever reaching
+ * the copy, which fell through to SelectSlot and asserted the wrong toast plus an
+ * AMS-panel redirect the panel never performs.
  *
- * A real FilamentPanel IS unit-instantiable — tests/unit/test_filament_panel_op_timeout.cpp
- * drives one built from filament_panel.xml over a recording backend via
- * tests/test_helpers/filament_panel_test_access.h — and the toast text IS
- * observable: NOTIFY_INFO/NOTIFY_WARNING land in NotificationHistory
- * (ui_notification.cpp show_notification()). So these wrappers can be retired.
- * Doing it means driving the four BackendCaps answers through a real AmsBackend
- * (requires_slot_selection_for_load / is_bypass_active /
- * needs_unload_before_load per lane / get_type) and the two StandardMacros
- * states, for all nineteen cases below.
+ * What the outcome deliberately does NOT carry is the dispatch: the backend call,
+ * the param modal, the raw-gcode fallback and the guard/spinner bookkeeping stay
+ * in the panel. tests/unit/test_filament_panel_op_timeout.cpp drives a real
+ * FilamentPanel built from filament_panel.xml over a recording backend, via
+ * tests/test_helpers/filament_panel_test_access.h, and is where that half belongs.
  */
+
+#include "ui_panel_filament.h"
 
 #include "ams_types.h"
 #include "filament_op_dispatch.h"
@@ -44,117 +44,31 @@
 using helix::ui::AmsCall;
 using helix::ui::BackendCaps;
 using helix::ui::EXTERNAL_SPOOL_SLOT;
-using helix::ui::FilamentOpPlan;
-using helix::ui::FilamentRefusal;
+using helix::ui::FilamentPanelOutcome;
 using helix::ui::FilamentTier;
+using helix::ui::panel_load_outcome;
+using helix::ui::panel_unload_outcome;
 using helix::ui::plan_load;
 using helix::ui::plan_unload;
-using helix::ui::unload_needs_manual_pull;
 
 namespace {
 
-/// Which arm of the panel's switch ran.
-enum class Arm {
-    Backend,  ///< a backend entry point was called
-    Macro,    ///< handed to run_filament_macro via the StandardMacros slot
-    RawGcode, ///< the built-in extrude/retract fallback
-    Refused,  ///< nothing dispatched
-};
-
-struct PanelOutcome {
-    Arm arm = Arm::Refused;
-    AmsCall call = AmsCall::None;
-    int arg = -1;
-    /// begin_operation_guard() + backend_op_active_ + op_started() ran. False on
-    /// every refusal — a refused op must leave the buttons live.
-    bool guard_armed = false;
-    bool navigated_to_ams = false;
-    /// arm_manual_pull_prompt() ran — the "pull it out by hand" watch. Only for
-    /// an unload with no lane to retract into, and never on a refusal.
-    bool armed_manual_pull = false;
-    std::string toast; ///< the msgid handed to NOTIFY_*, empty when none
-};
-
-/// Mirror of FilamentPanel::execute_load() from the plan onward.
-PanelOutcome panel_execute_load(const AmsSystemInfo& sys, const BackendCaps& caps, int target_slot,
-                                bool macro_available, bool macro_user_configured = false) {
-    const FilamentOpPlan plan =
-        plan_load(sys, caps, target_slot, macro_available, macro_user_configured);
-    PanelOutcome out;
-
-    switch (plan.tier) {
-    case FilamentTier::AmsBackend:
-        out.arm = Arm::Backend;
-        out.guard_armed = true;
-        out.call = plan.ams_call;
-        out.arg = plan.ams_arg;
-        break;
-
-    case FilamentTier::Refused:
-        out.arm = Arm::Refused;
-        switch (plan.refusal) {
-        case FilamentRefusal::AlreadyMounted:
-            out.toast = "That tool is already loaded";
-            break;
-        case FilamentRefusal::BypassLoaded:
-            // The bypass spool still crosses the toolhead switch, which sits above
-            // the cutter — no unload gcode clears it, only a hand (36205eb27). The
-            // panel says so and does NOT redirect: there is nothing to pick.
-            out.toast = "Remove the bypass spool from the toolhead first";
-            break;
-        case FilamentRefusal::SelectSlot:
-        default:
-            out.toast = "Select a filament slot to load";
-            out.navigated_to_ams = true;
-            break;
-        }
-        break;
-
-    case FilamentTier::Macro:
-        out.arm = Arm::Macro;
-        break;
-
-    case FilamentTier::RawGcode:
-        out.arm = Arm::RawGcode;
-        break;
-    }
-    return out;
+/// plan_load() + the panel's answer to it — the two production calls
+/// execute_load() itself makes back to back, before it dispatches.
+FilamentPanelOutcome load_outcome(const AmsSystemInfo& sys, const BackendCaps& caps,
+                                  int target_slot, bool macro_available,
+                                  bool macro_user_configured = false) {
+    return panel_load_outcome(
+        plan_load(sys, caps, target_slot, macro_available, macro_user_configured));
 }
 
-/// Mirror of FilamentPanel::execute_unload() from the plan onward.
-PanelOutcome panel_execute_unload(const BackendCaps& caps, int target_slot, bool target_is_loaded,
-                                  bool macro_available, bool macro_user_configured = false) {
-    const FilamentOpPlan plan =
-        plan_unload(caps, target_slot, target_is_loaded, macro_available, macro_user_configured);
-    PanelOutcome out;
-
-    // Mirrors the arm site, which sits between the plan and the switch so it
-    // covers every dispatching tier at once and no refusal.
-    out.armed_manual_pull = plan.tier != FilamentTier::Refused &&
-                            helix::ui::unload_needs_manual_pull(caps.present, target_slot);
-
-    switch (plan.tier) {
-    case FilamentTier::AmsBackend:
-        out.arm = Arm::Backend;
-        out.guard_armed = true;
-        out.call = plan.ams_call;
-        out.arg = plan.ams_arg;
-        break;
-
-    case FilamentTier::Refused:
-        out.arm = Arm::Refused;
-        out.toast = "No filament loaded to unload";
-        break;
-
-    case FilamentTier::Macro:
-        out.arm = Arm::Macro;
-        break;
-
-    case FilamentTier::RawGcode:
-        out.arm = Arm::RawGcode;
-        break;
-    }
-    return out;
+/// plan_unload() + the panel's answer to it. `caps.present` is the same
+/// backend-exists answer execute_unload() hands the manual-pull question.
+FilamentPanelOutcome unload_outcome(const BackendCaps& caps, int target_slot, bool target_is_loaded,
+                                    bool macro_available, bool macro_user_configured = false) {
+    return panel_unload_outcome(
+        plan_unload(caps, target_slot, target_is_loaded, macro_available, macro_user_configured),
+        caps.present, target_slot);
 }
 
 AmsSystemInfo make_sys(int slot_count, int current_slot, std::vector<int> mapped_tools = {}) {
@@ -210,9 +124,9 @@ TEST_CASE("Load on the already-mounted tool arms no guard and no spinner",
     // Load button spinning and every other op locked out by is_busy().
     AmsSystemInfo sys = make_sys(5, /*current_slot=*/4);
 
-    PanelOutcome out = panel_execute_load(sys, seated_toolchanger(), /*target_slot=*/4,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Refused);
+    FilamentPanelOutcome out = load_outcome(sys, seated_toolchanger(), /*target_slot=*/4,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Refused);
     CHECK_FALSE(out.guard_armed);
     CHECK(out.call == AmsCall::None);
 }
@@ -224,22 +138,22 @@ TEST_CASE("Load on the already-mounted tool still tells the user something",
     // user pressed a button and gets no other feedback, so a toast is required.
     AmsSystemInfo sys = make_sys(5, /*current_slot=*/4);
 
-    PanelOutcome out = panel_execute_load(sys, seated_toolchanger(), /*target_slot=*/4,
-                                          /*macro_available=*/true);
+    FilamentPanelOutcome out = load_outcome(sys, seated_toolchanger(), /*target_slot=*/4,
+                                            /*macro_available=*/true);
     CHECK(out.toast == "That tool is already loaded");
     // Not the slot-picker redirect: there is nothing to pick, the tool is on.
-    CHECK_FALSE(out.navigated_to_ams);
+    CHECK_FALSE(out.navigate_to_ams);
 }
 
 TEST_CASE("Load with no resolved slot redirects to the AMS slot picker",
           "[filament][dispatch][wiring]") {
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
 
-    PanelOutcome out = panel_execute_load(sys, fresh_ams(), /*target_slot=*/-1,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Refused);
+    FilamentPanelOutcome out = load_outcome(sys, fresh_ams(), /*target_slot=*/-1,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Refused);
     CHECK(out.toast == "Select a filament slot to load");
-    CHECK(out.navigated_to_ams);
+    CHECK(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
 }
 
@@ -250,10 +164,10 @@ TEST_CASE("The two load refusals do not share a toast or a navigation",
     AmsSystemInfo mounted = make_sys(5, /*current_slot=*/2);
     AmsSystemInfo empty = make_sys(5, /*current_slot=*/-1);
 
-    PanelOutcome a = panel_execute_load(mounted, seated_toolchanger(), 2, true);
-    PanelOutcome b = panel_execute_load(empty, fresh_ams(), -1, true);
+    FilamentPanelOutcome a = load_outcome(mounted, seated_toolchanger(), 2, true);
+    FilamentPanelOutcome b = load_outcome(empty, fresh_ams(), -1, true);
     CHECK(a.toast != b.toast);
-    CHECK(a.navigated_to_ams != b.navigated_to_ams);
+    CHECK(a.navigate_to_ams != b.navigate_to_ams);
 }
 
 // =============================================================================
@@ -264,9 +178,9 @@ TEST_CASE("Load with nothing seated calls load_filament on the selected slot",
           "[filament][dispatch][wiring]") {
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
 
-    PanelOutcome out = panel_execute_load(sys, fresh_ams(), /*target_slot=*/2,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    FilamentPanelOutcome out = load_outcome(sys, fresh_ams(), /*target_slot=*/2,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.call == AmsCall::Load);
     CHECK(out.arg == 2);
     CHECK(out.guard_armed);
@@ -280,9 +194,9 @@ TEST_CASE("Load with filament seated calls change_tool on the mapped tool",
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    PanelOutcome out = panel_execute_load(sys, seated, /*target_slot=*/1,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    FilamentPanelOutcome out = load_outcome(sys, seated, /*target_slot=*/1,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.call == AmsCall::ChangeTool);
     CHECK(out.arg == 3);
     CHECK(out.guard_armed);
@@ -298,9 +212,9 @@ TEST_CASE("Load with filament seated and no tool mapping still calls load_filame
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
 
-    PanelOutcome out = panel_execute_load(sys, seated, /*target_slot=*/1,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    FilamentPanelOutcome out = load_outcome(sys, seated, /*target_slot=*/1,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.call == AmsCall::Load);
     CHECK(out.arg == 1);
     CHECK(out.guard_armed);
@@ -316,9 +230,9 @@ TEST_CASE("Load under bypass reaches the configured macro, not the backend",
 
     // The bypass TARGET, not a lane: plan_load()'s bypass branch only claims
     // target_slot >= 0, so EXTERNAL_SPOOL_SLOT still falls to the macro tier.
-    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), EXTERNAL_SPOOL_SLOT,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Macro);
+    FilamentPanelOutcome out = load_outcome(sys, bypassed_ams(), EXTERNAL_SPOOL_SLOT,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Macro);
     // The backend guard belongs to the backend arm; the macro arm's guard is
     // armed inside run_filament_macro, after any param modal is answered.
     CHECK_FALSE(out.guard_armed);
@@ -333,9 +247,9 @@ TEST_CASE("Under bypass a named lane goes to the backend, not the bypass macro",
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
     sys.filament_loaded = false;
 
-    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), /*target_slot=*/2,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    FilamentPanelOutcome out = load_outcome(sys, bypassed_ams(), /*target_slot=*/2,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.call == AmsCall::Load);
     CHECK(out.arg == 2);
     CHECK(out.guard_armed);
@@ -351,11 +265,11 @@ TEST_CASE("A lane load is refused while the bypass spool still crosses the toolh
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
     sys.filament_loaded = true;
 
-    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), /*target_slot=*/2,
-                                          /*macro_available=*/true);
-    CHECK(out.arm == Arm::Refused);
+    FilamentPanelOutcome out = load_outcome(sys, bypassed_ams(), /*target_slot=*/2,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Refused);
     CHECK(out.toast == "Remove the bypass spool from the toolhead first");
-    CHECK_FALSE(out.navigated_to_ams);
+    CHECK_FALSE(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
     CHECK(out.call == AmsCall::None);
 }
@@ -365,9 +279,9 @@ TEST_CASE("Load with no backend and no macro falls back to raw gcode",
     AmsSystemInfo sys = make_sys(0, -1);
     BackendCaps none{};
 
-    PanelOutcome out = panel_execute_load(sys, none, /*target_slot=*/-1,
-                                          /*macro_available=*/false);
-    CHECK(out.arm == Arm::RawGcode);
+    FilamentPanelOutcome out = load_outcome(sys, none, /*target_slot=*/-1,
+                                            /*macro_available=*/false);
+    CHECK(out.tier == FilamentTier::RawGcode);
 }
 
 // =============================================================================
@@ -376,22 +290,22 @@ TEST_CASE("Load with no backend and no macro falls back to raw gcode",
 
 TEST_CASE("Unload with nothing loaded warns and dispatches nothing",
           "[filament][dispatch][wiring]") {
-    PanelOutcome out = panel_execute_unload(fresh_ams(), /*target_slot=*/2,
-                                            /*target_is_loaded=*/false, /*macro_available=*/true);
-    CHECK(out.arm == Arm::Refused);
+    FilamentPanelOutcome out = unload_outcome(fresh_ams(), /*target_slot=*/2,
+                                              /*target_is_loaded=*/false, /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Refused);
     CHECK(out.toast == "No filament loaded to unload");
     CHECK_FALSE(out.guard_armed);
     // The unload refusal never redirects — the panel already knows the slot.
-    CHECK_FALSE(out.navigated_to_ams);
+    CHECK_FALSE(out.navigate_to_ams);
 }
 
 TEST_CASE("Unload passes the panel's selected slot to unload_filament",
           "[filament][dispatch][wiring]") {
     // Re-resolving current_slot inside the backend was the U1 wrong-tool bug;
     // the plan must carry the slot the panel asked for.
-    PanelOutcome out = panel_execute_unload(fresh_ams(), /*target_slot=*/3,
-                                            /*target_is_loaded=*/true, /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    FilamentPanelOutcome out = unload_outcome(fresh_ams(), /*target_slot=*/3,
+                                              /*target_is_loaded=*/true, /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.call == AmsCall::Unload);
     CHECK(out.arg == 3);
     CHECK(out.guard_armed);
@@ -407,27 +321,28 @@ TEST_CASE("Unload under bypass stays on the backend while load falls through",
     // Both halves target the bypass spool itself. Aiming them at a LANE would
     // not show the asymmetry: plan_load()'s bypass branch claims a named lane
     // for the backend, so load and unload would agree.
-    PanelOutcome unload = panel_execute_unload(bypassed, EXTERNAL_SPOOL_SLOT,
-                                               /*target_is_loaded=*/true, /*macro_available=*/true);
-    PanelOutcome load = panel_execute_load(sys, bypassed, EXTERNAL_SPOOL_SLOT,
-                                           /*macro_available=*/true);
-    CHECK(unload.arm == Arm::Backend);
-    CHECK(load.arm == Arm::Macro);
+    FilamentPanelOutcome unload =
+        unload_outcome(bypassed, EXTERNAL_SPOOL_SLOT,
+                       /*target_is_loaded=*/true, /*macro_available=*/true);
+    FilamentPanelOutcome load = load_outcome(sys, bypassed, EXTERNAL_SPOOL_SLOT,
+                                             /*macro_available=*/true);
+    CHECK(unload.tier == FilamentTier::AmsBackend);
+    CHECK(load.tier == FilamentTier::Macro);
 }
 
 TEST_CASE("Unload with no backend falls through macro then raw gcode",
           "[filament][dispatch][wiring]") {
     BackendCaps none{};
 
-    PanelOutcome with_macro = panel_execute_unload(none, /*target_slot=*/-1,
-                                                   /*target_is_loaded=*/false,
-                                                   /*macro_available=*/true);
-    CHECK(with_macro.arm == Arm::Macro);
+    FilamentPanelOutcome with_macro = unload_outcome(none, /*target_slot=*/-1,
+                                                     /*target_is_loaded=*/false,
+                                                     /*macro_available=*/true);
+    CHECK(with_macro.tier == FilamentTier::Macro);
 
-    PanelOutcome without = panel_execute_unload(none, /*target_slot=*/-1,
-                                                /*target_is_loaded=*/false,
-                                                /*macro_available=*/false);
-    CHECK(without.arm == Arm::RawGcode);
+    FilamentPanelOutcome without = unload_outcome(none, /*target_slot=*/-1,
+                                                  /*target_is_loaded=*/false,
+                                                  /*macro_available=*/false);
+    CHECK(without.tier == FilamentTier::RawGcode);
 }
 
 // =============================================================================
@@ -441,21 +356,21 @@ TEST_CASE("Unloading the bypass spool arms the manual-pull prompt",
     // arms the prompt at dispatch; the toolhead sensor (or op completion) fires
     // it. Without this the operation just "succeeds" with filament still in the
     // machine and no instruction.
-    auto out = panel_execute_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/true,
-                                    /*macro_available=*/true);
-    CHECK(out.arm == Arm::Backend);
+    auto out = unload_outcome(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/true,
+                              /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::AmsBackend);
     CHECK(out.arg == EXTERNAL_SPOOL_SLOT);
-    CHECK(out.armed_manual_pull);
+    CHECK(out.arm_manual_pull);
 }
 
 TEST_CASE("Unloading an AMS lane arms no manual-pull prompt",
           "[filament][dispatch][wiring][bypass]") {
     // The lane reels its own filament back. Prompting here would fire on every
     // ordinary unload, which is how a helpful toast turns into noise.
-    auto out = panel_execute_unload(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/true,
-                                    /*macro_available=*/true);
-    REQUIRE(out.arm == Arm::Backend);
-    CHECK_FALSE(out.armed_manual_pull);
+    auto out = unload_outcome(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/true,
+                              /*macro_available=*/true);
+    REQUIRE(out.tier == FilamentTier::AmsBackend);
+    CHECK_FALSE(out.arm_manual_pull);
 }
 
 TEST_CASE("A backend-less unload arms the prompt on every tier",
@@ -464,22 +379,22 @@ TEST_CASE("A backend-less unload arms the prompt on every tier",
     // so both the macro and the raw-gcode fallback leave the same manual job.
     BackendCaps none{};
 
-    auto via_macro = panel_execute_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
-                                          /*macro_available=*/true);
-    REQUIRE(via_macro.arm == Arm::Macro);
-    CHECK(via_macro.armed_manual_pull);
+    auto via_macro = unload_outcome(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
+                                    /*macro_available=*/true);
+    REQUIRE(via_macro.tier == FilamentTier::Macro);
+    CHECK(via_macro.arm_manual_pull);
 
-    auto via_gcode = panel_execute_unload(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
-                                          /*macro_available=*/false);
-    REQUIRE(via_gcode.arm == Arm::RawGcode);
-    CHECK(via_gcode.armed_manual_pull);
+    auto via_gcode = unload_outcome(none, /*target_slot=*/-1, /*target_is_loaded=*/false,
+                                    /*macro_available=*/false);
+    REQUIRE(via_gcode.tier == FilamentTier::RawGcode);
+    CHECK(via_gcode.arm_manual_pull);
 }
 
 TEST_CASE("A refused unload arms nothing", "[filament][dispatch][wiring][bypass]") {
     // Nothing was dispatched, so nothing will ever complete to disarm it. An arm
     // here would sit waiting for the next unrelated toolhead-sensor edge.
-    auto out = panel_execute_unload(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/false,
-                                    /*macro_available=*/true);
-    REQUIRE(out.arm == Arm::Refused);
-    CHECK_FALSE(out.armed_manual_pull);
+    auto out = unload_outcome(fresh_ams(), EXTERNAL_SPOOL_SLOT, /*target_is_loaded=*/false,
+                              /*macro_available=*/true);
+    REQUIRE(out.tier == FilamentTier::Refused);
+    CHECK_FALSE(out.arm_manual_pull);
 }

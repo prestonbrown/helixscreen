@@ -212,6 +212,42 @@ struct OpButtonState {
                 (s.print_blocks_op && !s.unload_is_cold_lane_op)};
 }
 
+/**
+ * @brief The AMS sidebar's Unload button as an OpButtonState.
+ *
+ * That button has a fixed shape: its availability is the aggregate "something is
+ * loaded" flag rather than a per-slot answer, and it is ALWAYS the heated
+ * toolhead unload — the cold lane ops (Eject / Recover), which stay reachable
+ * mid-print, live on the AMS context menu instead. The field mapping is the part
+ * that must not fork: hardcoding unload_is_cold_lane_op = false is what makes
+ * PRINTING refuse here, so a surface that filled it any other way would silently
+ * re-open bundle JX2FVRB9's dead end.
+ *
+ * Split out of AmsOperationSidebar::read_unload_gating_state(), which is now the
+ * singleton reads plus one call to this.
+ *
+ * @param filament_loaded    ams_filament_loaded — something is at the toolhead.
+ * @param system_busy        AmsSystemInfo::is_busy(); false when there is no backend.
+ * @param lifecycle          The derived PrintState (print_lifecycle subject).
+ * @param backend_self_homes AmsBackend::filament_ops_self_home(); false when
+ *                           there is no backend, per print_blocks_filament_op().
+ */
+[[nodiscard]] inline OpButtonState build_unload_gating_state(bool filament_loaded, bool system_busy,
+                                                             PrintState lifecycle,
+                                                             bool backend_self_homes) {
+    OpButtonState s;
+    s.unload_available = filament_loaded;
+    s.system_busy = system_busy;
+    // print_blocks_filament_op(), not the raw print_active subject: PRINTING
+    // always refuses, but a PAUSED print ALLOWS the unload on every backend whose
+    // filament macro does not home itself (only AD5X IFS does). Gating on
+    // print_active would keep this button greyed through the pause that is the
+    // entire recovery workflow.
+    s.print_blocks_op = print_blocks_filament_op(lifecycle, backend_self_homes);
+    s.unload_is_cold_lane_op = false;
+    return s;
+}
+
 // ---------------------------------------------------------------------------
 // Load preheat
 // ---------------------------------------------------------------------------

@@ -1045,36 +1045,25 @@ void AmsOperationSidebar::refresh_heat_step_display() {
 // ============================================================================
 
 helix::ui::OpButtonState AmsOperationSidebar::read_unload_gating_state() const {
-    helix::ui::OpButtonState state;
-
+    // The reads live here; the field mapping they feed is
+    // build_unload_gating_state(), so the sidebar's shape — aggregate loaded
+    // flag, always the heated unload — is stated once and stays testable without
+    // an AmsState singleton. The sidebar had no print term at all before, so it
+    // went straight from "always tappable" to "correct" only if it asks the same
+    // question the backend does.
     AmsBackend* backend = AmsState::instance().get_backend();
-
-    // print_blocks_filament_op(), not the raw print_active subject: PRINTING
-    // always refuses, but a PAUSED print now ALLOWS the unload on every backend
-    // whose filament macro does not home itself (only AD5X IFS does). Gating on
-    // print_active would keep this button greyed through the pause that is the
-    // entire recovery workflow — and the sidebar had no print term at all
-    // before, so it went straight from "always tappable" to "correct" only if
-    // this asks the same question the backend does.
-    const auto lifecycle = printer_state_.get_print_lifecycle();
-    state.print_blocks_op = helix::ui::print_blocks_filament_op(
-        lifecycle, backend && backend->filament_ops_self_home());
-
-    if (backend) {
-        // AmsSystemInfo::is_busy() — the same predicate check_preconditions()
-        // refuses on, instead of a fourth open-coded `action != IDLE && != ERROR`.
-        state.system_busy = backend->get_system_info().is_busy();
-    }
 
     // This button means "unload whatever is active", so the aggregate loaded flag
     // is its availability — the same signal the XML used to bind directly.
     lv_subject_t* loaded = AmsState::instance().get_filament_loaded_subject();
-    state.unload_available = loaded && lv_subject_get_int(loaded) == 1;
 
-    // Always the heated toolhead unload. The cold lane ops (Eject / Recover),
-    // which stay reachable mid-print, live on the AMS context menu.
-    state.unload_is_cold_lane_op = false;
-    return state;
+    return helix::ui::build_unload_gating_state(
+        /*filament_loaded=*/loaded && lv_subject_get_int(loaded) == 1,
+        // AmsSystemInfo::is_busy() — the same predicate check_preconditions()
+        // refuses on, instead of a fourth open-coded `action != IDLE && != ERROR`.
+        /*system_busy=*/backend && backend->get_system_info().is_busy(),
+        printer_state_.get_print_lifecycle(),
+        /*backend_self_homes=*/backend && backend->filament_ops_self_home());
 }
 
 void AmsOperationSidebar::refresh_unload_gating() {

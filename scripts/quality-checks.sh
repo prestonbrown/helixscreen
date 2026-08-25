@@ -2008,7 +2008,7 @@ SECTION_START=$(date +%s)
 echo -n "🪞 Checking for mirror tests..."
 
 if [ -f "scripts/check_test_mirrors.py" ]; then
-  if python3 scripts/check_test_mirrors.py --max-allowed 7 >/tmp/test_mirrors.out 2>&1; then
+  if python3 scripts/check_test_mirrors.py --max-allowed 1 >/tmp/test_mirrors.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/test_mirrors.out
