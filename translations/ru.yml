@@ -2175,6 +2175,7 @@ translations:
   Remove PIN: Удалить PIN
   Remove Spoolman?: Удалить Spoolman?
   Remove plugin from printer: Удалить плагин с принтера
+  Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Rename: Переименовать
   Rename Fan: Переименовать вентилятор
   Rename Mesh Profile: Переименовать профиль сетки
@@ -2494,6 +2495,8 @@ translations:
   Slot: Слот
   Slot %d: Слот %d
   Slot %d Filament: Филамент слота %d
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?'
+  'Slot %d: %.0fg of %.0fg needed': 'Слот %d: %.0fг из %.0fг'
   Slot 1: Слот 1
   Slot {}: Слот {}
   Slot {} matches.: 'Слот {} подходит.'
@@ -2507,6 +2510,7 @@ translations:
   Software Updates: Обновления ПО
   Some filaments don't match the slicer's intent.: Некоторые филаменты не соответствуют
     замыслу слайсера.
+  'Some mapped slots are short on filament:': 'В некоторых назначенных слотах мало филамента:'
   Some settings will take effect after restart.: Некоторые настройки вступят в силу
     после перезапуска.
   Sound Theme: Звуковая тема
@@ -2559,6 +2563,7 @@ translations:
   Start Drying: Начать сушку
   Start Print: Начать печать
   Start Probing: Начать зондирование
+  Start anyway?: 'Всё равно начать?'
   Start at: Начать с
   Start failed: Ошибка запуска
   Start print anyway?: Всё равно начать печать?

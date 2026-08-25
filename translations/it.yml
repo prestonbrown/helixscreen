@@ -2197,6 +2197,7 @@ translations:
   Remove PIN: Rimuovi PIN
   Remove Spoolman?: Rimuovere Spoolman?
   Remove plugin from printer: Rimuovi plugin dalla stampante
+  Remove the bypass spool from the toolhead first: 'Rimuovi prima la bobina di bypass dalla testina'
   Rename: Rinomina
   Rename Fan: Rinomina ventola
   Rename Mesh Profile: Rinomina profilo mesh
@@ -2520,6 +2521,8 @@ translations:
   Slot: Slot
   Slot %d: Slot %d
   Slot %d Filament: Filamento slot %d
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?'
+  'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg di %.0fg necessari'
   Slot 1: Slot 1
   Slot {}: Slot {}
   Slot {} matches.: 'Lo slot {} corrisponde.'
@@ -2533,6 +2536,7 @@ translations:
   Software Updates: Aggiornamenti software
   Some filaments don't match the slicer's intent.: Alcuni filamenti non corrispondono
     alle intenzioni dello slicer.
+  'Some mapped slots are short on filament:': 'Alcuni slot assegnati hanno poco filamento:'
   Some settings will take effect after restart.: Alcune impostazioni avranno effetto
     dopo il riavvio.
   Sound Theme: Tema sonoro
@@ -2586,6 +2590,7 @@ translations:
   Start Drying: Avvia essiccazione
   Start Print: Avvia stampa
   Start Probing: Avvia sondaggio
+  Start anyway?: 'Avviare comunque?'
   Start at: Inizia da
   Start failed: Avvio fallito
   Start print anyway?: Avviare comunque la stampa?

@@ -1970,6 +1970,7 @@
   <translation tag="Remove PIN" zh="移除 PIN"/>
   <translation tag="Remove Spoolman?" zh="移除 Spoolman？"/>
   <translation tag="Remove plugin from printer" zh="从打印机移除插件"/>
+  <translation tag="Remove the bypass spool from the toolhead first" zh="请先将旁路料盘从工具头中取出"/>
   <translation tag="Rename" zh="重命名"/>
   <translation tag="Rename Fan" zh="重命名风扇"/>
   <translation tag="Rename Mesh Profile" zh="重命名网格配置"/>
@@ -2250,6 +2251,8 @@
   <translation tag="Slot" zh="料仓"/>
   <translation tag="Slot %d" zh="料仓 %d"/>
   <translation tag="Slot %d Filament" zh="料仓 %d 耗材"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" zh="料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" zh="料仓 %d：%.0fg / 需要 %.0fg"/>
   <translation tag="Slot 1" zh="料仓 1"/>
   <translation tag="Slot {}" zh="料仓 {}"/>
   <translation tag="Slot {} matches." zh="料仓 {} 匹配。"/>
@@ -2261,6 +2264,7 @@
   <translation tag="Soft" zh="柔和"/>
   <translation tag="Software Updates" zh="软件更新"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." zh="部分耗材与切片软件的意图不符。"/>
+  <translation tag="Some mapped slots are short on filament:" zh="部分已映射料仓耗材不足："/>
   <translation tag="Some settings will take effect after restart." zh="某些设置将在重启后生效。"/>
   <translation tag="Sound Theme" zh="声音主题"/>
   <translation tag="Sounds" zh="声音"/>
@@ -2309,6 +2313,7 @@
   <translation tag="Start Drying" zh="开始烘干"/>
   <translation tag="Start Print" zh="开始打印"/>
   <translation tag="Start Probing" zh="开始探测"/>
+  <translation tag="Start anyway?" zh="仍要开始吗？"/>
   <translation tag="Start at" zh="从第"/>
   <translation tag="Start failed" zh="启动失败"/>
   <translation tag="Start print anyway?" zh="仍要开始打印吗？"/>

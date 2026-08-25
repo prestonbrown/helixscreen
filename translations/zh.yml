@@ -2013,6 +2013,7 @@ translations:
   Remove PIN: 移除 PIN
   Remove Spoolman?: 移除 Spoolman？
   Remove plugin from printer: 从打印机移除插件
+  Remove the bypass spool from the toolhead first: '请先将旁路料盘从工具头中取出'
   Rename: 重命名
   Rename Fan: 重命名风扇
   Rename Mesh Profile: 重命名网格配置
@@ -2302,6 +2303,8 @@ translations:
   Slot: 料仓
   Slot %d: 料仓 %d
   Slot %d Filament: 料仓 %d 耗材
+  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: '料仓 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？'
+  'Slot %d: %.0fg of %.0fg needed': '料仓 %d：%.0fg / 需要 %.0fg'
   Slot 1: 料仓 1
   Slot {}: 料仓 {}
   Slot {} matches.: '料仓 {} 匹配。'
@@ -2313,6 +2316,7 @@ translations:
   Soft: 柔和
   Software Updates: 软件更新
   Some filaments don't match the slicer's intent.: 部分耗材与切片软件的意图不符。
+  'Some mapped slots are short on filament:': '部分已映射料仓耗材不足：'
   Some settings will take effect after restart.: 某些设置将在重启后生效。
   Sound Theme: 声音主题
   Sounds: 声音
@@ -2362,6 +2366,7 @@ translations:
   Start Drying: 开始烘干
   Start Print: 开始打印
   Start Probing: 开始探测
+  Start anyway?: '仍要开始吗？'
   Start at: 从第
   Start failed: 启动失败
   Start print anyway?: 仍要开始打印吗？

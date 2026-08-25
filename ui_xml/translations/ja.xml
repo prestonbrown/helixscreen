@@ -1970,6 +1970,7 @@
   <translation tag="Remove PIN" ja="PIN を削除"/>
   <translation tag="Remove Spoolman?" ja="Spoolman を削除しますか？"/>
   <translation tag="Remove plugin from printer" ja="プリンターからプラグインを削除"/>
+  <translation tag="Remove the bypass spool from the toolhead first" ja="先にバイパススプールをツールヘッドから取り外してください"/>
   <translation tag="Rename" ja="名前を変更"/>
   <translation tag="Rename Fan" ja="ファン名を変更"/>
   <translation tag="Rename Mesh Profile" ja="メッシュプロファイルの名前を変更"/>
@@ -2250,6 +2251,8 @@
   <translation tag="Slot" ja="スロット"/>
   <translation tag="Slot %d" ja="スロット %d"/>
   <translation tag="Slot %d Filament" ja="スロット %d のフィラメント"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" ja="スロット %d の残量は約 %.0fg ですが、ツール %d には約 %.0fg 必要です。それでも開始しますか？"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" ja="スロット %d: %.0fg（必要 %.0fg）"/>
   <translation tag="Slot 1" ja="スロット1"/>
   <translation tag="Slot {}" ja="スロット {}"/>
   <translation tag="Slot {} matches." ja="スロット {} が一致します。"/>
@@ -2261,6 +2264,7 @@
   <translation tag="Soft" ja="ソフト"/>
   <translation tag="Software Updates" ja="ソフトウェア更新"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." ja="一部のフィラメントがスライサーの意図と一致しません。"/>
+  <translation tag="Some mapped slots are short on filament:" ja="一部の割り当て済みスロットのフィラメントが不足しています:"/>
   <translation tag="Some settings will take effect after restart." ja="一部の設定は再起動後に有効になります。"/>
   <translation tag="Sound Theme" ja="サウンドテーマ"/>
   <translation tag="Sounds" ja="サウンド"/>
@@ -2309,6 +2313,7 @@
   <translation tag="Start Drying" ja="乾燥開始"/>
   <translation tag="Start Print" ja="印刷を開始"/>
   <translation tag="Start Probing" ja="プローブ開始"/>
+  <translation tag="Start anyway?" ja="それでも開始しますか？"/>
   <translation tag="Start at" ja="開始位置"/>
   <translation tag="Start failed" ja="開始に失敗"/>
   <translation tag="Start print anyway?" ja="それでも印刷を開始しますか？"/>
