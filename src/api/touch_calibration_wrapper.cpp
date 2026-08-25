@@ -3,8 +3,13 @@
 #include "touch_calibration_wrapper.h"
 
 #include "config.h"
+#include "helix_display_telemetry.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
+
+#include <mutex>
+#include <string>
 
 namespace helix {
 
@@ -19,9 +24,65 @@ namespace {
 // returned a non-null garbage pointer that crashed the read/disable paths
 // (bundle LG9X482B, prestonbrown/helixscreen#1112). This handle lives in our own
 // static storage instead. There is only ever one calibrated touch indev per
-// process, and it is installed/torn down on the main (LVGL) thread — the same
-// thread the read callback runs on — so a plain pointer needs no synchronization.
+// process, and it is installed/torn down on the main (LVGL) thread, the same
+// thread the read callback runs on, so the read path needs no synchronization to
+// reach it. Writes are still taken under s_diag_mutex below, because a debug
+// bundle reads the handle from a worker thread.
 CalibrationContext* s_active_ctx = nullptr;
+
+// Guards s_active_ctx and the diagnostics state behind it (pipeline, observed,
+// range_violation_reported) plus the span-check latch below.
+//
+// Everything that writes those runs on the LVGL main thread, but a debug bundle
+// snapshots them from the collect worker (DebugBundleCollector::collect() runs on
+// an HttpExecutor lane for upload_async). Without the lock that is both a torn
+// read and a read through a context the backend destructor is in the middle of
+// freeing. uninstall_calibration_wrapper() clears s_active_ctx under this same
+// lock, so a snapshot either finishes first or sees nothing at all.
+//
+// The read callback takes it once per CHANGED digitizer reading, not once per
+// call, so this is a few dozen uncontended locks a second at most.
+std::mutex s_diag_mutex;
+
+/// Fold one CHANGED raw digitizer reading into the observed extremes, and raise
+/// telemetry the first time one of them proves the configured range wrong.
+///
+/// Out-of-range is the only signal that fires telemetry. A compressed span is
+/// reported in the debug bundle and never judged here: a user who simply never
+/// touched the edges of the panel produces exactly that on healthy hardware.
+void note_raw_sample(CalibrationContext& ctx, int raw_x, int raw_y) {
+    std::string detail;
+    {
+        std::lock_guard<std::mutex> lock(s_diag_mutex);
+        ctx.observed.observe(raw_x, raw_y);
+
+        if (ctx.range_violation_reported) {
+            return;
+        }
+        const TouchRangeViolation violation = touch_range_violation(ctx.observed, ctx.pipeline);
+        if (!violation.any()) {
+            return;
+        }
+        ctx.range_violation_reported = true;
+
+        const TouchObservedExtremes seen =
+            touch_observed_in_configured_axes(ctx.observed, ctx.pipeline.swap_axes);
+        detail = fmt::format("axis={} src={} swap={} cfg_x={}..{} obs_x={}..{} "
+                             "cfg_y={}..{} obs_y={}..{} samples={} dev={}",
+                             violation.x && violation.y ? "xy" : (violation.x ? "x" : "y"),
+                             touch_range_source_name(ctx.pipeline.source), ctx.pipeline.swap_axes,
+                             ctx.pipeline.min_x, ctx.pipeline.max_x, seen.min_x, seen.max_x,
+                             ctx.pipeline.min_y, ctx.pipeline.max_y, seen.min_y, seen.max_y,
+                             ctx.observed.distinct_samples, ctx.pipeline.device_name);
+    }
+
+    // Outside the lock: the telemetry bridge takes TelemetryManager's own mutex,
+    // and nothing there needs a consistent view of the diagnostics.
+    spdlog::warn("[TouchCal] Digitizer emitted a reading outside the configured evdev range - "
+                 "the declared range cannot be what this panel produces ({})",
+                 detail);
+    helix_display_telemetry_error("display", "touch-range-declared-too-narrow", detail.c_str());
+}
 
 } // namespace
 
@@ -44,8 +105,18 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
         int rx = 0;
         int ry = 0;
         if (ctx->raw_source(rx, ry)) {
+            // lv_evdev_get_last_raw() keeps serving the last reading until a new
+            // event arrives, and this callback runs at the indev poll rate. Only
+            // a CHANGED reading is a sample: counting calls would report hundreds
+            // of them for one press and make the count worthless as the
+            // confidence signal a bundle reader needs.
+            const bool changed =
+                !ctx->last_raw_valid || rx != ctx->last_raw.x || ry != ctx->last_raw.y;
             ctx->last_raw = helix::Point{rx, ry};
             ctx->last_raw_valid = true;
+            if (changed) {
+                note_raw_sample(*ctx, rx, ry);
+            }
         }
     }
 
@@ -66,6 +137,61 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
             }
         }
     }
+}
+
+void set_touch_pipeline_info(const TouchPipelineInfo& info) {
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
+    if (!s_active_ctx) {
+        spdlog::debug("[TouchCal] Pipeline info discarded - no calibration wrapper installed");
+        return;
+    }
+    s_active_ctx->pipeline = info;
+}
+
+void set_touch_configured_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y,
+                                TouchRangeSource source) {
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
+    if (!s_active_ctx) {
+        return;
+    }
+    TouchPipelineInfo& pipeline = s_active_ctx->pipeline;
+    pipeline.source = source;
+    pipeline.configured_valid = true;
+    pipeline.swap_axes = swap_axes;
+    pipeline.min_x = min_x;
+    pipeline.max_x = max_x;
+    pipeline.min_y = min_y;
+    pipeline.max_y = max_y;
+
+    // Everything observed so far was measured against the OLD range, so keeping
+    // it would leave a bundle claiming a violation of a range that is no longer
+    // programmed.
+    s_active_ctx->observed = TouchObservedExtremes{};
+    s_active_ctx->range_violation_reported = false;
+}
+
+bool get_touch_range_diagnostics(TouchRangeDiagnostics& out) {
+    out = TouchRangeDiagnostics{};
+
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
+    CalibrationContext* ctx = s_active_ctx;
+    if (!ctx) {
+        out.unavailable_reason = "no-touch-backend";
+        return false;
+    }
+    if (!ctx->raw_source) {
+        // A pointer with no evdev stage behind it: SDL on the desktop, or a
+        // libinput fallback on DRM. Nothing here has a meaning there.
+        out.unavailable_reason = "no-raw-source";
+        return false;
+    }
+
+    out.available = true;
+    out.pipeline = ctx->pipeline;
+    out.observed = ctx->observed;
+    out.affine_valid = ctx->calibration.valid;
+    out.span_check_seen = get_touch_span_check(out.span_check_x, out.span_check_y);
+    return true;
 }
 
 bool get_last_raw_touch(Point& out) {
@@ -193,7 +319,13 @@ void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
     ctx.screen_width = screen_w;
     ctx.screen_height = screen_h;
 
-    s_active_ctx = &ctx;
+    {
+        std::lock_guard<std::mutex> lock(s_diag_mutex);
+        s_active_ctx = &ctx;
+    }
+    // A fresh device session. A span check latched by a previous one describes a
+    // calibration that is no longer the one in effect.
+    clear_touch_span_check();
     lv_indev_set_read_cb(indev, helix::calibrated_read_cb);
 }
 
@@ -205,6 +337,9 @@ void uninstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx) {
     if (indev && lv_indev_get_read_cb(indev) == helix::calibrated_read_cb) {
         lv_indev_set_read_cb(indev, nullptr);
     }
+    // Under the diagnostics lock so a debug bundle collecting on a worker thread
+    // cannot be halfway through reading ctx when the backend destructor frees it.
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
     if (s_active_ctx == &ctx) {
         s_active_ctx = nullptr;
     }

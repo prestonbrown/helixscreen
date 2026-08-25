@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "touch_calibration.h"
+
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -141,6 +143,28 @@ class DebugBundleCollector {
     /// Assemble the `update` section from explicit inputs. Pure and static so
     /// both suppression branches are unit-testable.
     static nlohmann::json build_update_info(const UpdateDiagnostics& diag);
+
+    /**
+     * @brief Touch pipeline diagnostics: what the digitizer emits vs what the
+     * pipeline was told it emits.
+     *
+     * A panel that declares one ABS range and emits another is invisible from
+     * everything else in a bundle: lv_evdev scales against the declaration and
+     * then clamps to the display, so the clamped coordinate that reaches the app
+     * carries no trace of the disagreement (FLSUN T1 Pro, tlsc6x_touch, declared
+     * X 0..480 / Y 0..272, emitted 16..243 / 13..470 - prestonbrown/helixscreen
+     * #1259, #1276). Diagnosing it used to mean asking the reporter to set
+     * HELIX_DEBUG_TOUCH and send a second log.
+     *
+     * Reads the live calibration context, which is safe from the collect worker
+     * (get_touch_range_diagnostics() takes the wrapper's own mutex).
+     */
+    static nlohmann::json collect_touch_info();
+
+    /// Assemble the `touch` section from an explicit snapshot. Pure and static,
+    /// so both the populated and the unavailable shapes are unit-testable on a
+    /// desktop that has no evdev touch device at all.
+    static nlohmann::json build_touch_info(const TouchRangeDiagnostics& diag);
 
     static std::string collect_crash_txt();
     static nlohmann::json collect_sanitized_settings();
