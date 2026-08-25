@@ -51,12 +51,19 @@ const nlohmann::json* nested_object(const nlohmann::json& status, const char* ob
 //
 // The write is `z - _TEST_POINT.temp_z_offset`: mid-print that subtraction is
 // the point, excluding the per-print probe delta START_PRINT stashed in the
-// variable. But the variable is only zeroed at BED_MESH_CALIBRATE, _MESH_TEST,
-// SAVE_ZMOD_DATA and boot - not at END_PRINT/CANCEL_PRINT - so an adjustment
-// sent while idle AFTER a print stores the intended value minus the last
-// print's delta (ghzserg/zmod#699). Until that is fixed upstream, callers
-// clear the variable right before an idle adjustment; the command lives here
-// because only ZMOD has the variable.
+// variable. Through ZMOD 1.7.2 the variable is zeroed only at
+// BED_MESH_CALIBRATE, _MESH_TEST, SAVE_ZMOD_DATA and boot - not at
+// END_PRINT/CANCEL_PRINT - so an adjustment sent while idle AFTER a print
+// stores the intended value minus the last print's delta (ghzserg/zmod#699).
+// ghzserg/z_ad5x@6a0adf3 zeroes it in _COMMON_END_PRINT, which both END_PRINT
+// and CANCEL_PRINT call, and no release carries that yet. Callers clear the
+// variable right before an idle adjustment: load-bearing below the fix, a
+// write of zero over zero above it. The command lives here because only ZMOD
+// has the variable.
+//
+// That same commit also zeroes the live gcode_move offset at print end in the
+// alt-screen config, so post-print the live offset reads 0 while the stored
+// value stands. Reading the stored one is exactly what this provider is for.
 std::optional<int> read_zmod(const nlohmann::json& status) {
     const nlohmann::json* variables = nested_object(status, "save_variables", "variables");
     if (!variables) {
