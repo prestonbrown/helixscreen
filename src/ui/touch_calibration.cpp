@@ -371,4 +371,167 @@ bool validate_calibration_result(const TouchCalibration& cal, const Point screen
     return true;
 }
 
+namespace {
+
+/// A digitizer axis spanning fewer raw units than this cannot be a real range:
+/// the decomposition landed on a near-degenerate slope, not on hardware.
+constexpr int kMinRangeSpan = 8;
+
+/// ...and one spanning more than this is not hardware either. Also keeps
+/// lv_evdev's integer scale, which computes (v - min) * (out_max - out_min)
+/// before dividing, clear of 32-bit overflow: 1e6 * 4096 still fits.
+constexpr int kMaxRangeSpan = 1000000;
+
+/// Below this the axis-aligned decomposition already reproduces the targets, so
+/// the residual affine would be a sub-pixel no-op and is left switched off.
+constexpr float kResidualIdentityPx = 0.5f;
+
+/// Decline the decomposition once the residual exceeds this share of the shorter
+/// display axis (never less than kResidualDeclineFloorPx, so a small panel still
+/// gets room for tap noise).
+///
+/// The two stages compose exactly in the middle of the panel but not at its
+/// edges: lv_evdev clamps its output before the residual affine runs, so a point
+/// the shear would have pushed past an edge is clamped first and then sheared
+/// back, costing up to `residual_px` of reach along that edge. That trade is
+/// worth making for the sub-degree skew a laminated panel actually has, and it is
+/// not worth making for a panel genuinely mounted at an angle - there the affine
+/// is doing real work, it handles the shape without any clamp in front of it, and
+/// leaving that case exactly as it was before is the safer answer.
+constexpr float kResidualDeclineFraction = 0.10f;
+constexpr float kResidualDeclineFloorPx = 12.0f;
+
+/// Decompose one axis: `slope` pixels per raw unit and `offset` pixels at raw 0
+/// describe `out_span + 1` display pixels. Recovers the raw values that land on
+/// the first and last pixel. Returns false when the implied span is not a range
+/// real hardware could emit.
+bool decompose_axis(float slope, float offset, int out_span, int& out_min, int& out_max) {
+    if (!std::isfinite(slope) || !std::isfinite(offset) || std::abs(slope) < 1e-9f) {
+        return false;
+    }
+    const float span = static_cast<float>(out_span) / slope;
+    const float min_v = -offset / slope;
+    const float max_v = min_v + span;
+    if (!std::isfinite(span) || !std::isfinite(min_v) || !std::isfinite(max_v)) {
+        return false;
+    }
+    const float abs_span = std::abs(span);
+    if (abs_span < static_cast<float>(kMinRangeSpan) ||
+        abs_span > static_cast<float>(kMaxRangeSpan)) {
+        return false;
+    }
+    // The raw endpoints themselves must stay inside int range with room for
+    // lv_evdev's multiply. Both are bounded by the span check plus this.
+    if (std::abs(min_v) > static_cast<float>(kMaxRangeSpan) ||
+        std::abs(max_v) > static_cast<float>(kMaxRangeSpan)) {
+        return false;
+    }
+    out_min = static_cast<int>(std::lround(min_v));
+    out_max = static_cast<int>(std::lround(max_v));
+    return out_min != out_max;
+}
+
+} // namespace
+
+TouchRangeFit compute_range_fit(const Point screen[3], const Point raw[3], int screen_w,
+                                int screen_h) {
+    TouchRangeFit fit;
+
+    if (screen_w < 2 || screen_h < 2) {
+        return fit;
+    }
+
+    // Stage 1: the honest raw -> screen affine. Everything below is a
+    // re-parameterisation of this same map, so the composed result reproduces it.
+    TouchCalibration full;
+    if (!compute_calibration(screen, raw, full)) {
+        spdlog::debug("[TouchRangeFit] raw points are degenerate - no range fit");
+        return fit;
+    }
+
+    // Stage 2: are the axes transposed? lv_evdev swaps BEFORE it scales, so its
+    // "x range" describes whichever raw axis feeds screen X. Screen X is driven by
+    // raw Y (and screen Y by raw X) exactly when the cross term dominates in both
+    // rows; one row alone is shear, not a transposition.
+    fit.swap_axes = std::abs(full.b) > std::abs(full.a) && std::abs(full.d) > std::abs(full.e);
+
+    // The coefficient lv_evdev's linear map has to reproduce on each axis, and the
+    // one it cannot carry (which becomes the residual).
+    const float ax = fit.swap_axes ? full.b : full.a;
+    const float ay = fit.swap_axes ? full.d : full.e;
+    const float cross_x = fit.swap_axes ? full.a : full.b;
+    const float cross_y = fit.swap_axes ? full.e : full.d;
+
+    if (!decompose_axis(ax, full.c, screen_w - 1, fit.min_x, fit.max_x) ||
+        !decompose_axis(ay, full.f, screen_h - 1, fit.min_y, fit.max_y)) {
+        spdlog::debug("[TouchRangeFit] implied ABS range is not physically plausible "
+                      "(slopes x={:.6f} y={:.6f}) - no range fit",
+                      ax, ay);
+        return fit;
+    }
+
+    // Stage 3: what the axis-aligned map leaves on the table at each target.
+    // The full affine passes exactly through all three points, so this error is
+    // precisely the cross terms the decomposition dropped.
+    const float min_x_f = -full.c / ax;
+    const float min_y_f = -full.f / ay;
+    float worst = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        const float rx = static_cast<float>(raw[i].x);
+        const float ry = static_cast<float>(raw[i].y);
+        const float u = fit.swap_axes ? ry : rx;
+        const float v = fit.swap_axes ? rx : ry;
+        const float dx = ax * (u - min_x_f) - static_cast<float>(screen[i].x);
+        const float dy = ay * (v - min_y_f) - static_cast<float>(screen[i].y);
+        worst = std::max(worst, std::sqrt(dx * dx + dy * dy));
+    }
+    fit.residual_px = worst;
+
+    // Stage 4: express that leftover as an affine over the evdev output, so the
+    // two stages together still reproduce `full`. Substituting the inverse of the
+    // axis-aligned map into `full` collapses to this, in both swap orientations:
+    //   screen_x = ev_x + (cross_x / ay) * ev_y + cross_x * min_y
+    //   screen_y = (cross_y / ax) * ev_x + ev_y + cross_y * min_x
+    fit.residual.a = 1.0f;
+    fit.residual.b = cross_x / ay;
+    fit.residual.c = cross_x * min_y_f;
+    fit.residual.d = cross_y / ax;
+    fit.residual.e = 1.0f;
+    fit.residual.f = cross_y * min_x_f;
+    // Provisionally valid so is_calibration_valid() (which short-circuits on the
+    // flag) actually inspects the coefficients.
+    fit.residual.valid = true;
+    if (!is_calibration_valid(fit.residual)) {
+        // The leftover cannot be expressed, so the range on its own would map the
+        // panel wrongly. Decline the whole decomposition rather than install half
+        // of a mapping.
+        spdlog::debug("[TouchRangeFit] residual affine is not finite - no range fit");
+        return TouchRangeFit{};
+    }
+    // A sub-pixel residual is an identity dressed up in rounding noise. Leaving it
+    // switched off keeps the affine stage out of the pipeline entirely on the
+    // square panels that are the common case.
+    fit.residual.valid = fit.residual_px > kResidualIdentityPx;
+
+    const float decline_px =
+        std::max(kResidualDeclineFloorPx,
+                 kResidualDeclineFraction * static_cast<float>(std::min(screen_w, screen_h)));
+    if (fit.residual_px > decline_px) {
+        spdlog::info("[TouchRangeFit] declining range fit: axis-aligned decomposition leaves "
+                     "{:.1f}px (limit {:.1f}px) - the panel is mounted at an angle, which the "
+                     "affine stage handles without a clamp in front of it",
+                     fit.residual_px, decline_px);
+        return TouchRangeFit{};
+    }
+
+    fit.valid = true;
+
+    spdlog::info("[TouchRangeFit] solved evdev range: swap={} X({}..{}) Y({}..{}) "
+                 "residual={:.2f}px (affine stage {})",
+                 fit.swap_axes, fit.min_x, fit.max_x, fit.min_y, fit.max_y, fit.residual_px,
+                 fit.residual.valid ? "kept" : "not needed");
+
+    return fit;
+}
+
 } // namespace helix

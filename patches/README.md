@@ -59,7 +59,7 @@ Applied in order by `mk/patches.mk`. Grouped by subsystem.
 |-------|---------|---------|----------|
 | `lvgl_slider_scroll_chain.patch` | `lv_slider.c` | Block perpendicular scroll chain during drag (touchscreen UX) | PR #9828 closed — still needed at v9.5.0 |
 | `lvgl_arc_draw_guard.patch` | `lv_draw_arc.c`, `lv_arc.c` | Guard negative inner radius and zero-radius arc invalidation | PR #9830 |
-| `lvgl-evdev-protocol-a.patch` | `lv_evdev.c` | Protocol-A touch release synthesis for Goodix GT9xx | PR #9829 |
+| `lvgl-evdev-protocol-a.patch` | `lv_evdev.c`, `lv_evdev.h` | Protocol-A touch release synthesis for Goodix GT9xx, plus `lv_evdev_get_last_raw()` - reads back the pre-swap, pre-scale digitizer coordinate so three-point calibration can solve for the true ABS range and axis transposition (#1259, #1276) | PR #9829 (release synthesis only; the raw getter is project-specific and is not part of the PR) |
 
 ### Core & Stdlib
 

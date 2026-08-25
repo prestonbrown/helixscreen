@@ -231,6 +231,68 @@ bool detect_and_correct_axis_swap(TouchCalibration& cal, const Point screen_poin
                                   Point touch_points[3]);
 
 /**
+ * @brief Evdev-stage range fit recovered from a three-point calibration
+ *
+ * The touch pipeline has two stages before LVGL sees a coordinate: lv_evdev's
+ * linear map (axis swap, then scale from the driver-declared ABS range onto the
+ * display, then clamp), and our affine matrix on top of the result. The evdev
+ * stage clamps, so it is lossy: when the driver declares a range the panel does
+ * not actually emit, coordinates arrive already compressed and already flattened
+ * at the edges, and no affine on top can undo that
+ * (prestonbrown/helixscreen#1259, #1276).
+ *
+ * compute_range_fit() solves the first stage instead of fighting it. The result
+ * is the ABS range and swap flag lv_evdev should have been configured with, plus
+ * whatever rotation or shear an axis-aligned range cannot express, expressed as
+ * a residual affine that still runs in the existing second stage.
+ *
+ * min > max on an axis is meaningful, not an error: lv_evdev's scale has a
+ * negative denominator there, which inverts the axis. Panels wired upside down
+ * calibrate to exactly that.
+ */
+struct TouchRangeFit {
+    bool valid = false;     ///< false: no usable decomposition, keep today's behaviour
+    bool swap_axes = false; ///< screen X is driven by the raw Y axis and vice versa
+    int min_x = 0;          ///< raw value that maps to display x = 0
+    int max_x = 0;          ///< raw value that maps to display x = width - 1
+    int min_y = 0;          ///< raw value that maps to display y = 0
+    int max_y = 0;          ///< raw value that maps to display y = height - 1
+    /// Worst target error the axis-aligned map alone leaves, in pixels. Also the
+    /// worst reach lost at an edge: lv_evdev clamps before the residual affine
+    /// runs, so a point the shear would push past an edge is clamped first and
+    /// sheared back. A fit that leaves too much of the screen on the table is
+    /// declined outright (valid=false) rather than composed.
+    float residual_px = 0.0f;
+
+    /// The rotation/shear the axis-aligned decomposition cannot carry, in screen
+    /// space, to run in the existing affine stage on top of the evdev map.
+    /// valid == false when the decomposition already lands sub-pixel, which is the
+    /// normal outcome on a panel whose axes are square to the display.
+    TouchCalibration residual{};
+};
+
+/**
+ * @brief Solve a three-point calibration for the evdev ABS range and axis swap
+ *
+ * Fits the raw -> screen affine, decides whether the axes are transposed from
+ * which coefficient dominates each row, then decomposes each axis into the
+ * (min, max) pair that reproduces its scale and offset through lv_evdev's linear
+ * map onto a `screen_w` x `screen_h` display. What the axis-aligned map cannot
+ * carry comes back as `residual`.
+ *
+ * @param screen 3 on-screen target positions
+ * @param raw 3 corresponding PRE-SWAP, PRE-SCALE digitizer readings
+ *            (lv_evdev_get_last_raw), not post-evdev coordinates
+ * @param screen_w Display width in pixels
+ * @param screen_h Display height in pixels
+ * @return the fit; `.valid == false` when the points are degenerate or the
+ *         implied range is not physically plausible, in which case the caller
+ *         must fall back to the affine-only path
+ */
+TouchRangeFit compute_range_fit(const Point screen[3], const Point raw[3], int screen_w,
+                                int screen_h);
+
+/**
  * @brief Check if a sysfs phys path indicates a USB-connected input device
  *
  * USB HID touchscreens (HDMI displays like BTT 5") report mapped coordinates

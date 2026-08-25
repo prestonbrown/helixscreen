@@ -1426,7 +1426,19 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                        {"c", 0.0},
                        {"d", 0.0},
                        {"e", 1.0},
-                       {"f", 0.0}}}}},
+                       {"f", 0.0}}},
+                     // The evdev ABS range and axis swap a three-point calibration
+                     // solved for (#1259, #1276). valid=false means "use whatever
+                     // range the kernel declared", which is what every install did
+                     // before this key existed - so no migration is needed and an
+                     // uncalibrated device behaves exactly as it always has.
+                     {"touch_range",
+                      {{"valid", false},
+                       {"swap_axes", false},
+                       {"min_x", 0},
+                       {"max_x", 0},
+                       {"min_y", 0},
+                       {"max_y", 0}}}}},
                    {"printers", {{"show_printer_switcher", false}, {printer_id, printer_data}}}};
 
     if (include_user_prefs) {

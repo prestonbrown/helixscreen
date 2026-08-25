@@ -526,6 +526,9 @@ validate_archive() {
 }
 
 # Backwards-compatible wrapper — new code should call validate_archive.
+# UNCALLED_OK: deliberate compatibility alias. Every in-tree caller was moved
+# to validate_archive(); the name is kept so an out-of-tree script that sourced
+# the modules under the old API keeps working. Covered by test_download_validation.bats.
 validate_tarball() {
     validate_archive "$1" "${2:-}"
 }

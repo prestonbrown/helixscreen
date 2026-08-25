@@ -41,6 +41,7 @@ LVGL_PATCHED_FILES := \
 	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
 	src/drivers/evdev/lv_evdev.c \
+	src/drivers/evdev/lv_evdev.h \
 	src/draw/lv_draw_arc.c \
 	src/widgets/arc/lv_arc.c \
 	src/draw/opengles/lv_draw_opengles.c \
