@@ -36,6 +36,14 @@ struct AvailableSlot {
     /// existing positional aggregate initializers stay valid.
     std::string multi_color_hexes;
 
+    /// Remaining filament on this lane in grams, or -1 when unknown.
+    /// Mirrors SlotInfo's sentinel: -1 means NO OPINION, never zero. Only a
+    /// Spoolman-linked or hand-weighed lane has a figure at all, so an unlinked
+    /// bay legitimately has none and must never be warned about.
+    /// Kept last for the same reason multi_color_hexes is - positional
+    /// aggregate initializers in the tests stay valid.
+    float remaining_weight_g = -1.0f;
+
     /// Unique key for this slot across all backends
     SlotKey key() const {
         return {slot_index, backend_index};

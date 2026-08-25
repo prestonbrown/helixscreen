@@ -365,6 +365,13 @@ class PrintSelectDetailView : public OverlayBase {
      */
     [[nodiscard]] std::set<int> get_tools_used() const;
 
+    /// Per-tool grams the slicer itself recorded, or empty when unknown.
+    /// The only per-tool quantity in the pipeline with an unambiguous unit -
+    /// the slicer labels the line `[g]`.
+    [[nodiscard]] std::vector<double> get_tool_grams() const {
+        return headless_tool_grams_;
+    }
+
     /**
      * @brief Effective tool→slot remap the print will actually use.
      *
@@ -593,7 +600,14 @@ class PrintSelectDetailView : public OverlayBase {
     // recompute_preflight() so the gate has a fresh result even when the viewer
     // never parsed. See kick_off_headless_tools_scan().
     std::optional<std::set<int>> headless_tools_used_; // result of the streaming scan
-    bool headless_scan_done_ = false;                  // scan finished (success/empty/fail/timeout)
+
+    /// Per-tool grams from the G-code footer's `filament used [g]` line, when a
+    /// footer read answered. Slot-aligned with tool index; empty when the scan
+    /// fell back to the Tn parse (which counts tools but not grams) or never
+    /// ran. Deliberately NOT cached alongside tools_used: an absent vector must
+    /// read as "no opinion", and a stale one would price the wrong file.
+    std::vector<double> headless_tool_grams_;
+    bool headless_scan_done_ = false; // scan finished (success/empty/fail/timeout)
     // True ONLY where the scan actually SETTLED: finish_scan's deferred body,
     // the show() cache-hit seed, or the no-API early-out. Deliberately NOT
     // set by the preflight safety timeout, which flips headless_scan_done_
