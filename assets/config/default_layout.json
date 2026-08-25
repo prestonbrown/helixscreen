@@ -1,82 +1,277 @@
 {
-  "_comment": "Default widget layout anchors. Widgets not listed here are auto-placed. Two dimensions: LAYOUT VARIANT then BREAKPOINT. 'anchors' is the base (landscape) table; 'variants' holds per-layout overrides keyed exactly like the ui_xml/ override directories and resolved most-specific-first via LayoutManager::variant_chain() — a PORTRAIT panel takes variants.portrait, a TINY_PORTRAIT panel takes variants.tiny_portrait then variants.portrait, and anything unmatched falls back to 'anchors'. Breakpoint keys are named, not indexed: micro(0), tiny(1), small(2), medium(3), large(4), xlarge(5), xxlarge(6) — see include/ui_breakpoint.h. Missing tiers fall back (micro->tiny->small, xlarge->large, xxlarge->xlarge->large), which is why the landscape table below defines no 'micro' or 'xxlarge' placements.",
+  "_comment": "Default widget layout anchors. Widgets not listed here are auto-placed. Two dimensions: LAYOUT VARIANT then BREAKPOINT. 'anchors' is the base (landscape) table; 'variants' holds per-layout overrides keyed exactly like the ui_xml/ override directories and resolved most-specific-first via LayoutManager::variant_chain() \u2014 a PORTRAIT panel takes variants.portrait, a TINY_PORTRAIT panel takes variants.tiny_portrait then variants.portrait, and anything unmatched falls back to 'anchors'. Breakpoint keys are named, not indexed: micro(0), tiny(1), small(2), medium(3), large(4), xlarge(5), xxlarge(6) \u2014 see include/ui_breakpoint.h. Missing tiers fall back (micro->tiny->small, xlarge->large, xxlarge->xlarge->large), which is why the landscape table below defines no 'micro' or 'xxlarge' placements. The tiny/small tiers (480x272 through 480x460 \u2014 the Creality K1 family, and micro panels that fall through to them) are authored against the SAME 6 columns as medium: an earlier table gave print_status and tips 2 columns there, which left the right-hand third of the grid unreachable and cost a 480x400 panel a quarter of its dashboard.",
   "anchors": [
     {
       "id": "printer_image",
       "placements": {
-        "tiny":   { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-        "small":  { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-        "medium": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-        "large":  { "col": 0, "row": 0, "colspan": 3, "rowspan": 3 },
-        "xlarge": { "col": 0, "row": 0, "colspan": 3, "rowspan": 3 }
+        "tiny": {
+          "col": 0,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
+        },
+        "small": {
+          "col": 0,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
+        },
+        "medium": {
+          "col": 0,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
+        },
+        "large": {
+          "col": 0,
+          "row": 0,
+          "colspan": 3,
+          "rowspan": 3
+        },
+        "xlarge": {
+          "col": 0,
+          "row": 0,
+          "colspan": 3,
+          "rowspan": 3
+        }
       }
     },
     {
       "id": "print_status",
       "placements": {
-        "tiny":   { "col": 0, "row": 2, "colspan": 2, "rowspan": 2 },
-        "small":  { "col": 0, "row": 2, "colspan": 2, "rowspan": 2 },
-        "medium": { "col": 0, "row": 2, "colspan": 3, "rowspan": 2 },
-        "large":  { "col": 0, "row": 3, "colspan": 3, "rowspan": 2 },
-        "xlarge": { "col": 0, "row": 3, "colspan": 3, "rowspan": 2 }
+        "tiny": {
+          "col": 2,
+          "row": 0,
+          "colspan": 4,
+          "rowspan": 2
+        },
+        "small": {
+          "col": 2,
+          "row": 0,
+          "colspan": 4,
+          "rowspan": 2
+        },
+        "medium": {
+          "col": 0,
+          "row": 2,
+          "colspan": 3,
+          "rowspan": 2
+        },
+        "large": {
+          "col": 0,
+          "row": 3,
+          "colspan": 3,
+          "rowspan": 2
+        },
+        "xlarge": {
+          "col": 0,
+          "row": 3,
+          "colspan": 3,
+          "rowspan": 2
+        }
       }
     },
     {
       "id": "tips",
       "placements": {
-        "tiny":   { "col": 2, "row": 0, "colspan": 2, "rowspan": 2 },
-        "small":  { "col": 2, "row": 0, "colspan": 2, "rowspan": 2 },
-        "medium": { "col": 2, "row": 0, "colspan": 4, "rowspan": 2 },
-        "large":  { "col": 3, "row": 0, "colspan": 5, "rowspan": 2 },
-        "xlarge": { "col": 3, "row": 0, "colspan": 5, "rowspan": 2 }
+        "tiny": {
+          "col": 0,
+          "row": 3,
+          "colspan": 6,
+          "rowspan": 1
+        },
+        "small": {
+          "col": 0,
+          "row": 3,
+          "colspan": 6,
+          "rowspan": 1
+        },
+        "medium": {
+          "col": 2,
+          "row": 0,
+          "colspan": 4,
+          "rowspan": 2
+        },
+        "large": {
+          "col": 3,
+          "row": 0,
+          "colspan": 5,
+          "rowspan": 2
+        },
+        "xlarge": {
+          "col": 3,
+          "row": 0,
+          "colspan": 5,
+          "rowspan": 2
+        }
       }
     },
     {
       "id": "temperature",
       "placements": {
-        "tiny":   { "col": 2, "row": 2, "colspan": 1, "rowspan": 1 },
-        "small":  { "col": 2, "row": 2, "colspan": 1, "rowspan": 1 },
-        "medium": { "col": 3, "row": 2, "colspan": 1, "rowspan": 1 },
-        "large":  { "col": 3, "row": 2, "colspan": 1, "rowspan": 1 },
-        "xlarge": { "col": 3, "row": 2, "colspan": 1, "rowspan": 1 }
+        "tiny": {
+          "col": 0,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "small": {
+          "col": 0,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "medium": {
+          "col": 3,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "large": {
+          "col": 3,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "xlarge": {
+          "col": 3,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        }
       }
     },
     {
       "id": "bed_temperature",
       "placements": {
-        "tiny":   { "col": 2, "row": 3, "colspan": 1, "rowspan": 1 },
-        "small":  { "col": 2, "row": 3, "colspan": 1, "rowspan": 1 },
-        "medium": { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 },
-        "large":  { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 },
-        "xlarge": { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 }
+        "tiny": {
+          "col": 1,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "small": {
+          "col": 1,
+          "row": 2,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "medium": {
+          "col": 3,
+          "row": 3,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "large": {
+          "col": 3,
+          "row": 3,
+          "colspan": 1,
+          "rowspan": 1
+        },
+        "xlarge": {
+          "col": 3,
+          "row": 3,
+          "colspan": 1,
+          "rowspan": 1
+        }
       }
     }
   ],
   "variants": {
-    "_comment": "PORTRAIT. The grid is cols = clamp(width/160, 2, 16) by rows = clamp(height/120, 3, 16), so the breakpoint — taken from the CRAMPED axis, i.e. the width — fixes the column count while the row count varies hugely with panel height: 480x800 is 3x6, 320x1480 is 2x12. Every anchor therefore starts at col 0 and spans the full width, so the manager's colspan clamp degrades it to a narrower full-width band instead of leaving a gap beside it. Rows stay in the top of the shortest grid each tier can produce, so the auto-placed widgets underneath always have room. 'tips' is deliberately absent, and off by default in portrait: it is authored 4 columns wide and cannot go below 2, so on a 2-3 column grid it costs a third to a half of a row for rotating hints.",
+    "_comment": "PORTRAIT. The grid is cols = clamp(width/160, 2, 16) by rows = clamp(height/120, 3, 16), so the breakpoint \u2014 taken from the CRAMPED axis, i.e. the width \u2014 fixes the column count while the row count varies hugely with panel height: 480x800 is 3x6, 320x1480 is 2x12. Every anchor therefore starts at col 0 and spans the full width, so the manager's colspan clamp degrades it to a narrower full-width band instead of leaving a gap beside it. Rows stay in the top of the shortest grid each tier can produce, so the auto-placed widgets underneath always have room. 'tips' is deliberately absent, and off by default in portrait: it is authored 4 columns wide and cannot go below 2, so on a 2-3 column grid it costs a third to a half of a row for rotating hints.",
     "portrait": [
       {
         "id": "printer_image",
         "placements": {
-          "micro":   { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-          "tiny":    { "col": 0, "row": 0, "colspan": 2, "rowspan": 3 },
-          "small":   { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-          "medium":  { "col": 0, "row": 0, "colspan": 3, "rowspan": 2 },
-          "large":   { "col": 0, "row": 0, "colspan": 3, "rowspan": 2 },
-          "xlarge":  { "col": 0, "row": 0, "colspan": 4, "rowspan": 3 },
-          "xxlarge": { "col": 0, "row": 0, "colspan": 4, "rowspan": 3 }
+          "micro": {
+            "col": 0,
+            "row": 0,
+            "colspan": 2,
+            "rowspan": 2
+          },
+          "tiny": {
+            "col": 0,
+            "row": 0,
+            "colspan": 2,
+            "rowspan": 3
+          },
+          "small": {
+            "col": 0,
+            "row": 0,
+            "colspan": 2,
+            "rowspan": 2
+          },
+          "medium": {
+            "col": 0,
+            "row": 0,
+            "colspan": 3,
+            "rowspan": 2
+          },
+          "large": {
+            "col": 0,
+            "row": 0,
+            "colspan": 3,
+            "rowspan": 2
+          },
+          "xlarge": {
+            "col": 0,
+            "row": 0,
+            "colspan": 4,
+            "rowspan": 3
+          },
+          "xxlarge": {
+            "col": 0,
+            "row": 0,
+            "colspan": 4,
+            "rowspan": 3
+          }
         }
       },
       {
         "id": "print_status",
         "placements": {
-          "micro":   { "col": 0, "row": 2, "colspan": 2, "rowspan": 2 },
-          "tiny":    { "col": 0, "row": 3, "colspan": 2, "rowspan": 3 },
-          "small":   { "col": 0, "row": 2, "colspan": 2, "rowspan": 2 },
-          "medium":  { "col": 0, "row": 2, "colspan": 3, "rowspan": 2 },
-          "large":   { "col": 0, "row": 2, "colspan": 3, "rowspan": 2 },
-          "xlarge":  { "col": 0, "row": 3, "colspan": 4, "rowspan": 2 },
-          "xxlarge": { "col": 0, "row": 3, "colspan": 4, "rowspan": 3 }
+          "micro": {
+            "col": 0,
+            "row": 2,
+            "colspan": 2,
+            "rowspan": 2
+          },
+          "tiny": {
+            "col": 0,
+            "row": 3,
+            "colspan": 2,
+            "rowspan": 3
+          },
+          "small": {
+            "col": 0,
+            "row": 2,
+            "colspan": 2,
+            "rowspan": 2
+          },
+          "medium": {
+            "col": 0,
+            "row": 2,
+            "colspan": 3,
+            "rowspan": 2
+          },
+          "large": {
+            "col": 0,
+            "row": 2,
+            "colspan": 3,
+            "rowspan": 2
+          },
+          "xlarge": {
+            "col": 0,
+            "row": 3,
+            "colspan": 4,
+            "rowspan": 2
+          },
+          "xxlarge": {
+            "col": 0,
+            "row": 3,
+            "colspan": 4,
+            "rowspan": 3
+          }
         }
       }
     ]
