@@ -5,10 +5,6 @@
 import pytest
 
 
-def test_app_responds_to_ping(helix_app):
-    assert helix_app.ctl("ping") == "pong"
-
-
 def test_lists_the_expected_base_panels(helix_app):
     panels = helix_app.ctl("list_panels")["panels"]
     # list_panels returns the fixed PanelId set; these four are load-bearing

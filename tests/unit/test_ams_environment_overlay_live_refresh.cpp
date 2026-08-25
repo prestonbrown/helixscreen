@@ -115,7 +115,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     overlay.register_callbacks();
     REQUIRE(overlay.create(test_screen()) != nullptr);
 
-    overlay.refresh();     // mirrors show()'s initial pull
+    // TEST_MIRROR_OK: this IS the production refresh(), the same call
+    //                 AmsEnvironmentOverlay::show() makes before it pushes the
+    //                 overlay. show() is bypassed only so the test does not push
+    //                 onto the nav stack; nothing about it is reimplemented.
+    overlay.refresh();     // the initial pull show() performs
     overlay.on_activate(); // subscribes the live-update observer
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(10);

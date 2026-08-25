@@ -1,5 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: asserts against the text of src/system/moonraker_performance_source.cpp
+//                 read from disk at run time, not against a copy of it -- there is nothing
+//                 here that can drift away from production. It deliberately links no
+//                 symbol: the guard is that the shipped file must NOT contain a
+//                 printer.objects.subscribe call.
 
 /**
  * @file test_moonraker_performance_source_regression.cpp

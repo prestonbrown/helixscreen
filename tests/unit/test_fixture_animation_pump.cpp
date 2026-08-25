@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
-// SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: tests the LVGLTestFixture contract itself, which is test infrastructure by
+// definition SPDX-License-Identifier: GPL-3.0-or-later
 //
 // process_lvgl() must advance LVGL animations.
 //

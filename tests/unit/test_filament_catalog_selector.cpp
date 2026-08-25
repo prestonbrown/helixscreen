@@ -446,6 +446,9 @@ TEST_CASE_METHOD(XMLTestFixture, "a Spoolman-only vendor still offers material t
     // Mirrors AmsEditOverlay: configure() deliberately clears the extra vendor
     // list, and the host re-supplies it AFTER populate() once the async Spoolman
     // vendor fetch lands. set_additional_vendors() rebuilds both dropdowns.
+    // TEST_MIRROR_OK: what is mirrored is the HOST's call ORDER, and the three
+    //                 calls below are the real FilamentCatalogSelector methods.
+    //                 The selector's own logic is never reimplemented here.
     sel.configure(std::nullopt, std::nullopt, std::string("Ambrosia"));
     sel.populate();
     sel.set_additional_vendors({"Ambrosia"});

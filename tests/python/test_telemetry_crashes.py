@@ -73,26 +73,26 @@ def symbols():
     return tc.SymbolTable([(0x1000, "foo()"), (0x2000, "bar()"), (0x3000, "helix_lvgl_anomaly")])
 
 
-def test_thumb_bit_masked_on_arm32_frames(symbols):
+# Parametrized over every platform rather than restating the THUMB_PLATFORMS
+# literal: an assertion that the constant equals its own source text can only
+# fail when someone edits both in the same commit, while these fail on the
+# behavior that actually depends on membership.
+@pytest.mark.parametrize("platform", ["ad5m", "cc1", "pi32"])
+def test_thumb_bit_masked_on_arm32_frames(symbols, platform):
     """A Thumb LR has bit 0 set; nm addresses never do.
 
     Unmasked, an address at a function's first instruction resolves into the
     *previous* symbol -- and every offset in the report reads one byte high.
     """
-    frames = tc.resolve_backtrace(["0x2001"], "pi32", symbols, load_base="0x0")
+    frames = tc.resolve_backtrace(["0x2001"], platform, symbols, load_base="0x0")
     assert frames[0]["resolved"] == "bar()"
 
 
-def test_thumb_bit_not_masked_on_other_platforms(symbols):
+@pytest.mark.parametrize("platform", ["pi", "k1"])
+def test_thumb_bit_not_masked_on_other_platforms(symbols, platform):
     """aarch64/MIPS addresses are byte-exact -- masking there would corrupt them."""
-    frames = tc.resolve_backtrace(["0x2001"], "pi", symbols, load_base="0x0")
+    frames = tc.resolve_backtrace(["0x2001"], platform, symbols, load_base="0x0")
     assert frames[0]["resolved"] == "bar()+0x1"
-
-
-def test_thumb_platform_set_is_arm32_only():
-    assert tc.THUMB_PLATFORMS == {"ad5m", "cc1", "pi32"}
-    assert "k1" not in tc.THUMB_PLATFORMS  # MIPS
-    assert "pi" not in tc.THUMB_PLATFORMS  # aarch64
 
 
 # ---------------------------------------------------------------------------

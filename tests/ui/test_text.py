@@ -7,21 +7,6 @@ import pytest
 from helix.app import HelixCtlError
 
 
-def test_reads_a_label_on_the_home_panel(helix_app):
-    helix_app.navigate("home")
-    helix_app.wait_idle()
-    # Only proves `text` doesn't raise on a real, named label widget — an
-    # empty string would still pass this. Content correctness is what
-    # test_text_matches_a_subject_we_set below actually checks, by driving a
-    # subject to a known value and confirming `text` reports it back.
-    listing = helix_app.ls()
-    labeled = [w for w in listing["widgets"]
-               if w.get("name") and w.get("type", "").endswith("label")]
-    assert labeled, "no named labels on the home panel — pick a different anchor"
-    value = helix_app.text(labeled[0]["name"])
-    assert isinstance(value, str)
-
-
 def test_descends_to_the_label_inside_a_composite(helix_app):
     # A button wrapping a label should report the label's text rather than
     # failing, mirroring how click() descends to a value-control.

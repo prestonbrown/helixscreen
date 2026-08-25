@@ -335,12 +335,19 @@ PKLA_EOF
 
 @test "install_permission_rules: permissions.sh has no copy+sed pkla pattern" {
     # Regression guard: ensure nobody re-introduces the fragile copy+sed pattern
-    # that caused @@HELIX_USER@@ to leak into deployed files.
+    # that caused @@HELIX_USER@@ to leak into deployed files. The .pkla must be
+    # generated inline (heredoc into tee), never copied from a template.
+    #
+    # Keyed on pkla_dest, the variable the current code actually uses. This case
+    # used to grep for `cp.*pkla_src.*pkla_dest`; pkla_src was deleted in the
+    # inline-generation refactor, so the guard had been passing on a name that
+    # no longer exists rather than on the rule being obeyed.
     local script="$WORKTREE_ROOT/scripts/lib/installer/permissions.sh"
-    # Must NOT copy the template file to the deploy destination
-    refute grep -q 'cp.*pkla_src.*pkla_dest' "$script"
+    grep -q 'pkla_dest' "$script"   # the guard is keyed on a live name
+    # Must NOT copy a template file to the deploy destination
+    refute grep -qE 'cp[^|&]*pkla_dest' "$script"
     # Must NOT sed @@HELIX_USER@@ in pkla files (inline generation doesn't need it)
-    ! grep -q 'sed.*@@HELIX_USER@@.*pkla_dest' "$script"
+    refute grep -q 'sed.*@@HELIX_USER@@.*pkla_dest' "$script"
 }
 
 # =============================================================================
@@ -571,14 +578,6 @@ SUDOEOF
 # =============================================================================
 # Config file validation
 # =============================================================================
-
-@test "config: backlight rules file exists in config/" {
-    [ -f "$WORKTREE_ROOT/config/99-helixscreen-backlight.rules" ]
-}
-
-@test "config: polkit pkla file exists in config/" {
-    [ -f "$WORKTREE_ROOT/config/helixscreen-network.pkla" ]
-}
 
 @test "config: backlight rules has SPDX header" {
     grep -q "SPDX-License-Identifier" "$WORKTREE_ROOT/config/99-helixscreen-backlight.rules"

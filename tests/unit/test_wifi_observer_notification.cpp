@@ -36,6 +36,13 @@ namespace helix {
 class WiFiManagerTestAccess {
   public:
     static void fire_connected(WiFiManager& wm, const std::string& data = "") {
+        // TEST_MIRROR_OK: the handlers under test are production's own —
+        // wm.handle_connected() / wm.handle_disconnected() below. All this shim
+        // reimplements is the BACKEND-side state write that a real nmcli or
+        // wpa_supplicant poll would have made before the event fired; the mock
+        // backend is the legitimate OS test double, and getting the ordering wrong
+        // is what #1059 was about.
+        //
         // Match production: backend updates its state before firing CONNECTED.
         // The mock's connect_thread_func() sets connected_=true before
         // fire_event("CONNECTED"); the NM backend's status_thread_func()

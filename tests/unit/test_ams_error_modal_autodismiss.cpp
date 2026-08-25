@@ -46,27 +46,6 @@ using namespace helix;
 
 namespace {
 
-// Mirrors the production lazy registration in ensure_ams_widgets_registered(),
-// plus the error-modal component (only that path registers it).
-void register_ams_widgets_and_xml_once() {
-    static bool done = false;
-    if (done) {
-        return;
-    }
-    ui_spool_canvas_register();
-    ui_ams_slot_register();
-    ui_filament_path_canvas_register();
-    ui_endless_spool_arrows_register();
-    helix::ui::AmsOperationSidebar::register_callbacks_static();
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_loaded_card.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_environment_indicator.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_sidebar.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_panel.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_loading_error_modal.xml");
-    done = true;
-}
-
 /// Mock backend that counts clear_fault() calls. The user-dismiss callback is
 /// the only thing that should ever reach it from this panel.
 class FaultCountingBackend : public AmsBackendMock {
@@ -105,7 +84,14 @@ class AmsErrorModalFixture : public XMLTestFixture {
 
     /// Build a real AmsPanel exactly as production does.
     lv_obj_t* build_panel(AmsPanel& panel) {
-        register_ams_widgets_and_xml_once();
+        // The production registration itself, not a copy of its list. The copy
+        // that used to live here had drifted: it registered the environment
+        // indicator as a bare component (losing the click callback
+        // ensure_ams_env_indicator_registered() installs) and omitted the
+        // device-operations / environment overlay callbacks plus
+        // ams_context_menu.xml, ams_selector_menu.xml and
+        // ams_environment_overlay.xml.
+        ensure_ams_widgets_registered();
         panel.init_subjects();
         auto* obj = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
         REQUIRE(obj != nullptr);

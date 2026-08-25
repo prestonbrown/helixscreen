@@ -35,6 +35,7 @@
 #include "../mocks/mock_printer_state.h"
 #include "../ui_test_utils.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -215,26 +216,19 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Temperature control cycle",
                  "[connection][integration][temperature]") {
     SECTION("API set_temperature sends G-code command") {
-        // Set bed target via API - this sends a G-code command
+        // set_temperature() validates, builds the heater G-code, and routes it through
+        // execute_gcode() -> printer.gcode.script. Assert the command that reached the
+        // transport, not merely that the call returned: a set_temperature that emitted
+        // nothing (or the wrong heater) is exactly the silent failure worth catching.
         bool success_called = false;
         api_->set_temperature(
             "heater_bed", 60.0, [&success_called]() { success_called = true; },
             [](const MoonrakerError&) { FAIL("Temperature set should succeed"); });
 
-        // The mock client should have received the command
-        // (Verification that it doesn't crash is sufficient for integration)
-    }
-
-    SECTION("Client temperature methods work correctly") {
-        // Set temperatures via client mock directly
-        client_.set_extruder_target(210.0);
-        client_.set_bed_target(60.0);
-
-        // Give simulation a moment to update
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-        // The mock client tracks temperatures internally, not in shared state
-        // This test verifies the API doesn't crash when used in integration
+        REQUIRE(success_called);
+        REQUIRE(client_.last_send_method() == "printer.gcode.script");
+        REQUIRE(client_.gcode_script_history() ==
+                std::vector<std::string>{"SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=60"});
     }
 
     SECTION("Shared state tracks temperature values") {
@@ -262,37 +256,57 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Temperature control cycle",
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Bed mesh access through API",
                  "[connection][integration][bedmesh]") {
-    SECTION("API reports bed mesh state correctly") {
-        // Check bed mesh availability through API
-        bool api_has_mesh = api_->advanced().has_bed_mesh();
+    // MoonrakerAPI's constructor points the client's bed-mesh callback at
+    // MoonrakerAdvancedAPI::update_bed_mesh(), so pushing a `bed_mesh` status object
+    // through the client is the same path a live printer's subscription takes.
+    // Values below are asserted against that payload, not against whatever the mock
+    // happened to generate — a cross-check of has_bed_mesh() against
+    // get_active_bed_mesh() can never fail, since both read probed_matrix.empty().
+    const json bed_mesh_status = {
+        {"profile_name", "default"},
+        {"probed_matrix",
+         json::array({json::array({0.01, 0.02, 0.03}), json::array({0.04, 0.05, 0.06})})},
+        {"mesh_min", json::array({20.0, 20.0})},
+        {"mesh_max", json::array({330.0, 330.0})},
+        {"profiles", {{"default", json::object()}, {"adaptive", json::object()}}},
+    };
 
-        // API method should return consistent state
-        REQUIRE((api_has_mesh == true || api_has_mesh == false));
-    }
+    SECTION("The connect-time initial status already populates a mesh") {
+        // The fixture's connect() dispatches an initial status containing bed_mesh,
+        // exactly as a live subscription response does — so the API must already hold
+        // a mesh before any test does anything. x_count/y_count are derived from the
+        // matrix by update_bed_mesh(), so they are checked against it, not hardcoded.
+        REQUIRE(api_->advanced().has_bed_mesh());
 
-    SECTION("Get active bed mesh returns valid data when available") {
         const BedMeshProfile* mesh = api_->advanced().get_active_bed_mesh();
-
-        if (api_->advanced().has_bed_mesh()) {
-            REQUIRE(mesh != nullptr);
-            // Verify mesh has valid data
-            REQUIRE(!mesh->probed_matrix.empty());
-            REQUIRE(mesh->x_count > 0);
-            REQUIRE(mesh->y_count > 0);
-        } else {
-            REQUIRE(mesh == nullptr);
-        }
+        REQUIRE(mesh != nullptr);
+        REQUIRE_FALSE(mesh->probed_matrix.empty());
+        REQUIRE(mesh->y_count == static_cast<int>(mesh->probed_matrix.size()));
+        REQUIRE(mesh->x_count == static_cast<int>(mesh->probed_matrix[0].size()));
     }
 
-    SECTION("Get bed mesh profiles returns list") {
-        std::vector<std::string> api_profiles = api_->advanced().get_bed_mesh_profiles();
+    SECTION("A later bed_mesh status update replaces the active mesh") {
+        client_.parse_bed_mesh(bed_mesh_status);
 
-        // Verify profiles list is reasonable
-        REQUIRE(api_profiles.size() >= 0); // Should be non-negative size
-        // Common profile names that might exist
-        for (const auto& profile : api_profiles) {
-            REQUIRE(!profile.empty()); // Profile names should not be empty
-        }
+        REQUIRE(api_->advanced().has_bed_mesh());
+
+        const BedMeshProfile* mesh = api_->advanced().get_active_bed_mesh();
+        REQUIRE(mesh != nullptr);
+        REQUIRE(mesh->name == "default");
+        REQUIRE(mesh->y_count == 2);
+        REQUIRE(mesh->x_count == 3);
+        REQUIRE(mesh->probed_matrix.size() == 2);
+        REQUIRE(mesh->probed_matrix[1][2] == Catch::Approx(0.06f));
+        REQUIRE(mesh->mesh_min[0] == Catch::Approx(20.0f));
+        REQUIRE(mesh->mesh_max[1] == Catch::Approx(330.0f));
+    }
+
+    SECTION("Profile names come from the status payload") {
+        client_.parse_bed_mesh(bed_mesh_status);
+
+        std::vector<std::string> api_profiles = api_->advanced().get_bed_mesh_profiles();
+        std::sort(api_profiles.begin(), api_profiles.end());
+        REQUIRE(api_profiles == std::vector<std::string>{"adaptive", "default"});
     }
 }
 
@@ -687,33 +701,34 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: API error callbacks work correct
     // Allow async discovery to populate hardware data
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    SECTION("Async API methods accept callbacks") {
-        // These calls should not crash and should accept callbacks
-        // The mock may or may not invoke them depending on implementation
+    SECTION("Async API methods invoke exactly one callback path") {
+        // get_excluded_objects() answers from printer.objects.query and treats a
+        // response with no exclude_object key as "nothing excluded" — success with an
+        // empty set, never on_error. A run where neither callback fires is the bug
+        // this asserts against: the caller would wait forever on a reply that never came.
         bool success_called = false;
         bool error_called = false;
+        std::set<std::string> excluded;
 
         api.advanced().get_excluded_objects(
-            [&success_called](const std::set<std::string>&) { success_called = true; },
+            [&](const std::set<std::string>& objs) {
+                excluded = objs;
+                success_called = true;
+            },
             [&error_called](const MoonrakerError&) { error_called = true; });
 
-        // At least one callback path should exist (mock behavior dependent)
-        // This test verifies the API compiles and doesn't crash
+        REQUIRE(success_called);
+        REQUIRE_FALSE(error_called);
+        REQUIRE(excluded.empty());
     }
 
-    SECTION("Sync API methods return values without crash") {
-        // These should return immediately with mock data
-        // Hardware guessing now uses PrinterHardware directly
+    SECTION("Sync API methods return the discovered hardware") {
+        // Hardware guessing now uses PrinterHardware directly. VORON_24's discovery
+        // seeds the canonical Klipper names, so these are exact, not merely non-empty.
         PrinterHardware hw(api.hardware().heaters(), api.hardware().sensors(),
                            api.hardware().fans(), api.hardware().leds());
-        std::string bed = hw.guess_bed_heater();
-        std::string hotend = hw.guess_hotend_heater();
-        (void)api.advanced().has_bed_mesh();          // Verify doesn't crash
-        (void)api.advanced().get_bed_mesh_profiles(); // Verify doesn't crash
-
-        // Values should be valid (not empty for standard printer)
-        REQUIRE(!bed.empty());
-        REQUIRE(!hotend.empty());
+        REQUIRE(hw.guess_bed_heater() == "heater_bed");
+        REQUIRE(hw.guess_hotend_heater() == "extruder");
     }
 
     client.stop_temperature_simulation();

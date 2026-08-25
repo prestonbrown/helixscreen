@@ -77,8 +77,13 @@ class WiFiManagerTestAccess {
 
 namespace {
 
+// TEST_MIRROR_OK: this fixture builds test INPUT — a throwaway /sys and /proc
+// tree — and the tests then call the real probe_os_wifi_link(sys(), proc())
+// (see probe() below). The parsing is production's; only the filesystem the
+// kernel would have provided is faked.
+//
 // Builds a throwaway sysfs/proc fixture tree under a unique temp dir and cleans
-// it up on destruction. Mirrors the layout probe_os_wifi_link() reads.
+// it up on destruction. Lays out the paths probe_os_wifi_link() reads.
 struct SysfsFixture {
     fs::path root;
 

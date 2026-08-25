@@ -72,10 +72,17 @@ class PowerPanelTeardownFixture : public LVGLUITestFixture {
     }
 
     ~PowerPanelTeardownFixture() override {
+        // TEST_MIRROR_OK: the "destroy_all()" reference here names a teardown
+        // ORDER the fixture reproduces, not logic it reimplements —
+        // StaticPanelRegistry::destroy_all() runs before lv_deinit(), so the panel
+        // is destroyed while its widget tree still stands. Nothing in this file
+        // restates what destroy_all() does; it owns its panel directly because the
+        // UAF under test is about which of the two dies first.
+        //
         // Drain before the fixture tears LVGL down so no queued lambda outlives
         // the panel. Tests that leave the tree standing destroy the panel first,
-        // mirroring destroy_all()-before-lv_deinit(); ~PowerPanel() uninstalls its
-        // delete hook so the base fixture's screen teardown cannot reach it.
+        // reproducing destroy_all()-before-lv_deinit(); ~PowerPanel() uninstalls
+        // its delete hook so the base fixture's screen teardown cannot reach it.
         // reset() on an already-destroyed panel is a no-op.
         UpdateQueue::instance().drain();
         panel_.reset();

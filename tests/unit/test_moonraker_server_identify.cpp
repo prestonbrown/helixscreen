@@ -10,10 +10,14 @@
  */
 
 #include "../../include/moonraker_client_mock.h"
+#include "../../include/moonraker_discovery_sequence.h"
 #include "../helix_test_fixture.h"
 
 #include <atomic>
 #include <chrono>
+#include <functional>
+#include <optional>
+#include <string>
 #include <thread>
 
 #include "../catch_amalgamated.hpp"
@@ -115,57 +119,93 @@ TEST_CASE_METHOD(HelixTestFixture,
 // ============================================================================
 // Identification State Tracking Tests
 // ============================================================================
-// Tests verify the is_identified() getter inherited from MoonrakerClient.
-// The realistic mock overrides discover_printer() but the identification
-// state tracking is available for inspection.
+
+namespace {
+
+/// Counts server.connection.identify sends while still serving them through the
+/// mock's real handler registry, so the response the discovery sequence parses is
+/// the same one every other test sees.
+class IdentifyCountingClient : public MoonrakerClientMock {
+  public:
+    using MoonrakerClientMock::MoonrakerClientMock;
+
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
+        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        bool silent = false,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
+        if (method == "server.connection.identify") {
+            ++identify_calls;
+        }
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
+                                                 std::move(error_cb), timeout_ms, silent, intent);
+    }
+
+    int identify_calls = 0;
+};
+
+} // namespace
 
 TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClient identification state tracking",
                  "[moonraker][connection][identify][state]") {
-    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    // Drive MoonrakerDiscoverySequence directly rather than the mock's
+    // discover_printer() override, which bypasses the identify step entirely.
+    // start() is the only code that ever sets identified_, and its short-circuit
+    // is the reason the flag exists: re-identifying an already-identified
+    // connection makes Moonraker answer "Connection already identified".
+    IdentifyCountingClient mock(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerDiscoverySequence discovery(mock);
 
-    SECTION("is_identified starts false before connection") {
-        REQUIRE_FALSE(mock.is_identified());
+    SECTION("is_identified starts false before any identify round-trip") {
+        REQUIRE_FALSE(discovery.is_identified());
+        REQUIRE(mock.identify_calls == 0);
     }
 
-    SECTION("reset_identified clears the flag") {
-        // Manually set identified state for testing
-        // (In real usage, discover_printer sets this after server.connection.identify)
-
-        // Start with false
-        REQUIRE_FALSE(mock.is_identified());
-
-        // reset_identified should work
-        mock.reset_identified();
-        REQUIRE_FALSE(mock.is_identified());
-    }
-
-    SECTION("mock inherits is_identified from MoonrakerClient") {
-        // Verify the mock properly inherits the method
-        // The actual flag is set during real discover_printer() via send_jsonrpc callback
-        REQUIRE_FALSE(mock.is_identified());
-
-        // After connect + discover, the mock simulates identification
+    SECTION("a successful identify response sets the flag") {
         mock.connect("ws://mock/websocket", []() {}, []() {});
-        mock.discover_printer([]() {});
 
-        // The mock's discover_printer doesn't call base class identify flow,
-        // but we can verify the getter works
-        // (The real identify happens in MoonrakerClient::discover_printer)
+        discovery.start([]() {}, [](const std::string&) {});
+
+        REQUIRE(mock.identify_calls == 1);
+        REQUIRE(discovery.is_identified());
+
+        mock.stop_temperature_simulation();
+        mock.disconnect();
+    }
+
+    SECTION("a second discovery on the same connection skips identify") {
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+
+        discovery.start([]() {}, [](const std::string&) {});
+        REQUIRE(mock.identify_calls == 1);
+        REQUIRE(discovery.is_identified());
+
+        // Wizard-tests-then-finishes, or any rediscovery: the flag must short-circuit
+        // the identify step instead of sending a second one.
+        discovery.start([]() {}, [](const std::string&) {});
+        REQUIRE(mock.identify_calls == 1);
+        REQUIRE(discovery.is_identified());
+
+        mock.stop_temperature_simulation();
+        mock.disconnect();
+    }
+
+    SECTION("reset_identified clears the flag so the next connection re-identifies") {
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+
+        discovery.start([]() {}, [](const std::string&) {});
+        REQUIRE(discovery.is_identified());
+
+        // MoonrakerClient calls this on every disconnect — a new WebSocket is a new
+        // Moonraker connection and must identify again.
+        discovery.reset_identified();
+        REQUIRE_FALSE(discovery.is_identified());
+
+        discovery.start([]() {}, [](const std::string&) {});
+        REQUIRE(mock.identify_calls == 2);
+        REQUIRE(discovery.is_identified());
+
         mock.stop_temperature_simulation();
         mock.disconnect();
     }
 }
-
-// ============================================================================
-// Note: Real MoonrakerClient Behavior
-// ============================================================================
-// The real MoonrakerClient::discover_printer() uses an `identified_` flag to
-// skip sending server.connection.identify if already done. This prevents the
-// "Connection already identified" error from Moonraker when:
-// - Wizard tests connection, then user finishes wizard
-// - App reconnects after temporary disconnect
-//
-// The identified_ flag is:
-// - Set to true after successful server.connection.identify RPC response
-// - Reset to false on WebSocket disconnect (in onclose callback)
-// - Checked at start of discover_printer() to skip redundant identify calls

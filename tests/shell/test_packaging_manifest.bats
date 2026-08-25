@@ -12,11 +12,10 @@
 #
 # These tests catch that class of bug at CI time.
 
-SCRIPT="scripts/gen-packaging-manifest.sh"
-
-@test "manifest script is executable" {
-    [ -x "$SCRIPT" ]
-}
+# Overridable so the fixture case can be proven to FIRE against a hand-broken
+# copy of the script (same convention as HELIX_PLUGIN_INSTALL_SH in
+# test_moonraker_plugin_install.bats).
+SCRIPT="${HELIX_TEST_MANIFEST_SH:-scripts/gen-packaging-manifest.sh}"
 
 @test "manifest runs cleanly and produces non-empty output" {
     run "$SCRIPT"
@@ -24,28 +23,55 @@ SCRIPT="scripts/gen-packaging-manifest.sh"
     [ -n "$output" ]
 }
 
-@test "manifest output is sorted with no duplicates" {
-    run "$SCRIPT"
+@test "manifest enumerates a known fixture tree exactly" {
+    # Run the script against a tree whose correct answer is written out by hand.
+    #
+    # This case used to re-type the script's own find/prune pipeline as the
+    # "expected" value, so a wrong prune idiom produced the same wrong answer on
+    # both sides and the test stayed green. The fixture pins the behaviour
+    # instead: three roots, a nested subdir, and hidden dirs at two depths —
+    # `-name '.*' -prune` must drop a hidden dir AND everything beneath it.
+    local root="$BATS_TEST_TMPDIR/fixture"
+    mkdir -p "$root"/ui_xml/components \
+             "$root"/ui_xml/translations \
+             "$root"/ui_xml/.hidden/nested \
+             "$root"/assets/images/printers/prerendered \
+             "$root"/assets/fonts \
+             "$root"/assets/.cache \
+             "$root"/config/themes
+
+    run "$SCRIPT" "$root"
     [ "$status" -eq 0 ]
-    # Compare to itself sorted+deduped — any diff means drift.
-    local sorted
-    sorted=$(printf '%s\n' "$output" | LC_ALL=C sort -u)
-    [ "$output" = "$sorted" ]
-}
 
-@test "manifest includes all source-tree dirs under ui_xml/, assets/, config/" {
-    local manifest
-    manifest=$("$SCRIPT")
-
-    # Walk the source tree the same way the script claims to — skipping hidden.
     local expected
-    expected=$(find ui_xml assets config -type d \( -name '.*' -prune \) -o -type d -print 2>/dev/null | LC_ALL=C sort)
+    expected="assets
+assets/fonts
+assets/images
+assets/images/printers
+assets/images/printers/prerendered
+config
+config/themes
+ui_xml
+ui_xml/components
+ui_xml/translations"
 
-    if ! diff <(printf '%s\n' "$manifest") <(printf '%s\n' "$expected") >/dev/null; then
-        echo "Manifest drift detected:"
-        diff <(printf '%s\n' "$manifest") <(printf '%s\n' "$expected") || true
+    if [ "$output" != "$expected" ]; then
+        echo "--- expected ---"; printf '%s\n' "$expected"
+        echo "--- actual ---";   printf '%s\n' "$output"
         return 1
     fi
+}
+
+@test "manifest skips a root that does not exist in the tree" {
+    # config/ is optional; ui_xml/ and assets/ are the project-root check.
+    local root="$BATS_TEST_TMPDIR/noconfig"
+    mkdir -p "$root/ui_xml" "$root/assets/sounds"
+
+    run "$SCRIPT" "$root"
+    [ "$status" -eq 0 ]
+    [ "$output" = "assets
+assets/sounds
+ui_xml" ]
 }
 
 @test "manifest includes critical seed dirs introduced by bfeba7c26" {

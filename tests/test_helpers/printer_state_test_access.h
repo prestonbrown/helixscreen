@@ -3,8 +3,11 @@
 
 #include "ui_update_queue.h"
 
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "update_queue_test_access.h"
+
+#include <mutex>
 
 namespace helix {
 
@@ -78,25 +81,181 @@ class PrinterPrintStateTestAccess {
     }
 };
 
+// ---------------------------------------------------------------------------
+// Per-domain data accessors used by PrinterStateTestAccess::clear_data().
+//
+// Every PrinterXState declares `friend class PrinterXStateTestAccess;` next to
+// its private members; these are those friends. They exist ONLY to clear plain
+// (non-subject) data — the members that init_subjects()/deinit_subjects() never
+// touch, and that therefore live for the whole process on the shared
+// get_printer_state() singleton.
+//
+// Deliberately absent: PrinterFanStateTestAccess and
+// PrinterTemperatureStateTestAccess. Both names are already taken by local
+// definitions in tests/unit/test_print_status_fan_section.cpp and
+// tests/unit/test_printer_temperature_{state,char}.cpp, two of which already
+// include this header — defining them here is an immediate ambiguity. Those two
+// domains are cleared through their public init_fans({}) / init_extruders({})
+// instead, which is also the only correct way to expire their per-item subjects.
+// ---------------------------------------------------------------------------
+
+class PrinterExcludedObjectsStateTestAccess {
+  public:
+    static void clear_data(PrinterExcludedObjectsState& s) {
+        s.excluded_objects_.clear();
+        s.defined_objects_.clear();
+        s.current_object_.clear();
+        s.object_geometry_.clear();
+    }
+};
+
+class PrinterMotionStateTestAccess {
+  public:
+    static void clear_data(PrinterMotionState& s) {
+        s.axis_bounds_ = AxisBounds{};
+    }
+};
+
+class PrinterLedStateTestAccess {
+  public:
+    static void clear_data(PrinterLedState& s) {
+        s.tracked_led_name_.clear();
+    }
+};
+
+class PrinterCapabilitiesStateTestAccess {
+  public:
+    static void clear_data(PrinterCapabilitiesState& s) {
+        // Values latched while subjects were down, replayed by the next
+        // init_subjects(). Left behind, they re-seed the NEXT test's
+        // capability subjects with the previous printer's answers.
+        s.pending_capability_values_.clear();
+        s.stepper_z_endstop_microns_ = 0;
+    }
+};
+
+class PrinterCalibrationStateTestAccess {
+  public:
+    static void clear_data(PrinterCalibrationState& s) {
+        s.busy_queue_toast_shown_.store(false, std::memory_order_relaxed);
+        // Debounced view of idle_timeout.printing; not a subject, so
+        // deinit_subjects() leaves it latched. A test that drove a blocking op
+        // otherwise makes every later test's is_blocking_operation_active()
+        // read true once its SETTLE window has passed.
+        s.idle_timeout_busy_.set_printing(false);
+    }
+};
+
+class PrinterHardwareValidationStateTestAccess {
+  public:
+    static void clear_data(PrinterHardwareValidationState& s) {
+        s.hardware_validation_result_ = HardwareValidationResult{};
+    }
+};
+
+class PrinterCompositeVisibilityStateTestAccess {
+  public:
+    static void clear_data(PrinterCompositeVisibilityState& s) {
+        s.last_log_state_initialized_ = false;
+        s.last_any_ = -1;
+        s.last_plugin_ = false;
+    }
+};
+
+class PrinterNetworkStateTestAccess {
+  public:
+    static void clear_data(PrinterNetworkState& s) {
+        s.klippy_state_message_.clear();
+        s.was_ever_connected_ = false;
+    }
+};
+
 // PrinterStateTestAccess must be in namespace helix to match friend declaration in PrinterState
 class PrinterStateTestAccess {
   public:
+    /// Full teardown: clear the data AND tear the subjects down.
+    ///
+    /// Only for tests that genuinely want the subject tree gone (they are about
+    /// to re-init it, or they are asserting on deinit behaviour). Cross-test
+    /// data isolation no longer needs this — HelixTestFixture::reset_all() calls
+    /// clear_data() on the global PrinterState in its ctor and dtor.
     static void reset(PrinterState& ps) {
         helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-        // Drop the discovered fan list before the subjects go away. init_fans()
-        // carries live readings across a re-init for fans that persist (#1181),
-        // so a leaked fans_ now leaks speed_percent/ever_ran/rpm into the next
-        // test instead of being silently zeroed. Re-initing with an empty list is
-        // the public way to clear the list and expire every per-fan subject.
-        ps.fan_state_.init_fans({});
+        clear_data(ps);
         ps.deinit_subjects();
+    }
+
+    /// Clear every plain (non-subject) data member reachable from PrinterState.
+    ///
+    /// WHY THIS EXISTS, and why it is called from the fixture base rather than
+    /// from individual tests:
+    ///
+    /// PrinterState's thirteen domain components each pair an init_subjects()
+    /// with a deinit_subjects(), and those manage the SUBJECTS only. The plain
+    /// members alongside them — the excluded/defined object sets, the discovery
+    /// result, the capability override map, the cached status JSON — have no
+    /// lifetime hook at all. On the shared get_printer_state() singleton that
+    /// means they live for the whole process, so a test that writes one poisons
+    /// every later test in the same binary. The failure is silent: the next test
+    /// reads a plausible value it never set, and the assertion that trips is
+    /// usually in some third test that looks unrelated.
+    ///
+    /// Adding a plain member to any PrinterXState? Add it here too.
+    ///
+    /// Does NOT touch subjects, so it is safe from a fixture ctor/dtor whether
+    /// or not init_subjects() has run, and it does not walk into the
+    /// deinit-time observer minefield that reset() does.
+    static void clear_data(PrinterState& ps) {
+        // --- Domains whose data is owned together with per-item subjects ------
+        // These two must go through their public re-init: the collections own
+        // heap lv_subject_t's, and re-initing empty is the only path that
+        // expires each item's SubjectLifetime before freeing it. init_fans()
+        // also carries live readings across a re-init for fans that persist
+        // (#1181), so a leaked fans_ leaks speed_percent/ever_ran/rpm forward.
+        // Guarded because both bump a version subject on the way out, which
+        // needs the subject tree to exist.
+        // cached_display_ is checked for the same reason PrinterState::init_subjects()
+        // checks it: after an lv_init() cycle the flag still reads true while every
+        // subject points at freed memory, and re-initing them would touch it.
+        if (ps.subjects_initialized_ && ps.cached_display_ == lv_display_get_default()) {
+            ps.fan_state_.init_fans({});
+            ps.temperature_state_.init_extruders({});
+        }
+        // Plain string setters — no subject touched, so they run unguarded. These
+        // are the Klipper object names the chamber logic matches against; a leaked
+        // one makes a later test's chamber read the previous test's sensor.
+        ps.temperature_state_.set_chamber_sensor_name("");
+        ps.temperature_state_.set_chamber_heater_name("");
+        ps.temperature_state_.set_chamber_cooling_fan_name("");
+
+        // --- Domains with pure data ------------------------------------------
+        PrinterExcludedObjectsStateTestAccess::clear_data(*ps.get_excluded_objects_state());
+        PrinterMotionStateTestAccess::clear_data(ps.motion_state_);
+        PrinterLedStateTestAccess::clear_data(ps.led_state_component_);
+        PrinterCapabilitiesStateTestAccess::clear_data(ps.capabilities_state_);
+        PrinterCalibrationStateTestAccess::clear_data(ps.calibration_state_);
+        PrinterHardwareValidationStateTestAccess::clear_data(ps.hardware_validation_state_);
+        PrinterCompositeVisibilityStateTestAccess::clear_data(ps.composite_visibility_state_);
+        PrinterNetworkStateTestAccess::clear_data(ps.network_state_);
+        PrinterPrintStateTestAccess::reset_extra(ps.print_domain_);
+
+        // --- PrinterState's own members ---------------------------------------
         ps.printer_type_.clear();
         ps.pre_print_option_set_ = PrePrintOptionSet();
         ps.z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
         ps.auto_detected_bed_moves_ = false;
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();
-        PrinterPrintStateTestAccess::reset_extra(ps.print_domain_);
+        ps.capability_overrides_ = CapabilityOverrides();
+        ps.discovery_ = helix::PrinterDiscovery();
+        ps.last_unknown_klippy_state_.clear();
+        ps.timelapse_default_enabled_ = false;
+        {
+            std::lock_guard<std::mutex> lock(ps.state_mutex_);
+            ps.json_state_ = nlohmann::json::object();
+        }
+        // Takes state_mutex_ itself, so it must be outside the block above.
+        ps.reset_klippy_state_freshness();
     }
 
     static PrinterFanState& get_fan_state(PrinterState& ps) {

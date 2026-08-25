@@ -4,6 +4,7 @@
 #include "ui_notification_threshold.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/config_test_access.h"
 #include "config.h"
 #include "safety_settings_manager.h"
 
@@ -17,13 +18,19 @@ using namespace helix;
 
 TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after init",
                  "[safety_settings]") {
-    Config::get_instance();
-    // Reset config keys to defaults so prior test persistence doesn't contaminate
-    Config::get_instance()->set<bool>("/safety/estop_require_confirmation", true);
-    Config::get_instance()->set<bool>("/safety/cancel_escalation_enabled", false);
-    Config::get_instance()->set<int>("/safety/cancel_escalation_timeout_seconds", 30);
-    Config::get_instance()->set<bool>("/safety/allow_cold_extrude", false);
-    Config::get_instance()->set<int>("/notifications/min_toast_severity", 0);
+    // ERASE the sections rather than pre-seed them. This block used to write
+    // every key with the value the SECTIONs then asserted, so init_subjects()
+    // read those literals straight back and the compiled-in fallbacks
+    // (src/system/safety_settings_manager.cpp:38, :43, :49, :64, :69, :74)
+    // never ran — flipping any of them left the test green. Erasing is also
+    // what makes the test independent of the set/get cases below, which persist
+    // into the same Config singleton.
+    auto& config_data = ConfigTestAccess::data(*Config::get_instance());
+    config_data.erase("safety");
+    config_data.erase("notifications");
+    REQUIRE_FALSE(config_data.contains("safety"));
+    REQUIRE_FALSE(config_data.contains("notifications"));
+
     SafetySettingsManager::instance().deinit_subjects();
     SafetySettingsManager::instance().init_subjects();
 
@@ -37,6 +44,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after in
 
     SECTION("cancel_escalation_timeout defaults to 30s") {
         REQUIRE(SafetySettingsManager::instance().get_cancel_escalation_timeout_seconds() == 30);
+    }
+
+    SECTION("macro_require_confirmation defaults to true") {
+        REQUIRE(SafetySettingsManager::instance().get_macro_require_confirmation() == true);
     }
 
     SECTION("allow_cold_extrude defaults to false") {

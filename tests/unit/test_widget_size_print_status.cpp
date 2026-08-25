@@ -281,6 +281,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status column/row card layout follows
     PrintStatusWidget::destroy_formatter_for_test();
 }
 
+// TEST_MIRROR_OK: "mirror" here names a duplication that lives in PRODUCTION —
+// print_status_widget.cpp re-derives the same gate in two places (:461 and
+// :1712). The test reimplements neither: it drives the real widget through
+// PanelWidgetHarness and asserts on the real show_filament_active subject, so
+// it goes red if either production copy drifts.
 // --- :461 show_filament_active (wide band AND filament extruded) + the :1712
 // mirror (DetailedFormatter::update_filament_text() re-deriving the same gate
 // from width_band_subject_ on a used_mm change alone, with no intervening

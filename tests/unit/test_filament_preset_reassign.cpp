@@ -15,14 +15,25 @@
 // (material_settings_manager.cpp) -- both exercised directly below, with no
 // LVGL widget involved. FilamentPanel::reassign_preset()/
 // reset_presets_to_defaults() themselves are thin wrappers around this same
-// validate-then-persist chain, but FilamentPanel is tightly coupled to LVGL
-// and MoonrakerAPI (no existing unit test constructs one -- see
-// tests/unit/test_filament_bypass_routing_char.cpp), so the chain is
-// mirrored here at the same level test_material_settings_manager.cpp and
-// test_preset_filament_persistence.cpp already exercise it.
+// validate-then-persist chain, and the chain is mirrored here at the same level
+// test_material_settings_manager.cpp and test_preset_filament_persistence.cpp
+// already exercise it.
+//
+// The claim that used to stand here -- "no existing unit test constructs a
+// FilamentPanel" -- is false. tests/unit/test_filament_panel_op_timeout.cpp
+// builds a real one from filament_panel.xml over a recording backend, and both
+// reassign_preset() and reset_presets_to_defaults() are PUBLIC, so the mirror
+// below can be retired by driving the panel directly. Its three remaining
+// callees are unit-safe with no widgets: presets::refresh_subjects() returns
+// early when subjects were never initialized, update_spool_preset() guards on
+// spool_preset_button_, and check_and_auto_select_preset() writes nothing while
+// the targets are 0. What that costs is a per-test-case panel whose
+// init_subjects() re-registers the panel's named subjects, which is the part
+// that needs proving against a build.
+
+#include "ui_panel_filament.h"
 
 #include "material_settings_manager.h"
-#include "ui_panel_filament.h"
 
 #include "../catch_amalgamated.hpp"
 

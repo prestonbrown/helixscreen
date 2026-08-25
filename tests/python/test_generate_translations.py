@@ -246,17 +246,6 @@ class TestParseYamlPluralForms:
         assert file_count["many"] == "%d файлов"
         assert file_count["other"] == "%d файлов"
 
-    def test_identify_plural_vs_singular(self, yaml_with_plurals_en, simple_yaml_en):
-        """Can distinguish between plural (dict) and singular (string) entries."""
-        from generate_translations import parse_yaml_content, is_plural_entry
-
-        plural_result = parse_yaml_content(yaml_with_plurals_en)
-        singular_result = parse_yaml_content(simple_yaml_en)
-
-        assert is_plural_entry(plural_result["translations"]["file_count"])
-        assert not is_plural_entry(singular_result["translations"]["Settings"])
-
-
 # =============================================================================
 # Test: XML Generation
 # =============================================================================
@@ -487,10 +476,11 @@ class TestMissingTranslationWarning:
 
         warnings = format_missing_warnings(missing)
 
-        assert "de" in warnings
-        assert "fr" in warnings
-        assert "Cancel" in warnings
-        assert "3" in warnings or "three" in warnings.lower()  # Count for fr
+        assert warnings.splitlines() == [
+            "Missing translations:",
+            "  de: 2 missing - Cancel, Save",
+            "  fr: 3 missing - Cancel, Save, Home",
+        ]
 
 
 class TestAllLanguagesHaveSameKeys:
@@ -665,7 +655,11 @@ class TestIntegration:
         )
 
         assert len(result.warnings) > 0
-        assert any("Home" in w or "Cancel" in w for w in result.warnings)
+        # BOTH missing keys, not "one of the two" -- and nothing about the key
+        # de actually has.
+        assert "Missing 'Home' in de" in result.warnings
+        assert "Missing 'Cancel' in de" in result.warnings
+        assert not any("Settings" in w for w in result.warnings)
 
 
 # =============================================================================

@@ -40,10 +40,21 @@ def test_first_scalar_handles_nil_and_arrays():
     assert imp.first_scalar([]) is None
 
 
-def test_map_type_known_and_unknown():
-    assert imp.map_type("PLA") == "PLA"
-    assert imp.map_type("PET-CF") == "PET-CF"
-    assert imp.map_type("WeirdNew") == "WeirdNew"  # unknown → raw fallback
+def test_map_type_known_and_unknown(monkeypatch):
+    """map_type() looks the type up, and falls back to the raw value.
+
+    Every one of TYPE_MAP's 17 entries is currently an identity mapping (X: X),
+    so asserting map_type("PLA") == "PLA" passes whether the lookup happened or
+    the function simply returned its argument -- the two branches are
+    indistinguishable against the real table. Patch in one genuinely
+    non-identity entry (same technique as test_build_catalog_returns_raw_
+    library_types) so the remap and the fallback produce different answers.
+    """
+    monkeypatch.setitem(imp.TYPE_MAP, "PET-CF", "CARBON-PET")
+
+    assert imp.map_type("PET-CF") == "CARBON-PET"   # remapped key
+    assert imp.map_type("PLA") == "PLA"             # untouched identity entry
+    assert imp.map_type("WeirdNew") == "WeirdNew"   # absent key -> raw fallback
 
 
 def test_collapse_bed_prefers_textured_skips_nil():

@@ -561,12 +561,17 @@ TEST_CASE("LED characterization: subjects survive reset_for_testing cycle",
     REQUIRE(lv_subject_get_int(state.get_led_state_subject()) == 0);
     REQUIRE(lv_subject_get_int(state.get_led_brightness_subject()) == 0);
 
-    // NOTE: tracked_led_name_ is NOT cleared by reset_for_testing()
-    // This is the current behavior - the tracked LED persists across resets
-    REQUIRE(state.has_tracked_led() == true);
-    REQUIRE(state.get_tracked_led() == "neopixel led_strip");
+    // tracked_led_name_ IS cleared. PrinterStateTestAccess::reset() simulates a
+    // FRESH session on the shared PrinterState singleton, and which neopixel we
+    // track is per-printer data — leaving it behind aimed a later test's
+    // update_from_status() at the previous test's LED object. Same rule the reset
+    // already applies to the session-scoped printer_reports_layers_.
+    REQUIRE_FALSE(state.has_tracked_led());
+    REQUIRE(state.get_tracked_led().empty());
 
-    // Subjects should still be functional after reset
+    // Subjects should still be functional after reset. Re-track first — the reset
+    // cleared the name, so update_from_status has nothing to match without it.
+    state.set_tracked_led("neopixel led_strip");
     json new_status = {{"neopixel led_strip", {{"color_data", {{0.5, 0.5, 0.5, 0.5}}}}}};
     state.update_from_status(new_status);
 

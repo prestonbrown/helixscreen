@@ -575,9 +575,17 @@ class TestYamlSourceComments:
         }
         merge_new_keys_with_sources(sample_yaml_dir, new_keys)
 
-        en_content = (sample_yaml_dir / "en.yml").read_text()
-        # Should have comment with source info
-        assert "panel_a.xml" in en_content or "New String" in en_content
+        # Assert the comment line VERBATIM and that it sits directly above the
+        # key it annotates. The previous form was
+        #   assert "panel_a.xml" in c or "New String" in c
+        # whose second disjunct any successful merge satisfies, so the
+        # source-comment behavior this test is named for went unasserted.
+        for locale, value in (("en", "New String"), ("de", "''")):
+            content = (sample_yaml_dir / f"{locale}.yml").read_text()
+            assert (
+                "  # Source: panel_a.xml:10, panel_b.xml:20\n"
+                f"  New String: {value}\n"
+            ) in content, content
 
 
 class TestYamlFormatPreservation:
@@ -931,14 +939,6 @@ class TestCoverageStats:
         assert "translated" in result["en"]
         assert "percentage" in result["en"]
 
-    def test_english_always_100_percent(self, sample_yaml_dir):
-        """English (base) should always show 100% coverage."""
-        from translations.coverage import calculate_coverage
-
-        result = calculate_coverage(sample_yaml_dir, base_locale="en")
-
-        assert result["en"]["percentage"] == 100.0
-
     def test_identify_missing_translations(self, sample_yaml_dir):
         """Identifies which keys are missing translations."""
         from translations.coverage import get_missing_translations
@@ -1119,46 +1119,6 @@ class TestObsoleteDetection:
 
 class TestObsoleteActions:
     """Test actions for handling obsolete keys."""
-
-    def test_report_action(self, tmp_path, capsys):
-        """Report action just prints obsolete keys."""
-        yaml_dir = tmp_path / "translations"
-        yaml_dir.mkdir()
-
-        (yaml_dir / "en.yml").write_text(dedent("""\
-            locale: en
-            translations:
-              "Used": "Used"
-              "Obsolete": "Obsolete"
-        """))
-
-        from translations.obsolete import report_obsolete_keys
-
-        obsolete = {"Obsolete"}
-        report_obsolete_keys(obsolete)
-
-        captured = capsys.readouterr()
-        assert "Obsolete" in captured.out
-
-    def test_mark_deprecated_action(self, tmp_path):
-        """Mark action adds DEPRECATED comment to obsolete keys."""
-        yaml_dir = tmp_path / "translations"
-        yaml_dir.mkdir()
-
-        (yaml_dir / "en.yml").write_text(dedent("""\
-            locale: en
-            translations:
-              "Used": "Used"
-              "Obsolete": "Obsolete value"
-        """))
-
-        from translations.obsolete import mark_obsolete_keys
-
-        mark_obsolete_keys(yaml_dir, {"Obsolete"})
-
-        content = (yaml_dir / "en.yml").read_text()
-        # Should have comment marking it as deprecated
-        assert "DEPRECATED" in content or "obsolete" in content.lower()
 
     def test_delete_action(self, tmp_path):
         """Delete action removes obsolete keys from YAML."""

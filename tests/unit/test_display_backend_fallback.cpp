@@ -10,8 +10,13 @@
  * DisplayManager should retry with fbdev backend without requiring
  * a process restart.
  *
- * These tests use mock backends to simulate the failure scenario.
- * They FAIL if the fallback logic is removed.
+ * These tests use mock backends to stand in for real DRM/fbdev hardware, but the
+ * fallback DECISION is not restated here — every case calls the production
+ * predicate DisplayBackend::should_try_fbdev_fallback(), which is the condition
+ * DisplayManager::init() itself branches on (display_manager.cpp). Invert or
+ * delete that predicate and these go red.
+ *
+ * init() cannot be called directly: it initializes LVGL and opens real devices.
  */
 
 #include "display_backend.h"
@@ -108,8 +113,8 @@ class MockSuccessBackend : public DisplayBackend {
 
 TEST_CASE("Fallback condition: DRM backend with null display triggers fallback",
           "[display][fallback][crash_hardening]") {
-    // The fallback condition from display_manager.cpp:
-    //   if (!m_display && m_backend->type() != DisplayBackendType::FBDEV)
+    // The fallback condition DisplayManager::init() branches on, called directly
+    // rather than restated.
     auto backend = std::make_unique<MockFailingBackend>(DisplayBackendType::DRM, "DRM/KMS");
     lv_display_t* display = backend->create_display(800, 480);
 
@@ -117,7 +122,7 @@ TEST_CASE("Fallback condition: DRM backend with null display triggers fallback",
     REQUIRE(backend->create_display_called_);
 
     // Verify fallback condition is met
-    bool should_fallback = (display == nullptr && backend->type() != DisplayBackendType::FBDEV);
+    bool should_fallback = DisplayBackend::should_try_fbdev_fallback(backend.get(), display);
     REQUIRE(should_fallback);
 }
 
@@ -129,7 +134,7 @@ TEST_CASE("Fallback condition: FBDEV failure does NOT trigger fallback to itself
 
     REQUIRE(display == nullptr);
 
-    bool should_fallback = (display == nullptr && backend->type() != DisplayBackendType::FBDEV);
+    bool should_fallback = DisplayBackend::should_try_fbdev_fallback(backend.get(), display);
     REQUIRE_FALSE(should_fallback);
 }
 
@@ -143,7 +148,7 @@ TEST_CASE("Fallback condition: SDL failure does NOT trigger fbdev fallback",
 
     REQUIRE(display == nullptr);
 
-    bool should_fallback = (display == nullptr && backend->type() != DisplayBackendType::FBDEV);
+    bool should_fallback = DisplayBackend::should_try_fbdev_fallback(backend.get(), display);
     // SDL failure would trigger fallback attempt (fbdev won't be available on desktop)
     REQUIRE(should_fallback);
 }
@@ -156,7 +161,7 @@ TEST_CASE("Fallback condition: successful display does NOT trigger fallback",
     REQUIRE(display != nullptr);
     REQUIRE(backend->create_display_called_);
 
-    bool should_fallback = (display == nullptr && backend->type() != DisplayBackendType::FBDEV);
+    bool should_fallback = DisplayBackend::should_try_fbdev_fallback(backend.get(), display);
     REQUIRE_FALSE(should_fallback);
 }
 
@@ -213,30 +218,38 @@ TEST_CASE("Backend availability check: fallback requires is_available()",
 
 TEST_CASE("Backend fallback: simulate full DRM->fbdev fallback sequence",
           "[display][fallback][crash_hardening]") {
-    // Simulates the full fallback path from display_manager.cpp init():
+    // Walks the fallback path from display_manager.cpp init():
     // 1. Primary DRM backend passes is_available() but create_display() fails
-    // 2. Reset primary backend
-    // 3. Create fbdev backend
-    // 4. Check is_available() on fbdev
-    // 5. Create display via fbdev
+    // 2. The production predicate says to fall back
+    // 3. Reset primary backend
+    // 4. Create fbdev backend, check is_available(), create display
+    // 5. The predicate now says stop (fbdev never falls back to itself)
 
     // Step 1: Primary backend fails
     auto primary = std::make_unique<MockFailingBackend>(DisplayBackendType::DRM, "DRM/KMS");
     lv_display_t* display = primary->create_display(800, 480);
     REQUIRE(display == nullptr);
-    REQUIRE(primary->type() != DisplayBackendType::FBDEV);
 
-    // Step 2: Reset primary
+    // Step 2: the decision itself, taken from production rather than restated
+    REQUIRE(DisplayBackend::should_try_fbdev_fallback(primary.get(), display));
+
+    // Step 3: Reset primary
     primary.reset();
     REQUIRE(primary == nullptr);
 
-    // Step 3-5: Create fallback backend and try display creation
+    // Step 4: Create fallback backend and try display creation
     auto fallback = std::make_unique<MockSuccessBackend>(DisplayBackendType::FBDEV, "Framebuffer");
     REQUIRE(fallback->is_available());
 
     display = fallback->create_display(800, 480);
     REQUIRE(display != nullptr);
     REQUIRE(fallback->create_display_called_);
+
+    // Step 5: no second fallback — both because a display now exists and because
+    // fbdev is the terminal backend. Checked with a null display too, so the
+    // assertion does not pass on the display!=nullptr half alone.
+    REQUIRE_FALSE(DisplayBackend::should_try_fbdev_fallback(fallback.get(), display));
+    REQUIRE_FALSE(DisplayBackend::should_try_fbdev_fallback(fallback.get(), nullptr));
 }
 
 // ============================================================================
@@ -269,11 +282,9 @@ TEST_CASE("DRM backend: empty device string prevents create_display attempt",
     REQUIRE_FALSE(backend.is_available());
     REQUIRE(backend.type() == DisplayBackendType::DRM);
 
-    // The fallback condition in DisplayManager:
-    //   if (!m_display && m_backend->type() != DisplayBackendType::FBDEV)
-    // Would trigger fbdev fallback since type is DRM and display would be null
-    bool should_fallback = (!backend.is_available() && backend.type() != DisplayBackendType::FBDEV);
-    REQUIRE(should_fallback);
+    // An unavailable DRM backend never produces a display, so init() reaches the
+    // fallback decision with a null display — ask production what it decides.
+    REQUIRE(DisplayBackend::should_try_fbdev_fallback(&backend, nullptr));
 }
 
 #endif // HELIX_DISPLAY_DRM

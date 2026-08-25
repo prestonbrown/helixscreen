@@ -13,10 +13,6 @@ setup() {
 
 # --- metadata.json structural tests ---
 
-@test "metadata.json exists" {
-    [ -f "$KIAUH_DIR/metadata.json" ]
-}
-
 @test "metadata.json is valid JSON" {
     python3 -c "import json; json.load(open('$KIAUH_DIR/metadata.json'))"
 }
@@ -66,10 +62,6 @@ assert isinstance(data['updates'], bool), f'updates should be bool, got {type(da
 }
 
 # --- Python file structural tests ---
-
-@test "__init__.py exists" {
-    [ -f "$KIAUH_DIR/__init__.py" ]
-}
 
 @test "helixscreen_extension.py has valid Python syntax" {
     python3 -c "import ast; ast.parse(open('$KIAUH_DIR/helixscreen_extension.py').read())"

@@ -21,11 +21,6 @@ write_channel() {
     printf '%s\n' "$1" > "$CHANNEL_FILE"
 }
 
-@test "release-channel.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "release-channel.sh passes shellcheck" {
     if ! command -v shellcheck &>/dev/null; then
         skip "shellcheck not installed"

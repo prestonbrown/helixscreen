@@ -190,6 +190,13 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
                  "Application::cancel_add_printer_wizard removes the failed printer and restores "
                  "the previous one",
                  "[application][switch_printer]") {
+    // TEST_MIRROR_OK: describes the PRECONDITION add_printer_via_wizard() leaves
+    // behind, not logic reimplemented here — the assertions below all run against
+    // the real ApplicationTestAccess::cancel_add_printer_wizard(). The wizard entry
+    // point itself cannot be called in-process: it ends in tear_down_printer_state()
+    // + init_printer_state(), a full app teardown/rebuild that would leave every
+    // later test in the shard on rebuilt global state (see the class comment on
+    // tests/test_helpers/application_test_access.h).
     // Mirror add_printer_via_wizard(): a new empty entry is created and made active,
     // and the previous id is stashed for recovery.
     cfg_->add_printer("printer-3", nlohmann::json{{"wizard_completed", false}});

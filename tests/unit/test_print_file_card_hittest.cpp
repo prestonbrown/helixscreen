@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: builds the shipped ui_xml/components/print_file_card.xml through
+//                 XMLTestFixture::create_component() and hit-tests the real widget tree
+//                 with lv_indev_search_obj(). ../test_fixtures.h pulls in
+//                 include/printer_state.h, include/moonraker_api.h, include/theme_manager.h.
 // Hit-testing for print_file_card: the whole card face must resolve to card_root,
 // which owns the CLICKED/LONG_PRESSED handlers (ui_print_select_card_view.cpp).
 // Decorative children (metadata overlay and its rows) must not absorb the press.

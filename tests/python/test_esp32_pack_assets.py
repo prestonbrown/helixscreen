@@ -8,10 +8,11 @@ recovery. Also exercises the compressed vs. raw-stored code paths (the
 frogfs.yaml filter deflates text but stores .png raw) and the djb2 hash
 collision-safe path lookup.
 
-Requires the vendored jkent__frogfs component (fetched by ESP-IDF's
-component manager) and pyyaml. Skips cleanly if either is unavailable so
-`make test` on a machine without the ESP-IDF managed_components tree doesn't
-fail the whole suite.
+The packing tests require the vendored jkent__frogfs component (fetched by
+ESP-IDF's component manager into a gitignored managed_components/ tree) and
+pyyaml. They skip on a dev box that has never run `idf.py reconfigure`, but
+they FAIL under CI ($CI set) -- see _skip_or_fail(). The djb2 hash test needs
+neither and runs everywhere.
 """
 
 import os
@@ -29,12 +30,6 @@ from frogfs_reader import djb2_hash, load  # noqa: E402
 MKFROGFS = (REPO_ROOT / "firmware" / "helixscreen-esp32" / "managed_components" /
            "jkent__frogfs" / "tools" / "mkfrogfs.py")
 
-pytestmark = pytest.mark.skipif(
-    not MKFROGFS.is_file(),
-    reason="jkent__frogfs not vendored -- run 'idf.py reconfigure' in "
-           "firmware/helixscreen-esp32 first",
-)
-
 try:
     import yaml  # noqa: F401
     HAVE_YAML = True
@@ -42,9 +37,35 @@ except ImportError:
     HAVE_YAML = False
 
 
+def _skip_or_fail(reason: str) -> None:
+    """Gate the packer-dependent tests: a legitimate skip on a dev box, a hard
+    failure in CI.
+
+    managed_components/ is gitignored (firmware/helixscreen-esp32/.gitignore)
+    and holds zero tracked files -- it exists only after `idf.py reconfigure`.
+    The nightly test-python job does a plain checkout with no ESP-IDF setup, so
+    a plain skipif here reports green forever while every assertion below is
+    silently discarded. Make the gap loud in CI so it is a decision someone
+    takes, not a hole nobody can see."""
+    if os.environ.get("CI"):
+        pytest.fail(
+            f"{reason}\n"
+            "In CI this is not a skip: the packer round-trip is unverifiable "
+            "here, so this module tests nothing. Either provide the dependency "
+            "or delete the module -- do not let it report green."
+        )
+    pytest.skip(reason)
+
+
 def _pack(tmp_path: Path, source_tree: Path) -> Path:
+    if not MKFROGFS.is_file():
+        _skip_or_fail("jkent__frogfs not vendored -- run 'idf.py reconfigure' "
+                      "in firmware/helixscreen-esp32 first")
+    # PyYAML is pinned in requirements.txt, which CI installs, so unlike
+    # mkfrogfs.py this one should never be missing there -- route it through the
+    # same gate so a broken requirements.txt is loud rather than green.
     if not HAVE_YAML:
-        pytest.skip("pyyaml not installed")
+        _skip_or_fail("pyyaml not installed")
 
     tmp_path.mkdir(parents=True, exist_ok=True)
     config = tmp_path / "frogfs.yaml"
@@ -145,16 +166,18 @@ def test_missing_path_returns_none(tmp_path):
 
 
 def test_djb2_hash_matches_reference_values():
-    # Cross-check our reimplementation against a few precomputed values so a
-    # future edit to djb2_hash() can't silently break path lookups without a
-    # test noticing (the frogfs image format has no self-describing path
-    # index other than this hash, so a wrong hash function reads back
-    # nothing -- see frogfs_reader.py module docstring).
-    assert djb2_hash("") == 5381
-    ref = 5381
-    for b in b"a":
-        ref = ((ref << 5) + ref ^ b) & 0xFFFFFFFF
-    assert djb2_hash("a") == ref
+    # Literal expected values, NOT recomputed from the same expression -- a
+    # reimplementation checked against itself proves nothing. These were taken
+    # from the packer side (mkfrogfs's tools/frogfs.py) for real asset paths;
+    # the frogfs image format has no self-describing path index other than this
+    # hash, so a wrong hash function reads back nothing and every lookup in
+    # frogfs_reader.py silently returns None.
+    assert djb2_hash("") == 0x1505  # the 5381 seed, unmodified
+    assert djb2_hash("a") == 0x0002B5C4
+    assert djb2_hash("ui_xml/globals.xml") == 0x6E5D0D5F
+    assert djb2_hash("assets/config/printer_database.json") == 0x45EE4706
+    assert djb2_hash("ui_xml/translations/en.xml") == 0x49B49B7B
+    assert djb2_hash("assets/images/printers/voron-v2.png") == 0xAD2EC63C
 
 
 def test_empty_file_round_trips(tmp_path):

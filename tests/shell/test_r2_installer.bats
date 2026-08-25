@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Tests for R2 CDN integration in scripts/lib/installer/release.sh
-# Verifies manifest parsing, config defaults, and helper availability.
+# Verifies manifest parsing and config defaults. The helpers themselves are
+# exercised in test_download_validation, test_arch_validation and
+# test_extract_release; this file no longer restates that they exist, which
+# `setup()` guarantees by construction the moment it sources release.sh.
 
 RELEASE_SH="scripts/lib/installer/release.sh"
 
@@ -45,28 +48,6 @@ setup() {
     unset _HELIX_RELEASE_SOURCED
     source "$RELEASE_SH"
     [ "$R2_CHANNEL" = "dev" ]
-}
-
-# --- Helper availability ---
-
-@test "fetch_url available after sourcing release.sh" {
-    run type fetch_url
-    [ "$status" -eq 0 ]
-}
-
-@test "download_file available after sourcing release.sh" {
-    run type download_file
-    [ "$status" -eq 0 ]
-}
-
-@test "parse_manifest_version available after sourcing release.sh" {
-    run type parse_manifest_version
-    [ "$status" -eq 0 ]
-}
-
-@test "parse_manifest_platform_url available after sourcing release.sh" {
-    run type parse_manifest_platform_url
-    [ "$status" -eq 0 ]
 }
 
 # --- Manifest parsing ---
@@ -156,14 +137,3 @@ SAMPLE_MANIFEST='{
     [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz" ]
 }
 
-# --- Architecture validation helper availability ---
-
-@test "validate_binary_architecture available after sourcing release.sh" {
-    run type validate_binary_architecture
-    [ "$status" -eq 0 ]
-}
-
-@test "cleanup_old_install available after sourcing release.sh" {
-    run type cleanup_old_install
-    [ "$status" -eq 0 ]
-}

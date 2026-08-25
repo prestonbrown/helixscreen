@@ -36,9 +36,11 @@ AmsSystemInfo make_sys(std::vector<int> tool_map, int current_slot) {
 // Mirror of FilamentPanel::execute_load's target decision (single source of
 // truth == resolve_op_button_slot on the dropdown-selected tool). A result
 // >= 0 is loaded directly; < 0 means the panel redirects to the AMS slot
-// picker instead. FilamentPanel is LVGL/Moonraker-coupled and not
-// unit-instantiated (cf. test_filament_op_button_state_char.cpp), so these
-// wrappers pin the per-op branching the panel applies on top of the resolver.
+// picker instead. These wrappers pin the per-op branching the panel applies on
+// top of the resolver; the resolver call itself is production.
+//
+// (The old note here said FilamentPanel is not unit-instantiated. It is —
+// tests/unit/test_filament_panel_op_timeout.cpp builds a real one.)
 int panel_load_target(const AmsSystemInfo& sys, int selected_tool, int tool_count) {
     return resolve_op_button_slot(sys, selected_tool, tool_count);
 }

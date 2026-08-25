@@ -8,8 +8,7 @@
  * Tests the domain logic:
  * - PrinterHardware guessing (guess_bed_heater, guess_hotend_heater, guess_bed_sensor,
  *   guess_hotend_sensor, guess_part_cooling_fan, guess_main_led_strip)
- * - Bed mesh operations (get_active_bed_mesh, get_bed_mesh_profiles, has_bed_mesh)
- * - Object exclusion (get_excluded_objects, get_available_objects)
+ * - Hardware discovery reaching MoonrakerAPI::hardware()
  */
 
 #include "ui_update_queue.h"
@@ -148,12 +147,15 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
 
 TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture, "PrinterHardware::guess_main_led_strip returns LED",
                  "[printer][guessing]") {
+    // VORON_24 seeds four LEDs (moonraker_client_mock.cpp): "neopixel chamber_light",
+    // "neopixel status_led", "led caselight", "output_pin Enclosure_LEDs". Priority 1
+    // walks its keyword list {"case", "chamber", ...} in order and returns the first LED
+    // matching the CURRENT keyword, so "case" resolves before "chamber" is ever tried —
+    // keyword order wins over LED order. Both room-lighting candidates must beat
+    // "neopixel status_led", which is a machine-status indicator, not room lighting.
     PrinterHardware hw(api->hardware().heaters(), api->hardware().sensors(), api->hardware().fans(),
                        api->hardware().leds());
-    std::string led = hw.guess_main_led_strip();
-    // May be empty if no LEDs configured, but shouldn't crash
-    // Just verify the call works
-    (void)led;
+    REQUIRE(hw.guess_main_led_strip() == "led caselight");
 }
 
 // ============================================================================
@@ -216,135 +218,6 @@ TEST_CASE_METHOD(HelixTestFixture, "PrinterHardware guessing works for multiple 
 }
 
 // ============================================================================
-// Bed Mesh Tests
-// ============================================================================
-
-TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture, "MoonrakerAPI::has_bed_mesh returns correct state",
-                 "[api][bedmesh]") {
-    // Initially the mock client may or may not have bed mesh data
-    // This tests that the API method delegates correctly
-    // API method should return consistent state
-    bool has_mesh = api->advanced().has_bed_mesh();
-    (void)has_mesh; // Test only verifies method doesn't crash
-}
-
-TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
-                 "MoonrakerAPI::get_active_bed_mesh returns nullptr when no mesh",
-                 "[api][bedmesh]") {
-    // Check current state
-    const BedMeshProfile* mesh = api->advanced().get_active_bed_mesh();
-
-    // If no mesh, should return nullptr
-    // If mesh exists, should return valid pointer
-    if (mesh == nullptr) {
-        // No mesh available
-        REQUIRE(mesh == nullptr);
-    } else {
-        // Mesh exists and should have valid data
-        REQUIRE(mesh != nullptr);
-        REQUIRE(!mesh->probed_matrix.empty());
-    }
-}
-
-TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
-                 "MoonrakerAPI::get_bed_mesh_profiles returns profile list", "[api][bedmesh]") {
-    std::vector<std::string> profiles = api->advanced().get_bed_mesh_profiles();
-
-    // Verify profiles list is reasonable
-    REQUIRE(profiles.size() >= 0); // Should be non-negative size
-    // Common profile names that might exist
-    for (const auto& profile : profiles) {
-        REQUIRE(!profile.empty()); // Profile names should not be empty
-    }
-}
-
-// ============================================================================
-// Object Exclusion Tests
-// ============================================================================
-
-TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
-                 "MoonrakerAPI::get_excluded_objects handles empty response", "[api][exclude]") {
-    bool callback_called = false;
-    std::set<std::string> result;
-
-    api->advanced().get_excluded_objects(
-        [&callback_called, &result](const std::set<std::string>& objects) {
-            callback_called = true;
-            result = objects;
-        },
-        [](const MoonrakerError&) {
-            // Error callback - should not be called for this test
-        });
-
-    // Note: Mock client may not invoke callbacks immediately
-    // This test verifies the API method signature is correct
-}
-
-TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
-                 "MoonrakerAPI::get_available_objects handles empty response", "[api][exclude]") {
-    bool callback_called = false;
-    std::vector<std::string> result;
-
-    api->advanced().get_available_objects(
-        [&callback_called, &result](const std::vector<std::string>& objects) {
-            callback_called = true;
-            result = objects;
-        },
-        [](const MoonrakerError&) {
-            // Error callback - should not be called for this test
-        });
-
-    // Note: Mock client may not invoke callbacks immediately
-    // This test verifies the API method signature is correct
-}
-
-// ============================================================================
-// Domain Service Interface Compliance Tests
-// ============================================================================
-
-TEST_CASE("BedMeshProfile struct initialization", "[api][bedmesh]") {
-    BedMeshProfile profile;
-
-    SECTION("Default values are correct") {
-        REQUIRE(profile.name.empty());
-        REQUIRE(profile.probed_matrix.empty());
-        REQUIRE(profile.mesh_min[0] == 0.0f);
-        REQUIRE(profile.mesh_min[1] == 0.0f);
-        REQUIRE(profile.mesh_max[0] == 0.0f);
-        REQUIRE(profile.mesh_max[1] == 0.0f);
-        REQUIRE(profile.x_count == 0);
-        REQUIRE(profile.y_count == 0);
-        REQUIRE(profile.algo.empty());
-    }
-
-    SECTION("Can be populated with data") {
-        profile.name = "test_profile";
-        profile.mesh_min[0] = 10.0f;
-        profile.mesh_min[1] = 10.0f;
-        profile.mesh_max[0] = 200.0f;
-        profile.mesh_max[1] = 200.0f;
-        profile.x_count = 5;
-        profile.y_count = 5;
-        profile.algo = "bicubic";
-
-        // Add some mesh data
-        for (int y = 0; y < 5; ++y) {
-            std::vector<float> row;
-            for (int x = 0; x < 5; ++x) {
-                row.push_back(0.01f * (x + y));
-            }
-            profile.probed_matrix.push_back(row);
-        }
-
-        REQUIRE(profile.name == "test_profile");
-        REQUIRE(profile.probed_matrix.size() == 5);
-        REQUIRE(profile.probed_matrix[0].size() == 5);
-        REQUIRE(profile.x_count == 5);
-        REQUIRE(profile.y_count == 5);
-    }
-}
-
-// ============================================================================
 // All Printer Types Tests
 // ============================================================================
 
@@ -385,18 +258,9 @@ TEST_CASE_METHOD(HelixTestFixture,
             REQUIRE_FALSE(bed_sensor.empty());
             REQUIRE_FALSE(hotend_sensor.empty());
 
-            // Test MoonrakerAPI bed mesh methods
-            MoonrakerAPI api(mock, state);
-            bool has_mesh = api.advanced().has_bed_mesh();
-            const BedMeshProfile* mesh = api.advanced().get_active_bed_mesh();
-            std::vector<std::string> profiles = api.advanced().get_bed_mesh_profiles();
-
-            // Consistency check
-            if (has_mesh) {
-                REQUIRE(mesh != nullptr);
-            } else {
-                REQUIRE(mesh == nullptr);
-            }
+            // No bed-mesh assertions here: has_bed_mesh() and get_active_bed_mesh()
+            // are the same expression over active_bed_mesh_.probed_matrix
+            // (moonraker_advanced_api.cpp), so cross-checking them can never fail.
 
             mock.stop_temperature_simulation();
             mock.disconnect();
@@ -438,31 +302,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     // Check capabilities that VORON_24 should have
     REQUIRE(hw.has_heater_bed() == true);
     REQUIRE(hw.has_qgl() == true); // Voron 2.4 has QGL
-
-    mock.stop_temperature_simulation();
-    mock.disconnect();
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "MoonrakerAPI hardware() accessor provides const access",
-                 "[api][hardware]") {
-    PrinterState state;
-    state.init_subjects(false);
-
-    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::CREALITY_K1);
-    mock.connect("ws://mock/websocket", []() {}, []() {});
-
-    // Create API before discovery so callbacks are registered
-    MoonrakerAPI api(mock, state);
-
-    // Run discovery - this fires callbacks that populate api.hardware_
-    mock.discover_printer([]() {});
-
-    // Const access should work
-    const MoonrakerAPI& const_api = api;
-    const auto& hw = const_api.hardware();
-
-    // K1 should have basic hardware
-    REQUIRE_FALSE(hw.heaters().empty());
 
     mock.stop_temperature_simulation();
     mock.disconnect();

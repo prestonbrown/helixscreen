@@ -676,11 +676,14 @@ TEST_CASE_METHOD(LedPinConfigFixture,
     reported.decompose(base_color, brightness, base_white);
     REQUIRE(brightness == 15);
 
-    // Mirror LedControlOverlay::apply_current_color(): white path sends
-    // base_white scaled by brightness. This is the damaging half of #1129 —
-    // it used to send exactly 0.0 and physically switch the user's light off.
-    const double bf = static_cast<double>(brightness) / 100.0;
-    backend.set_color("led case_light", 0.0, 0.0, 0.0, base_white * bf);
+    // decompose()'s documented contract: re-applying base_white at brightness_pct
+    // reproduces the level that was reported. That round-trip is what the overlay's
+    // white path rests on. The overlay half of #1129 — that the W channel is scaled
+    // rather than sent as a literal 0.0, which switched the user's light off — is
+    // asserted against apply_current_color() itself in test_led_control_overlay.cpp
+    // ("dimming a white-only strip scales W instead of zeroing it").
+    backend.set_color("led case_light", 0.0, 0.0, 0.0,
+                      base_white * static_cast<double>(brightness) / 100.0);
 
     auto sent = backend.get_strip_color("led case_light");
     REQUIRE(sent.w > 0.0);

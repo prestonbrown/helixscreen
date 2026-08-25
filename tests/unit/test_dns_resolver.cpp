@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
-// SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: exercises libhv/base/dns_resolv.h, a file created by
+// patches/libhv_dns_resolver.patch SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "libhv/base/dns_resolv.h"
 

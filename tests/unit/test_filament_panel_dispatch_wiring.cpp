@@ -15,10 +15,22 @@
  * spinner. Dispatching that no-op (SELECT_TOOL on the carriage tool) is what
  * left the Load button spinning for the full guard timeout in bundle 9KRXZ62P.
  *
- * FilamentPanel is LVGL/Moonraker-coupled and not unit-instantiable, so these
- * are mirror wrappers of execute_load()/execute_unload()'s post-plan branching —
- * the same seam test_filament_op_slot_resolver.cpp uses for the panel's slot
- * decision. They must be edited in lockstep with the panel.
+ * These are mirror wrappers of execute_load()/execute_unload()'s post-plan
+ * branching — the same seam test_filament_op_slot_resolver.cpp uses for the
+ * panel's slot decision. They must be edited in lockstep with the panel, and
+ * they HAVE drifted: the BypassLoaded refusal shipped in plan_load() without
+ * ever reaching the copy below, which fell through to SelectSlot and asserted
+ * the wrong toast plus an AMS-panel redirect the panel never performs.
+ *
+ * A real FilamentPanel IS unit-instantiable — tests/unit/test_filament_panel_op_timeout.cpp
+ * drives one built from filament_panel.xml over a recording backend via
+ * tests/test_helpers/filament_panel_test_access.h — and the toast text IS
+ * observable: NOTIFY_INFO/NOTIFY_WARNING land in NotificationHistory
+ * (ui_notification.cpp show_notification()). So these wrappers can be retired.
+ * Doing it means driving the four BackendCaps answers through a real AmsBackend
+ * (requires_slot_selection_for_load / is_bypass_active /
+ * needs_unload_before_load per lane / get_type) and the two StandardMacros
+ * states, for all nineteen cases below.
  */
 
 #include "ams_types.h"
@@ -83,6 +95,12 @@ PanelOutcome panel_execute_load(const AmsSystemInfo& sys, const BackendCaps& cap
         switch (plan.refusal) {
         case FilamentRefusal::AlreadyMounted:
             out.toast = "That tool is already loaded";
+            break;
+        case FilamentRefusal::BypassLoaded:
+            // The bypass spool still crosses the toolhead switch, which sits above
+            // the cutter — no unload gcode clears it, only a hand (36205eb27). The
+            // panel says so and does NOT redirect: there is nothing to pick.
+            out.toast = "Remove the bypass spool from the toolhead first";
             break;
         case FilamentRefusal::SelectSlot:
         default:
@@ -158,6 +176,18 @@ AmsSystemInfo make_sys(int slot_count, int current_slot, std::vector<int> mapped
 BackendCaps fresh_ams() {
     return {/*present=*/true, /*requires_slot_selection_for_load=*/true,
             /*needs_unload_before_load=*/false, /*is_tool_changer=*/false};
+}
+
+/// A backend with bypass engaged. is_bypass_active() and
+/// !requires_slot_selection_for_load() always travel together — the latter
+/// defaults to the negation of the former — so a test that flips only the
+/// second models a state no backend ever reports, and misses plan_load()'s
+/// entire bypass branch.
+BackendCaps bypassed_ams() {
+    BackendCaps caps = fresh_ams();
+    caps.requires_slot_selection_for_load = false;
+    caps.bypass_active = true;
+    return caps;
 }
 
 BackendCaps seated_toolchanger() {
@@ -283,15 +313,51 @@ TEST_CASE("Load with filament seated and no tool mapping still calls load_filame
 TEST_CASE("Load under bypass reaches the configured macro, not the backend",
           "[filament][dispatch][wiring][bypass]") {
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/1);
-    BackendCaps bypassed = fresh_ams();
-    bypassed.requires_slot_selection_for_load = false;
 
-    PanelOutcome out = panel_execute_load(sys, bypassed, /*target_slot=*/-2,
+    // The bypass TARGET, not a lane: plan_load()'s bypass branch only claims
+    // target_slot >= 0, so EXTERNAL_SPOOL_SLOT still falls to the macro tier.
+    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), EXTERNAL_SPOOL_SLOT,
                                           /*macro_available=*/true);
     CHECK(out.arm == Arm::Macro);
     // The backend guard belongs to the backend arm; the macro arm's guard is
     // armed inside run_filament_macro, after any param modal is answered.
     CHECK_FALSE(out.guard_armed);
+}
+
+TEST_CASE("Under bypass a named lane goes to the backend, not the bypass macro",
+          "[filament][dispatch][wiring][bypass]") {
+    // Falling through sent the EXTERNAL holder's macro with no argument: on a K2
+    // Plus that is LOAD_MATERIAL, whose heat step is gated on the toolhead
+    // sensor, so with nothing threaded it moved the head and reported success
+    // having loaded nothing. A lane tap is an explicit target — honour it.
+    AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
+    sys.filament_loaded = false;
+
+    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), /*target_slot=*/2,
+                                          /*macro_available=*/true);
+    CHECK(out.arm == Arm::Backend);
+    CHECK(out.call == AmsCall::Load);
+    CHECK(out.arg == 2);
+    CHECK(out.guard_armed);
+}
+
+TEST_CASE("A lane load is refused while the bypass spool still crosses the toolhead",
+          "[filament][dispatch][wiring][bypass]") {
+    // The refusal this file's mirror was missing: it had no BypassLoaded arm, so
+    // it fell to the SelectSlot default and claimed the panel raises "Select a
+    // filament slot to load" and redirects to the AMS panel. It does neither —
+    // the bypass switch sits above the cutter and reads the upstream piece, so
+    // no gcode retracts it and there is nothing for the user to pick (36205eb27).
+    AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
+    sys.filament_loaded = true;
+
+    PanelOutcome out = panel_execute_load(sys, bypassed_ams(), /*target_slot=*/2,
+                                          /*macro_available=*/true);
+    CHECK(out.arm == Arm::Refused);
+    CHECK(out.toast == "Remove the bypass spool from the toolhead first");
+    CHECK_FALSE(out.navigated_to_ams);
+    CHECK_FALSE(out.guard_armed);
+    CHECK(out.call == AmsCall::None);
 }
 
 TEST_CASE("Load with no backend and no macro falls back to raw gcode",
@@ -335,13 +401,15 @@ TEST_CASE("Unload under bypass stays on the backend while load falls through",
           "[filament][dispatch][wiring][bypass]") {
     // The asymmetry, asserted from the panel's side: harmonizing the two gates
     // would run the user's unload macro twice under AFC bypass.
-    BackendCaps bypassed = fresh_ams();
-    bypassed.requires_slot_selection_for_load = false;
+    const BackendCaps bypassed = bypassed_ams();
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/0);
 
-    PanelOutcome unload = panel_execute_unload(bypassed, /*target_slot=*/0,
+    // Both halves target the bypass spool itself. Aiming them at a LANE would
+    // not show the asymmetry: plan_load()'s bypass branch claims a named lane
+    // for the backend, so load and unload would agree.
+    PanelOutcome unload = panel_execute_unload(bypassed, EXTERNAL_SPOOL_SLOT,
                                                /*target_is_loaded=*/true, /*macro_available=*/true);
-    PanelOutcome load = panel_execute_load(sys, bypassed, /*target_slot=*/0,
+    PanelOutcome load = panel_execute_load(sys, bypassed, EXTERNAL_SPOOL_SLOT,
                                            /*macro_available=*/true);
     CHECK(unload.arm == Arm::Backend);
     CHECK(load.arm == Arm::Macro);

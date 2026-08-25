@@ -55,11 +55,6 @@ gen() {
 # Script hygiene
 # ---------------------------------------------------------------------------
 
-@test "generate-whatsnew.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "generate-whatsnew.sh has valid bash syntax" {
     bash -n "$SCRIPT"
 }

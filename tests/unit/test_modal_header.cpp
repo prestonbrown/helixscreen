@@ -1,4 +1,5 @@
 // Copyright (C) 2025-2026 356C LLC
+// TEST_MIRROR_OK: drives ui_xml/components/modal_header.xml through lv_xml_create at runtime
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_fixtures.h"

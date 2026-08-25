@@ -40,6 +40,9 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
+// TEST_MIRROR_OK: a widget-tree FIXTURE, not a reimplementation — it builds the
+// same parent/child shape production XML produces, and the test then calls the
+// real HeaterIconBinder::bind() and the real default_icon_name() against it.
 // Mirrors the shape HeaterIconBinder::bind() looks for: a container with a
 // single child named after the heater's conventional icon glyph.
 lv_obj_t* create_icon_root(lv_obj_t* parent, const char* icon_name) {

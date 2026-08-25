@@ -38,38 +38,6 @@
 
 using namespace helix;
 
-namespace {
-
-// Replicate the production lazy-registration (ensure_ams_widgets_registered() is
-// file-static in ui_panel_ams.cpp, so we register the same widgets + XML here).
-// Guarded so repeated test runs don't double-register the LVGL XML components.
-void register_ams_widgets_and_xml_once() {
-    static bool done = false;
-    if (done) {
-        return;
-    }
-
-    // Custom widgets (order matters — dependencies first), as in production.
-    ui_spool_canvas_register();
-    ui_ams_slot_register();
-    ui_filament_path_canvas_register();
-    ui_endless_spool_arrows_register();
-
-    // Sidebar callbacks must exist before the XML parser sees them.
-    helix::ui::AmsOperationSidebar::register_callbacks_static();
-
-    // XML components the panel depends on.
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_loaded_card.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_environment_indicator.xml");
-    lv_xml_register_component_from_file("A:ui_xml/components/ams_sidebar.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_panel.xml");
-
-    done = true;
-}
-
-} // namespace
-
 TEST_CASE_METHOD(XMLTestFixture,
                  "AmsPanel::refresh_slots clears stale path tube after idle-lane unload",
                  "[ui_integration][ams][regression]") {
@@ -97,7 +65,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     // 2. Build the real AmsPanel exactly as production does:
     //    register widgets/XML → create ams_panel XML → init_subjects → setup.
     // ------------------------------------------------------------------
-    register_ams_widgets_and_xml_once();
+    // The production registration itself. A copy of its list used to live here
+    // and had drifted from it — see test_ams_error_modal_autodismiss.cpp.
+    ensure_ams_widgets_registered();
 
     AmsPanel panel(state(), &api());
     panel.init_subjects();

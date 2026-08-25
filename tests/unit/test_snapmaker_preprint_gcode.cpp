@@ -116,17 +116,10 @@ TEST_CASE("Snapmaker build_preprint_gcode 2-color remap tool0->head1", "[snapmak
 // This test FAILS if the identity-filter logic regresses.
 TEST_CASE("get_effective_remap identity-filter drops identity + auto entries",
           "[snapmaker][remap]") {
-    // Mirror of PrintSelectDetailView::get_effective_remap (lines 979-995).
-    auto effective_remap = [](const std::vector<helix::ToolMapping>& mappings) {
-        auto default_head = [](int tool) { return (tool >= 0 && tool <= 3) ? tool : 0; };
-        std::map<int, int> remap;
-        for (const auto& m : mappings) {
-            if (m.mapped_slot >= 0 && m.mapped_slot != default_head(m.tool_index)) {
-                remap[m.tool_index] = m.mapped_slot;
-            }
-        }
-        return remap;
-    };
+    // The production identity filter itself. get_effective_remap() is nothing but
+    // effective_mappings() piped through this, so a change to the filter shows up
+    // in these expectations instead of leaving a stale copy green.
+    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
 
     auto mk = [](int tool, int slot) {
         helix::ToolMapping m;
@@ -179,17 +172,10 @@ TEST_CASE("get_effective_remap identity-filter drops identity + auto entries",
 // i.e. black/red/yellow loaded in heads 0/2/3; head 1 (white) is EMPTY (stale).
 TEST_CASE("Snapmaker routing: real U1 4-color-ring auto match drives the extruder map",
           "[snapmaker][preprint][remap]") {
-    // Mirror of get_effective_remap()'s identity-filter (physical head 0..3).
-    auto effective_remap = [](const std::vector<helix::ToolMapping>& mappings) {
-        auto default_head = [](int tool) { return (tool >= 0 && tool <= 3) ? tool : 0; };
-        std::map<int, int> remap;
-        for (const auto& m : mappings) {
-            if (m.mapped_slot >= 0 && m.mapped_slot != default_head(m.tool_index)) {
-                remap[m.tool_index] = m.mapped_slot;
-            }
-        }
-        return remap;
-    };
+    // get_effective_remap()'s identity filter, called rather than restated: it is
+    // FilamentMapper::identity_filtered_remap(), the one the detail view applies
+    // to effective_mappings() before handing the map to build_preprint_gcode().
+    auto effective_remap = &helix::FilamentMapper::identity_filtered_remap;
 
     // Sliced per-tool colors (T0=white, T1=black, T2=yellow, T3=red), all PLA.
     std::vector<helix::GcodeToolInfo> tools = {

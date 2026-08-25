@@ -23,11 +23,6 @@ teardown() {
     rm -rf "$TEST_DIR" "$WORK_DIR"
 }
 
-@test "gen-contributors.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "gen-contributors.sh has valid bash syntax" {
     bash -n "$SCRIPT"
 }

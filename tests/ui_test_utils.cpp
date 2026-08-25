@@ -748,21 +748,6 @@ bool ToastManager::is_visible() const {
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_textarea_parser.h"
 
-// Magic value to identify text_input widgets
-static constexpr uintptr_t TEXT_INPUT_MAGIC = 0xBADC0DE0;
-static constexpr uintptr_t TEXT_INPUT_HINT_MASK = 0x0000000F;
-
-KeyboardHint ui_text_input_get_keyboard_hint(lv_obj_t* textarea) {
-    if (textarea == nullptr) {
-        return KeyboardHint::TEXT;
-    }
-    auto user_data = reinterpret_cast<uintptr_t>(lv_obj_get_user_data(textarea));
-    if ((user_data & 0xFFFFFFF0) != TEXT_INPUT_MAGIC) {
-        return KeyboardHint::TEXT;
-    }
-    return static_cast<KeyboardHint>(user_data & TEXT_INPUT_HINT_MASK);
-}
-
 // Stub for notification manager functions (tests don't have notification UI)
 #include "ui_notification.h"
 #include "ui_notification_manager.h"
@@ -784,56 +769,6 @@ void ui_notification_deinit() {
 
 void helix::ui::notification_refresh_from_history() {
     // No-op in tests
-}
-
-// Text input widget create callback
-static void* ui_text_input_create(lv_xml_parser_state_t* state, const char** attrs) {
-    LV_UNUSED(attrs);
-    lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
-    lv_obj_t* textarea = lv_textarea_create(parent);
-
-    // One-line mode by default for form inputs
-    lv_textarea_set_one_line(textarea, true);
-
-    // Set default keyboard hint (TEXT) via user_data magic value
-    lv_obj_set_user_data(
-        textarea,
-        reinterpret_cast<void*>(TEXT_INPUT_MAGIC | static_cast<uintptr_t>(KeyboardHint::TEXT)));
-
-    return textarea;
-}
-
-// Text input widget apply callback
-static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // First apply standard textarea properties
-    lv_xml_textarea_apply(state, attrs);
-
-    lv_obj_t* textarea = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
-
-    // Handle our custom attributes
-    for (int i = 0; attrs[i]; i += 2) {
-        const char* name = attrs[i];
-        const char* value = attrs[i + 1];
-
-        if (lv_streq("placeholder", name)) {
-            // Shorthand for placeholder_text
-            lv_textarea_set_placeholder_text(textarea, value);
-        } else if (lv_streq("max_length", name)) {
-            lv_textarea_set_max_length(textarea, lv_xml_atoi(value));
-        } else if (lv_streq("keyboard_hint", name)) {
-            KeyboardHint hint = KeyboardHint::TEXT;
-            if (std::strcmp(value, "numeric") == 0) {
-                hint = KeyboardHint::NUMERIC;
-            }
-            lv_obj_set_user_data(
-                textarea, reinterpret_cast<void*>(TEXT_INPUT_MAGIC | static_cast<uintptr_t>(hint)));
-        }
-    }
-}
-
-void ui_text_input_init() {
-    lv_xml_register_widget("text_input", ui_text_input_create, ui_text_input_apply);
-    spdlog::debug("[ui_text_input] Registered <text_input> widget");
 }
 
 // Stub for app_request_restart (tests don't restart)

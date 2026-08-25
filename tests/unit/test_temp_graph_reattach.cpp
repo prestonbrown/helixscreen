@@ -38,7 +38,13 @@ using namespace helix;
 
 namespace {
 
-/// Connection-state subject values, mirroring setup_connection_observer().
+/// Connection-state subject values. These are the subject's own documented
+/// contract (printer_network_state.h: 0=disconnected, 1=connecting, 2=connected,
+/// 3=reconnecting, 4=failed), not values re-derived from the observer.
+/// TEST_MIRROR_OK: the transition below is driven through the REAL
+/// setup_connection_observer() by writing the real PrinterState subject; only the
+/// two enum values it compares against are named locally, because production
+/// spells them as bare literals with no shared enum to import.
 constexpr int CONN_DISCONNECTED = 0;
 constexpr int CONN_CONNECTED = 2;
 

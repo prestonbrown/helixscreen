@@ -9,6 +9,7 @@ code doesn't match KIAUH's discovery conventions.
 import importlib
 import inspect
 import json
+import subprocess
 import sys
 import types
 import unittest
@@ -221,15 +222,26 @@ class TestKiauhDiscovery(unittest.TestCase):
         spec.loader.exec_module(module)
 
         cls = module.HelixscreenExtension
+        # hasattr() is the wrong question: HelixscreenExtension subclasses
+        # BaseExtension, which DECLARES install_extension/remove_extension as
+        # abstract, so hasattr and callable are both satisfied by the inherited
+        # abstract stub even when the subclass overrides neither. Ask whether
+        # the class itself defines them.
         for method_name in ("install_extension", "update_extension", "remove_extension"):
-            self.assertTrue(
-                hasattr(cls, method_name),
-                f"HelixscreenExtension missing required method: {method_name}",
+            self.assertIn(
+                method_name,
+                cls.__dict__,
+                f"HelixscreenExtension does not itself define {method_name} "
+                f"(inheriting the abstract stub is not an implementation)",
             )
             self.assertTrue(
-                callable(getattr(cls, method_name)),
+                callable(cls.__dict__[method_name]),
                 f"{method_name} is not callable",
             )
+
+        # And the consequence KIAUH actually hits: an ABC with an unimplemented
+        # abstract method raises TypeError the moment KIAUH instantiates it.
+        cls()
 
 
 class TestFindInstallDir(unittest.TestCase):
@@ -382,22 +394,50 @@ class TestInitNoSideEffects(unittest.TestCase):
         except Exception as e:
             self.fail(f"__init__.py import caused side effect that raised: {e}")
 
-        # The original bug was code at *module scope* that touched the
-        # filesystem at import time. Defining a helper function is fine —
-        # KIAUH only invokes it on user action. Skip re-exported imports
-        # (typing.Optional is callable on Python 3.12+) and our intentional
-        # find_install_dir helper.
-        ALLOWED_DEFINED = {"find_install_dir"}
-        public_attrs = [a for a in dir(module) if not a.startswith("_")]
-        for attr in public_attrs:
-            obj = getattr(module, attr)
-            from_this_module = getattr(obj, "__module__", None) == module.__name__
-            if not from_this_module or attr in ALLOWED_DEFINED:
-                continue
-            self.assertFalse(
-                callable(obj) and not isinstance(obj, type) and not isinstance(obj, Path),
-                f"__init__.py defines callable '{attr}' which may cause side effects",
-            )
+        # A previous version of this test walked the module's public names
+        # asserting none of them was a stray callable. That loop could never
+        # execute a single assertion: every public name is a str or Path
+        # constant whose __module__ is "builtins"/"pathlib" (so the
+        # from_this_module guard skipped it), and the one name defined here is
+        # find_install_dir, which the allowlist skipped. It proved nothing
+        # about import-time behavior either way.
+        #
+        # Assert the real invariant instead, with a filesystem spy: if
+        # __init__.py scans at import time it must go through one of these,
+        # so exec_module raises rather than returning.
+        self.assertTrue(callable(module.find_install_dir))
+        self.assertIsInstance(module.MODULE_PATH, Path)
+
+    def test_init_does_no_import_time_scanning(self):
+        """__init__.py must not touch the filesystem at module scope.
+
+        The original bug was import-time work that could fail and take KIAUH's
+        whole discovery pass down with it. find_install_dir() legitimately
+        walks _INSTALL_PATHS and /home -- but only when KIAUH calls it.
+        """
+        def boom(*args, **kwargs):
+            raise AssertionError("__init__.py scanned at import time")
+
+        init_path = EXTENSION_DIR / "__init__.py"
+        spec = importlib.util.spec_from_file_location(
+            "_test_helixscreen_init_spy", init_path
+        )
+        module = importlib.util.module_from_spec(spec)
+
+        # Path.stat is deliberately NOT spied: Path.resolve() calls it, and a
+        # single stat of the module's own __file__ is not a scan.
+        with patch.object(Path, "exists", boom), \
+             patch.object(Path, "iterdir", boom), \
+             patch.object(Path, "is_dir", boom), \
+             patch.object(Path, "is_file", boom), \
+             patch.object(Path, "glob", boom), \
+             patch.object(Path, "rglob", boom), \
+             patch.object(subprocess, "run", boom), \
+             patch.object(subprocess, "Popen", boom):
+            spec.loader.exec_module(module)
+
+        # The helper still exists -- it was defined, just never invoked.
+        self.assertTrue(callable(module.find_install_dir))
 
 
 if __name__ == "__main__":

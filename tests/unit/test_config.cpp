@@ -13,8 +13,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -56,101 +59,24 @@ class ConfigTestFixture {
         ConfigTestAccess::path(config) = p;
     }
 
-    // Helper to apply migration to config data
+    // Run the REAL display migration Config::init() runs (migrate_display_config()
+    // followed by the /display/ -> /input/ key moves), through the config_testing
+    // seam. This used to be a hand-written copy of both functions living in this
+    // fixture: it froze the pre-refactor semantics and could not go red when
+    // production changed. One divergence it had already accumulated — it returned
+    // early when "display_rotate" was absent, skipping the /input/ migration
+    // entirely, where production always runs both.
     void apply_migration() {
-        // Re-implement the migration logic for testing
-        // This mirrors migrate_display_config() in config.cpp
-        if (!ConfigTestAccess::data(config).contains("display_rotate")) {
-            return; // Already migrated
-        }
-
-        if (!ConfigTestAccess::data(config).contains("display")) {
-            ConfigTestAccess::data(config)["display"] = json::object();
-        }
-
-        // Migrate only if target key doesn't already exist
-        if (ConfigTestAccess::data(config).contains("display_rotate")) {
-            if (!ConfigTestAccess::data(config)["display"].contains("rotate")) {
-                ConfigTestAccess::data(config)["display"]["rotate"] =
-                    ConfigTestAccess::data(config)["display_rotate"];
-            }
-            ConfigTestAccess::data(config).erase("display_rotate");
-        }
-        if (ConfigTestAccess::data(config).contains("display_sleep_sec")) {
-            if (!ConfigTestAccess::data(config)["display"].contains("sleep_sec")) {
-                ConfigTestAccess::data(config)["display"]["sleep_sec"] =
-                    ConfigTestAccess::data(config)["display_sleep_sec"];
-            }
-            ConfigTestAccess::data(config).erase("display_sleep_sec");
-        }
-        if (ConfigTestAccess::data(config).contains("display_dim_sec")) {
-            if (!ConfigTestAccess::data(config)["display"].contains("dim_sec")) {
-                ConfigTestAccess::data(config)["display"]["dim_sec"] =
-                    ConfigTestAccess::data(config)["display_dim_sec"];
-            }
-            ConfigTestAccess::data(config).erase("display_dim_sec");
-        }
-        if (ConfigTestAccess::data(config).contains("display_dim_brightness")) {
-            if (!ConfigTestAccess::data(config)["display"].contains("dim_brightness")) {
-                ConfigTestAccess::data(config)["display"]["dim_brightness"] =
-                    ConfigTestAccess::data(config)["display_dim_brightness"];
-            }
-            ConfigTestAccess::data(config).erase("display_dim_brightness");
-        }
-        if (ConfigTestAccess::data(config).contains("touch_calibrated") ||
-            ConfigTestAccess::data(config).contains("touch_calibration")) {
-            if (!ConfigTestAccess::data(config)["display"].contains("calibration")) {
-                ConfigTestAccess::data(config)["display"]["calibration"] = json::object();
-            }
-            if (ConfigTestAccess::data(config).contains("touch_calibrated")) {
-                if (!ConfigTestAccess::data(config)["display"]["calibration"].contains("valid")) {
-                    ConfigTestAccess::data(config)["display"]["calibration"]["valid"] =
-                        ConfigTestAccess::data(config)["touch_calibrated"];
-                }
-                ConfigTestAccess::data(config).erase("touch_calibrated");
-            }
-            if (ConfigTestAccess::data(config).contains("touch_calibration")) {
-                const auto& cal = ConfigTestAccess::data(config)["touch_calibration"];
-                for (const auto& key : {"a", "b", "c", "d", "e", "f"}) {
-                    if (cal.contains(key) &&
-                        !ConfigTestAccess::data(config)["display"]["calibration"].contains(key)) {
-                        ConfigTestAccess::data(config)["display"]["calibration"][key] = cal[key];
-                    }
-                }
-                ConfigTestAccess::data(config).erase("touch_calibration");
-            }
-        }
-
-        // Second migration: move calibration and touch_device from /display/ to /input/
-        migrate_to_input();
+        helix::config_testing::run_display_migrations_for_test(ConfigTestAccess::data(config));
     }
 
-    // Helper to migrate touch settings from /display/ to /input/ (second migration step)
+    // Second migration step alone (/display/calibration + /display/touch_device ->
+    // /input/). Production has no standalone entry point for it — init() always
+    // runs it behind the same call as the display_* migration, and that migration
+    // is a no-op on a config with no root-level display_* keys, so calling the
+    // shared seam here is exactly what a real startup would do.
     void migrate_to_input() {
-        // Ensure input section exists
-        if (!ConfigTestAccess::data(config).contains("input")) {
-            ConfigTestAccess::data(config)["input"] = json::object();
-        }
-
-        // Migrate /display/calibration -> /input/calibration
-        if (ConfigTestAccess::data(config).contains("display") &&
-            ConfigTestAccess::data(config)["display"].contains("calibration")) {
-            if (!ConfigTestAccess::data(config)["input"].contains("calibration")) {
-                ConfigTestAccess::data(config)["input"]["calibration"] =
-                    ConfigTestAccess::data(config)["display"]["calibration"];
-            }
-            ConfigTestAccess::data(config)["display"].erase("calibration");
-        }
-
-        // Migrate /display/touch_device -> /input/touch_device
-        if (ConfigTestAccess::data(config).contains("display") &&
-            ConfigTestAccess::data(config)["display"].contains("touch_device")) {
-            if (!ConfigTestAccess::data(config)["input"].contains("touch_device")) {
-                ConfigTestAccess::data(config)["input"]["touch_device"] =
-                    ConfigTestAccess::data(config)["display"]["touch_device"];
-            }
-            ConfigTestAccess::data(config)["display"].erase("touch_device");
-        }
+        helix::config_testing::run_display_migrations_for_test(ConfigTestAccess::data(config));
     }
 
     // Helper to check display subsection contains a key
@@ -642,55 +568,81 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: hardware section is under printer/h
 // Constants are now suffixes — callers prepend config->df() for full path.
 // ============================================================================
 
-TEST_CASE("WizardConfigPaths: BED_HEATER is suffix for heaters/bed",
+// Every per-printer constant is a SUFFIX that callers append to Config::df(),
+// which already ends in '/'. A leading slash would build
+// "/printers/<id>//heaters/bed" — a different node that reads and writes fine
+// and silently diverges from every other consumer. Nothing asserted that; the
+// seven cases this replaces copied each literal out of wizard_config_paths.h and
+// asserted it equalled itself, which no single-site edit can fail.
+TEST_CASE("WizardConfigPaths: per-printer constants are df()-relative suffixes",
           "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::BED_HEATER;
-    REQUIRE(path == "heaters/bed");
+    const std::pair<const char*, const char*> suffixes[] = {
+        {"PRINTER_NAME", helix::wizard::PRINTER_NAME},
+        {"PRINTER_TYPE", helix::wizard::PRINTER_TYPE},
+        {"TYPE_MISMATCH_SHOWN_FOR", helix::wizard::TYPE_MISMATCH_SHOWN_FOR},
+        {"BED_HEATER", helix::wizard::BED_HEATER},
+        {"BED_SENSOR", helix::wizard::BED_SENSOR},
+        {"HOTEND_HEATER", helix::wizard::HOTEND_HEATER},
+        {"HOTEND_SENSOR", helix::wizard::HOTEND_SENSOR},
+        {"HOTEND_FAN", helix::wizard::HOTEND_FAN},
+        {"PART_FAN", helix::wizard::PART_FAN},
+        {"CHAMBER_FAN", helix::wizard::CHAMBER_FAN},
+        {"EXHAUST_FAN", helix::wizard::EXHAUST_FAN},
+        {"CHAMBER_SENSOR", helix::wizard::CHAMBER_SENSOR},
+        {"CHAMBER_HEATER", helix::wizard::CHAMBER_HEATER},
+        {"FEEDER_OPEN_MACRO", helix::wizard::FEEDER_OPEN_MACRO},
+        {"FEEDER_CLOSE_MACRO", helix::wizard::FEEDER_CLOSE_MACRO},
+        {"LED_STRIP", helix::wizard::LED_STRIP},
+        {"LED_SELECTED", helix::wizard::LED_SELECTED},
+        {"MOONRAKER_HOST", helix::wizard::MOONRAKER_HOST},
+        {"MOONRAKER_PORT", helix::wizard::MOONRAKER_PORT},
+        {"PRINTER_IMAGE", helix::PRINTER_IMAGE},
+    };
+
+    for (const auto& [name, value] : suffixes) {
+        INFO("constant: " << name << " = " << (value ? value : "(null)"));
+        REQUIRE(value != nullptr);
+        const std::string path(value);
+        REQUIRE_FALSE(path.empty());
+        REQUIRE(path.front() != '/');
+        REQUIRE(path.back() != '/');
+    }
 }
 
-TEST_CASE("WizardConfigPaths: HOTEND_HEATER is suffix for heaters/hotend",
+// The device-level constants are the deliberate exception: absolute paths that
+// callers must NOT prefix with df(). Losing the leading slash would make them
+// invalid JSON pointers.
+TEST_CASE("WizardConfigPaths: device-level constants are absolute paths",
           "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::HOTEND_HEATER;
-    REQUIRE(path == "heaters/hotend");
-}
+    const std::pair<const char*, const char*> absolute[] = {
+        {"WIFI_SSID", helix::wizard::WIFI_SSID},
+        {"WIFI_PASSWORD", helix::wizard::WIFI_PASSWORD},
+    };
 
-TEST_CASE("WizardConfigPaths: BED_SENSOR is suffix for temp_sensors/bed",
-          "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::BED_SENSOR;
-    REQUIRE(path == "temp_sensors/bed");
-}
-
-TEST_CASE("WizardConfigPaths: HOTEND_SENSOR is suffix for temp_sensors/hotend",
-          "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::HOTEND_SENSOR;
-    REQUIRE(path == "temp_sensors/hotend");
-}
-
-TEST_CASE("WizardConfigPaths: PART_FAN is suffix for fans/part",
-          "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::PART_FAN;
-    REQUIRE(path == "fans/part");
-}
-
-TEST_CASE("WizardConfigPaths: HOTEND_FAN is suffix for fans/hotend",
-          "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::HOTEND_FAN;
-    REQUIRE(path == "fans/hotend");
-}
-
-TEST_CASE("WizardConfigPaths: LED_STRIP is suffix for leds/strip",
-          "[config][paths][wizard][plural]") {
-    std::string path = helix::wizard::LED_STRIP;
-    REQUIRE(path == "leds/strip");
+    for (const auto& [name, value] : absolute) {
+        INFO("constant: " << name << " = " << (value ? value : "(null)"));
+        REQUIRE(value != nullptr);
+        const std::string path(value);
+        REQUIRE_FALSE(path.empty());
+        REQUIRE(path.front() == '/');
+    }
 }
 
 // ============================================================================
 // Display Config Migration Tests - Phase 1 of display config refactoring
 // ============================================================================
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: display section exists with defaults for new config",
+// NOT a defaults test despite what its old name claimed: every value below is
+// written in by the test and read straight back, so nothing here ever reached
+// get_default_display_config(). It sat on 600/300 while production has shipped
+// 1200/600 since b12daa974 and stayed green throughout. What it does pin is the
+// SHAPE — /display/ holds no calibration, and calibration + touch_device live
+// under /input/. The real defaults are covered by FreshConfigFixture +
+// expected_defaults() further down this file, which drive Config::init().
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: display and input sections keep calibration on the /input/ side",
                  "[config][display][migration]") {
-    // Populate with display section using test helper
+    // Values here are arbitrary test INPUT, not production defaults.
     // Note: calibration and touch_device are now under /input/, not /display/
     set_data_for_plural_test(
         {{"printer", {{"moonraker_host", "127.0.0.1"}}},
@@ -712,6 +664,8 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: display section exists with default
     REQUIRE(display.contains("dim_brightness"));
     REQUIRE_FALSE(display.contains("calibration")); // Now under /input/
 
+    // Round-trip of the values written above — deliberately NOT compared against
+    // production defaults, which this fixture never builds.
     REQUIRE(display["rotate"].get<int>() == 0);
     REQUIRE(display["sleep_sec"].get<int>() == 600);
     REQUIRE(display["dim_sec"].get<int>() == 300);
@@ -749,21 +703,6 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: input/calibration section has coeff
     REQUIRE(cal["valid"].get<bool>() == true);
     REQUIRE(cal["a"].get<double>() == Catch::Approx(1.5));
     REQUIRE(cal["e"].get<double>() == Catch::Approx(1.3));
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: display settings accessible via get() with defaults",
-                 "[config][display][migration]") {
-    set_data_empty();
-
-    // Test default fallback when display section doesn't exist
-    int rotate = config.get<int>("/display/rotate", 90);
-    REQUIRE(rotate == 90); // Uses default since path doesn't exist
-
-    int sleep_sec = config.get<int>("/display/sleep_sec", 1800);
-    REQUIRE(sleep_sec == 1800);
-
-    bool cal_valid = config.get<bool>("/input/calibration/valid", false);
-    REQUIRE(cal_valid == false);
 }
 
 TEST_CASE_METHOD(ConfigTestFixture, "Config: display settings readable when populated",
@@ -1017,101 +956,138 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: partial migration handles only exis
 
 // ----------------------------------------------------------------------------
 // Default Value Tests - Verify get_default_display_config() values
+//
+// Every case here used to pass its own expectation in as get()'s fallback on an
+// empty config, so the key was absent, get() handed the literal straight back,
+// and the assertion compared it to itself. Nothing reached
+// get_default_display_config() (src/system/config.cpp:90) — two cases in this
+// file asserted mutually contradictory sleep_sec defaults (1800 and 600) and
+// both passed, while production has shipped 1200 the whole time.
+//
+// The replacements below read the values production actually produces, through
+// the two public paths that build them, and every read uses a fallback that
+// differs from the expected value (kAbsentSentinel) so an absent or wrong key
+// fails instead of echoing. House style: tests/unit/test_config_migration_v18.cpp:84.
 // ----------------------------------------------------------------------------
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/rotate is 0",
+namespace {
+
+/// Fallback for the default-value reads below. No production default equals it,
+/// so getting it back means the key was missing rather than matching.
+const json kAbsentSentinel = "<<key absent>>";
+
+struct ConfigDefault {
+    const char* pointer;
+    json expected;
+};
+
+/// The defaults get_default_config() builds, keyed by JSON pointer.
+/// /display/* comes from get_default_display_config() (src/system/config.cpp:90);
+/// /input/* from the literal in get_default_config() (src/system/config.cpp:1364)
+/// and the ensure-block that mirrors it (src/system/config.cpp:1886).
+/// Deliberately absent: /display/rotate — see the rotate case below.
+const std::vector<ConfigDefault>& expected_defaults() {
+    static const std::vector<ConfigDefault> table = {
+        {"/display/sleep_sec", 1200},
+        {"/display/dim_sec", 600},
+        {"/display/dim_brightness", 30},
+        {"/display/drm_device", ""},
+        {"/display/gcode_render_mode", 0},
+        {"/display/bed_mesh_render_mode", 0},
+        {"/display/gpu_3d_blocked", false},
+        {"/display/gpu_blur_blocked", false},
+        {"/input/touch_device", ""},
+        {"/input/scroll_throw", 25},
+        {"/input/scroll_limit", 10},
+        {"/input/long_press_time", 500},
+        {"/input/jitter_threshold", 5},
+        {"/input/calibration/valid", false},
+        // Identity matrix: a=1, b=0, c=0, d=0, e=1, f=0
+        {"/input/calibration/a", 1.0},
+        {"/input/calibration/b", 0.0},
+        {"/input/calibration/c", 0.0},
+        {"/input/calibration/d", 0.0},
+        {"/input/calibration/e", 1.0},
+        {"/input/calibration/f", 0.0},
+    };
+    return table;
+}
+
+/// Builds a config the way first boot does: an empty sandbox directory with no
+/// settings.json, so Config::init() takes the "Create default config" branch
+/// (src/system/config.cpp:1766) and then runs the ensure-defaults blocks
+/// (src/system/config.cpp:1872, :1886). HELIX_CONFIG_DIR keeps the
+/// backup-restore search paths inside the temp dir so the host config cannot
+/// leak in and supply the values under test.
+class FreshConfigFixture {
+  protected:
+    Config config;
+
+    FreshConfigFixture() {
+        temp_dir_ = (std::filesystem::temp_directory_path() / "helix_fresh_config_test").string();
+        std::filesystem::remove_all(temp_dir_);
+        std::filesystem::create_directories(temp_dir_);
+
+        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
+            saved_config_dir_ = prev;
+            had_config_dir_ = true;
+        }
+        setenv("HELIX_CONFIG_DIR", temp_dir_.c_str(), 1);
+
+        config.init((std::filesystem::path(temp_dir_) / "settings.json").string());
+    }
+
+    ~FreshConfigFixture() {
+        if (had_config_dir_) {
+            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
+        } else {
+            unsetenv("HELIX_CONFIG_DIR");
+        }
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir_, ec);
+    }
+
+  private:
+    std::string temp_dir_;
+    std::string saved_config_dir_;
+    bool had_config_dir_ = false;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: reset_to_defaults installs the shipped defaults",
                  "[config][display][defaults]") {
-    set_data_empty();
+    // reset_to_defaults() is the nearest public seam onto get_default_config(),
+    // which embeds get_default_display_config() verbatim. No filesystem involved.
+    config.reset_to_defaults();
 
-    // Use default fallback when not set
-    int rotate = config.get<int>("/display/rotate", 0);
-    REQUIRE(rotate == 0);
+    for (const auto& d : expected_defaults()) {
+        INFO("pointer: " << d.pointer << " expected: " << d.expected.dump());
+        REQUIRE(config.get<json>(d.pointer, kAbsentSentinel) == d.expected);
+    }
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/sleep_sec is 600",
+TEST_CASE_METHOD(FreshConfigFixture, "Config: a first-boot config carries the shipped defaults",
                  "[config][display][defaults]") {
-    set_data_empty();
-
-    int sleep_sec = config.get<int>("/display/sleep_sec", 600);
-    REQUIRE(sleep_sec == 600);
+    // Same table, reached through Config::init() on an empty directory, so this
+    // also covers the ensure-display-defaults and ensure-input-defaults blocks
+    // that run after the default document is built.
+    for (const auto& d : expected_defaults()) {
+        INFO("pointer: " << d.pointer << " expected: " << d.expected.dump());
+        REQUIRE(config.get<json>(d.pointer, kAbsentSentinel) == d.expected);
+    }
 }
 
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/dim_sec is 300",
+TEST_CASE_METHOD(FreshConfigFixture, "Config: a first-boot config has no display/rotate",
                  "[config][display][defaults]") {
-    set_data_empty();
-
-    int dim_sec = config.get<int>("/display/dim_sec", 300);
-    REQUIRE(dim_sec == 300);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/dim_brightness is 30",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    int dim_brightness = config.get<int>("/display/dim_brightness", 30);
-    REQUIRE(dim_brightness == 30);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/drm_device is empty string",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    std::string drm_device = config.get<std::string>("/display/drm_device", "");
-    REQUIRE(drm_device == "");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/touch_device is empty string",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    std::string touch_device = config.get<std::string>("/input/touch_device", "");
-    REQUIRE(touch_device == "");
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/gcode_render_mode is 0",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    int gcode_render_mode = config.get<int>("/display/gcode_render_mode", 0);
-    REQUIRE(gcode_render_mode == 0);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/bed_mesh_render_mode is 0",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    int bed_mesh_render_mode = config.get<int>("/display/bed_mesh_render_mode", 0);
-    REQUIRE(bed_mesh_render_mode == 0);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default display/gpu_blur_blocked is false",
-                 "[config][display][defaults]") {
-    set_data_empty();
-
-    bool gpu_blur_blocked = config.get<bool>("/display/gpu_blur_blocked", false);
-    REQUIRE(gpu_blur_blocked == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture, "Config: default input/calibration/valid is false",
-                 "[config][input][defaults]") {
-    set_data_empty();
-
-    bool cal_valid = config.get<bool>("/input/calibration/valid", false);
-    REQUIRE(cal_valid == false);
-}
-
-TEST_CASE_METHOD(ConfigTestFixture,
-                 "Config: default input/calibration coefficients form identity matrix",
-                 "[config][input][defaults]") {
-    set_data_empty();
-
-    // Identity matrix: a=1, b=0, c=0, d=0, e=1, f=0
-    REQUIRE(config.get<double>("/input/calibration/a", 1.0) == Catch::Approx(1.0));
-    REQUIRE(config.get<double>("/input/calibration/b", 0.0) == Catch::Approx(0.0));
-    REQUIRE(config.get<double>("/input/calibration/c", 0.0) == Catch::Approx(0.0));
-    REQUIRE(config.get<double>("/input/calibration/d", 0.0) == Catch::Approx(0.0));
-    REQUIRE(config.get<double>("/input/calibration/e", 1.0) == Catch::Approx(1.0));
-    REQUIRE(config.get<double>("/input/calibration/f", 0.0) == Catch::Approx(0.0));
+    // Absence is load-bearing, not an oversight: Application uses
+    // exists("/display/rotate") (src/application/application.cpp:1658) to tell
+    // "user never chose a rotation" from "user chose 0", and adopts the kernel
+    // orientation only in the first case. get_default_display_config() therefore
+    // must not seed the key. Readers supply their own 0 fallback
+    // (src/application/display_manager.cpp:336).
+    REQUIRE_FALSE(config.exists("/display/rotate"));
+    REQUIRE(config.get<int>("/display/rotate", -1) == -1);
 }
 
 // ----------------------------------------------------------------------------

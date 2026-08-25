@@ -1169,7 +1169,12 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
     iface.netdev = "wlan0";
     raw->set_resolved_interface_for_test(iface);
 
-    // Radio already carries a stale soft block, mirroring is_radio_enabled()
+    // TEST_MIRROR_OK: is_radio_enabled() is READ from the mock backend here
+    // (raw->is_radio_enabled() on the next line and again after the manager runs),
+    // never reimplemented — the comment names the state being seeded, which is
+    // test input. A real rfkill/nmcli radio query cannot run in the suite.
+    //
+    // Radio already carries a stale soft block, standing in for is_radio_enabled()
     // having been seeded from hardware ahead of this READY firing.
     raw->set_radio_enabled(false);
     REQUIRE_FALSE(raw->is_radio_enabled());

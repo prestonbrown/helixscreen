@@ -2000,6 +2000,78 @@ echo ""
 }
 
 # ====================================================================
+# Tests must exercise shipped code, not a copy of it
+# ====================================================================
+qc_test_mirrors() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🪞 Checking for mirror tests..."
+
+if [ -f "scripts/check_test_mirrors.py" ]; then
+  if python3 scripts/check_test_mirrors.py --max-allowed 7 >/tmp/test_mirrors.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_mirrors.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_mirrors.out
+    echo "   Run: python3 scripts/check_test_mirrors.py --list"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_test_mirrors.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: tests/shell/*.bats extract a section's body by awk-ing from
+#  its first line to the next '# ====' banner. Wrapping the sections in
+#  functions moved the banners above them, so without this the extraction
+#  ran on past the body and swallowed the return/closing brace.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
+# No production XML widget name may be served by test code
+# ====================================================================
+qc_test_widget_registry() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🧩 Checking test widget registry..."
+
+if [ -f "scripts/check_test_widget_registry.py" ]; then
+  if python3 scripts/check_test_widget_registry.py >/tmp/test_widget_registry.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_widget_registry.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/test_widget_registry.out
+    echo "   Run: python3 scripts/check_test_widget_registry.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_test_widget_registry.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+# (terminator: tests/shell/*.bats extract a section's body by awk-ing from
+#  its first line to the next '# ====' banner. Wrapping the sections in
+#  functions moved the banners above them, so without this the extraction
+#  ran on past the body and swallowed the return/closing brace.)
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Agent-facing docs: references resolve, doc index is complete
 # ====================================================================
 qc_doc_refs() {
@@ -2342,7 +2414,7 @@ qc_run_buffered() {
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
 if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_shellcheck"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_shellcheck"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2370,6 +2442,9 @@ qc_trigger_re() {
     qc_mem_safety|qc_null_safety|qc_l081|qc_net_pii|qc_decl_ui|qc_spdlog_only)
                         echo '\.(cpp|c|h|mm)$' ;;
     qc_design_tokens)   echo '\.(cpp|h|xml)$' ;;
+    qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
+    qc_test_widget_registry)
+                        echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
     qc_doc_refs)        echo '\.md$|^scripts/check_doc_refs\.py$' ;;
     qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;

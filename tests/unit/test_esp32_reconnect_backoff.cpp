@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: exercises the shipped ESP32 header unmodified --
+//                 firmware/helixscreen-esp32/components/helixnet/reconnect_backoff.h. That
+//                 is production firmware code; this gate only scans include/ and src/, so
+//                 a firmware/ include reads to it as no include at all.
 
 /**
  * @file test_esp32_reconnect_backoff.cpp
