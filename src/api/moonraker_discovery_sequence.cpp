@@ -6,6 +6,7 @@
 #include "ui_update_queue.h"
 
 #include "accel_sensor_manager.h"
+#include "ams_backend_ad5x_ifs.h"
 #include "app_globals.h"
 #include "config.h"
 #include "helix_version.h"
@@ -1382,9 +1383,14 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
         }
     }
 
-    // AD5X IFS requires save_variables for filament state (colors, types, tool mapping)
+    // AD5X IFS: save_variables for filament state (colors, types, tool mapping),
+    // plus native ZMOD's own zmod_ifs/zmod_color objects where the firmware
+    // publishes them. The backend owns which names those are; asking it keeps
+    // the firmware's schema in the one module that parses it.
     if (hw.mmu_type() == AmsType::AD5X_IFS) {
-        subscription_objects["save_variables"] = nullptr;
+        for (const auto& object : AmsBackendAd5xIfs::required_status_objects(hw)) {
+            subscription_objects[object] = nullptr;
+        }
     }
 
     // Firmware that keeps the authoritative z-offset outside gcode_move needs
