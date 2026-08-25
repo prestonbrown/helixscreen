@@ -522,6 +522,16 @@ jobs:
     - name: Install bats
       run: sudo npm install -g bats
 
+    # Three shell gates skip themselves unless .venv/bin/python exists:
+    # test_code_lint.bats's translation-catalog check, test_format_xml_gate.bats
+    # (all 12 cases, incl. the whole-tree "every ui_xml file parses and is
+    # formatted"), and test_translation_duplicate_keys.bats. Without this step
+    # they were green-by-skip on every PR — which is how a user-facing string
+    # shipped untranslated in all 9 languages while the gate that exists to catch
+    # it reported success.
+    - name: Setup Python venv for translation and XML gates
+      run: make venv-setup
+
     - name: Run shell tests
       run: bats tests/shell/
 
