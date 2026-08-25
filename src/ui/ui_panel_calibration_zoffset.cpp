@@ -691,10 +691,12 @@ void ZOffsetCalibrationPanel::send_accept() {
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Apply cumulative delta as gcode Z offset
         set_state(State::SAVING);
-        // ZMOD persists this as `z - _TEST_POINT.temp_z_offset`, and that
-        // variable survives END_PRINT/CANCEL_PRINT - calibration typically
-        // follows a print, so without clearing it first the accepted value is
-        // stored minus the last print's probe delta (ghzserg/zmod#699).
+        // ZMOD persists this as `z - _TEST_POINT.temp_z_offset`, and through
+        // 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - calibration
+        // typically follows a print, so without clearing it first the accepted
+        // value is stored minus the last print's probe delta
+        // (ghzserg/zmod#699; fixed upstream after 1.7.2, where the clear
+        // becomes a no-op).
         // Calibration is an idle activity; the print gate still holds in case
         // an accept ever fires under a running print, where the subtraction
         // excludes the live transient and is correct.

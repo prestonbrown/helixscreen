@@ -22,6 +22,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
+#include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "theme_manager.h"
 
@@ -331,7 +332,7 @@ void FavoriteMacroWidget::fetch_and_execute() {
     // is one accidental tap away from EMERGENCY_STOP / FIRMWARE_RESTART, and the
     // MacrosPanel already enforces this; the home-screen widget previously
     // bypassed it entirely (#925).
-    if (helix::is_dangerous_macro(macro_name_)) {
+    if (helix::is_dangerous_macro(macro_name_, get_printer_state().get_discovery())) {
         if (!parent_screen_) {
             spdlog::warn("[FavoriteMacroWidget] No parent screen for dangerous-macro confirm");
             return;

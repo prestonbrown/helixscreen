@@ -684,3 +684,59 @@ TEST_CASE("Console: find_entry_by_id resolves responses too", "[ui][tap_to_paste
     REQUIRE(found != nullptr);
     REQUIRE(found->type == GcodeEntry::Type::RESPONSE);
 }
+
+// ============================================================================
+// should_display() — the one filtering decision, shared by the history and live
+// paths. Calls the real ConsolePanel static (not a replica) because the bug this
+// replaced was precisely two copies of the rule disagreeing: the live path
+// filtered and populate_entries() did not, so opening the console showed a
+// screenful of the noise the filters existed to remove.
+// ============================================================================
+
+TEST_CASE("Console: should_display() suppresses firmware noise", "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng;
+    REQUIRE(eng.add("prefix:// data_send:"));
+
+    const std::string noise = "// data_send:b'\\x83\\x05' recv_result:None";
+    const std::string real = "// Klipper state: Printer is ready";
+
+    CHECK_FALSE(ConsolePanel::should_display(noise, false, true, true, eng));
+    CHECK(ConsolePanel::should_display(real, false, true, true, eng));
+}
+
+TEST_CASE("Console: should_display() honours the firmware-noise toggle", "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng;
+    REQUIRE(eng.add("prefix:// data_send:"));
+    const std::string noise = "// data_send:b'\\x83' recv_result:None";
+
+    CHECK_FALSE(ConsolePanel::should_display(noise, false, true, true, eng));
+    // Toggle off: the engine still matches, but nothing may be dropped.
+    CHECK(ConsolePanel::should_display(noise, false, true, false, eng));
+}
+
+TEST_CASE("Console: should_display() honours the temperature toggle", "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng; // empty — temps are a separate switch
+    const std::string temps = "ok T:210.0 /210.0 B:60.0 /60.0";
+
+    CHECK_FALSE(ConsolePanel::should_display(temps, true, true, true, eng));
+    CHECK(ConsolePanel::should_display(temps, true, false, true, eng));
+}
+
+TEST_CASE("Console: should_display() keeps everything when both filters are off",
+          "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng;
+    REQUIRE(eng.add("prefix:// data_send:"));
+
+    CHECK(ConsolePanel::should_display("// data_send:b'\\x01'", true, false, false, eng));
+    CHECK(ConsolePanel::should_display("ok T:210.0 /210.0", true, false, false, eng));
+}
+
+TEST_CASE("Console: should_display() never drops errors that match no pattern",
+          "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng;
+    REQUIRE(eng.add("prefix:// data_send:"));
+
+    CHECK(ConsolePanel::should_display("!! Move out of range", false, true, true, eng));
+    CHECK(ConsolePanel::should_display("!! Shutdown due to webhooks request", false, true, true,
+                                       eng));
+}

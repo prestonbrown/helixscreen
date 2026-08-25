@@ -218,10 +218,32 @@ struct PrinterDatabase {
             json extension_data = json::parse(file);
             loaded_files.push_back(file_path);
 
-            // Validate structure
+            // Console filter sets merge into the shared table before the printer
+            // entries that reference them, so an extension can define its own set
+            // or replace a bundled one by name. Same override rule as printers:
+            // last writer wins, and files are processed in sorted order.
+            bool merged_sets = false;
+            if (extension_data.contains("console_filter_sets") &&
+                extension_data["console_filter_sets"].is_object()) {
+                if (!data.contains("console_filter_sets") ||
+                    !data["console_filter_sets"].is_object()) {
+                    data["console_filter_sets"] = json::object();
+                }
+                auto& incoming = extension_data["console_filter_sets"];
+                for (auto it = incoming.begin(); it != incoming.end(); ++it) {
+                    data["console_filter_sets"][it.key()] = it.value();
+                    merged_sets = true;
+                    spdlog::debug("[PrinterDetector] User console filter set '{}'", it.key());
+                }
+            }
+
+            // Validate structure. A file that only contributes filter sets is
+            // legitimate, so only complain when it carried nothing at all.
             if (!extension_data.contains("printers") || !extension_data["printers"].is_array()) {
-                load_errors.push_back(fmt::format("{}: missing 'printers' array", file_path));
-                spdlog::warn("[PrinterDetector] {}", load_errors.back());
+                if (!merged_sets) {
+                    load_errors.push_back(fmt::format("{}: missing 'printers' array", file_path));
+                    spdlog::warn("[PrinterDetector] {}", load_errors.back());
+                }
                 return;
             }
 
@@ -906,6 +928,51 @@ std::string PrinterDetector::get_image_for_printer_id(const std::string& printer
     return "";
 }
 
+namespace {
+
+/// Append `spec` unless it is already present. Sets are allowed to overlap, and a
+/// duplicate pattern is pure per-line matching cost with no change in behaviour.
+void append_unique_spec(std::vector<std::string>& out, std::string spec) {
+    if (std::find(out.begin(), out.end(), spec) == out.end()) {
+        out.push_back(std::move(spec));
+    }
+}
+
+/// Copy the pattern strings out of one `console_filter_sets` entry into `out`.
+/// A missing or malformed set is a warning, not a failure: the database is
+/// user-editable via printer_database.d/, so a typo must not take the console
+/// down with it.
+void collect_filter_set(const json* sets, const std::string& set_name,
+                        std::vector<std::string>& out) {
+    if (!sets) {
+        spdlog::warn("[PrinterDetector] Console filter set '{}' requested but the database "
+                     "defines no 'console_filter_sets' table",
+                     set_name);
+        return;
+    }
+    const auto it = sets->find(set_name);
+    if (it == sets->end()) {
+        spdlog::warn("[PrinterDetector] Unknown console filter set '{}', ignoring", set_name);
+        return;
+    }
+    if (!it->is_object() || !it->contains("patterns") || !(*it)["patterns"].is_array()) {
+        spdlog::warn("[PrinterDetector] Console filter set '{}' has no 'patterns' array, ignoring",
+                     set_name);
+        return;
+    }
+    for (const auto& spec : (*it)["patterns"]) {
+        if (spec.is_string()) {
+            append_unique_spec(out, spec.get<std::string>());
+        } else {
+            spdlog::warn("[PrinterDetector] Non-string pattern in console filter set '{}', "
+                         "skipping",
+                         set_name);
+        }
+    }
+}
+
+} // namespace
+
 std::vector<std::string>
 PrinterDetector::get_console_filter_patterns(const std::string& printer_name) {
     std::vector<std::string> patterns;
@@ -918,6 +985,12 @@ PrinterDetector::get_console_filter_patterns(const std::string& printer_name) {
     }
     if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
         return patterns;
+    }
+
+    const json* sets = nullptr;
+    if (g_database.data.contains("console_filter_sets") &&
+        g_database.data["console_filter_sets"].is_object()) {
+        sets = &g_database.data["console_filter_sets"];
     }
 
     auto lower = [](std::string s) {
@@ -933,17 +1006,33 @@ PrinterDetector::get_console_filter_patterns(const std::string& printer_name) {
         if (db_name != needle && db_id != needle) {
             continue;
         }
-        if (!printer.contains("console_filter_patterns") ||
-            !printer["console_filter_patterns"].is_array()) {
-            return patterns;
+
+        // Named sets first — these are the shared vocabulary, so a fix to one
+        // shape reaches every printer that references it. `console_filter_patterns`
+        // then adds anything specific enough to this model that a set would be
+        // overkill, and is what pre-set databases still carry.
+        if (printer.contains("console_filters") && printer["console_filters"].is_array()) {
+            for (const auto& name : printer["console_filters"]) {
+                if (name.is_string()) {
+                    collect_filter_set(sets, name.get<std::string>(), patterns);
+                } else {
+                    spdlog::warn("[PrinterDetector] Non-string console_filters entry for '{}', "
+                                 "skipping",
+                                 printer.value("id", "?"));
+                }
+            }
         }
-        for (const auto& spec : printer["console_filter_patterns"]) {
-            if (spec.is_string()) {
-                patterns.push_back(spec.get<std::string>());
-            } else {
-                spdlog::warn("[PrinterDetector] Non-string console_filter_patterns entry "
-                             "for '{}', skipping",
-                             printer.value("id", "?"));
+
+        if (printer.contains("console_filter_patterns") &&
+            printer["console_filter_patterns"].is_array()) {
+            for (const auto& spec : printer["console_filter_patterns"]) {
+                if (spec.is_string()) {
+                    append_unique_spec(patterns, spec.get<std::string>());
+                } else {
+                    spdlog::warn("[PrinterDetector] Non-string console_filter_patterns entry "
+                                 "for '{}', skipping",
+                                 printer.value("id", "?"));
+                }
             }
         }
         return patterns;

@@ -741,6 +741,7 @@ class PrinterDiscovery {
 
         // Macros
         macros_.clear();
+        host_restarting_macros_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -1115,6 +1116,25 @@ class PrinterDiscovery {
         return macros_.count(to_upper(name)) > 0;
     }
 
+    /// Record the macros whose bodies reach SAVE_CONFIG / FIRMWARE_RESTART and
+    /// friends, directly or through other macros. Computed from
+    /// configfile.settings during discovery by
+    /// helix::analyze_host_restarting_macros(); stored uppercased like macros_.
+    void set_host_restarting_macros(std::unordered_set<std::string> macros) {
+        host_restarting_macros_ = std::move(macros);
+    }
+
+    /// Whether running this macro takes the host down with it. A name-only
+    /// check misses the wrapped case (ZMOD's AUTO_FULL_BED_LEVEL reaches
+    /// SAVE_CONFIG two levels down), which is why confirmations ask this.
+    [[nodiscard]] bool macro_restarts_host(const std::string& name) const {
+        return host_restarting_macros_.count(to_upper(name)) > 0;
+    }
+
+    [[nodiscard]] const std::unordered_set<std::string>& host_restarting_macros() const {
+        return host_restarting_macros_;
+    }
+
     [[nodiscard]] std::string nozzle_clean_macro() const {
         return nozzle_clean_macro_;
     }
@@ -1473,6 +1493,7 @@ class PrinterDiscovery {
 
     // Macros
     std::unordered_set<std::string> macros_;
+    std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;

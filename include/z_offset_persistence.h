@@ -52,9 +52,12 @@ std::string persistence_enable_gcode(const PrinterDiscovery& hw);
 /// SET_GCODE_OFFSET override subtracts before persisting, or an empty string
 /// when the firmware has no such mechanism. ZMOD saves every adjustment as
 /// `z - _TEST_POINT.temp_z_offset`, where the variable holds the last
-/// print-start probe delta and survives END_PRINT/CANCEL_PRINT - so an
-/// adjustment made while idle stores the intended value minus a stale delta
-/// (ghzserg/zmod#699). Send this immediately before the adjustment, on the
+/// print-start probe delta. Through ZMOD 1.7.2 it survived
+/// END_PRINT/CANCEL_PRINT, so an adjustment made while idle stored the
+/// intended value minus a stale delta (ghzserg/zmod#699);
+/// ghzserg/z_ad5x@6a0adf3 zeroes it at _COMMON_END_PRINT, unreleased so far.
+/// Sending the clear is correct against both: on fixed firmware it writes zero
+/// over zero. Send this immediately before the adjustment, on the
 /// same script, and ONLY while no print is running: mid-print the subtraction
 /// is correct, excluding the live per-print transient.
 std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw);
