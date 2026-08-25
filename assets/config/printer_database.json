@@ -19,6 +19,54 @@
     "tool_count": "Count of extruder tools (tool_count_1, tool_count_2, tool_count_4)",
     "cpu_arch_match": "Match against host CPU architecture string"
   },
+  "console_filter_sets": {
+    "creality_rs485": {
+      "description": "Creality RS-485 / CFS motor-bus traffic. The payload dumps are Python bytes reprs, so one substring on \"b'\\x\" covers the whole family regardless of which message tag the firmware uses.",
+      "patterns": [
+        "prefix:// data_send:",
+        "prefix:// send float_bytes:",
+        "prefix:// sys\u53c2\u6570\u64cd\u4f5c",
+        "substring:b'\\x"
+      ]
+    },
+    "creality_k2_modules": {
+      "description": "Boot-time chatter from Creality's extras modules (model/version handshakes, IO remap, AI detection).",
+      "patterns": [
+        "prefix:// MDL_NAME:",
+        "prefix:// ACK_mdl_",
+        "prefix:// halversion:",
+        "prefix:// softversion:",
+        "prefix:// reset:start error",
+        "prefix:// reset:comfun error",
+        "regex:^// times:[0-9]",
+        "prefix:// config_ioRemap",
+        "prefix:// operation_ioRemap",
+        "prefix:// ai_switch =",
+        "substring:WILL LOAD_AI_DEAL",
+        "prefix:// LOAD_AI_DEAL"
+      ]
+    },
+    "creality_macro_chatter": {
+      "description": "Per-move debug output from the Creality Klipper fork's own macros (park positions, nozzle clean, temp waits, driver currents).",
+      "patterns": [
+        "prefix:// can_break_flag",
+        "prefix:// x_axes",
+        "prefix:// wait temp",
+        "prefix:// x_park = ",
+        "prefix:// y_park = ",
+        "prefix:// move xy",
+        "prefix:// [CLEAR_NOZZLE_QUICK]",
+        "prefix:// Run Current:",
+        "prefix:// pressure_advance"
+      ]
+    },
+    "klipper_verbose_probe": {
+      "description": "Per-point probe results during a bed mesh. Stock Klipper, not vendor-specific, and it is what you want to read while debugging a mesh - so no printer references this set by default.",
+      "patterns": [
+        "prefix:// probe at "
+      ]
+    }
+  },
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
@@ -899,6 +947,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -987,6 +1036,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1082,6 +1132,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1177,6 +1228,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1262,24 +1314,7 @@
       "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "creality_k2",
-      "console_filter_patterns": [
-        "prefix:// data_send:",
-        "prefix:// recv_result:",
-        "prefix:// send float_bytes:",
-        "prefix:// sys参数操作",
-        "prefix:// MDL_NAME:",
-        "prefix:// ACK_mdl_",
-        "prefix:// halversion:",
-        "prefix:// softversion:",
-        "prefix:// reset:start error",
-        "prefix:// reset:comfun error",
-        "regex:^// times:[0-9]",
-        "prefix:// config_ioRemap",
-        "prefix:// operation_ioRemap",
-        "prefix:// ai_switch =",
-        "substring:WILL LOAD_AI_DEAL",
-        "prefix:// LOAD_AI_DEAL"
-      ],
+      "console_filters": ["creality_rs485", "creality_k2_modules"],
       "pre_print_options": {
         "macro_name": "START_PRINT",
         "setup_gcode": "PRINT_PREPARED",
@@ -1411,24 +1446,7 @@
       "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "creality_k2",
-      "console_filter_patterns": [
-        "prefix:// data_send:",
-        "prefix:// recv_result:",
-        "prefix:// send float_bytes:",
-        "prefix:// sys参数操作",
-        "prefix:// MDL_NAME:",
-        "prefix:// ACK_mdl_",
-        "prefix:// halversion:",
-        "prefix:// softversion:",
-        "prefix:// reset:start error",
-        "prefix:// reset:comfun error",
-        "regex:^// times:[0-9]",
-        "prefix:// config_ioRemap",
-        "prefix:// operation_ioRemap",
-        "prefix:// ai_switch =",
-        "substring:WILL LOAD_AI_DEAL",
-        "prefix:// LOAD_AI_DEAL"
-      ],
+      "console_filters": ["creality_rs485", "creality_k2_modules"],
       "pre_print_options": {
         "macro_name": "START_PRINT",
         "setup_gcode": "PRINT_PREPARED",
@@ -1580,6 +1598,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1654,6 +1673,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1731,6 +1751,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",

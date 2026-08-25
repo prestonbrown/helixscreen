@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "console_filter_engine.h"
+#include "printer_detector.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -171,30 +174,35 @@ TEST_CASE("ConsoleFilter: K2 preset never suppresses real GCode responses",
 }
 
 // ============================================================================
-// Shipped preset (must stay in sync with assets/config/printer_database.json
-// entry "creality_k2_plus" → "console_filter_patterns")
+// Shipped preset — resolved from assets/config/printer_database.json through the
+// same accessor the app uses. This used to be a hand-copied array carrying a
+// "must stay in sync with printer_database.json" comment; it had already drifted
+// (it still listed "prefix:// recv_result:", which can never match because
+// recv_result: only ever appears mid-line). Reading the real database means the
+// test fails when the shipped patterns regress, instead of quietly agreeing with
+// a stale copy.
 // ============================================================================
+
 namespace {
-constexpr const char* K2_SHIPPED_PRESET[] = {
-    "prefix:// data_send:",        "prefix:// recv_result:",
-    "prefix:// send float_bytes:", "prefix:// sys\xe5\x8f\x82\xe6\x95\xb0\xe6\x93\x8d\xe4\xbd\x9c",
-    "prefix:// MDL_NAME:",         "prefix:// ACK_mdl_",
-    "prefix:// halversion:",       "prefix:// softversion:",
-    "prefix:// reset:start error", "prefix:// reset:comfun error",
-    "regex:^// times:[0-9]",       "prefix:// config_ioRemap",
-    "prefix:// operation_ioRemap", "prefix:// ai_switch =",
-    "substring:WILL LOAD_AI_DEAL", "prefix:// LOAD_AI_DEAL",
-};
+/// Build an engine from a printer's shipped patterns, failing loudly if the
+/// database no longer has any for that model.
+ConsoleFilterEngine shipped_engine_for(const char* printer_name) {
+    ConsoleFilterEngine eng;
+    const std::vector<std::string> specs =
+        PrinterDetector::get_console_filter_patterns(printer_name);
+    INFO("printer: " << printer_name);
+    REQUIRE_FALSE(specs.empty());
+    for (const auto& spec : specs) {
+        INFO("spec: " << spec);
+        REQUIRE(eng.add(spec));
+    }
+    return eng;
+}
 } // namespace
 
 TEST_CASE("ConsoleFilter: shipped K2 preset filters all known noise samples",
           "[console_filter][k2][preset]") {
-    ConsoleFilterEngine eng;
-    for (const char* spec : K2_SHIPPED_PRESET) {
-        REQUIRE(eng.add(spec));
-    }
-    REQUIRE(eng.size() == sizeof(K2_SHIPPED_PRESET) / sizeof(K2_SHIPPED_PRESET[0]));
-
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K2 Plus");
     for (const char* sample : K2_NOISE_SAMPLES) {
         INFO("sample: " << sample);
         CHECK(eng.should_filter(sample));
@@ -203,10 +211,7 @@ TEST_CASE("ConsoleFilter: shipped K2 preset filters all known noise samples",
 
 TEST_CASE("ConsoleFilter: shipped K2 preset preserves real GCode responses",
           "[console_filter][k2][preset]") {
-    ConsoleFilterEngine eng;
-    for (const char* spec : K2_SHIPPED_PRESET) {
-        REQUIRE(eng.add(spec));
-    }
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K2 Plus");
     for (const char* line : GCODE_KEEP_SAMPLES) {
         INFO("line: " << line);
         CHECK_FALSE(eng.should_filter(line));
@@ -215,10 +220,7 @@ TEST_CASE("ConsoleFilter: shipped K2 preset preserves real GCode responses",
 
 TEST_CASE("ConsoleFilter: K2 preset filters belt_mdl / io_remap / load_ai chatter",
           "[console_filter][k2][preset]") {
-    ConsoleFilterEngine eng;
-    for (const char* spec : K2_SHIPPED_PRESET) {
-        REQUIRE(eng.add(spec));
-    }
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K2 Plus");
     // Real samples emitted via gcode.respond_info() in Creality's extras modules.
     CHECK(eng.should_filter("// MDL_NAME: belt_x"));
     CHECK(eng.should_filter("// ACK_mdl_info"));
@@ -238,15 +240,115 @@ TEST_CASE("ConsoleFilter: K2 preset filters belt_mdl / io_remap / load_ai chatte
     CHECK_FALSE(eng.should_filter("// times:"));
 }
 
+TEST_CASE("ConsoleFilter: K2 preset covers the RS-485 payload dumps by substring",
+          "[console_filter][k2][preset]") {
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K2 Plus");
+    // 187 of 220 lines in a real K2 capture carry a Python bytes repr. Matching the
+    // repr itself covers the whole bus family without a prefix per message tag.
+    CHECK(eng.should_filter("// get motor addr:b'\\x01'"));
+    CHECK(eng.should_filter("// get motor extruder addr:b'\\x02'"));
+    CHECK(eng.should_filter("// read vals:b'\\xff\\xff'"));
+    // ...and must not swallow ordinary output that merely mentions a byte count.
+    CHECK_FALSE(eng.should_filter("// EEPROM read complete"));
+}
+
+TEST_CASE("ConsoleFilter: K1 family gets the Creality macro-chatter set",
+          "[console_filter][k1][preset]") {
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K1C");
+    // Real samples from a 1000-entry K1C gcode_store capture.
+    CHECK(eng.should_filter("// can_break_flag = 0"));
+    CHECK(eng.should_filter("// x_axes: xyz"));
+    CHECK(eng.should_filter("// x_axes is NULL"));
+    CHECK(eng.should_filter("// wait temp start"));
+    CHECK(eng.should_filter("// wait temp end"));
+    CHECK(eng.should_filter("// x_park = -104.5"));
+    CHECK(eng.should_filter("// y_park = 104.5"));
+    CHECK(eng.should_filter("// move xy"));
+    CHECK(eng.should_filter("// [CLEAR_NOZZLE_QUICK] src_pos[0]:10.0"));
+    CHECK(eng.should_filter("// Run Current: 0.56A Hold Current: 0.56A"));
+    CHECK(eng.should_filter("// pressure_advance: 0.02"));
+}
+
+TEST_CASE("ConsoleFilter: mesh results stay visible on every shipped printer",
+          "[console_filter][preset]") {
+    // klipper_verbose_probe exists as a set but is deliberately referenced by no
+    // printer: per-point probe output is stock Klipper and is exactly what you
+    // want to read while debugging a mesh.
+    for (const char* printer : {"Creality K2 Plus", "Creality K1C"}) {
+        ConsoleFilterEngine eng = shipped_engine_for(printer);
+        INFO("printer: " << printer);
+        CHECK_FALSE(eng.should_filter("// probe at 50.000,50.000 is z=0.123"));
+        CHECK_FALSE(eng.should_filter("// Mesh Bed Leveling Complete"));
+        CHECK_FALSE(eng.should_filter("// Bed Mesh state has been saved to profile [default]"));
+    }
+}
+
+TEST_CASE("ConsoleFilter: unknown printer resolves to no patterns", "[console_filter][preset]") {
+    CHECK(PrinterDetector::get_console_filter_patterns("No Such Printer 9000").empty());
+    CHECK(PrinterDetector::get_console_filter_patterns("").empty());
+}
+
+TEST_CASE("ConsoleFilter: shared sets resolve identically for both K2 models",
+          "[console_filter][preset]") {
+    // Both reference the same two sets; that is the whole point of naming them.
+    const auto plus = PrinterDetector::get_console_filter_patterns("Creality K2 Plus");
+    const auto pro = PrinterDetector::get_console_filter_patterns("Creality K2 Pro");
+    CHECK_FALSE(plus.empty());
+    CHECK(plus == pro);
+}
+
+TEST_CASE("ConsoleFilter: resolved patterns contain no duplicates", "[console_filter][preset]") {
+    for (const char* printer : {"Creality K2 Plus", "Creality K1C"}) {
+        INFO("printer: " << printer);
+        auto specs = PrinterDetector::get_console_filter_patterns(printer);
+        const std::size_t before = specs.size();
+        std::sort(specs.begin(), specs.end());
+        specs.erase(std::unique(specs.begin(), specs.end()), specs.end());
+        CHECK(specs.size() == before);
+    }
+}
+
+TEST_CASE("ConsoleFilter: patterns are evaluated cheapest matcher first", "[console_filter]") {
+    ConsoleFilterEngine eng;
+    // Added worst-first on purpose; the engine must reorder.
+    REQUIRE(eng.add("regex:^// zzz[0-9]"));
+    REQUIRE(eng.add("substring:middle"));
+    REQUIRE(eng.add("prefix:// aaa"));
+    REQUIRE(eng.size() == 3);
+
+    const auto types = eng.types_in_order();
+    REQUIRE(types.size() == 3);
+    CHECK(types[0] == ConsoleFilterEngine::Type::Prefix);
+    CHECK(types[1] == ConsoleFilterEngine::Type::Substring);
+    CHECK(types[2] == ConsoleFilterEngine::Type::Regex);
+
+    // Reordering must not change what matches.
+    CHECK(eng.should_filter("// aaa here"));
+    CHECK(eng.should_filter("has middle in it"));
+    CHECK(eng.should_filter("// zzz9"));
+    CHECK_FALSE(eng.should_filter("// bbb"));
+}
+
+TEST_CASE("ConsoleFilter: shipped presets keep regex to a minimum", "[console_filter][preset]") {
+    // std::regex costs ~200x a prefix compare per line and this runs on the LVGL
+    // main thread. Presets should reach for it only when prefix/substring cannot
+    // express the shape; if this trips, check whether a cheaper matcher would do.
+    for (const char* printer : {"Creality K2 Plus", "Creality K1C"}) {
+        ConsoleFilterEngine eng = shipped_engine_for(printer);
+        const auto types = eng.types_in_order();
+        const auto regexes = static_cast<std::size_t>(
+            std::count(types.begin(), types.end(), ConsoleFilterEngine::Type::Regex));
+        INFO("printer: " << printer << " regex patterns: " << regexes);
+        CHECK(regexes <= 1);
+    }
+}
+
 // ============================================================================
 // Defensive edge cases
 // ============================================================================
 
 TEST_CASE("ConsoleFilter: empty line never matches a populated engine", "[console_filter]") {
-    ConsoleFilterEngine eng;
-    for (const char* spec : K2_SHIPPED_PRESET) {
-        eng.add(spec);
-    }
+    ConsoleFilterEngine eng = shipped_engine_for("Creality K2 Plus");
     CHECK_FALSE(eng.should_filter(""));
 }
 
