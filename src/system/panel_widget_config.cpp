@@ -742,13 +742,24 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::build_default_grid() {
     }
 
     // Bed temperature: always last, enabled conditionally.
-    // Large/xlarge: always enabled. Small/medium: only when no AMS present (no room).
+    // Large/xlarge: always enabled. Small/medium: only when no AMS present, on the
+    // assumption that an AMS widget leaves no room for it.
+    //
+    // An anchor overrides that assumption. The anchor table states where the
+    // shipped layout puts the widget on THIS tier, so it already answers the
+    // question the AMS heuristic is guessing at: a tier that anchors
+    // bed_temperature has reserved a cell for it, and disabling it there both
+    // loses the readout and leaves that cell empty. The medium table has
+    // anchored it since the grid layout landed, so every AMS printer at or
+    // below 800x480 was shipping with no bed temperature AND a hole where it
+    // should have been.
     {
         auto it = std::find_if(result.begin(), result.end(),
                                [](const PanelWidgetEntry& e) { return e.id == "bed_temperature"; });
         if (it != result.end()) {
             bool is_large = (to_int(breakpoint) >= to_int(UiBreakpoint::Large));
-            it->enabled = is_large || !ams_present;
+            bool anchored = fixed_ids.count("bed_temperature") > 0;
+            it->enabled = anchored || is_large || !ams_present;
             // Move to end so it's the last widget placed
             auto entry = std::move(*it);
             result.erase(it);
