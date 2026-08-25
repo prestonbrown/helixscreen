@@ -411,6 +411,28 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx) {
 }
 
 std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintStartContext& ctx) {
+    // The external spool is the ONE spool this rule can weigh, and a lane-fed
+    // print does not draw from it. Every sibling rule here already scopes itself
+    // on bypass; this one never did, because it predates bypass existing (it is
+    // from the single-extruder era, 39a576ddc).
+    //
+    // The consequence is not a merely-inaccurate warning, it is an unanswerable
+    // one: the rule compares the file's WHOLE-FILE total against that spool, so
+    // no lane assignment or tool remap can change either input. On a K2 Plus the
+    // user mapped a print from T1 to T2 and kept getting "needs about 1900g but
+    // the spool has about 386g" - 386g being the bypass spool, which the print
+    // was never going to touch. Worse, assigning a spool to a LANE calls
+    // set_active_spool(), and Moonraker's active spool is what populates
+    // external_spool - so editing a lane silently re-aims this comparison.
+    //
+    // A real per-lane check cannot be written yet: SlotInfo carries
+    // remaining_weight_g but AvailableSlot drops it, so nothing downstream can
+    // compare a tool's grams against its mapped lane's grams. Staying silent is
+    // the honest answer until that data is threaded through.
+    if (ctx.ams_manages_filament && ctx.has_active_backend && !ctx.any_bypass_active) {
+        return std::nullopt;
+    }
+
     const auto& spool = ctx.external_spool;
     if (!spool.has_value() || !(spool->remaining_weight_g > 0.0f)) {
         return std::nullopt;

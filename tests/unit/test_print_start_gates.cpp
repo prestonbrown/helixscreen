@@ -142,6 +142,67 @@ TEST_CASE("insufficient_spool_weight_in: length fallback via material density",
     CHECK(r->second == 5.0f);
 }
 
+TEST_CASE("insufficient_spool_weight_in: silent on a lane-fed AMS print",
+          "[print-start][gate-pipeline]") {
+    // K2 Plus, 2026-08-24: the user mapped a large print from T1 to T2 and kept
+    // getting "needs about N g but the spool has about 386 g". 386 g was the
+    // BYPASS spool - the print was lane-fed and would never touch it. The rule
+    // weighs the file's whole-file total against the single external spool, so
+    // neither input moves when a tool is remapped: the warning was unanswerable.
+    auto lane_fed = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 386.0f;
+        spool.material = "ASA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 1900.0;
+        c.metadata = md;
+        c.ams_manages_filament = true;
+        c.has_active_backend = true;
+        c.any_bypass_active = false; // feeding from a lane, not the bypass
+    });
+    CHECK_FALSE(insufficient_spool_weight_in(lane_fed).has_value());
+}
+
+TEST_CASE("insufficient_spool_weight_in: still warns when the bypass IS the feed",
+          "[print-start][gate-pipeline]") {
+    // The narrowing must not silence the case the rule is actually right about:
+    // a bypass-fed print does draw from the external spool it weighs.
+    auto bypass_fed = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 386.0f;
+        spool.material = "ASA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 1900.0;
+        c.metadata = md;
+        c.ams_manages_filament = true;
+        c.has_active_backend = true;
+        c.any_bypass_active = true;
+    });
+    auto r = insufficient_spool_weight_in(bypass_fed);
+    REQUIRE(r.has_value());
+    CHECK(r->second == 386.0f);
+}
+
+TEST_CASE("insufficient_spool_weight_in: still warns with no AMS at all",
+          "[print-start][gate-pipeline]") {
+    // A single-extruder printer has no lanes to feed from - the original,
+    // correct scope of this rule, which must survive the narrowing.
+    auto no_ams = ctx_with([](PrintStartContext& c) {
+        SlotInfo spool;
+        spool.remaining_weight_g = 30.0f;
+        spool.material = "PLA";
+        c.external_spool = spool;
+        FileMetadata md;
+        md.filament_weight_total = 40.0;
+        c.metadata = md;
+        c.ams_manages_filament = false;
+        c.has_active_backend = false;
+    });
+    CHECK(insufficient_spool_weight_in(no_ams).has_value());
+}
+
 // ---------------------------------------------------------------------------
 // material_mismatches_in — ported from find_material_mismatches()
 // ---------------------------------------------------------------------------
