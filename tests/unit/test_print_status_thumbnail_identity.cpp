@@ -259,3 +259,79 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH);
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
 }
+
+// --- The no-thumbnail placeholder -------------------------------------------
+//
+// The shared path subject never publishes the empty string. A file whose
+// thumbnail has not been fetched (or does not exist) is published as
+// PrinterPrintState::no_thumbnail_placeholder(), and ActivePrintMediaManager
+// publishes it FOR the incoming file as its clear when a new print starts
+// (active_print_media_manager.cpp, process_filename). So identity matches while
+// the image on screen is a generic stand-in.
+//
+// That makes the placeholder the one value the panel must show without claiming
+// the preview is current: displayed_file_ is the marker decide_preview_action()
+// reads, and stamping it retires the reload. The manager already draws this
+// distinction in has_thumbnail_for(), whose comment spells out the consequence
+// of getting it wrong — "every print would stop at the placeholder".
+// (prestonbrown/helixscreen#1339)
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: a published placeholder is shown but not marked current",
+                 "[print_status][thumbnail][1339]") {
+    const std::string placeholder = helix::PrinterPrintState::no_thumbnail_placeholder();
+
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "printA.gcode");
+
+    // printB starts and the manager clears: the placeholder, published for the
+    // file that is now printing, before any fetch has run.
+    report_filename("printB.gcode");
+    state().set_print_thumbnail("printB.gcode", placeholder);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // It goes on screen — that IS what "no thumbnail yet" looks like, and the
+    // alternative is leaving printA's image up.
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == placeholder);
+
+    // But the marker must not say printB's thumbnail is up, or nothing ever
+    // asks for it again and the print runs to completion on the stand-in.
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) != "printB.gcode");
+
+    // The real image still lands when the fetch completes.
+    state().set_print_thumbnail("printB.gcode", THUMB_PATH_B);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == THUMB_PATH_B);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
+}
+
+TEST_CASE_METHOD(PrintStatusThumbFixture,
+                 "PrintStatusPanel: adopting a placeholder leaves the preview reloadable",
+                 "[print_status][thumbnail][1339]") {
+    // Same rule, reached through ensure_preview_current()'s adopt branch instead
+    // of the path observer. Production ordering puts it there: the manager
+    // observes print_filename immediately while the panel's observer is
+    // deferred, so the publish lands under the PREVIOUS name, the path observer
+    // correctly drops it, and the adopt branch is what applies it once the
+    // filename catches up. Both branches stamp displayed_file_, so both need the
+    // exclusion — fixing one and not the other just moves the pin.
+    const std::string placeholder = helix::PrinterPrintState::no_thumbnail_placeholder();
+
+    report_filename("printA.gcode");
+    state().set_print_thumbnail("printA.gcode", THUMB_PATH);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(PrintStatusPanelTestAccess::displayed_file(panel()) == "printA.gcode");
+
+    // Published while the panel still names printA: dropped by the observer.
+    state().set_print_thumbnail("printB.gcode", placeholder);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Filename catches up; the adopt branch applies the published value.
+    report_filename("printB.gcode");
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(PrintStatusPanelTestAccess::displayed_src(panel()) == placeholder);
+    CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) != "printB.gcode");
+}

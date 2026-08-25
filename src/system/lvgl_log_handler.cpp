@@ -32,11 +32,19 @@ namespace {
 static bool s_suppress_translation_warnings = false;
 
 // First-occurrence cache for high-frequency LVGL warnings/errors (e.g. missing
-// image assets). LVGL retries fs_open + image_decoder_get_info on every render
-// frame that touches a broken image, which in field logs accounted for >90% of
-// the volume. Dedupe by exact message text after stripping LVGL's leading
-// "(timestamp, +delta)\t" prefix; first occurrence logs at the original level,
-// subsequent identical messages drop to debug.
+// image assets, missing translation tags). LVGL retries fs_open +
+// image_decoder_get_info on every render frame that touches a broken image, and
+// re-resolves a missing translation tag on every call that renders the string —
+// in field logs those accounted for >90% of the volume. Dedupe by exact message
+// text after stripping LVGL's leading "(timestamp, +delta)\t" prefix; first
+// occurrence logs at the original level, subsequent identical messages drop to
+// TRACE.
+//
+// Trace, not debug: the in-memory ring the debug bundle ships is captured at
+// debug (see logging_init.cpp and log_redact.h), so routing repeats there
+// silenced the console while still spending the ring on them. One untranslated
+// tag re-resolved on a temperature tick took 76% of a reporter's 20k-line ring
+// and pushed the evidence we had asked him for out of the bundle.
 constexpr size_t LVGL_DEDUPE_MAX = 256;
 static std::mutex s_dedupe_mutex;
 static std::unordered_set<std::string> s_seen_messages;
@@ -308,11 +316,20 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
                                     msg.find("tag is not found") != std::string::npos ||
                                     msg.find("language is not found") != std::string::npos));
 
-    // Dedupe high-frequency retry messages (broken image assets, etc.) — first
-    // occurrence at original level, repeats at debug. Decided up-front so the
-    // WARN-path anomaly detection below still runs on the first hit.
-    bool is_repeat_retry = (level == LV_LOG_LEVEL_WARN || level == LV_LOG_LEVEL_ERROR) &&
-                           is_high_frequency_retry(msg) && seen_before(msg);
+    // init_translations() silences its own expected noise. Those hits must stay
+    // OUT of the dedupe cache: recording them would spend each tag's one
+    // reportable occurrence on a message nobody ever saw, and the first real
+    // miss afterwards would be filed as a repeat and traced away.
+    bool suppressed_translation = is_translation_warning && s_suppress_translation_warnings;
+
+    // Dedupe high-frequency retry messages (broken image assets, missing
+    // translation tags) — first occurrence at its usual level, repeats at trace.
+    // Decided up-front so the WARN-path anomaly detection below still runs on
+    // the first hit. The translation message body carries the tag, so exact-text
+    // dedupe is per-tag: a second missing tag still gets its own first hit.
+    bool is_repeat_retry =
+        !suppressed_translation && (level == LV_LOG_LEVEL_WARN || level == LV_LOG_LEVEL_ERROR) &&
+        (is_high_frequency_retry(msg) || is_translation_warning) && seen_before(msg);
 
     // Route to appropriate spdlog level
     switch (level) {
@@ -323,9 +340,9 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
         spdlog::info("[LVGL] {}", msg);
         break;
     case LV_LOG_LEVEL_WARN:
-        if (is_translation_warning && s_suppress_translation_warnings) {
+        if (suppressed_translation || is_repeat_retry) {
             spdlog::trace("[LVGL] {}", msg);
-        } else if (is_scroll_boundary_warning || is_translation_warning || is_repeat_retry) {
+        } else if (is_scroll_boundary_warning || is_translation_warning) {
             spdlog::debug("[LVGL] {}", msg);
         } else {
             spdlog::warn("[LVGL] {}", msg);
@@ -374,7 +391,7 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
         break;
     case LV_LOG_LEVEL_ERROR:
         if (is_repeat_retry) {
-            spdlog::debug("[LVGL] {}", msg);
+            spdlog::trace("[LVGL] {}", msg);
         } else {
             spdlog::error("[LVGL] {}", msg);
             // Detect heap corruption reports from lv_xml_get_font() and fire telemetry
