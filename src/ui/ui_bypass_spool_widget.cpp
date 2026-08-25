@@ -116,9 +116,10 @@ void bypass_spool_destroy(BypassSpoolWidgets& w) {
 }
 
 void bypass_spool_set_color(BypassSpoolWidgets& w, uint32_t color_rgb) {
-    if (!w.spool_canvas || w.cached_color_rgb == color_rgb) {
+    if (!w.spool_canvas || (w.color_painted && w.cached_color_rgb == color_rgb)) {
         return;
     }
+    w.color_painted = true;
     w.cached_color_rgb = color_rgb;
     ui_spool_canvas_set_color(w.spool_canvas, lv_color_hex(color_rgb));
     ui_spool_canvas_redraw(w.spool_canvas);

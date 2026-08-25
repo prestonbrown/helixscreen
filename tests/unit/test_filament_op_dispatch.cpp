@@ -187,6 +187,89 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
     CHECK(plan.ams_call == AmsCall::None);
 }
 
+// ---------------------------------------------------------------------------
+// Bypass suppresses tier 1 for the BYPASS spool. It must not suppress it for a
+// lane the user named.
+//
+// K2 Plus, CFS, bypass declared and restored from settings across a reboot:
+// tapping Load on lane 2 dropped the lane at the tier-1 gate and ran the
+// external holder's LOAD_MATERIAL with no argument. That macro gates its own
+// heat step on the toolhead sensor, so with nothing threaded it moved the head
+// to the extrude position, skipped the heat, and reported success having loaded
+// nothing. Klippy showed the nozzle cooling through both attempts.
+//
+// The lane tap is an explicit target. Honour it, and stand the box back up on
+// the way -- unless the bypass spool is still across the toolhead, which no
+// amount of gcode can fix (the switch sits above the cutter and reads the
+// upstream piece; only the user's hand clears it -- see 36205eb27).
+// ---------------------------------------------------------------------------
+
+TEST_CASE("plan_load: a named lane under bypass reaches the backend, not the external macro",
+          "[filament][dispatch][tier][bypass]") {
+    AmsSystemInfo sys = make_sys(4, -1);
+    sys.filament_loaded = false; // bypass declared, but nothing threaded
+
+    BackendCaps bypassed = fresh_ams();
+    bypassed.requires_slot_selection_for_load = false; // == !is_bypass_active()
+    bypassed.bypass_active = true;
+
+    auto plan = plan_load(sys, bypassed, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
+
+    CHECK(plan.tier == FilamentTier::AmsBackend);
+    CHECK(plan.ams_call == AmsCall::Load);
+    CHECK(plan.ams_arg == 1);
+    CHECK(plan.refusal == FilamentRefusal::None);
+}
+
+TEST_CASE("plan_load: a named lane under bypass refuses while the bypass spool is still threaded",
+          "[filament][dispatch][tier][bypass][refusal]") {
+    AmsSystemInfo sys = make_sys(4, EXTERNAL_SPOOL_SLOT);
+    sys.filament_loaded = true; // bypass spool still crossing the toolhead
+
+    BackendCaps bypassed = fresh_ams();
+    bypassed.requires_slot_selection_for_load = false;
+    bypassed.bypass_active = true;
+
+    auto plan = plan_load(sys, bypassed, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
+
+    CHECK(plan.tier == FilamentTier::Refused);
+    CHECK(plan.refusal == FilamentRefusal::BypassLoaded);
+    CHECK(plan.ams_call == AmsCall::None);
+}
+
+TEST_CASE("plan_load: a user-configured macro still outranks the lane-under-bypass rule",
+          "[filament][dispatch][tier][bypass][macro_override]") {
+    // The override is absolute by design; the new bypass arm sits below it.
+    AmsSystemInfo sys = make_sys(4, -1);
+    sys.filament_loaded = true;
+
+    BackendCaps bypassed = fresh_ams();
+    bypassed.requires_slot_selection_for_load = false;
+    bypassed.bypass_active = true;
+
+    auto plan = plan_load(sys, bypassed, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/true);
+    CHECK(plan.tier == FilamentTier::Macro);
+}
+
+TEST_CASE("plan_load: a backend that never wanted a slot is untouched by the bypass arm",
+          "[filament][dispatch][tier][bypass]") {
+    // requires_slot_selection_for_load() is false for two different reasons.
+    // Only the bypass one gets the new treatment.
+    AmsSystemInfo sys = make_sys(4, -1);
+    sys.filament_loaded = true;
+
+    BackendCaps slotless = fresh_ams();
+    slotless.requires_slot_selection_for_load = false;
+    slotless.bypass_active = false;
+
+    auto plan = plan_load(sys, slotless, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
+    CHECK(plan.tier == FilamentTier::Macro);
+}
+
 // =============================================================================
 // Tier 1: what the backend is actually asked to do
 // =============================================================================

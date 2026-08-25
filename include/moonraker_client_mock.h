@@ -698,6 +698,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if Spoolman should be reported as available during discovery
      */
+    /// Test seam: drive the Spoolman component in and out of server.info so the
+    /// REAL discovery sequence's spoolman branch can be exercised both ways.
+    void set_mock_spoolman_enabled(bool enabled) {
+        mock_spoolman_enabled_ = enabled;
+    }
+
     [[nodiscard]] bool is_mock_spoolman_enabled() const {
         return mock_spoolman_enabled_;
     }
