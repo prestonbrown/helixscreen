@@ -444,7 +444,6 @@ void MachineLimitsOverlay::handle_field_clicked(Field field) {
     // Bounds come from the slider, not from a second copy in this file. A range
     // edited in machine_limits_overlay.xml stays correct here for free.
     pending_keypad_field_ = field;
-    returning_from_keypad_ = true;
 
     ui_keypad_config_t config = {
         .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
@@ -465,6 +464,13 @@ void MachineLimitsOverlay::handle_field_clicked(Field field) {
 }
 
 void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
+    // Set on confirm, not when the keypad opens: the keypad invokes this
+    // callback before it hides, so the flag is always consumed by the
+    // on_activate() that follows. Setting it at tap time leaked the flag
+    // when the keypad was abandoned via the navbar, costing the next
+    // visit its refresh from the printer.
+    returning_from_keypad_ = true;
+
     lv_obj_t* slider = field_slider(field);
     if (!slider) {
         return;
