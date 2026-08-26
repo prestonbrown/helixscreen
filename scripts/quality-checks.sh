@@ -2152,6 +2152,47 @@ echo ""
 }
 
 # ====================================================================
+# Crash-worker LVGL event-code table is generated, not hand-typed
+# ====================================================================
+qc_lvgl_event_codes() {
+  local EXIT_CODE=0
+# The worker labels every auto-filed crash issue with "code=N (NAME)", and that
+# name is often the entire diagnosis. The table was maintained by hand until
+# LVGL 9.5 inserted four codes mid-enum; 58 of 63 entries went stale and a
+# DELETE crash was filed as SCREEN_UNLOAD_START, pointing triage away from the
+# teardown bug. lv_event_code_t is the source of truth now, the table is derived
+# from it, and this proves the committed artifact still matches.
+SECTION_START=$(date +%s)
+echo -n "🩺 Checking crash-worker LVGL event codes..."
+
+if [ -f "scripts/gen_lvgl_event_codes.py" ]; then
+  if python3 scripts/gen_lvgl_event_codes.py --diff >/tmp/lvgl_event_codes.out 2>&1; then
+    :
+  else
+    EXIT_CODE=1
+    # Same contract as qc_doc_links: --auto-fix repairs the working tree but
+    # still fails, because passing here would commit the stale table.
+    if [ "$AUTO_FIX" = true ]; then
+      python3 scripts/gen_lvgl_event_codes.py >>/tmp/lvgl_event_codes.out 2>&1
+      echo "   Regenerated in place — 'git add' the worker and commit again." >>/tmp/lvgl_event_codes.out
+    fi
+  fi
+  section_time $SECTION_START
+  echo ""
+  cat /tmp/lvgl_event_codes.out
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  gen_lvgl_event_codes.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Translation format-specifier parity (crash #1073)
 # ====================================================================
 qc_translation_fmt() {
@@ -2552,7 +2593,7 @@ qc_run_buffered() {
 # when asked to fix them.
 QC_SERIAL="qc_xml_linter"
 if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_widget_registry qc_doc_refs qc_doc_links qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -2585,6 +2626,8 @@ qc_trigger_re() {
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
     qc_doc_refs)        echo '\.md$|^scripts/check_doc_refs\.py$' ;;
     qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
+    qc_lvgl_event_codes)
+                        echo '^server/crash-worker/|^scripts/gen_lvgl_event_codes\.py$|^lib/lvgl$|^lv_conf\.h$' ;;
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;
     qc_base_locale)     echo '^translations/' ;;
     # Any src/ or ui_xml/ file can introduce a user-facing string, so this
