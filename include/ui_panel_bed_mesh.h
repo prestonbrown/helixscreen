@@ -10,6 +10,7 @@
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
 #include <array>
@@ -191,6 +192,10 @@ class BedMeshPanel : public OverlayBase {
 
     // Operation timeout guard (no subject needed — modals prevent interaction)
     OperationTimeoutGuard operation_guard_;
+
+    /// Owns the SAVE_CONFIG contract: absorbs the rpc the restart drops
+    /// and reports success only once Klipper is back.
+    helix::ui::SaveConfigWatch save_watch_;
     static constexpr uint32_t OPERATION_TIMEOUT_MS = 15000; // quick ops (delete, rename)
     static constexpr uint32_t SLOW_OPERATION_TIMEOUT_MS =
         120000; // load, save_config (Klipper restart)

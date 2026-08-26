@@ -286,6 +286,7 @@ src/ui/panel_widgets/tool_switcher_widget.cpp
 src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print_control_buttons.cpp
 src/ui/print_control_view.cpp
+src/ui/save_config_restart.cpp
 src/ui/setting_group.cpp
 src/ui/style_configs.cpp
 src/ui/temp_graph_controller.cpp

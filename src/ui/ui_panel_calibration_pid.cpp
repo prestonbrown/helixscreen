@@ -678,32 +678,26 @@ void PIDCalibrationPanel::send_save_config() {
     if (!api_)
         return;
 
-    // SAVE_CONFIG triggers an expected Klipper restart
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
-
     spdlog::info("[PIDCal] Sending SAVE_CONFIG");
-    auto token = lifetime_.token();
-    api_->advanced().save_config(
-        [this, token]() {
-            if (token.expired())
-                return;
-            token.defer([this]() {
-                if (state_ == State::SAVING) {
-                    set_state(State::COMPLETE);
-                }
-            });
+
+    // SAVE_CONFIG's reply is dropped by the restart it triggers, so the watch
+    // decides the outcome from Klipper coming back rather than from the rpc.
+    // Without it every successful save logged a "Save config failed" warning
+    // (prestonbrown/helixscreen#1359).
+    save_watch_.begin(
+        api_, "Saving config... Klipper will restart.",
+        [this]() {
+            if (state_ == State::SAVING) {
+                set_state(State::COMPLETE);
+            }
         },
-        [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
-            std::string msg = err.message;
-            token.defer([this, msg]() {
-                // Still show results even if save fails
-                spdlog::warn("[PIDCal] Save config failed: {}", msg);
-                if (state_ == State::SAVING) {
-                    set_state(State::COMPLETE);
-                }
-            });
+        [this](const std::string& msg) {
+            // Still show results even if the save genuinely failed: the tuned
+            // values are worth seeing whether or not they reached printer.cfg.
+            spdlog::warn("[PIDCal] Save config failed: {}", msg);
+            if (state_ == State::SAVING) {
+                set_state(State::COMPLETE);
+            }
         });
 }
 

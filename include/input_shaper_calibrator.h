@@ -257,16 +257,6 @@ class InputShaperCalibrator {
     void apply_settings(const ApplyConfig& config, SuccessCallback on_success,
                         ErrorCallback on_error);
 
-    /**
-     * @brief Save current input shaper settings to printer.cfg
-     *
-     * Sends SAVE_CONFIG to persist settings across restarts.
-     *
-     * @param on_success Called on successful save
-     * @param on_error Called with error message on failure
-     */
-    void save_to_config(SuccessCallback on_success, ErrorCallback on_error);
-
   private:
     /**
      * @brief Translate a G28 failure into the user-facing message

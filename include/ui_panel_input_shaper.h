@@ -11,6 +11,7 @@
 #include "input_shaper_calibrator.h"
 #include "overlay_base.h"
 #include "platform_capabilities.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>
@@ -250,6 +251,10 @@ class InputShaperPanel : public OverlayBase {
     lv_obj_t* parent_screen_ = nullptr;
     helix::IMoonrakerClient* client_ = nullptr;
     IMoonrakerAPI* api_ = nullptr;
+
+    /// Owns the SAVE_CONFIG contract: absorbs the rpc the restart drops
+    /// and reports success only once Klipper is back.
+    helix::ui::SaveConfigWatch save_watch_;
 
     // Private setup helper (called by create())
     void setup_widgets();
