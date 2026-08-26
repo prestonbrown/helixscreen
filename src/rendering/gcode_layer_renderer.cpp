@@ -6,6 +6,7 @@
 #include "gcode_layer_renderer.h"
 
 #include "config.h"
+#include "gcode_ghost_sampling.h"
 #include "gcode_parser.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
@@ -19,6 +20,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <thread>
 
 namespace helix {
 namespace gcode {
@@ -1857,9 +1859,24 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     uint8_t wall_b = wash_b * GHOST_WALL_BRIGHT_PERCENT / 100;
     uint32_t ghost_wall_color = (255u << 24) | (wall_r << 16) | (wall_g << 8) | wall_b;
 
-    // Render all layers to raw buffer
-    // Works with both full-file mode (gcode_) and streaming mode (streaming_controller_)
-    for (int layer_idx = 0; layer_idx < total_layers; ++layer_idx) {
+    // Render the ghost to the raw buffer.
+    //
+    // How many layers this visits depends on where they come from. Full load
+    // dereferences a layer that is already parsed and resident, so it walks all
+    // of them. Streaming seeks and parses each one off disk, so walking all of
+    // them would re-parse the entire file behind the UI - which is what pinned a
+    // core for minutes on a 133MB file once large files moved onto streaming.
+    // There the pass is bounded to an even sample that still spans the model.
+    // See gcode_ghost_sampling.h.
+    const GhostSamplePlan ghost_plan =
+        plan_ghost_sampling(total_layers, local_streaming != nullptr);
+    if (local_streaming && ghost_plan.step > 1) {
+        spdlog::debug("[GCodeLayerRenderer] Ghost sampling {} of {} layers (every {})",
+                      ghost_plan.count, total_layers, ghost_plan.step);
+    }
+
+    for (int sample = 0; sample < ghost_plan.count; ++sample) {
+        const int layer_idx = sample * ghost_plan.step;
         // Check for cancellation periodically
         if (ghost_thread_cancel_.load()) {
             spdlog::debug("[GCodeLayerRenderer] Ghost render cancelled at layer {}/{}", layer_idx,
@@ -1875,8 +1892,13 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
         const std::vector<ToolpathSegment>* segments = nullptr;
 
         if (local_streaming) {
-            // Streaming mode: get segments from controller (returns shared_ptr)
-            segments_holder = local_streaming->get_layer_segments(static_cast<size_t>(layer_idx));
+            // Streaming mode: get segments from controller (returns shared_ptr).
+            // Deliberately the non-prefetching load: this walk strides past its
+            // neighbours, so warming them is a batch of seek-and-parses the
+            // prefetch worker performs for nothing - and on a two-core board
+            // that worker is running on the core the UI thread needs.
+            segments_holder =
+                local_streaming->load_layer_segments_no_prefetch(static_cast<size_t>(layer_idx));
             segments = segments_holder.get();
         } else if (local_gcode) {
             segments = &local_gcode->layers[layer_idx].segments;
@@ -1927,6 +1949,14 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
             draw_thick_line_bresenham(p1.x, p1.y, p2.x, p2.y, seg_color, local_line_width);
             ++segments_rendered;
         }
+
+        // A streamed layer costs a seek and a parse. Hand the core back between
+        // them: this thread is competing with the UI thread for one of two, and
+        // an uninterrupted pass leaves touch unserviced for its whole duration.
+        // Full load walks resident memory and needs no such yield.
+        if (local_streaming) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(GHOST_STREAM_YIELD_MS));
+        }
     }
 
     // Mark as ready for main thread to copy
@@ -1937,8 +1967,9 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
                        std::chrono::steady_clock::now() - start_time)
                        .count();
     spdlog::debug(
-        "[GCodeLayerRenderer] Background ghost render complete: {} layers, {} segments in {}ms",
-        total_layers, segments_rendered, elapsed);
+        "[GCodeLayerRenderer] Background ghost render complete: {} of {} layers, {} segments "
+        "in {}ms",
+        ghost_plan.count, total_layers, segments_rendered, elapsed);
 }
 
 void GCodeLayerRenderer::copy_raw_to_ghost_buf() {

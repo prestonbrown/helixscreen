@@ -294,6 +294,24 @@ class GCodeStreamingController {
     std::shared_ptr<const std::vector<ToolpathSegment>> try_get_layer_segments(size_t layer_index);
 
     /**
+     * @brief Load a layer without warming its neighbours
+     *
+     * Same blocking load as get_layer_segments(), minus the schedule_prefetch()
+     * that call ends with. For a caller that strides through the file rather
+     * than moving between adjacent layers - the background ghost pass samples
+     * every Nth - the warmed neighbours are never read, so the prefetch worker
+     * spends a batch of seek-and-parses per visited layer on data nothing wants.
+     * On the two-core boards streaming exists for, that worker is competing for
+     * the core the UI thread runs on, so the waste is not merely wasted.
+     *
+     * @param layer_index Zero-based layer index
+     * @return Segments, or nullptr if the layer doesn't exist or failed to load.
+     *         Same shared_ptr lifetime contract as get_layer_segments().
+     */
+    std::shared_ptr<const std::vector<ToolpathSegment>>
+    load_layer_segments_no_prefetch(size_t layer_index);
+
+    /**
      * @brief Request a layer to be loaded (non-blocking)
      *
      * Hands the layer to the prefetch worker and returns immediately. Check
