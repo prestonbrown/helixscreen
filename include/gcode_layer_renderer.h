@@ -697,6 +697,9 @@ class GCodeLayerRenderer {
     /// Background thread entry point (renders all layers to raw buffer)
     void background_ghost_render_thread();
 
+    /// Drives one complete ghost pass so a test can measure what it costs.
+    friend class GCodeLayerRendererTestAccess;
+
     /// Copy completed raw buffer to LVGL ghost_buf_ (called on main thread)
     void copy_raw_to_ghost_buf();
 
