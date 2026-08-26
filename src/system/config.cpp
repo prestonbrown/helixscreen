@@ -358,16 +358,12 @@ static void migrate_v1_to_v2(json& config) {
     }
 }
 
-/// Migration v2→v3: Reset jitter_threshold from 15 to 0 (disabled by default).
-/// The jitter filter competed with LVGL's scroll_limit, adding perceptible drag delay.
-/// Users with genuinely noisy panels can re-enable via config or HELIX_TOUCH_JITTER env.
-static void migrate_v2_to_v3(json& config) {
-    json::json_pointer ptr("/input/jitter_threshold");
-    if (config.contains(ptr) && config[ptr].is_number_integer() && config[ptr].get<int>() == 15) {
-        config[ptr] = 5;
-        spdlog::info("[Config] Migration v3: reset jitter_threshold 15 -> 5");
-    }
-}
+/// Migration v2→v3: retired. It retuned /input/jitter_threshold, a setting that
+/// never reached the input pipeline and has since been removed
+/// (prestonbrown/helixscreen#1358). The step stays so the version chain is
+/// unbroken - a v2 config still has to walk through 3 to reach the current
+/// version. Any /input/jitter_threshold left in an existing config is inert.
+static void migrate_v2_to_v3(json& /*config*/) {}
 
 /// Migration v3→v4: Restructure single /printer to multi-printer /printers map.
 /// Moves the old singular "printer" object under "printers/{slug}/" and sets active_printer_id.
@@ -1438,7 +1434,6 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                     {{"scroll_throw", 25},
                      {"scroll_limit", 10},
                      {"long_press_time", 500},
-                     {"jitter_threshold", 5},
                      {"touch_device", ""},
                      {"calibration",
                       {{"valid", false},
@@ -1958,7 +1953,6 @@ void Config::init(const std::string& config_path) {
         data["input"] = {{"scroll_throw", 25},
                          {"scroll_limit", 10},
                          {"long_press_time", 500},
-                         {"jitter_threshold", 5},
                          {"touch_device", ""},
                          {"calibration",
                           {{"valid", false},
@@ -1984,10 +1978,6 @@ void Config::init(const std::string& config_path) {
         }
         if (!input.contains("touch_device")) {
             input["touch_device"] = "";
-            config_modified = true;
-        }
-        if (!input.contains("jitter_threshold")) {
-            input["jitter_threshold"] = 5;
             config_modified = true;
         }
 
@@ -2610,7 +2600,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
 
     // The device-level "display" and "input" blocks below describe the PRINTER'S
     // OWN PANEL — rotation and white balance in one, the touch calibration matrix
-    // and jitter threshold in the other. Seeding them is correct only when
+    // in the other. Seeding them is correct only when
     // HelixScreen is the thing driving that panel. A separate host that merely
     // talks to the printer over the network (a Pi with its own touchscreen that
     // detected a Centauri Carbon during the wizard, say) would otherwise come up
@@ -2643,7 +2633,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
 
     // Deep-merge device-level input settings (preserves keys not in preset).
     // This seeds top-level /input/* — e.g. touch calibration (read from
-    // /input/calibration/*) and jitter_threshold — which is distinct from the
+    // /input/calibration/*) — which is distinct from the
     // per-printer "printer.input" block above. Pre-wizard only (guarded by
     // wizard_completed), so it's safe to seed scaffolded defaults.
     if (on_this_device && preset_json.contains("input") && preset_json["input"].is_object()) {

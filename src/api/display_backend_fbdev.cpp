@@ -487,7 +487,6 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     // Always install the calibrated read callback — it handles both rotation
     // transform and affine calibration independently. Without this, rotation
     // transform wouldn't be applied on devices that don't need affine cal.
-    // Note: jitter filtering is applied generically in lvgl_init.cpp after this.
     helix::install_calibration_wrapper(touch_, calibration_context_, calibration_, screen_width_,
                                        screen_height_);
     calibration_wrapper_installed_ = true;

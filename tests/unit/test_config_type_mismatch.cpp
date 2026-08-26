@@ -282,7 +282,7 @@ TEST_CASE_METHOD(MistypedInputSettingsFixture,
     json& data = ConfigTestAccess::data(*Config::get_instance());
     data["input"] = {{"home_edit_mode_enabled", "true"}, // string where bool belongs
                      {"scroll_guard", "yes"},
-                     {"jitter_threshold", "5"},               // string where int belongs
+                     {"scroll_limit", "5"},                   // string where int belongs
                      {"scroll_throw", {{"value", 12}}},       // object where int belongs
                      {"debug_touches", json::array({true})}}; // array where bool belongs
 
@@ -294,7 +294,7 @@ TEST_CASE_METHOD(MistypedInputSettingsFixture,
     InputSettingsManager& input = InputSettingsManager::instance();
     REQUIRE(input.get_home_edit_mode_enabled() == true); // compiled-in default
     REQUIRE(input.get_scroll_guard() == false);
-    REQUIRE(input.get_jitter_threshold() == 5);
+    REQUIRE(input.get_scroll_limit() == 10);
     REQUIRE(input.get_scroll_throw() == 25);
     REQUIRE(input.get_debug_touches() == false);
 }
