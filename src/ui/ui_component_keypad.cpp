@@ -33,6 +33,13 @@
 // ============================================================================
 static lv_subject_t keypad_display_subject;
 static char keypad_display_buf[16] = "";
+// The keypad is shared by every numeric field in the app, so its header has to
+// say which one is being edited. Machine Limits alone opens it from five rows.
+static lv_subject_t keypad_title_subject;
+static char keypad_title_buf[48] = "";
+// Drives the dot key's disabled state. An integer-only field used to show a
+// live "." that silently did nothing to the buffer.
+static lv_subject_t keypad_allow_decimal_subject;
 static bool subjects_initialized = false;
 static SubjectManager subjects_;
 
@@ -40,6 +47,10 @@ static SubjectManager subjects_;
 static lv_obj_t* keypad_widget = nullptr;
 // Parent captured at init; the widget tree itself is built on first show.
 static lv_obj_t* keypad_parent = nullptr;
+
+// Decimals offered once a decimal point is entered. Two covers retraction
+// distances (0.85mm) and half-step square corner velocity alike.
+static constexpr int KEYPAD_FRACTION_DIGITS = 2;
 
 // Current config and input state
 static ui_keypad_config_t current_config;
@@ -63,6 +74,9 @@ void ui_keypad_init_subjects() {
     // Initialize display subject for reactive binding (starts empty)
     UI_MANAGED_SUBJECT_STRING(keypad_display_subject, keypad_display_buf, "", "keypad_display",
                               subjects_);
+    UI_MANAGED_SUBJECT_STRING(keypad_title_subject, keypad_title_buf, "", "keypad_title",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(keypad_allow_decimal_subject, 1, "keypad_allow_decimal", subjects_);
 
     subjects_initialized = true;
 
@@ -125,6 +139,13 @@ static bool ensure_keypad_built() {
         return false;
     }
 
+    // header_bar takes its title as a creation-time string and documents that
+    // a runtime-varying title is bound by the owning screen rather than by a
+    // bind_text inside the shared component. Follow that here.
+    if (lv_obj_t* title = lv_obj_find_by_name(keypad_widget, "header_title")) {
+        lv_label_bind_text(title, &keypad_title_subject, nullptr);
+    }
+
     wire_button_events();
     spdlog::debug("[Keypad] Numeric keypad built on first use");
     return true;
@@ -147,6 +168,16 @@ void ui_keypad_show(const ui_keypad_config_t* config) {
 
     // Start with empty display (user enters fresh value)
     input.clear();
+
+    // Size the buffer to this field's own range. The 3-digit default is
+    // temperature-shaped and cannot express a max accel of 50000; deriving the
+    // cap means a new caller cannot forget to widen it.
+    input.max_int_digits = helix::ui::keypad_int_digits_for(config->max_value);
+    input.max_total_digits = input.max_int_digits + KEYPAD_FRACTION_DIGITS;
+    input.allow_dot = config->allow_decimal;
+    lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
+
+    lv_subject_copy_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
     // Update display via subject (reactive binding updates XML automatically)
     update_display();

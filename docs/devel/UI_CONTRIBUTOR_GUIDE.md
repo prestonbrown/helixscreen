@@ -808,7 +808,7 @@ Start with the panels that matter most:
 
 ### Responsive Setting Rows (no micro/ overrides)
 
-The setting row components (`setting_toggle_row`, `setting_slider_row`, `setting_dropdown_row`, `setting_action_row`, `setting_section_header`) handle the Micro breakpoint responsively within a single XML file. There are no `micro/` directory overrides for settings -- do not create them.
+The setting row components (`setting_toggle_row`, `setting_slider_row`, `setting_dropdown_row`, `setting_action_row`, `setting_section_header`, `setting_value_field`) handle the Micro breakpoint responsively within a single XML file. There are no `micro/` directory overrides for settings -- do not create them.
 
 The pattern used by all setting rows:
 
@@ -848,6 +848,42 @@ The pattern used by all setting rows:
 Tapping the info icon toggles the description label's visibility inline.
 
 This same responsive pattern should be used for any new setting row components. The convention is: **make the component responsive internally rather than creating a `micro/` override file**.
+
+### Exact entry on a wide-range slider (`setting_value_field`)
+
+A slider cannot land on an exact value once its range is wide: Max Acceleration
+spans 500-50000 across a few hundred pixels, which is roughly 165 mm/s2 per
+pixel. `setting_value_field` replaces a row's display-only value label with a
+field that reads as editable and opens the numeric keypad on tap.
+
+```xml
+<setting_value_field name="max_accel_field" value_subject="max_accel_display"
+                     callback="on_limit_field_clicked" user_data="1"/>
+```
+
+It styles itself like a text input rather than being one -- a real
+`lv_textarea` would take focus and raise the alphanumeric on-screen keyboard.
+`user_data` arrives at the callback as a `const char*` index into the panel's
+own field table (`FIELD_SPECS` in `ui_settings_machine_limits.cpp` is the
+reference shape).
+
+Two things to get right when wiring one up:
+
+- **Read the keypad's bounds from the row's own `lv_slider`**
+  (`lv_slider_get_min_value()` / `..._max_value()`), not from a second copy in
+  C++. The XML stays the single source of truth and the two cannot drift.
+- **Guard the parent's `on_activate()`.** `ui_keypad_show()` pushes an overlay,
+  so closing it re-activates the parent; a panel that refreshes there will
+  overwrite the value the user just typed. Both `MachineLimitsOverlay` and
+  `RetractionSettingsOverlay` carry a `returning_from_keypad_` flag set before
+  the push and consumed in `on_activate()`. `OverlayBase` has no
+  "returning from a child" concept -- each panel needs its own guard.
+
+A slider that must express fractional values holds scaled integers and converts
+through `helix::ui::SliderScale` (`include/ui_slider_scale.h`): square corner
+velocity stores tenths so it can reach 5.5, retraction distances store
+hundredths. Match the display precision to the slider's resolution, or a typed
+0.85 renders as "0.8" and reads as though it was ignored.
 
 ---
 

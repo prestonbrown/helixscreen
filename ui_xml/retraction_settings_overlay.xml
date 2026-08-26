@@ -48,8 +48,10 @@
             <text_body text="Retract Length" translation_tag="Retract Length"/>
             <text_small text="0.4-2mm direct drive, 4-6mm bowden" translation_tag="0.4-2mm direct drive, 4-6mm bowden"/>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="retract_length_label" bind_text="retract_length_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="retract_length_field"
+                               value_subject="retract_length_display" callback="on_retraction_field_clicked"
+                               user_data="0"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -80,8 +82,10 @@
             <text_body text="Retract Speed" translation_tag="Retract Speed"/>
             <text_small text="Speed of retraction movement" translation_tag="Speed of retraction movement"/>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="retract_speed_label" bind_text="retract_speed_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="retract_speed_field"
+                               value_subject="retract_speed_display" callback="on_retraction_field_clicked"
+                               user_data="1"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -112,8 +116,10 @@
             <text_body text="Unretract Extra" translation_tag="Unretract Extra"/>
             <text_small text="Extra prime to compensate ooze" translation_tag="Extra prime to compensate ooze"/>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="unretract_extra_label" bind_text="unretract_extra_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="unretract_extra_field"
+                               value_subject="unretract_extra_display" callback="on_retraction_field_clicked"
+                               user_data="2"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -144,8 +150,10 @@
             <text_body text="Unretract Speed" translation_tag="Unretract Speed"/>
             <text_small text="Speed of prime movement" translation_tag="Speed of prime movement"/>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="unretract_speed_label" bind_text="unretract_speed_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="unretract_speed_field"
+                               value_subject="unretract_speed_display" callback="on_retraction_field_clicked"
+                               user_data="3"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
