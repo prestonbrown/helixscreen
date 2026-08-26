@@ -48,6 +48,34 @@ struct SafetyLimits {
     double min_relative_distance_mm = -1000.0;
     double max_absolute_position_mm = 1000.0;
     double min_absolute_position_mm = 0.0;
+
+    /**
+     * @brief Clamp the temperature FLOORS at 0°C.
+     *
+     * Klipper's `min_temp` is a sensor sanity floor, not a target floor. A
+     * printer with an unmounted or open thermistor - a toolchanger with no
+     * tools fitted, say - is legitimately configured `min_temp: -100` so
+     * Klipper tolerates the open reads, and Klipper is perfectly happy with
+     * that. Nothing downstream of SafetyLimits carries that meaning:
+     * min_temperature_celsius is the lower bound on a *sendable target*
+     * (is_safe_temperature) and min_extrude_temp_celsius is rendered straight
+     * into "Heat to at least %d°C for filament operations". Below zero both
+     * are nonsense - a negative target is unreachable and the instruction
+     * cannot be followed.
+     *
+     * So the adopted value is clamped here, at the type, rather than at each
+     * of the several readers. Idempotent, so it is safe to call on every
+     * refresh. Only the floors move: the ceiling is a deliberately permissive
+     * sanity net (400°C) that widens to whatever the config asks for.
+     */
+    void clamp_temperature_floors() {
+        if (min_temperature_celsius < 0.0) {
+            min_temperature_celsius = 0.0;
+        }
+        if (min_extrude_temp_celsius < 0.0) {
+            min_extrude_temp_celsius = 0.0;
+        }
+    }
 };
 
 // ============================================================================
