@@ -1788,6 +1788,7 @@ translations:
     - select your main lighting source, or skip if your printer doesn't have one
   Options: Options
   Or Enter Manually: Or Enter Manually
+  Or instead of turning the others: Or instead of turning the others
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
   Out of range: Out of range
   Outcome: Outcome

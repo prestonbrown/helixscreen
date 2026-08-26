@@ -17,6 +17,7 @@
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "probe_preparation.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
 #include "static_panel_registry.h"
@@ -603,6 +604,9 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                 break;
             }
         }
+        // Prepare the probe after homing, immediately before the calibrate command.
+        const uint32_t prep_timeout_ms = helix::probe_prep::append_preparation(
+            gcode, helix::probe_prep::Operation::ZOffsetCalibrate, calibrate_cmd);
         gcode += calibrate_cmd;
 
         spdlog::info("[ZOffsetCal] Starting {} (strategy={})", calibrate_cmd,
@@ -629,7 +633,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                     });
                 }
             },
-            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS);
+            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
     }
 }
 

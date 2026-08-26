@@ -1676,6 +1676,7 @@ translations:
     - 选择主照明源，如打印机没有可跳过
   Options: 选项
   Or Enter Manually: 或手动输入
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
   Out of range: 超出范围
   Outcome: 结果

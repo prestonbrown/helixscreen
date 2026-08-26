@@ -1643,6 +1643,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" zh="可选 - 选择主照明源，如打印机没有可跳过"/>
   <translation tag="Options" zh="选项"/>
   <translation tag="Or Enter Manually" zh="或手动输入"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" zh="振荡中... 循环 %d/%d"/>
   <translation tag="Out of range" zh="超出范围"/>
   <translation tag="Outcome" zh="结果"/>
