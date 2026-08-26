@@ -16,6 +16,7 @@
 #include "i_moonraker_client.h"
 #include "moonraker_advanced_api.h"
 #include "printer_state.h"
+#include "probe_preparation.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
 #include "static_panel_registry.h"
@@ -603,6 +604,11 @@ void ProbeOverlay::handle_probe_accuracy() {
                      center_x, center_y, safe_z, bv.z_max);
     }
 
+    // Prepare the probe AFTER homing and pre-positioning: the tare must run with
+    // the toolhead clear of the bed, which is the order ZMOD itself uses.
+    const uint32_t prep_timeout_ms = helix::probe_prep::append_preparation(
+        gcode, helix::probe_prep::Operation::ProbeAccuracy, "PROBE_ACCURACY");
+
     gcode += fmt::format("PROBE_ACCURACY SAMPLES={}", PROBE_ACCURACY_SAMPLES);
 
     // Reset progress state
@@ -705,7 +711,7 @@ void ProbeOverlay::handle_probe_accuracy() {
             helix::ui::queue_update(
                 [msg]() { get_global_probe_overlay().set_accuracy_error(msg); });
         },
-        MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS);
+        MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
 }
 
 void ProbeOverlay::show_accuracy_results(const std::string& results_line) {

@@ -7,12 +7,16 @@
 #include "ui_notification.h"
 
 #include "accel_sensor_manager.h"
+#include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
+#include "printer_state.h"
+#include "probe_preparation.h"
 #include "screws_tilt_parser.h"
 #include "shaper_csv_parser.h"
 #include "spdlog/spdlog.h"
+#include "standard_macros.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -693,9 +697,15 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
  */
 class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollector> {
   public:
+    /// @param command The macro actually being run. The ScrewsTilt slot makes this
+    ///        configurable (BED_LEVEL_SCREWS_TUNE wraps SCREWS_TILT_CALCULATE), so
+    ///        every place that names the command must use the RESOLVED name -
+    ///        otherwise the unknown-command diagnostic and the error context both
+    ///        go stale and start naming a macro the user never ran.
     ScrewsTiltCollector(IMoonrakerClient& client, ScrewTiltCallback on_success,
-                        MoonrakerAdvancedAPI::ErrorCallback on_error)
-        : client_(client), on_success_(std::move(on_success)), on_error_(std::move(on_error)) {}
+                        MoonrakerAdvancedAPI::ErrorCallback on_error, std::string command)
+        : client_(client), on_success_(std::move(on_success)), on_error_(std::move(on_error)),
+          command_(std::move(command)) {}
 
     ~ScrewsTiltCollector() {
         // Ensure we always unregister callback
@@ -752,7 +762,7 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
             complete_success();
         } else {
             spdlog::warn("[ScrewsTiltCollector] Command finished but no screw data received");
-            complete_error("SCREWS_TILT_CALCULATE completed but no screw data received");
+            complete_error(command_ + " completed but no screw data received");
         }
     }
 
@@ -772,8 +782,8 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
 
         // Check for unknown command error (screws_tilt_adjust not configured)
         if (line.find("Unknown command") != std::string::npos &&
-            line.find("SCREWS_TILT_CALCULATE") != std::string::npos) {
-            complete_error("SCREWS_TILT_CALCULATE requires [screws_tilt_adjust] in printer.cfg");
+            line.find(command_) != std::string::npos) {
+            complete_error(command_ + " requires [screws_tilt_adjust] in printer.cfg");
             return;
         }
 
@@ -823,7 +833,7 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
         unregister();
 
         if (on_error_) {
-            MoonrakerError err = MoonrakerError::json_rpc_error("SCREWS_TILT_CALCULATE", message);
+            MoonrakerError err = MoonrakerError::json_rpc_error(command_, message);
             on_error_(err);
         }
     }
@@ -832,6 +842,7 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
     ScrewTiltCallback on_success_;
     MoonrakerAdvancedAPI::ErrorCallback on_error_;
     std::string handler_name_;
+    std::string command_;                 ///< Resolved macro name, NOT a literal
     std::atomic<bool> registered_{false}; // Thread-safe: accessed from callback and destructor
     std::atomic<bool> completed_{false};  // Thread-safe: prevents double-callback invocation
     std::vector<ScrewTiltResult> results_;
@@ -1759,6 +1770,21 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
     helix::ProbePointCounter point_counter_;
 };
 
+namespace {
+
+/// Build "<preparation>\n<command>" for a probing operation, reporting the extra
+/// time budget the preparation costs. One script on purpose: a failed
+/// preparation aborts before the probe runs.
+std::string with_probe_preparation(const char* command, helix::probe_prep::Operation op,
+                                   uint32_t& extra_timeout_ms) {
+    std::string script;
+    extra_timeout_ms = helix::probe_prep::append_preparation(script, op, command);
+    script += command;
+    return script;
+}
+
+} // namespace
+
 void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_progress,
                                                     SuccessCallback on_complete,
                                                     ErrorCallback on_error, int expected_probes,
@@ -1776,8 +1802,12 @@ void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_p
 
     // Execute the calibration command
     // Note: No PROFILE= parameter - user will name the mesh after completion
+    uint32_t prep_timeout_ms = 0;
+    const std::string script = with_probe_preparation(
+        "BED_MESH_CALIBRATE", helix::probe_prep::Operation::BedMesh, prep_timeout_ms);
+
     api_.execute_gcode(
-        "BED_MESH_CALIBRATE",
+        script,
         [collector]() {
             // JSON-RPC returned — command finished on Klipper side.
             // Some firmware variants don't emit "Mesh Bed Leveling Complete"
@@ -1797,23 +1827,33 @@ void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(BedMeshProgressCallback on_p
                 on_error(err);
             }
         },
-        CALIBRATION_TIMEOUT_MS);
+        CALIBRATION_TIMEOUT_MS + prep_timeout_ms);
 }
 
 void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
                                                  ErrorCallback on_error) {
-    spdlog::info("[Moonraker API] Starting SCREWS_TILT_CALCULATE");
+    // Resolved, not hardcoded: the ScrewsTilt slot lets the user pick
+    // BED_LEVEL_SCREWS_TUNE. Moving the literal into a helper argument would still
+    // make the slot a silent no-op. Falls back to the stock command when the slot
+    // is empty, which is every printer that predates this setting.
+    const StandardMacroInfo& slot = StandardMacros::instance().get(StandardMacroSlot::ScrewsTilt);
+    const std::string command = slot.is_empty() ? "SCREWS_TILT_CALCULATE" : slot.get_macro();
+    spdlog::info("[Moonraker API] Starting {}", command);
 
     // Create a collector to handle async response parsing
     // The collector will self-destruct when complete via shared_ptr ref counting
-    auto collector = std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error);
+    auto collector = std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error, command);
     collector->start();
 
     // Send the G-code command
     // printer.gcode.script blocks until the command finishes, so the success callback
     // fires after all probing is done and all notify_gcode_response lines have been sent.
+    uint32_t prep_timeout_ms = 0;
+    const std::string script = with_probe_preparation(
+        command.c_str(), helix::probe_prep::Operation::ScrewsTilt, prep_timeout_ms);
+
     api_.execute_gcode(
-        "SCREWS_TILT_CALCULATE",
+        script,
         [collector]() {
             // JSON-RPC returned — command fully executed, all results should be collected
             spdlog::debug("[Moonraker API] SCREWS_TILT_CALCULATE command finished");
@@ -1833,7 +1873,7 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
                 on_error(err);
             }
         },
-        CALIBRATION_TIMEOUT_MS);
+        CALIBRATION_TIMEOUT_MS + prep_timeout_ms);
 }
 
 void MoonrakerAdvancedAPI::run_qgl(SuccessCallback /*on_success*/, ErrorCallback on_error) {

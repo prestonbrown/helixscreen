@@ -52,6 +52,13 @@ const std::vector<SlotPatterns> DETECTION_PATTERNS = {
     {StandardMacroSlot::Cancel,         {"CANCEL_PRINT"}},
     {StandardMacroSlot::BedMesh,        {"BED_MESH_CALIBRATE", "G29"}},
     {StandardMacroSlot::BedLevel,       {"QUAD_GANTRY_LEVEL", "QGL", "Z_TILT_ADJUST"}},
+    // The bare command ranks FIRST on purpose. ZMOD's BED_LEVEL_SCREWS_TUNE does
+    // more (homes, heats 130/80, waits, tares, then calls SCREWS_TILT_CALCULATE),
+    // but auto-selecting it would silently turn a ~90s operation into a
+    // multi-minute heat cycle for every existing ZMOD user. Probe preparation
+    // supplies the tare already (see include/probe_preparation.h), so the wrapper
+    // is an opt-in the user picks in Settings rather than a detection default.
+    {StandardMacroSlot::ScrewsTilt,     {"SCREWS_TILT_CALCULATE", "BED_LEVEL_SCREWS_TUNE"}},
     {StandardMacroSlot::CleanNozzle,    {"CLEAN_NOZZLE", "NOZZLE_WIPE", "WIPE_NOZZLE", "CLEAR_NOZZLE"}},
     {StandardMacroSlot::HeatSoak,       {"HEAT_SOAK", "CHAMBER_SOAK", "SOAK"}},
 };
@@ -73,6 +80,7 @@ const std::map<StandardMacroSlot, std::string> FALLBACK_MACROS = {
     {StandardMacroSlot::Cancel,         ""},
     {StandardMacroSlot::BedMesh,        "HELIX_BED_MESH_IF_NEEDED"},
     {StandardMacroSlot::BedLevel,       ""},
+    {StandardMacroSlot::ScrewsTilt,     ""},
     {StandardMacroSlot::CleanNozzle,    "HELIX_CLEAN_NOZZLE"},
     {StandardMacroSlot::HeatSoak,       ""},
 };
@@ -96,6 +104,7 @@ const std::map<StandardMacroSlot, SlotMeta> SLOT_METADATA = {
     {StandardMacroSlot::Cancel,         {"cancel",          "Cancel Print"}},
     {StandardMacroSlot::BedMesh,        {"bed_mesh",        "Bed Mesh"}},
     {StandardMacroSlot::BedLevel,       {"bed_level",       "Bed Level"}},
+    {StandardMacroSlot::ScrewsTilt,     {"screws_tilt",     "Bed Screw Adjustment"}},
     {StandardMacroSlot::CleanNozzle,    {"clean_nozzle",    "Clean Nozzle"}},
     {StandardMacroSlot::HeatSoak,       {"heat_soak",       "Heat Soak"}},
 };
