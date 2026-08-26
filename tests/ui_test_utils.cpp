@@ -786,24 +786,20 @@ char** app_get_stored_argv() {
     return nullptr;
 }
 
-// Stub for get_helix_cache_dir (tests use temp directory)
-// Respects HELIX_CACHE_DIR env var for testing the override, falls back to /tmp
+// get_helix_cache_dir() is NOT stubbed any more.
+//
+// It used to be a hand-written two-rung reimplementation here, which meant
+// tests/unit/test_cache_dir.cpp asserted against this copy rather than the
+// shipped cascade — rungs 2-7 were never exercised, and the "/tmp/helix_test_"
+// fallback it returned is a shape production never produces. The real resolver
+// now lives in src/system/helix_cache_dir.cpp, outside the app_globals.o that
+// mk/tests.mk excludes, so the test binary links it directly.
+//
+// Isolation comes from HELIX_CACHE_DIR instead — rung 1 of the real cascade,
+// pinned to a per-run temp dir by helix_test_cache_sandbox() below. Faking the
+// function was never what kept tests off the developer's ~/.cache/helix; the
+// override is, and production already provides it.
 #include "app_globals.h"
-std::string get_helix_cache_dir(const std::string& subdir) {
-    const char* helix_cache = std::getenv("HELIX_CACHE_DIR");
-    if (helix_cache && helix_cache[0] != '\0') {
-        std::string path = std::string(helix_cache) + "/" + subdir;
-        std::error_code ec;
-        std::filesystem::create_directories(path, ec);
-        if (!ec && std::filesystem::exists(path)) {
-            return path;
-        }
-        // Fall through if HELIX_CACHE_DIR path is invalid
-    }
-    std::string path = "/tmp/helix_test_" + subdir;
-    std::filesystem::create_directories(path);
-    return path;
-}
 
 // Stub for app_get_install_root (tests don't have a resolvable install layout)
 // Returns empty string — matches the production fallback when the exe is not
@@ -812,7 +808,7 @@ std::string app_get_install_root() {
     return "";
 }
 
-// Stub for app_get_cache_dir (tests use temp directory via get_helix_cache_dir stub)
+// Stub for app_get_cache_dir (production reads the cascade; tests do not need a root)
 // Returns empty string — matches the production fallback when cache resolution fails.
 std::string app_get_cache_dir() {
     return "";

@@ -445,6 +445,42 @@ kill_process_by_name() {
 #        HELIX_STATE_VAR_LIB (default /var/lib/helixscreen),
 #        HELIX_STATE_ROOT_HOME (default /root/.helixscreen)
 # Writes: (none)
+# Retire the pre-settings.json rolling backup.
+#
+# Each backup tier (/var/lib/helixscreen via systemd StateDirectory, and
+# $HOME/.helixscreen where there is none) holds three files. Two are current --
+# settings.json.backup and helixscreen.env.backup -- and helixconfig.json.backup
+# is the superseded one, kept only as the lowest-priority entry in Config::init's
+# restore chain (legacy_config_backup_primary/fallback, include/app_constants.h).
+#
+# ONLY removed when settings.json.backup exists beside it. That is what makes the
+# migration provably complete: the current backup is present, so the legacy file
+# can no longer be the only thing standing between a user and their settings. On
+# a machine old enough to have just the legacy file, it is left alone and the
+# restore chain still finds it.
+#
+# Uninstall already takes these with the whole state dir (clean_helix_state_dirs
+# below); this is the install/update path, where nothing swept them and the file
+# sat on the smallest partition on the box indefinitely.
+#
+# Reads: KLIPPER_HOME, SUDO, HELIX_STATE_VAR_LIB, HELIX_STATE_ROOT_HOME
+retire_legacy_config_backups() {
+    local state_var_lib="${HELIX_STATE_VAR_LIB:-/var/lib/helixscreen}"
+    local state_root_home="${HELIX_STATE_ROOT_HOME:-/root/.helixscreen}"
+
+    local tier
+    for tier in "$state_var_lib" "$state_root_home" "${KLIPPER_HOME:+${KLIPPER_HOME}/.helixscreen}"; do
+        [ -n "$tier" ] || continue
+        [ -f "${tier}/helixconfig.json.backup" ] || continue
+        # The gate: no current backup means the legacy file is still load-bearing.
+        [ -f "${tier}/settings.json.backup" ] || continue
+
+        if $SUDO rm -f "${tier}/helixconfig.json.backup" 2>/dev/null; then
+            log_info "Removed superseded config backup: ${tier}/helixconfig.json.backup"
+        fi
+    done
+}
+
 clean_helix_state_dirs() {
     local install_parent
     # The two hardcoded paths are env-overrideable so the BATS suite can

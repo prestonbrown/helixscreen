@@ -495,6 +495,7 @@ main() {
     start_service "$platform"
     cleanup_old_install
     cleanup_stale_cache_dirs
+    retire_legacy_config_backups
 
     # Cleanup on success
     cleanup_on_success

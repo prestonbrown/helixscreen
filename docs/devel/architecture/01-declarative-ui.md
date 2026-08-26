@@ -56,12 +56,12 @@ Four mechanics carry the load: the file-to-widget pipeline (including live editi
 
 At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp)):
 
-1. Phase 7 — `register_widgets()` (`:1744`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
+1. Phase 7 — `register_widgets()` (`:1757`): registers the first 13 C++ widget types so the engine knows tags like `ui_card` and `ui_button`.
 2. Phase 8a — translations, before any UI exists.
 3. Phase 8b — rotation probe and layout-manager init, so per-display XML variant directories are known.
-4. Phase 8c — `register_xml_components()` (`:1777`): registers every XML component file.
+4. Phase 8c — `register_xml_components()` (`:1790`): registers every XML component file.
 5. Phase 9a — subject initialization, so every binding can resolve.
-6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`:1960`) instantiates the root layout.
+6. Finally `lv_xml_create(m_screen, "app_layout", nullptr)` (`:1973`) instantiates the root layout.
 
 `register_xml_components()` in [`src/xml_registration.cpp:300`](../../../src/xml_registration.cpp#L300) walks roughly 300 `register_xml("file.xml")` calls. Each resolves the path through `LayoutManager::resolve_xml_path()` ([`src/layout_manager.cpp:101`](../../../src/layout_manager.cpp#L101)) — which prefers a per-display variant subdirectory when one is active — prefixes an LVGL filesystem drive letter, and hands it to `lv_xml_register_component_from_file()`. The result is a table of component templates: named XML fragments like
 
@@ -196,7 +196,7 @@ Read in this order; about 25 minutes total.
 1. [`ui_xml/bed_temp_panel.xml:14`](../../../ui_xml/bed_temp_panel.xml#L14) — a whole panel in 124 lines. Notice `<consts>` for local tokens, the `<view extends="overlay_panel">` inheritance, `bind_text` on `text_small` (line 56), and the preset buttons at line 73 that the worked example above dissects.
 2. [`ui_xml/overlay_panel.xml:7`](../../../ui_xml/overlay_panel.xml#L7) — the wrapper component those panels extend: positioning, header, and the content slot convention.
 3. [`src/xml_registration.cpp:284`](../../../src/xml_registration.cpp#L284) — the `register_xml()` helper: path resolution, the LVGL drive-letter prefix, and the ESP boot-yield. Then skim `register_xml_components()` at [`src/xml_registration.cpp:300`](../../../src/xml_registration.cpp#L300) to feel the size of the sweep.
-4. [`src/application/application.cpp:1744`](../../../src/application/application.cpp#L1744) — `register_widgets()` (the first wave of C++ widget registrations), then `:1777` `register_xml_components()` and its hot-reloader wiring, and finally `:1960` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
+4. [`src/application/application.cpp:1757`](../../../src/application/application.cpp#L1757) — `register_widgets()` (the first wave of C++ widget registrations), then `:1790` `register_xml_components()` and its hot-reloader wiring, and finally `:1973` the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
 5. `lib/helix-xml/src/xml/lv_xml.c:438` — `lv_xml_create`: widget-processor table first, component scope second. Then `:514` — the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c:759` — `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c:281` — the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.

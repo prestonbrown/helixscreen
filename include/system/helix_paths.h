@@ -77,6 +77,31 @@ std::string first_writable_dir(const std::vector<std::string>& candidates,
 bool ensure_dir(const std::string& path);
 
 /**
+ * @brief Deepest ancestor of @p path that exists as a directory, or "".
+ *
+ * Walks up from @p path itself (a path that already exists answers with
+ * itself) to "/", stopping at the first component that is a directory.
+ */
+std::string deepest_existing_dir(const std::string& path);
+
+/**
+ * @brief Could ensure_dir(@p path) succeed, WITHOUT finding out by doing it?
+ *
+ * The cache resolvers used to answer "is this location usable?" by calling
+ * ensure_dir() and reading success as the verdict. That makes the question
+ * mutating: asking where something would live creates it there, so a caller
+ * that only wanted the path — a stale-vs-live classifier, a diagnostic, a
+ * predicate over a directory it is not about to write to — left a directory
+ * tree behind as the price of asking.
+ *
+ * Answers the same question by walking to the deepest existing ancestor and
+ * testing is_writable_dir() on it. Callers that then intend to write should
+ * still check ensure_dir()'s result: this predicate cannot see a race, a
+ * quota, or ENOSPC, and is a filter for candidates, not a guarantee.
+ */
+bool can_create_dir(const std::string& path);
+
+/**
  * @brief Sanitized $HOME, or "" when unusable.
  *
  * Converges on app_constants.h sanitize_home: returns $HOME only when it is

@@ -108,6 +108,31 @@ bool ensure_dir(const std::string& path) {
     }
 }
 
+std::string deepest_existing_dir(const std::string& path) {
+    if (path.empty())
+        return "";
+    try {
+        std::error_code ec;
+        std::filesystem::path p(path);
+        while (!p.empty()) {
+            if (std::filesystem::is_directory(p, ec))
+                return p.string();
+            std::filesystem::path parent = p.parent_path();
+            if (parent == p)
+                break;
+            p = parent;
+        }
+    } catch (...) {
+        return "";
+    }
+    return "";
+}
+
+bool can_create_dir(const std::string& path) {
+    const std::string anchor = deepest_existing_dir(path);
+    return !anchor.empty() && is_writable_dir(anchor);
+}
+
 std::string home() {
     const char* h = std::getenv("HOME");
     if (!h || h[0] == '\0') {

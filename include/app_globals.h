@@ -372,13 +372,51 @@ std::function<void()> get_wizard_cancel_callback();
  * 6. /var/tmp/helix_<subdir>
  * 7. /tmp/helix_<subdir> (last resort, with warning)
  *
- * Creates directory if needed. On embedded systems, prefers persistent
- * storage over RAM-backed tmpfs.
+ * Creates the winning directory, and only that one: each candidate is first
+ * tested for viability without touching the filesystem (see
+ * peek_helix_cache_dir), so a candidate that cannot be used is skipped rather
+ * than created-then-discarded. On embedded systems, prefers persistent storage
+ * over RAM-backed tmpfs.
  *
  * @param subdir Subdirectory name (e.g., "gcode_temp", "thumbs")
  * @return Full path to cache directory, or empty string on failure
  */
 std::string get_helix_cache_dir(const std::string& subdir);
+
+/**
+ * @brief Where get_helix_cache_dir() WOULD put @p subdir, creating nothing.
+ *
+ * Same cascade, same order, same result — but it only asks whether each
+ * candidate could be used, never makes one usable. Use this for any query that
+ * is not about to write to the cache: deciding whether a directory found on
+ * disk is the live cache or a stale leftover, reporting the resolved path in a
+ * diagnostic, or comparing against a path from a previous release.
+ *
+ * Calling get_helix_cache_dir() for those answers materializes the directory as
+ * a side effect of the question, which on a device whose real cache sits at a
+ * lower tier silently splits the cache across two locations.
+ *
+ * @param subdir Subdirectory name (e.g., "gcode_temp", "thumbs")
+ * @return Full path the cascade resolves to, or empty string if no candidate
+ *         is usable. A non-empty result may not exist yet.
+ */
+std::string peek_helix_cache_dir(const std::string& subdir);
+
+/**
+ * @brief Remove cache directories an older layout left on the wrong filesystem.
+ *
+ * Only runs when a compile-time platform rung wins the cascade — the embedded
+ * devices where the lower rungs are genuinely dead. On the K1 the cache moved
+ * to /usr/data, so a leftover /root/.cache/helix is sitting on the ~97MB root
+ * overlay competing with the firmware for the smallest partition on the box.
+ *
+ * A no-op on desktop, where the XDG/HOME rung IS the live cache. Call once at
+ * startup, and before anything reaches get_thumbnail_cache(): that singleton
+ * latches its directory on first use.
+ *
+ * @return Number of stale directories reclaimed.
+ */
+int sweep_stale_helix_cache_dirs();
 
 /**
  * @brief Returns the installation root directory (containing bin/, ui_xml/, assets/).
