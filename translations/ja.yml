@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu件の変更'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
   (different grade): (グレード違い)
   (incompatible): (非対応)
   (multi-tool): (マルチツール)
@@ -789,6 +790,7 @@ translations:
   Enter New PIN: 新しい PIN を入力
   Enter PIN: PIN を入力
   Enter WiFi Password: WiFi パスワードを入力
+  Enter a name for this profile: "このプロファイルの名前を入力"
   'Enter a name for your custom theme:': 'カスタムテーマの名前を入力してください:'
   Enter a name to save this profile: このプロファイルを保存する名前を入力
   Enter network name: ネットワーク名を入力
@@ -2033,6 +2035,8 @@ translations:
   Rename failed at save step: 名前変更が保存ステップで失敗しました
   Render Now: 今すぐレンダリング
   Rendering timelapse...: タイムラプスをレンダリング中...
+  Replace: "置き換え"
+  Replace Profile?: "プロファイルを置き換えますか？"
   Replay Welcome Tour: ウェルカムツアーを再生
   'Replenishing filament...': ''
   Report saved to crash_report.txt: crash_report.txt にレポートを保存しました

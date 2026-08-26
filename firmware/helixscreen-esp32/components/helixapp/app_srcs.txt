@@ -231,6 +231,7 @@ src/temperature/thermal_rate_model.cpp
 src/ui/action_prompt_manager.cpp
 src/ui/ams_drawing_utils.cpp
 src/ui/backdrop_blur.cpp
+src/ui/bed_mesh_profile_name.cpp
 src/ui/console_filter_engine.cpp
 src/ui/fan_spin_animation.cpp
 src/ui/fault_modal_registry.cpp

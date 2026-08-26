@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）
   (incompatible): (不兼容)
   (multi-tool): (多工具)
@@ -783,6 +784,7 @@ translations:
   Enter New PIN: 输入新 PIN
   Enter PIN: 输入 PIN
   Enter WiFi Password: 输入 WiFi 密码
+  Enter a name for this profile: "输入此配置的名称"
   'Enter a name for your custom theme:': 输入自定义主题名称：
   Enter a name to save this profile: 输入名称以保存此配置
   Enter network name: 输入网络名称
@@ -2024,6 +2026,8 @@ translations:
   Rename failed at save step: 重命名在保存步骤失败
   Render Now: 立即渲染
   Rendering timelapse...: 正在渲染延时摄影...
+  Replace: "替换"
+  Replace Profile?: "替换配置？"
   Replay Welcome Tour: 重播欢迎漫游
   'Replenishing filament...': ''
   Report saved to crash_report.txt: 报告已保存到 crash_report.txt

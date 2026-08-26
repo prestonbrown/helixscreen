@@ -20,6 +20,7 @@
   <translation tag="%zu changes" de="%zu Änderungen"/>
   <translation tag="%zu events queued" de="%zu Ereignisse in Warteschlange"/>
   <translation tag="%zu plugins failed to load" de="%zu Plugins konnten nicht geladen werden"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" de="&apos;{}&apos; existiert bereits. Gespeichertes Netz ersetzen?"/>
   <translation tag="(different grade)" de="(andere Klasse)"/>
   <translation tag="(incompatible)" de="(inkompatibel)"/>
   <translation tag="(multi-tool)" de="(Multi-Werkzeug)"/>
@@ -774,6 +775,7 @@
   <translation tag="Enter New PIN" de="Neue PIN eingeben"/>
   <translation tag="Enter PIN" de="PIN eingeben"/>
   <translation tag="Enter WiFi Password" de="WiFi-Passwort eingeben"/>
+  <translation tag="Enter a name for this profile" de="Geben Sie einen Namen für dieses Profil ein"/>
   <translation tag="Enter a name for your custom theme:" de="Geben Sie einen Namen für Ihr benutzerdefiniertes Thema ein:"/>
   <translation tag="Enter a name to save this profile" de="Geben Sie einen Namen ein, um dieses Profil zu speichern"/>
   <translation tag="Enter network name" de="Netzwerknamen eingeben"/>
@@ -1981,6 +1983,8 @@
   <translation tag="Rename failed at save step" de="Umbenennung beim Speichern fehlgeschlagen"/>
   <translation tag="Render Now" de="Jetzt rendern"/>
   <translation tag="Rendering timelapse..." de="Zeitraffer wird gerendert..."/>
+  <translation tag="Replace" de="Ersetzen"/>
+  <translation tag="Replace Profile?" de="Profil ersetzen?"/>
   <translation tag="Replay Welcome Tour" de="Willkommens-Rundgang erneut abspielen"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" de="Bericht in crash_report.txt gespeichert"/>

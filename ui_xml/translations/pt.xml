@@ -20,6 +20,7 @@
   <translation tag="%zu changes" pt="%zu alterações"/>
   <translation tag="%zu events queued" pt="%zu eventos na fila"/>
   <translation tag="%zu plugins failed to load" pt="%zu plugins falharam ao carregar"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" pt="&apos;{}&apos; já existe. Substituir a malha salva?"/>
   <translation tag="(different grade)" pt="(grau diferente)"/>
   <translation tag="(incompatible)" pt="(incompatível)"/>
   <translation tag="(multi-tool)" pt="(multiferramenta)"/>
@@ -774,6 +775,7 @@
   <translation tag="Enter New PIN" pt="Digite o Novo PIN"/>
   <translation tag="Enter PIN" pt="Digite o PIN"/>
   <translation tag="Enter WiFi Password" pt="Digite a Senha WiFi"/>
+  <translation tag="Enter a name for this profile" pt="Digite um nome para este perfil"/>
   <translation tag="Enter a name for your custom theme:" pt="Digite um nome para seu tema personalizado:"/>
   <translation tag="Enter a name to save this profile" pt="Digite um nome para salvar este perfil"/>
   <translation tag="Enter network name" pt="Digite o nome da rede"/>
@@ -1981,6 +1983,8 @@
   <translation tag="Rename failed at save step" pt="Falha ao renomear na etapa de salvamento"/>
   <translation tag="Render Now" pt="Renderizar Agora"/>
   <translation tag="Rendering timelapse..." pt="Renderizando timelapse..."/>
+  <translation tag="Replace" pt="Substituir"/>
+  <translation tag="Replace Profile?" pt="Substituir Perfil?"/>
   <translation tag="Replay Welcome Tour" pt="Repetir Tour de Boas-Vindas"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" pt="Relatório salvo em crash_report.txt"/>

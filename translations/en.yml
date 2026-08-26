@@ -20,6 +20,7 @@ translations:
   '%zu changes': '%zu changes'
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
+  "'{}' already exists. Replace the stored mesh?": "'{}' already exists. Replace the stored mesh?"
   (different grade): (different grade)
   (incompatible): (incompatible)
   (multi-tool): (multi-tool)
@@ -839,6 +840,7 @@ translations:
   Enter New PIN: Enter New PIN
   Enter PIN: Enter PIN
   Enter WiFi Password: Enter WiFi Password
+  Enter a name for this profile: Enter a name for this profile
   'Enter a name for your custom theme:': 'Enter a name for your custom theme:'
   Enter a name to save this profile: Enter a name to save this profile
   Enter network name: Enter network name
@@ -2157,6 +2159,8 @@ translations:
   Rename failed at save step: Rename failed at save step
   Render Now: Render Now
   Rendering timelapse...: Rendering timelapse...
+  Replace: Replace
+  Replace Profile?: Replace Profile?
   Replay Welcome Tour: Replay Welcome Tour
   'Replenishing filament...': 'Replenishing filament...'
   Report saved to crash_report.txt: Report saved to crash_report.txt

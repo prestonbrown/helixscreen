@@ -21,6 +21,7 @@ translations:
   '%zu changes': '%zu alterações'
   '%zu events queued': '%zu eventos na fila'
   '%zu plugins failed to load': '%zu plugins falharam ao carregar'
+  "'{}' already exists. Replace the stored mesh?": "'{}' já existe. Substituir a malha salva?"
   (different grade): (grau diferente)
   (incompatible): (incompatível)
   (multi-tool): (multiferramenta)
@@ -869,6 +870,7 @@ translations:
   Enter New PIN: Digite o Novo PIN
   Enter PIN: Digite o PIN
   Enter WiFi Password: Digite a Senha WiFi
+  Enter a name for this profile: "Digite um nome para este perfil"
   'Enter a name for your custom theme:': 'Digite um nome para seu tema personalizado:'
   Enter a name to save this profile: Digite um nome para salvar este perfil
   Enter network name: Digite o nome da rede
@@ -2214,6 +2216,8 @@ translations:
   Rename failed at save step: Falha ao renomear na etapa de salvamento
   Render Now: Renderizar Agora
   Rendering timelapse...: Renderizando timelapse...
+  Replace: "Substituir"
+  Replace Profile?: "Substituir Perfil?"
   Replay Welcome Tour: Repetir Tour de Boas-Vindas
   'Replenishing filament...': ''
   Report saved to crash_report.txt: Relatório salvo em crash_report.txt

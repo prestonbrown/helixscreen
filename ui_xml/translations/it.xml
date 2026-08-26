@@ -20,6 +20,7 @@
   <translation tag="%zu changes" it="%zu modifiche"/>
   <translation tag="%zu events queued" it="%zu eventi in coda"/>
   <translation tag="%zu plugins failed to load" it="Caricamento di %zu plugin non riuscito"/>
+  <translation tag="&apos;{}&apos; already exists. Replace the stored mesh?" it="&apos;{}&apos; esiste già. Sostituire la mesh salvata?"/>
   <translation tag="(different grade)" it="(grado diverso)"/>
   <translation tag="(incompatible)" it="(incompatibile)"/>
   <translation tag="(multi-tool)" it="(multi-utensile)"/>
@@ -774,6 +775,7 @@
   <translation tag="Enter New PIN" it="Inserisci nuovo PIN"/>
   <translation tag="Enter PIN" it="Inserisci PIN"/>
   <translation tag="Enter WiFi Password" it="Inserisci password WiFi"/>
+  <translation tag="Enter a name for this profile" it="Inserisci un nome per questo profilo"/>
   <translation tag="Enter a name for your custom theme:" it="Inserisci un nome per il tuo tema personalizzato:"/>
   <translation tag="Enter a name to save this profile" it="Inserisci un nome per salvare questo profilo"/>
   <translation tag="Enter network name" it="Inserisci il nome della rete"/>
@@ -1981,6 +1983,8 @@
   <translation tag="Rename failed at save step" it="Rinomina fallita al salvataggio"/>
   <translation tag="Render Now" it="Renderizza ora"/>
   <translation tag="Rendering timelapse..." it="Rendering del timelapse..."/>
+  <translation tag="Replace" it="Sostituisci"/>
+  <translation tag="Replace Profile?" it="Sostituire profilo?"/>
   <translation tag="Replay Welcome Tour" it="Rivedi il tour di benvenuto"/>
   <translation tag="Replenishing filament..."/>
   <translation tag="Report saved to crash_report.txt" it="Report salvato in crash_report.txt"/>
