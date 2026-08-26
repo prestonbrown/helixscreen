@@ -6,7 +6,9 @@
 #include "ui_update_queue.h"
 
 #include "accel_sensor_manager.h"
+#if HELIX_HAS_IFS
 #include "ams_backend_ad5x_ifs.h"
+#endif
 #include "app_globals.h"
 #include "config.h"
 #include "helix_version.h"
@@ -1442,11 +1444,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // plus native ZMOD's own zmod_ifs/zmod_color objects where the firmware
     // publishes them. The backend owns which names those are; asking it keeps
     // the firmware's schema in the one module that parses it.
+#if HELIX_HAS_IFS
     if (hw.mmu_type() == AmsType::AD5X_IFS) {
         for (const auto& object : AmsBackendAd5xIfs::required_status_objects(hw)) {
             subscription_objects[object] = nullptr;
         }
     }
+#endif // HELIX_HAS_IFS
 
     // Firmware that keeps the authoritative z-offset outside gcode_move needs
     // whatever object stores it; without this the Z-offset row reads 0.000
