@@ -517,6 +517,7 @@
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5x.png",
       "preset": "ad5x",
+      "screws_tilt_direction": "ccw",
       "z_offset_calibration_strategy": "firmware_managed",
       "heuristics": [
         {
