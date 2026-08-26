@@ -837,6 +837,10 @@ void LedSettingsOverlay::discard_unsaved_macro_entry() {
 void LedSettingsOverlay::handle_add_macro_device() {
     spdlog::info("[{}] Adding new macro device", get_name());
 
+    // Drafts now survive in the controller's list, so a second + press while one
+    // is still blank would stack another "(unnamed)" card behind it.
+    discard_unsaved_macro_entry();
+
     auto& ctrl = helix::led::LedController::instance();
     auto updated = ctrl.configured_macros();
 

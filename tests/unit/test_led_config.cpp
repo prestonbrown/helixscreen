@@ -620,3 +620,46 @@ TEST_CASE_METHOD(LedConfigFixture,
 
     ctrl.deinit();
 }
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController config: draft macro is never persisted",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo named;
+    named.display_name = "Cabinet Light";
+    named.type = helix::led::MacroLedType::ON_OFF;
+    named.on_macro = "LED_ON";
+    named.off_macro = "LED_OFF";
+
+    // The blank row the + Add button appends. It has to live in memory so the
+    // editor can render it, but it must not reach settings.json -- an unnamed
+    // entry reloads as a permanently broken device the user cannot address.
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+
+    ctrl.set_configured_macros({named, draft});
+    REQUIRE(ctrl.configured_macros().size() == 2);
+
+    ctrl.save_config();
+
+    const auto* cfg = Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    const nlohmann::json* saved =
+        Config::get_instance()->try_get_json(Config::get_instance()->df() + "leds/macro_devices");
+    REQUIRE(saved != nullptr);
+    REQUIRE(saved->is_array());
+    REQUIRE(saved->size() == 1);
+    REQUIRE((*saved)[0].value("name", "") == "Cabinet Light");
+
+    // And the reload agrees: the draft is gone, the real device came back.
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    REQUIRE(ctrl.configured_macros()[0].display_name == "Cabinet Light");
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}

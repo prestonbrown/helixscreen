@@ -1910,6 +1910,11 @@ void LedController::save_config() {
     // Configured macros
     nlohmann::json macros_arr = nlohmann::json::array();
     for (const auto& m : configured_macros_) {
+        // Never persist an in-progress draft: on reload it would come back as a
+        // device with no name and no way to reach its editor.
+        if (m.display_name.empty()) {
+            continue;
+        }
         nlohmann::json obj;
         obj["name"] = m.display_name;
 
@@ -2163,9 +2168,10 @@ std::vector<LedStripInfo> LedController::all_selectable_strips() const {
         result.push_back(strip);
     }
 
-    // Configured macros (skip PRESET type - those aren't toggleable strips)
+    // Configured macros (skip PRESET type - those aren't toggleable strips,
+    // and unnamed drafts, which would render a blank chip that dispatches nothing)
     for (const auto& macro : configured_macros_) {
-        if (macro.type == MacroLedType::PRESET)
+        if (macro.type == MacroLedType::PRESET || macro.display_name.empty())
             continue;
         LedStripInfo info;
         info.name = macro.display_name;
@@ -2199,9 +2205,10 @@ std::string LedController::first_available_strip() const {
         return wled_.strips()[0].id;
     }
 
-    // Fall back to first non-PRESET macro
+    // Fall back to first non-PRESET macro (an unnamed draft would yield a bare
+    // "macro:" ID that backend_for_strip resolves to nothing)
     for (const auto& macro : configured_macros_) {
-        if (macro.type != MacroLedType::PRESET) {
+        if (macro.type != MacroLedType::PRESET && !macro.display_name.empty()) {
             return MACRO_STRIP_PREFIX + macro.display_name;
         }
     }
@@ -2447,15 +2454,12 @@ void LedController::set_color_presets(const std::vector<uint32_t>& presets) {
 }
 
 void LedController::set_configured_macros(const std::vector<LedMacroInfo>& macros) {
-    configured_macros_.clear();
-    configured_macros_.reserve(macros.size());
-    for (const auto& m : macros) {
-        if (!m.display_name.empty()) {
-            configured_macros_.push_back(m);
-        } else {
-            spdlog::warn("[LedController] Skipping macro with empty display name");
-        }
-    }
+    // Unnamed entries are kept. The settings editor appends a blank device so
+    // the user has a row to fill in, and it indexes back into this list by
+    // position, so compacting here silently discarded every "+ Add" press.
+    // Everything downstream that cannot address an unnamed device -- the gcode
+    // backend, the strip list, the persisted config -- filters it out instead.
+    configured_macros_ = macros;
     // Keep MacroBackend in lockstep so no caller can leave the two out of sync.
     rebuild_macro_backend();
 }
@@ -2463,6 +2467,12 @@ void LedController::set_configured_macros(const std::vector<LedMacroInfo>& macro
 void LedController::rebuild_macro_backend() {
     macro_.clear();
     for (const auto& m : configured_macros_) {
+        // MacroBackend keys on display_name, so an unnamed draft has no
+        // reachable identity. Skip it quietly -- it is an expected state while
+        // the user is still typing, not a fault worth logging on every keystroke.
+        if (m.display_name.empty()) {
+            continue;
+        }
         macro_.add_macro(m);
     }
 }
