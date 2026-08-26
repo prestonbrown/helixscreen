@@ -480,6 +480,24 @@ GCodeStreamingController::get_layer_segments(size_t layer_index) {
 }
 
 std::shared_ptr<const std::vector<ToolpathSegment>>
+GCodeStreamingController::load_layer_segments_no_prefetch(size_t layer_index) {
+    if (!is_open() || layer_index >= index_.get_layer_count()) {
+        return nullptr;
+    }
+
+    // Identical to get_layer_segments() but without the trailing
+    // schedule_prefetch(): a strided caller never reads the neighbours.
+    auto result = cache_.get_or_load(layer_index, make_loader());
+
+    if (result.load_failed) {
+        spdlog::warn("[StreamingController] Failed to load layer {}", layer_index);
+        return nullptr;
+    }
+
+    return result.segments;
+}
+
+std::shared_ptr<const std::vector<ToolpathSegment>>
 GCodeStreamingController::try_get_layer_segments(size_t layer_index) {
     if (!is_open() || layer_index >= index_.get_layer_count()) {
         return nullptr;

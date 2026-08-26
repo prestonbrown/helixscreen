@@ -46,6 +46,25 @@ std::string FilamentMapper::format_slot_label(const AvailableSlot& slot) {
     return buf;
 }
 
+int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
+                                               const std::vector<AvailableSlot>& slots) {
+    // "Auto" is a deliberate absence of a mapping - the firmware picks at print
+    // time - so there is no lane to name yet.
+    if (mapping.is_auto || mapping.mapped_slot < 0) {
+        return -1;
+    }
+
+    for (const auto& s : slots) {
+        if (s.slot_index == mapping.mapped_slot && s.backend_index == mapping.mapped_backend) {
+            return s.local_slot_index + 1;
+        }
+    }
+
+    // A mapping that outlived its lane (unit unplugged between the mapping and
+    // the render). Better to show no number than a stale one.
+    return -1;
+}
+
 int FilamentMapper::color_distance(uint32_t a, uint32_t b) {
     int r1 = (a >> 16) & 0xFF;
     int g1 = (a >> 8) & 0xFF;
