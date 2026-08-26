@@ -1643,6 +1643,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" ru="Необязательно — выберите основной источник освещения или пропустите, если его нет"/>
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Out of range" ru="Вне диапазона"/>
   <translation tag="Outcome" ru="Результат"/>

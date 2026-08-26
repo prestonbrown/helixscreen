@@ -575,3 +575,145 @@ TEST_CASE("MockScrewsTiltState judges its simulated bed on the spread",
         REQUIRE(bed.get_probe_count() == 0);
     }
 }
+
+// ============================================================================
+// Reference screw: settled-vs-turnable
+// ============================================================================
+
+/**
+ * The reference screw carries no adjustment, so the user must never be told to
+ * turn it. `in_spec` alone cannot answer that: evaluate_screw_level() measures
+ * every screw against the MIDPOINT of the spread, not against zero, so the base
+ * lands out of spec whenever the tilt runs mostly one way.
+ *
+ * Verbatim from the AD5X rig (ZMOD 1.7.2) at 01:45:59. In minutes the screws are
+ * 0 / 84 / 229 / 174, so highest=229 lowest=0 and the base scores
+ * |2*0 - 229| = 229 against a single-digit-minute tolerance. It ties the WORST
+ * screw. A level bed cannot reproduce this - every screw is in spec then.
+ */
+TEST_CASE("Reference screw is settled even when it scores out of spec",
+          "[calibration][screws_tilt]") {
+    const std::vector<ScrewTiltResult> screws = parse_lines({
+        "// Left Near (base) : x=12.5, y=12.5, z=-3.89750",
+        "// Right Near : x=202.0, y=12.5, z=-4.59750 : adjust CW 01:24",
+        "// Right Far : x=202.0, y=202.0, z=-5.81000 : adjust CW 03:49",
+        "// Left Far : x=12.5, y=202.0, z=-5.34750 : adjust CW 02:54",
+    });
+    REQUIRE(screws.size() == 4);
+    REQUIRE(screws[0].is_reference);
+
+    const ScrewLevelReport report = evaluate_screw_level(screws);
+    REQUIRE(report.verdict == ScrewLevelVerdict::NEEDS_ADJUSTMENT);
+
+    SECTION("the precondition this bug needs: the base really is out of spec") {
+        REQUIRE_FALSE(report.in_spec[0]);
+    }
+
+    SECTION("the base is still settled - never draw it as turnable") {
+        REQUIRE(screw_is_settled(screws[0], report.in_spec[0]));
+    }
+
+    SECTION("a non-reference screw needing a turn is NOT settled") {
+        REQUIRE_FALSE(report.in_spec[2]);
+        REQUIRE_FALSE(screw_is_settled(screws[2], report.in_spec[2]));
+    }
+}
+
+TEST_CASE("A non-reference screw inside the window is settled", "[calibration][screws_tilt]") {
+    const std::vector<ScrewTiltResult> screws = parse_lines({
+        "// Left Near (base) : x=12.5, y=12.5, z=-3.00000",
+        "// Right Near : x=202.0, y=12.5, z=-3.00100 : adjust CW 00:01",
+        "// Right Far : x=202.0, y=202.0, z=-3.00100 : adjust CW 00:01",
+        "// Left Far : x=12.5, y=202.0, z=-3.00100 : adjust CW 00:01",
+    });
+    REQUIRE(screws.size() == 4);
+
+    const ScrewLevelReport report = evaluate_screw_level(screws);
+    REQUIRE(report.in_spec[1]);
+    REQUIRE_FALSE(screws[1].is_reference);
+    REQUIRE(screw_is_settled(screws[1], report.in_spec[1]));
+}
+
+// ============================================================================
+// Re-centring hint: move the datum instead of everything else
+// ============================================================================
+
+TEST_CASE("Re-centring declines when the other screws disagree among themselves",
+          "[calibration][screws_tilt]") {
+    // The real AD5X bed at 01:45:59 -> 0 / 84 / 229 / 174 minutes. Re-centring on
+    // the median gives -174/-90/+55/0, which still moves three screws. Suggesting
+    // it here would be noise, so the hint must NOT fire.
+    const std::vector<ScrewTiltResult> screws = parse_lines({
+        "// Left Near (base) : x=12.5, y=12.5, z=-3.89750",
+        "// Right Near : x=202.0, y=12.5, z=-4.59750 : adjust CW 01:24",
+        "// Right Far : x=202.0, y=202.0, z=-5.81000 : adjust CW 03:49",
+        "// Left Far : x=12.5, y=202.0, z=-5.34750 : adjust CW 02:54",
+    });
+    const ScrewLevelReport report = evaluate_screw_level(screws);
+    REQUIRE(report.verdict == ScrewLevelVerdict::NEEDS_ADJUSTMENT);
+
+    REQUIRE_FALSE(suggest_screw_recentering(screws, report).available);
+}
+
+TEST_CASE("Re-centring fires when the datum is the lone outlier", "[calibration][screws_tilt]") {
+    // All three others need the same 2.5 turns, so one turn of the base does the
+    // same job as three turns of everything else.
+    const std::vector<ScrewTiltResult> screws = parse_lines({
+        "// Left Near (base) : x=12.5, y=12.5, z=-3.00000",
+        "// Right Near : x=202.0, y=12.5, z=-4.25000 : adjust CW 02:30",
+        "// Right Far : x=202.0, y=202.0, z=-4.25000 : adjust CW 02:30",
+        "// Left Far : x=12.5, y=202.0, z=-4.25000 : adjust CW 02:30",
+    });
+    const ScrewLevelReport report = evaluate_screw_level(screws);
+    REQUIRE(report.verdict == ScrewLevelVerdict::NEEDS_ADJUSTMENT);
+
+    const ScrewRecenterHint hint = suggest_screw_recentering(screws, report);
+    REQUIRE(hint.available);
+    REQUIRE(hint.screw_index == 0);
+    REQUIRE(screws[hint.screw_index].is_reference);
+    REQUIRE(hint.replaces == 3);
+
+    SECTION("the datum moves the OPPOSITE way from the others") {
+        REQUIRE(hint.signed_minutes == -150);
+    }
+}
+
+TEST_CASE("Re-centring inverts correctly for CCW tilt", "[calibration][screws_tilt]") {
+    const std::vector<ScrewTiltResult> screws = parse_lines({
+        "// Left Near (base) : x=12.5, y=12.5, z=-3.00000",
+        "// Right Near : x=202.0, y=12.5, z=-1.75000 : adjust CCW 02:30",
+        "// Right Far : x=202.0, y=202.0, z=-1.75000 : adjust CCW 02:30",
+        "// Left Far : x=12.5, y=202.0, z=-1.75000 : adjust CCW 02:30",
+    });
+    const ScrewLevelReport report = evaluate_screw_level(screws);
+    const ScrewRecenterHint hint = suggest_screw_recentering(screws, report);
+    REQUIRE(hint.available);
+    REQUIRE(hint.signed_minutes == 150);
+}
+
+TEST_CASE("Re-centring stays quiet when it would not save real work",
+          "[calibration][screws_tilt]") {
+    SECTION("common offset under one full turn is not worth interrupting for") {
+        const std::vector<ScrewTiltResult> screws = parse_lines({
+            "// Left Near (base) : x=12.5, y=12.5, z=-3.00000",
+            "// Right Near : x=202.0, y=12.5, z=-3.25000 : adjust CW 00:50",
+            "// Right Far : x=202.0, y=202.0, z=-3.25000 : adjust CW 00:50",
+            "// Left Far : x=12.5, y=202.0, z=-3.25000 : adjust CW 00:50",
+        });
+        const ScrewLevelReport report = evaluate_screw_level(screws);
+        REQUIRE(report.verdict == ScrewLevelVerdict::NEEDS_ADJUSTMENT);
+        REQUIRE_FALSE(suggest_screw_recentering(screws, report).available);
+    }
+
+    SECTION("a level bed gets no hint at all") {
+        const std::vector<ScrewTiltResult> screws = parse_lines({
+            "// Left Near (base) : x=12.5, y=12.5, z=-3.00000",
+            "// Right Near : x=202.0, y=12.5, z=-3.00100 : adjust CW 00:01",
+            "// Right Far : x=202.0, y=202.0, z=-3.00100 : adjust CW 00:01",
+            "// Left Far : x=12.5, y=202.0, z=-3.00100 : adjust CW 00:01",
+        });
+        const ScrewLevelReport report = evaluate_screw_level(screws);
+        REQUIRE(report.verdict == ScrewLevelVerdict::LEVEL);
+        REQUIRE_FALSE(suggest_screw_recentering(screws, report).available);
+    }
+}
