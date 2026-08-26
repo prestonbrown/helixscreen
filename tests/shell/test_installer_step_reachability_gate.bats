@@ -19,6 +19,7 @@
 GATE="scripts/check_installer_step_reachability.py"
 
 setup() {
+    load helpers
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 
     # A miniature installer: a lib/ of modules plus one entry point that
@@ -156,6 +157,7 @@ MAIN_EOF
 }
 
 @test "an unannotated orphan is still caught alongside an annotated one" {
+    require_gnu_sed
     # Mutation check on the annotation itself: dropping UNCALLED_OK must make
     # step_annotated fail, or the escape hatch is not doing the work.
     wire_everything

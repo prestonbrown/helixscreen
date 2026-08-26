@@ -10,9 +10,9 @@ collision-safe path lookup.
 
 The packing tests require the vendored jkent__frogfs component (fetched by
 ESP-IDF's component manager into a gitignored managed_components/ tree) and
-pyyaml. They skip on a dev box that has never run `idf.py reconfigure`, but
-they FAIL under CI ($CI set) -- see _skip_or_fail(). The djb2 hash test needs
-neither and runs everywhere.
+pyyaml. They skip on a dev box that has never run `idf.py reconfigure` and in
+any CI job without ESP-IDF, and they FAIL when $HELIX_FROGFS_REQUIRED is set --
+see _skip_or_fail(). The djb2 hash test needs neither and runs everywhere.
 """
 
 import os
@@ -38,21 +38,29 @@ except ImportError:
 
 
 def _skip_or_fail(reason: str) -> None:
-    """Gate the packer-dependent tests: a legitimate skip on a dev box, a hard
-    failure in CI.
+    """Gate the packer-dependent tests: a legitimate skip where the packer
+    cannot exist, a hard failure in the one job that owns this coverage.
 
     managed_components/ is gitignored (firmware/helixscreen-esp32/.gitignore)
     and holds zero tracked files -- it exists only after `idf.py reconfigure`.
-    The nightly test-python job does a plain checkout with no ESP-IDF setup, so
-    a plain skipif here reports green forever while every assertion below is
-    silently discarded. Make the gap loud in CI so it is a decision someone
-    takes, not a hole nobody can see."""
-    if os.environ.get("CI"):
+    A plain skipif reports green forever while every assertion below is silently
+    discarded, so the skip has to be impossible somewhere.
+
+    That somewhere is esp32-build.yml: its build already runs `idf.py
+    reconfigure` to vendor the component before packing the storage image, so
+    the packer is present and the round-trip is genuinely verifiable there. That
+    job runs this module with HELIX_FROGFS_REQUIRED=1, which turns every gate
+    below into a failure. Keying on $CI instead made the nightly test-python job
+    -- a plain checkout with no ESP-IDF, where the dependency cannot be fetched
+    -- fail on a gap it has no way to close. test_esp32_pack_assets_ci.bats pins
+    the esp32-build wiring so the skip cannot quietly become universal again."""
+    if os.environ.get("HELIX_FROGFS_REQUIRED"):
         pytest.fail(
             f"{reason}\n"
-            "In CI this is not a skip: the packer round-trip is unverifiable "
-            "here, so this module tests nothing. Either provide the dependency "
-            "or delete the module -- do not let it report green."
+            "HELIX_FROGFS_REQUIRED is set, so this is not a skip: the packer "
+            "round-trip is this job's whole reason for running the module. Run "
+            "`idf.py reconfigure` in firmware/helixscreen-esp32 first, or fix "
+            "the workflow step that was supposed to -- do not let it report green."
         )
     pytest.skip(reason)
 

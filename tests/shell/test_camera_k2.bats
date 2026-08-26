@@ -873,6 +873,7 @@ EOF
 }
 
 @test "restore: also strips lines left by the older accesslog-only installer" {
+    require_gnu_sed
     local path="$BATS_TEST_TMPDIR/etc/nginx/nginx.conf"
     mkdir -p "$(dirname "$path")"
     cat > "$path" <<'EOF'
@@ -938,6 +939,7 @@ EOF
 }
 
 @test "restore: removes exactly our line, block otherwise byte-identical" {
+    require_gnu_sed
     make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
     local before; before="$(cat "$conf")"
     stub_nginx ok
@@ -1015,6 +1017,7 @@ EOF
 }
 
 @test "uninstall_camera_k2: restores the webcam access log" {
+    require_gnu_sed
     make_fake_nginx_conf; local conf="$HELIX_NGINX_CONF"
     local before; before="$(cat "$conf")"
     stub_nginx ok

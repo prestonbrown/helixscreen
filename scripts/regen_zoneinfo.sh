@@ -34,7 +34,14 @@ if [ ! -f "$TABLE_SRC" ]; then
     exit 1
 fi
 
-mapfile -t ZONES < <(extract_zones)
+# Not `mapfile`: that is a bash 4 builtin and macOS ships bash 3.2 as
+# /bin/bash, where this script is run as `bash regen_zoneinfo.sh` by the
+# zoneinfo BATS gate. It exited 0 having read zero zones, so the gate failed
+# on an empty list rather than on the missing builtin.
+ZONES=()
+while IFS= read -r zone; do
+    [ -n "$zone" ] && ZONES+=("$zone")
+done < <(extract_zones)
 
 if [ "${#ZONES[@]}" -eq 0 ]; then
     echo "ERROR: parsed zero zones from TIMEZONE_ENTRIES in $TABLE_SRC" >&2
