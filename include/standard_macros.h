@@ -292,6 +292,29 @@ class StandardMacros {
     }
 
     /**
+     * @brief Did the user hand-assign a macro for this slot that the printer defines?
+     *
+     * The capability layer's question, answered here because this is the module
+     * that owns the user's assignment. Name-pattern detection is only one way a
+     * printer can have (say) a nozzle-clean macro; the other is the user pointing
+     * `/standard_macros/clean_nozzle` at whatever their macro is actually called.
+     * A capability resolved from detection alone reads false for those printers
+     * even though every button driven off the slot works (#1354).
+     *
+     * The printer's own macro list is re-checked here rather than trusting
+     * `configured_macro` to have been validated: init() demotes an unresolvable
+     * name into missing_macro, but set_macro() and load_from_config() both write
+     * configured_macro without consulting hardware, so the check must not depend
+     * on when it is asked relative to init().
+     *
+     * @param slot The slot to query
+     * @param hardware Discovery for the printer the answer is about
+     * @return true when the configured macro for @p slot exists on @p hardware
+     */
+    [[nodiscard]] bool has_configured_macro(StandardMacroSlot slot,
+                                            const helix::PrinterDiscovery& hardware) const;
+
+    /**
      * @brief Get slot enum from slot name
      * @param name Slot name (e.g., "load_filament")
      * @return Slot enum, or nullopt if not found

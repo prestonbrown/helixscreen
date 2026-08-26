@@ -1939,9 +1939,9 @@ nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDis
     macros["total_count"] = static_cast<int>(hw.macros().size());
     macros["has_helix_macros"] = !hw.helix_macros().empty();
     macros["has_print_start"] = hw.has_macro("PRINT_START");
-    macros["has_nozzle_clean"] = hw.has_macro("CLEAN_NOZZLE") || hw.has_macro("NOZZLE_CLEAN") ||
-                                 hw.has_macro("NOZZLE_WIPE") || hw.has_macro("WIPE_NOZZLE") ||
-                                 hw.has_macro("PURGE_NOZZLE");
+    // Third hand-rolled copy of the nozzle-clean name list, now folded into the
+    // one discovery already scanned for (include/macro_patterns.h).
+    macros["has_nozzle_clean"] = hw.has_nozzle_clean_macro();
     macros["has_heat_soak"] = hw.has_macro("HEAT_SOAK") || hw.has_macro("CHAMBER_SOAK") ||
                               hw.has_macro("SOAK") || hw.has_macro("BED_SOAK");
     macros["has_purge_line"] = hw.has_macro("PURGE_LINE") || hw.has_macro("PRIME_LINE") ||

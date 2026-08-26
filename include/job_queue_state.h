@@ -82,6 +82,12 @@ class JobQueueState {
     char state_buffer_[64];
     lv_subject_t job_queue_summary_subject_;
     char summary_buffer_[128];
+    // Queued-job count. The refresh channel for every queue surface: the home
+    // panel's job_queue widget, the print-status widget's queue row, and the
+    // job-queue modal each observe it and rebuild off a change. Nothing else
+    // rebuilds them, so a queue mutation that does not move this subject is
+    // invisible until the next resize.
+    lv_subject_t job_queue_count_subject_;
 
     // Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;

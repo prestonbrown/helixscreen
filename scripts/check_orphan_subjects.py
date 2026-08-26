@@ -71,8 +71,15 @@ IDENT_RE = re.compile(r'[a-z_][a-z_0-9]*')
 # Any site that observes or reads a subject value. lv_label_bind_text() and the
 # rest of LVGL's lv_*_bind_* family count: they attach an observer to the subject
 # just as observe_*() does, they just do it from C++ instead of from XML.
+# lv_xml_get_subject() counts too, and is the one form matched by NAME rather
+# than by member: a consumer that does not own the subject resolves it out of
+# the global scope by its literal string and then observes the pointer, so the
+# member spelling never appears at the read site. job_queue_count has four such
+# consumers (job_queue_widget, ui_job_queue_modal, print_status_widget x2) and
+# no member-spelled read anywhere.
 READ_SITE_RE = re.compile(
-    r'(?:observe_[a-z_]+|lv_subject_add_observer\w*|lv_subject_get_\w+|lv_\w+_bind_\w+)\s*[(<]')
+    r'(?:observe_[a-z_]+|lv_subject_add_observer\w*|lv_subject_get_\w+|lv_\w+_bind_\w+'
+    r'|lv_xml_get_subject)\s*[(<]')
 IDENT_TOKEN_RE = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
 ALLOW_RE = re.compile(r'//\s*SUBJECT_OK:')
 

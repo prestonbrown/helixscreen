@@ -184,3 +184,209 @@ TEST_CASE("redact::ssid changes token when the salt changes", "[redact][privacy]
     // the hash itself is deterministic.
     REQUIRE(ssid_with_salt("Pretzel Logic Cafe", 0x1111111111111111ULL) == a);
 }
+
+// =============================================================================
+// IP addresses (#1352)
+//
+// Fixtures for the routable side are drawn from the RFC5737 / RFC3849
+// documentation ranges, for the same reason the SSIDs above are invented: a
+// real routable address committed to a public repo is somebody's house.
+// =============================================================================
+
+using helix::redact::ip_scope;
+using helix::redact::ips_in_text;
+using helix::redact::IpScope;
+
+TEST_CASE("redact::ip_scope keeps private, loopback, link-local and CGNAT IPv4",
+          "[redact][privacy][1352]") {
+    const char* local[] = {
+        "192.168.1.100",   "192.168.0.1", "10.0.0.5",    "10.255.255.254",  "172.16.0.1",
+        "172.31.255.254",  "127.0.0.1",   "127.0.0.53",  "169.254.10.20",   "100.64.0.1",
+        "100.127.255.255", "0.0.0.0",     "224.0.0.251", "255.255.255.255",
+    };
+    for (const char* a : local) {
+        INFO(a);
+        REQUIRE(ip_scope(a) == IpScope::Local);
+    }
+}
+
+TEST_CASE("redact::ip_scope flags routable IPv4, including just outside each private block",
+          "[redact][privacy][1352]") {
+    const char* global[] = {
+        "203.0.113.5",  // TEST-NET-3
+        "198.51.100.7", // TEST-NET-2
+        "192.0.2.1",    // TEST-NET-1
+        "172.15.0.1",   // one below 172.16/12
+        "172.32.0.1",   // one above 172.16/12
+        "192.169.0.1",  // one above 192.168/16
+        "100.63.0.1",   // one below 100.64/10
+        "100.128.0.1",  // one above 100.64/10
+        "9.255.255.255", "11.0.0.1", "126.0.0.1", "128.0.0.1",
+    };
+    for (const char* a : global) {
+        INFO(a);
+        REQUIRE(ip_scope(a) == IpScope::Global);
+    }
+}
+
+TEST_CASE("redact::ip_scope keeps loopback, link-local, ULA and multicast IPv6",
+          "[redact][privacy][1352]") {
+    const char* local[] = {
+        "::1",
+        "::",
+        "fe80::1",
+        "fe80::dead:beef:1:2",
+        "FE80::1",
+        "febf::1", // top of fe80::/10
+        "fc00::1",
+        "fd12:3456:789a::1",
+        "fdff:ffff::1", // top of fc00::/7
+        "ff02::fb",     // mDNS
+        "::ffff:192.168.1.100",
+    };
+    for (const char* a : local) {
+        INFO(a);
+        REQUIRE(ip_scope(a) == IpScope::Local);
+    }
+}
+
+TEST_CASE("redact::ip_scope flags routable IPv6, including just outside each local block",
+          "[redact][privacy][1352]") {
+    const char* global[] = {
+        "2001:db8::1",                  // RFC3849 documentation prefix
+        "2001:db8:85a3::8a2e:370:7334", //
+        "2001:0db8:0000:0000:0000:0000:0000:0001",
+        "fbff::1",            // one below fc00::/7
+        "fe00::1",            // below fe80::/10
+        "fec0::1",            // deprecated site-local, above fe80::/10
+        "::ffff:203.0.113.5", // IPv4-mapped routable
+    };
+    for (const char* a : global) {
+        INFO(a);
+        REQUIRE(ip_scope(a) == IpScope::Global);
+    }
+}
+
+TEST_CASE("redact::ip_scope rejects things that merely look like addresses",
+          "[redact][privacy][1352]") {
+    const char* not_ip[] = {
+        "",
+        "hello world",
+        "1.2.3",             // three groups
+        "1.2.3.4.5",         // five groups
+        "256.1.1.1",         // octet out of range
+        "192.168.001.1",     // leading zeros
+        "0.99.115",          // a HelixScreen version
+        "2026.08.25.1",      // a date
+        "aa:bb:cc:dd:ee:ff", // a MAC, not a six-group IPv6
+        "12:34:56.789",      // a log timestamp
+        "1:2:3:4:5:6:7:8:9", // nine groups
+        "2001:db8::1::2",    // two "::"
+        "gggg::1",           // not hex
+    };
+    for (const char* a : not_ip) {
+        INFO(a);
+        REQUIRE(ip_scope(a) == IpScope::NotAnIp);
+    }
+}
+
+TEST_CASE("redact::ip leaves private addresses alone and tokenises routable ones",
+          "[redact][privacy][1352]") {
+    REQUIRE(helix::redact::ip("192.168.1.100") == "192.168.1.100");
+    REQUIRE(helix::redact::ip("fe80::1") == "fe80::1");
+    REQUIRE(helix::redact::ip("not an address") == "not an address");
+
+    const std::string v4 = helix::redact::ip("203.0.113.5");
+    INFO("v4=" << v4);
+    REQUIRE_FALSE(leaks(v4, "203.0.113.5"));
+    REQUIRE(v4.rfind("ip#", 0) == 0);
+
+    const std::string v6 = helix::redact::ip("2001:db8:85a3::8a2e:370:7334");
+    INFO("v6=" << v6);
+    REQUIRE_FALSE(leaks(v6, "2001:db8:85a3::8a2e:370:7334"));
+    REQUIRE_FALSE(leaks(v6, "8a2e:370:7334"));
+    REQUIRE(v6.rfind("ip#", 0) == 0);
+}
+
+TEST_CASE("redact::ips_in_text keeps every local address embedded in a line",
+          "[redact][privacy][1352]") {
+    const char* unchanged[] = {
+        "[WS] connecting to 192.168.1.50:7125",
+        "trusted_clients = 192.168.1.0/24, 10.0.0.0/8",
+        "bound 127.0.0.1:7125",
+        "iface wlan0 addr fe80::1%wlan0 scope link",
+        "ula fd12:3456:789a::1 up",
+        "avahi joined ff02::fb",
+        "no lease, fell back to 169.254.10.20",
+    };
+    for (const char* line : unchanged) {
+        INFO(line);
+        REQUIRE(ips_in_text(line) == line);
+    }
+}
+
+TEST_CASE("redact::ips_in_text does not mangle version strings or dotted-quad lookalikes",
+          "[redact][privacy][1352]") {
+    // The whole reason this is a scanner and not a "four numbers with dots"
+    // regex. A false positive here silently destroys a bundle's version data.
+    const char* unchanged[] = {
+        "HelixScreen 0.99.115 (LVGL 9.5.0)",
+        "klipper v0.12.0-266-g7ed3e3e5",
+        "firmware v1.2.3.4 loaded",
+        "sequence 1.2.3.4.5 rejected",
+        "snapshot 2026.08.25.1",
+        "moonraker 0.9.3 on port 7125",
+        "took 3.14159 seconds",
+        "[10:04:30.373] [debug] nothing sensitive here",
+    };
+    for (const char* line : unchanged) {
+        INFO(line);
+        REQUIRE(ips_in_text(line) == line);
+    }
+}
+
+TEST_CASE("redact::ips_in_text replaces routable addresses and keeps what surrounds them",
+          "[redact][privacy][1352]") {
+    const std::string v4 = ips_in_text("GET http://203.0.113.5:7125/printer/info failed");
+    INFO("v4=" << v4);
+    REQUIRE_FALSE(leaks(v4, "203.0.113.5"));
+    REQUIRE(v4.find("ip#") != std::string::npos);
+    REQUIRE(v4.find(":7125/printer/info failed") != std::string::npos);
+    REQUIRE(v4.find("GET http://") == 0);
+
+    // A sentence-final period is punctuation, not a fifth octet.
+    const std::string dot = ips_in_text("reached 198.51.100.7.");
+    INFO("dot=" << dot);
+    REQUIRE_FALSE(leaks(dot, "198.51.100.7"));
+    REQUIRE(dot.back() == '.');
+
+    const std::string v6 = ips_in_text("wlan0 inet6 2001:db8:85a3::8a2e:370:7334/64 scope global");
+    INFO("v6=" << v6);
+    REQUIRE_FALSE(leaks(v6, "2001:db8:85a3::8a2e:370:7334"));
+    REQUIRE(v6.find("ip#") != std::string::npos);
+    REQUIRE(v6.find("/64 scope global") != std::string::npos);
+
+    // A line carrying both: the private one survives, the routable one does not.
+    const std::string both = ips_in_text("lan 192.168.1.50 wan 203.0.113.5");
+    INFO("both=" << both);
+    REQUIRE(both.find("192.168.1.50") != std::string::npos);
+    REQUIRE_FALSE(leaks(both, "203.0.113.5"));
+}
+
+TEST_CASE("redact::ips_in_text tokens are stable within a line and distinguish hosts",
+          "[redact][1352]") {
+    const std::string same = ips_in_text("203.0.113.5 -> 203.0.113.5");
+    const size_t first = same.find("ip#");
+    REQUIRE(first != std::string::npos);
+    const std::string tok = same.substr(first, 9);
+    REQUIRE(same.find(tok, first + 1) != std::string::npos);
+
+    REQUIRE(helix::redact::ip("203.0.113.5") != helix::redact::ip("203.0.113.6"));
+
+    // Separate hash domain from mac(), so a bundle reader cannot notice that
+    // some address and some hardware address share bytes. Compare the digests,
+    // not the whole tokens -- the prefixes differ trivially.
+    const std::string as_ip = helix::redact::ip_with_salt("203.0.113.5", 99);
+    const std::string as_mac = helix::redact::mac_with_salt("203.0.113.5", 99);
+    REQUIRE(as_ip.substr(3) != as_mac.substr(4));
+}

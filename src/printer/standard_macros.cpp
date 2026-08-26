@@ -6,6 +6,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "macro_patterns.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
@@ -59,7 +60,8 @@ const std::vector<SlotPatterns> DETECTION_PATTERNS = {
     // supplies the tare already (see include/probe_preparation.h), so the wrapper
     // is an opt-in the user picks in Settings rather than a detection default.
     {StandardMacroSlot::ScrewsTilt,     {"SCREWS_TILT_CALCULATE", "BED_LEVEL_SCREWS_TUNE"}},
-    {StandardMacroSlot::CleanNozzle,    {"CLEAN_NOZZLE", "NOZZLE_WIPE", "WIPE_NOZZLE", "CLEAR_NOZZLE"}},
+    // Shared with PrinterDiscovery's nozzle_clean_macro_ scan — see include/macro_patterns.h.
+    {StandardMacroSlot::CleanNozzle,    helix::macro_patterns::clean_nozzle()},
     {StandardMacroSlot::HeatSoak,       {"HEAT_SOAK", "CHAMBER_SOAK", "SOAK"}},
 };
 // clang-format on
@@ -226,6 +228,12 @@ const StandardMacroInfo& StandardMacros::get(StandardMacroSlot slot) const {
         return empty_info;
     }
     return slots_[index];
+}
+
+bool StandardMacros::has_configured_macro(StandardMacroSlot slot,
+                                          const helix::PrinterDiscovery& hardware) const {
+    const auto& info = get(slot);
+    return !info.configured_macro.empty() && hardware.has_macro(info.configured_macro);
 }
 
 std::optional<StandardMacroSlot> StandardMacros::slot_from_name(const std::string& name) {

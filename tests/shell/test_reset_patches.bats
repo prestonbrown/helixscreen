@@ -87,7 +87,28 @@ declared_libhv_files() {
 }
 
 @test "reapply-patches resets before re-applying" {
-    # Without the reset prerequisite, reapply-patches degrades to apply-patches
-    # and cannot clear a stale hunk — the failure mode this whole file is about.
-    grep -qE '^reapply-patches:.*reset-patches' "$PATCHES_MK"
+    # Without the reset half running first, reapply-patches degrades to
+    # apply-patches and cannot clear a stale hunk — the failure mode this whole
+    # file is about.
+    #
+    # Asserted against `make -n` output rather than the makefile text. The target
+    # used to name reset-patches as a prerequisite and now invokes it as an
+    # ordered sub-make, because `make -jN reapply-patches` is free to run two
+    # prerequisites concurrently and the apply half rewrites the very files the
+    # reset half is restoring. Both spellings satisfy the invariant, so only the
+    # resulting order is worth pinning.
+    local dryrun reset_at apply_at
+    dryrun="$(cd "$REPO_ROOT" && make -n reapply-patches 2>/dev/null)"
+
+    # Reset half: the libhv restore loop, the same anchor setup() keys on.
+    reset_at="$(printf '%s\n' "$dryrun" | grep -n 'for file in' | grep 'lib/libhv' |
+        head -1 | cut -d: -f1)"
+    # Apply half: dropping the stamp is precisely what makes this a FORCED
+    # apply rather than the no-op that a current stamp would produce.
+    apply_at="$(printf '%s\n' "$dryrun" | grep -n 'rm -f build/\.patches-applied' |
+        head -1 | cut -d: -f1)"
+
+    [ -n "$reset_at" ]
+    [ -n "$apply_at" ]
+    [ "$reset_at" -lt "$apply_at" ]
 }

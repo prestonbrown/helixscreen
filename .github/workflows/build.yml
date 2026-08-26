@@ -77,8 +77,21 @@ jobs:
         restore-keys: |
           deps-ubuntu-22.04-
 
-    - name: Cache ccache
-      uses: actions/cache@v5
+    # Split restore/save rather than a combined actions/cache. The combined
+    # action saves from a POST step, and GitHub skips post steps when the job
+    # fails — which made a cold ccache self-perpetuating: no cache means `Build
+    # tests` overruns its timeout (measured 0/1372 hits on 8b3403ec6), the job
+    # fails, the save is skipped, and the next run starts cold again. Nothing in
+    # that loop can end it. Saving with `if: always()` banks whatever the run did
+    # manage to compile, so even a timed-out run leaves the next one warmer and a
+    # cold start converges over a push or two.
+    #
+    # Only the ccache gets this treatment. The deps cache above is keyed on a
+    # content hash of the sources it builds, so saving a half-built build/lib/
+    # under that key would hand later runs an incomplete tree that looks
+    # complete. A ccache is content-addressed per TU: a partial one just misses.
+    - name: Restore ccache
+      uses: actions/cache/restore@v5
       with:
         path: ~/.cache/ccache
         key: ccache-ubuntu-22.04-${{ github.sha }}
@@ -133,6 +146,15 @@ jobs:
         make test -j$(nproc)
         echo "Tests built successfully"
         ccache -s
+
+    # `always()`: banking a partial ccache after a failed/timed-out build is the
+    # whole point — see the restore step above.
+    - name: Save ccache
+      if: always()
+      uses: actions/cache/save@v5
+      with:
+        path: ~/.cache/ccache
+        key: ccache-ubuntu-22.04-${{ github.sha }}
 
     - name: Verify binary
       run: |

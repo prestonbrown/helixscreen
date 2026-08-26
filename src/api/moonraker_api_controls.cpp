@@ -731,6 +731,15 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                     }
                 }
 
+                // Klipper's min_temp/min_extrude_temp are sensor sanity floors and may
+                // legitimately be negative (an open thermistor on an unmounted tool).
+                // SafetyLimits floors mean something else entirely - the lowest
+                // *sendable* target and the heat-to instruction the panel renders - so
+                // the adopted values are clamped here, at the one point where external
+                // config crosses into our domain (prestonbrown/helixscreen#1353).
+                // Ahead of the log below, so the log reports what we actually adopted.
+                safety_limits_.clamp_temperature_floors();
+
                 if (updated) {
                     spdlog::debug(
                         "[Moonraker API] Updated safety limits from printer configuration:");
