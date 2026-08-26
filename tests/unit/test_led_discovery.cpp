@@ -128,13 +128,17 @@ TEST_CASE_METHOD(LedDiscoveryFixture,
     REQUIRE(std::find(ctrl.discovered_macros().begin(), ctrl.discovered_macros().end(),
                       "LIGHTS_ON") != ctrl.discovered_macros().end());
 
-    // No auto-creation of macro devices — macros are user-configured only
-    REQUIRE(ctrl.macro().macros().size() == 0);
-    REQUIRE(ctrl.macro().is_available() == false);
+    // LIGHTS_ON/LIGHTS_OFF is an unambiguous pair, so it is seeded as a ready-to-use
+    // ON_OFF device. LED_PARTY has no partner and stays a candidate for the dropdown.
+    REQUIRE(ctrl.macro().macros().size() == 1);
+    REQUIRE(ctrl.macro().is_available() == true);
+    REQUIRE(ctrl.macro().macros()[0].on_macro == "LIGHTS_ON");
+    REQUIRE(ctrl.macro().macros()[0].off_macro == "LIGHTS_OFF");
+    REQUIRE(ctrl.macro().macros()[0].type == helix::led::MacroLedType::ON_OFF);
 
-    // Only native + effects backends available (no macro backend)
+    // native + effects + the seeded macro device
     auto backends = ctrl.available_backends();
-    REQUIRE(backends.size() == 2);
+    REQUIRE(backends.size() == 3);
 
     ctrl.deinit();
 }
