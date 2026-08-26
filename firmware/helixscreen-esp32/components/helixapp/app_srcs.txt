@@ -565,7 +565,7 @@ src/ui/ui_bed_mesh.cpp
 # ===== link-loop additions: genuinely-referenced core the app_boot path pulls =====
 # These are constructed (not just referenced by pointer) in KEPT code, so a
 # never-dereferenced stub is impossible — the real ctor/vtable/typeinfo are
-# required. All three are portable Core+AMS code (no HTTP, no platform seam):
+# required. All of them are portable Core+AMS code (no HTTP, no platform seam):
 #   m300_sound_backend.cpp: sound_manager.cpp (KEPT) does make_shared<M300SoundBackend>
 #     and dynamic_cast<M300SoundBackend*>; needs the real ctor + vtable + typeinfo.
 #     Sends M300 gcode via a callback — no platform deps (HELIX_HAS_SOUND does not
@@ -583,6 +583,13 @@ src/print/print_start_position_classifier.cpp
 #     moonraker_manager.cpp (KEPT) AND from print_start_collector.cpp. JSON-profile
 #     loader; only dep is data_root_resolver.cpp (already in this manifest).
 src/print/print_start_profile.cpp
+#   probe_preparation.cpp: moonraker_advanced_api.cpp (KEPT) calls
+#     probe_prep::append_preparation() ungated on every probing command, so the
+#     firmware would otherwise send probe g-code without the printer-declared
+#     preparation the rule set asks for. Its only non-inline dep is
+#     probe_prep::database_rules(), which lives in printer_detector.cpp (already
+#     in this manifest); get_discovery()/get_macros() are header-inline.
+src/printer/probe_preparation.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
 # MOCK: src/api/moonraker_api_mock.cpp
