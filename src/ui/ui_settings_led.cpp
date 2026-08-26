@@ -343,6 +343,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
 
         // Edit button
         auto* edit_btn = lv_button_create(header_row);
+        lv_obj_set_name(edit_btn, fmt::format("macro_edit_btn_{}", i).c_str());
         lv_obj_set_size(edit_btn, icon_btn_size, icon_btn_size);
         lv_obj_set_style_bg_opa(edit_btn, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(edit_btn, 0, 0);
@@ -374,6 +375,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
 
         // Delete button
         auto* del_btn = lv_button_create(header_row);
+        lv_obj_set_name(del_btn, fmt::format("macro_delete_btn_{}", i).c_str());
         lv_obj_set_size(del_btn, icon_btn_size, icon_btn_size);
         lv_obj_set_style_bg_opa(del_btn, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(del_btn, 0, 0);
@@ -582,12 +584,14 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     // which is what stops Save from silently rewriting it to the first row.
     auto build_macro_field = [&](const char* label, const std::string& stored, const char* dd_name,
                                  const char* text_name) {
-        const char* dd_attrs[] = {"label", label, nullptr};
+        const char* attrs[] = {"label", label, "placeholder", lv_tr("or type a macro name"),
+                               nullptr};
         auto* row =
-            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_dropdown", dd_attrs));
+            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_macro_field", attrs));
         auto* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
-        if (!dd) {
-            spdlog::error("[{}] Failed to build macro dropdown row '{}' from XML", get_name(),
+        auto* ta = row ? lv_obj_find_by_name(row, "input") : nullptr;
+        if (!dd || !ta) {
+            spdlog::error("[{}] Failed to build macro field row '{}' from XML", get_name(),
                           dd_name);
             return false;
         }
@@ -595,17 +599,6 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
         lv_dropdown_set_options(dd, macro_options.c_str());
         lv_obj_set_name(dd, dd_name);
         lv_dropdown_set_selected(dd, static_cast<uint32_t>(view.dropdown_index));
-
-        const char* ta_attrs[] = {"label", "", "placeholder", lv_tr("or type a macro name"),
-                                  nullptr};
-        auto* ta_row =
-            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_input", ta_attrs));
-        auto* ta = ta_row ? lv_obj_find_by_name(ta_row, "input") : nullptr;
-        if (!ta) {
-            spdlog::error("[{}] Failed to build macro text row '{}' from XML", get_name(),
-                          text_name);
-            return false;
-        }
         lv_obj_set_name(ta, text_name);
         lv_textarea_set_text(ta, view.typed.c_str());
         return true;
@@ -665,7 +658,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                 const auto pview = helix::led::macro_field_view(preset_macro, discovered);
                 auto* pmacro_dd = lv_dropdown_create(preset_row);
                 lv_dropdown_set_options(pmacro_dd, macro_options.c_str());
-                lv_obj_set_width(pmacro_dd, lv_pct(40));
+                lv_obj_set_width(pmacro_dd, lv_pct(35));
                 lv_obj_set_style_border_width(pmacro_dd, 0, 0);
                 lv_obj_set_name(pmacro_dd, fmt::format("preset_macro_{}_{}", index, p).c_str());
                 lv_dropdown_set_selected(pmacro_dd, static_cast<uint32_t>(pview.dropdown_index));
@@ -679,6 +672,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
 
                 // Remove preset button
                 auto* remove_btn = lv_button_create(preset_row);
+                lv_obj_set_name(remove_btn, fmt::format("preset_remove_{}_{}", index, p).c_str());
                 lv_obj_set_size(remove_btn, 32, 32);
                 lv_obj_set_style_bg_opa(remove_btn, LV_OPA_TRANSP, 0);
                 lv_obj_set_style_border_width(remove_btn, 0, 0);
@@ -730,6 +724,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
 
             // "Add Preset" button
             auto* add_preset_btn = lv_button_create(container);
+            lv_obj_set_name(add_preset_btn, fmt::format("macro_add_preset_{}", index).c_str());
             lv_obj_set_width(add_preset_btn, lv_pct(100));
             lv_obj_set_height(add_preset_btn, LV_SIZE_CONTENT);
             lv_obj_set_style_bg_opa(add_preset_btn, LV_OPA_10, 0);

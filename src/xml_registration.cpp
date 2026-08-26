@@ -659,6 +659,7 @@ void register_xml_components() {
     register_xml("setting_detail_panel.xml");
     register_xml("setting_form_dropdown.xml");
     register_xml("setting_form_input.xml");
+    register_xml("setting_form_macro_field.xml");
     register_xml("setting_macro_card.xml");
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
     register_xml("settings_panel.xml");
