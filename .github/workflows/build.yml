@@ -541,6 +541,20 @@ jobs:
       with:
         submodules: false
 
+    # test_lvgl_event_code_gate.bats reads lib/lvgl/src/misc/lv_event.h, and it
+    # needs the PATCHED enum: lvgl_display_sync_cb.patch inserts four values
+    # (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}) and renumbers everything after
+    # them, so the committed worker table only matches a patched checkout.
+    # Without these steps setup() died on a missing header and took the whole
+    # file down. Skipping instead would make the "committed table is up to
+    # date" case green-by-skip, the exact failure the venv note below exists
+    # to prevent.
+    - name: Initialize submodules
+      uses: ./.github/actions/init-submodules
+
+    - name: Apply submodule patches
+      run: make apply-patches
+
     - name: Install bats
       run: sudo npm install -g bats
 
