@@ -105,6 +105,21 @@ class RetractionSettingsOverlay : public OverlayBase {
         api_ = api;
     }
 
+    /**
+     * @brief Rows that can be typed into, not just dragged.
+     *
+     * Doubles as the user_data on each setting_value_field in
+     * retraction_settings_overlay.xml, so the order here and the numbers there
+     * must agree.
+     */
+    enum class Field : int {
+        RetractLength = 0,
+        RetractSpeed,
+        UnretractExtra,
+        UnretractSpeed,
+        Count
+    };
+
   private:
     /**
      * @brief Send SET_RETRACTION G-code with current values
@@ -125,8 +140,30 @@ class RetractionSettingsOverlay : public OverlayBase {
     static void on_enabled_changed(lv_event_t* e);
     static void on_setting_changed(lv_event_t* e);
 
+    /// Tap on a setting_value_field. user_data carries the Field index as text.
+    static void on_field_clicked(lv_event_t* e);
+
+    /// ui_keypad_callback_t; user_data is the owning overlay.
+    static void on_keypad_value(float value, void* user_data);
+
+    /// Open the numeric keypad for one row, ranged from that row's own slider.
+    void handle_field_clicked(Field field);
+
+    /// Apply a keypad value: move the slider, then take the normal change path.
+    void handle_keypad_value(Field field, double value);
+
+    /// The row's slider, or nullptr before the overlay is built.
+    lv_obj_t* field_slider(Field field) const;
+
     // Widget references
     lv_obj_t* enable_switch_ = nullptr;
+    /// Set while our own numeric keypad is open; see MachineLimitsOverlay for
+    /// why returning from it must not re-sync.
+    bool returning_from_keypad_ = false;
+
+    /// Row the open keypad is editing; one keypad exists at a time.
+    Field pending_keypad_field_ = Field::RetractLength;
+
     lv_obj_t* retract_length_slider_ = nullptr;
     lv_obj_t* retract_speed_slider_ = nullptr;
     lv_obj_t* unretract_extra_slider_ = nullptr;

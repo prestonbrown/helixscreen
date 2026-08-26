@@ -654,6 +654,7 @@ void register_xml_components() {
     register_xml("setting_action_row.xml");
     register_xml("setting_info_row.xml");
     register_xml("setting_slider_row.xml");
+    register_xml("setting_value_field.xml");
     register_xml("setting_led_chip_row.xml");
     register_xml("setting_state_row.xml");
     register_xml("setting_detail_panel.xml");

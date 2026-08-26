@@ -42,8 +42,9 @@
               <text_small text="Maximum toolhead speed (mm/s)" translation_tag="Maximum toolhead speed (mm/s)"/>
             </lv_obj>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="max_velocity_label" bind_text="max_velocity_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="max_velocity_field"
+                               value_subject="max_velocity_display" callback="on_limit_field_clicked" user_data="0"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -79,8 +80,9 @@
               <text_small text="Maximum acceleration (mm/s²)" translation_tag="Maximum acceleration (mm/s²)"/>
             </lv_obj>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="max_accel_label" bind_text="max_accel_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="max_accel_field"
+                               value_subject="max_accel_display" callback="on_limit_field_clicked" user_data="1"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -117,8 +119,9 @@
                           translation_tag="Acceleration to deceleration limit (mm/s²)"/>
             </lv_obj>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="accel_to_decel_label" bind_text="accel_to_decel_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="accel_to_decel_field"
+                               value_subject="accel_to_decel_display" callback="on_limit_field_clicked" user_data="2"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
@@ -154,16 +157,21 @@
               <text_small text="Max speed through corners (mm/s)" translation_tag="Max speed through corners (mm/s)"/>
             </lv_obj>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="square_corner_velocity_label" bind_text="square_corner_velocity_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="square_corner_velocity_field"
+                               value_subject="square_corner_velocity_display" callback="on_limit_field_clicked"
+                               user_data="3"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"
                 height="#input_height" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_md"
                 style_pad_bottom="#space_md" scrollable="false" flex_flow="row" style_flex_cross_place="center">
           <text_small width="30" text="1"/>
+          <!-- Tenths, not whole mm/s: this value is tuned in 0.5 steps, so the
+               slider stores 10-200 and C++ divides by 10 (SCV_DIVISOR). The
+               end labels either side still read 1 and 20. -->
           <lv_slider name="square_corner_velocity_slider"
-                     flex_grow="1" min_value="1" max_value="20" value="5" style_margin_left="#space_sm"
+                     flex_grow="1" min_value="10" max_value="200" value="50" style_margin_left="#space_sm"
                      style_margin_right="#space_sm">
             <event_cb trigger="released" callback="on_square_corner_velocity_changed"/>
           </lv_slider>
@@ -191,8 +199,9 @@
               <text_small text="Extrude/retract feedrate (Saved)" translation_tag="Extrude/retract feedrate (Saved)"/>
             </lv_obj>
           </lv_obj>
-          <!-- Current value display -->
-          <text_body name="extrude_speed_label" bind_text="extrude_speed_display"/>
+          <!-- Current value: tap to type an exact number -->
+          <setting_value_field name="extrude_speed_field"
+                               value_subject="extrude_speed_display" callback="on_limit_field_clicked" user_data="4"/>
         </lv_obj>
         <!-- Slider -->
         <lv_obj width="100%"

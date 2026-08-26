@@ -139,6 +139,21 @@ char* format_speed_mm_s(double speed, char* buf, size_t size);
  */
 char* format_speed_mm_min(double speed, char* buf, size_t size);
 
+/**
+ * @brief Format a speed in mm/s with a chosen number of decimals.
+ *
+ * format_speed_mm_s() rounds to whole mm/s, which is right for velocities but
+ * hides the half steps square corner velocity is tuned in -- 5.5 would render
+ * as "6 mm/s". Mirrors format_percent_float() next to format_percent().
+ *
+ * @param speed Speed in mm/s
+ * @param decimals Digits after the decimal point
+ * @param buf Output buffer
+ * @param size Buffer size
+ * @return buf
+ */
+char* format_speed_mm_s_float(double speed, int decimals, char* buf, size_t size);
+
 // =============================================================================
 // Acceleration Formatting
 // =============================================================================

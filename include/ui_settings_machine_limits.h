@@ -210,6 +210,38 @@ class MachineLimitsOverlay : public OverlayBase {
      */
     void handle_extrude_speed_changed(int value);
 
+    /**
+     * @brief Rows that can be typed into, not just dragged.
+     *
+     * The value doubles as the user_data on each setting_value_field in
+     * machine_limits_overlay.xml, so the order here and the numbers there must
+     * agree. FIELD_SPECS in the .cpp is indexed by the same value.
+     */
+    enum class Field : int {
+        MaxVelocity = 0,
+        MaxAccel,
+        AccelToDecel,
+        SquareCornerVelocity,
+        ExtrudeSpeed,
+        Count
+    };
+
+    /**
+     * @brief Open the numeric keypad for one row.
+     *
+     * The keypad's range comes from the row's own lv_slider rather than from a
+     * second copy of the bounds, so the two cannot drift apart.
+     */
+    void handle_field_clicked(Field field);
+
+    /**
+     * @brief Apply a value confirmed on the keypad.
+     *
+     * Moves the slider to the nearest legal position and then routes through
+     * the same handler a drag would, so both input paths share one code path.
+     */
+    void handle_keypad_value(Field field, double value);
+
   private:
     //
     // === Internal Methods ===
@@ -224,6 +256,11 @@ class MachineLimitsOverlay : public OverlayBase {
      * @brief Update slider positions from current_limits_
      */
     void update_sliders();
+
+    /**
+     * @brief The row's slider widget, or nullptr before the overlay is built.
+     */
+    lv_obj_t* field_slider(Field field);
 
     /**
      * @brief Apply current limits to printer immediately
@@ -263,6 +300,15 @@ class MachineLimitsOverlay : public OverlayBase {
     // === State Tracking ===
     //
 
+    /// Set while our own numeric keypad is open. Returning from it re-activates
+    /// this overlay, and a re-query there would overwrite the value the user
+    /// just typed with the printer's pre-edit one.
+    bool returning_from_keypad_{false};
+
+    /// Row the open keypad is editing. Only one keypad exists and the overlay
+    /// stack guarantees one at a time, so a single slot is enough.
+    Field pending_keypad_field_{Field::MaxVelocity};
+
     MachineLimits current_limits_;     ///< Live values from sliders
     MachineLimits original_limits_;    ///< Values when overlay opened (for reset)
     lv_timer_t* apply_timer_{nullptr}; ///< Debounce timer for apply_limits (250ms)
@@ -297,6 +343,12 @@ class MachineLimitsOverlay : public OverlayBase {
     static void on_scv_changed(lv_event_t* e);
     static void on_reset(lv_event_t* e);
     static void on_extrude_speed_changed(lv_event_t* e);
+
+    /// Tap on a setting_value_field. user_data carries the Field index as text.
+    static void on_field_clicked(lv_event_t* e);
+
+    /// ui_keypad_callback_t; user_data carries the Field index.
+    static void on_keypad_value(float value, void* user_data);
 };
 
 /**
