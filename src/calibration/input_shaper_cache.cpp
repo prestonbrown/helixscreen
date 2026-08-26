@@ -34,7 +34,11 @@ static constexpr int CACHE_VERSION = 1;
  */
 static bool try_create_cache_dir(const std::filesystem::path& path) {
     const std::string dir = path.string();
-    return helix::paths::ensure_dir(dir) && helix::paths::probe_writable(dir);
+    // Viability first, so a candidate we cannot use is rejected without a
+    // directory tree left behind as the cost of finding out. ensure_dir() is
+    // still the authority — can_create_dir() cannot see a race or a quota.
+    return helix::paths::can_create_dir(dir) && helix::paths::ensure_dir(dir) &&
+           helix::paths::probe_writable(dir);
 }
 
 /**
