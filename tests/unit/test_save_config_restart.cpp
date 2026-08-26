@@ -33,13 +33,13 @@ using helix::ui::should_extend_save_timeout;
 // (t=30s) always reads false — the 15s suppression window has closed — so the
 // extension gate never opened and the panel failed a save that had succeeded.
 
-TEST_CASE("SaveRestartLatch: starts clean", "[save_config][save_latch]") {
+TEST_CASE("SaveRestartLatch: starts clean", "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     REQUIRE_FALSE(latch.restart_latched());
     REQUIRE_FALSE(latch.restart_completed());
 }
 
-TEST_CASE("SaveRestartLatch: latches when klippy leaves READY", "[save_config][save_latch]") {
+TEST_CASE("SaveRestartLatch: latches when klippy leaves READY", "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.on_klippy_ready(false); // SAVE_CONFIG restart begins
     REQUIRE(latch.restart_latched());
@@ -48,7 +48,7 @@ TEST_CASE("SaveRestartLatch: latches when klippy leaves READY", "[save_config][s
 }
 
 TEST_CASE("SaveRestartLatch: latch survives until reset (the whole point)",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.on_klippy_ready(false);
     latch.on_klippy_ready(true);
@@ -61,7 +61,7 @@ TEST_CASE("SaveRestartLatch: latch survives until reset (the whole point)",
 }
 
 TEST_CASE("SaveRestartLatch: READY after a restart signals save success",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.on_klippy_ready(false); // t=0 restart begins
     REQUIRE_FALSE(latch.restart_completed());
@@ -73,7 +73,7 @@ TEST_CASE("SaveRestartLatch: READY after a restart signals save success",
 }
 
 TEST_CASE("SaveRestartLatch: READY without a preceding restart is not success",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     // Klipper was READY all along — the save never restarted anything, so a
     // READY sample must not be mistaken for a completed save.
@@ -84,7 +84,7 @@ TEST_CASE("SaveRestartLatch: READY without a preceding restart is not success",
 }
 
 TEST_CASE("SaveRestartLatch: note_restart_expected folds in the suppression window",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.note_restart_expected(false);
     REQUIRE_FALSE(latch.restart_latched());
@@ -98,7 +98,7 @@ TEST_CASE("SaveRestartLatch: note_restart_expected folds in the suppression wind
 }
 
 TEST_CASE("SaveRestartLatch: reset clears both flags for a second save",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.on_klippy_ready(false);
     latch.on_klippy_ready(true);
@@ -111,7 +111,7 @@ TEST_CASE("SaveRestartLatch: reset clears both flags for a second save",
 }
 
 TEST_CASE("SaveRestartLatch: a second save does not inherit the first save's latch",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     // Real failure mode: a sticky latch would make save #2 immediately look like
     // it had restarted Klipper, so a genuinely hung second save would extend its
     // timeout instead of failing, and a stray READY would report false success.
@@ -133,14 +133,14 @@ TEST_CASE("SaveRestartLatch: a second save does not inherit the first save's lat
 }
 
 TEST_CASE("SaveRestartLatch: hung save with no restart still fails terminally",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     // Nothing observed at all — the genuinely-hung case.
     REQUIRE_FALSE(should_extend_save_timeout(latch.restart_latched(), 0, 4));
 }
 
 TEST_CASE("SaveRestartLatch: latched save still exhausts its extension budget",
-          "[save_config][save_latch]") {
+          "[save_config][save_latch][1359]") {
     SaveRestartLatch latch;
     latch.on_klippy_ready(false); // restart began and never came back
 
@@ -159,7 +159,7 @@ TEST_CASE("SaveRestartLatch: latched save still exhausts its extension budget",
 // out" even though the save had succeeded.
 
 TEST_CASE("should_extend_save_timeout: extends while a restart is expected",
-          "[save_config][save_timeout]") {
+          "[save_config][save_timeout][1359]") {
     // This is the K2/CFS case — the guard must NOT fail the operation.
     REQUIRE(should_extend_save_timeout(/*expected_restart=*/true, /*extensions_used=*/0,
                                        /*max_extensions=*/4));
@@ -167,7 +167,7 @@ TEST_CASE("should_extend_save_timeout: extends while a restart is expected",
 }
 
 TEST_CASE("should_extend_save_timeout: does not extend when no restart is expected",
-          "[save_config][save_timeout]") {
+          "[save_config][save_timeout][1359]") {
     // Genuinely hung save — a real timeout must still be reported. If this
     // returned true the guard would be effectively deleted.
     REQUIRE_FALSE(should_extend_save_timeout(/*expected_restart=*/false, 0, 4));
@@ -175,7 +175,7 @@ TEST_CASE("should_extend_save_timeout: does not extend when no restart is expect
 }
 
 TEST_CASE("should_extend_save_timeout: extension budget is bounded",
-          "[save_config][save_timeout]") {
+          "[save_config][save_timeout][1359]") {
     // Even with a restart perpetually 'expected', extensions must run out so the
     // panel cannot spin forever.
     REQUIRE_FALSE(should_extend_save_timeout(true, 4, 4));
@@ -183,6 +183,7 @@ TEST_CASE("should_extend_save_timeout: extension budget is bounded",
     REQUIRE_FALSE(should_extend_save_timeout(true, 99, 4));
 }
 
-TEST_CASE("should_extend_save_timeout: zero budget never extends", "[save_config][save_timeout]") {
+TEST_CASE("should_extend_save_timeout: zero budget never extends",
+          "[save_config][save_timeout][1359]") {
     REQUIRE_FALSE(should_extend_save_timeout(true, 0, 0));
 }
