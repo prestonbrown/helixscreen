@@ -171,11 +171,22 @@ static const char* const HELIX_CACHE_SUBDIRS[] = {
 /// whose shape nobody checked.
 int reclaim_cache_paths(const std::vector<std::string>& paths, const char* subdir) {
     int removed = 0;
-    const std::string suffix = std::string("/") + subdir;
+
+    // The cascade spells the leaf two ways: nested under a helix/ parent
+    // ("<base>/helix/gcode_temp", rungs 4-5) and flattened with a prefix
+    // ("/var/tmp/helix_gcode_temp", rungs 6-7). Accepting only the nested form
+    // silently made rungs 6 and 7 unreclaimable - verified on a K1, where a
+    // seeded /var/tmp/helix_helix_thumbs survived a sweep that correctly took
+    // /root/.cache/helix/helix_thumbs. Benign there (/var/tmp is a symlink to
+    // tmpfs) but not on a platform where /var/tmp is real storage.
+    const std::string nested = std::string("/") + subdir;
+    const std::string flattened = std::string("/helix_") + subdir;
+    auto ends_with = [](const std::string& s, const std::string& tail) {
+        return s.size() > tail.size() && s.compare(s.size() - tail.size(), tail.size(), tail) == 0;
+    };
 
     for (const std::string& path : paths) {
-        if (path.size() <= suffix.size() ||
-            path.compare(path.size() - suffix.size(), suffix.size(), suffix) != 0)
+        if (!ends_with(path, nested) && !ends_with(path, flattened))
             continue;
 
         std::error_code ec;

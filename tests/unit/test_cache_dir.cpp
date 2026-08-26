@@ -308,6 +308,32 @@ TEST_CASE("reclaim_cache_paths refuses a path that is not the named subdir", "[c
     cleanup_dir(root);
 }
 
+TEST_CASE("reclaim_cache_paths reclaims the flattened helix_<subdir> form", "[cache]") {
+    // Rungs 6-7 spell the leaf "/var/tmp/helix_gcode_temp", not
+    // ".../helix/gcode_temp". Accepting only the nested form made those two
+    // rungs unreclaimable, which a K1 demonstrated: a seeded
+    // /var/tmp/helix_helix_thumbs survived a sweep that took the HOME rung.
+    std::string root = make_test_tmpdir("reclaim_flat");
+    const std::string dir = seed_cache(root, "helix_helix_thumbs");
+
+    REQUIRE(reclaim_cache_paths({dir}, "helix_thumbs") == 1);
+    REQUIRE_FALSE(std::filesystem::exists(dir));
+
+    cleanup_dir(root);
+}
+
+TEST_CASE("reclaim_cache_paths still refuses a foreign helix_ prefixed dir", "[cache]") {
+    // Widening to the flattened form must not turn into "anything starting
+    // with helix_" - the subdir still has to match exactly.
+    std::string root = make_test_tmpdir("reclaim_flat_wrong");
+    const std::string dir = seed_cache(root, "helix_something_else");
+
+    REQUIRE(reclaim_cache_paths({dir}, "helix_thumbs") == 0);
+    REQUIRE(std::filesystem::exists(dir + "/marker"));
+
+    cleanup_dir(root);
+}
+
 TEST_CASE("reclaim_cache_paths tolerates a path that does not exist", "[cache]") {
     REQUIRE(reclaim_cache_paths({"/nonexistent/helix_thumbs"}, "helix_thumbs") == 0);
 }
