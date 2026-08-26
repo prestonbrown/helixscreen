@@ -1530,6 +1530,7 @@ translations:
   No LED macros detected on your printer.: 未在打印机上检测到 LED 宏。
   No LED macros detected on your printer. Add Klipper macros for LED control first.: 未在打印机上检测到
     LED 宏。请先添加用于 LED 控制的 Klipper 宏。
+  No LED macros detected. Type a macro name below.: ''
   No LED strips detected: '未检测到 LED 灯带'
   No Macros Found: 未找到宏
   No Multi-Filament System connected: 未连接多耗材系统
@@ -2884,6 +2885,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC 的 remember_spool 会在固件中保留料盘信息；其优先级高于此开关
   AI detection: AI 检测
+  or type a macro name: ''
   prints: 打印次数
   remaining: 剩余
   remaining before clog detection triggers: 剩余即触发堵料检测

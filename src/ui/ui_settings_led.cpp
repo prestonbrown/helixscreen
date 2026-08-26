@@ -567,78 +567,77 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
         type_dd, [](lv_event_t* e) { delete static_cast<int*>(lv_event_get_user_data(e)); },
         LV_EVENT_DELETE, type_idx);
 
-    // Build macro dropdown options from discovered macros
+    // Build macro dropdown options from discovered macros, plus a trailing
+    // "Custom..." row. Detection is keyword-based and will never cover every
+    // naming scheme, so every field needs a way to name a macro it missed.
     std::string macro_options;
     for (const auto& m : discovered) {
-        if (!macro_options.empty())
-            macro_options += "\n";
         macro_options += m;
+        macro_options += "\n";
     }
+    macro_options += lv_tr("Custom...");
 
-    // Helper lambda to find index of a macro in discovered list
-    auto find_macro_idx = [&discovered](const std::string& name) -> int {
-        for (size_t j = 0; j < discovered.size(); j++) {
-            if (discovered[j] == name)
-                return static_cast<int>(j);
+    // Build a dropdown + free-text pair for one macro field. The text box is
+    // prefilled when the stored macro is not one the detector currently offers,
+    // which is what stops Save from silently rewriting it to the first row.
+    auto build_macro_field = [&](const char* label, const std::string& stored, const char* dd_name,
+                                 const char* text_name) {
+        const char* dd_attrs[] = {"label", label, nullptr};
+        auto* row =
+            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_dropdown", dd_attrs));
+        auto* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+        if (!dd) {
+            spdlog::error("[{}] Failed to build macro dropdown row '{}' from XML", get_name(),
+                          dd_name);
+            return false;
         }
-        return 0;
+        const auto view = helix::led::macro_field_view(stored, discovered);
+        lv_dropdown_set_options(dd, macro_options.c_str());
+        lv_obj_set_name(dd, dd_name);
+        lv_dropdown_set_selected(dd, static_cast<uint32_t>(view.dropdown_index));
+
+        const char* ta_attrs[] = {"label", "", "placeholder", lv_tr("or type a macro name"),
+                                  nullptr};
+        auto* ta_row =
+            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_input", ta_attrs));
+        auto* ta = ta_row ? lv_obj_find_by_name(ta_row, "input") : nullptr;
+        if (!ta) {
+            spdlog::error("[{}] Failed to build macro text row '{}' from XML", get_name(),
+                          text_name);
+            return false;
+        }
+        lv_obj_set_name(ta, text_name);
+        lv_textarea_set_text(ta, view.typed.c_str());
+        return true;
     };
 
     if (discovered.empty()) {
+        // Not fatal any more -- the fields below still take a typed macro name.
         auto* no_macros = lv_label_create(container);
-        lv_label_set_text(no_macros, lv_tr("No LED macros detected on your printer."));
+        lv_label_set_text(no_macros, lv_tr("No LED macros detected. Type a macro name below."));
         lv_label_set_long_mode(no_macros, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(no_macros, lv_pct(100));
         lv_obj_set_style_text_color(no_macros, theme_manager_get_color("text_subtle"), 0);
-    } else {
+    }
+
+    {
         // --- Type-specific macro fields ---
         switch (macro.type) {
         case helix::led::MacroLedType::ON_OFF: {
-            // On Macro dropdown
-            const char* on_attrs[] = {"label", lv_tr("On:"), nullptr};
-            auto* on_row =
-                static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_dropdown", on_attrs));
-            auto* on_dd = on_row ? lv_obj_find_by_name(on_row, "dropdown") : nullptr;
-            if (!on_dd) {
-                spdlog::error("[{}] Failed to build on-macro dropdown row from XML", get_name());
+            if (!build_macro_field(lv_tr("On:"), macro.on_macro, "macro_on_dropdown",
+                                   "macro_on_text")) {
                 return;
             }
-            lv_dropdown_set_options(on_dd, macro_options.c_str());
-            lv_obj_set_name(on_dd, "macro_on_dropdown");
-            if (!macro.on_macro.empty()) {
-                lv_dropdown_set_selected(on_dd, find_macro_idx(macro.on_macro));
-            }
-
-            // Off Macro dropdown
-            const char* off_attrs[] = {"label", lv_tr("Off:"), nullptr};
-            auto* off_row = static_cast<lv_obj_t*>(
-                lv_xml_create(container, "setting_form_dropdown", off_attrs));
-            auto* off_dd = off_row ? lv_obj_find_by_name(off_row, "dropdown") : nullptr;
-            if (!off_dd) {
-                spdlog::error("[{}] Failed to build off-macro dropdown row from XML", get_name());
+            if (!build_macro_field(lv_tr("Off:"), macro.off_macro, "macro_off_dropdown",
+                                   "macro_off_text")) {
                 return;
-            }
-            lv_dropdown_set_options(off_dd, macro_options.c_str());
-            lv_obj_set_name(off_dd, "macro_off_dropdown");
-            if (!macro.off_macro.empty()) {
-                lv_dropdown_set_selected(off_dd, find_macro_idx(macro.off_macro));
             }
             break;
         }
         case helix::led::MacroLedType::TOGGLE: {
-            const char* toggle_attrs[] = {"label", lv_tr("Toggle:"), nullptr};
-            auto* toggle_row = static_cast<lv_obj_t*>(
-                lv_xml_create(container, "setting_form_dropdown", toggle_attrs));
-            auto* toggle_dd = toggle_row ? lv_obj_find_by_name(toggle_row, "dropdown") : nullptr;
-            if (!toggle_dd) {
-                spdlog::error("[{}] Failed to build toggle-macro dropdown row from XML",
-                              get_name());
+            if (!build_macro_field(lv_tr("Toggle:"), macro.toggle_macro, "macro_toggle_dropdown",
+                                   "macro_toggle_text")) {
                 return;
-            }
-            lv_dropdown_set_options(toggle_dd, macro_options.c_str());
-            lv_obj_set_name(toggle_dd, "macro_toggle_dropdown");
-            if (!macro.toggle_macro.empty()) {
-                lv_dropdown_set_selected(toggle_dd, find_macro_idx(macro.toggle_macro));
             }
             break;
         }
@@ -661,15 +660,22 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                 lv_obj_set_name(preset_row,
                                 fmt::format("macro_preset_row_{}_{}", index, p).c_str());
 
-                // Preset macro dropdown
+                // Preset macro dropdown + free-text box, same pairing as the
+                // on/off/toggle fields so an undetected preset survives a Save.
+                const auto pview = helix::led::macro_field_view(preset_macro, discovered);
                 auto* pmacro_dd = lv_dropdown_create(preset_row);
                 lv_dropdown_set_options(pmacro_dd, macro_options.c_str());
-                lv_obj_set_width(pmacro_dd, lv_pct(60));
+                lv_obj_set_width(pmacro_dd, lv_pct(40));
                 lv_obj_set_style_border_width(pmacro_dd, 0, 0);
                 lv_obj_set_name(pmacro_dd, fmt::format("preset_macro_{}_{}", index, p).c_str());
-                if (!preset_macro.empty()) {
-                    lv_dropdown_set_selected(pmacro_dd, find_macro_idx(preset_macro));
-                }
+                lv_dropdown_set_selected(pmacro_dd, static_cast<uint32_t>(pview.dropdown_index));
+
+                auto* pmacro_ta = lv_textarea_create(preset_row);
+                lv_textarea_set_one_line(pmacro_ta, true);
+                lv_textarea_set_placeholder_text(pmacro_ta, lv_tr("or type a macro name"));
+                lv_obj_set_flex_grow(pmacro_ta, 1);
+                lv_obj_set_name(pmacro_ta, fmt::format("preset_text_{}_{}", index, p).c_str());
+                lv_textarea_set_text(pmacro_ta, pview.typed.c_str());
 
                 // Remove preset button
                 auto* remove_btn = lv_button_create(preset_row);
@@ -778,6 +784,8 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     lv_obj_remove_flag(save_row, LV_OBJ_FLAG_SCROLLABLE);
 
     auto* save_btn = lv_button_create(save_row);
+    // Named so `helix-screen ctl` can drive the save path end to end.
+    lv_obj_set_name(save_btn, fmt::format("macro_save_{}", index).c_str());
     lv_obj_set_size(save_btn, LV_SIZE_CONTENT, 36);
     lv_obj_set_style_bg_color(save_btn, primary_color, 0);
     lv_obj_set_style_bg_opa(save_btn, LV_OPA_COVER, 0);
@@ -951,31 +959,28 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
         }
     }
 
-    // Helper to get macro name from dropdown selection
-    auto get_macro_from_dd = [&discovered](lv_obj_t* dd) -> std::string {
-        if (!dd || discovered.empty())
-            return "";
-        int sel = lv_dropdown_get_selected(dd);
-        if (sel >= 0 && sel < static_cast<int>(discovered.size())) {
-            return discovered[sel];
-        }
-        return "";
+    // Resolve one field from its dropdown + free-text pair. Typed text wins, so
+    // a macro the detector never offered is still storable.
+    auto read_field = [&discovered, edit_container](const char* dd_name,
+                                                    const char* text_name) -> std::string {
+        lv_obj_t* dd = lv_obj_find_by_name(edit_container, dd_name);
+        lv_obj_t* ta = lv_obj_find_by_name(edit_container, text_name);
+        const std::string typed = ta ? lv_textarea_get_text(ta) : "";
+        const int sel = dd ? static_cast<int>(lv_dropdown_get_selected(dd)) : -1;
+        return helix::led::resolve_macro_field(typed, sel, discovered);
     };
 
     // Read type-specific fields
     switch (updated[index].type) {
     case helix::led::MacroLedType::ON_OFF: {
-        lv_obj_t* on_dd = lv_obj_find_by_name(edit_container, "macro_on_dropdown");
-        lv_obj_t* off_dd = lv_obj_find_by_name(edit_container, "macro_off_dropdown");
-        updated[index].on_macro = get_macro_from_dd(on_dd);
-        updated[index].off_macro = get_macro_from_dd(off_dd);
+        updated[index].on_macro = read_field("macro_on_dropdown", "macro_on_text");
+        updated[index].off_macro = read_field("macro_off_dropdown", "macro_off_text");
         updated[index].toggle_macro.clear();
         updated[index].presets.clear();
         break;
     }
     case helix::led::MacroLedType::TOGGLE: {
-        lv_obj_t* toggle_dd = lv_obj_find_by_name(edit_container, "macro_toggle_dropdown");
-        updated[index].toggle_macro = get_macro_from_dd(toggle_dd);
+        updated[index].toggle_macro = read_field("macro_toggle_dropdown", "macro_toggle_text");
         updated[index].on_macro.clear();
         updated[index].off_macro.clear();
         updated[index].presets.clear();
@@ -990,12 +995,11 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
         // Read preset rows
         for (int p = 0; p < 50; p++) { // reasonable upper bound
             std::string pmacro_key = fmt::format("preset_macro_{}_{}", index, p);
-            lv_obj_t* pmacro = lv_obj_find_by_name(overlay_root_, pmacro_key.c_str());
-            if (!pmacro)
+            if (!lv_obj_find_by_name(overlay_root_, pmacro_key.c_str()))
                 break;
 
-            std::string preset_macro = get_macro_from_dd(pmacro);
-            updated[index].presets.emplace_back(preset_macro);
+            std::string ptext_key = fmt::format("preset_text_{}_{}", index, p);
+            updated[index].presets.emplace_back(read_field(pmacro_key.c_str(), ptext_key.c_str()));
         }
         break;
     }

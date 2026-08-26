@@ -1687,6 +1687,7 @@ translations:
   No LED macros detected on your printer. Add Klipper macros for LED control first.: Nenhuma
     macro de LED detectada na sua impressora. Adicione macros Klipper para controle
     de LED primeiro.
+  No LED macros detected. Type a macro name below.: ''
   No LED strips detected: 'Nenhuma fita LED detectada'
   No Macros Found: Nenhuma Macro Encontrada
   No Multi-Filament System connected: Nenhum sistema multi-filamento conectado
@@ -3184,6 +3185,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Monitorar anomalias de impressão (baseado na câmera do K2 Plus)
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: O remember_spool do AFC retém informações do carretel no firmware; isso tem precedência sobre esta opção
   AI detection: Detecção por AI
+  or type a macro name: ''
   prints: impressões
   remaining: restante
   remaining before clog detection triggers: restante antes da detecção de obstrução
