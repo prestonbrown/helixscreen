@@ -22,6 +22,7 @@ GEN="scripts/gen_lvgl_event_codes.py"
 WORKER="server/crash-worker/src/index.ts"
 
 setup() {
+    load helpers
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 
     # A throwaway copy of just what the generator reads and writes. Its REPO is
@@ -67,6 +68,7 @@ setup() {
 # --- the catch half ---
 
 @test "a hand-edited table name fails --check" {
+    require_gnu_sed
     sed -i 's/42: "DELETE",/42: "SCREEN_UNLOAD_START",/' "$WORKER_COPY"
     run python3 "$GEN_COPY" --check
     [ "$status" -eq 1 ]
@@ -74,6 +76,7 @@ setup() {
 }
 
 @test "a code added to the enum fails --check" {
+    require_gnu_sed
     # What LVGL 9.5 did: an enumerator inserted mid-list shifts everything after
     # it. This is the shape the old hand-maintained table slept through.
     sed -i 's/    LV_EVENT_DELETE,/    LV_EVENT_BRAND_NEW,\n    LV_EVENT_DELETE,/' \
@@ -87,6 +90,7 @@ setup() {
 }
 
 @test "--diff names the code that moved" {
+    require_gnu_sed
     sed -i 's/42: "DELETE",/42: "NOPE",/' "$WORKER_COPY"
     run python3 "$GEN_COPY" --diff
     [ "$status" -eq 1 ]
@@ -104,6 +108,7 @@ setup() {
 }
 
 @test "a conditional enumerator is resolved from lv_conf.h, not guessed" {
+    require_gnu_sed
     # LV_USE_TRANSLATION gates the last enumerator. Turning it off must drop
     # that name rather than leave a code pointing at nothing.
     run grep -q 'TRANSLATION_LANGUAGE_CHANGED' "$WORKER_COPY"
@@ -116,6 +121,7 @@ setup() {
 }
 
 @test "an unevaluable conditional aborts instead of renumbering silently" {
+    require_gnu_sed
     sed -i 's/^#if LV_USE_TRANSLATION$/#if defined(SOMETHING) \&\& OTHER/' \
         "$TREE/lib/lvgl/src/misc/lv_event.h"
     run python3 "$GEN_COPY"

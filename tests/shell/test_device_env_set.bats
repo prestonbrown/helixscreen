@@ -7,6 +7,7 @@
 # config a redeploy will not repair.
 
 setup() {
+    load helpers
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     ENVSET="$PWD/scripts/device-env-set-remote.sh"
     WORK="$BATS_TEST_TMPDIR/dev"
@@ -32,6 +33,7 @@ setup() {
 }
 
 @test "flips a commented-out key in place rather than appending a duplicate" {
+    require_gnu_sed
     # The stock env template ships documented-but-disabled entries. Appending
     # instead of editing leaves two definitions, and which one wins is then an
     # accident of file order rather than a decision.
@@ -47,6 +49,7 @@ setup() {
 }
 
 @test "overwrites a differing value instead of duplicating it" {
+    require_gnu_sed
     printf 'HELIX_REMOTE_CONTROL=0\n' > "$WORK/c.env"
     run sh "$ENVSET" "$WORK/c.env" HELIX_REMOTE_CONTROL 1
     [ "$status" -eq 0 ]
@@ -57,6 +60,7 @@ setup() {
 }
 
 @test "edits through a symlink without replacing it" {
+    require_gnu_sed
     # The Snapmaker U1 install points the in-tree env file at
     # /oem/printer_data/config/helixscreen/helixscreen.env. `sed -i` on a
     # symlink writes a REGULAR FILE over the link, detaching the device from

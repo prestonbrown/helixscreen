@@ -242,3 +242,43 @@ refute_grep() {
         return 1
     fi
 }
+
+# --- GNU sed on a BSD host (macOS) ----------------------------------------
+#
+# BSD sed differs from GNU/BusyBox sed in two ways this suite trips over: it
+# needs `-i ''` where the others take a bare `-i`, and it does not expand `\n`
+# in a replacement. Both failures are loud but misleading -- "invalid command
+# code f" names the file, not the flag -- and one class of them is silent:
+# `sed -i "/tag/d" "$conf" 2>/dev/null || true` inside an installer module
+# returns 0 having changed nothing, so the test fails on an assertion about the
+# file rather than on sed.
+#
+# Rewriting the call sites is not the fix, and for half of them it is not even
+# possible. Tests that drive a DEVICE script are testing that script's real
+# `sed -i`, which is correct for its only target (BusyBox/Linux on a printer).
+# device-env-set-remote.sh in particular is REQUIRED to edit in place: a
+# temp-file+mv would replace the inode and turn a symlinked helixscreen.env into
+# a regular file, which is the exact regression one of its tests pins. The
+# remaining call sites are tests editing their own fixtures, and a portable
+# wrapper would still not give them BSD `\n` support, so they take the same
+# route rather than a second, weaker one.
+#
+# So: give the test a real GNU sed instead. Linux CI already has one and this is
+# a no-op there. On macOS, gnu-sed installs it as `gsed`, which we shim onto
+# PATH under the name `sed` for the duration of the test -- that reaches the
+# device script's own invocation too, since it calls a bare `sed`. With neither
+# available the test skips with an actionable message rather than failing on a
+# platform it was never written for.
+require_gnu_sed() {
+    if sed --version 2>/dev/null | grep -q GNU; then
+        return 0
+    fi
+    if gsed --version 2>/dev/null | grep -q GNU; then
+        mkdir -p "$BATS_TEST_TMPDIR/bin"
+        printf '#!/bin/sh\nexec %s "$@"\n' "$(command -v gsed)" > "$BATS_TEST_TMPDIR/bin/sed"
+        chmod +x "$BATS_TEST_TMPDIR/bin/sed"
+        export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+        return 0
+    fi
+    skip "needs GNU sed (BSD sed differs on -i and \\n): brew install gnu-sed"
+}
