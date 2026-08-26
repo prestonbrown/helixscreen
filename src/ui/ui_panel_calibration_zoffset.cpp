@@ -429,9 +429,9 @@ void ZOffsetCalibrationPanel::arm_saving_timeout() {
         save_restart_latch_.note_restart_expected(
             EmergencyStopOverlay::instance().is_expected_restart());
 
-        if (helix::zoffset::should_extend_save_timeout(save_restart_latch_.restart_latched(),
-                                                       saving_timeout_extensions_,
-                                                       SAVING_TIMEOUT_MAX_EXTENSIONS)) {
+        if (helix::ui::should_extend_save_timeout(save_restart_latch_.restart_latched(),
+                                                  saving_timeout_extensions_,
+                                                  SAVING_TIMEOUT_MAX_EXTENSIONS)) {
             saving_timeout_extensions_++;
             spdlog::info("[ZOffsetCal] Save still pending across an expected Klipper restart — "
                          "extending timeout ({}/{})",

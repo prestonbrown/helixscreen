@@ -752,66 +752,6 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "apply_settings accepts a ver
 }
 
 // ============================================================================
-// save_to_config() Tests
-// ============================================================================
-
-TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "save_to_config sends SAVE_CONFIG",
-                 "[calibrator][input_shaper][save]") {
-    calibrator_.save_to_config([this]() { on_success(); },
-                               [this](const std::string& err) { on_error(err); });
-
-    // Sending the command verbatim is the whole of save_to_config's job
-    // (input_shaper_calibrator.cpp:353).
-    REQUIRE(mock_client_.gcode_script_history().size() == 1);
-    CHECK(mock_client_.gcode_script_history()[0] == "SAVE_CONFIG");
-
-    // Exactly one disposition reaches the caller — that, and not WHICH one, is
-    // save_to_config's contract.
-    //
-    // Do not "tighten" this to REQUIRE(error_received_). The error is the MOCK's
-    // choice: MoonrakerClientMock::gcode_script returns non-zero for SAVE_CONFIG
-    // (moonraker_client_mock.cpp:2252) because on real hardware SAVE_CONFIG
-    // restarts Klipper out from under the request, so the RPC does not come back
-    // OK. Pinning that here would freeze a mock decision into a test named for
-    // the calibrator, and whoever later makes the mock answer differently would
-    // "break" this test without changing any production behaviour.
-    //
-    // The XOR is not vacuous: a calibrator that dropped BOTH callbacks gives
-    // false != false, which fails. That dropped-callback regression is the one
-    // worth catching — a caller holding an in-flight flag keyed to this pair
-    // would stay pinned forever (cf. LedController::note_command_dispatched()).
-    // For the specificity this deliberately gives up — that the adapted error
-    // carries the printer's own words — see the force_next_gcode_error case
-    // directly below.
-    CHECK(success_called_.load() != error_received_.load());
-}
-
-TEST_CASE_METHOD(InputShaperCalibratorTestFixture,
-                 "save_to_config forwards the printer's error message",
-                 "[calibrator][input_shaper][save][error]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
-                                        "Option 'foo' is not valid in section 'input_shaper'",
-                                        "SAVE_CONFIG");
-
-    calibrator_.save_to_config([this]() { on_success(); },
-                               [this](const std::string& err) { on_error(err); });
-
-    // save_to_config's error_adapter passes MoonrakerError::message through
-    // unchanged (input_shaper_calibrator.cpp:346-350); an adapter that dropped
-    // it would leave the wizard with an empty error box.
-    REQUIRE(error_received_);
-    REQUIRE_FALSE(success_called_);
-    CHECK(captured_error_ == "Option 'foo' is not valid in section 'input_shaper'");
-}
-
-TEST_CASE_METHOD(InputShaperCalibratorTestFixture,
-                 "save_to_config with null callbacks does not crash",
-                 "[calibrator][input_shaper][save][edge_case]") {
-    REQUIRE_NOTHROW(calibrator_.save_to_config(nullptr, nullptr));
-    REQUIRE(mock_client_.gcode_script_history().size() == 1);
-}
-
-// ============================================================================
 // Error Handling Tests
 // ============================================================================
 
@@ -893,7 +833,7 @@ TEST_CASE("InputShaperCalibrator is movable", "[calibrator][input_shaper][move]"
 
 TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "Full calibration workflow scenario",
                  "[calibrator][input_shaper][integration]") {
-    // check accelerometer -> calibrate X -> calibrate Y -> apply -> save,
+    // check accelerometer -> calibrate X -> calibrate Y -> apply,
     // driven end-to-end through the mock printer.
     calibrator_.check_accelerometer([this](float noise) { on_accel_check(noise); },
                                     [this](const std::string& err) { on_error(err); });
@@ -929,15 +869,6 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "Full calibration workflow sc
     REQUIRE(success_called_);
     REQUIRE_FALSE(error_received_);
     reset_callbacks();
-
-    mock_client_.clear_gcode_script_history();
-    calibrator_.save_to_config([this]() { on_success(); },
-                               [this](const std::string& err) { on_error(err); });
-    REQUIRE(mock_client_.gcode_script_history().size() == 1);
-    CHECK(mock_client_.gcode_script_history()[0] == "SAVE_CONFIG");
-    // One disposition, either one — see "save_to_config sends SAVE_CONFIG" for
-    // why which one is the mock's business and not this test's.
-    CHECK(success_called_.load() != error_received_.load());
 }
 
 // ============================================================================

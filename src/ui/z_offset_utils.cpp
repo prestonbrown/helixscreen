@@ -150,12 +150,4 @@ void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
         });
 }
 
-bool should_extend_save_timeout(bool restart_latched, unsigned extensions_used,
-                                unsigned max_extensions) {
-    // Only stall the clock if this save actually triggered a restart. A save
-    // that never restarted Klipper and still has not completed is a real hang
-    // and must be reported.
-    return restart_latched && extensions_used < max_extensions;
-}
-
 } // namespace helix::zoffset

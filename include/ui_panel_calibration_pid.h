@@ -10,6 +10,7 @@
 #include "moonraker_advanced_api.h"
 #include "overlay_base.h"
 #include "pid_progress_tracker.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -209,6 +210,10 @@ class PIDCalibrationPanel : public OverlayBase {
     // Note: overlay_root_ inherited from OverlayBase
     lv_obj_t* parent_screen_ = nullptr;
     IMoonrakerAPI* api_ = nullptr;
+
+    /// Owns the SAVE_CONFIG contract: absorbs the rpc the restart drops
+    /// and reports success only once Klipper is back.
+    helix::ui::SaveConfigWatch save_watch_;
 
     // State
     State state_ = State::IDLE;

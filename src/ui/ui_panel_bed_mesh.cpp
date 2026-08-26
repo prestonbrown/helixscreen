@@ -1730,28 +1730,27 @@ void BedMeshPanel::execute_save_config() {
 
     spdlog::info("[{}] Saving config (will restart Klipper)", get_name());
 
-    // SAVE_CONFIG triggers an expected Klipper restart
-    helix::ui::begin_expected_klippy_restart("Configuration saved - restarting");
-
     operation_guard_.begin(SLOW_OPERATION_TIMEOUT_MS, [this] {
         hide_all_modals();
         pending_operation_ = PendingOperation::None;
         NOTIFY_WARNING(lv_tr("Bed mesh operation timed out"));
     });
 
-    api->execute_gcode(
-        "SAVE_CONFIG",
-        lifetime_.bg_cb("BedMeshPanel::save_config_done",
-                        [this]() {
-                            operation_guard_.end();
-                            spdlog::info("[{}] SAVE_CONFIG sent - Klipper will restart",
-                                         get_name());
-                        }),
-        lifetime_.bg_cb("BedMeshPanel::save_config_error", [this](const MoonrakerError& err) {
+    // SAVE_CONFIG's reply is dropped by the restart it triggers, so the watch
+    // decides the outcome from Klipper coming back rather than from the rpc.
+    // Reporting the dropped rpc as a failure told the user every successful save
+    // had failed (prestonbrown/helixscreen#1359).
+    save_watch_.begin(
+        api, "Configuration saved - restarting",
+        [this]() {
             operation_guard_.end();
-            spdlog::error("[{}] Failed to save config: {}", get_name(), err.message);
+            spdlog::info("[{}] SAVE_CONFIG completed", get_name());
+        },
+        [this](const std::string& message) {
+            operation_guard_.end();
+            spdlog::error("[{}] Failed to save config: {}", get_name(), message);
             NOTIFY_ERROR(lv_tr("Failed to save configuration"));
-        }));
+        });
 }
 
 // ============================================================================
