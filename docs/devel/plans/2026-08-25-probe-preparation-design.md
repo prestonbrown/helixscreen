@@ -200,7 +200,18 @@ reasons:
 
    Model-keyed data cannot express that, because both ZMOD versions report the same printer.
 
-2. **One entry, two firmwares.** `flashforge_adventurer_5m` matches AD5M running klipper-mod
+2. **Verified coverage is AD5X-on-ZMOD ONLY.** Checked on the rig 2026-08-25: `[zmod_tenz]`,
+   which registers `_LOAD_CELL_TARE`, is instantiated *only* in `mod/ad5x.cfg`. `ff5.cfg` (the
+   AD5M/FF5M shared config), `mod.cfg`, `base_mod.cfg` and `klipper13.cfg` reference it zero
+   times. `base.cfg` is shared and *calls* it six times but never defines it, so whether an
+   AD5M-on-ZMOD install registers the macro at all cannot be answered from an AD5X rig.
+
+   An earlier draft of this doc claimed the predicate "covers AD5M+ZMOD, AD5X+ZMOD and
+   Forge-X". That was inference and is unsupported - do not repeat it. The predicate-keyed
+   design means an over-broad claim is harmless in behaviour (the rule simply does not fire
+   where the macro is absent), but it must not be stated as verified coverage.
+
+3. **One entry, two firmwares.** `flashforge_adventurer_5m` matches AD5M running klipper-mod
    *or* ZMOD. Its heuristics exclude ForgeX (`SUPPORT_FORGE_X`), AD5X stock
    (`SET_EXTRUDER_SLOT`) and AD5X ZMOD (`_IFS_`), but nothing separates klipper-mod from ZMOD
    on the AD5M itself. `zmod_tenz.py` is a ZMOD-supplied klippy extra, so only one of those
@@ -208,7 +219,7 @@ reasons:
    klipper-mod refused it in issue #296, Forge-X says "pretty unlikely ever" - and factory
    firmware runs no Moonraker on 7125, so `flashforge_ad5x` already means AD5X-on-ZMOD.)
 
-3. **Vendor rule.** Keeping the vendor name in data means adding the next firmware touches
+4. **Vendor rule.** Keeping the vendor name in data means adding the next firmware touches
    one JSON file and zero C++, which is the test `CLAUDE.md` asks for. The evaluator names no
    vendor at all.
 
