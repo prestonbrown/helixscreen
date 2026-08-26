@@ -5,6 +5,8 @@
 
 #include "json_fwd.h"
 
+#include <algorithm>
+#include <cctype>
 #include <map>
 #include <string>
 #include <vector>
@@ -39,6 +41,12 @@
 struct SafetyLimits {
     double max_temperature_celsius = 400.0;
     double min_temperature_celsius = 0.0;
+
+    /// Per-heater ceilings read from the printer's own config, keyed by the
+    /// lower-cased `configfile.settings` section header. Empty until
+    /// update_safety_limits_from_printer() has run. Read through
+    /// max_temp_for(), never directly.
+    std::map<std::string, double> heater_max_temp_celsius;
     double min_extrude_temp_celsius = 170.0; ///< Minimum temp for extrusion (Klipper default)
     double max_fan_speed_percent = 100.0;
     double min_fan_speed_percent = 0.0;
@@ -48,6 +56,36 @@ struct SafetyLimits {
     double min_relative_distance_mm = -1000.0;
     double max_absolute_position_mm = 1000.0;
     double min_absolute_position_mm = 0.0;
+
+    /**
+     * @brief Ceiling for one heater, by Klipper object name.
+     *
+     * `max_temperature_celsius` is a single global bound, and a single bound
+     * cannot be right for a 290°C nozzle and a 120°C bed at once. Heaters whose
+     * config section was seen carry their own ceiling here; anything else falls
+     * back to the global sanity net rather than to another heater's number.
+     *
+     * That fallback direction is the point. Adopting the highest observed
+     * max_temp as one global bound - the obvious narrow fix - would let a
+     * `configfile.settings` response that exposes `heater_bed` but not
+     * `extruder` seed a 120°C ceiling and then reject every nozzle target
+     * (prestonbrown/helixscreen#1355).
+     *
+     * Keys are `configfile.settings` section headers, which is what a send
+     * carries: TemperatureController::resolved_name() yields "extruder",
+     * "heater_bed", or the whole "heater_generic chamber_heater". Moonraker
+     * lower-cases those headers, so the lookup lower-cases too rather than
+     * trusting however a discovery name was capitalised.
+     *
+     * @param heater Heater name as passed to set_temperature().
+     */
+    double max_temp_for(const std::string& heater) const {
+        std::string key = heater;
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const auto it = heater_max_temp_celsius.find(key);
+        return it != heater_max_temp_celsius.end() ? it->second : max_temperature_celsius;
+    }
 
     /**
      * @brief Clamp the temperature FLOORS at 0°C.

@@ -5,6 +5,7 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
+#include "ui_heater_config.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
@@ -264,6 +265,10 @@ class FilamentPanel : public PanelBase {
      * @param min_extrude_temp Minimum extrusion temperature (default: 170°C)
      */
     void set_limits(int min_temp, int max_temp, int min_extrude_temp = 170);
+
+    /// Keypad ceiling for one heater, preferring the printer's configured
+    /// max_temp over the compiled-in fallback (prestonbrown/helixscreen#1355).
+    float keypad_max_for(helix::HeaterType type, int fallback_deg);
 
     /**
      * @brief Set TemperatureService for combined temperature graph
