@@ -457,7 +457,8 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
 void MacrosPanel::execute_with_params(const std::string& macro_name,
                                       const helix::MacroParamResult& result) {
     IMoonrakerAPI* api = get_moonraker_api();
-    helix::execute_macro_gcode(api, macro_name, result, "[MacrosPanel]");
+    helix::execute_macro_gcode(api, macro_name, result, "[MacrosPanel]",
+                               get_printer_state().get_discovery());
 }
 
 // ============================================================================

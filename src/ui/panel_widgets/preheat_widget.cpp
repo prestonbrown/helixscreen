@@ -319,7 +319,8 @@ void PreheatWidget::handle_apply() {
 
         // Execute the macro
         MacroParamResult no_params;
-        execute_macro_gcode(api, *ovr->preheat_macro, no_params, "[PreheatWidget]");
+        execute_macro_gcode(api, *ovr->preheat_macro, no_params, "[PreheatWidget]",
+                            get_printer_state().get_discovery());
 
         spdlog::info("[PreheatWidget] Preheat {} via macro '{}' (handles_heating={})",
                      material_name, *ovr->preheat_macro, handles_heating);
