@@ -34,6 +34,21 @@ class GCodeLayerRendererTestAccess {
     static bool ghost_completed(const GCodeLayerRenderer& renderer) {
         return renderer.ghost_thread_ready_.load();
     }
+
+    /// The raw ARGB8888 ghost buffer the pass filled, for a test that wants to
+    /// look at the pixels rather than trust a layer count.
+    static const uint8_t* ghost_pixels(const GCodeLayerRenderer& renderer) {
+        return renderer.ghost_raw_buffer_.get();
+    }
+    static int ghost_width(const GCodeLayerRenderer& renderer) {
+        return renderer.ghost_raw_width_;
+    }
+    static int ghost_height(const GCodeLayerRenderer& renderer) {
+        return renderer.ghost_raw_height_;
+    }
+    static size_t ghost_stride(const GCodeLayerRenderer& renderer) {
+        return renderer.ghost_raw_stride_;
+    }
 };
 
 } // namespace gcode

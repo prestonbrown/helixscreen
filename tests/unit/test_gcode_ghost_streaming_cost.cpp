@@ -26,6 +26,7 @@
 #include "gcode_layer_renderer.h"
 #include "gcode_streaming_controller.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <fstream>
@@ -154,6 +155,28 @@ struct StreamingFixture {
     }
 };
 
+/// A tall, narrow model: a few mm of footprint over hundreds of layers. Auto-fit
+/// makes such a model height-constrained, so its projection fills the canvas
+/// vertically and every canvas row is a row the ghost must put ink in. A squat
+/// model hides a stride that undershoots, because it occupies fewer rows than
+/// the sample count regardless.
+std::string make_tall_narrow_gcode(int layers) {
+    std::ostringstream out;
+    out << "; synthetic tall-narrow ghost fixture\nG28\nG90\nM82\n";
+    double e = 0.0;
+    for (int layer = 0; layer < layers; ++layer) {
+        out << "G1 Z" << (0.2 * (layer + 1)) << " F1200\n";
+        for (int move = 0; move < 12; ++move) {
+            const double x = 100.0 + (move % 4) * 3.0;
+            const double y = 100.0 + ((move / 4) % 3) * 3.0;
+            e += 0.05;
+            out << "G1 X" << x << " Y" << y << " E" << e << " F1800\n";
+        }
+    }
+    out << "; end\n";
+    return out.str();
+}
+
 } // namespace
 
 TEST_CASE("ghost pass over a streamed file does not read one layer per layer",
@@ -241,4 +264,79 @@ TEST_CASE("a streamed ghost still spans the whole model", "[gcode][ghost][stream
     INFO("layers=" << layer_count << " step=" << plan.step << " last=" << last_visited);
     CHECK(last_visited < layer_count);
     CHECK(last_visited >= layer_count - plan.step);
+}
+
+TEST_CASE("a streamed ghost leaves no empty row inside the model",
+          "[gcode][ghost][streaming][cost]") {
+    // The pixels, not the layer count. Bounding the pass changes how many
+    // layers are drawn, and in the default FRONT view a layer's Z is its screen
+    // row - so too coarse a stride shows as stripes. Banding is exactly "a row
+    // inside the model with no ink", which is measurable without a reference
+    // image.
+    //
+    // 1000 layers of 0.2mm is 200mm of Z, which auto-fit renders across most of
+    // the canvas rather than half of it - the model has to occupy more rows than
+    // a bad stride yields samples, or the test passes for the wrong reason. A
+    // stride that rounds up gives 250 samples here against ~290 occupied rows.
+    const int layers = 1000;
+    TempFile file(make_tall_narrow_gcode(layers));
+
+    GCodeStreamingController controller;
+    REQUIRE(controller.open_file(file.path()));
+    REQUIRE(controller.is_open());
+    REQUIRE(controller.get_layer_count() > static_cast<size_t>(ghost_sample_budget(CANVAS_H)));
+
+    GCodeLayerRenderer renderer;
+    renderer.set_canvas_size(CANVAS_W, CANVAS_H);
+    renderer.set_streaming_controller(&controller);
+    renderer.set_view_mode(ViewMode::FRONT);
+
+    GCodeLayerRendererTestAccess::run_ghost_pass(renderer);
+    REQUIRE(GCodeLayerRendererTestAccess::ghost_completed(renderer));
+
+    const uint8_t* px = GCodeLayerRendererTestAccess::ghost_pixels(renderer);
+    REQUIRE(px != nullptr);
+    const int gw = GCodeLayerRendererTestAccess::ghost_width(renderer);
+    const int gh = GCodeLayerRendererTestAccess::ghost_height(renderer);
+    const size_t stride = GCodeLayerRendererTestAccess::ghost_stride(renderer);
+
+    auto row_has_ink = [&](int y) {
+        const uint8_t* row = px + static_cast<size_t>(y) * stride;
+        for (int x = 0; x < gw; ++x) {
+            if (row[x * 4 + 3] != 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int first = -1, last = -1, inked = 0;
+    for (int y = 0; y < gh; ++y) {
+        if (row_has_ink(y)) {
+            if (first < 0) {
+                first = y;
+            }
+            last = y;
+            ++inked;
+        }
+    }
+    REQUIRE(first >= 0);
+    // The model must occupy enough of the canvas for a gap to be meaningful.
+    // It does not fill it: auto-fit sizes against the bed, so even 200mm of Z
+    // lands on about half the rows. That bounds what this test can prove -
+    // the arithmetic guarantee that samples never fall below the row budget is
+    // pinned by plan_ghost_sampling's own tests, which check the boundary
+    // (budget+1 layers must yield budget+1 samples) directly. What this adds is
+    // end-to-end: the real pass, over the real streaming path, renders a
+    // contiguous silhouette rather than a comb.
+    REQUIRE(last - first > 50);
+
+    int largest_gap = 0, run = 0;
+    for (int y = first; y <= last; ++y) {
+        run = row_has_ink(y) ? 0 : run + 1;
+        largest_gap = std::max(largest_gap, run);
+    }
+    INFO("layers=" << controller.get_layer_count() << " rows " << first << ".." << last
+                   << " inked=" << inked << " largest_gap=" << largest_gap);
+    CHECK(largest_gap == 0);
 }
