@@ -65,6 +65,24 @@ jobs:
             /tmp/esp32pack-venv/bin/pip install --quiet pyyaml
             /tmp/esp32pack-venv/bin/python ../../scripts/esp32_pack_assets.py
             idf.py build
+      # The packer round-trip (tests/python/test_esp32_pack_assets.py) drives the
+      # real mkfrogfs.py out of managed_components/jkent__frogfs, which only
+      # exists because the reconfigure above vendored it. No other CI job has
+      # ESP-IDF, so this is the only place those assertions can actually run --
+      # the nightly Python job can only ever skip them. HELIX_FROGFS_REQUIRED
+      # turns the module's skip gate into a hard failure so a component that
+      # stops being vendored is loud here instead of green everywhere.
+      - name: Packed-asset round-trip tests
+        env:
+          HELIX_FROGFS_REQUIRED: "1"
+        run: |
+          # A venv, not --user: the runner image's Python is PEP 668
+          # externally-managed, so a bare `pip install --user` errors out. Same
+          # shape the packing step above already uses inside the container.
+          python3 -m venv /tmp/frogfs-test-venv
+          /tmp/frogfs-test-venv/bin/pip install --quiet pytest pyyaml
+          /tmp/frogfs-test-venv/bin/python -m pytest tests/python/test_esp32_pack_assets.py -v --tb=short
+
       - name: Size budget gate
         run: |
           python3 scripts/check_esp32_size.py \
