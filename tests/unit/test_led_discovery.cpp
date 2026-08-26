@@ -153,3 +153,54 @@ TEST_CASE_METHOD(LedDiscoveryFixture, "PrinterDiscovery clear resets LED effects
     REQUIRE(discovery.led_effects().empty());
     REQUIRE(discovery.led_macros().empty());
 }
+
+// ============================================================================
+// Exclusion matching
+//
+// The keyword test is deliberately a substring match so it catches LIGHTS,
+// LIGHTING and ILLUMINATE. The exclusion list must NOT be, or it eats real LED
+// macros whose names merely contain an exclusion as a fragment.
+// ============================================================================
+
+TEST_CASE_METHOD(LedDiscoveryFixture,
+                 "PrinterDiscovery: LED exclusions match whole words, not fragments",
+                 "[led][discovery]") {
+    helix::PrinterDiscovery discovery;
+    nlohmann::json objects = nlohmann::json::array({
+        "gcode_macro LED_RAPID_FLASH",     // "RAPID" contains "PID"
+        "gcode_macro LED_HOMED",           // "HOMED" contains "HOME"
+        "gcode_macro BACKLIGHT_CANCELLED", // "CANCELLED" contains "CANCEL"
+        "gcode_macro LED_PROBED",          // "PROBED" contains "PROBE"
+    });
+    discovery.parse_objects(objects);
+
+    auto& m = discovery.led_macros();
+    REQUIRE(discovery.has_led_macros());
+    CHECK(std::find(m.begin(), m.end(), "LED_RAPID_FLASH") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_HOMED") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "BACKLIGHT_CANCELLED") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_PROBED") != m.end());
+    REQUIRE(m.size() == 4);
+}
+
+TEST_CASE_METHOD(LedDiscoveryFixture,
+                 "PrinterDiscovery: LED exclusions still fire on a real word match",
+                 "[led][discovery]") {
+    helix::PrinterDiscovery discovery;
+    nlohmann::json objects = nlohmann::json::array({
+        "gcode_macro LED_PAUSE",     // trailing whole word
+        "gcode_macro LIGHT_Z_TILT",  // multi-token exclusion, trailing
+        "gcode_macro PROBE_LED_DIM", // leading whole word
+        "gcode_macro LED_CALIBRATE", // trailing whole word
+        "gcode_macro LED_PARTY",     // control: nothing to exclude
+    });
+    discovery.parse_objects(objects);
+
+    auto& m = discovery.led_macros();
+    CHECK(std::find(m.begin(), m.end(), "LED_PAUSE") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "LIGHT_Z_TILT") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "PROBE_LED_DIM") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_CALIBRATE") == m.end());
+    REQUIRE(m.size() == 1);
+    REQUIRE(m[0] == "LED_PARTY");
+}
