@@ -199,6 +199,36 @@ void TemperatureHistoryManager::notify_observers(const std::string& heater_name)
 // Internal Methods
 // ============================================================================
 
+void TemperatureHistoryManager::log_sample_verdict(const std::string& heater_name, bool valid,
+                                                   int temp_deci, int64_t timestamp_ms) {
+    const helix::InvalidSampleReport report =
+        reject_log_.record(heater_name, valid, temp_deci, timestamp_ms);
+    if (!report.loggable()) {
+        return;
+    }
+
+    const double minutes = report.duration_ms / 60000.0;
+    switch (report.what) {
+    case helix::InvalidSampleLog::Entered:
+        spdlog::debug("[TempHistory] '{}' reading out of range ({} deci-°C) - dropping samples; "
+                      "further reports back off to one per {} min",
+                      heater_name, temp_deci, helix::InvalidSampleTracker::MAX_REPEAT_MS / 60000);
+        break;
+    case helix::InvalidSampleLog::StillInvalid:
+        spdlog::debug("[TempHistory] '{}' still out of range ({} deci-°C): {} samples dropped "
+                      "over {:.1f} min",
+                      heater_name, temp_deci, report.dropped, minutes);
+        break;
+    case helix::InvalidSampleLog::Recovered:
+        spdlog::debug("[TempHistory] '{}' back in range ({} deci-°C) after {} dropped samples "
+                      "over {:.1f} min; last bad value {} deci-°C",
+                      heater_name, temp_deci, report.dropped, minutes, report.last_temp_deci);
+        break;
+    case helix::InvalidSampleLog::Nothing:
+        break;
+    }
+}
+
 bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_name, int temp_deci,
                                                     int target_deci, int64_t timestamp_ms) {
     // Reject "no data" / disconnect / inactive-extruder readings BEFORE storing.
@@ -211,9 +241,16 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
     // recorder, and is replayed later, so it must be rejected at this boundary —
     // the single source feeding every consumer (overlay, mini graph, panel).
     // Upper bound rejects obviously-bogus spikes (deci-degrees; 4000 = 400°C).
-    if (temp_deci <= 0 || temp_deci > MAX_VALID_TEMP_DECI) {
-        spdlog::debug("[TempHistory] dropping invalid sample for '{}': {} deci-°C", heater_name,
-                      temp_deci);
+    //
+    // Logging is per state transition, not per sample (#1348). The predicate is
+    // permanent for an open or unmounted thermistor, so a line per rejection is
+    // a line per second per heater forever — one field bundle was 95.5% this
+    // single message, which evicted the whole crash ring. InvalidSampleTracker
+    // collapses a run into: one line when it opens, a heartbeat on a doubling
+    // interval while it lasts, one line when it closes.
+    const bool valid = (temp_deci > 0 && temp_deci <= MAX_VALID_TEMP_DECI);
+    log_sample_verdict(heater_name, valid, temp_deci, timestamp_ms);
+    if (!valid) {
         return false;
     }
 

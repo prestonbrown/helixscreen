@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "invalid_sample_tracker.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
 
@@ -244,6 +245,23 @@ class TemperatureHistoryManager {
                              int64_t timestamp_ms);
 
     /**
+     * @brief Log a sample's range verdict at state-transition rate, not per sample
+     *
+     * The range check is permanent for an open or unmounted thermistor, so
+     * logging every rejection floods the crash ring and blinds the debug bundle
+     * (prestonbrown/helixscreen#1348). Feeds the verdict to reject_log_ and
+     * emits at most one line per report: run opened, periodic heartbeat while it
+     * lasts, run closed.
+     *
+     * @param heater_name Heater name
+     * @param valid       Whether the sample passed the range check
+     * @param temp_deci   Temperature in decidegrees
+     * @param timestamp_ms Sample timestamp in milliseconds
+     */
+    void log_sample_verdict(const std::string& heater_name, bool valid, int temp_deci,
+                            int64_t timestamp_ms);
+
+    /**
      * @brief Notify all registered observers
      *
      * @param heater_name Heater that received new sample
@@ -321,6 +339,11 @@ class TemperatureHistoryManager {
     // Thread-safety note: only accessed from the main thread via LVGL observer
     // callbacks. No mutex protection needed as LVGL runs single-threaded.
     std::unordered_map<std::string, int> cached_targets_;
+
+    // Collapses runs of out-of-range samples into a handful of log lines.
+    // Guarded by mutex_, same as heaters_ — every write goes through
+    // add_sample_internal(), which the callers already lock around.
+    helix::InvalidSampleTracker reject_log_;
 
     // Thread safety
     mutable std::mutex mutex_;
