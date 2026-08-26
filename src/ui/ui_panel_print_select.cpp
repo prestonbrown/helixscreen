@@ -2381,11 +2381,10 @@ void PrintSelectPanel::merge_history_into_file_list() {
         return;
     }
 
-    // Trigger fetch if history not loaded yet
-    if (!history_manager->is_loaded()) {
-        spdlog::trace("[{}] History not loaded, triggering fetch", get_name());
-        history_manager->fetch();
-    }
+    // Populate the cache if nobody has yet. ensure_loaded(), not fetch():
+    // fetch() means "the cached list is wrong", so calling it while a request
+    // is already out queues a second identical one.
+    history_manager->ensure_loaded();
 
     // Get currently printing filename (if any)
     std::string current_print_filename;
