@@ -330,6 +330,10 @@ void LedController::discover_from_hardware(const helix::PrinterDiscovery& hardwa
                      discovered_led_macros_.size());
     }
 
+    // A bare ON/OFF pair is unambiguous, so promote it to a real device rather
+    // than leaving the user to hand-build one from the settings dropdowns.
+    seed_auto_paired_macros();
+
     // Repopulate the macro backend — the clear() above wiped what load_config()
     // installed. Same single rebuild path, so the two lists cannot drift.
     rebuild_macro_backend();
@@ -1910,6 +1914,11 @@ void LedController::save_config() {
     // Configured macros
     nlohmann::json macros_arr = nlohmann::json::array();
     for (const auto& m : configured_macros_) {
+        // Never persist an in-progress draft: on reload it would come back as a
+        // device with no name and no way to reach its editor.
+        if (m.display_name.empty()) {
+            continue;
+        }
         nlohmann::json obj;
         obj["name"] = m.display_name;
 
@@ -2163,9 +2172,10 @@ std::vector<LedStripInfo> LedController::all_selectable_strips() const {
         result.push_back(strip);
     }
 
-    // Configured macros (skip PRESET type - those aren't toggleable strips)
+    // Configured macros (skip PRESET type - those aren't toggleable strips,
+    // and unnamed drafts, which would render a blank chip that dispatches nothing)
     for (const auto& macro : configured_macros_) {
-        if (macro.type == MacroLedType::PRESET)
+        if (macro.type == MacroLedType::PRESET || macro.display_name.empty())
             continue;
         LedStripInfo info;
         info.name = macro.display_name;
@@ -2199,9 +2209,10 @@ std::string LedController::first_available_strip() const {
         return wled_.strips()[0].id;
     }
 
-    // Fall back to first non-PRESET macro
+    // Fall back to first non-PRESET macro (an unnamed draft would yield a bare
+    // "macro:" ID that backend_for_strip resolves to nothing)
     for (const auto& macro : configured_macros_) {
-        if (macro.type != MacroLedType::PRESET) {
+        if (macro.type != MacroLedType::PRESET && !macro.display_name.empty()) {
             return MACRO_STRIP_PREFIX + macro.display_name;
         }
     }
@@ -2447,22 +2458,115 @@ void LedController::set_color_presets(const std::vector<uint32_t>& presets) {
 }
 
 void LedController::set_configured_macros(const std::vector<LedMacroInfo>& macros) {
-    configured_macros_.clear();
-    configured_macros_.reserve(macros.size());
-    for (const auto& m : macros) {
-        if (!m.display_name.empty()) {
-            configured_macros_.push_back(m);
-        } else {
-            spdlog::warn("[LedController] Skipping macro with empty display name");
-        }
-    }
+    // Unnamed entries are kept. The settings editor appends a blank device so
+    // the user has a row to fill in, and it indexes back into this list by
+    // position, so compacting here silently discarded every "+ Add" press.
+    // Everything downstream that cannot address an unnamed device -- the gcode
+    // backend, the strip list, the persisted config -- filters it out instead.
+    configured_macros_ = macros;
     // Keep MacroBackend in lockstep so no caller can leave the two out of sync.
     rebuild_macro_backend();
+}
+
+void LedController::seed_auto_paired_macros() {
+    auto* cfg = Config::get_instance();
+    if (cfg == nullptr) {
+        return;
+    }
+
+    // Bases we have already offered. Retained after the user deletes the device,
+    // so a deliberate dismissal is not undone on the next discovery.
+    std::set<std::string> seeded;
+    const nlohmann::json* seeded_json = cfg->try_get_json(cfg->df() + "leds/auto_paired_bases");
+    if (seeded_json != nullptr && seeded_json->is_array()) {
+        for (const auto& b : *seeded_json) {
+            if (b.is_string()) {
+                seeded.insert(b.get<std::string>());
+            }
+        }
+    }
+
+    const std::set<std::string> available(discovered_led_macros_.begin(),
+                                          discovered_led_macros_.end());
+
+    // Macros the user has already wired into a device are not ours to claim.
+    std::set<std::string> claimed;
+    std::set<std::string> used_names;
+    for (const auto& m : configured_macros_) {
+        claimed.insert(m.on_macro);
+        claimed.insert(m.off_macro);
+        claimed.insert(m.toggle_macro);
+        claimed.insert(m.presets.begin(), m.presets.end());
+        used_names.insert(m.display_name);
+    }
+
+    static constexpr const char* ON_SUFFIX = "_ON";
+    static constexpr size_t ON_SUFFIX_LEN = 3;
+
+    bool added = false;
+    for (const auto& on_macro : discovered_led_macros_) {
+        if (on_macro.size() <= ON_SUFFIX_LEN ||
+            on_macro.compare(on_macro.size() - ON_SUFFIX_LEN, ON_SUFFIX_LEN, ON_SUFFIX) != 0) {
+            continue;
+        }
+        const std::string base = on_macro.substr(0, on_macro.size() - ON_SUFFIX_LEN);
+        const std::string off_macro = base + "_OFF";
+        if (available.count(off_macro) == 0 || seeded.count(base) != 0 ||
+            claimed.count(on_macro) != 0 || claimed.count(off_macro) != 0) {
+            continue;
+        }
+
+        LedMacroInfo info;
+        info.display_name = pretty_print_macro(base);
+        if (info.display_name.empty()) {
+            info.display_name = base;
+        }
+        // pretty_print_macro title-cases, which reads wrong for a bare acronym.
+        if (info.display_name == "Led") {
+            info.display_name = "LED";
+        }
+        // Do not shadow a device the user named the same thing -- find_macro keys
+        // on display_name and would resolve to whichever came first.
+        if (used_names.count(info.display_name) != 0) {
+            seeded.insert(base);
+            added = true;
+            spdlog::debug("[LedController] Skipping auto-pair for '{}' - name already in use",
+                          info.display_name);
+            continue;
+        }
+
+        info.type = MacroLedType::ON_OFF;
+        info.on_macro = on_macro;
+        info.off_macro = off_macro;
+        configured_macros_.push_back(info);
+        used_names.insert(info.display_name);
+        seeded.insert(base);
+        added = true;
+        spdlog::info("[LedController] Auto-paired {} / {} as LED device '{}'", on_macro, off_macro,
+                     info.display_name);
+    }
+
+    if (!added) {
+        return;
+    }
+
+    nlohmann::json bases = nlohmann::json::array();
+    for (const auto& b : seeded) {
+        bases.push_back(b);
+    }
+    cfg->set(cfg->df() + "leds/auto_paired_bases", bases);
+    save_config();
 }
 
 void LedController::rebuild_macro_backend() {
     macro_.clear();
     for (const auto& m : configured_macros_) {
+        // MacroBackend keys on display_name, so an unnamed draft has no
+        // reachable identity. Skip it quietly -- it is an expected state while
+        // the user is still typing, not a fault worth logging on every keystroke.
+        if (m.display_name.empty()) {
+            continue;
+        }
         macro_.add_macro(m);
     }
 }

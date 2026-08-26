@@ -1846,6 +1846,7 @@ translations:
     - Hauptbeleuchtung auswählen, oder überspringen falls keine vorhanden
   Options: Optionen
   Or Enter Manually: Oder manuell eingeben
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: Oszilliert... Zyklus %d/%d
   Out of range: Außerhalb des Bereichs
   Outcome: Ergebnis

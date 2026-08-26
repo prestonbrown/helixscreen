@@ -435,6 +435,87 @@ TEST_CASE("StandardMacros - all() returns all slots", "[standard_macros]") {
     REQUIRE(all_slots[5].slot == StandardMacroSlot::Cancel);
     REQUIRE(all_slots[6].slot == StandardMacroSlot::BedMesh);
     REQUIRE(all_slots[7].slot == StandardMacroSlot::BedLevel);
-    REQUIRE(all_slots[8].slot == StandardMacroSlot::CleanNozzle);
-    REQUIRE(all_slots[9].slot == StandardMacroSlot::HeatSoak);
+    REQUIRE(all_slots[8].slot == StandardMacroSlot::ScrewsTilt);
+    REQUIRE(all_slots[9].slot == StandardMacroSlot::CleanNozzle);
+    REQUIRE(all_slots[10].slot == StandardMacroSlot::HeatSoak);
+
+    // This test exists to make an enum insertion LOUD. It is safe to renumber
+    // here only because persistence keys on slot_name, never the index:
+    // save_to_config()/load_from_config() write "/standard_macros/<slot_name>",
+    // and the quick_button_N settings store names ("clean_nozzle", "bed_level")
+    // resolved through slot_from_name(). If a numeric slot value ever starts
+    // crossing a persistence boundary, inserting mid-enum silently remaps every
+    // user's saved macro assignments and this test is the tripwire.
+}
+
+// ============================================================================
+// ScrewsTilt slot
+// ============================================================================
+
+TEST_CASE("StandardMacros - ScrewsTilt slot", "[standard_macros][screws_tilt]") {
+    auto& macros = StandardMacros::instance();
+    macros.reset();
+
+    SECTION("The bare command outranks the heating wrapper") {
+        // ZMOD ships both. BED_LEVEL_SCREWS_TUNE does more - homes, heats to
+        // 130/80, blocks on TEMPERATURE_WAIT, tares, then calls
+        // SCREWS_TILT_CALCULATE - so auto-selecting it would silently turn a ~90s
+        // operation into a multi-minute heat cycle for every existing ZMOD user.
+        // Probe preparation supplies the tare, so the wrapper stays opt-in.
+        helix::PrinterDiscovery zmod;
+        json objects = {"extruder", "screws_tilt_adjust", "gcode_macro BED_LEVEL_SCREWS_TUNE",
+                        "gcode_macro SCREWS_TILT_CALCULATE"};
+        zmod.parse_objects(objects);
+        macros.init(zmod);
+
+        REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).detected_macro ==
+                "SCREWS_TILT_CALCULATE");
+    }
+
+    SECTION("The wrapper is still taken when it is the only one offered") {
+        helix::PrinterDiscovery only_wrapper;
+        json objects = {"extruder", "gcode_macro BED_LEVEL_SCREWS_TUNE"};
+        only_wrapper.parse_objects(objects);
+        macros.init(only_wrapper);
+
+        REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).detected_macro ==
+                "BED_LEVEL_SCREWS_TUNE");
+    }
+
+    SECTION("A printer with neither leaves the slot empty - there is no fallback") {
+        // Nothing generic can synthesize screw guidance, so unlike BedMesh this
+        // slot must NOT acquire a HELIX_* fallback.
+        helix::PrinterDiscovery none;
+        json objects = {"extruder", "heater_bed"};
+        none.parse_objects(objects);
+        macros.init(none);
+
+        REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).is_empty());
+    }
+
+    SECTION("A user assignment outranks detection") {
+        helix::PrinterDiscovery zmod;
+        json objects = {"extruder", "gcode_macro BED_LEVEL_SCREWS_TUNE",
+                        "gcode_macro SCREWS_TILT_CALCULATE"};
+        zmod.parse_objects(objects);
+        macros.init(zmod);
+        macros.set_macro(StandardMacroSlot::ScrewsTilt, "BED_LEVEL_SCREWS_TUNE");
+
+        REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).get_macro() == "BED_LEVEL_SCREWS_TUNE");
+    }
+
+    SECTION("Adding the slot did not disturb its neighbours") {
+        // The enum is indexed into slots_, so an insertion in the middle is
+        // exactly how adjacent slots get silently reassigned.
+        helix::PrinterDiscovery hw;
+        json objects = {"extruder", "gcode_macro QUAD_GANTRY_LEVEL", "gcode_macro CLEAN_NOZZLE",
+                        "gcode_macro BED_MESH_CALIBRATE"};
+        hw.parse_objects(objects);
+        macros.init(hw);
+
+        REQUIRE(macros.get(StandardMacroSlot::BedLevel).detected_macro == "QUAD_GANTRY_LEVEL");
+        REQUIRE(macros.get(StandardMacroSlot::CleanNozzle).detected_macro == "CLEAN_NOZZLE");
+        REQUIRE(macros.get(StandardMacroSlot::BedMesh).detected_macro == "BED_MESH_CALIBRATE");
+        REQUIRE(macros.get(StandardMacroSlot::ScrewsTilt).is_empty());
+    }
 }

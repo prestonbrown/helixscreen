@@ -102,6 +102,7 @@ src/printer/detection_manager.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_fan_analyzer.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut
 src/printer/printer_discovery.cpp  # not in the v1 Core+AMS cut
+src/printer/probe_preparation.cpp  # not in the v1 Core+AMS cut
 src/printer/screws_tilt_share_text.cpp  # not in the v1 Core+AMS cut
 src/printer/spoolman_manager.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/printer/spoolman_types.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast

@@ -128,13 +128,17 @@ TEST_CASE_METHOD(LedDiscoveryFixture,
     REQUIRE(std::find(ctrl.discovered_macros().begin(), ctrl.discovered_macros().end(),
                       "LIGHTS_ON") != ctrl.discovered_macros().end());
 
-    // No auto-creation of macro devices — macros are user-configured only
-    REQUIRE(ctrl.macro().macros().size() == 0);
-    REQUIRE(ctrl.macro().is_available() == false);
+    // LIGHTS_ON/LIGHTS_OFF is an unambiguous pair, so it is seeded as a ready-to-use
+    // ON_OFF device. LED_PARTY has no partner and stays a candidate for the dropdown.
+    REQUIRE(ctrl.macro().macros().size() == 1);
+    REQUIRE(ctrl.macro().is_available() == true);
+    REQUIRE(ctrl.macro().macros()[0].on_macro == "LIGHTS_ON");
+    REQUIRE(ctrl.macro().macros()[0].off_macro == "LIGHTS_OFF");
+    REQUIRE(ctrl.macro().macros()[0].type == helix::led::MacroLedType::ON_OFF);
 
-    // Only native + effects backends available (no macro backend)
+    // native + effects + the seeded macro device
     auto backends = ctrl.available_backends();
-    REQUIRE(backends.size() == 2);
+    REQUIRE(backends.size() == 3);
 
     ctrl.deinit();
 }
@@ -152,4 +156,55 @@ TEST_CASE_METHOD(LedDiscoveryFixture, "PrinterDiscovery clear resets LED effects
     REQUIRE(!discovery.has_led_macros());
     REQUIRE(discovery.led_effects().empty());
     REQUIRE(discovery.led_macros().empty());
+}
+
+// ============================================================================
+// Exclusion matching
+//
+// The keyword test is deliberately a substring match so it catches LIGHTS,
+// LIGHTING and ILLUMINATE. The exclusion list must NOT be, or it eats real LED
+// macros whose names merely contain an exclusion as a fragment.
+// ============================================================================
+
+TEST_CASE_METHOD(LedDiscoveryFixture,
+                 "PrinterDiscovery: LED exclusions match whole words, not fragments",
+                 "[led][discovery]") {
+    helix::PrinterDiscovery discovery;
+    nlohmann::json objects = nlohmann::json::array({
+        "gcode_macro LED_RAPID_FLASH",     // "RAPID" contains "PID"
+        "gcode_macro LED_HOMED",           // "HOMED" contains "HOME"
+        "gcode_macro BACKLIGHT_CANCELLED", // "CANCELLED" contains "CANCEL"
+        "gcode_macro LED_PROBED",          // "PROBED" contains "PROBE"
+    });
+    discovery.parse_objects(objects);
+
+    auto& m = discovery.led_macros();
+    REQUIRE(discovery.has_led_macros());
+    CHECK(std::find(m.begin(), m.end(), "LED_RAPID_FLASH") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_HOMED") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "BACKLIGHT_CANCELLED") != m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_PROBED") != m.end());
+    REQUIRE(m.size() == 4);
+}
+
+TEST_CASE_METHOD(LedDiscoveryFixture,
+                 "PrinterDiscovery: LED exclusions still fire on a real word match",
+                 "[led][discovery]") {
+    helix::PrinterDiscovery discovery;
+    nlohmann::json objects = nlohmann::json::array({
+        "gcode_macro LED_PAUSE",     // trailing whole word
+        "gcode_macro LIGHT_Z_TILT",  // multi-token exclusion, trailing
+        "gcode_macro PROBE_LED_DIM", // leading whole word
+        "gcode_macro LED_CALIBRATE", // trailing whole word
+        "gcode_macro LED_PARTY",     // control: nothing to exclude
+    });
+    discovery.parse_objects(objects);
+
+    auto& m = discovery.led_macros();
+    CHECK(std::find(m.begin(), m.end(), "LED_PAUSE") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "LIGHT_Z_TILT") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "PROBE_LED_DIM") == m.end());
+    CHECK(std::find(m.begin(), m.end(), "LED_CALIBRATE") == m.end());
+    REQUIRE(m.size() == 1);
+    REQUIRE(m[0] == "LED_PARTY");
 }

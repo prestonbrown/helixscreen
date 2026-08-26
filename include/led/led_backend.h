@@ -91,6 +91,11 @@ struct LedMacroInfo {
 inline const LedMacroInfo* find_macro(const std::vector<LedMacroInfo>& macros,
                                       const std::string& name_or_id) {
     const std::string name = strip_macro_name(name_or_id);
+    // A bare "macro:" ID would otherwise match an unnamed draft device, handing
+    // the caller an entry whose gcode fields are all empty.
+    if (name.empty()) {
+        return nullptr;
+    }
     for (const auto& m : macros) {
         if (m.display_name == name) {
             return &m;

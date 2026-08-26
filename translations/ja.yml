@@ -1684,6 +1684,7 @@ translations:
     - メイン照明を選択するか、照明がない場合はスキップしてください
   Options: オプション
   Or Enter Manually: または手動で入力
+  Or instead of turning the others: ''
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
   Out of range: 範囲外
   Outcome: 結果

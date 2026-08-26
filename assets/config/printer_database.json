@@ -67,6 +67,33 @@
       ]
     }
   },
+  "probe_preparation": [
+    {
+      "id": "zmod_load_cell_tare",
+      "when": [
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "LOAD_CELL_TARE"
+        }
+      ],
+      "operations": [
+        "screws_tilt",
+        "bed_mesh",
+        "probe_accuracy",
+        "z_offset_calibrate"
+      ],
+      "gcode": [
+        "LOAD_CELL_TARE"
+      ],
+      "skip_if_macro_in": [
+        "BED_LEVEL_SCREWS_TUNE"
+      ],
+      "label": "Zeroing load cell",
+      "timeout_s": 60,
+      "reason": "ZMOD probes with a load cell whose zero drifts when bed screws or thermal preload change. ZMOD tares on its print path (_PREPARE_PRINT, _START_PRINT) but not on any calibration entry point, so an untared probe reports 'Probe triggered prior to movement'. BED_LEVEL_SCREWS_TUNE tares itself, hence skip_if_macro_in."
+    }
+  ],
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
@@ -517,6 +544,7 @@
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5x.png",
       "preset": "ad5x",
+      "screws_tilt_direction": "ccw",
       "z_offset_calibration_strategy": "firmware_managed",
       "heuristics": [
         {

@@ -521,9 +521,14 @@ class PrinterDiscovery {
                     }
                 }
                 if (is_led_candidate) {
+                    // Exclusions match on whole underscore-delimited words. The
+                    // keyword test above stays a substring match on purpose (it
+                    // has to catch LIGHTS, LIGHTING, ILLUMINATE), but an
+                    // exclusion that fires on a fragment throws away real LED
+                    // macros -- LED_RAPID_FLASH is not a PID macro.
                     bool excluded = false;
                     for (const auto& ex : led_exclusions) {
-                        if (upper_macro.find(ex) != std::string::npos) {
+                        if (contains_word(upper_macro, ex)) {
                             excluded = true;
                             break;
                         }
@@ -1503,6 +1508,26 @@ class PrinterDiscovery {
             int num_b = (db < b.size()) ? std::stoi(b.substr(db)) : -1;
             return num_a < num_b;
         });
+    }
+
+    // Helper: true when `needle` appears in `name` bounded by underscores or the
+    // ends of the string. Klipper macro names are underscore-separated words, so
+    // a plain substring test matches far too much: "PID" hits LED_RAPID_FLASH and
+    // "HOME" hits STATUS_LED_HOMING, dropping LED macros that are perfectly valid.
+    static bool contains_word(const std::string& name, const std::string& needle) {
+        if (needle.empty() || needle.size() > name.size()) {
+            return false;
+        }
+        for (size_t pos = name.find(needle); pos != std::string::npos;
+             pos = name.find(needle, pos + 1)) {
+            const size_t end = pos + needle.size();
+            const bool left_ok = (pos == 0) || (name[pos - 1] == '_');
+            const bool right_ok = (end == name.size()) || (name[end] == '_');
+            if (left_ok && right_ok) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Helper: check if name matches any pattern

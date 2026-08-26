@@ -273,16 +273,12 @@ async function createGitHubIssue(env: Env, report: CrashReport): Promise<IssueRe
     return { number: 0, html_url: "", is_duplicate: false, ignored: true };
   }
 
-  const fingerprint = crashFingerprint(report);
-
-  // Check for existing open issue with same fingerprint
-  const existing = await findExistingIssue(token, owner, repo, fingerprint);
-  if (existing) {
-    await addDuplicateComment(token, owner, repo, existing.number, report, fingerprint);
-    return { number: existing.number, html_url: existing.html_url, is_duplicate: true };
-  }
-
-  // Resolve backtrace symbols from R2 (best-effort, never throws)
+  // Resolve backtrace symbols from R2 (best-effort, never throws). This runs
+  // before the dedup search because the fingerprint keys on the resolved crash
+  // symbol: the raw PC differs per architecture, so fingerprinting on it filed
+  // one defect as four issues (#1347, #1356, #1357, #1361). The cost is that a
+  // duplicate report now pays for a symbol fetch and parse too; the same
+  // resolution is reused for the issue body below when one gets created.
   let resolved: ResolvedBacktrace | null = null;
   if (env.RELEASES_BUCKET) {
     try {
@@ -290,6 +286,15 @@ async function createGitHubIssue(env: Env, report: CrashReport): Promise<IssueRe
     } catch (err) {
       console.error("Symbol resolution failed:", (err as Error).message);
     }
+  }
+
+  const fingerprint = crashFingerprint(report, resolved);
+
+  // Check for existing open issue with same fingerprint
+  const existing = await findExistingIssue(token, owner, repo, fingerprint);
+  if (existing) {
+    await addDuplicateComment(token, owner, repo, existing.number, report, fingerprint);
+    return { number: existing.number, html_url: existing.html_url, is_duplicate: true };
   }
 
   // Includes the fault type when available (e.g., "SEGV_MAPERR at 0x00000000")

@@ -225,9 +225,13 @@ class ScrewsTiltPanel : public OverlayBase {
     static constexpr size_t ERROR_MSG_BUF_SIZE = 256;
     lv_subject_t probe_count_subject_;
     lv_subject_t error_message_subject_;
+    lv_subject_t recenter_hint_subject_;   ///< Alternative that turns fewer screws
+    lv_subject_t recenter_hint_available_; ///< 1 when the hint is worth showing
     lv_subject_t results_is_leveled_subject_;
     char probe_count_buf_[PROBE_COUNT_BUF_SIZE] = {};
     char error_message_buf_[ERROR_MSG_BUF_SIZE] = {};
+    static constexpr size_t RECENTER_HINT_BUF_SIZE = 160;
+    char recenter_hint_buf_[RECENTER_HINT_BUF_SIZE] = {};
 
     // Screw data
     std::vector<ScrewTiltResult> screw_results_;

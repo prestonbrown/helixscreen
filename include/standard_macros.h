@@ -51,6 +51,7 @@ enum class StandardMacroSlot {
     Cancel,         ///< Cancel current print
     BedMesh,        ///< Bed mesh calibration (BED_MESH_CALIBRATE/G29)
     BedLevel,       ///< Physical bed leveling (QGL/Z-Tilt)
+    ScrewsTilt,     ///< Manual bed screw guidance (SCREWS_TILT_CALCULATE)
     CleanNozzle,    ///< Nozzle cleaning/wiping
     HeatSoak,       ///< Chamber/bed heat soak
 

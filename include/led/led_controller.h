@@ -528,6 +528,11 @@ class LedController {
     /// Call after modifying macros via set_configured_macros() so the overlay sees the changes.
     void rebuild_macro_backend();
 
+    /// Turn each freshly discovered <BASE>_ON / <BASE>_OFF pair into a ready-to-use
+    /// ON_OFF device. Bases already offered are recorded in config so that deleting
+    /// a seeded device is not undone by the next discovery.
+    void seed_auto_paired_macros();
+
     [[nodiscard]] const std::vector<std::string>& discovered_macros() const {
         return discovered_led_macros_;
     }

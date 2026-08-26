@@ -11,10 +11,10 @@
 
 #include "config.h"
 #include "host_identity.h"
-#include "platform_info.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "platform_info.h"
 #include "runtime_config.h"
 #include "system_power.h"
 

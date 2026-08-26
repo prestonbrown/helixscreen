@@ -13,6 +13,7 @@
 #include "print_start_analyzer.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "probe_preparation.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -1954,6 +1955,24 @@ bool PrinterDetector::is_creality_k2() {
 bool PrinterDetector::is_creality_hi() {
     return printer_type_contains("creality") && printer_type_contains("hi");
 }
+
+namespace helix::probe_prep {
+
+/// Declared in probe_preparation.h. Lives here because g_database is file-local.
+/// Returned by value: reload() would invalidate any reference into the database,
+/// and the rule list is a handful of entries, not the 98-printer heuristics table.
+nlohmann::json database_rules() {
+    if (!g_database.load()) {
+        return nlohmann::json::array();
+    }
+    const auto it = g_database.data.find("probe_preparation");
+    if (it == g_database.data.end() || !it->is_array()) {
+        return nlohmann::json::array();
+    }
+    return *it;
+}
+
+} // namespace helix::probe_prep
 
 std::string PrinterDetector::screws_tilt_direction_override() {
     Config* config = Config::get_instance();
