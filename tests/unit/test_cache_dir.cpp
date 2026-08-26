@@ -243,3 +243,93 @@ TEST_CASE("a candidate under an unwritable parent is skipped, not created", "[ca
     cleanup_dir(locked);
     cleanup_dir(got);
 }
+
+// ============================================================================
+// Stale-cache reclamation
+// ============================================================================
+
+#include "../test_helpers/helix_cache_dir_test_access.h"
+
+namespace {
+/// Build <root>/<subdir>/marker so a reclaim has something real to remove.
+std::string seed_cache(const std::string& root, const std::string& subdir) {
+    const std::string dir = root + "/" + subdir;
+    std::filesystem::create_directories(dir);
+    std::ofstream(dir + "/marker") << "x";
+    return dir;
+}
+} // namespace
+
+TEST_CASE("reclaim_cache_paths removes a stale cache subdir", "[cache]") {
+    std::string root = make_test_tmpdir("reclaim_hit");
+    const std::string dir = seed_cache(root, "helix_thumbs");
+    REQUIRE(std::filesystem::exists(dir + "/marker"));
+
+    REQUIRE(reclaim_cache_paths({dir}, "helix_thumbs") == 1);
+    REQUIRE_FALSE(std::filesystem::exists(dir));
+
+    cleanup_dir(root);
+}
+
+TEST_CASE("reclaim_cache_paths drops the parent once it is empty", "[cache]") {
+    std::string root = make_test_tmpdir("reclaim_parent");
+    const std::string base = root + "/helix";
+    const std::string dir = seed_cache(base, "gcode_mod");
+
+    REQUIRE(reclaim_cache_paths({dir}, "gcode_mod") == 1);
+    // ~/.cache/helix should not survive as an empty shell.
+    REQUIRE_FALSE(std::filesystem::exists(base));
+
+    cleanup_dir(root);
+}
+
+TEST_CASE("reclaim_cache_paths keeps a parent that still has siblings", "[cache]") {
+    std::string root = make_test_tmpdir("reclaim_sibling");
+    const std::string base = root + "/helix";
+    const std::string doomed = seed_cache(base, "gcode_mod");
+    const std::string keep = seed_cache(base, "helix_thumbs");
+
+    REQUIRE(reclaim_cache_paths({doomed}, "gcode_mod") == 1);
+    REQUIRE_FALSE(std::filesystem::exists(doomed));
+    REQUIRE(std::filesystem::exists(keep + "/marker"));
+    REQUIRE(std::filesystem::exists(base));
+
+    cleanup_dir(root);
+}
+
+TEST_CASE("reclaim_cache_paths refuses a path that is not the named subdir", "[cache]") {
+    std::string root = make_test_tmpdir("reclaim_mismatch");
+    const std::string dir = seed_cache(root, "something_else");
+
+    // The suffix guard is what stands between remove_all and a path nobody checked.
+    REQUIRE(reclaim_cache_paths({dir}, "helix_thumbs") == 0);
+    REQUIRE(std::filesystem::exists(dir + "/marker"));
+
+    cleanup_dir(root);
+}
+
+TEST_CASE("reclaim_cache_paths tolerates a path that does not exist", "[cache]") {
+    REQUIRE(reclaim_cache_paths({"/nonexistent/helix_thumbs"}, "helix_thumbs") == 0);
+}
+
+TEST_CASE("the sweep reclaims NOTHING on a host build", "[cache]") {
+    // The platform gate is the safety property: with no compile-time platform
+    // rung defined, the XDG/HOME rung IS the live cache, so a sweep that ran
+    // here would treat a developer's real ~/.cache/helix as stale. Seed every
+    // lower rung and require all of them to survive.
+    EnvGuard cache_guard("HELIX_CACHE_DIR");
+    EnvGuard xdg_guard("XDG_CACHE_HOME");
+
+    std::string root = make_test_tmpdir("sweep_noop");
+    setenv("HELIX_CACHE_DIR", (root + "/pinned").c_str(), 1);
+    setenv("XDG_CACHE_HOME", (root + "/xdg").c_str(), 1);
+
+    const std::string xdg_cache = seed_cache(root + "/xdg/helix", "helix_thumbs");
+    const std::string pinned = seed_cache(root + "/pinned", "helix_thumbs");
+
+    REQUIRE(sweep_stale_helix_cache_dirs() == 0);
+    REQUIRE(std::filesystem::exists(xdg_cache + "/marker"));
+    REQUIRE(std::filesystem::exists(pinned + "/marker"));
+
+    cleanup_dir(root);
+}

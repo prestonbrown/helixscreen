@@ -403,6 +403,22 @@ std::string get_helix_cache_dir(const std::string& subdir);
 std::string peek_helix_cache_dir(const std::string& subdir);
 
 /**
+ * @brief Remove cache directories an older layout left on the wrong filesystem.
+ *
+ * Only runs when a compile-time platform rung wins the cascade — the embedded
+ * devices where the lower rungs are genuinely dead. On the K1 the cache moved
+ * to /usr/data, so a leftover /root/.cache/helix is sitting on the ~97MB root
+ * overlay competing with the firmware for the smallest partition on the box.
+ *
+ * A no-op on desktop, where the XDG/HOME rung IS the live cache. Call once at
+ * startup, and before anything reaches get_thumbnail_cache(): that singleton
+ * latches its directory on first use.
+ *
+ * @return Number of stale directories reclaimed.
+ */
+int sweep_stale_helix_cache_dirs();
+
+/**
  * @brief Returns the installation root directory (containing bin/, ui_xml/, assets/).
  *
  * Derived from the cached executable path populated by app_store_argv().
