@@ -11,6 +11,7 @@
 #include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "log_redact.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
@@ -647,8 +648,16 @@ bool DebugBundleCollector::is_sensitive_key(const std::string& key) {
     std::transform(lower_key.begin(), lower_key.end(), lower_key.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
+    // "serial_number" covers cpu_info.serial_number (the Pi board serial) and
+    // sd_info.serial_number, both of which arrive under /machine/system_info.
+    // They are permanent hardware identifiers, and the only question they
+    // answer -- "is this the same box as last time" -- is already answered by
+    // the bundle's device_id. Matched as the full compound word rather than a
+    // bare "serial" so Klipper's `serial: /dev/serial/by-id/...` MCU path,
+    // which names the chip and is genuinely diagnostic, survives.
     static const std::vector<std::string> sensitive_patterns = {
-        "token", "password", "secret", "key", "webhook", "credential", "auth", "bearer"};
+        "token",      "password", "secret",        "key",          "webhook",
+        "credential", "auth",     "serial_number", "serialnumber", "bearer"};
 
     for (const auto& pattern : sensitive_patterns) {
         if (lower_key.find(pattern) != std::string::npos) {
@@ -698,6 +707,15 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // Redact MAC addresses (aa:bb:cc:dd:ee:ff or AA-BB-CC-DD-EE-FF)
         static const std::regex mac_re(R"(\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b)");
         result = std::regex_replace(result, mac_re, "[REDACTED_MAC]");
+
+        // Redact globally routable IP addresses, IPv4 and IPv6 alike. Private
+        // ones are deliberately kept: 192.168.1.50 is the same address in
+        // millions of houses and is exactly what "can the screen reach
+        // Moonraker" needs, whereas a routable IPv6 is an ISP-allocated prefix
+        // plus a stable interface ID and identifies a household. Runs last so
+        // the MAC pass has already claimed six-group colon-hex strings. Shares
+        // its implementation with the log call sites (include/log_redact.h).
+        result = helix::redact::ips_in_text(result);
 
         return result;
     } catch (const std::exception& e) {
