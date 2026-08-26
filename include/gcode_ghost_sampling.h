@@ -112,10 +112,11 @@ constexpr int ghost_sample_budget(int resolvable_rows) {
  *                        the projection can draw distinguishably.
  * @return The stride and the number of layers to visit.
  *
- * @note In streaming mode the returned `count` is guaranteed <=
- *       ghost_sample_budget(resolvable_rows), and `step * (count - 1)` lands
- *       within one stride of the top layer, so the sample spans the model's
- *       full height rather than trailing off partway up.
+ * @note In streaming mode the returned `count` is guaranteed >=
+ *       ghost_sample_budget(resolvable_rows) (so no row the model occupies can
+ *       be skipped) and < twice it, and `step * (count - 1)` lands within one
+ *       stride of the top layer, so the sample spans the model's full height
+ *       rather than trailing off partway up.
  */
 constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
                                               int resolvable_rows) {
@@ -131,9 +132,19 @@ constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
         return {1, total_layers};
     }
 
-    // Round the stride up so the count lands at or under the budget: with
-    // step = ceil(total / budget), ceil(total / step) <= budget for every total.
-    const int step = (total_layers + budget - 1) / budget;
+    // Round the stride DOWN, not up. Rounding up lands the count at or under
+    // the budget, which sounds right and is the bug: ceil(total / budget) can
+    // halve the count (321 layers against a 320 budget gives stride 2 and 161
+    // samples), and a model whose projection fills the canvas then has more
+    // rows than samples - every other row empty, which is the banding the
+    // budget exists to avoid. Flooring guarantees count >= budget whenever the
+    // file has that many layers, so every row the model occupies gets ink.
+    //
+    // The price is that count can exceed the budget, worst case just under
+    // double it when total is just under twice the budget. That is still a
+    // fixed bound set by the canvas rather than the file, which is the whole
+    // point: 5000 layers costs ~334 samples, not 5000.
+    const int step = total_layers / budget;
     const int count = (total_layers + step - 1) / step;
     return {step, count};
 }

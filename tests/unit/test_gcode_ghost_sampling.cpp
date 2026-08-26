@@ -31,6 +31,8 @@
 
 #include "gcode_ghost_sampling.h"
 
+#include <algorithm>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::gcode::GHOST_MAX_SAMPLED_LAYERS;
@@ -64,19 +66,36 @@ TEST_CASE("plan_ghost_sampling: a streamed file small enough is not degraded",
     }
 }
 
-TEST_CASE("plan_ghost_sampling: a streamed file never exceeds the layer budget",
+TEST_CASE("plan_ghost_sampling: a streamed file's cost stops growing with the file",
           "[gcode][ghost][sampling]") {
-    // This is the property that actually protects the UI thread: the number of
-    // seek-and-parses stops growing with the file. 5000 layers is the shape of
-    // the 133MB K2 Plus file this was found on; 200000 is well past anything
-    // real, and must still be bounded.
-    for (int total : {ROWS + 1, 999, 5000, 20000, 200000}) {
+    // This is the property that protects the UI thread: the number of
+    // seek-and-parses is set by the canvas, not the file. 5000 layers is the
+    // shape of the 133MB K2 Plus file this was found on; 200000 is well past
+    // anything real and must still be bounded.
+    for (int total : {999, 5000, 20000, 200000}) {
         auto plan = plan_ghost_sampling(total, /*streaming=*/true, ROWS);
         CAPTURE(total);
         CHECK(plan.step > 1);
-        CHECK(plan.count <= ghost_sample_budget(ROWS));
         CHECK(plan.count > 0);
+        CHECK(plan.count < ghost_sample_budget(ROWS) * 2);
     }
+}
+
+TEST_CASE("plan_ghost_sampling: never fewer samples than the canvas has rows",
+          "[gcode][ghost][sampling]") {
+    // The regression this pins is a stride that rounds the wrong way. Rounding
+    // the stride UP keeps the count under the budget, which reads as the safe
+    // direction and is not: 321 layers against a 320-row budget gives stride 2
+    // and 161 samples, so a model whose projection fills the canvas has twice
+    // as many rows as samples and renders as stripes. Every row the model
+    // occupies must be able to get ink.
+    for (int total = 1; total <= ROWS * 8; ++total) {
+        auto plan = plan_ghost_sampling(total, /*streaming=*/true, ROWS);
+        CAPTURE(total);
+        REQUIRE(plan.count >= std::min(total, ghost_sample_budget(ROWS)));
+    }
+    // The boundary the ceil version got wrong, called out by name.
+    CHECK(plan_ghost_sampling(ROWS + 1, true, ROWS).count == ROWS + 1);
 }
 
 TEST_CASE("plan_ghost_sampling: the budget holds for every size in a dense sweep",
@@ -89,7 +108,8 @@ TEST_CASE("plan_ghost_sampling: the budget holds for every size in a dense sweep
         CAPTURE(total);
         REQUIRE(plan.step >= 1);
         REQUIRE(plan.count > 0);
-        REQUIRE(plan.count <= ghost_sample_budget(ROWS));
+        REQUIRE(plan.count <= total);
+        REQUIRE(plan.count < ghost_sample_budget(ROWS) * 2);
     }
 }
 
@@ -149,8 +169,8 @@ TEST_CASE("plan_ghost_sampling: a taller canvas earns a denser sample",
     const auto shortc = plan_ghost_sampling(20000, /*streaming=*/true, 100);
     const auto tall = plan_ghost_sampling(20000, /*streaming=*/true, 480);
     CHECK(tall.count > shortc.count);
-    CHECK(shortc.count <= ghost_sample_budget(100));
-    CHECK(tall.count <= ghost_sample_budget(480));
+    CHECK(shortc.count >= ghost_sample_budget(100));
+    CHECK(tall.count >= ghost_sample_budget(480));
 }
 
 TEST_CASE("plan_ghost_sampling: an unsized canvas still yields a usable stride",
@@ -159,6 +179,6 @@ TEST_CASE("plan_ghost_sampling: an unsized canvas still yields a usable stride",
     // thread, but a zero here must degrade to the floor rather than divide by 0.
     const auto plan = plan_ghost_sampling(5000, /*streaming=*/true, 0);
     CHECK(plan.step >= 1);
-    CHECK(plan.count > 0);
-    CHECK(plan.count <= GHOST_MIN_SAMPLED_LAYERS);
+    CHECK(plan.count >= GHOST_MIN_SAMPLED_LAYERS);
+    CHECK(plan.count < GHOST_MIN_SAMPLED_LAYERS * 2);
 }

@@ -1500,6 +1500,7 @@
   <translation tag="No History" it="Nessuna cronologia"/>
   <translation tag="No LED macros detected on your printer." it="Nessuna macro LED rilevata sulla stampante."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." it="Nessuna macro LED rilevata sulla stampante. Aggiungi prima le macro Klipper per il controllo dei LED."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" it="Nessuna striscia LED rilevata"/>
   <translation tag="No Macros Found" it="Nessuna macro trovata"/>
   <translation tag="No Multi-Filament System connected" it="Nessun sistema multi-filamento connesso"/>
@@ -2789,6 +2790,7 @@
   <translation tag="nozzle" it="ugello"/>
   <translation tag="of" it="di"/>
   <translation tag="off" it="spento"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" it="stampe"/>
   <translation tag="remaining" it="rimanente"/>
   <translation tag="remaining before clog detection triggers" it="rimanente prima che si attivi il rilevamento intasamento"/>

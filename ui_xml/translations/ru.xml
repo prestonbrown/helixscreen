@@ -1500,6 +1500,7 @@
   <translation tag="No History" ru="Нет истории"/>
   <translation tag="No LED macros detected on your printer." ru="На вашем принтере не обнаружены LED-макросы."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." ru="На вашем принтере не обнаружены LED-макросы. Сначала добавьте макросы Klipper для управления LED."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" ru="LED-ленты не обнаружены"/>
   <translation tag="No Macros Found" ru="Макросы не найдены"/>
   <translation tag="No Multi-Filament System connected" ru="Мультифиламентная система не подключена"/>
@@ -2789,6 +2790,7 @@
   <translation tag="nozzle" ru="сопло"/>
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" ru="печатей"/>
   <translation tag="remaining" ru="осталось"/>
   <translation tag="remaining before clog detection triggers" ru="осталось до срабатывания обнаружения засора"/>
