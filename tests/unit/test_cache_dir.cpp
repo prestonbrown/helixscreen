@@ -333,3 +333,90 @@ TEST_CASE("the sweep reclaims NOTHING on a host build", "[cache]") {
 
     cleanup_dir(root);
 }
+
+// ---------------------------------------------------------------------------
+// select_stale_paths() — the gate's decision, over candidate shapes a host
+// build never produces. This is where the embedded behaviour is pinned: the
+// public sweep can only ever demonstrate the desktop case here.
+// ---------------------------------------------------------------------------
+
+#include "system/helix_cache_dir_internal.h"
+
+using helix::cache_internal::CacheCandidate;
+using helix::cache_internal::select_stale_paths;
+
+namespace {
+/// Every path is usable — the common case on a device.
+bool all_viable(const std::string&) {
+    return true;
+}
+
+/// The shape every real device presents: a platform hook exported
+/// HELIX_CACHE_DIR, so rung 1 wins and the platform rung never does.
+std::vector<CacheCandidate> device_shape() {
+    return {
+        {"/usr/data/helixscreen/cache/helix_thumbs", "HELIX_CACHE_DIR", false, false},
+        {"/usr/data/helixscreen/cache/helix_thumbs", "MIPS", false, true},
+        {"/root/.cache/helix/helix_thumbs", nullptr, false, false},
+        {"/var/tmp/helix_helix_thumbs", nullptr, false, false},
+        {"/tmp/helix_helix_thumbs", nullptr, true, false},
+    };
+}
+} // namespace
+
+TEST_CASE("sweep runs when the env rung wins but a platform rung exists", "[cache]") {
+    // The regression this pins: gating on the platform rung *winning* made the
+    // sweep dead code on every shipped device, because each platform hook
+    // exports HELIX_CACHE_DIR. Verified on a K1 and a K2 — both reclaimed 0.
+    const std::vector<std::string> stale = select_stale_paths(device_shape(), all_viable);
+
+    REQUIRE(stale.size() == 3);
+    CHECK(stale[0] == "/root/.cache/helix/helix_thumbs");
+    CHECK(stale[1] == "/var/tmp/helix_helix_thumbs");
+    CHECK(stale[2] == "/tmp/helix_helix_thumbs");
+}
+
+TEST_CASE("select_stale_paths never reclaims a deliberate rung", "[cache]") {
+    // env wins, config sits below it. A config base_directory is somebody's
+    // stated intent, not an abandoned directory.
+    std::vector<CacheCandidate> c = {
+        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
+        {"/configured/helix_thumbs", "config", false, false},
+        {"/platform/helix_thumbs", "MIPS", false, true},
+        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false, false},
+    };
+    const std::vector<std::string> stale = select_stale_paths(c, all_viable);
+
+    REQUIRE(stale.size() == 1);
+    CHECK(stale[0] == "/home/dev/.cache/helix/helix_thumbs");
+}
+
+TEST_CASE("select_stale_paths returns nothing without a platform rung", "[cache]") {
+    // A desktop build. Even with HELIX_CACHE_DIR redirected, the developer's
+    // real ~/.cache/helix must survive.
+    std::vector<CacheCandidate> c = {
+        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
+        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false, false},
+        {"/tmp/helix_helix_thumbs", nullptr, true, false},
+    };
+    CHECK(select_stale_paths(c, all_viable).empty());
+}
+
+TEST_CASE("select_stale_paths ignores rungs above the winner", "[cache]") {
+    // Rungs above the winner were rejected as unusable — a read-only mount, a
+    // missing partition. They are not ours to delete.
+    auto only_root_cache_viable = [](const std::string& p) { return p.rfind("/root/", 0) == 0; };
+    const std::vector<std::string> stale =
+        select_stale_paths(device_shape(), only_root_cache_viable);
+
+    // /root/.cache wins; the two rungs below it are reclaimable, the two
+    // unusable rungs above it are not.
+    REQUIRE(stale.size() == 2);
+    CHECK(stale[0] == "/var/tmp/helix_helix_thumbs");
+    CHECK(stale[1] == "/tmp/helix_helix_thumbs");
+}
+
+TEST_CASE("select_stale_paths returns nothing when no rung is usable", "[cache]") {
+    auto none_viable = [](const std::string&) { return false; };
+    CHECK(select_stale_paths(device_shape(), none_viable).empty());
+}
