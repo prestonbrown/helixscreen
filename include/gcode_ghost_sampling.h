@@ -41,15 +41,20 @@ namespace helix {
 namespace gcode {
 
 /**
- * @brief Upper bound on layers a *streamed* ghost pass will visit.
+ * @brief Hard ceiling on layers a *streamed* ghost pass will visit.
  *
- * Sized against what the silhouette needs rather than what the file has. The
- * ghost is drawn washed-out and translucent behind the printed layers, so its
- * job is the outline of the remaining print, not its detail. 128 samples resolve
- * that outline on a 480x800 panel while capping the pass at 128 seek-and-parses
- * whether the file holds 500 layers or 50,000.
+ * The budget is normally the height of the ghost buffer (see below); this caps
+ * it for an unusually tall canvas so the pass can never grow without limit.
  */
-inline constexpr int GHOST_MAX_SAMPLED_LAYERS = 128;
+inline constexpr int GHOST_MAX_SAMPLED_LAYERS = 512;
+
+/**
+ * @brief Floor on that budget.
+ *
+ * A canvas whose height is not known yet, or is very small, still gets enough
+ * samples for the silhouette to read as a shape rather than a few strokes.
+ */
+inline constexpr int GHOST_MIN_SAMPLED_LAYERS = 64;
 
 /**
  * @brief Milliseconds a *streamed* ghost pass sleeps between layers.
@@ -70,34 +75,65 @@ struct GhostSamplePlan {
 };
 
 /**
+ * @brief How many layers a streamed ghost may usefully visit on this canvas.
+ *
+ * The default view is FRONT, where a layer's Z becomes its screen row: the
+ * layers stack up the canvas rather than overlaying each other. Sampling fewer
+ * layers than the buffer has rows therefore leaves visible gaps between them -
+ * a striped ghost rather than a faded one - while sampling more than that
+ * cannot resolve into anything, because two layers that land on the same row
+ * draw the same pixels. The rows the buffer has is exactly the useful budget,
+ * clamped at both ends.
+ *
+ * @param resolvable_rows Height of the ghost buffer in pixels. 0 or negative
+ *                        when the canvas is not sized yet; the floor covers it.
+ */
+constexpr int ghost_sample_budget(int resolvable_rows) {
+    if (resolvable_rows < GHOST_MIN_SAMPLED_LAYERS) {
+        return GHOST_MIN_SAMPLED_LAYERS;
+    }
+    if (resolvable_rows > GHOST_MAX_SAMPLED_LAYERS) {
+        return GHOST_MAX_SAMPLED_LAYERS;
+    }
+    return resolvable_rows;
+}
+
+/**
  * @brief Decide the ghost pass's layer budget for one file.
  *
- * @param total_layers Layer count from the index/parse. May be 0 before an index
- *                     exists; a negative can only be an upstream bug, and is
- *                     treated as empty rather than propagated into a loop bound.
- * @param streaming    True when layers come from GCodeStreamingController (each
- *                     visit is a disk seek and parse), false for a resident
- *                     ParsedGCodeFile (each visit is a pointer dereference).
+ * @param total_layers    Layer count from the index/parse. May be 0 before an
+ *                        index exists; a negative can only be an upstream bug,
+ *                        and is treated as empty rather than propagated into a
+ *                        loop bound.
+ * @param streaming       True when layers come from GCodeStreamingController
+ *                        (each visit is a disk seek and parse), false for a
+ *                        resident ParsedGCodeFile (a pointer dereference).
+ * @param resolvable_rows Height of the ghost buffer in pixels - the most layers
+ *                        the projection can draw distinguishably.
  * @return The stride and the number of layers to visit.
  *
  * @note In streaming mode the returned `count` is guaranteed <=
- *       GHOST_MAX_SAMPLED_LAYERS, and `step * (count - 1)` lands within one
- *       stride of the top layer, so the sample spans the model's full height.
+ *       ghost_sample_budget(resolvable_rows), and `step * (count - 1)` lands
+ *       within one stride of the top layer, so the sample spans the model's
+ *       full height rather than trailing off partway up.
  */
-constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming) {
+constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
+                                              int resolvable_rows) {
     if (total_layers <= 0) {
         return {1, 0};
     }
 
-    // Resident parse, or few enough layers that the bound would only cost
+    const int budget = ghost_sample_budget(resolvable_rows);
+
+    // Resident parse, or few enough layers that striding would only cost
     // fidelity: visit all of them.
-    if (!streaming || total_layers <= GHOST_MAX_SAMPLED_LAYERS) {
+    if (!streaming || total_layers <= budget) {
         return {1, total_layers};
     }
 
     // Round the stride up so the count lands at or under the budget: with
     // step = ceil(total / budget), ceil(total / step) <= budget for every total.
-    const int step = (total_layers + GHOST_MAX_SAMPLED_LAYERS - 1) / GHOST_MAX_SAMPLED_LAYERS;
+    const int step = (total_layers + budget - 1) / budget;
     const int count = (total_layers + step - 1) / step;
     return {step, count};
 }

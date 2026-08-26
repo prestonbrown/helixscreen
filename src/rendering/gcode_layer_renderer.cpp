@@ -1868,8 +1868,11 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     // core for minutes on a 133MB file once large files moved onto streaming.
     // There the pass is bounded to an even sample that still spans the model.
     // See gcode_ghost_sampling.h.
+    // transform.canvas_height is the ghost buffer's height, captured above - the
+    // most layers this projection can draw as distinct rows in the default FRONT
+    // view, and so the most worth visiting.
     const GhostSamplePlan ghost_plan =
-        plan_ghost_sampling(total_layers, local_streaming != nullptr);
+        plan_ghost_sampling(total_layers, local_streaming != nullptr, transform.canvas_height);
     if (local_streaming && ghost_plan.step > 1) {
         spdlog::debug("[GCodeLayerRenderer] Ghost sampling {} of {} layers (every {})",
                       ghost_plan.count, total_layers, ghost_plan.step);
