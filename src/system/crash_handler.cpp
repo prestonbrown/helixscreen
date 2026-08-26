@@ -2011,7 +2011,7 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
     ofs << "crumb:9100 nav status\n";
     ofs << "event_target:0x7fc0d2a8\n";
     ofs << "event_original_target:0x7fc0d300\n";
-    ofs << "event_code:29\n"; /* LV_EVENT_REFR_EXT_DRAW_SIZE */
+    ofs << "event_code:29\n"; /* LV_EVENT_DRAW_MAIN */
     ofs << "heap_snapshot_age_ms:8217\n";
     ofs << "heap_rss_kb:38400\n";
     ofs << "heap_vsz_kb:102400\n";
