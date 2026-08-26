@@ -2253,8 +2253,10 @@ install_runtime_deps() {
 }
 
 # Check available disk space
-# Requires at least 50MB free on the install directory's filesystem
-# Note: INSTALL_DIR must be set before calling this function
+# Requires at least 50MB free on the install directory's filesystem, then hands
+# off to check_service_dest_space for the filesystem that receives the service
+# definition -- on the K1 those are two different partitions.
+# Note: INSTALL_DIR and INIT_SCRIPT_DEST must be set before calling this function
 check_disk_space() {
     local platform=$1
     local required_mb=50
@@ -2290,6 +2292,109 @@ check_disk_space() {
     fi
 
     log_info "Disk space check: ${available_mb}MB available on $check_dir"
+
+    # INSTALL_DIR is not the only filesystem this install writes to.
+    check_service_dest_space
+}
+
+# Free space the service definition needs, in KB. The init script is ~15KB; the
+# probe is sized well above it so a filesystem with only a few free blocks left
+# fails here rather than at the real write.
+SERVICE_DEST_PROBE_KB=64
+
+# Echo the overlayfs upperdir backing `/`, if `/` is an overlay.
+#
+# On an overlay root the bytes live in the upperdir, so that is the only tree
+# worth pointing a user's `du` at: `du /` descends into every larger partition
+# mounted underneath (on the K1, the multi-gigabyte /usr/data) and reports a
+# number with no relationship to the full filesystem.
+# Reads /proc/mounts by default; the path is an argument so the parse can be
+# driven against a fixture instead of the running system.
+# shellcheck disable=SC2120  # the argument is a test seam; production passes none
+_overlay_upperdir() {
+    awk '$2 == "/" && $3 == "overlay" {
+             n = split($4, opts, ",")
+             for (i = 1; i <= n; i++)
+                 if (opts[i] ~ /^upperdir=/) {
+                     sub(/^upperdir=/, "", opts[i])
+                     print opts[i]
+                     exit
+                 }
+         }' "${1:-/proc/mounts}" 2>/dev/null
+}
+
+# Check the filesystem that will receive the init script or systemd unit.
+#
+# It is frequently NOT the filesystem holding INSTALL_DIR. On the K1 they are
+# different partitions entirely: /usr/data is a multi-gigabyte ext4
+# (mmcblk0p10) while /etc/init.d sits on the ~97MB root overlay (mmcblk0p9,
+# upperdir for the overlayfs `/`). A K1 whose overlay is full sails through the
+# INSTALL_DIR check with gigabytes reported free and then dies in
+# install_service_sysv with
+#     cp: write error: No space left on device
+# -- by which point stop_competing_uis has already disabled the stock UI, so
+# the printer is left with no screen at all, and the "3768MB available" line
+# above sends the user off to delete print files on the partition that was
+# never the problem.
+#
+# Probing with a real write rather than a free-space threshold: the operation
+# under test is a 15KB copy, and a filesystem with 800KB free performs it just
+# fine. Any MB-granularity floor either false-positives on a legitimately tight
+# rootfs or fails to catch a genuinely full one. The probe also catches a
+# read-only or unwritable destination, which is the same class of failure.
+#
+# Runs at pre-flight -- before any UI is stopped and before the ~58MB download
+# -- so a refusal here leaves the printer exactly as it was found.
+check_service_dest_space() {
+    # set_install_paths() has already run, so INIT_SCRIPT_DEST is known. It is
+    # empty on systemd platforms, where install_service_systemd writes the unit
+    # to /etc/systemd/system instead.
+    local dest_dir=""
+    if [ -n "${INIT_SCRIPT_DEST:-}" ]; then
+        dest_dir=$(dirname "$INIT_SCRIPT_DEST")
+    elif [ -d /etc/systemd/system ]; then
+        dest_dir="/etc/systemd/system"
+    fi
+    [ -n "$dest_dir" ] && [ -d "$dest_dir" ] || return 0
+
+    # Resolve the same directory check_disk_space measured, so a destination on
+    # that filesystem can be skipped -- it is already covered, and a second
+    # line quoting the same number reads like a second measurement.
+    local install_probe
+    install_probe=$(dirname "${INSTALL_DIR:-/opt/helixscreen}")
+    while [ ! -d "$install_probe" ] && [ "$install_probe" != "/" ]; do
+        install_probe=$(dirname "$install_probe")
+    done
+    [ "$(_fs_id "$dest_dir")" != "$(_fs_id "$install_probe")" ] || return 0
+
+    local probe="${dest_dir}/.helixscreen-space-probe.$$"
+    if $SUDO dd if=/dev/zero of="$probe" bs=1024 count="$SERVICE_DEST_PROBE_KB" \
+            >/dev/null 2>&1; then
+        $SUDO rm -f "$probe" 2>/dev/null || true
+        log_info "Service directory check: $(_fs_free_mb "$dest_dir")MB available on $dest_dir"
+        return 0
+    fi
+    $SUDO rm -f "$probe" 2>/dev/null || true
+
+    local upper
+    upper=$(_overlay_upperdir)
+
+    log_error "Cannot write the service definition to ${dest_dir}."
+    log_error "Filesystem: $(_fs_id "$dest_dir") ($(_fs_free_mb "$dest_dir")MB free) -- full or read-only."
+    log_error ""
+    log_error "This is a DIFFERENT filesystem from ${install_probe}, which has room."
+    log_error "Deleting print files or gcode will NOT help: they are on the other partition."
+    log_error ""
+    log_error "Find what is filling it:"
+    log_error "  df -h ${dest_dir}"
+    if [ -n "$upper" ] && [ -d "$upper" ]; then
+        log_error "  du -k ${upper}/* 2>/dev/null | sort -n | tail -20"
+    else
+        log_error "  du -k ${dest_dir}/* 2>/dev/null | sort -n | tail -20"
+    fi
+    log_error ""
+    log_error "Free a few MB there, then re-run this installer."
+    exit 1
 }
 
 # Detect init system (systemd vs SysV)
