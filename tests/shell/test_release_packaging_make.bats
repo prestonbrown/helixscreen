@@ -22,34 +22,6 @@ setup_file() {
     [[ "$excludes" == *"assets/fonts/*.c"* ]]
 }
 
-@test "DEPLOY_ASSET_EXCLUDES excludes printer source PNGs" {
-    # 24MB of full-res artwork no device renders — every printer draws from its
-    # prerendered .bin. Asserted against the EXPANDED value, which is what
-    # catches the := ordering trap: defining DEPLOY_PRINTER_PNG_EXCLUDES after
-    # its use expands to empty and ships the PNGs with no error anywhere.
-    local excludes
-    excludes=$(grep '^DEPLOY_ASSET_EXCLUDES' "$MAKE_DB_CACHE" | head -1)
-    [[ "$excludes" == *"assets/images/printers/*.png"* ]]
-}
-
-@test "DEPLOY_TAR_EXCLUDES excludes printer source PNGs" {
-    local excludes
-    excludes=$(grep '^DEPLOY_TAR_EXCLUDES' "$MAKE_DB_CACHE" | head -1)
-    [[ "$excludes" == *"assets/images/printers/*.png"* ]]
-}
-
-@test "deploy excludes do NOT drop prerendered printer .bin files" {
-    # The .bin set is what every printer actually renders from. Excluding it
-    # would leave the UI drawing the generic fallback for every machine.
-    local asset tar
-    asset=$(grep '^DEPLOY_ASSET_EXCLUDES' "$MAKE_DB_CACHE" | head -1)
-    tar=$(grep '^DEPLOY_TAR_EXCLUDES' "$MAKE_DB_CACHE" | head -1)
-    [[ "$asset" != *"prerendered"* ]]
-    [[ "$tar" != *"prerendered"* ]]
-    [[ "$asset" != *"*.bin"* ]]
-    [[ "$tar" != *"*.bin"* ]]
-}
-
 @test "DEPLOY_ASSET_EXCLUDES excludes .icns files" {
     local excludes
     excludes=$(grep '^DEPLOY_ASSET_EXCLUDES' "$MAKE_DB_CACHE" | head -1)

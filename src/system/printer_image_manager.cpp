@@ -173,42 +173,12 @@ std::string PrinterImageManager::format_display_name(const std::string& stem) {
 std::vector<PrinterImageManager::ImageInfo> PrinterImageManager::get_shipped_images() const {
     std::vector<ImageInfo> results;
 
-    // Catalog = every printer we have artwork for, from EITHER source.
-    //
-    // The PNGs alone used to be the index, which quietly pinned 24MB of
-    // full-res artwork to every install: each printer draws from its .bin, so
-    // excluding the PNGs from a device payload left every image rendering
-    // correctly and this list empty - the picker silently going blank.
-    //
-    // The two sources do not coexist in one tree. A device gets the .bin files
-    // (generated into build/ and shipped by their own deploy step) with the
-    // PNGs excluded; a development checkout has the PNGs and no prerenders at
-    // all, because they only exist under build/. Reading both and deduping by
-    // stem is what makes the payload trim safe without blanking the picker for
-    // developers.
-    std::set<std::string> stems;
+    const std::string printer_dir = "assets/images/printers/";
+    auto paths = scan_for_images(printer_dir);
 
-    const std::string prerendered_dir = "assets/images/printers/prerendered/";
-    if (fs::exists(prerendered_dir)) {
-        for (const auto& entry : fs::directory_iterator(prerendered_dir)) {
-            if (!entry.is_regular_file())
-                continue;
-            const std::string name = entry.path().filename().string();
-            // Accept either bucket so a payload trimmed to one size still enumerates.
-            for (const char* suffix : {"-150.bin", "-300.bin"}) {
-                const size_t slen = std::strlen(suffix);
-                if (name.size() > slen && name.compare(name.size() - slen, slen, suffix) == 0) {
-                    stems.insert(name.substr(0, name.size() - slen));
-                    break;
-                }
-            }
-        }
-    }
+    for (const auto& path : paths) {
+        std::string stem = fs::path(path).stem().string();
 
-    for (const auto& path : scan_for_images("assets/images/printers/"))
-        stems.insert(fs::path(path).stem().string());
-
-    for (const std::string& stem : stems) {
         ImageInfo info;
         info.id = "shipped:" + stem;
         info.display_name = format_display_name(stem);
