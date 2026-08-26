@@ -1536,9 +1536,21 @@ DEPLOY_RSYNC_FLAGS := -avzz --delete --checksum
 # crash_report.txt on a healthy device that triggers the "previously crashed"
 # modal on next boot. These are gitignored but gitignore doesn't affect rsync.
 DEPLOY_RUNTIME_EXCLUDES := --exclude='crash.txt' --exclude='crash_*.txt' --exclude='crash_report.txt' --exclude='.crash_restart_count' --exclude='telemetry_*.json' --exclude='tool_spools.json' --exclude='filament_slot_overrides.json'
+# Source PNGs for printer artwork: 23.5MB of full-res images that no device
+# renders. Every printer is drawn from its prerendered .bin (two buckets, exact
+# 73/73 parity), so the PNGs only exist to be re-rendered by gen-printer-images
+# on a build host. They stay in the repo; they do not belong on a printer whose
+# whole writable partition is 240MB (K2) or 97MB (K1 overlay).
+#
+# Safe only because two code paths that reached for a PNG were changed with it:
+# PrinterImageManager::get_shipped_images() enumerated the PNGs as its catalog
+# index, and default_printer_image_path() returned generic-corexy.png directly.
+DEPLOY_PRINTER_PNG_EXCLUDES := --exclude='assets/images/printers/*.png'
+
 DEPLOY_ASSET_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' --exclude='settings*.json' --exclude='helixconfig*.json' --exclude='helixscreen.env' --exclude='.claude-recall' --exclude='._*' \
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
 	--exclude='*.icns' --exclude='mdi-icon-metadata.json.gz' --exclude='moonraker-plugin/tests' \
+	$(DEPLOY_PRINTER_PNG_EXCLUDES) \
 	$(DEPLOY_RUNTIME_EXCLUDES)
 # Zero the owner/group recorded in every archive we create.
 #
@@ -1558,6 +1570,7 @@ TAR_OWNER_FLAGS := $(shell if tar --owner=0 --group=0 -cf /dev/null -T /dev/null
 DEPLOY_TAR_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' --exclude='settings*.json' --exclude='helixconfig*.json' --exclude='helixscreen.env' --exclude='.claude-recall' --exclude='._*' \
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
 	--exclude='*.icns' --exclude='mdi-icon-metadata.json.gz' --exclude='moonraker-plugin/tests' \
+	$(DEPLOY_PRINTER_PNG_EXCLUDES) \
 	$(DEPLOY_RUNTIME_EXCLUDES)
 # Exclude tracker files (MOD/MED) on platforms without HELIX_HAS_TRACKER
 # rsync syntax:

@@ -37,14 +37,6 @@ inline constexpr const char* DEFAULT_IMAGE = "A:assets/images/printers/generic-c
 /// Default image filename (without path)
 inline constexpr const char* DEFAULT_IMAGE_FILENAME = "generic-corexy.png";
 
-/// Resolve the generic fallback image through the asset root. Identity on
-/// desktop (asset_root "."); on ESP32 (asset_root "/assets") it prepends the
-/// mount that a raw "A:assets/..." literal misses. Used wherever DEFAULT_IMAGE
-/// would otherwise be returned raw.
-inline std::string default_printer_image_path() {
-    return helix::asset_component_uri("assets/images/printers/generic-corexy.png");
-}
-
 /// Pre-rendered image size for wizard/home (300px width, maintains aspect ratio)
 inline constexpr int PRERENDERED_SIZE = 300;
 
@@ -82,6 +74,26 @@ inline std::string lvgl_to_fs_path(const char* lvgl_path) {
 inline bool image_file_exists(const std::string& lvgl_path) {
     std::string fs_path = lvgl_to_fs_path(lvgl_path.c_str());
     return !fs_path.empty() && std::filesystem::exists(fs_path);
+}
+
+/// Resolve the generic fallback image through the asset root. Identity on
+/// desktop (asset_root "."); on ESP32 (asset_root "/assets") it prepends the
+/// mount that a raw "A:assets/..." literal misses. Used wherever DEFAULT_IMAGE
+/// would otherwise be returned raw.
+inline std::string default_printer_image_path() {
+    // Prefer the prerendered generic so a device payload can drop the source
+    // PNGs entirely. get_prerendered_printer_path() already ends on the same
+    // .bin; this is the one path that reached for the PNG directly, which alone
+    // would have kept all 23MB of printer artwork pinned to every install.
+    // The PNG stays as the last resort for a tree that has no prerenders yet.
+    for (int size : {PRERENDERED_SIZE, 150}) {
+        std::string bin =
+            "assets/images/printers/prerendered/generic-corexy-" + std::to_string(size) + ".bin";
+        std::string resolved = helix::asset_component_uri(bin);
+        if (image_file_exists(resolved))
+            return resolved;
+    }
+    return helix::asset_component_uri("assets/images/printers/generic-corexy.png");
 }
 
 /**
