@@ -181,6 +181,21 @@ class FilamentMapper {
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);
 
+    /// The lane number to print on a mapped chip, 1-based, or -1 when the tool
+    /// is unmapped or points at a lane that is no longer present.
+    ///
+    /// Colour alone does not identify a lane: two bays loaded with the same
+    /// filament render the same swatch, and the chip then says which colour
+    /// will be used without saying which spool it comes from. The number is
+    /// what disambiguates them.
+    ///
+    /// Reports `local_slot_index + 1` - the lane's position within its own
+    /// unit - to agree with format_slot_label() and the AMS slot badges. On a
+    /// multi-unit setup the global index would name a lane the hardware does
+    /// not, calling the second unit's first bay "Slot 5".
+    static int mapped_lane_display_number(const ToolMapping& mapping,
+                                          const std::vector<AvailableSlot>& slots);
+
     static constexpr int COLOR_MATCH_TOLERANCE = 50;
 };
 

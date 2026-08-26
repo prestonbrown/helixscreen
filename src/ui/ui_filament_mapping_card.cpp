@@ -350,6 +350,35 @@ void FilamentMappingCard::rebuild_compact_view() {
             } else {
                 lv_obj_set_style_bg_color(slot_dot, lv_color_hex(slot_color), 0);
             }
+
+            // Lane number on the mapped dot. The swatch says which colour will
+            // print; it cannot say which spool it comes from, and two bays
+            // loaded with the same filament are a common enough setup that the
+            // chip is otherwise ambiguous exactly when it matters. Mirrors the
+            // Tx label hosted by gcode_dot above, including its contrast rule.
+            //
+            // The mutations below are per-item payload on a C++-generated
+            // collection: the card builds one pill per used tool from runtime
+            // data, so there is no XML instance per tool to hang a bind on -
+            // the same reason the two dots either side of this are set here.
+            if (auto* slot_lbl = lv_obj_find_by_name(slot_dot, "slot_label")) {
+                const int lane_number =
+                    helix::FilamentMapper::mapped_lane_display_number(mapping, available_slots_);
+                if (lane_number > 0) {
+                    lv_label_set_text_fmt(slot_lbl, "%d", lane_number); // DECLARATIVE_OK: see above
+                    // An empty lane draws no fill, so there is nothing to
+                    // contrast against - take the normal text colour.
+                    const lv_color_t lane_fg =
+                        slot_empty ? theme_manager_get_color("text")
+                                   : theme_manager_get_contrast_color(lv_color_hex(slot_color));
+                    lv_obj_set_style_text_color(slot_lbl, lane_fg, 0); // DECLARATIVE_OK: see above
+                    lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);  // DECLARATIVE_OK: see above
+                } else {
+                    // Auto/unmapped: no lane has been chosen yet, so naming one
+                    // would be a claim the mapping has not made.
+                    lv_obj_add_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: see above
+                }
+            }
         }
     }
 

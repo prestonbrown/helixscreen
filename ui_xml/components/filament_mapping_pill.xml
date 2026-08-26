@@ -28,11 +28,17 @@
     <lv_label name="arrow"
               text="#icon_arrow_right" style_text_font="#icon_font_sm" style_text_color="#text_muted" clickable="false"
               event_bubble="true"/>
-    <!-- Mapped slot color dot. Border swaps to #warning when the slot is
-         empty (set from C++). -->
+    <!-- Mapped slot color dot, hosting the lane number so two bays loaded with
+         the same filament stay distinguishable. Border swaps to #warning when
+         the slot is empty; label text, contrast color and visibility are set
+         from C++. -->
     <lv_obj name="slot_dot"
             width="#pill_dot_sz" height="#pill_dot_sz" style_radius="9999" style_bg_opa="255"
             style_bg_color="#text_muted" style_border_width="1" style_border_color="#text_muted" style_border_opa="30"
-            style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"/>
+            style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
+      <lv_label name="slot_label"
+                text="" align="center" hidden="true" style_text_font="#font_body" style_text_color="#text"
+                clickable="false" event_bubble="true"/>
+    </lv_obj>
   </view>
 </component>
