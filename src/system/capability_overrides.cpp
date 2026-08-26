@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "sound_manager.h"
+#include "standard_macros.h"
 
 #include <spdlog/spdlog.h>
 
@@ -88,7 +89,16 @@ bool CapabilityOverrides::get_auto_value(const std::string& name) const {
     } else if (name == capability::Z_TILT) {
         return hardware_.has_z_tilt();
     } else if (name == capability::NOZZLE_CLEAN) {
-        return hardware_.has_nozzle_clean_macro();
+        // Two ways a printer can have a nozzle-clean macro, and both count:
+        // one of the conventional names (macro_patterns::clean_nozzle(), cached
+        // by discovery), or the user pointing the CleanNozzle slot at whatever
+        // theirs is called. Detection alone left the capability false for every
+        // hand-assigned macro whose name we do not recognise, while the buttons
+        // driven off the slot worked (#1354). Same shape as SPEAKER below:
+        // hardware detection ORed with the module that owns the other source.
+        return hardware_.has_nozzle_clean_macro() ||
+               StandardMacros::instance().has_configured_macro(StandardMacroSlot::CleanNozzle,
+                                                               hardware_);
     } else if (name == capability::HEAT_SOAK) {
         return hardware_.has_heat_soak_macro();
     } else if (name == capability::CHAMBER) {

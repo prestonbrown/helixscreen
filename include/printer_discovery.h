@@ -14,6 +14,7 @@
  */
 
 #include "ams_types.h"
+#include "macro_patterns.h"   // Shared macro-name tables (nozzle clean, ...)
 #include "printer_detector.h" // For BuildVolume struct
 
 #include <spdlog/spdlog.h>
@@ -480,10 +481,9 @@ class PrinterDiscovery {
 
                 // Check for common macro patterns and cache them
                 if (nozzle_clean_macro_.empty()) {
-                    static const std::vector<std::string> nozzle_patterns = {
-                        "CLEAN_NOZZLE", "NOZZLE_WIPE", "WIPE_NOZZLE", "PURGE_NOZZLE",
-                        "NOZZLE_CLEAN"};
-                    if (matches_any(upper_macro, nozzle_patterns)) {
+                    // Shared with StandardMacros' CleanNozzle slot — see
+                    // include/macro_patterns.h.
+                    if (matches_any(upper_macro, macro_patterns::clean_nozzle())) {
                         nozzle_clean_macro_ = macro_name;
                     }
                 }
