@@ -7,6 +7,7 @@
 
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "save_config_restart.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -83,8 +84,8 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
                        static_cast<double>(base_microns + delta_microns) / 1000.0, move);
 }
 
-void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
-                    std::function<void()> on_success,
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error) {
     if (!api) {
         spdlog::error("[ZOffsetUtils] apply_and_save called with null API");
@@ -111,36 +112,37 @@ void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
     spdlog::info("[ZOffsetUtils] Applying Z-offset with {} strategy (cmd: {})", strategy_name,
                  apply_cmd);
 
+    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
+    // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
+    // calibration result in ZOffsetCalibrationPanel). The gate reads only the
+    // callback body, where that hand-off looks like logging and nothing else.
     api->execute_gcode(
         apply_cmd,
-        [api, apply_cmd, on_success, on_error]() {
+        [api, apply_cmd, &save_watch, on_success, on_error]() {
             spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
 
-            // SAVE_CONFIG triggers a Klipper restart. This callback runs on
-            // the WebSocket thread; begin_expected_klippy_restart() is safe
-            // here - the suppressions are atomics and the toast hops to the
-            // main thread.
-            helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
-
-            api->execute_gcode(
-                "SAVE_CONFIG",
-                [on_success]() {
-                    spdlog::info("[ZOffsetUtils] SAVE_CONFIG success — Klipper restarting");
-                    if (on_success)
-                        on_success();
-                },
-                [on_error](const MoonrakerError& err) {
+            // The watch owns the whole SAVE_CONFIG contract: it arms the
+            // expected-restart suppressions, sends the save, absorbs the rpc the
+            // restart drops, and reports success only once Klipper is back READY.
+            // Sending it raw here reported every successful save as a failure
+            // (prestonbrown/helixscreen#1359).
+            //
+            // This callback lands on the WebSocket thread and begin() installs an
+            // observer, hence the _from_background form.
+            save_watch.begin_from_background(
+                api, "Saving config... Klipper will restart.", on_success,
+                [on_error](const std::string& err) {
                     // Log in English (developer-facing), hand the user a
                     // translated copy. The message used to be one bare
                     // fmt::format serving both, so the whole sentence was
                     // untranslatable.
-                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err.user_message());
+                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
                     if (on_error)
                         on_error(fmt::format(
                             lv_tr(
                                 "SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
                                 "Run SAVE_CONFIG manually or the offset will be lost on restart."),
-                            err.user_message()));
+                            err));
                 });
         },
         [apply_cmd, on_error](const MoonrakerError& err) {

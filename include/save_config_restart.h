@@ -144,6 +144,17 @@ class SaveConfigWatch {
     void begin(IMoonrakerAPI* api, const char* initiation_message, std::function<void()> on_saved,
                std::function<void(const std::string&)> on_failed);
 
+    /// Same contract as begin(), callable from a background thread.
+    ///
+    /// begin() installs an LVGL observer, so it is main-thread only - but the
+    /// natural caller is the success callback of the rpc that precedes the save
+    /// (Z_OFFSET_APPLY_PROBE -> SAVE_CONFIG), which lands on the WebSocket
+    /// thread. The hop is guarded by this watch's own lifetime, so a watch
+    /// destroyed between the call and the hop simply never begins.
+    void begin_from_background(IMoonrakerAPI* api, const char* initiation_message,
+                               std::function<void()> on_saved,
+                               std::function<void(const std::string&)> on_failed);
+
     /// Drop the klippy watch and forget any in-flight save. Safe to call twice.
     void end();
 

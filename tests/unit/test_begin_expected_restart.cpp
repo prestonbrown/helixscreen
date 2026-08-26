@@ -34,6 +34,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "save_config_restart.h"
 #include "z_offset_utils.h"
 
 #include <algorithm>
@@ -130,8 +131,10 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the restart contract",
                  "[expectedrestart][zoffset][1359]") {
+    helix::ui::SaveConfigWatch save_watch;
     helix::zoffset::apply_and_save(
-        &api, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [] {}, [](const std::string&) {});
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [] {},
+        [](const std::string&) {});
     settle();
 
     const auto& hist = client.gcode_script_history();
@@ -146,6 +149,44 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the 
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Saving config... Klipper will restart.");
     CHECK(notifications.empty());
+}
+
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "z-offset apply-and-save survives the rpc its own restart drops",
+                 "[expectedrestart][zoffset][1359]") {
+    // The mock fails SAVE_CONFIG's rpc by design: Klipper drops the reply when
+    // it restarts. Reporting that as a failure is #1359. Treating it as success
+    // before Klipper is back is the opposite bug - nothing is known yet - and
+    // here it also skipped whatever the caller does on a real save.
+    //
+    // SaveConfigWatch observes the process-wide PrinterState, not this fixture's
+    // local one, so that one has to exist. init_subjects() is idempotent.
+    get_printer_state().init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&] { saved = true; },
+        [&](const std::string& m) { error = m; });
+    settle();
+
+    const auto& hist = client.gcode_script_history();
+    REQUIRE(hist.size() == 2);
+    CHECK(hist[0] == "Z_OFFSET_APPLY_PROBE");
+    CHECK(hist[1] == "SAVE_CONFIG");
+    CHECK(no_failure_reported());
+    CHECK(error.empty());
+    CHECK_FALSE(saved); // nothing is known until Klipper is back
+
+    // Klipper comes back. THAT is what says the save worked.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    settle();
+
+    CHECK(error.empty());
+    CHECK(saved);
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",

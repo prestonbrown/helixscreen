@@ -13,6 +13,7 @@
 #include "async_lifetime_guard.h"
 #include "config.h"
 #include "operation_timeout_guard.h"
+#include "save_config_restart.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
 #include "ui/position_observer_bundle.h"
@@ -293,6 +294,10 @@ class ControlsPanel : public PanelBase {
     //
     // === Modal Dialog State ===
     //
+
+    /// Owns the SAVE_CONFIG contract for the z-offset save: absorbs the rpc the
+    /// restart drops and reports success only once Klipper is back (#1359).
+    helix::ui::SaveConfigWatch save_config_watch_;
 
     helix::ui::ModalGuard motors_confirmation_dialog_;
     helix::ui::ModalGuard save_z_offset_confirmation_dialog_;
