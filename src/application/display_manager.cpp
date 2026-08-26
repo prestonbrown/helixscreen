@@ -264,7 +264,7 @@ bool DisplayManager::init(const Config& config) {
     // If the primary backend failed to create a display, try falling back
     // to a different backend in-process (e.g., DRM passed is_available()
     // but mode setting or buffer allocation failed → try fbdev).
-    if (!m_display && m_backend->type() != DisplayBackendType::FBDEV) {
+    if (DisplayBackend::should_try_fbdev_fallback(m_backend.get(), m_display)) {
         spdlog::warn("[DisplayManager] {} backend failed to create display, "
                      "attempting fbdev fallback",
                      m_backend->name());

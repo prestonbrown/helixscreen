@@ -267,6 +267,28 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
+     * @brief Does auto (color+type) lane matching apply for the active backend?
+     *
+     * The other companion to collect_available_slots(): the toggle-aware flag
+     * every surface that resolves tools to lanes must pass FilamentMapper. The
+     * print detail view feeds it to effective_mappings() (swatches + the
+     * pre-flight gate) and the print-status panel to effective_tool_colors()
+     * (the gcode viewer's per-tool colors) — two views of one print, so they
+     * have to answer it the same way or the swatches promise a lane the viewer
+     * then colors from a different one.
+     *
+     * Non-editable-card backends (Snapmaker U1 / ACE) have no card UI anywhere
+     * that can flip the persisted auto-color preference, so they always
+     * auto-match; otherwise the persisted default (FALSE) forces positional
+     * matching and picks the wrong lane. Editable backends honor
+     * SettingsManager::get_auto_color_map().
+     *
+     * Asks the PRIMARY backend: editability is a property of the card the user
+     * would reach, and the card reflects backend 0.
+     */
+    [[nodiscard]] bool effective_auto_match() const;
+
+    /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
      */
@@ -353,6 +375,30 @@ class AmsState {
      */
     lv_subject_t* get_ams_type_subject() {
         return &ams_type_;
+    }
+
+    /**
+     * @brief Get the "this AMS is a tool changer" subject
+     * @return Subject holding 1 when is_tool_changer(type), else 0
+     *
+     * XML binds this instead of comparing ams_type to a literal. There are
+     * three tool-changer AmsTypes and counting; a ref_value="4" binding sees
+     * only one of them and shows filament controls on the rest.
+     */
+    lv_subject_t* get_is_tool_changer_subject() {
+        return &ams_is_tool_changer_;
+    }
+
+    /**
+     * @brief Get the "this AMS handles filament" subject
+     * @return Subject holding 1 when is_filament_system(type), else 0
+     *
+     * NOT the negation of ams_is_tool_changer: a Snapmaker U1 is both. It swaps
+     * toolheads AND runs a full load/unload state machine, so a control gated on
+     * "is a tool changer" disappears on a machine that needs it.
+     */
+    lv_subject_t* get_is_filament_system_subject() {
+        return &ams_is_filament_system_;
     }
 
     /**
@@ -1537,6 +1583,8 @@ class AmsState {
 
     // System-level subjects
     lv_subject_t ams_type_;
+    lv_subject_t ams_is_tool_changer_;
+    lv_subject_t ams_is_filament_system_;
     lv_subject_t ams_action_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
     /// 3=Move). Snapmaker U1 only; static-lifetime singleton subject.

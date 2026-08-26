@@ -52,6 +52,10 @@ class PrintTuneZOffsetFixture : public LVGLUITestFixture {
         state().set_klippy_state_sync(KlippyState::READY);
         mock_client.connect("ws://mock/websocket", []() {}, []() {});
         capture_api = std::make_unique<MoonrakerAPI>(mock_client, state());
+
+        // The discovery snapshot persists on the process-wide state across test
+        // cases; start each one plain so only set_zmod() cases see the provider.
+        state().set_hardware(helix::PrinterDiscovery{});
     }
 
     ~PrintTuneZOffsetFixture() override {
@@ -93,6 +97,14 @@ class PrintTuneZOffsetFixture : public LVGLUITestFixture {
     void set_homed(bool homed) {
         state().update_from_status(json{{"toolhead", json{{"homed_axes", homed ? "xyz" : ""}}}});
     }
+    /// Give the discovery snapshot ZMOD's signature macro, the way a real
+    /// session does once Moonraker lists the printer's gcode macros.
+    void set_zmod() {
+        helix::PrinterDiscovery hw;
+        json objects = json::array({"gcode_macro SAVE_ZMOD_DATA"});
+        hw.parse_objects(objects);
+        state().set_hardware(std::move(hw));
+    }
 
     const std::string& last_gcode() const {
         return mock_client.last_send_script();
@@ -122,6 +134,50 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     // Relative would have been Z_ADJUST=-0.010, landing on -0.010 and persisting
     // that over the user's -0.150.
     CHECK(last_gcode() == "SET_GCODE_OFFSET Z=-0.160 MOVE=1");
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: idle ZMOD baby-step zeroes the stale probe delta first",
+                 "[ui_integration][zoffset][zmod][regression]") {
+    // ZMOD persists each SET_GCODE_OFFSET as `z - _TEST_POINT.temp_z_offset`, and
+    // that variable survives END_PRINT/CANCEL_PRINT. Without the zeroing line the
+    // -0.160 above is stored as -0.160 minus the last print's probe delta
+    // (ghzserg/zmod#699). One script so the variable is cleared before the
+    // override reads it.
+    set_persisted_offset(-0.15);
+    set_live_offset(0.0);
+    set_printing(false);
+    set_homed(true);
+    set_zmod();
+
+    auto& overlay = show_overlay();
+    overlay.handle_z_step_select(2);
+    overlay.handle_z_adjust(-1);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(last_gcode() == "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0\n"
+                          "SET_GCODE_OFFSET Z=-0.160 MOVE=1");
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: mid-print ZMOD baby-step never zeroes the probe delta",
+                 "[ui_integration][zoffset][zmod][regression]") {
+    // THE GATE. Mid-print the subtraction is correct: temp_z_offset holds the
+    // live per-print transient the override is supposed to exclude. Zeroing it
+    // here would corrupt in-flight baby steps, so the clear line must appear
+    // only on the idle path.
+    set_persisted_offset(-0.15);
+    set_live_offset(-0.15);
+    set_printing(true);
+    set_homed(true);
+    set_zmod();
+
+    auto& overlay = show_overlay();
+    overlay.handle_z_step_select(2);
+    overlay.handle_z_adjust(-1);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
 }
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,

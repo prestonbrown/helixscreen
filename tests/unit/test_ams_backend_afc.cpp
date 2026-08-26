@@ -192,7 +192,16 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     void initialize_slots_from_discovery() {
-        // Simulates what start() does when lanes are pre-set via set_discovered_lanes()
+        // The lane-seeding step of AmsBackendAfc::on_started() (start() itself is
+        // final in AmsSubscriptionBackend and cannot be reached without a live
+        // subscription). Scaffolding, not a second implementation: the work is
+        // done by the production initialize_slots(), and the rest of on_started()
+        // is network — an override-store load_blocking(), detect_afc_version()
+        // and the lane_data query — none of which a unit test can run.
+        // TEST_MIRROR_OK: reproduces on_started()'s two-line reachability guard
+        //                 so the shipped initialize_slots() can be called; the
+        //                 logic under test is initialize_slots(), which IS
+        //                 production.
         if (!discovered_lane_names_.empty() && !slots_.is_initialized()) {
             initialize_slots(discovered_lane_names_);
         }

@@ -1,5 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: exercises patches/lvgl_lodepng_bpp_guard.patch — shipped LVGL code with no
+// HelixScreen header
 /**
  * @file test_lodepng_bitdepth_guard.cpp
  * @brief Pin the bit-depth guard on LVGL's lodepng port.

@@ -756,6 +756,53 @@ TEST_CASE("default_layout: bed_temperature enabled at medium breakpoint without 
     CHECK(entries.back().id == "bed_temperature");
 }
 
+TEST_CASE("default_layout: anchored bed_temperature survives AMS at medium breakpoint",
+          "[default_layout][regression]") {
+    TempCwdGuard guard;
+    BreakpointGuard bp(UiBreakpoint::Medium);
+    AmsSubjectGuard ams(4);
+    // The shipped medium table anchors bed_temperature. An anchor states where
+    // this tier puts the widget, so it answers the "is there room" question the
+    // AMS heuristic is guessing at. Before the fix the heuristic won: the K2 and
+    // every other AMS printer at or below 800x480 shipped with no bed readout and
+    // an empty cell where the anchor had reserved one.
+    guard.write_layout(R"({
+      "anchors": [
+        { "id": "bed_temperature",
+          "placements": { "medium": { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 } } }
+      ]
+    })");
+
+    auto entries = PanelWidgetConfig::build_default_grid();
+    auto* bed = find_entry(entries, "bed_temperature");
+    REQUIRE(bed);
+    CHECK(bed->enabled);
+    CHECK(bed->col == 3);
+    CHECK(bed->row == 3);
+}
+
+TEST_CASE("default_layout: unanchored bed_temperature survives AMS at medium breakpoint",
+          "[default_layout]") {
+    TempCwdGuard guard;
+    BreakpointGuard bp(UiBreakpoint::Medium);
+    AmsSubjectGuard ams(4);
+    // The AMS-crowds-it-out heuristic is gone (86a674c73): it existed because the
+    // pre-square-cell grid ran out of cells, and the square-cell grid has three
+    // times as many. bed_temperature ships enabled on every tier now, anchored or
+    // not, and the placement engine decides where it lands.
+    guard.write_layout(R"({
+      "anchors": [
+        { "id": "printer_image",
+          "placements": { "medium": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 } } }
+      ]
+    })");
+
+    auto entries = PanelWidgetConfig::build_default_grid();
+    auto* bed = find_entry(entries, "bed_temperature");
+    REQUIRE(bed);
+    CHECK(bed->enabled);
+}
+
 // Regression for a cross-test isolation leak: `ams_slot_count` is a member
 // subject of the AmsState *process singleton*, registered into the global XML
 // scope. AMS tests (LVGLUITestFixture + AmsState::init_subjects(true)) drive
@@ -1045,10 +1092,6 @@ void check_anchor_table(const nlohmann::json& anchors, const std::string& bp_nam
     }
 }
 
-/// Mirror of choose_breakpoint_key() in panel_widget_config.cpp. Duplicated
-/// rather than exported because the point is to check the shipped tables
-/// against the resolution rule as written; sharing the function would let both
-/// drift together.
 /// Split a placement key into the tier it names and, when the key is
 /// grid-qualified, the track grid it was authored for. "xxlarge@6x14" gives
 /// {"xxlarge", 6, 14}; a bare "xxlarge" gives {"xxlarge", 0, 0}.
@@ -1084,18 +1127,10 @@ PlacementKey parse_placement_key(const std::string& key) {
     return out;
 }
 
+/// Resolve through the shipped loader's own fallback chain, so a change to it
+/// moves these assertions instead of leaving them green against a stale copy.
 const char* resolve_key(const nlohmann::json& by_bp, int bp_idx) {
-    static const char* fallback[][3] = {
-        {"micro", "tiny", "small"},     {"tiny", "small", nullptr},  {"small", nullptr, nullptr},
-        {"medium", nullptr, nullptr},   {"large", nullptr, nullptr}, {"xlarge", "large", nullptr},
-        {"xxlarge", "xlarge", "large"},
-    };
-    for (int i = 0; i < 3 && fallback[bp_idx][i]; ++i) {
-        if (by_bp.contains(fallback[bp_idx][i])) {
-            return fallback[bp_idx][i];
-        }
-    }
-    return nullptr;
+    return helix::choose_breakpoint_key(by_bp, static_cast<UiBreakpoint>(bp_idx));
 }
 
 /// Widget ids the table switches off at this tier.

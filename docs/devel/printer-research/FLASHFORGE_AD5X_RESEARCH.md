@@ -1,6 +1,7 @@
 # FlashForge Adventurer 5X (AD5X) Research
 
 **Date**: 2026-02-02
+**Updated**: 2026-08-24 (ecosystem verification + first-party rig; see final section)
 **Status**: Comprehensive research complete
 
 ## Executive Summary
@@ -119,14 +120,16 @@ SET_CURRENT_PRUTOK - Set active filament
 | Feature | Status |
 |---------|--------|
 | AD5X Support | **Yes** |
-| Klipper Version | v13 (upgraded from stock v11) |
+| Klipper Version | **12 by default** (2026-08 correction — 13 is opt-in via `UPDATE_MCU FORCE=13` and is the community-identified Timer-too-close trigger on AD5X; see final section) |
 | Moonraker | Yes |
 | Fluidd/Mainsail | Yes |
 | GuppyScreen | Yes |
 | Stock UI | Preserved (dual-boot) |
 | SSH Access | `root:root` on port 22 |
 
-**Supported AD5X Firmware**: 1.0.2, 1.0.7-1.0.9, 1.1.1, 1.1.6-1.1.9, 1.2.0-1.2.1
+**Supported AD5X Firmware** (2026-08): discrete versions 1.1.7-1.2.3, 3.0.3, 3.0.9,
+3.1.0. New units ship ABOVE the ceiling (ours: 3.1.4) — the install path is a
+factory restore DOWN to a listed image.
 
 **Installation Time**: Up to 40 minutes for AD5X
 
@@ -287,18 +290,94 @@ echo 4 > /sys/class/graphics/fb0/blank
 ## Recommendations
 
 ### Short Term
-1. **Do NOT prioritize AD5X support** - architecture difference is major
+1. ~~**Do NOT prioritize AD5X support**~~ *[superseded 2026-08: support shipped — MIPS
+   build, ZMOD integration, and the IFS backend are all in tree; see
+   `FILAMENT_BACKEND_AD5X_IFS.md`]*
 2. **Monitor ZMOD development** - if they produce ARM binaries, reassess
-3. **Verify architecture claims** - "MIPS" vs "Cortex-A53" needs clarification
+3. ~~**Verify architecture claims**~~ *[resolved: Ingenic XBurst II MIPS32r2/r5,
+   per the April live capture in `FLASHFORGE_AD5X_PLATFORM_NOTES.md` — which also
+   corrects this doc's early hardware table: 800x480 display, 485 MB RAM]~
 
 ### Medium Term (if demand justifies)
-1. Acquire AD5X unit for development
-2. Create MIPS Buildroot environment
-3. Develop ZMOD integration layer
-4. Design IFS multi-color UI
+1. ~~Acquire AD5X unit for development~~ *[done 2026-08-23 — first-party rig,
+   commissioned; see PLATFORM_NOTES "Helix Rig Observations"]~
+2. ~~Create MIPS Buildroot environment~~ *[shipped - `make ad5x-docker`]~
+3. ~~Develop ZMOD integration layer~~ *[shipped]~
+4. ~~Design IFS multi-color UI~~ *[shipped - `ams_backend_ad5x_ifs`]~
 
 ---
 
 ## Conclusion
 
 The AD5X is essentially a **new platform** requiring significant effort to support - different architecture than AD5M, no Forge-X support, and a unique multi-color system (IFS). Wait for clearer architecture info or community MIPS tooling before investing in support.
+
+---
+
+## 2026-08-24 Update: firmware ecosystem verification + first-party rig
+
+Verified by web/API research and clone inspection on 2026-08-23/24; first-party rig
+commissioned 2026-08-23 (ZMOD 1.7.2, stock base 1.1.7, stock Klipper 12 MCU).
+
+### Ecosystem (one lineage, two live branches)
+
+| Mod | Repo | AD5X? | Status 2026-08 |
+|-----|------|-------|----------------|
+| klipper-mod (xblax) | `xblax/flashforge_ad5m_klipper_mod` | No (refused, #296) | **dormant** since 2025-09-16 |
+| Z-Mod (ghzserg) | `ghzserg/zmod` + `ghzserg/zmod_klipper` | **Yes — the only one** | active, expanding (1.7.2 2026-08-06; Creator 5 family next) |
+| Forge-X (DrA1ex) | `DrA1ex/ff5m` | No ("pretty unlikely ever") | active, fastest-growing, AD5M/Pro specialist |
+
+The three are mutually incompatible at macro/binary level (ZMOD's own README).
+For HelixScreen this means: **AD5X support is structurally a ZMOD partnership** —
+bus factor 1 (solo maintainer, donations), but currently shipping monthly with
+AD5X assets out-downloading AD5M ~2:1, and carrying explicit HelixScreen
+integration (`DISPLAY_OFF HELIX=1`, ZMOD 1.7.0+; the ZMOD FAQ names
+GuppyScreen/HelixScreen as the alternative-screen mode).
+
+### FlashForge factory trajectory
+
+- Changelog transparency collapsed: the official update log froze at 2.7.2
+  (Jul 2024), the wiki in mid-2025; 2026 releases (AD5M 5.x, AD5X 3.x — latest
+  3.1.5-1.1.1-3.0.7, 2026-06-26) ship with **no public changelog**. A Russian
+  community archive (flashforgelab.ru) is the de facto record; its dates match
+  our fleet telemetry exactly.
+- GPL source effectively abandoned: one AD5M klipper drop (early 2024), **nothing
+  for AD5X ever**. AD5X modding is permanent reverse-engineering.
+- OTA is effectively forced (AD5M 5.1.8 auto-installed and broke FlashPrint; USB
+  rollback works). Taking stock OTA **disables ZMOD** (data preserved, re-enable
+  via `AD5X-ENABLE-zmod.tgz`).
+- The 2026 cloud/ads lockdown is the active driver pushing owners to mods;
+  ZMOD ships `disable_chinese_clouds`. Stock closed the checkbox-feature gap
+  (LAN mode, exclude objects, PID cal, PA + "vibration compensation", T0-T15
+  IFS slicing) but not the open-ecosystem gap.
+
+### Timer-too-close (the load-bearing reliability fact)
+
+- ZMOD's tracker carries 7+ TTC issues Oct 2025-Aug 2026; #561 is verbatim the
+  signature our crash telemetry saw ("AD5X repeatedly fails with MCU 'eboard'
+  shutdown: Timer too close"); #698 open 2026-08-20.
+- Community consensus: **Klipper 13 on AD5X is the trigger** ("stay on 12 for the
+  AD5X"). ZMOD defaults the AD5X to Klipper 12; `UPDATE_MCU FORCE=13` opts in
+  (host and MCU must switch together — a `v0.13.0-746-ZMOD` host string proves
+  full 13 mode). Both of our incident rigs ran 13.
+- **Control-arm data (our rig, Klipper 12, idle)**: eboard `bytes_retransmit` ≤ 9
+  over a ~70-min session vs **50 with `retransmit_seq=542` within 581 s of
+  cold-start idle** on the Klipper-13 incident rig. The noisy-eboard signature
+  is K13-only. Details and method in `FLASHFORGE_AD5X_PLATFORM_NOTES.md`.
+- Separate documented crash trigger: slicer "Exclude Models" output gcode
+  (suspected in incident #3, whose shutdown followed an excluded-objects update
+  by 20 s on a BBL-Slicer file, on an above-ceiling stock base).
+- Forge-X's celebrated TTC fixes are all host-side (SCHED_RR klippy, timeout
+  patches, ZRAM); their own FAQ concedes the MCU-processing-overload class is
+  not host-fixable — the class our eboard incidents are in. Even their regression
+  harness had to stop screenshotting during toolhead motion to avoid TTC.
+
+### Where this leaves us
+
+AD5X = ZMOD for the foreseeable future, with no convergence toward FlashForge as
+an integration partner. Our exposure concentrates exactly where the vendor-module
+design puts it (z-offset provider table now carries both ZMOD and Forge-X rows;
+the IFS backend is the one heavy asset). The identified structural exit for the
+IFS backend's 7,200-line protocol client is an upstream `get_status()` on
+`zmod_ifs`/`zmod_color` — live-verified 2026-08-24 that both objects answer
+`objects/query` with empty status (no `get_status`), which is the root cause of
+all JSON/dialog-echo polling. Patch preparation is in flight.

@@ -185,7 +185,7 @@ class TouchCalibrationPanel {
      * Only valid in POINT_1, POINT_2, or POINT_3 states.
      * Advances to next state after capture.
      */
-    void capture_point(Point raw);
+    void capture_point(Point raw, const Point* device_raw = nullptr);
 
     /**
      * @brief Add a raw touch sample to the current capture buffer
@@ -195,8 +195,12 @@ class TouchCalibrationPanel {
      * the median, and advances the state machine via capture_point().
      *
      * @param raw Raw touch coordinates from touch controller
+     * @param device_raw Optional PRE-SWAP, PRE-SCALE digitizer reading behind
+     *        `raw` (lv_evdev_get_last_raw via helix::get_last_raw_touch). Null on
+     *        any backend that cannot supply one, which drops the run back to the
+     *        affine-only result with no other change in behaviour.
      */
-    void add_sample(Point raw);
+    void add_sample(Point raw, const Point* device_raw = nullptr);
 
     /**
      * @brief Handle a press edge (LV_EVENT_PRESSED) for the current step
@@ -214,7 +218,7 @@ class TouchCalibrationPanel {
      * testing. Wired to LV_EVENT_PRESSED by the Settings overlay and first-boot
      * wizard.
      */
-    void on_press(Point raw);
+    void on_press(Point raw, const Point* device_raw = nullptr);
 
     /**
      * @brief Handle a release edge (LV_EVENT_RELEASED)
@@ -298,6 +302,23 @@ class TouchCalibrationPanel {
      */
     const TouchCalibration* get_calibration() const;
 
+    /**
+     * @brief Get the evdev range decomposition of the computed calibration
+     *
+     * Solved alongside get_calibration() when every captured point carried a raw
+     * digitizer reading. `.valid == false` means the affine returned by
+     * get_calibration() is the whole answer, exactly as before #1259.
+     *
+     * The two are alternatives, not layers: get_calibration() is the affine over
+     * the CURRENT evdev range (what VERIFY installs, since VERIFY runs before the
+     * range is touched), while this is the range plus the residual affine that
+     * together reproduce the same mapping once the range has been re-programmed.
+     * Persisting or applying both full forms would double-count.
+     *
+     * @return The range fit; `.valid == false` when none could be solved
+     */
+    const TouchRangeFit& get_range_fit() const;
+
   private:
     State state_ = State::IDLE;
     int screen_width_ = 800;
@@ -314,8 +335,15 @@ class TouchCalibrationPanel {
     lv_timer_t* countdown_timer_ = nullptr;
 
     Point screen_points_[3]; ///< Target screen positions
-    Point touch_points_[3];  ///< Captured raw touch positions
+    Point touch_points_[3];  ///< Captured pre-affine (post-evdev) touch positions
+    /// Captured PRE-SWAP, PRE-SCALE digitizer readings, paired index-for-index
+    /// with touch_points_. Only meaningful while raw_points_valid_.
+    Point raw_points_[3];
+    /// Every point captured this session carried a raw reading. Goes false the
+    /// moment one does not, because a range fit needs all three.
+    bool raw_points_valid_ = false;
     TouchCalibration calibration_;
+    TouchRangeFit range_fit_;
 
     // Multi-sample filtering
     static constexpr int SAMPLES_REQUIRED = 3;
@@ -325,6 +353,9 @@ class TouchCalibrationPanel {
     struct RawSample {
         int x = 0;
         int y = 0;
+        int device_x = 0; ///< pre-swap, pre-scale digitizer reading
+        int device_y = 0;
+        bool has_device = false;
     };
     RawSample sample_buffer_[SAMPLES_REQUIRED]{};
     int sample_count_ = 0;
@@ -341,6 +372,8 @@ class TouchCalibrationPanel {
     bool debounce_enabled_ = true;
     bool press_pending_ = false;  ///< a press is captured, awaiting commit
     Point pending_press_point_{}; ///< point captured at press time
+    Point pending_raw_point_{};   ///< digitizer reading behind that press
+    bool pending_has_raw_ = false;
     uint32_t press_time_ms_ = 0;  ///< now() when the pending press started
     uint32_t last_sample_ms_ = 0; ///< now() of last COMMITTED sample (refractory anchor)
     bool has_committed_ = false;  ///< a sample committed this session (arms the refractory)
@@ -380,8 +413,17 @@ class TouchCalibrationPanel {
     /// Check if a sample has ADC-saturated or screen-edge phantom values
     bool is_bad_sample(const Point& sample) const;
 
-    /// Compute median from valid samples in the buffer
-    bool compute_median_point(Point& out);
+    /// Compute median from valid samples in the buffer.
+    ///
+    /// `out_raw` receives the median of the digitizer readings belonging to the
+    /// SAME samples that passed the screen-space filter, and `out_has_raw` says
+    /// whether every one of them carried a reading. The raw values deliberately
+    /// get no spread or saturation gate of their own: MAX_SAMPLE_SPREAD is a pixel
+    /// budget, and on a 4096-unit digitizer feeding an 800px panel the equivalent
+    /// raw spread is five times larger, so reusing the constant would reject good
+    /// taps. The screen-space gate already vetted the tap; this only needs the
+    /// paired reading.
+    bool compute_median_point(Point& out, Point& out_raw, bool& out_has_raw);
 
     /// Reset sample buffer for new point capture
     void reset_samples();

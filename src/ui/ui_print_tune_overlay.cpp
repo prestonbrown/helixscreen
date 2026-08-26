@@ -496,7 +496,7 @@ void PrintTuneOverlay::handle_save_z_offset() {
 
         auto strategy = printer_state_->get_z_offset_calibration_strategy();
         helix::zoffset::apply_and_save(
-            api_, strategy,
+            api_, save_config_watch_, strategy,
             []() {
                 spdlog::info("[PrintTuneOverlay] Z-offset saved — Klipper restarting");
                 ToastManager::instance().show(

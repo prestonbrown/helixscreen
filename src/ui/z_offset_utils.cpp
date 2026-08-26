@@ -9,7 +9,9 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "save_config_restart.h"
 #include "toolhead_homing.h"
+#include "z_offset_persistence.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -88,8 +90,8 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
                        static_cast<double>(base_microns + delta_microns) / 1000.0, move);
 }
 
-void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
-                    std::function<void()> on_success,
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error, PrinterState* ps) {
     // Both success paths below (the FIRMWARE_MANAGED early return and the
     // APPLY -> SAVE_CONFIG chain) funnel through this wrapper, so the pending
@@ -129,35 +131,38 @@ void apply_and_save(IMoonrakerAPI* api, ZOffsetCalibrationStrategy strategy,
     spdlog::info("[ZOffsetUtils] Applying Z-offset with {} strategy (cmd: {})", strategy_name,
                  apply_cmd);
 
+    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
+    // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
+    // calibration result in ZOffsetCalibrationPanel). The gate reads only the
+    // callback body, where that hand-off looks like logging and nothing else.
     api->execute_gcode(
         apply_cmd,
-        [api, apply_cmd, on_saved, on_error]() {
+        [api, apply_cmd, &save_watch, on_saved, on_error]() {
             spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
 
-            // SAVE_CONFIG triggers a Klipper restart. This callback runs on
-            // the WebSocket thread; begin_expected_klippy_restart() is safe
-            // here - the suppressions are atomics and the toast hops to the
-            // main thread.
-            helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
-
-            api->execute_gcode(
-                "SAVE_CONFIG",
-                [on_saved]() {
-                    spdlog::info("[ZOffsetUtils] SAVE_CONFIG success — Klipper restarting");
-                    on_saved();
-                },
-                [on_error](const MoonrakerError& err) {
+            // The watch owns the whole SAVE_CONFIG contract: it arms the
+            // expected-restart suppressions, sends the save, absorbs the rpc the
+            // restart drops, and reports success only once Klipper is back READY.
+            // Sending it raw here reported every successful save as a failure and
+            // never ran on_saved(), so the pending Z-offset delta was left set
+            // (prestonbrown/helixscreen#1359).
+            //
+            // This callback lands on the WebSocket thread and begin() installs an
+            // observer, hence the _from_background form.
+            save_watch.begin_from_background(
+                api, "Saving config... Klipper will restart.", on_saved,
+                [on_error](const std::string& err) {
                     // Log in English (developer-facing), hand the user a
                     // translated copy. The message used to be one bare
                     // fmt::format serving both, so the whole sentence was
                     // untranslatable.
-                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err.user_message());
+                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
                     if (on_error)
                         on_error(fmt::format(
                             lv_tr(
                                 "SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
                                 "Run SAVE_CONFIG manually or the offset will be lost on restart."),
-                            err.user_message()));
+                            err));
                 });
         },
         [apply_cmd, on_error](const MoonrakerError& err) {
@@ -196,14 +201,6 @@ void set_persisted_step_index(int idx) {
     }
     config->set<int>(config->df() + "z_offset/step_index", idx);
     config->save();
-}
-
-bool should_extend_save_timeout(bool restart_latched, unsigned extensions_used,
-                                unsigned max_extensions) {
-    // Only stall the clock if this save actually triggered a restart. A save
-    // that never restarted Klipper and still has not completed is a real hang
-    // and must be reported.
-    return restart_latched && extensions_used < max_extensions;
 }
 
 AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm,
@@ -265,8 +262,22 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
 
     // Relative Z_ADJUST resolves against homing_origin, so it is only right when
     // the base we adjusted from IS the live offset. See build_z_adjust_gcode().
-    const std::string gcode =
-        build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed);
+    std::string gcode = build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed);
+
+    // ZMOD persists the adjustment as `z - _TEST_POINT.temp_z_offset`, and
+    // through 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - so while
+    // idle it holds the LAST print's probe delta and the stored offset drifts
+    // by it (ghzserg/zmod#699; fixed upstream after 1.7.2, where the clear
+    // becomes a no-op). Clear it on the same script, before the override reads
+    // it. Never mid-print: there the subtraction excludes the live per-print
+    // transient and is correct.
+    if (ps && lv_subject_get_int(ps->get_print_active_subject()) == 0) {
+        const std::string clear = stale_probe_delta_clear_gcode(ps->get_discovery());
+        if (!clear.empty()) {
+            gcode = clear + "\n" + gcode;
+        }
+    }
+
     const double sent_delta = delta_mm;
     api->execute_gcode(
         gcode, [sent_delta]() { spdlog::debug("[zoffset] adjusted {:+.3f}mm", sent_delta); },

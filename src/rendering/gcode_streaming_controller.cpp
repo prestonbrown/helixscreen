@@ -480,6 +480,24 @@ GCodeStreamingController::get_layer_segments(size_t layer_index) {
 }
 
 std::shared_ptr<const std::vector<ToolpathSegment>>
+GCodeStreamingController::load_layer_segments_no_prefetch(size_t layer_index) {
+    if (!is_open() || layer_index >= index_.get_layer_count()) {
+        return nullptr;
+    }
+
+    // Identical to get_layer_segments() but without the trailing
+    // schedule_prefetch(): a strided caller never reads the neighbours.
+    auto result = cache_.get_or_load(layer_index, make_loader());
+
+    if (result.load_failed) {
+        spdlog::warn("[StreamingController] Failed to load layer {}", layer_index);
+        return nullptr;
+    }
+
+    return result.segments;
+}
+
+std::shared_ptr<const std::vector<ToolpathSegment>>
 GCodeStreamingController::try_get_layer_segments(size_t layer_index) {
     if (!is_open() || layer_index >= index_.get_layer_count()) {
         return nullptr;
@@ -834,7 +852,13 @@ bool GCodeStreamingController::build_index() {
     std::string file_path = data_source_->indexable_file_path();
 
     if (!file_path.empty()) {
-        return index_.build_from_file(file_path);
+        // Publish real indexing progress. Before this the atomic went 0.0 to
+        // 1.0 with nothing in between, so get_index_progress() could only ever
+        // drive an indeterminate spinner — on a 133MB print that is 69 seconds
+        // of a UI that looks hung. Storing an atomic from the scan thread is
+        // the whole cost; the UI polls it on its own clock.
+        return index_.build_from_file(file_path,
+                                      [this](float fraction) { index_progress_.store(fraction); });
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed

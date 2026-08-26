@@ -474,6 +474,8 @@
   <translation tag="Clog and flow health while printing" ru="Засоры и поток во время печати"/>
   <translation tag="Clog detection" ru="Обнаружение засора"/>
   <translation tag="Close" ru="Закрыть"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" ru="Ближе"/>
   <translation tag="Closer = more squish | Farther = less squish" ru="Ближе = больше сжатие | Дальше = меньше сжатие"/>
   <translation tag="Coarse" ru="Грубо"/>
@@ -952,11 +954,13 @@
   <translation tag="Farther" ru="Дальше"/>
   <translation tag="Features: " ru="Функции: "/>
   <translation tag="Feed Assist" ru="Помощь подачи"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" ru="Подать филамент"/>
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Filament" ru="Филамент"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" ru="Филамент обнаружен"/>
   <translation tag="Filament Environment" ru="Среда хранения филамента"/>
   <translation tag="Filament Grade Mismatch" ru="Несоответствие марки филамента"/>
@@ -971,6 +975,7 @@
   <translation tag="Filament controls are unavailable while printing."/>
   <translation tag="Filament deleted" ru="Филамент удалён"/>
   <translation tag="Filament diameter sensors for flow compensation" ru="Датчики диаметра филамента для компенсации потока"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." ru="Филамент вышел из печатающей головки. Вытяните его до конца."/>
   <translation tag="Filament is loose" ru="Филамент ослаблен"/>
   <translation tag="Filament is pulling tight" ru="Филамент натянут"/>
@@ -1051,6 +1056,7 @@
   <translation tag="Good Accuracy" ru="Хорошая точность"/>
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" ru="Руководства и справка"/>
   <translation tag="H" ru="Х"/>
   <translation tag="HOST" ru="Хост"/>
@@ -1393,6 +1399,7 @@
   <translation tag="Manual Bed Leveling" ru="Ручное выравнивание стола"/>
   <translation tag="Manual Feed" ru="Ручная подача"/>
   <translation tag="Manual Retract" ru="Ручная ретракция"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" ru="Подобрать ближайшие цвета с подходящим материалом"/>
   <translation tag="Marginal" ru="Допустимо"/>
   <translation tag="Master volume level" ru="Основной уровень громкости"/>
@@ -1503,6 +1510,7 @@
   <translation tag="No History" ru="Нет истории"/>
   <translation tag="No LED macros detected on your printer." ru="На вашем принтере не обнаружены LED-макросы."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." ru="На вашем принтере не обнаружены LED-макросы. Сначала добавьте макросы Klipper для управления LED."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" ru="LED-ленты не обнаружены"/>
   <translation tag="No Macros Found" ru="Макросы не найдены"/>
   <translation tag="No Multi-Filament System connected" ru="Мультифиламентная система не подключена"/>
@@ -1636,6 +1644,8 @@
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
   <translation tag="Open color and brightness controls" ru="Управление цветом и яркостью"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Open motion controls for jogging" ru="Управление перемещением осей"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operations" ru="Операции"/>
@@ -1644,6 +1654,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" ru="Необязательно — выберите основной источник освещения или пропустите, если его нет"/>
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Out of range" ru="Вне диапазона"/>
   <translation tag="Outcome" ru="Результат"/>
@@ -1954,6 +1965,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" ru="Относительная вибрация"/>
   <translation tag="Release all stepper motors. Position will be lost." ru="Отпустить все шаговые моторы. Позиция будет потеряна."/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
   <translation tag="Remaining Weight (g)" ru="Оставшийся вес (г)"/>
   <translation tag="Remap Tool" ru="Переназначить инструмент"/>
@@ -1964,6 +1977,7 @@
   <translation tag="Remove PIN" ru="Удалить PIN"/>
   <translation tag="Remove Spoolman?" ru="Удалить Spoolman?"/>
   <translation tag="Remove plugin from printer" ru="Удалить плагин с принтера"/>
+  <translation tag="Remove the bypass spool from the toolhead first" ru="Сначала извлеките катушку байпаса из печатающей головки"/>
   <translation tag="Rename" ru="Переименовать"/>
   <translation tag="Rename Fan" ru="Переименовать вентилятор"/>
   <translation tag="Rename Mesh Profile" ru="Переименовать профиль сетки"/>
@@ -2249,6 +2263,8 @@
   <translation tag="Slot" ru="Слот"/>
   <translation tag="Slot %d" ru="Слот %d"/>
   <translation tag="Slot %d Filament" ru="Филамент слота %d"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" ru="В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" ru="Слот %d: %.0fг из %.0fг"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot {}" ru="Слот {}"/>
   <translation tag="Slot {} matches." ru="Слот {} подходит."/>
@@ -2260,6 +2276,7 @@
   <translation tag="Soft" ru="Мягкий"/>
   <translation tag="Software Updates" ru="Обновления ПО"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." ru="Некоторые филаменты не соответствуют замыслу слайсера."/>
+  <translation tag="Some mapped slots are short on filament:" ru="В некоторых назначенных слотах мало филамента:"/>
   <translation tag="Some settings will take effect after restart." ru="Некоторые настройки вступят в силу после перезапуска."/>
   <translation tag="Sound Theme" ru="Звуковая тема"/>
   <translation tag="Sounds" ru="Звуки"/>
@@ -2307,6 +2324,7 @@
   <translation tag="Start Drying" ru="Начать сушку"/>
   <translation tag="Start Print" ru="Начать печать"/>
   <translation tag="Start Probing" ru="Начать зондирование"/>
+  <translation tag="Start anyway?" ru="Всё равно начать?"/>
   <translation tag="Start at" ru="Начать с"/>
   <translation tag="Start failed" ru="Ошибка запуска"/>
   <translation tag="Start print anyway?" ru="Всё равно начать печать?"/>
@@ -2443,6 +2461,7 @@
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
   <translation tag="Theme" ru="Тема"/>
@@ -2688,6 +2707,8 @@
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." ru="При запуске печати вы сможете выбрать, запускать ли %s. Это экономит время, если вы уже делали это недавно или хотите больше контроля над подготовкой печати."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" ru="Белый"/>
   <translation tag="Wi-Fi or ethernet connection status" ru="Статус подключения Wi-Fi или Ethernet"/>
   <translation tag="WiFi" ru="WiFi"/>
@@ -2792,6 +2813,7 @@
   <translation tag="nozzle" ru="сопло"/>
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" ru="печатей"/>
   <translation tag="remaining" ru="осталось"/>
   <translation tag="remaining before clog detection triggers" ru="осталось до срабатывания обнаружения засора"/>

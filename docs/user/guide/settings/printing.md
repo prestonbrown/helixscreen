@@ -55,14 +55,16 @@ This only changes the direction labels in the UI — the actual G-code sent is t
 
 Tap to open the Machine Limits overlay. A banner at the top reminds you: **"Changes are temporary and reset on printer reboot."** These sliders override your Klipper config for the current session — useful for testing or troubleshooting motion issues. To make permanent changes, edit `printer.cfg` directly.
 
-Each setting has a slider with the live value shown on the right:
+Each setting has a slider, with the current value shown on the right in a tappable field:
+
+> **Tap the value to type an exact number.** Sliders are quick but coarse — Max Acceleration spans 500–50000 over a few hundred pixels, so landing on exactly 3000 by dragging is luck. Tapping the value opens a numeric keypad where you type the number you actually want.
 
 | Setting | Range | Description |
 |---------|-------|-------------|
 | **Max Velocity** | 50–1000 mm/s | Maximum toolhead speed |
 | **Max Acceleration** | 500–50000 mm/s² | Maximum acceleration |
 | **Accel to Decel** | 500–50000 mm/s² | Acceleration-to-deceleration limit (caps how aggressively moves slow down) |
-| **Square Corner Velocity** | 1–20 mm/s | Maximum speed carried through square corners |
+| **Square Corner Velocity** | 1.0–20.0 mm/s | Maximum speed carried through square corners. Accepts half steps (5.5) — type them on the keypad. |
 | **Extrude Speed** | 1–50 mm/s | Feedrate used for manual extrude/retract actions |
 
 > **Extrude Speed is saved.** Unlike the motion limits above, the Extrude Speed value is a persisted HelixScreen setting — it is remembered across restarts and applies to the manual extrude/retract controls.
@@ -79,12 +81,14 @@ Below the adjustable sliders is a read-only **Config-defined** section showing y
 
 Tap to open the retraction overlay. Configure G10/G11 firmware retraction parameters. **Changes apply immediately** and can be adjusted mid-print for tuning.
 
+As on Machine Limits, each value is shown in a tappable field — **tap it to type an exact number** on the numeric keypad instead of hunting for it with the slider. The distances accept two decimals (0.85 mm).
+
 | Parameter | Range | Description |
 |-----------|-------|-------------|
 | **Enable Retraction** | On/Off | Master toggle for firmware retraction |
-| **Retract Length** | 0–6 mm | Amount of filament to retract. 0.4–2 mm for direct drive, 4–6 mm for bowden. |
+| **Retract Length** | 0.00–6.00 mm | Amount of filament to retract. 0.4–2 mm for direct drive, 4–6 mm for bowden. |
 | **Retract Speed** | 10–80 mm/s | Speed of the retraction movement |
-| **Unretract Extra** | 0–1 mm | Extra filament to prime after retraction to compensate for ooze |
+| **Unretract Extra** | 0.00–1.00 mm | Extra filament to prime after retraction to compensate for ooze |
 | **Unretract Speed** | 10–60 mm/s | Speed of the prime (unretract) movement |
 
 ---

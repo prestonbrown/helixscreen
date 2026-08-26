@@ -1174,12 +1174,14 @@ static void on_next_clicked(lv_event_t* e) {
         return;
     }
 
-    // Preset first-run fast path: auto-validate the connection step. If the
-    // printer is already connected and a complete preset is applied, the
-    // connection step has nothing for the user to do — skip straight past it.
+    // Fast path: auto-validate the connection step when there is nothing to ask.
+    // Two cases qualify, both requiring a live connection:
+    //   - preset first-run, where a complete preset is already applied;
+    //   - a printer-embedded build, where Moonraker is by definition on this box,
+    //     so the address is not a question the user can meaningfully answer.
     // build_context() reads Config::has_preset() live, so a preset applied by
     // auto-detection between wizard init and now is honored here.
-    if (*next == StepId::Connection && ctx.preset.first_run) {
+    if (*next == StepId::Connection && (ctx.preset.first_run || helix::is_printer_embedded())) {
         IMoonrakerClient* client = get_moonraker_client();
         if (client && client->get_connection_state() == ConnectionState::CONNECTED) {
             spdlog::info("[Wizard] Preset mode: already connected, skipping connection step");

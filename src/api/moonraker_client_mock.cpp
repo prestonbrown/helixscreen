@@ -2441,11 +2441,30 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         return 0; // Success - results come asynchronously via gcode_response
     }
 
-    // SAVE_CONFIG simulation
+    // SAVE_CONFIG simulation.
+    //
+    // Klipper's cmd_SAVE_CONFIG writes printer.cfg and then calls
+    // request_restart('restart') as its last act, so it never acks the command --
+    // the connection it would ack through is already going down. Moonraker fails
+    // the pending printer.gcode.script with 503 "Klippy Disconnected". A caller
+    // therefore sees a FAILED rpc for a save that succeeded, and learns the truth
+    // only from klippy returning READY.
+    //
+    // Modelling both halves matters. The previous stub dispatched "ok" (which real
+    // Klipper never sends) and returned non-zero WITHOUT setting last_gcode_error_,
+    // so the error carried an empty message and klippy never moved. That produced
+    // the field symptom by accident and made it unreadable: --test showed the same
+    // false failure toast users hit, for an unrelated reason, so no test could tell
+    // a fixed panel from a broken one.
     if (gcode.find("SAVE_CONFIG") != std::string::npos) {
-        spdlog::info("[MoonrakerClientMock] SAVE_CONFIG - simulating config save + restart");
-        dispatch_gcode_response("ok");
-        return 0; // Success - results come asynchronously via gcode_response
+        spdlog::info("[MoonrakerClientMock] SAVE_CONFIG - config written; restarting, and its "
+                     "RPC is dropped (as on real Klipper)");
+        trigger_restart(/*is_firmware=*/false);
+        {
+            std::lock_guard<std::mutex> lock(gcode_error_mutex_);
+            last_gcode_error_ = "Klippy Disconnected";
+        }
+        return 1;
     }
 
     // Bed mesh commands

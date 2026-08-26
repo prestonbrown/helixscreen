@@ -110,4 +110,12 @@ void PrinterExcludedObjectsState::set_current_object(const std::string& name) {
     }
 }
 
+void PrinterExcludedObjectsState::clear_objects() {
+    // Route through the setters so change detection, version bumps and logging behave
+    // exactly as they do for a normal status update.
+    set_excluded_objects({});
+    set_defined_objects_with_geometry({});
+    set_current_object("");
+}
+
 } // namespace helix

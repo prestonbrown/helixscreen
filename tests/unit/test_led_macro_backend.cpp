@@ -168,3 +168,81 @@ TEST_CASE("MacroLedType: TOGGLE type has toggle macro", "[led][macro]") {
     REQUIRE(info.on_macro.empty());
     REQUIRE(info.off_macro.empty());
 }
+
+// ============================================================================
+// Macro field resolution (settings editor)
+//
+// The editor pairs a dropdown of detected macros with a free-text box. Keyword
+// detection will never cover every naming scheme, so the text box is what makes
+// a missed macro reachable at all.
+// ============================================================================
+
+TEST_CASE("resolve_macro_field: typed text wins over the dropdown", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF"};
+    // Dropdown still points at row 0, but the user typed something the detector
+    // never offered. Honouring the dropdown here is what made a detection miss
+    // unrecoverable.
+    REQUIRE(helix::led::resolve_macro_field("MY_STRIP_GLOW", 0, discovered) == "MY_STRIP_GLOW");
+}
+
+TEST_CASE("resolve_macro_field: falls back to the dropdown when nothing is typed", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF"};
+    REQUIRE(helix::led::resolve_macro_field("", 1, discovered) == "LED_OFF");
+}
+
+TEST_CASE("resolve_macro_field: whitespace-only text is not a value", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF"};
+    REQUIRE(helix::led::resolve_macro_field("   \t ", 0, discovered) == "LED_ON");
+}
+
+TEST_CASE("resolve_macro_field: typed text is trimmed", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON"};
+    REQUIRE(helix::led::resolve_macro_field("  GLOW_UP \n", 0, discovered) == "GLOW_UP");
+}
+
+TEST_CASE("resolve_macro_field: Custom selected with nothing typed yields empty", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF"};
+    const int custom = helix::led::macro_custom_index(discovered);
+    REQUIRE(helix::led::resolve_macro_field("", custom, discovered).empty());
+}
+
+TEST_CASE("resolve_macro_field: works with no detected macros at all", "[led][macro]") {
+    const std::vector<std::string> none;
+    REQUIRE(helix::led::resolve_macro_field("HAND_TYPED", 0, none) == "HAND_TYPED");
+    REQUIRE(helix::led::resolve_macro_field("", 0, none).empty());
+}
+
+TEST_CASE("macro_field_view: a detected macro selects its dropdown row", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF", "LED_PARTY"};
+    auto v = helix::led::macro_field_view("LED_PARTY", discovered);
+    REQUIRE(v.dropdown_index == 2);
+    REQUIRE(v.typed.empty());
+}
+
+TEST_CASE("macro_field_view: an undetected macro is preserved in the text box", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF"};
+    // Regression: this used to resolve to row 0, so pressing Save rewrote the
+    // device's macro to LED_ON -- a different macro, with no warning.
+    auto v = helix::led::macro_field_view("CHAMBER_GLOW", discovered);
+    REQUIRE(v.dropdown_index == helix::led::macro_custom_index(discovered));
+    REQUIRE(v.typed == "CHAMBER_GLOW");
+
+    // And the round-trip must not change it.
+    REQUIRE(helix::led::resolve_macro_field(v.typed, v.dropdown_index, discovered) ==
+            "CHAMBER_GLOW");
+}
+
+TEST_CASE("macro_field_view: an empty field defaults to the first row", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON"};
+    auto v = helix::led::macro_field_view("", discovered);
+    REQUIRE(v.dropdown_index == 0);
+    REQUIRE(v.typed.empty());
+}
+
+TEST_CASE("macro_field_view: round-trips every detected macro unchanged", "[led][macro]") {
+    const std::vector<std::string> discovered = {"LED_ON", "LED_OFF", "LAMP_TOGGLE"};
+    for (const auto& m : discovered) {
+        auto v = helix::led::macro_field_view(m, discovered);
+        REQUIRE(helix::led::resolve_macro_field(v.typed, v.dropdown_index, discovered) == m);
+    }
+}

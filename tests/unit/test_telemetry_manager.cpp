@@ -14,6 +14,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
@@ -937,13 +938,13 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Transmission: batch payload contains val
     REQUIRE(batch[1]["event"] == "print_outcome");
 }
 
-TEST_CASE("Transmission: constants have expected values", "[telemetry][transmission]") {
-    // Verify transmission-related constants
-    REQUIRE(TelemetryManager::MAX_BATCH_SIZE == 20);
-    REQUIRE(TelemetryManager::SEND_INTERVAL == std::chrono::hours{24});
-
-    // Endpoint URL should be HTTPS
-    std::string url(TelemetryManager::ENDPOINT_URL);
+TEST_CASE("Transmission: endpoint URL is HTTPS", "[telemetry][transmission]") {
+    // The MAX_BATCH_SIZE / SEND_INTERVAL assertions that used to sit here copied
+    // the header's literals and compared them to themselves — a constant cannot
+    // fail to equal its own definition. The scheme check is the one thing here
+    // that constrains the value rather than mirroring it: device telemetry must
+    // never leave over plaintext.
+    const std::string url(TelemetryManager::ENDPOINT_URL);
     REQUIRE(url.find("https://") == 0);
 }
 
@@ -1002,44 +1003,112 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 // Auto-send Scheduler [telemetry][scheduler]
 // ============================================================================
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: start_auto_send creates timer",
+/**
+ * @brief TelemetryTestFixture plus a live LVGL, for the auto-send timers
+ *
+ * The scheduler cases used to run on the bare TelemetryTestFixture and assert
+ * nothing, which hid a second problem: that fixture's ctor ends with
+ * set_enabled(false), so start_auto_send() returned at the !is_enabled() guard
+ * (src/system/telemetry_manager.cpp:1015) and never reached lv_timer_create()
+ * at all. The idempotence branch (:1023) and stop_auto_send() were unreachable.
+ * Enabling telemetry first makes the timers real, and real timers need LVGL up.
+ *
+ * The LVGL base is constructed first and destroyed last, so the composed
+ * telemetry fixture's init/shutdown always runs against a live LVGL.
+ */
+class TelemetrySchedulerFixture : public LVGLTestFixture {
+  public:
+    ~TelemetrySchedulerFixture() override {
+        TelemetryManager::instance().stop_auto_send();
+    }
+
+    /// Count the LVGL timers this TelemetryManager owns.
+    ///
+    /// Every telemetry timer passes `this` as its lv_timer user_data
+    /// (auto-send, snapshot, frame-perf, feature-adoption, settings-debounce),
+    /// so keying on that ignores whatever else the suite has left armed and
+    /// keeps the count independent of how many timers start_auto_send()
+    /// happens to create.
+    static int telemetry_timer_count() {
+        void* self = &TelemetryManager::instance();
+        int n = 0;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+            if (lv_timer_get_user_data(t) == self) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+  protected:
+    [[nodiscard]] fs::path temp_dir() const {
+        return telemetry_.temp_dir();
+    }
+
+  private:
+    TelemetryTestFixture telemetry_;
+};
+
+TEST_CASE_METHOD(TelemetrySchedulerFixture,
+                 "Scheduler: start_auto_send arms timers only when telemetry is enabled",
                  "[telemetry][scheduler]") {
     auto& tm = TelemetryManager::instance();
+    REQUIRE(telemetry_timer_count() == 0);
 
-    // Should not crash when called
+    // Disabled: the !is_enabled() guard must arm nothing. Sending telemetry
+    // from a user who opted out is the failure this pins.
+    tm.set_enabled(false);
     tm.start_auto_send();
+    REQUIRE(telemetry_timer_count() == 0);
 
-    // Calling again should be safe (idempotent)
+    // Enabled: timers appear. (set_enabled(true) can arm them itself once
+    // discovery is complete, which the start_auto_send() above just latched.)
+    tm.set_enabled(true);
     tm.start_auto_send();
+    const int armed = telemetry_timer_count();
+    REQUIRE(armed > 0);
 
-    // Stop should clean up
+    // Idempotent: the `if (auto_send_timer_)` early return must not arm a
+    // duplicate that stop_auto_send() would then leak.
+    tm.start_auto_send();
+    REQUIRE(telemetry_timer_count() == armed);
+
     tm.stop_auto_send();
+    REQUIRE(telemetry_timer_count() == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: stop_auto_send is safe when no timer",
+TEST_CASE_METHOD(TelemetrySchedulerFixture, "Scheduler: stop_auto_send is idempotent",
                  "[telemetry][scheduler]") {
     auto& tm = TelemetryManager::instance();
 
-    // Should not crash when called without start
+    // Stop before any start.
     tm.stop_auto_send();
-    tm.stop_auto_send(); // Double-stop should be safe
+    REQUIRE(telemetry_timer_count() == 0);
+
+    tm.set_enabled(true);
+    tm.start_auto_send();
+    REQUIRE(telemetry_timer_count() > 0);
+
+    tm.stop_auto_send();
+    REQUIRE(telemetry_timer_count() == 0);
+
+    // Second stop must see null pointers, not freed timers.
+    tm.stop_auto_send();
+    REQUIRE(telemetry_timer_count() == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: shutdown stops auto-send",
+TEST_CASE_METHOD(TelemetrySchedulerFixture, "Scheduler: shutdown stops auto-send",
                  "[telemetry][scheduler]") {
     auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
     tm.start_auto_send();
+    REQUIRE(telemetry_timer_count() > 0);
 
-    // Shutdown should stop the timer and not crash
     tm.shutdown();
+    REQUIRE(telemetry_timer_count() == 0);
 
     // Re-init for fixture cleanup
     tm.init(temp_dir().string());
-}
-
-TEST_CASE("Scheduler: constants have expected values", "[telemetry][scheduler]") {
-    REQUIRE(TelemetryManager::INITIAL_SEND_DELAY_MS == 60000);
-    REQUIRE(TelemetryManager::AUTO_SEND_INTERVAL_MS == 3600000);
 }
 
 // ============================================================================

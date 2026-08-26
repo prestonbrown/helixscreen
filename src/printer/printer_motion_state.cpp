@@ -53,7 +53,7 @@ void PrinterMotionState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(pending_z_offset_delta, 0, subjects_,
                      register_xml); // Accumulated adjustment during print
     INIT_SUBJECT_INT(persisted_z_offset, 0, subjects_,
-                     register_xml); // ZMOD save_variables.gcode_offsets.z, microns
+                     register_xml); // Persisted z-offset from the firmware provider, microns
     INIT_SUBJECT_INT(persisted_z_offset_valid, 0, subjects_,
                      register_xml); // 1 once the firmware has told us a stored offset
 

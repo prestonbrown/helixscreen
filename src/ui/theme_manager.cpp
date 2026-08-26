@@ -1759,14 +1759,14 @@ static void theme_manager_register_object_colors(lv_xml_component_scope_t* scope
  * @brief Load active theme from config
  *
  * Reads /display/theme from config, loads corresponding JSON file.
- * Falls back to Nord if not found.
+ * Falls back to the compiled-in HelixScreen theme if not found.
  *
  * HELIX_THEME env var overrides config (useful for testing/screenshots).
  */
 static helix::ThemeData theme_manager_load_active_theme() {
     std::string themes_dir = helix::get_themes_directory();
 
-    // Ensure themes directory exists with default theme
+    // Ensure the user themes directory exists (shipped themes live in defaults/)
     helix::ensure_themes_directory(themes_dir);
 
     // Check for HELIX_THEME env var override (useful for testing/screenshots)
@@ -1786,8 +1786,9 @@ static helix::ThemeData theme_manager_load_active_theme() {
     auto theme = helix::load_theme_from_file(theme_name);
 
     if (!theme.is_valid()) {
-        spdlog::warn("[Theme] Theme '{}' not found or invalid, using Nord", theme_name);
-        theme = helix::get_default_nord_theme();
+        spdlog::warn("[Theme] Theme '{}' not found or invalid, using built-in {}", theme_name,
+                     helix::DEFAULT_THEME);
+        theme = helix::get_builtin_fallback_theme();
     }
 
     spdlog::info("[Theme] Loaded theme: {} ({})", theme.name, theme.filename);

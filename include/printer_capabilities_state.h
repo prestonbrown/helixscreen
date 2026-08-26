@@ -7,6 +7,7 @@
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
+#include <unordered_map>
 
 namespace helix {
 
@@ -334,6 +335,25 @@ class PrinterCapabilitiesState {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
+
+    /// Capability answers that arrived before the subjects existed.
+    ///
+    /// Discovery runs on the WebSocket thread and its answers reach here through
+    /// AsyncLifetimeGuard::defer(), so on a fast printer they can land before
+    /// init_subjects() has run. Writing an uninitialised lv_subject_t is already
+    /// wrong, and INIT_SUBJECT_INT would then reset it to the hardcoded default
+    /// anyway - the answer is simply lost, and nothing re-runs discovery in a
+    /// stable session. That is how a connected Spoolman stayed dark for five days
+    /// on a K2 Plus (2026-08-24): SpoolmanManager's observer watches this flag's
+    /// falling edge and drops the identity cache behind every slot's vendor and
+    /// material. Latch instead, and seed init_subjects() from what we already know.
+    std::unordered_map<lv_subject_t*, int> pending_capability_values_;
+
+    /// Write a capability subject, or latch the value when subjects do not exist.
+    void set_capability_int(lv_subject_t& subject, int value);
+
+    /// Replay everything latched before init_subjects() ran.
+    void apply_pending_capability_values();
 
     /// Generation guard for the async setters that defer their subject writes to
     /// the main thread. Invalidated by `deinit_subjects()` and by destruction, so

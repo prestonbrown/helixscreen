@@ -8,6 +8,7 @@
 #include "lvgl/lvgl.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
@@ -241,7 +242,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     /// Latches restart activity seen during a save. Reset on every entry to and
     /// exit from State::SAVING so repeated saves in one session start clean.
-    helix::zoffset::SaveRestartLatch save_restart_latch_;
+    /// Owns the SAVE_CONFIG contract for the z-offset save: absorbs the rpc the
+    /// restart drops and reports success only once Klipper is back (#1359).
+    helix::ui::SaveConfigWatch save_config_watch_;
+
+    helix::ui::SaveRestartLatch save_restart_latch_;
 
     friend class ZOffsetCalibrationTestAccess;
 

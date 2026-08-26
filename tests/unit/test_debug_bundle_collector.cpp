@@ -384,7 +384,14 @@ TEST_CASE("DebugBundleCollector: sanitize_value preserves normal strings",
     REQUIRE(helix::DebugBundleCollector::sanitize_value("hello world") == "hello world");
     REQUIRE(helix::DebugBundleCollector::sanitize_value("/tmp/printer_data") ==
             "/tmp/printer_data");
+
+    // Private addresses survive ON PURPOSE -- do not "fix" this to a blanket
+    // redaction. A RFC1918 address is identical in millions of houses and is
+    // the entire diagnostic value of the network section; it is the globally
+    // routable half that identifies a household, and only that half is
+    // redacted (see the [1352] cases below and include/log_redact.h).
     REQUIRE(helix::DebugBundleCollector::sanitize_value("192.168.1.100") == "192.168.1.100");
+    REQUIRE(helix::DebugBundleCollector::sanitize_value("203.0.113.5") != "203.0.113.5");
 }
 
 TEST_CASE("DebugBundleCollector: sanitize_value redacts MAC addresses",
@@ -406,6 +413,147 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts Pushover and ntfy webhoo
     auto ifttt = helix::DebugBundleCollector::sanitize_value(
         "https://maker.ifttt.com/trigger/print_done/with/key/abc123");
     REQUIRE(ifttt == "[REDACTED_WEBHOOK]");
+}
+
+// ============================================================================
+// IP addresses and hardware serials (#1352)
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: sanitize_value preserves private and local addresses",
+          "[debug-bundle][privacy][1352]") {
+    // These are what a "the screen cannot reach Moonraker" report is made of.
+    // Blanket IP redaction would take the whole network section with it.
+    const char* keep[] = {
+        "192.168.1.100", "10.0.0.5",
+        "172.16.4.9",    "127.0.0.1",
+        "169.254.10.20", "100.64.0.1",
+        "fe80::1",       "fd12:3456:789a::1",
+        "::1",           "[WS] connecting to 192.168.1.50:7125",
+    };
+    for (const char* v : keep) {
+        INFO(v);
+        REQUIRE(helix::DebugBundleCollector::sanitize_value(v) == v);
+    }
+}
+
+TEST_CASE("DebugBundleCollector: sanitize_value redacts globally routable addresses",
+          "[debug-bundle][privacy][1352]") {
+    // A routable IPv6 is an ISP-allocated prefix plus a stable interface ID:
+    // it resolves to a household far more directly than the MAC on the same
+    // object, which this function has always redacted.
+    const auto v4 = helix::DebugBundleCollector::sanitize_value("203.0.113.5");
+    INFO("v4=" << v4);
+    REQUIRE(v4.find("203.0.113.5") == std::string::npos);
+
+    const auto v6 = helix::DebugBundleCollector::sanitize_value("2001:db8:85a3::8a2e:370:7334");
+    INFO("v6=" << v6);
+    REQUIRE(v6.find("2001:db8:85a3::8a2e:370:7334") == std::string::npos);
+    REQUIRE(v6.find("8a2e:370:7334") == std::string::npos);
+
+    // Inside a line, the surrounding text has to survive.
+    const auto line = helix::DebugBundleCollector::sanitize_value(
+        "[WS] handshake with 198.51.100.7:7125 timed out");
+    INFO("line=" << line);
+    REQUIRE(line.find("198.51.100.7") == std::string::npos);
+    REQUIRE(line.find(":7125 timed out") != std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: sanitize_value leaves version strings intact",
+          "[debug-bundle][privacy][1352]") {
+    // The failure mode of an over-eager IP rule is silent: it eats the version
+    // numbers that make a bundle worth reading.
+    const char* keep[] = {
+        "0.99.115",     "HelixScreen 0.99.115 (LVGL 9.5.0)",
+        "v1.2.3.4",     "1.2.3.4.5",
+        "2026.08.25.1", "[10:04:30.373] [debug] nothing sensitive here",
+    };
+    for (const char* v : keep) {
+        INFO(v);
+        REQUIRE(helix::DebugBundleCollector::sanitize_value(v) == v);
+    }
+}
+
+TEST_CASE("DebugBundleCollector: sanitize_json redacts hardware serial numbers",
+          "[debug-bundle][privacy][1352]") {
+    // Shape of /machine/system_info as it arrives from Moonraker. The board
+    // and SD serials are permanent hardware identifiers; the only question
+    // they answer is already answered by the bundle's device_id.
+    json system_info = R"({
+        "result": {
+            "system_info": {
+                "cpu_info": {
+                    "cpu_count": 4,
+                    "model": "Raspberry Pi 4 Model B Rev 1.4",
+                    "serial_number": "100000003f9a1b2c"
+                },
+                "sd_info": {
+                    "manufacturer": "Sandisk",
+                    "capacity": "29.7 GiB",
+                    "serial_number": "0xa1b2c3d4"
+                },
+                "network": {
+                    "wlan0": {
+                        "mac_address": "aa:bb:cc:dd:ee:ff",
+                        "ip_addresses": [
+                            {"family": "ipv4", "address": "192.168.1.50"},
+                            {"family": "ipv6", "address": "fe80::1"},
+                            {"family": "ipv6", "address": "fd12:3456:789a::1"},
+                            {"family": "ipv6", "address": "2001:db8:85a3::8a2e:370:7334"}
+                        ]
+                    }
+                }
+            }
+        }
+    })"_json;
+
+    json out = helix::DebugBundleCollector::sanitize_json(system_info);
+    const json& info = out["result"]["system_info"];
+
+    REQUIRE(info["cpu_info"]["serial_number"].get<std::string>() == "[REDACTED]");
+    REQUIRE(info["sd_info"]["serial_number"].get<std::string>() == "[REDACTED]");
+
+    // The model and capacity next to them are diagnostic and must survive --
+    // a key-pattern that swallowed the whole object would pass the two checks
+    // above and gut the section.
+    REQUIRE(info["cpu_info"]["model"].get<std::string>() == "Raspberry Pi 4 Model B Rev 1.4");
+    REQUIRE(info["cpu_info"]["cpu_count"].get<int>() == 4);
+    REQUIRE(info["sd_info"]["manufacturer"].get<std::string>() == "Sandisk");
+    REQUIRE(info["sd_info"]["capacity"].get<std::string>() == "29.7 GiB");
+
+    const json& addrs = info["network"]["wlan0"]["ip_addresses"];
+    REQUIRE(addrs[0]["address"].get<std::string>() == "192.168.1.50");
+    REQUIRE(addrs[1]["address"].get<std::string>() == "fe80::1");
+    REQUIRE(addrs[2]["address"].get<std::string>() == "fd12:3456:789a::1");
+    REQUIRE(addrs[3]["address"].get<std::string>().find("2001:db8") == std::string::npos);
+
+    // The whole blob, flattened -- nothing routable and no serial anywhere.
+    const std::string dump = out.dump();
+    REQUIRE(dump.find("2001:db8:85a3::8a2e:370:7334") == std::string::npos);
+    REQUIRE(dump.find("100000003f9a1b2c") == std::string::npos);
+    REQUIRE(dump.find("0xa1b2c3d4") == std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: is_sensitive_key matches serial_number but not a serial device",
+          "[debug-bundle][privacy][1352]") {
+    // Klipper's `serial: /dev/serial/by-id/usb-Klipper_stm32f446xx_...` names
+    // the MCU and is genuinely diagnostic, so the pattern is the compound word
+    // rather than a bare "serial".
+    json cfg = R"({
+        "mcu": {"serial": "/dev/ttyAMA0", "baud": 250000},
+        "mcu host": {"serial": "/dev/serial/by-id/usb-Klipper_stm32f446xx-if00"},
+        "device": {"serial_number": "SN-12345", "serialNumber": "SN-67890"}
+    })"_json;
+
+    json out = helix::DebugBundleCollector::sanitize_json(cfg);
+    REQUIRE(out["device"]["serial_number"].get<std::string>() == "[REDACTED]");
+    REQUIRE(out["device"]["serialNumber"].get<std::string>() == "[REDACTED]");
+
+    // A bare `serial` key is a device path, so the key rule must not fire on
+    // it. (The long by-id form still hits the pre-existing 36-char token rule
+    // in sanitize_value(); what matters here is that it is not [REDACTED].)
+    REQUIRE(out["mcu"]["serial"].get<std::string>() == "/dev/ttyAMA0");
+    REQUIRE(out["mcu"]["baud"].get<int>() == 250000);
+    REQUIRE(out["mcu host"]["serial"].get<std::string>() != "[REDACTED]");
 }
 
 // ============================================================================

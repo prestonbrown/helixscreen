@@ -109,6 +109,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
 TEST_CASE_METHOD(LVGLTestFixture,
                  "a STALE canvas's delete does not clobber an already-rewired canvas_",
                  "[bed_mesh][canvas][1229]") {
+    // TEST_MIRROR_OK: the re-wire itself is NOT reimplemented — every wire below
+    // goes through BedMeshPanelTestAccess::wire(), i.e. the production
+    // wire_canvas_and_content() that rewire_after_orientation_flip() calls. Only
+    // the surrounding XML <if> rebuild is staged by hand, since it needs a live
+    // overlay_root_ + Moonraker API.
     // Mirrors what a real orientation flip does: rewire_after_orientation_flip()
     // re-wires canvas_ to a brand-new widget SYNCHRONOUSLY (LVGL's FIFO
     // observer order guarantees this runs right after the XML <if>'s own

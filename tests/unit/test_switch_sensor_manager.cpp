@@ -151,6 +151,9 @@ TEST_CASE("FilamentSensorTypes - role string conversion", "[filament][types]") {
         REQUIRE(std::string(role_to_display_string(FilamentSensorRole::TOOLHEAD)) ==
                 "Toolhead Sensor");
         REQUIRE(std::string(role_to_display_string(FilamentSensorRole::ENTRY)) == "Entry Sensor");
+        // Z_PROBE is the only non-contiguous enumerator (= 10). Without this, deleting its
+        // case arm silently falls through to `default: "Unassigned"` and nothing goes red.
+        REQUIRE(std::string(role_to_display_string(FilamentSensorRole::Z_PROBE)) == "Z Probe");
     }
 
     SECTION("role_to_config_string") {
@@ -158,6 +161,7 @@ TEST_CASE("FilamentSensorTypes - role string conversion", "[filament][types]") {
         REQUIRE(std::string(role_to_config_string(FilamentSensorRole::RUNOUT)) == "runout");
         REQUIRE(std::string(role_to_config_string(FilamentSensorRole::TOOLHEAD)) == "toolhead");
         REQUIRE(std::string(role_to_config_string(FilamentSensorRole::ENTRY)) == "entry");
+        REQUIRE(std::string(role_to_config_string(FilamentSensorRole::Z_PROBE)) == "z_probe");
     }
 
     SECTION("role_from_config_string") {
@@ -165,6 +169,7 @@ TEST_CASE("FilamentSensorTypes - role string conversion", "[filament][types]") {
         REQUIRE(role_from_config_string("runout") == FilamentSensorRole::RUNOUT);
         REQUIRE(role_from_config_string("toolhead") == FilamentSensorRole::TOOLHEAD);
         REQUIRE(role_from_config_string("entry") == FilamentSensorRole::ENTRY);
+        REQUIRE(role_from_config_string("z_probe") == FilamentSensorRole::Z_PROBE);
         REQUIRE(role_from_config_string("invalid") == FilamentSensorRole::NONE);
         REQUIRE(role_from_config_string("") == FilamentSensorRole::NONE);
     }

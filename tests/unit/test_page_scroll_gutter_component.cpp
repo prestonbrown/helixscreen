@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: drives a ui_xml component through the XML fixture at runtime
 #include "../lvgl_ui_test_fixture.h"
 
 #include "../catch_amalgamated.hpp"

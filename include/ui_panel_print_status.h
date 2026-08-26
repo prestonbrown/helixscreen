@@ -204,17 +204,6 @@ class PrintStatusPanel : public OverlayBase {
     void set_filename(const char* filename);
 
     /**
-     * @brief Set the original filename for thumbnail loading
-     *
-     * Use this when starting a print with a modified temp file. The panel will
-     * use this filename (instead of the temp file path) for thumbnail lookup.
-     * Cleared automatically when print ends or is cancelled.
-     *
-     * @param filename Original filename (e.g., "3DBenchy.gcode")
-     */
-    void set_thumbnail_source(const std::string& filename);
-
-    /**
      * @brief Set print state
      * @param state New print state
      */
@@ -422,11 +411,6 @@ class PrintStatusPanel : public OverlayBase {
     lv_obj_t* print_thumbnail_ = nullptr;
     lv_obj_t* gradient_background_ = nullptr;
 
-    // Thumbnail source override - used when printing modified temp files.
-    // When set, it replaces the actual filename as the "effective" file the
-    // preview must show, for both the thumbnail and the gcode viewer.
-    std::string thumbnail_source_filename_;
-
     // Per-asset "what is on screen" markers. The thumbnail (fallback image) and
     // the gcode viewer (3D/2D geometry) load on independent paths with very
     // different latencies — the thumbnail subject observer can advance its marker
@@ -617,9 +601,10 @@ class PrintStatusPanel : public OverlayBase {
     /// is unavailable (caller then falls back to apply_ams_tool_colors).
     [[nodiscard]] std::vector<helix::GcodeToolInfo> build_print_tool_info() const;
 
-    /// Whether auto (color+type) matching applies for the active backend. Mirrors
-    /// PrintSelectDetailView::effective_auto_match(): non-editable-card backends
-    /// (U1 / ACE) always auto-match; editable backends honor the user setting.
+    /// Whether auto (color+type) matching applies for the active backend.
+    /// Delegates to AmsState::effective_auto_match(), which owns the rule and is
+    /// shared with PrintSelectDetailView: non-editable-card backends (U1 / ACE)
+    /// always auto-match; editable backends honor the user setting.
     [[nodiscard]] bool effective_auto_match() const;
 
     static void format_time(int seconds, char* buf, size_t buf_size);
@@ -711,8 +696,9 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard excluded_objects_version_observer_;
     ObserverGuard ams_color_observer_; ///< Tracks AMS/Spoolman filament color for gcode viewer
     ObserverGuard tool_map_version_observer_; ///< Refreshes gcode viewer colors on tool remap
-    ObserverGuard active_tool_observer_;  ///< Refreshes nozzle temp display with tool name prefix
-    ObserverGuard chamber_temp_observer_; ///< Updates chamber status text
+    ObserverGuard active_tool_observer_;    ///< Refreshes nozzle temp display with tool name prefix
+    ObserverGuard chamber_temp_observer_;   ///< Updates chamber status text
+    ObserverGuard print_identity_observer_; ///< Reconciles when the print's identity changes
     ObserverGuard print_thumbnail_path_observer_; ///< Updates print_thumbnail_ from shared subject
 #if defined(HELIX_PLATFORM_ESP32)
     ObserverGuard print_psram_thumb_observer_; ///< Ditto, via the PSRAM generation counter

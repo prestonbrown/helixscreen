@@ -59,7 +59,11 @@
         <ui_button name="btn_2" width="30%" height="#keypad_btn_height" text="2" variant="secondary"/>
         <ui_button name="btn_3" width="30%" height="#keypad_btn_height" text="3" variant="secondary"/>
         <!-- Row 4: dot, 0, backspace -->
-        <ui_button name="btn_dot" width="30%" height="#keypad_btn_height" text="." variant="secondary"/>
+        <ui_button name="btn_dot" width="30%" height="#keypad_btn_height" text="." variant="secondary">
+          <!-- Greyed out for integer-only fields; the buffer refuses the
+               dot there, so a live-looking key would be a dead key. -->
+          <bind_state_if_eq subject="keypad_allow_decimal" state="disabled" ref_value="0"/>
+        </ui_button>
         <ui_button name="btn_0" width="30%" height="#keypad_btn_height" text="0" variant="secondary"/>
         <ui_button name="btn_backspace" width="30%" height="#keypad_btn_height" icon="backspace" text=""/>
       </lv_obj>

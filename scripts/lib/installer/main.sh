@@ -84,15 +84,18 @@ install_platform_hooks() {
         zmod)        platform_hook="ad5m-zmod" ;;
     esac
 
-    # Platform hooks (pi32 shares Pi hooks; AD5X shares the ad5m-zmod hook
-    # because both run ZMOD firmware with the same /data layout).
+    # Platform hooks (pi32 shares Pi hooks). The AD5X used to share ad5m-zmod on
+    # the assumption that both ZMOD firmwares have the same layout; they do not.
+    # The AD5X runs inside a chroot at /usr/data/.mod/.zmod, installs to
+    # /srv/helixscreen, and has no /data at all, so the AD5M hook's
+    # HELIX_CACHE_DIR=/data/helixscreen/cache pointed at a path that is not there.
     case "$platform" in
         pi|pi32)       platform_hook="pi" ;;
         k1)            platform_hook="k1" ;;
         k2)            platform_hook="k2" ;;
         cc1)           platform_hook="cc1" ;;
         m1)            platform_hook="m1" ;;
-        ad5x)          platform_hook="ad5m-zmod" ;;
+        ad5x)          platform_hook="ad5x" ;;
         snapmaker-u1)  platform_hook="snapmaker-u1" ;;
     esac
 
@@ -411,6 +414,20 @@ main() {
     install_service "$platform"
     install_platform_hooks
 
+    # System permission rules for a non-root service user: the backlight udev
+    # rule (makes /sys/class/backlight/*/brightness group-writable by video, so
+    # dimming and sleep work) and the NetworkManager polkit rule.
+    #
+    # Placement is load-bearing on both sides. It must come after
+    # extract_release, because the udev rule ships inside the release package at
+    # $INSTALL_DIR/config/, and before start_service, so udevadm has already
+    # re-applied the ownership by the time the UI first writes brightness.
+    #
+    # Runs on fresh install and --update alike (both reach this line), and
+    # self-skips on the root-only platforms (ad5m/ad5x/k1/k2), when KLIPPER_USER
+    # is root, and under NoNewPrivileges where sudo is unavailable.
+    install_permission_rules "$platform"
+
     # Install KIAUH extension if KIAUH is detected
     install_kiauh_extension "$skip_kiauh_registration" || true
 
@@ -478,6 +495,7 @@ main() {
     start_service "$platform"
     cleanup_old_install
     cleanup_stale_cache_dirs
+    retire_legacy_config_backups
 
     # Cleanup on success
     cleanup_on_success

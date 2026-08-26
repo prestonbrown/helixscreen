@@ -344,17 +344,22 @@ void app_request_restart() {
 }
 
 void app_request_restart_service() {
-    // Under any supervisor (systemd or watchdog), just exit cleanly.
-    // The supervisor will restart us — forking a new child ourselves would
-    // create two instances running simultaneously.
-    if (getenv("INVOCATION_ID")) {
+    // Under any supervisor, just exit cleanly: the supervisor restarts us, and
+    // re-exec'ing ourselves as well would leave two instances running. The choice
+    // itself lives in app_restart_strategy_for_env() so it can be tested without
+    // mutating the environment.
+    switch (app_restart_strategy_for_env(getenv("INVOCATION_ID"), getenv("HELIX_SUPERVISED"))) {
+    case AppRestartStrategy::Systemd:
         spdlog::info("[App Globals] Running under systemd - quitting for service restart");
         app_request_quit();
-    } else if (getenv("HELIX_SUPERVISED")) {
+        break;
+    case AppRestartStrategy::Watchdog:
         spdlog::info("[App Globals] Running under watchdog - quitting for supervised restart");
         app_request_quit();
-    } else {
+        break;
+    case AppRestartStrategy::ReExecInPlace:
         app_request_restart();
+        break;
     }
 }
 
@@ -414,120 +419,11 @@ std::function<void()> get_wizard_cancel_callback() {
 // ============================================================================
 // CACHE DIRECTORY HELPER
 // ============================================================================
-
-static bool try_create_dir(const std::string& path) {
-    return helix::paths::ensure_dir(path);
-}
-
-std::string get_helix_cache_dir(const std::string& subdir) {
-    // 1. Check HELIX_CACHE_DIR env var (explicit override)
-    const char* helix_cache = std::getenv("HELIX_CACHE_DIR");
-    if (helix_cache && helix_cache[0] != '\0') {
-        std::string path = std::string(helix_cache) + "/" + subdir;
-        if (try_create_dir(path)) {
-            spdlog::info("[App Globals] Cache dir (HELIX_CACHE_DIR): {}", path);
-            return path;
-        }
-    }
-
-    // 2. Check config /cache/base_directory
-    Config* config = Config::get_instance();
-    if (config) {
-        std::string base = config->get<std::string>("/cache/base_directory", "");
-        if (!base.empty()) {
-            std::string path = base + "/" + subdir;
-            if (try_create_dir(path)) {
-                spdlog::info("[App Globals] Cache dir (config): {}", path);
-                return path;
-            }
-        }
-    }
-
-    // 3. Platform-specific compile-time paths
-#if defined(HELIX_PLATFORM_AD5M)
-    {
-        std::string path = "/data/helixscreen/cache/" + subdir;
-        if (try_create_dir(path)) {
-            spdlog::info("[App Globals] Cache dir (AD5M): {}", path);
-            return path;
-        }
-    }
-#elif defined(HELIX_PLATFORM_CC1)
-    {
-        std::string path = "/opt/helixscreen/cache/" + subdir;
-        if (try_create_dir(path)) {
-            spdlog::info("[App Globals] Cache dir (CC1): {}", path);
-            return path;
-        }
-    }
-#elif defined(HELIX_PLATFORM_K2)
-    {
-        // The K2 mounts its bulk storage at /mnt/UDISK (27.5GB). /usr/data is
-        // on the root overlay, which is only ~240MB and shared with the
-        // install itself, so caching thumbnails and modified gcode there
-        // competes with the firmware for the smallest partition on the box.
-        // Probed in order so a unit without the mount still gets a cache.
-        // Mirrors CREALITY_DATA_ROOTS in plr_backend.cpp.
-        for (const char* root : {"/mnt/UDISK", "/usr/data"}) {
-            std::string path = std::string(root) + "/helixscreen/cache/" + subdir;
-            if (try_create_dir(path)) {
-                spdlog::info("[App Globals] Cache dir (K2): {}", path);
-                return path;
-            }
-        }
-    }
-#elif defined(HELIX_PLATFORM_MIPS)
-    {
-        // K1 series: /usr/data IS the large user partition here, unlike on the K2.
-        std::string path = "/usr/data/helixscreen/cache/" + subdir;
-        if (try_create_dir(path)) {
-            spdlog::info("[App Globals] Cache dir (MIPS): {}", path);
-            return path;
-        }
-    }
-#elif defined(HELIX_PLATFORM_ANDROID) || defined(__ANDROID__)
-    {
-        // Use SDL's Android internal storage path (app-private, no permissions needed)
-        const char* android_path = SDL_AndroidGetInternalStoragePath();
-        if (android_path) {
-            std::string path = std::string(android_path) + "/cache/" + subdir;
-            if (try_create_dir(path)) {
-                spdlog::info("[App Globals] Cache dir (Android): {}", path);
-                return path;
-            }
-        }
-    }
-#endif
-
-    // 4/5. XDG cache base: $XDG_CACHE_HOME then $HOME/.cache (try each in order
-    // so an uncreatable XDG dir still falls through to $HOME/.cache).
-    for (const std::string& base : helix::paths::xdg_cache_bases()) {
-        std::string path = base + "/helix/" + subdir;
-        if (try_create_dir(path)) {
-            return path;
-        }
-    }
-
-    // 6. Try /var/tmp (persistent, often larger than /tmp on embedded)
-    {
-        std::string path = "/var/tmp/helix_" + subdir;
-        if (try_create_dir(path)) {
-            return path;
-        }
-    }
-
-    // 7. Last resort: /tmp (may be RAM-backed tmpfs)
-    {
-        std::string path = "/tmp/helix_" + subdir;
-        if (try_create_dir(path)) {
-            spdlog::warn("[App Globals] Using /tmp for cache - may be RAM-backed");
-            return path;
-        }
-    }
-
-    spdlog::error("[App Globals] Failed to create cache directory for '{}'", subdir);
-    return "";
-}
+//
+// The resolution cascade lives in src/system/helix_cache_dir.cpp so the test
+// binary can link it — app_globals.o is excluded from that link (mk/tests.mk)
+// and the cascade was being stubbed out from under the tests. Declarations are
+// still in app_globals.h.
 
 std::string app_get_install_root() {
     static const std::string cached = []() {
@@ -571,7 +467,11 @@ std::string app_get_runtime_dir() {
     const std::string cache = app_get_cache_dir();
     if (!cache.empty()) {
         std::string p = cache + "/runtime";
-        if (helix::paths::ensure_dir(p) && helix::paths::probe_writable(p))
+        // Unlike the cache cascade, this is the terminal rung and creating it
+        // IS the intent — but check viability first anyway so a non-writable
+        // cache root is rejected without a half-made directory left under it.
+        if (helix::paths::can_create_dir(p) && helix::paths::ensure_dir(p) &&
+            helix::paths::probe_writable(p))
             return p;
     }
     spdlog::warn("[App Globals] No writable runtime dir found; using /tmp (writes may fail)");

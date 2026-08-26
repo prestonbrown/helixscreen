@@ -183,6 +183,28 @@ void start_pulse(lv_obj_t* dot, lv_color_t base_color) {
     lv_anim_start(&ca);
 }
 
+void set_active_ring(lv_obj_t* target, bool active) {
+    if (!target) {
+        return;
+    }
+    if (active) {
+        const lv_color_t primary = theme_manager_get_color("primary");
+        lv_obj_set_style_border_color(target, primary, LV_PART_MAIN);
+        lv_obj_set_style_border_opa(target, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(target, ACTIVE_RING_BORDER_WIDTH, LV_PART_MAIN);
+        // Outer glow using shadow
+        lv_obj_set_style_shadow_width(target, ACTIVE_RING_GLOW_WIDTH, LV_PART_MAIN);
+        lv_obj_set_style_shadow_color(target, primary, LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(target, LV_OPA_50, LV_PART_MAIN);
+        lv_obj_set_style_shadow_spread(target, ACTIVE_RING_GLOW_SPREAD, LV_PART_MAIN);
+    } else {
+        lv_obj_set_style_border_opa(target, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(target, 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(target, 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(target, LV_OPA_TRANSP, LV_PART_MAIN);
+    }
+}
+
 void stop_pulse(lv_obj_t* dot) {
     lv_anim_delete(dot, pulse_scale_anim_cb);
     lv_anim_delete(dot, pulse_color_anim_cb);

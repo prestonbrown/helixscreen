@@ -1080,9 +1080,16 @@ TEST_CASE("idempotence: CB1 in-place setup converges after a second run",
 // [spoolman] in place. That is a false success, the same class of bug as the
 // original "reported connected, wasn't".
 //
-// Mirrors SpoolmanOverlay::remove_spoolman_config()'s dispatch on the shared
-// resolution: Ambiguous / Unreachable -> refuse, Undefined -> nothing to remove,
-// Defined -> delete from the resolved file.
+// TEST_MIRROR_OK: simulate_remove() below stands in for
+// SpoolmanOverlay::remove_spoolman_config()'s dispatch on the shared resolution
+// (Ambiguous / Unreachable -> refuse, Undefined -> nothing to remove, Defined ->
+// delete from the resolved file). The overlay reaches that switch only through
+// resolve_spoolman_target(), which is a chain of Moonraker HTTP round-trips on a
+// live overlay, so the four statuses are constructed here instead. Every decision
+// the simulation makes is delegated: find_files_defining_section() picks the
+// target and remove_section() produces the text -- the stand-in supplies only the
+// order the statuses are checked in. Residual gap: reordering the overlay switch
+// would not fail these tests.
 // ============================================================================
 
 namespace {
@@ -1570,16 +1577,21 @@ TEST_CASE("Match means every reported section is genuinely present",
           helix::SectionMatch::Match);
 }
 
-// Mirrors SpoolmanOverlay::verify_config_reachable()'s dispatch: Match and Drifted
-// both proceed with setup, Mismatch keeps today's Unreachable failure.
+// SpoolmanOverlay::verify_config_reachable() accepts a candidate exactly when
+// grade_config_candidate() does — everything else it owns is the retry recursion
+// and the logging. Calling the grader is what keeps the accept/reject rule in one
+// place: the local copy this replaced knew only the Match/Drifted/Mismatch verdict
+// and never had the speculative or in-place rejections, so the two tests below
+// could not have existed against it.
 namespace {
 enum class VerifyOutcome { Proceed, Unreachable };
 
-VerifyOutcome simulate_verify(const std::string& content,
-                              const std::vector<std::string>& required) {
-    auto m = MoonrakerConfigManager::classify_section_match(content, required);
-    return m.verdict == helix::SectionMatch::Mismatch ? VerifyOutcome::Unreachable
-                                                      : VerifyOutcome::Proceed;
+VerifyOutcome simulate_verify(const std::string& content, const std::vector<std::string>& required,
+                              bool in_place = false, bool speculative = false) {
+    return MoonrakerConfigManager::grade_config_candidate(content, required, in_place, speculative)
+                   .accepted
+               ? VerifyOutcome::Proceed
+               : VerifyOutcome::Unreachable;
 }
 } // namespace
 
@@ -1597,6 +1609,46 @@ TEST_CASE("verify dispatch: U1 drift proceeds, K2 stray and decoy still fail",
     // The healthy CB1 install keeps proceeding.
     auto cb1 = cb1_server_config_files();
     CHECK(simulate_verify(cb1_moonraker_conf_text(), cb1[0].sections) == VerifyOutcome::Proceed);
+}
+
+TEST_CASE("verify dispatch: an inferred path may not lean on drift tolerance",
+          "[config_manager][config_path][drift]") {
+    // Four reported sections with one absent is inside drift tolerance, so the
+    // verdict alone would accept this file.
+    const std::vector<std::string> required = {"server", "file_manager", "authorization",
+                                               "octoprint_compat"};
+    const std::string drifted = "[server]\n[file_manager]\n[authorization]\n";
+    REQUIRE(MoonrakerConfigManager::classify_section_match(drifted, required).verdict ==
+            helix::SectionMatch::Drifted);
+
+    // A path derived from what Moonraker reported spends that tolerance...
+    CHECK(simulate_verify(drifted, required) == VerifyOutcome::Proceed);
+    // ...a guessed one may not: drift is indistinguishable from a wrong guess when
+    // nothing tied the path to the reported name in the first place.
+    CHECK(simulate_verify(drifted, required, /*in_place=*/false, /*speculative=*/true) ==
+          VerifyOutcome::Unreachable);
+
+    // A guessed path that matches exactly is still accepted.
+    const std::string exact = "[server]\n[file_manager]\n[authorization]\n[octoprint_compat]\n";
+    CHECK(simulate_verify(exact, required, /*in_place=*/false, /*speculative=*/true) ==
+          VerifyOutcome::Proceed);
+}
+
+TEST_CASE("verify dispatch: an in-place rewrite target must define [spoolman]",
+          "[config_manager][config_path][drift]") {
+    const std::vector<std::string> required = {"server", "file_manager"};
+    const std::string without = "[server]\n[file_manager]\n";
+    const std::string with = "[server]\n[file_manager]\n[spoolman]\nserver: http://a:7912\n";
+
+    // Not an in-place rewrite: the reported section list alone decides, and both
+    // files satisfy it.
+    CHECK(simulate_verify(without, required) == VerifyOutcome::Proceed);
+    CHECK(simulate_verify(with, required) == VerifyOutcome::Proceed);
+
+    // In place, the candidate was selected *because* some file defines [spoolman];
+    // one that does not is a different file however well the rest lines up.
+    CHECK(simulate_verify(without, required, /*in_place=*/true) == VerifyOutcome::Unreachable);
+    CHECK(simulate_verify(with, required, /*in_place=*/true) == VerifyOutcome::Proceed);
 }
 
 // ============================================================================

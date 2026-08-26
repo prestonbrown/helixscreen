@@ -16,12 +16,16 @@
  * each dial attempt, keep the last known address when DNS cannot answer yet,
  * and never break the retry chain.
  */
+//
+// TEST_MIRROR_OK: exercises TcpClient::refresh_remote_addr(), which
+//                 patches/libhv-tcpclient-reconnect-resilience.patch adds to the
+//                 libhv submodule - there is no include/ or src/ header to include.
 
 #include "hv/TcpClient.h"
 
 #include <arpa/inet.h>
-#include <netinet/in.h>
 #include <cstring>
+#include <netinet/in.h>
 
 #include "../catch_amalgamated.hpp"
 

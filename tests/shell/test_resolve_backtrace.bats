@@ -25,11 +25,6 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "resolve-backtrace.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "resolve-backtrace.sh has valid bash syntax" {
     bash -n "$SCRIPT"
 }

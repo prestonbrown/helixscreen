@@ -127,6 +127,7 @@ class DisplayBackendDRM : public DisplayBackend {
     void disable_affine_calibration() override;
     void enable_affine_calibration() override;
     void clear_calibration() override;
+    bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y) override;
 
   private:
     /// Switch VT to KD_GRAPHICS so fbcon stops painting over DRM output.
@@ -153,6 +154,12 @@ class DisplayBackendDRM : public DisplayBackend {
     /// calibration updates never re-probe the indev's user_data (which can be
     /// stale/corrupted — bundle LG9X482B) to decide whether to install.
     bool calibration_wrapper_installed_ = false;
+    /// pointer_ was created by lv_evdev_create, so the lv_evdev_* setters may be
+    /// called on it. Auto-discovery falls back to libinput when evdev cannot open
+    /// the device, and lv_evdev_set_calibration() on a libinput indev would
+    /// reinterpret that driver's private data as an lv_evdev_t and write through
+    /// it.
+    bool pointer_is_evdev_ = false;
     /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
     /// Offer the manual Settings entry point (any real touch panel)

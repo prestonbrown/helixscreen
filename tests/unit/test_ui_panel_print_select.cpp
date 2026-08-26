@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
 
@@ -784,27 +785,26 @@ TEST_CASE("Print Select: Folder type determination", "[ui][folder_type]") {
 // ============================================================================
 
 TEST_CASE("Print Select: Metadata path construction", "[ui][metadata]") {
-    // Simulates the path construction logic in fetch_metadata_range()
+    // Calls the production join directly. fetch_metadata_range() and the
+    // print-start path beside it build the Moonraker file path with
+    // helix::gcode::join_gcode_path(current_path_, filename); these cases used to
+    // restate that ternary inline, asserting their own expression instead, which
+    // could not go red however the panel changed.
+    using helix::gcode::join_gcode_path;
 
     SECTION("Root directory - no path prefix") {
-        std::string current_path = "";
-        std::string filename = "benchy.gcode";
-        std::string file_path = current_path.empty() ? filename : current_path + "/" + filename;
-        REQUIRE(file_path == "benchy.gcode");
+        // Root is the empty string, and must NOT produce a leading slash —
+        // Moonraker's virtual-SD paths are root-relative.
+        REQUIRE(join_gcode_path("", "benchy.gcode") == "benchy.gcode");
     }
 
     SECTION("Subdirectory - path prefix added") {
-        std::string current_path = "usb";
-        std::string filename = "flowrate_0.gcode";
-        std::string file_path = current_path.empty() ? filename : current_path + "/" + filename;
-        REQUIRE(file_path == "usb/flowrate_0.gcode");
+        REQUIRE(join_gcode_path("usb", "flowrate_0.gcode") == "usb/flowrate_0.gcode");
     }
 
     SECTION("Nested subdirectory - full path constructed") {
-        std::string current_path = "projects/voron";
-        std::string filename = "toolhead.gcode";
-        std::string file_path = current_path.empty() ? filename : current_path + "/" + filename;
-        REQUIRE(file_path == "projects/voron/toolhead.gcode");
+        REQUIRE(join_gcode_path("projects/voron", "toolhead.gcode") ==
+                "projects/voron/toolhead.gcode");
     }
 }
 

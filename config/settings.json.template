@@ -1,5 +1,5 @@
 {
-  "config_version": 22,
+  "config_version": 23,
   "_config_version_comment": "Config schema version. MUST be present and current: Config::init treats a missing version as 0, reads that as a tarball default, and will restore a rolling backup over this file. Pinned by tests/unit/test_settings_template_contract.cpp.",
   "dark_mode": true,
   "brightness": 80,
@@ -121,10 +121,6 @@
     "_cancel_escalation_enabled_comment": "Enable cancel-to-E-Stop escalation. When enabled, rapidly pressing cancel multiple times triggers an emergency stop. Default: false.",
     "cancel_escalation_timeout_seconds": 30,
     "_cancel_escalation_timeout_seconds_comment": "Window in seconds for cancel escalation to trigger E-Stop. Default: 30."
-  },
-  "filament": {
-    "cooldown_delay_seconds": 120,
-    "_cooldown_delay_seconds_comment": "Seconds to wait after a filament operation before turning off the extruder heater. Default: 120 (2 minutes). Set to 0 to disable auto-cooldown."
   },
   "filament_sensors": {
     "master_enabled": true,
@@ -297,6 +293,10 @@
       "_chamber_heater_comment": "Chamber heater assignment. 'auto' (detect by name heuristics), 'none' (disable), or Klipper object name (e.g., 'heater_generic chamber'). Default: 'auto'.",
       "chamber_sensor": "auto",
       "_chamber_sensor_comment": "Chamber temperature sensor assignment. 'auto' (detect by name heuristics), 'none' (disable), or Klipper object name (e.g., 'temperature_sensor enclosure_bme'). Default: 'auto'.",
+      "filament": {
+        "cooldown_delay_seconds": 120,
+        "_cooldown_delay_seconds_comment": "Seconds to wait after a filament operation before turning off the extruder heater. Default: 120 (2 minutes). Set to 0 to disable auto-cooldown. Per-printer: read as printers/<id>/filament/cooldown_delay_seconds."
+      },
       "capability_overrides": {
         "bed_mesh": "auto",
         "qgl": "auto",

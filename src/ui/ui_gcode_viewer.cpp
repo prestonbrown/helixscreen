@@ -361,7 +361,10 @@ class GCodeViewerState {
     /// Widget covering the bottom of this viewer (the translucent metadata
     /// strip), or null. Measured live rather than stored as a fraction so the
     /// offset tracks breakpoints, orientation, and the strip growing at runtime.
-    /// Cleared by the occluder's own LV_EVENT_DELETE, so it can never dangle.
+    /// Cleared by the occluder's own LV_EVENT_DELETE if the occluder dies
+    /// first; the viewer's delete handler detaches that callback if the viewer
+    /// dies first. Both directions are needed -- the two are siblings in one
+    /// subtree, so either order happens during teardown.
     lv_obj_t* bottom_occluder_{nullptr};
 
     /// SSAO enabled at init (from HELIX_SSAO env var, applied when 2D renderer is created)
@@ -452,6 +455,10 @@ static gcode_viewer_state_t* get_state(lv_obj_t* obj) {
 
 static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj,
                                                 int canvas_height);
+
+/// Registered on the occluder, keyed to the viewer. Declared here so the
+/// viewer's own delete handler can detach it before this object is freed.
+static void gcode_viewer_occluder_delete_cb(lv_event_t* e);
 
 // Helper: Check if viewer has any G-code data (full file or streaming)
 static bool has_gcode_data(const gcode_viewer_state_t* st) {
@@ -1328,6 +1335,22 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     reg.erase(std::remove(reg.begin(), reg.end(), obj), reg.end());
 
     if (state) {
+        // The occluder carries an LV_EVENT_DELETE handler that reaches back
+        // into this viewer through its user_data. obj_delete_core clears only
+        // the deleted object's OWN event list, so that handler survives us and
+        // fires later in the same recursion if the occluder is a younger
+        // sibling -- which it is in both layouts that set one. Detach it while
+        // this object is still allocated.
+        //
+        // A non-null bottom_occluder_ here proves the occluder has not been
+        // freed: its own delete handler is what clears this field, and
+        // LV_EVENT_DELETE is sent before lv_free.
+        if (state->bottom_occluder_) {
+            lv_obj_remove_event_cb_with_user_data(state->bottom_occluder_,
+                                                  gcode_viewer_occluder_delete_cb, obj);
+            state->bottom_occluder_ = nullptr;
+        }
+
         // Delete timers now while LVGL is guaranteed alive (the destructor's
         // lv_is_initialized() guard might skip this during shutdown)
         if (state->long_press_timer_) {
@@ -1459,7 +1482,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Clear any existing data sources (mutually exclusive: streaming XOR full-file)
     // Destroy renderer FIRST — its background ghost thread holds a raw pointer to
     // the streaming controller; joining that thread before destroying the controller
-    // prevents use-after-free crashes (prestonbrown/helixscreen#XXX).
+    // prevents use-after-free crashes.
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_pre");
     st->layer_renderer_2d_.reset();
     crash_handler::breadcrumb::note("layer_renderer", "load_reset_post");
@@ -1482,7 +1505,15 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         file_size = 0; // Fall through to full-load mode
     }
 
-    bool use_streaming = !st->streaming_disabled_ && helix::should_use_gcode_streaming(file_size);
+#ifdef ENABLE_3D_RENDERER
+    constexpr bool kBuildHas3D = true;
+#else
+    constexpr bool kBuildHas3D = false;
+#endif
+    // A screen's opt-out only counts when 3D is actually available to fall back
+    // on; see gcode_viewer_should_stream() for the K2 OOM this guards.
+    const bool use_streaming = helix::gcode_viewer_should_stream(
+        st->streaming_disabled_, kBuildHas3D, helix::should_use_gcode_streaming(file_size));
     spdlog::info("[GCode Viewer] File size: {}KB, streaming mode: {}", file_size / 1024,
                  use_streaming ? "ON" : "OFF");
 
@@ -2625,6 +2656,33 @@ const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* o
     return st->gcode_file.get();
 }
 
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return {};
+    }
+    // gcode_file and streaming_controller_ are mutually exclusive by
+    // construction (see the state struct), so this is a choice of which ONE
+    // holds data, not a precedence question.
+    if (st->gcode_file && !st->gcode_file->tool_color_palette.empty()) {
+        return st->gcode_file->tool_color_palette;
+    }
+    if (st->streaming_controller_ && st->streaming_controller_->is_open()) {
+        return st->streaming_controller_->get_index_stats().filament_palette;
+    }
+    return {};
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || !st->streaming_controller_) {
+        // Full-load mode, or nothing loading. Neither has a checkpoint to
+        // report; 0.0 is the caller's cue to stay indeterminate.
+        return 0.0f;
+    }
+    return st->streaming_controller_->get_index_progress();
+}
+
 // ==============================================
 // Object Picking
 // ==============================================
@@ -2994,6 +3052,14 @@ void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t*,
 
 const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t*) {
     return nullptr;
+}
+
+std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t*) {
+    return {};
+}
+
+float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
+    return 0.0f;
 }
 
 #endif // HELIX_HAS_GCODE_VIEWER

@@ -80,13 +80,6 @@
               <!-- Shared spool grid + tray + labels component -->
               <ams_unit_detail name="unit_detail"/>
             </lv_obj>
-            <!-- Endless-spool status: the sentence that explains the arrows at
-                 the top of this same slot_area (or their absence). Inside
-                 slot_area rather than directly in ams_unit_card because the card
-                 has no flex_flow - a second child there stacks on top of the
-                 slots instead of below them. Self-hiding when the backend has no
-                 such mechanism. -->
-            <ams_endless_status name="endless_status"/>
           </lv_obj>
         </ui_card>
         <!-- Path Canvas - shows routing from slots to nozzle (no card border)
@@ -110,6 +103,13 @@
                All vertical segments scale proportionally via Y ratios. -->
           <filament_path_canvas name="path_canvas" width="100%" flex_grow="1"/>
         </lv_obj>
+        <!-- Endless-spool status: the sentence that explains the arrows above
+             (or their absence). Last child of the left column so it sits at the
+             panel bottom, under the path canvas. Attention-only: hide_when_healthy
+             keeps the healthy sentence off this panel - a runout WILL switch, and
+             there is nothing to act on - while Off/Unknown/NeedsPlugin still
+             surface. Self-hiding when the backend has no such mechanism. -->
+        <ams_endless_status name="endless_status" hide_when_healthy="1"/>
       </lv_obj>
     </lv_obj>
     <!-- Right column (status + action buttons) - spans full panel height -->

@@ -118,46 +118,46 @@ ThemeModeSupport ThemeData::get_mode_support() const {
     }
 }
 
-ThemeData get_default_nord_theme() {
+ThemeData get_builtin_fallback_theme() {
     ThemeData theme;
-    theme.name = "Nord";
-    theme.filename = "nord";
+    theme.name = "HelixScreen";
+    theme.filename = DEFAULT_THEME;
 
-    // NEW: Populate dual palette system (dark mode)
-    theme.dark.screen_bg = "#2e3440";
-    theme.dark.overlay_bg = "#3b4252";
-    theme.dark.card_bg = "#434c5e";
-    theme.dark.elevated_bg = "#4c566a";
-    theme.dark.border = "#616e88";
-    theme.dark.text = "#eceff4";
-    theme.dark.text_muted = "#d8dee9";
-    theme.dark.text_subtle = "#b8c2d1";
-    theme.dark.primary = "#88c0d0";   // nord8 - frost cyan
-    theme.dark.secondary = "#81a1c1"; // nord9 - frost blue
-    theme.dark.tertiary = "#5e81ac";  // nord10 - frost dark blue
-    theme.dark.info = "#b48ead";      // nord15 - aurora purple
-    theme.dark.success = "#a3be8c";   // nord14 - aurora green
-    theme.dark.warning = "#ebcb8b";   // nord13 - aurora yellow
-    theme.dark.danger = "#bf616a";    // nord11 - aurora red
-    theme.dark.focus = "#8fbcbb";     // nord7 - frost teal
+    // Mirrors assets/config/themes/defaults/helixscreen.json. Kept in sync by
+    // hand: this copy is what runs when that file cannot be read at all.
+    theme.dark.screen_bg = "#19191C";
+    theme.dark.overlay_bg = "#333338";
+    theme.dark.card_bg = "#202023";
+    theme.dark.elevated_bg = "#4A4A52";
+    theme.dark.border = "#36363C";
+    theme.dark.text = "#E8E8EC";
+    theme.dark.text_muted = "#B8B8C0";
+    theme.dark.text_subtle = "#787882";
+    theme.dark.primary = "#3A7CC8";
+    theme.dark.secondary = "#6A9CC8";
+    theme.dark.tertiary = "#7C6CC8";
+    theme.dark.info = "#3A7CC8";
+    theme.dark.success = "#5CB85C";
+    theme.dark.warning = "#E8A83A";
+    theme.dark.danger = "#D94848";
+    theme.dark.focus = "#3A7CC8";
 
-    // NEW: Populate dual palette system (light mode)
-    theme.light.screen_bg = "#eceff4";
-    theme.light.overlay_bg = "#e5e9f0";
-    theme.light.card_bg = "#ffffff";
-    theme.light.elevated_bg = "#edeff6";
-    theme.light.border = "#cbd5e1";
-    theme.light.text = "#2e3440";
-    theme.light.text_muted = "#3b4252";
-    theme.light.text_subtle = "#64748b";
-    theme.light.primary = "#5e81ac";   // nord10 - darker frost for light bg
-    theme.light.secondary = "#81a1c1"; // nord9 - frost blue
-    theme.light.tertiary = "#4c566a";  // nord3 - polar night for contrast
-    theme.light.info = "#b48ead";      // nord15 - aurora purple
-    theme.light.success = "#3fa47d";   // adjusted green for light bg
-    theme.light.warning = "#b08900";   // adjusted yellow for light bg
-    theme.light.danger = "#b23a48";    // adjusted red for light bg
-    theme.light.focus = "#8fbcbb";     // nord7 - frost teal
+    theme.light.screen_bg = "#F0F0F4";
+    theme.light.overlay_bg = "#E6E6EC";
+    theme.light.card_bg = "#FFFFFF";
+    theme.light.elevated_bg = "#D8D8E0";
+    theme.light.border = "#C0C0CA";
+    theme.light.text = "#2A2A2E";
+    theme.light.text_muted = "#4A4A52";
+    theme.light.text_subtle = "#6A6A74";
+    theme.light.primary = "#1B3A5C";
+    theme.light.secondary = "#4578A8";
+    theme.light.tertiary = "#5C48A8";
+    theme.light.info = "#1B3A5C";
+    theme.light.success = "#38874A";
+    theme.light.warning = "#C87A12";
+    theme.light.danger = "#C43030";
+    theme.light.focus = "#1B3A5C";
 
     theme.properties.border_radius_size = 3; // "Soft"
     theme.properties.border_width = 1;
@@ -181,7 +181,7 @@ ThemeData get_default_nord_theme() {
 static void parse_mode_palette(const nlohmann::json& palette_json, ModePalette& palette,
                                const std::string& filename, const std::string& mode_name) {
     auto& names = ModePalette::color_names();
-    const ThemeData defaults = get_default_nord_theme();
+    const ThemeData defaults = get_builtin_fallback_theme();
     const ModePalette& default_palette = (mode_name == "light") ? defaults.light : defaults.dark;
 
     // A palette key present as null (or any non-object) resolves to the same
@@ -222,25 +222,25 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
 
     // The try covers the parse and nothing else, deliberately. Syntactically
     // broken JSON is the one failure where "this file is not a theme" is true
-    // and falling back to built-in Nord is right. Every read below degrades on
+    // and falling back to the built-in theme is right. Every read below degrades on
     // its own instead: they go through the safe_* helpers, because .value()
     // throws type_error.302 on a key that is PRESENT with a null value (a
     // missing key is fine) and type_error.306 when the receiver is not an
     // object. Under the old wide try, one `"shadow_intensity": null` threw into
     // the catch and replaced the user's ENTIRE theme — both palettes, every
-    // property — with built-in Nord. A bad property is now worth exactly that
+    // property — with the built-in theme. A bad property is now worth exactly that
     // property.
     nlohmann::json json;
     try {
         json = nlohmann::json::parse(json_str);
     } catch (const nlohmann::json::exception& e) {
         spdlog::error("[ThemeLoader] Failed to parse {}: {}", filename, e.what());
-        return get_default_nord_theme();
+        return get_builtin_fallback_theme();
     }
 
     if (!json.is_object()) {
         spdlog::error("[ThemeLoader] {} is not a JSON object", filename);
-        return get_default_nord_theme();
+        return get_builtin_fallback_theme();
     }
 
     theme.name = helix::json_util::safe_string(json, "name", "Unnamed Theme");
@@ -251,7 +251,7 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
 
     if (!has_dark && !has_light) {
         spdlog::error("[ThemeLoader] No 'dark' or 'light' palette in {}", filename);
-        return get_default_nord_theme();
+        return get_builtin_fallback_theme();
     }
 
     spdlog::trace("[ThemeLoader] Parsing {} with dark={}, light={}", filename, has_dark, has_light);
@@ -418,7 +418,7 @@ std::string get_default_themes_directory() {
     // mount-point + staged dir, NOT a typo). The relpath here must match desktop's
     // "assets/config/themes/defaults"; dropping the leading "assets/" points one
     // level short (/assets/config/...), finds no JSON, and silently falls back to
-    // the compiled-in Nord palette.
+    // the compiled-in HelixScreen palette.
     return asset_path("assets/config/themes/defaults");
 #else
     return get_data_dir() + "/assets/config/themes/defaults";
@@ -497,16 +497,10 @@ bool ensure_themes_directory(const std::string& themes_dir) {
         spdlog::info("[ThemeLoader] Created themes directory: {}", themes_dir);
     }
 
-    // Check if nord.json exists, create if missing
-    std::string nord_path = themes_dir + "/nord.json";
-    if (stat(nord_path.c_str(), &st) != 0) {
-        auto nord = get_default_nord_theme();
-        if (!save_theme_to_file(nord, nord_path)) {
-            spdlog::error("[ThemeLoader] Failed to create default nord.json");
-            return false;
-        }
-        spdlog::info("[ThemeLoader] Created default theme: {}", nord_path);
-    }
+    // No theme file is seeded here. Shipped themes are read from the defaults
+    // directory, which discover_themes() scans alongside this one; a file written
+    // here would be a user override and would shadow the shipped theme of the
+    // same name forever, freezing it at the version current when it was written.
 
     return true;
 }

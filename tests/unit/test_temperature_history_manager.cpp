@@ -37,6 +37,12 @@ class TemperatureHistoryManagerTestAccess {
         }
         return stored;
     }
+
+    /// The log-volume policy add_sample_internal() routes its range verdict
+    /// through (#1348).
+    static const helix::InvalidSampleTracker& reject_log(const TemperatureHistoryManager& m) {
+        return m.reject_log_;
+    }
 };
 
 #include <atomic>
@@ -673,4 +679,67 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     for (const auto& sample : manager_->get_samples("extruder")) {
         REQUIRE(sample.temp_deci != 2295);
     }
+}
+
+// ============================================================================
+// #1348: rejected samples are logged per state transition, not per sample
+// ============================================================================
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager bounds logging for a permanently open thermistor",
+                 "[1348][temperature_history]") {
+    // An unmounted tool on a MedusaHC reads ~-70C forever, and the user sets
+    // min_temp: -100 so Klipper tolerates it. Every sample is rejected, which
+    // used to mean every sample was logged: 19,098 of 20,000 crash-ring lines
+    // in bundle 6QWNVZY5 were this one message.
+    constexpr int64_t SAMPLES = 600; // ten minutes at 1 Hz
+    const int64_t base = now_ms();
+    const int64_t lines_before =
+        TemperatureHistoryManagerTestAccess::reject_log(*manager_).log_events();
+
+    for (int64_t i = 0; i < SAMPLES; ++i) {
+        const bool stored = TemperatureHistoryManagerTestAccess::add_sample(
+            *manager_, "extruder4", -700, 0, base + i * 1000);
+        // Rejection behaviour itself is unchanged.
+        REQUIRE_FALSE(stored);
+    }
+    REQUIRE(manager_->get_sample_count("extruder4") == 0);
+
+    const auto& policy = TemperatureHistoryManagerTestAccess::reject_log(*manager_);
+
+    // Every drop is still accounted for...
+    CHECK(policy.dropped_in_run("extruder4") == SAMPLES);
+    // ...but the recorder asked for only a handful of lines, not 600.
+    const int64_t lines = policy.log_events() - lines_before;
+    CHECK(lines > 0);
+    CHECK(lines <= 5);
+}
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager reports a thermistor coming back in range",
+                 "[1348][temperature_history]") {
+    const int64_t base = now_ms();
+
+    for (int64_t i = 0; i < 30; ++i) {
+        TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", -640, 0,
+                                                        base + i * 1000);
+    }
+    const auto& policy = TemperatureHistoryManagerTestAccess::reject_log(*manager_);
+    REQUIRE(policy.in_run("extruder"));
+    const int64_t during_run = policy.log_events();
+
+    // Tool gets mounted: the first sane reading closes the run and is stored.
+    const bool stored = TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 2150,
+                                                                        0, base + 30 * 1000);
+    CHECK(stored);
+    CHECK(manager_->get_sample_count("extruder") == 1);
+
+    // The recovery transition is reported exactly once, and the run is closed.
+    CHECK(policy.log_events() == during_run + 1);
+    CHECK_FALSE(policy.in_run("extruder"));
+
+    // Continued healthy samples add no further lines.
+    TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 2151, 0,
+                                                    base + 31 * 1000);
+    CHECK(policy.log_events() == during_run + 1);
 }

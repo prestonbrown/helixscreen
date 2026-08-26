@@ -7136,6 +7136,11 @@ TEST_CASE("AD5X IFS declining the pre-load home confirmation unwinds the phase t
     // detail_ priority over the IDLE fallback, so a stale detail string
     // would keep showing under an IDLE action until the next op overwrites
     // it (mirrors the cancel() precedent a few hundred lines above).
+    // TEST_MIRROR_OK: "mirrors" here points at an earlier TEST CASE in this file
+    //                 as precedent for the assertion, not at a copy of cancel().
+    //                 Every line below drives the shipped backend —
+    //                 load_filament(), the real prompter hook, and a real status
+    //                 frame through handle_status().
     CHECK(backend.captured_gcodes.empty());
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
     CHECK_FALSE(Ad5xIfsTestAccess::phase_active(backend));

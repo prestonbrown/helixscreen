@@ -115,6 +115,46 @@ inline void flip_screws_tilt_direction(std::string& adjustment) {
 // ============================================================================
 
 /**
+ * @brief Render a turn magnitude the way a person would say it
+ *
+ * Shared by ScrewTiltResult::friendly_adjustment() and the re-centring hint so
+ * the two can never describe the same physical turn differently.
+ *
+ * @param total_minutes Unsigned magnitude in clock-minutes
+ */
+[[nodiscard]] inline std::string describe_screw_turn_amount(int total_minutes) {
+    if (total_minutes <= 10) {
+        return "1/8 turn";
+    }
+    if (total_minutes <= 20) {
+        return "1/4 turn";
+    }
+    if (total_minutes <= 35) {
+        return "1/2 turn";
+    }
+    if (total_minutes <= 50) {
+        return "3/4 turn";
+    }
+    if (total_minutes <= 70) {
+        return "1 turn";
+    }
+    const int approx_turns = (total_minutes + 30) / 60;
+    return std::to_string(approx_turns) + " turn" + (approx_turns > 1 ? "s" : "");
+}
+
+/**
+ * @brief Render a SIGNED turn as a full instruction ("Tighten 1/4 turn")
+ *
+ * CW (positive) tightens, CCW (negative) loosens, matching the convention in
+ * signed_adjustment_minutes(). Direction words come from the caller's own sign,
+ * so a printer-database direction override must already have been applied.
+ */
+[[nodiscard]] inline std::string describe_screw_turn(int signed_minutes) {
+    const std::string amount = describe_screw_turn_amount(std::abs(signed_minutes));
+    return (signed_minutes >= 0 ? "Tighten " : "Loosen ") + amount;
+}
+
+/**
  * @brief Result from SCREWS_TILT_CALCULATE command
  *
  * Represents a single bed adjustment screw with its measured height
@@ -224,21 +264,7 @@ struct ScrewTiltResult {
         bool is_counter = adjustment.find("CCW") == 0;
         int total_minutes = adjustment_minutes();
 
-        std::string amount;
-        if (total_minutes <= 10) {
-            amount = "1/8 turn";
-        } else if (total_minutes <= 20) {
-            amount = "1/4 turn";
-        } else if (total_minutes <= 35) {
-            amount = "1/2 turn";
-        } else if (total_minutes <= 50) {
-            amount = "3/4 turn";
-        } else if (total_minutes <= 70) {
-            amount = "1 turn";
-        } else {
-            int approx_turns = (total_minutes + 30) / 60;
-            amount = std::to_string(approx_turns) + " turn" + (approx_turns > 1 ? "s" : "");
-        }
+        const std::string amount = describe_screw_turn_amount(total_minutes);
 
         if (is_clockwise) {
             return "Tighten " + amount;
@@ -342,6 +368,105 @@ evaluate_screw_level(const std::vector<ScrewTiltResult>& results,
     }
 
     return report;
+}
+
+/**
+ * @brief Whether a screw is one the user must NOT be told to turn
+ *
+ * True for the reference screw, which carries no adjustment by construction,
+ * and for any screw already inside the level window.
+ *
+ * `in_spec` alone does not answer this. evaluate_screw_level() measures every
+ * screw against the MIDPOINT of the spread, not against zero, so the reference
+ * lands out of spec whenever the tilt runs mostly one way - on a real AD5X bed
+ * (0 / 84 / 229 / 174 minutes) the base scores 229 and ties the worst screw.
+ * Anything drawing a screw as turnable must ask this, not `in_spec`.
+ */
+[[nodiscard]] inline bool screw_is_settled(const ScrewTiltResult& screw, bool in_spec) {
+    return screw.is_reference || in_spec;
+}
+
+/**
+ * @brief An alternative to Klipper's advice that turns fewer screws
+ *
+ * Klipper reports every screw relative to `screw1` and treats that as fixed.
+ * The adjustment vector is only defined up to a uniform translation though -
+ * adding a constant to every screw moves the bed vertically without changing
+ * its tilt - so "reference = 0" is arbitrary, not cheapest.
+ */
+struct ScrewRecenterHint {
+    bool available = false; ///< False means Klipper's advice is already the cheap one
+    size_t screw_index = 0; ///< Index into results: the ONE screw to move instead
+    int signed_minutes = 0; ///< Its adjustment, CW positive, CCW negative
+    size_t replaces = 0;    ///< How many screws Klipper's advice would have moved
+};
+
+/// One full turn in clock-minutes. Pitch-independent: the notation is turns:minutes.
+inline constexpr int SCREW_MINUTES_PER_TURN = 60;
+
+/**
+ * @brief Suggest moving the reference screw instead of all the others
+ *
+ * Fires ONLY when the non-reference screws are already level with EACH OTHER
+ * and share a large common offset from the reference. That condition is the
+ * whole point: if they disagree among themselves, re-centring just changes
+ * *which* screws move without reducing how many. Measured against a real AD5X
+ * bed (0/84/229/174 minutes), re-centring on the median still moves three
+ * screws, so this correctly declines to fire there.
+ *
+ * The caller shows this as an alternative alongside Klipper's numbers, never
+ * instead of them - staying cross-checkable against Fluidd and the console.
+ * Both forms describe the same plane, so it doubles as the escape hatch when a
+ * screw runs out of travel in one direction.
+ */
+[[nodiscard]] inline ScrewRecenterHint
+suggest_screw_recentering(const std::vector<ScrewTiltResult>& results,
+                          const ScrewLevelReport& report) {
+    ScrewRecenterHint hint;
+    if (report.verdict != ScrewLevelVerdict::NEEDS_ADJUSTMENT) {
+        return hint;
+    }
+
+    std::vector<int> others;
+    size_t ref_index = results.size();
+    for (size_t i = 0; i < results.size(); i++) {
+        const std::optional<int> minutes = results[i].signed_adjustment_minutes();
+        if (!minutes) {
+            return hint; // unparseable: evaluate_screw_level() already failed loudly
+        }
+        if (results[i].is_reference) {
+            ref_index = i;
+        } else {
+            others.push_back(*minutes);
+        }
+    }
+    // Needs a reference and at least two other screws for "move one instead of
+    // several" to be worth saying at all.
+    if (ref_index == results.size() || others.size() < 2) {
+        return hint;
+    }
+
+    const int highest = *std::max_element(others.begin(), others.end());
+    const int lowest = *std::min_element(others.begin(), others.end());
+    if (highest - lowest > report.tolerance_minutes) {
+        return hint; // they disagree among themselves - re-centring saves nothing
+    }
+
+    std::vector<int> sorted = others;
+    std::sort(sorted.begin(), sorted.end());
+    const size_t mid = sorted.size() / 2;
+    const int common = (sorted.size() % 2 == 1) ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+
+    // Only worth interrupting the user for a turn they would actually notice.
+    if (std::abs(common) <= SCREW_MINUTES_PER_TURN) {
+        return hint;
+    }
+
+    hint.available = true;
+    hint.screw_index = ref_index;
+    hint.signed_minutes = -common; // move the datum the other way instead
+    hint.replaces = others.size();
+    return hint;
 }
 
 /**

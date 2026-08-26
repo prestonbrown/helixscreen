@@ -12,7 +12,7 @@ The AD5X has a 4-lane Intelligent Filament Switching (IFS) system controlled by 
 
 > **Required firmware**: [ZMOD open-source firmware](https://github.com/ghzserg/zmod) **v1.7.0 or newer** (v1.7.0, Mar 2026, is the first release with explicit HelixScreen integration via `DISPLAY_OFF HELIX=1`). Hard minimum: v1.6.2 (Oct 2025), when the `less_waste_*` `save_variables` plumbing first appeared via the bambufy plugin — older versions are missing the slot-color/material surface we read.
 >
-> Note: this is ZMOD's own version, not FlashForge stock firmware. ZMOD supports stock AD5X bases from v1.0.2 (Jan 2025) onward; no specific FF stock version is required.
+> Note: this is ZMOD's own version, not FlashForge stock firmware. ZMOD supports a discrete list of stock AD5X main versions (1.1.7 through 1.2.3, 3.0.3, 3.0.9, 3.1.0 ceiling) and requires a factory restore to a listed image before install — new units ship above the ceiling. Details and commissioning traps: `printers/FLASHFORGE_AD5X_SUPPORT.md` § "Firmware Quirks and Operating Rules".
 
 ### Detection
 
@@ -30,7 +30,7 @@ Stock zMod owns two Klipper objects — `zmod_ifs` and `zmod_color` — that hol
 |--------|------|-------|
 | `filament_switch_sensor head_switch_sensor` | Toolhead filament presence | Authoritative NOZZLE/TOOLHEAD indicator |
 | `filament_motion_sensor ifs_motion_sensor` | Filament moving **post-hub**, inside the IFS | Single boolean on stock zMod. Maps to `OUTPUT` segment — **not** the toolhead. Replaced by per-port sensors when plugins are installed. |
-| `Adventurer5M.json` (Moonraker file API) | Per-channel color + material type | Polled + re-read on sensor edges / gcode responses. No push notifications. |
+| `Adventurer5M.json` (Moonraker file API) | Per-channel color + material type | Polled + re-read on sensor edges / gcode responses. No push notifications. Poll cadence 5 s idle / 30 s while printing — see "Polling caution" below. |
 
 **Plugin-only (lessWaste / bambufy) — the Moonraker-visible export of `zmod_ifs` / `zmod_color`:**
 
@@ -109,6 +109,30 @@ On native ZMOD (no lessWaste / bambufy plugin) the backend reconciles **two** in
 
 Tool mapping: array index = tool number (T0-T15), value = physical port (1-4, 5=unmapped).
 
+#### Polling caution: IFS contention and print-time backoff
+
+Two upstream-documented platform properties bound how hard HelixScreen may lean on the
+IFS ([upstream-doc]; full write-up incl. attribution in
+`printers/FLASHFORGE_AD5X_SUPPORT.md` § "Firmware Quirks and Operating Rules"):
+
+- **The IFS is shared with the native display.** Errors result when the native screen
+  and a mod access IFS simultaneously; most IFS settings only work with the native
+  screen disabled (`DISPLAY_OFF`), and `DISPLAY_OFF_TIMEOUT=10` mitigates. HelixScreen
+  runs in alternative-screen mode (`DISPLAY_OFF HELIX=1`), which is the supported
+  configuration — but the constraint is why this backend polls where it can and never
+  drives the IFS from two paths at once.
+- **Host work during toolhead motion is hair-trigger.** Forge-X's own regression
+  harness had to stop screenshotting during motion to avoid 'Timer too close'
+  shutdowns (Forge-X commit `46c75cb`, 2026-08-12) — the same TTC cluster that keeps
+  the AD5X MCU on Klipper 12.
+
+That is the external rationale for the print-time poll backoff: the
+`Adventurer5M.json` freshness poll runs at `JSON_POLL_IDLE` = 5 s but slows to
+`JSON_POLL_PRINTING` = 30 s while PRINTING (`include/ams_backend_ad5x_ifs.h`; each
+poll is a loopback HTTP GET on a 2-core board that is simultaneously feeding the MCU
+step queue). PAUSED deliberately keeps the 5 s cadence — a pause is when a user
+actually swaps a spool and relabels it.
+
 #### Unattended runout detection (#1250, reported as #1247)
 
 **The hole this fills.** `detect_load_unload_completion()` only reacts to a head-sensor transition while the action is `LOADING` or `UNLOADING`, and `check_action_timeout()` only runs during an operation phase. A head drop at `AmsAction::IDLE` with no phase tracking therefore produced **nothing at all** — the print sat paused with an empty toolhead and HelixScreen said nothing, while the reporter waited for a backup-spool switch that was never going to happen (no plugin installed).
@@ -132,7 +156,7 @@ On a raise: `runout_active_ = true`, `system_info_.filament_runout = true`, and 
 
 > **There is deliberately NO "Load slot N" recovery button**, even though a runout is exactly when the user wants one. Every AD5X load path runs `INSERT_PRUTOK_IFS`, whose macro homes itself and then moves the toolhead on its own authority (`_GOTO_TRASH`, `_SBROS_TRASH`, `_CLEAR_REZINA` nozzle wipe) — this is what `filament_ops_self_home()` is about. On the loadcell-Z AD5X that motion reaches **down into the part**; with a job owning the toolhead it trips ZMOD's `ZCONTROL_AUTO` and shuts Klipper down, recoverable only by a firmware restart (bundle `XWPBR2DX`, commit `329e731e9`). A runout state is PAUSED by construction, so the button would fire straight into that. Note the leading `_G28` is *conditional* on `homed_axes` (see `FLASHFORGE_AD5X_IFS_ANALYSIS.md` §12) and usually no-ops mid-print — that is not a reason to relax this: `homed_axes` is cleared by a Klipper error, an `M84`, or a cold resume, and the trash/wipe moves happen either way. `refuse_if_printing()` protects `load_filament()`; it does **not** protect a recovery button, which hands its gcode directly to `MoonrakerAPI::execute_gcode`, and the `_G28` is buried inside the macro where `reject_homing_during_active_print()` never sees it. The purge is a bare extruder move for the same reason — no homing, so it cannot reach the `_G28`. If a verified non-homing load-to-toolhead command ever turns up, that is the time to add the button.
 
-> **Unverified, flagged rather than assumed:** whether a firmware tool change can make the job read PAUSED with the head still empty. The reasoning above (Klipper queues `PAUSE` behind the running macro) is first-principles, not a device observation, and there is no AD5X in the fleet and no `ad5x` mock profile to test it on. If a false runout ever shows up mid-swap, the fix is to lengthen `RUNOUT_CONFIRM_DELAY` past a full swap (~2 min measured in bundle `NJB2U558`), not to loosen the PAUSED gate.
+> **Unverified, flagged rather than assumed:** whether a firmware tool change can make the job read PAUSED with the head still empty. The reasoning above (Klipper queues `PAUSE` behind the running macro) is first-principles, not a device observation, and the fleet's AD5X rig (commissioned 2026-08-23) has not yet been exercised for this case, nor is there an `ad5x` mock profile. If a false runout ever shows up mid-swap, the fix is to lengthen `RUNOUT_CONFIRM_DELAY` past a full swap (~2 min measured in bundle `NJB2U558`), not to loosen the PAUSED gate.
 
 #### Auto-switchover plugin visibility
 
@@ -248,7 +272,7 @@ Positive switch evidence is required to claim empty, because the errors are not 
 
 `can_unload_from_toolhead()` deliberately does **not** move onto the switch pair: it only decides whether the Unload affordance is offered, and its harmful direction is the opposite one (a false empty would hide the #995 recovery affordance for filament that is physically seated).
 
-> **The switch pair is a proxy for a sensor we do not read.** The firmware's actual gate is `get_extruder_sensor()` (zmod_ifs.py:1149), an ADC read of `temperature_sensor filamentValue` (`result = value >= 0.72` when `value > 0.3`, `True` otherwise — a missing reading counts as loaded, `zmod_ifs.py:353-361`). HelixScreen subscribes to it nowhere. Subscribing is the proper fix; it needs a real AD5X to confirm the object is published, and there is no AD5X in the fleet and no `ad5x` mock profile.
+> **The switch pair is a proxy for a sensor we do not read.** The firmware's actual gate is `get_extruder_sensor()` (zmod_ifs.py:1149), an ADC read of `temperature_sensor filamentValue` (`result = value >= 0.72` when `value > 0.3`, `True` otherwise — a missing reading counts as loaded, `zmod_ifs.py:353-361`). HelixScreen subscribes to it nowhere. Subscribing is the proper fix; it needs a session on the fleet's AD5X rig (commissioned 2026-08-23) to confirm the object is published — no `ad5x` mock profile exists.
 
 #### External-change triggers (the gcode-response listener)
 
@@ -336,7 +360,7 @@ These capabilities are the ONLY path this state takes to the UI. The AD5X-specif
 
 ### Open Issues & Debugging Notes
 
-> **No AD5X test device.** HelixScreen ships IFS support **blind** — there is no AD5X in the test fleet. Every IFS fix is field-validated through users, primarily **raza616** (the most active AD5X/IFS reporter). Treat live Discord console pastes and freshly-captured debug bundles as the ground truth, and prefer regression tests + the mock backend (`HELIX_MOCK_AMS=ifs`) for anything that can't be exercised on hardware.
+> **Test-device history.** Until Aug 2026 HelixScreen shipped IFS support **blind** — no AD5X in the test fleet — and every IFS fix from that era was field-validated through users, primarily **raza616** (the most active AD5X/IFS reporter); treat that field evidence as ground truth for the fixes it validated. Our own rig (commissioned 2026-08-23: ZMOD 1.7.2 on stock base 1.1.7, stock Klipper 12 MCU — see `printers/FLASHFORGE_AD5X_SUPPORT.md` § "Firmware Quirks and Operating Rules") covers going-forward verification. Prefer regression tests + the mock backend (`HELIX_MOCK_AMS=ifs`) for anything that can't be exercised on hardware.
 
 **Stuck-purge on load — KNOWN OPEN, UNRESOLVED.** Loading a lane via the multi-filament screen can leave HelixScreen stuck displaying "purging" indefinitely. **No confirmed cause; do not ship a speculative fix.** Dead ends already ruled out:
 

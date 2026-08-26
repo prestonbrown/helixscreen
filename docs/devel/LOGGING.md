@@ -462,6 +462,23 @@ config in the bundle. Line granularity still catches what actually turns up in a
 notification macros carrying Pushover/Telegram tokens, camera and Spoolman URLs with embedded
 credentials, emails, MACs.
 
+### IP addresses: private kept, routable tokenised
+
+`sanitize_value()` finishes by running `helix::redact::ips_in_text()` (`include/log_redact.h`),
+the same helper the WiFi log call sites use, so the log path and the bundle path share one
+implementation. It keeps RFC1918, loopback, link-local, CGNAT and IPv6 ULA addresses verbatim —
+`192.168.1.50` is identical in millions of houses and is the whole diagnostic value of a
+"cannot reach Moonraker" report — and replaces globally routable IPv4 and IPv6 with a
+session-stable `ip#4f2a91` token. A routable IPv6 is an ISP-allocated prefix plus a stable
+interface ID, which identifies a household far more directly than the MAC on the same object.
+The scanner is boundary-checked so version strings (`0.99.115`, `v1.2.3.4`, `1.2.3.4.5`) and log
+timestamps are not mistaken for addresses.
+
+Hardware serials are handled by key instead: `is_sensitive_key()` matches `serial_number`, which
+covers `cpu_info.serial_number` (the board serial) and `sd_info.serial_number` under
+`/machine/system_info`. It deliberately does not match a bare `serial`, so Klipper's
+`serial: /dev/serial/by-id/…` MCU path — which names the chip — is not swept up.
+
 What it does **not** redact: filesystem paths, so an `[include /home/<user>/printer_data/…]` ships
 the username. That is the same exposure `update.install_root` has always had, not a new class, but
 it is worth knowing before pasting a config excerpt into a public issue. The existing rule applies

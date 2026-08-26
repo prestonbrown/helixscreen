@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: drives a HelixScreen typography widget through ui_xml at runtime
 //
 // Inline element text through a HelixScreen SEMANTIC TYPOGRAPHY widget.
 //

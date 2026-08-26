@@ -65,6 +65,7 @@ src/api/usb_backend.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend_linux.cpp  # not in the v1 Core+AMS cut
 src/api/usb_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/api/usb_manager.cpp  # not in the v1 Core+AMS cut
+src/api/webcam_service_health.cpp  # camera service health; only consumer is the excluded discovery sequence
 src/api/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
 src/api/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
@@ -146,6 +147,7 @@ src/system/crash_handler.cpp  # not in the v1 Core+AMS cut
 src/system/crash_history.cpp  # not in the v1 Core+AMS cut
 src/system/crash_reporter.cpp  # not in the v1 Core+AMS cut
 src/system/debug_bundle_collector.cpp  # not in the v1 Core+AMS cut
+src/system/helix_cache_dir.cpp  # firmware provides its own get_helix_cache_dir in helixapp_platform_stubs2.cpp
 src/system/helix_display_telemetry.cpp  # not in the v1 Core+AMS cut
 src/system/helix_lvgl_anomaly.cpp  # not in the v1 Core+AMS cut
 src/system/helix_version.cpp  # not in the v1 Core+AMS cut

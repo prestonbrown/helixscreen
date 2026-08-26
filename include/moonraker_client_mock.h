@@ -680,6 +680,42 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     /**
+     * @brief Override the extruder min_temp reported in configfile.settings
+     *
+     * Klipper accepts a negative min_temp - it is a sensor sanity floor, and a
+     * toolchanger with no tool fitted needs one so the open thermistor read is
+     * tolerated. Tests set it negative to exercise the adoption clamp (#1353).
+     *
+     * @param min_temp Extruder min_temp in celsius (default: 0.0)
+     */
+    void set_extruder_min_temp(double min_temp) {
+        extruder_min_temp_ = min_temp;
+    }
+
+    /**
+     * @brief Get the extruder min_temp reported in configfile.settings
+     */
+    [[nodiscard]] double get_extruder_min_temp() const {
+        return extruder_min_temp_;
+    }
+
+    /**
+     * @brief Override the extruder min_extrude_temp reported in configfile.settings
+     *
+     * @param min_extrude_temp Extruder min_extrude_temp in celsius (default: 170.0)
+     */
+    void set_extruder_min_extrude_temp(double min_extrude_temp) {
+        extruder_min_extrude_temp_ = min_extrude_temp;
+    }
+
+    /**
+     * @brief Get the extruder min_extrude_temp reported in configfile.settings
+     */
+    [[nodiscard]] double get_extruder_min_extrude_temp() const {
+        return extruder_min_extrude_temp_;
+    }
+
+    /**
      * @brief Check if mock accelerometer is enabled
      * @return true if accelerometer should be reported as available
      */
@@ -703,6 +739,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if Spoolman should be reported as available during discovery
      */
+    /// Test seam: drive the Spoolman component in and out of server.info so the
+    /// REAL discovery sequence's spoolman branch can be exercised both ways.
+    void set_mock_spoolman_enabled(bool enabled) {
+        mock_spoolman_enabled_ = enabled;
+    }
+
     [[nodiscard]] bool is_mock_spoolman_enabled() const {
         return mock_spoolman_enabled_;
     }
@@ -1501,9 +1543,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
     double extruder_max_temp_{300.0};    ///< Extruder max_temp reported in configfile.settings
-    double resonance_min_freq_{5.0};     ///< [resonance_tester] min_freq the mock reports/sweeps
-    double resonance_max_freq_{135.0};   ///< [resonance_tester] max_freq the mock reports/sweeps
-    bool mmu_enabled_{true};             ///< MMU available (default true for existing tests)
+    double extruder_min_temp_{0.0};      ///< Extruder min_temp reported in configfile.settings
+    double extruder_min_extrude_temp_{170.0}; ///< Extruder min_extrude_temp in configfile.settings
+    double resonance_min_freq_{5.0};   ///< [resonance_tester] min_freq the mock reports/sweeps
+    double resonance_max_freq_{135.0}; ///< [resonance_tester] max_freq the mock reports/sweeps
+    bool mmu_enabled_{true};           ///< MMU available (default true for existing tests)
 
     // Additional objects for testing (e.g., "mmu", "AFC", "toolchanger")
     std::vector<std::string> additional_objects_;

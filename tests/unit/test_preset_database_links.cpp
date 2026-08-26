@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// TEST_MIRROR_OK: data-integrity gate over shipped assets/config/*.json, not over a C++ symbol
 //
 // Data-integrity gate over the two shipped asset files that have to agree with
 // each other: assets/config/presets/*.json and assets/config/printer_database.json.

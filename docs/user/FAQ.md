@@ -14,10 +14,10 @@ HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to y
 - 30+ panels, 20+ overlays, and a customizable multi-page widget dashboard
 - 3D G-code preview, bed mesh visualization, frequency response charts
 - 7 multi-material backends (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers) with Spoolman integration
-- First-run wizard with auto-detection of 80+ printer models
+- First-run wizard with auto-detection of 90+ printer models
 - Theme editor with 18 presets (dark and light), 9 languages
 - Sound system, timelapse integration, label printing, exclude objects
-- Auto-detecting layout system for displays from 480x320 to 1024x600 (ultrawide and portrait orientations are alpha)
+- Auto-detecting layout system for displays from 480x320 to 1024x600, including ultrawide and portrait
 - ~15MB RAM on embedded targets — designed for the modest hardware most people already own, no desktop required
 
 ### Which printers are supported?
@@ -63,21 +63,21 @@ Point it at Moonraker (port `7125`), not the Mainsail/Fluidd web interface — y
 
 **Should work but not yet tested:**
 - Official Raspberry Pi 7" DSI touchscreen
-- Creality K2 built-in 4.3" display (480x800 — the panel is software-rotated to landscape; running it as portrait is alpha)
+- Creality K2 built-in 4.3" display (480x800 — the panel is software-rotated to landscape; running it in portrait works too, though landscape is more polished)
 - Other HDMI displays
 - SPI displays (with proper configuration)
 
 **Display sizes:** HelixScreen auto-detects the best layout for your display. 800x480 and 1024x600 are fully supported. 480x320 displays will run but may have layout overlap issues — improved small-screen support is ongoing.
 
-**Ultrawide and portrait screens are alpha at best.** The layout engine detects an ultrawide screen (wider than about 2.5:1, e.g. 1920x440) or a portrait screen (narrower than about 0.8:1, e.g. 480x800) and adjusts the navigation bar and grid sizing accordingly. What is thin is the per-panel artwork. Portrait covers the app shell, navigation bar, home dashboard, Print Status, Print Tune, Motion, Bed Mesh and the temperature graph; ultrawide covers the home dashboard and nothing else. Any panel outside those sets falls back to the standard landscape layout, so expect stretched, cramped, or clipped panels there.
+**Ultrawide and portrait screens both work.** The layout engine detects an ultrawide screen (wider than about 2.5:1, e.g. 1920x440) or a portrait screen (narrower than about 0.8:1, e.g. 480x800) and adapts the navigation bar and grid sizing to it. Portrait additionally has dedicated layouts for the app shell, navigation bar, Print Status, Print Tune, Motion, Bed Mesh and the temperature graph; ultrawide has the home dashboard and nothing else. Panels without a dedicated layout use the adaptive fallback, so landscape remains the most polished of the three.
 
-The **home dashboard** adapts best. Its grid is sized from the actual screen with square cells, so a 480x800 portrait panel gets 4 columns by 6 rows, a tall 320x1480 one gets 4x17, and a 1920x440 ultrawide gets 23x5. Portrait and ultrawide each have their own default layout rather than a stretched landscape one, and on a portrait panel buttons, inputs, and headers are sized from the screen's height, so you get taller controls instead of cramped ones.
+The part that adapts furthest is the **home dashboard**. Its grid is sized from the actual screen with square cells, so a 480x800 portrait panel gets 4 columns by 6 rows, a tall 320x1480 one gets 4x17, and a 1920x440 ultrawide gets 23x5. Portrait and ultrawide each have their own default layout rather than a stretched landscape one, and on a portrait panel buttons, inputs, and headers are sized from the screen's height, so you get taller controls instead of cramped ones.
 
-Treat both as "it boots and you can drive it", not "it looks right". Neither is tested on real hardware in those orientations. If you want to help, both are wide open for contributions and only need XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
+Both keep gaining per-panel work. If you want to help, they need only XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
 
 You can force either mode to try it: `helix-screen --layout ultrawide` or `--layout portrait`, or set `"layout": "ultrawide"` in the `display` section of `settings.json`.
 
-**Display rotation:** All three binaries (main, splash, watchdog) support 0°, 90°, 180°, and 270° rotation via config or command line. Rotating a portrait panel to landscape (what the Creality K2 does) is well-trodden; leaving it in portrait and using the portrait layout is the alpha path described above.
+**Display rotation:** All three binaries (main, splash, watchdog) support 0°, 90°, 180°, and 270° rotation via config or command line. Rotating a portrait panel to landscape (what the Creality K2 does) is well-trodden; leaving it in portrait and using the portrait layout also works, with the caveats above.
 
 If you test on hardware not listed above, please let us know your results!
 
@@ -116,7 +116,7 @@ For an exact layer count and a reliable time-remaining estimate, HelixScreen nee
 - Declarative XML layouts (change UI without recompiling)
 - Modern reactive architecture with 7 multi-material backends
 - 3D visualizations (G-code preview, bed mesh)
-- 80+ printer auto-detection database
+- 90+ printer auto-detection database
 - 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, Chinese)
 
 ---
@@ -301,7 +301,7 @@ See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) sect
 
 1. Go to **Settings** → **Display & Sound**
 2. Tap **Theme Colors** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen, Kanagawa, Material Design, Midnight, Nord (default), One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
+3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen (default), Kanagawa, Material Design, Midnight, Nord, One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
 4. Toggle dark/light mode
 5. Customize individual colors if desired - changes are saved to `config/themes/`
 

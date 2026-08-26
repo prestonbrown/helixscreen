@@ -25,6 +25,17 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    # Gates that read submodule SOURCE must see the tree the app actually
+    # ships, not upstream's. lvgl_display_sync_cb.patch inserts four values
+    # into lv_event_code_t (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}), renumbering
+    # everything after them by four. qc_lvgl_event_codes derives the crash
+    # worker's table from that enum, and crash reports come from patched
+    # builds, so checking against a pristine checkout made the gate disagree
+    # with a correct table on every run. qc_patch_drift also does a real
+    # comparison here rather than reporting "patches not applied yet".
+    - name: Apply submodule patches
+      run: make apply-patches
+
     - name: Install pinned tooling (clang-format) into .venv
       uses: nick-fields/retry@v4
       with:

@@ -57,6 +57,10 @@ void PrintHistoryManager::fetch(int limit) {
         // than dropping the request outright: deleting several files in a row
         // otherwise leaves the cache one delete behind until the next
         // notification happens to arrive.
+        //
+        // Only invalidations reach here. A caller that merely wants the cache
+        // populated goes through ensure_loaded(), which returns without arming
+        // this, because the in-flight response already serves it.
         refetch_pending_.store(true);
         spdlog::debug("[HistoryManager] Fetch already in progress, queuing one refetch");
         return;
@@ -89,6 +93,27 @@ void PrintHistoryManager::fetch(int limit) {
             (void)token;
             spdlog::warn("[HistoryManager] Failed to fetch history: {}", error.message);
         });
+}
+
+void PrintHistoryManager::ensure_loaded(int limit) {
+    if (is_loaded_) {
+        return;
+    }
+    // A request is already out. Its response populates the cache and notifies
+    // every observer, which is all this caller wanted, so routing through
+    // fetch() here would only arm a redundant re-issue of the same list.
+    //
+    // Residual window: the success callback clears is_fetching_ on the bg
+    // thread before posting its defer, deliberately, so that a frozen queue
+    // cannot strand the guard. A call landing inside that window still issues
+    // one extra fetch. Narrow, and not the case this fixes - in the startup
+    // burst all four calls arrived while the request was genuinely outstanding.
+    if (is_fetching_.load()) {
+        spdlog::debug("[HistoryManager] Load already in flight, joining it");
+        return;
+    }
+
+    fetch(limit);
 }
 
 const PrintHistoryJob* PrintHistoryManager::get_newest_existing_job() const {

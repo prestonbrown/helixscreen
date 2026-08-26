@@ -78,7 +78,8 @@ LedControlOverlay (UI)             LedSettingsOverlay (UI)             LedWidget
 | `tests/unit/test_led_wled_backend.cpp` | WLED preset, brightness, toggle, state polling |
 | `tests/unit/test_led_macro_backend.cpp` | Macro execution: on/off, toggle, custom actions |
 | `tests/unit/test_printer_led_char.cpp` | PrinterLedState subject updates |
-| `tests/unit/test_settings_led_char.cpp` | Settings overlay characterization |
+| `tests/unit/test_led_config.cpp` | LED config parsing and persistence |
+| `tests/unit/test_led_control_overlay.cpp` | LED control overlay behaviour |
 
 ## Five Backends
 

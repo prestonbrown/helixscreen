@@ -473,6 +473,8 @@
   <translation tag="Clog and flow health while printing" en="Clog and flow health while printing"/>
   <translation tag="Clog detection" en="Clog detection"/>
   <translation tag="Close" en="Close"/>
+  <translation tag="Close feeder" en="Close feeder"/>
+  <translation tag="Close feeder macro" en="Close feeder macro"/>
   <translation tag="Closer" en="Closer"/>
   <translation tag="Closer = more squish | Farther = less squish" en="Closer = more squish | Farther = less squish"/>
   <translation tag="Coarse" en="Coarse"/>
@@ -951,11 +953,13 @@
   <translation tag="Farther" en="Farther"/>
   <translation tag="Features: " en="Features: "/>
   <translation tag="Feed Assist" en="Feed Assist"/>
+  <translation tag="Feed assist and debug tools" en="Feed assist and debug tools"/>
   <translation tag="Feed filament" en="Feed filament"/>
   <translation tag="Feed filament directly to extruder" en="Feed filament directly to extruder"/>
   <translation tag="Feed filament from current slot" en="Feed filament from current slot"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
   <translation tag="Filament" en="Filament"/>
+  <translation tag="Filament Control" en="Filament Control"/>
   <translation tag="Filament Detected" en="Filament Detected"/>
   <translation tag="Filament Environment" en="Filament Environment"/>
   <translation tag="Filament Grade Mismatch" en="Filament Grade Mismatch"/>
@@ -970,6 +974,7 @@
   <translation tag="Filament controls are unavailable while printing." en="Filament controls are unavailable while printing."/>
   <translation tag="Filament deleted" en="Filament deleted"/>
   <translation tag="Filament diameter sensors for flow compensation" en="Filament diameter sensors for flow compensation"/>
+  <translation tag="Filament feeder" en="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." en="Filament is clear of the toolhead. Pull it out the rest of the way."/>
   <translation tag="Filament is loose" en="Filament is loose"/>
   <translation tag="Filament is pulling tight" en="Filament is pulling tight"/>
@@ -1050,6 +1055,7 @@
   <translation tag="Good Accuracy" en="Good Accuracy"/>
   <translation tag="Got it" en="Got it"/>
   <translation tag="Gray" en="Gray"/>
+  <translation tag="Grip the filament" en="Grip the filament"/>
   <translation tag="Guides and reference" en="Guides and reference"/>
   <translation tag="H" en="H"/>
   <translation tag="HOST" en="HOST"/>
@@ -1392,6 +1398,7 @@
   <translation tag="Manual Bed Leveling" en="Manual Bed Leveling"/>
   <translation tag="Manual Feed" en="Manual Feed"/>
   <translation tag="Manual Retract" en="Manual Retract"/>
+  <translation tag="Manual feed and retract operations" en="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" en="Map to closest colors with matching material"/>
   <translation tag="Marginal" en="Marginal"/>
   <translation tag="Master volume level" en="Master volume level"/>
@@ -1502,6 +1509,7 @@
   <translation tag="No History" en="No History"/>
   <translation tag="No LED macros detected on your printer." en="No LED macros detected on your printer."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." en="No LED macros detected on your printer. Add Klipper macros for LED control first."/>
+  <translation tag="No LED macros detected. Type a macro name below." en="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" en="No LED strips detected"/>
   <translation tag="No Macros Found" en="No Macros Found"/>
   <translation tag="No Multi-Filament System connected" en="No Multi-Filament System connected"/>
@@ -1635,6 +1643,8 @@
   <translation tag="Open" en="Open"/>
   <translation tag="Open Source Licenses" en="Open Source Licenses"/>
   <translation tag="Open color and brightness controls" en="Open color and brightness controls"/>
+  <translation tag="Open feeder" en="Open feeder"/>
+  <translation tag="Open feeder macro" en="Open feeder macro"/>
   <translation tag="Open motion controls for jogging" en="Open motion controls for jogging"/>
   <translation tag="Operation already in progress" en="Operation already in progress"/>
   <translation tag="Operations" en="Operations"/>
@@ -1643,6 +1653,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" en="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one"/>
   <translation tag="Options" en="Options"/>
   <translation tag="Or Enter Manually" en="Or Enter Manually"/>
+  <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" en="Oscillating... cycle %d/%d"/>
   <translation tag="Out of range" en="Out of range"/>
   <translation tag="Outcome" en="Outcome"/>
@@ -1953,6 +1964,8 @@
   <translation tag="Reheating..." en="Reheating..."/>
   <translation tag="Relative vibration" en="Relative vibration"/>
   <translation tag="Release all stepper motors. Position will be lost." en="Release all stepper motors. Position will be lost."/>
+  <translation tag="Release or grip the filament by hand" en="Release or grip the filament by hand"/>
+  <translation tag="Release the filament" en="Release the filament"/>
   <translation tag="Remaining (g)" en="Remaining (g)"/>
   <translation tag="Remaining Weight (g)" en="Remaining Weight (g)"/>
   <translation tag="Remap Tool" en="Remap Tool"/>
@@ -1963,6 +1976,7 @@
   <translation tag="Remove PIN" en="Remove PIN"/>
   <translation tag="Remove Spoolman?" en="Remove Spoolman?"/>
   <translation tag="Remove plugin from printer" en="Remove plugin from printer"/>
+  <translation tag="Remove the bypass spool from the toolhead first" en="Remove the bypass spool from the toolhead first"/>
   <translation tag="Rename" en="Rename"/>
   <translation tag="Rename Fan" en="Rename Fan"/>
   <translation tag="Rename Mesh Profile" en="Rename Mesh Profile"/>
@@ -2248,6 +2262,8 @@
   <translation tag="Slot" en="Slot"/>
   <translation tag="Slot %d" en="Slot %d"/>
   <translation tag="Slot %d Filament" en="Slot %d Filament"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" en="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" en="Slot %d: %.0fg of %.0fg needed"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot {}" en="Slot {}"/>
   <translation tag="Slot {} matches." en="Slot {} matches."/>
@@ -2259,6 +2275,7 @@
   <translation tag="Soft" en="Soft"/>
   <translation tag="Software Updates" en="Software Updates"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." en="Some filaments don&apos;t match the slicer&apos;s intent."/>
+  <translation tag="Some mapped slots are short on filament:" en="Some mapped slots are short on filament:"/>
   <translation tag="Some settings will take effect after restart." en="Some settings will take effect after restart."/>
   <translation tag="Sound Theme" en="Sound Theme"/>
   <translation tag="Sounds" en="Sounds"/>
@@ -2306,6 +2323,7 @@
   <translation tag="Start Drying" en="Start Drying"/>
   <translation tag="Start Print" en="Start Print"/>
   <translation tag="Start Probing" en="Start Probing"/>
+  <translation tag="Start anyway?" en="Start anyway?"/>
   <translation tag="Start at" en="Start at"/>
   <translation tag="Start failed" en="Start failed"/>
   <translation tag="Start print anyway?" en="Start print anyway?"/>
@@ -2442,6 +2460,7 @@
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" en="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
   <translation tag="Theme" en="Theme"/>
@@ -2686,6 +2705,8 @@
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." en="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation."/>
   <translation tag="Where UI sounds play" en="Where UI sounds play"/>
   <translation tag="Whether filament is loaded" en="Whether filament is loaded"/>
+  <translation tag="Which macro the Close feeder button sends" en="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends" en="Which macro the Open feeder button sends"/>
   <translation tag="White" en="White"/>
   <translation tag="Wi-Fi or ethernet connection status" en="Wi-Fi or ethernet connection status"/>
   <translation tag="WiFi" en="WiFi"/>
@@ -2790,6 +2811,7 @@
   <translation tag="nozzle" en="nozzle"/>
   <translation tag="of" en="of"/>
   <translation tag="off" en="off"/>
+  <translation tag="or type a macro name" en="or type a macro name"/>
   <translation tag="prints" en="prints"/>
   <translation tag="remaining" en="remaining"/>
   <translation tag="remaining before clog detection triggers" en="remaining before clog detection triggers"/>

@@ -74,7 +74,7 @@ The configuration file is JSON format with several top-level sections:
 
 ```json
 {
-  "config_version": 22,
+  "config_version": 23,
   "dark_mode": false,
   "brightness": 80,
   "sounds_enabled": true,
@@ -124,7 +124,7 @@ When multiple printers are configured, the config file uses a versioned schema w
 
 ```json
 {
-  "config_version": 22,
+  "config_version": 23,
   "active_printer_id": "voron-24",
   "printers": {
     "voron-24": {
@@ -264,7 +264,7 @@ Located in the `theme` section:
 **Default:** `0`
 **Description:** Theme accent color preset. **Requires restart to take effect.**
 
-> **Note:** `preset` is a dropdown index, not the effective theme — index `0` maps to Ayu, while the out-of-the-box default is **Nord**. What actually selects the theme is the `/display/theme` string (a theme name). Set that; ignore this.
+> **Note:** `preset` is a legacy dropdown-index field, and index `0` maps to Ayu — it does **not** reflect the effective default theme. The out-of-the-box default theme is **HelixScreen**. The active theme is set by the `/display/theme` string (a theme name), not by this numeric index.
 
 | Value | Theme |
 |-------|-------|
@@ -276,11 +276,11 @@ Located in the `theme` section:
 | 5 | Everforest |
 | 6 | Gruvbox |
 | 7 | Hazard |
-| 8 | HelixScreen |
+| 8 | HelixScreen (default) |
 | 9 | Kanagawa |
 | 10 | Material Design |
 | 11 | Midnight |
-| 12 | Nord (default) |
+| 12 | Nord |
 | 13 | One Dark |
 | 14 | Rose Pine |
 | 15 | Solarized |
@@ -335,7 +335,7 @@ Located in the `display` section:
     "animations_enabled": true,
     "time_format": 0,
     "timezone": "UTC",
-    "theme": "nord",
+    "theme": "helixscreen",
     "rotate": 0,
     "sleep_sec": 1200,
     "sleep_while_printing": true,
@@ -374,7 +374,7 @@ Located in the `display` section:
 
 ### `theme`
 **Type:** string
-**Default:** `"nord"`
+**Default:** `"helixscreen"`
 **Description:** Active color theme by name (e.g., `"nord"`, `"dracula"`, `"gruvbox"`). This is the string that actually determines the effective theme — the numeric `theme.preset` index is a legacy field. **Requires restart to take effect.** Easiest to change via **Settings > Display & Sound > Theme Colors**, which writes this value for you.
 
 ### `layout`
@@ -1994,7 +1994,7 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
 
 ```json
 {
-  "config_version": 22,
+  "config_version": 23,
   "dark_mode": true,
   "brightness": 70,
   "sounds_enabled": true,

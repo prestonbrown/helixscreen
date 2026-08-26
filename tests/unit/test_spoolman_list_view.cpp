@@ -6,9 +6,17 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
+
+// The only non-mirroring assertion from the deleted "constants are reasonable"
+// case: the pool must outnumber the buffer rows above and below the viewport or
+// virtualization has nothing left to show. Compile-time, so it costs nothing.
+static_assert(SpoolmanListView::POOL_SIZE > SpoolmanListView::BUFFER_ROWS * 2,
+              "pool must be larger than the buffer above + below the viewport");
 
 // ============================================================================
 // Unit Tests (LVGLTestFixture - minimal LVGL, no XML)
@@ -47,54 +55,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - cleanup without setup",
     REQUIRE(view.is_initialized() == false);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - constants are reasonable",
-                 "[spoolman_list_view]") {
-    REQUIRE(SpoolmanListView::POOL_SIZE == 20);
-    REQUIRE(SpoolmanListView::BUFFER_ROWS == 2);
-    REQUIRE(SpoolmanListView::POOL_SIZE > SpoolmanListView::BUFFER_ROWS * 2);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - populate with empty list",
-                 "[spoolman_list_view]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_set_size(container, 400, 600);
-    view.setup(container);
-
-    std::vector<SpoolInfo> empty_spools;
-    // Should not crash with empty list (pool won't be initialized without XML)
-    view.populate(empty_spools, -1);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - update_visible with no data",
-                 "[spoolman_list_view]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    view.setup(container);
-
-    std::vector<SpoolInfo> empty_spools;
-    view.update_visible(empty_spools, -1); // Should not crash
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - refresh_content with no data",
-                 "[spoolman_list_view]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    view.setup(container);
-
-    std::vector<SpoolInfo> spools;
-    view.refresh_content(spools, -1); // Should not crash
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - update_active_indicators with no pool",
-                 "[spoolman_list_view]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    view.setup(container);
-
-    std::vector<SpoolInfo> spools;
-    view.update_active_indicators(spools, 1); // Should not crash
-}
+// Deleted: four "should not crash" cases that asserted nothing AND could not
+// reach anything. Under the plain LVGLTestFixture there is no XML registration,
+// so lv_xml_create("spoolman_spool_row") fails, pool_ stays empty, and
+// populate/update_visible/refresh_content/update_active_indicators all take the
+// pool_.empty() early return (src/ui/ui_spoolman_list_view.cpp:295 and friends).
+// The XML-backed cases below cover the same calls for real.
 
 // ============================================================================
 // Integration Tests (LVGLUITestFixture - full XML component registration)
@@ -150,26 +116,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate with many spool
     // Only POOL_SIZE rows should be created (not 50)
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicators update",
-                 "[spoolman_list_view][ui_integration]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    view.setup(container);
-
-    auto spools = make_test_spools(10);
-    view.populate(spools, 1);
-    process_lvgl(50);
-
-    // Change active spool
-    view.update_active_indicators(spools, 5);
-    process_lvgl(50);
-    // Should not crash, active spool is now 5
+/// Find the visible pool row currently showing @p spool_id.
+///
+/// configure_row() stores the spool id in the row's user_data
+/// (src/ui/ui_spoolman_list_view.cpp:174) — the same handle the XML click
+/// callback reads — so this is the production lookup, not a test-only backdoor.
+/// Returns nullptr when the id is outside the virtualized window.
+static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
+    lv_obj_t* found = nullptr;
+    const uint32_t count = lv_obj_get_child_count(container);
+    for (uint32_t i = 0; i < count; i++) {
+        lv_obj_t* child = lv_obj_get_child(container, i);
+        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            continue; // recycled slot not currently showing anything
+        }
+        if (static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(child))) == spool_id) {
+            REQUIRE(found == nullptr); // one visible row per spool, never two
+            found = child;
+        }
+    }
+    return found;
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh content",
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves to the new spool",
                  "[spoolman_list_view][ui_integration]") {
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -181,10 +150,66 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh content",
     auto spools = make_test_spools(10);
     view.populate(spools, 1);
     process_lvgl(50);
+    REQUIRE(view.is_initialized() == true);
 
-    // Modify data and refresh
+    // Spool 1 owns the marker to begin with, so the assertions after the switch
+    // also pin that the OLD row gets cleared rather than just the new one set.
+    lv_obj_t* first_row = find_row_for_spool(container, 1);
+    REQUIRE(first_row != nullptr);
+    REQUIRE(lv_obj_has_state(first_row, LV_STATE_CHECKED));
+
+    view.update_active_indicators(spools, 5);
+    process_lvgl(50);
+
+    lv_obj_t* active_row = find_row_for_spool(container, 5);
+    REQUIRE(active_row != nullptr);
+    lv_obj_t* active_marker = lv_obj_find_by_name(active_row, "active_indicator");
+    REQUIRE(active_marker != nullptr);
+    REQUIRE_FALSE(lv_obj_has_flag(active_marker, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_has_state(active_row, LV_STATE_CHECKED));
+
+    for (int id : {1, 2, 3, 4, 6, 7, 8, 9, 10}) {
+        INFO("spool id: " << id);
+        lv_obj_t* row = find_row_for_spool(container, id);
+        if (row == nullptr) {
+            continue; // scrolled outside the virtualized window
+        }
+        lv_obj_t* marker = lv_obj_find_by_name(row, "active_indicator");
+        REQUIRE(marker != nullptr);
+        REQUIRE(lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_has_state(row, LV_STATE_CHECKED));
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites the row labels",
+                 "[spoolman_list_view][ui_integration]") {
+    SpoolmanListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 600);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container);
+
+    auto spools = make_test_spools(10);
+    view.populate(spools, 1);
+    process_lvgl(50);
+    REQUIRE(view.is_initialized() == true);
+
+    lv_obj_t* row = find_row_for_spool(container, 1);
+    REQUIRE(row != nullptr);
+    lv_obj_t* weight_label = lv_obj_find_by_name(row, "weight_text");
+    REQUIRE(weight_label != nullptr);
+
+    // Asserting the pre-refresh text is what makes the post-refresh assertion
+    // mean something: it proves refresh_content changed the label rather than
+    // the label having read "42g" all along.
+    REQUIRE(std::string(lv_label_get_text(weight_label)) == "1000g");
+
     spools[0].remaining_weight_g = 42.0;
     view.refresh_content(spools, 1);
     process_lvgl(50);
-    // Should not crash
+
+    // "%.0fg" in configure_row (src/ui/ui_spoolman_list_view.cpp:211-215).
+    // Rows are recycled in place, so the label pointer stays valid.
+    REQUIRE(std::string(lv_label_get_text(weight_label)) == "42g");
 }

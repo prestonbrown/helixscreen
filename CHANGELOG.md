@@ -5,6 +5,151 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.116] - 2026-08-24
+
+<!-- whatsnew
+The third 1.0 release candidate. Highlights:
+
+- The FlashForge AD5X is its own printer now, not one borrowed from the AD5M
+- Touch works on first boot on AD5X and AD5M
+- K2 camera traffic no longer fills the printer's disk and kills your uploads
+- Opening a large G-code file no longer restarts the app on low-memory printers
+- A real unload for K1 printers, and honest pre-print countdowns on K1C and K2
+- MedusaHC hotend changers, and tool changers that remember their spools
+-->
+
+**This is the third 1.0 release candidate**, following 0.99.115. Two areas carry most of the
+work: making the FlashForge AD5X a first-class printer rather than one borrowed from the AD5M's
+settings, and finishing the filament path so that a lane tap, a spool weight and a pre-print
+warning all describe the lane your print will actually use.
+
+### Added
+
+**Printers**
+
+- **FlashForge AD5X installs as its own printer** - it was set up using the AD5M's paths, which
+  do not exist on an AD5X. Its cache and log now go where they belong, and an AD5X support
+  archive finally carries HelixScreen's own log rather than only the mod launcher's.
+- **Touch works on first boot on AD5X and AD5M** - both panels now ship with a measured
+  calibration, so the screen responds correctly before you run the three-point tap routine. A
+  calibration you save yourself still wins.
+- **Forge-X keeps a Z offset permanently** - Forge-X joins the firmwares HelixScreen can ask to
+  store the offset rather than losing it on restart.
+- **Renamed printer entries still match** - renaming an entry in the printer database used to
+  orphan every setting saved under the old name. Former names are recorded now, so a rename no
+  longer reads as a different printer.
+- **The setup wizard skips the connection step on printer-embedded builds** - a package built for
+  one printer already knows where Moonraker is, so it stops asking.
+
+**Filament**
+
+- **MedusaHC hotend changers** - the dock sensors and the servo feeder are read, so a MedusaHC
+  reports the tool that is actually mounted rather than the last one it was told to pick. Unload
+  also reappears on the Snapmaker U1, which had it hidden for the same reason.
+- **Tool changers remember their spools** - colour, material, brand and weight set on a tool did
+  not survive anything: every reconnect reset all four tools to grey. They persist now.
+- **Filament checks weigh each tool against its own lane** - a multi-tool print used to compare
+  the whole file against the one external spool, so a print remapped from one tool to another
+  kept warning about a spool it would never touch.
+- **A true unload for K1 printers** - Creality's own unload pushes filament roughly 38mm further
+  in than it pulls out, because it expects you to cut it at the inlet. HelixScreen now ships an
+  unload that renews the melt and pulls the filament clear of the gears. A printer that already
+  unloads properly is left alone.
+
+**Printing**
+
+- **The K1C Auto Bed Mesh toggle actually meshes** - it set a parameter the firmware ignores, so
+  On did nothing and Off skipped every preparation step, homing included. It now runs one real
+  preparation pass at the job's own temperatures.
+- **Measured first-print timings for K1C, K2 and K2 Pro** - the generic estimates were out by
+  100-800% on these printers, so the countdown before the first layer was fiction. The shipped
+  defaults are measured, and learned history takes over after your first prints.
+
+### Fixed
+
+**Crashes and stability**
+
+- **Opening a large G-code file could restart the app on K2 Plus** - a printer with no 3D renderer
+  loaded the whole file at once: a 130 MB file grew the app to 387 MB, the system killed it, and
+  the preview looked like it was stuck on the slicer thumbnail forever. That screen streams now,
+  like every other one.
+- **Occasional torn or frozen frames** (#1338) - the render thread and the drawing thread agreed
+  on when a frame was finished through values neither one was guaranteed to see.
+- **Rare crashes when leaving a screen** - the network widget's polling timer, cached Wi-Fi
+  settings pointers, the power screen's cleanup hook and the Wi-Fi manager's shutdown could each
+  reach a screen after it was gone.
+- **A repeating warning no longer empties a debug bundle** - one warning firing thousands of times
+  pushed everything else out of the history the bundle collects.
+
+**K2 and K2 Plus**
+
+- **Uploads dying with "connection reset"** - registering the camera routed every frame through
+  the printer's own web proxy, which logged it to a RAM disk with no rotation. About 147 MB a day
+  filled that disk, and Moonraker keeps its upload temp file there too, so uploads died mid-stream
+  and the browser only saw a reset. Camera install now turns that one log off and reclaims an
+  oversized one; uninstall puts the file back byte for byte.
+- **The K2 webcam is registered as a stream** rather than the per-frame polling type.
+
+**Filament**
+
+- **Tapping a lane while bypass was on loaded nothing** - the tap fell through to the external
+  spool macro; on a K2 Plus that ran a load routine gated on a sensor with nothing in it, reported
+  success and let the nozzle cool. The lane you tap now reaches the filament system, and the one
+  case that cannot be honoured is refused out loud instead of silently.
+- **Spool weights on a second AMS were never refreshed** - only the first unit's lanes were polled,
+  so a second unit's weights sat at whatever was last typed in and the low-filament checks read
+  them as fact.
+- **A Spoolman vendor the catalog does not know no longer empties the material list** - on the
+  reporter's K2 only 5 of 19 vendors matched, and picking one of the other 14 left no way to set a
+  material at all.
+- **Spoolman availability no longer flickers off** during discovery.
+- **A black bypass spool is drawn black**, not white, and empty picker rows are dimmed properly.
+
+**Print status and previews**
+
+- **The preview no longer sticks on a placeholder** (#1339) - a print with no slicer thumbnail
+  retired the preview reload, so nothing replaced the placeholder for the rest of the print.
+- **Print status follows the print you started**, resolving a rewritten upload path the way the
+  file list does, keeping the preparing job's identity, and dropping the previous print's model
+  when a new one begins.
+- **Long filenames scroll** in the library's active view, and the filename spans the detail card.
+- **A confirmed long-press delete stays on the print list** instead of leaving the screen.
+
+**Screens and settings**
+
+- **Time zones** (#1340) - UTC+7 was reachable only as "Indochina", which a reporter in Vietnam
+  never found. Zones are named for the countries people search for; same-offset zones with
+  different daylight-saving rules are listed separately, since picking Denver from Arizona is an
+  hour out for half the year. Africa had no entry at all, and -11, -2 and +13 were unreachable.
+  32 zones became 61.
+- **The default theme is HelixScreen** - the built-in fallback was still Nord, so a printer that
+  fell back to it changed colour scheme.
+- **A setting reads its documented default while it is still loading** (#1288) rather than showing
+  a blank or a zero.
+- **The printer type mismatch prompt no longer fires when nothing is wrong.**
+- **UI sounds are audible on HDMI and S/PDIF again** (#1337) - those receivers mute themselves
+  while re-locking a clock that stopped, swallowing half a second to a second, which is longer than
+  every UI sound. Those outputs keep their clock running now.
+- **Remote screen mirroring** (#1334) - where DRM is unavailable and the display falls back, the
+  mirror read from the wrong row, so part of the screen showed the wrong content and the rest
+  stopped updating with a single warning.
+- **The home screen's bypass tile could never appear at all.**
+- **A Z offset set while idle was stored short on ZMOD** by the last print's probe correction, and
+  ZMOD's placeholder colour label no longer renders as a dash on the filament tiles.
+- **Two strings blanked in eight languages** by a duplicate translation key are back.
+- **Update Channel is hidden** where update checks are turned off, and the Snapmaker U1 defaults to
+  firmware-managed updates.
+- **The standalone uninstaller restores the platform files** it was skipping.
+
+### Changed
+
+- **Endless spool status is attention-only** - the healthy sentence no longer takes up space on the
+  filament screen, and the status moved to the bottom of the left column. Off, Unknown and
+  Needs Plugin still surface.
+- **The G-code preview frames against the real metadata bounds**, so a model no longer sits
+  off-centre in its card.
+- **Graph colours come from the active theme** rather than a fixed palette.
+
 ## [0.99.115] - 2026-08-20
 
 <!-- whatsnew
@@ -1097,7 +1242,7 @@ persistence, and clears a cluster of crashes and small-screen layout issues.
 - **Phantom edge tap fix reverted** — the 0.99.96 change required both touch axes to arrive for every new contact, but controllers that omit unchanged coordinates never satisfied that, dropping every touch. Holtek-based screens (BTT-HDMI5) may again see occasional edge taps until a safer fix ships.
 - **Hot reload defaults to on for native builds.**
 
-## [0.99.96] - 2026-07-19
+## [0.99.96] - 2026-07-19 [WITHDRAWN]
 
 ### Added
 
@@ -2479,7 +2624,7 @@ Hotfix for the v0.99.33 release: cross-compiled release bundles for every embedd
 ### Fixed
 - Release bundle omitted `assets/config/` seed tree — the refactor that split RO seeds out of `config/` updated `scripts/package.sh` but missed `mk/cross.mk`, which is the actual pipeline every embedded release uses. All `release-*` targets now ship `assets/config/printer_database.json`, `printing_tips.json`, `default_layout.json`, `helix_macros.cfg`, `themes/defaults/`, `presets/`, `print_start_profiles/`, `sounds/`, and `platform/hooks-*.sh`.
 
-## [0.99.33] - 2026-04-16
+## [0.99.33] - 2026-04-16 [WITHDRAWN]
 
 Major Bluetooth reliability overhaul, new barcode scanner settings UI, first-run guided tour, HttpExecutor for bounded HTTP threading, responsive setting rows that collapse 7 micro/ XML variants, and a broad config refactor splitting read-only seed data from writable state.
 
@@ -5483,6 +5628,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.99.116]: https://github.com/prestonbrown/helixscreen/compare/v0.99.115...v0.99.116
 [0.99.115]: https://github.com/prestonbrown/helixscreen/compare/v0.99.114...v0.99.115
 [0.99.114]: https://github.com/prestonbrown/helixscreen/compare/v0.99.113...v0.99.114
 [0.99.113]: https://github.com/prestonbrown/helixscreen/compare/v0.99.112...v0.99.113

@@ -474,6 +474,8 @@
   <translation tag="Clog and flow health while printing" it="Intasamento e flusso durante la stampa"/>
   <translation tag="Clog detection" it="Rilevamento intasamento"/>
   <translation tag="Close" it="Chiudi"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" it="Più vicino"/>
   <translation tag="Closer = more squish | Farther = less squish" it="Più vicino = più schiacciamento | Più lontano = meno schiacciamento"/>
   <translation tag="Coarse" it="Grossolano"/>
@@ -952,11 +954,13 @@
   <translation tag="Farther" it="Più lontano"/>
   <translation tag="Features: " it="Caratteristiche: "/>
   <translation tag="Feed Assist" it="Assistenza all&apos;alimentazione"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" it="Alimenta filamento"/>
   <translation tag="Feed filament directly to extruder" it="Alimenta filamento direttamente all&apos;estrusore"/>
   <translation tag="Feed filament from current slot" it="Alimenta il filamento dallo slot corrente"/>
   <translation tag="Feeding filament forward" it="Avanzamento filamento"/>
   <translation tag="Filament" it="Filamento"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" it="Filamento rilevato"/>
   <translation tag="Filament Environment" it="Ambiente filamento"/>
   <translation tag="Filament Grade Mismatch" it="Grado filamento non corrispondente"/>
@@ -971,6 +975,7 @@
   <translation tag="Filament controls are unavailable while printing."/>
   <translation tag="Filament deleted" it="Filamento eliminato"/>
   <translation tag="Filament diameter sensors for flow compensation" it="Sensori diametro filamento per compensazione flusso"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." it="Il filamento non è più nella testina. Estrailo del tutto."/>
   <translation tag="Filament is loose" it="Il filamento è allentato"/>
   <translation tag="Filament is pulling tight" it="Il filamento è in tensione"/>
@@ -1051,6 +1056,7 @@
   <translation tag="Good Accuracy" it="Buona precisione"/>
   <translation tag="Got it" it="Capito"/>
   <translation tag="Gray" it="Grigio"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" it="Guide e riferimenti"/>
   <translation tag="H" it="H"/>
   <translation tag="HOST" it="Host"/>
@@ -1393,6 +1399,7 @@
   <translation tag="Manual Bed Leveling" it="Livellamento piano manuale"/>
   <translation tag="Manual Feed" it="Alimentazione manuale"/>
   <translation tag="Manual Retract" it="Retrazione manuale"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" it="Abbina ai colori più vicini con materiale compatibile"/>
   <translation tag="Marginal" it="Marginale"/>
   <translation tag="Master volume level" it="Livello volume principale"/>
@@ -1503,6 +1510,7 @@
   <translation tag="No History" it="Nessuna cronologia"/>
   <translation tag="No LED macros detected on your printer." it="Nessuna macro LED rilevata sulla stampante."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." it="Nessuna macro LED rilevata sulla stampante. Aggiungi prima le macro Klipper per il controllo dei LED."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" it="Nessuna striscia LED rilevata"/>
   <translation tag="No Macros Found" it="Nessuna macro trovata"/>
   <translation tag="No Multi-Filament System connected" it="Nessun sistema multi-filamento connesso"/>
@@ -1636,6 +1644,8 @@
   <translation tag="Open" it="Apri"/>
   <translation tag="Open Source Licenses" it="Licenze open source"/>
   <translation tag="Open color and brightness controls" it="Apri controlli colore e luminosità"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Open motion controls for jogging" it="Apri i controlli di movimento"/>
   <translation tag="Operation already in progress" it="Operazione già in corso"/>
   <translation tag="Operations" it="Operazioni"/>
@@ -1644,6 +1654,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" it="Opzionale - seleziona la fonte di illuminazione principale, o salta se la stampante non ne ha una"/>
   <translation tag="Options" it="Opzioni"/>
   <translation tag="Or Enter Manually" it="Oppure inserisci manualmente"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" it="Oscillazione... ciclo %d/%d"/>
   <translation tag="Out of range" it="Fuori intervallo"/>
   <translation tag="Outcome" it="Esito"/>
@@ -1954,6 +1965,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" it="Vibrazione relativa"/>
   <translation tag="Release all stepper motors. Position will be lost." it="Rilascia tutti i motori stepper. La posizione verrà persa."/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" it="Rimanente (g)"/>
   <translation tag="Remaining Weight (g)" it="Peso rimanente (g)"/>
   <translation tag="Remap Tool" it="Rimappa strumento"/>
@@ -1964,6 +1977,7 @@
   <translation tag="Remove PIN" it="Rimuovi PIN"/>
   <translation tag="Remove Spoolman?" it="Rimuovere Spoolman?"/>
   <translation tag="Remove plugin from printer" it="Rimuovi plugin dalla stampante"/>
+  <translation tag="Remove the bypass spool from the toolhead first" it="Rimuovi prima la bobina di bypass dalla testina"/>
   <translation tag="Rename" it="Rinomina"/>
   <translation tag="Rename Fan" it="Rinomina ventola"/>
   <translation tag="Rename Mesh Profile" it="Rinomina profilo mesh"/>
@@ -2249,6 +2263,8 @@
   <translation tag="Slot" it="Slot"/>
   <translation tag="Slot %d" it="Slot %d"/>
   <translation tag="Slot %d Filament" it="Filamento slot %d"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" it="Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" it="Slot %d: %.0fg di %.0fg necessari"/>
   <translation tag="Slot 1" it="Slot 1"/>
   <translation tag="Slot {}" it="Slot {}"/>
   <translation tag="Slot {} matches." it="Lo slot {} corrisponde."/>
@@ -2260,6 +2276,7 @@
   <translation tag="Soft" it="Morbido"/>
   <translation tag="Software Updates" it="Aggiornamenti software"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." it="Alcuni filamenti non corrispondono alle intenzioni dello slicer."/>
+  <translation tag="Some mapped slots are short on filament:" it="Alcuni slot assegnati hanno poco filamento:"/>
   <translation tag="Some settings will take effect after restart." it="Alcune impostazioni avranno effetto dopo il riavvio."/>
   <translation tag="Sound Theme" it="Tema sonoro"/>
   <translation tag="Sounds" it="Suoni"/>
@@ -2307,6 +2324,7 @@
   <translation tag="Start Drying" it="Avvia essiccazione"/>
   <translation tag="Start Print" it="Avvia stampa"/>
   <translation tag="Start Probing" it="Avvia sondaggio"/>
+  <translation tag="Start anyway?" it="Avviare comunque?"/>
   <translation tag="Start at" it="Inizia da"/>
   <translation tag="Start failed" it="Avvio fallito"/>
   <translation tag="Start print anyway?" it="Avviare comunque la stampa?"/>
@@ -2443,6 +2461,7 @@
   <translation tag="The speed of one fan you choose" it="La velocità di una ventola a scelta"/>
   <translation tag="The time, date, and system uptime" it="Ora, data e tempo di attività"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" it="Il sensore della testina indica che il filamento è già caricato. Procedere comunque con il caricamento?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" it="Il sensore della testina indica che nessun filamento è presente. Procedere comunque con lo scaricamento?"/>
   <translation tag="Theme" it="Tema"/>
@@ -2689,6 +2708,8 @@
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." it="Quando avvii una stampa, potrai scegliere se eseguire %s. Questo consente di risparmiare tempo quando l&apos;hai già fatto di recente o quando vuoi avere più controllo sulla preparazione della stampa."/>
   <translation tag="Where UI sounds play" it="Dove vengono riprodotti i suoni dell&apos;interfaccia"/>
   <translation tag="Whether filament is loaded" it="Se il filamento è caricato"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" it="Bianco"/>
   <translation tag="Wi-Fi or ethernet connection status" it="Stato connessione Wi-Fi o Ethernet"/>
   <translation tag="WiFi" it="WiFi"/>
@@ -2793,6 +2814,7 @@
   <translation tag="nozzle" it="ugello"/>
   <translation tag="of" it="di"/>
   <translation tag="off" it="spento"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" it="stampe"/>
   <translation tag="remaining" it="rimanente"/>
   <translation tag="remaining before clog detection triggers" it="rimanente prima che si attivi il rilevamento intasamento"/>

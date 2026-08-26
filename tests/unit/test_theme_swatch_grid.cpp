@@ -1,6 +1,13 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
+// TEST_MIRROR_OK: registers and instantiates the shipped
+//                 ui_xml/components/theme_swatch_grid.xml and color_swatch_grid.xml
+//                 through lv_xml_create(); every colour asserted on is read back out of
+//                 the real widget tree. The "mirrors that block verbatim" note further
+//                 down describes a probe component built from color_picker.xml's <if> --
+//                 test input, not reimplemented production logic.
+//
 // theme_swatch_grid is the theme-editor's preset palette. Unlike the general
 // color_swatch_grid it is structured: the first 12 swatches are a dark->light
 // surface ramp (screen_bg / card_bg / border / text tokens) and the remaining

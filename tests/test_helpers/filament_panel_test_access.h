@@ -15,6 +15,14 @@ namespace helix::ui {
 // the single-source-of-truth fix (execute_load/execute_unload act on the
 // dropdown-selected slot, not a divergent current_slot) is regression-guarded.
 struct FilamentPanelTestAccess {
+    /// Runs the real status-line state machine. update_status() caches which
+    /// arm it last rendered so the two constant-text arms can skip a
+    /// lv_translation_get() on every temperature tick; calling it directly is
+    /// what lets a test drive the arm transitions deterministically.
+    static void update_status(FilamentPanel& p) {
+        p.update_status();
+    }
+
     static int selected_op_slot(const FilamentPanel& p) {
         return p.selected_op_slot();
     }

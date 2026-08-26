@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../../include/app_globals.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../include/z_offset_utils.h"
 #include "../lvgl_test_fixture.h"
+#include "save_config_restart.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -17,6 +19,11 @@ class ZOffsetFixture : public LVGLTestFixture {
     ZOffsetFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         state.init_subjects(false);
         state.set_klippy_state_sync(KlippyState::READY);
+        // SaveConfigWatch observes the process-wide PrinterState's klippy
+        // subject, not this fixture's local one, so that one has to exist too.
+        // init_subjects() is idempotent.
+        get_printer_state().init_subjects(false);
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
         mock_client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<MoonrakerAPI>(mock_client, state);
     }
@@ -145,9 +152,10 @@ TEST_CASE_METHOD(ZOffsetFixture, "a firmware-managed save also clears the pendin
     REQUIRE(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 50);
 
     bool saved = false;
+    helix::ui::SaveConfigWatch save_watch;
     helix::zoffset::apply_and_save(
-        api.get(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, [&]() { saved = true; },
-        [](const std::string&) {}, &state);
+        api.get(), save_watch, ZOffsetCalibrationStrategy::FIRMWARE_MANAGED,
+        [&]() { saved = true; }, [](const std::string&) {}, &state);
 
     REQUIRE(saved);
     REQUIRE(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 0);
@@ -163,14 +171,30 @@ TEST_CASE_METHOD(ZOffsetFixture,
 
     bool saved = false;
     std::string error;
+    helix::ui::SaveConfigWatch save_watch;
     helix::zoffset::apply_and_save(
-        api.get(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&]() { saved = true; },
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&]() { saved = true; },
         [&](const std::string& msg) { error = msg; }, &state);
 
-    REQUIRE(error.empty());
-    REQUIRE(saved);
-    REQUIRE(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 0);
-    REQUIRE(last_sent() == "SAVE_CONFIG");
+    // The APPLY rpc's success callback hops to the main thread to start the
+    // watch, so the save is not in flight until the queue drains.
+    REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+
+    // SAVE_CONFIG's rpc is failed by the mock by design - Klipper drops the
+    // reply when it restarts. That must NOT settle as a failure, and must not
+    // settle as a success either: nothing is known until Klipper is back.
+    process_lvgl(50);
+    CHECK(error.empty());
+    CHECK_FALSE(saved);
+
+    // Klipper comes back. THAT is what says the save worked, and only then may
+    // the pending delta be cleared.
+    get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    REQUIRE(wait_until([&] { return saved; }, 3000));
+
+    CHECK(error.empty());
+    CHECK(lv_subject_get_int(state.get_pending_z_offset_delta_subject()) == 0);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "the z step index round-trips through Config",

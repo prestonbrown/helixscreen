@@ -192,3 +192,127 @@ TEST_CASE("KeypadInput digit limit transitions", "[keypad]") {
         CHECK(std::string(kp.buf) == "129");
     }
 }
+
+// ============================================================================
+// Configurable digit caps
+//
+// The 3-digit default is temperature-shaped (nozzle tops out at 350C). Machine
+// Limits needs five (max accel 50000) and Retraction needs one plus decimals
+// (retract length 6.0mm), so the cap is derived from the configured maximum
+// rather than hard-coded. The defaults above must keep behaving exactly as
+// they did -- every existing case in this file exercises them.
+// ============================================================================
+
+TEST_CASE("keypad_int_digits_for derives the cap from the range maximum", "[keypad]") {
+    using helix::ui::keypad_int_digits_for;
+
+    SECTION("Machine limit magnitudes") {
+        CHECK(keypad_int_digits_for(50000.0) == 5); // max accel
+        CHECK(keypad_int_digits_for(1000.0) == 4);  // max velocity
+        CHECK(keypad_int_digits_for(20.0) == 2);    // square corner velocity
+        CHECK(keypad_int_digits_for(6.0) == 1);     // retract length (mm)
+    }
+
+    SECTION("Temperature range keeps the historical 3") {
+        CHECK(keypad_int_digits_for(350.0) == 3);
+        CHECK(keypad_int_digits_for(999.0) == 3);
+    }
+
+    SECTION("Boundaries roll over at powers of ten") {
+        CHECK(keypad_int_digits_for(9.0) == 1);
+        CHECK(keypad_int_digits_for(10.0) == 2);
+        CHECK(keypad_int_digits_for(99.0) == 2);
+        CHECK(keypad_int_digits_for(100.0) == 3);
+    }
+
+    SECTION("A fractional maximum counts only its integer part") {
+        CHECK(keypad_int_digits_for(6.5) == 1);
+        CHECK(keypad_int_digits_for(99.9) == 2);
+    }
+
+    SECTION("Degenerate maxima still allow one digit") {
+        CHECK(keypad_int_digits_for(0.0) == 1);
+        CHECK(keypad_int_digits_for(0.5) == 1);
+        CHECK(keypad_int_digits_for(-50.0) == 2); // magnitude, not sign
+    }
+
+    SECTION("Absurd maxima stay inside the buffer") {
+        // BUF_SIZE is 16; a cap that exceeds it would let append_digit walk
+        // off the end rather than refusing input.
+        CHECK(keypad_int_digits_for(1e30) <= static_cast<int>(KeypadInput::BUF_SIZE) - 1);
+    }
+}
+
+TEST_CASE("KeypadInput honours a widened integer cap", "[keypad]") {
+    KeypadInput kp;
+    kp.max_int_digits = 5;
+    kp.max_total_digits = 7;
+
+    SECTION("Five digits are accepted for max accel") {
+        for (int d : {5, 0, 0, 0, 0})
+            REQUIRE(kp.append_digit(d));
+        CHECK(std::string(kp.buf) == "50000");
+        CHECK(kp.value() == Catch::Approx(50000.0f));
+    }
+
+    SECTION("The sixth integer digit is still refused") {
+        for (int d : {5, 0, 0, 0, 0})
+            REQUIRE(kp.append_digit(d));
+        CHECK_FALSE(kp.append_digit(1));
+        CHECK(std::string(kp.buf) == "50000");
+    }
+
+    SECTION("A four-digit entry that the old cap blocked now works") {
+        for (int d : {3, 0, 0, 0})
+            REQUIRE(kp.append_digit(d));
+        CHECK(kp.value() == Catch::Approx(3000.0f));
+    }
+}
+
+TEST_CASE("KeypadInput honours a narrowed integer cap", "[keypad]") {
+    // Retract length: 0.0-6.0mm. One integer digit, two decimals.
+    KeypadInput kp;
+    kp.max_int_digits = 1;
+    kp.max_total_digits = 3;
+
+    SECTION("One integer digit then blocked") {
+        REQUIRE(kp.append_digit(6));
+        CHECK_FALSE(kp.append_digit(0));
+        CHECK(std::string(kp.buf) == "6");
+    }
+
+    SECTION("Decimals still reachable past the integer cap") {
+        REQUIRE(kp.append_digit(0));
+        REQUIRE(kp.append_dot());
+        REQUIRE(kp.append_digit(8));
+        REQUIRE(kp.append_digit(5));
+        CHECK(std::string(kp.buf) == "0.85");
+        CHECK_FALSE(kp.append_digit(1)); // 3 total digits reached
+        CHECK(kp.value() == Catch::Approx(0.85f));
+    }
+}
+
+TEST_CASE("KeypadInput can refuse the decimal point entirely", "[keypad]") {
+    // allow_decimal=false in ui_keypad_config_t was stored but never enforced,
+    // so an integer-only field accepted "25.5" and then truncated it.
+    KeypadInput kp;
+    kp.allow_dot = false;
+
+    SECTION("Dot is rejected") {
+        kp.append_digit(2);
+        CHECK_FALSE(kp.append_dot());
+        CHECK(std::string(kp.buf) == "2");
+    }
+
+    SECTION("Digits are unaffected") {
+        REQUIRE(kp.append_digit(2));
+        REQUIRE(kp.append_digit(5));
+        CHECK(kp.value() == Catch::Approx(25.0f));
+    }
+
+    SECTION("Dot is allowed by default") {
+        KeypadInput permissive;
+        permissive.append_digit(2);
+        CHECK(permissive.append_dot());
+    }
+}

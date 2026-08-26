@@ -4,6 +4,8 @@
 
 #include "alsa_sound_backend.h"
 
+#include "alsa_clock_keepalive.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -156,6 +158,33 @@ bool ALSASoundBackend::initialize(const std::string& device) {
                  sample_rate_, channels_, period_size_, buffer_size,
                  use_s16_ ? "S16_LE" : "FLOAT_LE");
 
+    // Decide once whether this sink can tolerate the idle park. An HDMI/SPDIF
+    // receiver mutes itself while it re-locks a restarted clock (0.5-1.0 s
+    // measured, #1337), which is longer than every UI sound we play, so the
+    // park has to be suppressed there. Ask the driver for its own PCM name as
+    // well as matching the caller's device string: `hw:1,0` hides an HDMI sink
+    // that the driver still calls "hdmi ...".
+    std::string pcm_name;
+    {
+        snd_pcm_info_t* info = nullptr;
+        snd_pcm_info_alloca(&info);
+        if (snd_pcm_info(pcm_, info) >= 0) {
+            if (const char* n = snd_pcm_info_get_name(info))
+                pcm_name = n;
+        }
+    }
+    keep_clock_alive_ = helix::audio::device_needs_clock_keepalive(device, pcm_name);
+    if (const char* env = std::getenv("HELIX_ALSA_KEEPALIVE"); env && env[0] != '\0') {
+        const bool forced = (env[0] != '0');
+        if (forced != keep_clock_alive_)
+            spdlog::info("[ALSASound] HELIX_ALSA_KEEPALIVE={} overrides detection ({})", env,
+                         keep_clock_alive_ ? "keep-alive" : "park");
+        keep_clock_alive_ = forced;
+    }
+    spdlog::info("[ALSASound] Idle behaviour: {} (device '{}', pcm '{}')",
+                 keep_clock_alive_ ? "keep clock running (sink re-locks)" : "park when idle",
+                 device, pcm_name);
+
     // Allocate scratch buffer for mixing
     mix_buf_.resize(period_size_);
 
@@ -270,6 +299,14 @@ void ALSASoundBackend::set_filter(const std::string& type, float cutoff) {
 }
 
 void ALSASoundBackend::suspend() {
+    if (keep_clock_alive_) {
+        // Never stop the clock on a sink that re-locks. The render thread keeps
+        // writing silence, which is exactly what this backend did before
+        // v0.99.114 and what kept the receiver locked; parking here is what
+        // made every short UI sound inaudible (#1337). resume() is then a no-op
+        // too, since suspended_ never becomes true.
+        return;
+    }
     if (suspended_.exchange(true))
         return;
     // Deliberately no snd_pcm_* here — see the header. The render thread drops

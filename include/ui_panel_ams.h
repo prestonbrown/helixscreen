@@ -180,7 +180,8 @@ class AmsPanel : public PanelBase {
     ObserverGuard backend_count_observer_;  ///< For backend selector visibility
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard
-        supports_bypass_observer_; ///< Bypass node appears/disappears with backend support
+        supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
+    ObserverGuard bypass_active_observer_; ///< Active ring follows bypass engage/disengage
     helix::AsyncLifetimeGuard
         lifetime_; ///< Guards deferred callbacks from accessing destroyed panel
     bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes
@@ -306,6 +307,16 @@ class AmsPanel : public PanelBase {
   public:
     void handle_slot_tap(int slot_index, lv_point_t click_pt);
 };
+
+/**
+ * @brief Register the AMS custom widgets, callbacks and XML components (idempotent)
+ *
+ * The lazy registration get_global_ams_panel() runs on first use. Exposed so a
+ * test that builds `ams_panel` (or any component nested in it) through
+ * lv_xml_create() registers exactly what production registers, instead of
+ * maintaining a second list that silently drifts.
+ */
+void ensure_ams_widgets_registered();
 
 /**
  * @brief Get global AMS panel singleton

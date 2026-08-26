@@ -229,24 +229,60 @@ void app_request_quit();
 void app_request_quit_signal_safe();
 
 /**
- * @brief Request application restart
+ * @brief Request application restart, in place
  *
- * Forks a new process and exec's the same binary with the same arguments.
- * The new process starts fresh while the current process exits cleanly.
- * On embedded (systemd), this provides seamless restart. On macOS for
- * development, the new window appears and the old one closes.
+ * Sets the restart-after-quit flag and requests quit; main() execv()s the stored
+ * argv once normal cleanup has run, so the process is replaced rather than
+ * duplicated. This does NOT fork: the old fork+exec raced parent cleanup against
+ * child startup, and the child exec'd while the parent still held
+ * .helix-screen.lock, so it aborted as "Another instance is already running" and
+ * lingered as a zombie.
  *
- * Requires app_store_argv() to have been called during startup.
+ * Requires app_store_argv() to have been called during startup; without it this
+ * degrades to a plain quit.
  */
 void app_request_restart();
 
 /**
- * @brief Request application restart with service-awareness
+ * @brief How a restart request should be carried out for the current environment
+ */
+enum class AppRestartStrategy {
+    Systemd,       ///< INVOCATION_ID set: quit and let systemd Restart= bring us back
+    Watchdog,      ///< HELIX_SUPERVISED set: quit and let the watchdog bring us back
+    ReExecInPlace, ///< nothing supervises us: re-exec the stored argv after cleanup
+};
+
+/**
+ * @brief Decide the restart strategy from the environment
  *
- * Detects whether the app is running under systemd (INVOCATION_ID env var)
- * and uses the appropriate restart strategy:
- * - Under systemd: app_request_quit() (systemd Restart=always handles restart)
- * - Standalone/dev: app_request_restart() (fork/exec new process)
+ * Pure, and takes the values rather than reading them, so the decision can be
+ * tested without mutating the process environment. Under any supervisor we must
+ * only exit: re-exec'ing ourselves as well would leave two instances running.
+ *
+ * Systemd wins when both are set — a unit file is the more specific statement,
+ * and HELIX_SUPERVISED may be inherited from an outer wrapper. Note a variable
+ * set to the empty string still counts as set, matching getenv() semantics.
+ *
+ * @param invocation_id    getenv("INVOCATION_ID"), or nullptr
+ * @param helix_supervised getenv("HELIX_SUPERVISED"), or nullptr
+ */
+inline AppRestartStrategy app_restart_strategy_for_env(const char* invocation_id,
+                                                       const char* helix_supervised) {
+    if (invocation_id != nullptr) {
+        return AppRestartStrategy::Systemd;
+    }
+    if (helix_supervised != nullptr) {
+        return AppRestartStrategy::Watchdog;
+    }
+    return AppRestartStrategy::ReExecInPlace;
+}
+
+/**
+ * @brief Request application restart, deferring to a supervisor when there is one
+ *
+ * Routes on app_restart_strategy_for_env(): under systemd or the watchdog it
+ * quits and lets the supervisor restart us; standalone it re-execs in place via
+ * app_request_restart().
  *
  * Use this instead of app_request_restart() for all user-facing restart actions.
  */
@@ -336,13 +372,51 @@ std::function<void()> get_wizard_cancel_callback();
  * 6. /var/tmp/helix_<subdir>
  * 7. /tmp/helix_<subdir> (last resort, with warning)
  *
- * Creates directory if needed. On embedded systems, prefers persistent
- * storage over RAM-backed tmpfs.
+ * Creates the winning directory, and only that one: each candidate is first
+ * tested for viability without touching the filesystem (see
+ * peek_helix_cache_dir), so a candidate that cannot be used is skipped rather
+ * than created-then-discarded. On embedded systems, prefers persistent storage
+ * over RAM-backed tmpfs.
  *
  * @param subdir Subdirectory name (e.g., "gcode_temp", "thumbs")
  * @return Full path to cache directory, or empty string on failure
  */
 std::string get_helix_cache_dir(const std::string& subdir);
+
+/**
+ * @brief Where get_helix_cache_dir() WOULD put @p subdir, creating nothing.
+ *
+ * Same cascade, same order, same result — but it only asks whether each
+ * candidate could be used, never makes one usable. Use this for any query that
+ * is not about to write to the cache: deciding whether a directory found on
+ * disk is the live cache or a stale leftover, reporting the resolved path in a
+ * diagnostic, or comparing against a path from a previous release.
+ *
+ * Calling get_helix_cache_dir() for those answers materializes the directory as
+ * a side effect of the question, which on a device whose real cache sits at a
+ * lower tier silently splits the cache across two locations.
+ *
+ * @param subdir Subdirectory name (e.g., "gcode_temp", "thumbs")
+ * @return Full path the cascade resolves to, or empty string if no candidate
+ *         is usable. A non-empty result may not exist yet.
+ */
+std::string peek_helix_cache_dir(const std::string& subdir);
+
+/**
+ * @brief Remove cache directories an older layout left on the wrong filesystem.
+ *
+ * Only runs when a compile-time platform rung wins the cascade — the embedded
+ * devices where the lower rungs are genuinely dead. On the K1 the cache moved
+ * to /usr/data, so a leftover /root/.cache/helix is sitting on the ~97MB root
+ * overlay competing with the firmware for the smallest partition on the box.
+ *
+ * A no-op on desktop, where the XDG/HOME rung IS the live cache. Call once at
+ * startup, and before anything reaches get_thumbnail_cache(): that singleton
+ * latches its directory on first use.
+ *
+ * @return Number of stale directories reclaimed.
+ */
+int sweep_stale_helix_cache_dirs();
 
 /**
  * @brief Returns the installation root directory (containing bin/, ui_xml/, assets/).

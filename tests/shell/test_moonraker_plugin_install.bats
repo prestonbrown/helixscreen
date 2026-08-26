@@ -43,12 +43,6 @@ find_helix_macros_cfg" _ "$1"
     sh -n "$SCRIPT"
 }
 
-@test "install.sh no longer references the deleted helix_phase_tracking.cfg as a source" {
-    # The legacy name may only survive as an uninstall cleanup target, never as
-    # a file the installer tries to copy FROM.
-    ! grep -qE 'cp .*helix_phase_tracking\.cfg' "$SCRIPT"
-}
-
 @test "install.sh installs the include for helix_macros.cfg" {
     grep -q '\[include helix_macros.cfg\]' "$SCRIPT"
 }

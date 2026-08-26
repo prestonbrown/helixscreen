@@ -66,6 +66,13 @@ char* format_speed_mm_s(double speed, char* buf, size_t size) {
     return buf;
 }
 
+char* format_speed_mm_s_float(double speed, int decimals, char* buf, size_t size) {
+    if (decimals < 0)
+        decimals = 0;
+    std::snprintf(buf, size, "%.*f mm/s", decimals, speed);
+    return buf;
+}
+
 char* format_speed_mm_min(double speed, char* buf, size_t size) {
     std::snprintf(buf, size, "%.0f mm/min", speed);
     return buf;

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <fstream>
 #include <set>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -1381,6 +1382,25 @@ TEST_CASE("PanelWidgetConfig: build_default_grid produces correct layout",
     REQUIRE(bed_anchor);
     REQUIRE(bed_anchor->col == 8);
     REQUIRE(bed_anchor->row == 0);
+
+    // Anchors must not overlap each other. Two entries claiming the same
+    // track read as two chosen positions and only one of them survives
+    // placement. (main asserted this alongside a free-cell count against a
+    // fixed per-tier grid; that half does not carry over — the square-cell
+    // grid derives its track counts from the measured content box.)
+    {
+        std::set<std::pair<int, int>> occupied;
+        for (const auto& e : entries) {
+            if (!e.enabled || !e.has_grid_position())
+                continue;
+            for (int dc = 0; dc < e.colspan; ++dc) {
+                for (int dr = 0; dr < e.rowspan; ++dr) {
+                    INFO("anchor " << e.id << " covers " << (e.col + dc) << "," << (e.row + dr));
+                    REQUIRE(occupied.insert({e.col + dc, e.row + dr}).second);
+                }
+            }
+        }
+    }
 
     // Disabled widgets should have no grid position
     for (const auto& e : disabled) {

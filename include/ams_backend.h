@@ -17,6 +17,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "error_event.h"
+#include "toolchanger_addon.h"
 
 class IMoonrakerAPI;
 #ifdef HELIX_ENABLE_MOCKS
@@ -1142,6 +1143,26 @@ class AmsBackend {
      * @param slot_index Slot to query (0-based)
      * @return true if Unload should be offered (and Load suppressed) for this slot
      */
+    /**
+     * @brief Whether this backend can clear the toolhead with NO lane involved.
+     *
+     * Asked only in the unaccounted-filament case: the toolhead sensor reads
+     * filament while the backend reports no seated lane, so every per-slot
+     * unload path is unavailable by definition. What matters then is whether
+     * the hardware has a lane-free way to heat, cut and retract.
+     *
+     * Drives the advice the pre-print warning gives, not an action. Telling a
+     * user to pull filament out of a hot toolhead by hand is the right answer
+     * on hardware with no cutter and the wrong one on hardware that can do it
+     * itself, so the message asks this rather than assuming the worst.
+     *
+     * Default false: a backend that has not been shown to manage this must not
+     * imply the printer will handle it.
+     */
+    [[nodiscard]] virtual bool can_clear_unaccounted_toolhead() const {
+        return false;
+    }
+
     [[nodiscard]] virtual bool can_unload_from_toolhead(int slot_index) const {
         const SlotInfo slot = get_slot_info(slot_index);
         if (get_topology() == PathTopology::PARALLEL) {
@@ -1930,8 +1951,21 @@ class AmsBackend {
     /**
      * @brief Whether the per-slot tool badge ("T0", "T1", ...) should be hidden.
      *
-     * On tool changers the badge is redundant with the toolhead label shown below
-     * each slot, so it is suppressed. Other backends show it.
+     * AmsBackendToolChanger suppresses it; every other backend shows it.
+     *
+     * The badge carries the T-number. ams_slot_view.xml renders exactly three
+     * things per slot: material_label (material name, or "Empty"),
+     * status_badge/slot_badge_label (the SLOT number) and tool_badge (the
+     * T-number). Slot number and T-number are the same thing only while the
+     * mapping is identity - ASSIGN_TOOL can point a G-code T-number at any
+     * physical tool - so on a remapped tool changer the badge is the only
+     * per-slot indication of which T-number a toolhead answers to, and hiding it
+     * loses that.
+     *
+     * Weigh that against the clutter it costs before changing the override:
+     * suppression predates ASSIGN_TOOL remapping support, and an earlier
+     * revision of this comment justified it as redundant with a toolhead label
+     * below each slot, which the XML does not have.
      *
      * @return true to hide the per-slot tool badge
      */
@@ -2277,6 +2311,45 @@ class AmsBackend {
      */
     virtual void set_discovered_tools(std::vector<std::string> tool_names) {
         (void)tool_names;
+    }
+
+    /**
+     * @brief Set the filament feeder this machine exposes, if any
+     *
+     * Called before start() with the capability toolchanger_addon::resolve_feeder()
+     * derived from discovery. Only the tool changer backend uses this - other
+     * backends ignore it.
+     *
+     * @param feeder Resolved feeder capability; absent when the printer has none
+     */
+    virtual void set_feeder(helix::toolchanger_addon::Feeder feeder) {
+        (void)feeder;
+    }
+
+    /**
+     * @brief Set the add-on tool sensor this machine exposes, if any
+     *
+     * Called before start(). Only the tool changer backend uses this. When
+     * present its reading is AUTHORITATIVE over toolchanger.tool_number, which
+     * is only ever "what SELECT_TOOL last set".
+     *
+     * @param sensor Resolved sensor capability; absent when the printer has none
+     */
+    virtual void set_tool_sensor(helix::toolchanger_addon::ToolSensor sensor) {
+        (void)sensor;
+    }
+
+    /**
+     * @brief Declare the commands that drive a swap on this machine
+     *
+     * Called before start(). Absent - the default - means klipper-toolchanger is
+     * present and its own SELECT_TOOL/UNSELECT_TOOL are the answer. A changer
+     * whose extra does the swapping itself names its commands here instead.
+     *
+     * @param commands Resolved swap commands; absent when the printer needs none
+     */
+    virtual void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
+        (void)commands;
     }
 
     /**

@@ -573,9 +573,10 @@ Simple axis range mapping via LVGL's built-in calibration. Use for devices with 
 
 **Usage Notes:**
 - All four min/max variables must be set together for calibration to apply
+- Precedence at boot: **these env vars > the range the calibration wizard solved (`input.touch_range`) > the kernel/MT-declared `EVIOCGABS` range**. Whichever wins is logged at info as `Touch range source: ...` by both backends
 - To invert an axis, swap the min/max values (e.g., `MIN_Y=3200 MAX_Y=900` inverts Y)
 - These values override the kernel-reported axis ranges from `EVIOCGABS`
-- `HELIX_TOUCH_SWAP_AXES` is a manual override honored by **both** the fbdev and DRM backends, applied at the evdev layer (raw X/Y are swapped before the calibration matrix). Separately, the calibration wizard auto-detects swapped axes and bakes the correction directly into the `a`–`f` matrix coefficients — there is no `swap_axes` config flag (it is not read at runtime)
+- `HELIX_TOUCH_SWAP_AXES` is a manual override honored by **both** the fbdev and DRM backends, applied at the evdev layer (raw X/Y are swapped before the calibration matrix). Since [#1259](https://github.com/prestonbrown/helixscreen/issues/1259) the calibration wizard can also write a swap of its own, to `input.touch_range.swap_axes`, which **is** read at boot - see "Solved Range (config file)" below. The env var still wins over it
 - **The swap happens BEFORE the min/max scaling** (`lv_evdev.c`, `_evdev_process_pointer`). So with `HELIX_TOUCH_SWAP_AXES=1`, `HELIX_TOUCH_MIN_X`/`MAX_X` describe the range of the axis that is now feeding screen X — that is, the controller's **raw Y** range. Set the pair to the raw range of the axis it consumes, not the one it is named after. Combining the swap with inverted min/max reaches all eight panel orientations.
 
 **Example:**
@@ -589,6 +590,38 @@ export HELIX_TOUCH_MAX_Y=900
 ```
 
 **Known panel needing this:** the Qidi Q2's Goodix digitizer *over-reports* its ABS range — EVIOCGABS says 800x480 but the glass only emits ~460x237 — so the auto-installed coarse scale over-divides and taps compress toward the top-left until calibrated ([#943](https://github.com/prestonbrown/helixscreen/issues/943); calibration span-check logs the captured/target ratio, ~0.57x/0.49y on this panel). Setting the four values to the **emitted** range restores 1:1 mapping; the affine calibration from the wizard fixes it without env vars. Full hardware notes: [`printers/QIDI_SUPPORT.md`](printers/QIDI_SUPPORT.md).
+
+### Solved Range (config file)
+
+The evdev stage runs **before** the affine and **clamps** to the display, so a driver that
+declares an ABS range the panel does not actually emit is not something an affine can undo:
+coordinates arrive already compressed and already flattened at the edges. That is the shape
+behind [#1259](https://github.com/prestonbrown/helixscreen/issues/1259) (a transposed panel with
+an inverted axis) and [#1276](https://github.com/prestonbrown/helixscreen/issues/1276) (a
+digitizer emitting a narrow slice of what it declares).
+
+The three-point wizard therefore also solves for the evdev stage and stores it:
+
+| Key | Meaning |
+|-----|---------|
+| `input.touch_range.valid` | `false` (or absent) means "use whatever range the kernel declared" - the behaviour of every release before this existed |
+| `input.touch_range.swap_axes` | screen X is driven by the controller's raw Y axis, and vice versa |
+| `input.touch_range.min_x` / `max_x` | raw values that map to display x = 0 and x = width-1 |
+| `input.touch_range.min_y` / `max_y` | same for the Y axis |
+
+`min > max` on an axis is meaningful, not a mistake: `lv_evdev`'s scale has a negative
+denominator there, which inverts the axis. A panel wired upside down calibrates to exactly that.
+`min == max` is never written - `_evdev_calibrate()` skips the scale but still clamps, which would
+pin the whole panel to one pixel.
+
+Because `min_x`/`max_x` describe the axis feeding screen X, they name the controller's **raw Y**
+range whenever `swap_axes` is set - the same convention as the env vars above.
+
+A calibration writes exactly one of `touch_range` and a full `input.calibration` affine, never
+both, and explicitly clears the other. When the range is solved, `input.calibration` holds only
+the rotation/shear the axis-aligned range cannot express, which on a panel square to the display
+is nothing at all (`valid: false`). Stacking a stored range under a full-pipeline affine would
+apply both stages and double the mapping.
 
 ### Affine Calibration (config file)
 

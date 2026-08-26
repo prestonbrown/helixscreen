@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: instantiates the shipped ui_xml/favorite_macro_config_modal.xml through
+//                 lv_xml_create() at run time and asserts on the real widget tree.
+//                 ../test_fixtures.h pulls in include/printer_state.h,
+//                 include/moonraker_api.h and include/theme_manager.h.
 #include "../test_fixtures.h"
 #include "helix-xml/src/xml/lv_xml.h"
 

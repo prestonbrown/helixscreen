@@ -837,11 +837,14 @@ extern "C" void app_boot_ui(void) {
 
     helix::AbortManager::instance().init(manager.api(), &get_printer_state());
 
-    // Job queue state — owns the `job_queue_count` subject the home panel's
-    // queue widget binds, so it must construct before build_shell(). Mirrors
-    // desktop's Application::init_moonraker() (construct, init_subjects, publish
-    // through the global accessor). Function-static like the manager above: it
-    // lives for the process and is never destroyed on this platform.
+    // Job queue state — owns `job_queue_count` (plus the two queue text
+    // subjects). The home panel's queue widget, the print-status widget's queue
+    // row, and the job-queue modal each look that subject up from C++ when they
+    // attach, and it is their only rebuild trigger — so it must construct before
+    // build_shell(). Mirrors desktop's Application::init_moonraker() (construct,
+    // init_subjects, publish through the global accessor). Function-static like
+    // the manager above: it lives for the process and is never destroyed on this
+    // platform.
     static JobQueueState job_queue(manager.api(), manager.client());
     job_queue.init_subjects();
     set_job_queue_state(&job_queue);

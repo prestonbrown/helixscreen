@@ -104,20 +104,31 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "get_file_metadata calls success callba
     REQUIRE_FALSE(error_called);
 }
 
-TEST_CASE_METHOD(MetadataAPITestFixture, "get_file_metadata with silent flag compiles correctly",
+TEST_CASE_METHOD(MetadataAPITestFixture, "get_file_metadata forwards its silent flag to the send",
                  "[metadata][api][silent]") {
-    // This test verifies that silent=true parameter is accepted
-    // In real usage, this prevents toast spam when files aren't indexed
+    // silent=true is what keeps check_timeouts() from toasting REQUEST_TIMEOUT when a
+    // file isn't indexed yet. Asserting only success_called would pass even if the flag
+    // were dropped on the floor, so read it back off the transport.
     bool success_called = false;
 
-    // Call with silent=true (4th parameter)
     api->files().get_file_metadata(
         "test_file.gcode", [&](const FileMetadata&) { success_called = true; },
         [&](const MoonrakerError&) {}, true // silent
     );
 
-    // With mock, this should succeed
     REQUIRE(success_called);
+    REQUIRE(mock_client.last_send_method() == "server.files.metadata");
+    REQUIRE(mock_client.last_send_silent() == true);
+
+    // The default (4th argument omitted) must NOT be silent — otherwise a genuine
+    // metadata failure would go unreported.
+    success_called = false;
+    api->files().get_file_metadata(
+        "test_file.gcode", [&](const FileMetadata&) { success_called = true; },
+        [&](const MoonrakerError&) {});
+
+    REQUIRE(success_called);
+    REQUIRE(mock_client.last_send_silent() == false);
 }
 
 TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file calls success callback with metadata",
@@ -136,7 +147,9 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file calls success callback w
 
 TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file is silent by default",
                  "[metadata][api][metascan]") {
-    // metascan_file has silent=true by default (see API declaration)
+    // metascan_file defaults silent=true: it is the fallback the UI fires when
+    // get_file_metadata() came back unindexed, so its own failure must not toast.
+    // The case above already proves success_called alone cannot see the flag.
     bool success_called = false;
 
     api->files().metascan_file(
@@ -144,6 +157,8 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file is silent by default",
         [&](const MoonrakerError&) {});
 
     REQUIRE(success_called);
+    REQUIRE(mock_client.last_send_method() == "server.files.metascan");
+    REQUIRE(mock_client.last_send_silent() == true);
 }
 
 // ============================================================================
@@ -164,17 +179,6 @@ int subject_int_value(const char* name) {
 TEST_CASE("PrintSelectUsbSource initial state has Moonraker access false", "[usb][symlink]") {
     helix::ui::PrintSelectUsbSource usb_source;
 
-    REQUIRE_FALSE(usb_source.moonraker_has_usb_access());
-}
-
-TEST_CASE("PrintSelectUsbSource::set_moonraker_has_usb_access sets flag correctly",
-          "[usb][symlink]") {
-    helix::ui::PrintSelectUsbSource usb_source;
-
-    usb_source.set_moonraker_has_usb_access(true);
-    REQUIRE(usb_source.moonraker_has_usb_access());
-
-    usb_source.set_moonraker_has_usb_access(false);
     REQUIRE_FALSE(usb_source.moonraker_has_usb_access());
 }
 

@@ -19,6 +19,81 @@
     "tool_count": "Count of extruder tools (tool_count_1, tool_count_2, tool_count_4)",
     "cpu_arch_match": "Match against host CPU architecture string"
   },
+  "console_filter_sets": {
+    "creality_rs485": {
+      "description": "Creality RS-485 / CFS motor-bus traffic. The payload dumps are Python bytes reprs, so one substring on \"b'\\x\" covers the whole family regardless of which message tag the firmware uses.",
+      "patterns": [
+        "prefix:// data_send:",
+        "prefix:// send float_bytes:",
+        "prefix:// sys\u53c2\u6570\u64cd\u4f5c",
+        "substring:b'\\x"
+      ]
+    },
+    "creality_k2_modules": {
+      "description": "Boot-time chatter from Creality's extras modules (model/version handshakes, IO remap, AI detection).",
+      "patterns": [
+        "prefix:// MDL_NAME:",
+        "prefix:// ACK_mdl_",
+        "prefix:// halversion:",
+        "prefix:// softversion:",
+        "prefix:// reset:start error",
+        "prefix:// reset:comfun error",
+        "regex:^// times:[0-9]",
+        "prefix:// config_ioRemap",
+        "prefix:// operation_ioRemap",
+        "prefix:// ai_switch =",
+        "substring:WILL LOAD_AI_DEAL",
+        "prefix:// LOAD_AI_DEAL"
+      ]
+    },
+    "creality_macro_chatter": {
+      "description": "Per-move debug output from the Creality Klipper fork's own macros (park positions, nozzle clean, temp waits, driver currents).",
+      "patterns": [
+        "prefix:// can_break_flag",
+        "prefix:// x_axes",
+        "prefix:// wait temp",
+        "prefix:// x_park = ",
+        "prefix:// y_park = ",
+        "prefix:// move xy",
+        "prefix:// [CLEAR_NOZZLE_QUICK]",
+        "prefix:// Run Current:",
+        "prefix:// pressure_advance"
+      ]
+    },
+    "klipper_verbose_probe": {
+      "description": "Per-point probe results during a bed mesh. Stock Klipper, not vendor-specific, and it is what you want to read while debugging a mesh - so no printer references this set by default.",
+      "patterns": [
+        "prefix:// probe at "
+      ]
+    }
+  },
+  "probe_preparation": [
+    {
+      "id": "zmod_load_cell_tare",
+      "when": [
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "LOAD_CELL_TARE"
+        }
+      ],
+      "operations": [
+        "screws_tilt",
+        "bed_mesh",
+        "probe_accuracy",
+        "z_offset_calibrate"
+      ],
+      "gcode": [
+        "LOAD_CELL_TARE"
+      ],
+      "skip_if_macro_in": [
+        "BED_LEVEL_SCREWS_TUNE"
+      ],
+      "label": "Zeroing load cell",
+      "timeout_s": 60,
+      "reason": "ZMOD probes with a load cell whose zero drifts when bed screws or thermal preload change. ZMOD tares on its print path (_PREPARE_PRINT, _START_PRINT) but not on any calibration entry point, so an untared probe reports 'Probe triggered prior to movement'. BED_LEVEL_SCREWS_TUNE tares itself, hence skip_if_macro_in."
+    }
+  ],
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
@@ -469,6 +544,7 @@
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5x.png",
       "preset": "ad5x",
+      "screws_tilt_direction": "ccw",
       "z_offset_calibration_strategy": "firmware_managed",
       "heuristics": [
         {
@@ -899,6 +975,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -987,6 +1064,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1082,6 +1160,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1177,6 +1256,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1262,24 +1342,7 @@
       "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "creality_k2",
-      "console_filter_patterns": [
-        "prefix:// data_send:",
-        "prefix:// recv_result:",
-        "prefix:// send float_bytes:",
-        "prefix:// sys参数操作",
-        "prefix:// MDL_NAME:",
-        "prefix:// ACK_mdl_",
-        "prefix:// halversion:",
-        "prefix:// softversion:",
-        "prefix:// reset:start error",
-        "prefix:// reset:comfun error",
-        "regex:^// times:[0-9]",
-        "prefix:// config_ioRemap",
-        "prefix:// operation_ioRemap",
-        "prefix:// ai_switch =",
-        "substring:WILL LOAD_AI_DEAL",
-        "prefix:// LOAD_AI_DEAL"
-      ],
+      "console_filters": ["creality_rs485", "creality_k2_modules"],
       "pre_print_options": {
         "macro_name": "START_PRINT",
         "setup_gcode": "PRINT_PREPARED",
@@ -1411,24 +1474,7 @@
       "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "creality_k2",
-      "console_filter_patterns": [
-        "prefix:// data_send:",
-        "prefix:// recv_result:",
-        "prefix:// send float_bytes:",
-        "prefix:// sys参数操作",
-        "prefix:// MDL_NAME:",
-        "prefix:// ACK_mdl_",
-        "prefix:// halversion:",
-        "prefix:// softversion:",
-        "prefix:// reset:start error",
-        "prefix:// reset:comfun error",
-        "regex:^// times:[0-9]",
-        "prefix:// config_ioRemap",
-        "prefix:// operation_ioRemap",
-        "prefix:// ai_switch =",
-        "substring:WILL LOAD_AI_DEAL",
-        "prefix:// LOAD_AI_DEAL"
-      ],
+      "console_filters": ["creality_rs485", "creality_k2_modules"],
       "pre_print_options": {
         "macro_name": "START_PRINT",
         "setup_gcode": "PRINT_PREPARED",
@@ -1580,6 +1626,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1654,6 +1701,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1731,6 +1779,7 @@
           }
         ]
       },
+      "console_filters": ["creality_macro_chatter"],
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -6046,6 +6095,126 @@
           "pattern": "chamber",
           "confidence": 60,
           "reason": "Chamber temperature sensor (enclosed Nebula)"
+        }
+      ]
+    },
+    {
+      "id": "duender_medusahc",
+      "name": "Duender (MedusaHC)",
+      "manufacturer": "Irbis3D",
+      "image": "duender.png",
+      "notes": "Duender CoreXY (Irbis3D) fitted with the MedusaHC hotend changer. Two config shapes exist. The reference one is klipper-toolchanger plus MedusaHC's own pin_watch extra, both alongside [medusahc]; a single fork folds the dock sensing into [medusahc] + [medusahc_tool N] and ships neither pin_watch nor toolchanger. Both are scored here, the fork as compatibility rather than as a second mainline. Everything else (toolchanger/tool_count/corexy) describes any multi-tool CoreXY and would claim machines that are not this one. The bare-Duender hostname deliberately does NOT appear here, or the 'duender' entry could never outscore this one; a DuCR10 hostname is excluded instead, since the MedusaHC signals alone cannot tell the two frames apart.",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "pin_watch",
+          "confidence": 92,
+          "reason": "MedusaHC ships its own pin_watch.py extra (not a stock Klipper module)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "medusahc",
+          "confidence": 92,
+          "reason": "MedusaHC registers [medusahc]; a fork carries it with no pin_watch and no klipper-toolchanger at all"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "medusa",
+          "confidence": 85,
+          "reason": "Hostname contains 'medusa'"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "toolchanger",
+          "confidence": 20,
+          "reason": "Corroboration only: klipper-toolchanger drives the swap, but every toolchanger CoreXY has this. pin_watch is the discriminator"
+        },
+        {
+          "type": "hostname_exclude",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 0,
+          "reason": "Exclude the DuCR10 frame - same MedusaHC signals, different machine"
+        }
+      ]
+    },
+    {
+      "id": "ducr10_medusahc",
+      "name": "DuCR10 (MedusaHC)",
+      "manufacturer": "Irbis3D",
+      "image": "ducr10.png",
+      "notes": "DuCR10 CoreXY (Andizzle's 'DUO CR10' remix of the Irbis3D Duender, Printables 1263532) fitted with the MedusaHC hotend changer. Same MedusaHC signals as the Duender - only the hostname separates the two frames, so each entry excludes the other's hostname rather than competing on evidence that cannot tell them apart. The 'ducr10' hostname sits at 40 here deliberately: on a DuCR10 with no changer it must lose to the bare 'ducr10' entry (80), and it only ever adds the +3 extra-match bonus on top of a MedusaHC object match.",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "medusahc",
+          "confidence": 92,
+          "reason": "MedusaHC registers [medusahc]; one fork carries the dock sensing in it too, with no pin_watch"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "pin_watch",
+          "confidence": 92,
+          "reason": "MedusaHC ships its own pin_watch.py extra (not a stock Klipper module)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 40,
+          "reason": "Hostname contains 'ducr10' - corroborates a MedusaHC match, never identifies on its own"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "toolchanger",
+          "confidence": 20,
+          "reason": "Corroboration only: klipper-toolchanger drives the swap on the stock build, but every toolchanger CoreXY has this"
+        },
+        {
+          "type": "hostname_exclude",
+          "field": "hostname",
+          "pattern": "duender",
+          "confidence": 0,
+          "reason": "Exclude the Duender frame - same MedusaHC signals, different machine"
+        }
+      ]
+    },
+    {
+      "id": "ducr10",
+      "name": "DuCR10",
+      "manufacturer": "Irbis3D",
+      "image": "ducr10.png",
+      "notes": "CR-10 to CoreXY conversion (Andizzle's 'Duender Remix - DUO CR10', Printables 1263532, built from two CR-10s the way the Duender is built from two Ender-3s). Hostname only, for the same reason as the 'duender' entry: the remix ships no Klipper config, and the one published build (topi314/klipper, branch ducr10) is a plain CoreXY with 3 Z steppers and a 210x210 bed mesh copied from the Duender - nothing there separates it from any other CoreXY, and a 'corexy' heuristic would compete with Voron and RatRig on every one of their machines.",
+      "heuristics": [
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ducr10",
+          "confidence": 80,
+          "reason": "Hostname contains 'ducr10'"
+        }
+      ]
+    },
+    {
+      "id": "duender",
+      "name": "Duender",
+      "manufacturer": "Irbis3D",
+      "image": "duender.png",
+      "notes": "Ender-3 to CoreXY conversion (Irbis3D/Duender). The project ships no Klipper config, so a bare Duender has nothing in printer.objects.list that distinguishes it from any other CoreXY. Deliberately carries no object/kinematics heuristics: a 'corexy' match here would compete with the Voron and RatRig entries on every one of their machines. Hostname only, plus the wizard's manual pick.",
+      "heuristics": [
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "duender",
+          "confidence": 80,
+          "reason": "Hostname contains 'duender'"
         }
       ]
     }

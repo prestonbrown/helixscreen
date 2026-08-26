@@ -401,7 +401,8 @@ Tests are run with:
 
 | File | Tag | What it Tests |
 |------|-----|---------------|
-| `tests/unit/test_exclude_object_char.cpp` | `[exclude_object]` | Exclusion state machine: long-press, confirm, cancel, undo, timer, API, sync |
+| `tests/unit/test_print_exclude_object_manager.cpp` | `[exclude_object]` | Exclusion state machine driven through the real `PrintExcludeObjectManager`: confirm, cancel, undo, timer, API, sync |
+| `tests/unit/test_exclude_object_long_press_gate.cpp` | `[exclude_object]` | Long-press gate: pending object, timer arming, clear |
 | `tests/unit/test_excluded_objects_char.cpp` | `[excluded_objects]` | `PrinterExcludedObjectsState`: version subjects, set change detection, observer notification |
 | `tests/unit/test_moonraker_api_exclude_object.cpp` | `[security]`, `[mock]` | Input validation, injection prevention, mock client integration |
 | `tests/unit/test_gcode_object_thumbnail_renderer.cpp` | `[object-thumbnail]` | Thumbnail rendering: empty/single/multi object, sizing, cancellation, edge cases |

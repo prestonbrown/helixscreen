@@ -273,16 +273,12 @@ async function createGitHubIssue(env: Env, report: CrashReport): Promise<IssueRe
     return { number: 0, html_url: "", is_duplicate: false, ignored: true };
   }
 
-  const fingerprint = crashFingerprint(report);
-
-  // Check for existing open issue with same fingerprint
-  const existing = await findExistingIssue(token, owner, repo, fingerprint);
-  if (existing) {
-    await addDuplicateComment(token, owner, repo, existing.number, report, fingerprint);
-    return { number: existing.number, html_url: existing.html_url, is_duplicate: true };
-  }
-
-  // Resolve backtrace symbols from R2 (best-effort, never throws)
+  // Resolve backtrace symbols from R2 (best-effort, never throws). This runs
+  // before the dedup search because the fingerprint keys on the resolved crash
+  // symbol: the raw PC differs per architecture, so fingerprinting on it filed
+  // one defect as four issues (#1347, #1356, #1357, #1361). The cost is that a
+  // duplicate report now pays for a symbol fetch and parse too; the same
+  // resolution is reused for the issue body below when one gets created.
   let resolved: ResolvedBacktrace | null = null;
   if (env.RELEASES_BUCKET) {
     try {
@@ -290,6 +286,15 @@ async function createGitHubIssue(env: Env, report: CrashReport): Promise<IssueRe
     } catch (err) {
       console.error("Symbol resolution failed:", (err as Error).message);
     }
+  }
+
+  const fingerprint = crashFingerprint(report, resolved);
+
+  // Check for existing open issue with same fingerprint
+  const existing = await findExistingIssue(token, owner, repo, fingerprint);
+  if (existing) {
+    await addDuplicateComment(token, owner, repo, existing.number, report, fingerprint);
+    return { number: existing.number, html_url: existing.html_url, is_duplicate: true };
   }
 
   // Includes the fault type when available (e.g., "SEGV_MAPERR at 0x00000000")
@@ -332,38 +337,101 @@ export function mdEscape(s: string): string {
 }
 
 /**
- * Map common lv_event_code_t values to their symbolic names so crash issues
- * show "code=29 (REFR_EXT_DRAW_SIZE)" instead of a bare integer. Unknown codes
- * fall through to "".
+ * Map lv_event_code_t values to their symbolic names so crash issues show
+ * "code=42 (DELETE)" instead of a bare integer. Unknown codes fall through to "".
  *
- * Source of truth: lib/lvgl/src/core/lv_obj_event.h in the helixscreen repo.
- * When LVGL's enum changes, update this table — the tests only spot-check a
- * few codes so drift won't be caught automatically.
+ * The table is GENERATED from lib/lvgl/src/misc/lv_event.h by
+ * scripts/gen_lvgl_event_codes.py -- do not edit it by hand. It was
+ * hand-maintained until LVGL 9.5 inserted four codes mid-enum; 58 of 63 entries
+ * went stale and a DELETE crash was filed as SCREEN_UNLOAD_START, which pointed
+ * triage away from the teardown bug the label would have named. quality-checks.sh
+ * now fails on drift; `make regen-lvgl-event-codes` repairs it.
  */
 export function lvglEventCodeName(code: number | undefined): string {
   if (code == null) return "";
   const names: Record<number, string> = {
-    0: "ALL", 1: "PRESSED", 2: "PRESSING", 3: "PRESS_LOST",
-    4: "SHORT_CLICKED", 5: "LONG_PRESSED", 6: "LONG_PRESSED_REPEAT",
-    7: "CLICKED", 8: "RELEASED", 9: "SCROLL_BEGIN", 10: "SCROLL_THROW_BEGIN",
-    11: "SCROLL_END", 12: "SCROLL", 13: "GESTURE", 14: "KEY",
-    15: "ROTARY", 16: "FOCUSED", 17: "DEFOCUSED", 18: "LEAVE",
-    19: "HIT_TEST", 20: "INDEV_RESET", 21: "HOVER_OVER", 22: "HOVER_LEAVE",
-    23: "COVER_CHECK", 24: "REFR_EXT_DRAW_SIZE", 25: "DRAW_MAIN_BEGIN",
-    26: "DRAW_MAIN", 27: "DRAW_MAIN_END", 28: "DRAW_POST_BEGIN",
-    29: "DRAW_POST", 30: "DRAW_POST_END", 31: "DRAW_TASK_ADDED",
-    32: "VALUE_CHANGED", 33: "INSERT", 34: "REFRESH", 35: "READY",
-    36: "CANCEL", 37: "CREATE", 38: "DELETE", 39: "CHILD_CHANGED",
-    40: "CHILD_CREATED", 41: "CHILD_DELETED", 42: "SCREEN_UNLOAD_START",
-    43: "SCREEN_LOAD_START", 44: "SCREEN_LOADED", 45: "SCREEN_UNLOADED",
-    46: "SIZE_CHANGED", 47: "STYLE_CHANGED", 48: "LAYOUT_CHANGED",
-    49: "GET_SELF_SIZE", 50: "INVALIDATE_AREA", 51: "RESOLUTION_CHANGED",
-    52: "COLOR_FORMAT_CHANGED", 53: "REFR_REQUEST", 54: "REFR_START",
-    55: "REFR_READY", 56: "RENDER_START", 57: "RENDER_READY",
-    58: "FLUSH_START", 59: "FLUSH_FINISH", 60: "FLUSH_WAIT_START",
-    61: "FLUSH_WAIT_FINISH", 62: "VSYNC",
+  /* BEGIN GENERATED lv_event_code_t (scripts/gen_lvgl_event_codes.py) */
+     0: "ALL",
+     1: "PRESSED",
+     2: "PRESSING",
+     3: "PRESS_LOST",
+     4: "SHORT_CLICKED",
+     5: "SINGLE_CLICKED",
+     6: "DOUBLE_CLICKED",
+     7: "TRIPLE_CLICKED",
+     8: "LONG_PRESSED",
+     9: "LONG_PRESSED_REPEAT",
+    10: "CLICKED",
+    11: "RELEASED",
+    12: "SCROLL_BEGIN",
+    13: "SCROLL_THROW_BEGIN",
+    14: "SCROLL_END",
+    15: "SCROLL",
+    16: "GESTURE",
+    17: "KEY",
+    18: "ROTARY",
+    19: "FOCUSED",
+    20: "DEFOCUSED",
+    21: "LEAVE",
+    22: "HIT_TEST",
+    23: "INDEV_RESET",
+    24: "HOVER_OVER",
+    25: "HOVER_LEAVE",
+    26: "COVER_CHECK",
+    27: "REFR_EXT_DRAW_SIZE",
+    28: "DRAW_MAIN_BEGIN",
+    29: "DRAW_MAIN",
+    30: "DRAW_MAIN_END",
+    31: "DRAW_POST_BEGIN",
+    32: "DRAW_POST",
+    33: "DRAW_POST_END",
+    34: "DRAW_TASK_ADDED",
+    35: "VALUE_CHANGED",
+    36: "INSERT",
+    37: "REFRESH",
+    38: "READY",
+    39: "CANCEL",
+    40: "STATE_CHANGED",
+    41: "CREATE",
+    42: "DELETE",
+    43: "CHILD_CHANGED",
+    44: "CHILD_CREATED",
+    45: "CHILD_DELETED",
+    46: "SCREEN_UNLOAD_START",
+    47: "SCREEN_LOAD_START",
+    48: "SCREEN_LOADED",
+    49: "SCREEN_UNLOADED",
+    50: "SIZE_CHANGED",
+    51: "STYLE_CHANGED",
+    52: "LAYOUT_CHANGED",
+    53: "GET_SELF_SIZE",
+    54: "INVALIDATE_AREA",
+    55: "RESOLUTION_CHANGED",
+    56: "COLOR_FORMAT_CHANGED",
+    57: "REFR_REQUEST",
+    58: "REFR_START",
+    59: "REFR_READY",
+    60: "RENDER_START",
+    61: "RENDER_READY",
+    62: "FLUSH_START",
+    63: "FLUSH_FINISH",
+    64: "FLUSH_WAIT_START",
+    65: "FLUSH_WAIT_FINISH",
+    66: "SYNC_START",
+    67: "SYNC_FINISH",
+    68: "SYNC_WAIT_START",
+    69: "SYNC_WAIT_FINISH",
+    70: "UPDATE_LAYOUT_COMPLETED",
+    71: "VSYNC",
+    72: "VSYNC_REQUEST",
+    73: "TRANSLATION_LANGUAGE_CHANGED",
+  /* END GENERATED lv_event_code_t */
   };
-  return names[code] || "";
+  // The device records e->code raw, and a preprocess dispatch carries
+  // LV_EVENT_PREPROCESS (0x8000) in it. Mask it exactly the way
+  // lv_event_get_code() does (lib/lvgl/src/misc/lv_event.c:386) so those
+  // resolve instead of falling through to "".
+  return names[code & ~0x8000] || "";
 }
 
 /**

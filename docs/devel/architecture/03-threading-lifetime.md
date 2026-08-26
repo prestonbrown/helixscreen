@@ -62,7 +62,7 @@ Everything else — deletion rules, timers, shutdown ordering — follows from t
 
 ### The thread inventory
 
-There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:4021`](../../../src/application/application.cpp#L4021)) and never leaves it until shutdown. Everything else is background:
+There is exactly one thread that may call `lv_*` anything: the main thread, which enters `Application::main_loop()` ([`src/application/application.cpp:4034`](../../../src/application/application.cpp#L4034)) and never leaves it until shutdown. Everything else is background:
 
 - **The libhv event loop.** `MoonrakerClient` extends `hv::WebSocketClient` ([`include/moonraker_client.h:78`](../../../include/moonraker_client.h#L78)), and libhv runs the socket's event loop on its own thread. Every WebSocket frame, JSON-RPC reply, and connection-state callback arrives there. This is the thread that produces almost all printer data.
 - **`HttpExecutor` pools.** Two process-wide executors ([`include/http_executor.h:87`](../../../include/http_executor.h#L87)): `fast()` with 4 workers for status/REST/thumbnail traffic that deserves burst parallelism, `slow()` with 1 worker so a multi-minute upload cannot head-of-line-block a quick request. `submit()` from any thread, `run_sync()` when a result is needed now (never from inside a worker on a single-worker lane — self-deadlock).
@@ -77,7 +77,7 @@ The heuristic for everything else: if you are in a callback from libhv, an `Http
 
 ### One bridge: the `UpdateQueue` contract
 
-Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4094`](../../../src/application/application.cpp#L4094)) before `lv_timer_handler()` (`:4123`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h:119`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`:438`) on the main thread inside `lv_timer_handler()`.
+Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`application.cpp:4107`](../../../src/application/application.cpp#L4107)) before `lv_timer_handler()` (`:4136`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h:119`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`:438`) on the main thread inside `lv_timer_handler()`.
 
 The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render — that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. One correction absorbed from the old diagram: it called the drain "HIGHEST PRIORITY, runs first". LVGL 9 timers have no priority field; the real guarantees are the 1 ms period (work lands within a frame) and creation-order precedence over the later-created refresh timer. Trust the serialization, not per-tick ordering claims.
 
@@ -93,7 +93,7 @@ void PrinterState::set_printer_connection_state(int state, const char* message) 
 }
 ```
 
-(verbatim from [`src/printer/printer_state.cpp:644`](../../../src/printer/printer_state.cpp#L644)). `set_klippy_state()` (`:659`) uses the `helix::async::call_method()` flavor — same queue, less ceremony. Chapter 02 dissects both.
+(verbatim from [`src/printer/printer_state.cpp:651`](../../../src/printer/printer_state.cpp#L651)). `set_klippy_state()` (`:659`) uses the `helix::async::call_method()` flavor — same queue, less ceremony. Chapter 02 dissects both.
 
 ### Guard one: `AsyncLifetimeGuard` — callbacks that outlive their owner
 
@@ -190,9 +190,9 @@ Read in this order; about 25 minutes total.
 1. [`include/ui_update_queue.h:94`](../../../include/ui_update_queue.h#L94) — the `UpdateQueue` class: timer creation in `init()` (`:119`), the tagged drain `process_pending()` (`:438`), `ScopedFreeze` (`:249`). The comments on "why not `lv_async_call`" are the design argument in three lines.
 2. [`include/async_lifetime_guard.h:115`](../../../include/async_lifetime_guard.h#L115) — `LifetimeToken::expired()` with the background-thread detector inline; then `:165` `defer()` and its pre-enqueue generation check (the doomed-callback drop), and `:329` `bg_cb()` — read the doc comment for the short-form/long-form tradeoff.
 3. [`src/printer/detection_manager.cpp:26`](../../../src/printer/detection_manager.cpp#L26) — the two-line `bg_cb` in the wild: an observer registered with a marshalled callback, nothing else to it.
-4. [`src/printer/printer_state.cpp:644`](../../../src/printer/printer_state.cpp#L644) — `set_printer_connection_state()` (defer through the guard), then `:659` `set_klippy_state()` (`call_method` flavor). The whole marshalling-setter pattern in twenty lines.
+4. [`src/printer/printer_state.cpp:651`](../../../src/printer/printer_state.cpp#L651) — `set_printer_connection_state()` (defer through the guard), then `:659` `set_klippy_state()` (`call_method` flavor). The whole marshalling-setter pattern in twenty lines.
 5. [`include/ui_observer_guard.h:40`](../../../include/ui_observer_guard.h#L40) — the `SubjectLifetime` contract in the doc comment; then `reset()` (`:123`) with its two death checks: token value (`:137`) and invalidation epoch (`:150`).
-6. [`src/api/wifi_manager.cpp:814`](../../../src/api/wifi_manager.cpp#L814) — `handle_scan_complete`: parse on the backend thread, `queue_update` the mutation. THREADING.md's other reference integration.
+6. [`src/api/wifi_manager.cpp:821`](../../../src/api/wifi_manager.cpp#L821) — `handle_scan_complete`: parse on the backend thread, `queue_update` the mutation. THREADING.md's other reference integration.
 7. [`include/http_executor.h:33`](../../../include/http_executor.h#L33) — the class comment: why the pools exist (EAGAIN history), the stop-timeout-detach semantics, and the self-wait deadlock warning on `run_sync`.
 8. [`src/bluetooth/bt_bus_thread.h:19`](../../../src/bluetooth/bt_bus_thread.h#L19) — `BusWork` and the single-thread sd-bus ownership contract, including the null-bus idle-worker defense.
 9. [`include/ui_utils.h:96`](../../../include/ui_utils.h#L96) — the comment explaining why `safe_delete` (`:102`) is unsafe inside queued callbacks, then the deferred family at `:200`, `:284`, `:345`.

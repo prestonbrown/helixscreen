@@ -19,9 +19,12 @@
 #include "led/led_backend.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
 #include "printer_state.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -75,6 +78,24 @@ class LedControlOverlayTestAccess {
         return overlay_.target_strips_for(type);
     }
 
+    // Seed the manual-color state the swatch and brightness handlers maintain.
+    void set_manual_state(uint32_t color, int brightness, double white) {
+        overlay_.current_color_ = color;
+        overlay_.current_brightness_ = brightness;
+        overlay_.current_white_ = white;
+    }
+
+    // The helper under test: turns the manual state into a strip command.
+    void apply_current_color() {
+        overlay_.apply_current_color();
+    }
+
+    // The brightness slider's real handler, which routes into apply_current_color()
+    // for every backend except output_pin.
+    void change_brightness(int pct) {
+        overlay_.handle_brightness_change(pct);
+    }
+
   private:
     helix::led::LedControlOverlay overlay_;
 };
@@ -95,7 +116,122 @@ LedStripInfo make_native_strip(const std::string& id, bool supports_color, bool 
     return strip;
 }
 
+// A controller wired to a mock API. NativeBackend::set_color() refuses outright
+// when it has no API, so the color a command actually carries is observable only
+// with one attached — the null-API fixture the visibility tests use would make
+// every assertion below pass vacuously.
+struct LedApplyColorFixture : public LVGLTestFixture {
+    MoonrakerClientMock mock_client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    std::unique_ptr<MoonrakerAPIMock> mock_api;
+
+    LedApplyColorFixture() {
+        state.init_subjects(false);
+        // execute_gcode()'s halted gate would otherwise reject every SET_LED:
+        // subjects sit at SHUTDOWN until production observes a real state update.
+        state.set_klippy_state_sync(helix::KlippyState::READY);
+        mock_api = std::make_unique<MoonrakerAPIMock>(mock_client, state);
+
+        auto& ctrl = LedController::instance();
+        ctrl.deinit();
+        ctrl.init(mock_api.get(), &mock_client);
+    }
+
+    ~LedApplyColorFixture() override {
+        LedController::instance().deinit();
+    }
+
+    void select_strip(const std::string& id, bool supports_color, bool supports_white) {
+        auto& ctrl = LedController::instance();
+        ctrl.native().add_strip(make_native_strip(id, supports_color, supports_white));
+        ctrl.set_selected_strips({id});
+    }
+
+    [[nodiscard]] helix::led::NativeBackend::StripColor sent(const std::string& id) const {
+        return LedController::instance().native().get_strip_color(id);
+    }
+};
+
 } // namespace
+
+// ============================================================================
+// apply_current_color(): the manual-color state -> what reaches the strip.
+//
+// #1129 lived here, not in NativeBackend: dimming a white-only strip sent the
+// W channel as a literal 0.0 and physically switched the user's light off.
+// ============================================================================
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "LedControlOverlay: dimming a white-only strip scales W instead of zeroing it",
+                 "[led][control_overlay][1129]") {
+    select_strip("led case_light", /*color=*/false, /*white=*/true);
+
+    helix::PrinterState ps;
+    LedControlOverlayTestAccess access(ps);
+    access.set_backend(LedBackendType::NATIVE);
+
+    // Full white, dimmed to 15% — the state a user reaches by picking the white
+    // swatch and pulling the brightness slider down.
+    access.set_manual_state(0xFFFFFF, 15, 1.0);
+    access.apply_current_color();
+
+    auto c = sent("led case_light");
+    CHECK(c.w == Catch::Approx(0.15).margin(0.001));
+    CHECK(c.w > 0.0); // the whole point: the light stays on
+    CHECK(c.r == Catch::Approx(0.0).margin(0.001));
+    CHECK(c.g == Catch::Approx(0.0).margin(0.001));
+    CHECK(c.b == Catch::Approx(0.0).margin(0.001));
+
+    // And it round-trips: what the strip reports back decomposes to the same
+    // base white at the same brightness.
+    uint32_t base_color = 0;
+    int brightness = 0;
+    double base_white = 0.0;
+    c.decompose(base_color, brightness, base_white);
+    CHECK(brightness == 15);
+    CHECK(base_white == Catch::Approx(1.0).margin(0.01));
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "LedControlOverlay: the brightness slider drives the same white scaling",
+                 "[led][control_overlay][1129]") {
+    select_strip("led case_light", /*color=*/false, /*white=*/true);
+
+    helix::PrinterState ps;
+    LedControlOverlayTestAccess access(ps);
+    access.set_backend(LedBackendType::NATIVE);
+
+    // White selected at full brightness, then the slider moved to 20%. The
+    // handler must re-apply through apply_current_color(), not skip the white path.
+    access.set_manual_state(0xFFFFFF, 100, 1.0);
+    access.change_brightness(20);
+
+    auto c = sent("led case_light");
+    CHECK(c.w == Catch::Approx(0.20).margin(0.001));
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "LedControlOverlay: an RGB strip gets scaled RGB and a zero W",
+                 "[led][control_overlay]") {
+    // Not the "led " prefix, so NativeBackend keeps the RGB channels distinct
+    // instead of collapsing them to luminance.
+    select_strip("neopixel chamber", /*color=*/true, /*white=*/false);
+
+    helix::PrinterState ps;
+    LedControlOverlayTestAccess access(ps);
+    access.set_backend(LedBackendType::NATIVE);
+
+    // current_white_ == 0.0 selects the RGB branch: every channel scales by
+    // brightness and W is sent as 0 so the dedicated white LED stays dark.
+    access.set_manual_state(0xFF0000, 50, 0.0);
+    access.apply_current_color();
+
+    auto c = sent("neopixel chamber");
+    CHECK(c.r == Catch::Approx(0.5).margin(0.001));
+    CHECK(c.g == Catch::Approx(0.0).margin(0.001));
+    CHECK(c.b == Catch::Approx(0.0).margin(0.001));
+    CHECK(c.w == Catch::Approx(0.0).margin(0.001));
+}
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "LedControlOverlay: color picker hidden for white-only native strip",

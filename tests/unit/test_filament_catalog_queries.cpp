@@ -83,3 +83,36 @@ TEST_CASE_METHOD(HelixTestFixture, "SILK has a selectable Generic product (AD5X 
         REQUIRE(p->bed_temp > 0);
     }
 }
+
+TEST_CASE_METHOD(HelixTestFixture, "all_types spans every brand, deduped and sorted",
+                 "[filament_catalog]") {
+    // The fallback source for a vendor the catalog does not carry: a Spoolman
+    // library holds far more vendors than the bundled 21 brands, and a material
+    // type is a property of the filament rather than of who sold it.
+    auto cat = FilamentCatalog::load_full();
+    auto types = cat.all_types();
+
+    REQUIRE(!types.empty());
+    REQUIRE(contains(types, "PLA"));
+
+    auto sorted = types;
+    std::sort(sorted.begin(), sorted.end());
+    CHECK(sorted == types);                                           // sorted
+    CHECK(std::unique(sorted.begin(), sorted.end()) == sorted.end()); // deduped
+
+    // It is a superset of any single brand's types.
+    for (const auto& t : cat.types_for_brand("Generic")) {
+        CHECK(contains(types, t));
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a vendor the catalog does not carry has no types of its own",
+                 "[filament_catalog]") {
+    // Pins the precondition the selector fallback exists for. "Ambrosia" is a
+    // real Spoolman vendor on the reporter's K2; the bundled catalog has never
+    // heard of it, so the per-vendor query is empty and the Type dropdown had
+    // nothing to show.
+    auto cat = FilamentCatalog::load_full();
+    REQUIRE(!contains(cat.all_brands(), "Ambrosia"));
+    CHECK(cat.types_for_brand("Ambrosia").empty());
+}

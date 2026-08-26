@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: stub definitions for the link line, not a test. app_globals.o is
+//                 filtered out of TEST_APP_OBJS (mk/tests.mk), so these satisfy
+//                 runtime_config.cpp's references to is_wizard_active() and the wizard
+//                 callback setters. There is no assertion here to be made vacuous.
 
 /**
  * @file test_app_stubs.cpp

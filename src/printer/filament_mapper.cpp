@@ -46,6 +46,25 @@ std::string FilamentMapper::format_slot_label(const AvailableSlot& slot) {
     return buf;
 }
 
+int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
+                                               const std::vector<AvailableSlot>& slots) {
+    // "Auto" is a deliberate absence of a mapping - the firmware picks at print
+    // time - so there is no lane to name yet.
+    if (mapping.is_auto || mapping.mapped_slot < 0) {
+        return -1;
+    }
+
+    for (const auto& s : slots) {
+        if (s.slot_index == mapping.mapped_slot && s.backend_index == mapping.mapped_backend) {
+            return s.local_slot_index + 1;
+        }
+    }
+
+    // A mapping that outlived its lane (unit unplugged between the mapping and
+    // the render). Better to show no number than a stale one.
+    return -1;
+}
+
 int FilamentMapper::color_distance(uint32_t a, uint32_t b) {
     int r1 = (a >> 16) & 0xFF;
     int g1 = (a >> 8) & 0xFF;
@@ -75,6 +94,21 @@ bool FilamentMapper::materials_match(const std::string& a, const std::string& b)
     // depends on rather than here, so a backend can ask the question without
     // depending on the mapper.
     return filament::materials_compatible(a, b);
+}
+
+int FilamentMapper::default_head_for_tool(int tool) {
+    return (tool >= 0 && tool <= 3) ? tool : 0;
+}
+
+std::map<int, int>
+FilamentMapper::identity_filtered_remap(const std::vector<ToolMapping>& mappings) {
+    std::map<int, int> remap;
+    for (const auto& m : mappings) {
+        if (m.mapped_slot >= 0 && m.mapped_slot != default_head_for_tool(m.tool_index)) {
+            remap[m.tool_index] = m.mapped_slot;
+        }
+    }
+    return remap;
 }
 
 SlotKey FilamentMapper::find_closest_color_slot(uint32_t target_color,
@@ -161,9 +195,23 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
             continue;
         }
 
-        // Priority 2: Color match
-        auto [slot_idx, backend_idx] =
-            find_closest_color_slot(tool.color_rgb, tool.material, slots);
+        // Priority 2: Color match — only when the file actually stated a color.
+        // color_known is false when nothing has yet said what this tool prints
+        // in (Moonraker omitted filament_colors and no footer read or viewer
+        // parse has backfilled it), leaving color_rgb a neutral stand-in.
+        // Searching for the nearest lane to a stand-in picks one on the strength
+        // of a value the file never expressed, and the material gate is no
+        // protection: with four ASA lanes loaded it just picks whichever ASA
+        // happens to sit closest to grey. The positional fallback below is the
+        // honest answer, and it is already what runs when nothing lands within
+        // COLOR_MATCH_TOLERANCE. Firmware mappings (Priority 1, above) are
+        // unaffected — those are the printer's own statement, not a guess.
+        SlotKey color_key{-1, -1};
+        if (tool.color_known) {
+            color_key = find_closest_color_slot(tool.color_rgb, tool.material, slots);
+        }
+        const int slot_idx = color_key.first;
+        const int backend_idx = color_key.second;
         if (slot_idx >= 0) {
             mapping.mapped_slot = slot_idx;
             mapping.mapped_backend = backend_idx;

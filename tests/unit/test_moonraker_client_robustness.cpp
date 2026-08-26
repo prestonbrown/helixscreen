@@ -573,27 +573,12 @@ TEST_CASE_METHOD(MoonrakerRobustnessFixture,
 // Priority 4: Connection State Transitions
 // ============================================================================
 
-// FIXME: Disabled due to send_jsonrpc returning -1 instead of 0 when disconnected
-// The test expects send_jsonrpc to return 0 (success) even when disconnected,
-// but it's returning -1, indicating the implementation may have changed or
-// there's an issue with the WebSocket send() function when not connected
-// See: test_moonraker_client_robustness.cpp:611
+// The former "Cannot send requests while disconnected" section lived entirely inside
+// an `#if 0` and expected send_jsonrpc() to return 0 while disconnected — the opposite
+// of shipped behavior, which refuses at the send gate and returns INVALID_REQUEST_ID.
+// The real contract is pinned by test_moonraker_client_send_gate.cpp.
 TEST_CASE_METHOD(MoonrakerRobustnessFixture, "MoonrakerClient state machine transitions correctly",
-                 "[.][connection][edge][state][priority4][eventloop][slow]") {
-    SECTION("Cannot send requests while disconnected") {
-#if 0 // FIXME: Disabled - see comment above TEST_CASE
-      // Verify state is DISCONNECTED
-        REQUIRE(client_->get_connection_state() == ConnectionState::DISCONNECTED);
-
-        // Send request
-        int result = client_->send_jsonrpc("printer.info", json());
-
-        // Should succeed (request queued, no validation of connection state)
-        // This is current behavior - requests are accepted regardless of state
-        CHECK(result == 0);
-#endif
-    }
-
+                 "[connection][edge][state][priority4][eventloop][slow]") {
     SECTION("State transitions during failed connection") {
         std::vector<ConnectionState> states;
         std::mutex states_mutex;

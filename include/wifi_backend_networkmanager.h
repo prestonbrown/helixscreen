@@ -246,6 +246,12 @@ class WifiBackendNetworkManager : public WifiBackend {
 
     // Status polling
     void status_thread_func();
+
+    /// Cache one freshly polled status, then fire CONNECTED / DISCONNECTED if the
+    /// connection state transitioned. Split out of status_thread_func() so the
+    /// transition rule has a single implementation the unit tests drive directly
+    /// instead of restating (#1059). Returns the event fired, or "" for no change.
+    std::string apply_polled_status(const ConnectionStatus& fresh_status);
     // Actual nmcli calls (background thread only). Returns nullopt when the
     // underlying `device show` query fails/returns nothing — a transient nmcli
     // or popen error, distinct from a genuine disconnected state — so callers

@@ -102,6 +102,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(print_lifecycle, static_cast<int>(PrintState::Idle), subjects_, register_xml);
     INIT_SUBJECT_INT(job_holds_machine, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(preparing_epoch, 0, subjects_, false);
+    INIT_SUBJECT_INT(print_identity_epoch, 0, subjects_, false);
     INIT_SUBJECT_INT(print_lifecycle_prev, static_cast<int>(PrintState::Idle), subjects_, false);
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_start_progress, 0, subjects_, register_xml);
@@ -485,6 +486,11 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
         if (auto fn_it = stats.find("filename"); fn_it != stats.end() && fn_it->is_string()) {
             std::string filename = fn_it->get<std::string>();
             if (strcmp(lv_subject_get_string(&print_filename_), filename.c_str()) != 0) {
+                // Order matters, exactly as it does in set_print_thumbnail():
+                // the identity must be visible BEFORE any observer of
+                // print_filename_ runs, or an immediate observer resolves the
+                // new print through the previous one's name.
+                recompute_effective_print_filename(filename);
                 lv_subject_copy_string(&print_filename_, filename.c_str());
             }
             reconcile_preparing();
@@ -1012,6 +1018,63 @@ void PrinterPrintState::set_print_outcome(PrintOutcome outcome) {
     }
 }
 
+void PrinterPrintState::recompute_effective_print_filename(const std::string& raw) {
+    const std::string before = effective_print_filename_;
+
+    // An override describes ONE print. Retire it once what the printer reports
+    // stops being explainable by it, so print A's identity cannot bleed into
+    // print B - the failure this whole authority exists to prevent. A preparing
+    // job is exactly the case where the mismatch is legitimate: print_stats
+    // still names the PREVIOUS job for the whole pre-start block, which is why
+    // the identity is recorded at commit in the first place.
+    if (!has_preparing_job() && !print_identity_override_.empty() && !raw.empty() &&
+        !gcode::thumbnail_source_describes(raw, print_identity_override_)) {
+        spdlog::debug("[PrinterPrintState] Identity override '{}' does not describe '{}' - "
+                      "retiring it",
+                      print_identity_override_, raw);
+        print_identity_override_.clear();
+    }
+
+    if (!print_identity_override_.empty()) {
+        effective_print_filename_ = print_identity_override_;
+    } else {
+        // No override: a rewritten path still has to resolve, because a print we
+        // prepared can be reported by a process that never committed it - a
+        // restart or reconnect mid-print, where nothing installed one at all.
+        effective_print_filename_ = gcode::resolve_gcode_filename(raw);
+    }
+
+    publish_identity_if_changed(before);
+}
+
+void PrinterPrintState::publish_identity_if_changed(const std::string& before) {
+    if (effective_print_filename_ == before) {
+        return;
+    }
+    spdlog::debug("[PrinterPrintState] Effective print filename: '{}' -> '{}'", before,
+                  effective_print_filename_);
+    lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+}
+
+void PrinterPrintState::set_print_identity_override(const std::string& name) {
+    // Resolve on store: a caller may hand over the rewritten name directly
+    // (Reprint replays whatever print_stats last reported), and storing that raw
+    // would put `modified_1748..._orig` on screen. Identity for a clean name.
+    print_identity_override_ = name.empty() ? name : gcode::resolve_gcode_filename(name);
+    spdlog::debug("[PrinterPrintState] Identity override set to: {}",
+                  print_identity_override_.empty() ? "(cleared)" : print_identity_override_);
+    recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
+}
+
+void PrinterPrintState::clear_print_identity_override() {
+    if (print_identity_override_.empty()) {
+        return;
+    }
+    print_identity_override_.clear();
+    spdlog::debug("[PrinterPrintState] Identity override released");
+    recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
+}
+
 void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const std::string& path) {
     // Callers marshal to the main thread (ui_queue_update / token.defer) before
     // reaching here, so the subject can be updated directly.
@@ -1323,6 +1386,15 @@ void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     spdlog::info("[PrinterPrintState] Preparing '{}'", job.filename);
     preparing_job_ = job;
 
+    // Adopt this job's identity NOW, not when the printer first reports a name.
+    // print_stats still names the PREVIOUS job for the whole pre-start block, and
+    // for a print we rewrote it will never name the original at all. Doing it
+    // here rather than in each consumer's own epoch observer is the point: the
+    // panel and the media manager each grew one, they diverged, and a print
+    // started from the app resolved its media through the finished print
+    // (prestonbrown/helixscreen#1339).
+    set_print_identity_override(job.full_path());
+
     // Synchronous: see the header. The previous job's terminal state has to be
     // gone before any observer can paint a Preparing state beside it.
     reset_for_new_print();
@@ -1394,6 +1466,15 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     last_preparing_exit_ = reason;
     cancel_preparing_watchdog();
     set_print_in_progress_internal(false);
+
+    // Confirmed means the printer took OUR job, so the override still describes
+    // what is printing - and for a rewritten copy it is the ONLY thing that
+    // does, since print_stats reports the rewrite. Every other reason means the
+    // job never ran, and leaving it set would resolve the next print through a
+    // job that never happened.
+    if (reason != PreparingExit::Confirmed) {
+        clear_print_identity_override();
+    }
 
     // Confirmed hands off to a real print, which owns the phase from here. Every
     // other reason means no print is coming, so the pre-print UI must come down.

@@ -232,6 +232,45 @@ value (history runs 1.1.0 → 0.9.0 … 0.13.x → 0.95.x … 0.99.x), and the r
 27 MB text segment doesn't match any release build, so it came from an
 independently compiled binary.
 
+### Deduplication
+
+Before filing, the worker looks for an open `crash`-labelled issue whose body
+carries the same fingerprint (`findExistingIssue`); a hit gets an "Additional
+occurrence" comment instead of a new issue. The search matches the labelled
+`Fingerprint: ...` line rather than the bare key — GitHub tokenises the query,
+and a symbol-keyed fingerprint also appears in the backtrace table of every
+issue whose crash merely passed through that function.
+
+The fingerprint (`crashFingerprint`, `server/crash-worker/src/github-app.ts`) is
+**resolved crash symbol + version**:
+
+```
+gcode_viewer_occluder_delete_cb/0.99.116
+```
+
+The symbol is normalised first — `+0x18` offset, GCC clone/specialisation
+suffixes (`[clone .lto_priv.0]`, `.isra.0`) and the C++ parameter list all come
+off, since each of those moves between architectures and between builds of the
+same source.
+
+Signal and PC are deliberately **not** in the key. Both move with the
+architecture: the same poisoned read is `SIGSEGV` at `0xa5a5a6ad` on ARM and
+`SIGBUS` at `0x0` on MIPS (an unaligned address error traps before translation,
+so nothing lands in `si_addr`), at a different PC on each. Keying on those filed
+one use-after-free as four issues — #1347, #1356, #1357, #1361, all v0.99.116,
+all `gcode_viewer_occluder_delete_cb`.
+
+Version stays in the key so a defect that survives into the next release files
+fresh rather than reviving a closed issue.
+
+When the top frame has no symbol — no map published for that build, or a fault
+inside a shared library — the key falls back to the older
+`SIGSEGV/0.99.116/0x2a00c8` shape.
+
+Because the key needs the symbol, backtrace resolution now runs *before* the
+dedup search, so a duplicate report pays for a symbol fetch and parse it used to
+skip.
+
 ### GitHub Issue Format
 
 The worker creates issues with:
@@ -352,6 +391,5 @@ Shared library frames are expected in crash backtraces — they indicate the cra
 ## Future Enhancements
 
 - **~~Rate limiting~~**: Done — Worker uses CF Rate Limiting binding (5 requests/IP/60s).
-- **Deduplication**: Hash signal+version+backtrace to detect duplicate crashes and comment on existing issues instead of creating new ones.
 - **Printer/Klipper info**: Populate `printer_model` and `klipper_version` if Moonraker connection is available at crash report time.
 - **Input sanitization**: Validate/truncate crash data fields in the worker before creating GitHub issues.

@@ -3,18 +3,15 @@
 
 /**
  * @file test_input_shaper_panel_integration.cpp
- * @brief Integration tests for InputShaperPanel delegation to InputShaperCalibrator
+ * @brief Integration tests for the real InputShaperPanel
  *
- * Test-first development: These tests document the expected behavior after
- * refactoring InputShaperPanel to delegate to InputShaperCalibrator.
- *
- * These tests verify that InputShaperPanel correctly:
- * 1. Creates an InputShaperCalibrator instance when set_api() is called
- * 2. Delegates all calibration operations through the calibrator
- * 3. Updates UI state based on calibrator callbacks
- *
- * NOTE: These tests focus on the delegation contract, not full UI rendering.
- * Full UI tests require LVGL initialization which is handled separately.
+ * The panel owns a concrete std::unique_ptr<InputShaperCalibrator>
+ * (include/ui_panel_input_shaper.h:446) — there is no interface and no seam to
+ * inject a stand-in through, so a hand-written "mock calibrator" could only ever
+ * assert that the test pushed what the test just pushed. Everything here drives
+ * the real panel instead: the pure lookup tables directly, and the rest through
+ * InputShaperDeltaFixture, which runs the panel against MoonrakerClientMock's
+ * full SHAPER_CALIBRATE transcript.
  */
 
 #include "../../include/calibration_types.h"
@@ -27,6 +24,7 @@
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -50,255 +48,13 @@
 
 using namespace helix;
 using namespace helix::calibration;
+// Qualified, not a using-declaration: `ui_panel_input_shaper.h` also declares a
+// global ::InputShaperPanelTestAccess (the save-path friend), and pulling the
+// helix::ui one into this scope collides with it.
+namespace ispta = helix::ui;
 
 // ============================================================================
-// Mock InputShaperCalibrator for tracking delegation calls
-// ============================================================================
-
-/**
- * @brief Mock calibrator that tracks method calls for verification
- *
- * Does not perform any actual calibration - just records what was called
- * and allows tests to trigger callbacks to verify panel response.
- */
-class MockInputShaperCalibrator {
-  public:
-    // Use the same State enum as the real calibrator
-    enum class State { IDLE, CHECKING_ADXL, TESTING_X, TESTING_Y, READY };
-
-    // Use the same CalibrationResults struct as the real calibrator
-    struct CalibrationResults {
-        InputShaperResult x_result;
-        InputShaperResult y_result;
-        float noise_level = 0.0f;
-
-        [[nodiscard]] bool has_x() const {
-            return x_result.is_valid();
-        }
-        [[nodiscard]] bool has_y() const {
-            return y_result.is_valid();
-        }
-        [[nodiscard]] bool is_complete() const {
-            return has_x() && has_y();
-        }
-    };
-
-    MockInputShaperCalibrator() = default;
-
-    // ========== Call tracking ==========
-
-    struct CalibrationCall {
-        char axis;
-        bool has_progress_cb;
-        bool has_result_cb;
-        bool has_error_cb;
-    };
-
-    struct ApplyCall {
-        ApplyConfig config;
-        bool has_success_cb;
-        bool has_error_cb;
-    };
-
-    // Track check_accelerometer calls
-    bool check_accelerometer_called = false;
-    AccelCheckCallback last_accel_complete_cb;
-    ErrorCallback last_accel_error_cb;
-
-    // Track run_calibration calls
-    std::vector<CalibrationCall> calibration_calls;
-    ProgressCallback last_progress_cb;
-    ResultCallback last_result_cb;
-    ErrorCallback last_calibration_error_cb;
-
-    // Track apply_settings calls
-    std::vector<ApplyCall> apply_calls;
-    SuccessCallback last_apply_success_cb;
-    ErrorCallback last_apply_error_cb;
-
-    // Track save_to_config calls
-    bool save_to_config_called = false;
-    SuccessCallback last_save_success_cb;
-    ErrorCallback last_save_error_cb;
-
-    // Track cancel calls
-    int cancel_call_count = 0;
-
-    // State
-    State state_ = State::IDLE;
-    CalibrationResults results_;
-
-    // ========== Mock interface matching InputShaperCalibrator ==========
-
-    [[nodiscard]] State get_state() const {
-        return state_;
-    }
-
-    [[nodiscard]] const CalibrationResults& get_results() const {
-        return results_;
-    }
-
-    void check_accelerometer(AccelCheckCallback on_complete, ErrorCallback on_error) {
-        check_accelerometer_called = true;
-        last_accel_complete_cb = std::move(on_complete);
-        last_accel_error_cb = std::move(on_error);
-        state_ = State::CHECKING_ADXL;
-    }
-
-    void run_calibration(char axis, ProgressCallback on_progress, ResultCallback on_complete,
-                         ErrorCallback on_error) {
-        CalibrationCall call;
-        call.axis = axis;
-        call.has_progress_cb = (on_progress != nullptr);
-        call.has_result_cb = (on_complete != nullptr);
-        call.has_error_cb = (on_error != nullptr);
-        calibration_calls.push_back(call);
-
-        last_progress_cb = std::move(on_progress);
-        last_result_cb = std::move(on_complete);
-        last_calibration_error_cb = std::move(on_error);
-
-        state_ = (axis == 'X') ? State::TESTING_X : State::TESTING_Y;
-    }
-
-    void apply_settings(const ApplyConfig& config, SuccessCallback on_success,
-                        ErrorCallback on_error) {
-        ApplyCall call;
-        call.config = config;
-        call.has_success_cb = (on_success != nullptr);
-        call.has_error_cb = (on_error != nullptr);
-        apply_calls.push_back(call);
-
-        last_apply_success_cb = std::move(on_success);
-        last_apply_error_cb = std::move(on_error);
-    }
-
-    void save_to_config(SuccessCallback on_success, ErrorCallback on_error) {
-        save_to_config_called = true;
-        last_save_success_cb = std::move(on_success);
-        last_save_error_cb = std::move(on_error);
-    }
-
-    void cancel() {
-        cancel_call_count++;
-        state_ = State::IDLE;
-    }
-
-    // ========== Test helpers for triggering callbacks ==========
-
-    void trigger_accel_complete(float noise_level) {
-        results_.noise_level = noise_level;
-        state_ = State::IDLE;
-        if (last_accel_complete_cb) {
-            last_accel_complete_cb(noise_level);
-        }
-    }
-
-    void trigger_accel_error(const std::string& message) {
-        state_ = State::IDLE;
-        if (last_accel_error_cb) {
-            last_accel_error_cb(message);
-        }
-    }
-
-    void
-    trigger_calibration_progress(int percent,
-                                 ShaperCalibrationPhase phase = ShaperCalibrationPhase::Sweeping) {
-        if (last_progress_cb) {
-            last_progress_cb(percent, phase);
-        }
-    }
-
-    void trigger_calibration_result(const InputShaperResult& result) {
-        if (result.axis == 'X') {
-            results_.x_result = result;
-        } else {
-            results_.y_result = result;
-        }
-        state_ = State::READY;
-        if (last_result_cb) {
-            last_result_cb(result);
-        }
-    }
-
-    void trigger_calibration_error(const std::string& message) {
-        state_ = State::IDLE;
-        if (last_calibration_error_cb) {
-            last_calibration_error_cb(message);
-        }
-    }
-
-    void trigger_apply_success() {
-        if (last_apply_success_cb) {
-            last_apply_success_cb();
-        }
-    }
-
-    void trigger_apply_error(const std::string& message) {
-        if (last_apply_error_cb) {
-            last_apply_error_cb(message);
-        }
-    }
-
-    void trigger_save_success() {
-        if (last_save_success_cb) {
-            last_save_success_cb();
-        }
-    }
-
-    void trigger_save_error(const std::string& message) {
-        if (last_save_error_cb) {
-            last_save_error_cb(message);
-        }
-    }
-
-    // ========== Reset for multiple test sections ==========
-
-    void reset() {
-        check_accelerometer_called = false;
-        calibration_calls.clear();
-        apply_calls.clear();
-        save_to_config_called = false;
-        cancel_call_count = 0;
-        state_ = State::IDLE;
-        results_ = CalibrationResults{};
-
-        last_accel_complete_cb = nullptr;
-        last_accel_error_cb = nullptr;
-        last_progress_cb = nullptr;
-        last_result_cb = nullptr;
-        last_calibration_error_cb = nullptr;
-        last_apply_success_cb = nullptr;
-        last_apply_error_cb = nullptr;
-        last_save_success_cb = nullptr;
-        last_save_error_cb = nullptr;
-    }
-};
-
-// ============================================================================
-// Helper to create valid test results
-// ============================================================================
-
-static InputShaperResult make_test_result(char axis) {
-    InputShaperResult result;
-    result.axis = axis;
-    result.shaper_type = "mzv";
-    result.shaper_freq = 36.8f;
-    result.max_accel = 4500.0f;
-    result.smoothing = 0.05f;
-    result.vibrations = 3.2f;
-
-    // Add some shaper alternatives
-    ShaperOption opt1{"zv", 38.0f, 5.0f, 0.02f, 6000.0f};
-    ShaperOption opt2{"mzv", 36.8f, 3.2f, 0.05f, 4500.0f};
-    ShaperOption opt3{"ei", 35.0f, 2.5f, 0.08f, 3500.0f};
-    result.all_shapers = {opt1, opt2, opt3};
-
-    return result;
-}
-
-// ============================================================================
-// Calibrator Unit Tests (these pass now with the real calibrator)
+// Calibrator state machine basics (no API attached)
 // ============================================================================
 
 TEST_CASE("InputShaperCalibrator state machine basics", "[calibrator][input_shaper]") {
@@ -322,403 +78,71 @@ TEST_CASE("InputShaperCalibrator state machine basics", "[calibrator][input_shap
 }
 
 // ============================================================================
-// Mock Calibrator Unit Tests (verify mock works correctly)
-// ============================================================================
-
-TEST_CASE("MockInputShaperCalibrator tracks calls correctly", "[mock][input_shaper]") {
-    MockInputShaperCalibrator mock;
-
-    SECTION("check_accelerometer is tracked") {
-        bool callback_called = false;
-        mock.check_accelerometer([&](float) { callback_called = true; }, nullptr);
-
-        CHECK(mock.check_accelerometer_called);
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::CHECKING_ADXL);
-
-        mock.trigger_accel_complete(0.05f);
-        CHECK(callback_called);
-        CHECK(mock.get_results().noise_level == Catch::Approx(0.05f));
-    }
-
-    SECTION("run_calibration X is tracked") {
-        bool result_called = false;
-        mock.run_calibration(
-            'X', nullptr, [&](const InputShaperResult&) { result_called = true; }, nullptr);
-
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'X');
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::TESTING_X);
-
-        auto result = make_test_result('X');
-        mock.trigger_calibration_result(result);
-        CHECK(result_called);
-        CHECK(mock.get_results().has_x());
-    }
-
-    SECTION("run_calibration Y is tracked") {
-        mock.run_calibration('Y', nullptr, nullptr, nullptr);
-
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'Y');
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::TESTING_Y);
-    }
-
-    SECTION("apply_settings is tracked") {
-        ApplyConfig config;
-        config.axis = 'X';
-        config.shaper_type = "mzv";
-        config.frequency = 36.8f;
-
-        mock.apply_settings(config, nullptr, nullptr);
-
-        REQUIRE(mock.apply_calls.size() == 1);
-        CHECK(mock.apply_calls[0].config.axis == 'X');
-        CHECK(mock.apply_calls[0].config.shaper_type == "mzv");
-        CHECK(mock.apply_calls[0].config.frequency == Catch::Approx(36.8f));
-    }
-
-    SECTION("save_to_config is tracked") {
-        mock.save_to_config(nullptr, nullptr);
-        CHECK(mock.save_to_config_called);
-    }
-
-    SECTION("cancel is tracked") {
-        mock.run_calibration('X', nullptr, nullptr, nullptr);
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::TESTING_X);
-
-        mock.cancel();
-        CHECK(mock.cancel_call_count == 1);
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::IDLE);
-    }
-
-    SECTION("reset clears all state") {
-        mock.check_accelerometer(nullptr, nullptr);
-        mock.run_calibration('X', nullptr, nullptr, nullptr);
-        mock.apply_settings({}, nullptr, nullptr);
-        mock.save_to_config(nullptr, nullptr);
-        mock.cancel();
-
-        mock.reset();
-
-        CHECK_FALSE(mock.check_accelerometer_called);
-        CHECK(mock.calibration_calls.empty());
-        CHECK(mock.apply_calls.empty());
-        CHECK_FALSE(mock.save_to_config_called);
-        CHECK(mock.cancel_call_count == 0);
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::IDLE);
-    }
-}
-
-// ============================================================================
-// Panel↔Calibrator delegation contract
-// ============================================================================
-// The InputShaperPanel -> InputShaperCalibrator delegation these once described
-// as "expected after refactoring" has shipped: the panel creates the calibrator
-// in set_api() and every button handler delegates to it (src/ui/ui_panel_input_shaper.cpp).
-// The former [!mayfail] cases here were pure WARN() placeholders that asserted
-// nothing (and one was already stale — the panel still calls the API directly in
-// on_activate()). The real contract is verified by test_input_shaper_calibrator.cpp
-// (calibrator behavior) and the mock-based panel tests above/below (delegation).
-// Removed 2026-07-22.
-
-// ============================================================================
-// Phase 7: Test Print Pattern Feature
-// ============================================================================
-
-TEST_CASE("InputShaperPanel has print test pattern handler", "[input_shaper][panel]") {
-    // This test verifies the method exists and is callable
-    // The handler sends TUNING_TOWER command to enable acceleration ramping
-    // during print for visual comparison of ringing at different accelerations
-    //
-    // Full integration test would require mock API setup with LVGL
-    WARN("Print test pattern button added - integration test requires mock API");
-}
-
-// ============================================================================
-// Chunk 1: Current Config Display + New Subjects
-// ============================================================================
-
-TEST_CASE("InputShaperPanel current config subjects", "[input_shaper][panel][subjects]") {
-    // These test the pure logic of populate_current_config without LVGL UI
-
-    SECTION("Configured shaper populates display strings correctly") {
-        InputShaperConfig config;
-        config.is_configured = true;
-        config.shaper_type_x = "mzv";
-        config.shaper_freq_x = 36.7f;
-        config.shaper_type_y = "ei";
-        config.shaper_freq_y = 47.6f;
-
-        // Verify config is valid
-        CHECK(config.is_configured);
-        CHECK(config.shaper_type_x == "mzv");
-        CHECK(config.shaper_freq_x == Catch::Approx(36.7f));
-        CHECK(config.shaper_type_y == "ei");
-        CHECK(config.shaper_freq_y == Catch::Approx(47.6f));
-    }
-
-    SECTION("Unconfigured shaper has empty strings") {
-        InputShaperConfig config;
-        // Default constructed = not configured
-        CHECK_FALSE(config.is_configured);
-        CHECK(config.shaper_type_x.empty());
-        CHECK(config.shaper_type_y.empty());
-        CHECK(config.shaper_freq_x == 0.0f);
-        CHECK(config.shaper_freq_y == 0.0f);
-    }
-}
-
-TEST_CASE("Shaper type uppercase formatting", "[input_shaper][panel][format]") {
-    // Test that shaper types get uppercased for display
-    SECTION("Common shaper types") {
-        auto to_upper = [](const std::string& s) -> std::string {
-            std::string result = s;
-            for (auto& c : result)
-                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-            return result;
-        };
-        CHECK(to_upper("mzv") == "MZV");
-        CHECK(to_upper("ei") == "EI");
-        CHECK(to_upper("zv") == "ZV");
-        CHECK(to_upper("2hump_ei") == "2HUMP_EI");
-        CHECK(to_upper("3hump_ei") == "3HUMP_EI");
-    }
-}
-
-TEST_CASE("Calibrate All handler exists and delegates", "[input_shaper][panel]") {
-    // Verify that calibrate_all handler starts X calibration
-    // Full X->Y chain tested in Chunk 2
-    MockInputShaperCalibrator mock;
-
-    SECTION("Calibrate All starts X calibration first") {
-        // Simulates what handle_calibrate_all_clicked() should do
-        mock.run_calibration('X', nullptr, nullptr, nullptr);
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'X');
-    }
-}
-
-// ============================================================================
-// Chunk 2: Pre-flight Noise Check + Calibrate All Flow
-// ============================================================================
-
-TEST_CASE("Pre-flight noise check flow", "[input_shaper][panel][preflight]") {
-    MockInputShaperCalibrator mock;
-
-    SECTION("Noise check runs before calibration") {
-        // Start pre-flight - should call check_accelerometer first
-        mock.check_accelerometer([](float) {}, [](const std::string&) {});
-        CHECK(mock.check_accelerometer_called);
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::CHECKING_ADXL);
-    }
-
-    SECTION("Successful noise check proceeds to calibration") {
-        bool calibration_started = false;
-        mock.check_accelerometer(
-            [&](float) {
-                // After noise check passes, calibration should start
-                mock.run_calibration('X', nullptr, nullptr, nullptr);
-                calibration_started = true;
-            },
-            nullptr);
-
-        mock.trigger_accel_complete(0.05f);
-        CHECK(calibration_started);
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'X');
-    }
-
-    SECTION("Failed noise check triggers error") {
-        bool error_received = false;
-        std::string error_msg;
-        mock.check_accelerometer(nullptr, [&](const std::string& err) {
-            error_received = true;
-            error_msg = err;
-        });
-
-        mock.trigger_accel_error("ADXL345 not found");
-        CHECK(error_received);
-        CHECK_FALSE(error_msg.empty());
-    }
-}
-
-TEST_CASE("Calibrate All chains X then Y", "[input_shaper][panel][calibrate_all]") {
-    MockInputShaperCalibrator mock;
-
-    SECTION("Calibrate All runs noise check, then X, then Y") {
-        // Step 1: Noise check
-        mock.check_accelerometer(
-            [&](float) {
-                // Step 2: X calibration starts after noise check
-                mock.run_calibration(
-                    'X', nullptr,
-                    [&](const InputShaperResult&) {
-                        // Step 3: Y calibration starts after X completes
-                        mock.run_calibration('Y', nullptr, nullptr, nullptr);
-                    },
-                    nullptr);
-            },
-            nullptr);
-
-        // Trigger noise check success
-        mock.trigger_accel_complete(0.05f);
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'X');
-
-        // Trigger X result
-        auto x_result = make_test_result('X');
-        mock.trigger_calibration_result(x_result);
-        REQUIRE(mock.calibration_calls.size() == 2);
-        CHECK(mock.calibration_calls[1].axis == 'Y');
-    }
-
-    SECTION("Cancel during Calibrate All stops the sequence") {
-        mock.check_accelerometer(
-            [&](float) { mock.run_calibration('X', nullptr, nullptr, nullptr); }, nullptr);
-
-        mock.trigger_accel_complete(0.05f);
-        REQUIRE(mock.calibration_calls.size() == 1);
-
-        // Cancel during X
-        mock.cancel();
-        CHECK(mock.get_state() == MockInputShaperCalibrator::State::IDLE);
-        // Should NOT proceed to Y
-        CHECK(mock.calibration_calls.size() == 1);
-    }
-}
-
-TEST_CASE("Single axis calibration uses pre-flight", "[input_shaper][panel][preflight]") {
-    MockInputShaperCalibrator mock;
-
-    SECTION("Calibrate X runs noise check first") {
-        mock.check_accelerometer(
-            [&](float) { mock.run_calibration('X', nullptr, nullptr, nullptr); }, nullptr);
-
-        CHECK(mock.check_accelerometer_called);
-        mock.trigger_accel_complete(0.03f);
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'X');
-    }
-
-    SECTION("Calibrate Y runs noise check first") {
-        mock.check_accelerometer(
-            [&](float) { mock.run_calibration('Y', nullptr, nullptr, nullptr); }, nullptr);
-
-        mock.trigger_accel_complete(0.03f);
-        REQUIRE(mock.calibration_calls.size() == 1);
-        CHECK(mock.calibration_calls[0].axis == 'Y');
-    }
-}
-
-// ============================================================================
-// Chunk 3: Results State Redesign
+// Results-card lookup tables (pure statics on the panel)
 // ============================================================================
 
 TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
-    // Test that each known shaper type maps to a meaningful explanation keyword
-    SECTION("Known shaper types have specific explanations") {
-        std::map<std::string, std::string> expected_keywords = {{"zv", "minimal"},
-                                                                {"mzv", "balance"},
-                                                                {"ei", "Strong"},
-                                                                {"2hump_ei", "Heavy"},
-                                                                {"3hump_ei", "Maximum"}};
+    // Every type the results card can be handed maps to its own sentence
+    // (src/ui/ui_panel_input_shaper.cpp:1296). A missing arm silently degrades
+    // to the generic fallback, which reads plausible and says nothing.
+    CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("zv")) ==
+          "Fast but minimal smoothing — best for well-built printers");
+    CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("mzv")) ==
+          "Good balance of speed and vibration reduction");
+    CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("ei")) ==
+          "Strong vibration reduction with moderate speed impact");
+    CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("2hump_ei")) ==
+          "Heavy smoothing — significant vibration issues detected");
+    CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("3hump_ei")) ==
+          "Maximum smoothing — consider checking mechanical issues");
 
-        for (const auto& [type, keyword] : expected_keywords) {
-            CHECK_FALSE(type.empty());
-            CHECK_FALSE(keyword.empty());
+    SECTION("Kalico smooth shapers get their own explanations") {
+        // Klipper's five have "smooth_" twins on Kalico; they must not fall
+        // through to the generic string.
+        const std::string fallback = "Vibration compensation active";
+        for (const char* type : {"smooth_zv", "smooth_mzv", "smooth_ei", "smooth_2hump_ei",
+                                 "smooth_zvd_ei", "smooth_si"}) {
+            INFO("type: " << type);
+            CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation(type)) !=
+                  fallback);
         }
+    }
+
+    SECTION("An unknown type falls back to the generic wording") {
+        CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("not_a_shaper")) ==
+              "Vibration compensation active");
+        CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("")) ==
+              "Vibration compensation active");
+        // Klipper's names are lowercase; the lookup is exact, not case-folded.
+        CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("MZV")) ==
+              "Vibration compensation active");
     }
 }
 
 TEST_CASE("Vibration quality thresholds", "[input_shaper][panel][results]") {
-    // Quality levels: 0=excellent (<5%), 1=good (5-15%), 2=fair (15-25%), 3=poor (>25%)
+    // Quality levels drive the result card's colour: 0=excellent (<5%),
+    // 1=good (5-15%), 2=fair (15-25%), 3=poor (>=25%)
+    // (src/ui/ui_panel_input_shaper.cpp:1326). Assert the boundaries, since an
+    // off-by-one in a `<` vs `<=` is exactly what mis-colours a card.
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(0.0f) == 0);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(4.9f) == 0);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(5.0f) == 1);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(14.9f) == 1);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(15.0f) == 2);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(24.9f) == 2);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(25.0f) == 3);
+    CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(100.0f) == 3);
 
-    SECTION("Excellent quality for low vibration") {
-        CHECK(2.0f < 5.0f);
-        CHECK(4.9f < 5.0f);
-    }
-
-    SECTION("Good quality for moderate vibration") {
-        CHECK(5.0f >= 5.0f);
-        CHECK(14.9f < 15.0f);
-    }
-
-    SECTION("Fair quality for higher vibration") {
-        CHECK(15.0f >= 15.0f);
-        CHECK(24.9f < 25.0f);
-    }
-
-    SECTION("Poor quality for high vibration") {
-        CHECK(25.0f >= 25.0f);
-        CHECK(50.0f >= 25.0f);
-    }
-}
-
-TEST_CASE("Per-axis result population", "[input_shaper][panel][results]") {
-    SECTION("Single axis result populates correct card") {
-        auto result = make_test_result('X');
-        CHECK(result.axis == 'X');
-        CHECK(result.is_valid());
-        CHECK(result.shaper_type == "mzv");
-        CHECK(result.shaper_freq == Catch::Approx(36.8f));
-        CHECK(result.max_accel == Catch::Approx(4500.0f));
-    }
-
-    SECTION("Calibrate All populates both axis cards") {
-        auto x_result = make_test_result('X');
-        auto y_result = make_test_result('Y');
-        y_result.shaper_type = "ei";
-        y_result.shaper_freq = 47.6f;
-        y_result.vibrations = 2.5f;
-        y_result.max_accel = 3500.0f;
-
-        CHECK(x_result.is_valid());
-        CHECK(y_result.is_valid());
-        CHECK(x_result.axis == 'X');
-        CHECK(y_result.axis == 'Y');
-    }
-}
-
-TEST_CASE("Apply recommendation applies both axes for Calibrate All",
-          "[input_shaper][panel][results]") {
-    MockInputShaperCalibrator mock;
-
-    SECTION("Single axis apply sends one apply_settings call") {
-        ApplyConfig config;
-        config.axis = 'X';
-        config.shaper_type = "mzv";
-        config.frequency = 36.8f;
-
-        mock.apply_settings(config, nullptr, nullptr);
-        REQUIRE(mock.apply_calls.size() == 1);
-        CHECK(mock.apply_calls[0].config.axis == 'X');
-    }
-
-    SECTION("Dual axis apply sends two apply_settings calls") {
-        // Apply X
-        ApplyConfig x_config;
-        x_config.axis = 'X';
-        x_config.shaper_type = "mzv";
-        x_config.frequency = 36.8f;
-
-        mock.apply_settings(
-            x_config,
-            [&]() {
-                // After X succeeds, apply Y
-                ApplyConfig y_config;
-                y_config.axis = 'Y';
-                y_config.shaper_type = "ei";
-                y_config.frequency = 47.6f;
-                mock.apply_settings(y_config, nullptr, nullptr);
-            },
-            nullptr);
-
-        // Trigger X success
-        mock.trigger_apply_success();
-
-        REQUIRE(mock.apply_calls.size() == 2);
-        CHECK(mock.apply_calls[0].config.axis == 'X');
-        CHECK(mock.apply_calls[1].config.axis == 'Y');
+    SECTION("The prose description switches on the same boundaries") {
+        // Two independent ladders over the same thresholds; a change to one
+        // that misses the other shows a green card with "Poor" text.
+        for (float v : {0.0f, 4.9f, 5.0f, 14.9f, 15.0f, 24.9f, 25.0f, 100.0f}) {
+            INFO("vibrations: " << v);
+            const int quality = ispta::InputShaperPanelTestAccess::vibration_quality(v);
+            const std::string desc = ispta::InputShaperPanelTestAccess::quality_description(v);
+            const char* expected[] = {"Excellent", "Good", "Fair", "Poor"};
+            CHECK(desc.rfind(expected[quality], 0) == 0);
+        }
     }
 }
 
@@ -1035,4 +459,126 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
 
     CHECK(capture.count("SHAPER_TYPE_X") == 0);
     CHECK(capture.count("SHAPER_TYPE_Y") == 1);
+}
+
+// ============================================================================
+// Test print pattern
+// ============================================================================
+
+TEST_CASE_METHOD(InputShaperDeltaFixture, "Print test pattern sends the acceleration tuning tower",
+                 "[input_shaper][panel][test_pattern]") {
+    // The button's whole job is one command: TUNING_TOWER ramps acceleration
+    // across the print so ringing can be compared band by band
+    // (src/ui/ui_panel_input_shaper.cpp:2071).
+    mock_client_.clear_gcode_script_history();
+
+    panel_->handle_print_test_pattern_clicked();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& history = mock_client_.gcode_script_history();
+    auto it = std::find_if(history.begin(), history.end(), [](const std::string& g) {
+        return g.find("TUNING_TOWER") != std::string::npos;
+    });
+    REQUIRE(it != history.end());
+    INFO("sent: " << *it);
+    // The parameters are the test: a bare TUNING_TOWER with the wrong target or
+    // band would still contain the command name and do nothing useful.
+    CHECK(it->find("COMMAND=SET_VELOCITY_LIMIT") != std::string::npos);
+    CHECK(it->find("PARAMETER=ACCEL") != std::string::npos);
+    CHECK(it->find("START=1500") != std::string::npos);
+    CHECK(it->find("FACTOR=500") != std::string::npos);
+    CHECK(it->find("BAND=5") != std::string::npos);
+}
+
+// ============================================================================
+// Current-config header card
+// ============================================================================
+
+TEST_CASE_METHOD(InputShaperDeltaFixture, "InputShaperPanel current config subjects",
+                 "[input_shaper][panel][subjects]") {
+    SECTION("Configured shaper populates the display subjects") {
+        InputShaperConfig config;
+        config.is_configured = true;
+        config.shaper_type_x = "mzv";
+        config.shaper_freq_x = 36.7f;
+        config.shaper_type_y = "ei";
+        config.shaper_freq_y = 47.6f;
+
+        ispta::InputShaperPanelTestAccess::populate_current_config(*panel_, config);
+        helix::ui::UpdateQueue::instance().drain();
+
+        CHECK(subject_int("is_shaper_configured") == 1);
+        // Types are uppercased for display; frequencies get the shared "%.1f Hz"
+        // formatter (src/ui/ui_panel_input_shaper.cpp:1206).
+        CHECK(subject_string("is_current_x_type") == "MZV");
+        CHECK(subject_string("is_current_x_freq") == "36.7 Hz");
+        CHECK(subject_string("is_current_y_type") == "EI");
+        CHECK(subject_string("is_current_y_freq") == "47.6 Hz");
+        // Max accel is not part of the current-config query.
+        CHECK(subject_string("is_current_max_accel").empty());
+    }
+
+    SECTION("Unconfigured shaper clears whatever was displayed before") {
+        // Seed a configured state first: clearing is the branch that matters,
+        // and asserting empty strings against never-populated subjects proves
+        // nothing.
+        InputShaperConfig configured;
+        configured.is_configured = true;
+        configured.shaper_type_x = "mzv";
+        configured.shaper_freq_x = 36.7f;
+        configured.shaper_type_y = "ei";
+        configured.shaper_freq_y = 47.6f;
+        ispta::InputShaperPanelTestAccess::populate_current_config(*panel_, configured);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(subject_string("is_current_x_type") == "MZV");
+
+        ispta::InputShaperPanelTestAccess::populate_current_config(*panel_, InputShaperConfig{});
+        helix::ui::UpdateQueue::instance().drain();
+
+        CHECK(subject_int("is_shaper_configured") == 0);
+        CHECK(subject_string("is_current_x_type").empty());
+        CHECK(subject_string("is_current_x_freq").empty());
+        CHECK(subject_string("is_current_y_type").empty());
+        CHECK(subject_string("is_current_y_freq").empty());
+    }
+}
+
+// ============================================================================
+// Per-axis results card
+// ============================================================================
+
+TEST_CASE_METHOD(InputShaperDeltaFixture, "Per-axis result population",
+                 "[input_shaper][panel][results]") {
+    // A single-axis run must fill that axis's card and leave the other one
+    // untouched (src/ui/ui_panel_input_shaper.cpp:1345 populate_axis_result).
+    panel_->handle_calibrate_x_clicked();
+    REQUIRE(pump_until([&] { return panel_state() == 2; }, /*inject_copy_marker=*/false));
+
+    CHECK(subject_int("is_results_has_x") == 1);
+    CHECK(subject_int("is_results_has_y") == 0);
+
+    // The mock recommends mzv @ 53.8 Hz with 1.6% residual vibration and a
+    // 4000 mm/s^2 accel ceiling.
+    CHECK(subject_string("is_result_x_shaper") == "Optimal: MZV @ 53.8 Hz");
+    CHECK(subject_string("is_result_x_vibration") == "1.6%");
+    CHECK(subject_string("is_result_x_max_accel") == "4000 mm/s\xC2\xB2");
+    // 1.6% < 5% -> quality 0, and the explanation is mzv's, not the fallback.
+    CHECK(subject_int("is_result_x_quality") == 0);
+    CHECK(subject_string("is_result_x_explanation") ==
+          std::string("* ") + ispta::InputShaperPanelTestAccess::shaper_explanation("mzv"));
+
+    // The comparison table lists all five fits and marks the recommended row.
+    CHECK(subject_int("is_x_num_shapers") == 5);
+    const int recommended = subject_int("is_x_recommended_row");
+    REQUIRE(recommended >= 0);
+    REQUIRE(recommended < 5);
+    char row_name[32];
+    snprintf(row_name, sizeof(row_name), "is_x_cmp_%d_type", recommended);
+    const std::string row_type = lv_subject_get_string(subject(row_name));
+    INFO("recommended row " << recommended << ": " << row_type);
+    CHECK(row_type == "MZV *");
+
+    // The Y card stayed empty.
+    CHECK(subject_string("is_result_y_shaper").empty());
+    CHECK(subject_int("is_y_num_shapers") == 0);
 }

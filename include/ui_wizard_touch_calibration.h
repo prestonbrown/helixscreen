@@ -151,6 +151,11 @@ class WizardTouchCalibrationStep : public helix::wizard::Step {
     // Pending calibration data (saved only when user clicks 'Next')
     bool has_pending_calibration_ = false;
     helix::TouchCalibration pending_calibration_;
+    /// Range decomposition of pending_calibration_, held until 'Next' commits it.
+    /// The evdev range is deliberately NOT re-programmed before then: a back-out
+    /// reverts through session_.restore(), which only knows how to put the affine
+    /// back (#1259, #1276).
+    helix::TouchRangeFit pending_range_fit_;
 
     // Backup/disable/restore of the pre-session calibration. Shared with the
     // Settings recalibration overlay; guarantees the affine transform is

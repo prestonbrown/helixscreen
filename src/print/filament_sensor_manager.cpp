@@ -10,6 +10,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "filament_mapper.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -718,11 +719,11 @@ bool FilamentSensorManager::has_real_runout() const {
 }
 
 namespace {
-// Firmware-default head a logical tool routes to with no remap: tools 0..3 map
-// to their identity head, anything else falls back to head 0. Mirrors
-// PrintSelectDetailView::get_effective_remap()'s default_head().
+// Firmware-default head a logical tool routes to with no remap. Delegates to the
+// shared FilamentMapper rule that PrintSelectDetailView::get_effective_remap()
+// filters against, so the lanes scanned here are the lanes actually routed to.
 int default_head_for_tool(int tool) {
-    return (tool >= 0 && tool <= 3) ? tool : 0;
+    return helix::FilamentMapper::default_head_for_tool(tool);
 }
 
 // Resolve the AMS slot a logical tool routes to, honoring an explicit remap.
@@ -824,6 +825,14 @@ FilamentSensorManager::find_empty_required_lanes(const std::set<int>& tools_used
         return {};
     }
     return scan.empty_lanes;
+}
+
+// RAW_PRINT_STATE_OK: the badge is scoped to the tools the RUNNING file uses.
+// During a preparing window get_tools_used() still describes the previous job, so
+// widening this to job_holds_machine() would scope the badge to the wrong file
+// instead of hiding it. Deliberately narrower than the lifecycle's is_active().
+bool print_scopes_runout_badge(PrintJobState state) {
+    return state == PrintJobState::PRINTING || state == PrintJobState::PAUSED;
 }
 
 int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tools_used,

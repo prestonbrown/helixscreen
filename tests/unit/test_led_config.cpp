@@ -8,6 +8,7 @@
 #include "color_utils.h"
 #include "config.h"
 #include "led/led_controller.h"
+#include "printer_discovery.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -38,6 +39,7 @@ static void clear_led_config_paths() {
     cfg->set(cfg->df() + "leds/last_brightness", nlohmann::json());
     cfg->set(cfg->df() + "leds/color_presets", nlohmann::json());
     cfg->set(cfg->df() + "leds/macro_devices", nlohmann::json());
+    cfg->set(cfg->df() + "leds/auto_paired_bases", nlohmann::json());
     cfg->set(cfg->df() + "leds/led_on_at_start", nlohmann::json());
     cfg->save();
 }
@@ -620,4 +622,188 @@ TEST_CASE_METHOD(LedConfigFixture,
     cfg->save();
 
     ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController config: draft macro is never persisted",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    helix::led::LedMacroInfo named;
+    named.display_name = "Cabinet Light";
+    named.type = helix::led::MacroLedType::ON_OFF;
+    named.on_macro = "LED_ON";
+    named.off_macro = "LED_OFF";
+
+    // The blank row the + Add button appends. It has to live in memory so the
+    // editor can render it, but it must not reach settings.json -- an unnamed
+    // entry reloads as a permanently broken device the user cannot address.
+    helix::led::LedMacroInfo draft;
+    draft.type = helix::led::MacroLedType::ON_OFF;
+
+    ctrl.set_configured_macros({named, draft});
+    REQUIRE(ctrl.configured_macros().size() == 2);
+
+    ctrl.save_config();
+
+    const auto* cfg = Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    const nlohmann::json* saved =
+        Config::get_instance()->try_get_json(Config::get_instance()->df() + "leds/macro_devices");
+    REQUIRE(saved != nullptr);
+    REQUIRE(saved->is_array());
+    REQUIRE(saved->size() == 1);
+    REQUIRE((*saved)[0].value("name", "") == "Cabinet Light");
+
+    // And the reload agrees: the draft is gone, the real device came back.
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    REQUIRE(ctrl.configured_macros()[0].display_name == "Cabinet Light");
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}
+
+// ============================================================================
+// Auto-pairing <BASE>_ON / <BASE>_OFF
+//
+// Detection used to stop at "candidate", so a printer whose lights are pure
+// macros showed nothing in the LED panel until the user hand-built a device.
+// A clean ON/OFF pair is unambiguous, so seed it. The seeded bases are recorded
+// so deleting the device is not undone by the next discovery.
+// ============================================================================
+
+static helix::PrinterDiscovery discovery_with(const std::vector<std::string>& macros) {
+    helix::PrinterDiscovery d;
+    nlohmann::json objects = nlohmann::json::array();
+    for (const auto& m : macros) {
+        objects.push_back("gcode_macro " + m);
+    }
+    d.parse_objects(objects);
+    return d;
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController: auto-pairs LED_ON/LED_OFF into a device",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+    REQUIRE(ctrl.configured_macros().empty());
+
+    auto d = discovery_with({"LED_ON", "LED_OFF"});
+    ctrl.discover_from_hardware(d);
+
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    const auto& m = ctrl.configured_macros()[0];
+    CHECK(m.type == helix::led::MacroLedType::ON_OFF);
+    CHECK(m.on_macro == "LED_ON");
+    CHECK(m.off_macro == "LED_OFF");
+    CHECK(!m.display_name.empty());
+
+    // It has to be usable, not just present.
+    REQUIRE(ctrl.macro().is_available());
+    const auto strips = ctrl.all_selectable_strips();
+    REQUIRE(strips.size() == 1);
+    CHECK(strips[0].backend == helix::led::LedBackendType::MACRO);
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController: an unpaired ON macro is not seeded",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    // No matching _OFF, so the pairing is a guess -- leave it as a candidate.
+    auto d = discovery_with({"LED_ON", "LIGHT_TOGGLE", "LAMP_PARTY"});
+    ctrl.discover_from_hardware(d);
+
+    CHECK(ctrl.configured_macros().empty());
+    CHECK(ctrl.discovered_macros().size() == 3);
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController: deleting an auto-paired device sticks",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    auto d = discovery_with({"LED_ON", "LED_OFF"});
+    ctrl.discover_from_hardware(d);
+    REQUIRE(ctrl.configured_macros().size() == 1);
+
+    // User deletes it.
+    ctrl.set_configured_macros({});
+    ctrl.save_config();
+    REQUIRE(ctrl.configured_macros().empty());
+
+    // Rediscovery must not resurrect it -- that is the whole point of recording
+    // which bases have already been offered.
+    ctrl.discover_from_hardware(d);
+    CHECK(ctrl.configured_macros().empty());
+
+    // And it survives a restart.
+    ctrl.deinit();
+    ctrl.init(nullptr, nullptr);
+    ctrl.discover_from_hardware(d);
+    CHECK(ctrl.configured_macros().empty());
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController: auto-pairing never claims a user's macro",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    // The user already wired LED_ON/LED_OFF into a device of their own.
+    helix::led::LedMacroInfo mine;
+    mine.display_name = "My Lights";
+    mine.type = helix::led::MacroLedType::ON_OFF;
+    mine.on_macro = "LED_ON";
+    mine.off_macro = "LED_OFF";
+    ctrl.set_configured_macros({mine});
+
+    auto d = discovery_with({"LED_ON", "LED_OFF"});
+    ctrl.discover_from_hardware(d);
+
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    CHECK(ctrl.configured_macros()[0].display_name == "My Lights");
+
+    ctrl.deinit();
+    clear_led_config_paths();
+}
+
+TEST_CASE_METHOD(LedConfigFixture, "LedController: auto-pairing is idempotent across rediscovery",
+                 "[led][config][macro]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+
+    auto d = discovery_with({"CHAMBER_LIGHT_ON", "CHAMBER_LIGHT_OFF"});
+    ctrl.discover_from_hardware(d);
+    ctrl.discover_from_hardware(d);
+    ctrl.discover_from_hardware(d);
+
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    CHECK(ctrl.configured_macros()[0].on_macro == "CHAMBER_LIGHT_ON");
+    CHECK(ctrl.configured_macros()[0].off_macro == "CHAMBER_LIGHT_OFF");
+
+    ctrl.deinit();
+    clear_led_config_paths();
 }

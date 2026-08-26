@@ -1,8 +1,34 @@
 diff --git a/src/draw/sw/lv_draw_sw.c b/src/draw/sw/lv_draw_sw.c
-index efca2bdc7..2931e4740 100644
 --- a/src/draw/sw/lv_draw_sw.c
 +++ b/src/draw/sw/lv_draw_sw.c
-@@ -55,6 +55,9 @@ static void execute_drawing(lv_draw_task_t * t);
+@@ -50,11 +50,36 @@
+     static void render_thread_cb(void * ptr);
+ #endif
+ 
++/**
++ * Accessors for the fields `lv_draw_sw_thread_dsc_t` shares between a render
++ * thread and the thread that dispatches and frees draw tasks. Every access to
++ * `task_act`, `exit_status` and `inited` must go through these.
++ *
++ * None of the three is synchronised on the field itself. `task_act` is the one
++ * that matters most: `lv_draw_sw_wait_for_finish()` spins on it to decide when
++ * no draw unit is still blending into a layer buffer, and `cleanup_task()`
++ * destroys that buffer as soon as the spin returns. A plain read establishes no
++ * happens-before edge with the render thread's write, so the guard is ordered
++ * only by luck - and by `lv_sleep_ms()` and `lv_thread_sync_wait()` happening to
++ * be opaque calls the compiler will not hoist a load across. Carrying the
++ * ordering on the field is what makes the guard mean what it says, and is the
++ * only form ThreadSanitizer can model.
++ */
++#define THREAD_DSC_TASK_GET(dsc)     __atomic_load_n(&(dsc)->task_act, __ATOMIC_ACQUIRE)
++#define THREAD_DSC_TASK_SET(dsc, t)  __atomic_store_n(&(dsc)->task_act, (t), __ATOMIC_RELEASE)
++#define THREAD_DSC_EXIT_GET(dsc)     __atomic_load_n(&(dsc)->exit_status, __ATOMIC_ACQUIRE)
++#define THREAD_DSC_EXIT_SET(dsc, v)  __atomic_store_n(&(dsc)->exit_status, (v), __ATOMIC_RELEASE)
++#define THREAD_DSC_INITED_GET(dsc)   __atomic_load_n(&(dsc)->inited, __ATOMIC_ACQUIRE)
++#define THREAD_DSC_INITED_SET(dsc, v) __atomic_store_n(&(dsc)->inited, (v), __ATOMIC_RELEASE)
++
+ static void execute_drawing(lv_draw_task_t * t);
+ 
  static int32_t dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer);
  static int32_t evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task);
  static int32_t lv_draw_sw_delete(lv_draw_unit_t * draw_unit);
@@ -12,7 +38,7 @@ index efca2bdc7..2931e4740 100644
  #if LV_USE_PARALLEL_DRAW_DEBUG
      static void parallel_debug_draw(lv_draw_task_t * t, uint32_t idx);
  #endif
-@@ -83,6 +86,9 @@ void lv_draw_sw_init(void)
+@@ -83,6 +108,9 @@
      draw_sw_unit->base_unit.dispatch_cb = dispatch;
      draw_sw_unit->base_unit.evaluate_cb = evaluate;
      draw_sw_unit->base_unit.delete_cb = LV_USE_OS ? lv_draw_sw_delete : NULL;
@@ -22,7 +48,7 @@ index efca2bdc7..2931e4740 100644
  #if LV_USE_DRAW_ARM2D_SYNC
      draw_sw_unit->base_unit.name = "SW_ARM2D";
  #else
-@@ -123,6 +129,31 @@ void lv_draw_sw_deinit(void)
+@@ -123,6 +151,32 @@
  #endif
  }
  
@@ -39,10 +65,11 @@ index efca2bdc7..2931e4740 100644
 +
 +    uint32_t i;
 +    for(i = 0; i < LV_DRAW_SW_DRAW_UNIT_CNT; i++) {
-+        /* Volatile cast: task_act is not declared volatile but is written by the
-+         * render thread.  The cast ensures the compiler re-reads it each iteration
-+         * and lv_sleep_ms provides a memory barrier on ARM64. */
-+        while(*(volatile lv_draw_task_t * *)&draw_sw_unit->thread_dscs[i].task_act) {
++        /* Acquire load: pairs with the render thread's release store of NULL, so
++         * everything it blended into the layer buffer is visible before
++         * cleanup_task() destroys that buffer. This replaced a volatile cast,
++         * which stopped the compiler caching the load but created no ordering. */
++        while(THREAD_DSC_TASK_GET(&draw_sw_unit->thread_dscs[i]) != NULL) {
 +            lv_sleep_ms(1);
 +        }
 +    }
@@ -54,25 +81,130 @@ index efca2bdc7..2931e4740 100644
  static int32_t lv_draw_sw_delete(lv_draw_unit_t * draw_unit)
  {
  #if LV_USE_OS
-@@ -367,6 +398,10 @@ static void render_thread_cb(void * ptr)
- #if LV_USE_PARALLEL_DRAW_DEBUG
-         parallel_debug_draw(thread_dsc->task_act, thread_dsc->idx);
- #endif
-+        /* Release barrier: publish all pixel writes from execute_drawing() before
-+         * the main thread can observe FINISHED and free the layer buffer. volatile
-+         * alone is not a hardware barrier on weak-memory targets (ARM64). */
-+        __atomic_thread_fence(__ATOMIC_RELEASE);
-         thread_dsc->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
-         thread_dsc->task_act = NULL;
+@@ -133,9 +187,9 @@
+         lv_draw_sw_thread_dsc_t * thread_dsc = &draw_sw_unit->thread_dscs[i];
  
-@@ -384,6 +419,14 @@ static void render_thread_cb(void * ptr)
+         LV_LOG_INFO("cancel software rendering thread");
+-        thread_dsc->exit_status = true;
++        THREAD_DSC_EXIT_SET(thread_dsc, true);
+ 
+-        if(thread_dsc->inited) {
++        if(THREAD_DSC_INITED_GET(thread_dsc)) {
+             lv_thread_sync_signal(&thread_dsc->sync);
+         }
+         lv_thread_delete(&thread_dsc->thread);
+@@ -263,7 +317,7 @@
+     /*If at least one is busy, it's not all idle*/
+     bool all_idle = true;
+     for(i = 0; i < LV_DRAW_SW_DRAW_UNIT_CNT; i++) {
+-        if(draw_sw_unit->thread_dscs[i].task_act) {
++        if(THREAD_DSC_TASK_GET(&draw_sw_unit->thread_dscs[i]) != NULL) {
+             all_idle = false;
+             break;
+         }
+@@ -274,7 +328,7 @@
+         lv_draw_sw_thread_dsc_t * thread_dsc = &draw_sw_unit->thread_dscs[i];
+ 
+         /*Do nothing if busy*/
+-        if(thread_dsc->task_act) continue;
++        if(THREAD_DSC_TASK_GET(thread_dsc) != NULL) continue;
+ 
+         /*Find an available task. Start from the previously taken task.*/
+         t = lv_draw_get_next_available_task(layer, t, DRAW_UNIT_ID_SW);
+@@ -295,11 +349,14 @@
+         /*Take the task*/
+         all_idle = false;
+         taken_cnt++;
+-        t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
+-        thread_dsc->task_act = t;
++        LV_DRAW_TASK_STATE_SET(t, LV_DRAW_TASK_STATE_IN_PROGRESS);
++        /* Release store: the task is fully built above, and a render thread that
++         * observes it non-NULL from its spin (rather than via the signal below)
++         * gets no other edge to see those writes through. */
++        THREAD_DSC_TASK_SET(thread_dsc, t);
+ 
+         /*Let the render thread work*/
+-        if(thread_dsc->inited) lv_thread_sync_signal(&thread_dsc->sync);
++        if(THREAD_DSC_INITED_GET(thread_dsc)) lv_thread_sync_signal(&thread_dsc->sync);
+     }
+ 
+     LV_PROFILER_DRAW_END;
+@@ -326,11 +383,11 @@
+         return LV_DRAW_UNIT_IDLE;  /*Couldn't start rendering*/
+     }
+ 
+-    t->state = LV_DRAW_TASK_STATE_IN_PROGRESS;
++    LV_DRAW_TASK_STATE_SET(t, LV_DRAW_TASK_STATE_IN_PROGRESS);
+     draw_sw_unit->task_act = t;
+ 
+     execute_drawing(t);
+-    draw_sw_unit->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
++    LV_DRAW_TASK_STATE_SET(draw_sw_unit->task_act, LV_DRAW_TASK_STATE_FINISHED);
+     draw_sw_unit->task_act = NULL;
+ 
+     /*The draw unit is free now. Request a new dispatching as it can get a new task*/
+@@ -348,34 +405,44 @@
+     lv_draw_sw_thread_dsc_t * thread_dsc = ptr;
+ 
+     lv_thread_sync_init(&thread_dsc->sync);
+-    thread_dsc->inited = true;
++    THREAD_DSC_INITED_SET(thread_dsc, true);
+ 
+     while(1) {
+-        while(thread_dsc->task_act == NULL) {
+-            if(thread_dsc->exit_status) {
++        while(THREAD_DSC_TASK_GET(thread_dsc) == NULL) {
++            if(THREAD_DSC_EXIT_GET(thread_dsc)) {
+                 break;
+             }
+             lv_thread_sync_wait(&thread_dsc->sync);
+         }
+ 
+-        if(thread_dsc->exit_status) {
++        if(THREAD_DSC_EXIT_GET(thread_dsc)) {
+             LV_LOG_INFO("ready to exit software rendering thread");
+             break;
+         }
+ 
+-        execute_drawing(thread_dsc->task_act);
++        /* One acquire load: the task is this thread's until it publishes NULL. */
++        lv_draw_task_t * task_act = THREAD_DSC_TASK_GET(thread_dsc);
++        execute_drawing(task_act);
+ #if LV_USE_PARALLEL_DRAW_DEBUG
+-        parallel_debug_draw(thread_dsc->task_act, thread_dsc->idx);
++        parallel_debug_draw(task_act, thread_dsc->idx);
+ #endif
+-        thread_dsc->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
+-        thread_dsc->task_act = NULL;
++        /* Release store: publishes every pixel write execute_drawing() made before
++         * the dispatching thread can observe FINISHED and free the task and its
++         * layer buffer. The ordering must ride on the flag itself - volatile is
++         * neither atomic nor ordered, and a standalone fence pair creates no
++         * happens-before edge that the memory model, or TSan, recognises. */
++        LV_DRAW_TASK_STATE_SET(task_act, LV_DRAW_TASK_STATE_FINISHED);
++        /* Release store: publishes the same pixel writes to lv_draw_wait_for_finish(),
++         * whose spin above is the guard cleanup_task() uses before destroying the
++         * layer buffer. */
++        THREAD_DSC_TASK_SET(thread_dsc, NULL);
+ 
+         /*The draw unit is free now. Request a new dispatching as it can get a new task*/
+         lv_draw_dispatch_request();
+ 
+     }
+ 
+-    thread_dsc->inited = false;
++    THREAD_DSC_INITED_SET(thread_dsc, false);
+     lv_thread_sync_delete(&thread_dsc->sync);
+     LV_LOG_INFO("exit software rendering thread");
+ }
+@@ -384,6 +451,14 @@
  static void execute_drawing(lv_draw_task_t * t)
  {
      LV_PROFILER_DRAW_BEGIN;
 +
 +    if(t->draw_dsc == NULL) {
 +        LV_LOG_ERROR("draw task %p has NULL draw_dsc (type=%d, state=%d) — likely use-after-free",
-+                     (void *)t, t->type, t->state);
++                     (void *)t, t->type, (int)LV_DRAW_TASK_STATE_GET(t));
 +        LV_PROFILER_DRAW_END;
 +        return;
 +    }

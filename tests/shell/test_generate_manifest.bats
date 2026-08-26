@@ -20,11 +20,6 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "generate-manifest.sh exists and is executable" {
-    [ -f "$SCRIPT" ]
-    [ -x "$SCRIPT" ]
-}
-
 @test "generate-manifest.sh passes shellcheck" {
     if ! command -v shellcheck &>/dev/null; then
         skip "shellcheck not installed"

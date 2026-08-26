@@ -91,12 +91,64 @@ struct LedMacroInfo {
 inline const LedMacroInfo* find_macro(const std::vector<LedMacroInfo>& macros,
                                       const std::string& name_or_id) {
     const std::string name = strip_macro_name(name_or_id);
+    // A bare "macro:" ID would otherwise match an unnamed draft device, handing
+    // the caller an entry whose gcode fields are all empty.
+    if (name.empty()) {
+        return nullptr;
+    }
     for (const auto& m : macros) {
         if (m.display_name == name) {
             return &m;
         }
     }
     return nullptr;
+}
+
+/// Index of the synthetic "Custom..." row appended to every macro dropdown in
+/// the settings editor. It sits after the detected macros.
+inline int macro_custom_index(const std::vector<std::string>& discovered) {
+    return static_cast<int>(discovered.size());
+}
+
+/// Resolve one macro field of the settings editor into the gcode to store.
+///
+/// Typed text always wins. Keyword detection is deliberately fuzzy and will
+/// never cover every naming scheme, so without a free-text path a macro it
+/// misses is unreachable from the UI entirely.
+inline std::string resolve_macro_field(const std::string& typed, int dropdown_index,
+                                       const std::vector<std::string>& discovered) {
+    const size_t first = typed.find_first_not_of(" \t\n\r");
+    if (first != std::string::npos) {
+        const size_t last = typed.find_last_not_of(" \t\n\r");
+        return typed.substr(first, last - first + 1);
+    }
+    if (dropdown_index >= 0 && dropdown_index < static_cast<int>(discovered.size())) {
+        return discovered[dropdown_index];
+    }
+    return "";
+}
+
+/// How an already-stored macro should be presented in the editor.
+struct MacroFieldView {
+    int dropdown_index; ///< row to preselect
+    std::string typed;  ///< text to prefill (empty when the dropdown covers it)
+};
+
+/// Decide the editor state for a macro already saved on a device. A value the
+/// detector no longer offers lands in the text box rather than snapping the
+/// dropdown to row 0 -- doing that silently rewrote the field to an unrelated
+/// macro the next time the user pressed Save.
+inline MacroFieldView macro_field_view(const std::string& stored,
+                                       const std::vector<std::string>& discovered) {
+    if (stored.empty()) {
+        return {0, ""};
+    }
+    for (size_t i = 0; i < discovered.size(); ++i) {
+        if (discovered[i] == stored) {
+            return {static_cast<int>(i), ""};
+        }
+    }
+    return {macro_custom_index(discovered), stored};
 }
 
 /// WLED preset info fetched from device

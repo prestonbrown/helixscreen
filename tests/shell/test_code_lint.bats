@@ -166,10 +166,39 @@ setup() {
 # pattern below rather than allowlisting each of those consumer files, which
 # would blur the "outside the network layer" invariant this test communicates.
 
+# The same two shapes as the file-narrowing grep below, spelled for awk: `\b` is
+# a GNU grep extension awk does not implement (mawk reads it as a backspace), so
+# the word boundaries around the bare class name are written out.
+moonraker_concrete_pattern() {
+    printf '%s' 'helix::MoonrakerClient|(^|[^A-Za-z0-9_])MoonrakerAPI([^A-Za-z0-9_]|$)'
+}
+
 @test "no concrete Moonraker types outside the network layer (Plan 3: interfaces are the consumer contract)" {
     local allowlist='moonraker_client|moonraker_manager|moonraker_api|moonraker_rest_api|moonraker_file_api|moonraker_file_transfer_api|moonraker_advanced_api|moonraker_history_api|moonraker_job_api|moonraker_motion_api|moonraker_queue_api|moonraker_spoolman_api|moonraker_timelapse_api|moonraker_request_tracker|moonraker_discovery_sequence|_mock'
-    run bash -c "grep -rlE 'helix::MoonrakerClient|\bMoonrakerAPI\b' src/ include/ | grep -v -E \"$allowlist\""
-    [ "$status" -ne 0 ]  # non-zero == no concrete-type reference found outside the allowlist
+    local candidates offenders
+
+    # Narrow to candidate files first (cheap tree-wide grep), then re-match each
+    # one with comments stripped. Prose naming a concrete class is not a
+    # dependency on it: include/power_device_parse.h says which method its parser
+    # was split out of, which the file-list grep alone read as a violation. The
+    # matcher is passed no opt-out token — this gate's escape hatch is the
+    # allowlist above, deliberately, so that widening it stays a visible edit.
+    candidates=$(grep -rlE 'helix::MoonrakerClient|\bMoonrakerAPI\b' src/ include/ |
+        grep -v -E "$allowlist" || true)
+    [ -z "$candidates" ] && return 0
+
+    # shellcheck disable=SC2086  # paths have no spaces; word splitting is intended
+    offenders=$(code_offenders "$(moonraker_concrete_pattern)" "" $candidates)
+    [ -z "$offenders" ] && return 0
+
+    echo "Concrete Moonraker types referenced outside the network layer:"
+    printf '%s\n' "$offenders"
+    echo
+    echo "Consumers depend on the interfaces only: IMoonrakerAPI (include/i_moonraker_api.h),"
+    echo "helix::IMoonrakerClient (include/i_moonraker_client.h), and the ten sub-API"
+    echo "interfaces in include/i_moonraker_sub_apis.h. The concretes live behind"
+    echo "MoonrakerManager (include/moonraker_manager.h), which constructs them."
+    return 1
 }
 
 # --- switch_printer must invalidate every per-printer cache ---
@@ -333,35 +362,57 @@ rtti_lint_files() {
         grep -E '\.(cpp|h)$' | sed 's@^@lib/helix-xml/@'
 }
 
-# Print `file:line: text` for each line of $2.. matching the ERE in $1, ignoring
-# comments and `RTTI_OK` opt-outs. The pattern travels through the environment,
-# not `awk -v`: -v runs escape processing over the value, which turns `\.` into a
+# Print `file:line: text` for each line of $3.. matching the ERE in $1, ignoring
+# comments and lines carrying the literal opt-out token in $2 (empty $2 = the
+# gate has no opt-out). The pattern travels through the environment, not
+# `awk -v`: -v runs escape processing over the value, which turns `\.` into a
 # match-anything `.` and emits a warning for every escape.
-rtti_offenders() {
-    local pat="$1"
-    shift
-    RTTI_PAT="$pat" awk '
-        BEGIN { pat = ENVIRON["RTTI_PAT"] }
+code_offenders() {
+    local pat="$1" optout="$2"
+    shift 2
+    CODE_LINT_PAT="$pat" CODE_LINT_OPTOUT="$optout" awk '
+        BEGIN { pat = ENVIRON["CODE_LINT_PAT"]; optout = ENVIRON["CODE_LINT_OPTOUT"] }
         FNR == 1 { in_block = 0 }
-        /RTTI_OK/ { next }
+        optout != "" && index($0, optout) > 0 { next }
         {
+            # Walk the line left to right, honouring whichever delimiter opens
+            # first. A `//` and a `/*` on one line is not hypothetical:
+            # src/system/config.cpp documents a `scanner/*` config path inside a
+            # `///` comment, and stripping block comments first latched in_block
+            # there and swallowed the rest of the FILE — every gate sharing this
+            # matcher went quiet from that line on.
             line = $0
+            code = ""
             if (in_block) {
                 i = index(line, "*/")
                 if (i == 0) next
                 line = substr(line, i + 2)
                 in_block = 0
             }
-            while ((s = index(line, "/*")) > 0) {
-                rest = substr(line, s + 2)
+            while (1) {
+                b = index(line, "/*")
+                l = index(line, "//")
+                if (l > 0 && (b == 0 || l < b)) {
+                    code = code substr(line, 1, l - 1)
+                    break
+                }
+                if (b == 0) { code = code line; break }
+                code = code substr(line, 1, b - 1)
+                rest = substr(line, b + 2)
                 e = index(rest, "*/")
-                if (e == 0) { line = substr(line, 1, s - 1); in_block = 1; break }
-                line = substr(line, 1, s - 1) substr(rest, e + 2)
+                if (e == 0) { in_block = 1; break }
+                line = substr(rest, e + 2)
             }
-            sub(/\/\/.*/, "", line)
-            if (line ~ pat) print FILENAME ":" FNR ": " $0
+            if (code ~ pat) print FILENAME ":" FNR ": " $0
         }
     ' "$@"
+}
+
+# RTTI flavor: the opt-out is `// RTTI_OK: <reason>`.
+rtti_offenders() {
+    local pat="$1"
+    shift
+    code_offenders "$pat" RTTI_OK "$@"
 }
 
 rtti_advice() {
@@ -499,4 +550,118 @@ EOF
   run .venv/bin/python scripts/translation_sync.py sync --dry-run
   [ "$status" -eq 0 ]
   [[ "$output" == *"All XML strings already in YAML files"* ]]
+}
+
+# The same gate has to run from quality-checks.sh, not only from here. v0.99.116
+# was tagged with five untranslated strings because this file is the only place
+# that checked: quality-checks.sh was green on the same tree, so the pre-commit
+# hook, the pre-push hook and the Code Quality workflow all passed it through,
+# and `make test-shell` only runs late in the release. These pin the wiring.
+
+@test "the translation coverage gate is wired into quality-checks.sh" {
+  run grep -c 'qc_translation_coverage' scripts/quality-checks.sh
+  [ "$status" -eq 0 ]
+  # definition, QC_ALL registration, and the path-gating trigger row
+  [ "$output" -ge 3 ]
+}
+
+@test "quality-checks.sh runs the coverage gate as a dry run" {
+  # A bare `sync` REWRITES all nine catalogs. A gate that edits the tree it is
+  # inspecting would stage catalog churn behind the committer's back, and would
+  # then report green on the very drift it just introduced.
+  run grep -n 'translation_sync.py sync' scripts/quality-checks.sh
+  [ "$status" -eq 0 ]
+  while IFS= read -r line; do
+    [[ "$line" == *"--dry-run"* ]]
+  done <<< "$output"
+}
+
+@test "the coverage gate wakes on src and ui_xml, not just translations" {
+  # A new lv_tr() in src/ or a label_tag in ui_xml/ is what ADDS an untranslated
+  # string; gating the check on ^translations/ alone would sleep through exactly
+  # the commit that introduces one.
+  run bash -c "sed -n '/qc_translation_coverage)/,/;;/p' scripts/quality-checks.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"^ui_xml/"* ]]
+  [[ "$output" == *"^src/"* ]]
+}
+
+# --- Global RuntimeConfig::test_mode must be restored by whoever sets it ---
+#
+# test_mode is the master switch behind every should_mock_*() predicate, so a
+# test file that writes it on the process-global RuntimeConfig and never puts it
+# back changes behaviour for every test scheduled after it. That is what
+# prestonbrown/helixscreen#1287 was: one unrestored write in a capabilities
+# characterization test failed four unrelated tool_state/tool_switcher cases,
+# but only under a filter that happened to order them after it. Each passed
+# alone, which is what made it expensive to find.
+#
+# File-level on purpose. Every correct site today pairs its write with a restore
+# somewhere in the same file, via tests/test_helpers/scoped_runtime_config.h.
+# The gate asks only that the restore exists, so it stays quiet on all of them
+# and fires on a file that only sets.
+#
+# Writes through a LOCAL `RuntimeConfig config;` (test_runtime_config.cpp,
+# test_subject_initializer.cpp) are not global state and are not matched.
+
+test_mode_global_writers() {
+    # Files writing test_mode through a pointer to the global config.
+    grep -rlE '(get_runtime_config\(\)|\brc|\bcfg|\br)->test_mode[[:space:]]*=' "$@" 2>/dev/null || true
+}
+
+test_mode_unrestored_files() {
+    local f
+    for f in $(test_mode_global_writers "$@"); do
+        # A restore is any write of a saved value, or the shared RAII guard.
+        if ! grep -qE 'ScopedRuntimeConfig|test_mode[[:space:]]*=[[:space:]]*(prev|saved|prev_test_mode|saved_test_mode)' "$f"; then
+            echo "$f"
+        fi
+    done
+}
+
+@test "every test file that sets the global test_mode also restores it" {
+    run test_mode_unrestored_files tests/ --include='*.cpp' --include='*.h'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the test_mode gate fires on a file that sets but never restores" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local d="${BATS_TEST_TMPDIR}/leak"
+    mkdir -p "$d"
+    cat > "$d/offender.cpp" <<'EOF'
+TEST_CASE("leaks the global flag") {
+    get_runtime_config()->test_mode = true;
+}
+EOF
+    run test_mode_unrestored_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"offender.cpp"* ]]
+}
+
+@test "the test_mode gate stays quiet on a scoped or manually restored setter" {
+    local d="${BATS_TEST_TMPDIR}/ok"
+    mkdir -p "$d"
+    cat > "$d/scoped.cpp" <<'EOF'
+TEST_CASE("uses the shared guard") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+}
+EOF
+    cat > "$d/manual.cpp" <<'EOF'
+struct Guard {
+    bool prev = get_runtime_config()->test_mode;
+    Guard() { get_runtime_config()->test_mode = true; }
+    ~Guard() { get_runtime_config()->test_mode = prev; }
+};
+EOF
+    cat > "$d/local_instance.cpp" <<'EOF'
+TEST_CASE("a local RuntimeConfig is not global state") {
+    RuntimeConfig config;
+    config.test_mode = true;
+}
+EOF
+    run test_mode_unrestored_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }

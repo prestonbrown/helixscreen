@@ -188,6 +188,7 @@ Some filament systems aren't tied to a specific printer model — HelixScreen de
 - **Happy Hare** (ERCF, Tradrack, 3MS, EMU, and other MMUs)
 - **AFC-Klipper** (Box Turtle, OpenAMS, ViViD)
 - **klipper-toolchanger** (multi-toolhead setups)
+- **MedusaHC** (hotend changer, commonly on a Duender) - detected on top of klipper-toolchanger
 
 Full details on each are in [Filament Management](filament.md#ams--multi-material-systems).
 

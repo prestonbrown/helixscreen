@@ -242,9 +242,10 @@ TEST_CASE("parse_theme_json - new format dark only", "[theme][dual-palette]") {
     REQUIRE(theme.get_mode_support() == ThemeModeSupport::DARK_ONLY);
 }
 
-TEST_CASE("parse_theme_json - legacy format falls back to Nord", "[theme][dual-palette]") {
+TEST_CASE("parse_theme_json - legacy format falls back to the built-in theme",
+          "[theme][dual-palette]") {
     // Legacy format with "colors" object is no longer supported
-    // Should fall back to Nord default theme
+    // Should fall back to the built-in theme
     const char* json = R"({
         "name": "Legacy Theme",
         "colors": {
@@ -270,8 +271,10 @@ TEST_CASE("parse_theme_json - legacy format falls back to Nord", "[theme][dual-p
 
     auto theme = parse_theme_json(json, "legacy.json");
 
-    // Legacy format is not supported - falls back to Nord
-    REQUIRE(theme.name == "Nord");
+    // Legacy format is not supported - falls back to the built-in theme, which is
+    // the configured default rather than Nord (see get_builtin_fallback_theme).
+    REQUIRE(theme.name == "HelixScreen");
+    REQUIRE(theme.filename == helix::DEFAULT_THEME);
     REQUIRE(theme.is_valid());
 }
 

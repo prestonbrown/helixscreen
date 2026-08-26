@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: exercises the shipped RuntimeConfig (include/runtime_config.h), reached
+//                 through application_test_fixture.h. is_test_mode(),
+//                 should_mock_moonraker() and should_mock_wifi() are production methods,
+//                 not a test-local copy of the mocking policy.
 
 /**
  * @file test_application.cpp

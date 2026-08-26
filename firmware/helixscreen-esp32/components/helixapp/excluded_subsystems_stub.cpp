@@ -56,6 +56,7 @@
 #include "esp_log.h"
 #include "shaper_csv_parser.h"
 #include "timelapse_state.h"
+#include "touch_calibration_wrapper.h"
 
 // ===========================================================================
 // Global-scope panel / overlay instance accessors (raw-storage references).
@@ -294,4 +295,26 @@ ShaperCsvData parse_shaper_csv(const std::string&, char) {
 }
 
 } // namespace calibration
+} // namespace helix
+
+// src/api/touch_calibration_wrapper.cpp is not in the cut, but the touch
+// calibration UI that drives it is (ui_touch_calibration_overlay.cpp,
+// touch_calibration_session.cpp). Both entry points below are the wrapper's
+// evdev-facing half: the raw reading only exists behind lv_evdev, and the ABS
+// range is what lv_evdev is programmed with. This board's touch driver is not
+// evdev, so there is no raw stage to read back and no range to store — the
+// degradation the header already specifies for a non-evdev backend.
+namespace helix {
+
+// No evdev stage behind the pointer: report "no raw reading available", which
+// sends the calibration through its affine-only path.
+bool get_last_raw_touch(Point&) {
+    return false;
+}
+
+// Nothing consumes a stored range on this platform (load_touch_range() is only
+// called from the DRM/fbdev backends, both excluded), so persisting one would
+// write config nothing reads back.
+void save_touch_range(const TouchRangeSettings&) {}
+
 } // namespace helix

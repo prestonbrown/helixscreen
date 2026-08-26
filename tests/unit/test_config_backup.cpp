@@ -338,6 +338,10 @@ TEST_CASE("full backup-restore cycle survives simulated Moonraker wipe", "[confi
 // ─── upgrade safety: backup freshness ─────────────────────────────────────────
 
 TEST_CASE("rolling backup written on startup ensures fresh recovery data", "[config_backup]") {
+    // TEST_MIRROR_OK: nothing is reimplemented — write_rolling_backup() and
+    // restore_from_backup() below are the production helix::config_backup symbols
+    // Config::init() itself calls (config.cpp:1611/1968). The comment names the
+    // CALL SEQUENCE init() performs, which needs a real settings path to drive.
     // Simulates the Config::init() fix: rolling backup is written every startup,
     // not just on explicit save. Verifies that even without a save() call,
     // a fresh backup exists for upgrade recovery.

@@ -194,6 +194,9 @@ SlotInfo untracked_slot_without_weights() {
 // Mirrors the show_for_slot() + drain + process_lvgl sequence used by every
 // test in this file, seeded with a weightless slot. Takes the fixture so it
 // can reach test_screen()/process_lvgl() (both LVGLUITestFixture members).
+// TEST_MIRROR_OK: this helper CALLS the production show_for_slot() (see the
+//                 REQUIRE below) — it factors out the repeated call+pump
+//                 sequence, it does not reimplement what show_for_slot() does.
 void show_overlay_for_mock_slot_without_weights(LVGLUITestFixture& fixture) {
     auto& overlay = get_ams_edit_overlay();
     REQUIRE(overlay.show_for_slot(fixture.test_screen(), 0, untracked_slot_without_weights(),

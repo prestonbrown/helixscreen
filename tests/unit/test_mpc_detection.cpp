@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <string>
 #include <thread>
 
@@ -45,6 +46,34 @@ struct LVGLInitializerMPCDetection {
 };
 
 static LVGLInitializerMPCDetection lvgl_init;
+
+/// Scoped HELIX_MOCK_KALICO override. is_mock_kalico() re-reads the environment on
+/// every printer.objects.query, so setting it around a call is enough — no restart,
+/// no cached copy. Mirrors ScopedProbeType in test_mock_probe_discovery.cpp.
+class ScopedKalico {
+  public:
+    explicit ScopedKalico(const char* value) {
+        if (const char* prev = std::getenv("HELIX_MOCK_KALICO")) {
+            had_prev_ = true;
+            prev_ = prev;
+        }
+        setenv("HELIX_MOCK_KALICO", value, 1);
+    }
+    ~ScopedKalico() {
+        if (had_prev_) {
+            setenv("HELIX_MOCK_KALICO", prev_.c_str(), 1);
+        } else {
+            unsetenv("HELIX_MOCK_KALICO");
+        }
+    }
+
+    ScopedKalico(const ScopedKalico&) = delete;
+    ScopedKalico& operator=(const ScopedKalico&) = delete;
+
+  private:
+    bool had_prev_ = false;
+    std::string prev_;
+};
 } // namespace
 
 // ============================================================================
@@ -127,47 +156,52 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns pid f
 }
 
 TEST_CASE_METHOD(MPCDetectionTestFixture,
-                 "get_heater_control_type defaults to pid for missing control key",
+                 "get_heater_control_type errors for a heater absent from configfile.settings",
                  "[mpc_detection]") {
-    // Query a heater that does not exist in the mock configfile settings.
-    // The method should call on_error (heater not found), but let's verify
-    // the behavior: we expect an error callback since "nonexistent_heater" isn't in config.
+    // A heater the config never declares takes the `!settings.contains(heater)`
+    // early return in MoonrakerAdvancedAPI::get_heater_control_type() — on_error,
+    // never on_complete. Reporting a fabricated "pid" for a heater that does not
+    // exist would let a caller size a PID-tune UI for nothing.
     std::atomic<bool> error_fired{false};
     std::atomic<bool> success_fired{false};
+    std::string error_message;
 
     api_->advanced().get_heater_control_type(
         "nonexistent_heater", [&](const std::string&) { success_fired.store(true); },
+        [&](const MoonrakerError& err) {
+            error_message = err.message;
+            error_fired.store(true);
+        });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(error_fired.load());
+    REQUIRE_FALSE(success_fired.load());
+    REQUIRE(error_message.find("not in config") != std::string::npos);
+}
+
+TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns mpc on a Kalico printer",
+                 "[mpc_detection]") {
+    // The mpc branch is the whole reason this query exists: Kalico's MPC heater model
+    // has no PID constants, so a PID-tune UI must not be offered. HELIX_MOCK_KALICO=1
+    // is what flips the mock's configfile.settings.extruder.control to "mpc"
+    // (moonraker_client_mock_objects.cpp), so this drives the real API against a real
+    // Kalico-shaped response rather than re-parsing the JSON by hand.
+    ScopedKalico kalico("1");
+
+    std::atomic<bool> success_fired{false};
+    std::atomic<bool> error_fired{false};
+    std::string control_type;
+
+    api_->advanced().get_heater_control_type(
+        "extruder",
+        [&](const std::string& type) {
+            control_type = type;
+            success_fired.store(true);
+        },
         [&](const MoonrakerError&) { error_fired.store(true); });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // Heater not in config triggers default "pid" behavior
-    // (implementation defaults to "pid" when heater missing from settings)
-    REQUIRE((success_fired.load() || error_fired.load()));
-}
-
-TEST_CASE_METHOD(MPCDetectionTestFixture,
-                 "get_heater_control_type returns mpc via direct configfile query",
-                 "[mpc_detection]") {
-    // Directly query configfile.settings and verify the mock structure,
-    // then simulate what get_heater_control_type would parse if control was "mpc"
-    json params = {{"objects", json::object({{"configfile", json::array({"settings"})}})}};
-
-    std::atomic<bool> cb_fired{false};
-    std::string control_type;
-
-    mock_client_.send_jsonrpc(
-        "printer.objects.query", params,
-        [&](json response) {
-            const json& settings = response["result"]["status"]["configfile"]["settings"];
-            // The default mock has "control": "pid" for extruder
-            REQUIRE(settings.contains("extruder"));
-            const json& ext = settings["extruder"];
-            control_type = ext.value("control", "pid");
-            cb_fired.store(true);
-        },
-        [&](const MoonrakerError&) { cb_fired.store(true); });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    REQUIRE(cb_fired.load());
-    REQUIRE(control_type == "pid");
+    REQUIRE(success_fired.load());
+    REQUIRE_FALSE(error_fired.load());
+    REQUIRE(control_type == "mpc");
 }

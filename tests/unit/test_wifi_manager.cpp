@@ -10,6 +10,7 @@
 #include "../../include/wifi_interface.h"
 #include "../../include/wifi_manager.h"
 #include "../../lvgl/lvgl.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -120,12 +121,12 @@ namespace {
 // Forces WifiBackend::create() down its mock branch (test_mode && !use_real_wifi)
 // and restores the previous runtime config on destruction.
 struct MockWifiGuard {
-    bool prev_test_mode;
-    bool prev_use_real_wifi;
+    // Declared first, so it is destroyed LAST — after the destructor body below
+    // has drained. That ordering is load-bearing; see the comment there.
+    ScopedRuntimeConfig scoped_config;
+
     MockWifiGuard() {
         auto* cfg = get_runtime_config();
-        prev_test_mode = cfg->test_mode;
-        prev_use_real_wifi = cfg->use_real_wifi;
         cfg->test_mode = true;
         cfg->use_real_wifi = false;
     }
@@ -138,12 +139,9 @@ struct MockWifiGuard {
         // the fixture, so without this the closure is still queued when the test
         // ends and lands on whichever test drains next (#1166 ratchet). Draining
         // first also runs it while the mock backend is still selected, which is
-        // the world it was queued under.
+        // the world it was queued under — scoped_config's restore runs after
+        // this body, so the drain still sees the mocked config.
         helix::ui::UpdateQueue::instance().drain();
-
-        auto* cfg = get_runtime_config();
-        cfg->test_mode = prev_test_mode;
-        cfg->use_real_wifi = prev_use_real_wifi;
     }
 };
 
@@ -1171,7 +1169,12 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
     iface.netdev = "wlan0";
     raw->set_resolved_interface_for_test(iface);
 
-    // Radio already carries a stale soft block, mirroring is_radio_enabled()
+    // TEST_MIRROR_OK: is_radio_enabled() is READ from the mock backend here
+    // (raw->is_radio_enabled() on the next line and again after the manager runs),
+    // never reimplemented — the comment names the state being seeded, which is
+    // test input. A real rfkill/nmcli radio query cannot run in the suite.
+    //
+    // Radio already carries a stale soft block, standing in for is_radio_enabled()
     // having been seeded from hardware ahead of this READY firing.
     raw->set_radio_enabled(false);
     REQUIRE_FALSE(raw->is_radio_enabled());

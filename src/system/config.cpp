@@ -265,6 +265,23 @@ bool migrate_config_keys(json& data,
     return any_migrated;
 }
 
+/// Config::init()'s display-migration step, as one callable unit.
+///
+/// Both halves always run: an already-/display/-shaped config still needs its
+/// touch keys moved to /input/, so the second migration must NOT be gated on the
+/// first one having found anything.
+///
+/// @param data JSON config data to migrate (modified in place)
+/// @return true if either migration changed @p data
+bool run_display_migrations(json& data) {
+    bool changed = migrate_display_config(data);
+    if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
+                                   {"/display/touch_device", "/input/touch_device"}})) {
+        changed = true;
+    }
+    return changed;
+}
+
 // ============================================================================
 // Versioned config migrations
 // ============================================================================
@@ -280,6 +297,10 @@ static std::optional<helix::PlatformTier> g_forced_tier_for_migration;
 namespace helix::config_testing {
 void set_forced_tier_for_migration(std::optional<helix::PlatformTier> tier) {
     g_forced_tier_for_migration = tier;
+}
+
+bool run_display_migrations_for_test(nlohmann::json& data) {
+    return ::run_display_migrations(data);
 }
 } // namespace helix::config_testing
 
@@ -1232,7 +1253,50 @@ static void migrate_v20_to_v21(json& config) {
     collapse_scanner_to_root(config);
 }
 
-/// Migration v21->v22: mark every saved home layout as holding pre-v22 units.
+/// Migration v21→v22: the two filament settings that were still read
+/// per-printer but stored at the root.
+///
+/// Both are read as `df() + "filament/..."`, i.e. under /printers/<id>/, so a
+/// value at the root was never consulted. On a real K2 Plus the root held
+/// {"color_rgb": 16711680, "material": "PETG"} - a red PETG spool from months
+/// earlier - while the live ASA-GF sat in the printer's own node. Harmless as
+/// long as nothing reads it, and exactly the kind of thing that bites the day
+/// something does.
+///
+/// fan_out_to_printers() is the right shape for both: a printer that already
+/// holds a real value keeps it (so the live spool above survives untouched),
+/// one that holds none inherits the root value rather than losing it, and the
+/// root key is retired only once there was somewhere to put it.
+static void migrate_v21_to_v22(json& config) {
+    const int spool_copies =
+        fan_out_to_printers(config, "filament/external_spool", "filament/external_spool");
+    if (spool_copies > 0) {
+        spdlog::info("[Config] Migration v22: copied /filament/external_spool to {} printer(s)",
+                     spool_copies);
+    }
+
+    const int cooldown_copies = fan_out_to_printers(config, "filament/cooldown_delay_seconds",
+                                                    "filament/cooldown_delay_seconds");
+    if (cooldown_copies > 0) {
+        spdlog::info(
+            "[Config] Migration v22: copied /filament/cooldown_delay_seconds to {} printer(s)",
+            cooldown_copies);
+    }
+
+    // Drop the container only once it is genuinely empty - a key we have not
+    // accounted for here is a key we must not delete.
+    if (config.contains("filament") && config["filament"].is_object() &&
+        config["filament"].empty()) {
+        config.erase("filament");
+    }
+}
+
+/// Migration v22->v23: mark every saved home layout as holding pre-square-cell units.
+///
+/// Runs at v23 rather than v22 because the released 1.0 line already spent v22
+/// on the filament re-scope above; a config stamped 22 by that build has never
+/// seen this tag. Replaying it is a no-op (see the three guards below), so the
+/// configs that did get it on the 1.1 line are left alone.
 ///
 /// Saved col/row/colspan/rowspan are counts of cells in a grid whose track
 /// count and cell size both changed. This runs at config load — before
@@ -1259,7 +1323,7 @@ static void migrate_v20_to_v21(json& config) {
 ///
 /// Iterates every printer profile, not just the active one — the shipped
 /// config/settings.json already carries two.
-static void migrate_v21_to_v22(json& config) {
+static void migrate_v22_to_v23(json& config) {
     // Harvest the per-panel row cache before dropping the node: nothing else
     // reads /ui/cached_grid any more, and the port wants it keyed to the panel.
     std::map<std::string, int> cached_rows;
@@ -1303,7 +1367,7 @@ static void migrate_v21_to_v22(json& config) {
     };
 
     // Replaying this migration must not change a document it has already run
-    // on. That is not hypothetical: a rollback to a v21 build stamps the
+    // on. That is not hypothetical: a rollback to a v22 build stamps the
     // version back down, and the next upgrade runs the chain again over a
     // layout that is already in track units. Re-tagging it makes the port read
     // tracks as cells and convert a second time. Three states have to be left
@@ -1395,7 +1459,7 @@ static void migrate_v21_to_v22(json& config) {
     }
 
     if (tagged > 0) {
-        spdlog::info("[Config] Migration v22: tagged {} panel layout(s) across {} printer "
+        spdlog::info("[Config] Migration v23: tagged {} panel layout(s) across {} printer "
                      "profile(s) for porting to the square-cell grid",
                      tagged, profiles);
     }
@@ -1526,6 +1590,8 @@ static void run_versioned_migrations(json& config, const std::string& config_pat
         migrate_v20_to_v21(config);
     if (version < 22)
         migrate_v21_to_v22(config);
+    if (version < 23)
+        migrate_v22_to_v23(config);
 
     config["config_version"] = CURRENT_CONFIG_VERSION;
 }
@@ -1558,7 +1624,19 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                        {"c", 0.0},
                        {"d", 0.0},
                        {"e", 1.0},
-                       {"f", 0.0}}}}},
+                       {"f", 0.0}}},
+                     // The evdev ABS range and axis swap a three-point calibration
+                     // solved for (#1259, #1276). valid=false means "use whatever
+                     // range the kernel declared", which is what every install did
+                     // before this key existed - so no migration is needed and an
+                     // uncalibrated device behaves exactly as it always has.
+                     {"touch_range",
+                      {{"valid", false},
+                       {"swap_axes", false},
+                       {"min_x", 0},
+                       {"max_x", 0},
+                       {"min_y", 0},
+                       {"max_y", 0}}}}},
                    {"printers", {{"show_printer_switcher", false}, {printer_id, printer_data}}}};
 
     if (include_user_prefs) {
@@ -1905,14 +1983,10 @@ void Config::init(const std::string& config_path) {
         // logged, not discarded. config_version is left unstamped, so the
         // migration is retried on the next boot.
         try {
-            // Run display config migration (moves root-level display_* to /display/)
-            if (migrate_display_config(data)) {
-                config_modified = true;
-            }
-
-            // Migrate touch settings from /display/ to /input/
-            if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
-                                           {"/display/touch_device", "/input/touch_device"}})) {
+            // Moves root-level display_* to /display/, then the touch keys from
+            // /display/ to /input/. Shared with the config_testing seam so tests
+            // drive this exact sequence instead of restating it.
+            if (run_display_migrations(data)) {
                 config_modified = true;
             }
 

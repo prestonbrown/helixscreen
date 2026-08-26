@@ -35,6 +35,9 @@ class helix::TempGraphWidgetTestAccess {
 
     // Drive the save-callback body directly so tests don't need to construct a
     // live Modal + LVGL show() chain. Mirrors the lambda in on_edit_configure().
+    // TEST_MIRROR_OK: the accessor CALLS production — w.apply_config_save() is the
+    // whole body of that lambda (temp_graph_widget.cpp: `[this](const nlohmann::json&
+    // c) { apply_config_save(c); }`). Nothing is re-derived here.
     static void apply_config_save(TempGraphWidget& w, const nlohmann::json& new_config) {
         w.apply_config_save(new_config);
     }

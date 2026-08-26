@@ -244,6 +244,8 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Password modal for secured networks
     lv_obj_t* password_modal_ = nullptr;
 
+    friend class NetworkSettingsOverlayTestAccess;
+
     // Current network selection for password modal
     char current_ssid_[64];
     bool current_network_is_secured_ = false;
@@ -331,6 +333,9 @@ class NetworkSettingsOverlay : public OverlayBase {
     void hide_password_modal();
 
     // Password modal callbacks
+    /// Nulls whichever cached modal pointer matches the object being destroyed,
+    /// including destruction this class does not drive itself (#1341).
+    static void on_modal_deleted(lv_event_t* e);
     static void on_wifi_password_cancel(lv_event_t* e);
     static void on_wifi_password_connect(lv_event_t* e);
     void handle_password_cancel_clicked();

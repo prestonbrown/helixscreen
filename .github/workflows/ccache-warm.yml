@@ -139,6 +139,12 @@ jobs:
         restore-keys: |
           ccache-release-${{ matrix.platform }}-
 
+    # CCACHE_DIR is passed on the docker runs below, and it is load-bearing:
+    # ccache only reads <cache_dir>/ccache.conf when CCACHE_DIR is set
+    # explicitly. With just the bind mount it looks for ~/.config/ccache/
+    # ccache.conf, finds nothing, and silently keeps its 5 GB default - which is
+    # what these caches actually grew to ("max cache size 5.0 GB" in this job's
+    # own ccache -s output, against a 10 GB per-repo budget shared with CI).
     - name: Configure ccache
       run: |
         mkdir -p /tmp/.ccache-${{ matrix.platform }}
@@ -165,6 +171,7 @@ jobs:
         docker run --rm \
           -v "${{ github.workspace }}":/src \
           -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
+          -e CCACHE_DIR=/root/.cache/ccache \
           -w /src \
           helixscreen/toolchain-${{ matrix.platform }} \
           make PLATFORM_TARGET=${{ matrix.build_target }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
@@ -173,5 +180,6 @@ jobs:
       run: |
         docker run --rm \
           -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
+          -e CCACHE_DIR=/root/.cache/ccache \
           helixscreen/toolchain-${{ matrix.platform }} \
           ccache -s

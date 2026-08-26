@@ -266,9 +266,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 config_section.merge_patch(get_mock_probe_config());
 
                 // Build extruder settings based on HELIX_MOCK_KALICO env var
-                json extruder_settings = {{"min_temp", 0.0},
-                                          {"max_temp", self->get_extruder_max_temp()},
-                                          {"min_extrude_temp", 170.0}};
+                json extruder_settings = {
+                    {"min_temp", self->get_extruder_min_temp()},
+                    {"max_temp", self->get_extruder_max_temp()},
+                    {"min_extrude_temp", self->get_extruder_min_extrude_temp()}};
                 if (is_mock_kalico()) {
                     extruder_settings["control"] = "mpc";
                     extruder_settings["heater_power"] = 50.0;

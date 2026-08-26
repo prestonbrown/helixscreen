@@ -57,6 +57,10 @@ class NetworkWidget : public PanelWidget {
     void update_network_icon_state();
     void set_network(NetworkType type);
     void handle_network_clicked();
+    /// Shared by detach(), on_deactivate() and the ethernet probe's defer body,
+    /// so no path can leave the timer armed on a freed `this` and none of them
+    /// unlinks a timer LVGL is currently walking.
+    void cancel_signal_poll_timer();
 
     static void signal_poll_timer_cb(lv_timer_t* timer);
 };

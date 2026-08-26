@@ -190,6 +190,13 @@ void AmsOverviewPanel::init_subjects() {
                 self->refresh_bypass_display();
             },
             AmsState::instance().get_subjects_lifetime());
+
+        // Engaging bypass changes no slot, so neither the path refresh nor the
+        // external-spool observer above fires for it. The ring needs its own.
+        bypass_active_observer_ = observe_int_sync<AmsOverviewPanel>(
+            AmsState::instance().get_bypass_active_subject(), this,
+            [](AmsOverviewPanel* self, int /*active*/) { self->refresh_bypass_display(); },
+            AmsState::instance().get_subjects_lifetime());
     });
 }
 
@@ -1495,6 +1502,11 @@ void AmsOverviewPanel::refresh_bypass_display() {
                                   (show_bypass2 && ext_spool && !ext_spool->material.empty())
                                       ? ext_spool->material.c_str()
                                       : "");
+        // Same ring a lane slot wears when it is the active node.
+        helix::ui::bypass_spool_set_active(
+            bypass_widgets_,
+            show_bypass2 &&
+                lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0);
         update_bypass_widgets_position();
     }
 

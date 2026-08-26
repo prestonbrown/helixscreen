@@ -3,9 +3,72 @@
 
 #include "touch_calibration_session.h"
 
+#include "config.h"
+#include "touch_calibration_wrapper.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix {
+
+namespace {
+
+void write_affine(Config& cfg, const TouchCalibration& cal) {
+    cfg.set<bool>("/input/calibration/valid", cal.valid);
+    cfg.set<double>("/input/calibration/a", static_cast<double>(cal.a));
+    cfg.set<double>("/input/calibration/b", static_cast<double>(cal.b));
+    cfg.set<double>("/input/calibration/c", static_cast<double>(cal.c));
+    cfg.set<double>("/input/calibration/d", static_cast<double>(cal.d));
+    cfg.set<double>("/input/calibration/e", static_cast<double>(cal.e));
+    cfg.set<double>("/input/calibration/f", static_cast<double>(cal.f));
+}
+
+} // namespace
+
+bool commit_calibration_result(ICalibrationSink* sink, const TouchCalibration& cal,
+                               const TouchRangeFit& fit) {
+    // Re-program the evdev stage first. A backend that cannot (no evdev, or a
+    // degenerate range) says so, and the whole commit falls back to the affine-only
+    // shape rather than persisting a range nothing honours.
+    const bool range_installed =
+        fit.valid && sink != nullptr &&
+        sink->apply_touch_range(fit.swap_axes, fit.min_x, fit.min_y, fit.max_x, fit.max_y);
+
+    // Exactly one of these two describes the mapping from here on.
+    const TouchCalibration affine = range_installed ? fit.residual : cal;
+
+    if (Config* cfg = Config::get_instance()) {
+        TouchRangeSettings range;
+        range.valid = range_installed;
+        range.swap_axes = fit.swap_axes;
+        range.min_x = fit.min_x;
+        range.max_x = fit.max_x;
+        range.min_y = fit.min_y;
+        range.max_y = fit.max_y;
+        save_touch_range(range);
+        write_affine(*cfg, affine);
+    } else {
+        spdlog::error("[TouchCalSession] Config not available - calibration not persisted");
+    }
+
+    bool applied = false;
+    if (sink != nullptr) {
+        if (affine.valid) {
+            applied = sink->apply_calibration(affine);
+        } else {
+            // The range carries the whole mapping. Drop whatever affine the device
+            // still holds instead of leaving the pre-session one composed on top of
+            // a range that no longer matches it.
+            sink->clear_calibration();
+            applied = true;
+        }
+    }
+
+    const char* affine_kind = !affine.valid ? "none" : (range_installed ? "residual" : "full");
+    spdlog::info("[TouchCalSession] Calibration committed: evdev range {}, affine {}, applied={}",
+                 range_installed ? "re-programmed" : "left as the kernel declared it", affine_kind,
+                 applied);
+    return applied;
+}
 
 void TouchCalibrationSession::begin_capture(ICalibrationSink& sink) {
     backup_ = sink.current_calibration();

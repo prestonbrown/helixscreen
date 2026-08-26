@@ -103,6 +103,22 @@ class PrinterExcludedObjectsState {
      */
     void set_current_object(const std::string& name);
 
+    /**
+     * @brief Drop every object of the current printer's exclude_object state
+     *
+     * Clears the excluded set, the defined list with its geometry, and the current
+     * object, routing through the normal setters so each version subject is bumped
+     * and observers refresh.
+     *
+     * Called on printer switch. update_from_status() only refreshes this state when
+     * the new printer reports an "exclude_object" object at all, so a printer without
+     * [exclude_object] configured would otherwise keep displaying the previous
+     * printer's objects indefinitely.
+     *
+     * @threading Main thread only - writes LVGL subjects through the setters.
+     */
+    void clear_objects();
+
     // ========================================================================
     // Subject accessors
     // ========================================================================

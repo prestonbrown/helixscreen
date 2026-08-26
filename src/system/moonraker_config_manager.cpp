@@ -121,6 +121,33 @@ MoonrakerConfigManager::classify_section_match(const std::string& content,
     return r;
 }
 
+MoonrakerConfigManager::CandidateGrade
+MoonrakerConfigManager::grade_config_candidate(const std::string& content,
+                                               const std::vector<std::string>& required_sections,
+                                               bool in_place, bool speculative) {
+    CandidateGrade g;
+    g.match = classify_section_match(content, required_sections);
+
+    bool mismatch = g.match.verdict == SectionMatch::Mismatch;
+    g.drifted = g.match.verdict == SectionMatch::Drifted;
+
+    // A guessed path may not lean on drift tolerance. Separately, the in-place
+    // branch exists only because some file defines the section we are about to
+    // rewrite, so a candidate without it is not that file whatever else matches.
+    if (!mismatch && speculative && g.drifted)
+        g.rejected_by = "its path was inferred, not derived, so it has to match "
+                        "Moonraker's section list exactly";
+    else if (!mismatch && in_place && !has_section(content, "spoolman"))
+        g.rejected_by = "it does not define the [spoolman] section that selected it";
+
+    if (!g.rejected_by.empty()) {
+        mismatch = true;
+        g.drifted = false;
+    }
+    g.accepted = !mismatch;
+    return g;
+}
+
 ConfigPathInfo
 MoonrakerConfigManager::config_path_from_relative(const std::string& filename,
                                                   const std::string& config_root_abs) {

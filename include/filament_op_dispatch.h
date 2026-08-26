@@ -28,6 +28,8 @@ enum class FilamentRefusal {
     SelectSlot,     ///< Load: the backend wants a slot and none resolved
     NothingLoaded,  ///< Unload: the selected slot has no filament to pull
     AlreadyMounted, ///< The requested tool is already on the carriage
+    BypassLoaded,   ///< Load: a lane was asked for, but the bypass spool still
+                    ///< crosses the toolhead and only a hand can clear it
 };
 
 /// Which backend entry point tier 1 should call. Load is NOT always
@@ -63,6 +65,11 @@ struct BackendCaps {
     /// direct-fed lane and a hub-routed one get different answers.
     bool needs_unload_before_load = false;
     bool is_tool_changer = false; ///< get_type() == AmsType::TOOL_CHANGER
+    /// AmsBackend::is_bypass_active(). Distinct from
+    /// !requires_slot_selection_for_load(): that answer is also false for a
+    /// backend that simply does not need a slot, and the two want opposite
+    /// treatment when the user has named a specific lane.
+    bool bypass_active = false;
 };
 
 /**
@@ -106,6 +113,26 @@ struct BackendCaps {
     // it is documented for users in docs/user/guide/filament.md.
     if (macro_user_configured) {
         return {FilamentTier::Macro, FilamentRefusal::None, AmsCall::None, target_slot};
+    }
+
+    // Bypass turns requires_slot_selection_for_load() off, which is right when
+    // the op targets the bypass spool and wrong when the user named a lane.
+    // Falling through sent the EXTERNAL holder's macro with no argument at all:
+    // on a K2 Plus that is LOAD_MATERIAL, whose heat step is gated on the
+    // toolhead sensor, so with nothing threaded it moved the head to the
+    // extrude position and stopped, reporting success having loaded nothing.
+    //
+    // A lane tap is an explicit target, so honour it and let the backend stand
+    // the box back up. The one case that cannot be honoured is a bypass spool
+    // still crossing the toolhead: its switch sits above the cutter and reads
+    // the upstream piece, which no gcode can retract — only the user's hand
+    // clears it (36205eb27). Feeding a lane into that is what we refuse.
+    if (caps.present && caps.bypass_active && target_slot >= 0) {
+        if (sys.filament_loaded) {
+            return {FilamentTier::Refused, FilamentRefusal::BypassLoaded, AmsCall::None,
+                    target_slot};
+        }
+        return {FilamentTier::AmsBackend, FilamentRefusal::None, AmsCall::Load, target_slot};
     }
 
     if (caps.present && caps.requires_slot_selection_for_load) {

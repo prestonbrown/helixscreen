@@ -58,10 +58,11 @@ using HistoryChangedCallback = std::function<void()>;
  * // In panel constructor
  * manager_->add_observer([this]() { on_history_changed(); });
  *
- * // In on_activate
- * if (!manager_->is_loaded()) {
- *     manager_->fetch();
- * } else {
+ * // In on_activate - ensure_loaded(), never fetch(). fetch() means "the cache
+ * // is wrong", and asking for it while a request is in flight queues a second
+ * // identical one.
+ * manager_->ensure_loaded();
+ * if (manager_->is_loaded()) {
  *     update_from_history();
  * }
  *
@@ -163,11 +164,35 @@ class PrintHistoryManager {
      * Calls `get_history_list()` and populates both `cached_jobs_` and
      * `filename_stats_`. Notifies all observers when complete.
      *
-     * Concurrent calls are ignored (only one fetch in progress at a time).
+     * This is the INVALIDATION entry point: it means "whatever is cached is
+     * wrong, go get it again". If a request is already in flight its response
+     * predates the change that prompted this call, so one re-issue is queued to
+     * run when that response lands. Callers that only want the cache populated
+     * must use ensure_loaded() instead - queueing a re-issue for them fetches
+     * the same list twice.
      *
      * @param limit Maximum number of jobs to fetch (default 500)
      */
     void fetch(int limit = 500);
+
+    /**
+     * @brief Populate the cache if it is not already loaded or loading
+     *
+     * The LAZY-LOAD entry point, for a panel that needs history on activate and
+     * does not care whether it or someone else triggered the request. Does
+     * nothing when the cache is loaded or a fetch is already in flight, because
+     * that fetch's response serves this caller too.
+     *
+     * Splitting this out of fetch() is the fix for a real double-fetch: the
+     * panels that want history call this on activate, four such calls landed
+     * while the first request was in flight, and fetch() read every one of them
+     * as an invalidation and queued a re-issue. On an
+     * AD5X the 500-job list took 10.4s and ~800 KB, and every byte of the second
+     * one was redundant (bundles MG34LYR4 / VXYB9JPQ).
+     *
+     * @param limit Maximum number of jobs to fetch (default 500)
+     */
+    void ensure_loaded(int limit = 500);
 
     /**
      * @brief Mark cache as stale

@@ -253,3 +253,48 @@ TEST_CASE("Android scenario: wifi skipped when platform is Android",
     // Clean up
     set_platform_override(-1);
 }
+
+// ============================================================================
+// is_printer_embedded()
+// ============================================================================
+//
+// The first-run wizard asks for a Moonraker address. On a package that runs ON
+// the printer, Moonraker is on the same box and the question has exactly one
+// answer, so the wizard's connected-fast-path treats it as nothing to ask.
+// A desktop or Pi build has no such guarantee and must still ask.
+
+TEST_CASE("is_printer_embedded is overridable for tests", "[platform]") {
+    set_printer_embedded_override(1);
+    CHECK(is_printer_embedded());
+
+    set_printer_embedded_override(0);
+    CHECK_FALSE(is_printer_embedded());
+
+    set_printer_embedded_override(-1);
+}
+
+TEST_CASE("is_printer_embedded matches this build's platform", "[platform]") {
+    set_printer_embedded_override(-1);
+
+#if defined(HELIX_PLATFORM_AD5M) || defined(HELIX_PLATFORM_AD5X) || defined(HELIX_PLATFORM_K1) ||  \
+    defined(HELIX_PLATFORM_CC1) || defined(HELIX_PLATFORM_SNAPMAKER_U1) ||                         \
+    defined(HELIX_PLATFORM_K2) || defined(HELIX_PLATFORM_MIPS)
+    CHECK(is_printer_embedded());
+#else
+    // Desktop, x86 and Pi builds: the printer may be anywhere on the network.
+    CHECK_FALSE(is_printer_embedded());
+#endif
+}
+
+// An override must not leak into the platform answer for the OTHER predicate —
+// they are independent questions (an Android tablet is not printer-embedded,
+// but neither is a desktop).
+TEST_CASE("printer-embedded override is independent of the Android override", "[platform]") {
+    set_printer_embedded_override(1);
+    set_platform_override(0);
+    CHECK(is_printer_embedded());
+    CHECK_FALSE(is_android_platform());
+
+    set_printer_embedded_override(-1);
+    set_platform_override(-1);
+}

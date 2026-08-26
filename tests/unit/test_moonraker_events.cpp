@@ -18,9 +18,16 @@
  * 5. Exception safety in event handlers
  */
 
+#include "ui_update_queue.h"
+
+#include "../lvgl_test_fixture.h"
 #include "abort_manager.h"
+#include "app_globals.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_events.h"
+#include "moonraker_request.h"
+#include "moonraker_request_tracker.h"
+#include "rpc_error_policy.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -76,6 +83,15 @@ class AbortManagerTestAccess {
 
 } // namespace helix
 
+class MoonrakerRequestTrackerTestAccess {
+  public:
+    static void inject_request(MoonrakerRequestTracker& tracker, RequestId id,
+                               PendingRequest request) {
+        std::lock_guard<std::mutex> lock(tracker.requests_mutex_);
+        tracker.pending_requests_[id] = std::move(request);
+    }
+};
+
 // ============================================================================
 // Test Helper: Testable Mock with Protected emit_event Access
 // ============================================================================
@@ -86,8 +102,9 @@ class AbortManagerTestAccess {
  * MoonrakerClient::emit_event() is protected to prevent external code from
  * emitting fake events. This subclass exposes it for testing purposes.
  *
- * Also provides methods to simulate connection lifecycle events that trigger
- * the RECONNECTED and KLIPPY_READY event emissions in real client code.
+ * Connection- and Klippy-lifecycle events are NOT simulated here: those tests
+ * drive MoonrakerClient::on_ws_open() / on_ws_message() directly, so the
+ * emission decisions under test are production's, not the test helper's.
  */
 class TestableMoonrakerClient : public MoonrakerClientMock {
   public:
@@ -97,73 +114,6 @@ class TestableMoonrakerClient : public MoonrakerClientMock {
     void test_emit_event(MoonrakerEventType type, const std::string& message, bool is_error = false,
                          const std::string& details = "") {
         emit_event(type, message, is_error, details);
-    }
-
-    /**
-     * @brief Simulate the onopen callback logic for reconnection event testing
-     *
-     * This replicates the logic in MoonrakerClient::connect() onopen callback:
-     * - If was_connected_ is true, emit RECONNECTED event
-     * - Then set was_connected_ = true
-     *
-     * @param is_reconnection If true, simulates reconnection (emits RECONNECTED)
-     *                        If false, simulates first connection (no event)
-     */
-    void simulate_connection_opened(bool is_reconnection) {
-        if (is_reconnection) {
-            // Simulate reconnection: emit RECONNECTED event
-            emit_event(MoonrakerEventType::RECONNECTED, "Connection restored", false);
-        }
-        // First connection: no RECONNECTED event emitted
-        // In both cases, was_connected_ would be set to true by real client
-    }
-
-    /**
-     * @brief Simulate receiving a notify_klippy_ready notification
-     *
-     * This replicates the logic in MoonrakerClient's onmessage handler
-     * when it receives a notify_klippy_ready method from Moonraker.
-     */
-    void simulate_klippy_ready_notification() {
-        // Emit KLIPPY_READY event (same as real client does in notify_klippy_ready handler)
-        emit_event(MoonrakerEventType::KLIPPY_READY, "Klipper ready", false);
-    }
-
-    /**
-     * @brief Simulate receiving a notify_klippy_disconnected notification
-     *
-     * This replicates the logic in MoonrakerClient's onmessage handler
-     * when it receives a notify_klippy_disconnected method from Moonraker.
-     *
-     * @param reason Disconnection reason from Moonraker
-     */
-    void simulate_klippy_disconnected_notification(const std::string& reason = "Klipper shutdown") {
-        // Emit KLIPPY_DISCONNECTED event (same as real client)
-        emit_event(MoonrakerEventType::KLIPPY_DISCONNECTED, reason, true);
-    }
-
-    /**
-     * @brief Simulate an RPC error response going through the full error handling path
-     *
-     * This replicates the logic in MoonrakerClient's onmessage handler when
-     * processing an RPC error response, including the shutdown suppression check.
-     *
-     * @param method_name The RPC method that failed
-     * @param error_message The error message
-     * @param is_silent Whether this was a silent request
-     */
-    void simulate_rpc_error(const std::string& method_name, const std::string& error_message,
-                            bool is_silent = false) {
-        // Replicate the error handling logic from moonraker_client.cpp lines 348-371
-        bool suppress_toast = helix::AbortManager::instance().is_handling_shutdown();
-
-        if (!is_silent && !suppress_toast) {
-            // Emit RPC error event (only for non-silent, non-suppressed requests)
-            emit_event(MoonrakerEventType::RPC_ERROR,
-                       fmt::format("Printer command '{}' failed: {}", method_name, error_message),
-                       true, method_name);
-        }
-        // When suppressed or silent, no event is emitted (just logging in real code)
     }
 };
 
@@ -176,11 +126,21 @@ class TestableMoonrakerClient : public MoonrakerClientMock {
  *
  * Provides a testable mock client and event capture infrastructure.
  */
-class EventTestFixture {
+class EventTestFixture : public LVGLTestFixture {
   public:
     EventTestFixture()
         : client_(std::make_unique<TestableMoonrakerClient>(
-              MoonrakerClientMock::PrinterType::VORON_24)) {}
+              MoonrakerClientMock::PrinterType::VORON_24)) {
+        // The real notify_klippy_* handlers write PrinterState's klippy subject
+        // through UpdateQueue. LVGLTestFixture owns that queue's lifecycle and
+        // drains it on teardown; init_subjects() gives the drained callback a
+        // subject to land on instead of a half-built one.
+        get_printer_state().init_subjects(false);
+    }
+
+    ~EventTestFixture() override {
+        helix::ui::UpdateQueue::instance().drain();
+    }
 
     /**
      * @brief Create an event handler that captures received events
@@ -547,8 +507,12 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event emission is thread-saf
         stop_flag.store(true);
         register_thread.join();
 
-        // Should have received events without crashing
-        CHECK(received_count.load() >= 0);
+        // received_count only ever increments, so `>= 0` held even if every emit was
+        // dropped. Exactly one handler is registered at a time (register_event_handler
+        // replaces), so the count cannot exceed the number of emits either.
+        int received = received_count.load();
+        CHECK(received > 0);
+        CHECK(received <= NUM_EVENTS);
     }
 }
 
@@ -560,20 +524,23 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient RECONNECTED event behavior",
                  "[state][integration][reconnection]") {
     client_->register_event_handler(create_capture_handler());
 
+    // on_ws_open() is the real WebSocket onopen body. Its whole reconnection rule is
+    // the `was_connected_` latch it reads BEFORE setting: the first open of a process
+    // is not a reconnection, every later one is. Calling it directly means the latch
+    // decides, instead of the test passing itself a flag and asserting the flag back.
     SECTION("first connection does NOT emit RECONNECTED event") {
-        // Simulate first-time connection (was_connected_ was false)
-        client_->simulate_connection_opened(false);
+        client_->on_ws_open();
 
-        // Should NOT receive any events on first connection
         CHECK(event_count() == 0);
         CHECK_FALSE(has_event());
     }
 
-    SECTION("reconnection DOES emit RECONNECTED event") {
-        // Simulate reconnection (was_connected_ was true from previous connection)
-        client_->simulate_connection_opened(true);
+    SECTION("the SECOND open emits exactly one RECONNECTED event") {
+        client_->on_ws_open(); // first connect — latches was_connected_
+        REQUIRE(event_count() == 0);
 
-        // Should receive RECONNECTED event
+        client_->on_ws_open(); // reconnect
+
         REQUIRE(event_count() == 1);
         auto event = get_last_event();
         CHECK(event.type == MoonrakerEventType::RECONNECTED);
@@ -581,27 +548,15 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient RECONNECTED event behavior",
         CHECK(event.is_error == false);
     }
 
-    SECTION("multiple reconnections emit multiple events") {
-        // Simulate multiple reconnect cycles
-        client_->simulate_connection_opened(true); // First reconnection
-        client_->simulate_connection_opened(true); // Second reconnection
+    SECTION("every subsequent reconnection emits its own event") {
+        client_->on_ws_open(); // first connect
+        client_->on_ws_open(); // reconnect 1
+        client_->on_ws_open(); // reconnect 2
 
         REQUIRE(event_count() == 2);
-
         auto events = get_events();
         CHECK(events[0].type == MoonrakerEventType::RECONNECTED);
         CHECK(events[1].type == MoonrakerEventType::RECONNECTED);
-    }
-
-    SECTION("reconnection after first connect emits event") {
-        // First connection - no event
-        client_->simulate_connection_opened(false);
-        CHECK(event_count() == 0);
-
-        // Reconnection - event emitted
-        client_->simulate_connection_opened(true);
-        REQUIRE(event_count() == 1);
-        CHECK(get_last_event().type == MoonrakerEventType::RECONNECTED);
     }
 }
 
@@ -609,12 +564,26 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient RECONNECTED event behavior",
 // Test Cases: Klippy State Event Behavior
 // ============================================================================
 
+namespace {
+
+/// A Moonraker notification frame: no "id", so the client routes it to the
+/// notification arm of on_ws_message() rather than the request tracker.
+std::string klippy_notification(const char* method) {
+    return json{{"jsonrpc", "2.0"}, {"method", method}, {"params", json::array()}}.dump();
+}
+
+} // namespace
+
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient KLIPPY_READY event behavior",
                  "[state][integration][klippy]") {
     client_->register_event_handler(create_capture_handler());
 
-    SECTION("klippy ready notification emits KLIPPY_READY event") {
-        client_->simulate_klippy_ready_notification();
+    // Feed real Moonraker notification frames through the real onmessage body, so the
+    // method-name dispatch, the event type, and the user-facing message text are all
+    // production's. The disconnected message in particular is a fixed string the old
+    // helper let the caller supply — which meant the test asserted its own argument.
+    SECTION("notify_klippy_ready emits KLIPPY_READY") {
+        client_->on_ws_message(klippy_notification("notify_klippy_ready"));
 
         REQUIRE(event_count() == 1);
         auto event = get_last_event();
@@ -623,23 +592,32 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient KLIPPY_READY event behavior"
         CHECK(event.is_error == false);
     }
 
-    SECTION("klippy disconnected notification emits KLIPPY_DISCONNECTED event") {
-        client_->simulate_klippy_disconnected_notification("Emergency shutdown");
+    SECTION("notify_klippy_disconnected emits KLIPPY_DISCONNECTED as an error") {
+        client_->on_ws_message(klippy_notification("notify_klippy_disconnected"));
 
         REQUIRE(event_count() == 1);
         auto event = get_last_event();
         CHECK(event.type == MoonrakerEventType::KLIPPY_DISCONNECTED);
-        CHECK(event.message == "Emergency shutdown");
-        CHECK(event.is_error == true); // KLIPPY_DISCONNECTED is an error
+        CHECK(event.is_error == true);
+        CHECK(event.message.find("disconnected from Moonraker") != std::string::npos);
     }
 
-    SECTION("klippy disconnect then ready cycle emits both events") {
-        // Simulate Klipper crash then recovery
-        client_->simulate_klippy_disconnected_notification("MCU timeout");
-        client_->simulate_klippy_ready_notification();
+    SECTION("notify_klippy_shutdown is distinct from a disconnect") {
+        // Klipper is still talking to Moonraker, just halted — a different event type
+        // and a different recovery path in the UI.
+        client_->on_ws_message(klippy_notification("notify_klippy_shutdown"));
+
+        REQUIRE(event_count() == 1);
+        auto event = get_last_event();
+        CHECK(event.type == MoonrakerEventType::KLIPPY_SHUTDOWN);
+        CHECK(event.is_error == true);
+    }
+
+    SECTION("disconnect then ready emits both, in order") {
+        client_->on_ws_message(klippy_notification("notify_klippy_disconnected"));
+        client_->on_ws_message(klippy_notification("notify_klippy_ready"));
 
         REQUIRE(event_count() == 2);
-
         auto events = get_events();
         CHECK(events[0].type == MoonrakerEventType::KLIPPY_DISCONNECTED);
         CHECK(events[0].is_error == true);
@@ -651,47 +629,76 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient KLIPPY_READY event behavior"
 // ============================================================================
 // Test Cases: Shutdown Suppression
 // ============================================================================
+//
+// MoonrakerClient::on_ws_message() hands the request tracker
+// `AbortManager::instance().is_handling_shutdown()` as its suppress_error_toast
+// predicate. The tracker feeds that to rpc_error_policy::decide() as
+// RequestFacts::suppress_all, and only the resulting Decision decides whether an
+// RPC_ERROR event reaches the UI. Driving route_response() with that same real
+// predicate is what makes these assertions production's rather than the test's.
+//
+// The old helper here modelled the rule as `!is_silent && !suppress_toast`, which is
+// not the shipped rule: a request carrying an error callback, or one on a method
+// Klipper mirrors as `!!` (printer.gcode.script), is already reported by its owner and
+// must NOT also raise the generic toast. So it used printer.gcode.script and asserted
+// an event that production suppresses.
 
-TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient suppresses RPC_ERROR during shutdown",
-                 "[state][integration][shutdown][suppression]") {
-    client_->register_event_handler(create_capture_handler());
+TEST_CASE("MoonrakerClient RPC_ERROR suppression follows AbortManager shutdown state",
+          "[state][integration][shutdown][suppression]") {
+    MoonrakerRequestTracker tracker;
 
-    SECTION("RPC_ERROR not emitted when AbortManager is handling shutdown") {
-        // Set up AbortManager directly in SENT_ESTOP state with shutdown recovery flag
-        // This simulates the condition after M112 is sent and we're waiting for recovery
-        helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
-        helix::AbortManagerTestAccess::set_shutdown_recovery(helix::AbortManager::instance());
+    // No error_callback and not silent: nobody else reports this failure, so the
+    // generic RPC_ERROR fallback is the only surface — the case where suppression
+    // is actually observable.
+    PendingRequest request;
+    request.id = 4242;
+    request.method = "printer.objects.query";
+    request.timeout_ms = 60000;
+    request.timestamp = std::chrono::steady_clock::now();
+    request.intent = helix::rpc_error_policy::CallerIntent{/*silent=*/false,
+                                                           /*surfaces_errors=*/false};
 
-        // Verify AbortManager reports it's handling shutdown
-        REQUIRE(helix::AbortManager::instance().is_handling_shutdown() == true);
+    const json error_response = {
+        {"jsonrpc", "2.0"},
+        {"id", 4242},
+        {"error", {{"code", -32601}, {"message", "Klippy not ready"}}},
+    };
 
-        // Allow state machine to fully propagate before simulating RPC error
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::vector<MoonrakerEvent> events;
+    // Field order is {type, message, details, is_error} — see include/moonraker_events.h.
+    auto emit = [&events](MoonrakerEventType type, const std::string& message, bool is_error,
+                          const std::string& details) {
+        events.push_back(MoonrakerEvent{type, message, details, is_error});
+    };
+    auto suppress = []() { return helix::AbortManager::instance().is_handling_shutdown(); };
 
-        // Now trigger an RPC error through the full error handling path
-        // This should NOT emit an event because AbortManager is handling shutdown
-        client_->simulate_rpc_error("printer.gcode.script", "Klippy not ready");
-
-        // The event should NOT have been captured because we're in shutdown handling
-        CHECK(event_count() == 0);
-
-        // Clean up
-        helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
-    }
-
-    SECTION("RPC_ERROR still emitted when AbortManager is NOT handling shutdown") {
-        // Ensure AbortManager is in idle state (not handling shutdown)
+    SECTION("RPC_ERROR is emitted when AbortManager is NOT handling shutdown") {
         helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
         REQUIRE(helix::AbortManager::instance().is_handling_shutdown() == false);
 
-        // Trigger an RPC error through the full error handling path
-        // This SHOULD be emitted normally since we're not in shutdown handling
-        client_->simulate_rpc_error("printer.gcode.script", "Command failed");
+        MoonrakerRequestTrackerTestAccess::inject_request(tracker, 4242, request);
+        REQUIRE(tracker.route_response(error_response, emit, suppress));
 
-        // Event should have been captured
-        REQUIRE(event_count() == 1);
-        CHECK(get_last_event().type == MoonrakerEventType::RPC_ERROR);
-        CHECK(get_last_event().message.find("Command failed") != std::string::npos);
+        REQUIRE(events.size() == 1);
+        CHECK(events[0].type == MoonrakerEventType::RPC_ERROR);
+        CHECK(events[0].is_error == true);
+        CHECK(events[0].message.find("Klippy not ready") != std::string::npos);
+        CHECK(events[0].details == "printer.objects.query");
+    }
+
+    SECTION("RPC_ERROR is suppressed while AbortManager is handling shutdown") {
+        // After M112 the printer produces a burst of "Klippy not ready" rejections.
+        // Toasting each one buries the recovery dialog the user actually needs.
+        helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
+        helix::AbortManagerTestAccess::set_shutdown_recovery(helix::AbortManager::instance());
+        REQUIRE(helix::AbortManager::instance().is_handling_shutdown() == true);
+
+        MoonrakerRequestTrackerTestAccess::inject_request(tracker, 4242, request);
+        REQUIRE(tracker.route_response(error_response, emit, suppress));
+
+        CHECK(events.empty());
+
+        helix::AbortManagerTestAccess::reset(helix::AbortManager::instance());
     }
 }
 
@@ -704,10 +711,10 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient combined connection flow eve
     client_->register_event_handler(create_capture_handler());
 
     SECTION("full reconnection scenario: connection lost, reconnected, klippy ready") {
-        // Simulate complete reconnection sequence
+        client_->on_ws_open(); // first connect — no event
         client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "WebSocket closed", true);
-        client_->simulate_connection_opened(true); // Reconnected
-        client_->simulate_klippy_ready_notification();
+        client_->on_ws_open(); // reconnect
+        client_->on_ws_message(klippy_notification("notify_klippy_ready"));
 
         REQUIRE(event_count() == 3);
 
@@ -721,9 +728,11 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient combined connection flow eve
     }
 
     SECTION("klippy restart without connection loss") {
-        // Simulate Klipper restart (RESTART G-code) while WebSocket stays connected
-        client_->simulate_klippy_disconnected_notification("Klipper restart requested");
-        client_->simulate_klippy_ready_notification();
+        // A RESTART G-code drops Klippy but not the WebSocket, so on_ws_open() never
+        // runs and there must be no RECONNECTED event — the discriminator between
+        // "printer firmware restarted" and "we lost the host".
+        client_->on_ws_message(klippy_notification("notify_klippy_disconnected"));
+        client_->on_ws_message(klippy_notification("notify_klippy_ready"));
 
         REQUIRE(event_count() == 2);
 
@@ -731,7 +740,6 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient combined connection flow eve
         CHECK(events[0].type == MoonrakerEventType::KLIPPY_DISCONNECTED);
         CHECK(events[1].type == MoonrakerEventType::KLIPPY_READY);
 
-        // No RECONNECTED event (WebSocket stayed connected)
         for (const auto& evt : events) {
             CHECK(evt.type != MoonrakerEventType::RECONNECTED);
         }

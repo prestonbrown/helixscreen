@@ -8,6 +8,7 @@
 #include "lvgl/lvgl.h"
 #include "observer_factory.h"
 #include "overlay_base.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
@@ -191,6 +192,11 @@ class PrintTuneOverlay : public OverlayBase {
     //
 
     IMoonrakerAPI* api_ = nullptr;
+
+    /// Owns the SAVE_CONFIG contract for the z-offset save: absorbs the rpc the
+    /// restart drops and reports success only once Klipper is back (#1359).
+    helix::ui::SaveConfigWatch save_config_watch_;
+
     helix::PrinterState* printer_state_ = nullptr;
     lv_obj_t* tune_panel_ = nullptr;
 

@@ -1,22 +1,25 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The v21 -> v22 migration TAGS every saved home layout rather than converting
-// or clearing it. Saved col/row/span are cell counts against a grid whose track
-// count and cell size both changed, and this runs at config load, before any
-// screen size is known — so the conversion cannot happen here. It can happen at
-// the first grid build, which knows the panel extent and the measured content
-// box, so the coordinates are left intact for PanelWidgetManager to port (see
-// tests/unit/test_layout_port.cpp for the conversion itself).
+// Exercises the v21 -> v22 config migration, which re-scopes the two filament
+// settings that were still stored at the config root while being READ
+// per-printer:
 //
-// What this migration must therefore NOT do is destroy the inputs that port
-// needs. These tests pin that: coordinates and spans survive, the array order
-// that drives placement order survives, a deliberate hide survives, and the old
-// grid's row cache is carried onto the panel instead of being dropped.
+//   /filament/external_spool         -> /printers/<id>/filament/external_spool
+//   /filament/cooldown_delay_seconds -> /printers/<id>/filament/cooldown_delay_seconds
 //
-// The migration is a static function in config.cpp, so it is driven through the
-// public Config::init() path exactly as the v21 tests do. A sandboxed
-// HELIX_CONFIG_DIR keeps backup-restore search paths inside the temp dir.
+// Both are read as `Config::df() + "filament/..."`, so a root value was never
+// consulted by anything. On a real K2 Plus (config_version 21) the root held a
+// red PETG spool from months earlier while the live ASA-GF sat correctly in the
+// printer's own node - two answers to the same question, one of them silently
+// dead.
+//
+// The contract that matters is the non-clobber: a printer already holding a
+// real value KEEPS it. Fanning the stale root value over live data would be
+// strictly worse than leaving the orphan alone.
+//
+// Driven through the public Config::init() path like the v18/v21 tests, with a
+// sandboxed HELIX_CONFIG_DIR so backup-restore search paths stay in the temp dir.
 
 #include "config.h"
 
@@ -64,30 +67,11 @@ class MigrationV22Fixture {
         config.clear_path();
     }
 
-    /// Write a settings.json, then init Config from it so the real versioned
-    /// migrations run.
     void write_and_init(const json& contents) {
         std::ofstream f(config_path);
         f << contents.dump(2);
         f.close();
         config.init(config_path);
-    }
-
-    /// The multi-page panel_widgets shape, wrapping one page of widgets.
-    static json home(std::initializer_list<json> widgets) {
-        return json{{"main_page_index", 0},
-                    {"next_page_id", 1},
-                    {"pages", json::array({json{{"id", "main"}, {"widgets", json(widgets)}}})}};
-    }
-
-    json widgets_of(const char* printer = "default") const {
-        return config.get<json>(
-            std::string("/printers/") + printer + "/panel_widgets/home/pages/0/widgets", json());
-    }
-
-    json panel_of(const char* printer = "default") const {
-        return config.get<json>(std::string("/printers/") + printer + "/panel_widgets/home",
-                                json());
     }
 
   public:
@@ -101,244 +85,71 @@ class MigrationV22Fixture {
 
 } // namespace
 
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: preserves every coordinate and span",
-                 "[config][migration][22]") {
-    write_and_init({{"config_version", 21},
-                    {"active_printer_id", "default"},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home", home({{{"id", "printer_image"},
-                                          {"enabled", true},
-                                          {"col", 0},
-                                          {"row", 0},
-                                          {"colspan", 2},
-                                          {"rowspan", 2}},
-                                         {{"id", "tips"},
-                                          {"enabled", true},
-                                          {"col", 2},
-                                          {"row", 0},
-                                          {"colspan", 4},
-                                          {"rowspan", 2}}})}}}}}}}});
-
-    auto widgets = widgets_of();
-    REQUIRE(widgets.is_array());
-    REQUIRE(widgets.size() == 2);
-    // The port runs later and needs these numbers; destroying them here is
-    // exactly what this migration used to do and must not do again.
-    CHECK(widgets[0]["col"] == 0);
-    CHECK(widgets[0]["row"] == 0);
-    CHECK(widgets[0]["colspan"] == 2);
-    CHECK(widgets[0]["rowspan"] == 2);
-    CHECK(widgets[1]["col"] == 2);
-    CHECK(widgets[1]["row"] == 0);
-    CHECK(widgets[1]["colspan"] == 4);
-    CHECK(widgets[1]["rowspan"] == 2);
-
-    // And they must be marked as the unit they are, or the first grid build
-    // reads cell counts as track counts.
-    auto panel = panel_of();
-    CHECK(panel["layout_units"] == "cells_v21");
-    CHECK(config.get<int>("/config_version", 0) == 22);
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture,
-                 "Config migration v22: a user trash keeps its hide, an engine disable does not",
-                 "[config][migration][22]") {
-    write_and_init({{"config_version", 21},
-                    {"active_printer_id", "default"},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home", home({{{"id", "tips"},
-                                          {"enabled", false},
-                                          {"col", 2},
-                                          {"row", 0},
-                                          {"colspan", 4},
-                                          {"rowspan", 2}},
-                                         {{"id", "fan_stack"},
-                                          {"enabled", false},
-                                          {"col", -1},
-                                          {"row", -1},
-                                          {"colspan", 1},
-                                          {"rowspan", 1}},
-                                         {{"id", "led"},
-                                          {"enabled", true},
-                                          {"col", 3},
-                                          {"row", 2},
-                                          {"colspan", 1},
-                                          {"rowspan", 1}}})}}}}}}}});
-
-    auto widgets = widgets_of();
-    REQUIRE(widgets.size() == 3);
-    // tips carried real coordinates, so its disable was a trash press.
-    CHECK(widgets[0]["enabled"] == false);
-    // fan_stack was already unplaced, so the disable was the engine's; the key
-    // goes away and the registry default decides.
-    CHECK_FALSE(widgets[1].contains("enabled"));
-    CHECK(widgets[2]["enabled"] == true);
-    // Array order drives placement order and must not change.
-    CHECK(widgets[0]["id"] == "tips");
-    CHECK(widgets[1]["id"] == "fan_stack");
-    CHECK(widgets[2]["id"] == "led");
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: covers every printer profile",
-                 "[config][migration][22]") {
+TEST_CASE_METHOD(MigrationV22Fixture, "v22 keeps a printer's live external spool over the root one",
+                 "[config][migration]") {
+    // The exact shape found on the K2 Plus: a stale red PETG at the root, the
+    // real ASA-GF in the printer node.
     write_and_init(
-        {{"config_version", 21},
-         {"active_printer_id", "default"},
-         {"printers",
-          {{"default",
-            {{"panel_widgets",
-              {{"home", home({{{"id", "led"}, {"enabled", true}, {"col", 1}, {"row", 1}}})}}}}},
-           {"printer-2",
-            {{"panel_widgets",
-              {{"home",
-                home({{{"id", "tips"}, {"enabled", true}, {"col", 3}, {"row", 2}}})}}}}}}}});
+        json{{"config_version", 21},
+             {"active_printer_id", "k2"},
+             {"filament", {{"external_spool", {{"color_rgb", 16711680}, {"material", "PETG"}}}}},
+             {"printers",
+              {{"k2",
+                {{"moonraker_host", "192.168.30.196"},
+                 {"filament",
+                  {{"external_spool",
+                    {{"assigned", true}, {"material", "ASA-GF"}, {"spoolman_id", 145}}}}}}}}}});
 
-    for (const char* id : {"default", "printer-2"}) {
-        INFO("printer " << id);
-        auto widgets = widgets_of(id);
-        REQUIRE(widgets.size() == 1);
-        CHECK(widgets[0]["col"].get<int>() >= 0);
-        CHECK(panel_of(id)["layout_units"] == "cells_v21");
-    }
+    CHECK(config.get<int>("/config_version", 0) == helix::CURRENT_CONFIG_VERSION);
+    // The live value survives untouched...
+    CHECK(config.get<std::string>("/printers/k2/filament/external_spool/material", "") == "ASA-GF");
+    CHECK(config.get<int>("/printers/k2/filament/external_spool/spoolman_id", 0) == 145);
+    // ...and the orphan is gone, rather than overwriting it.
+    CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
 }
 
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: handles a legacy flat array",
-                 "[config][migration][22]") {
-    // Configs written before the multi-page format hold a bare array, which
-    // PanelWidgetConfig::load() routes down a separate branch that can decide
-    // the config is pre-grid and replace it with build_defaults(), discarding
-    // every deliberate hide. The migration converts the array to the page shape
-    // so that branch is never reached, and tags it like any other panel.
+TEST_CASE_METHOD(MigrationV22Fixture, "v22 promotes a root spool when the printer has none",
+                 "[config][migration]") {
+    // Losing the value would be the other failure mode: an install that only
+    // ever wrote the root key must come out the far side still configured.
+    write_and_init(json{{"config_version", 21},
+                        {"active_printer_id", "voron"},
+                        {"filament",
+                         {{"external_spool", {{"assigned", true}, {"material", "PETG"}}},
+                          {"cooldown_delay_seconds", 45}}},
+                        {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
+
+    CHECK(config.get<std::string>("/printers/voron/filament/external_spool/material", "") ==
+          "PETG");
+    CHECK(config.get<int>("/printers/voron/filament/cooldown_delay_seconds", 0) == 45);
+    CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
+}
+
+TEST_CASE_METHOD(MigrationV22Fixture, "v22 fans the root value out to EVERY printer",
+                 "[config][migration]") {
+    // Same rule migrate_v20_to_v21 established: an install-wide value becomes
+    // every machine's value, so behaviour after the upgrade is unchanged.
+    write_and_init(json{{"config_version", 21},
+                        {"active_printer_id", "a"},
+                        {"filament", {{"cooldown_delay_seconds", 30}}},
+                        {"printers",
+                         {{"show_printer_switcher", true}, // mixed-map sibling, must be skipped
+                          {"a", {{"moonraker_host", "10.0.0.1"}}},
+                          {"b", {{"moonraker_host", "10.0.0.2"}}}}}});
+
+    CHECK(config.get<int>("/printers/a/filament/cooldown_delay_seconds", 0) == 30);
+    CHECK(config.get<int>("/printers/b/filament/cooldown_delay_seconds", 0) == 30);
+    // The non-printer sibling is untouched.
+    CHECK(config.get<bool>("/printers/show_printer_switcher", false));
+}
+
+TEST_CASE_METHOD(MigrationV22Fixture, "v22 leaves the root key alone when there is no printer",
+                 "[config][migration]") {
+    // fan_out_to_printers() refuses to erase a value it has nowhere to put -
+    // the lesson from migrate_v19_to_v20's /led, which deleted user settings
+    // outright when the fold was skipped.
     write_and_init(
-        {{"config_version", 21},
-         {"active_printer_id", "default"},
-         {"printers",
-          {{"default",
-            {{"panel_widgets",
-              {{"home",
-                json::array({{{"id", "tips"},
-                              {"enabled", false},
-                              {"col", 2},
-                              {"row", 0},
-                              {"colspan", 4},
-                              {"rowspan", 2}},
-                             {{"id", "led"}, {"enabled", true}, {"col", 3}, {"row", 2}}})}}}}}}}});
+        json{{"config_version", 21}, {"filament", {{"external_spool", {{"material", "PLA"}}}}}});
 
-    auto homecfg = panel_of();
-    REQUIRE(homecfg.is_object());
-    REQUIRE(homecfg.contains("pages"));
-    CHECK(homecfg["layout_units"] == "cells_v21");
-    auto widgets = homecfg["pages"][0]["widgets"];
-    REQUIRE(widgets.size() == 2);
-    CHECK(widgets[0]["enabled"] == false); // deliberate hide survives
-    CHECK(widgets[0]["col"] == 2);         // and so does its position
-    CHECK(widgets[0]["colspan"] == 4);
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture,
-                 "Config migration v22: carries the cached row count onto the panel",
-                 "[config][migration][22]") {
-    // /ui/cached_grid/<panel>/rows is a row count in cells of the old grid. It
-    // is the one thing about that grid a saved layout cannot re-derive on its
-    // own — the old row axis was sized from the widgets in use, with this as a
-    // floor for widgets whose hardware gate had not yet fired. So it moves onto
-    // the panel beside the tag rather than being dropped, and /ui loses the key.
-    write_and_init({{"config_version", 21},
-                    {"ui", {{"cached_grid", {{"home", {{"rows", 4}}}}}}},
-                    {"active_printer_id", "default"},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home", home({{{"id", "led"},
-                                          {"enabled", true},
-                                          {"col", 1},
-                                          {"row", 1},
-                                          {"colspan", 1},
-                                          {"rowspan", 1}}})}}}}}}}});
-
-    auto ui = config.get<json>("/ui", json());
-    CHECK_FALSE(ui.contains("cached_grid"));
-    CHECK(panel_of()["legacy_rows"] == 4);
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: a panel with no cache records zero",
-                 "[config][migration][22]") {
-    // Absent cache is not the same as a cache of zero rows, but the port treats
-    // both as "unknown" and reads the row count off the layout, so the tag can
-    // carry a plain 0 rather than an optional.
-    write_and_init({{"config_version", 21},
-                    {"active_printer_id", "default"},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home", home({{{"id", "led"},
-                                          {"enabled", true},
-                                          {"col", 1},
-                                          {"row", 1},
-                                          {"colspan", 1},
-                                          {"rowspan", 1}}})}}}}}}}});
-
-    CHECK(panel_of()["legacy_rows"] == 0);
-    CHECK(panel_of()["layout_units"] == "cells_v21");
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: is idempotent",
-                 "[config][migration][22]") {
-    write_and_init({{"config_version", 22},
-                    {"active_printer_id", "default"},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home", home({{{"id", "led"},
-                                          {"enabled", true},
-                                          {"col", 3},
-                                          {"row", 2},
-                                          {"colspan", 1},
-                                          {"rowspan", 1}}})}}}}}}}});
-
-    // Already stamped 22 — the migration must not run and must not touch a
-    // layout the user arranged after upgrading.
-    auto widgets = widgets_of();
-    REQUIRE(widgets.size() == 1);
-    CHECK(widgets[0]["col"] == 3);
-    CHECK(widgets[0]["row"] == 2);
-    CHECK(widgets[0]["colspan"] == 1);
-    CHECK(widgets[0]["rowspan"] == 1);
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture, "Config migration v22: survives every missing node",
-                 "[config][migration][22]") {
-    // No printers at all; a printers value that is not an object; a page that is
-    // a string; a widgets value that is an object. Each must migrate and stamp
-    // rather than throw.
-    write_and_init({{"config_version", 21}});
-    CHECK(config.get<int>("/config_version", 0) == 22);
-
-    TearDown();
-    SetUp();
-    write_and_init(
-        {{"config_version", 21},
-         {"printers",
-          {{"default", {{"panel_widgets", {{"home", {{"pages", json::array({"main"})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == 22);
-
-    TearDown();
-    SetUp();
-    write_and_init({{"config_version", 21},
-                    {"printers",
-                     {{"default",
-                       {{"panel_widgets",
-                         {{"home",
-                           {{"pages", json::array({json{{"id", "main"},
-                                                        {"widgets", json::object()}}})}}}}}}}}}});
-    CHECK(config.get<int>("/config_version", 0) == 22);
-
-    TearDown();
-    SetUp();
-    write_and_init({{"config_version", 21}, {"printers", "not-an-object"}});
-    CHECK(config.get<int>("/config_version", 0) == 22);
+    CHECK(config.get<std::string>("/filament/external_spool/material", "") == "PLA");
 }

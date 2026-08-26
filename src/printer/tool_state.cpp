@@ -138,8 +138,13 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
                           tool.extruder_name.value_or("none"), tool.fan_name.value_or("none"));
             tools_.push_back(std::move(tool));
         }
-    } else if (hardware.has_tool_changer() && !hardware.tool_names().empty()) {
-        // Tool changer: create N tools from discovered tool names
+    } else if (!hardware.tool_names().empty()) {
+        // Tool changer: create N tools from discovered tool names.
+        //
+        // Not gated on has_tool_changer() any more. Tool names only ever come
+        // from [tool N] objects or, on a changer whose extra does the swapping
+        // itself, from the extruder enumeration discovery ran for it - both mean
+        // a changer, and the fork case has no [toolchanger] object to gate on.
         const auto& tool_names = hardware.tool_names();
 
         // Collect extruder names from heaters (sorted for index mapping)

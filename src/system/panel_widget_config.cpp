@@ -610,13 +610,8 @@ std::string PanelWidgetConfig::generate_page_id() {
     return "page_" + std::to_string(next_page_id_++);
 }
 
-namespace {
-
-/// Most specific breakpoint key present in `by_bp`, or nullptr.
-///
-/// Both the per-anchor `placements` map and a variant's `disabled` map are keyed
-/// by breakpoint name and resolve through the same chain theme_manager uses, so
-/// they share this lookup rather than each carrying a copy of the table.
+/// Declared in panel_widget_config.h so the shipped-table tests resolve keys
+/// through this function rather than reimplementing the fallback chain.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint) {
     // Fallback chain: micro→tiny→small, xlarge→large (matches theme_manager)
     static const char* fallback_order[][3] = {
@@ -642,6 +637,8 @@ const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint brea
     }
     return nullptr;
 }
+
+namespace {
 
 /// Placement key for a tier on a measured grid, or "" when nothing matches.
 ///

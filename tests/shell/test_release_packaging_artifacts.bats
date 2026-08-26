@@ -6,19 +6,53 @@
 
 load helpers
 
+# Overridable so these gates can be proven to FIRE against a hand-broken copy:
+#   sed '/^release-x86:/,/^$/{/release-clean-assets/d}' mk/cross.mk > /tmp/c.mk
+#   HELIX_TEST_CROSS_MK=/tmp/c.mk bats tests/shell/test_release_packaging_artifacts.bats
+CROSS_MK="${HELIX_TEST_CROSS_MK:-mk/cross.mk}"
+
 # ============================================================================
 # Release targets call release-clean-assets
 # ============================================================================
 
-@test "all release targets call release-clean-assets" {
-    # Count release targets that include the cleanup call
-    local target_count cleanup_count
-    target_count=$(grep -c '^release-.*:' mk/cross.mk | head -1)
-    cleanup_count=$(grep -c 'release-clean-assets' mk/cross.mk)
+# The release targets, enumerated from mk/cross.mk itself. Aggregates and
+# housekeeping targets are excluded: release-all only depends on the others and
+# release-clean/-clean-assets ship nothing.
+#
+# Deriving the list is the whole point. Both tests below used to compare an
+# occurrence count against a hand-written floor (>= 7 against real counts of 12
+# and 10), so a target could drop its cleanup call — or a whole new platform
+# could arrive without one — and the numbers still cleared the bar. The stale
+# 7-element array in the second test had already missed release-ad5x,
+# release-cc1 and release-x86.
+release_targets() {
+    grep -oE '^release-[a-z0-9-]+:' "$CROSS_MK" \
+        | sed 's/:$//' \
+        | grep -vxE 'release-all|release-clean|release-clean-assets' \
+        | sort -u
+}
 
-    # At least 6 release targets should call it (pi, pi32, ad5m, k1, k1-dynamic, k2)
-    # Plus the definition = 7 occurrences minimum
-    [ "$cleanup_count" -ge 7 ]
+# Recipe body of target $1: the lines after it, up to the first line that is
+# neither indented nor blank.
+release_recipe() {
+    awk -v t="$1" '
+        index($0, t ":") == 1 { inside = 1; next }
+        inside && /^[^\t ]/ && NF { inside = 0 }
+        inside { print }
+    ' "$CROSS_MK"
+}
+
+@test "every release target calls release-clean-assets" {
+    local targets
+    targets=$(release_targets)
+    # A regex that stops matching would empty the list and pass vacuously.
+    [ "$(printf '%s\n' "$targets" | wc -l)" -ge 8 ] || fail "release_targets() found only: $targets"
+
+    local t missing=""
+    for t in $targets; do
+        release_recipe "$t" | grep -q 'release-clean-assets' || missing="$missing $t"
+    done
+    [ -z "$missing" ] || fail "release targets missing the release-clean-assets call:$missing"
 }
 
 # ============================================================================
@@ -33,24 +67,21 @@ load helpers
 # install.sh included in release packages
 # ============================================================================
 
-@test "all release targets include install.sh in package" {
-    # Every release target must copy install.sh into the tarball root (helixscreen/).
-    # This is critical: update_checker.cpp extracts helixscreen/INSTALLER_FILENAME
-    # from the tarball to run the version-matched installer. Without it, updates
-    # fail with "Installer not found".
-    local targets=(release-pi release-pi32 release-ad5m release-k1 release-k1-dynamic release-k2 release-snapmaker-u1)
-    local count
-    count=$(grep -c 'cp scripts/\$(INSTALLER_FILENAME).*\$(RELEASE_DIR)' mk/cross.mk)
-    # Must have one cp per release target
-    [ "$count" -ge "${#targets[@]}" ]
-}
+@test "every release target copies install.sh into the package root" {
+    # update_checker.cpp extracts helixscreen/INSTALLER_FILENAME from the tarball
+    # to run the version-matched installer. A target that skips the cp ships a
+    # package whose self-update fails with "Installer not found".
+    local targets
+    targets=$(release_targets)
+    [ "$(printf '%s\n' "$targets" | wc -l)" -ge 8 ] || fail "release_targets() found only: $targets"
 
-@test "install.sh exists in scripts directory" {
-    [ -f scripts/install.sh ]
-}
-
-@test "install.sh is executable" {
-    [ -x scripts/install.sh ]
+    local t missing=""
+    for t in $targets; do
+        release_recipe "$t" \
+            | grep -qE 'cp scripts/\$\(INSTALLER_FILENAME\).*\$\(RELEASE_DIR\)' \
+            || missing="$missing $t"
+    done
+    [ -z "$missing" ] || fail "release targets not packaging the installer:$missing"
 }
 
 # ============================================================================

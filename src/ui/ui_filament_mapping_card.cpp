@@ -237,7 +237,8 @@ void FilamentMappingCard::rebuild_compact_view() {
     fingerprint.reserve(128);
     for (const auto& t : tool_info_) {
         fingerprint += std::to_string(t.tool_index) + ":" + std::to_string(t.color_rgb) + ":" +
-                       std::to_string(t.material.size()) + ":" + t.material + "|";
+                       (t.color_known ? "k" : "u") + ":" + std::to_string(t.material.size()) + ":" +
+                       t.material + "|";
     }
     for (const auto& m : mappings_) {
         fingerprint += std::to_string(m.tool_index) + ">" + std::to_string(m.mapped_slot) + ":" +
@@ -288,14 +289,39 @@ void FilamentMappingCard::rebuild_compact_view() {
         lv_obj_set_width(pill, lv_pct(48));
 
         // G-code color dot and Tx label (only shown for multi-tool files).
+        // An unknown color gets the OUTLINE treatment the empty slot dot below
+        // uses, not a solid fill: painting the neutral stand-in reads as "this
+        // file prints in grey", which is a claim about the file that nothing has
+        // made. (The K2 Plus report this fixes: a re-opened print rendered a
+        // grey dot pointing at the real black lane color.)
         lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
         if (auto* gcode_dot = lv_obj_find_by_name(pill, "gcode_dot")) {
-            lv_obj_set_style_bg_color(gcode_dot, gcode_color, 0);
+            // DECLARATIVE_OK: per-item payload on a C++-generated collection. The
+            // card builds one pill per used tool from runtime data, so there is no
+            // XML instance per tool to hang a bind on — the sibling slot_dot below
+            // paints its own empty-slot variant the same way, and both restore the
+            // opposite branch's properties explicitly because pills are recycled.
+            if (tool.color_known) {
+                lv_obj_set_style_bg_opa(gcode_dot, LV_OPA_COVER, 0); // DECLARATIVE_OK: see above
+                lv_obj_set_style_bg_color(gcode_dot, gcode_color, 0);
+                lv_obj_set_style_border_opa(gcode_dot, 30, 0); // DECLARATIVE_OK: see above
+            } else {
+                lv_obj_set_style_bg_opa(gcode_dot, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
+                lv_obj_set_style_border_color(gcode_dot, theme_manager_get_color("text_muted"),
+                                              0); // DECLARATIVE_OK: see above
+                lv_obj_set_style_border_opa(gcode_dot, LV_OPA_COVER,
+                                            0); // DECLARATIVE_OK: see above
+            }
         }
         if (auto* tool_lbl = lv_obj_find_by_name(pill, "tool_label")) {
             if (multi_tool) {
                 lv_label_set_text_fmt(tool_lbl, "T%d", tool.tool_index);
-                lv_obj_set_style_text_color(tool_lbl, theme_manager_get_contrast_color(gcode_color),
+                // Contrast is computed against the fill; with no fill there is
+                // nothing to contrast against, so take the normal text color.
+                lv_obj_set_style_text_color(tool_lbl,
+                                            tool.color_known
+                                                ? theme_manager_get_contrast_color(gcode_color)
+                                                : theme_manager_get_color("text"),
                                             0);
                 lv_obj_remove_flag(tool_lbl, LV_OBJ_FLAG_HIDDEN);
             }
@@ -323,6 +349,35 @@ void FilamentMappingCard::rebuild_compact_view() {
                 lv_obj_set_style_border_opa(slot_dot, LV_OPA_COVER, 0);
             } else {
                 lv_obj_set_style_bg_color(slot_dot, lv_color_hex(slot_color), 0);
+            }
+
+            // Lane number on the mapped dot. The swatch says which colour will
+            // print; it cannot say which spool it comes from, and two bays
+            // loaded with the same filament are a common enough setup that the
+            // chip is otherwise ambiguous exactly when it matters. Mirrors the
+            // Tx label hosted by gcode_dot above, including its contrast rule.
+            //
+            // The mutations below are per-item payload on a C++-generated
+            // collection: the card builds one pill per used tool from runtime
+            // data, so there is no XML instance per tool to hang a bind on -
+            // the same reason the two dots either side of this are set here.
+            if (auto* slot_lbl = lv_obj_find_by_name(slot_dot, "slot_label")) {
+                const int lane_number =
+                    helix::FilamentMapper::mapped_lane_display_number(mapping, available_slots_);
+                if (lane_number > 0) {
+                    lv_label_set_text_fmt(slot_lbl, "%d", lane_number); // DECLARATIVE_OK: see above
+                    // An empty lane draws no fill, so there is nothing to
+                    // contrast against - take the normal text colour.
+                    const lv_color_t lane_fg =
+                        slot_empty ? theme_manager_get_color("text")
+                                   : theme_manager_get_contrast_color(lv_color_hex(slot_color));
+                    lv_obj_set_style_text_color(slot_lbl, lane_fg, 0); // DECLARATIVE_OK: see above
+                    lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);  // DECLARATIVE_OK: see above
+                } else {
+                    // Auto/unmapped: no lane has been chosen yet, so naming one
+                    // would be a claim the mapping has not made.
+                    lv_obj_add_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: see above
+                }
             }
         }
     }
@@ -397,12 +452,19 @@ FilamentMappingCard::build_tool_info(const std::vector<std::string>& colors,
         helix::GcodeToolInfo tool;
         tool.tool_index = static_cast<int>(i);
 
-        // Parse color
+        // Parse color. A missing or unparsable entry leaves color_rgb as a
+        // NEUTRAL STAND-IN, not an answer: Moonraker omits filament_colors
+        // entirely for some slicers (every OrcaSlicer file on a K2 Plus reports
+        // filament_type and nothing else), and the palette is backfilled later
+        // from the G-code footer or the viewer. Flagging it keeps the stand-in
+        // from being read as the file's choice — see GcodeToolInfo::color_known.
         if (i < colors.size() && !colors[i].empty()) {
             auto parsed = helix::parse_hex_color(colors[i]);
             tool.color_rgb = parsed.value_or(0x808080);
+            tool.color_known = parsed.has_value();
         } else {
             tool.color_rgb = 0x808080;
+            tool.color_known = false;
         }
 
         // Material

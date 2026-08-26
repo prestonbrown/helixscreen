@@ -3,8 +3,10 @@
 
 #include "splash_screen_manager.h"
 
+#include <chrono>
 #include <csignal>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -42,10 +44,18 @@ TEST_CASE("SplashScreenManager: discovery timing", "[splash][application]") {
     mgr.start(999999);
 
     SECTION("waits for discovery before signaling") {
-        // Not enough time, discovery not complete
+        // Discovery is not complete and DISCOVERY_TIMEOUT_MS has not elapsed, so
+        // check_and_signal() must take the "keep splash showing" return and leave
+        // the manager unsignaled. This SECTION previously made the call and
+        // asserted nothing at all, so deleting that gate changed no test.
+        REQUIRE_FALSE(mgr.is_discovery_complete());
+        REQUIRE(mgr.elapsed_ms() < SplashScreenManager::DISCOVERY_TIMEOUT_MS);
+        REQUIRE_FALSE(mgr.ready_to_signal());
+
         mgr.check_and_signal();
-        // Signal won't happen because we're waiting for discovery or timeout
-        // (The actual signal would fail since PID doesn't exist, but state logic is testable)
+
+        REQUIRE_FALSE(mgr.has_exited());
+        REQUIRE_FALSE(mgr.needs_post_splash_refresh());
     }
 
     SECTION("signals immediately when discovery complete") {
@@ -119,9 +129,30 @@ TEST_CASE("SplashScreenManager: elapsed time tracking", "[splash][application]")
     SplashScreenManager mgr;
     mgr.start(999999); // Non-existent PID
 
-    SECTION("elapsed_ms starts at 0") {
-        // Right after start, elapsed should be very small
-        REQUIRE(mgr.elapsed_ms() < 100);
+    SECTION("elapsed_ms starts near zero and then advances with the clock") {
+        // `elapsed_ms() < 100` on its own also passes for a hardcoded
+        // `return 0`, and elapsed_ms() is what gates the splash timeout — a
+        // frozen clock means the splash never dismisses on a printer whose
+        // discovery stalls. Sleeping a bounded interval and requiring the value
+        // to have grown by roughly that much fails a stopped clock.
+        const int64_t before = mgr.elapsed_ms();
+        REQUIRE(before >= 0);
+        REQUIRE(before < 100);
+
+        constexpr int kSleepMs = 120;
+        std::this_thread::sleep_for(std::chrono::milliseconds(kSleepMs));
+
+        const int64_t after = mgr.elapsed_ms();
+        // Allow scheduler slop on the low side; the upper bound only has to be
+        // loose enough not to flake under load and tight enough to stay well
+        // clear of DISCOVERY_TIMEOUT_MS.
+        REQUIRE(after - before >= kSleepMs - 20);
+        REQUIRE(after < SplashScreenManager::DISCOVERY_TIMEOUT_MS);
+    }
+
+    SECTION("the timeout has not elapsed immediately after start") {
+        REQUIRE(mgr.elapsed_ms() < SplashScreenManager::DISCOVERY_TIMEOUT_MS);
+        REQUIRE_FALSE(mgr.ready_to_signal());
     }
 }
 

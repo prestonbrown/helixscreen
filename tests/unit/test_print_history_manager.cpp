@@ -497,6 +497,82 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
 }
 
 // ============================================================================
+// Lazy load vs invalidation
+// ============================================================================
+//
+// fetch() and ensure_loaded() are two intents behind one request. fetch() means
+// "the cached list is wrong"; ensure_loaded() means "I need it populated, by
+// whoever". Collapsing them cost a real double fetch: three panels ask for
+// history during startup, all of them landed while the first request was still
+// out, and every one was read as an invalidation. On an AD5X the 500-job list
+// took 10.4s and ~800 KB, then went straight out again for nothing (bundles
+// MG34LYR4 / VXYB9JPQ, v0.99.116).
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager does not re-fetch for lazy loads that land mid-flight",
+                 "[history_manager]") {
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+    manager_->invalidate();
+
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    // Startup: the first request is still out (real RTT) when the other panels
+    // activate and each asks for history.
+    PrintHistoryManagerTestAccess::set_fetching(*manager_, true);
+    manager_->ensure_loaded();
+    manager_->ensure_loaded();
+    manager_->ensure_loaded();
+    pump();
+    REQUIRE(notified.load() == 0);
+
+    // The in-flight response lands. It serves all three callers, so nothing
+    // further is owed.
+    PrintHistoryManagerTestAccess::complete_fetch(*manager_, {});
+    REQUIRE(notified.load() == 1);
+    REQUIRE(manager_->get_jobs().empty());
+
+    pump();
+
+    // No second request went out. Through fetch() this was 2 notifications and
+    // a repopulated cache, i.e. the whole list pulled twice.
+    REQUIRE(notified.load() == 1);
+    REQUIRE(manager_->get_jobs().empty());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager ensure_loaded fetches when nothing is in flight",
+                 "[history_manager]") {
+    // The other half of the guard: suppressing the redundant re-issue must not
+    // suppress the first request too, or history never loads at all.
+    REQUIRE_FALSE(manager_->is_loaded());
+
+    manager_->ensure_loaded();
+
+    REQUIRE(wait_for_loaded());
+    REQUIRE_FALSE(manager_->get_jobs().empty());
+}
+
+TEST_CASE_METHOD(HistoryManagerTestFixture,
+                 "PrintHistoryManager ensure_loaded is a no-op once loaded", "[history_manager]") {
+    manager_->fetch();
+    REQUIRE(wait_for_loaded());
+
+    std::atomic<int> notified{0};
+    HistoryChangedCallback callback = [&notified]() { notified++; };
+    manager_->add_observer(&callback);
+
+    // Every panel activation calls this. A loaded cache must not re-request.
+    manager_->ensure_loaded();
+    manager_->ensure_loaded();
+    pump();
+
+    REQUIRE(notified.load() == 0);
+}
+
+// ============================================================================
 // Newest-surviving-job Accessor Tests
 // ============================================================================
 

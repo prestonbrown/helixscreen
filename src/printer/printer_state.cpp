@@ -330,11 +330,18 @@ void PrinterState::init_subjects(bool register_xml) {
     StaticSubjectRegistry::instance().register_deinit("PrinterState",
                                                       [this]() { deinit_subjects(); });
 
-    // Self-register per-printer cache invalidation. capability_overrides_ is loaded from
-    // Config::df() in the constructor only, and this object outlives every printer switch,
-    // so without this the map keeps the startup printer's enable/disable choices.
-    helix::PrinterCacheRegistry::instance().register_invalidator(
-        "PrinterState", [this]() { reload_capability_overrides(); });
+    // Self-register per-printer cache invalidation. This object outlives every printer
+    // switch, so anything cached from Config::df() or from the previous printer's status
+    // has to be dropped here.
+    //  - capability_overrides_ is loaded from Config::df() in the constructor only, so
+    //    without this the map keeps the startup printer's enable/disable choices.
+    //  - exclude_object state is only refreshed by update_from_status() when the new
+    //    printer reports an "exclude_object" object, so switching to a printer without
+    //    [exclude_object] configured would keep the previous printer's objects on screen.
+    helix::PrinterCacheRegistry::instance().register_invalidator("PrinterState", [this]() {
+        reload_capability_overrides();
+        excluded_objects_state_.clear_objects();
+    });
 
     spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
 }

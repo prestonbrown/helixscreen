@@ -5,6 +5,13 @@
   <view name="print_status_detailed_idle"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
         scrollable="false" clickable="false" event_bubble="true">
+    <!-- Filename header: spans the whole card so a long name has the full width
+         to scroll through instead of the ~55% left over beside the thumbnail.
+         Mirrors print_status_detailed_active.xml — content-sized, so the row
+         below flex_grows into what is left. -->
+    <text_body name="detailed_idle_filename"
+               width="100%" bind_text="print_status_idle_filename" long_mode="scroll_circular" style_text_align="center"
+               clickable="false" event_bubble="true"/>
     <lv_obj name="idle_main_row"
             width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_column="#space_lg" scrollable="false"
             clickable="false" event_bubble="true">
@@ -14,9 +21,6 @@
       <lv_obj name="idle_data_col"
               height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
               style_pad_gap="#space_xs" scrollable="false" clickable="false" event_bubble="true">
-        <text_body width="100%"
-                   bind_text="print_status_idle_filename" long_mode="scroll_circular" clickable="false"
-                   event_bubble="true"/>
         <text_small bind_text="print_status_idle_when"
                     style_text_color="#text_muted" clickable="false" event_bubble="true"/>
         <text_small bind_text="print_status_idle_meta"
@@ -34,18 +38,17 @@
          row_wrap + flex_grow keeps the two the same width, side by side while
          they fit and stacked when they do not. -->
     <lv_obj name="idle_action_row"
-            width="100%" height="content" style_pad_all="0" flex_flow="row_wrap"
-            style_pad_column="#space_xs" style_pad_row="#space_xs" scrollable="false"
-            clickable="false" event_bubble="true">
+            width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xs"
+            style_pad_row="#space_xs" scrollable="false" clickable="false" event_bubble="true">
       <ui_button name="idle_reprint_btn"
-                 width="content" flex_grow="1" height="#button_height_sm" variant="outline"
-                 text="Reprint Last" translation_tag="Reprint Last">
+                 width="content" height="#button_height_sm" flex_grow="1" variant="outline" text="Reprint Last"
+                 translation_tag="Reprint Last">
         <bind_state_if_eq subject="print_status_idle_has_last" state="disabled" ref_value="0"/>
         <event_cb trigger="clicked" callback="library_last_cb"/>
       </ui_button>
       <ui_button name="idle_queue_btn"
-                 width="content" flex_grow="1" height="#button_height_sm" variant="outline"
-                 text="Job Queue" translation_tag="Job Queue">
+                 width="content" height="#button_height_sm" flex_grow="1" variant="outline" text="Job Queue"
+                 translation_tag="Job Queue">
         <bind_flag_if_eq subject="print_status_queue_hidden" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="library_queue_cb"/>
       </ui_button>

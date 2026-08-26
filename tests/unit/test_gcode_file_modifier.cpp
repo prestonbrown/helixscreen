@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "app_globals.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
 
@@ -251,8 +252,12 @@ TEST_CASE("GCodeFileModifier - File operations", "[gcode][modifier][file]") {
     SECTION("Generate temp path") {
         std::string path = GCodeFileModifier::generate_temp_path("/path/to/3DBenchy.gcode");
 
-        // Path should be in test cache directory with mod_ prefix and original filename
-        REQUIRE(path.find("/tmp/helix_test_gcode_mod/mod_") != std::string::npos);
+        // Anchor on what the cascade itself resolves to. This used to assert the
+        // literal "/tmp/helix_test_gcode_mod/", a shape only the ui_test_utils
+        // stub of get_helix_cache_dir() ever produced — the real resolver never
+        // emits it, so the assertion was pinned to the fake rather than to the
+        // behavior under test.
+        REQUIRE(path.find(get_helix_cache_dir("gcode_mod") + "/mod_") != std::string::npos);
         REQUIRE(path.find("3DBenchy.gcode") != std::string::npos);
     }
 

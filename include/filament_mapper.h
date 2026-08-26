@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +17,21 @@ struct GcodeToolInfo {
     int tool_index;       ///< G-code tool number (0-based)
     uint32_t color_rgb;   ///< Expected color (0xRRGGBB)
     std::string material; ///< Expected material type ("PLA", "PETG", etc.)
+
+    /// False when no source could say what color this tool prints in, and
+    /// color_rgb is only a neutral stand-in. Not the same as "the slicer chose
+    /// grey": Moonraker omits filament_colors entirely for some slicers (every
+    /// OrcaSlicer file on a K2 Plus), and the palette is then backfilled from
+    /// the G-code footer or the parsed file. Until one of those lands, a tool
+    /// has no known color at all.
+    ///
+    /// Consumers must not treat an unknown color as a claim about the file:
+    /// compute_defaults() skips its color-match priority (matching a stand-in
+    /// against real lane colors picks a lane for no reason), and the mapping
+    /// pill draws the dot as unknown rather than painting a solid grey the user
+    /// would read as the file's color. Defaulted true and kept last so existing
+    /// aggregate initialisers stay valid.
+    bool color_known = true;
 };
 
 /// Information about an available AMS slot.
@@ -35,6 +51,14 @@ struct AvailableSlot {
     /// empty = single-color). Mirrors SlotInfo::multi_color_hexes. Kept last so
     /// existing positional aggregate initializers stay valid.
     std::string multi_color_hexes;
+
+    /// Remaining filament on this lane in grams, or -1 when unknown.
+    /// Mirrors SlotInfo's sentinel: -1 means NO OPINION, never zero. Only a
+    /// Spoolman-linked or hand-weighed lane has a figure at all, so an unlinked
+    /// bay legitimately has none and must never be warned about.
+    /// Kept last for the same reason multi_color_hexes is - positional
+    /// aggregate initializers in the tests stay valid.
+    float remaining_weight_g = -1.0f;
 
     /// Unique key for this slot across all backends
     SlotKey key() const {
@@ -137,8 +161,40 @@ class FilamentMapper {
     /// Case-insensitive material comparison
     static bool materials_match(const std::string& a, const std::string& b);
 
+    /// Firmware-default physical head a logical tool routes to with no remap.
+    ///
+    /// Tools 0..3 map to their identity head; anything else (extended tools on a
+    /// toolchanger, 4..31 on the Snapmaker U1) falls back to head 0, matching the
+    /// firmware default map [0,1,2,3,0,0,...].
+    static int default_head_for_tool(int tool);
+
+    /// The genuine remaps in @p mappings, keyed tool -> physical head.
+    ///
+    /// Identity mappings are omitted: the firmware already routes a tool to
+    /// default_head_for_tool(tool), so emitting them would be noise. Entries with
+    /// no real slot assignment (mapped_slot < 0) are skipped.
+    ///
+    /// Single source of truth for PrintSelectDetailView::get_effective_remap()
+    /// and the preprint-gcode builders, which used to each carry their own copy.
+    static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings);
+
     /// Format a slot label: "Turtle 1 · Slot 2: PLA" or "Slot 2: PLA"
     static std::string format_slot_label(const AvailableSlot& slot);
+
+    /// The lane number to print on a mapped chip, 1-based, or -1 when the tool
+    /// is unmapped or points at a lane that is no longer present.
+    ///
+    /// Colour alone does not identify a lane: two bays loaded with the same
+    /// filament render the same swatch, and the chip then says which colour
+    /// will be used without saying which spool it comes from. The number is
+    /// what disambiguates them.
+    ///
+    /// Reports `local_slot_index + 1` - the lane's position within its own
+    /// unit - to agree with format_slot_label() and the AMS slot badges. On a
+    /// multi-unit setup the global index would name a lane the hardware does
+    /// not, calling the second unit's first bay "Slot 5".
+    static int mapped_lane_display_number(const ToolMapping& mapping,
+                                          const std::vector<AvailableSlot>& slots);
 
     static constexpr int COLOR_MATCH_TOLERANCE = 50;
 };

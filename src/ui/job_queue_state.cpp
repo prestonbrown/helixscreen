@@ -45,12 +45,17 @@ void JobQueueState::init_subjects() {
                            sizeof(summary_buffer_), "Queue empty");
     lv_xml_register_subject(nullptr, "job_queue_summary_text", &job_queue_summary_subject_);
 
+    lv_subject_init_int(&job_queue_count_subject_, 0);
+    lv_xml_register_subject(nullptr, "job_queue_count", &job_queue_count_subject_);
+
     SubjectDebugRegistry::instance().register_subject(&job_queue_state_subject_,
                                                       "job_queue_state_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
     SubjectDebugRegistry::instance().register_subject(&job_queue_summary_subject_,
                                                       "job_queue_summary_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+    SubjectDebugRegistry::instance().register_subject(&job_queue_count_subject_, "job_queue_count",
+                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
     subjects_initialized_ = true;
 
@@ -65,6 +70,7 @@ void JobQueueState::deinit_subjects() {
     if (!subjects_initialized_)
         return;
 
+    lv_subject_deinit(&job_queue_count_subject_);
     lv_subject_deinit(&job_queue_summary_subject_);
     lv_subject_deinit(&job_queue_state_subject_);
 
@@ -132,6 +138,13 @@ void JobQueueState::update_subjects() {
         std::snprintf(summary_buffer_, sizeof(summary_buffer_), "%d jobs queued", count);
     }
     lv_subject_copy_string(&job_queue_summary_subject_, summary_buffer_);
+
+    // Count goes LAST, after cached_jobs_ and both text subjects are settled.
+    // It is the rebuild trigger the queue surfaces observe, and PrintStatusWidget's
+    // observer runs synchronously (observe_int_sync) — publishing it first would
+    // let that handler re-read a half-updated state. Main-thread only: the sole
+    // caller is on_queue_fetched(), which fetch() reaches through tok.defer().
+    lv_subject_set_int(&job_queue_count_subject_, count);
 }
 
 void JobQueueState::subscribe_to_notifications() {

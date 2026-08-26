@@ -474,6 +474,8 @@
   <translation tag="Clog and flow health while printing" de="Verstopfung und Fluss beim Drucken"/>
   <translation tag="Clog detection" de="Verstopfungserkennung"/>
   <translation tag="Close" de="Schließen"/>
+  <translation tag="Close feeder"/>
+  <translation tag="Close feeder macro"/>
   <translation tag="Closer" de="Näher"/>
   <translation tag="Closer = more squish | Farther = less squish" de="Näher = mehr Quetschung | Weiter = weniger Quetschung"/>
   <translation tag="Coarse" de="Grob"/>
@@ -952,11 +954,13 @@
   <translation tag="Farther" de="Weiter"/>
   <translation tag="Features: " de="Funktionen: "/>
   <translation tag="Feed Assist" de="Vorschubunterstützung"/>
+  <translation tag="Feed assist and debug tools"/>
   <translation tag="Feed filament" de="Filament zuführen"/>
   <translation tag="Feed filament directly to extruder" de="Filament direkt zum Extruder führen"/>
   <translation tag="Feed filament from current slot" de="Filament aus dem aktuellen Slot zuführen"/>
   <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
   <translation tag="Filament" de="Filament"/>
+  <translation tag="Filament Control"/>
   <translation tag="Filament Detected" de="Filament erkannt"/>
   <translation tag="Filament Environment" de="Filamentumgebung"/>
   <translation tag="Filament Grade Mismatch" de="Filamentklassenabweichung"/>
@@ -971,6 +975,7 @@
   <translation tag="Filament controls are unavailable while printing."/>
   <translation tag="Filament deleted" de="Filament gelöscht"/>
   <translation tag="Filament diameter sensors for flow compensation" de="Filamentdurchmessersensoren für Flusskompensation"/>
+  <translation tag="Filament feeder"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." de="Das Filament ist frei vom Werkzeugkopf. Ziehen Sie es ganz heraus."/>
   <translation tag="Filament is loose" de="Filament ist locker"/>
   <translation tag="Filament is pulling tight" de="Filament zieht straff"/>
@@ -1051,6 +1056,7 @@
   <translation tag="Good Accuracy" de="Gute Genauigkeit"/>
   <translation tag="Got it" de="Verstanden"/>
   <translation tag="Gray" de="Grau"/>
+  <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" de="Anleitungen und Referenz"/>
   <translation tag="H" de="H"/>
   <translation tag="HOST" de="Host"/>
@@ -1393,6 +1399,7 @@
   <translation tag="Manual Bed Leveling" de="Manuelle Bettnivellierung"/>
   <translation tag="Manual Feed" de="Manueller Vorschub"/>
   <translation tag="Manual Retract" de="Manueller Einzug"/>
+  <translation tag="Manual feed and retract operations"/>
   <translation tag="Map to closest colors with matching material" de="Nächste Farben mit passendem Material zuordnen"/>
   <translation tag="Marginal" de="Grenzwertig"/>
   <translation tag="Master volume level" de="Hauptlautstärke"/>
@@ -1503,6 +1510,7 @@
   <translation tag="No History" de="Kein Verlauf"/>
   <translation tag="No LED macros detected on your printer." de="Keine LED-Makros auf Ihrem Drucker erkannt."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." de="Keine LED-Makros auf Ihrem Drucker erkannt. Fügen Sie zuerst Klipper-Makros zur LED-Steuerung hinzu."/>
+  <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" de="Keine LED-Streifen erkannt"/>
   <translation tag="No Macros Found" de="Keine Makros gefunden"/>
   <translation tag="No Multi-Filament System connected" de="Kein Multi-Filament-System verbunden"/>
@@ -1636,6 +1644,8 @@
   <translation tag="Open" de="Öffnen"/>
   <translation tag="Open Source Licenses" de="Open-Source-Lizenzen"/>
   <translation tag="Open color and brightness controls" de="Farb- und Helligkeitsregler öffnen"/>
+  <translation tag="Open feeder"/>
+  <translation tag="Open feeder macro"/>
   <translation tag="Open motion controls for jogging" de="Bewegungssteuerung öffnen"/>
   <translation tag="Operation already in progress" de="Vorgang läuft bereits"/>
   <translation tag="Operations" de="Operationen"/>
@@ -1644,6 +1654,7 @@
   <translation tag="Optional - select your main lighting source, or skip if your printer doesn&apos;t have one" de="Optional - Hauptbeleuchtung auswählen, oder überspringen falls keine vorhanden"/>
   <translation tag="Options" de="Optionen"/>
   <translation tag="Or Enter Manually" de="Oder manuell eingeben"/>
+  <translation tag="Or instead of turning the others"/>
   <translation tag="Oscillating... cycle %d/%d" de="Oszilliert... Zyklus %d/%d"/>
   <translation tag="Out of range" de="Außerhalb des Bereichs"/>
   <translation tag="Outcome" de="Ergebnis"/>
@@ -1954,6 +1965,8 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" de="Relative Vibration"/>
   <translation tag="Release all stepper motors. Position will be lost." de="Alle Schrittmotoren freigeben. Position geht verloren."/>
+  <translation tag="Release or grip the filament by hand"/>
+  <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" de="Verbleibend (g)"/>
   <translation tag="Remaining Weight (g)" de="Restgewicht (g)"/>
   <translation tag="Remap Tool" de="Werkzeug zuordnen"/>
@@ -1964,6 +1977,7 @@
   <translation tag="Remove PIN" de="PIN entfernen"/>
   <translation tag="Remove Spoolman?" de="Spoolman entfernen?"/>
   <translation tag="Remove plugin from printer" de="Plugin vom Drucker entfernen"/>
+  <translation tag="Remove the bypass spool from the toolhead first" de="Zuerst die Bypass-Spule aus dem Werkzeugkopf entfernen"/>
   <translation tag="Rename" de="Umbenennen"/>
   <translation tag="Rename Fan" de="Lüfter umbenennen"/>
   <translation tag="Rename Mesh Profile" de="Netzprofil umbenennen"/>
@@ -2249,6 +2263,8 @@
   <translation tag="Slot" de="Slot"/>
   <translation tag="Slot %d" de="Slot %d"/>
   <translation tag="Slot %d Filament" de="Slot %d Filament"/>
+  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" de="Slot %d hat etwa %.0fg, aber Werkzeug %d benötigt etwa %.0fg. Trotzdem starten?"/>
+  <translation tag="Slot %d: %.0fg of %.0fg needed" de="Slot %d: %.0fg von %.0fg benötigt"/>
   <translation tag="Slot 1" de="Slot 1"/>
   <translation tag="Slot {}" de="Slot {}"/>
   <translation tag="Slot {} matches." de="Slot {} passt."/>
@@ -2260,6 +2276,7 @@
   <translation tag="Soft" de="Weich"/>
   <translation tag="Software Updates" de="Software-Updates"/>
   <translation tag="Some filaments don&apos;t match the slicer&apos;s intent." de="Einige Filamente stimmen nicht mit der Vorgabe des Slicers überein."/>
+  <translation tag="Some mapped slots are short on filament:" de="Einige zugeordnete Slots haben zu wenig Filament:"/>
   <translation tag="Some settings will take effect after restart." de="Einige Einstellungen werden nach dem Neustart wirksam."/>
   <translation tag="Sound Theme" de="Klangthema"/>
   <translation tag="Sounds" de="Töne"/>
@@ -2307,6 +2324,7 @@
   <translation tag="Start Drying" de="Trocknung starten"/>
   <translation tag="Start Print" de="Druck starten"/>
   <translation tag="Start Probing" de="Abtasten starten"/>
+  <translation tag="Start anyway?" de="Trotzdem starten?"/>
   <translation tag="Start at" de="Beginnen bei"/>
   <translation tag="Start failed" de="Start fehlgeschlagen"/>
   <translation tag="Start print anyway?" de="Druck trotzdem starten?"/>
@@ -2443,6 +2461,7 @@
   <translation tag="The speed of one fan you choose" de="Drehzahl eines gewählten Lüfters"/>
   <translation tag="The time, date, and system uptime" de="Uhrzeit, Datum und Betriebszeit"/>
   <translation tag="The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber keine AMS-Spur meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?"/>
+  <translation tag="The toolhead has filament but no AMS lane reports it loaded. The printer may refuse to load a lane until it is cleared. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber keine AMS-Spur meldet es als geladen. Der Drucker verweigert möglicherweise das Laden einer Spur, bis er geleert ist. Trotzdem starten?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" de="Der Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem Laden fortfahren?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" de="Der Werkzeugkopfsensor zeigt an, dass kein Filament vorhanden ist. Trotzdem mit dem Entladen fortfahren?"/>
   <translation tag="Theme" de="Thema"/>
@@ -2689,6 +2708,8 @@
   <translation tag="When starting a print, you&apos;ll be able to choose whether to run %s. This saves time when you&apos;ve already done it recently or want more control over your print preparation." de="Beim Starten eines Drucks können Sie wählen, ob %s ausgeführt werden soll. Das spart Zeit, wenn Sie es kürzlich bereits gemacht haben oder mehr Kontrolle über die Druckvorbereitung wünschen."/>
   <translation tag="Where UI sounds play" de="Wo UI-Töne abgespielt werden"/>
   <translation tag="Whether filament is loaded" de="Ob Filament geladen ist"/>
+  <translation tag="Which macro the Close feeder button sends"/>
+  <translation tag="Which macro the Open feeder button sends"/>
   <translation tag="White" de="Weiß"/>
   <translation tag="Wi-Fi or ethernet connection status" de="WiFi- oder Ethernet-Verbindungsstatus"/>
   <translation tag="WiFi" de="WiFi"/>
@@ -2793,6 +2814,7 @@
   <translation tag="nozzle" de="Düse"/>
   <translation tag="of" de="von"/>
   <translation tag="off" de="aus"/>
+  <translation tag="or type a macro name"/>
   <translation tag="prints" de="Drucke"/>
   <translation tag="remaining" de="verbleibend"/>
   <translation tag="remaining before clog detection triggers" de="verbleibend bis Verstopfungserkennung auslöst"/>

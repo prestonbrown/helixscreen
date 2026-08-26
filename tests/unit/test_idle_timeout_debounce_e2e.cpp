@@ -1,5 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// TEST_MIRROR_OK: drives the shipped PrinterCalibrationState::update_from_status and the
+//                 real motion refusal path. ../busy_guard_fixture.h pulls in
+//                 include/printer_state.h, include/moonraker_api.h and
+//                 include/moonraker_client_mock.h.
 
 /**
  * @file test_idle_timeout_debounce_e2e.cpp

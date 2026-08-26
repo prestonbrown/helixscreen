@@ -20,6 +20,10 @@ namespace helix::ui {
 namespace {
 constexpr lv_opa_t SWATCH_BORDER_OPA = 30;
 constexpr lv_opa_t SELECTED_BG_OPA = 40;
+/// Empty bays stay selectable (mapping a tool to a bay you are about to load is
+/// legitimate) but must read as clearly not-ready at a glance. 60% was too close
+/// to a filled row to carry that on a glossy panel.
+constexpr lv_opa_t EMPTY_ROW_OPA = LV_OPA_30;
 constexpr lv_opa_t BACKDROP_OPA = 128;
 constexpr int32_t CARD_MIN_WIDTH = 480;
 } // namespace
@@ -133,7 +137,7 @@ void FilamentSlotPicker::create_slot_row(lv_obj_t* list, int index,
     }
 
     if (slot.is_empty) {
-        lv_obj_set_style_opa(row, LV_OPA_60, 0);
+        lv_obj_set_style_opa(row, EMPTY_ROW_OPA, 0);
     }
 
     bool is_selected = !current_selection_.is_auto &&

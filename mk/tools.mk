@@ -293,3 +293,27 @@ regen-doc-links:
 
 check-doc-links:
 	$(Q)python3 scripts/gen_doc_links.py --check
+
+# ==============================================================================
+# LVGL event-code table for the crash worker (Python)
+# ==============================================================================
+# The worker renders "code=42 (DELETE)" on every auto-filed crash issue, and that
+# label is frequently the whole diagnosis. Its table used to be typed by hand and
+# drifted when LVGL 9.5 inserted four codes mid-enum, so a DELETE crash was filed
+# as SCREEN_UNLOAD_START. lv_event_code_t is now the source of truth and the
+# committed table is derived from it.
+#
+# Targets:
+#   make regen-lvgl-event-codes  — rewrite the table in
+#                                  server/crash-worker/src/index.ts
+#   make check-lvgl-event-codes  — report-only; what quality-checks.sh runs
+
+.PHONY: regen-lvgl-event-codes check-lvgl-event-codes
+
+regen-lvgl-event-codes:
+	$(ECHO) "$(BLUE)[GEN]$(RESET) mirroring lv_event_code_t into the crash worker"
+	$(Q)python3 scripts/gen_lvgl_event_codes.py
+	$(ECHO) "$(GREEN)✓ event-code table regenerated — commit server/crash-worker/src/index.ts if it changed$(RESET)"
+
+check-lvgl-event-codes:
+	$(Q)python3 scripts/gen_lvgl_event_codes.py --check

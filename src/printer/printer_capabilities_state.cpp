@@ -55,7 +55,32 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(sensor_count, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
+    apply_pending_capability_values();
     spdlog::trace("[PrinterCapabilitiesState] Subjects initialized successfully");
+}
+
+void PrinterCapabilitiesState::set_capability_int(lv_subject_t& subject, int value) {
+    if (!subjects_initialized_) {
+        pending_capability_values_[&subject] = value;
+        return;
+    }
+    lv_subject_set_int(&subject, value);
+}
+
+void PrinterCapabilitiesState::apply_pending_capability_values() {
+    if (pending_capability_values_.empty()) {
+        return;
+    }
+    // Applied AFTER subjects_initialized_ flips, so these go straight through to
+    // the subjects. Observers attach later than init_subjects(), so they see the
+    // real answer on their first callback rather than the hardcoded default.
+    spdlog::debug("[PrinterCapabilitiesState] Seeding {} capability value(s) that arrived "
+                  "before subject init",
+                  pending_capability_values_.size());
+    for (const auto& [subject, value] : pending_capability_values_) {
+        lv_subject_set_int(subject, value);
+    }
+    pending_capability_values_.clear();
 }
 
 void PrinterCapabilitiesState::deinit_subjects() {
@@ -72,6 +97,10 @@ void PrinterCapabilitiesState::deinit_subjects() {
 
     subjects_.deinit_all();
     subjects_initialized_ = false;
+    // Answers latched for the subjects just torn down describe the OLD printer.
+    // The latch exists to bridge the gap before the FIRST init, so anything
+    // still held here would be replayed onto a machine it never described.
+    pending_capability_values_.clear();
 }
 
 void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
@@ -80,18 +109,18 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // This allows users to force-enable features that weren't detected
     // (e.g., heat soak macro without chamber heater) or force-disable
     // features they don't want to see in the UI.
-    lv_subject_set_int(&printer_has_qgl_, overrides.has_qgl() ? 1 : 0);
-    lv_subject_set_int(&printer_has_z_tilt_, overrides.has_z_tilt() ? 1 : 0);
-    lv_subject_set_int(&printer_has_bed_mesh_, overrides.has_bed_mesh() ? 1 : 0);
-    lv_subject_set_int(&printer_has_nozzle_clean_, overrides.has_nozzle_clean() ? 1 : 0);
+    set_capability_int(printer_has_qgl_, overrides.has_qgl() ? 1 : 0);
+    set_capability_int(printer_has_z_tilt_, overrides.has_z_tilt() ? 1 : 0);
+    set_capability_int(printer_has_bed_mesh_, overrides.has_bed_mesh() ? 1 : 0);
+    set_capability_int(printer_has_nozzle_clean_, overrides.has_nozzle_clean() ? 1 : 0);
 
     // Hardware capabilities (no user override support yet - set directly from detection)
     spdlog::debug("[PrinterCapabilitiesState] has_probe={} has_led={} has_accel={}",
                   hardware.has_probe(), hardware.has_led(), hardware.has_accelerometer());
-    lv_subject_set_int(&printer_has_probe_, hardware.has_probe() ? 1 : 0);
-    lv_subject_set_int(&printer_has_heater_bed_, hardware.has_heater_bed() ? 1 : 0);
-    lv_subject_set_int(&printer_has_led_, hardware.has_led() ? 1 : 0);
-    lv_subject_set_int(&printer_has_accelerometer_, hardware.has_accelerometer() ? 1 : 0);
+    set_capability_int(printer_has_probe_, hardware.has_probe() ? 1 : 0);
+    set_capability_int(printer_has_heater_bed_, hardware.has_heater_bed() ? 1 : 0);
+    set_capability_int(printer_has_led_, hardware.has_led() ? 1 : 0);
+    set_capability_int(printer_has_accelerometer_, hardware.has_accelerometer() ? 1 : 0);
 
     // Install M300 (Klipper gcode beeper) backend now that we know whether
     // the printer's Klipper config actually has a beeper output_pin. This
@@ -105,7 +134,7 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // Speaker capability — uses override system so presets can disable it
     // for printers without speakers (e.g., K1C has no beeper/buzzer).
     // AUTO mode: true if hardware beeper detected OR local sound backend exists.
-    lv_subject_set_int(&printer_has_speaker_, overrides.has_speaker() ? 1 : 0);
+    set_capability_int(printer_has_speaker_, overrides.has_speaker() ? 1 : 0);
 
     // Timelapse capability. moonraker-timelapse is a Moonraker component
     // (moonraker.conf), not a Klipper object, so it never appears in
@@ -123,17 +152,17 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
         (hardware.has_timelapse() || lv_subject_get_int(&printer_has_timelapse_) != 0) ? 1 : 0);
 
     // Firmware retraction capability (for G10/G11 retraction settings)
-    lv_subject_set_int(&printer_has_firmware_retraction_,
+    set_capability_int(printer_has_firmware_retraction_,
                        hardware.has_firmware_retraction() ? 1 : 0);
 
     // Chamber temperature sensor and heater capabilities
-    lv_subject_set_int(&printer_has_chamber_sensor_, hardware.has_chamber_sensor() ? 1 : 0);
-    lv_subject_set_int(&printer_has_chamber_heater_, hardware.has_chamber_heater() ? 1 : 0);
-    lv_subject_set_int(&printer_has_chamber_,
+    set_capability_int(printer_has_chamber_sensor_, hardware.has_chamber_sensor() ? 1 : 0);
+    set_capability_int(printer_has_chamber_heater_, hardware.has_chamber_heater() ? 1 : 0);
+    set_capability_int(printer_has_chamber_,
                        (hardware.has_chamber_sensor() || hardware.has_chamber_heater()) ? 1 : 0);
 
     // Screws tilt adjust capability
-    lv_subject_set_int(&printer_has_screws_tilt_, hardware.has_screws_tilt() ? 1 : 0);
+    set_capability_int(printer_has_screws_tilt_, hardware.has_screws_tilt() ? 1 : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 
@@ -148,7 +177,7 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
 
 void PrinterCapabilitiesState::set_sound_backend_available(bool available) {
     if (available && lv_subject_get_int(&printer_has_speaker_) == 0) {
-        lv_subject_set_int(&printer_has_speaker_, 1);
+        set_capability_int(printer_has_speaker_, 1);
         spdlog::debug("[PrinterCapabilitiesState] Sound backend available, speaker enabled");
     }
 }
@@ -156,7 +185,7 @@ void PrinterCapabilitiesState::set_sound_backend_available(bool available) {
 void PrinterCapabilitiesState::set_spoolman_available(bool available) {
     // Thread-safe: Use ui_queue_update to update LVGL subject from any thread
     async_lifetime_.defer("PrinterCapabilitiesState::set_spoolman_available", [this, available]() {
-        lv_subject_set_int(&printer_has_spoolman_, available ? 1 : 0);
+        set_capability_int(printer_has_spoolman_, available ? 1 : 0);
         spdlog::debug("[PrinterCapabilitiesState] Spoolman availability set: {}", available);
     });
 }
@@ -174,7 +203,7 @@ void PrinterCapabilitiesState::set_webcam_available(bool available, const std::s
         webcam_flip_h_ = flip_h;
         webcam_flip_v_ = flip_v;
         webcam_target_fps_ = target_fps > 0 ? target_fps : 15;
-        lv_subject_set_int(&printer_has_webcam_, available ? 1 : 0);
+        set_capability_int(printer_has_webcam_, available ? 1 : 0);
         spdlog::debug("[PrinterCapabilitiesState] Webcam: available={}, stream_url={}, flip_h={}, "
                       "flip_v={}, target_fps={}",
                       available, stream_url, flip_h, flip_v, webcam_target_fps_);
@@ -184,13 +213,13 @@ void PrinterCapabilitiesState::set_webcam_available(bool available, const std::s
 void PrinterCapabilitiesState::set_timelapse_available(bool available) {
     // Thread-safe: Use ui_queue_update to update LVGL subject from any thread
     async_lifetime_.defer("PrinterCapabilitiesState::set_timelapse_available", [this, available]() {
-        lv_subject_set_int(&printer_has_timelapse_, available ? 1 : 0);
+        set_capability_int(printer_has_timelapse_, available ? 1 : 0);
         spdlog::debug("[PrinterCapabilitiesState] Timelapse availability set: {}", available);
     });
 }
 
 void PrinterCapabilitiesState::set_purge_line(bool has_purge_line) {
-    lv_subject_set_int(&printer_has_purge_line_, has_purge_line ? 1 : 0);
+    set_capability_int(printer_has_purge_line_, has_purge_line ? 1 : 0);
     spdlog::debug("[PrinterCapabilitiesState] Purge line capability set: {}", has_purge_line);
 }
 
@@ -198,18 +227,18 @@ void PrinterCapabilitiesState::set_bed_moves(bool bed_moves) {
     int new_value = bed_moves ? 1 : 0;
     // Only log when value actually changes (this gets called frequently from status updates)
     if (lv_subject_get_int(&printer_bed_moves_) != new_value) {
-        lv_subject_set_int(&printer_bed_moves_, new_value);
+        set_capability_int(printer_bed_moves_, new_value);
         spdlog::info("[PrinterCapabilitiesState] Bed moves on Z: {}", bed_moves);
     }
 }
 
 void PrinterCapabilitiesState::set_has_chamber_sensor(bool available) {
-    lv_subject_set_int(&printer_has_chamber_sensor_, available ? 1 : 0);
+    set_capability_int(printer_has_chamber_sensor_, available ? 1 : 0);
     update_has_chamber();
 }
 
 void PrinterCapabilitiesState::set_has_chamber_heater(bool available) {
-    lv_subject_set_int(&printer_has_chamber_heater_, available ? 1 : 0);
+    set_capability_int(printer_has_chamber_heater_, available ? 1 : 0);
     update_has_chamber();
 }
 
@@ -226,13 +255,13 @@ void PrinterCapabilitiesState::set_has_chamber_filter_fan(bool available) {
 void PrinterCapabilitiesState::update_has_chamber() {
     bool has_any = lv_subject_get_int(&printer_has_chamber_sensor_) != 0 ||
                    lv_subject_get_int(&printer_has_chamber_heater_) != 0;
-    lv_subject_set_int(&printer_has_chamber_, has_any ? 1 : 0);
+    set_capability_int(printer_has_chamber_, has_any ? 1 : 0);
 }
 
 void PrinterCapabilitiesState::set_power_device_count(int count) {
     // Thread-safe: Use ui_queue_update to update LVGL subject from any thread
     async_lifetime_.defer("PrinterCapabilitiesState::set_power_device_count", [this, count]() {
-        lv_subject_set_int(&power_device_count_, count);
+        set_capability_int(power_device_count_, count);
         spdlog::debug("[PrinterCapabilitiesState] Power device count set: {}", count);
     });
 }
@@ -240,7 +269,7 @@ void PrinterCapabilitiesState::set_power_device_count(int count) {
 void PrinterCapabilitiesState::set_sensor_count(int count) {
     // Thread-safe: Use ui_queue_update to update LVGL subject from any thread
     async_lifetime_.defer("PrinterCapabilitiesState::set_sensor_count", [this, count]() {
-        lv_subject_set_int(&sensor_count_, count);
+        set_capability_int(sensor_count_, count);
         spdlog::debug("[PrinterCapabilitiesState] Sensor count set: {}", count);
     });
 }
