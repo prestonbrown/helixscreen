@@ -405,16 +405,15 @@ std::string peek_helix_cache_dir(const std::string& subdir);
 /**
  * @brief Remove cache directories an older layout left on the wrong filesystem.
  *
- * Only runs on a build that HAS a compile-time platform rung — the embedded
- * devices, where the fall-through rungs are genuinely dead. That rung need not
- * win: every device ships a platform hook exporting HELIX_CACHE_DIR, so rung 1
- * wins in practice on all of them. On the K1 the cache lives under /usr/data,
- * so a leftover /root/.cache/helix sits on the ~97MB root overlay competing
- * with the firmware for the smallest partition on the box.
+ * Only runs on a build with a compile-time platform rung — the embedded
+ * devices, where the fall-through rungs are dead. That rung need not win: every
+ * platform hook exports HELIX_CACHE_DIR, so rung 1 wins on all of them. On the
+ * K1 the cache lives under /usr/data, so a leftover /root/.cache/helix sits on
+ * the ~97MB root overlay, competing with the firmware for the smallest
+ * partition on the box.
  *
  * Reclaims only the fall-through rungs (XDG, HOME, /var/tmp, /tmp) below the
- * winner. An explicitly chosen path — env override, config setting, platform —
- * is somebody's intent and is never deleted.
+ * winner; an explicitly chosen path is never deleted.
  *
  * A no-op on desktop, where the XDG/HOME rung IS the live cache. Call once at
  * startup, and before anything reaches get_thumbnail_cache(): that singleton

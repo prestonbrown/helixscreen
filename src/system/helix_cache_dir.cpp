@@ -158,27 +158,21 @@ static const char* const HELIX_CACHE_SUBDIRS[] = {
     "helix_thumbs", "gcode_temp", "gcode_mod", "tools_used", "printer_images",
 };
 
-/// Remove any of @p paths that exists and whose final component is @p subdir.
+/// Remove any of @p paths that exists and whose final component names @p subdir.
 ///
-/// Split out from the platform gate below so the reclaim itself is reachable
-/// from a host build: sweep_stale_helix_cache_dirs() only proceeds when a
-/// compile-time platform rung wins the cascade, and no such rung exists on x86,
-/// so the gate would otherwise make this code permanently untestable. Exposed
-/// to tests via tests/test_helpers/helix_cache_dir_test_access.h.
+/// Split out from the gate in sweep_stale_helix_cache_dirs() so the reclaim is
+/// reachable from a host build, which defines no platform rung. Exposed to
+/// tests via tests/test_helpers/helix_cache_dir_test_access.h.
 ///
-/// The subdir suffix check is belt and braces. Every path handed here is one
-/// this cascade built, but remove_all is not an operation to run on a path
-/// whose shape nobody checked.
+/// The subdir check is belt and braces: every path handed here was built by
+/// this cascade, but remove_all should not run on an unchecked shape.
 int reclaim_cache_paths(const std::vector<std::string>& paths, const char* subdir) {
     int removed = 0;
 
     // The cascade spells the leaf two ways: nested under a helix/ parent
     // ("<base>/helix/gcode_temp", rungs 4-5) and flattened with a prefix
-    // ("/var/tmp/helix_gcode_temp", rungs 6-7). Accepting only the nested form
-    // silently made rungs 6 and 7 unreclaimable - verified on a K1, where a
-    // seeded /var/tmp/helix_helix_thumbs survived a sweep that correctly took
-    // /root/.cache/helix/helix_thumbs. Benign there (/var/tmp is a symlink to
-    // tmpfs) but not on a platform where /var/tmp is real storage.
+    // ("/var/tmp/helix_gcode_temp", rungs 6-7). Both must match or the bottom
+    // two rungs are never reclaimable.
     const std::string nested = std::string("/") + subdir;
     const std::string flattened = std::string("/helix_") + subdir;
     auto ends_with = [](const std::string& s, const std::string& tail) {
@@ -214,17 +208,10 @@ namespace helix::cache_internal {
 
 std::vector<std::string> select_stale_paths(const std::vector<CacheCandidate>& candidates,
                                             const std::function<bool(const std::string&)>& viable) {
-    // An embedded build is one that HAS a platform rung, not one where that rung
-    // wins. Gating on winning is what the first cut did, and it made the sweep
-    // dead code on every device we ship: each platform hook exports
-    // HELIX_CACHE_DIR (hooks-k1.sh, hooks-k2.sh, hooks-cc1.sh, hooks-ad5m-*.sh,
-    // hooks-ad5x.sh, hooks-m1.sh, hooks-snapmaker-u1.sh), so rung 1 always wins
-    // and rung 3 never does. Confirmed on a K1 and a K2: both logged
-    // "Cache dir (HELIX_CACHE_DIR)" and reclaimed nothing.
-    //
-    // Presence keeps the property that mattered: a desktop build has no platform
-    // rung at all, so a developer who redirects HELIX_CACHE_DIR still never has
-    // their ordinary ~/.cache/helix swept.
+    // An embedded build is one that HAS a platform rung, not one where it wins:
+    // every platform hook exports HELIX_CACHE_DIR, so rung 1 wins on all of
+    // them. A desktop build has no platform rung, so a developer who redirects
+    // HELIX_CACHE_DIR never has their ~/.cache/helix swept.
     bool embedded_build = false;
     for (const CacheCandidate& c : candidates)
         embedded_build = embedded_build || c.platform;
@@ -243,9 +230,9 @@ std::vector<std::string> select_stale_paths(const std::vector<CacheCandidate>& c
     if (winner == candidates.size())
         return {}; // nothing usable at all: do not guess
 
-    // Deliberate rungs below the winner are somebody's stated intent, not an
-    // abandoned directory - a device with both HELIX_CACHE_DIR and a config
-    // base_directory set must keep the config path.
+    // A deliberate rung below the winner is stated intent, not an abandoned
+    // directory: a device with both HELIX_CACHE_DIR and a config
+    // base_directory must keep the config path.
     std::vector<std::string> stale;
     for (size_t i = winner + 1; i < candidates.size(); ++i)
         if (!is_deliberate(candidates[i]))

@@ -310,9 +310,7 @@ TEST_CASE("reclaim_cache_paths refuses a path that is not the named subdir", "[c
 
 TEST_CASE("reclaim_cache_paths reclaims the flattened helix_<subdir> form", "[cache]") {
     // Rungs 6-7 spell the leaf "/var/tmp/helix_gcode_temp", not
-    // ".../helix/gcode_temp". Accepting only the nested form made those two
-    // rungs unreclaimable, which a K1 demonstrated: a seeded
-    // /var/tmp/helix_helix_thumbs survived a sweep that took the HOME rung.
+    // ".../helix/gcode_temp"; the nested form alone leaves them unreclaimable.
     std::string root = make_test_tmpdir("reclaim_flat");
     const std::string dir = seed_cache(root, "helix_helix_thumbs");
 
@@ -323,8 +321,7 @@ TEST_CASE("reclaim_cache_paths reclaims the flattened helix_<subdir> form", "[ca
 }
 
 TEST_CASE("reclaim_cache_paths still refuses a foreign helix_ prefixed dir", "[cache]") {
-    // Widening to the flattened form must not turn into "anything starting
-    // with helix_" - the subdir still has to match exactly.
+    // Widening to the flattened form must not become "anything helix_-prefixed".
     std::string root = make_test_tmpdir("reclaim_flat_wrong");
     const std::string dir = seed_cache(root, "helix_something_else");
 
@@ -361,9 +358,8 @@ TEST_CASE("the sweep reclaims NOTHING on a host build", "[cache]") {
 }
 
 // ---------------------------------------------------------------------------
-// select_stale_paths() — the gate's decision, over candidate shapes a host
-// build never produces. This is where the embedded behaviour is pinned: the
-// public sweep can only ever demonstrate the desktop case here.
+// select_stale_paths() — the gate's decision over candidate shapes a host build
+// never produces. The public sweep can only demonstrate the desktop case here.
 // ---------------------------------------------------------------------------
 
 #include "system/helix_cache_dir_internal.h"
@@ -377,8 +373,8 @@ bool all_viable(const std::string&) {
     return true;
 }
 
-/// The shape every real device presents: a platform hook exported
-/// HELIX_CACHE_DIR, so rung 1 wins and the platform rung never does.
+/// The shape every device presents: a platform hook exported HELIX_CACHE_DIR,
+/// so rung 1 wins and the platform rung does not.
 std::vector<CacheCandidate> device_shape() {
     return {
         {"/usr/data/helixscreen/cache/helix_thumbs", "HELIX_CACHE_DIR", false, false},
@@ -391,9 +387,8 @@ std::vector<CacheCandidate> device_shape() {
 } // namespace
 
 TEST_CASE("sweep runs when the env rung wins but a platform rung exists", "[cache]") {
-    // The regression this pins: gating on the platform rung *winning* made the
-    // sweep dead code on every shipped device, because each platform hook
-    // exports HELIX_CACHE_DIR. Verified on a K1 and a K2 — both reclaimed 0.
+    // Gating on the platform rung *winning* makes the sweep dead code on every
+    // shipped device, since each platform hook exports HELIX_CACHE_DIR.
     const std::vector<std::string> stale = select_stale_paths(device_shape(), all_viable);
 
     REQUIRE(stale.size() == 3);
@@ -403,8 +398,7 @@ TEST_CASE("sweep runs when the env rung wins but a platform rung exists", "[cach
 }
 
 TEST_CASE("select_stale_paths never reclaims a deliberate rung", "[cache]") {
-    // env wins, config sits below it. A config base_directory is somebody's
-    // stated intent, not an abandoned directory.
+    // env wins, config sits below it. A config base_directory is stated intent.
     std::vector<CacheCandidate> c = {
         {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
         {"/configured/helix_thumbs", "config", false, false},
@@ -418,8 +412,7 @@ TEST_CASE("select_stale_paths never reclaims a deliberate rung", "[cache]") {
 }
 
 TEST_CASE("select_stale_paths returns nothing without a platform rung", "[cache]") {
-    // A desktop build. Even with HELIX_CACHE_DIR redirected, the developer's
-    // real ~/.cache/helix must survive.
+    // Desktop build: even with HELIX_CACHE_DIR redirected, ~/.cache/helix lives.
     std::vector<CacheCandidate> c = {
         {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
         {"/home/dev/.cache/helix/helix_thumbs", nullptr, false, false},
@@ -429,8 +422,7 @@ TEST_CASE("select_stale_paths returns nothing without a platform rung", "[cache]
 }
 
 TEST_CASE("select_stale_paths ignores rungs above the winner", "[cache]") {
-    // Rungs above the winner were rejected as unusable — a read-only mount, a
-    // missing partition. They are not ours to delete.
+    // Rungs above the winner were rejected as unusable — not ours to delete.
     auto only_root_cache_viable = [](const std::string& p) { return p.rfind("/root/", 0) == 0; };
     const std::vector<std::string> stale =
         select_stale_paths(device_shape(), only_root_cache_viable);
