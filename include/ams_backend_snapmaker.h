@@ -260,6 +260,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// build_ams_topology() and the mapping save/restore flow it does not use.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
+    /// The routing observed while a print task was configured — what a reprint
+    /// replays. See the base declaration; the member it reads is
+    /// last_task_extruder_map_.
+    [[nodiscard]] std::vector<int> last_print_tool_mapping() const override;
+
     // Static parsers (public for testing)
     static ExtruderToolState parse_extruder_state(const nlohmann::json& json);
     static SnapmakerRfidInfo parse_rfid_info(const nlohmann::json& json);
@@ -305,6 +310,21 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// and clears it when the print ends. Observed live: idle
     /// [F,F,F,F] + map [0,1,2,3]; mid-print [F,F,T,F] + map [2,1,2,3].
     std::vector<bool> extruders_used_;
+
+    /// extruder_map_table_ as it read while a task WAS configured — the routing
+    /// the most recent print actually ran with.
+    ///
+    /// extruder_map_table_ alone cannot answer that after the fact: the gate that
+    /// makes it readable closes when the print ends, and the firmware resets the
+    /// table to its default identity, so both a finished crossover and a job that
+    /// needed no remap read the same. Captured on every print_task_config frame
+    /// that arrives with the gate open, which also means the U1's own runout
+    /// auto-replenish rewrite is captured — a reprint should follow the heads the
+    /// print finished on, not the ones it was planned with.
+    ///
+    /// Empty until a configured task has been seen. Written only from
+    /// handle_status_update under mutex_; read by last_print_tool_mapping().
+    std::vector<int> last_task_extruder_map_;
 
     /// Per-extruder cached state
     std::array<ExtruderToolState, NUM_TOOLS> extruder_states_;
