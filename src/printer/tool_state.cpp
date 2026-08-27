@@ -71,6 +71,7 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(per_tool_z_supported, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(active_tool_z_offset, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(active_tool_z_offset_valid, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(any_tool_z_dirty, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
 
@@ -274,6 +275,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.gcode_y_offset = previous[i].gcode_y_offset;
                 t.gcode_z_offset = previous[i].gcode_z_offset;
                 t.gcode_z_offset_known = previous[i].gcode_z_offset_known;
+                t.gcode_z_offset_saved = previous[i].gcode_z_offset_saved;
             }
             tools_.push_back(std::move(t));
         }
@@ -448,6 +450,13 @@ void ToolState::update_from_status(const nlohmann::json& status) {
                 continue;
             }
             float mm = static_cast<float>(*microns) / 1000.0f;
+            if (!tools_[i].gcode_z_offset_known) {
+                // First value seen for this tool is the persisted one: on a
+                // fresh connect the runtime offset IS what the config holds.
+                // Seeding the baseline here is what stops a freshly-connected
+                // printer from claiming unsaved work it does not have.
+                tools_[i].gcode_z_offset_saved = mm;
+            }
             if (tools_[i].gcode_z_offset != mm || !tools_[i].gcode_z_offset_known) {
                 tools_[i].gcode_z_offset = mm;
                 tools_[i].gcode_z_offset_known = true;
@@ -459,6 +468,7 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         // own — otherwise the panel would keep showing the previous tool's
         // number beside the new selection.
         refresh_active_tool_z_offset();
+        refresh_any_tool_z_dirty();
     }
 
     if (changed) {
@@ -503,6 +513,40 @@ void ToolState::query_tool_z_offsets(IMoonrakerClient* client,
         });
     client->send_jsonrpc("printer.objects.query", nlohmann::json{{"objects", objects}},
                          std::move(cb));
+}
+
+std::vector<int> ToolState::dirty_tool_z_indices() const {
+    std::vector<int> dirty;
+    for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+        if (tools_[i].gcode_z_offset_known &&
+            tools_[i].gcode_z_offset != tools_[i].gcode_z_offset_saved) {
+            dirty.push_back(i);
+        }
+    }
+    return dirty;
+}
+
+float ToolState::tool_z_offset_mm(int tool_index) const {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size()) ||
+        !tools_[tool_index].gcode_z_offset_known) {
+        return 0.0f;
+    }
+    return tools_[tool_index].gcode_z_offset;
+}
+
+void ToolState::mark_tool_z_saved(int tool_index) {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+        return;
+    }
+    tools_[tool_index].gcode_z_offset_saved = tools_[tool_index].gcode_z_offset;
+    refresh_any_tool_z_dirty();
+}
+
+void ToolState::refresh_any_tool_z_dirty() {
+    const int dirty = dirty_tool_z_indices().empty() ? 0 : 1;
+    if (lv_subject_get_int(&any_tool_z_dirty_) != dirty) {
+        lv_subject_set_int(&any_tool_z_dirty_, dirty);
+    }
 }
 
 void ToolState::refresh_active_tool_z_offset() {

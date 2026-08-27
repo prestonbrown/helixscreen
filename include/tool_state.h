@@ -48,6 +48,11 @@ struct ToolInfo {
     /// Whether gcode_z_offset has ever been reported for this tool. 0.000 is a
     /// legitimate offset, so the value alone cannot say "not known yet".
     bool gcode_z_offset_known = false;
+    /// The offset as last persisted (or as first seen, which is the config
+    /// value on a fresh connect). gcode_z_offset differing from this is what
+    /// makes the tool dirty — a runtime SET_TOOL_PARAMETER is lost on the next
+    /// Klipper restart unless it is saved.
+    float gcode_z_offset_saved = 0.0f;
     bool active = false;
     bool mounted = false;
     DetectState detect_state = DetectState::UNAVAILABLE;
@@ -235,6 +240,11 @@ class ToolState {
     lv_subject_t* get_active_tool_z_offset_valid_subject() {
         return &active_tool_z_offset_valid_;
     }
+    /// 1 when ANY tool's z-offset differs from what is persisted. Drives the
+    /// save affordance together with the machine-wide gcode_z_offset.
+    lv_subject_t* get_any_tool_z_dirty_subject() {
+        return &any_tool_z_dirty_;
+    }
 
     /// One-shot query for the per-tool z-offsets after init_tools().
     ///
@@ -245,12 +255,28 @@ class ToolState {
     /// until someone happened to move an offset.
     void query_tool_z_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
 
+    /// Tools whose z-offset differs from what is persisted, lowest index first.
+    /// Empty when nothing needs saving.
+    [[nodiscard]] std::vector<int> dirty_tool_z_indices() const;
+
+    /// A tool's current z-offset in mm, or 0 when the index is out of range or
+    /// nothing has been reported for it.
+    [[nodiscard]] float tool_z_offset_mm(int tool_index) const;
+
+    /// Record that tool @p tool_index's current offset is now the persisted one.
+    /// Call after the save gcode has been accepted, not before — an optimistic
+    /// clear would hide a save that failed.
+    void mark_tool_z_saved(int tool_index);
+
   private:
     friend class ToolStateTestAccess;
 
     /// Republish the active tool's z-offset subjects from tools_. Handles both
     /// a new value arriving and the active tool changing.
     void refresh_active_tool_z_offset();
+
+    /// Recompute any_tool_z_dirty from tools_.
+    void refresh_any_tool_z_dirty();
 
     ToolState() = default;
 
@@ -284,6 +310,7 @@ class ToolState {
     lv_subject_t per_tool_z_supported_{};
     lv_subject_t active_tool_z_offset_{};
     lv_subject_t active_tool_z_offset_valid_{};
+    lv_subject_t any_tool_z_dirty_{};
 
     std::vector<ToolInfo> tools_;
     int active_tool_index_ = 0;

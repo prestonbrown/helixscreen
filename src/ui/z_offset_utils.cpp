@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "z_offset_utils.h"
+#include "tool_state.h"
+#include "tool_offsets.h"
 
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -287,6 +289,56 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
         });
 
     return AdjustResult{delta_mm, new_offset, true, false};
+}
+
+void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                        ZOffsetCalibrationStrategy strategy, const helix::PrinterDiscovery& hw,
+                        bool global_dirty, std::function<void()> on_success,
+                        std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+    if (!api) {
+        if (on_error) {
+            on_error("No printer connection");
+        }
+        return;
+    }
+
+    auto& ts = helix::ToolState::instance();
+    const std::vector<int> dirty_tools = ts.dirty_tool_z_indices();
+
+    // Tool offsets first: on klipper-toolchanger SAVE_TOOL_PARAMETER only STAGES
+    // a config change, which the machine-wide SAVE_CONFIG below then commits in
+    // the same restart. Sending them after it would leave them staged until
+    // some later save happened to flush them.
+    for (int tool : dirty_tools) {
+        const int microns =
+            static_cast<int>(std::lround(ts.tool_z_offset_mm(tool) * 1000.0));
+        const std::string gcode = helix::tool_offsets::save_tool_z_gcode(hw, tool, microns);
+        if (gcode.empty()) {
+            continue;
+        }
+        api->execute_gcode(gcode, nullptr, nullptr);
+        // Marked here rather than in a callback: execute_gcode's error path only
+        // logs, so there is no rejection signal to wait for. A later status
+        // frame carrying a different value re-dirties the tool anyway.
+        ts.mark_tool_z_saved(tool);
+    }
+
+    if (global_dirty) {
+        // Commits its own change AND any tool parameters staged above.
+        apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
+        return;
+    }
+
+    if (!dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw)) {
+        // Nothing machine-wide to apply, but the staged tool parameters still
+        // need committing — and that restarts Klipper, so the caller must be
+        // told to expect it exactly as apply_and_save() would.
+        api->execute_gcode("SAVE_CONFIG", nullptr, nullptr);
+    }
+
+    if (on_success) {
+        on_success();
+    }
 }
 
 } // namespace helix::zoffset
