@@ -1472,6 +1472,7 @@
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name:" zh="名称:"/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Named actions in the LED control panel (long-press)." zh="LED 控制面板中的命名操作（长按）。"/>
   <translation tag="Needs adjustment" zh="需要调整"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>

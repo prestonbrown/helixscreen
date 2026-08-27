@@ -1472,6 +1472,7 @@
   <translation tag="Name" en="Name"/>
   <translation tag="Name (optional)" en="Name (optional)"/>
   <translation tag="Name:" en="Name:"/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." en="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Named actions in the LED control panel (long-press)." en="Named actions in the LED control panel (long-press)."/>
   <translation tag="Needs adjustment" en="Needs adjustment"/>
   <translation tag="Needs the {} package to switch spools" en="Needs the {} package to switch spools"/>

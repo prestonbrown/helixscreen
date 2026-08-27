@@ -1633,6 +1633,7 @@ translations:
   Name: Название
   Name (optional): Название (необязательно)
   'Name:': 'Имя:'
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Named actions in the LED control panel (long-press).: Именованные действия в панели
     управления LED (долгое нажатие).
   Needs adjustment: Требуется регулировка

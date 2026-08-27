@@ -438,6 +438,15 @@ class LedController {
     /// Returns empty string if nothing available.
     [[nodiscard]] std::string first_available_strip() const;
 
+    /// The selected strip whose live on/off state Klipper publishes under
+    /// printer.objects. Macro devices are synthetic "macro:" IDs and WLED
+    /// strips live behind Moonraker's HTTP proxy, so neither ever appears in a
+    /// status payload — tracking one leaves the PrinterLedState subjects frozen
+    /// at their defaults, and a light button that reads them computes its next
+    /// command from a value that can never move. Empty when the selection holds
+    /// no such strip; callers must then fall back to light_is_on().
+    [[nodiscard]] std::string status_tracked_strip() const;
+
     /// Whether the current selection's state can be reliably tracked.
     /// Returns false if ANY selected strip is a TOGGLE macro (state unknown).
     [[nodiscard]] bool light_state_trackable() const;

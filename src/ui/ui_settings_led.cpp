@@ -527,7 +527,12 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
         lv_label_set_text(type_help, lv_tr("Single toggle macro. State is not tracked."));
         break;
     case helix::led::MacroLedType::PRESET:
-        lv_label_set_text(type_help, lv_tr("Named actions in the LED control panel (long-press)."));
+        // The old wording said "(long-press)", which opens widget options on the
+        // home screen, not this panel. It also left users to discover on their
+        // own that a preset device is not a light and so has no selection chip.
+        lv_label_set_text(
+            type_help,
+            lv_tr("Named actions in the LED Controls widget. Not shown under LED selection."));
         break;
     }
 

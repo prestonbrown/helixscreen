@@ -1502,6 +1502,7 @@ translations:
   Name: 名称
   Name (optional): 名称（可选）
   'Name:': '名称:'
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Named actions in the LED control panel (long-press).: LED 控制面板中的命名操作（长按）。
   Needs adjustment: 需要调整
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'

@@ -608,11 +608,22 @@ void LedControlOverlay::populate_macros() {
     // If a specific macro device is selected, show controls for just that one.
     // Read from configured_macros() — the persisted list all_selectable_strips()
     // builds the chips from — so the chip and its controls can't disagree.
+    //
+    // PRESET devices are the exception: all_selectable_strips() omits them, so
+    // they never get a chip and can never be the focused device. Rendering only
+    // the focused one hid every preset button the moment any macro chip was
+    // focused, which is every session with a macro light configured. They have
+    // no other home in the UI, so they always render.
     const auto& macros = controller.configured_macros();
     const auto& selected = controller.selected_strips();
     if (!selected.empty() && is_macro_strip_id(selected[0])) {
-        if (const auto* m = find_macro(macros, selected[0])) {
-            populate_macro_controls(*m);
+        if (const auto* focused = find_macro(macros, selected[0])) {
+            populate_macro_controls(*focused);
+            for (const auto& macro : macros) {
+                if (macro.type == MacroLedType::PRESET) {
+                    populate_macro_controls(macro);
+                }
+            }
             return;
         }
     }
@@ -953,8 +964,10 @@ void LedControlOverlay::handle_strip_selected(const std::string& strip_id) {
     // choice made in Settings, which on_deactivate() then persisted.
     //
     // The strip the overlay focuses on lands at the front: selected_strips()[0]
-    // drives the header name, the effects/WLED sections, first_available_strip()
-    // and query_tracked_led_state(), so the front must be what the user tapped.
+    // drives the header name, the effects/WLED sections, populate_macros() and
+    // first_available_strip(), so the front must be what the user tapped.
+    // (query_tracked_led_state() no longer reads the front — it asks
+    // status_tracked_strip() for a strip Klipper actually reports.)
     auto selected = controller.selected_strips();
     auto it = std::find(selected.begin(), selected.end(), strip_id);
     std::string focus_id = strip_id;
@@ -1019,12 +1032,12 @@ void LedControlOverlay::handle_strip_selected(const std::string& strip_id) {
         update_brightness_text(pct);
         lv_subject_set_int(&brightness_subject_, pct);
     } else if (selected_backend_type_ == LedBackendType::MACRO) {
-        // Macro strip focused: rebuild macro controls for this specific macro
+        // Macro strip focused: rebuild macro controls. set_selected_strips()
+        // above put focus_id at the front, so populate_macros() picks the same
+        // device — and carries the PRESET rule with it instead of restating it.
         if (macro_buttons_container_) {
             helix::ui::safe_clean_children(macro_buttons_container_);
-            if (const auto* m = find_macro(controller.configured_macros(), focus_id)) {
-                populate_macro_controls(*m);
-            }
+            populate_macros();
         }
     } else {
         // Native strip focused: update color/brightness from cache

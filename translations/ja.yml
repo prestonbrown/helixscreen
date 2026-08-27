@@ -1509,6 +1509,7 @@ translations:
   Name: 名前
   Name (optional): 名前（オプション）
   'Name:': '名前:'
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Named actions in the LED control panel (long-press).: LEDコントロールパネルの名前付きアクション（長押し）。
   Needs adjustment: 調整が必要
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
