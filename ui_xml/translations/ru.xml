@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" ru="Ошибка: недопустимая загрузка"/>
   <translation tag="Error: No update available" ru="Ошибка: обновления недоступны"/>
   <translation tag="Error: Not enough disk space" ru="Ошибка: недостаточно места на диске"/>
+  <translation tag="Error: Previous download still finishing" ru="Ошибка: предыдущая загрузка ещё не завершена"/>
+  <translation tag="Error: This install can&apos;t update itself" ru="Ошибка: эта установка не может обновить себя"/>
   <translation tag="Error: Verification failed" ru="Ошибка: проверка не удалась"/>
   <translation tag="Error: Wrong architecture" ru="Ошибка: неверная архитектура"/>
   <translation tag="Error: `unzip` not installed" ru="Ошибка: `unzip` не установлен"/>

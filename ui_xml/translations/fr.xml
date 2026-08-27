@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" fr="Erreur : téléchargement invalide"/>
   <translation tag="Error: No update available" fr="Erreur : aucune mise à jour disponible"/>
   <translation tag="Error: Not enough disk space" fr="Erreur : espace disque insuffisant"/>
+  <translation tag="Error: Previous download still finishing" fr="Erreur : le téléchargement précédent n&apos;est pas terminé"/>
+  <translation tag="Error: This install can&apos;t update itself" fr="Erreur : cette installation ne peut pas se mettre à jour"/>
   <translation tag="Error: Verification failed" fr="Erreur : échec de la vérification"/>
   <translation tag="Error: Wrong architecture" fr="Erreur : mauvaise architecture"/>
   <translation tag="Error: `unzip` not installed" fr="Erreur : `unzip` non installé"/>

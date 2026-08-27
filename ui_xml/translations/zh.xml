@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" zh="错误: 下载无效"/>
   <translation tag="Error: No update available" zh="错误: 无可用更新"/>
   <translation tag="Error: Not enough disk space" zh="错误: 磁盘空间不足"/>
+  <translation tag="Error: Previous download still finishing" zh="错误: 上一次下载尚未结束"/>
+  <translation tag="Error: This install can&apos;t update itself" zh="错误: 此安装无法自我更新"/>
   <translation tag="Error: Verification failed" zh="错误: 验证失败"/>
   <translation tag="Error: Wrong architecture" zh="错误: 架构错误"/>
   <translation tag="Error: `unzip` not installed" zh="错误: 未安装 `unzip`"/>

@@ -884,6 +884,8 @@ translations:
   'Error: Invalid download': 'Ошибка: недопустимая загрузка'
   'Error: No update available': 'Ошибка: обновления недоступны'
   'Error: Not enough disk space': 'Ошибка: недостаточно места на диске'
+  'Error: Previous download still finishing': 'Ошибка: предыдущая загрузка ещё не завершена'
+  "Error: This install can't update itself": 'Ошибка: эта установка не может обновить себя'
   'Error: Verification failed': 'Ошибка: проверка не удалась'
   'Error: Wrong architecture': 'Ошибка: неверная архитектура'
   'Error: `unzip` not installed': 'Ошибка: `unzip` не установлен'
