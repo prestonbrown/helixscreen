@@ -153,7 +153,7 @@ count may fall, never rise.
 | `LV_EVENT_DELETE` cleanup, draw hooks (`DRAW_MAIN`/`DRAW_POST`), `SIZE_CHANGED`, gestures/scroll | No declarative equivalent exists |
 | Measured layout and computed fonts (`decide_nozzle_layout()`, breakpoint fonts) | Depends on runtime pixel measurement — see rule 8 |
 | Widgets created in C++ (`lv_*_create`) — canvas and procedural rendering | Never had an XML layer |
-| Per-item payload on generated collections | `lv_obj_set_user_data()` on a `ui_button` overwrites `UiButtonData*` (`temperature_service.cpp:667`) |
+| Per-item payload on generated collections | `lv_obj_set_user_data()` on a `ui_button` overwrites `UiButtonData*` (`temperature_service.cpp:669`) |
 | `helix-screen ctl` remote control (`remote_control_server.cpp`) | Its job is reaching into an arbitrary live widget tree on command |
 | CLI stdout (`cli_args.cpp`, `detect_printer_cmd.cpp`, `helix_splash.cpp`) | stdout *is* the product there; spdlog is for logging |
 | Widget pool recycling, chart data, animations | Churn or per-frame data that a subject would not model |

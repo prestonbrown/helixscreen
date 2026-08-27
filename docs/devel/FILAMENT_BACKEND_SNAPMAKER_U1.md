@@ -61,7 +61,7 @@ One unit ("SnapSwap"), four slots, one per toolhead:
 
 **Wired to one object.** `PrinterDiscovery::parse_objects()` sets `has_snapmaker_` when
 the Klipper object list contains `filament_detect` — unique to U1 firmware
-(`include/printer_discovery.h:413-416`). Registration order matters: a real aftermarket
+(`include/printer_discovery.h:414-417`). Registration order matters: a real aftermarket
 MMU (AFC, Happy Hare, …) always wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
 and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h:552-580`).
@@ -217,7 +217,7 @@ so the config must land before `PRINT_START`. `requires_preprint_send() = true` 
 **always-on, even with no remap**: `SET_PRINT_USED_EXTRUDERS` suppresses the spurious
 auto-feed of unused heads baked into every Orca-sliced file, which otherwise feeds an
 empty head and cancels the print on runout (`include/ams_backend_snapmaker.h:230-237`,
-`src/ui/ui_print_start_controller.cpp:315-332`).
+`src/ui/ui_print_start_controller.cpp:319-339`).
 
 Send ordering is guaranteed on our side of the wire. Both start paths gate on
 `requires_preprint_send()` and hand the real start step to
