@@ -312,7 +312,6 @@
   <translation tag="Bypass Mode" zh="旁路模式"/>
   <translation tag="Bypass active — this print runs on the external spool." zh="旁路已启用 — 本次打印使用外部料盘。"/>
   <translation tag="Bypass cannot be changed while printing" zh="打印时无法切换旁路"/>
-  <translation tag="Bypass controlled by hardware sensor" zh="旁路由硬件传感器控制"/>
   <translation tag="Bypass controlled by sensor" zh="旁通由传感器控制"/>
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
@@ -345,7 +344,6 @@
   <translation tag="Calibrate and tune scroll feel" zh="校准并调整滚动手感"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" zh="校准、调整抖动和滚动手感"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -417,6 +415,7 @@
   <translation tag="Change Printer Host" zh="更改打印机主机"/>
   <translation tag="Change Tool" zh="切换工具"/>
   <translation tag="Change Tool While Paused" zh="暂停时切换工具"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." zh="可随时使用 Macro Viewer 恢复更改。"/>
@@ -641,7 +640,6 @@
   <translation tag="Date (newest)" zh="日期（最新）"/>
   <translation tag="Date (oldest)" zh="日期（最早）"/>
   <translation tag="Day" zh="日"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" zh="死区像素值（如果点击被识别为滑动则调高；0 表示禁用）"/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" zh="默认: 喷嘴 %d-%d°C,热床 %d°C"/>
@@ -695,6 +693,8 @@
   <translation tag="Do not power off your printer." zh="请勿关闭打印机电源。"/>
   <translation tag="Do not touch the printer during calibration" zh="校准期间请勿触碰打印机"/>
   <translation tag="Dock" zh="归位"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" zh="正在归位工具"/>
   <translation tag="Documentation" zh="文档"/>
   <translation tag="Don&apos;t Save" zh="不保存"/>
@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" zh="错误: 下载无效"/>
   <translation tag="Error: No update available" zh="错误: 无可用更新"/>
   <translation tag="Error: Not enough disk space" zh="错误: 磁盘空间不足"/>
+  <translation tag="Error: Previous download still finishing" zh="错误: 上一次下载尚未结束"/>
+  <translation tag="Error: This install can&apos;t update itself" zh="错误: 此安装无法自我更新"/>
   <translation tag="Error: Verification failed" zh="错误: 验证失败"/>
   <translation tag="Error: Wrong architecture" zh="错误: 架构错误"/>
   <translation tag="Error: `unzip` not installed" zh="错误: 未安装 `unzip`"/>
@@ -977,7 +979,6 @@
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament load failed: {}" zh="耗材加载失败: {}"/>
-  <translation tag="Filament loaded" zh="耗材已加载"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
@@ -1052,6 +1053,7 @@
   <translation tag="Good Accuracy" zh="精度良好"/>
   <translation tag="Got it" zh="知道了"/>
   <translation tag="Gray" zh="灰色"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" zh="指南与参考"/>
   <translation tag="H" zh="头"/>
@@ -1447,6 +1449,7 @@
   <translation tag="Motors Off" zh="关闭电机"/>
   <translation tag="Motors disable failed: {}" zh="禁用电机失败: {}"/>
   <translation tag="Motors disabled" zh="电机已禁用"/>
+  <translation tag="Mount"/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." zh="调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。"/>
   <translation tag="Move selector" zh="移动选择器"/>
@@ -1472,7 +1475,7 @@
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name:" zh="名称:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." zh="LED 控制面板中的命名操作（长按）。"/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" zh="需要调整"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
@@ -1501,7 +1504,6 @@
   <translation tag="No Camera" zh="无摄像头"/>
   <translation tag="No Filament Detected" zh="未检测到耗材"/>
   <translation tag="No History" zh="无历史记录"/>
-  <translation tag="No LED macros detected on your printer." zh="未在打印机上检测到 LED 宏。"/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." zh="未在打印机上检测到 LED 宏。请先添加用于 LED 控制的 Klipper 宏。"/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" zh="未检测到 LED 灯带"/>
@@ -1719,6 +1721,7 @@
   <translation tag="Phomemo M110" zh="Phomemo M110"/>
   <translation tag="Pick" zh="选取"/>
   <translation tag="Pick Color" zh="选择颜色"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" zh="按下转为滚动前的像素数(越低 = 滚动越快触发)"/>
@@ -1889,7 +1892,6 @@
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
   <translation tag="Purge Length" zh="排料长度"/>
   <translation tag="Purge failed: {}" zh="清洗失败: {}"/>
-  <translation tag="Purge macro not configured" zh="清洗宏未配置"/>
   <translation tag="Purge may still be running — response timed out" zh="清洗可能仍在运行 — 响应超时"/>
   <translation tag="Purge to bucket" zh="排料到废料桶"/>
   <translation tag="Purge tower and brush settings" zh="排料塔与刷子设置"/>
@@ -1965,6 +1967,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" zh="相对振动"/>
   <translation tag="Release all stepper motors. Position will be lost." zh="释放所有步进电机。位置信息将丢失。"/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
@@ -2548,7 +2551,6 @@
   <translation tag="Touch &amp; Input" zh="触摸和输入"/>
   <translation tag="Touch Cal" zh="触摸校准"/>
   <translation tag="Touch Calibration" zh="触摸校准"/>
-  <translation tag="Touch Jitter Filter" zh="触摸抖动过滤"/>
   <translation tag="Touch anywhere to test calibration" zh="触摸任意位置测试校准"/>
   <translation tag="Touch anywhere to verify accuracy" zh="触摸任意位置验证精度"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." zh="触摸输入未能跟随新的校准，已保留您之前的设置。"/>
@@ -2607,6 +2609,7 @@
   <translation tag="Unloads After Print" zh="打印后卸载"/>
   <translation tag="Unlock" zh="解锁"/>
   <translation tag="Unmapped" zh="未映射"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" zh="回抽恢复额外量"/>
   <translation tag="Unretract Speed" zh="回抽恢复速度"/>
   <translation tag="Unsupported tape width" zh="不支持的标签带宽度"/>

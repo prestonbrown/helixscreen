@@ -312,7 +312,6 @@
   <translation tag="Bypass Mode" de="Bypass-Modus"/>
   <translation tag="Bypass active — this print runs on the external spool." de="Bypass aktiv: Dieser Druck läuft über die externe Spule."/>
   <translation tag="Bypass cannot be changed while printing" de="Bypass kann während des Drucks nicht geändert werden"/>
-  <translation tag="Bypass controlled by hardware sensor" de="Bypass wird durch Hardware-Sensor gesteuert"/>
   <translation tag="Bypass controlled by sensor" de="Bypass durch Sensor gesteuert"/>
   <translation tag="Bypass disabled" de="Bypass deaktiviert"/>
   <translation tag="Bypass enabled" de="Bypass aktiviert"/>
@@ -345,7 +344,6 @@
   <translation tag="Calibrate and tune scroll feel" de="Kalibrieren und Scroll-Verhalten einstellen"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" de="Input Shaping kalibrieren, um Ringing-Artefakte im Druck zu reduzieren"/>
   <translation tag="Calibrate your touchscreen for accurate input" de="Touchscreen für präzise Eingabe kalibrieren"/>
-  <translation tag="Calibrate, tune jitter and scroll feel" de="Kalibrieren, Jitter und Scroll-Verhalten einstellen"/>
   <translation tag="Calibrated" de="Kalibriert"/>
   <translation tag="Calibrating Probe..."/>
   <translation tag="Calibrating bed mesh..."/>
@@ -417,6 +415,7 @@
   <translation tag="Change Printer Host" de="Drucker-Host ändern"/>
   <translation tag="Change Tool" de="Werkzeug wechseln"/>
   <translation tag="Change Tool While Paused" de="Werkzeug während Pause wechseln"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." de="Änderungen werden sofort angewendet. Während des Drucks zur Feinabstimmung anpassen."/>
   <translation tag="Changes are temporary and reset on printer reboot" de="Änderungen sind temporär und werden beim Neustart des Druckers zurückgesetzt"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." de="Änderungen können jederzeit über den Macro Viewer rückgängig gemacht werden."/>
@@ -641,7 +640,6 @@
   <translation tag="Date (newest)" de="Datum (neueste)"/>
   <translation tag="Date (oldest)" de="Datum (älteste)"/>
   <translation tag="Day" de="Tag"/>
-  <translation tag="Dead zone in pixels (raise if taps register as swipes; 0 disables)" de="Totzone in Pixeln (erhöhen, wenn Taps als Wischen erkannt werden; 0 deaktiviert)"/>
   <translation tag="Debug" de="Debug"/>
   <translation tag="Default border thickness" de="Standard-Rahmendicke"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" de="Standard: %d-%d°C Düse, %d°C Bett"/>
@@ -695,6 +693,8 @@
   <translation tag="Do not power off your printer." de="Drucker nicht ausschalten."/>
   <translation tag="Do not touch the printer during calibration" de="Drucker während der Kalibrierung nicht berühren"/>
   <translation tag="Dock" de="Andocken"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" de="Werkzeug andocken"/>
   <translation tag="Documentation" de="Dokumentation"/>
   <translation tag="Don&apos;t Save" de="Nicht speichern"/>
@@ -800,6 +800,8 @@
   <translation tag="Error: Invalid download" de="Fehler: Ungültiger Download"/>
   <translation tag="Error: No update available" de="Fehler: Kein Update verfügbar"/>
   <translation tag="Error: Not enough disk space" de="Fehler: Nicht genügend Speicherplatz"/>
+  <translation tag="Error: Previous download still finishing" de="Fehler: Vorheriger Download läuft noch"/>
+  <translation tag="Error: This install can&apos;t update itself" de="Fehler: Diese Installation kann sich nicht selbst aktualisieren"/>
   <translation tag="Error: Verification failed" de="Fehler: Überprüfung fehlgeschlagen"/>
   <translation tag="Error: Wrong architecture" de="Fehler: Falsche Architektur"/>
   <translation tag="Error: `unzip` not installed" de="Fehler: `unzip` nicht installiert"/>
@@ -977,7 +979,6 @@
   <translation tag="Filament is pulling tight" de="Filament zieht straff"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." de="Nach dem Entladen befindet sich noch Filament an der Düse. Schnitt oder Rückzug sind möglicherweise nicht abgeschlossen. Räumen Sie den Werkzeugkopf frei, bevor Sie eine andere Spule laden."/>
   <translation tag="Filament load failed: {}" de="Filament laden fehlgeschlagen: {}"/>
-  <translation tag="Filament loaded" de="Filament geladen"/>
   <translation tag="Filament operation failed" de="Filament-Vorgang fehlgeschlagen"/>
   <translation tag="Filament operation timed out" de="Filament-Vorgang Zeitüberschreitung"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." de="Filament zu Ende - am Werkzeugkopf ist nichts mehr und der Druck ist pausiert."/>
@@ -1052,6 +1053,7 @@
   <translation tag="Good Accuracy" de="Gute Genauigkeit"/>
   <translation tag="Got it" de="Verstanden"/>
   <translation tag="Gray" de="Grau"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" de="Anleitungen und Referenz"/>
   <translation tag="H" de="H"/>
@@ -1447,6 +1449,7 @@
   <translation tag="Motors Off" de="Motoren aus"/>
   <translation tag="Motors disable failed: {}" de="Motoren deaktivieren fehlgeschlagen: {}"/>
   <translation tag="Motors disabled" de="Motoren deaktiviert"/>
+  <translation tag="Mount"/>
   <translation tag="Move" de="Bewegen"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." de="Bewegen Sie das Papier während der Einstellung hin und her. Stoppen Sie, wenn das Papier leicht greift, aber noch gleitet."/>
   <translation tag="Move selector" de="Selektor bewegen"/>
@@ -1472,7 +1475,7 @@
   <translation tag="Name" de="Name"/>
   <translation tag="Name (optional)" de="Name (optional)"/>
   <translation tag="Name:" de="Name:"/>
-  <translation tag="Named actions in the LED control panel (long-press)." de="Benannte Aktionen im LED-Bedienfeld (gedrückt halten)."/>
+  <translation tag="Named actions in the LED Controls widget. Not shown under LED selection."/>
   <translation tag="Needs adjustment" de="Anpassung erforderlich"/>
   <translation tag="Needs the {} package to switch spools" de="Benötigt das Plugin {} für den Spulenwechsel"/>
   <translation tag="Net Weight (g)" de="Nettogewicht (g)"/>
@@ -1501,7 +1504,6 @@
   <translation tag="No Camera" de="Keine Kamera"/>
   <translation tag="No Filament Detected" de="Kein Filament erkannt"/>
   <translation tag="No History" de="Kein Verlauf"/>
-  <translation tag="No LED macros detected on your printer." de="Keine LED-Makros auf Ihrem Drucker erkannt."/>
   <translation tag="No LED macros detected on your printer. Add Klipper macros for LED control first." de="Keine LED-Makros auf Ihrem Drucker erkannt. Fügen Sie zuerst Klipper-Makros zur LED-Steuerung hinzu."/>
   <translation tag="No LED macros detected. Type a macro name below."/>
   <translation tag="No LED strips detected" de="Keine LED-Streifen erkannt"/>
@@ -1719,6 +1721,7 @@
   <translation tag="Phomemo M110" de="Phomemo M110"/>
   <translation tag="Pick" de="Auswählen"/>
   <translation tag="Pick Color" de="Farbe wählen"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" de="Werkzeug aufnehmen"/>
   <translation tag="Pill" de="Pille"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" de="Pixel, bevor ein Druck zum Scrollen wird (niedriger = Scrollen beginnt früher)"/>
@@ -1889,7 +1892,6 @@
   <translation tag="Purge &amp; Wipe" de="Entlüften &amp; Abwischen"/>
   <translation tag="Purge Length" de="Entlüftungslänge"/>
   <translation tag="Purge failed: {}" de="Purge fehlgeschlagen: {}"/>
-  <translation tag="Purge macro not configured" de="Purge-Makro nicht konfiguriert"/>
   <translation tag="Purge may still be running — response timed out" de="Purge läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Purge to bucket" de="In den Behälter entlüften"/>
   <translation tag="Purge tower and brush settings" de="Einstellungen für Reinigungsturm und Bürste"/>
@@ -1965,6 +1967,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" de="Relative Vibration"/>
   <translation tag="Release all stepper motors. Position will be lost." de="Alle Schrittmotoren freigeben. Position geht verloren."/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" de="Verbleibend (g)"/>
@@ -2548,7 +2551,6 @@
   <translation tag="Touch &amp; Input" de="Touch &amp; Eingabe"/>
   <translation tag="Touch Cal" de="Touch-Kal."/>
   <translation tag="Touch Calibration" de="Touch-Kalibrierung"/>
-  <translation tag="Touch Jitter Filter" de="Berührungs-Jitter-Filter"/>
   <translation tag="Touch anywhere to test calibration" de="Tippen Sie irgendwo, um die Kalibrierung zu testen"/>
   <translation tag="Touch anywhere to verify accuracy" de="Berühren Sie irgendwo, um die Genauigkeit zu überprüfen"/>
   <translation tag="Touch input did not track the new calibration. Your previous settings were kept." de="Die Touch-Eingabe folgte der neuen Kalibrierung nicht. Ihre vorherigen Einstellungen wurden beibehalten."/>
@@ -2607,6 +2609,7 @@
   <translation tag="Unloads After Print" de="Entlädt nach dem Druck"/>
   <translation tag="Unlock" de="Entsperren"/>
   <translation tag="Unmapped" de="Nicht zugeordnet"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" de="Zusätzliches Primen"/>
   <translation tag="Unretract Speed" de="Prime-Geschwindigkeit"/>
   <translation tag="Unsupported tape width" de="Nicht unterstützte Bandbreite"/>

@@ -9,6 +9,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -690,6 +691,20 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // expected fingerprints for an identity push we issued. Shared with the
     // other RFID-fingerprint backend (Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    /// Per-bay occupancy from the previous poll, keyed by global slot index.
+    /// `vender` is the CFS's live occupancy signal (see parse_box_status), so a
+    /// false -> true edge here IS a physical spool insert. Firmware does not
+    /// probe RFID on insert (verified on a K2 Plus: a genuine Creality tag sat
+    /// at vender "unknown" / material_type "unknown" indefinitely), so the edge
+    /// is the only moment we get to ask for one.
+    std::unordered_map<int, bool> bay_occupied_;
+
+    /// Collect the bays whose insert edge needs an RFID read. Called under
+    /// mutex_ with the raw box payload; returns unit number -> bay bitmask so
+    /// the caller can dispatch one command pair per unit AFTER releasing the
+    /// lock (execute_gcode must not run under mutex_).
+    std::map<int, int> collect_insert_probes_locked(const nlohmann::json& box);
 
     // Firmware-observed material_type code vocabulary, harvested from box
     // status by handle_status_update and consulted by

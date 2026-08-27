@@ -113,8 +113,14 @@ void LedWidget::bind_led() {
 
     auto& led_ctrl = helix::led::LedController::instance();
     const auto& strips = led_ctrl.selected_strips();
-    if (!strips.empty()) {
-        printer_state_.set_tracked_led(strips.front());
+    // Track the first strip Klipper actually reports, not simply the first
+    // selected one. The settings screen persists the selection from a sorted
+    // set, so a "macro:" ID routinely sorts to the front — and PrinterLedState
+    // can never match a synthetic ID against a status payload, leaving every LED
+    // subject frozen at its default.
+    const std::string tracked = led_ctrl.status_tracked_strip();
+    if (!tracked.empty()) {
+        printer_state_.set_tracked_led(tracked);
 
         // Create state/brightness observers
         auto token = lifetime_.token();
@@ -139,17 +145,20 @@ void LedWidget::bind_led() {
         // waiting for the deferred observer callback chain.  This ensures
         // LedController::light_on_ reflects the actual hardware state as soon
         // as the widget binds, so the very first toggle sends the right command.
-        if (led_ctrl.light_state_trackable()) {
-            int current_state = lv_subject_get_int(printer_state_.get_led_state_subject());
-            light_on_ = (current_state != 0);
-            led_ctrl.sync_light_state(light_on_);
-        }
+        int current_state = lv_subject_get_int(printer_state_.get_led_state_subject());
+        light_on_ = (current_state != 0);
+        led_ctrl.sync_light_state(light_on_);
 
-        spdlog::debug("[LedWidget] Bound to LED: {} (initial state: {})", strips.front(),
+        spdlog::debug("[LedWidget] Bound to LED: {} (initial state: {})", tracked,
                       light_on_ ? "ON" : "OFF");
     } else {
         printer_state_.set_tracked_led("");
-        spdlog::debug("[LedWidget] LED binding cleared (no strips selected)");
+        // Macro devices and WLED strips report nothing, so the controller's own
+        // record of what it last commanded is the only state there is.
+        light_on_ = led_ctrl.light_is_on();
+        spdlog::debug("[LedWidget] No status-reported LED among {} selected strip(s) — "
+                      "tracking controller state ({})",
+                      strips.size(), light_on_ ? "ON" : "OFF");
     }
 
     update_light_icon();
@@ -170,15 +179,27 @@ void LedWidget::handle_light_toggle() {
         return;
     }
 
-    // Read current state from Moonraker subject (source of truth)
-    int current_state = lv_subject_get_int(printer_state_.get_led_state_subject());
-    bool is_on = (current_state != 0);
+    // Read current state from Moonraker subject when a selected strip actually
+    // reports one. Otherwise the subject is frozen at its default and asking it
+    // yields "OFF" on every press, so the button sends the ON command forever —
+    // an ON_OFF macro device never turns off, and a native strip selected
+    // alongside a macro is re-lit at full brightness on every press.
+    const bool reported = !led_ctrl.status_tracked_strip().empty();
+    const bool is_on = reported ? (lv_subject_get_int(printer_state_.get_led_state_subject()) != 0)
+                                : led_ctrl.light_is_on();
 
-    spdlog::info("[LedWidget] Toggle: subject says {} -> sending {}", is_on ? "ON" : "OFF",
-                 is_on ? "OFF" : "ON");
+    spdlog::info("[LedWidget] Toggle: {} says {} -> sending {}",
+                 reported ? "subject" : "controller", is_on ? "ON" : "OFF", is_on ? "OFF" : "ON");
 
     // Send the opposite command
     led_ctrl.light_set(!is_on);
+
+    if (!reported) {
+        // No reported strip means no subject observer, so nothing else will
+        // ever call update_light_icon() — refresh it from the state we just set.
+        light_on_ = led_ctrl.light_is_on();
+        update_light_icon();
+    }
 
     // Icon updates when Moonraker status response arrives via on_led_state_changed.
     // For non-trackable (TOGGLE macro) backends, flash the icon as feedback.
@@ -192,8 +213,24 @@ void LedWidget::update_light_icon() {
         return;
     }
 
-    // Get current brightness
-    int brightness = lv_subject_get_int(printer_state_.get_led_brightness_subject());
+    // With no status-reported strip in the selection (macro devices, WLED) the
+    // brightness and RGBW subjects never leave 0, which would pin the bulb to
+    // its "off" glyph however many times the light was switched — and paint it
+    // pure black if it did light up.
+    auto& led_ctrl = helix::led::LedController::instance();
+    const bool reported = !led_ctrl.status_tracked_strip().empty();
+    int brightness;
+    if (reported) {
+        brightness = lv_subject_get_int(printer_state_.get_led_brightness_subject());
+    } else if (led_ctrl.light_state_trackable()) {
+        // ON_OFF macro devices: what we last commanded is the state, and there
+        // is no color to show, so render a plain full-brightness lamp.
+        brightness = light_on_ ? 100 : 0;
+    } else {
+        // A TOGGLE macro's real state is unknowable — flash_light_icon() is the
+        // only honest feedback, so leave the bulb muted rather than assert one.
+        brightness = 0;
+    }
 
     // Set icon based on brightness level
     const char* icon_name = ui_brightness_to_lightbulb_icon(brightness);
@@ -203,6 +240,8 @@ void LedWidget::update_light_icon() {
     if (brightness == 0) {
         // OFF state - use muted gray from design tokens
         ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_off"), LV_OPA_COVER);
+    } else if (!reported) {
+        ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_on"), LV_OPA_COVER);
     } else {
         // Get RGB values from PrinterState
         int r = lv_subject_get_int(printer_state_.get_led_r_subject());
@@ -268,16 +307,17 @@ void LedWidget::flash_light_icon() {
 }
 
 void LedWidget::on_led_state_changed(int state) {
+    // Only bound when status_tracked_strip() found a strip Klipper reports, so
+    // this value is real. A TOGGLE macro elsewhere in the selection makes the
+    // composite state indefinite for display purposes (see flash_light_icon),
+    // but it does not make the reported strip's own state any less true — and
+    // that strip is what light_set() has to aim the next command at.
     auto& led_ctrl = helix::led::LedController::instance();
-    if (led_ctrl.light_state_trackable()) {
-        light_on_ = (state != 0);
-        led_ctrl.sync_light_state(light_on_);
-        spdlog::debug("[LedWidget] LED state changed: {} (from PrinterState)",
-                      light_on_ ? "ON" : "OFF");
-        update_light_icon();
-    } else {
-        spdlog::debug("[LedWidget] LED state changed but not trackable (TOGGLE macro mode)");
-    }
+    light_on_ = (state != 0);
+    led_ctrl.sync_light_state(light_on_);
+    spdlog::debug("[LedWidget] LED state changed: {} (from PrinterState)",
+                  light_on_ ? "ON" : "OFF");
+    update_light_icon();
 }
 
 void LedWidget::light_toggle_cb(lv_event_t* e) {

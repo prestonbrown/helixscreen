@@ -160,6 +160,40 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     [[nodiscard]] bool can_unload_from_toolhead(int slot_index) const override;
 
+    /// Load is SELECT_TOOL and unload is UNSELECT_TOOL: a mount and an unmount,
+    /// with no filament motion of any kind. See do_load_filament().
+    [[nodiscard]] bool load_mounts_tool() const override {
+        return true;
+    }
+
+    /// A swap is SELECTING for its whole duration on a controller that names no
+    /// direction, and UNLOADING then SELECTING on one that does. Nothing heats,
+    /// feeds or purges, so the filament vocabulary never saw the operation at
+    /// all - neither its start nor, half way through, its continuation.
+    [[nodiscard]] bool action_tracks_step_operation(AmsAction action) const override {
+        return action == AmsAction::SELECTING || action == AmsAction::UNLOADING;
+    }
+
+    /// Explains the one refusal a user can do something about: the dock sensors
+    /// cannot say which tool is on the head, so every slot's Unmount is
+    /// disabled and none of them look like the reason.
+    [[nodiscard]] std::string unload_blocked_reason(int slot_index) const override;
+
+    /// Step bar for a swap, built from what THIS machine actually reports.
+    ///
+    /// A hotend changer's phases are the add-on's `operation` (dropping/picking)
+    /// and, where the controller publishes it, the frame-side gripper opening
+    /// and closing around them. A changer with neither - plain
+    /// klipper-toolchanger, or MedusaHC stock, whose only signal is
+    /// `toolchanger.status == "changing"` - returns a SUPPRESSED model: it has no
+    /// phases to show, and the generic Heat/Feed/Purge fallback describes a
+    /// filament system rather than a tool changer.
+    [[nodiscard]] OperationStepModel get_operation_step_model(StepOperationType op) const override;
+
+    /// The shared operation-phase subject. apply_tool_sensor_locked() writes the
+    /// step index into system_info_.operation_phase, the same route the U1 uses.
+    [[nodiscard]] lv_subject_t* get_operation_step_index_subject(StepOperationType op) override;
+
     // NOTE: has_per_slot_loaded_authority() is deliberately NOT overridden, and
     // this backend has a reason none of the others do: it carries no filament
     // signal at all. get_slot_filament_segment() returns NOZZLE unconditionally,
@@ -264,6 +298,20 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Moonraker republishes only what CHANGED and a frame carrying just the
     /// tool number says nothing about the docks.
     std::vector<std::optional<bool>> dock_seated_;
+    /// Frame-side gripper, and whether this machine reports it AT ALL. The
+    /// second flag is what get_operation_step_model() keys on: a controller that
+    /// publishes feeder_open earns the release/grip steps, and a machine that
+    /// never mentions it gets a bar with only the phases it can actually drive
+    /// rather than two steps that would sit grey forever. Latched once true -
+    /// Moonraker republishes only changed fields, so a later frame omitting
+    /// feeder_open is not the machine retracting the capability.
+    bool feeder_open_ = false;
+    bool feeder_state_reported_ = false;
+    /// Whether this machine's phase word names the swap DIRECTION. Latched from
+    /// ToolReading::phase_names_direction, which is answerable from the first
+    /// status frame - the phase WORDS are not, since "picking" only appears once
+    /// a swap is already running and the step bar has to be built before that.
+    bool direction_reported_ = false;
 
     /**
      * @brief Parse toolchanger state from Moonraker JSON
@@ -277,6 +325,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.
     void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
+
+    /// Step index for `operation` under the model this machine gets, or -1 when
+    /// the phase does not map to a step. Caller holds mutex_.
+    int step_index_for_phase_locked(const std::string& operation) const;
 
     /// Layer the user's stored spool metadata over a slot. Caller holds mutex_.
     ///

@@ -756,11 +756,18 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
 
     // Parse the bytes line by line
     GCodeParser parser;
-    // Seed with the initial tool from the index. Layer chunks don't include
-    // the file prologue, so a fresh parser would default to T0 and tag every
-    // segment with the wrong tool index — rendering a T3-only print in T0's
-    // color.
-    parser.set_active_tool_index(index_.get_stats().initial_tool_index);
+    // Seed with the tool active at THIS layer's byte offset. Layer chunks don't
+    // include the file prologue — nor the `Tn` that ends the previous chunk — so
+    // a fresh parser would default to T0 and tag every segment with the wrong
+    // tool index. Seeding every layer with the file's FIRST tool fixed the
+    // single-tool case (a T3-only print rendering in T0's color) but still
+    // flattened a real tool changer to one color for the whole model.
+    // start_tool is -1 for layers that precede the file's first tool change, and
+    // on any entry built before the field existed; initial_tool_index is the
+    // fallback there, which reproduces the old behaviour exactly.
+    const int seed_tool = entry.start_tool >= 0 ? static_cast<int>(entry.start_tool)
+                                                : index_.get_stats().initial_tool_index;
+    parser.set_active_tool_index(seed_tool);
     // Seed with the head position at this layer's boundary. Without this,
     // the first move of each layer would be drawn from (0,0) — visible as
     // stray travel/extrusion lines from origin in the 2D viewer.

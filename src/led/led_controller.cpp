@@ -2225,6 +2225,16 @@ std::string LedController::first_available_strip() const {
     return "";
 }
 
+std::string LedController::status_tracked_strip() const {
+    for (const auto& strip_id : selected_strips_) {
+        const auto backend = backend_for_strip(strip_id);
+        if (backend == LedBackendType::NATIVE || backend == LedBackendType::OUTPUT_PIN) {
+            return strip_id;
+        }
+    }
+    return "";
+}
+
 bool LedController::light_state_trackable() const {
     for (const auto& strip_id : selected_strips_) {
         if (backend_for_strip(strip_id) == LedBackendType::MACRO) {
@@ -2259,7 +2269,14 @@ void LedController::query_tracked_led_state() {
     // trigger a neopixel status update, and SET_LED is a no-op if Klipper
     // already had that value.  An explicit query guarantees the subject
     // reflects the actual hardware state.
-    std::string tracked = selected_strips_.front();
+    //
+    // Only a strip Klipper reports can answer. Querying the front strip
+    // outright asked printer.objects for "macro:<name>" on every press of a
+    // light bound to a macro device, and logged a warning for the empty reply.
+    std::string tracked = status_tracked_strip();
+    if (tracked.empty()) {
+        return;
+    }
     nlohmann::json query_objects = nlohmann::json::object();
     query_objects[tracked] = nullptr;
     client_->send_jsonrpc(

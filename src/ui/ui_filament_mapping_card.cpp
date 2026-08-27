@@ -437,6 +437,27 @@ void FilamentMappingCard::open_mapping_modal() {
 // ============================================================================
 
 std::vector<helix::GcodeToolInfo>
+FilamentMappingCard::build_used_tool_info(const std::vector<std::string>& colors,
+                                          const std::vector<std::string>& materials,
+                                          const std::set<int>& used) {
+    if (used.empty()) {
+        return {};
+    }
+    const auto all_tool_info = build_tool_info(colors, materials);
+
+    std::vector<helix::GcodeToolInfo> tools;
+    tools.reserve(used.size());
+    for (int tool : used) {
+        if (tool >= 0 && static_cast<size_t>(tool) < all_tool_info.size()) {
+            auto info = all_tool_info[static_cast<size_t>(tool)];
+            info.tool_index = tool; // real gcode tool number, not palette ordinal
+            tools.push_back(info);
+        }
+    }
+    return tools;
+}
+
+std::vector<helix::GcodeToolInfo>
 FilamentMappingCard::build_tool_info(const std::vector<std::string>& colors,
                                      const std::vector<std::string>& materials) {
     std::vector<helix::GcodeToolInfo> tools;

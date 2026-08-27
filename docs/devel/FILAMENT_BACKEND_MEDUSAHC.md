@@ -71,44 +71,62 @@ Operations overlay. They are gated by
 holding the filament, so opening it mid-print drops the strand and kills the job, and the
 overlay itself has no print gate.
 
-## Three shipping configurations
+## Two shipping configurations
 
-Object presence cannot separate (b) from (c) - both register `[medusahc]` - so
+One machine, two Python extras. `[medusahc]` lives outside the hardware repo
+([Irbis3D/MedusaHC](https://github.com/Irbis3D/MedusaHC), which is `Macros/`, STLs and STEP
+files) and there are two independent implementations of it. **Every MedusaHC runs one of
+them** - there is no macros-only deployment, so `[medusahc]` is always present.
+
+| | Source | Objects | Status schema | Feeder macros |
+|---|---|---|---|---|
+| **(a) Irbis3D Python controller** | [Irbis3D/MedusaHC-Python-Controller](https://github.com/Irbis3D/MedusaHC-Python-Controller) `klippy/extras/medusahc.py` | `[pin_watch io]`, `[toolchanger]`, `[tool T0..3]`, `[medusahc]` | `operation`, `current_tool`, `target_tool`, `last_error`, `feeder_open`, `layer`, `sensor_error`, `tool_count`, `sensors` | `MHC_OPEN` / `MHC_CLOSE`, plus legacy aliases |
+| **(b) topi314's fork** | [topi314/MedusaHC](https://github.com/topi314/MedusaHC) `scripts/medusahc.py` | `[medusahc]` **alone** - drops both `[pin_watch]` and `[toolchanger]` | `state`, `current_tool`, `target_tool`, `tool_count`, `feeder_open`, `error` (bool), `layer`, `head_loaded`, flat `toolN_docked`, plus calibration fields | `OPEN` / `CLOSE` |
+
+Object presence cannot separate the two - both register `[medusahc]` - so
 `read_medusahc()` discriminates on **field names**, reading the Irbis3D names first. The
 fork's names are a fallback, never a default, and that ordering is the rule everywhere in
 this module: upstream first, fork second.
 
-| | Objects | Status schema | Feeder macros |
-|---|---|---|---|
-| **(a) Irbis3D stock** | `[pin_watch io]`, `[toolchanger]`, `[tool T0..3]` | `pin_watch` only: `{"current_tool": int}` | `OPEN` / `CLOSE` |
-| **(b) Irbis3D Python Controller** | adds `[medusahc]` | `operation`, `current_tool`, `target_tool`, `last_error`, `feeder_open`, `layer`, `sensor_error`, `tool_count`, `sensors` | `MHC_OPEN` / `MHC_CLOSE`, plus legacy aliases |
-| **(c) a third-party fork** | `[medusahc]` **alone** - may drop both `[pin_watch]` and `[toolchanger]` | `state`, `error`, flat `toolN_docked` | `OPEN` / `CLOSE` |
+### `state` is not another spelling of `operation`
 
-**(b) is the reference implementation.** Sergei originally was not going to port MedusaHC's
-logic to Python at all - it was to stay G-code macros - and the fork in row (c) exists
-because one user wanted the flexibility that decision would have cost him. Sergei then
-reversed course, so the Python controller is where MedusaHC is going and (c) is a
-point-in-time divergence, not a trend. Design against (b); keep (c) working.
+This is the trap, and it is worth stating flatly because the two keys look interchangeable
+and are not. Read from the two sources, not inferred:
 
-Row (c) is the shape that used to break detection. [topi314/MedusaHC](https://github.com/topi314/MedusaHC)
-absorbed the dock sensing into medusahc.py itself - the switch pins moved to `dock_pin:`
-on each `[medusahc_tool N]`, and klippy logs
-`medusahc: configured 7 switch pin(s): e=..., t0..t5` at startup - and dropped
+| | key | values |
+|---|---|---|
+| (a) Irbis3D | `operation` | `idle`, `dropping`, `picking` |
+| (b) topi314 | `state` | `uninitialized`, `ready`, `changing`, `error` |
+
+Only `operation` names the swap **direction**. `state` is the same coarse resolution as
+klipper-toolchanger's own `status`: a swap is one undifferentiated `changing`.
+`ToolReading::phase_names_direction` records which key answered, because callers need to
+tell them apart *before* a swap starts - the phase words themselves only appear once one is
+already running.
+
+`changing` must be handled explicitly. It matched none of the branches in
+`apply_tool_sensor_locked()` until it was added, and since the fork also drops `[toolchanger]`
+there was nothing else setting the action either: a swap on that fork ran with only
+HelixScreen's own optimistic dispatch driving the UI.
+
+**`feeder_open` is published by BOTH controllers** (`medusahc.py:370` in the fork,
+`get_status()` in Irbis3D's), so the gripper phases are drivable on every MedusaHC.
+
+The fork is the shape that used to break detection.
+[topi314/MedusaHC](https://github.com/topi314/MedusaHC) absorbed the dock sensing into
+medusahc.py itself - the switch pins moved to `dock_pin:` on each `[medusahc_tool N]`, and
+klippy logs `medusahc: configured 7 switch pin(s): e=..., t0..t5` at startup - and dropped
 klipper-toolchanger with it. `printer.objects.list` on that machine carries `medusahc` and
 `medusahc_calibrate` and neither of the two objects `present()` requires. Its
-`get_status()` is the (c) schema `read_medusahc()` already falls back to, so detection was
+`get_status()` is the fork schema `read_medusahc()` already falls back to, so detection was
 the only thing in the way. `[pin_watch io]` is staying upstream, so a machine with only
 `[medusahc]` stays the exception - but it is an exception someone is running today, and the
 object alone is now enough to claim it.
 
-`operation` is finer than klipper-toolchanger's single `changing`: `picking` and
-`dropping` name the direction, and they arrive even when the swap was started from
-Mainsail or the console.
-
 Feeder macro selection is capability-driven rather than hardcoded: `MHC_OPEN`/`MHC_CLOSE`
-when discovery sees those macros, else `OPEN`/`CLOSE`. Config (b) ships legacy aliases
-forwarding to `MHC_*`, so both work there; preferring the native command keeps (a)
-working too.
+when discovery sees those macros, else `OPEN`/`CLOSE`. Irbis3D ships legacy `OPEN`/`CLOSE`
+aliases forwarding to `MHC_*`, so either works there; preferring the native command is what
+keeps the fork - which registers only `OPEN`/`CLOSE` - working off the same rule.
 
 ## Overriding the feeder macros
 
@@ -135,6 +153,61 @@ Persisted per-printer via `SettingsManager::get_feeder_open_macro()` /
 `wizard::FEEDER_OPEN_MACRO` / `FEEDER_CLOSE_MACRO`. Per-printer rather than global because
 two MedusaHC machines on one network can be at different points in the migration.
 
+## The operation step bar
+
+The sidebar's step bar used to render the legacy Heat/Feed/Purge stepper on every tool
+changer, because `AmsBackendToolChanger` overrode neither `toolchange_phase_template()` nor
+`get_operation_step_model()` and fell through to the coarse `AmsAction` fallback. On a
+hotend changer none of those three steps happen: nothing heats, no filament feeds and
+nothing purges. It swaps a hot end.
+
+The steps a machine gets are now derived from what it actually reports, by
+`tc_step_sequence()` in `ams_backend_toolchanger.cpp`:
+
+| reports | swap | fresh load | unload |
+|---|---|---|---|
+| `operation` + `feeder_open` (Irbis3D) | Release / Dock / Pick up / Grip | Release / Pick up / Grip | Release / Dock / Grip |
+| `state` + `feeder_open` (topi314) | Release / Change tool / Grip | same | same |
+| neither (plain klipper-toolchanger) | *no bar* | | |
+
+Two rules produce all of it. The gripper brackets the operation, because a swap releases
+the filament before anything moves and re-grips once the new hot end is seated. The middle
+is the direction when the controller names it, and one undifferentiated "Change tool" when
+it does not.
+
+`tc_step_sequence()` is the single source for both the model and the phase-to-index
+mapping, so a step added to it appears in the bar and becomes addressable at the same index
+in one edit - the two cannot drift apart.
+
+**Mapping an idle frame.** Both ends of a swap read `idle`/`ready`, and the gripper is the
+only thing separating them: open is the release that OPENS the operation, closed is the
+grip that CLOSES it. A machine that does not report `feeder_open` cannot tell them apart
+and gets no step for an idle frame rather than a guessed one.
+
+That same ambiguity is why `apply_tool_sensor_locked()` does not report `AmsAction::IDLE`
+for an idle-with-the-gripper-open frame while an operation is in flight. Doing so ended the
+operation in the UI the instant it began - the bar was torn down on step 0 and the action
+buttons came back mid-swap. It is gated on an operation actually running, because the user
+can open the gripper by hand from the feeder panel while genuinely idle and that must not
+read as busy.
+
+**Suppression.** A machine with no phase source returns
+`OperationStepModel{.suppressed = true}`, which is distinct from an empty model: empty means
+"no model, use the legacy bar", suppressed means "no phases, and the legacy bar describes a
+different kind of machine." The sidebar renders no step bar at all, and the status line
+above it already names what the printer is doing. On MedusaHC that case never arises - both
+controllers report phases - so in practice it is plain klipper-toolchanger, whose only
+signal is `toolchanger.status == "changing"`.
+
+**Which actions count.** The bar's visibility and its operation-start detection both ask
+`AmsBackend::action_tracks_step_operation()`. They used to be two hardcoded action lists
+that disagreed, and a tool changer fell through both: it reports `SELECTING` for a swap and
+never heats, feeds or purges, so no start was detected, and once a bar did exist by accident
+it vanished for the half of the swap spent in `SELECTING`. The default is the
+filament-system vocabulary; `AmsBackendToolChanger` overrides it with
+`SELECTING || UNLOADING`. Distinct from `ams_action_is_busy()`, the broader
+"is anything happening" question the slot pulse asks.
+
 ## Detection
 
 `toolchanger_addon::present(hw)` is `has_pin_watch() && has_tool_changer()`.
@@ -147,7 +220,7 @@ registers `[medusahc]`. It is matched exactly, because `[medusahc_calibrate]` is
 object and not this one.
 
 That third path is a compatibility fallback, not a second mainline. It exists because
-config (c) has neither of the first two objects - and it is also what would catch upstream
+the fork has neither of the first two objects - and it is also what would catch upstream
 if Sergei follows through on dropping the klipper-toolchanger dependency. Debug bundle
 `6QWNVZY5` (HelixScreen 0.99.116, hostname `ducr10`, 123 objects: `medusahc`,
 `medusahc_calibrate`, `gcode_macro T0..T5`, `extruder`..`extruder5`, no `pin_watch`, no

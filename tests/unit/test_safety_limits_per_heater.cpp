@@ -37,6 +37,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/temperature_controller_test_access.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -44,6 +45,7 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
+#include "tool_state.h"
 
 #include <atomic>
 #include <chrono>
@@ -219,14 +221,29 @@ struct KeypadCeilingFixture {
     helix::PrinterState state;
     MoonrakerAPI api;
     std::shared_ptr<helix::TemperatureController> controller;
-    ::FilamentPanel panel;
+    /// Built in the constructor BODY, not the member-initializer list. The panel's
+    /// constructor installs seven observers on PrinterState subjects (four through
+    /// TemperatureObserverBundle, three on chamber/print-state), and a member
+    /// initializer runs before init_subjects() below - so they would attach to
+    /// subjects that do not exist yet. lv_subject_add_observer() hands back a null
+    /// observer for those, ObserverGuard::reset() short-circuits on it and never
+    /// runs its `delete ctx` cleanup, and the panel silently observes nothing.
+    /// That is fourteen at-exit leaks under ASan (#1279) plus a fixture that tests
+    /// less than it looks. Same ordering the SafetyTextHarness in
+    /// test_safety_limits_negative_min_temp.cpp uses.
+    std::unique_ptr<::FilamentPanel> panel;
 
     KeypadCeilingFixture()
         : client(MoonrakerClientMock::PrinterType::VORON_24), api(client, state),
-          controller(std::make_shared<helix::TemperatureController>(state, &api)),
-          panel(state, &api) {
+          controller(std::make_shared<helix::TemperatureController>(state, &api)) {
         state.init_subjects(false);
+        // Three of the panel's observers watch the AmsState/ToolState singletons
+        // rather than `state`, so those need their subjects too - same pair the
+        // SafetyTextHarness in test_safety_limits_negative_min_temp.cpp sets up.
+        helix::ToolState::instance().init_subjects(true);
+        AmsState::instance().init_subjects(true);
         helix::PanelWidgetManager::instance().register_shared_resource(controller);
+        panel = std::make_unique<::FilamentPanel>(state, &api);
     }
 
     ~KeypadCeilingFixture() {
@@ -236,13 +253,16 @@ struct KeypadCeilingFixture {
         // hands them to whichever test drains next, which then notifies the
         // subjects that died here (#1166, #1146). Drain before each owner dies.
         helix::ui::UpdateQueue::instance().drain();
+        // The panel goes first, while the subjects it observes are still alive:
+        // an ObserverGuard whose subject already died skips lv_observer_remove().
+        panel.reset();
         helix::PanelWidgetManager::instance().clear_shared_resources();
         helix::ui::UpdateQueue::instance().drain();
         state.deinit_subjects();
     }
 
     float ceiling(helix::HeaterType type, int fallback) {
-        return helix::ui::FilamentPanelTestAccess::keypad_max_for(panel, type, fallback);
+        return helix::ui::FilamentPanelTestAccess::keypad_max_for(*panel, type, fallback);
     }
 };
 

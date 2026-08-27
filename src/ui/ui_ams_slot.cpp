@@ -544,10 +544,11 @@ static void evaluate_pulse_state(AmsSlotData* data) {
     int current_slot = lv_subject_get_int(slot_subject);
     int target_slot = target_subject ? lv_subject_get_int(target_subject) : -1;
 
-    bool is_active_operation = (action == AmsAction::HEATING || action == AmsAction::LOADING ||
-                                action == AmsAction::UNLOADING || action == AmsAction::CUTTING ||
-                                action == AmsAction::FORMING_TIP || action == AmsAction::PURGING ||
-                                action == AmsAction::SELECTING);
+    // The "is anything happening" question, defined once in ams_types.h. Broader
+    // than what the step bar follows (AmsBackend::action_tracks_step_operation)
+    // and deliberately backend-independent: a pulse on a slot that turns out not
+    // to move is harmless.
+    const bool is_active_operation = ams_action_is_busy(action);
 
     // Pulse the current slot during operations, AND the target slot during swaps
     // (so the user can see which slot filament is being loaded into)

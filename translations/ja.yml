@@ -314,7 +314,6 @@ translations:
   Bypass Mode: バイパスモード
   Bypass active — this print runs on the external spool.: バイパス使用中 — この印刷は外部スプールから供給されます。
   Bypass cannot be changed while printing: 印刷中はバイパスを変更できません
-  Bypass controlled by hardware sensor: ハードウェアセンサーによるバイパス制御
   Bypass controlled by sensor: バイパスはセンサーで制御中
   Bypass disabled: バイパス無効
   Bypass enabled: バイパス有効
@@ -348,7 +347,6 @@ translations:
   Calibrate and tune scroll feel: "キャリブレーションとスクロール感度の調整"
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
-  Calibrate, tune jitter and scroll feel: キャリブレーション、ジッターとスクロール感度の調整
   Calibrated: キャリブレーション済み
   'Calibrating Probe...': ''
   'Calibrating bed mesh...': ''
@@ -423,6 +421,7 @@ translations:
   Change Printer Host: プリンターホスト変更
   Change Tool: ツール交換
   Change Tool While Paused: 一時停止中のツール交換
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
   Changes can be reversed anytime using the Macro Viewer.: 変更はいつでも Macro Viewer を使って元に戻せます。
@@ -651,8 +650,6 @@ translations:
   Date (newest): 日付（新しい順）
   Date (oldest): 日付（古い順）
   Day: 日
-  Dead zone in pixels (raise if taps register as swipes; 0 disables): デッドゾーン (ピクセル)
-    — タップがスワイプとして認識される場合は増やす (0で無効)
   Debug: デバッグ
   Default border thickness: デフォルトの境界線の太さ
   'Default: %d-%d°C nozzle, %d°C bed': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C'
@@ -709,6 +706,8 @@ translations:
   Do not power off your printer.: プリンターの電源を切らないでください。
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Dock: ドック
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: ツールを格納中
   Documentation: ドキュメント
   Don't Save: 保存しない
@@ -815,6 +814,8 @@ translations:
   'Error: Invalid download': 'エラー: 無効なダウンロード'
   'Error: No update available': 'エラー: 利用可能な更新がありません'
   'Error: Not enough disk space': 'エラー: ディスク容量が不足しています'
+  'Error: Previous download still finishing': 'エラー: 前回のダウンロードがまだ終了していません'
+  "Error: This install can't update itself": 'エラー: このインストールは自身を更新できません'
   'Error: Verification failed': 'エラー: 検証に失敗しました'
   'Error: Wrong architecture': 'エラー: アーキテクチャが正しくありません'
   'Error: `unzip` not installed': 'エラー: `unzip` がインストールされていません'
@@ -997,7 +998,6 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。
   'Filament load failed: {}': 'フィラメントの装填に失敗しました: {}'
-  Filament loaded: フィラメントを装填しました
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
   Filament ran out - nothing at the toolhead and the print is paused.: 'フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。'
@@ -1075,6 +1075,7 @@ translations:
   Good Accuracy: 良好な精度
   Got it: 了解
   Gray: グレー
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: ガイドとリファレンス
   H: H
@@ -1482,6 +1483,7 @@ translations:
   Motors Off: モーターオフ
   'Motors disable failed: {}': 'モーターの無効化に失敗しました: {}'
   Motors disabled: モーターを無効化しました
+  Mount: ''
   Move: 移動
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Move selector: セレクターを移動
@@ -1509,7 +1511,7 @@ translations:
   Name: 名前
   Name (optional): 名前（オプション）
   'Name:': '名前:'
-  Named actions in the LED control panel (long-press).: LEDコントロールパネルの名前付きアクション（長押し）。
+  Named actions in the LED Controls widget. Not shown under LED selection.: ''
   Needs adjustment: 調整が必要
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
   Net Weight (g): 正味重量（g）
@@ -1538,7 +1540,6 @@ translations:
   No Camera: カメラなし
   No Filament Detected: フィラメント未検出
   No History: 履歴なし
-  No LED macros detected on your printer.: プリンターで LED マクロが検出されませんでした。
   No LED macros detected on your printer. Add Klipper macros for LED control first.: プリンターで
     LED マクロが検出されませんでした。先に LED 制御用の Klipper マクロを追加してください。
   No LED macros detected. Type a macro name below.: ''
@@ -1762,6 +1763,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: 選択
   Pick Color: 色を選択
+  Pick up tool: ''
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数
@@ -1940,7 +1942,6 @@ translations:
   Purge & Wipe: 'パージとワイプ'
   Purge Length: 'パージ長'
   'Purge failed: {}': 'パージに失敗しました: {}'
-  Purge macro not configured: パージマクロが未設定です
   Purge may still be running — response timed out: パージがまだ実行中の可能性があります — 応答タイムアウト
   Purge to bucket: 'バケツへパージ'
   Purge tower and brush settings: 'パージタワーとブラシの設定'
@@ -2017,6 +2018,7 @@ translations:
   Relative vibration: 相対振動
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: すべてのステッピングモーターを解放します。位置情報は失われます。
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): 残量 (g)
@@ -2640,7 +2642,6 @@ translations:
   Touch & Input: タッチと入力
   Touch Cal: タッチキャリブレーション
   Touch Calibration: タッチキャリブレーション
-  Touch Jitter Filter: タッチジッターフィルター
   Touch anywhere to test calibration: どこでもタッチしてキャリブレーションをテスト
   Touch anywhere to verify accuracy: どこかをタッチして精度を確認
   Touch input did not track the new calibration. Your previous settings were kept.: タッチ入力が新しいキャリブレーションに追従しませんでした。以前の設定を維持しました。
@@ -2701,6 +2702,7 @@ translations:
   Unloads After Print: 印刷後にアンロード
   Unlock: ロック解除
   Unmapped: 未割当
+  Unmount: ''
   Unretract Extra: アンリトラクト追加量
   Unretract Speed: アンリトラクト速度
   Unsupported tape width: サポートされていないテープ幅

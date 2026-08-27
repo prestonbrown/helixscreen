@@ -21,6 +21,7 @@
 #include "data_root_resolver.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_mapper.h"
 #include "filament_sensor_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
@@ -903,6 +904,33 @@ void AmsState::clear_backends() {
     }
 }
 
+std::vector<uint32_t> AmsState::routed_tool_colors() const {
+    auto* backend = get_backend();
+    if (!backend) {
+        spdlog::debug("[AmsState] routed_tool_colors: no AMS backend");
+        return {};
+    }
+
+    // The applied routing, asked as a capability question. A backend that tracks
+    // a separate firmware routing table (Snapmaker U1's extruder_map_table)
+    // answers from it; one whose physical map IS the routing (AFC, Happy Hare,
+    // a plain tool changer) answers from that. Vendor knowledge stays inside the
+    // backend — nothing here names a firmware.
+    // Whether the attachment map may stand in when the backend publishes no
+    // routing is a real decision, so it is a named one (FilamentMapper::
+    // effective_routing) rather than an `if` here: on a tool changer that map is
+    // which slot each head owns, never which head prints a tool, and letting it
+    // stand in silently converts "no opinion" into a confident identity answer.
+    std::vector<int> routing = helix::FilamentMapper::effective_routing(
+        backend->get_tool_mapping(), backend->get_system_info().tool_to_slot_map,
+        /*attachment_is_routing=*/!is_tool_changer(backend->get_type()));
+
+    auto colors = helix::FilamentMapper::routed_tool_colors(routing, collect_available_slots());
+    spdlog::debug("[AmsState] routed_tool_colors: {} routing entries -> {} color(s)",
+                  routing.size(), colors.size());
+    return colors;
+}
+
 std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
     std::vector<helix::AvailableSlot> slots;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -1732,13 +1760,21 @@ void AmsState::sync_from_backend() {
         }
     }
 
-    // Detect tool_to_slot_map changes (e.g. user remapped T0→T2) and bump
-    // tool_map_version_ so the gcode renderer can refresh tool colors.
-    if (info.tool_to_slot_map != last_tool_map_) {
+    // Detect routing changes and bump tool_map_version_ so the gcode renderer
+    // refreshes tool colors.
+    //
+    // Watching tool_to_slot_map alone was not enough once the render started
+    // resolving colors through the APPLIED routing: on a backend that publishes
+    // a separate routing table (a tool changer's firmware map), the physical map
+    // never moves while the routing does, so the preview kept the previous
+    // print's colors. Both are watched now, and either moving repaints.
+    const std::vector<int> applied_routing = backend->get_tool_mapping();
+    if (info.tool_to_slot_map != last_tool_map_ || applied_routing != last_applied_routing_) {
         last_tool_map_ = info.tool_to_slot_map;
+        last_applied_routing_ = applied_routing;
         int v = lv_subject_get_int(&tool_map_version_);
         lv_subject_set_int(&tool_map_version_, v + 1);
-        spdlog::debug("[AmsState] tool_to_slot_map changed, version now {}", v + 1);
+        spdlog::debug("[AmsState] tool routing changed, version now {}", v + 1);
     }
 
     // Sync spool assignments to ToolState for slots with mapped tools.

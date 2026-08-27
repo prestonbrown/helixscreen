@@ -360,3 +360,209 @@ TEST_CASE("Unmounting uses the machine's own drop command", "[ams][toolchanger][
     // DROP_TOOL takes no tool argument: there is only ever one tool on the head.
     CHECK(tc.sent().back() == "DROP_TOOL");
 }
+
+// ============================================================================
+// Phase vocabulary: `state` is not another spelling of `operation`
+// ============================================================================
+//
+// Read from both controllers' sources rather than inferred from each other:
+//   Irbis3D/MedusaHC-Python-Controller  klippy/extras/medusahc.py  `operation`
+//     -> idle / dropping / picking
+//   topi314/MedusaHC                    scripts/medusahc.py        `state`
+//     -> uninitialized / ready / changing / error
+// Only the first names the swap DIRECTION. Treating them as interchangeable is
+// what left `changing` matching no branch at all.
+
+TEST_CASE("Only the operation key names the swap direction", "[ams][toolchanger][medusahc]") {
+    auto upstream = toolchanger_addon::read_tool(
+        json{{"medusahc", {{"operation", "picking"}, {"current_tool", 1}}}});
+    REQUIRE(upstream.has_value());
+    CHECK(upstream->operation == "picking");
+    CHECK(upstream->phase_names_direction);
+
+    auto fork = toolchanger_addon::read_tool(
+        json{{"medusahc", {{"state", "changing"}, {"current_tool", 1}}}});
+    REQUIRE(fork.has_value());
+    CHECK(fork->operation == "changing");
+    CHECK_FALSE(fork->phase_names_direction);
+}
+
+TEST_CASE("The gripper is read from both schemas", "[ams][toolchanger][medusahc]") {
+    auto upstream = toolchanger_addon::read_tool(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(upstream.has_value());
+    REQUIRE(upstream->feeder_open.has_value());
+    CHECK(*upstream->feeder_open);
+
+    // medusahc.py:370 publishes feeder_open too - the fork is NOT gripper-blind.
+    auto fork = toolchanger_addon::read_tool(
+        json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(fork.has_value());
+    REQUIRE(fork->feeder_open.has_value());
+    CHECK_FALSE(*fork->feeder_open);
+
+    // A machine that never mentions the gripper is not a machine whose gripper
+    // is closed: the step bar keys on the difference.
+    auto silent =
+        toolchanger_addon::read_tool(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+    REQUIRE(silent.has_value());
+    CHECK_FALSE(silent->feeder_open.has_value());
+}
+
+TEST_CASE("A swap reported only as 'changing' still reads as busy",
+          "[ams][toolchanger][medusahc]") {
+    // Regression: `changing` matched none of picking/dropping/idle/ready, and on
+    // this fork there is no [toolchanger] object to set the action either, so a
+    // swap ran with nothing but our own optimistic dispatch driving the UI.
+    auto hw = standalone_medusahc_discovery(3);
+    ToolChangerHelper tc(3);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
+
+    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    tc.feed(json{{"medusahc", {{"state", "changing"}, {"current_tool", 0}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
+
+    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 2}}}});
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+}
+
+// ============================================================================
+// Step model
+// ============================================================================
+
+namespace {
+
+std::vector<std::string> step_labels(const AmsBackend::OperationStepModel& model) {
+    std::vector<std::string> out;
+    out.reserve(model.steps.size());
+    for (const auto& s : model.steps) {
+        out.push_back(s.label);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("A controller that names the direction gets the four-step bar",
+          "[ams][toolchanger][steps]") {
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+
+    CHECK(
+        step_labels(tc.get_operation_step_model(StepOperationType::LOAD_SWAP)) ==
+        std::vector<std::string>{"Release filament", "Dock tool", "Pick up tool", "Grip filament"});
+    // Nothing to dock on a fresh mount, nothing to pick up on an unmount.
+    CHECK(step_labels(tc.get_operation_step_model(StepOperationType::LOAD_FRESH)) ==
+          std::vector<std::string>{"Release filament", "Pick up tool", "Grip filament"});
+    CHECK(step_labels(tc.get_operation_step_model(StepOperationType::UNLOAD)) ==
+          std::vector<std::string>{"Release filament", "Dock tool", "Grip filament"});
+}
+
+TEST_CASE("A controller with only 'changing' gets one middle step", "[ams][toolchanger][steps]") {
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(standalone_medusahc_discovery(4)));
+    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"feeder_open", false}}}});
+
+    // The gripper still brackets it; the middle cannot be split.
+    CHECK(step_labels(tc.get_operation_step_model(StepOperationType::LOAD_SWAP)) ==
+          std::vector<std::string>{"Release filament", "Change tool", "Grip filament"});
+}
+
+TEST_CASE("A changer with no phase source shows no bar at all", "[ams][toolchanger][steps]") {
+    // Plain klipper-toolchanger: the only signal is
+    // toolchanger.status == "changing", which is not a sequence. The
+    // legacy Heat/Feed/Purge fallback describes a filament system, so it is
+    // suppressed rather than shown.
+    ToolChangerHelper tc(2);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(plain_toolchanger_discovery()));
+    tc.feed_status("ready", 0);
+
+    const auto model = tc.get_operation_step_model(StepOperationType::LOAD_SWAP);
+    CHECK(model.steps.empty());
+    CHECK(model.suppressed);
+    CHECK(tc.get_operation_step_index_subject(StepOperationType::LOAD_SWAP) == nullptr);
+}
+
+TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchanger][steps]") {
+    // Both ends of a swap read idle. Open is the release that OPENS the
+    // operation, closed is the grip that CLOSES it; without the gripper there is
+    // no way to tell them apart, which is why a gripper-blind machine gets no
+    // step for an idle frame.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Default active step operation is LOAD_SWAP: Release/Dock/Pick/Grip.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_system_info().operation_phase == 0); // Release filament
+
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_system_info().operation_phase == 1); // Dock tool
+
+    tc.feed(json{
+        {"medusahc", {{"operation", "picking"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    CHECK(tc.get_system_info().operation_phase == 2); // Pick up tool
+
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_phase == 3); // Grip filament
+}
+
+TEST_CASE("An idle frame with the gripper open does not end a running swap",
+          "[ams][toolchanger][steps]") {
+    // A swap RELEASES the filament before it moves, so its first frame is
+    // idle-with-the-gripper-open. Reporting IDLE there tore the step bar down on
+    // step 0 and brought the action buttons back mid-swap.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+
+    REQUIRE(tc.change_tool(2).success());
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_current_action() != AmsAction::IDLE);
+
+    // But opening the gripper by hand while genuinely idle must NOT read as busy
+    // - that is exactly what the feeder panel's Open button does.
+    ToolChangerHelper idle_tc(4);
+    idle_tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    idle_tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    idle_tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(idle_tc.get_current_action() == AmsAction::IDLE);
+}
+
+// ============================================================================
+// Wording and refusals
+// ============================================================================
+
+TEST_CASE("A changer's load mounts a tool rather than moving filament",
+          "[ams][toolchanger][labels]") {
+    // Drives the Mount/Unmount wording. Asked as a capability so the Snapmaker
+    // U1 - a tool changer whose load really does feed filament - keeps the
+    // filament wording.
+    ToolChangerHelper tc(2);
+    CHECK(tc.load_mounts_tool());
+}
+
+TEST_CASE("A blocked unmount explains itself only when it can", "[ams][toolchanger][labels]") {
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // Nothing mounted needs no explanation: there is visibly nothing to unmount.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
+    CHECK(tc.unload_blocked_reason(0).empty());
+
+    // -2 is the sensors saying they cannot tell, which greys every slot's
+    // Unmount with no visible cause.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+    CHECK_FALSE(tc.unload_blocked_reason(0).empty());
+}

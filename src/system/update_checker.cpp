@@ -80,6 +80,11 @@ constexpr const char* GITHUB_RELEASES_URL =
 /// HTTP request timeout in seconds
 constexpr int HTTP_TIMEOUT_SECONDS = 30;
 
+/// How long the download worker waits for the LVGL thread to run the queued
+/// restart before doing it itself. Must comfortably exceed one main-loop tick;
+/// the only thing it guards against is a main loop that is no longer running.
+constexpr int RESTART_MARSHAL_TIMEOUT_MS = 5000;
+
 /// Perform an HTTP GET using the best available stack.
 ///
 /// On Android, libhv is compiled without SSL (no NDK OpenSSL) so we route
@@ -686,9 +691,10 @@ UpdateChecker::~UpdateChecker() {
     if (worker_thread_.joinable()) {
         worker_thread_.join();
     }
-    if (download_thread_.joinable()) {
-        download_thread_.join();
-    }
+    // Bounded, then detach — see reap_download_thread(). shutdown() normally
+    // got here first; this only matters on a path that skipped it, where an
+    // unconditional join would stall process exit for up to an hour.
+    reap_download_thread(std::chrono::milliseconds(250));
 }
 
 // Forward declaration - defined before show_update_notification()
@@ -751,10 +757,11 @@ void UpdateChecker::shutdown() {
         worker_thread_.join();
     }
 
-    // Wait for download thread to finish
+    // Bounded, then detach. An unconditional join here hung Quit/Restart for as
+    // long as libhv's 3600s download timeout.
     if (download_thread_.joinable()) {
-        spdlog::debug("[UpdateChecker] Joining download thread");
-        download_thread_.join();
+        spdlog::debug("[UpdateChecker] Reaping download thread");
+        reap_download_thread(std::chrono::seconds(1));
     }
 
     // Clear callback to prevent stale references, and drop the diagnostics
@@ -838,6 +845,10 @@ lv_subject_t* UpdateChecker::changelog_visible_subject() {
 // ============================================================================
 // Download Getters
 // ============================================================================
+
+bool UpdateChecker::download_in_flight() const {
+    return download_worker_active_.load();
+}
 
 UpdateChecker::DownloadStatus UpdateChecker::get_download_status() const {
     return download_status_.load();
@@ -1239,6 +1250,13 @@ void UpdateChecker::start_download() {
     if (update_install_suppressed()) {
         spdlog::info("[UpdateChecker] Download skipped: installing is suppressed - {}",
                      suppression_reason());
+        // Must leave a non-Idle status behind. update_download_modal.xml binds
+        // every container AND every button row to a NON-ZERO download_status,
+        // so returning at Idle leaves the user staring at an empty dialog with
+        // no buttons — which reads as "the update prompt froze".
+        report_download_status(DownloadStatus::Error, 0,
+                               lv_tr("Error: This install can't update itself"),
+                               suppression_reason());
         return;
     }
 
@@ -1270,15 +1288,41 @@ void UpdateChecker::start_download() {
         return;
     }
 
-    // Don't start if already downloading
+    // Already busy AND the modal is showing it — a double tap on Install.
+    // Leave the in-progress screen alone. Verifying belongs here too: the
+    // worker is mid-SHA256 and equally not restartable.
     auto current = download_status_.load();
-    if (current == DownloadStatus::Downloading || current == DownloadStatus::Installing) {
+    if (current == DownloadStatus::Downloading || current == DownloadStatus::Verifying ||
+        current == DownloadStatus::Installing) {
         spdlog::warn("[UpdateChecker] Download already in progress");
         return;
     }
 
-    // Join previous download thread (must release lock first to prevent deadlock)
     lock.unlock();
+
+    // NEVER join the previous worker here. This runs on the LVGL thread from a
+    // button's event callback, and the worker can be parked inside libhv's
+    // SYNCHRONOUS requests::downloadFile(), whose req->timeout is 3600 seconds
+    // and which offers no abort hook at all — its progress callback returns
+    // void. A join therefore freezes the touchscreen for up to an hour with no
+    // repaint, which is the reported "froze and needed a power cycle".
+    //
+    // The status enum checked above cannot answer "is a worker alive":
+    // cancel_download() only sets a flag the worker reads AFTER downloadFile()
+    // returns, while AboutSettingsOverlay::hide_update_download_modal() resets
+    // the status to Idle the instant the user taps Cancel. Install -> Cancel ->
+    // Install walked straight past that guard and into the join.
+    if (download_worker_active_.load()) {
+        spdlog::warn("[UpdateChecker] Previous download worker still running — refusing re-entry "
+                     "(cancel is deferred; libhv cannot be interrupted)");
+        report_download_status(DownloadStatus::Error, 0,
+                               lv_tr("Error: Previous download still finishing"),
+                               "A previous download is still finishing. Wait a few seconds "
+                               "and try again.");
+        return;
+    }
+
+    // The worker has returned, so this join is immediate.
     if (download_thread_.joinable()) {
         download_thread_.join();
     }
@@ -1289,9 +1333,25 @@ void UpdateChecker::start_download() {
     // Wrap — pthread_create EAGAIN under thread exhaustion throws
     // std::system_error; if this is invoked from a UI event-cb frame the
     // throw aborts via std::terminate ([L083]).
+    // Set BEFORE construction: the flag is what every later caller uses to tell
+    // "a worker exists" from "the status enum says something", and setting it
+    // inside the thread body would leave a window where neither is true.
+    download_worker_active_.store(true);
     try {
-        download_thread_ = std::thread(&UpdateChecker::do_download, this);
+        download_thread_ = std::thread([this]() {
+            // Clears on every exit path, including a throw out of do_download()
+            // (which would terminate anyway, but leaving the flag set would
+            // wedge every future attempt behind the re-entry guard).
+            struct ActiveGuard {
+                UpdateChecker* self;
+                ~ActiveGuard() {
+                    self->download_worker_active_.store(false);
+                }
+            } guard{this};
+            do_download();
+        });
     } catch (const std::system_error& e) {
+        download_worker_active_.store(false);
         spdlog::error("[UpdateChecker] Failed to spawn download thread: {}", e.what());
         report_download_status(DownloadStatus::Error, 0, lv_tr("System busy — try again"));
     }
@@ -1299,6 +1359,44 @@ void UpdateChecker::start_download() {
 
 void UpdateChecker::cancel_download() {
     download_cancelled_ = true;
+    // Deferred, not immediate. libhv's requests::downloadFile() runs to
+    // completion or timeout with no way to abort it, so the worker only
+    // observes this flag once the transfer ends or the socket drops.
+    // download_in_flight() stays true until then and start_download() refuses
+    // re-entry on it — the caller resets download_status_ to Idle long before
+    // the worker is actually gone.
+    if (download_worker_active_.load()) {
+        spdlog::info("[UpdateChecker] Download cancel requested — the worker stops when the "
+                     "current transfer ends");
+    }
+}
+
+void UpdateChecker::reap_download_thread(std::chrono::milliseconds wait) {
+    if (!download_thread_.joinable()) {
+        return;
+    }
+    const auto deadline = std::chrono::steady_clock::now() + wait;
+    while (download_worker_active_.load()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            // Give up and detach. The worker is inside libhv's synchronous
+            // requests::downloadFile() (req->timeout = 3600s, no abort hook),
+            // so joining would hang shutdown — and on the destructor path,
+            // process exit — for up to an hour. This is the same escape hatch
+            // HttpExecutor::stop() takes, for the same reason.
+            //
+            // Safe because shutting_down_ and download_cancelled_ are set
+            // before this is called: do_download() bails at its next check
+            // without touching a subject, mutex_, or the UpdateQueue.
+            //
+            // Not a violation of the "no detach for one-shot work" rule: that
+            // rule is about SPAWNING detached (pthread_create EAGAIN then
+            // std::terminate, #724/#837). The thread already exists here.
+            download_thread_.detach();
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    download_thread_.join();
 }
 
 void UpdateChecker::do_download() {
@@ -1384,6 +1482,14 @@ void UpdateChecker::do_download() {
 
     // Download the file using libhv
     size_t result = requests::downloadFile(url.c_str(), download_path.c_str(), progress_cb);
+
+    if (shutting_down_.load()) {
+        // reap_download_thread() may have detached this thread and shutdown()
+        // may already have torn the subjects down. Clean up the partial file
+        // and touch nothing that belongs to the checker.
+        std::remove(download_path.c_str());
+        return;
+    }
 
     if (download_cancelled_.load()) {
         spdlog::info("[UpdateChecker] Download cancelled");
@@ -2139,8 +2245,54 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
     }
 
+    finish_install_and_restart(install_root, version);
+}
+
+void UpdateChecker::finish_install_and_restart(const std::string& install_root,
+                                               const std::string& version) {
+    // Runs on the download worker.
+    //
+    // report_download_status() only QUEUES its subject writes
+    // (async_lifetime_.defer -> UpdateQueue), so ::_exit(0) immediately after
+    // one of them means it never reaches the screen: the last frame the user
+    // ever saw was "Installing... Do not power off your printer." while the
+    // process was already gone. Hold between the writes so the LVGL thread can
+    // render each, then hand the exit to that thread — the same reason
+    // Application defers handle_external_update_complete() instead of calling
+    // it from the WebSocket callback.
     report_download_status(DownloadStatus::Complete, 100,
                            fmt::format(lv_tr("v{} installed! Restarting..."), version));
+    std::this_thread::sleep_for(std::chrono::milliseconds(complete_hold_ms_));
+
+    // Restarting (7). update_download_modal.xml has always rendered this state
+    // and documented the 2s/1s transition into it; nothing in C++ ever set it.
+    report_download_status(DownloadStatus::Restarting, 100, "");
+    std::this_thread::sleep_for(std::chrono::milliseconds(restart_hold_ms_));
+
+    helix::ui::queue_update("UpdateChecker::restart_after_install", [install_root]() {
+        UpdateChecker::instance().perform_update_restart(install_root);
+    });
+
+    // Backstop: nothing may leave a half-installed process running just because
+    // the main loop is gone (headless run, shutdown already underway). If the
+    // marshalled call has not fired by the deadline, restart from here instead.
+    // perform_update_restart() is once-only, so at most one of the two forks.
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(RESTART_MARSHAL_TIMEOUT_MS);
+    while (!restart_initiated_.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    perform_update_restart(install_root);
+}
+
+void UpdateChecker::perform_update_restart(const std::string& install_root) {
+    if (restart_initiated_.exchange(true)) {
+        return;
+    }
+    if (restart_action_) {
+        restart_action_();
+        return;
+    }
 
     // Restart strategy depends on whether we're supervised.
     // _exit(0) is used in all cases to avoid racing with destructors on other

@@ -85,6 +85,12 @@ EXEMPT_SUBSTRINGS = (
     'libhv/include/',
     'hv/requests.h',
     'hv/hlog.h',
+    # Klipper extras in UPSTREAM repos, not ours. FILAMENT_BACKEND_MEDUSAHC.md
+    # cites the two MedusaHC controllers by file and line because the schema
+    # difference between them is the whole point of that section, and the cites
+    # were read from those sources rather than inferred. Nothing named
+    # medusahc.py will ever exist in this repo.
+    'medusahc.py',
 )
 
 # Tokens that are obviously placeholders rather than real paths.
