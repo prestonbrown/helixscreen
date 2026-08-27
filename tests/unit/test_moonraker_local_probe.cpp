@@ -30,6 +30,7 @@ using helix::diag::cmdline_matches_any;
 using helix::diag::decode_proc_cmdline;
 using helix::diag::parse_listeners_for_port;
 using helix::diag::parse_log_hints;
+using helix::diag::select_moonraker_processes;
 using helix::diag::split_host_port;
 
 namespace {
@@ -305,12 +306,74 @@ TEST_CASE("listeners_on_port reads the real /proc without false positives", "[bu
     }
 }
 
-TEST_CASE("find_moonraker_processes does not report helix-screen itself", "[bundle][ad5x]") {
-    // The test binary's own argv can name a moonraker URL, and the app's
-    // certainly can. Counting ourselves would turn "Moonraker is not running"
-    // into "one moonraker process found", which is the opposite of the finding.
-    for (const auto& p : helix::diag::find_moonraker_processes()) {
-        CHECK(p.cmdline.find("helix-screen") == std::string::npos);
-        CHECK(p.pid > 0);
+TEST_CASE("select_moonraker_processes reports daemons and never ourselves", "[bundle][ad5x]") {
+    // A fixture table, not /proc. Read live, this rule is un-testable: whether
+    // the interesting case is present at all is decided by what else the machine
+    // is running. On the box this was written on the live table offered three
+    // `tail -f .../klippy.log` and one agent shell — no daemon, and not one
+    // process the rule has an opinion about.
+    const std::vector<helix::diag::ProcMatch> table{
+        {101,
+         "/usr/bin/python3 /home/pi/moonraker/moonraker/moonraker.py -d /home/pi/printer_data"},
+        {102, "/usr/bin/python3 /home/pi/klipper/klippy/klippy.py -l /home/pi/printer_data/logs/"
+              "klippy.log"},
+        {103, "/usr/bin/helix-screen --moonraker-url http://127.0.0.1:7125"},
+        {104, "/usr/lib/systemd/systemd-journald"},
+        {105, ""},
+    };
+
+    const auto found = select_moonraker_processes(table);
+
+    REQUIRE(found.size() == 2);
+    CHECK(found[0].pid == 101);
+    CHECK(found[1].pid == 102);
+    CHECK(found[0].cmdline.find("moonraker.py") != std::string::npos);
+    CHECK(found[1].cmdline.find("klippy.py") != std::string::npos);
+
+    SECTION("a cmdline naming BOTH a daemon and helix-screen is ours, not a daemon") {
+        // Not a contrived shape: every line here is one a developer box or a
+        // printer running HelixScreen produces by itself. Matching on the daemon
+        // needle alone reports all four as Moonraker.
+        const std::vector<helix::diag::ProcMatch> ours{
+            {201, "/usr/bin/helix-screen --moonraker-url http://127.0.0.1:7125"},
+            {202, "grep -rn moonraker /home/dev/helix-screen/src"},
+            {203, "cc1plus -o moonraker_local_probe.o /home/dev/helix-screen/src/system/"
+                  "moonraker_local_probe.cpp"},
+            {204, "/bin/sh -c helix-screen ctl navigate settings # klippy"},
+        };
+        CHECK(select_moonraker_processes(ours).empty());
     }
+
+    SECTION("klipper in a path is not klippy the daemon") {
+        // The needle is "klippy" on purpose: "klipper" would match every tool
+        // that merely lives in the klipper directory.
+        const std::vector<helix::diag::ProcMatch> tools{
+            {301, "/usr/bin/python3 /home/pi/klipper/scripts/calibrate_shaper.py"},
+            {302, "/usr/bin/python3 /home/pi/klipper/scripts/flash_usb.py"},
+        };
+        CHECK(select_moonraker_processes(tools).empty());
+    }
+
+    SECTION("nothing running is a real answer, not a failure") {
+        CHECK(select_moonraker_processes({}).empty());
+    }
+}
+
+TEST_CASE("find_moonraker_processes survives the live /proc", "[bundle][ad5x]") {
+    // The rule itself is covered above against a fixture; all this thin caller
+    // adds is the walk. What can go wrong here is structural and machine
+    // independent: an entry that vanishes mid-walk, or a kernel thread with an
+    // empty cmdline being handed on as a nameless "daemon".
+    std::vector<helix::diag::ProcMatch> live;
+    REQUIRE_NOTHROW(live = helix::diag::find_moonraker_processes());
+
+    // Collected into one assertion rather than checked per entry on purpose: a
+    // CHECK inside the loop would make even the ASSERTION COUNT of this file
+    // depend on what else the box is running, which is the property the rest of
+    // this change is removing.
+    std::string malformed;
+    for (const auto& p : live)
+        if (p.pid <= 0 || p.cmdline.empty())
+            malformed += " pid=" + std::to_string(p.pid);
+    CHECK(malformed.empty());
 }
