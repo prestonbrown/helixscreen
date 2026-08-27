@@ -487,13 +487,45 @@ TEST_CASE("A changer with no phase source shows no bar at all", "[ams][toolchang
     CHECK(tc.get_operation_step_index_subject(StepOperationType::LOAD_SWAP) == nullptr);
 }
 
-TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchanger][steps]") {
-    // Both ends of a swap read idle. Open is the release that OPENS the
-    // operation, closed is the grip that CLOSES it; without the gripper there is
-    // no way to tell them apart, which is why a gripper-blind machine gets no
-    // step for an idle frame.
+TEST_CASE("A resting changer sits on no step at all", "[ams][toolchanger][steps]") {
+    // At rest the machine is idle with the gripper closed, which is the SAME
+    // wire state as the closing grip at the end of a swap. Reporting the final
+    // step here leaves operation_phase pinned at it, and AmsState publishes the
+    // action before the phase, so the next swap's bar observes the stale end
+    // index the instant it is built and paints itself complete before the
+    // carriage moves.
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_phase < 0);
+
+    // Nor does opening the gripper by hand from the feeder panel invent a step:
+    // that is idle-with-the-gripper-open and no operation is running.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    CHECK(tc.get_system_info().operation_phase < 0);
+}
+
+TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchanger][steps]") {
+    // Both ends of a running swap read idle. Open is the release that OPENS it,
+    // closed is the grip that CLOSES it; a gripper-blind machine gets no step
+    // for an idle frame at all. Driven through a real dispatch rather than fed
+    // frames cold, because "an operation is running" is half of what separates
+    // these states from resting.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(tc.change_tool(2).success());
+
+    // The gap between dispatching and the machine moving: still idle, gripper
+    // still closed. This is NOT the closing grip, and claiming the last step
+    // here paints the bar complete for the second before anything happens.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_phase < 0);
 
     // Default active step operation is LOAD_SWAP: Release/Dock/Pick/Grip.
     tc.feed(
@@ -511,6 +543,23 @@ TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchange
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}, {"feeder_open", false}}}});
     CHECK(tc.get_system_info().operation_phase == 3); // Grip filament
+}
+
+TEST_CASE("A phase-less frame leaves the step alone", "[ams][toolchanger][steps]") {
+    // Moonraker republishes only what CHANGED, so a delta naming just the tool
+    // carries no phase word. Stomping the step to -1 on one of those would drop
+    // the bar back to nothing mid-swap.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    REQUIRE(tc.change_tool(2).success());
+    tc.feed(json{
+        {"medusahc", {{"operation", "dropping"}, {"current_tool", 0}, {"feeder_open", true}}}});
+    REQUIRE(tc.get_system_info().operation_phase == 1);
+
+    tc.feed(json{{"medusahc", {{"current_tool", 0}}}});
+    CHECK(tc.get_system_info().operation_phase == 1);
 }
 
 TEST_CASE("An idle frame with the gripper open does not end a running swap",
@@ -561,8 +610,31 @@ TEST_CASE("A blocked unmount explains itself only when it can", "[ams][toolchang
     tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
     CHECK(tc.unload_blocked_reason(0).empty());
 
-    // -2 is the sensors saying they cannot tell, which greys every slot's
-    // Unmount with no visible cause.
+    // -2 is the sensors saying they cannot tell.
     tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
     CHECK_FALSE(tc.unload_blocked_reason(0).empty());
+}
+
+TEST_CASE("Sensors losing track of a MOUNTED tool withdraws Unmount",
+          "[ams][toolchanger][labels]") {
+    // The realistic fault, and the one the -1 -> -2 ordering above misses: a
+    // tool is mounted and THEN the docks lose track. The sensor-error path holds
+    // the last known tool on purpose, so current_slot stays >= 0 right through
+    // it. Anything keyed on current_slot < 0 never fires here, and Unmount stays
+    // ENABLED against a carriage state nobody can vouch for.
+    ToolChangerHelper tc(4);
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    REQUIRE(tc.can_unload_from_toolhead(1));
+    REQUIRE(tc.unload_blocked_reason(1).empty());
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
+    CHECK_FALSE(tc.unload_blocked_reason(1).empty());
+    CHECK_FALSE(tc.can_unload_from_toolhead(1));
+
+    // And it clears when the sensors recover.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    CHECK(tc.unload_blocked_reason(1).empty());
+    CHECK(tc.can_unload_from_toolhead(1));
 }

@@ -271,8 +271,9 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         r.head_loaded = *loaded;
         saw_anything = true;
     }
-    // Irbis3D-only. Left nullopt everywhere else on purpose: a machine that never
-    // reports the gripper is not a machine whose gripper is closed.
+    // Published by both controllers, under the same name. Left nullopt when
+    // absent on purpose: a machine that never reports the gripper is not a
+    // machine whose gripper is closed.
     if (auto feeder = bool_field(obj, "feeder_open")) {
         r.feeder_open = *feeder;
         saw_anything = true;

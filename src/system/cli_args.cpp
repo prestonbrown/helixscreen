@@ -723,7 +723,7 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
         }
     }
 
-    // HELIX_MOCK_AMS=medusahc[-stock|-fork] selects mock HARDWARE, not a mock
+    // HELIX_MOCK_AMS=medusahc[-fork] selects mock HARDWARE, not a mock
     // backend: MoonrakerClientMock publishes the objects and status a real
     // hotend changer does, and the production AmsBackendToolChanger is meant to
     // drive them. That is exactly what --real-ams already means, so imply it
