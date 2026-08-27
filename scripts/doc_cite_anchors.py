@@ -406,27 +406,52 @@ def iter_citations(text, include_bare=False, resolve_len=None):
         for b in BARE_REF_RE.finditer(line):
             if any(a <= b.start() < c for a, c in display):
                 continue
-            prior = [m for m in full if m.end() <= b.start()]
-            if not prior:
+            ref, _status = attribute_bare(b, full, resolve_len)
+            if ref is None:
                 continue
-            # Nearest-preceding is the right rule but not sufficient on its own:
-            # a sentence that cites two files ("...ui_nav_manager.cpp:1678...
-            # ensure_delete_hook() (ui_nav_manager.h:632): ... at `:1466`")
-            # leaves the nearest antecedent as the WRONG one — 1466 is past the
-            # end of the 812-line header and plainly belongs to the .cpp. So
-            # prefer the nearest antecedent whose file actually contains the
-            # line, and only fall back to the truly nearest when none does,
-            # which then surfaces as past-EOF and is a real finding rather than
-            # a mispairing.
-            n = int(b.group('line'))
-            src = prior[-1]
-            if resolve_len is not None:
-                for cand in reversed(prior):
-                    if n <= resolve_len(cand.group('ref')):
-                        src = cand
-                        break
-            yield Cite(doc_line, b.span(), src.group('ref'), n,
+            yield Cite(doc_line, b.span(), ref, int(b.group('line')),
                        b.group('rdash'), b.group('rend'), None, derived=True)
+
+
+def attribute_bare(b, full, resolve_len=None):
+    """(ref, status) for a bare `:N`, or (None, why) when it must not attribute.
+
+    A shorthand that cannot be attributed to exactly ONE file is left alone
+    rather than pointed at a guess — the whole class exists because guesses
+    were made once already.
+
+      no-antecedent  nothing cited before it on this line. Never look at the
+                     previous line: SYMBOL_CITE_B_RE learned that the hard way,
+                     pairing a citation ending one bullet with the symbol
+                     opening the next, four times over.
+      ambiguous      two or more DIFFERENT files cited before it, and the line
+                     number does not single one out.
+
+    When several files precede it, containment decides — and only when it
+    decides outright. A sentence citing `ui_nav_manager.cpp:1678` and then
+    `ui_nav_manager.h:632` before `:1466` has one candidate whose file is long
+    enough to hold line 1466, so that one is not a guess. Two candidates that
+    both contain it is.
+    """
+    prior = [m for m in full if m.end() <= b.start()]
+    if not prior:
+        return None, 'no-antecedent'
+    n = int(b.group('line'))
+    # Distinct files, nearest first.
+    seen, cands = set(), []
+    for m in reversed(prior):
+        r = m.group('ref')
+        if r not in seen:
+            seen.add(r)
+            cands.append(r)
+    if len(cands) == 1:
+        return cands[0], 'single'
+    if resolve_len is None:
+        return None, 'ambiguous'
+    fits = [r for r in cands if n <= resolve_len(r)]
+    if len(fits) == 1:
+        return fits[0], 'contained'
+    return None, 'ambiguous'
 
 
 class Cite:
@@ -809,6 +834,47 @@ def run(targets, stored, devel=True, write=False, audit=False, rebaseline=False)
     return findings, fresh, blanks, rewrites, stats
 
 
+def census_bare(targets, devel=True):
+    """How the bare `:N` refs attribute, before any of them is reviewed.
+
+    The coverage projection for this class was extrapolated from a handful
+    repaired by hand, so it is a guess until counted. This counts it: how many
+    attribute to exactly one file, and how many deliberately do not. The two
+    refusal buckets are not failures — they are shorthand a rule cannot resolve,
+    and they need prose edits rather than a better regex.
+    """
+    resolver = Resolver(devel=devel)
+    counts = {'single': 0, 'contained': 0, 'no-antecedent': 0, 'ambiguous': 0}
+    docs = set()
+    for doc in targets:
+        try:
+            text = open(doc, errors='ignore').read()
+        except OSError:
+            continue
+
+        def length_of(ref, _doc=doc):
+            hit = resolver.path_for(ref, _doc)
+            return len(resolver.index(hit)) if hit else 0
+
+        fenced = False
+        for line in text.split('\n'):
+            if FENCE_RE.match(line):
+                fenced = not fenced
+                continue
+            if fenced or '`' not in line:
+                continue
+            display = [m.span() for m in DISPLAY_SPAN_RE.finditer(line)]
+            full = [m for m in gate.LINE_REF_RE.finditer(line)
+                    if not any(a <= m.start() < c for a, c in display)]
+            for b in BARE_REF_RE.finditer(line):
+                if any(a <= b.start() < c for a, c in display):
+                    continue
+                _ref, status = attribute_bare(b, full, length_of)
+                counts[status] += 1
+                docs.add(doc)
+    return counts, len(docs)
+
+
 def review_bare(targets, devel=True):
     """The `:857` shorthand refs, as a REVIEW LIST. Never anchors anything.
 
@@ -938,6 +1004,18 @@ def main():
         return 1
 
     if args.bare_refs:
+        counts, ndocs = census_bare(targets)
+        total = sum(counts.values())
+        attributed = counts['single'] + counts['contained']
+        print('Bare `:N` shorthand: %d refs across %d docs.' % (total, ndocs))
+        print('  attribute to exactly one file : %d  (%d the only file cited on '
+              'their line, %d singled out by which file is long enough)'
+              % (attributed, counts['single'], counts['contained']))
+        print('  no antecedent on their line   : %d  (not a failure — the file '
+              'is named in prose or an earlier paragraph)' % counts['no-antecedent'])
+        print('  two or more candidate files   : %d  (not a failure — refused '
+              'rather than guessed)' % counts['ambiguous'])
+        print()
         rows = review_bare(targets)
         suspect = [r for r in rows if r[3] != 'ok']
         print('Bare `:N` follow-on refs: %d resolved against the preceding '

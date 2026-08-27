@@ -566,6 +566,20 @@ EOF
     [[ "$output" == *"0 resolved against the preceding citation"* ]]
 }
 
+@test "bare refs: two candidate files that both fit means NO attribution" {
+    # Refusing beats guessing. Containment may only decide when it decides
+    # outright — two files that could both hold the line is exactly the case
+    # that produced wrong citations in the first place.
+    for i in $(seq 400); do echo "// a $i"; done > "$REPO/src/zz_a.cpp"
+    for i in $(seq 400); do echo "// b $i"; done > "$REPO/src/zz_b.cpp"
+    echo 'See `src/zz_a.cpp:5` and `src/zz_b.cpp:6`, plus `:300`.' > "$DOC"
+    cd "$REPO"
+    run python3 "$ANCH" --bare-refs docs/devel
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"two or more candidate files   : 1"* ]]
+    [[ "$output" == *"attribute to exactly one file : 0"* ]]
+}
+
 @test "bare refs: the antecedent must be a file that CONTAINS the line" {
     # A sentence citing two files leaves the NEAREST antecedent as the wrong one
     # whenever the shorthand belongs to the earlier, longer file. Nearest-that-
