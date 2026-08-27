@@ -839,15 +839,18 @@ def main():
             print('⚠️  Citation anchors: %s absent — line numbers unverified'
                   % 'scripts/doc_cite_anchors.tsv')
         elif anchor_findings:
-            hard = [f for f in anchor_findings if f.kind in ('gone', 'blank')]
+            # Same lazy import as check_anchors, for the same cycle reason.
+            import doc_cite_anchors as anchors
+            hard = [f for f in anchor_findings if f.kind in anchors.HARD_KINDS]
             print('❌ Citation anchors out of sync (%d):' % len(anchor_findings))
             for f in sorted(anchor_findings):
                 where = '%s:%d' % (f.doc, f.doc_line) if f.doc_line else f.doc
                 print('   %s: %s' % (where, f.detail))
             if hard:
-                print('   A gone/blank anchor is not auto-repairable: re-read '
-                      'the sentence and re-pin the line by hand.')
-            else:
+                print('   %d of these name a line a generator cannot choose '
+                      '(gone, ambiguous, or too low-information to anchor): '
+                      're-read the sentence and re-cite by hand.' % len(hard))
+            if len(hard) < len(anchor_findings):
                 print('   Run: make regen-doc-links')
             exit_code = 1
         else:
