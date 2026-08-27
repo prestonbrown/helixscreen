@@ -1361,22 +1361,12 @@ void PrintSelectDetailView::refresh_preview_colors_and_mismatch() {
 }
 
 void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
-    // The palette is mode-independent — full-load reads it off the parsed file,
-    // streaming off the layer index, which scans the header and then the
-    // trailing 32KB for exactly this. Requiring a ParsedGCodeFile here is what
-    // left every STREAMED file without a palette: streaming holds no parsed
-    // file by construction, so this returned at the first line and the backfill
-    // below never ran. Harmless while the detail view always full-loaded;
-    // load-bearing once 64d0997de moved large files to streaming.
-    const auto palette = ui_gcode_viewer_get_tool_palette(viewer);
-
     // Backfill filament_colors when neither slicer metadata nor the footer read
-    // provided them (Snapmaker and a few other Moonraker variants).
-    if (current_filament_colors_.empty() && !palette.empty()) {
-        spdlog::info("[DetailView] Metadata lacked filament colors — extracted {} from the viewer",
-                     palette.size());
-        current_filament_colors_ = palette;
-
+    // provided them (Snapmaker and a few other Moonraker variants). Shared with
+    // PrintStatusPanel, which needs the identical backfill for its cached-file
+    // fast path — one helper so the two print surfaces cannot recover different
+    // palettes for the same file.
+    if (ui_gcode_viewer_adopt_palette_if_empty(viewer, current_filament_colors_)) {
         // Rebuild the mapping card's internal tool/slot/mapping state with the
         // newly-extracted colors (the card uses them when AMS is present). The
         // filament_mismatch_ / empty_tools_warning_ subjects are NOT published
@@ -1405,6 +1395,12 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     // is whatever the headless scan has so far — and persisting THAT before the
     // scan settles would cache an empty set as final truth for the file (the
     // Finding-1 poison apply_scan_result() guards against for the same reason).
+    // Deliberately still keyed on the PARSED file, not on tools_used_effective()
+    // having found something: the streaming index's set is a whole-file answer
+    // too, but it is produced asynchronously and this runs on the load callback,
+    // so treating "non-empty" as "final" would reintroduce the same provisional-
+    // set poison from the other direction. The headless scan's settle flag stays
+    // the one signal that a streamed file's answer is done.
     const bool set_is_authoritative =
         ui_gcode_viewer_get_parsed_file(viewer) != nullptr || headless_scan_settled_;
     if (set_is_authoritative) {
@@ -1420,20 +1416,8 @@ std::vector<helix::GcodeToolInfo> PrintSelectDetailView::get_used_tool_info() co
     // Source per-tool info DIRECTLY from the slicer palette (Moonraker metadata,
     // populated on ALL platforms) via the stateless assembler — NOT from the
     // mapping card INSTANCE, whose tool_info_ is empty on the U1/headless path.
-    const auto all_tool_info =
-        FilamentMappingCard::build_tool_info(current_filament_colors_, current_filament_materials_);
-    const std::set<int> used = tools_used_effective();
-
-    std::vector<helix::GcodeToolInfo> tools;
-    tools.reserve(used.size());
-    for (int tool : used) {
-        if (tool >= 0 && static_cast<size_t>(tool) < all_tool_info.size()) {
-            auto info = all_tool_info[static_cast<size_t>(tool)];
-            info.tool_index = tool; // real gcode tool number, not palette ordinal
-            tools.push_back(info);
-        }
-    }
-    return tools;
+    return FilamentMappingCard::build_used_tool_info(
+        current_filament_colors_, current_filament_materials_, tools_used_effective());
 }
 
 bool PrintSelectDetailView::effective_auto_match() const {
@@ -1559,14 +1543,20 @@ void PrintSelectDetailView::recompute_preflight() {
 }
 
 std::set<int> PrintSelectDetailView::tools_used_effective() const {
-    // Prefer the visual viewer's parsed set (full platforms): it carries the
-    // single-extruder {0} convention from a color palette. Fall back to the
-    // headless scan (2D-only platforms, where the viewer never parses).
+    // Prefer whatever the viewer read off the file. ui_gcode_viewer_get_tools_used()
+    // owns that source choice for BOTH print surfaces — parsed file on a full
+    // load, layer-index scan when streaming — including the single-extruder {0}
+    // convention, so a file answers identically here and in the live render
+    // regardless of which parse path it happened to take. This used to ask the
+    // parsed file directly and so went empty on every streamed file, leaving the
+    // headless scan as the only source on exactly the large files.
+    //
+    // Fall back to the headless scan: it is the only source on a 2D-only build
+    // where no viewer exists at all, and it lands first on a cache hit.
     if (gcode_viewer_) {
-        if (auto* parsed = ui_gcode_viewer_get_parsed_file(gcode_viewer_)) {
-            if (!parsed->tools_used_indices.empty()) {
-                return parsed->tools_used_indices;
-            }
+        const std::set<int> from_viewer = ui_gcode_viewer_get_tools_used(gcode_viewer_);
+        if (!from_viewer.empty()) {
+            return from_viewer;
         }
     }
     if (headless_tools_used_) {

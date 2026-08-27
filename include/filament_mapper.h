@@ -154,6 +154,29 @@ class FilamentMapper {
                                                        const std::vector<ToolMapping>& mappings,
                                                        const std::vector<AvailableSlot>& slots);
 
+    /// Per-tool display colors from the APPLIED ROUTING: color(tool N) is the
+    /// color of whatever lane actually prints N.
+    ///
+    /// The one rule, valid for any tool count. There is deliberately no tool
+    /// count in the signature and no palette: a single-tool file and an N-tool
+    /// file take the identical path, which is what stops a "just for N=1"
+    /// special case growing back. The slicer palette answers a different
+    /// question ("what SHOULD this print use") that belongs pre-print, in the
+    /// detail view's color/type match, not to a print already underway.
+    ///
+    /// @param tool_to_head Applied routing, index = logical tool, value =
+    ///        physical slot/head, -1 = unknown. Comes from the backend
+    ///        (AmsBackend::get_tool_mapping()), which owns where that answer
+    ///        lives; an EMPTY vector means the backend has no opinion and this
+    ///        returns empty rather than assuming identity.
+    /// @param slots Current lane state.
+    /// @return Dense tool-indexed colors, or EMPTY when nothing is knowable —
+    ///         including when every resolved color is the neutral default, since
+    ///         pushing an all-grey vector would only overwrite the slicer palette
+    ///         the renderer already has. Pure; no LVGL/AMS.
+    static std::vector<uint32_t> routed_tool_colors(const std::vector<int>& tool_to_head,
+                                                    const std::vector<AvailableSlot>& slots);
+
     /// Weighted RGB distance between two colors (luminance-weighted).
     /// Uses standard luminance coefficients: R=0.30, G=0.59, B=0.11.
     static int color_distance(uint32_t a, uint32_t b);

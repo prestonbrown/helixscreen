@@ -477,6 +477,7 @@ void ui_gcode_viewer_register(void);
 // ==============================================
 
 #include <cstdint>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -605,6 +606,46 @@ const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* o
  *         behind the controller's index and must not outlive a reload.
  */
 std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj);
+
+/**
+ * @brief The set of tools the loaded file actually prints with.
+ *
+ * Mode-independent for the same reason ui_gcode_viewer_get_tool_palette() is:
+ * full-load reads ParsedGCodeFile::tools_used_indices, streaming reads the
+ * used-tool set the layer index accumulates during its scan. Callers that went
+ * straight to the parsed file got an empty answer on every streamed file — and
+ * a tool changer (Snapmaker U1, 961MB RAM) is forced to stream by
+ * MemoryInfo::should_force_streaming(), so on that printer it was empty 100% of
+ * the time and the whole model rendered in one tool's colour.
+ *
+ * Both halves answer identically, including ParsedGCodeFile's single-extruder
+ * convention: a file with a colour palette but no `Tn` at all reports {0}.
+ *
+ * @param obj Viewer widget
+ * @return Logical tool indices, or empty when nothing is loaded / the file
+ *         names no tools and carries no palette.
+ */
+std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t* obj);
+
+/**
+ * @brief Adopt the viewer's recovered palette into @p colors when @p colors is
+ *        empty, and say whether it did.
+ *
+ * The backfill both print surfaces need, in one place. Moonraker's metadata
+ * omits filament_colors for several slicer/firmware combinations (every
+ * OrcaSlicer file on a K2 Plus, and the Snapmaker variants), and the panel's
+ * cached-G-code fast path skips the metadata fetch entirely — but the viewer has
+ * read the file either way, so it can answer when the metadata could not.
+ *
+ * A no-op when @p colors is already populated: metadata, when present, is the
+ * file's own statement and outranks anything recovered afterwards.
+ *
+ * @param obj    Viewer widget (null-safe).
+ * @param colors Per-tool palette to fill in place.
+ * @return true if @p colors was empty and has now been filled — the caller's cue
+ *         to redo whatever it derived from an empty palette.
+ */
+bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::string>& colors);
 
 /**
  * @brief How far along the viewer's current load is, 0.0 to 1.0.

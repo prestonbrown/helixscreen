@@ -387,6 +387,61 @@ FilamentMapper::effective_tool_colors(const std::vector<GcodeToolInfo>& tools,
     return out;
 }
 
+std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
+                                                         const std::vector<AvailableSlot>& slots) {
+    if (tool_to_head.empty()) {
+        return {};
+    }
+
+    // Feed the shared color engine one explicit (non-auto) mapping per tool.
+    // resolve_display_colors only substitutes a lane's color for a non-auto
+    // mapping, so every color that comes back is a LANE's — never a slicer
+    // stand-in mistaken for one. Tools the routing has no answer for stay
+    // unmapped and fall through to the neutral default.
+    std::vector<GcodeToolInfo> tools;
+    std::vector<ToolMapping> mappings;
+    tools.reserve(tool_to_head.size());
+    mappings.reserve(tool_to_head.size());
+    for (size_t tool = 0; tool < tool_to_head.size(); ++tool) {
+        GcodeToolInfo info;
+        info.tool_index = static_cast<int>(tool);
+        info.color_rgb = 0x808080;
+        info.color_known = false;
+        tools.push_back(std::move(info));
+
+        // An EMPTY lane keeps reporting the color of whatever used to be in it
+        // (a U1 with nothing in head 1 still says 0xE2DEDB), so a tool routed
+        // there must resolve to "unknown", not to a filament that is not loaded.
+        // The pre-print matcher already refuses to match empty lanes; this is the
+        // same rule on the read side.
+        const int head = tool_to_head[tool];
+        const bool head_loaded =
+            head >= 0 && std::any_of(slots.begin(), slots.end(), [head](const AvailableSlot& s) {
+                return s.slot_index == head && s.backend_index == 0 && !s.is_empty;
+            });
+
+        ToolMapping m;
+        m.tool_index = static_cast<int>(tool);
+        m.mapped_slot = head_loaded ? head : -1;
+        m.mapped_backend = 0;
+        m.is_auto = !head_loaded;
+        m.reason = ToolMapping::MatchReason::FIRMWARE_MAPPING;
+        mappings.push_back(std::move(m));
+    }
+
+    auto colors = effective_tool_colors(tools, mappings, slots);
+
+    // Every tool resolved to the neutral default means no lane told us anything.
+    // Pushing that would replace the renderer's slicer palette with flat grey,
+    // which is strictly worse than leaving it alone.
+    const bool nothing_known =
+        std::all_of(colors.begin(), colors.end(), [](uint32_t c) { return c == 0x808080; });
+    if (nothing_known) {
+        return {};
+    }
+    return colors;
+}
+
 std::vector<ToolMapping>
 FilamentMapper::use_current_assignments(const std::vector<GcodeToolInfo>& tools,
                                         const std::vector<AvailableSlot>& slots) {

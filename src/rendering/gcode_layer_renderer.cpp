@@ -254,11 +254,11 @@ void GCodeLayerRenderer::set_tool_color_overrides(const std::vector<uint32_t>& a
     // copy-reads this member without a lock, so the resize() below must not race its copy.
     cancel_background_ghost_render();
 
-    // Replace tool_palette_ entries with AMS colors
-    tool_palette_.tool_colors.resize(ams_colors.size());
-    for (size_t i = 0; i < ams_colors.size(); ++i) {
-        tool_palette_.tool_colors[i] = lv_color_hex(ams_colors[i]);
-    }
+    // Overlay the AMS colors onto the slicer palette WITHOUT truncating it —
+    // see GCodeColorPalette::apply_overrides(). A print whose override vector is
+    // shorter than the slicer palette keeps the slicer's answer for the tools
+    // the overrides don't cover, instead of dropping them to color_extrusion_.
+    tool_palette_.apply_overrides(ams_colors);
 
     // Clear any single-color override since per-tool overrides supersede it
     tool_palette_.has_override = false;

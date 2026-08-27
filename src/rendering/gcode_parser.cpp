@@ -2024,12 +2024,8 @@ GCodeHeaderMetadata extract_header_metadata_from_content(const std::string& cont
 // Lightweight tool-change scan (memory-safe; no geometry model)
 // ----------------------------------------------------------------------------
 
-namespace {
-
-// Decide whether a single raw line is a standalone tool change, and if so the
-// tool index. Semantics mirror GCodeParser::parse_tool_change_command(): strip a
-// trailing `;` comment, trim whitespace, then require exactly `T` + digits with
-// nothing else on the line. Returns -1 when the line is not a tool change.
+// Declared in gcode_parser.h — the single T-parse the whole tree shares. The
+// layer index used to carry its own looser copy (see the header's note).
 int tool_index_for_line(const std::string& raw) {
     // Strip comment (everything from the first ';').
     std::string_view sv(raw);
@@ -2072,6 +2068,8 @@ int tool_index_for_line(const std::string& raw) {
     }
     return static_cast<int>(value);
 }
+
+namespace {
 
 // True when `seen` covers every index in `stop_set` (early-exit condition).
 bool seen_all(const std::set<int>& seen, const std::set<int>& stop_set) {

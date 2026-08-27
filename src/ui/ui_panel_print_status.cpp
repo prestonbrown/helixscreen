@@ -668,12 +668,22 @@ void PrintStatusPanel::init_subjects() {
         lv_subject_t* s = AmsState::instance().get_slots_version_subject();
         if (s) {
             auto token = lifetime_.token();
-            scoped_runout_slots_observer_ =
-                observe_int_sync<PrintStatusPanel>(s, this, [token](PrintStatusPanel* self, int) {
+            scoped_runout_slots_observer_ = observe_int_sync<PrintStatusPanel>(
+                s, this,
+                [token](PrintStatusPanel* self, int) {
                     if (token.expired())
                         return;
                     self->recompute_scoped_runout();
-                });
+                    // Slot data changed — a lane's color may have. The two
+                    // observers above only cover the ACTIVE lane's color and an
+                    // explicit tool→slot remap, so editing a NON-active lane's
+                    // color never re-pushed anything to the live preview.
+                    // PrintSelectDetailView already refreshes its preview from
+                    // this subject, which is why the file browser updated and
+                    // print-status did not.
+                    self->build_and_apply_tool_colors();
+                },
+                AmsState::instance().get_subjects_lifetime());
         }
     }
 
@@ -1849,11 +1859,11 @@ std::set<int> PrintStatusPanel::get_tools_used() const {
     if (!gcode_viewer_) {
         return {};
     }
-    const auto* parsed = ui_gcode_viewer_get_parsed_file(gcode_viewer_);
-    if (!parsed) {
-        return {};
-    }
-    return parsed->tools_used_indices;
+    // Mode-independent: reading ParsedGCodeFile directly answered empty for every
+    // STREAMED file, which is every file on a memory-constrained printer. That
+    // silently disabled both consumers here — the print-scoped runout badge and
+    // the Snapmaker reprint's used-extruders preamble.
+    return ui_gcode_viewer_get_tools_used(gcode_viewer_);
 }
 
 void PrintStatusPanel::recompute_scoped_runout() {
@@ -3551,9 +3561,6 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
             [this, token, root, download_target, stream_if_safe](const FileMetadata& metadata) {
                 token.defer("PrintStatusPanel::gcode_metadata_ok",
                             [this, root, download_target, metadata, stream_if_safe]() {
-                                // Cache per-tool palette before the render loads so
-                                // build_and_apply_tool_colors resolves matched lanes.
-                                store_filament_metadata(metadata);
                                 stream_if_safe(root, download_target, metadata.size);
                             });
             },
@@ -3669,94 +3676,29 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
 // FILAMENT COLOR OVERRIDE
 // ============================================================================
 
-void PrintStatusPanel::apply_filament_color_override(uint32_t color_rgb) {
-    if (!gcode_viewer_ || !ui_gcode_viewer_has_content(gcode_viewer_)) {
-        return;
-    }
-
-    // Try per-tool AMS color mapping first (handles multi-color prints)
-    if (build_and_apply_tool_colors()) {
-        return; // Per-tool colors applied — don't clobber with single-color
-    }
-
-    // Fallback: no per-tool mapping available — use single-color override
-    if (color_rgb != 0 && color_rgb != AMS_DEFAULT_SLOT_COLOR) {
-        ui_gcode_viewer_set_extrusion_color(gcode_viewer_, lv_color_hex(color_rgb));
-    }
-}
-
-void PrintStatusPanel::store_filament_metadata(const FileMetadata& metadata) {
-    // Per-tool hex colors, as sliced ("#RRGGBB" per tool).
-    filament_colors_ = metadata.filament_colors;
-
-    // filament_type is a ';'-joined list ("PLA;PLA;PETG"); split to per-tool.
-    filament_materials_.clear();
-    if (!metadata.filament_type.empty()) {
-        std::istringstream stream(metadata.filament_type);
-        std::string token;
-        while (std::getline(stream, token, ';')) {
-            filament_materials_.push_back(token);
-        }
-    }
-}
-
-std::vector<helix::GcodeToolInfo> PrintStatusPanel::build_print_tool_info() const {
-    if (!gcode_viewer_ || filament_colors_.empty()) {
-        return {};
-    }
-    const auto* parsed = ui_gcode_viewer_get_parsed_file(gcode_viewer_);
-    if (!parsed || parsed->tools_used_indices.empty()) {
-        return {};
-    }
-
-    // Full slicer palette from the stored metadata, then filter to the tools this
-    // file actually uses (real tool_index preserved) — mirrors
-    // PrintSelectDetailView::get_used_tool_info().
-    const auto all_tool_info =
-        helix::ui::FilamentMappingCard::build_tool_info(filament_colors_, filament_materials_);
-
-    std::vector<helix::GcodeToolInfo> tools;
-    tools.reserve(parsed->tools_used_indices.size());
-    for (int tool : parsed->tools_used_indices) {
-        if (tool >= 0 && static_cast<size_t>(tool) < all_tool_info.size()) {
-            auto info = all_tool_info[static_cast<size_t>(tool)];
-            info.tool_index = tool;
-            tools.push_back(info);
-        }
-    }
-    return tools;
-}
-
-bool PrintStatusPanel::effective_auto_match() const {
-    // The rule lives on AmsState because the print-select detail view resolves
-    // the same question for the same print: its swatches and this viewer's
-    // per-tool colors must land on the same lane.
-    return AmsState::instance().effective_auto_match();
-}
-
 bool PrintStatusPanel::build_and_apply_tool_colors() {
     if (!gcode_viewer_ || !ui_gcode_viewer_has_content(gcode_viewer_)) {
         return false;
     }
 
-    // Preferred path: resolve each used tool to the EFFECTIVE (toggle-aware)
-    // matched lane's color — the same match the print-select swatches and
-    // pre-flight use — and push a logical-tool-indexed color vector directly to
-    // the viewer. This bypasses apply_ams_tool_colors' identity tool_to_slot_map,
-    // which on a true toolchanger (Snapmaker U1) colors the whole model by T0.
-    const auto tools = build_print_tool_info();
-    if (!tools.empty()) {
-        const auto colors = helix::FilamentMapper::effective_tool_colors(
-            tools, AmsState::instance().collect_available_slots(), effective_auto_match());
-        if (!colors.empty()) {
-            ui_gcode_viewer_set_tool_colors(gcode_viewer_, colors);
-            return true;
-        }
+    // ONE rule, any tool count: color(tool N) = the color of the lane that
+    // actually prints N. No palette, no tool-count branch, no active-lane
+    // special case — a 1-tool file and an N-tool file take this exact path.
+    //
+    // What used to be here asked "what mapping SHOULD this print use" (the
+    // slicer palette matched against lane colors) and then patched the gaps with
+    // fallbacks. That is the right question BEFORE a print, and it still lives
+    // in PrintSelectDetailView where it decides what to send. Once the print is
+    // underway the question is "what mapping IS in effect", and the firmware
+    // answers it exactly — so inferring it here was guessing at something already
+    // known, and the guess is what forced the special cases.
+    if (ui_gcode_viewer_apply_ams_tool_colors(gcode_viewer_)) {
+        return true;
     }
 
-    // Fallback: no stored metadata yet (or no lanes) — use the backend's own
-    // per-tool color mapping (correct for single-nozzle multi-material backends).
-    return ui_gcode_viewer_apply_ams_tool_colors(gcode_viewer_);
+    // Nothing knowable (no routing published, or no lane knows a color). Leave
+    // the renderer's slicer colors alone rather than painting a plausible lie.
+    return false;
 }
 
 // ============================================================================
