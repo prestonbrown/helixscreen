@@ -150,3 +150,24 @@ EOF
     run python3 "$CHECK" --devel devel/ok.md
     [ "$status" -eq 0 ]
 }
+
+@test "generator: an in-backtick range links to a GitHub line SPAN" {
+    # A range names a block, so the reader should land on the block, not on its
+    # first line. GitHub spells that #L10-L20.
+    echo 'The block at `src/printer/zz_state.cpp:10-20` does it.' > "$DOC"
+    cd "$REPO"
+    run python3 "$GEN" docs/devel/architecture
+    [ "$status" -eq 0 ]
+    grep -q '\[`src/printer/zz_state.cpp:10-20`\](../../../src/printer/zz_state.cpp#L10-L20)' "$DOC"
+}
+
+@test "generator: a range end OUTSIDE the backticks still links as a point" {
+    # The guide's other range spelling. The citation stops at the closing
+    # backtick, so the link covers the start and the trailing `-20` stays plain
+    # text beside it rather than being swallowed into the URL.
+    echo 'The block at `src/printer/zz_state.cpp:10`-20 does it.' > "$DOC"
+    cd "$REPO"
+    run python3 "$GEN" docs/devel/architecture
+    [ "$status" -eq 0 ]
+    grep -q '\[`src/printer/zz_state.cpp:10`\](../../../src/printer/zz_state.cpp#L10)-20' "$DOC"
+}

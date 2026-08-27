@@ -32,11 +32,14 @@
 #              NEIGHBOUR would then read as "your citation is gone", the gate
 #              would cry wolf on ordinary commits, and people would learn to
 #              ignore it. Measured on this tree (`--audit`): primary alone is
-#              unique for 757 of 842 anchored cites; context settles 83 of the
-#              remaining 85.
-#   nearest  — final fallback when the primary is ambiguous and the context does
-#              not narrow it to one: take the candidate closest to the number
-#              the doc already had.
+#              unique for 759 of 797 anchored cites; context settles 38 of the
+#              remaining 39.
+#
+# There is no third tier. An anchor the context cannot disambiguate is a hard
+# failure, because the only other answer available — "take the candidate nearest
+# the number the doc already had" — is a coin flip that reports success, and it
+# silently walked three 15-known-debt.md citations onto the wrong `# ====`
+# banner. See SourceIndex.resolve().
 #
 # A citation may name a RANGE — `foo.cpp:63-65`, or the architecture guide's
 # `foo.cpp:63`-65 with the end outside the backticks. The START is the anchor;
@@ -55,16 +58,22 @@
 # has to re-read the sentence.
 #
 # Not anchored, and why:
-#   - a citation pointing at a BLANK line. It cites nothing, so there is nothing
-#     to anchor to. The bootstrap found 32 of these and every one was a genuine
-#     defect: about half were off by a line, the rest pointed at code that had
-#     moved hundreds of lines (`theme_manager.cpp:1966` for a function at 1975,
-#     `ams_state.cpp:829` for a block at 849). All are fixed; the finding prints
-#     the nearest real code so the next one is a one-line repair, and
-#     doc_cite_anchor_baseline.txt is the escape hatch if one is ever genuinely
-#     ambiguous. It is empty, and should stay that way.
+#   - a citation whose cited line cannot identify itself: blank, a comment
+#     banner, or almost pure punctuation. See anchor_quality(). It names nothing
+#     specific, so an anchor built on it points at a coincidence. The bootstrap
+#     found 32 blank ones and every one was a genuine defect: about half were off
+#     by a line, the rest pointed at code that had moved hundreds of lines
+#     (`theme_manager.cpp:1966` for a function at 1975, `ams_state.cpp:829` for a
+#     block at 849). The finding prints the nearest distinctive code so the next
+#     one is a one-line repair, and doc_cite_anchor_baseline.txt records the ones
+#     not yet repaired. Adding this check surfaced 48 citations across 41 keys of
+#     inherited rot; the semantic re-pin audit cleared most of it, leaving 13
+#     entries. Every one is a citation pointing somewhere a reader cannot use,
+#     and every one is off by a line or two — the finding names the distinctive
+#     line to move to. SHRINK IT, never grow it.
 #   - a citation whose file cannot be resolved to exactly one path. That is
-#     check_doc_refs' dead-path check talking, not ours.
+#     check_doc_refs' dead-path check talking, not ours. Its anchor row is KEPT
+#     rather than reaped — see the unreadable-target branch in run().
 #   - EXEMPT_SUBSTRINGS paths, plus ANCHOR_EXEMPT_SUBSTRINGS below.
 #   - a citation inside a fenced code block or a ``literal`` span — those are
 #     samples of syntax, not claims about the tree.
@@ -118,6 +127,67 @@ HASH_BYTES = 6
 def norm(line):
     """Whitespace-normalised line: leading/trailing stripped, runs collapsed."""
     return ' '.join(line.split())
+
+
+# A line that half the file also contains cannot identify anything. Anchoring to
+# one produces a row that looks healthy — it hashes, it stores, it "resolves" —
+# while pointing at a coincidence, and the citation then drifts to whichever
+# twin is nearest whenever the file is edited.
+#
+# Three shapes, each drawn from something already found in this tree rather than
+# imagined:
+#   banner  `# ====================` and its `// ---` relatives. 29 identical
+#           copies in scripts/quality-checks.sh alone; this is what three
+#           15-known-debt.md citations were pinned to.
+#   punct   `}`, `};`, `{`, `*/`, `);`. src/printer/ams_state.cpp has 400+ lines
+#           that normalise to exactly `}`, and 07-filament-ams.md's tenth
+#           reading-list entry was anchored to one of them.
+#   thin    anything else carrying almost no identity — `fi`, `else`, `#endif`.
+#
+# MIN_ANCHOR_ALNUM counts letters and digits, not characters, so punctuation-
+# heavy but genuinely distinctive code (`m_ = {};`) is judged on the identifiers
+# it contains. Four is the value that rejected every junk anchor in the corpus
+# without rejecting a single real one; the audit that chose it is in the meta-
+# suite as the low-information test cases.
+MIN_ANCHOR_ALNUM = 4
+
+_ALNUM_RE = re.compile(r'[0-9A-Za-z]')
+# Optional comment opener, then a run of rule characters, then nothing but more
+# of the same. Deliberately requires 6+ so a real line like `a -= b` is safe.
+_BANNER_RE = re.compile(r'^(?:[#/*<!;%-]|\s)*[=*_~#+-]{6,}[\s*/#=_~+-]*$')
+
+
+def anchor_quality(text):
+    """'' when `text` can identify a line, else the reason it cannot."""
+    if not text:
+        return 'blank'
+    if _BANNER_RE.match(text):
+        return 'banner'
+    if len(_ALNUM_RE.findall(text)) < MIN_ANCHOR_ALNUM:
+        return 'low-information'
+    return ''
+
+
+# How each rejection reads in a finding. The wording has to make the fix obvious,
+# because unlike a stale line number this one cannot be repaired mechanically.
+QUALITY_BLURB = {
+    'blank': 'cites a blank line — it names nothing',
+    'banner': 'is anchored to a comment banner, which repeats verbatim '
+              'throughout the file and cannot identify a line',
+    'low-information': 'is anchored to a line with almost no content '
+                       '(punctuation or a bare keyword), which repeats '
+                       'throughout the file and cannot identify a line',
+}
+
+# The three anchor_quality() verdicts, which are also the three things
+# --write-baseline may be asked to record.
+QUALITY_KINDS = frozenset(QUALITY_BLURB)
+
+# Findings a human must resolve, as against the ones `make regen-doc-links`
+# repairs on its own (stale, unanchored, orphan). Everything here needs somebody
+# to re-read the sentence and choose a line, which is exactly why none of them
+# may be auto-fixed: the generator would be guessing at prose.
+HARD_KINDS = QUALITY_KINDS | {'gone', 'ambiguous'}
 
 
 def h(text):
@@ -215,8 +285,27 @@ class SourceIndex:
                     return 'line %d ("%s")' % (i, text)
         return 'nothing within %d lines' % reach
 
-    def resolve(self, primary, context, old_line):
-        """(line, how) for a moved anchor, or (None, 'gone') if it is gone."""
+    def resolve(self, primary, context):
+        """(line, how), or (None, why) when the anchor does not identify a line.
+
+        Two ways to fail and they mean different things. 'gone' is "no line in
+        this file carries the anchored text any more". 'ambiguous' is "several
+        do, and the 5-line context cannot say which" — the anchor was never
+        specific enough to be re-pinned.
+
+        There used to be a third answer: pick whichever candidate sits closest
+        to the number the doc already had. That is the only branch here that
+        could return a WRONG line while reporting success, and it did. Three
+        citations in docs/devel/architecture/15-known-debt.md were anchored to
+        `# ====...` banners, of which scripts/quality-checks.sh has 29; a
+        33-line insert elsewhere in that file slid them onto a different banner
+        and the gate printed a checkmark. A gate that quietly rewrites a doc to
+        a wrong line is worse than no gate, so ambiguity is now a hard failure
+        that names the citation and asks for a better one. It costs almost
+        nothing: on the tree where this landed, 758 of 846 citations resolved
+        uniquely and 86 more by context, leaving 2 that genuinely had to be
+        re-cited by hand.
+        """
         cands = self.by_hash().get(primary)
         if not cands:
             return None, 'gone'
@@ -225,8 +314,7 @@ class SourceIndex:
         narrowed = [i for i in cands if self.context_hash(i) == context]
         if len(narrowed) == 1:
             return narrowed[0], 'context'
-        pool = narrowed or cands
-        return min(pool, key=lambda i: (abs(i - old_line), i)), 'nearest'
+        return None, 'ambiguous'
 
 
 class Resolver:
@@ -385,9 +473,19 @@ SIDECAR_HEADER = (
 )
 
 BASELINE_HEADER = (
-    '# Citations that cannot be content-anchored. Shrink, never grow.\n'
-    '# `blank-line` = the cite points at an empty line, so it names nothing;\n'
-    '# re-pin it to the line the sentence actually describes and drop the row.\n'
+    '# Citations whose cited line cannot identify itself, so no content anchor\n'
+    '# can be built. SHRINK, NEVER GROW.\n'
+    '#\n'
+    '#   blank            the cite points at an empty line\n'
+    '#   banner           it points at a `# ====` rule, which repeats verbatim\n'
+    '#   low-information  it points at `}`, `*/`, `try {` or similar\n'
+    '#\n'
+    '# Every row is a citation a reader cannot follow: the number names a line\n'
+    '# that says nothing about what the sentence claims. These were inherited —\n'
+    '# the bootstrap anchored whatever each doc happened to point at, and the\n'
+    '# quality check surfaced them all at once when it was added. An entry\n'
+    '# leaves by re-citing the line the sentence actually describes, then\n'
+    '# `make regen-doc-links`; the finding prints the nearest distinctive code.\n'
     '#\n'
     '# doc\tcited-path:line\treason\n'
 )
@@ -478,7 +576,7 @@ def run(targets, stored, devel=True, write=False, audit=False):
     findings, blanks, rewrites = [], [], []
     fresh = {}
     seen_keys = set()
-    stats = {'in_place': 0, 'unique': 0, 'context': 0, 'nearest': 0,
+    stats = {'in_place': 0, 'unique': 0, 'context': 0,
              'bootstrapped': 0, 'skipped': 0, 'cites': 0}
 
     target_set = set(targets)
@@ -499,28 +597,43 @@ def run(targets, stored, devel=True, write=False, audit=False):
             if (doc, '%s:%d' % (ref, n)) in baselined:
                 stats['skipped'] += 1
                 continue
-            path = resolver.path_for(ref, doc)
-            if path is None:
-                stats['skipped'] += 1     # dead path: check_refs' finding, not ours
-                continue
-            idx = resolver.index(path)
             key = (doc, ref, n)
+            path = resolver.path_for(ref, doc)
+            idx = resolver.index(path) if path is not None else None
+            # An unreadable target is NOT an uncited one. A worktree merge runs
+            # with lib/ swapped for empty directories (setup-worktree.sh
+            # --unlink), so every lib/ citation resolves to nothing for the
+            # length of the merge; reaping those rows dropped 11 anchors per
+            # merge and silently re-bootstrapped them afterwards against
+            # whatever the line held by then. Keep the row verbatim and let
+            # check_refs own the dead-path verdict. An empty index is the same
+            # case one step later — the path resolved but nothing came back, so
+            # every anchor into it would read as 'gone'.
+            if path is None or not len(idx):
+                stats['skipped'] += 1
+                if stored is not None and key in stored:
+                    seen_keys.add(key)
+                    fresh[key] = stored[key]
+                continue
+
             row = stored.get(key) if stored is not None else None
 
             if row is None:
                 # Nothing stored yet, so the cited line itself has to be worth
-                # anchoring to. Out of range is check_line_refs' past-EOF error
-                # and blank is its own finding; neither can seed an anchor.
+                # anchoring to. Out of range is check_line_refs' past-EOF error;
+                # a line that cannot identify itself is our own finding.
                 if not 1 <= n <= len(idx):
                     stats['skipped'] += 1
                     continue
-                if idx.norm_line(n) == '':
-                    blanks.append((doc, ref, n, 'blank-line'))
+                why = anchor_quality(idx.norm_line(n))
+                if why:
+                    blanks.append((doc, ref, n, why))
                     findings.append(Finding(
-                        doc, doc_line, 'blank',
-                        '%s cites a blank line — it names nothing. Re-pin '
-                        'it to the line the sentence describes; nearest code is '
-                        '%s.' % (cite.as_written, idx.nearest_content(n))))
+                        doc, doc_line, why,
+                        '%s %s. Re-pin it to the line the sentence describes; '
+                        'nearest distinctive code is %s.'
+                        % (cite.as_written, QUALITY_BLURB[why],
+                           idx.nearest_content(n))))
                     continue
                 seen_keys.add(key)
                 if not write:
@@ -543,15 +656,36 @@ def run(targets, stored, devel=True, write=False, audit=False):
             if idx.matches(n, primary) and not audit:
                 new_line, how = n, 'in_place'
             else:
-                new_line, how = idx.resolve(primary, context, n)
+                new_line, how = idx.resolve(primary, context)
             if new_line is None:
-                findings.append(Finding(
-                    doc, doc_line, 'gone',
-                    'the cited line is gone — %s no longer matches its '
-                    'anchor. Re-read the sentence and re-pin it by hand.'
-                    % cite.as_written))
+                detail = (
+                    'the cited line is gone — %s no longer matches its anchor. '
+                    'Re-read the sentence and re-pin it by hand.'
+                    if how == 'gone' else
+                    '%s cannot be re-pinned — several lines in the file carry '
+                    'its anchor and the surrounding context does not separate '
+                    'them. Re-cite it at a line that names what the sentence '
+                    'describes.') % cite.as_written
+                findings.append(Finding(doc, doc_line, how, detail))
                 # Keep the row: dropping it would silently downgrade the hard
                 # error to "unanchored" on the next run.
+                fresh[key] = row
+                continue
+            # An anchor that still resolves can still be worthless. Rows written
+            # before this check existed were bootstrapped onto whatever the doc
+            # happened to point at, banners and bare braces included, so the
+            # quality gate has to run on the RESOLVED line every time and not
+            # only where a row is created. This is what turns an inherited bad
+            # anchor red instead of maintaining it forever.
+            why = anchor_quality(idx.norm_line(new_line))
+            if why:
+                blanks.append((doc, ref, n, why))
+                findings.append(Finding(
+                    doc, doc_line, why,
+                    '%s %s. Re-pin it to the line the sentence describes; '
+                    'nearest distinctive code is %s.'
+                    % (cite.as_written, QUALITY_BLURB[why],
+                       idx.nearest_content(new_line))))
                 fresh[key] = row
                 continue
             stats[how] += 1
@@ -683,18 +817,40 @@ def main():
 
     if not check_only:
         # A doc outside this run's scope keeps its rows: a targeted regen must
-        # not silently strip anchors it never looked at.
+        # not silently strip anchors it never looked at. A doc that no longer
+        # EXISTS is the opposite case and has to be swept, or the sidecar only
+        # ever grows: out-of-scope rows are preserved by the rule above, and a
+        # deleted doc is permanently out of scope, so nothing could ever remove
+        # them. 36 rows naming six `.claude/worktrees/agent-*/` scratch trees
+        # had accumulated that way — directories that existed on one machine for
+        # one afternoon, committed into a shared file, unresolvable for everyone
+        # else forever. Only a FULL run sweeps: a targeted run has no business
+        # judging docs it was not pointed at.
         scope = set(targets)
-        merged = {k: v for k, v in stored.items() if k[0] not in scope}
+        merged = {k: v for k, v in stored.items()
+                  if k[0] not in scope and (args.paths or os.path.isfile(k[0]))}
         merged.update(fresh)
         write_sidecar(merged)
         if args.write_baseline:
-            write_baseline(set(blanks) | _existing_baseline_entries())
+            # A FULL run just walked every scanned doc, so `blanks` IS the whole
+            # set and the file is rewritten from it — that is the only way an
+            # entry whose citation has since been repaired ever leaves. Union
+            # only on a TARGETED run, where the entries for docs this run never
+            # opened would otherwise be dropped on the floor.
+            #
+            # Without the split the ratchet is a one-way valve: it can only
+            # grow, which is exactly the slack 02da71dbe went round removing
+            # from the count baselines. Measured after the semantic audit
+            # landed: 28 of 41 entries named citations that no longer exist.
+            entries = set(blanks)
+            if args.paths:
+                entries |= _existing_baseline_entries()
+            write_baseline(entries)
             blanks = []
-            findings = [f for f in findings if f.kind != 'blank']
+            findings = [f for f in findings if f.kind not in QUALITY_KINDS]
 
-    hard = [f for f in findings if f.kind in ('gone', 'blank')]
-    soft = [f for f in findings if f.kind not in ('gone', 'blank')]
+    hard = [f for f in findings if f.kind in HARD_KINDS]
+    soft = [f for f in findings if f.kind not in HARD_KINDS]
 
     if args.diff and rewrites:
         print('   Rewrites this would make:')
@@ -703,25 +859,31 @@ def main():
         if len(rewrites) > 20:
             print('     ... and %d more' % (len(rewrites) - 20))
 
+    if args.audit:
+        # The histogram is the whole point of --audit, so it prints even when
+        # the run also has findings. --audit re-resolves EVERY anchor the long
+        # way instead of accepting the ones that still match in place, so it is
+        # the only mode that surfaces a latent ambiguity: an anchor that is fine
+        # today and unresolvable the moment its file shifts.
+        total = stats['unique'] + stats['context']
+        print('ℹ️  Anchor tiers: %d resolved — %d by the cited line alone, '
+              '%d needed the 5-line context to break a tie'
+              % (total, stats['unique'], stats['context']))
+
     if findings:
         print('❌ Citation anchors (%d):' % len(findings))
         for f in sorted(findings):
             where = '%s:%d' % (f.doc, f.doc_line) if f.doc_line else f.doc
             print('   %s: %s' % (where, f.detail))
         if hard:
-            print('   A gone/blank anchor cannot be auto-repaired: re-read the '
-                  'sentence, re-pin the line, then `make regen-doc-links`.')
+            print('   %d of these name a line no generator can choose (gone, '
+                  'ambiguous, or too low-information to anchor): re-read the '
+                  'sentence, re-cite it, then `make regen-doc-links`.' % len(hard))
         elif soft:
             print('   Run: make regen-doc-links')
         return 1
 
-    if args.audit:
-        total = stats['unique'] + stats['context'] + stats['nearest']
-        print('✅ Citation anchors: %d resolved — %d by the cited line alone, '
-              '%d needed the 5-line context to break a tie, %d fell through to '
-              'nearest-to-old-line' % (total, stats['unique'], stats['context'],
-                                       stats['nearest']))
-    elif check_only:
+    if check_only:
         print('✅ Citation anchors: %d cited lines still resolve' % stats['in_place'])
     else:
         print('✅ Citation anchors: %d anchored across %d docs (%d rewritten, '

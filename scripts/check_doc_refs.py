@@ -36,6 +36,27 @@
 # The index check is what makes lazy loading trustworthy: a doc missing from the
 # routing table is a doc nobody will find.
 #
+# KNOWN GAPS — checked by nothing today, each wanting its own change:
+#
+#   bare `:857` shorthand. The guide's convention for "another line in the file
+#     I just cited" (`ams_state.cpp:709` … the immediate sync at `:762`). 444 of
+#     them across 25 docs, and none is verified: the shorthand carries no path,
+#     so resolving one means tracking the last full citation on the line, in the
+#     paragraph, or in the table row. Every one inspected by hand so far was
+#     stale. Wants a sweep of its own, because the resolution rule is a guess
+#     until it is measured against the real prose.
+#
+#   templated symbol spellings. SYMBOL_CITE_*_RE's symbol charset is
+#     [A-Za-z_][A-Za-z0-9_]* plus `::`, so anything carrying angle brackets is
+#     invisible to the symbol-proximity check — 8 in the tree today
+#     (`observe_int_sync<Panel>()`, `std::unique_ptr<MoonrakerAPI>`,
+#     `panel_widget_from_event<T>()`, `lvgl_make_unique<T>()`, …). Widening the
+#     charset alone would MISFIRE: check_symbol_cites compares
+#     sym.split('(')[0].split('::')[-1] against the source window, and for
+#     `std::shared_ptr<bool>` that yields `shared_ptr<bool>`, which does not
+#     appear literally in code that says `std::shared_ptr<bool>` with different
+#     spacing. Extract the bare identifier first, then widen.
+#
 # Usage:
 #   check_doc_refs.py            # everything: every CLAUDE.md, .claude/skills/,
 #                                # docs/README.md, docs/devel/**/*.md,
@@ -97,11 +118,20 @@ EXEMPT_SUBSTRINGS = (
 PLACEHOLDER_CHARS = ('<', '>', '*', '$', '…', '{')
 
 # `some/path/file.ext` in prose or a table cell. The path may carry a `:123`
-# line or a `:func_name()` symbol suffix; the path charset excludes ':' so the
-# suffix can never be part of a real path and is stripped before checking.
+# line, a `:123-145` RANGE, or a `:func_name()` symbol suffix; the path charset
+# excludes ':' so the suffix can never be part of a real path and is stripped
+# before checking.
+#
+# The range form used not to match here at all, which meant a citation naming a
+# block was exempt from the one check that proves its FILE exists. That is how
+# `scripts/quality-checks.sh:1311-1336` sat in RPC_ERROR_OWNERSHIP.md pointing
+# ~355 lines away from the gate it described: the point form would have been
+# caught the moment the path rotted, the range form was invisible to every gate
+# at once. Verified by probe — a `:70` cite to a bogus path fails the refs
+# check, the same path as `:63-65` produced no finding from anything.
 PATH_RE = re.compile(
     r'`([A-Za-z0-9_./-]+\.(?:md|cpp|cc|h|hpp|c|xml|py|sh|json|mk|bats|yml|yaml|html|txt)'
-    r'(?::\d+|:[A-Za-z0-9_]+\(\))?)`')
+    r'(?::\d+(?:[-–]\d+)?|:[A-Za-z0-9_]+\(\))?)`')
 
 # Markdown [text](target) links. Link text must be non-empty — `[](...)` is a
 # C++ lambda with a parenthesized parameter list (e.g. `.on_destroy = [](lv_obj_t*)`
@@ -839,15 +869,18 @@ def main():
             print('⚠️  Citation anchors: %s absent — line numbers unverified'
                   % 'scripts/doc_cite_anchors.tsv')
         elif anchor_findings:
-            hard = [f for f in anchor_findings if f.kind in ('gone', 'blank')]
+            # Same lazy import as check_anchors, for the same cycle reason.
+            import doc_cite_anchors as anchors
+            hard = [f for f in anchor_findings if f.kind in anchors.HARD_KINDS]
             print('❌ Citation anchors out of sync (%d):' % len(anchor_findings))
             for f in sorted(anchor_findings):
                 where = '%s:%d' % (f.doc, f.doc_line) if f.doc_line else f.doc
                 print('   %s: %s' % (where, f.detail))
             if hard:
-                print('   A gone/blank anchor is not auto-repairable: re-read '
-                      'the sentence and re-pin the line by hand.')
-            else:
+                print('   %d of these name a line a generator cannot choose '
+                      '(gone, ambiguous, or too low-information to anchor): '
+                      're-read the sentence and re-cite by hand.' % len(hard))
+            if len(hard) < len(anchor_findings):
                 print('   Run: make regen-doc-links')
             exit_code = 1
         else:

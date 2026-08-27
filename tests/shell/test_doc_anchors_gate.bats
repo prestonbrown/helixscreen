@@ -106,38 +106,162 @@ sidecar() { cat "$REPO/scripts/doc_cite_anchors.tsv"; }
 }
 
 @test "ambiguous: identical lines are disambiguated by the 5-line context" {
+    # The twinned line must be distinctive enough to survive anchor_quality() —
+    # a bare `}` is rejected before the tiebreak is ever consulted — so this uses
+    # a real statement that legitimately appears twice.
     {
         echo "// unique head A"
-        echo "}"                     # line 2  <- cited
+        echo "    return compute_total(items);"   # line 2  — twin A
         echo "// unique tail A"
         for i in $(seq 4 9); do echo "// filler $i"; done
         echo "// unique head B"
-        echo "}"                     # line 11 — same primary hash
+        echo "    return compute_total(items);"   # line 11 — twin B, cited
         echo "// unique tail B"
     } > "$SRC"
-    echo 'The close brace at `src/zz_anchor.cpp:11`.' > "$DOC"
+    echo 'The second return at `src/zz_anchor.cpp:11`.' > "$DOC"
     cd "$REPO"
     python3 "$ANCH" docs/devel
-    # Push the second block down by three lines; the first block stays put.
-    sed -i '10i\// pad 1\n// pad 2\n// pad 3' "$SRC"
+
+    # Pad at the TOP so both twins shift by the same amount and twin B keeps its
+    # ±2 window intact — that window is the only thing that can tell B from A.
+    # (Padding between them, as this test used to do, changes B's window too and
+    # nothing can disambiguate; that case is the next test, and it used to be
+    # answered by a nearest-to-old-line guess.)
+    sed -i '1i\// pad 1\n// pad 2\n// pad 3' "$SRC"
     run python3 "$ANCH" docs/devel
     [ "$status" -eq 0 ]
     grep -q '`src/zz_anchor.cpp:14`' "$DOC"
 }
 
-@test "ambiguous: with no distinguishing context, the nearest candidate wins" {
-    { for i in $(seq 20); do echo "}"; done; } > "$SRC"
-    echo 'See `src/zz_anchor.cpp:12`.' > "$DOC"
+@test "ambiguous: no distinguishing context is a hard failure, never a guess" {
+    # Three identical twins. The cited one is then overwritten, so the anchor no
+    # longer matches in place and has to be re-resolved — and the two survivors
+    # are equally plausible, with neither carrying the stored context.
+    {
+        echo "// filler 1"
+        echo "    return compute_total(items);"   # twin A
+        echo "// filler 3"
+        echo "// filler 4"
+        echo "    return compute_total(items);"   # line 5 — cited
+        echo "// filler 6"
+        echo "// filler 7"
+        echo "    return compute_total(items);"   # twin C
+        echo "// filler 9"
+    } > "$SRC"
+    echo 'See `src/zz_anchor.cpp:5`.' > "$DOC"
     cd "$REPO"
     python3 "$ANCH" docs/devel
-    # Every line is identical, so context cannot help; two extra lines up top
-    # shift everything by 2 and the nearest-to-12 candidate is 12 itself.
-    sed -i '1i\}\n}' "$SRC"
+    sed -i '5s/.*/\/\/ the cited line is now something else/' "$SRC"
+
+    # The old behaviour picked whichever twin sat nearest the number already in
+    # the doc and reported success. That is a coin flip presented as a repair,
+    # and on the real tree it walked three citations onto the wrong `# ====`
+    # banner while printing a checkmark.
+    run python3 "$ANCH" docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"cannot be re-pinned"* ]]
+    # It must not have rewritten the doc to a guess.
+    grep -q '`src/zz_anchor.cpp:5`' "$DOC"
+
+    run python3 "$ANCH" --check docs/devel
+    [ "$status" -eq 1 ]
+}
+
+@test "quality: a citation anchored to punctuation is rejected at bootstrap" {
+    {
+        for i in $(seq 9); do echo "// filler $i"; done
+        echo "}"
+        echo "void zz_marker_alpha(void) { return; }"
+    } > "$SRC"
+    echo 'The close brace at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    run python3 "$ANCH" docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"almost no content"* ]]
+    # It names the real code nearby, so the repair is one edit.
+    [[ "$output" == *"zz_marker_alpha"* ]]
+    # No row may be written for an anchor that cannot identify a line.
+    ! grep -q $'src/zz_anchor.cpp\t10\t' scripts/doc_cite_anchors.tsv
+}
+
+@test "quality: a citation anchored to a comment banner is rejected" {
+    {
+        for i in $(seq 9); do echo "// filler $i"; done
+        echo "// ============================================================"
+        echo "void zz_marker_alpha(void) { return; }"
+    } > "$SRC"
+    echo 'The section at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    run python3 "$ANCH" docs/devel
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"comment banner"* ]]
+}
+
+@test "quality: an INHERITED low-information anchor is reported, not maintained" {
+    # The row is written while the line still looks fine, then the line decays
+    # into a bare brace. A gate that only checked at bootstrap would keep
+    # re-pinning this one forever; this is the shape that hid three wrong
+    # citations in 15-known-debt.md behind a green run.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" docs/devel
+    grep -q $'src/zz_anchor.cpp\t10\t' scripts/doc_cite_anchors.tsv
+
+    python3 - "$SRC" <<'PYEOF'
+import sys
+p = sys.argv[1]
+lines = open(p).read().split('\n')
+lines[9] = '}'
+open(p, 'w').write('\n'.join(lines))
+PYEOF
+    # Re-point the sidecar row at the decayed line so it is "anchored" to it.
+    python3 "$ANCH" docs/devel >/dev/null 2>&1 || true
+
+    run python3 "$ANCH" --check docs/devel
+    [ "$status" -eq 1 ]
+}
+
+@test "unreadable target: the anchor row survives, it is not reaped" {
+    # setup-worktree.sh --unlink swaps lib/ for empty directories so git can
+    # scan the tree, and a regen during that window used to drop every lib/
+    # anchor and silently re-bootstrap it afterwards against whatever the line
+    # held by then. 11 rows per worktree merge.
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    cd "$REPO"
+    python3 "$ANCH" docs/devel
+    grep -q $'src/zz_anchor.cpp\t10\t' scripts/doc_cite_anchors.tsv
+
+    mv "$SRC" "$SRC.hidden"
     run python3 "$ANCH" docs/devel
     [ "$status" -eq 0 ]
-    grep -q '`src/zz_anchor.cpp:12`' "$DOC"
+    grep -q $'src/zz_anchor.cpp\t10\t' scripts/doc_cite_anchors.tsv
+
+    # And it still verifies once the file is back, with no re-bootstrap.
+    mv "$SRC.hidden" "$SRC"
     run python3 "$ANCH" --check docs/devel
     [ "$status" -eq 0 ]
+}
+
+@test "sweep: a row for a DELETED doc goes, but only on a full run" {
+    seed_src
+    echo 'The marker lives at `src/zz_anchor.cpp:10`.' > "$DOC"
+    OTHER="$REPO/docs/devel/zz_other.md"
+    echo 'Also at `src/zz_anchor.cpp:10`.' > "$OTHER"
+    cd "$REPO"
+    python3 "$ANCH" docs/devel
+    grep -q '^docs/devel/zz_other.md' scripts/doc_cite_anchors.tsv
+
+    rm "$OTHER"
+    # A TARGETED run has no business judging docs it was not pointed at.
+    python3 "$ANCH" docs/devel/zz_doc.md
+    grep -q '^docs/devel/zz_other.md' scripts/doc_cite_anchors.tsv
+
+    # A full run sweeps it: out-of-scope rows are preserved, so a deleted doc is
+    # permanently out of scope and nothing else could ever remove it.
+    python3 "$ANCH"
+    ! grep -q '^docs/devel/zz_other.md' scripts/doc_cite_anchors.tsv
 }
 
 @test "blank line: a citation pointing at nothing is a finding, not an anchor" {

@@ -51,7 +51,7 @@ running the endpoint live against an idle K1C.
 
 Creality's fork registers a Klipper **webhook endpoint**,
 `pause_resume/check_continue_print_state`. Moonraker auto-registers every
-non-reserved Klipper webhook endpoint (`klippy_connection.py:387-396`), so it is
+non-reserved Klipper webhook endpoint (klippy_connection.py:387-396), so it is
 reachable both ways:
 
 * HTTP: `POST /printer/pause_resume/check_continue_print_state`
