@@ -21,6 +21,11 @@
 class IMoonrakerAPI;
 
 namespace helix {
+class IMoonrakerClient;
+}
+using helix::IMoonrakerClient;
+
+namespace helix {
 
 // Forward declaration
 class PrinterDiscovery;
@@ -40,6 +45,9 @@ struct ToolInfo {
     float gcode_x_offset = 0.0f;
     float gcode_y_offset = 0.0f;
     float gcode_z_offset = 0.0f;
+    /// Whether gcode_z_offset has ever been reported for this tool. 0.000 is a
+    /// legitimate offset, so the value alone cannot say "not known yet".
+    bool gcode_z_offset_known = false;
     bool active = false;
     bool mounted = false;
     DetectState detect_state = DetectState::UNAVAILABLE;
@@ -212,10 +220,41 @@ class ToolState {
         return &show_tool_badge_;
     }
 
+    /// Whether this printer keeps a z-offset per toolhead (1) or a single
+    /// machine-wide one (0). Gates the tune panel's tool selector.
+    lv_subject_t* get_per_tool_z_supported_subject() {
+        return &per_tool_z_supported_;
+    }
+    /// The active tool's own z-offset, in microns. Independent of
+    /// gcode_z_offset — a tool changer applies both.
+    lv_subject_t* get_active_tool_z_offset_subject() {
+        return &active_tool_z_offset_;
+    }
+    /// 1 once an offset has been reported for the active tool. Separate because
+    /// 0 microns is a legitimate offset and cannot double as "nothing known".
+    lv_subject_t* get_active_tool_z_offset_valid_subject() {
+        return &active_tool_z_offset_valid_;
+    }
+
+    /// One-shot query for the per-tool z-offsets after init_tools().
+    ///
+    /// The subscription alone is not enough: Moonraker sends the tool objects
+    /// once in the initial snapshot, which arrives BEFORE tools_ exists (so
+    /// update_from_status() drops it), and thereafter republishes only what
+    /// CHANGED. Without this the selector would sit at "no value reported"
+    /// until someone happened to move an offset.
+    void query_tool_z_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+
   private:
     friend class ToolStateTestAccess;
 
+    /// Republish the active tool's z-offset subjects from tools_. Handles both
+    /// a new value arriving and the active tool changing.
+    void refresh_active_tool_z_offset();
+
     ToolState() = default;
+
+
     SubjectManager subjects_;
     /// See get_subjects_lifetime(). Created with the object and REPLACED (never
     /// nulled) by deinit_subjects(), so the accessor never hands out an empty
@@ -238,6 +277,13 @@ class ToolState {
     lv_subject_t tool_badge_text_{};
     char tool_badge_text_buf_[16] = {};
     lv_subject_t show_tool_badge_{};
+
+    // Per-tool z-offset (helix::tool_offsets). Only a tool changer has one;
+    // on every other printer per_tool_z_supported_ stays 0 and the rest are
+    // never published.
+    lv_subject_t per_tool_z_supported_{};
+    lv_subject_t active_tool_z_offset_{};
+    lv_subject_t active_tool_z_offset_valid_{};
 
     std::vector<ToolInfo> tools_;
     int active_tool_index_ = 0;

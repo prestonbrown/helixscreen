@@ -28,6 +28,7 @@
 #include "toolchanger_addon.h"
 #include "unit_conversions.h"
 #include "webcam_service_health.h"
+#include "tool_offsets.h"
 #include "z_offset_persistence.h"
 
 #include <algorithm>
@@ -1457,6 +1458,15 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // whatever object stores it; without this the Z-offset row reads 0.000
     // whenever such a printer is idle. See include/z_offset_persistence.h.
     for (const auto& obj : helix::zoffset::required_status_objects(hw)) {
+        subscription_objects[obj] = nullptr;
+    }
+
+    // Firmware that keeps a z-offset PER TOOL needs whatever object stores it.
+    // Empty for klipper-toolchanger, whose offsets ride on the `tool T*`
+    // objects requested above; a machine keeping all four on one macro needs
+    // that macro, and without it its selector would show nothing forever.
+    // See include/tool_offsets.h.
+    for (const auto& obj : helix::tool_offsets::required_status_objects(hw)) {
         subscription_objects[obj] = nullptr;
     }
 

@@ -451,11 +451,6 @@ void AmsBackendToolChanger::parse_tool_state(const std::string& tool_name,
         spdlog::trace("[AMS ToolChanger] Tool {} active: {}", tool_name, active);
     }
 
-    // Parse offsets (stored but not currently used in SlotInfo)
-    if (tool_data.contains("gcode_x_offset") || tool_data.contains("gcode_y_offset") ||
-        tool_data.contains("gcode_z_offset")) {
-        spdlog::trace("[AMS ToolChanger] Tool {} has offset data", tool_name);
-    }
 }
 
 void AmsBackendToolChanger::refresh_slot_statuses_locked() {
