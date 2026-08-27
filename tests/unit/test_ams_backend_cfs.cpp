@@ -2831,6 +2831,101 @@ TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",
     }
 }
 
+TEST_CASE("CFS probes RFID on a bay insert, without feeding filament",
+          "[ams][cfs][presence][probe_on_insert]") {
+    // Firmware reports occupancy the instant a spool goes in but does not read
+    // its tag. Verified on a K2 Plus: a genuine Creality RFID spool inserted
+    // into an empty bay sat at vender "unknown" / material_type "unknown" /
+    // remain_len -1 indefinitely, so a stale override kept painting the lane
+    // until BOX_GET_RFID was sent by hand.
+    CfsRemapHelper backend;
+    auto poll = [&backend](const json& box) {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(box));
+    };
+
+    // Bay A seated, B/C/D empty.
+    const json empty_bcd =
+        make_unit_box_explicit({"101001", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"},
+                               {"unknown", "none", "none", "none"}, {"100", "-1", "-1", "-1"});
+
+    SECTION("first sighting seeds occupancy without probing") {
+        poll(empty_bcd);
+        CHECK(backend.captured.empty());
+    }
+
+    SECTION("steady state does not probe") {
+        poll(empty_bcd);
+        poll(empty_bcd);
+        CHECK(backend.captured.empty());
+    }
+
+    SECTION("empty -> occupied with no tag probes that bay only") {
+        poll(empty_bcd);
+        backend.captured.clear();
+        // Spool into bay B: occupancy appears, tag does not.
+        const json b_in = make_unit_box_explicit(
+            {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+            {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+        poll(b_in);
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+    }
+
+    SECTION("sends the full refresh — every step of it is load bearing") {
+        poll(empty_bcd);
+        backend.captured.clear();
+        const json b_in = make_unit_box_explicit(
+            {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+            {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+        poll(b_in);
+        REQUIRE(backend.captured.size() == 1);
+        // BOX_GET_RFID on its own is inert: measured on a K2 Plus, the tag only
+        // resolves once BOX_SET_PRE_LOADING has run, and remain_len reports the
+        // "never measured" default of 100 until the same motion happens.
+        CHECK(backend.captured[0].find("BOX_INFO_REFRESH") != std::string::npos);
+    }
+
+    SECTION("a latched material_type does NOT suppress the probe") {
+        // Regression: bay C on the K2 rig reported material_type 101001 latched
+        // from a spool pulled days earlier. Treating a non-sentinel code as
+        // "firmware already knows this bay" skipped the probe on exactly the
+        // bays carrying stale identity — the case this feature exists for.
+        poll(empty_bcd);
+        backend.captured.clear();
+        const json c_in_latched = make_unit_box_explicit(
+            {"101001", "-1", "101001", "-1"}, {"0FFFFFF", "-1", "0000000", "-1"},
+            {"unknown", "none", "unknown", "none"}, {"100", "-1", "-1", "-1"});
+        poll(c_in_latched);
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=4");
+    }
+
+    SECTION("two bays inserted together share one command pair") {
+        poll(empty_bcd);
+        backend.captured.clear();
+        const json bc_in = make_unit_box_explicit(
+            {"101001", "unknown", "unknown", "-1"}, {"0FFFFFF", "0000000", "0000000", "-1"},
+            {"unknown", "unknown", "unknown", "none"}, {"100", "-1", "-1", "-1"});
+        poll(bc_in);
+        REQUIRE(backend.captured.size() == 1);
+        // B = 0b0010, C = 0b0100 -> NUM=6
+        CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=6");
+    }
+
+    SECTION("removal re-arms the probe for the next insert") {
+        poll(empty_bcd);
+        const json b_in = make_unit_box_explicit(
+            {"101001", "unknown", "-1", "-1"}, {"0FFFFFF", "0000000", "-1", "-1"},
+            {"unknown", "unknown", "none", "none"}, {"100", "-1", "-1", "-1"});
+        poll(b_in);
+        poll(empty_bcd); // pulled back out
+        backend.captured.clear();
+        poll(b_in); // and back in
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
+    }
+}
+
 TEST_CASE("FillUnsetOnly mirror does not overwrite user-locked fields",
           "[ams][filament_slot_override]") {
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides;
