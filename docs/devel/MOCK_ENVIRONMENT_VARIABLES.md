@@ -154,7 +154,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `vivid`, `ifs`, `htlf`, `snapmaker` |
+| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-fork` |
 | **Default** | Happy Hare, LINEAR, 4 slots |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -171,6 +171,8 @@ Select the mock AMS topology/type.
 | `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
 | `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
+| `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** Irbis3D controller. Aliases: `medusa`, `mhc`. See below |
+| `medusahc-fork` | 1 | MedusaHC as driven by topi314's fork. Alias: `medusa-fork` |
 
 ```bash
 # Simulate AFC Box Turtle
@@ -209,6 +211,37 @@ unreproducible without this profile.
 ```bash
 HELIX_MOCK_AMS=torture ./build/bin/helix-screen --test -vv
 ```
+
+#### `medusahc` - mock hardware, real backend
+
+Unlike every other value here, the MedusaHC modes do **not** build an `AmsBackendMock`.
+`MoonrakerClientMock` seeds the Klipper objects and status a real hotend changer publishes,
+and `try_create_mock()` declines these values so real discovery runs and the production
+`AmsBackendToolChanger` + `toolchanger_addon` drive them. That is the whole point: it is
+the only way to exercise detection, dock sensors, the feeder and the step bar outside unit
+tests.
+
+They imply `--real-ams` (`cli_args.cpp`), so no second flag is needed:
+
+```bash
+HELIX_MOCK_AMS=medusahc ./build/bin/helix-screen --test -vv
+```
+
+The two values map to the two shipping configurations in
+[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md), so the schema discrimination
+in `read_medusahc()` is exercised at runtime and not only in the unit tests:
+
+| Value | Objects | Phase key | Feeder | Step bar |
+|-------|---------|-----------|--------|----------|
+| `medusahc` | `pin_watch io` + `toolchanger` + `tool T0..3` + `medusahc`, `MHC_*` and legacy aliases | `operation`: idle/dropping/picking | `feeder_open` | 4 steps |
+| `medusahc-fork` | `medusahc` alone, forked `state`/`error`/`toolN_docked` schema | `state`: ready/changing | `feeder_open` | 3 steps |
+
+A swap advances through its phases on the simulation thread over ~6s, so they arrive as
+separate status frames rather than collapsing into one update. `SELECT_TOOL`,
+`UNSELECT_TOOL`, `DROP_TOOL`, bare `T<n>` and the feeder macros are all handled.
+
+The default `mmu` object is suppressed in these modes - it would detect Happy Hare and
+stand a second AMS backend up alongside the changer.
 
 **Multi-extruder and tool testing:** Setting `HELIX_MOCK_AMS=toolchanger` also creates multiple tool definitions and extruders in the mock environment. Multiple extruders (extruder, extruder1, etc.) and tools are auto-discovered from Klipper objects at runtime, so no separate env var is needed to control extruder count. The toolchanger mock provides a complete multi-tool, multi-extruder test environment.
 

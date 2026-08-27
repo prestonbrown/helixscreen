@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string>
 
 // External globals that CLI args modify
 extern int g_screen_width;
@@ -719,6 +720,26 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
         // Unknown argument — warn but continue (don't crash-loop on forward-compat flags)
         else {
             fprintf(stderr, "Warning: ignoring unknown argument: %s\n", argv[i]);
+        }
+    }
+
+    // HELIX_MOCK_AMS=medusahc[-stock|-fork] selects mock HARDWARE, not a mock
+    // backend: MoonrakerClientMock publishes the objects and status a real
+    // hotend changer does, and the production AmsBackendToolChanger is meant to
+    // drive them. That is exactly what --real-ams already means, so imply it
+    // rather than adding a third knob that can disagree with this one.
+    if (config.test_mode && !config.use_real_ams) {
+        if (const char* ams_env = std::getenv("HELIX_MOCK_AMS"); ams_env && ams_env[0]) {
+            std::string mode(ams_env);
+            std::transform(mode.begin(), mode.end(), mode.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (mode == "medusahc" || mode == "medusa" || mode == "mhc" ||
+                mode == "medusahc-fork" || mode == "medusa-fork") {
+                config.use_real_ams = true;
+                spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
+                             "tool-changer backend)",
+                             mode);
+            }
         }
     }
 

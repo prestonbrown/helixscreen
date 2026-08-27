@@ -454,6 +454,7 @@ translations:
   Change Filament: Change Filament
   Change Tool: Change Tool
   Change Tool While Paused: Change Tool While Paused
+  Change tool: Change tool
   Changes apply immediately. Adjust during print for tuning.: Changes apply immediately.
     Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset
@@ -756,6 +757,8 @@ translations:
   Do not power off your printer.: Do not power off your printer.
   Do not touch the printer during calibration: Do not touch the printer during calibration
   Dock: Dock
+  Dock sensors cannot tell which tool is mounted: Dock sensors cannot tell which tool is mounted
+  Dock tool: Dock tool
   Docking tool: Docking tool
   Documentation: Documentation
   Don't Save: Don't Save
@@ -1139,6 +1142,7 @@ translations:
   Good Accuracy: Good Accuracy
   Got it: Got it
   Gray: Gray
+  Grip filament: Grip filament
   Grip the filament: Grip the filament
   Guides and reference: Guides and reference
   H: H
@@ -1580,6 +1584,7 @@ translations:
   Motors Off: Motors Off
   'Motors disable failed: {}': 'Motors disable failed: {}'
   Motors disabled: Motors disabled
+  Mount: Mount
   Move: Move
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Move
     paper back and forth while adjusting. Stop when paper catches slightly but still
@@ -1871,6 +1876,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Pick
   Pick Color: Pick Color
+  Pick up tool: Pick up tool
   Picking up tool: Picking up tool
   Pill: Pill
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels before
@@ -2144,6 +2150,7 @@ translations:
   'Reheating...': 'Reheating...'
   Release all stepper motors. Position will be lost.: Release all stepper motors.
     Position will be lost.
+  Release filament: Release filament
   Release or grip the filament by hand: Release or grip the filament by hand
   Release the filament: Release the filament
   Remaining (g): Remaining (g)
@@ -2895,6 +2902,7 @@ translations:
   Unloads After Print: Unloads After Print
   Unlock: Unlock
   Unmapped: Unmapped
+  Unmount: Unmount
   Unretract Extra: Unretract Extra
   Unretract Speed: Unretract Speed
   Unsupported tape width: Unsupported tape width

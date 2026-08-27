@@ -166,6 +166,14 @@ class AmsContextMenu : public ContextMenu {
     // are set in on_created() immediately before the menu is shown.
     static lv_subject_t slot_is_loaded_subject_; ///< 1 = loaded (Unload enabled), 0 = not loaded
     static lv_subject_t slot_can_load_subject_;  ///< 1 = has filament (Load enabled), 0 = empty
+    /// 1 = this backend's load/unload mount and unmount a tool, so the menu
+    /// shows the tool wording instead of the filament wording.
+    static lv_subject_t slot_mounts_tool_subject_;
+    /// One-line reason the unload is unavailable, and whether to show it.
+    /// Text and visibility are separate because bind_flag needs an int.
+    static lv_subject_t slot_unload_hint_subject_;
+    static lv_subject_t slot_unload_hint_visible_subject_;
+    static char slot_unload_hint_buf_[128];
     static bool subjects_initialized_;
 
     // === Backend reference for dropdown operations ===

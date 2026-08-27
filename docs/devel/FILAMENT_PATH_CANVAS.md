@@ -355,7 +355,7 @@ three-function pass.
 
 ## Topology Renderers
 
-The supported topologies are `PathTopology` (`include/ams_types.h:493`):
+The supported topologies are `PathTopology` (`include/ams_types.h:544`):
 
 ```cpp
 enum class PathTopology {
@@ -367,7 +367,7 @@ enum class PathTopology {
 ```
 
 Filament position along a path is tracked by `PathSegment`
-(`include/ams_types.h:571`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
+(`include/ams_types.h:622`): `NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD,
 NOZZLE`.
 
 | Topology | Renderer | Shape |

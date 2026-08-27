@@ -482,6 +482,7 @@ translations:
   Change Printer Host: Changer l'hôte de l'imprimante
   Change Tool: Changer d'outil
   Change Tool While Paused: Changer d'outil en pause
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Les modifications s'appliquent
     immédiatement. Ajustez pendant l'impression pour le réglage.
   Changes are temporary and reset on printer reboot: Les modifications sont temporaires
@@ -794,6 +795,8 @@ translations:
   Do not touch the printer during calibration: Ne touchez pas l'imprimante pendant
     la calibration
   Dock: Ranger
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Rangement de l'outil
   Documentation: Documentation
   Don't Save: Ne pas enregistrer
@@ -1190,6 +1193,7 @@ translations:
   Good Accuracy: Bonne précision
   Got it: Compris
   Gray: Gris
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: Guides et référence
   H: H
@@ -1641,6 +1645,7 @@ translations:
   Motors Off: Moteurs éteints
   'Motors disable failed: {}': 'Échec de la désactivation des moteurs : {}'
   Motors disabled: Moteurs désactivés
+  Mount: ''
   Move: Déplacer
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Déplacez
     le papier d'avant en arrière pendant l'ajustement. Arrêtez quand le papier accroche
@@ -1937,6 +1942,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Choisir
   Pick Color: Choisir la couleur
+  Pick up tool: ''
   Picking up tool: Prise de l'outil
   Pill: Pilule
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels avant
@@ -2220,6 +2226,7 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Relâcher tous les moteurs pas
     à pas. La position sera perdue.
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): Restant (g)
@@ -3004,6 +3011,7 @@ translations:
   Unloads After Print: Décharge après l'impression
   Unlock: Déverrouiller
   Unmapped: Non mappé
+  Unmount: ''
   Unretract Extra: Extra de dérétraction
   Unretract Speed: Vitesse de dérétraction
   Unsupported tape width: Largeur de ruban non prise en charge

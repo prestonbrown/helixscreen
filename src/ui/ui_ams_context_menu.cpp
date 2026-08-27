@@ -27,6 +27,10 @@ bool AmsContextMenu::callbacks_registered_ = false;
 bool AmsContextMenu::subjects_initialized_ = false;
 lv_subject_t AmsContextMenu::slot_is_loaded_subject_;
 lv_subject_t AmsContextMenu::slot_can_load_subject_;
+lv_subject_t AmsContextMenu::slot_mounts_tool_subject_;
+lv_subject_t AmsContextMenu::slot_unload_hint_subject_;
+lv_subject_t AmsContextMenu::slot_unload_hint_visible_subject_;
+char AmsContextMenu::slot_unload_hint_buf_[128];
 
 // ============================================================================
 // Construction / Destruction
@@ -38,9 +42,17 @@ void AmsContextMenu::init_subjects() {
 
     lv_subject_init_int(&slot_is_loaded_subject_, 0);
     lv_subject_init_int(&slot_can_load_subject_, 1);
+    lv_subject_init_int(&slot_mounts_tool_subject_, 0);
+    lv_subject_init_int(&slot_unload_hint_visible_subject_, 0);
+    lv_subject_init_string(&slot_unload_hint_subject_, slot_unload_hint_buf_, nullptr,
+                           sizeof(slot_unload_hint_buf_), "");
 
     lv_xml_register_subject(nullptr, "ams_slot_is_loaded", &slot_is_loaded_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_can_load", &slot_can_load_subject_);
+    lv_xml_register_subject(nullptr, "ams_slot_mounts_tool", &slot_mounts_tool_subject_);
+    lv_xml_register_subject(nullptr, "ams_slot_unload_hint", &slot_unload_hint_subject_);
+    lv_xml_register_subject(nullptr, "ams_slot_unload_hint_visible",
+                            &slot_unload_hint_visible_subject_);
 
     subjects_initialized_ = true;
 }
@@ -299,9 +311,35 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
             break;
         case UnloadMode::Unload:
         case UnloadMode::Unavailable:
-            break; // XML defaults: "Unload"
+            // XML defaults: "Unload" - unless this backend's unload is an
+            // unmount, in which case say so.
+            if (backend_ && backend_->load_mounts_tool()) {
+                ui_button_set_text(btn_unload, lv_tr("Unmount"));
+            }
+            break;
         }
     }
+
+    // A changer's load/unload mount and unmount a tool: no filament is fed and
+    // nothing is heated or purged, so the filament wording actively misleads.
+    // Asked as a capability, not a type - the Snapmaker U1 is a tool changer
+    // whose load DOES feed filament and keeps the default labels.
+    const bool mounts_tool = backend_ && backend_->load_mounts_tool();
+    lv_subject_set_int(&slot_mounts_tool_subject_, mounts_tool ? 1 : 0);
+    if (mounts_tool) {
+        if (lv_obj_t* btn_load = lv_obj_find_by_name(menu_obj, "btn_load")) {
+            ui_button_set_text(btn_load, lv_tr("Mount"));
+        }
+    }
+
+    // A disabled button with no stated reason reads as a bug. Only populated
+    // when the backend has something actionable to say - "nothing is loaded" is
+    // not worth a line, because there is visibly nothing to unload.
+    const std::string unload_hint =
+        (!unload_enabled && backend_) ? backend_->unload_blocked_reason(slot_index) : std::string();
+    // Already translated by the backend, which had the literal to extract.
+    lv_subject_copy_string(&slot_unload_hint_subject_, unload_hint.c_str());
+    lv_subject_set_int(&slot_unload_hint_visible_subject_, unload_hint.empty() ? 0 : 1);
 
     // QIDI Box: a lane with ejectable filament but [force_move] enable_force_move
     // off means eject is unavailable (supports_lane_eject() is false). Surface a

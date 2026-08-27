@@ -363,6 +363,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["mmu"] = get_mock_mmu_status();
             }
 
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-stock|-fork]). Emitted only for
+            // the objects this variant actually ships, so a consumer that reads
+            // the wrong schema finds nothing rather than a convenient default.
+            if (objects.contains("medusahc")) {
+                if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
+                    status_obj["medusahc"] = medusa;
+                }
+            }
+            for (auto it = objects.begin(); it != objects.end(); ++it) {
+                if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {
+                    continue;
+                }
+                if (auto pw = self->pin_watch_status_json(); !pw.empty()) {
+                    status_obj[it.key()] = pw;
+                }
+            }
+
             // MCU objects (for discovery - chip type and firmware version)
             for (const auto& [key, val] : objects.items()) {
                 if (key == "mcu" || key.rfind("mcu ", 0) == 0) {
@@ -555,6 +572,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // mmu (Happy Hare MMU status — --real-ams)
             if (objects.contains("mmu")) {
                 status_obj["mmu"] = get_mock_mmu_status();
+            }
+
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-stock|-fork]). Emitted only for
+            // the objects this variant actually ships, so a consumer that reads
+            // the wrong schema finds nothing rather than a convenient default.
+            if (objects.contains("medusahc")) {
+                if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
+                    status_obj["medusahc"] = medusa;
+                }
+            }
+            for (auto it = objects.begin(); it != objects.end(); ++it) {
+                if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {
+                    continue;
+                }
+                if (auto pw = self->pin_watch_status_json(); !pw.empty()) {
+                    status_obj[it.key()] = pw;
+                }
             }
 
             // Width sensors (hall_filament_width_sensor, tsl1401cl_filament_width_sensor)

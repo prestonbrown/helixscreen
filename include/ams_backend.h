@@ -384,6 +384,14 @@ class AmsBackend {
     /// step model and the sidebar falls back to the legacy coarse AmsAction model.
     struct OperationStepModel {
         std::vector<OperationStep> steps;
+        /// No steps AND nothing worth falling back to. Empty `steps` on its own
+        /// means "I have no model, use the legacy coarse bar"; `suppressed`
+        /// means "I have no phases, and that legacy bar would describe a
+        /// different kind of machine than this one." The sidebar renders no step
+        /// bar at all for a suppressed model - a tool changer with no phase
+        /// source has nothing to say, and Heat/Feed/Purge is not a truer answer
+        /// than silence.
+        bool suppressed = false;
     };
 
     /**
@@ -423,6 +431,56 @@ class AmsBackend {
      * @return subject pointer, or nullptr for the legacy fallback
      */
     [[nodiscard]] virtual lv_subject_t* get_operation_step_index_subject(StepOperationType op);
+
+    /**
+     * @brief Does `action` mean an operation the STEP BAR should be following?
+     *
+     * Drives both halves of the step bar from one definition: whether the bar is
+     * visible, and whether an IDLE -> operation transition counts as an
+     * operation STARTING. Those two were separate hardcoded lists that had
+     * drifted apart, which is how a tool changer ended up with a bar that
+     * appeared for half of each swap.
+     *
+     * Default is ams_action_is_filament_operation() - heat, feed, purge, cut,
+     * form tip, retract. A backend whose operations are reported with a
+     * different action set overrides this, rather than the sidebar growing a
+     * branch per backend family.
+     *
+     * Broader than "is anything happening": that is ams_action_is_busy(), which
+     * the slot pulse uses and which no backend needs to override.
+     */
+    [[nodiscard]] virtual bool action_tracks_step_operation(AmsAction action) const {
+        return ams_action_is_filament_operation(action);
+    }
+
+    /**
+     * @brief True when load/unload MOUNT and UNMOUNT a tool instead of moving filament.
+     *
+     * A hotend or toolhead changer's "load" is `SELECT_TOOL`: no filament is fed,
+     * nothing is heated by us, nothing purges. Surfaces are expected to say so -
+     * calling that button "Load" invites the reasonable reading that the tool
+     * gets picked up, heated and then actually loaded with filament, which is
+     * not what happens.
+     *
+     * NOT the same question as `is_tool_changer()`. The Snapmaker U1 is a tool
+     * changer whose load really does feed filament through the selected
+     * toolhead, so it stays false here and keeps the filament wording.
+     */
+    [[nodiscard]] virtual bool load_mounts_tool() const {
+        return false;
+    }
+
+    /**
+     * @brief Why this slot's unload is unavailable, in one line, or empty.
+     *
+     * A disabled button with no explanation reads as a bug. This is for the case
+     * where the refusal is a real machine state the user can act on, not merely
+     * "nothing is loaded" - which the UI already conveys by having nothing to
+     * unload. Empty means "no explanation worth showing"; surfaces omit the hint.
+     */
+    [[nodiscard]] virtual std::string unload_blocked_reason(int /*slot_index*/) const {
+        return {};
+    }
 
     /**
      * @brief True when this backend already populates remaining_weight_g from a live
