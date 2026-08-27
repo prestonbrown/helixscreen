@@ -5,6 +5,177 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.117] - 2026-08-26
+
+<!-- whatsnew
+The fourth 1.0 release candidate. Highlights:
+
+- A bed mesh that runs long no longer throws away the print behind it
+- Saving a Z offset stops warning you it failed when it actually worked
+- Chambers and beds get their own heat limit, not one 400C catch-all
+- Touch lands where you press on screens that report their size wrong
+- AD5X bed screw hints said tighten when they meant loosen
+- Large G-code files open faster, and every layer of the preview is drawn
+-->
+
+**This is the fourth 1.0 release candidate**, following 0.99.116. Most of the work is in one
+theme: HelixScreen telling you the truth about what the printer just did. A pre-print step that
+took too long threw the print away without saying so; a Z offset save, a `SAVE_CONFIG` and a
+macro that restarts Klipper all completed correctly but reported failure, because a restart drops
+the reply they were waiting on. The rest is fit and finish across printers - touch ranges, bed
+screw directions, dashboards - and a faster G-code preview.
+
+### Added
+
+**Printers**
+
+- **Printers run their own preparation before probing** - a printer that declares a preparation
+  routine now runs it ahead of a probe or a mesh, so probing starts from the state that printer's
+  firmware expects rather than from whatever the nozzle was left in.
+- **The Snapmaker U1's home screen shows all four toolheads** - HelixScreen drew the U1 with a
+  generic single-extruder layout: one nozzle temperature, no tool switcher, and its four RFID
+  spools squeezed into a single small cell. It now reads Nozzle 1-4 and Bed, with a four-wide
+  spool strip and a tool switcher.
+- **AD5X reads native ZMOD's filament system** (#1344) - lane state comes from ZMOD's own status
+  objects, so the IFS reports what is actually loaded.
+- **New printer art** - a frame for the DuCR10, and real artwork for the Duender entries that
+  were using a stand-in.
+
+**Screens and controls**
+
+- **Type exact values on Machine Limits and Retraction** - both screens were slider-only, so a
+  precise figure meant nudging until it landed.
+- **One-tap macro buttons** - a macro button set to run directly now does, instead of opening the
+  macro list first.
+- **LED devices pair their own macros** - a discovered `<NAME>_ON` / `<NAME>_OFF` pair is offered
+  as one device rather than two unrelated macros, and a macro name that was never detected can be
+  typed in by hand.
+
+**Diagnostics**
+
+- **Debug bundles record the touch range** (#1259, #1276) - both the range the panel declares and
+  the range it actually reports, which is the pair needed to diagnose a screen that responds in
+  the wrong place.
+
+### Fixed
+
+**Starting a print**
+
+- **A slow pre-print step no longer discards your print** - a pre-print block that finished
+  between three and twenty minutes had its print silently dropped, with nothing shown on screen.
+  On a K2 Plus that window is an ordinary bed mesh; one 32-hour job was thrown away this way. A
+  slow step and a cancelled one are now told apart by what happened, not by how long it took.
+
+**Saving to the printer**
+
+- **A successful save no longer reports as a failure** (#1359) - `SAVE_CONFIG` restarts Klipper,
+  which drops the reply HelixScreen was waiting on. The dropped reply was read as an error, so
+  every successful save raised a failure toast. The save is now judged by Klipper coming back.
+- **A macro that restarts Klipper no longer reports that it failed** (#1345) - the same dropped
+  reply, on any macro that wraps a restart.
+- **Macros that restart the host ask first** (#1345) - a macro that will restart Klipper or the
+  host now confirms before running, rather than taking the printer down without warning.
+
+**Temperature**
+
+- **Each heater is held to its own ceiling** (#1355) - every heater was checked against one
+  permissive 400C limit, so a chamber or a bed would accept a target far above what its own
+  config allows. Each heater now carries the maximum its printer declares, whatever case that
+  printer wrote the section header in.
+- **Temperature floors clamp at 0C** (#1353) - a printer reporting a negative minimum could push
+  the floor below zero.
+- **A misreporting sensor stops flooding the log** (#1348) - runs of out-of-range samples collapse
+  into a few lines instead of one per reading.
+
+**Touch and display**
+
+- **Touch lands where you press on panels that misreport their range** (#1259, #1276) - the full
+  evdev range is now solved from the calibration you ran, not only from the affine correction, so
+  a panel whose declared range is wrong is corrected end to end.
+- **A pointer device is no longer configured as a touchscreen** - a libinput pointer was being
+  sent touchscreen-only calibration calls it cannot answer.
+- **The touch jitter filter is gone** (#1358) - it was unreachable, so it did nothing but add a
+  setting.
+
+**Printers**
+
+- **AD5X bed screws turn the right way** - the AD5X was the only FlashForge entry missing a screw
+  direction, so the panel said tighten when the correct action was loosen. Confirmed on hardware.
+- **Bed screw adjustment names the right screw, and the shorter turn** - the reference screw was
+  misidentified and the instruction always offered the long way around.
+- **MedusaHC hotend changers are detected on their own** - a MedusaHC that runs without
+  klipper-toolchanger was not seen as a changer at all: no dock sensors, no feeder, just six
+  plain extruders.
+- **AD5X shows heater tiles first** - the status block led with fields that pushed the
+  temperatures out of view.
+- **The Centauri Carbon dashboard fills its screen** - it was laid out for a smaller panel.
+- **AD5X reports an empty slot as empty** (#1344) - the firmware's "no material" sentinel was
+  read as a material name.
+- **K1, K1C and K1 Max use their whole home screen** - the landscape layout was authored for a
+  narrower grid, leaving six of twenty-four cells dead and hard-wrapping the tips box mid-word.
+
+**Filament**
+
+- **A lane is named by what is mapped to it** - a mapped lane showed only its colour, so two
+  lanes of the same colour were indistinguishable.
+- **A stand-in colour no longer overrides the file's own** - a placeholder could replace a colour
+  the G-code actually stated.
+- **Printers with a cutter stop asking you to cut by hand**.
+- **Filament totals survive a cached file** - opening a file whose tool usage was already cached
+  left the palette and the gram estimate blank.
+- **The bypass-spool warning is translated** - it appeared in English in all nine languages.
+
+**G-code preview**
+
+- **Every layer of the model is drawn** - the preview's sampling step rounded up, which skipped
+  rows of the model on some files.
+- **Large files open faster** - indexing no longer re-parses a streamed file behind the UI, and
+  the preview pass is sized to the screen rather than to a fixed constant.
+- **Closing a preview while it loads no longer crashes** (#1347).
+
+**Screens**
+
+- **An unnamed bed mesh profile no longer overwrites the default** (#1360) - tapping Save with the
+  name box empty wrote over the stored `default` mesh without confirming, and a name of nothing
+  but spaces was accepted.
+- **The job queue count appears** (#1349) - the count was never published, so the queue widget and
+  its modal never refreshed and the Job Queue row stayed hidden however you had set it.
+- **The LED device editor keeps what you add** - the Add button discarded every new entry, so
+  tapping + only told you to tap +. Its fields also sat on two rows, and macro exclusions matched
+  fragments of names rather than whole words.
+- **Leaving a keypad by the navbar no longer costs the next visit its refresh** - Machine Limits
+  and Retraction would then show last-known values instead of querying the printer.
+- **A long filename spans the idle card** - it was confined beside the thumbnail, at under half
+  the width the card had.
+- **Switching printers clears the previous printer's excluded objects** - they stayed on screen
+  indefinitely on a printer with no exclude-object support.
+- **Print history stops fetching itself twice** - on an AD5X a 500-job list took ten seconds and
+  most of a megabyte, then immediately went out again for a list nothing had changed, stalling
+  the printer's own queries behind it.
+- **Console history is filtered like live console output** - firmware noise was stripped from new
+  lines but not from the history fetched when the screen opens.
+- **A nozzle-cleaning macro you assign yourself enables nozzle cleaning** (#1354).
+- **A camera is only reported when its service is actually running** (#1351).
+
+**Installing and updating**
+
+- **The backlight rule is installed** (#1343) - the step that installs permission rules was never
+  called, so screen brightness control did not work on a fresh install.
+- **The K2 can install again** - a K2 whose `wget` is a Python shim could not fetch the manifest,
+  and the fallback then read two kilobytes of release notes as the version number.
+- **The K1 installer checks the partition it actually writes to** - `/etc/init.d` lives on a
+  ~97MB overlay while the install directory has gigabytes free. It measured the wrong one, so a
+  full overlay passed preflight and the install died after stopping the stock UI, leaving a dark
+  screen.
+- **Caches from an older layout are reclaimed** - a K1 that had run an older build kept a second
+  cache on its smallest partition, competing with the firmware for space.
+
+**Crash reporting**
+
+- **Duplicate crash reports collapse** - reports were grouped by raw address, which changes with
+  the architecture, so a single fault filed a separate issue per printer family.
+- **A connection-state race in the WebSocket client is closed**.
+
 ## [0.99.116] - 2026-08-24
 
 <!-- whatsnew
@@ -5628,6 +5799,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.99.117]: https://github.com/prestonbrown/helixscreen/compare/v0.99.116...v0.99.117
 [0.99.116]: https://github.com/prestonbrown/helixscreen/compare/v0.99.115...v0.99.116
 [0.99.115]: https://github.com/prestonbrown/helixscreen/compare/v0.99.114...v0.99.115
 [0.99.114]: https://github.com/prestonbrown/helixscreen/compare/v0.99.113...v0.99.114
