@@ -10,8 +10,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
-#include <mutex>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -909,6 +909,34 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// MoonrakerClientMock*, not members.
     double tool_z_offset(int tool) const;
 
+    /// Klipper's configfile.save_config_pending - whether a SAVE_CONFIG is owed.
+    /// Set by anything routed through configfile.set() (here:
+    /// SAVE_TOOL_PARAMETER), cleared when SAVE_CONFIG commits.
+    bool save_config_pending() const;
+
+    /// Klipper's configfile.save_config_pending_items, {section: {option:
+    /// value}} with STRING values - configfile.set() stores str(value).
+    nlohmann::json save_config_pending_items() const;
+
+    /**
+     * @brief Simulate a Klipper restart - the ONE model of what a restart does
+     *
+     * Sets klippy_state to STARTUP, clears the active print, zeroes heater
+     * targets, drops excluded objects, reloads everything Klipper would re-read
+     * from printer.cfg (per-tool z-offsets), dispatches the webhooks status
+     * update a real restart arrives as, then returns to READY after a delay on a
+     * tracked thread (not an lv_timer - this must work in tests that never pump
+     * LVGL).
+     *
+     * Public because the printer.restart / printer.firmware_restart handlers are
+     * free-function lambdas taking a MoonrakerClientMock*, not members. They
+     * delegate here rather than each faking a restart differently.
+     *
+     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s),
+     *                    both divided by the speedup factor
+     */
+    void trigger_restart(bool is_firmware);
+
   private:
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
@@ -1072,17 +1100,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void dispatch_print_state_notification(const std::string& state);
 
     /**
-     * @brief Trigger Klipper restart simulation
-     *
-     * Sets klippy_state to STARTUP, clears active print, sets heater targets to 0,
-     * then spawns a thread to restore READY state after delay. Temps continue
-     * cooling naturally during the restart period.
-     *
-     * @param is_firmware true for FIRMWARE_RESTART (3s), false for RESTART (2s)
-     */
-    void trigger_restart(bool is_firmware);
-
-    /**
      * @brief Set fan speed internally and dispatch status update
      * @param fan_name Full fan name (e.g., "fan", "fan_generic nevermore")
      * @param speed Normalized speed 0.0-1.0
@@ -1102,6 +1119,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void dispatch_gcode_move_update();
     /// Republish one tool's gcode_z_offset after SET_TOOL_PARAMETER.
     void dispatch_tool_update(int tool);
+
+    /// Klipper's configfile.set(): stage one option for the next SAVE_CONFIG.
+    /// Does NOT change any runtime value - on a real printer the runtime write
+    /// already happened (SET_TOOL_PARAMETER) and this only marks the config
+    /// dirty.
+    void stage_config_change(const std::string& section, const std::string& option,
+                             const std::string& value);
+
+    /// Klipper's cmd_SAVE_CONFIG: fold the staged options into the durable
+    /// stores and clear the pending set. The restart is the caller's, matching
+    /// Klipper, where writing the file and restarting are separate steps.
+    void commit_pending_config();
+
+    /// Republish configfile.save_config_pending{,_items}.
+    void dispatch_configfile_update();
 
     /**
      * @brief Dispatch manual_probe status update (for Z-offset calibration)
@@ -1463,6 +1495,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// display can have — look correct.
     mutable std::mutex tool_z_offsets_mutex_;
     std::map<int, double> tool_z_offsets_;
+    /// The durable copy - what printer.cfg holds, i.e. what the tool comes back
+    /// with after a restart. SAVE_CONFIG commits the staged values into here.
+    ///
+    /// Keeping this SEPARATE from the runtime map is the whole point: without
+    /// it an offset that was set and never saved survived a restart too, so the
+    /// mock could not tell a persisted save from a forgotten one and no test of
+    /// the persist path could fail.
+    std::map<int, double> tool_z_offsets_saved_;
+
+    /// Klipper's configfile.save_config_pending_items - {section: {option:
+    /// value}}, values stringified as configfile.set() does.
+    mutable std::mutex pending_config_mutex_;
+    std::map<std::string, std::map<std::string, std::string>> pending_config_items_;
 
     // Manual probe state (for Z-offset calibration: PROBE_CALIBRATE, TESTZ, ACCEPT, ABORT)
     std::atomic<bool> manual_probe_active_{false}; // true when in probe mode

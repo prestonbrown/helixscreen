@@ -399,28 +399,65 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
             continue;
         }
         api->execute_gcode(gcode, nullptr, nullptr);
-        // Marked here rather than in a callback: execute_gcode's error path only
-        // logs, so there is no rejection signal to wait for. A later status
-        // frame carrying a different value re-dirties the tool anyway.
-        ts.mark_tool_z_saved(tool);
     }
+
+    // Marked saved only once the save is ACKNOWLEDGED, never on send.
+    //
+    // The old code cleared the flag immediately, on the theory that a later
+    // status frame carrying a different value would re-dirty the tool. That is
+    // false for klipper-toolchanger: the save re-sends the value the tool
+    // already holds, so a rejected SAVE_TOOL_PARAMETER produces no status delta
+    // to recover from — the flag stayed clear, the toast said saved, and the
+    // offset was lost on the next restart with no further signal. Leaving the
+    // tool dirty on failure keeps the button up so the user can retry.
+    auto mark_saved = [dirty_tools]() {
+        auto& tool_state = helix::ToolState::instance();
+        for (int tool : dirty_tools) {
+            tool_state.mark_tool_z_saved(tool);
+        }
+    };
+    auto on_saved = [mark_saved, ok = std::move(on_success)]() {
+        mark_saved();
+        if (ok) {
+            ok();
+        }
+    };
 
     if (global_dirty) {
         // Commits its own change AND any tool parameters staged above.
-        apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
+        apply_and_save(api, save_watch, strategy, std::move(on_saved), std::move(on_error), ps);
         return;
     }
 
     if (!dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw)) {
         // Nothing machine-wide to apply, but the staged tool parameters still
-        // need committing — and that restarts Klipper, so the caller must be
-        // told to expect it exactly as apply_and_save() would.
-        api->execute_gcode("SAVE_CONFIG", nullptr, nullptr);
+        // need committing — and SAVE_CONFIG restarts Klipper.
+        //
+        // Through the watch, never a bare execute_gcode(): Klipper's
+        // cmd_SAVE_CONFIG calls request_restart() as its last act and never
+        // acks, so Moonraker fails the pending rpc with 503
+        // (include/save_config_restart.h). Sending it raw left the restart
+        // unsuppressed, dropped the rejection on the floor, and reported
+        // success before the command had reached the printer — the same shape
+        // as prestonbrown/helixscreen#1359. begin() arms the suppression, sends
+        // the save itself, and reports success only once Klipper is back READY.
+        save_watch.begin(
+            api, "Saving tool offsets... Klipper will restart.", std::move(on_saved),
+            [on_error](const std::string& err) {
+                spdlog::error("[ZOffsetUtils] SAVE_CONFIG (tool offsets) failed: {}", err);
+                if (on_error) {
+                    on_error(fmt::format(
+                        lv_tr("SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. "
+                              "Run SAVE_CONFIG manually or they will be lost on restart."),
+                        err));
+                }
+            });
+        return;
     }
 
-    if (on_success) {
-        on_success();
-    }
+    // No SAVE_CONFIG needed on this firmware — SAVE_VARIABLE lands immediately,
+    // so the write IS the acknowledgement.
+    on_saved();
 }
 
 } // namespace helix::zoffset

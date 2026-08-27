@@ -399,9 +399,10 @@ void PrintTuneOverlay::update_z_offset_display(int microns) {
     current_z_offset_ = microns / 1000.0;
 
     if (subjects_initialized_) {
-        helix::format::format_distance_mm(current_z_offset_, 3, tune_z_offset_buf_,
-                                          sizeof(tune_z_offset_buf_));
-        lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+        // Not written directly: with the tool target selected the heading
+        // belongs to the tool, and clobbering it here would put the
+        // machine-wide value back under a T<n> label.
+        update_tool_z_displays();
     }
 
     spdlog::trace("[PrintTuneOverlay] Z-offset display updated: {}um ({}mm)", microns,
@@ -482,10 +483,7 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
         return; // already at the session-travel limit
     }
     current_z_offset_ = r.new_offset_mm;
-
-    helix::format::format_distance_mm(current_z_offset_, 3, tune_z_offset_buf_,
-                                      sizeof(tune_z_offset_buf_));
-    lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+    update_tool_z_displays();
 
     if (tune_panel_) {
         lv_obj_t* indicator = lv_obj_find_by_name(tune_panel_, "z_offset_indicator");
@@ -530,25 +528,46 @@ void PrintTuneOverlay::update_tool_z_displays() {
     }
     auto& ts = helix::ToolState::instance();
     const int tool_index = lv_subject_get_int(ts.get_active_tool_subject());
+    const bool per_tool = lv_subject_get_int(ts.get_per_tool_z_supported_subject()) == 1;
+    const bool tool_known = lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) == 1;
 
     std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "T%d", tool_index);
     lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
 
-    // The muted label carries whichever target the buttons are NOT on, so both
-    // numbers are readable without a second row.
-    const bool on_tool = lv_subject_get_int(&z_tune_target_subject_) == 1;
-    if (on_tool) {
-        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "%s %s", lv_tr("Global"),
-                 tune_z_offset_buf_);
-    } else if (lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) == 1) {
-        char tool_mm[16];
+    char global_mm[16];
+    helix::format::format_distance_mm(current_z_offset_, 3, global_mm, sizeof(global_mm));
+
+    char tool_mm[16] = {};
+    if (tool_known) {
         helix::format::format_distance_mm(
             lv_subject_get_int(ts.get_active_tool_z_offset_subject()) / 1000.0, 3, tool_mm,
             sizeof(tool_mm));
+    }
+
+    // The HEADING carries whichever target the buttons drive. Showing the
+    // machine-wide value there while the user is adjusting a tool was the whole
+    // bug: the tool's own number appeared nowhere on screen, so a press moved a
+    // value the panel never displayed.
+    const bool on_tool = per_tool && lv_subject_get_int(&z_tune_target_subject_) == 1;
+    if (on_tool) {
+        // "--" rather than 0.000: nothing has been reported for this tool, and
+        // 0 is a legitimate offset we must not fake.
+        lv_strlcpy(tune_z_offset_buf_, tool_known ? tool_mm : "--", sizeof(tune_z_offset_buf_));
+    } else {
+        lv_strlcpy(tune_z_offset_buf_, global_mm, sizeof(tune_z_offset_buf_));
+    }
+    lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+
+    // The muted label carries the target the buttons are NOT on, so both
+    // numbers are readable at once. Empty on a printer with only one of them.
+    if (!per_tool) {
+        tune_z_other_buf_[0] = '\0';
+    } else if (on_tool) {
+        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "%s %s", lv_tr("Global"),
+                      global_mm);
+    } else if (tool_known) {
         std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "T%d %s", tool_index, tool_mm);
     } else {
-        // Never reported. Showing 0.000 here would be a claim we cannot make —
-        // 0 is a legitimate offset, so the blank is the honest answer.
         tune_z_other_buf_[0] = '\0';
     }
     lv_subject_copy_string(&tune_z_other_subject_, tune_z_other_buf_);
@@ -590,9 +609,11 @@ void PrintTuneOverlay::handle_tool_z_offset_changed(double delta) {
     }
     api_->execute_gcode(gcode, nullptr, nullptr);
 
-    // Optimistic local update: the firmware echoes the new value back on its
-    // next status frame, but the button must not feel dead until then.
-    lv_subject_set_int(ts.get_active_tool_z_offset_subject(), new_microns);
+    // Through ToolState, not straight at the subject: tools_ is what
+    // dirty_tool_z_indices() and the save path read, so poking only the
+    // published subject left this adjustment invisible to Save until the
+    // firmware echoed back — and a save in that window discarded it silently.
+    ts.set_tool_z_offset_local(tool_index, new_microns);
     update_tool_z_displays();
 
     if (tune_panel_) {

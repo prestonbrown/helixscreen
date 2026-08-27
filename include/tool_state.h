@@ -263,6 +263,15 @@ class ToolState {
     /// nothing has been reported for it.
     [[nodiscard]] float tool_z_offset_mm(int tool_index) const;
 
+    /// Apply a locally-issued z-offset change for @p tool_index, in microns.
+    ///
+    /// The UI writes the value here rather than poking the published subject,
+    /// so tools_ — the sole input to dirty_tool_z_indices() and
+    /// tool_z_offset_mm() — stays the single source of truth. Poking the
+    /// subject alone left the tool invisible to the save path until the
+    /// firmware echoed back, so a save in that window silently discarded it.
+    void set_tool_z_offset_local(int tool_index, int microns);
+
     /// Record that tool @p tool_index's current offset is now the persisted one.
     /// Call after the save gcode has been accepted, not before — an optimistic
     /// clear would hide a save that failed.
