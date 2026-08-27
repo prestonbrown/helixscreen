@@ -2596,6 +2596,29 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         }
     }
 
+    // Per-tool z-offset - SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.05
+    // Only gcode_z_offset is modelled; the real command takes any tool
+    // parameter, but nothing else is read back anywhere in the app.
+    if (gcode.find("SET_TOOL_PARAMETER") != std::string::npos &&
+        gcode.find("PARAMETER=gcode_z_offset") != std::string::npos) {
+        auto t_pos = gcode.find("T=");
+        auto v_pos = gcode.find("VALUE=");
+        if (t_pos != std::string::npos && v_pos != std::string::npos) {
+            try {
+                int tool = std::stoi(gcode.substr(t_pos + 2));
+                double value = std::stod(gcode.substr(v_pos + 6));
+                {
+                    std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
+                    tool_z_offsets_[tool] = value;
+                }
+                spdlog::info("[MoonrakerClientMock] SET_TOOL_PARAMETER T={} gcode_z_offset={:.3f}",
+                             tool, value);
+                dispatch_tool_update(tool);
+            } catch (...) {
+            }
+        }
+    }
+
     // Input shaper calibration - SHAPER_CALIBRATE AXIS=X or AXIS=Y
     if (gcode.find("SHAPER_CALIBRATE") != std::string::npos) {
         char axis = 'X'; // Default to X
@@ -4929,6 +4952,34 @@ void MoonrakerClientMock::dispatch_gcode_move_update() {
                          {"extrude_factor", flow / 100.0},
                          {"homing_origin", {0.0, 0.0, z_offset, 0.0}}}}};
     dispatch_status_update(gcode_move);
+}
+
+void MoonrakerClientMock::dispatch_tool_update(int tool) {
+    double value = 0.0;
+    {
+        std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
+        auto it = tool_z_offsets_.find(tool);
+        if (it == tool_z_offsets_.end()) {
+            return;
+        }
+        value = it->second;
+    }
+    // Only the field that changed, matching Moonraker: it republishes just the
+    // deltas, and code that assumes a full object here is code that would break
+    // against a real printer.
+    json update = {{"tool T" + std::to_string(tool), {{"gcode_z_offset", value}}}};
+    dispatch_status_update(update);
+}
+
+double MoonrakerClientMock::tool_z_offset(int tool) const {
+    std::lock_guard<std::mutex> lock(tool_z_offsets_mutex_);
+    auto it = tool_z_offsets_.find(tool);
+    if (it != tool_z_offsets_.end()) {
+        return it->second;
+    }
+    // Distinct per-tool seed. All-zero would make "every tool shows the same
+    // number" — the characteristic per-tool display bug — look correct.
+    return -0.025 * tool;
 }
 
 // ============================================================================
