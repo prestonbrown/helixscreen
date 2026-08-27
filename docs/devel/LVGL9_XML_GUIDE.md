@@ -471,7 +471,22 @@ The evaluator is an integer-only expression language over subjects: nonzero is t
 
 Inside a component's `<subjects>` block, `<subject_expr name="X" expr="EXPR"/>` creates an int subject `X` that recomputes and updates automatically whenever any subject referenced by `EXPR` changes. It's a sibling of `<subject>`/`<int>` entries, and it can itself be referenced by widget bindings just like any other subject.
 
-**Every subject referenced by `expr` must already be declared** before the `<subject_expr>` line — either globally (C++-registered) or earlier in the same `<subjects>` block. Forward references don't compile (the XML parser logs a warning and the derived subject is silently not registered).
+**Every subject referenced by `expr` must already be declared** before the `<subject_expr>` line — either globally (C++-registered *and registered early enough*, see below) or earlier in the same `<subjects>` block. Forward references don't compile (the XML parser logs a warning and the derived subject is silently not registered).
+
+##### Which phase registers the subject decides which construct you can use
+
+This is the trap, and it fails silently:
+
+| Construct | Resolved at | Sees subjects registered by |
+|---|---|---|
+| `<subject_expr>` | **component-load, Phase 8c** (`register_xml_components()`) | anything registered before XML components — *not* a panel's `init_subjects()` |
+| `cond=` on `bind_flag_if` / `bind_state_if` / `bind_style_if` | **view-creation**, when the widget is built | everything above, plus Phase 9a `init_subjects()` |
+
+Both phases are in [`architecture/01-declarative-ui.md`](architecture/01-declarative-ui.md) (Phase 8c registers components, Phase 9a initializes subjects).
+
+So a `<subject_expr>` referencing a subject created by some panel's or manager's `init_subjects()` **silently never registers** — the subject does not exist yet when the expression compiles. Use `cond=` for those. `ui_xml/temp_graph_overlay.xml` carries a worked example (`temp_graph_mode`), and `ui_xml/header_bar.xml` another (`any_tool_z_dirty`, from `ToolState::init_subjects()`).
+
+The reverse constraint is real too: a view created *before* Phase 9a — anything in the app chrome, e.g. `navigation_bar.xml` — cannot rely on `cond=` against a 9a subject either. There the answer is to register the subject earlier, not to change the binding.
 
 ```xml
 <subjects>
@@ -577,6 +592,21 @@ These are parse-time only -- the hidden state does not change after creation. Fo
 **❌ No `bind_text_if_eq`** - use multiple labels with `bind_flag_if_*` for conditional text.
 
 **✅ Compound conditions are supported** via the expression evaluator (see "Expression Conditionals" above) — `cond="a or b gt c"` on `bind_flag_if`/`bind_state_if`/`bind_style_if`, or a `<subject_expr>` derived subject for a condition reused in multiple places. This replaces stacking several single-subject `bind_flag_if_*` elements or writing a hand-rolled C++ derived subject for "OR of two subjects" type logic.
+
+**Reuse alone does not pick `<subject_expr>`** — check the phase table above first. If any referenced subject comes from an `init_subjects()` (Phase 9a), the derived subject silently never registers and you must repeat the `cond=` at each site instead.
+
+**❌ Never put two flag bindings for the same flag on one widget.** `bind_flag_if_eq` is two-way: it adds the flag when the subject matches and **removes** it when it does not. So a "hide when `a` is 0" binding beside a "hide when `b` is falsy" binding does not AND them — whichever fires last wins, and a non-matching `bind_flag_if_eq` will happily un-hide what the other just hid. Combine them into one expression instead:
+
+```xml
+<!-- WRONG: with can_save at 1 this un-hides, overriding the dirty test -->
+<bind_flag_if cond="dirty" flag="hidden" invert="true"/>
+<bind_flag_if_eq subject="can_save" flag="hidden" ref_value="0"/>
+
+<!-- RIGHT: one binding, both conditions -->
+<bind_flag_if cond="can_save and dirty" flag="hidden" invert="true"/>
+```
+
+Two bindings are only safe when they sit on *different* widgets (e.g. a wrapper and the button inside it), which is why that pattern appears to work in some panels.
 
 #### Repeating fragments with `<repeat>`
 
