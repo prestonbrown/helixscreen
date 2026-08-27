@@ -1034,7 +1034,7 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all build clean run test tests demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links regen-lvgl-event-codes check-lvgl-event-codes update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
+.PHONY: all build clean run test tests demo compile_commands compile_commands_full libhv-build apply-patches generate-fonts validate-fonts regen-fonts regen-doc-links check-doc-links regen-doc-anchors check-doc-anchors regen-lvgl-event-codes check-lvgl-event-codes update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup translations symbols strip dev install regen-filaments
 
 # Fast development build: -O0 skips optimization passes (~2x faster compilation)
 # Library code still builds at -O2 (via SUBMODULE_CFLAGS) since it rarely changes
@@ -1081,7 +1081,7 @@ help:
 	echo "  $${G}moonraker-inspector$${X} - Query Moonraker printer metadata"; \
 	echo "  $${G}validate-fonts$${X}    - Check all icons are in compiled fonts"; \
 	echo "  $${G}regen-fonts$${X}       - Regenerate MDI icon fonts"; \
-	echo "  $${G}regen-doc-links$${X}   - Relink the architecture guide's file citations"; \
+	echo "  $${G}regen-doc-links$${X}   - Re-pin doc citation line numbers, then relink the guide"; \
 	echo "  $${G}regen-lvgl-event-codes$${X} - Mirror lv_event_code_t into the crash worker"; \
 	echo "  $${G}quality$${X}           - Run all quality checks"; \
 	echo "  $${G}icon$${X}              - Generate app icon from logo"; \

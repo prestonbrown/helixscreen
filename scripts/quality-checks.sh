@@ -2115,6 +2115,21 @@ if [ -f "scripts/check_doc_refs.py" ]; then
     echo ""
     cat /tmp/doc_refs.out
   else
+    # A stale / unanchored / orphaned citation anchor is mechanically
+    # repairable: the line number is DERIVED from a committed content hash, so
+    # --auto-fix (what the pre-commit hook passes) re-pins it in place and the
+    # committer only has to stage the result. It still FAILS, for the same
+    # reason qc_doc_links does — the repair lands in the working tree, not the
+    # index, and passing here would commit the stale doc behind a green run.
+    # Deliberately not auto-fixed: a "gone" or "blank" anchor, which
+    # check_doc_refs.py reports without the regen hint. There the cited line's
+    # own text changed, and no generator can decide whether the sentence around
+    # it is still true.
+    if [ "$AUTO_FIX" = true ] && grep -q "Run: make regen-doc-links" /tmp/doc_refs.out; then
+      python3 scripts/doc_cite_anchors.py >>/tmp/doc_refs.out 2>&1
+      python3 scripts/gen_doc_links.py >>/tmp/doc_refs.out 2>&1
+      echo "   Re-pinned in place — 'git add' the docs plus scripts/doc_cite_anchors.tsv, then commit again." >>/tmp/doc_refs.out
+    fi
     section_time $SECTION_START
     echo ""
     cat /tmp/doc_refs.out
@@ -2680,7 +2695,7 @@ qc_trigger_re() {
     qc_test_mirrors)    echo '^tests/|^scripts/check_test_mirrors\.py$' ;;
     qc_test_widget_registry)
                         echo '^tests/|^src/|^scripts/check_test_widget_registry\.py$' ;;
-    qc_doc_refs)        echo '\.md$|^scripts/check_doc_refs\.py$' ;;
+    qc_doc_refs)        echo '\.md$|^scripts/(check_doc_refs|doc_cite_anchors)\.py$|^scripts/doc_cite_anchors\.tsv$|^scripts/doc_cite_anchor_baseline\.txt$' ;;
     qc_doc_links)       echo '^docs/devel/ARCHITECTURE\.md$|^docs/devel/architecture/|^scripts/gen_doc_links\.py$' ;;
     qc_lvgl_event_codes)
                         echo '^server/crash-worker/|^scripts/gen_lvgl_event_codes\.py$|^lib/lvgl$|^lv_conf\.h$' ;;
@@ -2709,6 +2724,18 @@ qc_wanted() {
   # A deletion can invalidate a doc citation, so doc_refs also wakes on any D.
   if [ "$1" = "qc_doc_refs" ] && git diff --cached --name-only --diff-filter=D 2>/dev/null | grep -q .; then
     return 0
+  fi
+  # A citation rots when the file it points AT moves, not when the doc changes,
+  # so a code-only commit has to wake this check or the whole content-anchor
+  # scheme never gets a chance to re-pin. The sidecar's resolved-path column is
+  # exactly the set of files a citation names — a few hundred out of ~19k — so
+  # this stays far tighter than "any .cpp" and a commit touching nothing cited
+  # still skips the check.
+  if [ "$1" = "qc_doc_refs" ] && [ -f scripts/doc_cite_anchors.tsv ]; then
+    grep -v '^#' scripts/doc_cite_anchors.tsv | cut -f4 | sort -u > "$QC_TMP/cited_paths.txt"
+    if printf '%s\n' "$QC_STAGED_ALL" | grep -qxF -f "$QC_TMP/cited_paths.txt"; then
+      return 0
+    fi
   fi
   if printf '%s\n' "$QC_STAGED_ALL" | grep -qE "$re"; then
     return 0

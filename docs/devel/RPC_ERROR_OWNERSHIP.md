@@ -161,7 +161,7 @@ The same capture-then-forward appears at every layer that wraps:
 
 | Method | Declared |
 |--------|----------|
-| `execute_gcode()` | `include/i_moonraker_api.h:206-213` |
+| `execute_gcode()` | `include/i_moonraker_api.h:211-220` |
 | `set_temperature()` | `include/i_moonraker_api.h:176-181` |
 | `set_led()` | `include/i_moonraker_api.h:190-196` |
 | `set_strobe_frequency()` | `include/i_moonraker_sub_apis.h:348-353` |
@@ -169,7 +169,7 @@ The same capture-then-forward appears at every layer that wraps:
 It defaults to `true`, which is right for the common case — a UI callback that toasts. **A
 callback that only `spdlog`s, only resets internal state, or does both must pass `false`.**
 `AmsSubscriptionBackend::handle_dispatch_error()`
-(`src/printer/ams_subscription_backend.cpp:480-493`) is exactly that shape by default: with no
+(`src/printer/ams_subscription_backend.cpp:481-493`) is exactly that shape by default: with no
 caller `on_error` it logs and sets `AmsAction::IDLE`, which no user sees.
 
 Direct `send_jsonrpc()` callers do not pass an intent at all. The tracker infers

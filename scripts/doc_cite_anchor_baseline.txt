@@ -1,0 +1,5 @@
+# Citations that cannot be content-anchored. Shrink, never grow.
+# `blank-line` = the cite points at an empty line, so it names nothing;
+# re-pin it to the line the sentence actually describes and drop the row.
+#
+# doc	cited-path:line	reason

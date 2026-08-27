@@ -146,7 +146,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
   {"on_heater_preset_clicked", on_heater_preset_clicked},
   ```
 
-  The handler at [`src/ui/temperature_service.cpp:830`](../../../src/ui/temperature_service.cpp#L830) receives the click with the button's user data.
+  The handler at [`src/ui/temperature_service.cpp:831`](../../../src/ui/temperature_service.cpp#L831) receives the click with the button's user data.
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 
