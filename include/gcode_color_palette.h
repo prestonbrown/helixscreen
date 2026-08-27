@@ -46,6 +46,29 @@ struct GCodeColorPalette {
         }
     }
 
+    /// Overlay externally-resolved per-tool colors (AMS lanes / Spoolman) onto
+    /// the slicer palette, indexed by logical tool number.
+    ///
+    /// GROWS the palette to fit @p overrides but never SHRINKS it: an override
+    /// vector covering only the tools a print actually uses must not delete
+    /// what the slicer said about the others. Truncating instead (the previous
+    /// `resize(overrides.size())`) dropped every tool at or above the override
+    /// count back to the renderer's single fallback color — which streaming
+    /// init had set to filament_palette[initial_tool_index], i.e. T0's. That is
+    /// how a 4-tool print rendered entirely in T0's filament once a 2-entry
+    /// override arrived.
+    ///
+    /// Does NOT clear has_override; the caller decides that, since a single
+    /// external color and a per-tool map mean different things to it.
+    void apply_overrides(const std::vector<uint32_t>& overrides) {
+        if (overrides.size() > tool_colors.size()) {
+            tool_colors.resize(overrides.size());
+        }
+        for (size_t i = 0; i < overrides.size(); ++i) {
+            tool_colors[i] = lv_color_hex(overrides[i]);
+        }
+    }
+
     /// Check if palette has any tool colors
     bool has_tool_colors() const {
         return !tool_colors.empty();

@@ -431,6 +431,12 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
     // makes the XY bounds below trustworthy.
     bool absolute_extrusion = true;
     float current_e = 0.0f;
+    // Running tool. Snapshotted into each new layer entry for the same reason as
+    // the fields above: the `Tn` that selects a layer's tool sits in the PREVIOUS
+    // layer's byte range, so a per-layer parse cannot see it. -1 until the file's
+    // first tool change, which is what tells the streaming controller to fall
+    // back to stats_.initial_tool_index.
+    int16_t current_tool = -1;
     // False until a move has established a real head position, so the implicit
     // (0,0) origin never enters the XY bounds.
     bool any_position_seen = false;
@@ -512,22 +518,33 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
             }
         }
 
-        // Track the first standalone T-command — streaming mode parses each
-        // layer with a fresh GCodeParser, so without this, segments after a
-        // PRINT_START toolchange in the prologue render as T0 (#776 / black-fill
-        // bug for prints sliced to a non-T0 tool).
-        if (stats_.initial_tool_index < 0 && line_len >= 2 && line[0] == 'T') {
-            size_t i = 1;
-            while (i < line_len && line[i] >= '0' && line[i] <= '9') {
-                ++i;
+        // Track the RUNNING tool, not just the file's first one. Streaming mode
+        // parses each layer with a fresh GCodeParser, so every layer entry has
+        // to carry the tool active at its own byte offset: seeding them all with
+        // the file-global first tool tags a tool changer's whole model with T0
+        // (and, before initial_tool_index existed, rendered a print sliced to a
+        // non-T0 tool entirely in T0's colour — #776).
+        //
+        // Cheap pre-filter first: tool_index_for_line() scans for a ';' across
+        // the whole line, and this loop runs over every line of a 10MB+ file.
+        // A standalone tool change is 'T' after at most leading whitespace.
+        {
+            size_t lead = 0;
+            while (lead < line_len && (line[lead] == ' ' || line[lead] == '\t')) {
+                ++lead;
             }
-            if (i > 1 && (i == line_len || line[i] == ' ' || line[i] == '\t' || line[i] == '\r' ||
-                          line[i] == ';')) {
-                try {
-                    stats_.initial_tool_index = std::stoi(line.substr(1, i - 1));
-                    spdlog::debug("[LayerIndex] Initial tool: T{}", stats_.initial_tool_index);
-                } catch (...) {
-                    // Malformed T-line — leave as -1 and keep scanning
+            if (lead < line_len && line[lead] == 'T') {
+                const int tool = tool_index_for_line(line);
+                // Clamp to what StreamingLayerEntry::start_tool can hold. Real
+                // tool indices are single digits; tool_index_for_line already
+                // rejects anything above 100000.
+                if (tool >= 0 && tool <= std::numeric_limits<int16_t>::max()) {
+                    current_tool = static_cast<int16_t>(tool);
+                    stats_.tools_used.insert(tool);
+                    if (stats_.initial_tool_index < 0) {
+                        stats_.initial_tool_index = tool;
+                        spdlog::debug("[LayerIndex] Initial tool: T{}", tool);
+                    }
                 }
             }
         }
@@ -576,6 +593,7 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
                     entry.start_y = current_y;
                     entry.start_z = current_seen_z;
                     entry.start_feature_type = current_feature_type;
+                    entry.start_tool = current_tool;
                     entry.start_e = current_e;
                     entries_.push_back(entry);
 

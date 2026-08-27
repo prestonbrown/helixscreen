@@ -367,7 +367,22 @@ The `AmsBackendSnapmaker` backend parses RFID data from `filament_detect.info` w
 
 ### Virtual Slot Mapping
 
-The U1 supports an `extruder_map_table` with 32 virtual slots mapped to 4 physical extruders. This could enable more advanced filament management workflows.
+The U1 maps 32 logical tools onto 4 physical heads through `extruder_map_table`, and that table
+— not the physical slot layout — is what decides which head prints a given `Tn`. HelixScreen
+both writes it (the pre-print `SET_PRINT_EXTRUDER_MAP` sequence, one line per used tool) and
+reads it back (`AmsBackendSnapmaker::get_tool_mapping()`), so the live preview colours each
+tool by the lane that will actually print it instead of inferring a mapping from the slicer
+palette. Two properties make the read safe:
+
+- **Write every used entry, not just the remaps.** `SET_PRINT_EXTRUDER_MAP` sets one entry and
+  resets nothing, so emitting only genuine remaps left the rest holding the *previous* print's
+  values — a job that remapped `T0`→head 2 made the next job print `T0` from head 2 as well.
+- **Only read it while a task is configured.** Idle, the table holds a default identity
+  `[0,1,2,3,…]` that is indistinguishable from "this print needs no remap" and is wrong for any
+  file whose tools do not line up with the lanes. `extruders_used` being all-false is the
+  firmware's own "no task" signal and gates the read.
+
+Full command and data-model reference: [FILAMENT_BACKEND_SNAPMAKER_U1.md](../FILAMENT_BACKEND_SNAPMAKER_U1.md) § "Firmware API: `print_task_config`".
 
 ## Moonraker Object Reference
 
@@ -389,8 +404,8 @@ The primary source for filament info. Populated by the stock firmware's task man
 | `filament_sku` | `[900001,...]` | ❌ | Snapmaker product SKU |
 | `filament_soft` | `[false,...]` | ❌ | Soft filament flag (TPU etc.) |
 | `filament_edit` | `[false,...]` | ❌ | Whether user has edited filament info |
-| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ❌ | Virtual→physical slot mapping for multi-material |
-| `extruders_used` | `[false,...]` | ❌ | Which extruders are used in current print |
+| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ✅ | **Logical tool → physical head routing for the running print.** Published by `AmsBackendSnapmaker::get_tool_mapping()`; the live preview colours each tool by the lane that actually prints it. Only read while `extruders_used` says a task is configured — idle it holds a default identity that would read as "no remap". |
+| `extruders_used` | `[false,...]` | ✅ | Which heads the current task uses. Gates whether `extruder_map_table` may be read at all (all-false = no task configured). |
 | `extruders_replenished` | `[0,1,2,3]` | ❌ | Auto-replenish mapping |
 | `auto_replenish_filament` | `true` | ❌ | Auto-replenish enabled |
 | `filament_entangle_detect` | `false` | ❌ | Entangle detection enabled |

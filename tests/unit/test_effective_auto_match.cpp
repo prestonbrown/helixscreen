@@ -143,62 +143,13 @@ TEST_CASE_METHOD(AutoMatchFixture,
 }
 
 // ============================================================================
-// PrintStatusPanel — src/ui/ui_panel_print_status.cpp
-// Consumed by build_and_apply_tool_colors() (gcode viewer per-tool colors).
+// PrintStatusPanel no longer asks this question.
 // ============================================================================
-
-TEST_CASE_METHOD(AutoMatchFixture,
-                 "PrintStatusPanel::effective_auto_match: non-editable backend always auto-matches",
-                 "[auto_match][print_status][ams]") {
-    PrintStatusPanel panel(get_printer_state(), nullptr);
-    install_backend(/*editable=*/false);
-
-    set_auto_color_map(false);
-    CHECK(PrintStatusPanelTestAccess::effective_auto_match(panel));
-
-    set_auto_color_map(true);
-    CHECK(PrintStatusPanelTestAccess::effective_auto_match(panel));
-}
-
-TEST_CASE_METHOD(AutoMatchFixture,
-                 "PrintStatusPanel::effective_auto_match: editable backend honors the setting",
-                 "[auto_match][print_status][ams]") {
-    PrintStatusPanel panel(get_printer_state(), nullptr);
-    install_backend(/*editable=*/true);
-
-    set_auto_color_map(false);
-    CHECK_FALSE(PrintStatusPanelTestAccess::effective_auto_match(panel));
-
-    set_auto_color_map(true);
-    CHECK(PrintStatusPanelTestAccess::effective_auto_match(panel));
-}
-
-TEST_CASE_METHOD(AutoMatchFixture,
-                 "PrintStatusPanel::effective_auto_match: no backend auto-matches",
-                 "[auto_match][print_status][ams]") {
-    AmsState::instance().set_backend(nullptr);
-    PrintStatusPanel panel(get_printer_state(), nullptr);
-
-    set_auto_color_map(false);
-    CHECK(PrintStatusPanelTestAccess::effective_auto_match(panel));
-}
-
-// ============================================================================
-// Agreement — the reason the rule is shared at all.
-// ============================================================================
-
-TEST_CASE_METHOD(AutoMatchFixture, "print-select and print-status resolve auto-match identically",
-                 "[auto_match][print_select][print_status][ams]") {
-    helix::ui::PrintSelectDetailView view;
-    PrintStatusPanel panel(get_printer_state(), nullptr);
-
-    for (bool editable : {false, true}) {
-        install_backend(editable);
-        for (bool setting : {false, true}) {
-            set_auto_color_map(setting);
-            INFO("editable=" << editable << " auto_color_map=" << setting);
-            CHECK(view.effective_auto_match() ==
-                  PrintStatusPanelTestAccess::effective_auto_match(panel));
-        }
-    }
-}
+//
+// The live render used to resolve its per-tool colors with the same auto-match,
+// so the two had to agree and this file tested both. It does not any more: once
+// a print is underway the routing is a fact the firmware holds, not something to
+// infer from colors, so PrintStatusPanel reads the APPLIED routing instead
+// (AmsState::routed_tool_colors -> AmsBackend::get_tool_mapping). The match
+// survives only where it answers the right question — pre-print, in the detail
+// view above, deciding what mapping to SEND. Its coverage there is what remains.

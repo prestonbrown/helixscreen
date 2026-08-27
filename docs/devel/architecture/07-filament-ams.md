@@ -110,7 +110,7 @@ filament system.
 
 ### Events in: queue first, lock and write on the main thread
 
-Backends emit events from background threads (their Moonraker subscriptions fire on libhv). The whole safety story is that `on_backend_event()` ([`src/printer/ams_state.cpp:2097`](../../../src/printer/ams_state.cpp#L2097)) touches neither the mutex nor a subject: it only posts a `helix::ui::queue_update()` lambda whose body — already on the main thread — checks `s_shutdown_flag`, then calls `sync_backend(index)` or `update_slot_for_backend(index, slot)`, which take the recursive mutex and write subjects (`:1284`, `:1322`). The mutex still matters because background threads call thread-safe `AmsState` queries (`get_backend()`, `backend_count()`, ...) concurrently with main-thread syncs. After every sync the queued body bumps `ams_data_revision_` so code waiting for backend data to land can re-read (`:2109`).
+Backends emit events from background threads (their Moonraker subscriptions fire on libhv). The whole safety story is that `on_backend_event()` ([`src/printer/ams_state.cpp:2134`](../../../src/printer/ams_state.cpp#L2134)) touches neither the mutex nor a subject: it only posts a `helix::ui::queue_update()` lambda whose body — already on the main thread — checks `s_shutdown_flag`, then calls `sync_backend(index)` or `update_slot_for_backend(index, slot)`, which take the recursive mutex and write subjects (`:1284`, `:1322`). The mutex still matters because background threads call thread-safe `AmsState` queries (`get_backend()`, `backend_count()`, ...) concurrently with main-thread syncs. After every sync the queued body bumps `ams_data_revision_` so code waiting for backend data to land can re-read (`:2109`).
 
 Routing is by captured index: `add_backend()` ([`src/printer/ams_state.cpp:776`](../../../src/printer/ams_state.cpp#L776)) registers a lambda that closes over the backend's position in `backends_` (`:784`), so events from concurrent systems cannot cross wires.
 
@@ -119,7 +119,7 @@ Event coarsening is deliberate: `STATE_CHANGED`, op completions, errors, and att
 Subject storage is two-shaped:
 
 - **Backend 0** writes the flat arrays every single-backend XML binding already knows — `slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families — inside `sync_from_backend()` ([`src/printer/ams_state.cpp:1328`](../../../src/printer/ams_state.cpp#L1328), per-slot loop at `:1551`).
-- **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h:1525`](../../../include/ams_state.h#L1525)) allocated at `add_backend()` time — dynamic `colors`/`statuses`/`fills` vectors sized to the backend's slot count. These subjects are destroyed on backend rediscovery, so the struct carries a `SubjectLifetime` token and the token-taking accessor overloads (`get_slot_color_subject(backend, slot, lifetime)` at `:1007`) hand it out; an observer that skips the token is chapter 03 bug #705 waiting.
+- **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h:1543`](../../../include/ams_state.h#L1543)) allocated at `add_backend()` time — dynamic `colors`/`statuses`/`fills` vectors sized to the backend's slot count. These subjects are destroyed on backend rediscovery, so the struct carries a `SubjectLifetime` token and the token-taking accessor overloads (`get_slot_color_subject(backend, slot, lifetime)` at `:1007`) hand it out; an observer that skips the token is chapter 03 bug #705 waiting.
 
 Both paths write change-gated — every value is compared before `lv_subject_set_*` fires, and a material-name delta additionally bumps `slots_version_` because the panel's material label has no direct binding (#1065). The fixed subject set (roughly 92 members in the header, capped at `MAX_SLOTS = 16` and `MAX_UNITS = 8`) splits into families the UI binds:
 
@@ -141,7 +141,36 @@ The AMS panel itself is nothing but bindings over those subjects — slot cards 
 
 One end-to-end sequence ties the pieces together. The user taps a slot; a dispatch surface (tiered per [`include/filament_op_dispatch.h:9`](../../../include/filament_op_dispatch.h#L9)) lands on a backend op. The NVI entry point — say `change_tool(n)` — passes the print-active gate, claims the in-flight slot, and calls the backend's `do_change_tool`, which sends G-code through the API (chapter 04). The firmware acts; the backend's Moonraker subscription fires on libhv, and the backend emits `EVENT_TOOL_CHANGED`. `on_backend_event()` posts; the queued body runs `sync_backend(0)` under the mutex, change-gating every subject write, bumping `ams_data_revision_`, and — if the tool-to-slot mapping moved — `tool_map_version_` so the gcode preview recolors. No panel code ran; the subjects did the work.
 
-Observers get lifetime protection at two scopes, mirroring how the subjects die. Per-slot (and per-unit) subjects of secondary backends die on rediscovery, so their token-taking accessors hand out the struct's token; the *whole* fixed set dies together in `deinit_subjects()`, so long-lived outside observers — `PrintStatusPanel` watches `get_current_color_subject()` and `get_tool_map_version_subject()` to recolor the gcode preview — must pass `get_subjects_lifetime()` ([`include/ams_state.h:663`](../../../include/ams_state.h#L663)) to their `observe_*` call. A few accessors are documented exceptions with static lifetime (e.g. `get_active_tool_port_present_subject()`, `:658`-667) and need no token; the accessor's doc comment says which world it is in.
+Observers get lifetime protection at two scopes, mirroring how the subjects die. Per-slot (and per-unit) subjects of secondary backends die on rediscovery, so their token-taking accessors hand out the struct's token; the *whole* fixed set dies together in `deinit_subjects()`, so long-lived outside observers — `PrintStatusPanel` watches `get_current_color_subject()` and `get_tool_map_version_subject()` to recolor the gcode preview — must pass `get_subjects_lifetime()` ([`include/ams_state.h:681`](../../../include/ams_state.h#L681)) to their `observe_*` call. A few accessors are documented exceptions with static lifetime (e.g. `get_active_tool_port_present_subject()`, `:658`-667) and need no token; the accessor's doc comment says which world it is in.
+
+### Which head prints tool N: attachment is not routing
+
+Two questions look like one and are not:
+
+- **Attachment** — which slot physically holds which spool. `AmsSystemInfo::tool_to_slot_map`.
+  Read by the Load/Unload slot resolver and the persisted tool-map ledger.
+- **Routing** — which head will actually print logical tool `N` for the current print.
+  `AmsBackend::get_tool_mapping()`.
+
+On most backends they are the same vector, and `get_tool_mapping()` simply returns the
+physical map — a filament system routes whichever lane it selects to its one nozzle, so
+the map *is* the routing. On a tool changer they come apart: a Snapmaker U1 has four
+permanently-attached spools (so attachment is trivially identity) while the firmware
+routes logical tools onto heads through its own table, which is how a file sliced for
+`T0`/`T2` prints from whichever heads hold the matching filament.
+
+Anything asking "what color is tool N" must ask the routing question, and must ask it
+through `get_tool_mapping()` rather than reaching for a firmware field — that accessor is
+where the vendor knowledge stops. Reading the attachment map instead is not a subtle
+error: on the U1 it is trivially identity, so it answers confidently and wrongly, and a
+2-color print rendered with its two colors exactly swapped. `AmsState::routed_tool_colors()`
+is the one consumer, and `FilamentMapper::routed_tool_colors()` the one place the color
+math lives.
+
+A backend that has no routing of its own returns an empty vector, which callers must read
+as "no opinion" and never as identity — see the U1's idle table in
+[FILAMENT_BACKEND_SNAPMAKER_U1.md](../FILAMENT_BACKEND_SNAPMAKER_U1.md) for why that
+distinction is load-bearing.
 
 ### Spool assignment: identity is durable, weight is cache
 
@@ -208,10 +237,10 @@ Read in this order; about 30 minutes total.
 5. [`include/printer_discovery.h:536`](../../../include/printer_discovery.h#L536) — the detection-priority ladder that fills `detected_ams_systems_`, then [`src/printer/printer_discovery.cpp:101`](../../../src/printer/printer_discovery.cpp#L101) where parse_objects hands off to AmsState.
 6. [`src/printer/ams_state.cpp:709`](../../../src/printer/ams_state.cpp#L709) — `init_backends_from_hardware()`: mock skip, double-init guard, the create-start loop, the immediate sync at `:762`.
 7. [`src/printer/ams_state.cpp:776`](../../../src/printer/ams_state.cpp#L776) — `add_backend()`: the captured-index event lambda at `:784`, secondary-subject allocation at `:797`, consumption-sink registration at `:802`.
-8. [`src/printer/ams_state.cpp:2097`](../../../src/printer/ams_state.cpp#L2097) — `on_backend_event()`: queue-only body, shutdown-flag guard, the SLOT_CHANGED parse-or-full-sync fallback; then follow one queued call into `sync_backend()` at `:1284`.
-9. [`include/ams_state.h:1525`](../../../include/ams_state.h#L1525) — `BackendSlotSubjects` and its lifetime-token comment; glance at the storage members at `:1520`-1522 (mutex, `backends_`, `secondary_slot_subjects_`).
+8. [`src/printer/ams_state.cpp:2134`](../../../src/printer/ams_state.cpp#L2134) — `on_backend_event()`: queue-only body, shutdown-flag guard, the SLOT_CHANGED parse-or-full-sync fallback; then follow one queued call into `sync_backend()` at `:1284`.
+9. [`include/ams_state.h:1543`](../../../include/ams_state.h#L1543) — `BackendSlotSubjects` and its lifetime-token comment; glance at the storage members at `:1520`-1522 (mutex, `backends_`, `secondary_slot_subjects_`).
 10. [`src/printer/ams_state.cpp:1627`](../../../src/printer/ams_state.cpp#L1627) — the ToolState bridge: forward assign, the firmware-persistence-gated clear, and the reverse sync for tool-changer backends below it.
 11. [`src/printer/tool_state.cpp:555`](../../../src/printer/tool_state.cpp#L555) — `same_displayed_weight()` (the whole-gram compare) and the L53W5PKG comment at `:583`; then `assign_spool()` at `:562` for the identity/weight split, and the save path at `:704` (atomic write, symlink resolution) and `:801` (local-first, DB fire-and-forget).
 12. [`src/printer/spoolman_manager.cpp:362`](../../../src/printer/spoolman_manager.cpp#L362) — the `persist=false` weight write-back and the feedback-loop comment; then [`include/spoolman_manager.h:22`](../../../include/spoolman_manager.h#L22)-64 for the manager's charter (poll, breaker, identity cache, no-AMS operation).
-13. [`include/ams_state.h:663`](../../../include/ams_state.h#L663) — the two-scope lifetime doc (`get_subjects_lifetime()` vs the per-slot tokens) with its PrintStatusPanel example; the best single comment on when observers need a token.
+13. [`include/ams_state.h:681`](../../../include/ams_state.h#L681) — the two-scope lifetime doc (`get_subjects_lifetime()` vs the per-slot tokens) with its PrintStatusPanel example; the best single comment on when observers need a token.
 14. [`include/filament_op_dispatch.h:9`](../../../include/filament_op_dispatch.h#L9) — the tier enum and header comment framing the four-dispatch-surface question; stop here — the ladder itself is FILAMENT_MANAGEMENT.md territory.

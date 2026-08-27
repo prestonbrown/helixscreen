@@ -97,7 +97,6 @@ All developer documentation lives here. When working on features, look up the re
 | `printers/CREALITY_K2_SUPPORT.md` | Creality K2 series platform |
 | `printers/FLASHFORGE_AD5X_SUPPORT.md` | FlashForge Adventurer 5X (MIPS, ZMOD) |
 | `YOCTO_BUILD.md` | Building HelixScreen as a Yocto recipe |
-| `SNAPMAKER_U1_PRINT_TASK_CONFIG.md` | Snapmaker U1 native `print_task_config` filament/tool-mapping command API |
 | `AD5M_KMOD_VARIANT.md` | Building HelixScreen as a native variant inside the AD5M Klipper Mod firmware |
 | `plans/ESP32_NATIVE_AUDIT.md` | ESP32-S3 (BTT K-Touch) native-port feasibility audit — memory/flash/render budgets behind the `firmware/` port |
 | `ENVIRONMENT_VARIABLES.md` | All runtime and build env vars |

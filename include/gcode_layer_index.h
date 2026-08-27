@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,15 @@ struct StreamingLayerEntry {
     /// the per-layer parser tags segments as Unknown and the bbox filter
     /// (auto_fit) can't exclude Custom/WipeTower from the viewport.
     FeatureType start_feature_type{FeatureType::Unknown};
+    /// Tool active at this layer's byte offset, or -1 when no `Tn` has been seen
+    /// yet at that point in the file. Same seeding rationale as start_x/y/z and
+    /// start_feature_type: a tool change lives at the END of the previous
+    /// layer's byte range, so a per-layer parse never sees it and tags every
+    /// segment with the file's first tool instead. On a true tool changer
+    /// (Snapmaker U1, which always streams) that painted the whole model in T0's
+    /// filament colour. Fits in what was start_feature_type's trailing padding —
+    /// the struct is still 40 bytes (see the static_assert below).
+    int16_t start_tool{-1};
     /// Running E value at this layer's byte offset. Only meaningful when
     /// FLAG_ABSOLUTE_EXTRUSION is set; relative-mode deltas do not depend on it.
     /// Occupies what was previously tail padding — the struct is still 40 bytes.
@@ -69,6 +79,11 @@ struct StreamingLayerEntry {
         return (flags & FLAG_ABSOLUTE_EXTRUSION) != 0;
     }
 };
+
+// One entry per layer is held for the whole session, so growth here is paid on
+// every device: a 5M-line print indexes ~10k layers. The seeding fields added
+// over time have all landed in existing padding; this pins that.
+static_assert(sizeof(StreamingLayerEntry) == 40, "StreamingLayerEntry should stay 40 bytes");
 
 /**
  * @brief Statistics collected during index building
@@ -115,6 +130,17 @@ struct LayerIndexStats {
     std::vector<std::string>
         filament_palette;       ///< All filament colors from semicolon-separated metadata
     int initial_tool_index{-1}; ///< First T-command seen in the file (-1 = none)
+    /// Every distinct tool the file changes to, accumulated in the same single
+    /// pass that finds the layer boundaries. The scan already visits every line,
+    /// so this costs nothing extra — the same argument the min_x/max_x comment
+    /// above makes — and it is the ONLY used-tool set available in streaming
+    /// mode, where there is no ParsedGCodeFile to read tools_used_indices from.
+    ///
+    /// Unlike ParsedGCodeFile::tools_used_indices this does NOT inject {0} for a
+    /// single-extruder file that carries only a colour palette; consumers that
+    /// want that convention apply it themselves (ui_gcode_viewer_get_tools_used
+    /// does), matching scan_tools_used_from_file()'s documented behaviour.
+    std::set<int> tools_used;
 };
 
 /**

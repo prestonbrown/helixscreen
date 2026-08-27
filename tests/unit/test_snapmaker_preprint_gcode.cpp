@@ -34,21 +34,35 @@ class SnapmakerProbe : public AmsBackendSnapmaker {
 
 } // namespace
 
-TEST_CASE("Snapmaker build_preprint_gcode used-extruders only (identity map)",
+TEST_CASE("Snapmaker build_preprint_gcode writes every used tool explicitly",
           "[snapmaker][preprint]") {
     SnapmakerProbe sm;
+    // Tools landing on their firmware-default head still get a SET_PRINT_EXTRUDER_MAP
+    // line. The command sets one entry and resets nothing, so emitting only the
+    // genuine remaps left every other entry at whatever the PREVIOUS print wrote —
+    // and a job that had remapped T0->head2 then made the next job print T0 from
+    // head 2. Writing each used entry says what THIS print means.
 
     SECTION("two non-contiguous tools, no remap") {
-        REQUIRE(sm.build_preprint_gcode({0, 2}, {}) == "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2");
+        REQUIRE(sm.build_preprint_gcode({0, 2}, {}) ==
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2\n"
+                "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2");
     }
 
     SECTION("all four heads, no remap") {
         REQUIRE(sm.build_preprint_gcode({0, 1, 2, 3}, {}) ==
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=1\n"
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2\n"
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=3 MAP_EXTRUDER=3\n"
                 "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,1,2,3");
     }
 
     SECTION("single tool, no remap") {
-        REQUIRE(sm.build_preprint_gcode({1}, {}) == "SET_PRINT_USED_EXTRUDERS EXTRUDERS=1");
+        REQUIRE(sm.build_preprint_gcode({1}, {}) ==
+                "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=1\n"
+                "SET_PRINT_USED_EXTRUDERS EXTRUDERS=1");
     }
 }
 
@@ -76,6 +90,7 @@ TEST_CASE("Snapmaker build_preprint_gcode dedups colliding heads", "[snapmaker][
     // Tool 0 -> head 0 (identity), tool 1 remapped -> head 0. Heads {0,0}
     // collapse to {0}.
     REQUIRE(sm.build_preprint_gcode({0, 1}, {{1, 0}}) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
             "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0\n"
             "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
 }
@@ -90,7 +105,9 @@ TEST_CASE("Snapmaker build_preprint_gcode extended tool defaults to head 0",
           "[snapmaker][preprint]") {
     SnapmakerProbe sm;
     // default_head(5) == 0 (firmware default map [0,1,2,3,0,0,...]).
-    REQUIRE(sm.build_preprint_gcode({5}, {}) == "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
+    REQUIRE(sm.build_preprint_gcode({5}, {}) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=5 MAP_EXTRUDER=0\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
 }
 
 // End-to-end scenario for the Batch 2 native-remap UI: a 2-color body using
@@ -102,6 +119,7 @@ TEST_CASE("Snapmaker build_preprint_gcode 2-color remap tool0->head1", "[snapmak
     SnapmakerProbe sm;
     REQUIRE(sm.build_preprint_gcode({0, 2}, {{0, 1}}) ==
             "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=1\n"
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2\n"
             "SET_PRINT_USED_EXTRUDERS EXTRUDERS=1,2");
 }
 
@@ -203,8 +221,32 @@ TEST_CASE("Snapmaker routing: real U1 4-color-ring auto match drives the extrude
 
     SnapmakerProbe sm;
     std::string gcode = sm.build_preprint_gcode({0, 1, 2, 3}, remap);
-    REQUIRE(gcode == "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0\n"
+    REQUIRE(gcode == "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
+                     "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0\n"
                      "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=3\n"
                      "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=3 MAP_EXTRUDER=2\n"
                      "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2,3");
+}
+
+// The staleness case in isolation: print N remaps T0 away from its default head,
+// print N+1 needs T0 back on its default. Emitting only genuine remaps sent
+// NOTHING for T0 the second time, so extruder_map_table[0] kept print N's value
+// and print N+1 fed from the wrong head — and SET_PRINT_USED_EXTRUDERS, which
+// assumes the default applied, named the wrong head too. This is also what makes
+// the table readable back as the render's routing authority.
+TEST_CASE("Snapmaker build_preprint_gcode overwrites a previous print's remap",
+          "[snapmaker][preprint]") {
+    SnapmakerProbe sm;
+
+    // Print N: T0 remapped to head 2.
+    REQUIRE(sm.build_preprint_gcode({0}, {{0, 2}}) ==
+            "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=2\n"
+            "SET_PRINT_USED_EXTRUDERS EXTRUDERS=2");
+
+    // Print N+1: same tool, no remap. It must still SAY head 0 rather than
+    // relying on the firmware still holding the default.
+    const std::string next = sm.build_preprint_gcode({0}, {});
+    REQUIRE(next == "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
+                    "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0");
+    REQUIRE(next.find("MAP_EXTRUDER=2") == std::string::npos);
 }

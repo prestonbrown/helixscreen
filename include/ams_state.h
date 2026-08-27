@@ -289,6 +289,25 @@ class AmsState {
     [[nodiscard]] bool effective_auto_match() const;
 
     /**
+     * @brief Per-tool render colors for the print that is actually running:
+     *        color(tool N) = the color of the lane that prints N.
+     *
+     * The single rule the live render uses, for any tool count. Resolves the
+     * applied routing — the backend's get_tool_mapping(), falling back to
+     * tool_to_slot_map for backends that publish no separate routing — and hands
+     * it to FilamentMapper::routed_tool_colors(). AmsState owns the wiring
+     * because it owns the backend and the lane snapshot; the routing source and
+     * the color math each live in exactly one other place.
+     *
+     * @return Dense tool-indexed colors, or EMPTY when the backend has no
+     *         routing opinion (notably: no print task configured, where a
+     *         firmware default identity map would otherwise read as authoritative)
+     *         or no lane knows a color. Callers must treat empty as "say
+     *         nothing", never as "use grey".
+     */
+    [[nodiscard]] std::vector<uint32_t> routed_tool_colors() const;
+
+    /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
      */
@@ -1665,7 +1684,11 @@ class AmsState {
     /// singleton subject (no SubjectLifetime token needed). Defaults to 1 so
     /// non-auto-feed / unknown backends never gate Resume.
     lv_subject_t active_tool_port_present_;
-    std::vector<int> last_tool_map_; ///< Cached for change detection in sync_from_backend
+    std::vector<int> last_tool_map_;
+    /// Companion to last_tool_map_ for the APPLIED routing (get_tool_mapping()),
+    /// which moves independently of the physical map on a backend that publishes
+    /// both. Change-detection only; never read as routing itself.
+    std::vector<int> last_applied_routing_; ///< Cached for change detection in sync_from_backend
 
     /// Most recent backend-supplied operation detail (cached so the print-state
     /// observer can rerun the action-detail derivation without re-querying the
