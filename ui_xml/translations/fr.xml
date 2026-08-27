@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." fr="Une erreur inattendue de l&apos;imprimante s&apos;est produite."/>
   <translation tag="An update is available" fr="Une mise à jour est disponible"/>
   <translation tag="Analyzing data..." fr="Analyse des données..."/>
-  <translation tag="Analyzing data... {}%" fr="Analyse des données... {}%"/>
   <translation tag="Analyzing data... {}s" fr="Analyse des données... {}s"/>
   <translation tag="Android logcat" fr="Logcat Android"/>
   <translation tag="Animations" fr="Animations"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" fr="Bascule (fire-and-forget)"/>
   <translation tag="Toggle AFC LED strip" fr="Basculer le ruban LED AFC"/>
   <translation tag="Toggle Auto-Refill" fr="Basculer le réapprovisionnement automatique"/>
-  <translation tag="Toggle Moonraker power devices" fr="Basculer les périphériques d&apos;alimentation Moonraker"/>
   <translation tag="Toggle Quiet Mode" fr="Basculer le mode silencieux"/>
   <translation tag="Toggle external spool bypass" fr="Bascule du bypass de la bobine externe"/>
   <translation tag="Toggle toolhead LED for an extruder" fr="Basculer la LED de la tête d&apos;outil pour un extrudeur"/>

@@ -203,7 +203,6 @@ translations:
   An unexpected printer error occurred.: Ocorreu um erro inesperado na impressora.
   An update is available: Uma atualização está disponível
   Analyzing data...: Analisando dados...
-  Analyzing data... {}%: Analisando dados... {}%
   Analyzing data... {}s: Analisando dados... {}s
   Android logcat: Logcat do Android
   Animations: Animações
@@ -2916,7 +2915,6 @@ translations:
   Toggle (fire-and-forget): Alternar (sem rastreamento)
   Toggle AFC LED strip: 'Alternar a fita LED do AFC'
   Toggle Auto-Refill: 'Alternar o reabastecimento automático'
-  Toggle Moonraker power devices: 'Alternar dispositivos de energia do Moonraker'
   Toggle Quiet Mode: 'Alternar o modo silencioso'
   Toggle external spool bypass: Alternar bypass do carretel externo
   Toggle toolhead LED for an extruder: 'Alternar o LED do cabeçote para um extrusor'
@@ -3027,7 +3025,6 @@ translations:
   Update your security PIN: Atualize seu PIN de segurança
     nesta instalação.
   Updating Configuration...: Atualizando Configuração...
-  Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools.: Atualize para o AFC 1.2.0 ou mais recente para nomes de filamento e carretéis multicoloridos.
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Atualize para o AFC 1.2.0 ou mais recente para ter carretéis multicolor. Ele também adiciona nomes de filamento, que sem isso precisam do Spoolman.
   Upload: Enviar
   Upload Debug Bundle: Enviar Bundle de Debug

@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." de="Ein unerwarteter Druckerfehler ist aufgetreten."/>
   <translation tag="An update is available" de="Eine Aktualisierung ist verfügbar"/>
   <translation tag="Analyzing data..." de="Analysiere Daten..."/>
-  <translation tag="Analyzing data... {}%" de="Analysiere Daten... {}%"/>
   <translation tag="Analyzing data... {}s" de="Analysiere Daten... {}s"/>
   <translation tag="Android logcat" de="Android-Logcat"/>
   <translation tag="Animations" de="Animationen"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" de="Umschalten (fire-and-forget)"/>
   <translation tag="Toggle AFC LED strip" de="AFC-LED-Streifen umschalten"/>
   <translation tag="Toggle Auto-Refill" de="Automatisches Nachfüllen umschalten"/>
-  <translation tag="Toggle Moonraker power devices" de="Moonraker-Stromgeräte umschalten"/>
   <translation tag="Toggle Quiet Mode" de="Leisen Modus umschalten"/>
   <translation tag="Toggle external spool bypass" de="Bypass der externen Spule umschalten"/>
   <translation tag="Toggle toolhead LED for an extruder" de="Werkzeugkopf-LED für einen Extruder umschalten"/>
@@ -2644,7 +2642,6 @@
   <translation tag="Update installed!" de="Update installiert!"/>
   <translation tag="Update your security PIN" de="Sicherheits-PIN aktualisieren nicht verfügbar."/>
   <translation tag="Updating Configuration..." de="Konfiguration wird aktualisiert..."/>
-  <translation tag="Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools." de="Aktualisieren Sie auf AFC 1.2.0 oder neuer für Filamentnamen und mehrfarbige Spulen."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." de="Aktualisieren Sie auf AFC 1.2.0 oder neuer für mehrfarbige Spulen. Es fügt außerdem Filamentnamen hinzu, die ansonsten Spoolman erfordern."/>
   <translation tag="Upload" de="Hochladen"/>
   <translation tag="Upload Debug Bundle" de="Debug-Paket hochladen"/>

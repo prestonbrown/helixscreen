@@ -206,7 +206,6 @@ translations:
   An unexpected printer error occurred.: Ein unerwarteter Druckerfehler ist aufgetreten.
   An update is available: Eine Aktualisierung ist verfügbar
   Analyzing data...: Analysiere Daten...
-  Analyzing data... {}%: Analysiere Daten... {}%
   Analyzing data... {}s: Analysiere Daten... {}s
   Android logcat: Android-Logcat
   Animations: Animationen
@@ -2916,7 +2915,6 @@ translations:
   Toggle (fire-and-forget): Umschalten (fire-and-forget)
   Toggle AFC LED strip: 'AFC-LED-Streifen umschalten'
   Toggle Auto-Refill: 'Automatisches Nachfüllen umschalten'
-  Toggle Moonraker power devices: 'Moonraker-Stromgeräte umschalten'
   Toggle Quiet Mode: 'Leisen Modus umschalten'
   Toggle external spool bypass: Bypass der externen Spule umschalten
   Toggle toolhead LED for an extruder: 'Werkzeugkopf-LED für einen Extruder umschalten'
@@ -3029,7 +3027,6 @@ translations:
   Update your security PIN: Sicherheits-PIN aktualisieren
     nicht verfügbar.
   Updating Configuration...: Konfiguration wird aktualisiert...
-  Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools.: Aktualisieren Sie auf AFC 1.2.0 oder neuer für Filamentnamen und mehrfarbige Spulen.
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Aktualisieren Sie auf AFC 1.2.0 oder neuer für mehrfarbige Spulen. Es fügt außerdem Filamentnamen hinzu, die ansonsten Spoolman erfordern.
   Upload: Hochladen
   Upload Debug Bundle: Debug-Paket hochladen

@@ -199,7 +199,6 @@ translations:
   An unexpected printer error occurred.: Произошла непредвиденная ошибка принтера.
   An update is available: Доступно обновление
   Analyzing data...: Анализ данных...
-  Analyzing data... {}%: Анализ данных... {}%
   Analyzing data... {}s: Анализ данных... {} с
   Android logcat: Android logcat
   Animations: Анимации
@@ -2871,7 +2870,6 @@ translations:
   Toggle (fire-and-forget): Переключение (без отслеживания)
   Toggle AFC LED strip: 'Переключить LED-ленту AFC'
   Toggle Auto-Refill: 'Переключить автопополнение'
-  Toggle Moonraker power devices: 'Переключить устройства питания Moonraker'
   Toggle Quiet Mode: 'Переключить тихий режим'
   Toggle external spool bypass: Переключить байпас внешней катушки
   Toggle toolhead LED for an extruder: 'Переключить LED печатающей головки для экструдера'

@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." es="Ocurrió un error inesperado en la impresora."/>
   <translation tag="An update is available" es="Hay una actualización disponible"/>
   <translation tag="Analyzing data..." es="Analizando datos..."/>
-  <translation tag="Analyzing data... {}%" es="Analizando datos... {}%"/>
   <translation tag="Analyzing data... {}s" es="Analizando datos... {}s"/>
   <translation tag="Android logcat" es="Android logcat"/>
   <translation tag="Animations" es="Animaciones"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" es="Alternar (fire-and-forget)"/>
   <translation tag="Toggle AFC LED strip" es="Alternar la tira LED del AFC"/>
   <translation tag="Toggle Auto-Refill" es="Alternar el rellenado automático"/>
-  <translation tag="Toggle Moonraker power devices" es="Alternar dispositivos de energía de Moonraker"/>
   <translation tag="Toggle Quiet Mode" es="Alternar el modo silencioso"/>
   <translation tag="Toggle external spool bypass" es="Alternar el bypass de la bobina externa"/>
   <translation tag="Toggle toolhead LED for an extruder" es="Alternar el LED del cabezal para un extrusor"/>
@@ -2644,7 +2642,6 @@
   <translation tag="Update installed!" es="¡Actualización instalada!"/>
   <translation tag="Update your security PIN" es="Actualice su PIN de seguridad en esta instalación."/>
   <translation tag="Updating Configuration..." es="Actualizando configuración..."/>
-  <translation tag="Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools." es="Actualice a AFC 1.2.0 o posterior para nombres de filamento y bobinas multicolor."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." es="Actualice a AFC 1.2.0 o superior para bobinas multicolor. También añade nombres de filamento, que de otro modo requieren Spoolman."/>
   <translation tag="Upload" es="Subir"/>
   <translation tag="Upload Debug Bundle" es="Subir paquete de diagnóstico"/>

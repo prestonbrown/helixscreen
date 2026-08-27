@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." pt="Ocorreu um erro inesperado na impressora."/>
   <translation tag="An update is available" pt="Uma atualização está disponível"/>
   <translation tag="Analyzing data..." pt="Analisando dados..."/>
-  <translation tag="Analyzing data... {}%" pt="Analisando dados... {}%"/>
   <translation tag="Analyzing data... {}s" pt="Analisando dados... {}s"/>
   <translation tag="Android logcat" pt="Logcat do Android"/>
   <translation tag="Animations" pt="Animações"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" pt="Alternar (sem rastreamento)"/>
   <translation tag="Toggle AFC LED strip" pt="Alternar a fita LED do AFC"/>
   <translation tag="Toggle Auto-Refill" pt="Alternar o reabastecimento automático"/>
-  <translation tag="Toggle Moonraker power devices" pt="Alternar dispositivos de energia do Moonraker"/>
   <translation tag="Toggle Quiet Mode" pt="Alternar o modo silencioso"/>
   <translation tag="Toggle external spool bypass" pt="Alternar bypass do carretel externo"/>
   <translation tag="Toggle toolhead LED for an extruder" pt="Alternar o LED do cabeçote para um extrusor"/>
@@ -2644,7 +2642,6 @@
   <translation tag="Update installed!" pt="Atualização instalada!"/>
   <translation tag="Update your security PIN" pt="Atualize seu PIN de segurança nesta instalação."/>
   <translation tag="Updating Configuration..." pt="Atualizando Configuração..."/>
-  <translation tag="Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools." pt="Atualize para o AFC 1.2.0 ou mais recente para nomes de filamento e carretéis multicoloridos."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." pt="Atualize para o AFC 1.2.0 ou mais recente para ter carretéis multicolor. Ele também adiciona nomes de filamento, que sem isso precisam do Spoolman."/>
   <translation tag="Upload" pt="Enviar"/>
   <translation tag="Upload Debug Bundle" pt="Enviar Bundle de Debug"/>

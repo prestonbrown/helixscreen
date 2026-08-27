@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." zh="发生了意外的打印机错误。"/>
   <translation tag="An update is available" zh="有可用更新"/>
   <translation tag="Analyzing data..." zh="正在分析数据..."/>
-  <translation tag="Analyzing data... {}%" zh="正在分析数据... {}%"/>
   <translation tag="Analyzing data... {}s" zh="正在分析数据... {} 秒"/>
   <translation tag="Android logcat" zh="Android logcat"/>
   <translation tag="Animations" zh="动画"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" zh="切换（无状态跟踪）"/>
   <translation tag="Toggle AFC LED strip" zh="切换 AFC LED 灯带"/>
   <translation tag="Toggle Auto-Refill" zh="切换自动续料"/>
-  <translation tag="Toggle Moonraker power devices" zh="切换 Moonraker 电源设备"/>
   <translation tag="Toggle Quiet Mode" zh="切换静音模式"/>
   <translation tag="Toggle external spool bypass" zh="切换外部料盘旁路"/>
   <translation tag="Toggle toolhead LED for an extruder" zh="切换某个挤出机的工具头 LED"/>

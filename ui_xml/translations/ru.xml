@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." ru="Произошла непредвиденная ошибка принтера."/>
   <translation tag="An update is available" ru="Доступно обновление"/>
   <translation tag="Analyzing data..." ru="Анализ данных..."/>
-  <translation tag="Analyzing data... {}%" ru="Анализ данных... {}%"/>
   <translation tag="Analyzing data... {}s" ru="Анализ данных... {} с"/>
   <translation tag="Android logcat" ru="Android logcat"/>
   <translation tag="Animations" ru="Анимации"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" ru="Переключение (без отслеживания)"/>
   <translation tag="Toggle AFC LED strip" ru="Переключить LED-ленту AFC"/>
   <translation tag="Toggle Auto-Refill" ru="Переключить автопополнение"/>
-  <translation tag="Toggle Moonraker power devices" ru="Переключить устройства питания Moonraker"/>
   <translation tag="Toggle Quiet Mode" ru="Переключить тихий режим"/>
   <translation tag="Toggle external spool bypass" ru="Переключить байпас внешней катушки"/>
   <translation tag="Toggle toolhead LED for an extruder" ru="Переключить LED печатающей головки для экструдера"/>

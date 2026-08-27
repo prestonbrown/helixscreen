@@ -183,7 +183,6 @@ translations:
   An unexpected printer error occurred.: 发生了意外的打印机错误。
   An update is available: 有可用更新
   Analyzing data...: 正在分析数据...
-  Analyzing data... {}%: 正在分析数据... {}%
   Analyzing data... {}s: 正在分析数据... {} 秒
   Android logcat: Android logcat
   Animations: 动画
@@ -2639,7 +2638,6 @@ translations:
   Toggle (fire-and-forget): 切换（无状态跟踪）
   Toggle AFC LED strip: '切换 AFC LED 灯带'
   Toggle Auto-Refill: '切换自动续料'
-  Toggle Moonraker power devices: '切换 Moonraker 电源设备'
   Toggle Quiet Mode: '切换静音模式'
   Toggle external spool bypass: 切换外部料盘旁路
   Toggle toolhead LED for an extruder: '切换某个挤出机的工具头 LED'

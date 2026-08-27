@@ -204,7 +204,6 @@ translations:
     stampante.
   An update is available: È disponibile un aggiornamento
   Analyzing data...: Analisi dei dati...
-  Analyzing data... {}%: Analisi dei dati... {}%
   Analyzing data... {}s: Analisi dei dati... {}s
   Android logcat: Android logcat
   Animations: Animazioni
@@ -2908,7 +2907,6 @@ translations:
   Toggle (fire-and-forget): Alterna (senza tracciamento)
   Toggle AFC LED strip: 'Alterna la striscia LED AFC'
   Toggle Auto-Refill: 'Alterna il rifornimento automatico'
-  Toggle Moonraker power devices: 'Alterna i dispositivi di alimentazione Moonraker'
   Toggle Quiet Mode: 'Alterna la modalità silenziosa'
   Toggle external spool bypass: Alterna il bypass della bobina esterna
   Toggle toolhead LED for an extruder: 'Alterna il LED della testina per un estrusore'
@@ -3019,7 +3017,6 @@ translations:
   Update your security PIN: Aggiorna il tuo PIN di sicurezza
     in questa installazione.
   Updating Configuration...: Aggiornamento configurazione...
-  Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools.: Aggiorna ad AFC 1.2.0 o versioni successive per nomi filamento e bobine multicolore.
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Aggiorna ad AFC 1.2.0 o successivo per le bobine multicolore. Aggiunge anche i nomi dei filamenti, che altrimenti richiedono Spoolman.
   Upload: Carica
   Upload Debug Bundle: Carica bundle di debug

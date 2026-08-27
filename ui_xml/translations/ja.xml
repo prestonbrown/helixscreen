@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." ja="予期しないプリンターエラーが発生しました。"/>
   <translation tag="An update is available" ja="更新があります"/>
   <translation tag="Analyzing data..." ja="データを解析中..."/>
-  <translation tag="Analyzing data... {}%" ja="データを解析中... {}%"/>
   <translation tag="Analyzing data... {}s" ja="データを解析中... {}s"/>
   <translation tag="Android logcat" ja="Android logcat"/>
   <translation tag="Animations" ja="アニメーション"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" ja="トグル（状態追跡なし）"/>
   <translation tag="Toggle AFC LED strip" ja="AFC LEDストリップを切り替え"/>
   <translation tag="Toggle Auto-Refill" ja="自動補充を切り替え"/>
-  <translation tag="Toggle Moonraker power devices" ja="Moonraker電源デバイスを切り替え"/>
   <translation tag="Toggle Quiet Mode" ja="静音モードを切り替え"/>
   <translation tag="Toggle external spool bypass" ja="外部スプールバイパスを切り替え"/>
   <translation tag="Toggle toolhead LED for an extruder" ja="エクストルーダーのツールヘッドLEDを切り替え"/>

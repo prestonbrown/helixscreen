@@ -207,7 +207,6 @@ translations:
     produite.
   An update is available: Une mise à jour est disponible
   Analyzing data...: Analyse des données...
-  Analyzing data... {}%: Analyse des données... {}%
   Analyzing data... {}s: Analyse des données... {}s
   Android logcat: Logcat Android
   Animations: Animations
@@ -2944,7 +2943,6 @@ translations:
   Toggle (fire-and-forget): Bascule (fire-and-forget)
   Toggle AFC LED strip: 'Basculer le ruban LED AFC'
   Toggle Auto-Refill: 'Basculer le réapprovisionnement automatique'
-  Toggle Moonraker power devices: 'Basculer les périphériques d''alimentation Moonraker'
   Toggle Quiet Mode: 'Basculer le mode silencieux'
   Toggle external spool bypass: Bascule du bypass de la bobine externe
   Toggle toolhead LED for an extruder: 'Basculer la LED de la tête d''outil pour un extrudeur'

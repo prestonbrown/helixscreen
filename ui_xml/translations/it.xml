@@ -181,7 +181,6 @@
   <translation tag="An unexpected printer error occurred." it="Si è verificato un errore imprevisto della stampante."/>
   <translation tag="An update is available" it="È disponibile un aggiornamento"/>
   <translation tag="Analyzing data..." it="Analisi dei dati..."/>
-  <translation tag="Analyzing data... {}%" it="Analisi dei dati... {}%"/>
   <translation tag="Analyzing data... {}s" it="Analisi dei dati... {}s"/>
   <translation tag="Android logcat" it="Android logcat"/>
   <translation tag="Animations" it="Animazioni"/>
@@ -2542,7 +2541,6 @@
   <translation tag="Toggle (fire-and-forget)" it="Alterna (senza tracciamento)"/>
   <translation tag="Toggle AFC LED strip" it="Alterna la striscia LED AFC"/>
   <translation tag="Toggle Auto-Refill" it="Alterna il rifornimento automatico"/>
-  <translation tag="Toggle Moonraker power devices" it="Alterna i dispositivi di alimentazione Moonraker"/>
   <translation tag="Toggle Quiet Mode" it="Alterna la modalità silenziosa"/>
   <translation tag="Toggle external spool bypass" it="Alterna il bypass della bobina esterna"/>
   <translation tag="Toggle toolhead LED for an extruder" it="Alterna il LED della testina per un estrusore"/>
@@ -2644,7 +2642,6 @@
   <translation tag="Update installed!" it="Aggiornamento installato!"/>
   <translation tag="Update your security PIN" it="Aggiorna il tuo PIN di sicurezza in questa installazione."/>
   <translation tag="Updating Configuration..." it="Aggiornamento configurazione..."/>
-  <translation tag="Upgrade to AFC 1.2.0 or newer for filament names and multi-color spools." it="Aggiorna ad AFC 1.2.0 o versioni successive per nomi filamento e bobine multicolore."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." it="Aggiorna ad AFC 1.2.0 o successivo per le bobine multicolore. Aggiunge anche i nomi dei filamenti, che altrimenti richiedono Spoolman."/>
   <translation tag="Upload" it="Carica"/>
   <translation tag="Upload Debug Bundle" it="Carica bundle di debug"/>

@@ -184,7 +184,6 @@ translations:
   An unexpected printer error occurred.: 予期しないプリンターエラーが発生しました。
   An update is available: 更新があります
   Analyzing data...: データを解析中...
-  Analyzing data... {}%: データを解析中... {}%
   Analyzing data... {}s: データを解析中... {}s
   Android logcat: Android logcat
   Animations: アニメーション
@@ -2649,7 +2648,6 @@ translations:
   Toggle (fire-and-forget): トグル（状態追跡なし）
   Toggle AFC LED strip: 'AFC LEDストリップを切り替え'
   Toggle Auto-Refill: '自動補充を切り替え'
-  Toggle Moonraker power devices: 'Moonraker電源デバイスを切り替え'
   Toggle Quiet Mode: '静音モードを切り替え'
   Toggle external spool bypass: 外部スプールバイパスを切り替え
   Toggle toolhead LED for an extruder: 'エクストルーダーのツールヘッドLEDを切り替え'
