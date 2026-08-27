@@ -424,6 +424,47 @@ TEST_CASE("PrinterHardware::guess_part_cooling_fan", "[printer][guessing]") {
 // guess_chamber_fan() Tests
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// Creality K2 Plus rig: two Klipper objects historically shared the bare name
+// "chamber_fan" - [heater_fan chamber_fan] (the PTC heater's own blower) and
+// [temperature_fan chamber_fan] (the chamber exhaust). The PTC blower was
+// renamed to chamber_heater_fan on the test rig to remove that collision.
+// These cases pin guess_chamber_fan() against the real object list on both the
+// stock and renamed configs, so the rename cannot silently change detection.
+// ----------------------------------------------------------------------------
+
+TEST_CASE("PrinterHardware::guess_chamber_fan - Creality K2 Plus object list",
+          "[printer][guessing]") {
+    std::vector<std::string> heaters;
+    std::vector<std::string> sensors;
+    std::vector<std::string> leds;
+
+    // Order as reported by Moonraker /printer/objects/list, filtered to fans.
+    SECTION("stock K2 naming") {
+        std::vector<std::string> fans = {"heater_fan hotend_fan",  "output_pin fan0",
+                                         "output_pin fan2",        "output_pin fan1",
+                                         "heater_fan chamber_fan", "temperature_fan chamber_fan",
+                                         "output_pin extruder_fan"};
+        PrinterHardware hw(heaters, sensors, fans, leds);
+        // Priority 1 wants a bare "chamber_fan"; every K2 object is section-prefixed,
+        // so it falls through to the first entry containing "chamber".
+        REQUIRE(hw.guess_chamber_fan() == "heater_fan chamber_fan");
+    }
+
+    SECTION("after renaming the PTC blower to chamber_heater_fan") {
+        std::vector<std::string> fans = {"heater_fan hotend_fan",
+                                         "output_pin fan0",
+                                         "output_pin fan2",
+                                         "output_pin fan1",
+                                         "heater_fan chamber_heater_fan",
+                                         "temperature_fan chamber_fan",
+                                         "output_pin extruder_fan"};
+        PrinterHardware hw(heaters, sensors, fans, leds);
+        // Unchanged: the renamed object still contains "chamber" and is still first.
+        REQUIRE(hw.guess_chamber_fan() == "heater_fan chamber_heater_fan");
+    }
+}
+
 TEST_CASE("PrinterHardware::guess_chamber_fan", "[printer][guessing]") {
     std::vector<std::string> heaters;
     std::vector<std::string> sensors;
