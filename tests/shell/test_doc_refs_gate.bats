@@ -132,3 +132,27 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"No citation is older than its doc"* ]]
 }
+
+@test "devel: a RANGE citation to a missing file fails the path check" {
+    # `file.cpp:63-65` used not to match PATH_RE at all, so a citation naming a
+    # block was exempt from the one check that proves its file exists — while
+    # the identical `file.cpp:70` form failed. That asymmetry is what let
+    # RPC_ERROR_OWNERSHIP.md carry a range pointing ~355 lines from the gate it
+    # described, invisible to every gate at once.
+    cat > "$FIX/range.md" <<'MD'
+Cites `src/zz_fixture_missing_thing.cpp:63-65` which does not exist.
+MD
+    run python3 "$CHECK" --devel "$FIX/range.md"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"zz_fixture_missing_thing.cpp:63-65"* ]]
+}
+
+@test "devel: a RANGE citation to a real file still passes" {
+    mkdir -p "$BATS_TEST_TMPDIR/src"
+    for i in $(seq 80); do echo "line $i"; done > "$BATS_TEST_TMPDIR/src/zz_fixture_real.cpp"
+    cat > "$FIX/rangeok.md" <<'MD'
+Cites `src/zz_fixture_real.cpp:63-65`, a real block.
+MD
+    run python3 "$CHECK" --devel "$FIX/rangeok.md"
+    [ "$status" -eq 0 ]
+}
