@@ -180,6 +180,13 @@ bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
         return false;
     }
+    // Sensors that cannot identify the mounted tool withdraw the offer entirely.
+    // current_slot still names the last known tool, so without this the button
+    // stays ENABLED and unmounts against a carriage state nobody can vouch for -
+    // exactly what holding the last known tool was meant to prevent.
+    if (sensor_error_) {
+        return false;
+    }
     // Against current_SLOT, not current_tool. On this backend the two are
     // deliberately not interchangeable: ASSIGN_TOOL moves a G-code tool number
     // onto a different physical tool, and klipper-toolchanger reports the
@@ -193,12 +200,11 @@ std::string AmsBackendToolChanger::unload_blocked_reason(int slot_index) const {
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
         return {};
     }
-    // can_unload_from_toolhead() refuses every slot when current_slot is -1, and
-    // -1 has two very different causes. "Nothing is mounted" needs no
-    // explanation - there is visibly nothing to unmount. "The dock sensors
-    // cannot tell" is a machine fault the user can go and fix, and it looks
-    // identical from the outside: every Unmount greyed, no reason given.
-    if (system_info_.current_slot < 0 && system_info_.operation_detail == "sensor error") {
+    // Keyed on the latch, NOT on current_slot. The sensor-error path holds the
+    // last known tool on purpose, so current_slot stays >= 0 through the fault
+    // and a current_slot < 0 guard would never fire in the case this exists for:
+    // a tool is mounted and THEN the docks lose track.
+    if (sensor_error_) {
         // Translated HERE, not at the call site: the extractor reads literals,
         // and lv_tr() on a runtime string would leave this untranslatable.
         return lv_tr("Dock sensors cannot tell which tool is mounted");
@@ -302,7 +308,8 @@ lv_subject_t* AmsBackendToolChanger::get_operation_step_index_subject(StepOperat
     return AmsState::instance().get_ams_operation_phase_subject();
 }
 
-int AmsBackendToolChanger::step_index_for_phase_locked(const std::string& operation) const {
+int AmsBackendToolChanger::step_index_for_phase_locked(const std::string& operation,
+                                                       bool mid_operation) const {
     // Against the operation the sidebar is CURRENTLY rendering: load, unload and
     // swap have different-length sequences, so an index is only meaningful
     // relative to one of them.
@@ -325,10 +332,29 @@ int AmsBackendToolChanger::step_index_for_phase_locked(const std::string& operat
         // the grip that CLOSES it. A machine that never reports the gripper
         // cannot tell those apart, so it gets no step for an idle frame rather
         // than a guessed one.
-        if (!feeder_state_reported_) {
+        //
+        // And an idle frame is only ever a STEP while an operation is running.
+        // At rest the machine is idle with the gripper closed, which is the same
+        // wire state as the closing grip: reporting the last step there leaves
+        // operation_phase pinned at it, and AmsState publishes the action before
+        // the phase (ams_state.cpp:1453 then :1460), so the next swap's bar
+        // observes the stale end index the instant it is built and paints itself
+        // complete before the carriage has moved. Snapmaker and AD5X park at -1
+        // when idle for the same reason.
+        if (!feeder_state_reported_ || !mid_operation) {
             return -1;
         }
-        wanted = feeder_open_ ? TcStep::Release : TcStep::Grip;
+        if (feeder_open_) {
+            wanted = TcStep::Release;
+        } else if (feeder_opened_this_operation_) {
+            wanted = TcStep::Grip;
+        } else {
+            // Closed, mid-operation, and the gripper has not opened yet: this is
+            // the gap between dispatching the swap and the machine moving, not
+            // the grip that ends one. Claiming the last step here paints the bar
+            // complete for the second before anything happens.
+            return -1;
+        }
     } else {
         return -1; // uninitialized / error / anything this build does not know
     }
@@ -461,13 +487,18 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     // would invite a tool change against an unknown carriage state, so hold the
     // last known tool and let the error surface instead.
     if (reading.sensor_error) {
-        if (system_info_.action != AmsAction::ERROR) {
+        if (!sensor_error_) {
             spdlog::warn("{} Dock sensors cannot identify the mounted tool", backend_log_tag());
         }
+        sensor_error_ = true;
         system_info_.action = AmsAction::ERROR;
         system_info_.operation_detail = "sensor error";
+        // Returns WITHOUT touching current_tool/current_slot: holding the last
+        // known tool is the point. Nothing downstream may infer the fault from
+        // those fields, because they still name a perfectly plausible tool.
         return;
     }
+    sensor_error_ = false;
 
     const int tool = reading.current_tool;
     if (system_info_.current_tool != tool) {
@@ -509,6 +540,9 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         feeder_open_ = *reading.feeder_open;
         feeder_state_reported_ = true;
     }
+    if (feeder_open_) {
+        feeder_opened_this_operation_ = true;
+    }
     if (!reading.operation.empty() && reading.phase_names_direction) {
         direction_reported_ = true;
     }
@@ -518,6 +552,17 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     // used to match none of these branches and left the action untouched for the
     // whole swap - on that fork there is no [toolchanger] object either, so
     // nothing else was setting it and only our own optimistic dispatch was.
+    // Captured BEFORE the branches below overwrite the action. The closing grip
+    // of a swap and the resting closed gripper are the same wire state, and the
+    // only thing separating them is whether an operation was running. Reading
+    // system_info_.action afterwards would always say IDLE and lose that.
+    const bool was_mid_operation = pending_dispatch_action_.has_value() ||
+                                   system_info_.action == AmsAction::SELECTING ||
+                                   system_info_.action == AmsAction::UNLOADING;
+
+    // Set by the idle branch below, consumed after the phase is computed.
+    bool operation_ended = false;
+
     const std::string& op = reading.operation;
     if (op == "picking") {
         system_info_.action = AmsAction::SELECTING;
@@ -540,16 +585,30 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         // Tied to an operation actually being in flight, because the user can
         // open the gripper by hand from the feeder panel while genuinely idle,
         // and that must NOT read as busy.
-        const bool mid_operation = pending_dispatch_action_.has_value() ||
-                                   system_info_.action == AmsAction::SELECTING ||
-                                   system_info_.action == AmsAction::UNLOADING;
-        if (!(feeder_state_reported_ && feeder_open_ && mid_operation)) {
+        if (!(feeder_state_reported_ && feeder_open_ && was_mid_operation)) {
             system_info_.action = AmsAction::IDLE;
+            // The gripper latch is NOT cleared here. This same frame is the
+            // closing grip, and the phase computation below needs the latch to
+            // recognise it as such; clearing first made it report no step at the
+            // exact moment the bar should light its last one.
+            operation_ended = true;
         }
         system_info_.operation_detail = op;
     }
 
-    system_info_.operation_phase = step_index_for_phase_locked(op);
+    // Only when the frame actually carried a phase word. Moonraker republishes
+    // just the fields that CHANGED, so a delta naming only current_tool - or a
+    // pin_watch-only frame, whose reading has no operation at all - would
+    // otherwise stomp the phase to -1 in the middle of a swap.
+    if (!op.empty()) {
+        system_info_.operation_phase = step_index_for_phase_locked(op, was_mid_operation);
+    }
+
+    // Now that the closing grip has had its chance to be recognised: the next
+    // operation starts from a closed gripper and must not inherit this one's.
+    if (operation_ended) {
+        feeder_opened_this_operation_ = false;
+    }
 }
 
 void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_data) {

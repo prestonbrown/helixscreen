@@ -1251,15 +1251,20 @@ void MoonrakerClientMock::start_medusa_swap(int tool) {
     medusa_feeder_open_.store(true);
     // Nothing on the head means there is nothing to drop; go straight to picking.
     const bool needs_drop = (current >= 0);
-    medusa_phase_.store(needs_drop ? 1 : (tool >= 0 ? 2 : 0));
-    medusa_phase_ticks_.store(medusa_phase_.load() == 0 ? 0 : kMedusaPhaseNotifications);
-    if (medusa_phase_.load() == 0) {
+    const int next_phase = needs_drop ? 1 : (tool >= 0 ? 2 : 0);
+    // Ticks BEFORE the phase: the simulation thread polls medusa_phase_ to decide
+    // whether to advance, so publishing the phase first lets it observe the new
+    // phase with the previous count of 0, complete the phase on its very first
+    // tick and leave the counter at -1.
+    medusa_phase_ticks_.store(next_phase == 0 ? 0 : kMedusaPhaseNotifications);
+    medusa_phase_.store(next_phase);
+    if (next_phase == 0) {
         // Unmount requested with an empty head: a no-op on real firmware too.
         medusa_feeder_open_.store(false);
         medusa_target_tool_.store(-1);
     }
     spdlog::info("[MoonrakerClientMock] MedusaHC swap armed: {} -> {} (phase={})", current, tool,
-                 medusa_phase_.load());
+                 next_phase);
 }
 
 void MoonrakerClientMock::advance_medusa_swap() {
