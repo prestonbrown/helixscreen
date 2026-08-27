@@ -517,10 +517,6 @@ TEST_CASE("The gripper separates the two idle ends of a swap", "[ams][toolchange
     // these states from resting.
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
-    // AmsState is a process-wide singleton: another test file can leave this
-    // set to something other than its default, and this test's indices are
-    // only meaningful against LOAD_SWAP's Release/Dock/Pick/Grip sequence.
-    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
     REQUIRE(tc.change_tool(2).success());
@@ -556,9 +552,6 @@ TEST_CASE("A phase-less frame leaves the step alone", "[ams][toolchanger][steps]
     // the bar back to nothing mid-swap.
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
-    // See "The gripper separates the two idle ends of a swap" above: the
-    // expected index is only meaningful against a known active operation.
-    AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
     REQUIRE(tc.change_tool(2).success());
