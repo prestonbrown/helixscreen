@@ -22,6 +22,7 @@
 #include "static_panel_registry.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
@@ -193,6 +194,11 @@ void AmsDeviceSectionDetailOverlay::refresh() {
                 lv_obj_set_style_border_width(button_row, 0, 0);
                 lv_obj_set_flex_flow(button_row, LV_FLEX_FLOW_ROW);
                 lv_obj_remove_flag(button_row, LV_OBJ_FLAG_SCROLLABLE);
+                // Named so `helix-screen ctl ls` can address these rows. Every
+                // control below is named from its DeviceAction id, which is
+                // already the stable identifier the backend dispatches on.
+                lv_obj_set_name(button_row,
+                                fmt::format("{}_button_row_{}", section_id_, count).c_str());
                 button_count_in_row = 0;
             }
 
@@ -235,6 +241,7 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_name(row, fmt::format("{}_row", action.id).c_str());
 
     switch (action.type) {
     case helix::printer::ActionType::BUTTON:
@@ -249,9 +256,11 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
         lv_obj_t* label = lv_label_create(row);
         lv_label_set_text(label, lv_tr(action.label.c_str()));
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
+        lv_obj_set_name(label, fmt::format("{}_label", action.id).c_str());
 
         // Switch on right
         lv_obj_t* sw = lv_switch_create(row);
+        lv_obj_set_name(sw, action.id.c_str());
 
         // Try to get current value
         try {
@@ -280,9 +289,12 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
         lv_label_set_text(label, lv_tr(action.label.c_str()));
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
 
+        lv_obj_set_name(label, fmt::format("{}_label", action.id).c_str());
+
         // Value on right
         lv_obj_t* value_label = lv_label_create(row);
         lv_obj_set_style_text_color(value_label, theme_manager_get_color("text_muted"), 0);
+        lv_obj_set_name(value_label, action.id.c_str());
         try {
             if (action.current_value.has_value()) {
                 std::string val = std::any_cast<std::string>(action.current_value);
@@ -306,9 +318,11 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
         lv_obj_set_width(label, LV_PCT(30));
         lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+        lv_obj_set_name(label, fmt::format("{}_label", action.id).c_str());
 
         // Slider in the middle with flex-grow
         lv_obj_t* slider = lv_slider_create(row);
+        lv_obj_set_name(slider, action.id.c_str());
         lv_obj_set_flex_grow(slider, 1);
         lv_obj_set_height(slider, theme_manager_get_spacing("space_md"));
 
@@ -333,6 +347,7 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
 
         // Editable numeric text input on right (replaces read-only value_label)
         lv_obj_t* ta = lv_textarea_create(row);
+        lv_obj_set_name(ta, fmt::format("{}_value", action.id).c_str());
         lv_textarea_set_one_line(ta, true);
         lv_obj_set_width(ta, 80);
         lv_obj_set_height(ta, LV_SIZE_CONTENT);
@@ -384,8 +399,11 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
         lv_label_set_text(label, lv_tr(action.label.c_str()));
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
 
+        lv_obj_set_name(label, fmt::format("{}_label", action.id).c_str());
+
         // Dropdown on right
         lv_obj_t* dropdown = lv_dropdown_create(row);
+        lv_obj_set_name(dropdown, action.id.c_str());
 
         // Populate options (LVGL expects newline-separated string)
         std::string options_str;
@@ -439,6 +457,7 @@ void AmsDeviceSectionDetailOverlay::create_button_in_row(
     spdlog::debug("[{}] Creating button in row: {}", get_name(), action.label);
 
     lv_obj_t* btn = lv_button_create(row);
+    lv_obj_set_name(btn, action.id.c_str());
     lv_obj_set_flex_grow(btn, 1);
     lv_obj_set_height(btn, theme_manager_get_spacing("button_height_sm"));
     lv_obj_set_style_radius(btn, theme_manager_get_spacing("border_radius"), 0);
@@ -447,6 +466,7 @@ void AmsDeviceSectionDetailOverlay::create_button_in_row(
     lv_obj_t* btn_label = lv_label_create(btn);
     lv_label_set_text(btn_label, lv_tr(action.label.c_str()));
     lv_obj_center(btn_label);
+    lv_obj_set_name(btn_label, fmt::format("{}_label", action.id).c_str());
 
     // Store action ID in vector, pass index as user_data
     action_ids_.push_back(action.id);

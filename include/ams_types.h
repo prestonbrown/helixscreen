@@ -257,6 +257,56 @@ enum class AmsAction {
 };
 
 /**
+ * @brief Is the system doing anything at all right now?
+ *
+ * The "something is happening to this slot" question - the slot pulse asks it,
+ * and it is deliberately backend-independent: every backend reports these the
+ * same way, and a pulse on a slot that turns out not to move is harmless.
+ *
+ * NOT the same question as AmsBackend::action_tracks_step_operation(), which
+ * asks what the STEP BAR should follow and genuinely differs per backend. This
+ * one is the superset.
+ */
+inline bool ams_action_is_busy(AmsAction action) {
+    switch (action) {
+    case AmsAction::HEATING:
+    case AmsAction::LOADING:
+    case AmsAction::UNLOADING:
+    case AmsAction::CUTTING:
+    case AmsAction::FORMING_TIP:
+    case AmsAction::PURGING:
+    case AmsAction::SELECTING:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
+ * @brief The filament-system step vocabulary: heat, feed, purge, cut, tip, retract.
+ *
+ * The default answer to AmsBackend::action_tracks_step_operation(). Lives here
+ * so the one caller that has no backend to ask still gets the same rule rather
+ * than a fourth copy of the list.
+ *
+ * SELECTING is deliberately absent: a filament system passes through it on the
+ * way to a slot, and the step bar is already tracking the load that follows.
+ */
+inline bool ams_action_is_filament_operation(AmsAction action) {
+    switch (action) {
+    case AmsAction::HEATING:
+    case AmsAction::LOADING:
+    case AmsAction::UNLOADING:
+    case AmsAction::CUTTING:
+    case AmsAction::FORMING_TIP:
+    case AmsAction::PURGING:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
  * @brief Get string name for AMS action
  * @param action The action enum value
  * @return Human-readable string for the action

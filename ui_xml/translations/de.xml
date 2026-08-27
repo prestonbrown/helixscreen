@@ -417,6 +417,7 @@
   <translation tag="Change Printer Host" de="Drucker-Host ändern"/>
   <translation tag="Change Tool" de="Werkzeug wechseln"/>
   <translation tag="Change Tool While Paused" de="Werkzeug während Pause wechseln"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." de="Änderungen werden sofort angewendet. Während des Drucks zur Feinabstimmung anpassen."/>
   <translation tag="Changes are temporary and reset on printer reboot" de="Änderungen sind temporär und werden beim Neustart des Druckers zurückgesetzt"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." de="Änderungen können jederzeit über den Macro Viewer rückgängig gemacht werden."/>
@@ -695,6 +696,8 @@
   <translation tag="Do not power off your printer." de="Drucker nicht ausschalten."/>
   <translation tag="Do not touch the printer during calibration" de="Drucker während der Kalibrierung nicht berühren"/>
   <translation tag="Dock" de="Andocken"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" de="Werkzeug andocken"/>
   <translation tag="Documentation" de="Dokumentation"/>
   <translation tag="Don&apos;t Save" de="Nicht speichern"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Good Accuracy" de="Gute Genauigkeit"/>
   <translation tag="Got it" de="Verstanden"/>
   <translation tag="Gray" de="Grau"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" de="Anleitungen und Referenz"/>
   <translation tag="H" de="H"/>
@@ -1447,6 +1451,7 @@
   <translation tag="Motors Off" de="Motoren aus"/>
   <translation tag="Motors disable failed: {}" de="Motoren deaktivieren fehlgeschlagen: {}"/>
   <translation tag="Motors disabled" de="Motoren deaktiviert"/>
+  <translation tag="Mount"/>
   <translation tag="Move" de="Bewegen"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." de="Bewegen Sie das Papier während der Einstellung hin und her. Stoppen Sie, wenn das Papier leicht greift, aber noch gleitet."/>
   <translation tag="Move selector" de="Selektor bewegen"/>
@@ -1719,6 +1724,7 @@
   <translation tag="Phomemo M110" de="Phomemo M110"/>
   <translation tag="Pick" de="Auswählen"/>
   <translation tag="Pick Color" de="Farbe wählen"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" de="Werkzeug aufnehmen"/>
   <translation tag="Pill" de="Pille"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" de="Pixel, bevor ein Druck zum Scrollen wird (niedriger = Scrollen beginnt früher)"/>
@@ -1965,6 +1971,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" de="Relative Vibration"/>
   <translation tag="Release all stepper motors. Position will be lost." de="Alle Schrittmotoren freigeben. Position geht verloren."/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" de="Verbleibend (g)"/>
@@ -2607,6 +2614,7 @@
   <translation tag="Unloads After Print" de="Entlädt nach dem Druck"/>
   <translation tag="Unlock" de="Entsperren"/>
   <translation tag="Unmapped" de="Nicht zugeordnet"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" de="Zusätzliches Primen"/>
   <translation tag="Unretract Speed" de="Prime-Geschwindigkeit"/>
   <translation tag="Unsupported tape width" de="Nicht unterstützte Bandbreite"/>

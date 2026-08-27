@@ -423,6 +423,7 @@ translations:
   Change Printer Host: プリンターホスト変更
   Change Tool: ツール交換
   Change Tool While Paused: 一時停止中のツール交換
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
   Changes can be reversed anytime using the Macro Viewer.: 変更はいつでも Macro Viewer を使って元に戻せます。
@@ -709,6 +710,8 @@ translations:
   Do not power off your printer.: プリンターの電源を切らないでください。
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Dock: ドック
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: ツールを格納中
   Documentation: ドキュメント
   Don't Save: 保存しない
@@ -1075,6 +1078,7 @@ translations:
   Good Accuracy: 良好な精度
   Got it: 了解
   Gray: グレー
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: ガイドとリファレンス
   H: H
@@ -1482,6 +1486,7 @@ translations:
   Motors Off: モーターオフ
   'Motors disable failed: {}': 'モーターの無効化に失敗しました: {}'
   Motors disabled: モーターを無効化しました
+  Mount: ''
   Move: 移動
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Move selector: セレクターを移動
@@ -1762,6 +1767,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: 選択
   Pick Color: 色を選択
+  Pick up tool: ''
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数
@@ -2017,6 +2023,7 @@ translations:
   Relative vibration: 相対振動
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: すべてのステッピングモーターを解放します。位置情報は失われます。
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): 残量 (g)
@@ -2701,6 +2708,7 @@ translations:
   Unloads After Print: 印刷後にアンロード
   Unlock: ロック解除
   Unmapped: 未割当
+  Unmount: ''
   Unretract Extra: アンリトラクト追加量
   Unretract Speed: アンリトラクト速度
   Unsupported tape width: サポートされていないテープ幅

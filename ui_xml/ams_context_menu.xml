@@ -38,8 +38,16 @@
           <lv_obj name="col_heading"
                   width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
                   scrollable="false" clickable="false">
+            <!-- Two fixed headings rather than one rewritten from C++: on a
+                 changer this column mounts and unmounts tools, and nothing
+                 about it is filament. -->
             <text_small name="col_filament_label"
-                        text="Filament" translation_tag="Filament" style_text_color="#text_muted"/>
+                        text="Filament" translation_tag="Filament" style_text_color="#text_muted">
+              <bind_flag_if_eq subject="ams_slot_mounts_tool" flag="hidden" ref_value="1"/>
+            </text_small>
+            <text_small name="col_tool_label" text="Tool" translation_tag="Tool" style_text_color="#text_muted">
+              <bind_flag_if_eq subject="ams_slot_mounts_tool" flag="hidden" ref_value="0"/>
+            </text_small>
             <lv_obj width="100%"
                     height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"
                     clickable="false"/>
@@ -65,6 +73,13 @@
                       width="100%" long_mode="wrap" text="Eject needs [force_move] enabled in printer config"
                       translation_tag="Eject needs [force_move] enabled in printer config"
                       style_text_color="#text_muted" hidden="true"/>
+          <!-- Unload/Unmount refusal the user can act on (e.g. a tool changer
+               whose dock sensors cannot identify the mounted tool). Text and
+               visibility both come from AmsBackend::unload_blocked_reason(). -->
+          <text_small name="unload_blocked_hint"
+                      width="100%" long_mode="wrap" bind_text="ams_slot_unload_hint" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ams_slot_unload_hint_visible" flag="hidden" ref_value="0"/>
+          </text_small>
           <!-- Select Slot Button (hidden unless backend supports direct slot select, e.g. Happy Hare MMU_SELECT) -->
           <ui_button name="btn_gate_select"
                      height="#button_height_sm" icon="target" text="Select slot" translation_tag="Select slot"

@@ -420,6 +420,7 @@ translations:
   Change Printer Host: 更改打印机主机
   Change Tool: 切换工具
   Change Tool While Paused: 暂停时切换工具
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
   Changes can be reversed anytime using the Macro Viewer.: 可随时使用 Macro Viewer 恢复更改。
@@ -704,6 +705,8 @@ translations:
   Do not power off your printer.: 请勿关闭打印机电源。
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
   Dock: 归位
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: 正在归位工具
   Documentation: 文档
   Don't Save: 不保存
@@ -1069,6 +1072,7 @@ translations:
   Good Accuracy: 精度良好
   Got it: 知道了
   Gray: 灰色
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: 指南与参考
   H: 头
@@ -1475,6 +1479,7 @@ translations:
   Motors Off: 关闭电机
   'Motors disable failed: {}': '禁用电机失败: {}'
   Motors disabled: 电机已禁用
+  Mount: ''
   Move: 移动
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。
   Move selector: 移动选择器
@@ -1754,6 +1759,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: 选取
   Pick Color: 选择颜色
+  Pick up tool: ''
   Picking up tool: 正在取用工具
   Pill: 胶囊
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 按下转为滚动前的像素数(越低
@@ -2008,6 +2014,7 @@ translations:
   Relative vibration: 相对振动
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: 释放所有步进电机。位置信息将丢失。
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): 剩余 (g)
@@ -2691,6 +2698,7 @@ translations:
   Unloads After Print: 打印后卸载
   Unlock: 解锁
   Unmapped: 未映射
+  Unmount: ''
   Unretract Extra: 回抽恢复额外量
   Unretract Speed: 回抽恢复速度
   Unsupported tape width: 不支持的标签带宽度

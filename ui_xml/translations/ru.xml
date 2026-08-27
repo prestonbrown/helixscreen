@@ -417,6 +417,7 @@
   <translation tag="Change Printer Host" ru="Изменить хост принтера"/>
   <translation tag="Change Tool" ru="Сменить инструмент"/>
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
+  <translation tag="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." ru="Изменения можно отменить в любое время через Macro Viewer."/>
@@ -695,6 +696,8 @@
   <translation tag="Do not power off your printer." ru="Не выключайте принтер."/>
   <translation tag="Do not touch the printer during calibration" ru="Не трогайте принтер во время калибровки"/>
   <translation tag="Dock" ru="Парковать"/>
+  <translation tag="Dock sensors cannot tell which tool is mounted"/>
+  <translation tag="Dock tool"/>
   <translation tag="Docking tool" ru="Парковка инструмента"/>
   <translation tag="Documentation" ru="Документация"/>
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
@@ -1052,6 +1055,7 @@
   <translation tag="Good Accuracy" ru="Хорошая точность"/>
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Grip filament"/>
   <translation tag="Grip the filament"/>
   <translation tag="Guides and reference" ru="Руководства и справка"/>
   <translation tag="H" ru="Х"/>
@@ -1447,6 +1451,7 @@
   <translation tag="Motors Off" ru="Отключить моторы"/>
   <translation tag="Motors disable failed: {}" ru="Ошибка отключения моторов: {}"/>
   <translation tag="Motors disabled" ru="Моторы отключены"/>
+  <translation tag="Mount"/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." ru="Перемещайте бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется, но ещё скользит."/>
   <translation tag="Move selector" ru="Двигать селектор"/>
@@ -1719,6 +1724,7 @@
   <translation tag="Phomemo M110" ru="Phomemo M110"/>
   <translation tag="Pick" ru="Выбрать"/>
   <translation tag="Pick Color" ru="Выбрать цвет"/>
+  <translation tag="Pick up tool"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
@@ -1965,6 +1971,7 @@
   <translation tag="Reheating..."/>
   <translation tag="Relative vibration" ru="Относительная вибрация"/>
   <translation tag="Release all stepper motors. Position will be lost." ru="Отпустить все шаговые моторы. Позиция будет потеряна."/>
+  <translation tag="Release filament"/>
   <translation tag="Release or grip the filament by hand"/>
   <translation tag="Release the filament"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
@@ -2607,6 +2614,7 @@
   <translation tag="Unloads After Print" ru="Выгрузка после печати"/>
   <translation tag="Unlock" ru="Разблокировать"/>
   <translation tag="Unmapped" ru="Не назначен"/>
+  <translation tag="Unmount"/>
   <translation tag="Unretract Extra" ru="Дополнительная подача"/>
   <translation tag="Unretract Speed" ru="Скорость возврата"/>
   <translation tag="Unsupported tape width" ru="Неподдерживаемая ширина ленты"/>

@@ -474,6 +474,7 @@ translations:
   Change Printer Host: Alterar Host da Impressora
   Change Tool: Trocar Ferramenta
   Change Tool While Paused: Trocar Ferramenta com Impressão Pausada
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Alterações aplicadas
     imediatamente. Ajuste durante a impressão para calibrar.
   Changes are temporary and reset on printer reboot: Alterações são temporárias e
@@ -786,6 +787,8 @@ translations:
   Do not power off your printer.: Não desligue sua impressora.
   Do not touch the printer during calibration: Não toque na impressora durante a calibração
   Dock: Encaixar
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Encaixando ferramenta
   Documentation: Documentação
   Don't Save: Não Salvar
@@ -1173,6 +1176,7 @@ translations:
   Good Accuracy: Boa Precisão
   Got it: Entendi
   Gray: Cinza
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: Guias e referência
   H: H
@@ -1626,6 +1630,7 @@ translations:
   Motors Off: Desligar Motores
   'Motors disable failed: {}': 'Falha ao desativar motores: {}'
   Motors disabled: Motores desativados
+  Mount: ''
   Move: Mover
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Mova
     o papel para frente e para trás enquanto ajusta. Pare quando o papel prender levemente,
@@ -1919,6 +1924,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Escolher
   Pick Color: Escolher Cor
+  Pick up tool: ''
   Picking up tool: Pegando ferramenta
   Pill: Pílula
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels antes
@@ -2198,6 +2204,7 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Liberar todos os motores de
     passo. A posição será perdida.
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): Restante (g)
@@ -2974,6 +2981,7 @@ translations:
   Unloads After Print: Descarrega após a impressão
   Unlock: Desbloquear
   Unmapped: Não mapeado
+  Unmount: ''
   Unretract Extra: Extra de Desretração
   Unretract Speed: Velocidade de Desretração
   Unsupported tape width: Largura de fita não suportada

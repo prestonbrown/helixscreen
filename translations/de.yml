@@ -480,6 +480,7 @@ translations:
   Change Printer Host: Drucker-Host ändern
   Change Tool: Werkzeug wechseln
   Change Tool While Paused: Werkzeug während Pause wechseln
+  Change tool: ''
   Changes apply immediately. Adjust during print for tuning.: Änderungen werden sofort
     angewendet. Während des Drucks zur Feinabstimmung anpassen.
   Changes are temporary and reset on printer reboot: Änderungen sind temporär und
@@ -791,6 +792,8 @@ translations:
   Do not touch the printer during calibration: Drucker während der Kalibrierung nicht
     berühren
   Dock: Andocken
+  Dock sensors cannot tell which tool is mounted: ''
+  Dock tool: ''
   Docking tool: Werkzeug andocken
   Documentation: Dokumentation
   Don't Save: Nicht speichern
@@ -1184,6 +1187,7 @@ translations:
   Good Accuracy: Gute Genauigkeit
   Got it: Verstanden
   Gray: Grau
+  Grip filament: ''
   Grip the filament: ''
   Guides and reference: Anleitungen und Referenz
   H: H
@@ -1633,6 +1637,7 @@ translations:
   Motors Off: Motoren aus
   'Motors disable failed: {}': 'Motoren deaktivieren fehlgeschlagen: {}'
   Motors disabled: Motoren deaktiviert
+  Mount: ''
   Move: Bewegen
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Bewegen
     Sie das Papier während der Einstellung hin und her. Stoppen Sie, wenn das Papier
@@ -1926,6 +1931,7 @@ translations:
   Phomemo M110: Phomemo M110
   Pick: Auswählen
   Pick Color: Farbe wählen
+  Pick up tool: ''
   Picking up tool: Werkzeug aufnehmen
   Pill: Pille
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixel, bevor
@@ -2204,6 +2210,7 @@ translations:
   'Reheating...': ''
   Release all stepper motors. Position will be lost.: Alle Schrittmotoren freigeben.
     Position geht verloren.
+  Release filament: ''
   Release or grip the filament by hand: ''
   Release the filament: ''
   Remaining (g): Verbleibend (g)
@@ -2976,6 +2983,7 @@ translations:
   Unloads After Print: Entlädt nach dem Druck
   Unlock: Entsperren
   Unmapped: Nicht zugeordnet
+  Unmount: ''
   Unretract Extra: Zusätzliches Primen
   Unretract Speed: Prime-Geschwindigkeit
   Unsupported tape width: Nicht unterstützte Bandbreite
