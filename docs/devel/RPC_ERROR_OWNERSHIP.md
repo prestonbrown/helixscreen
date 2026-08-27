@@ -152,7 +152,7 @@ The same capture-then-forward appears at every layer that wraps:
 | `MoonrakerMotionAPI::execute_gcode()` | `src/api/moonraker_motion_api.cpp:401-403` — also the site that sets `silent = (on_error != nullptr)` |
 | `AmsSubscriptionBackend::dispatch_payload()` | `src/printer/ams_subscription_backend.cpp:546` — `caller_surfaces_errors.value_or(on_error != nullptr)` |
 | `AmsSubscriptionBackend::ensure_homed_then()` | `src/printer/ams_subscription_backend.cpp:446-449` — the G28 leg forwards the *caller's* answer, not the wrapper's |
-| `LedController::send_led_command()` / strobe | `src/led/led_controller.cpp:1023`, `:1050` — `caller_surfaces_errors && (on_error != nullptr)` |
+| `LedController::send_led_command()` / strobe | `src/led/led_controller.cpp:1027`, `:1054` — `caller_surfaces_errors && (on_error != nullptr)` |
 
 ### The parameter
 
