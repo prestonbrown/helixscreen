@@ -232,6 +232,11 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     // Update subjects
     lv_subject_set_int(&tool_count_, static_cast<int>(tools_.size()));
     lv_subject_set_int(&active_tool_, active_tool_index_);
+    // tools_ was just rebuilt, so every dirty flag it carried is gone. Without
+    // this the subject keeps its old value forever on a printer that no longer
+    // has per-tool offsets — update_from_status()'s recompute is gated on
+    // per_tool_z_supported_, which init_tools() may have just set to 0.
+    refresh_any_tool_z_dirty();
     int version = lv_subject_get_int(&tools_version_) + 1;
     lv_subject_set_int(&tools_version_, version);
 
@@ -308,6 +313,9 @@ void ToolState::clear_ams_topology() {
     active_tool_index_ = 0;
     lv_subject_set_int(&tool_count_, 0);
     lv_subject_set_int(&active_tool_, 0);
+    // Same reason as init_tools(): the flags died with tools_.
+    refresh_any_tool_z_dirty();
+    refresh_active_tool_z_offset();
     int version = lv_subject_get_int(&tools_version_) + 1;
     lv_subject_set_int(&tools_version_, version);
     spdlog::info("[ToolState] AMS topology cleared");
@@ -532,6 +540,18 @@ float ToolState::tool_z_offset_mm(int tool_index) const {
         return 0.0f;
     }
     return tools_[tool_index].gcode_z_offset;
+}
+
+void ToolState::set_tool_z_offset_local(int tool_index, int microns) {
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+        return;
+    }
+    tools_[tool_index].gcode_z_offset = static_cast<float>(microns) / 1000.0f;
+    tools_[tool_index].gcode_z_offset_known = true;
+    if (tool_index == active_tool_index_) {
+        refresh_active_tool_z_offset();
+    }
+    refresh_any_tool_z_dirty();
 }
 
 void ToolState::mark_tool_z_saved(int tool_index) {

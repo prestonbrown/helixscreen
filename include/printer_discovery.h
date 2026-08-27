@@ -475,6 +475,13 @@ class PrinterDiscovery {
                 std::string upper_macro = to_upper(macro_name);
 
                 macros_.insert(upper_macro);
+                // Klipper keeps the CONFIG case for the status object key
+                // ("gcode_macro Tool_Offset") and for SET_GCODE_VARIABLE's
+                // MACRO= mux key, while the callable command is the uppercased
+                // alias. Code that has to name the object or write a variable
+                // therefore cannot use the uppercased key we match on - see
+                // macro_config_name().
+                macro_config_names_.emplace(upper_macro, macro_name);
 
                 // Check for HelixScreen helper macros
                 if (upper_macro.rfind("HELIX_", 0) == 0) {
@@ -784,6 +791,7 @@ class PrinterDiscovery {
 
         // Macros
         macros_.clear();
+        macro_config_names_.clear();
         host_restarting_macros_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
@@ -1188,6 +1196,28 @@ class PrinterDiscovery {
         return macros_.count(to_upper(name)) > 0;
     }
 
+    /**
+     * @brief The macro's name AS WRITTEN in printer.cfg, given any casing
+     *
+     * has_macro() is deliberately case-insensitive, because the gcode command a
+     * macro registers is its uppercased alias and that is what users type. Two
+     * things are NOT uppercased, though, and both bite silently:
+     *
+     *   - the status object key, which is the config section verbatim
+     *     ("gcode_macro Tool_Offset"), so a subscription or a status lookup
+     *     spelled in caps simply never matches; and
+     *   - SET_GCODE_VARIABLE's MACRO= value, registered as a mux key on the
+     *     config-case name (klippy/extras/gcode_macro.py registers `name`, not
+     *     `self.alias`), so a capitalised MACRO= is rejected outright.
+     *
+     * Anything naming a macro to Klipper rather than calling it must go through
+     * here. Empty when no such macro exists.
+     */
+    [[nodiscard]] std::string macro_config_name(const std::string& name) const {
+        auto it = macro_config_names_.find(to_upper(name));
+        return it == macro_config_names_.end() ? std::string{} : it->second;
+    }
+
     /// Record the macros whose bodies reach SAVE_CONFIG / FIRMWARE_RESTART and
     /// friends, directly or through other macros. Computed from
     /// configfile.settings during discovery by
@@ -1585,6 +1615,9 @@ class PrinterDiscovery {
 
     // Macros
     std::unordered_set<std::string> macros_;
+    /// UPPERCASE macro name -> the name as written in printer.cfg. See
+    /// macro_config_name().
+    std::unordered_map<std::string, std::string> macro_config_names_;
     std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;

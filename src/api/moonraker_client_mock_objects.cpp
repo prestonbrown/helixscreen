@@ -328,6 +328,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["settings"].merge_patch(chamber_sections);
                 status_obj["configfile"]["config"].merge_patch(chamber_sections);
 
+                // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
+                // these on configfile itself, not under settings/config, and
+                // anything routed through configfile.set() - here
+                // SAVE_TOOL_PARAMETER - sets them.
+                status_obj["configfile"]["save_config_pending"] = self->save_config_pending();
+                status_obj["configfile"]["save_config_pending_items"] =
+                    self->save_config_pending_items();
+
                 // [bed_mesh] probe_count — the print-start collector's
                 // entry-time query reads this to size the mesh denominator.
                 if (const auto* probe_count = self->config_bed_mesh_probe_count()) {
@@ -786,6 +794,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json chamber_sections = chamber_heater_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(chamber_sections);
                 status_obj["configfile"]["config"].merge_patch(chamber_sections);
+
+                // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
+                // these on configfile itself, not under settings/config, and
+                // anything routed through configfile.set() - here
+                // SAVE_TOOL_PARAMETER - sets them.
+                status_obj["configfile"]["save_config_pending"] = self->save_config_pending();
+                status_obj["configfile"]["save_config_pending_items"] =
+                    self->save_config_pending_items();
             }
 
             // Chamber backend diagnostics + filter pin initial state (e.g.

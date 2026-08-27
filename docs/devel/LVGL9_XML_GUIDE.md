@@ -186,8 +186,12 @@ Components are reusable UI pieces defined with the `<component>` tag.
 ### 2. Subjects (Reactive Data)
 
 Subjects are observable data containers that automatically update bound widgets.
+Declaring them in XML — the `<subjects>` block, the `int`/`string`/`float`/`color`
+types, and component vs. global scope — is engine behaviour:
+[`BINDINGS.md` § *Subjects*](../../lib/helix-xml/docs/BINDINGS.md#subjects). What
+follows is the C++ side: how HelixScreen creates and registers them.
 
-#### Subject Types
+#### Subject Types (C++)
 
 ```cpp
 lv_subject_init_string()  // String data (text labels)
@@ -221,15 +225,10 @@ lv_subject_copy_string(&status_subject, "New status");
 
 #### Static Buffers Required
 
-```cpp
-// ✅ CORRECT - Static or heap-allocated
-static char status_buffer[128];
-lv_subject_init_string(&subject, status_buffer, NULL, sizeof(status_buffer), "Initial");
-
-// ❌ WRONG - Stack-allocated (will be destroyed)
-char buffer[128];  // DANGER: Goes out of scope!
-lv_subject_init_string(&subject, buffer, ...);
-```
+A string subject does not allocate: the buffer handed to `lv_subject_init_string()`
+*is* the storage and must outlive every binding that reads it, so a stack buffer is a
+use-after-free waiting to happen. Use a `static` or heap buffer —
+[`BINDINGS.md` § *String subjects need a caller-owned buffer*](../../lib/helix-xml/docs/BINDINGS.md#string-subjects-need-a-caller-owned-buffer).
 
 ### 3. Data Binding
 
@@ -317,33 +316,25 @@ Rules:
 </lv_obj>
 ```
 
-**Available Operators:**
-
-| Element | Condition |
-|---------|-----------|
-| `<bind_flag_if_eq>` | `subject == ref_value` |
-| `<bind_flag_if_not_eq>` | `subject != ref_value` |
-| `<bind_flag_if_gt>` | `subject > ref_value` |
-| `<bind_flag_if_ge>` | `subject >= ref_value` |
-| `<bind_flag_if_lt>` | `subject < ref_value` |
-| `<bind_flag_if_le>` | `subject <= ref_value` |
+Six comparison suffixes exist — `_eq`, `_not_eq` (spelled out; there is no `_ne`),
+`_gt`, `_ge`, `_lt`, `_le` — plus the expression form `bind_flag_if cond="..."`. What
+they do, and the two-way rule that makes a *non*-matching bind actively remove the
+flag rather than abstain, are in
+[`BINDINGS.md` § *Binding elements*](../../lib/helix-xml/docs/BINDINGS.md#binding-elements).
 
 **Supported Flags:** `hidden`, `clickable`, `checkable`, `scrollable`, `disabled`, `ignore_layout`, `floating`
 
 #### Conditional State Bindings
 
-Control visual states (disabled styling, checked styling):
+`bind_state_if_eq` and its five comparison siblings (plus the `cond=` form) toggle an
+`lv_state_t` instead of a flag — same shape, same two-way behaviour, see
+[`BINDINGS.md` § *Binding elements*](../../lib/helix-xml/docs/BINDINGS.md#binding-elements).
 
 ```xml
 <lv_button>
     <!-- Disable when WiFi is off -->
     <bind_state_if_eq subject="wifi_enabled" state="disabled" ref_value="0"/>
 </lv_button>
-
-<lv_checkbox>
-    <!-- Check when dark mode is on -->
-    <bind_state_if_eq subject="dark_mode" state="checked" ref_value="1"/>
-</lv_checkbox>
 ```
 
 **Difference:** Flags control behavior; States control visual appearance.
@@ -409,7 +400,11 @@ Symptom to recognise: `helix-screen ctl geom <container> 3` reports every child 
 
 #### Applying One Style to Multiple Parts (`parts=...`)
 
-For widgets with several parts that should share the same reactive style — arc background+indicator at the same stroke width, slider track+indicator+knob at the same color — `bind_style` and every `bind_style_if_*` variant accept a `parts="..."` attribute that takes a comma-separated list of part names:
+`bind_style` and every `bind_style_if_*` variant accept `parts="main,indicator"` — one
+element applying the style to several widget parts instead of one binding per part
+([`BINDINGS.md` § *Styles across parts*](../../lib/helix-xml/docs/BINDINGS.md#styles-across-parts)).
+Use it when parts must share a reactive style: arc background+indicator at the same
+stroke width, slider track+indicator+knob at the same color. The part names are:
 
 | Part name | LV_PART_* |
 |-----------|-----------|
@@ -441,18 +436,13 @@ Max 8 parts per attribute (more than enough — even sliders only have 3-4).
 
 #### Conditional Style Bindings with Comparison Operators
 
-`bind_style_if_*` elements apply a style only when the subject value matches a comparison condition. Unlike `bind_style` (which only does exact match), these support all six comparison operators:
-
-| Element | Condition |
-|---------|-----------|
-| `<bind_style_if_eq>` | `subject == ref_value` |
-| `<bind_style_if_not_eq>` | `subject != ref_value` |
-| `<bind_style_if_gt>` | `subject > ref_value` |
-| `<bind_style_if_ge>` | `subject >= ref_value` |
-| `<bind_style_if_lt>` | `subject < ref_value` |
-| `<bind_style_if_le>` | `subject <= ref_value` |
-
-Attributes are the same as `bind_style`: `name` (style name), `subject` (subject name), `ref_value` (comparison value), and optional `selector` (part+state selector) or `parts` (comma-list of parts — see "Applying One Style to Multiple Parts" above).
+`bind_style_if_*` applies a style only when the subject matches a comparison, using the
+same six suffixes as the flag binds (`_eq`, `_not_eq`, `_gt`, `_ge`, `_lt`, `_le` — see
+[`BINDINGS.md` § *Binding elements*](../../lib/helix-xml/docs/BINDINGS.md#binding-elements)),
+where plain `bind_style` only does exact match. Attributes are the same as `bind_style`:
+`name` (style name), `subject` (subject name), `ref_value` (comparison value), and
+optional `selector` (part+state selector) or `parts` (comma-list of parts — see
+"Applying One Style to Multiple Parts" above).
 
 ```xml
 <styles>
@@ -474,15 +464,21 @@ Attributes are the same as `bind_style`: `name` (style name), `subject` (subject
 
 #### Expression Conditionals
 
-Every `bind_flag_if_*` / `bind_state_if_*` / `bind_style_if_*` variant above compares **one** subject against **one** `ref_value`. When a condition needs to combine multiple subjects (`error_flag OR temp > threshold`) or do arithmetic, use the expression evaluator instead of stacking several single-subject binds or writing a hand-rolled C++ derived subject.
+Every `bind_flag_if_*` / `bind_state_if_*` / `bind_style_if_*` variant above compares
+**one** subject against **one** `ref_value`. When a condition needs to combine several
+subjects (`error_flag OR temp > threshold`) or do arithmetic, use the expression form —
+`cond="..."` on `bind_flag_if` / `bind_state_if` / `bind_style_if`, or a
+`<subject_expr name="X" expr="..."/>` derived subject inside a component's `<subjects>`
+block — rather than stacking single-subject binds or hand-rolling a C++ derived subject.
 
-The evaluator is an integer-only expression language over subjects: nonzero is truthy, the result is always an int, division/modulo by zero evaluate to `0` instead of crashing. It's exposed through four constructs:
-
-**1. `<subject_expr>` — a derived subject, kept in sync**
-
-Inside a component's `<subjects>` block, `<subject_expr name="X" expr="EXPR"/>` creates an int subject `X` that recomputes and updates automatically whenever any subject referenced by `EXPR` changes. It's a sibling of `<subject>`/`<int>` entries, and it can itself be referenced by widget bindings just like any other subject.
-
-**Every subject referenced by `expr` must already be declared** before the `<subject_expr>` line — either globally (C++-registered *and registered early enough*, see below) or earlier in the same `<subjects>` block. Forward references don't compile (the XML parser logs a warning and the derived subject is silently not registered).
+The grammar (integer-only, nonzero is truthy) and the `<subject_expr>` element are
+documented in
+[`BINDINGS.md` § *The expression language*](../../lib/helix-xml/docs/BINDINGS.md#the-expression-language)
+and [§ *`<subject_expr>`*](../../lib/helix-xml/docs/BINDINGS.md#subject_expr--a-derived-subject).
+Two points worth repeating here: **use the word forms** (`and`/`or`/`not`/`gt`/`lt`/...)
+because `&&` and `<` need XML entity escaping, and every operand of a `<subject_expr>`
+must already be declared when the component is registered — globally, or earlier in the
+same `<subjects>` block. Division and modulo by zero evaluate to `0` instead of crashing.
 
 ##### Which phase registers the subject decides which construct you can use
 
@@ -499,32 +495,21 @@ HelixScreen phases are in
 Worked examples in this tree: `ui_xml/temp_graph_overlay.xml`
 (`temp_graph_mode`) and `ui_xml/header_bar.xml` (`any_tool_z_dirty`).
 
-**2. `<bind_flag_if cond="EXPR" flag="FLAG" invert="true|false"/>`** — child of any object. Adds `flag` when `EXPR` is truthy, removes it when falsy. `invert="true"` flips that (apply when falsy) — the common case for `flag="hidden"` when the markup wants to read as "show when `cond`" instead of "hide when `cond`":
+##### HelixScreen examples
 
 ```xml
+<!-- flag: show the block only while the alarm is up (invert reads as "show when") -->
 <lv_obj>
-    <bind_flag_if cond="demo_alarm" flag="hidden" invert="true"/>
+    <bind_flag_if cond="demo_error or demo_temp gt demo_threshold" flag="hidden" invert="true"/>
     <text_heading text="ALARM"/>
 </lv_obj>
 
-<!-- Direct multi-subject expression, no subject_expr needed -->
-<lv_obj>
-    <bind_flag_if cond="demo_temp gt demo_threshold" flag="hidden" invert="true"/>
-    <text_body text="Temp is over threshold"/>
-</lv_obj>
-```
-
-**3. `<bind_state_if cond="EXPR" state="STATE" invert="..."/>`** — same semantics, toggling an `lv_state_t` (e.g. `disabled`, `checked`) instead of a flag:
-
-```xml
+<!-- state: disable a ui_button -->
 <ui_button text="Action">
     <bind_state_if cond="demo_alarm" state="disabled"/>
 </ui_button>
-```
 
-**4. `<bind_style_if cond="EXPR" name="STYLE" selector="..." parts="..." invert="..."/>`** — same expression-driven pattern for style enable/disable, mirroring `bind_style_if_eq` (`name`, `selector`/`parts` behave identically — see "Applying One Style to Multiple Parts" above):
-
-```xml
+<!-- style: swap a whole style on a ui_card (name/selector/parts as in bind_style_if_eq) -->
 <styles>
     <style name="demo_alarm_style" bg_color="#warning" bg_opa="255"/>
 </styles>
@@ -534,32 +519,14 @@ Worked examples in this tree: `ui_xml/temp_graph_overlay.xml`
 </ui_card>
 ```
 
-**Grammar** (integer-only; nonzero = truthy):
-
-| Category | Operators |
-|----------|-----------|
-| Operands | subject name, integer literal, `( expr )` for grouping |
-| Comparison | `== != < <= > >=` or word forms `eq ne lt le gt ge` |
-| Boolean | `&& \|\| !` or word forms `and or not` |
-| Arithmetic | `+ - * /` (divide-by-zero → `0`), `%` (mod-by-zero → `0`) |
-
-Both symbolic and word forms tokenize identically — `a && b` and `a and b` compile to the same expression.
-
-**House style: use word forms (`and`/`or`/`not`/`gt`/`lt`/...).** `&&` and `<` are XML metacharacters — inside an XML attribute value they must be written as `&amp;&amp;` and `&lt;`, which is unreadable and easy to get wrong. Word forms need no escaping:
-
-```xml
-<!-- ✅ Preferred: no escaping needed -->
-<bind_flag_if cond="demo_error or demo_temp gt demo_threshold" flag="hidden" invert="true"/>
-
-<!-- Also valid, but requires XML entity escaping -->
-<bind_flag_if cond="demo_error &amp;&amp; demo_temp &gt; demo_threshold" flag="hidden"/>
-```
-
 A full working demo of all four constructs (sliders/switch driving `demo_temp`, `demo_threshold`, `demo_error`, all four binding types reacting live) is in `ui_xml/test_panel.xml` (reachable via `helix-screen ctl navigate test`) — use it as the canonical reference and a live testbed when writing new expressions.
 
 #### Parse-Time Conditional Hidden Attributes
 
-These attributes hide an element at parse time based on a resolved prop value. Unlike `bind_flag_if_*` (which is reactive and requires a subject), these evaluate once when the XML is parsed and are useful for component props.
+These hide an element from a component **prop** rather than a subject, resolved once at
+parse time and never reasserted afterwards — see
+[`BINDINGS.md` § *Prop-driven visibility*](../../lib/helix-xml/docs/BINDINGS.md#prop-driven-visibility)
+for when to prefer them over a subject bind. The reference value is pipe-delimited:
 
 | Attribute | Behavior |
 |-----------|----------|
@@ -580,14 +547,10 @@ These attributes hide an element at parse time based on a resolved prop value. U
 <lv_obj hidden_if_prop_eq="$mode|advanced">
   <text_body text="Basic mode content"/>
 </lv_obj>
-
-<!-- Hidden when mode is NOT "advanced" -->
-<lv_obj hidden_if_prop_not_eq="$mode|advanced">
-  <text_body text="Advanced mode content"/>
-</lv_obj>
 ```
 
-These are parse-time only -- the hidden state does not change after creation. For reactive visibility that responds to subject changes at runtime, use `bind_flag_if_*` instead.
+For visibility that must respond to subject changes at runtime, use `bind_flag_if_*`
+instead.
 
 #### Binding Limitations
 
@@ -607,16 +570,11 @@ correct in nested markup. Worked example and the tests that pin it:
 
 #### Repeating fragments with `<repeat>`
 
-`<repeat count="N">…body…</repeat>` expands its body `N` times at load time, so a fixed-size list of widgets becomes XML structure instead of a C++ create-and-wire loop. Inside the body, the bare sigil `$i` resolves to the zero-based iteration index.
-
-```xml
-<lv_obj name="root">
-  <repeat count="4">
-    <lv_label name="lbl" text="$i" style_pad_all="#space_sm"/>
-  </repeat>
-</lv_obj>
-<!-- root now has 4 labels reading "0", "1", "2", "3" -->
-```
+`<repeat count="N">...body...</repeat>` expands its body `N` times, so a fixed-size list
+of widgets becomes XML structure instead of a C++ create-and-wire loop; `$i` is the
+zero-based index, and a `count` naming a subject re-expands reactively. See
+[`BINDINGS.md` § *`<repeat>`*](../../lib/helix-xml/docs/BINDINGS.md#repeat--repeated-fragments)
+for the base semantics; the rest of this section is the detail that bites in practice.
 
 `count` accepts three forms:
 
@@ -626,7 +584,7 @@ correct in nested markup. Worked example and the tests that pin it:
 | `#const` | `count="#rows"` | A component `<const>` value, resolved once at load time. |
 | Subject name | `count="row_count"` | **Reactive.** Expands to the subject's current value at load time, then re-expands automatically every time the subject changes — teardown of the old items and creation of the new ones happens on an async, off-tree-reparent path (no synchronous deletion inside the observer callback). |
 
-Each iteration re-resolves the body against pristine attribute values, so `$i`, `$param`, and `#const` references all yield independent per-iteration results — the labels above each get their own index, not a shared last value.
+Each iteration re-resolves the body against pristine attribute values, so `$i`, `$param`, and `#const` references all yield independent per-iteration results — each iteration gets its own index, not a shared last value.
 
 > ⚠️ **Subject-bound `<repeat>` MUST be the last child of its parent, or the only child of a dedicated container.** On rebuild, the old expansion's roots are detached and the new ones are created fresh — and LVGL always appends a freshly-created child to the *end* of its parent's child list. If a subject-bound `<repeat>` shares a parent with static siblings that come after it in the document, those siblings stay put but the rebuilt repeat items land *after* them, silently reordering the layout every time the count changes. A literal or `#const` `count` never rebuilds, so this only matters for subject-bound `count`. Fix: give the `<repeat>` its own container (an `<lv_obj>` wrapper with no other children), or make it the last element inside its parent. See `ui_xml/test_panel.xml` "XML Repeat Demo" for a worked example of both the fixed and subject-bound forms side by side.
 
@@ -653,24 +611,16 @@ The bare `$i` sigil is a whole-value substitution: `text="$i"` becomes the index
 
 #### Structural conditionals with `<if>` / `<else>`
 
-`<if cond="EXPR"> …true-body… <else/> …false-body… </if>` creates **only** the body that matches `cond` — the other branch is never built. This is different from `bind_flag hidden` / `cond=` on `bind_flag_if`, which build every branch up front and then toggle visibility: cheap for light subtrees, wasteful for an expensive one (a whole card, a chart, an alternate layout). Use `<if>` when the *creation* itself is the cost you want to avoid; keep `bind_flag`/`cond=` for cheap show/hide.
-
-```xml
-<subjects><subject name="c" type="int" value="1"/></subjects>
-<lv_obj name="root">
-  <if cond="c gt 0">
-    <lv_obj name="t"/>
-    <else/>
-    <lv_obj name="f"/>
-  </if>
-</lv_obj>
-<!-- c > 0: root's only child is "t". c <= 0: root's only child is "f". -->
-```
-(adapted from `lib/helix-xml/tests/cases/test_if_else.c`)
+`<if cond="EXPR"> ...true-body... <else/> ...false-body... </if>` builds **only** the
+matching branch — reach for it when the *creation* is the cost (a whole card, a chart,
+an alternate layout) and keep `bind_flag_if ... flag="hidden"` for cheap show/hide of a
+subtree that flips often. Semantics, the cost tradeoff, and the fact that a
+subject-referencing cond rebuilds repeatedly rather than once:
+[`BINDINGS.md` § *`<if>` / `<else>`*](../../lib/helix-xml/docs/BINDINGS.md#if--else--structural-conditionals).
 
 `<else/>` is an inline divider *inside* the single matched `<if>…</if>` block, not a separate sibling tag: everything before it is the true-body, everything after it (up to `</if>`) is the false-body. Both spellings behave identically — self-closing `<else/>` and empty-element `<else></else>` — the split point is the `<else>` open tag; the marker's own open/close events aren't part of either body. `<else>` is optional: `<if cond="X">…</if>` with no `<else>` creates nothing when `cond` is false, and the component still loads. A second `<else/>` inside one `<if>` is a mistake — it warns and the first split wins. A stray `<else/>` with no enclosing `<if>` also warns and is ignored; the component still loads.
 
-`cond` uses the same word-form expression grammar as [Expression Conditionals](#expression-conditionals) — subject names, int literals, `and`/`or`/`not`, `eq`/`ne`/`lt`/`le`/`gt`/`ge`, arithmetic operators. A cond with **no subject operands is static**: it's evaluated once at load time and the losing branch is never created — no observer. A cond that **references one or more subjects is reactive**: it fires immediately for the initial build, then re-evaluates and rebuilds (tears down the current branch, builds the other) on every change to *any* referenced subject — `cond="a and b gt c"` rebuilds whether `a`, `b`, or `c` changes.
+`cond` uses the same expression grammar as [Expression Conditionals](#expression-conditionals). A cond with **no subject operands is static**: it's evaluated once at load time and the losing branch is never created — no observer. A cond that **references one or more subjects is reactive**: it fires immediately for the initial build, then re-evaluates and rebuilds (tears down the current branch, builds the other) on every change to *any* referenced subject — `cond="a and b gt c"` rebuilds whether `a`, `b`, or `c` changes.
 
 > ⚠️ **A reactively-rebuilt `<if>` must be the last child of its parent, or the only child of a dedicated container** — the same ordering constraint as [`<repeat>`](#repeating-fragments-with-repeat). On rebuild, LVGL appends the freshly-built body to the *end* of the parent's child list, so static siblings that come after the `<if>` in the document stay put while the rebuilt body lands after them, silently reordering the layout on every flip. A static `<if>` never rebuilds, so this only matters for a subject-referencing `cond`.
 
